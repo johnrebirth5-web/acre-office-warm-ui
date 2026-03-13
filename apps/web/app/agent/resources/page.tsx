@@ -1,31 +1,32 @@
 import { listResources, listVendors } from "@acre/backoffice";
-import { Badge, Panel } from "@acre/ui";
+import { ListPageSplit, PageHeader, PageHeaderSummary, PageShell, SectionCard, SummaryChip } from "@acre/ui";
 
 export default function AgentResourcesPage() {
   const resourceFeed = listResources();
   const vendorFeed = listVendors();
 
   return (
-    <>
-      <section className="workspace-panel workspace-panel-hero">
-        <div className="panel-copy">
-          <Badge tone="accent">Resource Hub</Badge>
-          <h2>Training, vendors, docs, and searchable Acre knowledge.</h2>
-          <p>
-            This is a unified retrieval surface, not a dumping ground. Search needs to work across video, vendor cards,
-            templates, and internal operating knowledge.
-          </p>
-        </div>
-      </section>
+    <PageShell className="office-agent-page">
+      <PageHeader
+        actions={
+          <PageHeaderSummary>
+            <SummaryChip label="Resources" value={resourceFeed.length} />
+            <SummaryChip label="Vendors" value={vendorFeed.length} />
+          </PageHeaderSummary>
+        }
+        description="Searchable retrieval across training, vendors, documents, templates, and internal operating knowledge."
+        eyebrow="Resource hub"
+        title="Training, vendors, docs, and searchable Acre knowledge."
+      />
 
-      <section className="workspace-grid">
-        <Panel title="Resource families" subtitle="The PRD is explicit about the structure.">
+      <ListPageSplit className="office-agent-workspace">
+        <SectionCard title="Resource families" subtitle="The PRD is explicit about the structure.">
           <div className="list-column">
             {resourceFeed.map((resource) => (
               <article className="list-row" key={resource.id}>
                 <div className="list-row-top">
                   <strong>{resource.title}</strong>
-                  <Badge tone="neutral">{resource.type}</Badge>
+                  <span className="office-status-badge office-status-badge-neutral">{resource.type}</span>
                 </div>
                 <p>{resource.summary}</p>
                 <div className="list-row-meta">
@@ -36,14 +37,15 @@ export default function AgentResourcesPage() {
               </article>
             ))}
           </div>
-        </Panel>
-        <Panel title="Vendor directory" subtitle="The same resource layer feeds agent lookup and later public utility surfaces.">
+        </SectionCard>
+
+        <SectionCard title="Vendor directory" subtitle="The same resource layer feeds agent lookup and later public utility surfaces.">
           <div className="list-column">
             {vendorFeed.map((vendor) => (
               <article className="list-row" key={vendor.id}>
                 <div className="list-row-top">
                   <strong>{vendor.name}</strong>
-                  <Badge tone="success">{vendor.category}</Badge>
+                  <span className="office-status-badge office-status-badge-success">{vendor.category}</span>
                 </div>
                 <p>{vendor.headline}</p>
                 <div className="list-row-meta">
@@ -54,8 +56,8 @@ export default function AgentResourcesPage() {
               </article>
             ))}
           </div>
-        </Panel>
-      </section>
-    </>
+        </SectionCard>
+      </ListPageSplit>
+    </PageShell>
   );
 }

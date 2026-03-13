@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={officeSans.variable}>{children}</body>
+      <body className={`acre-root ${officeSans.variable}`}>{children}</body>
     </html>
   );
 }

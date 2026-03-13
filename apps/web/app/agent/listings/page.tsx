@@ -1,29 +1,25 @@
 import { listListings } from "@acre/backoffice";
-import { Badge, Panel } from "@acre/ui";
+import { Badge, ListPageSplit, PageHeader, PageHeaderSummary, PageShell, SectionCard, SummaryChip } from "@acre/ui";
 
 export default function AgentListingsPage() {
   const listingFeed = listListings("agent");
 
   return (
-    <>
-      <section className="workspace-panel workspace-panel-hero">
-        <div className="panel-copy">
-          <Badge tone="accent">Listings</Badge>
-          <h2>Agent marketing layer</h2>
-          <p>
-            This page is where listing search, poster generation, tracked share links, and custom notes converge. The
-            final version will support both natural-language discovery and structured listing filters.
-          </p>
-        </div>
-        <div className="metric-strip">
-          <span>Responsive target</span>
-          <strong>Single-column mobile, split workflow desktop.</strong>
-          <p>Poster, QR, and share actions need one-thumb reach on phone.</p>
-        </div>
-      </section>
+    <PageShell className="office-agent-page">
+      <PageHeader
+        actions={
+          <PageHeaderSummary>
+            <SummaryChip label="Active feed" value={listingFeed.length} />
+            <SummaryChip label="Responsive target" value="Mobile + desktop" />
+          </PageHeaderSummary>
+        }
+        description="Listing search, poster generation, tracked share links, and custom notes in one operating surface."
+        eyebrow="Listings"
+        title="Agent marketing layer"
+      />
 
-      <section className="workspace-grid">
-        <Panel title="Suggested inventory" subtitle="Seeded from the structured listing model defined in the PRD.">
+      <ListPageSplit className="office-agent-workspace">
+        <SectionCard title="Suggested inventory" subtitle="Seeded from the structured listing model defined in the PRD.">
           <div className="list-column">
             {listingFeed.map((listing) => (
               <article className="list-row" key={listing.id}>
@@ -39,11 +35,11 @@ export default function AgentListingsPage() {
                   <span>{listing.trackedClicks} clicks</span>
                 </div>
               </article>
-            ))}
-          </div>
-        </Panel>
+              ))}
+            </div>
+        </SectionCard>
 
-        <Panel title="Output modes" subtitle="The listings module is more than inventory; it is a marketing terminal.">
+        <SectionCard title="Output modes" subtitle="The listings module is more than inventory; it is a marketing terminal.">
           <div className="action-grid">
             <article className="action-card">
               <strong>Tracked WeChat link</strong>
@@ -58,8 +54,8 @@ export default function AgentListingsPage() {
               <p>Agent can append local insight or investment framing per target client.</p>
             </article>
           </div>
-        </Panel>
-      </section>
-    </>
+        </SectionCard>
+      </ListPageSplit>
+    </PageShell>
   );
 }

@@ -2,13 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
 import { agentSections } from "@acre/backoffice";
+import { Badge } from "@acre/ui";
 import { SiteReleaseBadge } from "../site-release-badge";
-
-function AgentBadge({ children }: { children: ReactNode }) {
-  return <span className="acre-badge acre-badge-accent">{children}</span>;
-}
 
 export function AgentNav() {
   const pathname = usePathname();
@@ -16,36 +12,45 @@ export function AgentNav() {
 
   return (
     <>
-      <aside className="sidebar">
-        <div className="brand-mark">
-          <span>Acre</span>
-          <strong>Agent OS</strong>
-          <p>Field-ready workspace for listings, CRM follow-up, events, and knowledge tools.</p>
+      <aside className="sidebar office-dashboard-sidebar agent-sidebar">
+        <div className="office-logo-panel agent-brand-panel">
+          <div className="brand-mark agent-brand-mark">
+            <span>Acre</span>
+            <strong>Agent OS</strong>
+            <p>Field-ready workspace for listings, CRM follow-up, events, and knowledge tools.</p>
+          </div>
         </div>
 
-        <SiteReleaseBadge className="site-release-badge-agent" />
+        <SiteReleaseBadge className="site-release-badge-office site-release-badge-agent-panel" />
 
-        <div className="nav-group">
-          <h2>{agentSections[0].title}</h2>
+        <section className="nav-group agent-nav-group">
+          <header className="office-nav-header agent-nav-header">
+            <span>◫</span>
+            <strong>{agentSections[0].title}</strong>
+          </header>
           <p>{agentSections[0].summary}</p>
-          <div className="nav-items">
+          <div className="nav-items agent-nav-links">
             {items.map((item) => (
-              <Link key={item.href} className={`nav-card${pathname === item.href ? " is-active" : ""}`} href={item.href}>
+              <Link
+                key={item.href}
+                className={`office-nav-card agent-nav-card${pathname === item.href ? " is-active" : ""}`}
+                href={item.href}
+              >
                 <strong>{item.label}</strong>
                 <span>{item.description}</span>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="sidebar-note">
-          <AgentBadge>Mobile-safe</AgentBadge>
+        <div className="sidebar-note office-sidebar-note agent-sidebar-note">
+          <Badge tone="accent">Mobile-safe</Badge>
           <strong>Same workflows, reduced chrome.</strong>
           <p>The mobile view keeps primary actions one tap away using a compact bottom rail.</p>
         </div>
       </aside>
 
-      <nav className="mobile-rail">
+      <nav className="mobile-rail office-mobile-rail">
         {items.map((item) => (
           <Link key={item.href} className={pathname === item.href ? "is-active" : ""} href={item.href}>
             {item.shortLabel}

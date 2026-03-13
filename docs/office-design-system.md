@@ -9,6 +9,12 @@
 - 表格 / 列表 / detail section 优先
 - 尽量减少页面级一次性样式
 
+2026 refresh 之后，这套系统还承担更明确的品牌统一责任：
+
+- 视觉方向改成更偏 Apple 式企业感，而不是旧式暖色后台
+- `Office`、`Agent`、`Login` 三套界面都必须属于同一家产品家族
+- 允许保留 `bm-*` 兼容层，但输出只能服从同一套 token 和组件节奏
+
 这个系统不是独立组件库产品，而是当前仓库里给 `Office` 页面使用的共享 UI 约束。
 
 ## 字体策略
@@ -64,6 +70,7 @@
 
 - 新的 `Office` 页面不要硬编码随意颜色、间距、圆角
 - 如果找不到合适 token，先补 token，再写页面
+- 顶层壳层也要跟 token 走：`app-shell`、sidebar、mobile rail、auth shell、agent shell 不再各自发展第二套品牌语言
 
 ## 共享组件
 
@@ -108,6 +115,7 @@
 - 新页面优先复用这些 primitives
 - 如果页面里出现第二次相同结构，就优先考虑提到 `@acre/ui`
 - 不要给单个页面再发明一套新的 button / card / filter bar
+- `Agent` 页面也优先通过这些 primitives 组织页头、summary、section card，而不是继续保留 marketing 风格 hero/card 体系
 
 ## Heading Hierarchy
 
@@ -212,6 +220,12 @@
 3. 左 summary rail / 分类区
 4. 右主工作区
 
+### Cross-app shells
+
+- `Office` shell、`Agent` shell、`Login` 页面共用一套字体、色板、边框、圆角、阴影和按钮层级
+- 允许 `Agent` 信息密度略低于 `Office`，但不能回到独立的 marketing UI 视觉
+- `Login` 允许更强的品牌氛围和更大的标题，但表单字段、按钮、badge 仍需复用共享输入/动作语法
+
 ## 表格 / 列表规则
 
 - 优先高密度、可扫读，而不是大卡片
@@ -258,6 +272,12 @@ Back Office 当前统一采用两种合法实现，不能再混用第三套页�
 - row class 负责定义列模板和 `min-width`
 - 外层容器负责 `overflow-x: auto`
 - 页面只补本页需要的列模板，不再重复定义一整套 table chrome
+
+## Migration boundary
+
+- `bm-*` 仍是过渡兼容层，不应再扩张
+- 新的 UI 工作优先改共享 token、共享 primitives、canonical page composition
+- 如果必须继续使用 `bm-*` markup，至少要让它的颜色、边框、按钮、表单、badge 和 spacing 输出与 `office-*` 完全一致
 
 ## Card / Module Surface 规则
 

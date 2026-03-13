@@ -1,24 +1,26 @@
 import { listEvents, listNotifications } from "@acre/backoffice";
-import { Badge, Panel } from "@acre/ui";
+import { Badge, ListPageStack, PageHeader, PageHeaderSummary, PageShell, SectionCard, SummaryChip } from "@acre/ui";
 
 export default function AgentNotificationsPage() {
   const activityCards = listNotifications();
   const upcomingEvents = listEvents();
 
   return (
-    <>
-      <section className="workspace-panel workspace-panel-hero">
-        <div className="panel-copy">
-          <Badge tone="accent">Activity Center</Badge>
-          <h2>Events, notices, RSVP, and reminders from one stream.</h2>
-          <p>
-            The final version will unify office broadcasts, event participation, and follow-up reminders so agents do
-            not need to check multiple places.
-          </p>
-        </div>
-      </section>
+    <PageShell className="office-agent-page">
+      <PageHeader
+        actions={
+          <PageHeaderSummary>
+            <SummaryChip label="Actionable items" value={activityCards.length} />
+            <SummaryChip label="Upcoming events" value={upcomingEvents.length} />
+          </PageHeaderSummary>
+        }
+        description="One stream for office notices, RSVP actions, reminders, and activity that matters to the agent."
+        eyebrow="Activity center"
+        title="Events, notices, RSVP, and reminders from one stream."
+      />
 
-      <Panel title="Current activity model" subtitle="This stream merges system notices with event actions.">
+      <ListPageStack>
+        <SectionCard title="Current activity model" subtitle="This stream merges system notices with event actions.">
         <div className="list-column">
           {activityCards.map((card) => (
             <article className="list-row" key={card.id}>
@@ -34,9 +36,9 @@ export default function AgentNotificationsPage() {
             </article>
           ))}
         </div>
-      </Panel>
+        </SectionCard>
 
-      <Panel title="Upcoming events" subtitle="Office-created events feed the same activity surface for agents.">
+        <SectionCard title="Upcoming events" subtitle="Office-created events feed the same activity surface for agents.">
         <div className="list-column">
           {upcomingEvents.map((event) => (
             <article className="list-row" key={event.id}>
@@ -53,7 +55,8 @@ export default function AgentNotificationsPage() {
             </article>
           ))}
         </div>
-      </Panel>
-    </>
+        </SectionCard>
+      </ListPageStack>
+    </PageShell>
   );
 }

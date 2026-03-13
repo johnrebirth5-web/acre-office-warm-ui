@@ -8,6 +8,11 @@
 
 ## Recently completed major work
 
+- Full-site UI unification refresh:
+  - `globals.css` now drives a single calmer enterprise visual language with shared shell, card, button, input, table, and badge styling
+  - `Office`, `Agent`, and `Login` now read as one product family instead of three partially separate visual systems
+  - agent routes now compose through shared `@acre/ui` page/header/section patterns instead of standalone workspace hero chrome
+  - legacy `bm-*` heavy surfaces remain supported, but now inherit the refreshed token system instead of preserving a second brand layer
 - Real Office Dashboard, Pipeline, Transactions, Contacts, Tasks, Reports, Activity, Accounting foundations
 - Notifications Center MVP:
   - real `/office/notifications`
