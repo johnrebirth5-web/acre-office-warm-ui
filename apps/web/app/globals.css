@@ -1360,8 +1360,8 @@ select {
 
 .bm-dashboard-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
-  gap: 18px;
+  grid-template-columns: fit-content(360px) minmax(0, 1fr);
+  gap: 14px 18px;
   align-items: start;
   margin-bottom: 14px;
 }
@@ -1369,6 +1369,7 @@ select {
 .bm-dashboard-access {
   display: grid;
   gap: 3px;
+  max-width: 360px;
   color: #6e6e6e;
   font-size: 0.75rem;
 }
@@ -1381,15 +1382,16 @@ select {
 
 .bm-dashboard-status-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(112px, 1fr));
+  gap: 8px;
+  align-self: start;
 }
 
 .bm-dashboard-status-chip {
   border: 1px solid #e1e1e1;
   background: #fafafa;
-  min-height: 46px;
-  padding: 8px 10px;
+  min-height: 0;
+  padding: 10px 12px;
   display: grid;
   gap: 2px;
 }
@@ -6712,8 +6714,8 @@ a {
 
 .bm-dashboard-status-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(112px, 1fr));
+  gap: 8px;
 }
 
 .bm-dashboard-status-chip {
