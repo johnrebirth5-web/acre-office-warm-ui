@@ -20,6 +20,15 @@
 
 当前仓库已经有一个真实的 `DigitalOcean` 单机部署，不需要再从聊天里恢复这部分背景。
 
+当前默认工作基线：
+
+- 默认 GitHub 仓库：`https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
+- 默认外部入口：`http://45.55.247.137:3105/`
+- 默认应用目录：`/opt/acre-ui-rebuild/app`
+- 默认环境文件：`/etc/acre/acre-ui-rebuild.env`
+- 默认服务：`acre-ui-rebuild-web.service`
+- 旧 `acre-web`、旧 `/opt/acre/app`、旧 `http://45.55.247.137/` 仅作为历史线路保留
+
 生产服务器：
 
 - provider: `DigitalOcean`

@@ -19,7 +19,7 @@
 
 ## 字体策略
 
-- 全局主字体通过 [apps/web/app/layout.tsx](/Users/openclaw_john/工作文件夹/Acre/apps/web/app/layout.tsx) 加载 `Inter`
+- 全局主字体通过 [apps/web/app/layout.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/layout.tsx) 加载 `Inter`
 - 变量名：`--font-office-sans`
 - `Office` 页面不再各自选字体，也不要混用新的主字体
 
@@ -53,7 +53,7 @@
 
 ## Tokens
 
-主要 tokens 定义在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre/apps/web/app/globals.css)：
+主要 tokens 定义在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/globals.css)：
 
 - 字体：`--office-font-sans`
 - 背景 / surface：`--office-bg`、`--office-surface`、`--office-surface-muted`
@@ -74,7 +74,7 @@
 
 ## 共享组件
 
-共享 primitives 在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre/packages/ui/src/index.tsx)：
+共享 primitives 在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/packages/ui/src/index.tsx)：
 
 - `PageShell`
 - `PageHeader`
@@ -520,7 +520,7 @@ Back Office 当前统一采用两种合法实现，不能再混用第三套页�
 以后新增 `Office` 页面时：
 
 1. 先看这个文档
-2. 优先复用 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre/packages/ui/src/index.tsx)
+2. 优先复用 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/packages/ui/src/index.tsx)
 3. 尽量不要新增页面专属 button / card / table 皮肤
 4. 如果需要新模式，先判断是否应该进入 `@acre/ui`
 5. 如果页面包含 dense table / filter bar / 双栏 detail，先按上面的 responsive 规则处理，不要再让页面在 laptop 宽度下被横向挤坏

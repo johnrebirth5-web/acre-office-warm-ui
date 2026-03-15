@@ -199,8 +199,9 @@
 
 当前真实接入状态：
 
-- `GitHub`：已接入，仓库已推送
-- `Vercel`：已接入，当前 `main` 分支 push 会自动触发生产部署
+- `GitHub`：已接入，当前默认远程目标是 `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
+- `DigitalOcean`：已接入，当前默认生产入口是 `http://45.55.247.137:3105/`，服务是 `acre-ui-rebuild-web.service`
+- `Vercel`：历史上可能存在绑定，但不是当前默认部署目标
 - `PostgreSQL / Prisma runtime`：代码已接入，本机已验证 local migrate + seed + query，但主页面和主 API 尚未切换到数据库
 - 对象存储：未实现
 - OCR / AI / 外部地产系统集成：未实现

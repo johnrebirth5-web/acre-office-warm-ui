@@ -17,6 +17,18 @@ Primary scope today:
 - settings / admin
 - agent management / onboarding
 
+## Canonical working baseline
+
+Use this baseline unless the current task explicitly says otherwise:
+
+- local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- default GitHub remote target: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
+- default DigitalOcean entry: `http://45.55.247.137:3105/`
+- default production app root: `/opt/acre-ui-rebuild/app`
+- default production env file: `/etc/acre/acre-ui-rebuild.env`
+- default production service: `acre-ui-rebuild-web.service`
+- old `acre-web`, old `/opt/acre/app`, and `http://45.55.247.137/` are legacy-only references and must not be treated as the default target
+
 ## Architecture summary
 
 - `apps/web`: Next.js App Router application
@@ -34,12 +46,12 @@ Current implementation reality:
 
 Start with these docs before large work:
 
-- [README.md](/Users/openclaw_john/工作文件夹/Acre/README.md)
-- [docs/architecture.md](/Users/openclaw_john/工作文件夹/Acre/docs/architecture.md)
-- [docs/decisions.md](/Users/openclaw_john/工作文件夹/Acre/docs/decisions.md)
-- [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre/docs/office-design-system.md)
-- [docs/deployment.md](/Users/openclaw_john/工作文件夹/Acre/docs/deployment.md)
-- relevant files under [docs/specs](/Users/openclaw_john/工作文件夹/Acre/docs/specs)
+- [README.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/README.md)
+- [docs/architecture.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/architecture.md)
+- [docs/decisions.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/decisions.md)
+- [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/office-design-system.md)
+- [docs/deployment.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/deployment.md)
+- relevant files under [docs/specs](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/specs)
 
 ## Current product priority
 
@@ -92,22 +104,23 @@ If Prisma schema changed, also run:
 
 - For Codex-authored repository changes, finish the task with a local `git commit`.
 - Unless the user explicitly asks not to sync to GitHub in the current task, push the completed commit(s) to `origin`.
+- Keep `origin` pointed at `https://github.com/johnrebirth5-web/acre-office-warm-ui.git` unless the task explicitly requires a different remote.
 - Treat GitHub push and DigitalOcean deployment as separate steps.
 - Even when GitHub push is required, do not deploy or run production commands unless the user explicitly asks for deployment.
 - Do not run `vercel`, do not trigger Vercel deployments or redeploys, and do not use Vercel as a delivery target in Codex tasks.
-- If GitHub is still externally connected to Vercel auto-deploy, note that repository rules alone do not disable that integration; it must be turned off in Vercel / GitHub settings.
+- If historical Vercel integrations still exist, treat them as legacy-only; they are not the default delivery path for this workspace.
 
 ## Documentation rules
 
 When major features, routes, permissions, schema, environment variables, or Back Office UI behavior change, update the relevant docs in the same task:
 
-- [README.md](/Users/openclaw_john/工作文件夹/Acre/README.md)
-- [docs/architecture.md](/Users/openclaw_john/工作文件夹/Acre/docs/architecture.md)
-- [docs/decisions.md](/Users/openclaw_john/工作文件夹/Acre/docs/decisions.md)
-- [docs/deployment.md](/Users/openclaw_john/工作文件夹/Acre/docs/deployment.md)
-- [docs/env.md](/Users/openclaw_john/工作文件夹/Acre/docs/env.md)
-- [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre/docs/office-design-system.md)
-- relevant module spec files under [docs/specs](/Users/openclaw_john/工作文件夹/Acre/docs/specs)
+- [README.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/README.md)
+- [docs/architecture.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/architecture.md)
+- [docs/decisions.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/decisions.md)
+- [docs/deployment.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/deployment.md)
+- [docs/env.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/env.md)
+- [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/office-design-system.md)
+- relevant module spec files under [docs/specs](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/specs)
 
 ## Planning rules
 
@@ -121,18 +134,18 @@ For large or multi-module tasks:
 For deployment or production-sync work:
 
 0. Do not deploy, sync to Vercel or DigitalOcean, or run production commands unless the user explicitly asks for deployment in the current task.
-1. Read [docs/deployment.md](/Users/openclaw_john/工作文件夹/Acre/docs/deployment.md) first.
-2. Follow the documented server paths, service names, and sync flow exactly.
+1. Read [docs/deployment.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/deployment.md) first.
+2. Follow the documented `:3105` server paths, service names, and sync flow exactly.
 3. Do not guess production hostnames, process managers, or environment file locations.
 4. Do not commit secrets, passwords, tokens, SSH private keys, or server-only env files.
 
 ## Back Office UI rules
 
-- Follow the shared design system in [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre/docs/office-design-system.md).
+- Follow the shared design system in [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/office-design-system.md).
 - Keep the UI dense, operational, and desktop-first.
 - Use shared tokens and primitives from:
-  - [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre/apps/web/app/globals.css)
-  - [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre/packages/ui/src/index.tsx)
+  - [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/globals.css)
+  - [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/packages/ui/src/index.tsx)
 - Treat `/office/transactions` as the canonical list-page composition reference for peer Office list pages. Reuse its page-header, summary, filter-card, table-card, and footer rhythm instead of inventing page-local list shells.
 - Treat `@acre/ui` + `office-*` styles as the canonical Office system. When touching older `bm-*` surfaces, migrate or normalize them toward that system instead of extending `bm-*` as a parallel visual language.
 - Prefer shared heading, button, card, badge, table, and detail-field patterns over page-local styling. If a visual pattern appears twice, it should usually move toward a shared primitive or canonical class.
@@ -162,7 +175,7 @@ Do not say a feature is complete unless:
 
 Future Codex tasks should rely on these stable project files instead of chat history:
 
-- [docs/specs/backoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre/docs/specs/backoffice-overview.md)
-- [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/Acre/docs/specs/implementation-log.md)
-- module specs in [docs/specs](/Users/openclaw_john/工作文件夹/Acre/docs/specs)
-- [docs/deployment.md](/Users/openclaw_john/工作文件夹/Acre/docs/deployment.md) for DigitalOcean production sync/runbook details
+- [docs/specs/backoffice-overview.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/specs/backoffice-overview.md)
+- [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/specs/implementation-log.md)
+- module specs in [docs/specs](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/specs)
+- [docs/deployment.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/deployment.md) for DigitalOcean production sync/runbook details

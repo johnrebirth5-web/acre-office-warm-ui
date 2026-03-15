@@ -7,6 +7,18 @@
 
 这不是客户前台网站。客户前台后续会是独立 surface，复用这里的 listings 和后台数据能力。
 
+## 当前唯一工作基线
+
+当前默认按这一套口径工作，除非任务明确说明要切到别的环境：
+
+- 本地源码目录：`/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- 默认 GitHub 仓库：`https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
+- 默认 DigitalOcean 外部入口：`http://45.55.247.137:3105/`
+- 默认服务器应用目录：`/opt/acre-ui-rebuild/app`
+- 默认服务器环境文件：`/etc/acre/acre-ui-rebuild.env`
+- 默认 systemd 服务：`acre-ui-rebuild-web.service`
+- 旧 `acre-web`、旧 `/opt/acre/app`、旧 `http://45.55.247.137/` 仅作为历史线路记录，不再作为当前默认目标
+
 ## 当前真实状态
 
 当前已经实现：
@@ -629,9 +641,9 @@
   - 一个最小的数据库读取 utility 和 API probe
 - 一个统一的 `Office / Back Office` 设计系统：
   - 主字体统一通过 root layout 加载
-  - 共享 tokens 集中在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre/apps/web/app/globals.css)
-  - 共享 primitives 集中在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre/packages/ui/src/index.tsx)
-  - 设计规则文档见 [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre/docs/office-design-system.md)
+  - 共享 tokens 集中在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/globals.css)
+  - 共享 primitives 集中在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/packages/ui/src/index.tsx)
+  - 设计规则文档见 [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/office-design-system.md)
 - 一个最小本地 auth/session 方案，当前已包含：
   - seeded user 登录
   - 登录后 signed cookie session
@@ -660,7 +672,7 @@
   - `Agent Management` 的 profile / team / onboarding / goal write flows
 - 其余模块仍未实现真实 CRUD
 - 未实现测试体系
-- 仓库历史上存在 Vercel 绑定，但当前守则禁止 Codex 同步到 Vercel；如果平台侧仍开启 GitHub 自动部署，需要在 Vercel / GitHub 设置中关闭
+- 当前默认 GitHub 目标是 `acre-office-warm-ui`，默认生产线路是 `DigitalOcean :3105`；历史上的 Vercel 绑定只作为遗留说明，不是当前默认交付路径
 - 未实现对象存储、异步任务、AI 工作流、文件上传、OCR、第三方集成
 
 这几项在文档里都会明确以“未实现 / 暂定方案”处理，不应误认为已经完成。

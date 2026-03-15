@@ -231,10 +231,12 @@ ACRE_SECURE_COOKIES=false
 
 ## 生产环境建议
 
-当前没有生产环境，但后续如果部署到 Vercel：
+当前默认生产基线是 `DigitalOcean + systemd + nginx`：
 
 - 不要把 `.env.local` 提交到仓库
-- 在 Vercel 项目设置中配置环境变量
+- 服务器环境文件位于 `/etc/acre/acre-ui-rebuild.env`
+- 服务器应用目录位于 `/opt/acre-ui-rebuild/app`
+- 生产服务名是 `acre-ui-rebuild-web.service`
 - 生产 `DATABASE_URL` 必须指向可用的 PostgreSQL 实例
 
 ## 维护要求

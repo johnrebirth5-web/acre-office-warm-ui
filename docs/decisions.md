@@ -49,7 +49,7 @@ Trade-off：
 
 - 当前阶段最重要的是把 Web、API、领域结构一起钉住
 - Next.js Route Handlers 足够承载现在这批只读 API
-- 和未来 Vercel 部署路径一致
+- 和当前单机 `Next.js + systemd + nginx` 的部署路径一致
 
 影响：
 
@@ -235,7 +235,7 @@ Trade-off：
 - 写 API 当前只覆盖 `Transactions` 和 `Contacts` 的最小闭环
 - 没有测试
 - 没有异常监控
-- 已有 Vercel 生产部署实例，但还没有完整生产业务能力
+- 已有真实 `DigitalOcean :3105` 线路，但整体生产能力仍处于过渡阶段
 - `@acre/backoffice` 目前同时承担“领域模型”和“临时数据源”两种职责
 - 当前 `Back Office` 页面虽然已经开始贴近 `Brokermint`，但仍有一些边角流程、agent/resource feed 和非核心路径保留静态示例数据或简化交互，不应误判为已完全复刻完成
 - 文档文件当前采用本地文件系统 MVP，而不是对象存储；这适合开发和本地验证，不应误判为生产可用存储层
