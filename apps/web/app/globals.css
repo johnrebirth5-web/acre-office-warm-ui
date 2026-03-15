@@ -6101,7 +6101,7 @@ a {
   display: grid;
   align-items: center;
   min-height: var(--office-table-head-height);
-  width: 100%;
+  width: max-content;
   min-width: 100%;
   padding: 0 var(--office-table-cell-inline);
   background: #f8fafc;
@@ -6124,7 +6124,7 @@ a {
   display: grid;
   align-items: center;
   min-height: var(--office-table-row-height);
-  width: 100%;
+  width: max-content;
   min-width: 100%;
   padding: 0 var(--office-table-cell-inline);
   gap: var(--office-table-row-gap);
@@ -6138,12 +6138,14 @@ a {
 
 .office-data-table-body {
   display: grid;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .office-list-table-body {
   display: grid;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .bm-transactions-columns,
