@@ -3293,6 +3293,11 @@ select {
   text-transform: uppercase;
 }
 
+.office-approval-table th:last-child,
+.office-approval-table td:last-child {
+  width: 280px;
+}
+
 .office-approval-cell-title {
   color: #122132;
   font-size: 0.88rem;
@@ -3316,11 +3321,32 @@ select {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.office-approval-action-stack > * {
+.office-approval-action-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.office-approval-action-row > * {
   white-space: nowrap;
+}
+
+.office-approval-action-row .office-button {
+  min-width: 0;
+}
+
+.office-approval-action-row-links {
+  opacity: 0.94;
+}
+
+.office-approval-actions-cell {
+  min-width: 260px;
 }
 
 .bm-detail-field-wide {

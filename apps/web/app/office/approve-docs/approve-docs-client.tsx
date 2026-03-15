@@ -365,62 +365,73 @@ export function OfficeApproveDocsClient({
                       <td>{formatDateTimeLabel(item.task.submittedForReviewAt)}</td>
                       <td>{formatDateLabel(item.task.dueAt)}</td>
                       <td>{formatDateTimeLabel(item.task.updatedAt)}</td>
-                      <td>
+                      <td className="office-approval-actions-cell">
                         <div className="office-approval-action-stack">
-                          <Link className="office-button office-button-secondary office-button-sm" href={item.task.transactionHref}>
-                            Open transaction
-                          </Link>
-                          {item.openDocumentHref ? (
+                          <div className="office-approval-action-row office-approval-action-row-links">
                             <Link
-                              className="office-button office-button-secondary office-button-sm"
-                              href={item.openDocumentHref}
-                              target="_blank"
+                              className="office-button office-button-secondary office-button-sm office-inline-action-sm"
+                              href={item.task.transactionHref}
                             >
-                              Open linked document
+                              Open transaction
                             </Link>
-                          ) : null}
-                          {canApproveTask ? (
-                            <Button
-                              disabled={pendingAction === `approve:${item.task.id}`}
-                              onClick={() => handleWorkflowAction(item.task, "approve")}
-                              size="sm"
-                            >
-                              {pendingAction === `approve:${item.task.id}`
-                                ? "Saving..."
-                                : item.task.awaitingSecondaryApproval
-                                  ? "Second approve"
-                                  : "Approve"}
-                            </Button>
-                          ) : null}
-                          {canRejectTask ? (
-                            <Button
-                              disabled={pendingAction === `reject:${item.task.id}`}
-                              onClick={() => handleWorkflowAction(item.task, "reject")}
-                              size="sm"
-                              variant="danger"
-                            >
-                              {pendingAction === `reject:${item.task.id}` ? "Saving..." : "Reject"}
-                            </Button>
-                          ) : null}
-                          {item.task.canReopen ? (
-                            <Button
-                              disabled={pendingAction === `reopen:${item.task.id}`}
-                              onClick={() => handleWorkflowAction(item.task, "reopen")}
-                              size="sm"
-                              variant="secondary"
-                            >
-                              {pendingAction === `reopen:${item.task.id}` ? "Saving..." : "Reopen"}
-                            </Button>
-                          ) : null}
-                          {item.task.canCompleteDirectly ? (
-                            <Button
-                              disabled={pendingAction === `complete:${item.task.id}`}
-                              onClick={() => handleWorkflowAction(item.task, "complete")}
-                              size="sm"
-                            >
-                              {pendingAction === `complete:${item.task.id}` ? "Saving..." : "Complete"}
-                            </Button>
-                          ) : null}
+                            {item.openDocumentHref ? (
+                              <Link
+                                className="office-button office-button-secondary office-button-sm office-inline-action-sm"
+                                href={item.openDocumentHref}
+                                target="_blank"
+                              >
+                                Open linked document
+                              </Link>
+                            ) : null}
+                          </div>
+                          <div className="office-approval-action-row office-approval-action-row-workflow">
+                            {canApproveTask ? (
+                              <Button
+                                className="office-inline-action-sm"
+                                disabled={pendingAction === `approve:${item.task.id}`}
+                                onClick={() => handleWorkflowAction(item.task, "approve")}
+                                size="sm"
+                              >
+                                {pendingAction === `approve:${item.task.id}`
+                                  ? "Saving..."
+                                  : item.task.awaitingSecondaryApproval
+                                    ? "Second approve"
+                                    : "Approve"}
+                              </Button>
+                            ) : null}
+                            {canRejectTask ? (
+                              <Button
+                                className="office-inline-action-sm"
+                                disabled={pendingAction === `reject:${item.task.id}`}
+                                onClick={() => handleWorkflowAction(item.task, "reject")}
+                                size="sm"
+                                variant="danger"
+                              >
+                                {pendingAction === `reject:${item.task.id}` ? "Saving..." : "Reject"}
+                              </Button>
+                            ) : null}
+                            {item.task.canReopen ? (
+                              <Button
+                                className="office-inline-action-sm"
+                                disabled={pendingAction === `reopen:${item.task.id}`}
+                                onClick={() => handleWorkflowAction(item.task, "reopen")}
+                                size="sm"
+                                variant="secondary"
+                              >
+                                {pendingAction === `reopen:${item.task.id}` ? "Saving..." : "Reopen"}
+                              </Button>
+                            ) : null}
+                            {item.task.canCompleteDirectly ? (
+                              <Button
+                                className="office-inline-action-sm"
+                                disabled={pendingAction === `complete:${item.task.id}`}
+                                onClick={() => handleWorkflowAction(item.task, "complete")}
+                                size="sm"
+                              >
+                                {pendingAction === `complete:${item.task.id}` ? "Saving..." : "Complete"}
+                              </Button>
+                            ) : null}
+                          </div>
                         </div>
                       </td>
                     </tr>
