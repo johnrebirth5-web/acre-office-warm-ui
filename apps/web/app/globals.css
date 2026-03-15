@@ -6364,6 +6364,52 @@ a {
   align-items: start;
 }
 
+.office-report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.office-report-summary-table {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.office-report-summary-table .office-table-header,
+.office-report-summary-table .office-table-row {
+  width: 100%;
+  min-width: 0;
+}
+
+.office-report-summary-table .office-table-row-report-status,
+.office-report-summary-table .office-table-row-report-types {
+  grid-template-columns:
+    minmax(136px, 1.24fr)
+    minmax(48px, 0.38fr)
+    minmax(92px, 0.74fr)
+    minmax(92px, 0.74fr);
+}
+
+.office-report-summary-table .office-table-row-report-commission-status,
+.office-report-summary-table .office-table-row-report-commission-plan,
+.office-report-summary-table .office-table-row-report-accounting-types {
+  grid-template-columns:
+    minmax(156px, 1.22fr)
+    minmax(48px, 0.38fr)
+    minmax(108px, 0.8fr);
+}
+
+.office-report-summary-table .office-table-row-report-emd-status {
+  grid-template-columns:
+    minmax(136px, 1.18fr)
+    minmax(48px, 0.38fr)
+    minmax(92px, 0.72fr)
+    minmax(92px, 0.72fr);
+}
+
 .office-reports-kpi-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }

@@ -53,6 +53,10 @@ function ReportsTable(props: { children: ReactNode }) {
   );
 }
 
+function ReportsSummaryTable(props: { children: ReactNode }) {
+  return <div className="office-table office-report-summary-table">{props.children}</div>;
+}
+
 function buildReportsHref(
   currentFilters: {
     startDate: string;
@@ -528,8 +532,8 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
               subtitle="Review status, type, and time trends inside the current transaction slice."
               title="Transaction performance"
             >
-              <div className="office-dashboard-grid-wide office-reports-subgrid">
-                <ReportsTable>
+              <div className="office-report-summary-grid">
+                <ReportsSummaryTable>
                   <div className="office-table-header office-table-row office-table-row-report-status">
                     <span>Status</span>
                     <span>Count</span>
@@ -563,9 +567,9 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{item.officeNetLabel}</span>
                     </Link>
                   ))}
-                </ReportsTable>
+                </ReportsSummaryTable>
 
-                <ReportsTable>
+                <ReportsSummaryTable>
                   <div className="office-table-header office-table-row office-table-row-report-types">
                     <span>Type</span>
                     <span>Count</span>
@@ -599,7 +603,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{item.officeNetLabel}</span>
                     </Link>
                   ))}
-                </ReportsTable>
+                </ReportsSummaryTable>
               </div>
 
               <div className="office-note-list office-report-time-list">
@@ -847,8 +851,8 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                 <StatCard hint="Rows already marked paid." label="Paid" value={snapshot.commissionSummary.paidLabel} />
               </ListPageStatsGrid>
 
-              <div className="office-dashboard-grid-wide office-reports-subgrid">
-                <ReportsTable>
+              <div className="office-report-summary-grid">
+                <ReportsSummaryTable>
                   <div className="office-table-header office-table-row office-table-row-report-commission-status">
                     <span>Status</span>
                     <span>Rows</span>
@@ -881,9 +885,9 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{row.statementAmountLabel}</span>
                     </Link>
                   ))}
-                </ReportsTable>
+                </ReportsSummaryTable>
 
-                <ReportsTable>
+                <ReportsSummaryTable>
                   <div className="office-table-header office-table-row office-table-row-report-commission-plan">
                     <span>Plan</span>
                     <span>Rows</span>
@@ -902,7 +906,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{row.statementAmountLabel}</span>
                     </Link>
                   ))}
-                </ReportsTable>
+                </ReportsSummaryTable>
               </div>
 
               <ReportsTable>
