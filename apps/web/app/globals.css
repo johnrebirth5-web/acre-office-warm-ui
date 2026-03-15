@@ -3536,13 +3536,13 @@ select {
 
 .office-table-row-accounting {
   grid-template-columns:
-    82px
-    minmax(108px, 0.9fr)
-    minmax(160px, 1.15fr)
-    minmax(92px, 0.72fr)
-    minmax(96px, 0.8fr)
-    minmax(148px, 0.96fr)
-    minmax(98px, 0.82fr);
+    104px
+    140px
+    minmax(220px, 260px)
+    110px
+    112px
+    minmax(160px, 200px)
+    110px;
 }
 
 .office-table-row-ledger {
@@ -6222,7 +6222,7 @@ a {
 }
 
 .office-table-row-accounting {
-  min-width: 780px;
+  min-width: 956px;
 }
 
 .office-table-row-ledger {
