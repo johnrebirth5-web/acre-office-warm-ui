@@ -118,6 +118,13 @@
 - 不要给单个页面再发明一套新的 button / card / filter bar
 - `Agent` 页面也优先通过这些 primitives 组织页头、summary、section card，而不是继续保留 marketing 风格 hero/card 体系
 
+表格 / 图表补充规则：
+
+- 宽表优先通过共享滚动容器解决可达性，不要靠夸张的首列宽度吃掉整行空间
+- `name`、`title`、`transaction` 这类主列应该保留可读性，但不能默认独占过大的 `fr` 比例
+- 辅助列尽量收紧到内容所需宽度附近，把横向空间让给真正会换行的主信息
+- dashboard / summary 图表的底板应是功能性的矩形容器，不要使用会误导成“数据本体”的大面积装饰性胶囊背景
+
 ## Heading Hierarchy
 
 统一层级：

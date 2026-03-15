@@ -1911,12 +1911,12 @@ select {
   display: grid;
   grid-template-columns:
     30px
-    minmax(220px, 2.45fr)
-    minmax(96px, 0.82fr)
-    minmax(116px, 0.94fr)
-    minmax(84px, 0.7fr)
-    minmax(88px, 0.72fr)
-    minmax(108px, 0.84fr);
+    minmax(196px, 1.9fr)
+    minmax(92px, 0.76fr)
+    minmax(104px, 0.82fr)
+    minmax(76px, 0.6fr)
+    minmax(84px, 0.64fr)
+    minmax(102px, 0.76fr);
   gap: 10px;
   align-items: center;
 }
@@ -2935,19 +2935,19 @@ select {
 }
 
 .office-table-row-agent-billing-ledger {
-  grid-template-columns: 78px 86px minmax(210px, 1.55fr) 90px 96px 96px 100px 80px minmax(156px, 1fr);
+  grid-template-columns: 78px 84px minmax(188px, 1.3fr) 88px 92px 92px 96px 78px minmax(144px, 0.88fr);
 }
 
 .office-table-row-recurring-rules {
-  grid-template-columns: 108px minmax(180px, 1.6fr) 92px 94px 88px 98px;
+  grid-template-columns: 104px minmax(164px, 1.2fr) 88px 90px 86px 94px;
 }
 
 .office-table-row-payment-methods {
-  grid-template-columns: 108px minmax(180px, 1.5fr) 96px 80px 96px;
+  grid-template-columns: 104px minmax(164px, 1.12fr) 92px 78px 92px;
 }
 
 .office-table-row-agent-statement {
-  grid-template-columns: 78px minmax(200px, 1.65fr) 96px 86px;
+  grid-template-columns: 78px minmax(180px, 1.22fr) 92px 82px;
 }
 
 .bm-agent-statement {
@@ -3519,34 +3519,27 @@ select {
 }
 
 .office-table-row-accounting {
-  grid-template-columns:
-    82px
-    92px
-    minmax(220px, 1.7fr)
-    100px
-    92px
-    minmax(188px, 1.15fr)
-    94px;
+  grid-template-columns: 78px 88px minmax(190px, 1.32fr) 96px 88px minmax(164px, 0.94fr) 90px;
 }
 
 .office-table-row-ledger {
-  grid-template-columns: 82px minmax(210px, 1.45fr) 96px 96px minmax(190px, 1.1fr);
+  grid-template-columns: 78px minmax(184px, 1.18fr) 92px 92px minmax(168px, 0.92fr);
 }
 
 .office-table-row-emd {
-  grid-template-columns: minmax(210px, 1.75fr) 96px 96px 96px 110px 126px;
+  grid-template-columns: minmax(188px, 1.32fr) 92px 92px 92px 102px 118px;
 }
 
 .office-table-row-chart {
-  grid-template-columns: 84px minmax(180px, 1.55fr) 120px 88px;
+  grid-template-columns: 80px minmax(156px, 1.12fr) 112px 84px;
 }
 
 .office-table-row-accounting-lines {
-  grid-template-columns: minmax(220px, 1.5fr) minmax(180px, 1.15fr) 104px 72px;
+  grid-template-columns: minmax(190px, 1.28fr) minmax(156px, 1fr) 98px 72px;
 }
 
 .office-table-row-accounting-lines-manual {
-  grid-template-columns: minmax(200px, 1.35fr) minmax(170px, 1.05fr) 98px 98px 72px;
+  grid-template-columns: minmax(182px, 1.18fr) minmax(156px, 0.94fr) 94px 94px 72px;
 }
 
 .office-table-row-accounting select,
@@ -6003,10 +5996,10 @@ a {
 .office-pipeline-table,
 .bm-office-table,
 .office-agents-roster-table {
-  --office-table-cell-inline: 13px;
+  --office-table-cell-inline: 12px;
   --office-table-head-height: 38px;
   --office-table-row-height: 52px;
-  --office-table-row-gap: 10px;
+  --office-table-row-gap: 8px;
   display: grid;
   gap: 0;
   border: 1px solid var(--office-border);
@@ -6154,7 +6147,7 @@ a {
 .bm-transactions-row,
 .office-list-table-header-transactions,
 .office-list-table-row-transactions {
-  min-width: 900px;
+  min-width: 840px;
 }
 
 .office-table-row-wide,
@@ -6163,7 +6156,7 @@ a {
 .office-list-table-wide,
 .office-list-table-header-contacts,
 .office-list-table-row-contacts {
-  min-width: 840px;
+  min-width: 780px;
 }
 
 .bm-contacts-table-header,
@@ -6171,13 +6164,13 @@ a {
 .office-list-table-header-contacts,
 .office-list-table-row-contacts {
   grid-template-columns:
-    minmax(220px, 2.15fr)
-    minmax(84px, 0.68fr)
-    minmax(94px, 0.74fr)
-    minmax(150px, 1.1fr)
-    minmax(102px, 0.78fr)
-    minmax(106px, 0.8fr);
-  gap: 10px;
+    minmax(184px, 1.55fr)
+    minmax(82px, 0.6fr)
+    minmax(88px, 0.64fr)
+    minmax(128px, 0.9fr)
+    minmax(96px, 0.7fr)
+    minmax(98px, 0.72fr);
+  gap: 8px;
 }
 
 .bm-contacts-table-row {
@@ -6206,115 +6199,115 @@ a {
 }
 
 .office-table-row-accounting {
-  min-width: 940px;
+  min-width: 860px;
 }
 
 .office-table-row-ledger {
-  min-width: 800px;
+  min-width: 720px;
 }
 
 .office-table-row-emd {
-  min-width: 840px;
+  min-width: 760px;
 }
 
 .office-table-row-chart {
-  min-width: 640px;
+  min-width: 580px;
 }
 
 .office-table-row-accounting-lines {
-  min-width: 640px;
+  min-width: 560px;
 }
 
 .office-table-row-accounting-lines-manual {
-  min-width: 760px;
-}
-
-.office-table-row-agent-billing-ledger {
-  min-width: 1040px;
-}
-
-.office-table-row-recurring-rules {
-  min-width: 760px;
-}
-
-.office-table-row-payment-methods {
   min-width: 680px;
 }
 
+.office-table-row-agent-billing-ledger {
+  min-width: 960px;
+}
+
+.office-table-row-recurring-rules {
+  min-width: 700px;
+}
+
+.office-table-row-payment-methods {
+  min-width: 620px;
+}
+
 .office-table-row-agent-statement {
-  min-width: 640px;
+  min-width: 580px;
 }
 
 .office-table-row-commission-assignments {
-  min-width: 700px;
-  grid-template-columns: minmax(188px, 1.5fr) minmax(70px, 0.58fr) minmax(158px, 1.08fr) minmax(96px, 0.72fr) minmax(98px, 0.74fr);
+  min-width: 640px;
+  grid-template-columns: minmax(168px, 1.28fr) minmax(68px, 0.54fr) minmax(144px, 0.96fr) minmax(92px, 0.68fr) minmax(94px, 0.7fr);
 }
 
 .office-table-row-commission {
-  min-width: 920px;
+  min-width: 860px;
   grid-template-columns:
-    minmax(228px, 1.9fr)
-    minmax(124px, 0.9fr)
-    minmax(128px, 0.92fr)
-    minmax(94px, 0.68fr)
-    minmax(122px, 0.84fr)
-    minmax(100px, 0.72fr)
-    minmax(172px, 1fr);
+    minmax(202px, 1.5fr)
+    minmax(112px, 0.8fr)
+    minmax(118px, 0.82fr)
+    minmax(90px, 0.64fr)
+    minmax(112px, 0.76fr)
+    minmax(96px, 0.68fr)
+    minmax(156px, 0.9fr);
 }
 
 .office-table-row-report-status,
 .office-table-row-report-types {
-  min-width: 560px;
-  grid-template-columns: minmax(140px, 1.28fr) minmax(64px, 0.56fr) minmax(100px, 0.78fr) minmax(100px, 0.78fr);
+  min-width: 500px;
+  grid-template-columns: minmax(128px, 1.08fr) minmax(62px, 0.52fr) minmax(92px, 0.72fr) minmax(92px, 0.72fr);
 }
 
 .office-table-row-report-transactions {
-  min-width: 840px;
-  grid-template-columns: minmax(250px, 2.25fr) minmax(96px, 0.74fr) minmax(112px, 0.84fr) minmax(136px, 0.98fr) minmax(100px, 0.76fr) minmax(100px, 0.76fr);
+  min-width: 780px;
+  grid-template-columns: minmax(210px, 1.62fr) minmax(92px, 0.68fr) minmax(104px, 0.76fr) minmax(122px, 0.86fr) minmax(96px, 0.7fr) minmax(96px, 0.7fr);
 }
 
 .office-table-row-report-agents {
-  min-width: 960px;
+  min-width: 900px;
   grid-template-columns:
-    minmax(220px, 1.9fr)
-    minmax(118px, 0.88fr)
-    minmax(60px, 0.52fr)
-    minmax(60px, 0.52fr)
-    minmax(100px, 0.74fr)
-    minmax(132px, 0.88fr)
-    minmax(128px, 0.86fr);
+    minmax(190px, 1.55fr)
+    minmax(112px, 0.82fr)
+    minmax(58px, 0.48fr)
+    minmax(58px, 0.48fr)
+    minmax(92px, 0.68fr)
+    minmax(120px, 0.82fr)
+    minmax(118px, 0.78fr);
 }
 
 .office-table-row-report-teams {
-  min-width: 780px;
-  grid-template-columns: minmax(200px, 1.7fr) minmax(60px, 0.52fr) minmax(60px, 0.52fr) minmax(60px, 0.52fr) minmax(96px, 0.74fr) minmax(120px, 0.82fr);
+  min-width: 720px;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(58px, 0.48fr) minmax(58px, 0.48fr) minmax(58px, 0.48fr) minmax(92px, 0.68fr) minmax(108px, 0.74fr);
 }
 
 .office-table-row-report-commission-status,
 .office-table-row-report-commission-plan,
 .office-table-row-report-accounting-types {
-  min-width: 540px;
-  grid-template-columns: minmax(178px, 1.45fr) minmax(68px, 0.6fr) minmax(118px, 0.86fr);
+  min-width: 500px;
+  grid-template-columns: minmax(160px, 1.22fr) minmax(66px, 0.56fr) minmax(108px, 0.78fr);
 }
 
 .office-table-row-report-commission-recent {
-  min-width: 880px;
-  grid-template-columns: minmax(250px, 2fr) minmax(100px, 0.76fr) minmax(102px, 0.78fr) minmax(102px, 0.78fr) minmax(134px, 0.88fr);
+  min-width: 820px;
+  grid-template-columns: minmax(210px, 1.5fr) minmax(96px, 0.72fr) minmax(98px, 0.74fr) minmax(98px, 0.74fr) minmax(126px, 0.82fr);
 }
 
 .office-table-row-report-accounting-recent {
-  min-width: 840px;
-  grid-template-columns: minmax(80px, 0.66fr) minmax(110px, 0.82fr) minmax(96px, 0.72fr) minmax(250px, 2fr) minmax(104px, 0.76fr);
+  min-width: 780px;
+  grid-template-columns: minmax(76px, 0.6fr) minmax(104px, 0.76fr) minmax(92px, 0.68fr) minmax(210px, 1.45fr) minmax(98px, 0.72fr);
 }
 
 .office-table-row-report-emd-status {
-  min-width: 620px;
-  grid-template-columns: minmax(168px, 1.42fr) minmax(64px, 0.56fr) minmax(96px, 0.74fr) minmax(96px, 0.74fr);
+  min-width: 580px;
+  grid-template-columns: minmax(152px, 1.18fr) minmax(62px, 0.52fr) minmax(92px, 0.7fr) minmax(92px, 0.7fr);
 }
 
 .office-table-row-report-emd-recent {
-  min-width: 840px;
-  grid-template-columns: minmax(250px, 2.05fr) minmax(96px, 0.76fr) minmax(96px, 0.74fr) minmax(96px, 0.74fr) minmax(100px, 0.76fr);
+  min-width: 780px;
+  grid-template-columns: minmax(210px, 1.5fr) minmax(92px, 0.72fr) minmax(92px, 0.7fr) minmax(92px, 0.7fr) minmax(96px, 0.72fr);
 }
 
 .office-reports-workspace,
@@ -6740,8 +6733,8 @@ a {
 .office-dashboard-transactions-head,
 .office-dashboard-transactions-row {
   min-width: 0;
-  grid-template-columns: minmax(220px, 1.9fr) minmax(96px, 0.7fr) minmax(110px, 0.74fr) minmax(120px, 0.8fr);
-  gap: 12px;
+  grid-template-columns: minmax(196px, 1.52fr) minmax(92px, 0.66fr) minmax(100px, 0.72fr) minmax(112px, 0.78fr);
+  gap: 10px;
 }
 
 .office-dashboard-transactions-head > :nth-child(2) {
@@ -7215,19 +7208,19 @@ a {
 .office-agents-roster-table {
   --office-table-cell-inline: 12px;
   --office-table-row-height: 60px;
-  --office-agents-roster-min-width: 1320px;
+  --office-agents-roster-min-width: 1240px;
   --office-agents-roster-gap: 8px;
   --office-agents-roster-columns:
-    minmax(232px, 2.45fr)
-    minmax(126px, 0.95fr)
-    minmax(140px, 1fr)
-    minmax(124px, 0.88fr)
-    minmax(102px, 0.72fr)
+    minmax(208px, 1.95fr)
+    minmax(118px, 0.84fr)
+    minmax(126px, 0.88fr)
+    minmax(116px, 0.8fr)
+    minmax(98px, 0.68fr)
+    minmax(104px, 0.72fr)
     minmax(110px, 0.76fr)
-    minmax(116px, 0.82fr)
-    minmax(136px, 0.9fr)
-    minmax(116px, 0.78fr)
-    minmax(104px, 0.72fr);
+    minmax(124px, 0.82fr)
+    minmax(108px, 0.72fr)
+    minmax(96px, 0.66fr);
 }
 
 .office-agents-roster-head,
@@ -7874,34 +7867,34 @@ a {
 }
 
 .office-table-row-settings-users {
-  min-width: 700px;
-  grid-template-columns: minmax(212px, 1.95fr) minmax(116px, 0.82fr) minmax(128px, 0.92fr) minmax(96px, 0.7fr) minmax(86px, 0.6fr);
+  min-width: 640px;
+  grid-template-columns: minmax(188px, 1.45fr) minmax(108px, 0.76fr) minmax(120px, 0.84fr) minmax(92px, 0.66fr) minmax(82px, 0.56fr);
 }
 
 .office-table-row-settings-fields {
-  min-width: 430px;
-  grid-template-columns: minmax(200px, 1.55fr) minmax(92px, 0.68fr) minmax(92px, 0.68fr);
+  min-width: 390px;
+  grid-template-columns: minmax(172px, 1.18fr) minmax(88px, 0.62fr) minmax(88px, 0.62fr);
 }
 
 .office-table-row-settings-teams {
-  min-width: 760px;
+  min-width: 700px;
   grid-template-columns:
-    minmax(220px, 1.9fr)
-    minmax(90px, 0.72fr)
-    minmax(90px, 0.72fr)
-    minmax(112px, 0.82fr)
-    minmax(100px, 0.72fr)
-    minmax(110px, 0.82fr);
+    minmax(188px, 1.45fr)
+    minmax(86px, 0.66fr)
+    minmax(86px, 0.66fr)
+    minmax(104px, 0.76fr)
+    minmax(94px, 0.68fr)
+    minmax(104px, 0.76fr);
 }
 
 .office-table-row-settings-checklists {
-  min-width: 760px;
+  min-width: 700px;
   grid-template-columns:
-    minmax(240px, 2.05fr)
-    minmax(136px, 0.98fr)
-    minmax(72px, 0.56fr)
-    minmax(98px, 0.72fr)
-    minmax(110px, 0.8fr);
+    minmax(200px, 1.52fr)
+    minmax(124px, 0.9fr)
+    minmax(70px, 0.54fr)
+    minmax(92px, 0.68fr)
+    minmax(102px, 0.74fr);
 }
 
 .office-table-actions {
@@ -8324,18 +8317,18 @@ a {
 }
 
 .office-table-row-billing-open {
-  min-width: 860px;
-  grid-template-columns: 78px 80px minmax(188px, 1.6fr) 94px 98px 82px minmax(164px, 0.95fr);
+  min-width: 800px;
+  grid-template-columns: 76px 78px minmax(172px, 1.28fr) 92px 96px 80px minmax(150px, 0.86fr);
 }
 
 .office-table-row-billing-upcoming {
-  min-width: 780px;
-  grid-template-columns: 78px 90px minmax(204px, 1.75fr) 94px 82px minmax(156px, 0.9fr);
+  min-width: 730px;
+  grid-template-columns: 76px 86px minmax(182px, 1.35fr) 92px 80px minmax(148px, 0.84fr);
 }
 
 .office-table-row-billing-statements {
-  min-width: 680px;
-  grid-template-columns: minmax(140px, 1.32fr) 108px 82px 88px 88px 94px;
+  min-width: 620px;
+  grid-template-columns: minmax(128px, 1.05fr) 102px 80px 84px 84px 90px;
 }
 
 .office-billing-list-row,
@@ -8870,23 +8863,23 @@ a {
   border-radius: 18px;
   overflow-x: auto;
   overflow-y: hidden;
-  --office-table-cell-inline: 13px;
+  --office-table-cell-inline: 12px;
   --office-table-row-height: 54px;
 }
 
 .office-pipeline-table-head,
 .office-pipeline-row {
-  min-width: 1020px;
+  min-width: 920px;
   grid-template-columns:
-    minmax(236px, 2.4fr)
-    minmax(118px, 0.96fr)
-    minmax(80px, 0.66fr)
-    minmax(68px, 0.58fr)
-    minmax(100px, 0.82fr)
-    minmax(92px, 0.72fr)
-    minmax(100px, 0.78fr)
-    minmax(100px, 0.78fr)
-    minmax(96px, 0.74fr);
+    minmax(208px, 1.85fr)
+    minmax(112px, 0.9fr)
+    minmax(76px, 0.6fr)
+    minmax(64px, 0.54fr)
+    minmax(94px, 0.74fr)
+    minmax(86px, 0.68fr)
+    minmax(94px, 0.72fr)
+    minmax(94px, 0.72fr)
+    minmax(92px, 0.7fr);
   gap: 8px;
   align-items: center;
 }
@@ -10574,7 +10567,13 @@ body,
   background: rgba(246, 249, 252, 0.88);
 }
 
-.bm-chart-line-shell,
+.bm-chart-line-shell {
+  padding: 12px 14px 0;
+  border: 1px solid rgba(194, 205, 220, 0.5);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(244, 247, 252, 0.96), rgba(234, 240, 248, 0.88));
+}
+
 .bm-time-bar {
   border-radius: 999px;
   background: rgba(224, 232, 243, 0.76);

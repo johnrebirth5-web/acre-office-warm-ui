@@ -115,6 +115,9 @@
   - shared `HorizontalScrollArea` now adds a visible bottom drag bar for horizontally overflowing Office tables instead of relying on OS-native scrollbar visibility
   - `DataTable` now composes through that shared scroll shell by default
   - pipeline, reports, accounting, billing, tasks, approve-docs, offer comparison, transaction commission, and other direct `office-table` surfaces now expose the same bottom drag affordance
+- Shared density tightening for dashboard + tables:
+  - the dashboard goal chart now uses a normal rectangular utility surface instead of a large pill-shaped backdrop that read like fake data
+  - shared Office table density now favors tighter first-column proportions, smaller inline padding, and less wasted whitespace across transactions, contacts, reports, accounting, billing, agents, pipeline, and settings tables
 - long-context spec structure under `docs/specs`
   - added `agent-management-spec.md`
   - added `buyer-offers-spec.md`
