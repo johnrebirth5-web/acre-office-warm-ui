@@ -6050,6 +6050,8 @@ a {
 .office-horizontal-scroll-viewport > .office-pipeline-table,
 .office-horizontal-scroll-viewport > .bm-office-table,
 .office-horizontal-scroll-viewport > .office-agents-roster-table {
+  width: max-content;
+  min-width: 100%;
   overflow: visible;
   max-width: none;
   scrollbar-gutter: auto;
@@ -6101,7 +6103,7 @@ a {
   display: grid;
   align-items: center;
   min-height: var(--office-table-head-height);
-  width: max-content;
+  width: 100%;
   min-width: 100%;
   padding: 0 var(--office-table-cell-inline);
   background: #f8fafc;
@@ -6124,7 +6126,7 @@ a {
   display: grid;
   align-items: center;
   min-height: var(--office-table-row-height);
-  width: max-content;
+  width: 100%;
   min-width: 100%;
   padding: 0 var(--office-table-cell-inline);
   gap: var(--office-table-row-gap);
@@ -6138,13 +6140,13 @@ a {
 
 .office-data-table-body {
   display: grid;
-  width: max-content;
+  width: 100%;
   min-width: 100%;
 }
 
 .office-list-table-body {
   display: grid;
-  width: max-content;
+  width: 100%;
   min-width: 100%;
 }
 
