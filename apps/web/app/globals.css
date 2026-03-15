@@ -1360,8 +1360,8 @@ select {
 
 .bm-dashboard-summary {
   display: grid;
-  grid-template-columns: fit-content(360px) minmax(0, 1fr);
-  gap: 14px 18px;
+  grid-template-columns: 1fr;
+  gap: 12px;
   align-items: start;
   margin-bottom: 14px;
 }
@@ -1369,7 +1369,7 @@ select {
 .bm-dashboard-access {
   display: grid;
   gap: 3px;
-  max-width: 360px;
+  max-width: none;
   color: #6e6e6e;
   font-size: 0.75rem;
 }
@@ -1382,7 +1382,9 @@ select {
 
 .bm-dashboard-status-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(112px, 1fr));
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   align-self: start;
 }
@@ -1391,6 +1393,7 @@ select {
   border: 1px solid #e1e1e1;
   background: #fafafa;
   min-height: 0;
+  min-width: 0;
   padding: 10px 12px;
   display: grid;
   gap: 2px;
@@ -1398,13 +1401,24 @@ select {
 
 .bm-dashboard-status-chip span {
   color: #7a7a7a;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bm-dashboard-status-chip strong {
   color: #2c2c2c;
   font-size: 0.98rem;
   font-weight: 600;
+}
+
+.bm-dashboard-status-chip p {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bm-card-head {
