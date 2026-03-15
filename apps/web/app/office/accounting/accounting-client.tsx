@@ -12,6 +12,7 @@ import {
   DataTableRow,
   EmptyState,
   FilterField,
+  HorizontalScrollArea,
   ListPageFilters,
   ListPageFooter,
   ListPageSection,
@@ -1202,39 +1203,41 @@ function AccountingEntryFormFields({
             <span>{config.manualEntrySides ? "Manual debit/credit rows must stay balanced." : "Total is derived from the line items below."}</span>
           </div>
 
-          <div className="office-table">
-            <div className={`office-table-header office-table-row ${config.manualEntrySides ? "office-table-row-accounting-lines-manual" : "office-table-row-accounting-lines"}`}>
-              <span>Account</span>
-              <span>Description</span>
-              {config.manualEntrySides ? <span>Entry side</span> : null}
-              <span>Amount</span>
-              <span />
-            </div>
-
-            {formState.lineItems.map((lineItem, index) => (
-              <div className={`office-table-row ${config.manualEntrySides ? "office-table-row-accounting-lines-manual" : "office-table-row-accounting-lines"}`} key={`${index}-${lineItem.id ?? "new"}`}>
-                <select onChange={(event) => onLineItemChange(index, "ledgerAccountId", event.target.value)} value={lineItem.ledgerAccountId}>
-                  <option value="">Select account</option>
-                  {accountOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <input onChange={(event) => onLineItemChange(index, "description", event.target.value)} placeholder="Optional description" type="text" value={lineItem.description} />
-                {config.manualEntrySides ? (
-                  <select onChange={(event) => onLineItemChange(index, "entrySide", event.target.value)} value={lineItem.entrySide}>
-                    <option value="debit">Debit</option>
-                    <option value="credit">Credit</option>
-                  </select>
-                ) : null}
-                <input onChange={(event) => onLineItemChange(index, "amount", event.target.value)} placeholder="0.00" type="text" value={lineItem.amount} />
-                <button className="office-inline-action" onClick={() => onRemoveLineItem(index)} type="button">
-                  Remove
-                </button>
+          <HorizontalScrollArea>
+            <div className="office-table">
+              <div className={`office-table-header office-table-row ${config.manualEntrySides ? "office-table-row-accounting-lines-manual" : "office-table-row-accounting-lines"}`}>
+                <span>Account</span>
+                <span>Description</span>
+                {config.manualEntrySides ? <span>Entry side</span> : null}
+                <span>Amount</span>
+                <span />
               </div>
-            ))}
-          </div>
+
+              {formState.lineItems.map((lineItem, index) => (
+                <div className={`office-table-row ${config.manualEntrySides ? "office-table-row-accounting-lines-manual" : "office-table-row-accounting-lines"}`} key={`${index}-${lineItem.id ?? "new"}`}>
+                  <select onChange={(event) => onLineItemChange(index, "ledgerAccountId", event.target.value)} value={lineItem.ledgerAccountId}>
+                    <option value="">Select account</option>
+                    {accountOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input onChange={(event) => onLineItemChange(index, "description", event.target.value)} placeholder="Optional description" type="text" value={lineItem.description} />
+                  {config.manualEntrySides ? (
+                    <select onChange={(event) => onLineItemChange(index, "entrySide", event.target.value)} value={lineItem.entrySide}>
+                      <option value="debit">Debit</option>
+                      <option value="credit">Credit</option>
+                    </select>
+                  ) : null}
+                  <input onChange={(event) => onLineItemChange(index, "amount", event.target.value)} placeholder="0.00" type="text" value={lineItem.amount} />
+                  <button className="office-inline-action" onClick={() => onRemoveLineItem(index)} type="button">
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </HorizontalScrollArea>
 
           <button className="office-button office-button-secondary" onClick={onAddLineItem} type="button">
             Add line item

@@ -1,9 +1,9 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { OfficeCommissionManagementSnapshot } from "@acre/db";
-import { Button, FormField, ListPageFilters, ListPageSection, ListPageStatsGrid, SelectInput, StatCard, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
+import { Button, FormField, HorizontalScrollArea, ListPageFilters, ListPageSection, ListPageStatsGrid, SelectInput, StatCard, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
 
 type CommissionManagementPanelProps = {
   snapshot: OfficeCommissionManagementSnapshot | null;
@@ -47,6 +47,14 @@ type CommissionAssignmentFormState = {
   effectiveFrom: string;
   effectiveTo: string;
 };
+
+function CommissionTable(props: { children: ReactNode }) {
+  return (
+    <HorizontalScrollArea>
+      <div className="office-table">{props.children}</div>
+    </HorizontalScrollArea>
+  );
+}
 
 const commissionStatusOptions = [
   { value: "", label: "All statuses" },
@@ -830,7 +838,7 @@ export function CommissionManagementPanel({
                 Direct agent assignments override team assignments. Team assignments apply only when no active direct assignment exists.
               </p>
 
-              <div className="office-table">
+              <CommissionTable>
                 <div className="office-table-header office-table-row office-table-row-commission-assignments">
                   <span>Target</span>
                   <span>Type</span>
@@ -847,13 +855,13 @@ export function CommissionManagementPanel({
                     <span>{assignment.effectiveTo || "Open-ended"}</span>
                   </div>
                 ))}
-              </div>
+              </CommissionTable>
             </ListPageSection>
           </div>
 
           <div className="office-side-stack">
             <ListPageSection subtitle="Persisted commission calculations, review queue, and payout-readiness workflow." title="Commission queue">
-              <div className="office-table">
+              <CommissionTable>
                 <div className="office-table-header office-table-row office-table-row-commission">
                   <span>Transaction</span>
                   <span>Recipient</span>
@@ -919,7 +927,7 @@ export function CommissionManagementPanel({
                     <p>No commission rows match the current filters.</p>
                   </div>
                 ) : null}
-              </div>
+              </CommissionTable>
             </ListPageSection>
 
             <ListPageSection subtitle="On-screen statement snapshot for the selected agent and current date window." title="Statement / payout readiness">

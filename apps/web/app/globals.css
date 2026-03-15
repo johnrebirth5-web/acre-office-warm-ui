@@ -6022,6 +6022,75 @@ a {
   overscroll-behavior-inline: contain;
 }
 
+.office-horizontal-scroll-area {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.office-horizontal-scroll-viewport {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+}
+
+.office-horizontal-scroll-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.office-horizontal-scroll-viewport > .office-data-table,
+.office-horizontal-scroll-viewport > .office-table,
+.office-horizontal-scroll-viewport > .office-list-table,
+.office-horizontal-scroll-viewport > .bm-transactions-list-shell,
+.office-horizontal-scroll-viewport > .bm-transactions-table,
+.office-horizontal-scroll-viewport > .office-pipeline-table,
+.office-horizontal-scroll-viewport > .bm-office-table,
+.office-horizontal-scroll-viewport > .office-agents-roster-table {
+  overflow: visible;
+  max-width: none;
+  scrollbar-gutter: auto;
+}
+
+.office-horizontal-scrollbar {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(217, 227, 240, 0.82), rgba(233, 240, 248, 0.98)),
+    linear-gradient(90deg, rgba(132, 157, 191, 0.12), rgba(132, 157, 191, 0.04));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    inset 0 0 0 1px rgba(132, 157, 191, 0.16);
+}
+
+.office-horizontal-scrollbar-thumb {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  height: 10px;
+  min-width: 52px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(101, 130, 166, 0.94), rgba(70, 96, 128, 0.96));
+  box-shadow:
+    0 6px 14px rgba(53, 76, 105, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.office-horizontal-scrollbar-thumb[data-dragging="true"] {
+  cursor: grabbing;
+  background: linear-gradient(180deg, rgba(77, 105, 139, 0.98), rgba(51, 74, 101, 0.98));
+  box-shadow:
+    0 8px 18px rgba(46, 68, 95, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
 .office-data-table-head,
 .office-table-header,
 .office-list-table-header,

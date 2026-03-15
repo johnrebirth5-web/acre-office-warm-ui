@@ -8,6 +8,7 @@ import {
   EmptyState,
   FilterBar,
   FilterField,
+  HorizontalScrollArea,
   SectionCard,
   SelectInput,
   StatusBadge,
@@ -288,7 +289,7 @@ export function OfficeApproveDocsClient({
         {error ? <p className="office-approval-inline-error">{error}</p> : null}
 
         {snapshot.items.length ? (
-          <div className="office-approval-table-wrap">
+          <HorizontalScrollArea viewportClassName="office-approval-table-wrap">
             <table className="office-approval-table">
               <thead>
                 <tr>
@@ -427,7 +428,7 @@ export function OfficeApproveDocsClient({
                 })}
               </tbody>
             </table>
-          </div>
+          </HorizontalScrollArea>
         ) : (
           <EmptyState
             description="No tasks in the current filter scope need to enter the document approval queue."

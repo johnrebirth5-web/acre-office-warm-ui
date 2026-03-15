@@ -7,6 +7,7 @@ import {
   Button,
   EmptyState,
   FormField,
+  HorizontalScrollArea,
   SelectInput,
   StatusBadge,
   TextInput,
@@ -896,7 +897,7 @@ export function TransactionOffersCard({
             <h4>Offer comparison</h4>
             <span>{comparisonRows.length} offers</span>
           </div>
-          <div className="office-table-scroll">
+          <HorizontalScrollArea viewportClassName="office-table-scroll">
             <table className="bm-offer-comparison-table">
               <thead>
                 <tr>
@@ -935,7 +936,7 @@ export function TransactionOffersCard({
                 ))}
               </tbody>
             </table>
-          </div>
+          </HorizontalScrollArea>
         </div>
       ) : null}
     </section>

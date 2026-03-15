@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import {
   Button,
   CheckboxField,
   EmptyState,
   FormField,
+  HorizontalScrollArea,
   SectionCard,
   SelectInput,
   StatCard,
@@ -29,6 +30,14 @@ type PaymentMethodFormState = {
   isDefault: boolean;
   autoPayEnabled: boolean;
 };
+
+function BillingTable(props: { children: ReactNode }) {
+  return (
+    <HorizontalScrollArea>
+      <div className="office-table">{props.children}</div>
+    </HorizontalScrollArea>
+  );
+}
 
 const paymentMethodTypeOptions = [
   { value: "card_on_file", label: "Card on file" },
@@ -244,7 +253,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                   </div>
 
                   {snapshot.outstandingChargeRows.length ? (
-                    <div className="office-table">
+                    <BillingTable>
                       <div className="office-table-header office-table-row office-table-row-billing-open">
                         <span>Date</span>
                         <span>Due</span>
@@ -278,7 +287,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                           </div>
                         </div>
                       ))}
-                    </div>
+                    </BillingTable>
                   ) : (
                     <p className="office-billing-inline-note">No open charges are recorded right now.</p>
                   )}
@@ -291,7 +300,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                   </div>
 
                   {snapshot.upcomingChargeRows.length ? (
-                    <div className="office-table">
+                    <BillingTable>
                       <div className="office-table-header office-table-row office-table-row-billing-upcoming">
                         <span>Due</span>
                         <span>Source</span>
@@ -314,7 +323,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                           <span>{row.linkedTransactionHref ? "Linked" : "—"}</span>
                         </div>
                       ))}
-                    </div>
+                    </BillingTable>
                   ) : (
                     <p className="office-billing-inline-note">No pending or scheduled charges are currently queued.</p>
                   )}
@@ -333,7 +342,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
             title="Billing ledger"
           >
             {snapshot.ledgerRows.length ? (
-              <div className="office-table">
+              <BillingTable>
                 <div className="office-table-header office-table-row office-table-row-agent-billing-ledger">
                   <span>Date</span>
                   <span>Type</span>
@@ -371,7 +380,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                     </div>
                   </div>
                 ))}
-              </div>
+              </BillingTable>
             ) : (
               <EmptyState
                 description="Billing ledger entries will appear here when charges, payments, or credit memos exist for your membership."
@@ -385,7 +394,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
             title="Statements"
           >
             {snapshot.statements.length ? (
-              <div className="office-table">
+              <BillingTable>
                 <div className="office-table-header office-table-row office-table-row-billing-statements">
                   <span>Period</span>
                   <span>Generated</span>
@@ -408,7 +417,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                     <span>{statement.currentBalanceLabel}</span>
                   </div>
                 ))}
-              </div>
+              </BillingTable>
             ) : (
               <EmptyState
                 description="Monthly statement summaries will appear here after billing ledger records exist for your membership."

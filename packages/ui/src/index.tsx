@@ -1,4 +1,7 @@
 import type { CSSProperties, ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
+import { HorizontalScrollArea } from "./horizontal-scroll-area";
+
+export { HorizontalScrollArea } from "./horizontal-scroll-area";
 
 type ClassValue = string | false | null | undefined;
 
@@ -326,9 +329,11 @@ export function ListPageFooter(props: {
 
 export function DataTable(props: { className?: string; style?: CSSProperties; children: ReactNode }) {
   return (
-    <div className={cx("office-data-table", props.className)} role="table" style={props.style}>
-      {props.children}
-    </div>
+    <HorizontalScrollArea>
+      <div className={cx("office-data-table", props.className)} role="table" style={props.style}>
+        {props.children}
+      </div>
+    </HorizontalScrollArea>
   );
 }
 

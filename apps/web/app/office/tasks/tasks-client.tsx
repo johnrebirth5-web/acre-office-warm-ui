@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useState } from "react";
-import { Button, EmptyState, FilterBar, FilterField, FormField, SectionCard, SelectInput, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
+import { Button, EmptyState, FilterBar, FilterField, FormField, HorizontalScrollArea, SectionCard, SelectInput, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
 import type {
   OfficeTaskListSnapshot,
   OfficeTaskReviewFilter,
@@ -565,7 +565,7 @@ export function OfficeTasksClient({
       >
         {error ? <p className="office-form-error office-task-inline-error">{error}</p> : null}
 
-        <div className="office-task-table-wrap">
+        <HorizontalScrollArea viewportClassName="office-task-table-wrap">
           <table className="office-task-table">
             <thead>
               <tr>
@@ -813,7 +813,7 @@ export function OfficeTasksClient({
               )}
             </tbody>
           </table>
-        </div>
+        </HorizontalScrollArea>
       </SectionCard>
     </div>
   );

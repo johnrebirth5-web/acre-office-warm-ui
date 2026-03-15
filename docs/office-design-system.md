@@ -100,6 +100,7 @@
 - `DataTableHeader`
 - `DataTableBody`
 - `DataTableRow`
+- `HorizontalScrollArea`
 - `FormField`
 - `TextInput`
 - `SelectInput`
@@ -414,6 +415,7 @@ Back Office 当前统一采用两种合法实现，不能再混用第三套页�
 ### 表格实现策略
 
 - `DataTable / office-table / bm-office-table` 统一使用局部横向滚动
+- 宽表除了局部横向滚动之外，还必须提供显式可见的底部拖拽条；不要把“能不能横向拖动”完全交给系统原生滚动条显示策略
 - 规则：
   - 容器自己滚动
   - 不允许整页跟着横向滚动

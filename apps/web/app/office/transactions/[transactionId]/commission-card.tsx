@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { OfficeTransactionCommissionSnapshot } from "@acre/db";
-import { Button, FormField, SectionCard, SelectInput, StatCard, StatusBadge, TextInput } from "@acre/ui";
+import { Button, FormField, HorizontalScrollArea, SectionCard, SelectInput, StatCard, StatusBadge, TextInput } from "@acre/ui";
 
 type TransactionCommissionCardProps = {
   transactionId: string;
@@ -159,76 +159,78 @@ export function TransactionCommissionCard({
           <span>Active plan: {snapshot.planLabel}</span>
         </div>
 
-        <div className="office-table">
-          <div className="office-table-header office-table-row office-table-row-commission">
-            <span>Recipient</span>
-            <span>Role</span>
-            <span>Plan</span>
-            <span>Status</span>
-            <span>Statement</span>
-            <span>Calculated</span>
-            <span>Actions</span>
+        <HorizontalScrollArea>
+          <div className="office-table">
+            <div className="office-table-header office-table-row office-table-row-commission">
+              <span>Recipient</span>
+              <span>Role</span>
+              <span>Plan</span>
+              <span>Status</span>
+              <span>Statement</span>
+              <span>Calculated</span>
+              <span>Actions</span>
+            </div>
+
+            {snapshot.calculations.map((row) => (
+              <div className="office-table-row office-table-row-commission" key={row.id}>
+                <div className="office-table-primary">
+                  <strong>{row.recipientLabel}</strong>
+                  <p>{row.recipientType}</p>
+                </div>
+                <span>{row.recipientRole || "—"}</span>
+                <div className="office-table-primary">
+                  <strong>{row.commissionPlanLabel}</strong>
+                  <p>{row.grossCommissionLabel} gross</p>
+                </div>
+                <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
+                <div className="office-table-primary">
+                  <strong>{row.statementAmountLabel}</strong>
+                  <p>
+                    {row.officeNetLabel} office · {row.agentNetLabel} agent
+                  </p>
+                </div>
+                <span>{row.calculatedAt || "—"}</span>
+                <div className="bm-accounting-inline-actions">
+                  {(canManageCommissions || canApproveCommissions) ? (
+                    <>
+                      <SelectInput
+                        disabled={pendingAction === `status:${row.id}`}
+                        onChange={(event) =>
+                          setStatusDrafts((current) => ({
+                            ...current,
+                            [row.id]: event.target.value
+                          }))
+                        }
+                        value={statusDrafts[row.id] ?? row.statusValue}
+                      >
+                        {calculationStatusOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </SelectInput>
+                      <Button
+                        disabled={pendingAction === `status:${row.id}`}
+                        onClick={() => void handleStatusUpdate(row.id)}
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        {pendingAction === `status:${row.id}` ? "Saving..." : "Save"}
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+
+            {snapshot.calculations.length === 0 ? (
+              <div className="bm-accounting-empty">
+                <p>No commission calculations have been saved for this transaction yet.</p>
+              </div>
+            ) : null}
           </div>
-
-          {snapshot.calculations.map((row) => (
-            <div className="office-table-row office-table-row-commission" key={row.id}>
-              <div className="office-table-primary">
-                <strong>{row.recipientLabel}</strong>
-                <p>{row.recipientType}</p>
-              </div>
-              <span>{row.recipientRole || "—"}</span>
-              <div className="office-table-primary">
-                <strong>{row.commissionPlanLabel}</strong>
-                <p>{row.grossCommissionLabel} gross</p>
-              </div>
-              <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
-              <div className="office-table-primary">
-                <strong>{row.statementAmountLabel}</strong>
-                <p>
-                  {row.officeNetLabel} office · {row.agentNetLabel} agent
-                </p>
-              </div>
-              <span>{row.calculatedAt || "—"}</span>
-              <div className="bm-accounting-inline-actions">
-                {(canManageCommissions || canApproveCommissions) ? (
-                  <>
-                    <SelectInput
-                      disabled={pendingAction === `status:${row.id}`}
-                      onChange={(event) =>
-                        setStatusDrafts((current) => ({
-                          ...current,
-                          [row.id]: event.target.value
-                        }))
-                      }
-                      value={statusDrafts[row.id] ?? row.statusValue}
-                    >
-                      {calculationStatusOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </SelectInput>
-                    <Button
-                      disabled={pendingAction === `status:${row.id}`}
-                      onClick={() => void handleStatusUpdate(row.id)}
-                      size="sm"
-                      type="button"
-                      variant="secondary"
-                    >
-                      {pendingAction === `status:${row.id}` ? "Saving..." : "Save"}
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          ))}
-
-          {snapshot.calculations.length === 0 ? (
-            <div className="bm-accounting-empty">
-              <p>No commission calculations have been saved for this transaction yet.</p>
-            </div>
-          ) : null}
-        </div>
+        </HorizontalScrollArea>
 
         {error ? <p className="office-form-error">{error}</p> : null}
       </SectionCard>

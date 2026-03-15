@@ -111,6 +111,10 @@
   - `OfficeListPage` and `OfficeListPageSummary` now codify the exact transactions page skeleton (`header -> summary/actions -> filter card -> table card -> footer`)
   - `/office/transactions` now serves as the explicit canonical implementation through that template instead of hand-assembling `PageShell + PageHeader + ListPageTableSection`
   - `/office/contacts` now uses the same page composition and shared `office-list-table-*` contract, so it reads as a direct peer of transactions instead of a thinner parallel list page
+- Wide-table horizontal access hardening:
+  - shared `HorizontalScrollArea` now adds a visible bottom drag bar for horizontally overflowing Office tables instead of relying on OS-native scrollbar visibility
+  - `DataTable` now composes through that shared scroll shell by default
+  - pipeline, reports, accounting, billing, tasks, approve-docs, offer comparison, transaction commission, and other direct `office-table` surfaces now expose the same bottom drag affordance
 - long-context spec structure under `docs/specs`
   - added `agent-management-spec.md`
   - added `buyer-offers-spec.md`

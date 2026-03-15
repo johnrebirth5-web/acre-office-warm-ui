@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   Badge,
   Button,
@@ -8,6 +9,7 @@ import {
   DataTableRow,
   EmptyState,
   FilterField,
+  HorizontalScrollArea,
   ListPageFooter,
   ListPageFilters,
   ListPageSection,
@@ -42,6 +44,14 @@ type ReportsPageSearchParams = {
 type ReportsPageProps = {
   searchParams?: Promise<ReportsPageSearchParams>;
 };
+
+function ReportsTable(props: { children: ReactNode }) {
+  return (
+    <HorizontalScrollArea>
+      <div className="office-table">{props.children}</div>
+    </HorizontalScrollArea>
+  );
+}
 
 function buildReportsHref(
   currentFilters: {
@@ -519,7 +529,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
               title="Transaction performance"
             >
               <div className="office-dashboard-grid-wide office-reports-subgrid">
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-status">
                     <span>Status</span>
                     <span>Count</span>
@@ -553,9 +563,9 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{item.officeNetLabel}</span>
                     </Link>
                   ))}
-                </div>
+                </ReportsTable>
 
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-types">
                     <span>Type</span>
                     <span>Count</span>
@@ -589,7 +599,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{item.officeNetLabel}</span>
                     </Link>
                   ))}
-                </div>
+                </ReportsTable>
               </div>
 
               <div className="office-note-list office-report-time-list">
@@ -838,7 +848,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
               </ListPageStatsGrid>
 
               <div className="office-dashboard-grid-wide office-reports-subgrid">
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-commission-status">
                     <span>Status</span>
                     <span>Rows</span>
@@ -871,9 +881,9 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{row.statementAmountLabel}</span>
                     </Link>
                   ))}
-                </div>
+                </ReportsTable>
 
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-commission-plan">
                     <span>Plan</span>
                     <span>Rows</span>
@@ -892,10 +902,10 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{row.statementAmountLabel}</span>
                     </Link>
                   ))}
-                </div>
+                </ReportsTable>
               </div>
 
-              <div className="office-table">
+              <ReportsTable>
                 <div className="office-table-header office-table-row office-table-row-report-commission-recent">
                   <span>Calculation</span>
                   <span>Status</span>
@@ -931,7 +941,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                 {snapshot.commissionSummary.recentCalculations.length === 0 ? (
                   <EmptyState description="No commission calculations matched the current filters." title="No commission rows" />
                 ) : null}
-              </div>
+              </ReportsTable>
               <ListPageFooter summary={`${snapshot.commissionSummary.recentCalculations.length} recent commission rows`} />
             </ListPageSection>
           </section>
@@ -971,7 +981,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
               </ListPageStatsGrid>
 
               <div className="office-dashboard-grid-wide office-reports-subgrid">
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-accounting-types">
                     <span>Type</span>
                     <span>Rows</span>
@@ -1002,9 +1012,9 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{row.totalAmountLabel}</span>
                     </Link>
                   ))}
-                </div>
+                </ReportsTable>
 
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-accounting-recent">
                     <span>Date</span>
                     <span>Type</span>
@@ -1029,7 +1039,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                   {snapshot.accountingSummary.recentTransactions.length === 0 ? (
                     <EmptyState description="No accounting rows matched the current filters." title="No accounting rows" />
                   ) : null}
-                </div>
+                </ReportsTable>
               </div>
               <ListPageFooter summary={`${snapshot.accountingSummary.recentTransactions.length} recent accounting rows`} />
             </ListPageSection>
@@ -1070,7 +1080,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
               </ListPageStatsGrid>
 
               <div className="office-dashboard-grid-wide office-reports-subgrid">
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-emd-status">
                     <span>Status</span>
                     <span>Rows</span>
@@ -1104,9 +1114,9 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       <span>{row.receivedAmountLabel}</span>
                     </Link>
                   ))}
-                </div>
+                </ReportsTable>
 
-                <div className="office-table">
+                <ReportsTable>
                   <div className="office-table-header office-table-row office-table-row-report-emd-recent">
                     <span>Transaction</span>
                     <span>Status</span>
@@ -1131,7 +1141,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                   {snapshot.emdSummary.recentRecords.length === 0 ? (
                     <EmptyState description="No earnest money records matched the current filters." title="No EMD rows" />
                   ) : null}
-                </div>
+                </ReportsTable>
               </div>
               <ListPageFooter summary={`${snapshot.emdSummary.recentRecords.length} recent earnest money rows`} />
             </ListPageSection>

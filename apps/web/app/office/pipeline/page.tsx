@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getOfficePipelineWorkspaceSnapshot } from "@acre/db";
-import { Button, FilterBar, FilterField, PageHeader, PageHeaderSummary, PageShell, SectionCard, SelectInput, StatusBadge, SummaryChip, TextInput } from "@acre/ui";
+import { Button, FilterBar, FilterField, HorizontalScrollArea, PageHeader, PageHeaderSummary, PageShell, SectionCard, SelectInput, StatusBadge, SummaryChip, TextInput } from "@acre/ui";
 import { requireOfficeSession } from "../../../lib/auth-session";
 
 type PipelinePageSearchParams = {
@@ -333,55 +333,57 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
             </div>
           </div>
 
-          <div className="office-pipeline-table">
-            <div className="office-pipeline-table-head">
-              <span>Transaction</span>
-              <span>City / state</span>
-              <span>Status</span>
-              <span>Side</span>
-              <span>Owner</span>
-              <span className="office-pipeline-table-head-number">Price</span>
-              <span className="office-pipeline-table-head-number">{snapshot.metricModeLabel}</span>
-              <span>Key date</span>
-              <span>Updated</span>
-            </div>
+          <HorizontalScrollArea>
+            <div className="office-pipeline-table">
+              <div className="office-pipeline-table-head">
+                <span>Transaction</span>
+                <span>City / state</span>
+                <span>Status</span>
+                <span>Side</span>
+                <span>Owner</span>
+                <span className="office-pipeline-table-head-number">Price</span>
+                <span className="office-pipeline-table-head-number">{snapshot.metricModeLabel}</span>
+                <span>Key date</span>
+                <span>Updated</span>
+              </div>
 
-            <div className="office-pipeline-table-body">
-              {snapshot.rows.length > 0 ? (
-                snapshot.rows.map((transaction) => (
-                  <Link className="office-pipeline-row" href={`/office/transactions/${transaction.id}`} key={transaction.id}>
-                    <span className="office-pipeline-row-main">
-                      <strong>{transaction.title}</strong>
-                      <small>{transaction.addressLine}</small>
-                    </span>
-                    <span className="office-pipeline-cell-value office-pipeline-cell-value-strong">
-                      <strong>{transaction.cityState}</strong>
-                    </span>
-                    <span className="office-pipeline-cell-badge">
-                      <StatusBadge tone={getPipelineStatusTone(transaction.status)}>{transaction.status}</StatusBadge>
-                    </span>
-                    <span className="office-pipeline-cell-value">{transaction.representing}</span>
-                    <span className="office-pipeline-cell-value">{transaction.owner}</span>
-                    <span className="office-pipeline-cell-number">{transaction.priceLabel}</span>
-                    <span className="office-pipeline-cell-number office-pipeline-cell-number-strong">{transaction.metricValueLabel}</span>
-                    <span className="office-pipeline-cell-date">
-                      <small>{transaction.keyDateTypeLabel}</small>
-                      <strong>{transaction.keyDateLabel}</strong>
-                    </span>
-                    <span className="office-pipeline-cell-date">
-                      <small>Updated</small>
-                      <strong>{transaction.updatedLabel}</strong>
-                    </span>
-                  </Link>
-                ))
-              ) : (
-                <div className="office-pipeline-empty">
-                  <strong>No transactions matched the current pipeline selection.</strong>
-                  <p>Adjust the top filters or clear the stage / history selection to widen the result set.</p>
-                </div>
-              )}
+              <div className="office-pipeline-table-body">
+                {snapshot.rows.length > 0 ? (
+                  snapshot.rows.map((transaction) => (
+                    <Link className="office-pipeline-row" href={`/office/transactions/${transaction.id}`} key={transaction.id}>
+                      <span className="office-pipeline-row-main">
+                        <strong>{transaction.title}</strong>
+                        <small>{transaction.addressLine}</small>
+                      </span>
+                      <span className="office-pipeline-cell-value office-pipeline-cell-value-strong">
+                        <strong>{transaction.cityState}</strong>
+                      </span>
+                      <span className="office-pipeline-cell-badge">
+                        <StatusBadge tone={getPipelineStatusTone(transaction.status)}>{transaction.status}</StatusBadge>
+                      </span>
+                      <span className="office-pipeline-cell-value">{transaction.representing}</span>
+                      <span className="office-pipeline-cell-value">{transaction.owner}</span>
+                      <span className="office-pipeline-cell-number">{transaction.priceLabel}</span>
+                      <span className="office-pipeline-cell-number office-pipeline-cell-number-strong">{transaction.metricValueLabel}</span>
+                      <span className="office-pipeline-cell-date">
+                        <small>{transaction.keyDateTypeLabel}</small>
+                        <strong>{transaction.keyDateLabel}</strong>
+                      </span>
+                      <span className="office-pipeline-cell-date">
+                        <small>Updated</small>
+                        <strong>{transaction.updatedLabel}</strong>
+                      </span>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="office-pipeline-empty">
+                    <strong>No transactions matched the current pipeline selection.</strong>
+                    <p>Adjust the top filters or clear the stage / history selection to widen the result set.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </HorizontalScrollArea>
         </section>
       </section>
     </PageShell>

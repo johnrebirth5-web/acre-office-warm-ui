@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { OfficeAgentBillingSnapshot } from "@acre/db";
-import { Button, ListPageFilters, ListPageSection, ListPageStatsGrid, StatCard } from "@acre/ui";
+import { Button, HorizontalScrollArea, ListPageFilters, ListPageSection, ListPageStatsGrid, StatCard } from "@acre/ui";
 
 type AgentBillingPanelProps = {
   snapshot: OfficeAgentBillingSnapshot | null;
@@ -69,6 +69,14 @@ type CreditApplicationFormState = {
   amount: string;
   memo: string;
 };
+
+function AgentBillingTable(props: { children: ReactNode }) {
+  return (
+    <HorizontalScrollArea>
+      <div className="office-table">{props.children}</div>
+    </HorizontalScrollArea>
+  );
+}
 
 const billingStatusOptions = [
   { value: "all", label: "All ledger statuses" },
@@ -713,7 +721,7 @@ export function AgentBillingPanel({
         <div className="office-dashboard-grid-wide bm-accounting-grid">
           <div className="office-side-stack">
             <ListPageSection subtitle={`${snapshot.ledgerRows.length} ledger row(s) in the current filtered window.`} title="Agent ledger">
-              <div className="office-table">
+              <AgentBillingTable>
                 <div className="office-table-header office-table-row office-table-row-agent-billing-ledger">
                   <span>Date</span>
                   <span>Type</span>
@@ -751,11 +759,11 @@ export function AgentBillingPanel({
                     <p>No agent billing ledger rows match the current filters.</p>
                   </div>
                 ) : null}
-              </div>
+              </AgentBillingTable>
             </ListPageSection>
 
             <ListPageSection subtitle={`${snapshot.recurringRules.length} rule(s) currently loaded.`} title="Recurring billing rules">
-              <div className="office-table">
+              <AgentBillingTable>
                 <div className="office-table-header office-table-row office-table-row-recurring-rules">
                   <span>Agent</span>
                   <span>Rule</span>
@@ -791,13 +799,13 @@ export function AgentBillingPanel({
                     <p>No recurring rules are configured for the current scope.</p>
                   </div>
                 ) : null}
-              </div>
+              </AgentBillingTable>
             </ListPageSection>
           </div>
 
           <div className="office-side-stack">
             <ListPageSection subtitle={`${snapshot.paymentMethods.length} configured method(s).`} title="Payment methods">
-              <div className="office-table">
+              <AgentBillingTable>
                 <div className="office-table-header office-table-row office-table-row-payment-methods">
                   <span>Agent</span>
                   <span>Method</span>
@@ -831,7 +839,7 @@ export function AgentBillingPanel({
                     <p>No payment methods are configured yet.</p>
                   </div>
                 ) : null}
-              </div>
+              </AgentBillingTable>
             </ListPageSection>
 
             <ListPageSection
@@ -865,7 +873,7 @@ export function AgentBillingPanel({
                     </div>
                   </div>
 
-                  <div className="office-table">
+                  <AgentBillingTable>
                     <div className="office-table-header office-table-row office-table-row-agent-statement">
                       <span>Date</span>
                       <span>Entry</span>
@@ -881,7 +889,7 @@ export function AgentBillingPanel({
                         <span>{line.status}</span>
                       </Link>
                     ))}
-                  </div>
+                  </AgentBillingTable>
                 </div>
               ) : (
                 <div className="bm-accounting-empty">
