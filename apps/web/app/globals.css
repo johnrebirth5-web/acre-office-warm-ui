@@ -10199,11 +10199,16 @@ body,
 }
 
 .office-page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 18px 24px;
   padding: 2px 0 4px;
 }
 
 .office-page-heading {
+  min-width: 0;
+  max-width: min(100%, 72ch);
   gap: 8px;
 }
 
@@ -10252,10 +10257,40 @@ body,
   gap: 12px;
 }
 
+.office-page-actions,
+.office-section-actions,
+.office-list-page-header-actions {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  margin-left: auto;
+  align-self: start;
+  justify-self: end;
+}
+
+.office-page-actions > *,
+.office-section-actions > *,
+.office-list-page-header-actions > * {
+  max-width: 100%;
+}
+
+.office-page-actions > :is(.office-button, .office-button-secondary, .office-toggle-link, .bm-create-button, .bm-view-toggle, .bm-transactions-page-button, .bm-contacts-page-button),
+.office-section-actions > :is(.office-button, .office-button-secondary, .office-toggle-link, .bm-create-button, .bm-view-toggle, .bm-transactions-page-button, .bm-contacts-page-button),
+.office-list-page-header-actions > :is(.office-button, .office-button-secondary, .office-toggle-link, .bm-create-button, .bm-view-toggle, .bm-transactions-page-button, .bm-contacts-page-button) {
+  min-width: 0;
+  max-width: 100%;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.15;
+}
+
 .office-summary-chip,
 .office-transactions-summary-chip {
-  min-width: 156px;
-  padding: 13px 16px;
+  min-width: min(156px, 100%);
+  max-width: 100%;
+  padding: 12px 15px;
   border: 1px solid rgba(194, 205, 220, 0.62);
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 249, 252, 0.92));
@@ -10312,6 +10347,9 @@ body,
 .office-section-head,
 .bm-card-head,
 .acre-panel-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 14px;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(194, 205, 220, 0.46);
@@ -10347,10 +10385,31 @@ body,
 
 .office-stat-card,
 .office-kpi-card {
-  min-height: 104px;
-  padding: 14px 16px;
+  min-height: 0;
+  align-content: start;
+  gap: 6px;
+  padding: 13px 15px;
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 246, 250, 0.94));
+}
+
+.office-stat-card p,
+.office-kpi-card p {
+  max-width: 24ch;
+  text-wrap: pretty;
+}
+
+.office-list-page-stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 12px;
+}
+
+.office-reports-kpi-grid,
+.office-report-stat-strip,
+.office-commission-kpi-grid,
+.office-billing-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
 }
 
 .office-stat-card-accent,
@@ -10770,9 +10829,19 @@ body,
     grid-template-columns: 1fr;
   }
 
+  .office-page-header,
+  .office-section-head,
+  .bm-card-head,
+  .acre-panel-header {
+    grid-template-columns: 1fr;
+  }
+
   .office-page-actions,
-  .office-list-page-header-actions {
+  .office-list-page-header-actions,
+  .office-section-actions {
     width: 100%;
+    margin-left: 0;
+    justify-self: stretch;
     justify-content: flex-start;
   }
 }
@@ -10821,12 +10890,18 @@ body,
 
 @media (max-width: 760px) {
   .office-page-header {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .office-section-head,
+  .bm-card-head,
+  .acre-panel-header {
+    grid-template-columns: 1fr;
   }
 
   .office-list-page-header-actions,
-  .office-page-actions {
+  .office-page-actions,
+  .office-section-actions {
     justify-content: flex-start;
   }
 
@@ -10854,6 +10929,14 @@ body,
   .office-summary-chip,
   .office-transactions-summary-chip {
     min-width: 0;
-    flex: 1 1 160px;
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .office-list-page-stats,
+  .office-reports-kpi-grid,
+  .office-report-stat-strip,
+  .office-commission-kpi-grid,
+  .office-billing-summary-grid {
+    grid-template-columns: 1fr;
   }
 }

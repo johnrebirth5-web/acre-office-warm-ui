@@ -199,6 +199,8 @@
 
 - `Tasks`、`Notifications`、`Approve docs` 这类“过滤 + 工作清单”页面也必须走 `ListPageSection + ListPageFilters + StatusBadge` 合同，不能继续保留单页私有 `bm-table-card` / `bm-create-button` / `bm-status-pill` 视觉
 - 页头右上角 summary/actions 统一通过 `PageHeaderSummary` 组织，不再手写一层又一层不同页面容器
+- 桌面中间断点开始，如果页头或 section 右侧 action 会压缩标题说明，就应优先改成上下两行，不要让按钮覆盖说明文本
+- header / section actions 内的按钮必须允许在窄宽下自然换行或折成两行文案，不能靠固定 `nowrap` 把标题区挤坏
 
 ### Detail pages
 
@@ -238,6 +240,22 @@
 
 - 优先高密度、可扫读，而不是大卡片
 - 列头统一大写、小字号、高字重
+- 宽表和摘要表要区分：
+  - 宽表继续用共享横向滚动容器
+  - 摘要双栏 / 状态汇总 / type 汇总这类短表不应该机械复用宽表拖拽条，应优先在栏内自适应排版
+- 报表和 accounting 的 KPI / stat 区优先使用响应式 `auto-fit` 网格，避免在平板或窄桌面里挤成过窄高卡片
+- `StatCard` 的高度应由内容主导，不要用过大的固定最小高度制造空白
+
+## Responsive rules
+
+- `PageHeader`、`SectionHeader` 默认按 `content + actions` 双列组织；当动作区开始挤压正文时，优先切成单列堆叠
+- `PageHeaderSummary`、`office-section-actions` 在桌面端默认右对齐，但只应按内容宽度占位，不能默认 `width: 100%`
+- `SummaryChip`、KPI 卡、报表 stat strip 在窄桌面和平板上应自动换列，不要死守四列
+- 移动端优先保证：
+  - 标题和说明完整可读
+  - 主动作可点
+  - 摘要卡不出现异常细长比例
+  - 二级汇总表优先单列堆叠，而不是每块都单独横向滚动
 - 行 hover 要轻，不要 marketing 式大阴影
 - 状态尽量用 badge / pill，不靠删除线或颜色堆砌
 - 数字列尽量对齐，避免跳动

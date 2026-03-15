@@ -118,6 +118,11 @@
 - Shared density tightening for dashboard + tables:
   - the dashboard goal chart now uses a normal rectangular utility surface instead of a large pill-shaped backdrop that read like fake data
   - shared Office table density now favors tighter first-column proportions, smaller inline padding, and less wasted whitespace across transactions, contacts, reports, accounting, billing, agents, pipeline, and settings tables
+- Cross-breakpoint responsive hardening pass:
+  - page headers and section headers now stack actions earlier when medium-width desktop and tablet layouts can no longer safely support side-by-side title + CTA composition
+  - shared header actions no longer claim full-width space by default, reducing CTA overlap with title/subtitle copy across reports, accounting, and peer Office pages
+  - report/accounting KPI strips and other `StatCard` grids now use more content-aware responsive wrapping instead of forcing narrow high cards at tablet widths
+  - short summary tables in reporting now differentiate from true wide data tables, so dual-column summary blocks stop rendering redundant horizontal drag rails
 - long-context spec structure under `docs/specs`
   - added `agent-management-spec.md`
   - added `buyer-offers-spec.md`
