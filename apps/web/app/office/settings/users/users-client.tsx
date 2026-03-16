@@ -67,6 +67,26 @@ const createRoleOptions = [
   { value: "agent", label: "Agent" }
 ] as const;
 
+function getRoleConfigurationHint(role: string) {
+  if (role === "team_lead") {
+    return "Team Lead 是账号权限层级。Leader I / Leader II 和直属汇报关系需要在 Settings > Teams 里设置。";
+  }
+
+  if (role === "agent") {
+    return "Agent 是账号权限层级。成员归属、直属 Leader I / Leader II，以及是否独立都在 Settings > Teams 里维护。";
+  }
+
+  return "这里选择的是系统权限角色；团队层级和直属关系单独在 Settings > Teams 里维护。";
+}
+
+function getHierarchyLabel(row: OfficeAdminUserRow) {
+  if ((row.roleValue === "team_lead" || row.roleValue === "agent") && row.title.trim()) {
+    return row.title.trim();
+  }
+
+  return "";
+}
+
 function buildUsersHref(
   pathname: string,
   filters: {
@@ -586,6 +606,7 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
                   </option>
                 ))}
               </SelectInput>
+              <p className="office-settings-user-note">{getRoleConfigurationHint(createUserDraft.role)}</p>
             </FormField>
 
             <FormField label="Office access">
@@ -672,15 +693,21 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
                     </div>
 
                     {canManageUsers ? (
-                      <SelectInput onChange={(event) => setRowDraft(row.membershipId, "role", event.target.value)} value={draft.role}>
-                        {getRoleEditorOptions(row).map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </SelectInput>
+                      <div className="office-settings-user-stack">
+                        <SelectInput onChange={(event) => setRowDraft(row.membershipId, "role", event.target.value)} value={draft.role}>
+                          {getRoleEditorOptions(row).map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </SelectInput>
+                        <p>{getHierarchyLabel(row) || getRoleConfigurationHint(draft.role)}</p>
+                      </div>
                     ) : (
-                      <span>{row.role}</span>
+                      <div className="office-settings-user-stack">
+                        <span>{row.role}</span>
+                        {getHierarchyLabel(row) ? <p>{getHierarchyLabel(row)}</p> : null}
+                      </div>
                     )}
 
                     {canManageUsers ? (
