@@ -22,6 +22,7 @@ Primary scope today:
 Use this baseline unless the current task explicitly says otherwise:
 
 - local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- default local browser entry: `http://localhost:3105/`
 - default GitHub remote target: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - default DigitalOcean entry: `http://45.55.247.137:3105/`
 - default production app root: `/opt/acre-ui-rebuild/app`

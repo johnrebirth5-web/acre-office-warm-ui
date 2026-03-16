@@ -40,6 +40,7 @@
 
 - Product priority: `Back Office`, not the public site
 - Local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- Default local browser entry: `http://localhost:3105/`
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
 - Default public entry: `http://45.55.247.137:3105/`

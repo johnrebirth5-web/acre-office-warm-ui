@@ -12,6 +12,7 @@
 当前默认按这一套口径工作，除非任务明确说明要切到别的环境：
 
 - 本地源码目录：`/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- 默认本地浏览器入口：`http://localhost:3105/`
 - 默认 GitHub 仓库：`https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - 默认 DigitalOcean 外部入口：`http://45.55.247.137:3105/`
 - 默认服务器应用目录：`/opt/acre-ui-rebuild/app`
@@ -698,7 +699,11 @@ npm install
 npm run dev
 ```
 
-默认地址：
+当前本地工作基线入口：
+
+- `http://localhost:3105/`
+
+直接运行 `npm run dev` 且未设置 `PORT` 时，Next.js 默认仍会使用：
 
 - `http://localhost:3000`
 
