@@ -34,6 +34,7 @@ Use it only when the user explicitly asks for deployment or production sync work
 - env file: `/etc/acre/acre-ui-rebuild.env`
 - nginx config: `/etc/nginx/sites-available/acre-ui-rebuild.conf`
 - nginx upstream: `127.0.0.1:3206`
+- live app directory `/opt/acre-ui-rebuild/app` is not the source-of-truth git checkout, so do not assume `git pull` works there
 
 ## Runtime truth precedence
 
@@ -62,11 +63,49 @@ Do not fall back to legacy `:80`, `acre-web`, or `/opt/acre/app` assumptions in 
 
 When a deployment is explicitly approved, use only this line:
 
-1. Sync the committed repo state into `/opt/acre-ui-rebuild/app`.
-2. Load runtime configuration from `/etc/acre/acre-ui-rebuild.env`.
-3. Restart or inspect `acre-ui-rebuild-web.service`.
-4. Validate through `http://45.55.247.137:3105/` and `http://45.55.247.137:3105/login`.
-5. If runtime behavior disagrees with docs, trust systemd `ExecStart` and the active nginx upstream.
+1. Prepare a temporary checkout from GitHub `main` or the exact committed revision being deployed.
+2. In that temporary checkout, run:
+   - `npm ci`
+   - `npm run db:generate`
+   - `npx prisma migrate deploy --schema packages/db/prisma/schema.prisma` after loading `/etc/acre/acre-ui-rebuild.env`
+   - `npm run build`
+3. Only if those steps succeed, sync the built repo state into `/opt/acre-ui-rebuild/app`.
+4. Restore `/opt/acre-ui-rebuild/app` ownership to `acre:acre`.
+5. Restart `acre-ui-rebuild-web.service`.
+6. Validate through `http://45.55.247.137:3105/` and `http://45.55.247.137:3105/login`.
+7. If runtime behavior disagrees with docs, trust systemd `ExecStart` and the active nginx upstream.
+
+### Practical operator note
+
+The current production line is:
+
+- temporary checkout/build directory
+- sync into `/opt/acre-ui-rebuild/app`
+- `systemctl restart acre-ui-rebuild-web.service`
+
+It is not:
+
+- `ssh -> cd /opt/acre-ui-rebuild/app -> git pull`
+
+### Expected timing
+
+A normal deployment may take around 1 to 3 minutes because it includes:
+
+- dependency install
+- Prisma client generation
+- Prisma migration deploy
+- Next.js production build
+- service restart
+
+### Preferred command
+
+From repo root, the preferred operator command is:
+
+- `npm run deploy:digitalocean`
+
+To deploy a specific already-pushed commit:
+
+- `npm run deploy:digitalocean -- <commit_sha>`
 
 ## Legacy reference only
 

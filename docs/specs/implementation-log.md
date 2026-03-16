@@ -62,6 +62,7 @@
   - upstream `127.0.0.1:3206`
 - `GitHub` sync and `DigitalOcean` deployment are separate actions
 - For deployment truth, `docs/deployment.md` is the canonical reference and runtime truth comes from systemd `ExecStart` plus the active nginx upstream
+- Preferred repo-root deployment command: `npm run deploy:digitalocean`
 
 ## Next recommended work
 

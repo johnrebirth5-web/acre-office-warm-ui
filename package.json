@@ -11,6 +11,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "deploy:digitalocean": "bash ./scripts/deploy-digitalocean.sh",
     "test:backoffice-hardening": "tsx --test packages/auth/src/index.test.ts packages/db/src/auth.test.ts apps/web/lib/auth-session.test.ts apps/web/lib/request-origin.test.ts apps/web/lib/document-storage.test.ts",
     "db:generate": "npm run db:generate --workspace=@acre/db",
     "db:migrate": "npm run db:migrate --workspace=@acre/db --",

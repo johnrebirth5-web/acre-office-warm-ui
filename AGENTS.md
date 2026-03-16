@@ -144,6 +144,8 @@ For deployment or production-sync work:
 2. Follow the documented `:3105` server paths, service names, and sync flow exactly.
 3. Do not guess production hostnames, process managers, or environment file locations.
 4. Do not commit secrets, passwords, tokens, SSH private keys, or server-only env files.
+5. Do not assume `/opt/acre-ui-rebuild/app` is a git checkout; the current deployment flow is temporary checkout/build, then sync into the live directory, then restart `acre-ui-rebuild-web.service`.
+6. Prefer `npm run deploy:digitalocean` from repo root for this workspace instead of reconstructing the remote sync procedure manually.
 
 ## Back Office UI rules
 
