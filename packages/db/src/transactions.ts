@@ -60,9 +60,12 @@ export type OfficeTransactionDetail = {
   city: string;
   state: string;
   zipCode: string;
+  typeValue: string;
   price: string;
   type: string;
+  statusValue: string;
   status: OfficeTransactionStatus;
+  representingValue: string;
   representing: string;
   importantDate: string;
   buyerAgreementDate: string;
@@ -201,7 +204,7 @@ const transactionStatusLabelMap: Record<TransactionStatus, OfficeTransactionStat
   cancelled: "Cancelled"
 };
 
-const transactionStatusDbMap: Record<OfficeTransactionStatus, TransactionStatus> = {
+const transactionStatusDisplayDbMap: Record<OfficeTransactionStatus, TransactionStatus> = {
   Opportunity: "opportunity",
   Active: "active",
   Pending: "pending",
@@ -209,7 +212,27 @@ const transactionStatusDbMap: Record<OfficeTransactionStatus, TransactionStatus>
   Cancelled: "cancelled"
 };
 
-const transactionTypeDbMap: Record<string, TransactionType> = {
+const transactionStatusInputDbMap: Record<string, TransactionStatus> = {
+  opportunity: "opportunity",
+  active: "active",
+  pending: "pending",
+  closed: "closed",
+  cancelled: "cancelled",
+  Opportunity: "opportunity",
+  Active: "active",
+  Pending: "pending",
+  Closed: "closed",
+  Cancelled: "cancelled"
+};
+
+const transactionTypeInputDbMap: Record<string, TransactionType> = {
+  sales: "sales",
+  sales_listing: "sales_listing",
+  rental_leasing: "rental_leasing",
+  rental_listing: "rental_listing",
+  commercial_sales: "commercial_sales",
+  commercial_lease: "commercial_lease",
+  other: "other",
   Sales: "sales",
   "Sales (listing)": "sales_listing",
   "Rental/Leasing": "rental_leasing",
@@ -229,7 +252,12 @@ const transactionTypeLabelMap: Record<TransactionType, string> = {
   other: "Other"
 };
 
-const representingDbMap: Record<string, TransactionRepresenting> = {
+const representingInputDbMap: Record<string, TransactionRepresenting> = {
+  buyer: "buyer",
+  seller: "seller",
+  both: "both",
+  tenant: "tenant",
+  landlord: "landlord",
   Buyer: "buyer",
   Seller: "seller",
   Both: "both",
@@ -397,23 +425,70 @@ export function prepareTransactionIntakeSubmission(input: {
   const visibleBuiltInFields = input.schema.builtInFields.filter((field) => field.isVisible);
   const visibleCustomFields = input.schema.customFields.filter((field) => field.isVisible);
   const topFieldDefaults: Partial<Record<OfficeTransactionFieldSettingRecord["fieldKey"], string>> = {
-    transaction_type: "Other",
-    transaction_status: "Opportunity",
-    representing: "Buyer"
+    transaction_type: "other",
+    transaction_status: "opportunity",
+    representing: "buyer"
+  };
+  const getExistingBuiltInValue = (fieldKey: OfficeTransactionFieldSettingRecord["fieldKey"]) => {
+    switch (fieldKey) {
+      case "transaction_type":
+        return input.existingTransaction?.typeValue ?? "";
+      case "transaction_status":
+        return input.existingTransaction?.statusValue ?? "";
+      case "representing":
+        return input.existingTransaction?.representingValue ?? "";
+      case "address":
+        return input.existingTransaction?.address ?? "";
+      case "city":
+        return input.existingTransaction?.city ?? "";
+      case "state":
+        return input.existingTransaction?.state ?? "";
+      case "zip_code":
+        return input.existingTransaction?.zipCode ?? "";
+      case "transaction_name":
+        return input.existingTransaction?.title ?? "";
+      case "price":
+        return input.existingTransaction?.price ?? "";
+      case "buyer_agreement_date":
+        return input.existingTransaction?.buyerAgreementDate ?? "";
+      case "buyer_expiration_date":
+        return input.existingTransaction?.buyerExpirationDate ?? "";
+      case "acceptance_date":
+        return input.existingTransaction?.acceptanceDate ?? "";
+      case "listing_date":
+        return input.existingTransaction?.listingDate ?? "";
+      case "listing_expiration_date":
+        return input.existingTransaction?.listingExpirationDate ?? "";
+      case "closing_date":
+        return input.existingTransaction?.closingDate ?? "";
+      default:
+        return "";
+    }
+  };
+  const getTopFieldFallbackValue = (fieldKey: OfficeTransactionFieldSettingRecord["fieldKey"], preferConfiguredOption: boolean) => {
+    const schemaField = input.schema.builtInFields.find((field) => field.fieldKey === fieldKey);
+
+    if (preferConfiguredOption && schemaField?.options.length) {
+      return schemaField.options[0] ?? topFieldDefaults[fieldKey] ?? "";
+    }
+
+    return topFieldDefaults[fieldKey] ?? schemaField?.options[0] ?? "";
   };
 
   for (const field of visibleBuiltInFields) {
     const rawValue = normalizePayloadString(input.payload[field.inputName]);
+    const existingValue = field.control === "select" ? getExistingBuiltInValue(field.fieldKey) : "";
+    const submittedValue = rawValue || existingValue;
 
-    if (field.isRequired && !rawValue) {
+    if (field.isRequired && !submittedValue) {
       throw new Error(`${field.label} is required.`);
     }
 
     if (field.control === "select") {
-      validateTransactionIntakeSelectValue(field, rawValue);
+      validateTransactionIntakeSelectValue(field, submittedValue);
     }
 
-    const nextValue = field.control === "date" ? parseTransactionIntakeDateValue(rawValue) : rawValue;
+    const nextValue = field.control === "date" ? parseTransactionIntakeDateValue(rawValue) : submittedValue;
 
     switch (field.fieldKey) {
       case "transaction_type":
@@ -467,48 +542,17 @@ export function prepareTransactionIntakeSubmission(input: {
   }
 
   for (const field of input.schema.builtInFields.filter((entry) => !entry.isVisible)) {
-    const currentValue =
-      field.fieldKey === "transaction_type"
-        ? input.existingTransaction?.type ?? ""
-        : field.fieldKey === "transaction_status"
-          ? input.existingTransaction?.status ?? ""
-          : field.fieldKey === "representing"
-            ? input.existingTransaction?.representing ? input.existingTransaction.representing.charAt(0).toUpperCase() + input.existingTransaction.representing.slice(1) : ""
-            : field.fieldKey === "address"
-              ? input.existingTransaction?.address ?? ""
-              : field.fieldKey === "city"
-                ? input.existingTransaction?.city ?? ""
-                : field.fieldKey === "state"
-                  ? input.existingTransaction?.state ?? ""
-                  : field.fieldKey === "zip_code"
-                    ? input.existingTransaction?.zipCode ?? ""
-                    : field.fieldKey === "transaction_name"
-                      ? input.existingTransaction?.title ?? ""
-                      : field.fieldKey === "price"
-                        ? input.existingTransaction?.price ?? ""
-                        : field.fieldKey === "buyer_agreement_date"
-                          ? input.existingTransaction?.buyerAgreementDate ?? ""
-                          : field.fieldKey === "buyer_expiration_date"
-                            ? input.existingTransaction?.buyerExpirationDate ?? ""
-                            : field.fieldKey === "acceptance_date"
-                              ? input.existingTransaction?.acceptanceDate ?? ""
-                              : field.fieldKey === "listing_date"
-                                ? input.existingTransaction?.listingDate ?? ""
-                                : field.fieldKey === "listing_expiration_date"
-                                  ? input.existingTransaction?.listingExpirationDate ?? ""
-                                  : field.fieldKey === "closing_date"
-                                    ? input.existingTransaction?.closingDate ?? ""
-                                    : "";
+    const currentValue = getExistingBuiltInValue(field.fieldKey);
 
     switch (field.fieldKey) {
       case "transaction_type":
-        builtInValues.transactionType = currentValue || topFieldDefaults.transaction_type || "";
+        builtInValues.transactionType = currentValue || getTopFieldFallbackValue("transaction_type", false);
         break;
       case "transaction_status":
-        builtInValues.transactionStatus = currentValue || topFieldDefaults.transaction_status || "";
+        builtInValues.transactionStatus = currentValue || getTopFieldFallbackValue("transaction_status", false);
         break;
       case "representing":
-        builtInValues.representing = currentValue || topFieldDefaults.representing || "";
+        builtInValues.representing = currentValue || getTopFieldFallbackValue("representing", false);
         break;
       case "address":
         builtInValues.address = currentValue;
@@ -572,15 +616,15 @@ export function prepareTransactionIntakeSubmission(input: {
   }
 
   if (!builtInValues.transactionType) {
-    builtInValues.transactionType = topFieldDefaults.transaction_type ?? "Other";
+    builtInValues.transactionType = getTopFieldFallbackValue("transaction_type", true);
   }
 
   if (!builtInValues.transactionStatus) {
-    builtInValues.transactionStatus = topFieldDefaults.transaction_status ?? "Opportunity";
+    builtInValues.transactionStatus = getTopFieldFallbackValue("transaction_status", true);
   }
 
   if (!builtInValues.representing) {
-    builtInValues.representing = topFieldDefaults.representing ?? "Buyer";
+    builtInValues.representing = getTopFieldFallbackValue("representing", true);
   }
 
   if (!builtInValues.transactionName && !(builtInValues.address || input.existingTransaction?.address)) {
@@ -666,7 +710,7 @@ function parseTransactionTypeFilter(value: string | undefined) {
     return null;
   }
 
-  return Object.values(transactionTypeDbMap).includes(value.trim() as TransactionType) ? (value.trim() as TransactionType) : null;
+  return Object.keys(transactionTypeLabelMap).includes(value.trim()) ? (value.trim() as TransactionType) : null;
 }
 
 function mapTransactionRecord(
@@ -767,9 +811,12 @@ function mapTransactionDetail(
     city: transaction.city,
     state: transaction.state,
     zipCode: transaction.zipCode,
+    typeValue: transaction.type,
     price: transaction.price ? String(transaction.price) : "",
     type: transactionTypeLabelMap[transaction.type],
+    statusValue: transaction.status,
     status: transactionStatusLabelMap[transaction.status],
+    representingValue: transaction.representing,
     representing: representingLabelMap[transaction.representing],
     importantDate: formatDateValue(transaction.importantDate),
     buyerAgreementDate: formatDateValue(transaction.buyerAgreementDate),
@@ -826,7 +873,7 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
 
   if (input.status && input.status !== "All") {
     whereConditions.push({
-      status: transactionStatusDbMap[input.status]
+      status: transactionStatusDisplayDbMap[input.status]
     });
   }
 
@@ -1079,9 +1126,9 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
         organizationId: input.organizationId,
         officeId: input.officeId ?? null,
         ownerMembershipId: input.ownerMembershipId,
-        type: transactionTypeDbMap[input.transactionType] ?? "other",
-        status: transactionStatusDbMap[(input.transactionStatus as OfficeTransactionStatus) || "Opportunity"] ?? "opportunity",
-        representing: representingDbMap[input.representing] ?? "buyer",
+        type: transactionTypeInputDbMap[input.transactionType] ?? "other",
+        status: transactionStatusInputDbMap[input.transactionStatus] ?? "opportunity",
+        representing: representingInputDbMap[input.representing] ?? "buyer",
         title: input.transactionName.trim() || input.address.trim(),
         address: input.address.trim(),
         city: input.city.trim(),
@@ -1170,7 +1217,7 @@ export async function updateTransactionStatus(input: UpdateTransactionStatusInpu
     return null;
   }
 
-  const nextStatus = transactionStatusDbMap[input.status];
+  const nextStatus = transactionStatusDisplayDbMap[input.status];
   const updated = await prisma.$transaction(async (tx) => {
     const saved = await tx.transaction.update({
       where: {
@@ -1381,9 +1428,9 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
   const nextListingExpirationDate = parseOptionalDate(input.listingExpirationDate);
   const nextClosingDate = parseOptionalDate(input.closingDate);
   const nextImportantDate = parseOptionalDate(input.buyerExpirationDate) ?? parseOptionalDate(input.closingDate);
-  const nextTransactionType = transactionTypeDbMap[input.transactionType] ?? existing.type;
-  const nextTransactionStatus = transactionStatusDbMap[(input.transactionStatus as OfficeTransactionStatus) || "Opportunity"] ?? existing.status;
-  const nextRepresenting = representingDbMap[input.representing] ?? existing.representing;
+  const nextTransactionType = transactionTypeInputDbMap[input.transactionType] ?? existing.type;
+  const nextTransactionStatus = transactionStatusInputDbMap[input.transactionStatus] ?? existing.status;
+  const nextRepresenting = representingInputDbMap[input.representing] ?? existing.representing;
 
   await prisma.$transaction(async (tx) => {
     await tx.transaction.update({

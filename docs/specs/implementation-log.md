@@ -42,6 +42,7 @@
   - commissions
 - Transaction intake is now office-scoped and schema-driven across the create modal, `/office/transactions/new`, and transaction detail:
   - built-in fields can be marked visible/hidden and required/optional
+  - built-in `Type / Status / Representing` dropdowns support office-admin option enable/disable and display-name overrides without changing stored enum values
   - `office_admin` can add custom `text / select / date` fields
   - hidden address groups force `Transaction Name` visible + required
   - intake schema edits and intake value edits both write to `Activity Log`

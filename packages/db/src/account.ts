@@ -409,7 +409,7 @@ export async function getOfficeAccountSnapshot(input: GetOfficeAccountSnapshotIn
       teams: membership.teamMemberships.map((teamMembership) => ({
         id: teamMembership.team.id,
         name: teamMembership.team.name,
-        roleLabel: teamMembership.role === "lead" ? "Lead" : "Member",
+        roleLabel: teamMembership.role === "member" ? "Member" : teamMembership.role === "leader_ii" ? "Leader II" : "Leader I",
         isActive: teamMembership.team.isActive
       }))
     },

@@ -12,6 +12,10 @@ enum UserRole {
   office_manager
   office_user
   office_admin
+  owner
+  accountant
+  human_resources
+  team_lead
 }
 
 enum MembershipStatus {
@@ -299,7 +303,8 @@ enum AgentOnboardingStatus {
 }
 
 enum TeamMembershipRole {
-  lead
+  leader_i
+  leader_ii
   member
 }
 
@@ -425,6 +430,7 @@ model Organization {
   incomingUpdates                   IncomingUpdate[]
   offers                            Offer[]
   offerComments                     OfferComment[]
+  transactionMembershipLinks        TransactionMembershipLink[]
   agentProfiles                     AgentProfile[]
   teams                             Team[]
   teamMemberships                   TeamMembership[]
@@ -478,6 +484,7 @@ model Office {
   incomingUpdates                   IncomingUpdate[]
   offers                            Offer[]
   offerComments                     OfferComment[]
+  transactionMembershipLinks        TransactionMembershipLink[]
   agentProfiles                     AgentProfile[]
   teams                             Team[]
   teamMemberships                   TeamMembership[]
@@ -536,6 +543,7 @@ model Membership {
   eventRsvps                               EventRsvp[]
   auditLogs                                AuditLog[]
   transactionsOwned                        Transaction[]
+  transactionMembershipLinks               TransactionMembershipLink[]
   transactionTasksAssigned                 TransactionTask[]                  @relation("TransactionTaskAssignee")
   transactionTasksCompleted                TransactionTask[]                  @relation("TransactionTaskCompletedBy")
   transactionTasksSubmittedForReview       TransactionTask[]                  @relation("TransactionTaskSubmittedForReviewBy")
@@ -676,6 +684,7 @@ model Transaction {
   incomingUpdates                IncomingUpdate[]
   offers                         Offer[]
   commissionCalculations         CommissionCalculation[]
+  membershipLinks                TransactionMembershipLink[]
 
   @@index([organizationId, status])
   @@index([organizationId, officeId])
@@ -1494,21 +1503,46 @@ model Team {
 }
 
 model TeamMembership {
-  id             String             @id @default(cuid())
-  organizationId String
-  officeId       String?
-  teamId         String
-  membershipId   String
-  role           TeamMembershipRole @default(member)
-  createdAt      DateTime           @default(now())
-  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office         Office?            @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  team           Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  membership     Membership         @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  id                       String             @id @default(cuid())
+  organizationId           String
+  officeId                 String?
+  teamId                   String
+  membershipId             String
+  role                     TeamMembershipRole @default(member)
+  reportsToTeamMembershipId String?
+  createdAt                DateTime           @default(now())
+  organization             Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                   Office?            @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  team                     Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  membership               Membership         @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  reportsToTeamMembership  TeamMembership?    @relation("TeamMembershipHierarchy", fields: [reportsToTeamMembershipId], references: [id], onDelete: SetNull)
+  directReportMemberships  TeamMembership[]   @relation("TeamMembershipHierarchy")
 
   @@unique([teamId, membershipId])
   @@index([organizationId, officeId])
   @@index([organizationId, membershipId])
+  @@index([organizationId, teamId, reportsToTeamMembershipId])
+}
+
+model TransactionMembershipLink {
+  id             String       @id @default(cuid())
+  organizationId String
+  officeId       String?
+  transactionId  String
+  membershipId   String
+  role           String       @default("collaborator")
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  transaction    Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  membership     Membership   @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, membershipId])
+  @@index([organizationId, membershipId])
+  @@index([organizationId, transactionId])
+  @@index([organizationId, officeId, membershipId])
 }
 
 model AgentOnboardingItem {
@@ -1603,6 +1637,7 @@ model TransactionFieldSetting {
   fieldKey       TransactionFieldKey
   isRequired     Boolean             @default(false)
   isVisible      Boolean             @default(true)
+  options        Json?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)

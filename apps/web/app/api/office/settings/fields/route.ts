@@ -23,6 +23,11 @@ export async function PATCH(request: NextRequest) {
           fieldKey?: string;
           isRequired?: boolean;
           isVisible?: boolean;
+          selectOptions?: Array<{
+            value?: string;
+            label?: string;
+            isEnabled?: boolean;
+          }>;
         }>;
         transactionCustomFieldDefinitions?: Array<{
           fieldKey?: string;
@@ -50,7 +55,14 @@ export async function PATCH(request: NextRequest) {
         body?.transactionFieldSettings?.map((entry) => ({
           fieldKey: entry.fieldKey ?? "",
           isRequired: Boolean(entry.isRequired),
-          isVisible: typeof entry.isVisible === "boolean" ? entry.isVisible : true
+          isVisible: typeof entry.isVisible === "boolean" ? entry.isVisible : true,
+          selectOptions: Array.isArray(entry.selectOptions)
+            ? entry.selectOptions.map((option) => ({
+                value: String(option.value ?? ""),
+                label: String(option.label ?? ""),
+                isEnabled: Boolean(option.isEnabled)
+              }))
+            : undefined
         })) ?? [],
       transactionCustomFieldDefinitions:
         body?.transactionCustomFieldDefinitions?.map((entry) => ({

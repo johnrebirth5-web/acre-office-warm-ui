@@ -884,6 +884,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
   - team rosters
   - required contact roles
   - built-in transaction intake field requirements
+  - built-in transaction dropdown option labels / availability for `Type / Status / Representing`
   - office-scoped custom transaction intake fields
   - checklist templates
 - 这些都已经有清晰的领域主轴，不值得再造一套 admin-only 影子模型

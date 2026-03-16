@@ -390,6 +390,7 @@ export type {
   OfficeFieldSettingsSnapshot,
   OfficeRequiredContactRoleRecord,
   OfficeSettingsSummarySnapshot,
+  OfficeTransactionBuiltInSelectOptionRecord,
   OfficeTransactionCustomFieldDefinitionRecord,
   OfficeTransactionFieldSettingRecord,
   OfficeTransactionIntakeSchema,

@@ -24,6 +24,7 @@ Provide a practical Back Office admin/settings area for access management, teams
 - fields admin supports:
   - required contact roles
   - built-in transaction field required / visible settings
+  - built-in `Type / Status / Representing` dropdown option enable/disable plus display-label editing
   - office-scoped custom transaction intake fields (`text / select / date`)
   - one shared intake schema across transaction create modal, `/office/transactions/new`, and transaction detail intake editing
   - `office_admin`-only schema editing and audit coverage for schema/value changes

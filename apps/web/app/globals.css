@@ -2474,6 +2474,22 @@ select {
   width: 100%;
 }
 
+.bm-transaction-select-option-list {
+  display: grid;
+  gap: 10px;
+}
+
+.bm-transaction-select-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.bm-transaction-select-option-row input {
+  width: 100%;
+}
+
 .bm-transaction-config-actions {
   display: flex;
   justify-content: flex-end;

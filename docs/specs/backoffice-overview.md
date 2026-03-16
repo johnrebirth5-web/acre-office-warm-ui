@@ -51,6 +51,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
   - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now share one office-scoped schema-driven intake workspace with admin-managed built-in visibility/requiredness and custom fields.
+  - the built-in `Type / Status / Representing` dropdowns now keep stable system values while allowing office admins to edit which options are available and how each option label is displayed.
 - Follow-up work:
   - deeper listing-side workflow parity
   - richer transaction automation

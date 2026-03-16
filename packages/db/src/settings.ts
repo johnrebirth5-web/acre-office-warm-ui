@@ -11,13 +11,26 @@ import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } fr
 import { prisma } from "./client";
 
 const userRoleLabelMap: Record<UserRole, string> = {
+  owner: "Owner",
+  office_admin: "Office Admin",
+  accountant: "Accountant",
+  human_resources: "Human Resources",
+  team_lead: "Team Lead",
   agent: "Agent",
   office_manager: "Office Manager",
-  office_user: "Office User",
-  office_admin: "Office Admin"
+  office_user: "Office User"
 };
 
-const officeInternalRoleCatalog: UserRole[] = ["office_admin", "office_user", "office_manager"];
+const backOfficeUserRoleCatalog: UserRole[] = [
+  "owner",
+  "office_admin",
+  "accountant",
+  "human_resources",
+  "team_lead",
+  "agent",
+  "office_user",
+  "office_manager"
+];
 
 const membershipStatusLabelMap: Record<MembershipStatus, string> = {
   active: "Active",
@@ -45,6 +58,11 @@ const transactionTypeLabelMap: Record<TransactionType, string> = {
   other: "Other"
 };
 
+type BuiltInSelectOptionCatalogEntry = {
+  value: string;
+  label: string;
+};
+
 const transactionIntakeBuiltInFieldCatalog: Array<{
   key: TransactionFieldKey;
   label: string;
@@ -52,11 +70,52 @@ const transactionIntakeBuiltInFieldCatalog: Array<{
   section: "top" | "primary";
   control: "text" | "date" | "select";
   className?: string;
-  options?: string[];
+  options?: BuiltInSelectOptionCatalogEntry[];
 }> = [
-  { key: "transaction_type", label: "Type", inputName: "transactionType", section: "top", control: "select", options: ["Sales", "Sales (listing)", "Rental/Leasing", "Rental (listing)", "Commercial Sales", "Commercial Lease", "Other"] },
-  { key: "transaction_status", label: "Status", inputName: "transactionStatus", section: "top", control: "select", options: ["Opportunity", "Active", "Pending", "Closed", "Cancelled"] },
-  { key: "representing", label: "Representing", inputName: "representing", section: "top", control: "select", options: ["Buyer", "Seller", "Both", "Tenant", "Landlord"] },
+  {
+    key: "transaction_type",
+    label: "Type",
+    inputName: "transactionType",
+    section: "top",
+    control: "select",
+    options: [
+      { value: "sales", label: "Sales" },
+      { value: "sales_listing", label: "Sales (listing)" },
+      { value: "rental_leasing", label: "Rental/Leasing" },
+      { value: "rental_listing", label: "Rental (listing)" },
+      { value: "commercial_sales", label: "Commercial Sales" },
+      { value: "commercial_lease", label: "Commercial Lease" },
+      { value: "other", label: "Other" }
+    ]
+  },
+  {
+    key: "transaction_status",
+    label: "Status",
+    inputName: "transactionStatus",
+    section: "top",
+    control: "select",
+    options: [
+      { value: "opportunity", label: "Opportunity" },
+      { value: "active", label: "Active" },
+      { value: "pending", label: "Pending" },
+      { value: "closed", label: "Closed" },
+      { value: "cancelled", label: "Cancelled" }
+    ]
+  },
+  {
+    key: "representing",
+    label: "Representing",
+    inputName: "representing",
+    section: "top",
+    control: "select",
+    options: [
+      { value: "buyer", label: "Buyer" },
+      { value: "seller", label: "Seller" },
+      { value: "both", label: "Both" },
+      { value: "tenant", label: "Tenant" },
+      { value: "landlord", label: "Landlord" }
+    ]
+  },
   { key: "address", label: "Address", inputName: "address", section: "primary", control: "text" },
   { key: "city", label: "City", inputName: "city", section: "primary", control: "text" },
   { key: "state", label: "State", inputName: "state", section: "primary", control: "text", className: "is-compact" },
@@ -192,6 +251,12 @@ export type OfficeRequiredContactRoleRecord = {
   isRequired: boolean;
 };
 
+export type OfficeTransactionBuiltInSelectOptionRecord = {
+  value: string;
+  label: string;
+  isEnabled: boolean;
+};
+
 export type OfficeTransactionFieldSettingRecord = {
   fieldKey: TransactionFieldKey;
   inputName: string;
@@ -200,6 +265,7 @@ export type OfficeTransactionFieldSettingRecord = {
   control: "text" | "date" | "select";
   className: string;
   options: string[];
+  selectOptions: OfficeTransactionBuiltInSelectOptionRecord[];
   isRequired: boolean;
   isVisible: boolean;
   isLockedRequired: boolean;
@@ -309,6 +375,11 @@ export type SaveOfficeFieldSettingsInput = {
     fieldKey: string;
     isRequired: boolean;
     isVisible: boolean;
+    selectOptions?: Array<{
+      value: string;
+      label: string;
+      isEnabled: boolean;
+    }>;
   }>;
   transactionCustomFieldDefinitions?: Array<{
     fieldKey: string;
@@ -420,8 +491,8 @@ function formatDateTimeLabel(value: Date | null | undefined) {
   });
 }
 
-function isOfficeInternalRole(role: UserRole) {
-  return officeInternalRoleCatalog.includes(role);
+function isBackOfficeUserRole(role: UserRole) {
+  return backOfficeUserRoleCatalog.includes(role);
 }
 
 function mapOfficeAdminUserRow(membership: {
@@ -476,7 +547,12 @@ function mapOfficeAdminUserRow(membership: {
     userId: membership.userId,
     name,
     email: membership.user.email,
-    role: membership.role === "office_manager" ? "Office Manager (Legacy)" : userRoleLabelMap[membership.role],
+    role:
+      membership.role === "office_manager"
+        ? "Office Manager (Legacy)"
+        : membership.role === "office_user"
+          ? "Office User (Legacy)"
+          : userRoleLabelMap[membership.role],
     roleValue: membership.role,
     roleEditorValue: membership.role,
     officeAccessLabel: formatOfficeAccessLabel(membership.office),
@@ -502,7 +578,16 @@ function normalizeUserRole(value: string | undefined): UserRole | undefined {
     return undefined;
   }
 
-  if (value === "agent" || value === "office_manager" || value === "office_user" || value === "office_admin") {
+  if (
+    value === "owner" ||
+    value === "office_admin" ||
+    value === "accountant" ||
+    value === "human_resources" ||
+    value === "team_lead" ||
+    value === "agent" ||
+    value === "office_manager" ||
+    value === "office_user"
+  ) {
     return value;
   }
 
@@ -626,6 +711,137 @@ function readTransactionCustomFieldOptions(value: Prisma.JsonValue | null | unde
   return value.map((entry) => String(entry ?? "").trim()).filter(Boolean);
 }
 
+function getTransactionBuiltInFieldCatalogEntry(fieldKey: TransactionFieldKey) {
+  return transactionIntakeBuiltInFieldCatalog.find((entry) => entry.key === fieldKey) ?? null;
+}
+
+function getTransactionBuiltInSelectCatalogOptions(fieldKey: TransactionFieldKey) {
+  const catalogEntry = getTransactionBuiltInFieldCatalogEntry(fieldKey);
+
+  return catalogEntry?.control === "select" ? catalogEntry.options ?? [] : [];
+}
+
+function normalizeTransactionBuiltInSelectOptionValue(fieldKey: TransactionFieldKey, value: string | undefined) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const option = getTransactionBuiltInSelectCatalogOptions(fieldKey).find(
+    (entry) => entry.value === trimmed || entry.label === trimmed
+  );
+
+  return option?.value ?? null;
+}
+
+function readTransactionBuiltInSelectOptions(
+  fieldKey: TransactionFieldKey,
+  value: Prisma.JsonValue | null | undefined
+): OfficeTransactionBuiltInSelectOptionRecord[] {
+  const catalogOptions = getTransactionBuiltInSelectCatalogOptions(fieldKey);
+
+  if (!catalogOptions.length) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    return catalogOptions.map((option) => ({
+      value: option.value,
+      label: option.label,
+      isEnabled: true
+    }));
+  }
+
+  const persistedOptions = new Map<string, { label: string }>();
+
+  for (const entry of value) {
+    if (typeof entry === "string") {
+      const normalizedValue = normalizeTransactionBuiltInSelectOptionValue(fieldKey, entry);
+
+      if (normalizedValue) {
+        const defaultOption = catalogOptions.find((option) => option.value === normalizedValue);
+        persistedOptions.set(normalizedValue, { label: defaultOption?.label ?? normalizedValue });
+      }
+
+      continue;
+    }
+
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+
+    const optionRecord = entry as Record<string, Prisma.JsonValue>;
+    const normalizedValue = normalizeTransactionBuiltInSelectOptionValue(
+      fieldKey,
+      typeof optionRecord.value === "string" ? optionRecord.value : typeof optionRecord.label === "string" ? optionRecord.label : undefined
+    );
+
+    if (!normalizedValue) {
+      continue;
+    }
+
+    const defaultOption = catalogOptions.find((option) => option.value === normalizedValue);
+    const nextLabel = typeof optionRecord.label === "string" && optionRecord.label.trim() ? optionRecord.label.trim() : defaultOption?.label ?? normalizedValue;
+    persistedOptions.set(normalizedValue, { label: nextLabel });
+  }
+
+  return catalogOptions.map((option) => ({
+    value: option.value,
+    label: persistedOptions.get(option.value)?.label ?? option.label,
+    isEnabled: persistedOptions.has(option.value)
+  }));
+}
+
+function normalizeTransactionBuiltInSelectOptions(
+  fieldKey: TransactionFieldKey,
+  options:
+    | Array<{
+        value: string;
+        label: string;
+        isEnabled: boolean;
+      }>
+    | undefined,
+  fallbackOptions: OfficeTransactionBuiltInSelectOptionRecord[]
+) {
+  const catalogOptions = getTransactionBuiltInSelectCatalogOptions(fieldKey);
+
+  if (!catalogOptions.length) {
+    return [] as Array<{ value: string; label: string }>;
+  }
+
+  const sourceOptions = options ?? fallbackOptions;
+  const normalizedOptions: Array<{ value: string; label: string }> = [];
+  const seenValues = new Set<string>();
+
+  for (const option of sourceOptions) {
+    if (!option.isEnabled) {
+      continue;
+    }
+
+    const normalizedValue = normalizeTransactionBuiltInSelectOptionValue(fieldKey, option.value);
+
+    if (!normalizedValue || seenValues.has(normalizedValue)) {
+      continue;
+    }
+
+    const defaultOption = catalogOptions.find((entry) => entry.value === normalizedValue);
+    const normalizedLabel = option.label.trim() || defaultOption?.label || normalizedValue;
+
+    normalizedOptions.push({
+      value: normalizedValue,
+      label: normalizedLabel
+    });
+    seenValues.add(normalizedValue);
+  }
+
+  return normalizedOptions;
+}
+
+function formatTransactionBuiltInSelectOptions(options: Array<{ value: string; label: string }>) {
+  return options.map((option) => `${option.label} [${option.value}]`).join(", ") || "—";
+}
+
 function slugifyTransactionCustomFieldLabel(label: string) {
   const slug = label
     .trim()
@@ -644,14 +860,17 @@ function buildOfficeTransactionBuiltInFieldRecord(input: {
   fieldKey: TransactionFieldKey;
   isRequired: boolean;
   isVisible: boolean;
+  options?: Prisma.JsonValue | null;
   isLockedRequired?: boolean;
   isLockedVisible?: boolean;
 }): OfficeTransactionFieldSettingRecord {
-  const catalogEntry = transactionIntakeBuiltInFieldCatalog.find((entry) => entry.key === input.fieldKey);
+  const catalogEntry = getTransactionBuiltInFieldCatalogEntry(input.fieldKey);
 
   if (!catalogEntry) {
     throw new Error("Unsupported transaction built-in field.");
   }
+
+  const selectOptions = catalogEntry.control === "select" ? readTransactionBuiltInSelectOptions(input.fieldKey, input.options) : [];
 
   return {
     fieldKey: catalogEntry.key,
@@ -660,7 +879,8 @@ function buildOfficeTransactionBuiltInFieldRecord(input: {
     section: catalogEntry.section,
     control: catalogEntry.control,
     className: catalogEntry.className ?? "",
-    options: catalogEntry.options ?? [],
+    options: selectOptions.filter((option) => option.isEnabled).map((option) => option.value),
+    selectOptions,
     isRequired: input.isRequired,
     isVisible: input.isVisible,
     isLockedRequired: Boolean(input.isLockedRequired),
@@ -859,7 +1079,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
   const where: Prisma.MembershipWhereInput = {
     organizationId: input.organizationId,
     role: {
-      in: officeInternalRoleCatalog
+      in: backOfficeUserRoleCatalog
     }
   };
 
@@ -937,7 +1157,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       where: {
         organizationId: input.organizationId,
         role: {
-          in: officeInternalRoleCatalog
+          in: backOfficeUserRoleCatalog
         }
       },
       select: {
@@ -998,12 +1218,20 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
   const allOfficeAccessCount = summaryRows.filter((entry) => entry.officeAccessValue === "__all__").length;
 
   const roleOptions = [
-    { value: "office_admin", label: "Admin" },
-    { value: "office_user", label: "User" }
+    { value: "owner", label: "Owner" },
+    { value: "office_admin", label: "Office Admin" },
+    { value: "accountant", label: "Accountant" },
+    { value: "human_resources", label: "Human Resources" },
+    { value: "team_lead", label: "Team Lead" },
+    { value: "agent", label: "Agent" }
   ];
 
   if (summaryRows.some((entry) => entry.roleValue === "office_manager")) {
     roleOptions.push({ value: "office_manager", label: "Office Manager (Legacy)" });
+  }
+
+  if (summaryRows.some((entry) => entry.roleValue === "office_user")) {
+    roleOptions.push({ value: "office_user", label: "Office User (Legacy)" });
   }
 
   return {
@@ -1060,20 +1288,20 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       throw new Error("User membership was not found.");
     }
 
-    if (!isOfficeInternalRole(membership.role)) {
-      throw new Error("Agent memberships are managed outside the internal users page.");
+    if (!isBackOfficeUserRole(membership.role)) {
+      throw new Error("This membership cannot be managed from the Back Office users page.");
     }
 
     const nextRole = normalizeUserRole(input.role) ?? membership.role;
     const nextStatus = normalizeMembershipStatus(input.status) ?? membership.status;
     let nextOfficeId = typeof input.officeId === "string" ? input.officeId : input.officeId === null ? null : membership.officeId;
 
-    if (nextRole === "agent") {
-      throw new Error("Users page only supports internal Admin and User roles.");
-    }
-
     if (nextRole === "office_manager" && membership.role !== "office_manager") {
       throw new Error("The legacy Office Manager role cannot be assigned from this page.");
+    }
+
+    if (nextRole === "office_user" && membership.role !== "office_user") {
+      throw new Error("The legacy Office User role cannot be assigned from this page.");
     }
 
     if (!membership.user.credential && nextStatus === "active") {
@@ -1247,7 +1475,8 @@ export async function getOfficeTransactionIntakeSchema(input: {
       entry.fieldKey,
       {
         isRequired: entry.isRequired,
-        isVisible: entry.isVisible
+        isVisible: entry.isVisible,
+        options: entry.options
       }
     ])
   );
@@ -1257,7 +1486,8 @@ export async function getOfficeTransactionIntakeSchema(input: {
       buildOfficeTransactionBuiltInFieldRecord({
         fieldKey: entry.key,
         isRequired: fieldSettingsMap.get(entry.key)?.isRequired ?? false,
-        isVisible: fieldSettingsMap.get(entry.key)?.isVisible ?? true
+        isVisible: fieldSettingsMap.get(entry.key)?.isVisible ?? true,
+        options: fieldSettingsMap.get(entry.key)?.options
       })
     )
   );
@@ -1377,9 +1607,16 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
     const fieldChanges: ActivityLogChange[] = [];
     for (const entry of input.transactionFieldSettings) {
       const fieldKey = normalizeTransactionFieldKey(entry.fieldKey);
+      const catalogEntry = getTransactionBuiltInFieldCatalogEntry(fieldKey);
       const existing = existingFieldSettings.find((setting) => setting.fieldKey === fieldKey) ?? null;
       const previousRequired = existing?.isRequired ?? false;
       const previousVisible = existing?.isVisible ?? true;
+      const previousSelectOptions = existing ? readTransactionBuiltInSelectOptions(fieldKey, existing.options) : readTransactionBuiltInSelectOptions(fieldKey, null);
+      const normalizedSelectOptions = normalizeTransactionBuiltInSelectOptions(fieldKey, entry.selectOptions, previousSelectOptions);
+
+      if (catalogEntry?.control === "select" && entry.isVisible && normalizedSelectOptions.length === 0) {
+        throw new Error(`${catalogEntry.label} must keep at least one enabled option while the field is visible.`);
+      }
 
       if (existing) {
         await tx.transactionFieldSetting.update({
@@ -1388,7 +1625,8 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
           },
           data: {
             isRequired: entry.isRequired,
-            isVisible: entry.isVisible
+            isVisible: entry.isVisible,
+            options: catalogEntry?.control === "select" ? normalizedSelectOptions : Prisma.JsonNull
           }
         });
       } else {
@@ -1398,14 +1636,25 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
             officeId: input.officeId ?? null,
             fieldKey,
             isRequired: entry.isRequired,
-            isVisible: entry.isVisible
+            isVisible: entry.isVisible,
+            options: catalogEntry?.control === "select" ? normalizedSelectOptions : Prisma.JsonNull
           }
         });
       }
 
-      const fieldLabel = transactionIntakeBuiltInFieldCatalog.find((catalogEntry) => catalogEntry.key === fieldKey)?.label ?? fieldKey;
+      const fieldLabel = catalogEntry?.label ?? fieldKey;
       const requiredChange = buildChange(`${fieldLabel} required`, previousRequired ? "Yes" : "No", entry.isRequired ? "Yes" : "No");
       const visibilityChange = buildChange(`${fieldLabel} visible`, previousVisible ? "Yes" : "No", entry.isVisible ? "Yes" : "No");
+      const optionsChange =
+        catalogEntry?.control === "select"
+          ? buildChange(
+              `${fieldLabel} options`,
+              formatTransactionBuiltInSelectOptions(
+                previousSelectOptions.filter((option) => option.isEnabled).map((option) => ({ value: option.value, label: option.label }))
+              ),
+              formatTransactionBuiltInSelectOptions(normalizedSelectOptions)
+            )
+          : null;
 
       if (requiredChange) {
         fieldChanges.push(requiredChange);
@@ -1413,6 +1662,10 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
 
       if (visibilityChange) {
         fieldChanges.push(visibilityChange);
+      }
+
+      if (optionsChange) {
+        fieldChanges.push(optionsChange);
       }
     }
 

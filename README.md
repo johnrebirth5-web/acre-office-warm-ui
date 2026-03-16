@@ -395,6 +395,7 @@
   - `Fields` 当前支持：
     - required contact roles
     - built-in transaction intake field required / visible settings
+    - `Type / Status / Representing` 这三个系统下拉现在也支持 office_admin 调整可用选项和显示名称
     - office-scoped custom transaction intake fields（text / select / date）
     - 同一套 intake schema 驱动 `/office/transactions` modal、`/office/transactions/new` 和 transaction detail intake 编辑区
     - transaction intake schema 结构调整与 intake 值编辑都会写入 `Activity Log`
@@ -563,6 +564,7 @@
 - `Create Transaction` 继续保留在 `Transactions` 页面内的 modal 结构，但现在改成 office-scoped schema-driven intake workspace；同一套 schema 也驱动 `/office/transactions/new` 和 transaction detail 的 intake 编辑区
 - transaction intake 现在支持：
   - `office_admin` 在创建界面直接 `Edit Form` / `Add Custom Field`
+  - `Type / Status / Representing` 三个系统下拉支持启用/停用既有系统选项，并修改显示名称
   - 隐藏 built-in 或 custom 字段，并让非 admin 后续不再看到也不再必填
   - 新增 `text / select / date` 自定义字段
   - 文本字段限制 50 个字符

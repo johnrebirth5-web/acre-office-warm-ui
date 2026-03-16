@@ -259,9 +259,9 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
           canEditValues={canEditTransactionsForRole}
           chrome="detail"
           initialValues={{
-            transactionType: transaction.type,
-            transactionStatus: transaction.status,
-            representing: transaction.representing ? transaction.representing.charAt(0).toUpperCase() + transaction.representing.slice(1) : "",
+            transactionType: transaction.typeValue,
+            transactionStatus: transaction.statusValue,
+            representing: transaction.representingValue,
             address: transaction.address,
             city: transaction.city,
             state: transaction.state,

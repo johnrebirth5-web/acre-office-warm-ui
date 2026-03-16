@@ -25,7 +25,11 @@ const roleLabelMap: Record<UserRole, string> = {
   agent: "Agent",
   office_manager: "Office Manager",
   office_user: "Office User",
-  office_admin: "Office Admin"
+  office_admin: "Office Admin",
+  owner: "Owner",
+  accountant: "Accountant",
+  human_resources: "Human Resources",
+  team_lead: "Team Lead"
 };
 
 const onboardingStatusLabelMap: Record<AgentOnboardingStatus, string> = {
@@ -48,7 +52,8 @@ const onboardingItemStatusLabelMap: Record<AgentOnboardingItemStatus, string> = 
 };
 
 const teamRoleLabelMap: Record<TeamMembershipRole, string> = {
-  lead: "Lead",
+  leader_i: "Leader I",
+  leader_ii: "Leader II",
   member: "Member"
 };
 
@@ -467,7 +472,11 @@ function normalizeOnboardingStatus(
 }
 
 function normalizeTeamRole(value: string | undefined): TeamMembershipRole {
-  return value === "lead" || value === "member" ? value : "member";
+  if (value === "leader_i" || value === "leader_ii" || value === "member") {
+    return value;
+  }
+
+  return value === "lead" ? "leader_i" : "member";
 }
 
 function normalizeGoalPeriod(value: string): AgentGoalPeriodType {

@@ -2,6 +2,7 @@
 
 import { Button } from "@acre/ui";
 import type {
+  OfficeTransactionBuiltInSelectOptionRecord,
   OfficeTransactionCustomFieldDefinitionRecord,
   OfficeTransactionFieldSettingRecord,
   OfficeTransactionIntakeSchema
@@ -34,6 +35,12 @@ type CustomFieldEditorState = {
   isRequired: boolean;
   isVisible: boolean;
   optionsText: string;
+};
+
+type BuiltInSelectEditorState = {
+  fieldKey: OfficeTransactionFieldSettingRecord["fieldKey"];
+  label: string;
+  options: OfficeTransactionBuiltInSelectOptionRecord[];
 };
 
 type HiddenFieldRecord = {
@@ -69,6 +76,14 @@ function createCustomFieldEditorState(field?: OfficeTransactionCustomFieldDefini
     isRequired: field?.isRequired ?? false,
     isVisible: field?.isVisible ?? true,
     optionsText: field?.options.join("\n") ?? ""
+  };
+}
+
+function createBuiltInSelectEditorState(field: OfficeTransactionFieldSettingRecord): BuiltInSelectEditorState {
+  return {
+    fieldKey: field.fieldKey,
+    label: field.label,
+    options: field.selectOptions.map((option) => ({ ...option }))
   };
 }
 
@@ -145,6 +160,7 @@ export function TransactionIntakeWorkspace({
   const [submitError, setSubmitError] = useState("");
   const [schemaError, setSchemaError] = useState("");
   const [editorState, setEditorState] = useState<CustomFieldEditorState | null>(null);
+  const [builtInSelectEditorState, setBuiltInSelectEditorState] = useState<BuiltInSelectEditorState | null>(null);
   const [isSavingEditor, setIsSavingEditor] = useState(false);
 
   useEffect(() => {
@@ -179,7 +195,8 @@ export function TransactionIntakeWorkspace({
           transactionFieldSettings: nextSchema.builtInFields.map((field) => ({
             fieldKey: field.fieldKey,
             isRequired: field.isRequired,
-            isVisible: field.isVisible
+            isVisible: field.isVisible,
+            selectOptions: field.selectOptions
           })),
           transactionCustomFieldDefinitions: nextSchema.customFields.map((field) => ({
             fieldKey: field.fieldKey,
@@ -206,8 +223,10 @@ export function TransactionIntakeWorkspace({
         ...current
       }));
       startTransition(() => router.refresh());
+      return nextServerSchema;
     } catch (error) {
       setSchemaError(error instanceof Error ? error.message : "Failed to save form configuration.");
+      return null;
     } finally {
       setIsSavingSchema(false);
     }
@@ -286,6 +305,43 @@ export function TransactionIntakeWorkspace({
       setSchemaError(error instanceof Error ? error.message : "Failed to save custom field.");
     } finally {
       setIsSavingEditor(false);
+    }
+  }
+
+  async function handleSaveBuiltInSelectEditor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!builtInSelectEditorState) {
+      return;
+    }
+
+    const enabledOptions = builtInSelectEditorState.options.filter((option) => option.isEnabled);
+
+    if (!enabledOptions.length) {
+      setSchemaError(`${builtInSelectEditorState.label} must keep at least one option.`);
+      return;
+    }
+
+    const nextSchema: OfficeTransactionIntakeSchema = {
+      ...localSchema,
+      builtInFields: localSchema.builtInFields.map((field) =>
+        field.fieldKey === builtInSelectEditorState.fieldKey
+          ? {
+              ...field,
+              options: enabledOptions.map((option) => option.value),
+              selectOptions: builtInSelectEditorState.options.map((option) => ({
+                ...option,
+                label: option.label.trim() || field.selectOptions.find((entry) => entry.value === option.value)?.label || option.value
+              }))
+            }
+          : field
+      )
+    };
+
+    const nextServerSchema = await persistSchema(nextSchema);
+
+    if (nextServerSchema) {
+      setBuiltInSelectEditorState(null);
     }
   }
 
@@ -431,6 +487,7 @@ export function TransactionIntakeWorkspace({
                         ...entry,
                         isVisible: false
                       })),
+                    onEdit: field.control === "select" ? () => setBuiltInSelectEditorState(createBuiltInSelectEditorState(field)) : undefined,
                     requiredLabel: field.isRequired ? "Optional" : "Required",
                     isLockedRequired: field.isLockedRequired,
                     isLockedVisible: field.isLockedVisible
@@ -444,9 +501,11 @@ export function TransactionIntakeWorkspace({
                   value={fieldValues[field.inputName] ?? ""}
                 >
                   <option value="">select</option>
-                  {field.options.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                  {field.selectOptions
+                    .filter((option) => option.isEnabled)
+                    .map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -637,6 +696,76 @@ export function TransactionIntakeWorkspace({
                 </Button>
                 <Button disabled={isSavingEditor} type="submit" variant="secondary">
                   {isSavingEditor ? "Saving..." : editorState.mode === "create" ? "Create field" : "Save field"}
+                </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {builtInSelectEditorState ? (
+        <div className="bm-transaction-config-overlay">
+          <section className="bm-transaction-config-modal">
+            <header className="bm-transaction-config-head">
+              <div>
+                <strong>Edit {builtInSelectEditorState.label} options</strong>
+                <span>Enable, disable, or rename the system options shown in this dropdown.</span>
+              </div>
+              <button aria-label="Close built-in select editor" onClick={() => setBuiltInSelectEditorState(null)} type="button">
+                ×
+              </button>
+            </header>
+
+            <form className="bm-transaction-config-form" onSubmit={handleSaveBuiltInSelectEditor}>
+              <div className="bm-transaction-select-option-list">
+                {builtInSelectEditorState.options.map((option) => (
+                  <div className="bm-transaction-select-option-row" key={option.value}>
+                    <label className="office-checkbox-field">
+                      <input
+                        checked={option.isEnabled}
+                        onChange={(event) =>
+                          setBuiltInSelectEditorState((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  options: current.options.map((entry) =>
+                                    entry.value === option.value ? { ...entry, isEnabled: event.target.checked } : entry
+                                  )
+                                }
+                              : current
+                          )
+                        }
+                        type="checkbox"
+                      />
+                      <span>{option.value}</span>
+                    </label>
+                    <input
+                      disabled={!option.isEnabled}
+                      onChange={(event) =>
+                        setBuiltInSelectEditorState((current) =>
+                          current
+                            ? {
+                                ...current,
+                                options: current.options.map((entry) =>
+                                  entry.value === option.value ? { ...entry, label: event.target.value } : entry
+                                )
+                              }
+                            : current
+                        )
+                      }
+                      placeholder="Display label"
+                      value={option.label}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="office-form-helper">System values stay stable in the database. Only the visible menu items and labels change.</p>
+              <div className="bm-transaction-config-actions">
+                <Button onClick={() => setBuiltInSelectEditorState(null)} type="button" variant="ghost">
+                  Cancel
+                </Button>
+                <Button disabled={isSavingSchema} type="submit" variant="secondary">
+                  {isSavingSchema ? "Saving..." : "Save options"}
                 </Button>
               </div>
             </form>
