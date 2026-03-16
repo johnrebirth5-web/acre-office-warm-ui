@@ -23,6 +23,7 @@ Use this baseline unless the current task explicitly says otherwise:
 
 - local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
 - default local browser entry: `http://localhost:3105/`
+- root `npm run dev` must bring up `@acre/web` on port `3105` unless the current task explicitly overrides `PORT`
 - default GitHub remote target: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - default DigitalOcean entry: `http://45.55.247.137:3105/`
 - default production app root: `/opt/acre-ui-rebuild/app`
@@ -100,6 +101,8 @@ If Prisma schema changed, also run:
 - `npm run db:generate`
 - `npm run db:migrate -- --name <change_name>` when needed
 - `npm run db:seed` when the task requires seed verification
+- after any Prisma schema/client change, restart the running Next dev server before validating in browser
+- if browser/runtime errors mention Prisma validation after an auth or schema change, first suspect a stale dev server holding an old Prisma Client in memory
 
 ## Git workflow rules
 

@@ -46,8 +46,9 @@
 ## Current default baseline
 
 - Product priority: `Back Office`, not the public site
-- Local source of truth: `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
+- Local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
 - Default local browser entry: `http://localhost:3105/`
+- Root `npm run dev` is now expected to bind `@acre/web` to `3105` by default
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
 - Default public entry: `http://45.55.247.137:3105/`
@@ -73,6 +74,7 @@
 ## Known limitations / open issues
 
 - Some routes and UI areas still carry transitional patterns even though the main Back Office flows are already Prisma-backed
+- After Prisma schema/client changes, the running Next dev server still needs an explicit restart or it may hold a stale Prisma Client in memory
 - The active deployment is still a simple single-Droplet line with no staging environment, no HTTPS, and no object storage
 - Background job infrastructure is not yet established, so some reminders/automation remain manual or request-time only
 - External integrations remain intentionally absent:

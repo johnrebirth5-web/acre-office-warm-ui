@@ -721,6 +721,8 @@ npm run dev
 
 - `http://localhost:3105/`
 
+当前仓库根目录的 `npm run dev` 会默认把 `@acre/web` 启动到 `3105`。
+
 当前本地 auth 基线：
 
 - `/login` 现在使用 email + password
@@ -732,6 +734,22 @@ npm run dev
 直接运行 `npm run dev` 且未设置 `PORT` 时，Next.js 默认仍会使用：
 
 - `http://localhost:3000`
+
+但这个仓库已经把根目录 `npm run dev` 包了一层启动脚本，正常情况下会直接起在 `3105`。
+只有你绕过根目录脚本、直接在 `apps/web` 下运行 `next dev` 时，才会回到 Next.js 自己的 `3000` 默认端口。
+
+Prisma / auth 开发注意：
+
+- 如果改了 `packages/db/prisma/schema.prisma`
+- 或者运行了 `npm run db:generate`
+- 或者变更了依赖新 relation / model 的 auth 代码
+- 浏览器验证前必须重启正在运行的 Next dev server
+
+原因：
+
+- Next dev 进程可能继续持有旧的 Prisma Client
+- 页面会出现 `PrismaClientValidationError`
+- 常见现象是代码和 schema 明明已经是新的，但运行中的服务仍按旧 relation 解析查询
 
 ## 常用开发命令
 
