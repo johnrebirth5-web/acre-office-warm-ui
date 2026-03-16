@@ -7540,30 +7540,30 @@ a {
   gap: 18px;
 }
 
-.office-agents-page-header {
+.office-page-header.office-agents-page-header {
   display: grid;
   grid-template-columns: 1fr;
   gap: 18px;
   padding: 4px 0 2px;
 }
 
-.office-agents-page-header .office-page-heading {
+.office-page-header.office-agents-page-header .office-page-heading {
   max-width: min(100%, 78rem);
   gap: 12px;
 }
 
-.office-agents-page-header .office-page-heading h2 {
+.office-page-header.office-agents-page-header .office-page-heading h2 {
   max-width: 12ch;
 }
 
-.office-agents-page-header .office-page-heading p {
+.office-page-header.office-agents-page-header .office-page-heading p {
   max-width: 58ch;
   font-size: 1.02rem;
   line-height: 1.55;
   text-wrap: balance;
 }
 
-.office-agents-page-header .office-page-actions {
+.office-page-header.office-agents-page-header .office-page-actions {
   width: 100%;
   margin-left: 0;
   justify-self: stretch;
