@@ -1,7 +1,14 @@
 import { spawn } from "node:child_process";
 
 const port = process.env.PORT?.trim() || "3105";
-const child = spawn("npm", ["run", "dev", "--workspace=@acre/web", "--", "--port", port], {
+const host = process.env.ACRE_DEV_HOST?.trim();
+const args = ["run", "dev", "--workspace=@acre/web", "--", "--port", port];
+
+if (host) {
+  args.push("--hostname", host);
+}
+
+const child = spawn("npm", args, {
   stdio: "inherit",
   shell: true,
   env: process.env

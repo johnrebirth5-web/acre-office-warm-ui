@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: acre
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d acre"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - acre-postgres-data:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      ACRE_DEV_HOST: 0.0.0.0
+      DATABASE_URL: ${ACRE_DOCKER_DATABASE_URL:-postgresql://postgres:postgres@db:5432/acre}
+      ACRE_SESSION_SECRET: ${ACRE_SESSION_SECRET:-docker-local-session-secret}
+      ACRE_SECURE_COOKIES: ${ACRE_SECURE_COOKIES:-false}
+      ACRE_DOCUMENTS_STORAGE_DIR: /app/.local-storage/documents
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3105:3105"
+    volumes:
+      - .:/app
+      - acre-node-modules:/app/node_modules
+      - acre-next-cache:/app/apps/web/.next
+      - acre-documents:/app/.local-storage/documents
+    command: ["npm", "run", "dev"]
+
+volumes:
+  acre-postgres-data:
+  acre-node-modules:
+  acre-next-cache:
+  acre-documents:

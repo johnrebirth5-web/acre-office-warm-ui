@@ -746,6 +746,42 @@ npm run dev
 
 当前仓库根目录的 `npm run dev` 会默认把 `@acre/web` 启动到 `3105`。
 
+如果你希望本地环境更稳定、重启后更容易恢复，也可以直接使用 Docker 开发基线：
+
+```bash
+npm run docker:dev:up
+```
+
+当前 Docker 开发基线会启动：
+
+- `web`：Next.js 开发服务，端口 `3105`
+- `db`：PostgreSQL 16，端口 `5432`
+- 持久化 volume：Postgres 数据、`node_modules`、Next cache、documents storage
+- 自动重启策略：`unless-stopped`
+
+首次启动数据库工作流时，建议依次执行：
+
+```bash
+docker compose run --rm web npm run db:migrate -- --name init
+docker compose run --rm web npm run db:seed
+```
+
+常用 Docker 本地命令：
+
+```bash
+npm run docker:dev:up
+npm run docker:dev:logs
+npm run docker:dev:ps
+npm run docker:dev:down
+```
+
+Docker 本地开发说明：
+
+- `docker-compose.yml` 会把容器内 `DATABASE_URL` 固定到 `postgresql://postgres:postgres@db:5432/acre`
+- 这允许你保留宿主机 `.env.local` 里的 `localhost` 版本连接串，不必为了 Docker 手工反复改
+- 如果宿主机上已经有一个 PostgreSQL 正在占用 `5432`，需要先停掉它，或者改 compose 的端口映射
+- 这套 Docker 基线只用于本地开发，不改变当前生产 `DigitalOcean + systemd + nginx` 部署线路
+
 当前本地 auth 基线：
 
 - `/login` 现在使用 email + password
@@ -789,6 +825,12 @@ npm install
 
 ```bash
 npm run dev
+```
+
+启动 Docker 本地开发环境：
+
+```bash
+npm run docker:dev:up
 ```
 
 类型检查：

@@ -51,6 +51,12 @@
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/acre"
 ```
 
+Docker 本地开发补充：
+
+- 当前仓库根目录的 `docker-compose.yml` 会把容器内 `DATABASE_URL` 覆盖为 `postgresql://postgres:postgres@db:5432/acre`
+- 这意味着宿主机 `.env.local` 仍可以继续保留 `localhost:5432`
+- 如果你要改 Docker 下的数据库连接串，可以设置 `ACRE_DOCKER_DATABASE_URL`
+
 缺失后的影响：
 
 - `npm run db:validate` 会失败
@@ -248,6 +254,22 @@ ACRE_SECURE_COOKIES=false
 3. 运行 `npm run db:generate`
 4. 运行 `npm run db:migrate -- --name init`
 5. 运行 `npm run db:seed`
+
+如果你要改用 Docker 本地长期运行：
+
+1. 安装 Docker Desktop 或可用的 Docker Engine
+2. 在仓库根目录执行 `npm run docker:dev:up`
+3. 首次初始化数据库时执行 `docker compose run --rm web npm run db:migrate -- --name init`
+4. 需要初始数据时执行 `docker compose run --rm web npm run db:seed`
+5. 打开 `http://localhost:3105/`
+
+当前 Docker 开发基线说明：
+
+- `db` 使用 `postgres:16-alpine`
+- `web` 使用仓库内 `Dockerfile.dev`
+- `web` 和 `db` 都配置为 `restart: unless-stopped`
+- 文档文件会持久化到 Docker volume，而不是容器临时层
+- 如果宿主机已有 PostgreSQL 占用 `5432`，需要先停掉宿主机实例，或修改 compose 端口映射
 
 当前实现说明：
 

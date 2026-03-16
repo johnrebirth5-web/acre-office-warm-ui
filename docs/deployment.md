@@ -12,6 +12,7 @@ Use it only when the user explicitly asks for deployment or production sync work
 - local `git commit`
 - push GitHub
 - deploy to `DigitalOcean` only when the user explicitly confirms it
+- local Docker compose is a development convenience, not the production runtime line
 
 `GitHub` sync does not equal deployment.
 

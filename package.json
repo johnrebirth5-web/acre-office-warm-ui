@@ -8,6 +8,10 @@
   ],
   "scripts": {
     "dev": "node scripts/dev-web.mjs",
+    "docker:dev:up": "docker compose up -d",
+    "docker:dev:down": "docker compose down",
+    "docker:dev:logs": "docker compose logs -f web",
+    "docker:dev:ps": "docker compose ps",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
