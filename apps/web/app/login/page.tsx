@@ -33,13 +33,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="auth-card-copy">
             <span className="auth-eyebrow">Internal Access</span>
             <h2>Acre internal login</h2>
-            <p>Use your invited internal account email and password to access the current Back Office workspace.</p>
+            <p>Use your invited internal account email address and password to access the current Back Office workspace. Usernames like admin are not supported.</p>
           </div>
 
-          <form action="/api/auth/login" className="auth-form" method="post">
+          <form action="/api/auth/login" autoComplete="off" className="auth-form" method="post">
             <label className="auth-field">
-              <span>Email</span>
-              <input autoComplete="email" name="email" placeholder="you@acreny.us" type="email" />
+              <span>Work email</span>
+              <input autoCapitalize="none" autoComplete="username" name="email" placeholder="office@acreny.us" spellCheck="false" type="email" />
             </label>
 
             <label className="auth-field">
