@@ -9,8 +9,8 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
-    "db:migrate": "sh -ac 'set -a; [ -f ../../.env.local ] && . ../../.env.local; [ -f ../../.env ] && . ../../.env; set +a; prisma migrate dev --schema prisma/schema.prisma \"$@\"' --",
-    "db:seed": "npm run db:generate && sh -ac 'set -a; [ -f ../../.env.local ] && . ../../.env.local; [ -f ../../.env ] && . ../../.env; set +a; node prisma/seed.mjs'",
+    "db:migrate": "sh -ac 'if [ -z \"${DATABASE_URL:-}\" ]; then set -a; [ -f ../../.env.local ] && . ../../.env.local; [ -f ../../.env ] && . ../../.env; set +a; fi; prisma migrate dev --schema prisma/schema.prisma \"$@\"' --",
+    "db:seed": "npm run db:generate && sh -ac 'if [ -z \"${DATABASE_URL:-}\" ]; then set -a; [ -f ../../.env.local ] && . ../../.env.local; [ -f ../../.env ] && . ../../.env; set +a; fi; node prisma/seed.mjs'",
     "db:validate": "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/acre prisma validate --schema prisma/schema.prisma"
   },
   "dependencies": {
