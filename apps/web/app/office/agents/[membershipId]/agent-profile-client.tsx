@@ -466,7 +466,10 @@ export function AgentProfileClient({
               <div className="office-agents-profile-team-row" key={team.id}>
                 <div>
                   <Link href={`/office/agents?teamId=${team.id}`}>{team.name}</Link>
-                  <p>{team.role}</p>
+                  <p>
+                    {team.role}
+                    {team.reportsToLabel !== "No direct manager" ? ` · Reports to ${team.reportsToLabel}` : ""}
+                  </p>
                 </div>
                 <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
                 {canManageTeams ? (
@@ -561,6 +564,9 @@ export function AgentProfileClient({
       </div>
 
       <SectionCard subtitle="Current commission plan, recent calculated rows, and payout-readiness visibility for this agent." title="Commission summary">
+        {snapshot.financialsRestricted ? (
+          <p className="office-form-helper">Commission and payout amounts are restricted for your current access level on this profile.</p>
+        ) : null}
         <div className="office-agents-profile-summary-grid">
           <StatCard hint="active assigned plan when available" label="Active plan" value={snapshot.commissions.activePlanLabel || "Manual / unassigned"} />
           <StatCard hint="rows already in statement-ready status" label="Statement ready" value={snapshot.commissions.statementReadyLabel} />

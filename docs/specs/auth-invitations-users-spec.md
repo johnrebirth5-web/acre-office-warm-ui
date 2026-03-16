@@ -27,18 +27,25 @@ This spec describes what is implemented now, not the eventual full auth platform
 
 ### Roles
 
-- `office_admin` remains the full internal admin role
-- `office_user` is the new normal internal user role
-- `office_manager` stays compatible internally where needed, but is not exposed as a normal create-user choice
+- `owner` and `office_admin` are the full Back Office admin tier
+- `accountant` and `human_resources` are organization-wide operational roles with user lifecycle / reporting access
+- `team_lead` is the scoped manager role; effective visibility depends on team hierarchy
+- `agent` is the self-scoped production role
+- `office_manager` and `office_user` stay compatible internally where needed, but are legacy-only create choices
 - Users page only exposes:
-  - `Admin`
-  - `User`
+  - `Owner`
+  - `Office Admin`
+  - `Accountant`
+  - `Human Resources`
+  - `Team Lead`
+  - `Agent`
 
 ### Bootstrap admin
 
 - The system ensures a bootstrap admin account exists for:
   - `office@acreny.us`
 - The bootstrap admin is an `office_admin`
+- Existing bootstrap account provisioning can be reused for a fresh setup/reset link instead of creating a duplicate account
 - The bootstrap password is stored only as a hash
 - First successful login requires a password change
 - Existing bootstrap credentials are not destructively overwritten if they already exist

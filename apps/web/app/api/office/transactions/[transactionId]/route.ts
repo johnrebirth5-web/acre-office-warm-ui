@@ -21,7 +21,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   }
 
   const { transactionId } = await params;
-  const transaction = await getTransactionById(context.currentOrganization.id, transactionId);
+  const transaction = await getTransactionById({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    transactionId,
+    officeId: context.currentOffice?.id ?? null
+  });
 
   if (!transaction) {
     return NextResponse.json({ error: "Transaction not found." }, { status: 404 });

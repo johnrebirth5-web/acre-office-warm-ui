@@ -1,5 +1,12 @@
 import { Prisma, TransactionRepresenting, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
+import {
+  buildTransactionVisibilityWhere,
+  canViewCrossMemberFinancials,
+  canViewFinancialsForMembership,
+  redactCurrency,
+  resolveOfficeDataScope
+} from "./access";
 import { prisma } from "./client";
 import { getOfficeTransactionIntakeSchema, type OfficeTransactionCustomFieldDefinitionRecord, type OfficeTransactionFieldSettingRecord } from "./settings";
 import { listAvailableContactsForTransaction, type OfficeTransactionContact, type OfficeTransactionContactOption } from "./transaction-contacts";
@@ -55,6 +62,7 @@ export type OfficeTransactionDetail = {
   organizationId: string;
   officeId: string | null;
   ownerMembershipId: string | null;
+  canViewFinancials: boolean;
   title: string;
   address: string;
   city: string;
@@ -97,6 +105,7 @@ export type OfficeTransactionDetail = {
 
 export type ListTransactionsInput = {
   organizationId: string;
+  viewerMembershipId: string;
   officeId?: string | null;
   search?: string;
   status?: OfficeTransactionStatus | "All";
@@ -107,6 +116,13 @@ export type ListTransactionsInput = {
   endDate?: string;
   page?: number;
   pageSize?: number;
+};
+
+export type GetTransactionByIdInput = {
+  organizationId: string;
+  viewerMembershipId: string;
+  transactionId: string;
+  officeId?: string | null;
 };
 
 export type CreateTransactionInput = {
@@ -795,7 +811,8 @@ function mapTransactionDetail(
     forms?: OfficeTransactionForm[];
     incomingUpdates?: OfficeIncomingUpdate[];
     formTemplates?: OfficeFormTemplateOption[];
-  }
+  },
+  canViewFinancials: boolean
 ): OfficeTransactionDetail {
   const ownerName = transaction.ownerMembership
     ? `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}`
@@ -806,6 +823,7 @@ function mapTransactionDetail(
     organizationId: transaction.organizationId,
     officeId: transaction.officeId,
     ownerMembershipId: transaction.ownerMembershipId,
+    canViewFinancials,
     title: transaction.title,
     address: transaction.address,
     city: transaction.city,
@@ -830,11 +848,11 @@ function mapTransactionDetail(
     ownerName,
     ownerEmail: transaction.ownerMembership?.user.email ?? "",
     officeName: transaction.office?.name ?? "",
-    grossCommission: transaction.grossCommission ? String(transaction.grossCommission) : "",
-    referralFee: transaction.referralFee ? String(transaction.referralFee) : "",
-    officeNet: transaction.officeNet ? String(transaction.officeNet) : "",
-    agentNet: transaction.agentNet ? String(transaction.agentNet) : "",
-    financeNotes: transaction.financeNotes ?? "",
+    grossCommission: redactCurrency(transaction.grossCommission ? String(transaction.grossCommission) : "", canViewFinancials),
+    referralFee: redactCurrency(transaction.referralFee ? String(transaction.referralFee) : "", canViewFinancials),
+    officeNet: redactCurrency(transaction.officeNet ? String(transaction.officeNet) : "", canViewFinancials),
+    agentNet: redactCurrency(transaction.agentNet ? String(transaction.agentNet) : "", canViewFinancials),
+    financeNotes: canViewFinancials ? transaction.financeNotes ?? "" : "Restricted",
     additionalFields:
       transaction.additionalFields && typeof transaction.additionalFields === "object" && !Array.isArray(transaction.additionalFields)
         ? Object.fromEntries(
@@ -853,10 +871,16 @@ function mapTransactionDetail(
 }
 
 export async function listTransactions(input: ListTransactionsInput): Promise<OfficeTransactionListResult> {
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null
+  });
   const whereConditions: Prisma.TransactionWhereInput[] = [
     {
       organizationId: input.organizationId
-    }
+    },
+    buildTransactionVisibilityWhere(scope)
   ];
   const requestedPage = Number.isFinite(input.page) ? Number(input.page) : defaultTransactionsPage;
   const requestedPageSize = Number.isFinite(input.pageSize) ? Number(input.pageSize) : defaultTransactionsPageSize;
@@ -965,7 +989,7 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
   });
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const page = Math.min(Math.max(Math.trunc(requestedPage) || defaultTransactionsPage, 1), totalPages);
-  const [transactions, financeAggregate, ownerMemberships, teams] = await Promise.all([
+  const [transactions, financeAggregate, selfFinancialAggregate, ownerMemberships, teams] = await Promise.all([
     prisma.transaction.findMany({
       where,
       include: {
@@ -985,13 +1009,32 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
         officeNet: true
       }
     }),
+    prisma.transaction.aggregate({
+      where: {
+        ...where,
+        ownerMembershipId: scope.viewerMembershipId
+      },
+      _sum: {
+        agentNet: true
+      }
+    }),
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
         status: "active",
+        ...(scope.visibleMembershipIds ? { id: { in: scope.visibleMembershipIds } } : {}),
         ...(input.officeId ? { officeId: input.officeId } : {}),
         role: {
-          in: ["agent", "office_manager", "office_admin"] satisfies UserRole[]
+          in: [
+            "owner",
+            "office_admin",
+            "accountant",
+            "human_resources",
+            "team_lead",
+            "agent",
+            "office_manager",
+            "office_user"
+          ] satisfies UserRole[]
         }
       },
       include: {
@@ -1002,7 +1045,8 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     prisma.team.findMany({
       where: {
         organizationId: input.organizationId,
-        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
+        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {}),
+        ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
       },
       select: {
         id: true,
@@ -1016,7 +1060,9 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     transactions: transactions.map(mapTransactionRecord),
     summary: {
       totalCount,
-      totalNetIncome: formatCurrency(financeAggregate._sum.officeNet)
+      totalNetIncome: canViewCrossMemberFinancials(scope)
+        ? formatCurrency(financeAggregate._sum.officeNet)
+        : formatCurrency(selfFinancialAggregate._sum.agentNet)
     },
     totalCount,
     totalPages,
@@ -1044,11 +1090,18 @@ export const officeTransactionsPageLimits = {
   maxPageSize: maxTransactionsPageSize
 } as const;
 
-export async function getTransactionById(organizationId: string, transactionId: string): Promise<OfficeTransactionDetail | null> {
+export async function getTransactionById(input: GetTransactionByIdInput): Promise<OfficeTransactionDetail | null> {
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null
+  });
   const transaction = await prisma.transaction.findFirst({
     where: {
-      id: transactionId,
-      organizationId
+      id: input.transactionId,
+      organizationId: input.organizationId,
+      ...(input.officeId ? { officeId: input.officeId } : {}),
+      ...buildTransactionVisibilityWhere(scope)
     },
     include: {
       office: true,
@@ -1059,7 +1112,7 @@ export async function getTransactionById(organizationId: string, transactionId: 
       },
       transactionContacts: {
         where: {
-          organizationId
+          organizationId: input.organizationId
         },
         include: {
           client: {
@@ -1079,33 +1132,38 @@ export async function getTransactionById(organizationId: string, transactionId: 
     return null;
   }
 
+  const canViewFinancials = canViewFinancialsForMembership(scope, transaction.ownerMembershipId);
+
   const [availableContacts, documentsSnapshot] = await Promise.all([
-    listAvailableContactsForTransaction(organizationId, transactionId),
-    listTransactionDocumentsSnapshot(organizationId, transactionId)
+    listAvailableContactsForTransaction(input.organizationId, input.transactionId),
+    listTransactionDocumentsSnapshot(input.organizationId, input.transactionId)
   ]);
 
-  return mapTransactionDetail({
-    ...transaction,
-    transactionContacts: transaction.transactionContacts.map((transactionContact) => ({
-      id: transactionContact.id,
-      transactionId: transactionContact.transactionId,
-      clientId: transactionContact.clientId,
-      fullName: transactionContact.client.fullName,
-      email: transactionContact.client.email ?? "",
-      phone: transactionContact.client.phone ?? "",
-      role: transactionContact.role
-        .split("_")
-        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-        .join("-"),
-      isPrimary: transactionContact.isPrimary,
-      notes: transactionContact.notes ?? ""
-    })),
-    availableContacts,
-    documents: documentsSnapshot.documents,
-    forms: documentsSnapshot.forms,
-    incomingUpdates: documentsSnapshot.incomingUpdates,
-    formTemplates: documentsSnapshot.formTemplates
-  });
+  return mapTransactionDetail(
+    {
+      ...transaction,
+      transactionContacts: transaction.transactionContacts.map((transactionContact) => ({
+        id: transactionContact.id,
+        transactionId: transactionContact.transactionId,
+        clientId: transactionContact.clientId,
+        fullName: transactionContact.client.fullName,
+        email: transactionContact.client.email ?? "",
+        phone: transactionContact.client.phone ?? "",
+        role: transactionContact.role
+          .split("_")
+          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join("-"),
+        isPrimary: transactionContact.isPrimary,
+        notes: transactionContact.notes ?? ""
+      })),
+      availableContacts,
+      documents: documentsSnapshot.documents,
+      forms: documentsSnapshot.forms,
+      incomingUpdates: documentsSnapshot.incomingUpdates,
+      formTemplates: documentsSnapshot.formTemplates
+    },
+    canViewFinancials
+  );
 }
 
 export async function createTransaction(input: CreateTransactionInput): Promise<OfficeTransactionDetail> {
@@ -1189,22 +1247,35 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     return created;
   });
 
-  return mapTransactionDetail({
-    ...transaction,
-    transactionContacts: [],
-    availableContacts: []
-  });
+  return mapTransactionDetail(
+    {
+      ...transaction,
+      transactionContacts: [],
+      availableContacts: []
+    },
+    true
+  );
 }
 
 export async function updateTransactionStatus(input: UpdateTransactionStatusInput): Promise<OfficeTransactionDetail | null> {
+  if (!input.actorMembershipId) {
+    throw new Error("Actor membership is required.");
+  }
+
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId
+  });
   const transaction = await prisma.transaction.findFirst({
     where: {
       id: input.transactionId,
-      organizationId: input.organizationId
+      organizationId: input.organizationId,
+      ...buildTransactionVisibilityWhere(scope)
     },
     select: {
       id: true,
       officeId: true,
+      ownerMembershipId: true,
       title: true,
       address: true,
       city: true,
@@ -1267,18 +1338,30 @@ export async function updateTransactionStatus(input: UpdateTransactionStatusInpu
     return saved;
   });
 
-  return mapTransactionDetail({
-    ...updated,
-    transactionContacts: [],
-    availableContacts: []
-  });
+  return mapTransactionDetail(
+    {
+      ...updated,
+      transactionContacts: [],
+      availableContacts: []
+    },
+    canViewFinancialsForMembership(scope, updated.ownerMembershipId)
+  );
 }
 
 export async function updateTransactionFinance(input: UpdateTransactionFinanceInput): Promise<OfficeTransactionDetail | null> {
+  if (!input.actorMembershipId) {
+    throw new Error("Actor membership is required.");
+  }
+
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId
+  });
   const existing = await prisma.transaction.findFirst({
     where: {
       id: input.transactionId,
-      organizationId: input.organizationId
+      organizationId: input.organizationId,
+      ...buildTransactionVisibilityWhere(scope)
     },
     select: {
       id: true,
@@ -1353,14 +1436,28 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
     }
   });
 
-  return getTransactionById(input.organizationId, input.transactionId);
+  return getTransactionById({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId,
+    transactionId: input.transactionId,
+    officeId: existing.officeId
+  });
 }
 
 export async function updateTransactionIntake(input: UpdateTransactionIntakeInput): Promise<OfficeTransactionDetail | null> {
+  if (!input.actorMembershipId) {
+    throw new Error("Actor membership is required.");
+  }
+
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId
+  });
   const existing = await prisma.transaction.findFirst({
     where: {
       id: input.transactionId,
-      organizationId: input.organizationId
+      organizationId: input.organizationId,
+      ...buildTransactionVisibilityWhere(scope)
     },
     select: {
       id: true,
@@ -1531,5 +1628,10 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
     }
   });
 
-  return getTransactionById(input.organizationId, input.transactionId);
+  return getTransactionById({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId,
+    transactionId: input.transactionId,
+    officeId: existing.officeId
+  });
 }

@@ -59,8 +59,12 @@ type MutationResponse = {
 } | null;
 
 const createRoleOptions = [
-  { value: "office_admin", label: "Admin" },
-  { value: "office_user", label: "User" }
+  { value: "owner", label: "Owner" },
+  { value: "office_admin", label: "Office Admin" },
+  { value: "accountant", label: "Accountant" },
+  { value: "human_resources", label: "Human Resources" },
+  { value: "team_lead", label: "Team Lead" },
+  { value: "agent", label: "Agent" }
 ] as const;
 
 function buildUsersHref(
@@ -104,7 +108,7 @@ function buildCreateUserDraft(snapshot: OfficeAdminUsersSnapshot): CreateUserDra
     firstName: "",
     lastName: "",
     email: "",
-    role: "office_user",
+    role: "agent",
     officeId: getDefaultOfficeId(snapshot),
     title: ""
   };
@@ -155,14 +159,15 @@ function getInvitationTone(row: OfficeAdminUserRow) {
 }
 
 function getRoleEditorOptions(row: OfficeAdminUserRow) {
-  if (row.roleValue !== "office_manager") {
-    return createRoleOptions;
+  if (row.roleValue === "office_manager") {
+    return [{ value: "office_manager", label: "Office Manager (Legacy)" }, ...createRoleOptions];
   }
 
-  return [
-    { value: "office_manager", label: "Office Manager (Legacy)" },
-    ...createRoleOptions
-  ];
+  if (row.roleValue === "office_user") {
+    return [{ value: "office_user", label: "Office User (Legacy)" }, ...createRoleOptions];
+  }
+
+  return createRoleOptions;
 }
 
 function getStatusEditorOptions(row: OfficeAdminUserRow) {
@@ -551,7 +556,7 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
     <>
       {canManageUsers ? (
         <SectionCard
-          subtitle="Create invited internal Admin and User accounts. Email delivery is not implemented yet, so setup links are copied from this screen."
+          subtitle="Create invited Back Office accounts across owner, office admin, finance, HR, team lead, and agent tiers. Email delivery is not implemented yet, so setup links are copied from this screen."
           title="Invite internal user"
         >
           <form className="office-form-grid office-form-grid-3" onSubmit={handleCreateUser}>
@@ -594,7 +599,7 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
             </FormField>
 
             <FormField label="Title">
-              <TextInput onChange={(event) => setCreateField("title", event.target.value)} placeholder="Office Administrator" value={createUserDraft.title} />
+              <TextInput onChange={(event) => setCreateField("title", event.target.value)} placeholder="Back Office title" value={createUserDraft.title} />
             </FormField>
 
             <div className="office-form-grid-span-3 office-settings-user-create-actions">

@@ -52,6 +52,18 @@ Provide a real Back Office agent management workspace for office operations, cov
   - tasks
   - accounting / billing
   - activity log
+- team hierarchy now supports:
+  - `Leader I`
+  - `Leader II`
+  - `Member`
+  - explicit `reportsToTeamMembershipId`
+  - direct `Leader I -> Member`
+  - nested `Leader I -> Leader II -> Member`
+- roster/profile/reporting visibility is now resolved server-side from:
+  - broad membership role
+  - active team memberships
+  - reporting-line descendants
+  - explicit collaborator transaction links where relevant
 
 ## Current gaps
 
@@ -59,7 +71,7 @@ Provide a real Back Office agent management workspace for office operations, cov
 - there is no candidate pipeline or recruiting campaign layer
 - there is no advanced coaching / performance review workflow
 - onboarding templates are practical defaults, not a full template center with advanced assignment logic
-- agent self-view is not a fully developed restricted product surface
+- agent self-view is still not a fully developed separate product surface, but current pages now apply server-side scope and financial redaction by viewer tier
 - goal progress is grounded in real data, but not yet a full analytics/performance suite
 
 ## Future direction

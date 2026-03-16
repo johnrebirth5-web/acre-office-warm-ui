@@ -476,19 +476,20 @@ async function main() {
       id: "seed-team-membership-jane",
       teamId: "seed-team-east-river",
       membershipEmail: "jane@acre.com",
-      role: "lead"
+      role: "leader_i"
     },
     {
       id: "seed-team-membership-simon",
       teamId: "seed-team-operations",
       membershipEmail: "simon@acre.com",
-      role: "lead"
+      role: "leader_i"
     },
     {
       id: "seed-team-membership-naomi",
       teamId: "seed-team-operations",
       membershipEmail: "naomi@acre.com",
-      role: "member"
+      role: "member",
+      reportsToTeamMembershipId: "seed-team-membership-simon"
     }
   ];
 
@@ -509,7 +510,8 @@ async function main() {
       update: {
         organizationId: organization.id,
         officeId: office.id,
-        role: teamMembership.role
+        role: teamMembership.role,
+        reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId ?? null
       },
       create: {
         id: teamMembership.id,
@@ -517,7 +519,8 @@ async function main() {
         officeId: office.id,
         teamId: teamMembership.teamId,
         membershipId: membership.id,
-        role: teamMembership.role
+        role: teamMembership.role,
+        reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId ?? null
       }
     });
   }

@@ -31,6 +31,13 @@ type TeamDraft = {
   name: string;
   isActive: boolean;
   nextMembershipId: string;
+  nextRole: string;
+  nextReportsToTeamMembershipId: string;
+};
+
+type TeamMemberDraft = {
+  role: string;
+  reportsToTeamMembershipId: string;
 };
 
 export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSettingsTeamsClientProps) {
@@ -45,9 +52,24 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
         {
           name: team.name,
           isActive: team.isActive,
-          nextMembershipId: ""
+          nextMembershipId: "",
+          nextRole: "member",
+          nextReportsToTeamMembershipId: ""
         }
       ])
+    )
+  );
+  const [memberDrafts, setMemberDrafts] = useState<Record<string, TeamMemberDraft>>(
+    Object.fromEntries(
+      snapshot.teams.flatMap((team) =>
+        team.members.map((member) => [
+          member.teamMembershipId,
+          {
+            role: member.roleValue,
+            reportsToTeamMembershipId: member.reportsToTeamMembershipId ?? ""
+          }
+        ])
+      )
     )
   );
 
@@ -64,10 +86,38 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
     setTeamDrafts((current) => ({
       ...current,
       [teamId]: {
-        ...(current[teamId] ?? { name: "", isActive: true, nextMembershipId: "" }),
+        ...(current[teamId] ?? {
+          name: "",
+          isActive: true,
+          nextMembershipId: "",
+          nextRole: "member",
+          nextReportsToTeamMembershipId: ""
+        }),
         [field]: value
       }
     }));
+  }
+
+  function setMemberDraft(teamMembershipId: string, field: keyof TeamMemberDraft, value: string) {
+    setMemberDrafts((current) => ({
+      ...current,
+      [teamMembershipId]: {
+        ...(current[teamMembershipId] ?? { role: "member", reportsToTeamMembershipId: "" }),
+        [field]: value
+      }
+    }));
+  }
+
+  function getManagerOptions(
+    team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number],
+    roleValue: string,
+    currentTeamMembershipId?: string
+  ) {
+    const allowedRoles = roleValue === "leader_ii" ? ["leader_i"] : roleValue === "member" ? ["leader_i", "leader_ii"] : [];
+
+    return team.members.filter(
+      (member) => member.teamMembershipId !== currentTeamMembershipId && allowedRoles.includes(member.roleValue)
+    );
   }
 
   async function handleCreateTeam(event: FormEvent<HTMLFormElement>) {
@@ -153,7 +203,8 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
         },
         body: JSON.stringify({
           membershipId: draft.nextMembershipId,
-          role: "member"
+          role: draft.nextRole,
+          reportsToTeamMembershipId: draft.nextReportsToTeamMembershipId || null
         })
       });
 
@@ -163,9 +214,45 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
       }
 
       setTeamDraft(teamId, "nextMembershipId", "");
+      setTeamDraft(teamId, "nextRole", "member");
+      setTeamDraft(teamId, "nextReportsToTeamMembershipId", "");
       router.refresh();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Failed to add team member.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleSaveMember(teamId: string, membershipId: string, teamMembershipId: string) {
+    const draft = memberDrafts[teamMembershipId];
+    if (!draft) {
+      return;
+    }
+
+    setPendingAction(`save-member:${teamId}:${membershipId}`);
+    setSubmitError("");
+
+    try {
+      const response = await fetch(`/api/office/agents/teams/${teamId}/memberships/${membershipId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          role: draft.role,
+          reportsToTeamMembershipId: draft.reportsToTeamMembershipId || null
+        })
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to update team member.");
+      }
+
+      router.refresh();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to update team member.");
     } finally {
       setPendingAction(null);
     }
@@ -251,8 +338,15 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
         <div className="office-settings-card-grid">
           {snapshot.teams.length ? (
             snapshot.teams.map((team) => {
-              const draft = teamDrafts[team.id] ?? { name: team.name, isActive: team.isActive, nextMembershipId: "" };
+              const draft = teamDrafts[team.id] ?? {
+                name: team.name,
+                isActive: team.isActive,
+                nextMembershipId: "",
+                nextRole: "member",
+                nextReportsToTeamMembershipId: ""
+              };
               const availableMembers = memberOptions.filter((option) => !team.members.some((member) => member.membershipId === option.membershipId));
+              const nextManagerOptions = getManagerOptions(team, draft.nextRole);
 
               return (
                 <ListPageSection
@@ -302,10 +396,61 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
 
                     {team.members.length ? (
                       <ul className="office-settings-pill-list">
-                        {team.members.map((member) => (
+                        {team.members.map((member) => {
+                          const memberDraft = memberDrafts[member.teamMembershipId] ?? {
+                            role: member.roleValue,
+                            reportsToTeamMembershipId: member.reportsToTeamMembershipId ?? ""
+                          };
+                          const managerOptions = getManagerOptions(team, memberDraft.role, member.teamMembershipId);
+
+                          return (
                           <li className="office-settings-pill" key={member.membershipId}>
                             <Link href={`/office/agents/${member.membershipId}`}>{member.label}</Link>
-                            <span>{member.role}</span>
+                            {canManageTeams ? (
+                              <>
+                                <SelectInput
+                                  onChange={(event) => {
+                                    const nextRole = event.target.value;
+                                    setMemberDraft(member.teamMembershipId, "role", nextRole);
+                                    if (nextRole === "leader_i") {
+                                      setMemberDraft(member.teamMembershipId, "reportsToTeamMembershipId", "");
+                                    }
+                                  }}
+                                  value={memberDraft.role}
+                                >
+                                  <option value="leader_i">Leader I</option>
+                                  <option value="leader_ii">Leader II</option>
+                                  <option value="member">Member</option>
+                                </SelectInput>
+                                <SelectInput
+                                  disabled={memberDraft.role === "leader_i"}
+                                  onChange={(event) =>
+                                    setMemberDraft(member.teamMembershipId, "reportsToTeamMembershipId", event.target.value)
+                                  }
+                                  value={memberDraft.reportsToTeamMembershipId}
+                                >
+                                  <option value="">{memberDraft.role === "leader_i" ? "No direct manager" : "No direct manager"}</option>
+                                  {managerOptions.map((option) => (
+                                    <option key={option.teamMembershipId} value={option.teamMembershipId}>
+                                      {option.label} · {option.role}
+                                    </option>
+                                  ))}
+                                </SelectInput>
+                                <button
+                                  className="office-settings-pill-button"
+                                  disabled={pendingAction === `save-member:${team.id}:${member.membershipId}`}
+                                  onClick={() => handleSaveMember(team.id, member.membershipId, member.teamMembershipId)}
+                                  type="button"
+                                >
+                                  Save
+                                </button>
+                              </>
+                            ) : (
+                              <span>
+                                {member.role}
+                                {member.reportsToLabel !== "No direct manager" ? ` · Reports to ${member.reportsToLabel}` : ""}
+                              </span>
+                            )}
                             {canManageTeams ? (
                               <button
                                 className="office-settings-pill-button"
@@ -317,7 +462,8 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                               </button>
                             ) : null}
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     ) : (
                       <EmptyState description="Add members from the current roster to make this team operational." title="No team members yet" />
@@ -332,6 +478,38 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                           {availableMembers.map((option) => (
                             <option key={option.membershipId} value={option.membershipId}>
                               {option.label}
+                            </option>
+                          ))}
+                        </SelectInput>
+                      </FormField>
+
+                      <FormField label="Role">
+                        <SelectInput
+                          onChange={(event) => {
+                            const nextRole = event.target.value;
+                            setTeamDraft(team.id, "nextRole", nextRole);
+                            if (nextRole === "leader_i") {
+                              setTeamDraft(team.id, "nextReportsToTeamMembershipId", "");
+                            }
+                          }}
+                          value={draft.nextRole}
+                        >
+                          <option value="leader_i">Leader I</option>
+                          <option value="leader_ii">Leader II</option>
+                          <option value="member">Member</option>
+                        </SelectInput>
+                      </FormField>
+
+                      <FormField label="Direct manager">
+                        <SelectInput
+                          disabled={draft.nextRole === "leader_i"}
+                          onChange={(event) => setTeamDraft(team.id, "nextReportsToTeamMembershipId", event.target.value)}
+                          value={draft.nextReportsToTeamMembershipId}
+                        >
+                          <option value="">No direct manager</option>
+                          {nextManagerOptions.map((option) => (
+                            <option key={option.teamMembershipId} value={option.teamMembershipId}>
+                              {option.label} · {option.role}
                             </option>
                           ))}
                         </SelectInput>

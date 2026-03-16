@@ -20,6 +20,7 @@ export default async function OfficeAgentProfilePage({ params }: OfficeAgentProf
   const { membershipId } = await params;
   const snapshot = await getOfficeAgentProfileSnapshot({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     membershipId
   });

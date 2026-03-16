@@ -1,3 +1,4 @@
+import { canManageOfficeFields } from "@acre/auth";
 import { getOfficeTransactionIntakeSchema, listTransactions, type OfficeTransactionStatus } from "@acre/db";
 import { requireOfficeSession } from "../../../lib/auth-session";
 import { TransactionsClient } from "./transactions-client";
@@ -55,6 +56,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
   );
   const result = await listTransactions({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id,
     search: q,
     status,
@@ -73,7 +75,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
 
   return (
     <TransactionsClient
-      canManageIntakeSchema={context.currentMembership.role === "office_admin"}
+      canManageIntakeSchema={canManageOfficeFields(context.currentMembership.role)}
       filterOptions={result.filterOptions}
       filters={{ q, status, ownerMembershipId, teamId, type, startDate, endDate }}
       page={result.page}

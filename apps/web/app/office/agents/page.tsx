@@ -32,6 +32,7 @@ export default async function OfficeAgentsPage(props: OfficeAgentsPageProps) {
   const searchParams = (await props.searchParams) ?? {};
   const snapshot = await getOfficeAgentsRosterSnapshot({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     officeFilterId: searchParams.officeId,
     role: searchParams.role,

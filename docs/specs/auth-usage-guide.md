@@ -44,19 +44,34 @@
 
 当前登录系统对内部账号主要使用两个角色：
 
+- `owner`
+  - 总 admin
+  - 与 `office_admin` 同级全权限
 - `office_admin`
-  - 管理员
+  - 办公室 admin
   - 可以进入 `/office/settings/users`
   - 可以创建用户、发邀请、解锁账号、修改角色和状态
-- `office_user`
-  - 普通内部用户
-  - 主要用于日常 Office 使用
-  - 不能执行高风险后台管理操作
+- `accountant`
+  - 财务
+  - 可看全 office/org 登单与 financial/report
+- `human_resources`
+  - 人事
+  - 可管理账号生命周期并查看组织级运营数据
+- `team_lead`
+  - 组长
+  - 真实可见范围由 team hierarchy 决定
+- `agent`
+  - 录单 / 自助业绩角色
+  - 只能看自己 owner 的业务与自己协作挂单
 
 系统内部仍保留部分历史角色兼容逻辑，但当前 Users 管理页只把角色选择暴露为：
 
-- `Admin`
-- `User`
+- `Owner`
+- `Office Admin`
+- `Accountant`
+- `Human Resources`
+- `Team Lead`
+- `Agent`
 
 ## 账号状态的理解方式
 

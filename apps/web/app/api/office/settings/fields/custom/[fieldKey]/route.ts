@@ -1,3 +1,4 @@
+import { canManageOfficeFields } from "@acre/auth";
 import { updateOfficeTransactionCustomFieldDefinition } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
@@ -15,8 +16,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (context.currentMembership.role !== "office_admin") {
-    return NextResponse.json({ error: "Office admin access required." }, { status: 403 });
+  if (!canManageOfficeFields(context.currentMembership.role)) {
+    return NextResponse.json({ error: "Field settings permission required." }, { status: 403 });
   }
 
   const { fieldKey } = await params;

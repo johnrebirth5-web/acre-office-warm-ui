@@ -20,6 +20,7 @@ export const databaseModules = [
   "library_documents",
   "audit_logs",
   "transactions",
+  "transaction_membership_links",
   "transaction_contacts",
   "transaction_tasks",
   "task_list_views",
@@ -56,6 +57,17 @@ export const databaseModules = [
 ] as const;
 
 export { assertDatabaseUrl, getPrismaClient, prisma } from "./client";
+export {
+  buildMembershipVisibilityWhere,
+  buildTransactionMembershipLinkVisibilityWhere,
+  buildTransactionVisibilityWhere,
+  canAccessMembership,
+  canViewCrossMemberFinancials,
+  canViewFinancialsForMembership,
+  getVisibleMembershipIds,
+  redactCurrency,
+  resolveOfficeDataScope
+} from "./access";
 export { getOfficeActivitySnapshot } from "./activity";
 export { activityLogActions, addOfficeActivityComment, getOfficeActivityLogSnapshot, recordActivityLogEvent } from "./activity-log";
 export {

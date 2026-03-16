@@ -215,8 +215,10 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `MVP`
 - Current notable behavior:
   - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, and admin unlock / reissue actions.
-  - office-manager remains compatible internally, but normal create-user choices stay limited to Admin and User.
-  - `Fields` now includes an office-scoped transaction intake schema builder for built-in fields and custom `text / select / date` fields; schema changes are `office_admin` only and are audited.
+  - normal create-user choices now expose the Back Office tier catalog: `owner / office_admin / accountant / human_resources / team_lead / agent`
+  - legacy `office_manager / office_user` stay compatible internally, but are not the primary create-user flow
+  - `Teams` now supports `Leader I / Leader II / Member` hierarchy plus explicit direct-manager assignment
+  - `Fields` now includes an office-scoped transaction intake schema builder for built-in fields and custom `text / select / date` fields; schema changes are `owner / office_admin` only and are audited.
 - Follow-up work:
   - richer multi-office access controls
   - stronger template application behavior
@@ -231,7 +233,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Follow-up work:
   - stronger onboarding template system
   - richer goal/performance views
-  - optional self-view mode
+  - optional self-view mode beyond the current tiered server-side scope / financial redaction model
 
 ### Commission Management
 

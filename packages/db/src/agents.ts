@@ -17,14 +17,21 @@ import {
   type ActivityLogAction,
   type ActivityLogChange
 } from "./activity-log";
+import {
+  buildMembershipVisibilityWhere,
+  canAccessMembership,
+  canViewFinancialsForMembership,
+  redactCurrency,
+  resolveOfficeDataScope
+} from "./access";
 import { prisma } from "./client";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import { createNotificationsForMemberships } from "./notifications";
 
 const roleLabelMap: Record<UserRole, string> = {
   agent: "Agent",
-  office_manager: "Office Manager",
-  office_user: "Office User",
+  office_manager: "Office Manager (Legacy)",
+  office_user: "Office User (Legacy)",
   office_admin: "Office Admin",
   owner: "Owner",
   accountant: "Accountant",
@@ -128,9 +135,13 @@ export type OfficeAgentTeamSummary = {
   openTransactionCount: number;
   onboardingInProgressCount: number;
   members: Array<{
+    teamMembershipId: string;
     membershipId: string;
     label: string;
     role: string;
+    roleValue: TeamMembershipRole;
+    reportsToTeamMembershipId: string | null;
+    reportsToLabel: string;
   }>;
 };
 
@@ -149,10 +160,14 @@ export type OfficeAgentsRosterSnapshot = {
 
 export type OfficeAgentProfileTeam = {
   id: string;
+  teamMembershipId: string;
   name: string;
   slug: string;
   isActive: boolean;
   role: string;
+  roleValue: TeamMembershipRole;
+  reportsToTeamMembershipId: string | null;
+  reportsToLabel: string;
 };
 
 export type OfficeAgentOnboardingItemRecord = {
@@ -208,6 +223,7 @@ export type OfficeAgentOperationalAgendaItem = {
 };
 
 export type OfficeAgentProfileSnapshot = {
+  financialsRestricted: boolean;
   profile: {
     membershipId: string;
     userId: string;
@@ -267,6 +283,7 @@ export type OfficeAgentProfileSnapshot = {
 
 export type GetOfficeAgentsRosterInput = {
   organizationId: string;
+  viewerMembershipId: string;
   officeId?: string | null;
   officeFilterId?: string;
   role?: string;
@@ -278,6 +295,7 @@ export type GetOfficeAgentsRosterInput = {
 
 export type GetOfficeAgentProfileInput = {
   organizationId: string;
+  viewerMembershipId: string;
   officeId?: string | null;
   membershipId: string;
 };
@@ -321,6 +339,7 @@ export type AddAgentToTeamInput = {
   teamId: string;
   membershipId: string;
   role?: string;
+  reportsToTeamMembershipId?: string | null;
 };
 
 export type RemoveAgentFromTeamInput = {
@@ -479,6 +498,11 @@ function normalizeTeamRole(value: string | undefined): TeamMembershipRole {
   return value === "lead" ? "leader_i" : "member";
 }
 
+function normalizeOptionalTeamMembershipId(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 function normalizeGoalPeriod(value: string): AgentGoalPeriodType {
   if (value === "monthly" || value === "quarterly" || value === "annual") {
     return value;
@@ -592,6 +616,143 @@ function getMembershipLabel(membership: {
   };
 }) {
   return `${membership.user.firstName} ${membership.user.lastName}`;
+}
+
+function redactAgentGoalFinancials(goal: OfficeAgentGoalRecord, allowed: boolean): OfficeAgentGoalRecord {
+  if (allowed) {
+    return goal;
+  }
+
+  return {
+    ...goal,
+    targetOfficeNet: "Restricted",
+    targetAgentNet: "Restricted",
+    actualOfficeNet: "Restricted",
+    actualAgentNet: "Restricted"
+  };
+}
+
+function redactAgentCommissionSummary(summary: OfficeAgentCommissionSummary, allowed: boolean): OfficeAgentCommissionSummary {
+  if (allowed) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    statementReadyLabel: "Restricted",
+    payableLabel: "Restricted",
+    paidLabel: "Restricted",
+    recentCalculations: summary.recentCalculations.map((calculation) => ({
+      ...calculation,
+      grossCommissionLabel: "Restricted",
+      referralFeeLabel: "Restricted",
+      feesLabel: "Restricted",
+      officeNetLabel: "Restricted",
+      agentNetLabel: "Restricted",
+      statementAmountLabel: "Restricted"
+    }))
+  };
+}
+
+async function validateTeamMembershipHierarchy(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    teamId: string;
+    membershipId: string;
+    role: TeamMembershipRole;
+    reportsToTeamMembershipId?: string | null;
+    existingTeamMembershipId?: string | null;
+  }
+) {
+  const parentId = normalizeOptionalTeamMembershipId(input.reportsToTeamMembershipId);
+
+  if (input.role === "leader_i" && parentId) {
+    throw new Error("Leader I cannot report to another team member.");
+  }
+
+  if (!parentId) {
+    if (input.role === "leader_ii") {
+      throw new Error("Leader II must report to a Leader I in the same team.");
+    }
+
+    return null;
+  }
+
+  const parentMembership = await tx.teamMembership.findFirst({
+    where: {
+      id: parentId,
+      organizationId: input.organizationId,
+      teamId: input.teamId,
+      ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
+    },
+    select: {
+      id: true,
+      membershipId: true,
+      role: true,
+      reportsToTeamMembershipId: true
+    }
+  });
+
+  if (!parentMembership) {
+    throw new Error("Direct manager must belong to the same team.");
+  }
+
+  if (parentMembership.membershipId === input.membershipId || parentMembership.id === input.existingTeamMembershipId) {
+    throw new Error("A team member cannot report to themselves.");
+  }
+
+  if (input.role === "leader_ii" && parentMembership.role !== "leader_i") {
+    throw new Error("Leader II must report to a Leader I in the same team.");
+  }
+
+  if (input.role === "member" && parentMembership.role !== "leader_i" && parentMembership.role !== "leader_ii") {
+    throw new Error("Members can only report to a Leader I or Leader II in the same team.");
+  }
+
+  if (input.role === "leader_i") {
+    throw new Error("Leader I cannot report to another team member.");
+  }
+
+  if (!input.existingTeamMembershipId) {
+    return parentMembership.id;
+  }
+
+  const visited = new Set<string>();
+  let cursor = parentMembership;
+
+  while (cursor) {
+    if (cursor.id === input.existingTeamMembershipId) {
+      throw new Error("This reporting line would create a cycle.");
+    }
+
+    if (!cursor.reportsToTeamMembershipId || visited.has(cursor.id)) {
+      break;
+    }
+
+    visited.add(cursor.id);
+
+    const nextParent = await tx.teamMembership.findUnique({
+      where: {
+        id: cursor.reportsToTeamMembershipId
+      },
+      select: {
+        id: true,
+        membershipId: true,
+        role: true,
+        reportsToTeamMembershipId: true
+      }
+    });
+
+    if (!nextParent) {
+      break;
+    }
+
+    cursor = nextParent;
+  }
+
+  return parentMembership.id;
 }
 
 function getActivityActionLabel(action: string) {
@@ -1010,9 +1171,15 @@ async function getBillingSummaryByMembership(
 export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRosterInput): Promise<OfficeAgentsRosterSnapshot> {
   const membershipStatusFilter = normalizeMembershipStatusFilter(input.membershipStatus);
   const scopedOfficeId = input.officeFilterId || input.officeId || undefined;
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: scopedOfficeId ?? null
+  });
   const memberships = await prisma.membership.findMany({
     where: {
       organizationId: input.organizationId,
+      ...buildMembershipVisibilityWhere(scope),
       ...(membershipStatusFilter ?? {}),
       ...(scopedOfficeId ? { officeId: scopedOfficeId } : {}),
       ...(input.role ? { role: input.role as UserRole } : {}),
@@ -1044,7 +1211,16 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       agentProfile: true,
       teamMemberships: {
         include: {
-          team: true
+          team: true,
+          reportsToTeamMembership: {
+            include: {
+              membership: {
+                include: {
+                  user: true
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1059,21 +1235,34 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     prisma.office.findMany({
       where: {
         organizationId: input.organizationId,
-        ...(input.officeId ? { id: input.officeId } : {})
+        ...(scopedOfficeId ? { id: scopedOfficeId } : {})
       },
       orderBy: [{ name: "asc" }]
     }),
     prisma.team.findMany({
       where: {
         organizationId: input.organizationId,
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
+        ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
       },
       include: {
         memberships: {
+          where: {
+            ...(scope.visibleMembershipIds ? { membershipId: { in: scope.visibleMembershipIds } } : {})
+          },
           include: {
             membership: {
               include: {
                 user: true
+              }
+            },
+            reportsToTeamMembership: {
+              include: {
+                membership: {
+                  include: {
+                    user: true
+                  }
+                }
               }
             }
           }
@@ -1143,7 +1332,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       },
       orderBy: [{ endsAt: "desc" }, { createdAt: "desc" }]
     }),
-    getBillingSummaryByMembership(input.organizationId, membershipIds, input.officeId)
+    getBillingSummaryByMembership(input.organizationId, membershipIds, scopedOfficeId)
   ]);
 
   const openTaskCountMap = new Map(openTaskCounts.map((item) => [item.assigneeMembershipId ?? "", item._count._all]));
@@ -1275,6 +1464,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
 
   const rows = filteredMemberships.map((membership) => {
     const balance = billingSummary.get(membership.id);
+    const canViewFinancials = canViewFinancialsForMembership(scope, membership.id);
     const onboardingProgress = onboardingProgressMap.get(membership.id) ?? {
       totalCount: 0,
       completedCount: 0,
@@ -1306,19 +1496,35 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       recentClosedTransactionCount,
       transactionSummaryLabel: buildTransactionSummaryLabel(openTransactionCount, recentClosedTransactionCount),
       goalProgressSummary: goalProgressSummaryMap.get(membership.id) ?? "No active goal",
-      billingBalanceLabel: formatCurrency(balance?.currentBalance ?? 0),
-      billingSummaryLabel: `${formatCurrency(balance?.currentBalance ?? 0)} · ${balance?.openChargesCount ?? 0} open`,
+      billingBalanceLabel: redactCurrency(formatCurrency(balance?.currentBalance ?? 0), canViewFinancials),
+      billingSummaryLabel: canViewFinancials
+        ? `${formatCurrency(balance?.currentBalance ?? 0)} · ${balance?.openChargesCount ?? 0} open`
+        : "Restricted",
       href: `/office/agents/${membership.id}`
     };
   });
 
-  const activeTeamCount = teams.filter((team) => team.isActive).length;
+  const activeTeamCount = teams.filter((team) => team.isActive && team.memberships.length > 0).length;
   const onboardingInProgressCount = rows.filter((row) => row.onboardingStatus === "In progress").length;
+  const roleOptions = [
+    { value: "owner", label: "Owner" },
+    { value: "office_admin", label: "Office Admin" },
+    { value: "accountant", label: "Accountant" },
+    { value: "human_resources", label: "Human Resources" },
+    { value: "team_lead", label: "Team Lead" },
+    { value: "agent", label: "Agent" },
+    ...(memberships.some((membership) => membership.role === "office_manager")
+      ? [{ value: "office_manager", label: "Office Manager (Legacy)" }]
+      : []),
+    ...(memberships.some((membership) => membership.role === "office_user")
+      ? [{ value: "office_user", label: "Office User (Legacy)" }]
+      : [])
+  ];
 
   return {
     summary: {
       totalMembers: rows.length,
-      agentCount: rows.filter((row) => row.role === "Agent").length,
+      agentCount: rows.filter((row) => row.role === "Agent" || row.role === "Team Lead").length,
       onboardingInProgressCount,
       activeTeamCount,
       inactiveMemberCount: rows.filter((row) => row.membershipStatusValue !== "active").length
@@ -1334,11 +1540,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         id: office.id,
         label: office.name
       })),
-      roleOptions: [
-        { value: "agent", label: "Agent" },
-        { value: "office_manager", label: "Office Manager" },
-        { value: "office_admin", label: "Office Admin" }
-      ],
+      roleOptions,
       teamOptions: teams.map((team) => ({
         id: team.id,
         label: team.name
@@ -1364,21 +1566,36 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         return sum + (progress?.status === "in_progress" ? 1 : 0);
       }, 0),
       members: team.memberships.map((teamMembership) => ({
+        teamMembershipId: teamMembership.id,
         membershipId: teamMembership.membershipId,
         label: getMembershipLabel(teamMembership.membership),
-        role: teamRoleLabelMap[teamMembership.role]
+        role: teamRoleLabelMap[teamMembership.role],
+        roleValue: teamMembership.role,
+        reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
+        reportsToLabel: teamMembership.reportsToTeamMembership
+          ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership)
+          : "No direct manager"
       }))
     }))
   };
 }
 
 export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfileInput): Promise<OfficeAgentProfileSnapshot | null> {
-  await ensureAgentProfileFoundation(input.organizationId, input.membershipId, input.officeId);
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null
+  });
 
-  const membership = await prisma.membership.findFirst({
+  if (!canAccessMembership(scope, input.membershipId)) {
+    return null;
+  }
+
+  let membership = await prisma.membership.findFirst({
     where: {
       id: input.membershipId,
       organizationId: input.organizationId,
+      ...buildMembershipVisibilityWhere(scope),
       ...(input.officeId ? { officeId: input.officeId } : {})
     },
     include: {
@@ -1387,7 +1604,16 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       agentProfile: true,
       teamMemberships: {
         include: {
-          team: true
+          team: true,
+          reportsToTeamMembership: {
+            include: {
+              membership: {
+                include: {
+                  user: true
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -1396,6 +1622,36 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
   if (!membership) {
     return null;
   }
+
+  await ensureAgentProfileFoundation(input.organizationId, input.membershipId, input.officeId);
+
+  membership =
+    (await prisma.membership.findUnique({
+      where: {
+        id: membership.id
+      },
+      include: {
+        user: true,
+        office: true,
+        agentProfile: true,
+        teamMemberships: {
+          include: {
+            team: true,
+            reportsToTeamMembership: {
+              include: {
+                membership: {
+                  include: {
+                    user: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })) ?? membership;
+
+  const canViewFinancials = canViewFinancialsForMembership(scope, input.membershipId);
 
   const [
     onboardingItems,
@@ -1474,7 +1730,8 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       prisma.team.findMany({
         where: {
           organizationId: input.organizationId,
-          ...(input.officeId ? { officeId: input.officeId } : {})
+          ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {}),
+          ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
         },
         orderBy: [{ name: "asc" }]
       }),
@@ -1616,6 +1873,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
   const operationalAgenda = [...onboardingAgenda, ...taskAgenda].slice(0, 8);
 
   return {
+    financialsRestricted: !canViewFinancials,
     profile: {
       membershipId: membership.id,
       userId: membership.user.id,
@@ -1645,7 +1903,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         .filter((item) => item.status !== "closed" && item.status !== "cancelled")
         .reduce((sum, item) => sum + item._count._all, 0),
       recentClosedTransactionCount,
-      currentBalanceLabel: formatCurrency(billingSummary?.currentBalance ?? 0),
+      currentBalanceLabel: redactCurrency(formatCurrency(billingSummary?.currentBalance ?? 0), canViewFinancials),
       paymentMethodsCount: billingSummary?.paymentMethodsCount ?? 0,
       openChargesCount: billingSummary?.openChargesCount ?? 0,
       pendingChargesCount: billingSummary?.pendingChargesCount ?? 0,
@@ -1658,13 +1916,19 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         { label: "Closed", count: pipelineTransactions.find((item) => item.status === "closed")?._count._all ?? 0 }
       ]
     },
-    commissions: commissionSummary,
+    commissions: redactAgentCommissionSummary(commissionSummary, canViewFinancials),
     teams: membership.teamMemberships.map((teamMembership) => ({
       id: teamMembership.team.id,
+      teamMembershipId: teamMembership.id,
       name: teamMembership.team.name,
       slug: teamMembership.team.slug,
       isActive: teamMembership.team.isActive,
-      role: teamRoleLabelMap[teamMembership.role]
+      role: teamRoleLabelMap[teamMembership.role],
+      roleValue: teamMembership.role,
+      reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
+      reportsToLabel: teamMembership.reportsToTeamMembership
+        ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership)
+        : "No direct manager"
     })),
     availableTeams: availableTeams.map((team) => ({
       id: team.id,
@@ -1694,7 +1958,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         completedByName: item.completedByMembership ? getMembershipLabel(item.completedByMembership) : ""
       }))
     },
-    goals: goalSnapshots,
+    goals: goalSnapshots.map((goal) => redactAgentGoalFinancials(goal, canViewFinancials)),
     operationalAgenda,
     recentTransactions: recentTransactions.map((transaction) => ({
       id: transaction.id,
@@ -1920,7 +2184,7 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
 
 export async function addAgentToTeam(input: AddAgentToTeamInput) {
   return prisma.$transaction(async (tx) => {
-    const [team, membership] = await Promise.all([
+    const [team, membership, existingTeamMembership] = await Promise.all([
       tx.team.findFirst({
         where: {
           id: input.teamId,
@@ -1928,7 +2192,15 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
           ...(input.officeId ? { officeId: input.officeId } : {})
         }
       }),
-      ensureMembershipExists(tx, input.organizationId, input.membershipId, input.officeId)
+      ensureMembershipExists(tx, input.organizationId, input.membershipId, input.officeId),
+      tx.teamMembership.findUnique({
+        where: {
+          teamId_membershipId: {
+            teamId: input.teamId,
+            membershipId: input.membershipId
+          }
+        }
+      })
     ]);
 
     if (!team) {
@@ -1936,6 +2208,37 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
     }
 
     const nextRole = normalizeTeamRole(input.role);
+    const directReports = existingTeamMembership
+      ? await tx.teamMembership.findMany({
+          where: {
+            organizationId: input.organizationId,
+            teamId: input.teamId,
+            reportsToTeamMembershipId: existingTeamMembership.id
+          },
+          select: {
+            id: true,
+            role: true
+          }
+        })
+      : [];
+
+    if (nextRole === "member" && directReports.length > 0) {
+      throw new Error("Members cannot keep direct reports. Reassign direct reports first.");
+    }
+
+    if (nextRole === "leader_ii" && directReports.some((directReport) => directReport.role === "leader_ii")) {
+      throw new Error("Leader II cannot keep direct Leader II reports. Reassign those members first.");
+    }
+
+    const nextReportsToTeamMembershipId = await validateTeamMembershipHierarchy(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId,
+      teamId: input.teamId,
+      membershipId: input.membershipId,
+      role: nextRole,
+      reportsToTeamMembershipId: input.reportsToTeamMembershipId,
+      existingTeamMembershipId: existingTeamMembership?.id ?? null
+    });
 
     const teamMembership = await tx.teamMembership.upsert({
       where: {
@@ -1946,16 +2249,33 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
       },
       update: {
         role: nextRole,
-        officeId: team.officeId
+        officeId: team.officeId,
+        reportsToTeamMembershipId: nextReportsToTeamMembershipId
       },
       create: {
         organizationId: input.organizationId,
         officeId: team.officeId,
         teamId: input.teamId,
         membershipId: input.membershipId,
-        role: nextRole
+        role: nextRole,
+        reportsToTeamMembershipId: nextReportsToTeamMembershipId
       }
     });
+
+    const directManager = teamMembership.reportsToTeamMembershipId
+      ? await tx.teamMembership.findUnique({
+          where: {
+            id: teamMembership.reportsToTeamMembershipId
+          },
+          include: {
+            membership: {
+              include: {
+                user: true
+              }
+            }
+          }
+        })
+      : null;
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -1967,7 +2287,10 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
         officeId: team.officeId,
         objectLabel: `${team.name} · ${getMembershipLabel(membership)}`,
         contextHref: `/office/agents/${input.membershipId}`,
-        details: [`Team role: ${teamRoleLabelMap[teamMembership.role]}`]
+        details: [
+          `Team role: ${teamRoleLabelMap[teamMembership.role]}`,
+          `Direct manager: ${directManager ? getMembershipLabel(directManager.membership) : "None"}`
+        ]
       }
     });
 
@@ -1997,6 +2320,18 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
 
     if (!team || !teamMembership) {
       throw new Error("Team membership was not found.");
+    }
+
+    const directReportCount = await tx.teamMembership.count({
+      where: {
+        organizationId: input.organizationId,
+        teamId: input.teamId,
+        reportsToTeamMembershipId: teamMembership.id
+      }
+    });
+
+    if (directReportCount > 0) {
+      throw new Error("Reassign or remove this member's direct reports before removing them from the team.");
     }
 
     await tx.teamMembership.delete({

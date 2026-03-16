@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
 
   const result = await listTransactions({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id,
     search,
     status: status === "All" ? "All" : (status as OfficeTransactionStatus),

@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
 
   const businessSnapshot = await getOfficeDashboardBusinessSnapshot({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id
   });
 

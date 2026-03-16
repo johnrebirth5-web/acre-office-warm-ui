@@ -1,4 +1,5 @@
 import { Prisma, TransactionStatus } from "@prisma/client";
+import { buildMembershipVisibilityWhere, buildTransactionVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 
 export type OfficeDashboardStatusMetric = {
@@ -41,6 +42,7 @@ export type OfficeDashboardBusinessSnapshot = {
 
 type GetOfficeDashboardBusinessSnapshotInput = {
   organizationId: string;
+  viewerMembershipId: string;
   officeId?: string | null;
 };
 
@@ -90,22 +92,45 @@ function buildAxisLabels(maxValue: number) {
 export async function getOfficeDashboardBusinessSnapshot(
   input: GetOfficeDashboardBusinessSnapshotInput
 ): Promise<OfficeDashboardBusinessSnapshot> {
-  const transactionWhere: Prisma.TransactionWhereInput = {
+  const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
-    ...(input.officeId ? { officeId: input.officeId } : {})
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null
+  });
+  const transactionWhere: Prisma.TransactionWhereInput = {
+    AND: [
+      {
+        organizationId: input.organizationId,
+        ...(input.officeId ? { officeId: input.officeId } : {})
+      },
+      buildTransactionVisibilityWhere(scope)
+    ]
   };
 
   const contactWhere: Prisma.ClientWhereInput = {
-    organizationId: input.organizationId,
-    ...(input.officeId
-      ? {
-          ownerMembership: {
-            is: {
-              officeId: input.officeId
+    AND: [
+      {
+        organizationId: input.organizationId,
+        ...(input.officeId
+          ? {
+              ownerMembership: {
+                is: {
+                  officeId: input.officeId
+                }
+              }
             }
-          }
-        }
-      : {})
+          : {})
+      },
+      ...(scope.visibleMembershipIds === null
+        ? []
+        : [
+            {
+              ownerMembership: {
+                is: buildMembershipVisibilityWhere(scope)
+              }
+            }
+          ])
+    ]
   };
 
   const now = new Date();

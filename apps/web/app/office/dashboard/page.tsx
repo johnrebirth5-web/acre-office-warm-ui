@@ -53,6 +53,7 @@ export default async function OfficeDashboardPage() {
   const access = getSessionAccess(context);
   const snapshot = await getOfficeDashboardBusinessSnapshot({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id
   });
 

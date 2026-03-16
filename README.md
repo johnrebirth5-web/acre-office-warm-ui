@@ -375,6 +375,8 @@
     - rename
     - activate / deactivate
     - add / remove agent
+    - `Leader I / Leader II / Member` 层级角色
+    - team 内直属上级维护（`reportsToTeamMembershipId`）
   - agent profile / team / onboarding / goal 变更会写入 `AuditLog`
 - `Office Admin / Settings` 现在也已接入真实数据库，作为一个真实的 admin/config 模块：
   - 路由：
@@ -387,19 +389,22 @@
     - role change
     - active / inactive membership status
     - office assignment
+    - invite 角色目录：`owner / office_admin / accountant / human_resources / team_lead / agent`
   - `Teams` 当前在 admin context 内支持：
     - create
     - rename
     - activate / deactivate
     - add / remove members
+    - 编辑 `Leader I / Leader II / Member`
+    - 设置直属上级
   - `Fields` 当前支持：
     - required contact roles
     - built-in transaction intake field required / visible settings
-    - `Type / Status / Representing` 这三个系统下拉现在也支持 office_admin 调整可用选项和显示名称
+    - `Type / Status / Representing` 这三个系统下拉现在也支持 `owner / office_admin` 调整可用选项和显示名称
     - office-scoped custom transaction intake fields（text / select / date）
     - 同一套 intake schema 驱动 `/office/transactions` modal、`/office/transactions/new` 和 transaction detail intake 编辑区
     - transaction intake schema 结构调整与 intake 值编辑都会写入 `Activity Log`
-    - transaction field / custom field schema 管理由 `office_admin` 执行
+    - transaction field / custom field schema 管理由 `owner / office_admin` 执行
   - `Checklists` 当前支持：
     - create template
     - edit template

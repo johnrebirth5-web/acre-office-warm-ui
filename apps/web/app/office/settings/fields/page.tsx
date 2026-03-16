@@ -1,4 +1,4 @@
-import { canViewOfficeFields } from "@acre/auth";
+import { canManageOfficeFields, canViewOfficeFields } from "@acre/auth";
 import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
 import { getOfficeFieldSettingsSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -8,9 +8,9 @@ import { OfficeSettingsFieldsClient } from "./fields-client";
 
 export default async function OfficeSettingsFieldsPage() {
   const context = await requireOfficeSession();
-  const isOfficeAdmin = context.currentMembership.role === "office_admin";
+  const canManageFields = canManageOfficeFields(context.currentMembership.role);
 
-  if (!canViewOfficeFields(context.currentMembership.role) || !isOfficeAdmin) {
+  if (!canViewOfficeFields(context.currentMembership.role) || !canManageFields) {
     redirect("/office/settings");
   }
 
@@ -38,7 +38,7 @@ export default async function OfficeSettingsFieldsPage() {
 
       <ListPageStack className="office-settings-list-stack">
         <OfficeSettingsNav />
-        <OfficeSettingsFieldsClient canManageFields={isOfficeAdmin} snapshot={snapshot} />
+        <OfficeSettingsFieldsClient canManageFields={canManageFields} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>
   );

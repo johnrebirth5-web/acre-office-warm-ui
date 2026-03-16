@@ -318,10 +318,13 @@ Trade-off：
 - server-side signed cookie session
 - `/office/*` 通过 layout 做服务端拦截
 - office dashboard API 改为读取真实 session context
+- Back Office 角色已经扩展为 `owner / office_admin / accountant / human_resources / team_lead / agent`
+- team scope 不再只靠角色名，改为 `TeamMembership.role + reportsToTeamMembershipId` 驱动的真实层级
+- transactions / reports / agents / dashboard 的 viewer scope 和财务脱敏统一下沉到 server-side resolver
 
 未来：
 
-- 再决定是否升级到 forgot-password、2FA、session store、数据级权限
+- 再决定是否升级到 forgot-password、2FA、session store，以及更细的跨 office ACL
 
 ### 5. Documents / Forms / eSignature 先做内部 workflow foundation，不直接接第三方
 

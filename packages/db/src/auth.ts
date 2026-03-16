@@ -16,6 +16,16 @@ const INVITATION_EXPIRY_MS = 1000 * 60 * 60 * 24 * 7;
 const ACCOUNT_LOCKOUT_WINDOW_MS = 1000 * 60 * 60;
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const MIN_PASSWORD_LENGTH = 8;
+const inviteEligibleRoleCatalog: UserRole[] = [
+  "owner",
+  "office_admin",
+  "accountant",
+  "human_resources",
+  "team_lead",
+  "agent",
+  "office_user",
+  "office_manager"
+] as const;
 
 type AuditLogWriter = Prisma.TransactionClient | PrismaClient;
 
@@ -403,7 +413,7 @@ async function createInvitationRecord(tx: Prisma.TransactionClient, input: {
 }
 
 function buildRoleDetail(role: UserRole) {
-  return role === "office_admin" ? "Role: office_admin" : `Role: ${role}`;
+  return `Role: ${role}`;
 }
 
 export function getBootstrapAdminEmail() {
@@ -1033,8 +1043,8 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
   const firstName = normalizeRequiredText(input.firstName, "First name");
   const lastName = normalizeRequiredText(input.lastName, "Last name");
 
-  if (input.role !== "office_admin" && input.role !== "office_user") {
-    throw new Error("Only Admin and User roles can be created from this page.");
+  if (!inviteEligibleRoleCatalog.includes(input.role)) {
+    throw new Error("Unsupported role for invited account creation.");
   }
 
   return prisma.$transaction(async (tx) => {

@@ -16,11 +16,20 @@ Provide a practical Back Office admin/settings area for access management, teams
   - role update
   - activate/deactivate
   - office access within current membership model
+  - Back Office tier catalog:
+    - `owner`
+    - `office_admin`
+    - `accountant`
+    - `human_resources`
+    - `team_lead`
+    - `agent`
 - teams admin supports:
   - create
   - rename
   - activate/deactivate
   - add/remove members
+  - assign `Leader I / Leader II / Member`
+  - maintain direct reporting lines inside a team
 - fields admin supports:
   - required contact roles
   - built-in transaction field required / visible settings
@@ -37,7 +46,7 @@ Provide a practical Back Office admin/settings area for access management, teams
 
 - no generic no-code schema builder across every workflow module yet
 - transaction intake builder exists, but broader settings modules still do not expose the same level of schema configurability
-- office access is still bounded by current membership model, not a full ACL matrix
+- office access is still bounded by current membership model plus explicit team hierarchy / scope resolution, not a full ACL matrix
 - checklist templates are managed but not fully auto-applied everywhere
 
 ## Future direction

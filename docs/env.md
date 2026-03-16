@@ -114,6 +114,29 @@ ACRE_SESSION_SECRET="replace-with-a-long-random-string"
 - 开发环境可用 fallback 启动
 - 生产或共享环境应始终显式配置
 
+### `ACRE_BASE_URL`
+
+用途：
+
+- 为一次性 provisioning / 邀请批量初始化脚本生成完整 invite URL
+- 当前用于 `scripts/provision-backoffice-initial-accounts.ts`
+
+是否必填：
+
+- 非必填
+- 缺失时默认使用 `https://acresystem.us`
+
+示例格式：
+
+```env
+ACRE_BASE_URL="https://acresystem.us"
+```
+
+缺失后的影响：
+
+- 脚本仍可运行
+- 但 invite URL 会按默认生产域名拼接
+
 ### `ACRE_DOCUMENTS_STORAGE_DIR`
 
 用途：

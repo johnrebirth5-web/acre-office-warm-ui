@@ -11,6 +11,7 @@ type TransactionFinanceFormProps = {
   officeNet: string;
   agentNet: string;
   financeNotes: string;
+  readOnly?: boolean;
 };
 
 export function TransactionFinanceForm({
@@ -19,7 +20,8 @@ export function TransactionFinanceForm({
   referralFee,
   officeNet,
   agentNet,
-  financeNotes
+  financeNotes,
+  readOnly = false
 }: TransactionFinanceFormProps) {
   const router = useRouter();
   const [formState, setFormState] = useState({
@@ -69,30 +71,33 @@ export function TransactionFinanceForm({
     <div className="bm-transaction-finance-form">
       <label className="office-detail-field">
         <span>Gross commission</span>
-        <input onChange={(event) => updateField("grossCommission", event.target.value)} type="text" value={formState.grossCommission} />
+        <input disabled={readOnly} onChange={(event) => updateField("grossCommission", event.target.value)} type="text" value={formState.grossCommission} />
       </label>
       <label className="office-detail-field">
         <span>Referral fee</span>
-        <input onChange={(event) => updateField("referralFee", event.target.value)} type="text" value={formState.referralFee} />
+        <input disabled={readOnly} onChange={(event) => updateField("referralFee", event.target.value)} type="text" value={formState.referralFee} />
       </label>
       <label className="office-detail-field">
         <span>Office net</span>
-        <input onChange={(event) => updateField("officeNet", event.target.value)} type="text" value={formState.officeNet} />
+        <input disabled={readOnly} onChange={(event) => updateField("officeNet", event.target.value)} type="text" value={formState.officeNet} />
       </label>
       <label className="office-detail-field">
         <span>Agent net</span>
-        <input onChange={(event) => updateField("agentNet", event.target.value)} type="text" value={formState.agentNet} />
+        <input disabled={readOnly} onChange={(event) => updateField("agentNet", event.target.value)} type="text" value={formState.agentNet} />
       </label>
       <label className="office-detail-field office-detail-field-wide">
         <span>Finance notes</span>
-        <textarea onChange={(event) => updateField("financeNotes", event.target.value)} rows={3} value={formState.financeNotes} />
+        <textarea disabled={readOnly} onChange={(event) => updateField("financeNotes", event.target.value)} rows={3} value={formState.financeNotes} />
       </label>
-      <div className="office-form-actions">
-        <Button disabled={isSaving} onClick={handleSaveFinance} type="button">
-          {isSaving ? "Saving..." : "Save finance"}
-        </Button>
-        {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
-      </div>
+      {readOnly ? <p className="office-form-helper">Financial details are read-only for your current access level.</p> : null}
+      {!readOnly ? (
+        <div className="office-form-actions">
+          <Button disabled={isSaving} onClick={handleSaveFinance} type="button">
+            {isSaving ? "Saving..." : "Save finance"}
+          </Button>
+          {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

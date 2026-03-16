@@ -15,6 +15,7 @@ export default async function OfficeSettingsTeamsPage() {
 
   const snapshot = await getOfficeAgentsRosterSnapshot({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null
   });
 

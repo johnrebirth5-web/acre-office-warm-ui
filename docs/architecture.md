@@ -550,13 +550,22 @@
 
 ### 2. 角色和权限
 
-当前已有三类角色：
+当前 Back Office 已切到分层角色模型：
 
-- `agent`
-- `office_manager`
+- `owner`
 - `office_admin`
+- `accountant`
+- `human_resources`
+- `team_lead`
+- `agent`
+- 兼容保留：`office_manager`、`office_user`
 
-虽然现在只是静态映射，但它已经决定了后续架构方向。不要把权限逻辑散落在页面组件里。
+权限不再只是静态页面映射。当前实现要求：
+
+- broad role 放在 `Membership.role`
+- team hierarchy 放在 `TeamMembership.role`
+- 直属关系放在 `TeamMembership.reportsToTeamMembershipId`
+- 真实可见范围和财务脱敏统一下沉到 server-side scope resolver，而不是散落在页面组件里
 
 ### 3. Listings 是系统核心
 

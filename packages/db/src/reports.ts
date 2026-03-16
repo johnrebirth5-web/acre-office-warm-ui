@@ -8,6 +8,14 @@ import {
   TransactionType,
   UserRole
 } from "@prisma/client";
+import {
+  buildMembershipVisibilityWhere,
+  buildTransactionVisibilityWhere,
+  canViewCrossMemberFinancials,
+  redactCurrency,
+  resolveOfficeDataScope,
+  type OfficeDataScope
+} from "./access";
 import { prisma } from "./client";
 
 export type OfficeReportStatus = "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
@@ -250,6 +258,7 @@ export type OfficeReportTransactionExportRow = {
 
 export type GetOfficeReportsSnapshotInput = {
   organizationId: string;
+  viewerMembershipId: string;
   officeId?: string | null;
   officeFilterId?: string;
   startDate?: string;
@@ -919,13 +928,106 @@ function buildEarnestMoneyWhere(
   };
 }
 
+function applyTransactionScope(where: Prisma.TransactionWhereInput, scope: OfficeDataScope): Prisma.TransactionWhereInput {
+  if (scope.visibleMembershipIds === null) {
+    return where;
+  }
+
+  return {
+    AND: [where, buildTransactionVisibilityWhere(scope)]
+  };
+}
+
+function applyClientScope(where: Prisma.ClientWhereInput, scope: OfficeDataScope): Prisma.ClientWhereInput {
+  if (scope.visibleMembershipIds === null) {
+    return where;
+  }
+
+  return {
+    AND: [where, { ownerMembership: { is: buildMembershipVisibilityWhere(scope) } }]
+  };
+}
+
+function applyAccountingScope(
+  where: Prisma.AccountingTransactionWhereInput,
+  scope: OfficeDataScope
+): Prisma.AccountingTransactionWhereInput {
+  if (scope.visibleMembershipIds === null) {
+    return where;
+  }
+
+  return {
+    AND: [
+      where,
+      {
+        OR: [
+          {
+            relatedMembershipId: {
+              in: scope.visibleMembershipIds
+            }
+          },
+          {
+            relatedTransaction: buildTransactionVisibilityWhere(scope)
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function applyCommissionScope(
+  where: Prisma.CommissionCalculationWhereInput,
+  scope: OfficeDataScope
+): Prisma.CommissionCalculationWhereInput {
+  if (scope.visibleMembershipIds === null) {
+    return where;
+  }
+
+  return {
+    AND: [
+      where,
+      {
+        OR: [
+          {
+            membershipId: {
+              in: scope.visibleMembershipIds
+            }
+          },
+          {
+            transaction: buildTransactionVisibilityWhere(scope)
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function applyEarnestMoneyScope(
+  where: Prisma.EarnestMoneyRecordWhereInput,
+  scope: OfficeDataScope
+): Prisma.EarnestMoneyRecordWhereInput {
+  if (scope.visibleMembershipIds === null) {
+    return where;
+  }
+
+  return {
+    AND: [where, { transaction: buildTransactionVisibilityWhere(scope) }]
+  };
+}
+
 export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotInput): Promise<OfficeReportsSnapshot> {
   const scopedOfficeId = getScopedOfficeId(input);
-  const transactionWhere = buildTransactionWhere(input, scopedOfficeId);
-  const clientWhere = buildClientWhere(input, scopedOfficeId);
-  const accountingWhere = buildAccountingWhere(input, scopedOfficeId);
-  const commissionWhere = buildCommissionWhere(input, scopedOfficeId);
-  const earnestMoneyWhere = buildEarnestMoneyWhere(input, scopedOfficeId);
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: scopedOfficeId
+  });
+  const canViewFinancialAmounts = canViewCrossMemberFinancials(scope);
+  const transactionWhere = applyTransactionScope(buildTransactionWhere(input, scopedOfficeId), scope);
+  const clientWhere = applyClientScope(buildClientWhere(input, scopedOfficeId), scope);
+  const accountingWhere = applyAccountingScope(buildAccountingWhere(input, scopedOfficeId), scope);
+  const commissionWhere = applyCommissionScope(buildCommissionWhere(input, scopedOfficeId), scope);
+  const earnestMoneyWhere = applyEarnestMoneyScope(buildEarnestMoneyWhere(input, scopedOfficeId), scope);
   const startDate = startOfDay(input.startDate);
   const endDate = endOfDay(input.endDate);
   const now = new Date();
@@ -1015,9 +1117,19 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       where: {
         organizationId: input.organizationId,
         status: "active",
+        ...buildMembershipVisibilityWhere(scope),
         ...(scopedOfficeId ? { officeId: scopedOfficeId } : {}),
         role: {
-          in: ["agent", "office_manager", "office_admin"] satisfies UserRole[]
+          in: [
+            "owner",
+            "office_admin",
+            "accountant",
+            "human_resources",
+            "team_lead",
+            "agent",
+            "office_manager",
+            "office_user"
+          ] satisfies UserRole[]
         }
       },
       include: {
@@ -1028,7 +1140,8 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     prisma.team.findMany({
       where: {
         organizationId: input.organizationId,
-        ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {})
+        ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
+        ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
       },
       select: {
         id: true,
@@ -1162,8 +1275,9 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       totalVolumeLabel: formatCurrency(
         matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.price ?? 0), 0)
       ),
-      officeNetLabel: formatCurrency(
-        matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.officeNet ?? 0), 0)
+      officeNetLabel: redactCurrency(
+        formatCurrency(matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.officeNet ?? 0), 0)),
+        canViewFinancialAmounts
       )
     };
   });
@@ -1281,8 +1395,9 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       totalVolumeLabel: formatCurrency(
         matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.price ?? 0), 0)
       ),
-      officeNetLabel: formatCurrency(
-        matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.officeNet ?? 0), 0)
+      officeNetLabel: redactCurrency(
+        formatCurrency(matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.officeNet ?? 0), 0)),
+        canViewFinancialAmounts
       )
     };
   });
@@ -1304,8 +1419,8 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     type: typeFromDb[transaction.type],
     ownerName: getOwnerName(transaction.ownerMembership),
     priceLabel: formatCurrency(transaction.price),
-    grossCommissionLabel: formatCurrency(transaction.grossCommission),
-    officeNetLabel: formatCurrency(transaction.officeNet),
+    grossCommissionLabel: redactCurrency(formatCurrency(transaction.grossCommission), canViewFinancialAmounts),
+    officeNetLabel: redactCurrency(formatCurrency(transaction.officeNet), canViewFinancialAmounts),
     createdAtLabel: formatDateLabel(transaction.createdAt),
     closingDateLabel: formatDateLabel(transaction.closingDate),
     href: `/office/transactions/${transaction.id}`
@@ -1322,9 +1437,9 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       pendingTransactionCount: entry.pendingTransactionCount,
       totalVolumeLabel: formatCurrency(entry.totalVolume),
       averageVolumeLabel: formatCurrency(entry.transactionCount > 0 ? entry.totalVolume / entry.transactionCount : 0),
-      grossCommissionLabel: formatCurrency(entry.grossCommission),
-      officeNetLabel: formatCurrency(entry.officeNet),
-      agentNetLabel: formatCurrency(entry.agentNet),
+      grossCommissionLabel: redactCurrency(formatCurrency(entry.grossCommission), canViewFinancialAmounts),
+      officeNetLabel: redactCurrency(formatCurrency(entry.officeNet), canViewFinancialAmounts),
+      agentNetLabel: redactCurrency(formatCurrency(entry.agentNet), canViewFinancialAmounts),
       profileHref: entry.ownerMembershipId ? `/office/agents/${entry.ownerMembershipId}` : null
     }));
 
@@ -1337,7 +1452,7 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       transactionCount: entry.transactionCount,
       closedTransactionCount: entry.closedTransactionCount,
       totalVolumeLabel: formatCurrency(entry.totalVolume),
-      officeNetLabel: formatCurrency(entry.officeNet)
+      officeNetLabel: redactCurrency(formatCurrency(entry.officeNet), canViewFinancialAmounts)
     }));
 
   const commissionSummaryByStatus = commissionStatusOrder.map((status) => {
@@ -1346,8 +1461,9 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     return {
       status: commissionStatusLabelMap[status],
       count: matchingRows.length,
-      statementAmountLabel: formatCurrency(
-        matchingRows.reduce((sum, row) => sum + Number(row.statementAmount ?? 0), 0)
+      statementAmountLabel: redactCurrency(
+        formatCurrency(matchingRows.reduce((sum, row) => sum + Number(row.statementAmount ?? 0), 0)),
+        canViewFinancialAmounts
       )
     };
   });
@@ -1385,8 +1501,8 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       ? `${calculation.membership.user.firstName} ${calculation.membership.user.lastName}`
       : "Brokerage / referral",
     status: commissionStatusLabelMap[calculation.status],
-    statementAmountLabel: formatCurrency(calculation.statementAmount),
-    grossCommissionLabel: formatCurrency(calculation.grossCommission),
+    statementAmountLabel: redactCurrency(formatCurrency(calculation.statementAmount), canViewFinancialAmounts),
+    grossCommissionLabel: redactCurrency(formatCurrency(calculation.grossCommission), canViewFinancialAmounts),
     calculatedAtLabel: formatDateLabel(calculation.calculatedAt),
     accountingHref: calculation.accountingTransactionId ? `/office/accounting?entryId=${calculation.accountingTransactionId}` : null
   }));
@@ -1397,8 +1513,9 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     return {
       type: accountingTypeLabelMap[type],
       count: matchingTransactions.length,
-      totalAmountLabel: formatCurrency(
-        matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.totalAmount ?? 0), 0)
+      totalAmountLabel: redactCurrency(
+        formatCurrency(matchingTransactions.reduce((sum, transaction) => sum + Number(transaction.totalAmount ?? 0), 0)),
+        canViewFinancialAmounts
       )
     };
   });
@@ -1414,7 +1531,7 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       type: accountingTypeLabelMap[transaction.type],
       status: accountingStatusLabelMap[transaction.status],
       counterparty: transaction.counterpartyName?.trim() || "—",
-      amountLabel: formatCurrency(transaction.totalAmount),
+      amountLabel: redactCurrency(formatCurrency(transaction.totalAmount), canViewFinancialAmounts),
       ownerName,
       linkedTransactionLabel: transaction.relatedTransaction ? getTransactionLabel(transaction.relatedTransaction) : "—",
       linkedTransactionHref: transaction.relatedTransaction ? `/office/transactions/${transaction.relatedTransaction.id}` : null,
@@ -1428,11 +1545,13 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     return {
       status: earnestMoneyStatusLabelMap[status],
       count: matchingRecords.length,
-      expectedAmountLabel: formatCurrency(
-        matchingRecords.reduce((sum, record) => sum + Number(record.expectedAmount ?? 0), 0)
+      expectedAmountLabel: redactCurrency(
+        formatCurrency(matchingRecords.reduce((sum, record) => sum + Number(record.expectedAmount ?? 0), 0)),
+        canViewFinancialAmounts
       ),
-      receivedAmountLabel: formatCurrency(
-        matchingRecords.reduce((sum, record) => sum + Number(record.receivedAmount ?? 0), 0)
+      receivedAmountLabel: redactCurrency(
+        formatCurrency(matchingRecords.reduce((sum, record) => sum + Number(record.receivedAmount ?? 0), 0)),
+        canViewFinancialAmounts
       )
     };
   });
@@ -1442,8 +1561,8 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     transactionId: record.transaction.id,
     transactionLabel: getTransactionLabel(record.transaction),
     transactionHref: `/office/transactions/${record.transaction.id}`,
-    expectedAmount: formatCurrency(record.expectedAmount),
-    receivedAmount: formatCurrency(record.receivedAmount),
+    expectedAmount: redactCurrency(formatCurrency(record.expectedAmount), canViewFinancialAmounts),
+    receivedAmount: redactCurrency(formatCurrency(record.receivedAmount), canViewFinancialAmounts),
     dueAtLabel: formatDateLabel(record.dueAt),
     status: earnestMoneyStatusLabelMap[record.status],
     holdingLabel: record.heldExternally ? "Held externally" : record.heldByOffice ? "Held by office" : "Holding mode unset"
@@ -1485,6 +1604,10 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     "Transaction date range filters by transaction created date; commissions use calculated date; accounting uses accounting date; EMD uses due date.",
     "Team rollups use the owner's active team memberships; owners on multiple teams will appear in multiple team rows."
   ];
+
+  if (!canViewFinancialAmounts) {
+    limitations.push("Financial payout, commission, accounting, and earnest money amounts are redacted for the current access tier.");
+  }
 
   if (input.commissionPlanId?.trim()) {
     limitations.push(
@@ -1528,12 +1651,12 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       activeOwnerCount,
       closedTransactionCount,
       pendingTransactionCount,
-      totalGrossCommissionLabel: formatCurrency(totalGrossCommission),
-      totalOfficeNetLabel: formatCurrency(totalOfficeNet),
-      totalAgentNetLabel: formatCurrency(totalAgentNet),
-      statementReadyCommissionLabel: formatCurrency(statementReadyCommissionAmount),
-      payableCommissionLabel: formatCurrency(payableCommissionAmount),
-      receivedPaymentsLabel: formatCurrency(receivedPaymentsAmount),
+      totalGrossCommissionLabel: redactCurrency(formatCurrency(totalGrossCommission), canViewFinancialAmounts),
+      totalOfficeNetLabel: redactCurrency(formatCurrency(totalOfficeNet), canViewFinancialAmounts),
+      totalAgentNetLabel: redactCurrency(formatCurrency(totalAgentNet), canViewFinancialAmounts),
+      statementReadyCommissionLabel: redactCurrency(formatCurrency(statementReadyCommissionAmount), canViewFinancialAmounts),
+      payableCommissionLabel: redactCurrency(formatCurrency(payableCommissionAmount), canViewFinancialAmounts),
+      receivedPaymentsLabel: redactCurrency(formatCurrency(receivedPaymentsAmount), canViewFinancialAmounts),
       overdueEmdCount
     },
     transactionsByStatus,
@@ -1557,9 +1680,9 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     },
     commissionSummary: {
       calculationCount: commissionCalculations.length,
-      statementReadyLabel: formatCurrency(statementReadyCommissionAmount),
-      payableLabel: formatCurrency(payableCommissionAmount),
-      paidLabel: formatCurrency(paidCommissionAmount),
+      statementReadyLabel: redactCurrency(formatCurrency(statementReadyCommissionAmount), canViewFinancialAmounts),
+      payableLabel: redactCurrency(formatCurrency(payableCommissionAmount), canViewFinancialAmounts),
+      paidLabel: redactCurrency(formatCurrency(paidCommissionAmount), canViewFinancialAmounts),
       byStatus: commissionSummaryByStatus,
       byPlan: [...commissionPlanMap.values()]
         .sort((left, right) => right.calculationCount - left.calculationCount || right.statementAmount - left.statementAmount)
@@ -1567,7 +1690,7 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
           commissionPlanId: entry.commissionPlanId,
           planName: entry.planName,
           calculationCount: entry.calculationCount,
-          statementAmountLabel: formatCurrency(entry.statementAmount)
+          statementAmountLabel: redactCurrency(formatCurrency(entry.statementAmount), canViewFinancialAmounts)
         })),
       recentCalculations
     },
@@ -1575,8 +1698,8 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       transactionCount: accountingTransactions.length,
       totalInvoices,
       openBills,
-      receivedPaymentsLabel: formatCurrency(receivedPaymentsAmount),
-      madePaymentsLabel: formatCurrency(madePaymentsAmount),
+      receivedPaymentsLabel: redactCurrency(formatCurrency(receivedPaymentsAmount), canViewFinancialAmounts),
+      madePaymentsLabel: redactCurrency(formatCurrency(madePaymentsAmount), canViewFinancialAmounts),
       byType: accountingTypeMetrics,
       recentTransactions: recentAccountingTransactions
     },
@@ -1584,11 +1707,13 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       recordCount: earnestMoneyRecords.length,
       outstandingCount: outstandingEmdCount,
       overdueCount: overdueEmdCount,
-      expectedAmountLabel: formatCurrency(
-        earnestMoneyRecords.reduce((sum, record) => sum + Number(record.expectedAmount ?? 0), 0)
+      expectedAmountLabel: redactCurrency(
+        formatCurrency(earnestMoneyRecords.reduce((sum, record) => sum + Number(record.expectedAmount ?? 0), 0)),
+        canViewFinancialAmounts
       ),
-      receivedAmountLabel: formatCurrency(
-        earnestMoneyRecords.reduce((sum, record) => sum + Number(record.receivedAmount ?? 0), 0)
+      receivedAmountLabel: redactCurrency(
+        formatCurrency(earnestMoneyRecords.reduce((sum, record) => sum + Number(record.receivedAmount ?? 0), 0)),
+        canViewFinancialAmounts
       ),
       byStatus: earnestMoneyByStatus,
       recentRecords: recentEarnestMoneyRecords
@@ -1601,7 +1726,13 @@ export async function listOfficeReportTransactionsForExport(
   input: GetOfficeReportsSnapshotInput
 ): Promise<OfficeReportTransactionExportRow[]> {
   const scopedOfficeId = getScopedOfficeId(input);
-  const transactionWhere = buildTransactionWhere(input, scopedOfficeId);
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: scopedOfficeId
+  });
+  const canViewFinancialAmounts = canViewCrossMemberFinancials(scope);
+  const transactionWhere = applyTransactionScope(buildTransactionWhere(input, scopedOfficeId), scope);
 
   const transactions = await prisma.transaction.findMany({
     where: transactionWhere,
@@ -1635,10 +1766,10 @@ export async function listOfficeReportTransactionsForExport(
       : "Unassigned",
     primaryContact: transaction.primaryClient?.fullName ?? "",
     price: formatCurrencyFromDb(transaction.price),
-    grossCommission: formatCurrencyFromDb(transaction.grossCommission),
-    referralFee: formatCurrencyFromDb(transaction.referralFee),
-    officeNet: formatCurrencyFromDb(transaction.officeNet),
-    agentNet: formatCurrencyFromDb(transaction.agentNet),
+    grossCommission: redactCurrency(formatCurrencyFromDb(transaction.grossCommission), canViewFinancialAmounts),
+    referralFee: redactCurrency(formatCurrencyFromDb(transaction.referralFee), canViewFinancialAmounts),
+    officeNet: redactCurrency(formatCurrencyFromDb(transaction.officeNet), canViewFinancialAmounts),
+    agentNet: redactCurrency(formatCurrencyFromDb(transaction.agentNet), canViewFinancialAmounts),
     importantDate: formatDateOnly(transaction.importantDate),
     closingDate: formatDateOnly(transaction.closingDate),
     createdAt: transaction.createdAt.toISOString(),

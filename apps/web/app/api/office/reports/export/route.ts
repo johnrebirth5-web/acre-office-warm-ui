@@ -1,3 +1,4 @@
+import { canViewOfficeReports } from "@acre/auth";
 import type { NextRequest } from "next/server";
 import { listOfficeReportTransactionsForExport } from "@acre/db";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
@@ -21,6 +22,15 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  if (!canViewOfficeReports(sessionContext.currentMembership.role)) {
+    return new Response(JSON.stringify({ error: "Reports access required." }), {
+      status: 403,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+  }
+
   const url = new URL(request.url);
   const startDate = url.searchParams.get("startDate") ?? undefined;
   const endDate = url.searchParams.get("endDate") ?? undefined;
@@ -33,6 +43,7 @@ export async function GET(request: NextRequest) {
 
   const rows = await listOfficeReportTransactionsForExport({
     organizationId: sessionContext.currentOrganization.id,
+    viewerMembershipId: sessionContext.currentMembership.id,
     officeId: sessionContext.currentOffice?.id,
     officeFilterId,
     startDate,

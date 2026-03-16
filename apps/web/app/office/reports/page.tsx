@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { canViewOfficeReports } from "@acre/auth";
 import {
   Badge,
   Button,
@@ -28,6 +29,7 @@ import {
   TextInput
 } from "@acre/ui";
 import { getOfficeReportsSnapshot, type OfficeReportStatus } from "@acre/db";
+import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
 
 type ReportsPageSearchParams = {
@@ -300,9 +302,15 @@ function getWorkflowTone(value: string) {
 
 export default async function OfficeReportsPage(props: ReportsPageProps) {
   const context = await requireOfficeSession();
+
+  if (!canViewOfficeReports(context.currentMembership.role)) {
+    redirect("/office/dashboard");
+  }
+
   const searchParams = (await props.searchParams) ?? {};
   const snapshot = await getOfficeReportsSnapshot({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     officeFilterId: searchParams.officeId,
     startDate: searchParams.startDate,

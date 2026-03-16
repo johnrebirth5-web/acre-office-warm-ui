@@ -15,6 +15,7 @@ import {
   canManageOfficeUsers,
   canSecondaryReviewOfficeTasks,
   canViewOfficeContacts,
+  canViewOfficeReports,
   canViewOfficeTransactions
 } from "./index.ts";
 
@@ -41,17 +42,47 @@ test("office admin retains admin-only powers and secondary review access", () =>
   assert.equal(canCommentOfficeOffers("office_admin"), true);
 });
 
-test("agent role does not inherit office write permissions", () => {
-  assert.equal(canViewOfficeTransactions("agent"), false);
-  assert.equal(canCreateOfficeTransactions("agent"), false);
-  assert.equal(canEditOfficeTransactions("agent"), false);
+test("owner keeps full office-admin level control", () => {
+  assert.equal(canManageOfficeUsers("owner"), true);
+  assert.equal(canManageOfficeSettings("owner"), true);
+  assert.equal(canManageOfficeTransactionFinance("owner"), true);
+  assert.equal(canViewOfficeReports("owner"), true);
+});
+
+test("accountant and human resources keep Tier 2 reporting access without transaction finance editing", () => {
+  assert.equal(canManageOfficeUsers("accountant"), true);
+  assert.equal(canViewOfficeReports("accountant"), true);
+  assert.equal(canManageOfficeTransactionFinance("accountant"), false);
+  assert.equal(canManageOfficeUsers("human_resources"), true);
+  assert.equal(canViewOfficeReports("human_resources"), true);
+  assert.equal(canManageOfficeTransactionFinance("human_resources"), false);
+});
+
+test("team lead keeps scoped pipeline access without admin-only settings", () => {
+  assert.equal(canViewOfficeTransactions("team_lead"), true);
+  assert.equal(canCreateOfficeTransactions("team_lead"), true);
+  assert.equal(canEditOfficeTransactions("team_lead"), true);
+  assert.equal(canViewOfficeContacts("team_lead"), true);
+  assert.equal(canViewOfficeReports("team_lead"), true);
+  assert.equal(canManageOfficeUsers("team_lead"), false);
+  assert.equal(canManageOfficeSettings("team_lead"), false);
+  assert.equal(canManageOfficeTransactionFinance("team_lead"), false);
+});
+
+test("agent role keeps scoped pipeline access without finance or admin-only powers", () => {
+  assert.equal(canViewOfficeTransactions("agent"), true);
+  assert.equal(canCreateOfficeTransactions("agent"), true);
+  assert.equal(canEditOfficeTransactions("agent"), true);
   assert.equal(canManageOfficeTransactionFinance("agent"), false);
-  assert.equal(canViewOfficeContacts("agent"), false);
-  assert.equal(canCreateOfficeContacts("agent"), false);
-  assert.equal(canEditOfficeContacts("agent"), false);
-  assert.equal(canLinkOfficeContacts("agent"), false);
+  assert.equal(canViewOfficeContacts("agent"), true);
+  assert.equal(canCreateOfficeContacts("agent"), true);
+  assert.equal(canEditOfficeContacts("agent"), true);
+  assert.equal(canLinkOfficeContacts("agent"), true);
   assert.equal(canCommentOfficeActivity("agent"), false);
   assert.equal(canCommentOfficeOffers("agent"), false);
+  assert.equal(canManageOfficeUsers("agent"), false);
+  assert.equal(canManageOfficeSettings("agent"), false);
+  assert.equal(canViewOfficeReports("agent"), false);
 });
 
 test("office user keeps internal read access without admin-only powers", () => {

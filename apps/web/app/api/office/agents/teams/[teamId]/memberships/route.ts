@@ -21,7 +21,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const { teamId } = await params;
-  const body = (await request.json().catch(() => null)) as { membershipId?: string; role?: string } | null;
+  const body = (await request.json().catch(() => null)) as
+    | { membershipId?: string; role?: string; reportsToTeamMembershipId?: string | null }
+    | null;
 
   try {
     const membership = await addAgentToTeam({
@@ -30,7 +32,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       actorMembershipId: context.currentMembership.id,
       teamId,
       membershipId: body?.membershipId ?? "",
-      role: body?.role
+      role: body?.role,
+      reportsToTeamMembershipId: body?.reportsToTeamMembershipId ?? null
     });
 
     return NextResponse.json({ membership }, { status: 201 });

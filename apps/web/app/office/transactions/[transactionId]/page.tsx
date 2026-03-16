@@ -11,6 +11,8 @@ import {
   canApproveOfficeDocuments,
   canApproveOfficeCommissions,
   canEditOfficeTransactions,
+  canManageOfficeFields,
+  canManageOfficeTransactionFinance,
   canManageOfficeDocuments,
   canManageOfficeCommissions,
   canManageOfficeOffers,
@@ -49,8 +51,18 @@ type TransactionDetailPageProps = {
 export default async function OfficeTransactionDetailPage({ params }: TransactionDetailPageProps) {
   const context = await requireOfficeSession();
   const { transactionId } = await params;
-  const [transaction, tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot, transactionIntakeSchema] = await Promise.all([
-    getTransactionById(context.currentOrganization.id, transactionId),
+  const transaction = await getTransactionById({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    transactionId,
+    officeId: context.currentOffice?.id ?? null
+  });
+
+  if (!transaction) {
+    notFound();
+  }
+
+  const [tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot, transactionIntakeSchema] = await Promise.all([
     listTransactionTasks(context.currentOrganization.id, transactionId),
     listTransactionTaskAssigneeOptions(context.currentOrganization.id, transactionId),
     getTransactionCommissionSnapshot(context.currentOrganization.id, transactionId, context.currentOffice?.id ?? null),
@@ -60,10 +72,6 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
       officeId: context.currentOffice?.id ?? null
     })
   ]);
-
-  if (!transaction) {
-    notFound();
-  }
 
   const taskOptions = tasks.map((task) => ({
     id: task.id,
@@ -83,6 +91,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
   const canAcceptOffersForRole = canAcceptOfficeOffers(context.currentMembership.role);
   const canViewCommissionsForRole = canViewOfficeCommissions(context.currentMembership.role);
   const canEditTransactionsForRole = canEditOfficeTransactions(context.currentMembership.role);
+  const canManageTransactionFinanceForRole = canManageOfficeTransactionFinance(context.currentMembership.role);
   const canManageCommissionsForRole = canManageOfficeCommissions(context.currentMembership.role);
   const canCalculateCommissionsForRole = canCalculateOfficeCommissions(context.currentMembership.role);
   const canApproveCommissionsForRole = canApproveOfficeCommissions(context.currentMembership.role);
@@ -232,16 +241,19 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         transactionId={transaction.id}
       />
 
-      <SectionCard subtitle="Minimal finance layer for commissions, office net, and notes." title="Finance">
-        <TransactionFinanceForm
-          agentNet={transaction.agentNet}
-          financeNotes={transaction.financeNotes}
-          grossCommission={transaction.grossCommission}
-          officeNet={transaction.officeNet}
-          referralFee={transaction.referralFee}
-          transactionId={transaction.id}
-        />
-      </SectionCard>
+      {transaction.canViewFinancials ? (
+        <SectionCard subtitle="Minimal finance layer for commissions, office net, and notes." title="Finance">
+          <TransactionFinanceForm
+            agentNet={transaction.agentNet}
+            financeNotes={transaction.financeNotes}
+            grossCommission={transaction.grossCommission}
+            officeNet={transaction.officeNet}
+            readOnly={!canManageTransactionFinanceForRole}
+            referralFee={transaction.referralFee}
+            transactionId={transaction.id}
+          />
+        </SectionCard>
+      ) : null}
 
       {canViewCommissionsForRole && commissionSnapshot ? (
         <TransactionCommissionCard
@@ -255,7 +267,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
 
       <SectionCard subtitle="Edit the transaction intake fields and custom office-defined fields without leaving detail view." title="Intake fields">
         <TransactionIntakeWorkspace
-          canConfigureSchema={context.currentMembership.role === "office_admin"}
+          canConfigureSchema={canManageOfficeFields(context.currentMembership.role)}
           canEditValues={canEditTransactionsForRole}
           chrome="detail"
           initialValues={{
