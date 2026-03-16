@@ -52,8 +52,8 @@
 - `/login` is now expected to render with empty email/password fields and should not show demo credentials or username-style autofill values
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
-- Default public entry: `http://acresystem.us/`
-- Default login entry: `http://acresystem.us/login`
+- Default public entry: `https://acresystem.us/`
+- Default login entry: `https://acresystem.us/login`
 - Direct fallback entry during DNS propagation: `http://45.55.247.137:3105/`
 - Default production runtime:
   - service `acre-ui-rebuild-web.service`
@@ -61,10 +61,13 @@
   - env `/etc/acre/acre-ui-rebuild.env`
   - nginx `/etc/nginx/sites-available/acre-ui-rebuild.conf`
   - upstream `127.0.0.1:3206`
+  - TLS `certbot + nginx`
+  - auto-renew `certbot.timer`
 - `GitHub` sync and `DigitalOcean` deployment are separate actions
 - For deployment truth, `docs/deployment.md` is the canonical reference and runtime truth comes from systemd `ExecStart` plus the active nginx upstream
 - Preferred repo-root deployment command: `npm run deploy:digitalocean`
 - UI glassmorphism has been reduced on long-lived shells, headers, badges, and overlays to lower GPU/compositor pressure after reports of prolonged-session screen artifacting
+- `acresystem.us` / `www.acresystem.us` now terminate HTTPS at nginx with a Let's Encrypt certificate, and HTTP redirects to HTTPS
 
 ## Next recommended work
 
@@ -79,7 +82,7 @@
 
 - Some routes and UI areas still carry transitional patterns even though the main Back Office flows are already Prisma-backed
 - After Prisma schema/client changes, the running Next dev server still needs an explicit restart or it may hold a stale Prisma Client in memory
-- The active deployment is still a simple single-Droplet line with no staging environment, no HTTPS, and no object storage
+- The active deployment is still a simple single-Droplet line with no staging environment and no object storage
 - Background job infrastructure is not yet established, so some reminders/automation remain manual or request-time only
 - External integrations remain intentionally absent:
   - MLS ingestion

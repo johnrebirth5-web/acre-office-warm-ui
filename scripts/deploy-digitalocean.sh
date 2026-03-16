@@ -11,7 +11,8 @@ REPO_URL="${ACRE_DEPLOY_REPO_URL:-$DEFAULT_REPO_URL}"
 LIVE_DIR="${ACRE_DEPLOY_LIVE_DIR:-/opt/acre-ui-rebuild/app}"
 ENV_FILE="${ACRE_DEPLOY_ENV_FILE:-/etc/acre/acre-ui-rebuild.env}"
 SERVICE_NAME="${ACRE_DEPLOY_SERVICE:-acre-ui-rebuild-web.service}"
-PUBLIC_LOGIN_URL="${ACRE_DEPLOY_LOGIN_URL:-http://45.55.247.137:3105/login}"
+PUBLIC_LOGIN_URL="${ACRE_DEPLOY_LOGIN_URL:-https://acresystem.us/login}"
+FALLBACK_LOGIN_URL="${ACRE_DEPLOY_FALLBACK_LOGIN_URL:-http://45.55.247.137:3105/login}"
 COMMIT="${1:-$(git -C "$ROOT_DIR" rev-parse HEAD)}"
 
 echo "Deploy host: $DEPLOY_HOST"
@@ -62,4 +63,9 @@ systemctl status --no-pager "$SERVICE_NAME" | sed -n '1,30p'
 EOF
 
 echo "--- public validation ---"
-curl -fsSI "$PUBLIC_LOGIN_URL"
+if curl -fsSI "$PUBLIC_LOGIN_URL"; then
+  exit 0
+fi
+
+echo "Primary public validation failed, trying fallback: $FALLBACK_LOGIN_URL" >&2
+curl -fsSI "$FALLBACK_LOGIN_URL"

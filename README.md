@@ -14,8 +14,8 @@
 - 本地源码目录：`/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
 - 默认本地浏览器入口：`http://localhost:3105/`
 - 默认 GitHub 仓库：`https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
-- 默认外部入口：`http://acresystem.us/`
-- 默认外部登录入口：`http://acresystem.us/login`
+- 默认外部入口：`https://acresystem.us/`
+- 默认外部登录入口：`https://acresystem.us/login`
 - 默认 DigitalOcean 直连入口：`http://45.55.247.137:3105/`
 - 默认服务器应用目录：`/opt/acre-ui-rebuild/app`
 - 默认服务器环境文件：`/etc/acre/acre-ui-rebuild.env`

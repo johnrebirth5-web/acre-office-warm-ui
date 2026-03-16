@@ -24,8 +24,8 @@ Use it only when the user explicitly asks for deployment or production sync work
 
 ### Public Entries
 
-- Active public entry: `http://acresystem.us/`
-- Active login entry: `http://acresystem.us/login`
+- Active public entry: `https://acresystem.us/`
+- Active login entry: `https://acresystem.us/login`
 - Direct fallback entry during DNS propagation or troubleshooting: `http://45.55.247.137:3105/`
 
 ### Runtime Facts
@@ -35,6 +35,8 @@ Use it only when the user explicitly asks for deployment or production sync work
 - env file: `/etc/acre/acre-ui-rebuild.env`
 - nginx config: `/etc/nginx/sites-available/acre-ui-rebuild.conf`
 - nginx upstream: `127.0.0.1:3206`
+- HTTPS/TLS: `certbot + nginx`, certificate for `acresystem.us` / `www.acresystem.us`
+- certificate renewal: `certbot.timer`
 - live app directory `/opt/acre-ui-rebuild/app` is not the source-of-truth git checkout, so do not assume `git pull` works there
 
 ## Runtime truth precedence
@@ -73,13 +75,15 @@ When a deployment is explicitly approved, use only this line:
 3. Only if those steps succeed, sync the built repo state into `/opt/acre-ui-rebuild/app`.
 4. Restore `/opt/acre-ui-rebuild/app` ownership to `acre:acre`.
 5. Restart `acre-ui-rebuild-web.service`.
-6. Validate through `http://acresystem.us/` and `http://acresystem.us/login`.
+6. Validate through `https://acresystem.us/` and `https://acresystem.us/login`.
 7. If runtime behavior disagrees with docs, trust systemd `ExecStart` and the active nginx upstream.
 
 If DNS propagation is still in flight, direct fallback validation may temporarily use:
 
 - `http://45.55.247.137:3105/`
 - `http://45.55.247.137:3105/login`
+
+The preferred repo-root deployment command already validates the public HTTPS login first and falls back to the direct `:3105` login only if the public domain is temporarily unavailable from the operator network.
 
 ### Practical operator note
 

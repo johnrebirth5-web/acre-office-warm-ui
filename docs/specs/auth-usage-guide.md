@@ -26,6 +26,10 @@
 
 - `http://localhost:3105/login`
 
+当前正式 HTTPS 入口：
+
+- `https://acresystem.us/login`
+
 当前 DigitalOcean 入口：
 
 - `http://45.55.247.137:3105/login`
