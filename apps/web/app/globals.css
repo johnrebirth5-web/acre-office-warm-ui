@@ -2312,7 +2312,10 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px 26px 22px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 22px 26px 24px;
+  border-top: 1px solid rgba(177, 188, 204, 0.42);
 }
 
 .bm-transaction-modal-footer span {
@@ -7488,7 +7491,10 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 0 0;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 22px 24px 24px;
+  border-top: 1px solid var(--office-border);
   color: var(--office-text-muted);
 }
 
@@ -10447,6 +10453,13 @@ a {
 .office-library-modal-body {
   display: grid;
   gap: 14px;
+  padding: 10px 24px 28px;
+}
+
+.office-library-modal-footer {
+  margin-top: 8px;
+  padding-top: 24px;
+  border-top: 1px solid var(--office-border);
 }
 
 @media (max-width: 1360px) {

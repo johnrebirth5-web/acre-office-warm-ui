@@ -790,7 +790,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                 </SelectInput>
               </label>
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="bm-transaction-modal-footer office-library-modal-footer">
                 <span>Deletion is intentionally not included in this MVP.</span>
                 <div className="bm-transaction-modal-actions">
                   <Button onClick={() => setIsCreateFolderOpen(false)} type="button" variant="secondary">
@@ -865,7 +865,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                 <TextareaInput name="summary" rows={4} />
               </label>
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="bm-transaction-modal-footer office-library-modal-footer">
                 <span>Inline preview is PDF-first. Other file types remain downloadable.</span>
                 <div className="bm-transaction-modal-actions">
                   <Button onClick={() => setIsUploadOpen(false)} type="button" variant="secondary">
