@@ -6503,6 +6503,10 @@ a {
   align-items: start;
 }
 
+.office-dashboard-grid-wide.office-reports-subgrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+}
+
 .office-report-summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -6514,7 +6518,7 @@ a {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .office-report-summary-table .office-table-header,
@@ -6556,20 +6560,33 @@ a {
 
 .office-report-summary-table .office-table-row-report-accounting-recent {
   grid-template-columns:
-    minmax(102px, 0.78fr)
-    minmax(82px, 0.64fr)
-    minmax(88px, 0.68fr)
-    minmax(188px, 1.52fr)
-    minmax(92px, 0.72fr);
+    minmax(0, 0.84fr)
+    minmax(0, 0.78fr)
+    minmax(0, 0.82fr)
+    minmax(0, 1.76fr)
+    minmax(0, 0.8fr);
 }
 
 .office-report-summary-table .office-table-row-report-emd-recent {
   grid-template-columns:
-    minmax(190px, 1.5fr)
-    minmax(88px, 0.68fr)
-    minmax(92px, 0.7fr)
-    minmax(92px, 0.7fr)
-    minmax(84px, 0.62fr);
+    minmax(0, 1.78fr)
+    minmax(0, 0.82fr)
+    minmax(0, 0.82fr)
+    minmax(0, 0.82fr)
+    minmax(0, 0.76fr);
+}
+
+.office-report-summary-table .office-table-row-report-accounting-recent > *,
+.office-report-summary-table .office-table-row-report-emd-recent > * {
+  min-width: 0;
+}
+
+.office-report-summary-table .office-table-row-report-accounting-recent
+  > :is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(5)),
+.office-report-summary-table .office-table-row-report-emd-recent
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)) {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .office-reports-kpi-grid {
