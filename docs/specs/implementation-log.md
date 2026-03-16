@@ -64,6 +64,7 @@
 - `GitHub` sync and `DigitalOcean` deployment are separate actions
 - For deployment truth, `docs/deployment.md` is the canonical reference and runtime truth comes from systemd `ExecStart` plus the active nginx upstream
 - Preferred repo-root deployment command: `npm run deploy:digitalocean`
+- UI glassmorphism has been reduced on long-lived shells, headers, badges, and overlays to lower GPU/compositor pressure after reports of prolonged-session screen artifacting
 
 ## Next recommended work
 
