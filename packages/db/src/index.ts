@@ -173,6 +173,7 @@ export { getOfficeReportsSnapshot, listOfficeReportTransactionsForExport } from 
 export {
   createOfficeTransactionCustomFieldDefinition,
   createChecklistTemplate,
+  getOfficeAdminUserDetailSnapshot,
   getOfficeAdminUsersSnapshot,
   getOfficeChecklistTemplatesSnapshot,
   getOfficeFieldSettingsSnapshot,
@@ -393,7 +394,10 @@ export type {
   ChecklistTemplateItemInput,
   CreateChecklistTemplateInput,
   CreateOfficeTransactionCustomFieldDefinitionInput,
+  GetOfficeAdminUserDetailInput,
   GetOfficeAdminUsersInput,
+  OfficeAdminUserDetailActivityItem,
+  OfficeAdminUserDetailSnapshot,
   OfficeAdminUserRow,
   OfficeAdminUsersSnapshot,
   OfficeChecklistTemplateItemRecord,

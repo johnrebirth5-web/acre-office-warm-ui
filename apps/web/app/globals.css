@@ -8252,6 +8252,10 @@ a {
     margin-left: auto;
     justify-content: flex-end;
   }
+
+  .office-settings-user-hero-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1120px) {
@@ -8319,6 +8323,20 @@ a {
     width: 100%;
     margin-left: 0;
     justify-content: space-between;
+  }
+
+  .office-settings-user-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .office-settings-user-avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 20px;
+  }
+
+  .office-settings-user-hero-meta {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -8599,6 +8617,232 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+}
+
+.office-settings-users-roster-card > .office-section-body,
+.office-settings-user-detail-stack {
+  gap: 16px;
+}
+
+.office-settings-users-roster-head {
+  align-items: center;
+}
+
+.office-settings-users-create-button {
+  min-width: max-content;
+}
+
+.office-settings-users-filter-bar {
+  align-items: end;
+}
+
+.office-settings-users-search-field {
+  min-width: min(100%, 340px);
+}
+
+.office-settings-users-filter-actions {
+  align-self: end;
+}
+
+.office-table-row-settings-users-roster {
+  min-width: 940px;
+  grid-template-columns:
+    minmax(220px, 1.55fr)
+    minmax(210px, 1.32fr)
+    minmax(150px, 0.95fr)
+    minmax(190px, 1.12fr)
+    minmax(150px, 0.95fr);
+}
+
+.office-settings-users-link-row {
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.office-settings-users-link-row strong,
+.office-settings-user-hero-heading h3,
+.office-settings-user-team-item strong,
+.office-settings-user-onboarding-item strong,
+.office-settings-user-activity-copy strong {
+  color: var(--office-text);
+}
+
+.office-settings-users-link-row:hover strong {
+  color: var(--office-accent-strong);
+}
+
+.office-settings-users-primary,
+.office-settings-users-cell,
+.office-settings-users-role-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.office-settings-users-primary p,
+.office-settings-users-cell p,
+.office-settings-user-hero-actions span,
+.office-settings-user-team-item p,
+.office-settings-user-onboarding-item p,
+.office-settings-user-activity-copy p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.office-settings-users-cell strong {
+  font-size: 0.92rem;
+}
+
+.office-settings-users-role-cell {
+  align-content: center;
+  justify-items: start;
+}
+
+.office-settings-users-create-modal {
+  width: min(860px, calc(100vw - 32px));
+}
+
+.office-settings-users-modal-body {
+  gap: 16px;
+}
+
+.office-settings-user-detail-grid {
+  align-items: start;
+}
+
+.office-settings-user-hero {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.office-settings-user-avatar {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #edf4ff 0%, #dbe8ff 100%);
+  color: var(--office-accent-strong);
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.office-settings-user-hero-copy,
+.office-settings-user-permissions,
+.office-settings-user-permission-group,
+.office-settings-user-context-list,
+.office-settings-user-team-list,
+.office-settings-user-onboarding-list,
+.office-settings-user-activity-list {
+  display: grid;
+  gap: 12px;
+}
+
+.office-settings-user-hero-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.office-settings-user-hero-heading h3 {
+  margin: 0;
+  font-size: clamp(1.7rem, 1.3rem + 0.8vw, 2.35rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.office-settings-user-hero-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.office-settings-user-hero-meta div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--office-border);
+  border-radius: 14px;
+  background: var(--office-surface-subtle);
+}
+
+.office-settings-user-hero-meta span,
+.office-detail-field span,
+.office-settings-user-activity-copy small,
+.office-settings-user-permission-group strong {
+  color: var(--office-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.office-settings-user-hero-meta strong,
+.office-detail-field strong {
+  font-size: 0.92rem;
+}
+
+.office-settings-user-hero-actions,
+.office-settings-user-inline-badges,
+.office-settings-user-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.office-settings-user-permission-group ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--office-text);
+  display: grid;
+  gap: 6px;
+}
+
+.office-settings-user-permission-group li {
+  line-height: 1.45;
+}
+
+.office-settings-user-context-list {
+  gap: 10px;
+}
+
+.office-settings-user-team-item,
+.office-settings-user-onboarding-item,
+.office-settings-user-activity-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--office-border);
+  border-radius: 14px;
+  background: var(--office-surface-subtle);
+}
+
+.office-settings-user-onboarding-meta {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  text-align: right;
+}
+
+.office-settings-user-onboarding-meta small {
+  color: var(--office-text-muted);
+  font-size: 0.8rem;
+}
+
+.office-settings-user-activity-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 
 .office-table-action-muted {

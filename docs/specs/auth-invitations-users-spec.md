@@ -76,17 +76,31 @@ This spec describes what is implemented now, not the eventual full auth platform
 
 ### Users admin page
 
+Current routes:
+
+- `/office/settings/users`
+- `/office/settings/users/[membershipId]`
+
 `/office/settings/users` now supports:
 
-- create invited user
-- choose role (`Admin` / `User`)
-- see membership status
-- see password/setup status
-- see lock status
+- search / filter the internal account roster
+- open a dedicated detail page for each membership
+- create invited users from a modal / drawer flow
+- copy the generated invite link without leaving the page
+
+`/office/settings/users/[membershipId]` now supports:
+
+- review core account identity, office access, team context, and sign-in timestamps
+- update role
+- update membership status
+- update office access
 - issue or reissue invite/setup/reset link
 - revoke active invite link
-- activate / disable where appropriate
 - unlock locked account
+- review onboarding summary
+- review role-derived permissions
+- review commission summary
+- review recent audit/activity items tied to the user account
 
 ### Audit / activity log
 

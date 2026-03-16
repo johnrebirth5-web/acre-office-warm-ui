@@ -17,7 +17,7 @@ export function OfficeSettingsNav() {
   return (
     <nav className="office-settings-nav" aria-label="Office settings sections">
       {settingsLinks.map((link) => {
-        const isActive = pathname === link.href;
+        const isActive = link.href === "/office/settings" ? pathname === link.href : pathname === link.href || pathname.startsWith(`${link.href}/`);
         return (
           <Link className={`office-settings-nav-link${isActive ? " is-active" : ""}`} href={link.href} key={link.href}>
             {link.label}

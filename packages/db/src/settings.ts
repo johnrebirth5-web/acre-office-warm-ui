@@ -1,6 +1,9 @@
 import {
+  AgentOnboardingItemStatus,
+  AgentOnboardingStatus,
   MembershipStatus,
   Prisma,
+  TeamMembershipRole,
   TransactionContactRole,
   TransactionCustomFieldType,
   TransactionFieldKey,
@@ -9,6 +12,7 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
+import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 
 const userRoleLabelMap: Record<UserRole, string> = {
   owner: "Owner",
@@ -212,6 +216,8 @@ export type OfficeAdminUserRow = {
   statusValue: MembershipStatus;
   title: string;
   authStatusLabel: string;
+  onboardingStatusLabel: string;
+  onboardingStatusValue: AgentOnboardingStatus | null;
   lockStatusLabel: string;
   lockedUntilLabel: string;
   invitationStatusLabel: string;
@@ -243,6 +249,76 @@ export type OfficeAdminUsersSnapshot = {
     officeOptions: Array<{ id: string; label: string }>;
   };
   rows: OfficeAdminUserRow[];
+};
+
+export type OfficeAdminUserDetailActivityItem = {
+  id: string;
+  actionLabel: string;
+  actorDisplayName: string;
+  detail: string;
+  timestampLabel: string;
+  href: string | null;
+};
+
+export type OfficeAdminUserDetailSnapshot = {
+  profile: {
+    membershipId: string;
+    userId: string;
+    name: string;
+    email: string;
+    role: string;
+    roleValue: UserRole;
+    status: string;
+    statusValue: MembershipStatus;
+    title: string;
+    officeAccessLabel: string;
+    officeAccessValue: string;
+    officeName: string;
+    authStatusLabel: string;
+    invitationStatusLabel: string;
+    invitationExpiresAtLabel: string;
+    lockStatusLabel: string;
+    lockedUntilLabel: string;
+    hasCredential: boolean;
+    hasActiveInvitation: boolean;
+    isLocked: boolean;
+    mustChangePassword: boolean;
+    lastLoginAtLabel: string;
+    lastFailedLoginAtLabel: string;
+    passwordChangedAtLabel: string;
+    createdAtLabel: string;
+    onboardingStatusLabel: string;
+    onboardingStatusValue: AgentOnboardingStatus;
+    teamSummary: string;
+    agentProfileHref: string | null;
+  };
+  editors: {
+    officeOptions: Array<{ id: string; label: string }>;
+  };
+  teams: Array<{
+    id: string;
+    name: string;
+    roleLabel: string;
+    reportsToLabel: string;
+    isActive: boolean;
+  }>;
+  onboarding: {
+    totalCount: number;
+    completedCount: number;
+    statusLabel: string;
+    statusValue: AgentOnboardingStatus;
+    items: Array<{
+      id: string;
+      title: string;
+      category: string;
+      statusLabel: string;
+      statusValue: AgentOnboardingItemStatus;
+      dueAtLabel: string;
+      completedAtLabel: string;
+    }>;
+  };
+  commission: OfficeAgentCommissionSummary;
+  recentActivity: OfficeAdminUserDetailActivityItem[];
 };
 
 export type OfficeRequiredContactRoleRecord = {
@@ -352,6 +428,12 @@ export type GetOfficeAdminUsersInput = {
   role?: string;
   status?: string;
   officeFilterId?: string;
+};
+
+export type GetOfficeAdminUserDetailInput = {
+  organizationId: string;
+  officeId?: string | null;
+  membershipId: string;
 };
 
 export type UpdateOfficeAdminUserInput = {
@@ -473,8 +555,28 @@ function formatMembershipStatusLabel(status: MembershipStatus) {
   return membershipStatusLabelMap[status];
 }
 
+function formatUserRoleLabel(role: UserRole) {
+  return role === "office_manager"
+    ? "Office Manager (Legacy)"
+    : role === "office_user"
+      ? "Office User (Legacy)"
+      : userRoleLabelMap[role];
+}
+
 function formatOfficeAccessLabel(office: { name: string } | null) {
   return office?.name ?? "All offices";
+}
+
+function formatDateLabel(value: Date | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
 }
 
 function formatDateTimeLabel(value: Date | null | undefined) {
@@ -495,6 +597,106 @@ function isBackOfficeUserRole(role: UserRole) {
   return backOfficeUserRoleCatalog.includes(role);
 }
 
+function formatOnboardingStatusLabel(status: AgentOnboardingStatus) {
+  if (status === "complete") {
+    return "Complete";
+  }
+
+  if (status === "in_progress") {
+    return "In progress";
+  }
+
+  return "Not started";
+}
+
+function formatOnboardingItemStatusLabel(status: AgentOnboardingItemStatus) {
+  if (status === "in_progress") {
+    return "In progress";
+  }
+
+  if (status === "completed") {
+    return "Completed";
+  }
+
+  if (status === "reopened") {
+    return "Reopened";
+  }
+
+  return "Pending";
+}
+
+function formatTeamMembershipRoleLabel(role: TeamMembershipRole) {
+  if (role === "leader_i") {
+    return "Leader I";
+  }
+
+  if (role === "leader_ii") {
+    return "Leader II";
+  }
+
+  return "Member";
+}
+
+function formatActionLabel(action: string) {
+  const segments = action.split(".");
+  const raw = segments[segments.length - 1] ?? action;
+
+  return raw
+    .split("_")
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function getJsonObject(value: Prisma.JsonValue | null | undefined) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, Prisma.JsonValue>;
+}
+
+function getJsonStringArray(value: Prisma.JsonValue | undefined) {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0) : [];
+}
+
+function getActivityDetailSummary(payload: Prisma.JsonValue | null) {
+  const data = getJsonObject(payload);
+
+  if (!data) {
+    return "No additional detail recorded.";
+  }
+
+  const details = getJsonStringArray(data.details);
+  if (details.length > 0) {
+    return details[0]!;
+  }
+
+  const objectLabel = typeof data.objectLabel === "string" ? data.objectLabel.trim() : "";
+  if (objectLabel) {
+    return objectLabel;
+  }
+
+  const changes = Array.isArray(data.changes) ? data.changes : [];
+  const firstChange = changes[0];
+  if (firstChange && typeof firstChange === "object" && !Array.isArray(firstChange)) {
+    const label = typeof firstChange.label === "string" ? firstChange.label.trim() : "";
+    const previousValue = typeof firstChange.previousValue === "string" ? firstChange.previousValue.trim() : "";
+    const nextValue = typeof firstChange.nextValue === "string" ? firstChange.nextValue.trim() : "";
+
+    if (label || previousValue || nextValue) {
+      return `${label || "Updated"}: ${previousValue || "—"} -> ${nextValue || "—"}`;
+    }
+  }
+
+  return "No additional detail recorded.";
+}
+
+function getActivityHref(payload: Prisma.JsonValue | null) {
+  const data = getJsonObject(payload);
+  return data && typeof data.contextHref === "string" && data.contextHref.trim() ? data.contextHref : null;
+}
+
 function mapOfficeAdminUserRow(membership: {
   id: string;
   userId: string;
@@ -512,6 +714,9 @@ function mapOfficeAdminUserRow(membership: {
       lockedUntil: Date | null;
     } | null;
   };
+  agentProfile?: {
+    onboardingStatus: AgentOnboardingStatus;
+  } | null;
   invitations: Array<{
     expiresAt: Date;
   }>;
@@ -547,12 +752,7 @@ function mapOfficeAdminUserRow(membership: {
     userId: membership.userId,
     name,
     email: membership.user.email,
-    role:
-      membership.role === "office_manager"
-        ? "Office Manager (Legacy)"
-        : membership.role === "office_user"
-          ? "Office User (Legacy)"
-          : userRoleLabelMap[membership.role],
+    role: formatUserRoleLabel(membership.role),
     roleValue: membership.role,
     roleEditorValue: membership.role,
     officeAccessLabel: formatOfficeAccessLabel(membership.office),
@@ -561,6 +761,8 @@ function mapOfficeAdminUserRow(membership: {
     statusValue: membership.status,
     title: membership.title ?? "",
     authStatusLabel,
+    onboardingStatusLabel: membership.agentProfile ? formatOnboardingStatusLabel(membership.agentProfile.onboardingStatus) : "—",
+    onboardingStatusValue: membership.agentProfile?.onboardingStatus ?? null,
     lockStatusLabel: isLocked ? "Locked" : "Not locked",
     lockedUntilLabel: formatDateTimeLabel(membership.user.credential?.lockedUntil),
     invitationStatusLabel,
@@ -569,7 +771,7 @@ function mapOfficeAdminUserRow(membership: {
     hasActiveInvitation: Boolean(pendingInvitation),
     isLocked,
     mustChangePassword,
-    href: null
+    href: `/office/settings/users/${membership.id}`
   };
 }
 
@@ -1128,6 +1330,11 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
             credential: true
           }
         },
+        agentProfile: {
+          select: {
+            onboardingStatus: true
+          }
+        },
         office: true,
         invitations: {
           where: {
@@ -1170,6 +1377,11 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
         office: {
           select: {
             name: true
+          }
+        },
+        agentProfile: {
+          select: {
+            onboardingStatus: true
           }
         },
         user: {
@@ -1264,6 +1476,213 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
         title: membership.title ?? null
       })
     )
+  };
+}
+
+function deriveOnboardingStatus(
+  profileStatus: AgentOnboardingStatus | null | undefined,
+  totalCount: number,
+  completedCount: number
+): AgentOnboardingStatus {
+  if (profileStatus) {
+    return profileStatus;
+  }
+
+  if (totalCount > 0 && completedCount >= totalCount) {
+    return "complete";
+  }
+
+  if (completedCount > 0 || totalCount > 0) {
+    return "in_progress";
+  }
+
+  return "not_started";
+}
+
+export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUserDetailInput): Promise<OfficeAdminUserDetailSnapshot | null> {
+  const now = new Date();
+
+  const [membership, offices] = await Promise.all([
+    prisma.membership.findFirst({
+      where: {
+        id: input.membershipId,
+        organizationId: input.organizationId,
+        role: {
+          in: backOfficeUserRoleCatalog
+        }
+      },
+      include: {
+        office: true,
+        user: {
+          include: {
+            credential: true
+          }
+        },
+        agentProfile: true,
+        invitations: {
+          orderBy: [{ createdAt: "desc" }],
+          take: 8
+        },
+        teamMemberships: {
+          include: {
+            team: true,
+            reportsToTeamMembership: {
+              include: {
+                membership: {
+                  include: {
+                    user: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: [{ team: { name: "asc" } }, { createdAt: "asc" }]
+        }
+      }
+    }),
+    prisma.office.findMany({
+      where: {
+        organizationId: input.organizationId
+      },
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        name: true
+      }
+    })
+  ]);
+
+  if (!membership) {
+    return null;
+  }
+
+  const activeInvitation =
+    membership.invitations.find((invitation) => !invitation.acceptedAt && !invitation.revokedAt && invitation.expiresAt > now) ?? null;
+
+  const row = mapOfficeAdminUserRow({
+    ...membership,
+    title: membership.title ?? null,
+    invitations: activeInvitation ? [{ expiresAt: activeInvitation.expiresAt }] : []
+  });
+
+  const activityEntityIds = [
+    membership.id,
+    membership.user.credential?.id ?? null,
+    ...membership.invitations.map((invitation) => invitation.id)
+  ].filter((value): value is string => Boolean(value));
+
+  const [onboardingItems, recentActivity, commission] = await Promise.all([
+    prisma.agentOnboardingItem.findMany({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId
+      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      take: 8
+    }),
+    prisma.auditLog.findMany({
+      where: {
+        organizationId: input.organizationId,
+        OR: [{ entityId: { in: activityEntityIds } }, { membershipId: input.membershipId }]
+      },
+      include: {
+        membership: {
+          include: {
+            user: true
+          }
+        }
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 10
+    }),
+    getAgentCommissionSummary({
+      organizationId: input.organizationId,
+      officeId: membership.officeId,
+      membershipId: input.membershipId
+    })
+  ]);
+
+  const completedCount = onboardingItems.filter((item) => item.status === "completed").length;
+  const onboardingStatusValue = deriveOnboardingStatus(membership.agentProfile?.onboardingStatus, onboardingItems.length, completedCount);
+  const teamSummary = membership.teamMemberships.length
+    ? membership.teamMemberships
+        .map((teamMembership) => teamMembership.team.name)
+        .filter((value, index, all) => all.indexOf(value) === index)
+        .join(", ")
+    : "No team assignments";
+
+  return {
+    profile: {
+      membershipId: membership.id,
+      userId: membership.userId,
+      name: row.name,
+      email: membership.user.email,
+      role: formatUserRoleLabel(membership.role),
+      roleValue: membership.role,
+      status: formatMembershipStatusLabel(membership.status),
+      statusValue: membership.status,
+      title: membership.title ?? "",
+      officeAccessLabel: formatOfficeAccessLabel(membership.office),
+      officeAccessValue: membership.officeId ?? "__all__",
+      officeName: membership.office?.name ?? "All offices",
+      authStatusLabel: row.authStatusLabel,
+      invitationStatusLabel: row.invitationStatusLabel,
+      invitationExpiresAtLabel: row.invitationExpiresAtLabel,
+      lockStatusLabel: row.lockStatusLabel,
+      lockedUntilLabel: row.lockedUntilLabel,
+      hasCredential: row.hasCredential,
+      hasActiveInvitation: row.hasActiveInvitation,
+      isLocked: row.isLocked,
+      mustChangePassword: row.mustChangePassword,
+      lastLoginAtLabel: formatDateTimeLabel(membership.user.credential?.lastLoginAt),
+      lastFailedLoginAtLabel: formatDateTimeLabel(membership.user.credential?.lastFailedLoginAt),
+      passwordChangedAtLabel: formatDateTimeLabel(membership.user.credential?.passwordChangedAt),
+      createdAtLabel: formatDateLabel(membership.createdAt),
+      onboardingStatusLabel: formatOnboardingStatusLabel(onboardingStatusValue),
+      onboardingStatusValue,
+      teamSummary,
+      agentProfileHref: membership.agentProfile ? `/office/agents/${membership.id}` : null
+    },
+    editors: {
+      officeOptions: [{ id: "__all__", label: "All offices" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
+    },
+    teams: membership.teamMemberships.map((teamMembership) => ({
+      id: teamMembership.id,
+      name: teamMembership.team.name,
+      roleLabel: formatTeamMembershipRoleLabel(teamMembership.role),
+      reportsToLabel: teamMembership.reportsToTeamMembership
+        ? `${teamMembership.reportsToTeamMembership.membership.user.firstName} ${teamMembership.reportsToTeamMembership.membership.user.lastName}`.trim() ||
+          teamMembership.reportsToTeamMembership.membership.user.email
+        : "No direct manager",
+      isActive: teamMembership.team.isActive
+    })),
+    onboarding: {
+      totalCount: onboardingItems.length,
+      completedCount,
+      statusLabel: formatOnboardingStatusLabel(onboardingStatusValue),
+      statusValue: onboardingStatusValue,
+      items: onboardingItems.map((item) => ({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        statusLabel: formatOnboardingItemStatusLabel(item.status),
+        statusValue: item.status,
+        dueAtLabel: formatDateLabel(item.dueAt),
+        completedAtLabel: formatDateTimeLabel(item.completedAt)
+      }))
+    },
+    commission,
+    recentActivity: recentActivity.map((item) => ({
+      id: item.id,
+      actionLabel: formatActionLabel(item.action),
+      actorDisplayName:
+        item.membership?.user
+          ? `${item.membership.user.firstName} ${item.membership.user.lastName}`.trim() || item.membership.user.email
+          : "System",
+      detail: getActivityDetailSummary(item.payload),
+      timestampLabel: formatDateTimeLabel(item.createdAt),
+      href: getActivityHref(item.payload)
+    }))
   };
 }
 
