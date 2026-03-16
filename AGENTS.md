@@ -24,6 +24,12 @@ Use this baseline unless the current task explicitly says otherwise:
 - local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
 - default local browser entry: `http://localhost:3105/`
 - root `npm run dev` must bring up `@acre/web` on port `3105` unless the current task explicitly overrides `PORT`
+- local Docker dev baseline is supported and preferred when the user wants a longer-running local environment:
+  - `npm run docker:dev:up` starts `web + db`
+  - the `web` container bind-mounts `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean` into `/app`, so Docker uses the same working tree instead of a second copied checkout
+  - PostgreSQL data, `node_modules`, Next cache, and local documents live in Docker volumes
+  - macOS local container runtime may use `colima`
+  - when local Docker runs `next dev`, the bottom-left `N` Next.js dev tools badge is expected and does not mean the app is running outside Docker
 - default GitHub remote target: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - default public entry: `https://acresystem.us/`
 - default public login entry: `https://acresystem.us/login`

@@ -55,6 +55,12 @@
 - Local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
 - Default local browser entry: `http://localhost:3105/`
 - Root `npm run dev` is now expected to bind `@acre/web` to `3105` by default
+- Local Docker development is now a supported long-running baseline:
+  - `npm run docker:dev:up` starts `web + db`
+  - the `web` container bind-mounts the local repo, so Docker uses the same source tree instead of a second copied checkout
+  - Docker volumes persist PostgreSQL data, `node_modules`, Next cache, and local document storage
+  - local Docker runtime currently uses `colima` on macOS
+  - seeing the bottom-left `N` dev tools badge locally is expected while the app runs under `next dev`, even inside Docker
 - `/login` is now expected to render with empty email/password fields and should not show demo credentials or username-style autofill values
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
