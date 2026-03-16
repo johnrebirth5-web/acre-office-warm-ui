@@ -1,7 +1,7 @@
 import { getDefaultAppPath } from "@acre/auth";
 import { getCurrentSessionContext, mustChangePassword } from "../../lib/auth-session";
-import { Button } from "@acre/ui";
 import { redirect } from "next/navigation";
+import { LoginForm } from "./login-form";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -36,25 +36,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <p>Use your invited internal account email address and password to access the current Back Office workspace. Usernames like admin are not supported.</p>
           </div>
 
-          <form action="/api/auth/login" autoComplete="off" className="auth-form" method="post">
-            <label className="auth-field">
-              <span>Work email</span>
-              <input autoCapitalize="none" autoComplete="username" name="email" placeholder="office@acreny.us" spellCheck="false" type="email" />
-            </label>
-
-            <label className="auth-field">
-              <span>Password</span>
-              <input autoComplete="current-password" name="password" placeholder="Enter your password" type="password" />
-            </label>
-
-            {errorMessage ? <p className="auth-error">{errorMessage}</p> : null}
-
-            <div className="auth-actions">
-              <Button className="auth-submit" type="submit">
-                Log in
-              </Button>
-            </div>
-          </form>
+          <LoginForm errorMessage={errorMessage} />
         </section>
       </section>
     </main>

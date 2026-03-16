@@ -7,8 +7,8 @@ import { getRequestOrigin } from "../../../../lib/request-origin";
 export async function POST(request: NextRequest) {
   const requestOrigin = getRequestOrigin(request);
   const formData = await request.formData();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const password = String(formData.get("password") ?? "");
+  const email = String(formData.get("workEmail") ?? formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("workPassword") ?? formData.get("password") ?? "");
   const result = await authenticatePasswordUser(email, password);
 
   if (result.status === "locked") {

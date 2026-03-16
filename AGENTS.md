@@ -103,6 +103,8 @@ If Prisma schema changed, also run:
 - `npm run db:seed` when the task requires seed verification
 - after any Prisma schema/client change, restart the running Next dev server before validating in browser
 - if browser/runtime errors mention Prisma validation after an auth or schema change, first suspect a stale dev server holding an old Prisma Client in memory
+- keep `/login` visually empty on first render: no prefilled demo credentials, no hardcoded default email/password values, and resist localhost browser autofill where practical
+- `/login` is email + password only; do not reintroduce username-oriented copy or sample values like `admin`
 
 ## Git workflow rules
 
