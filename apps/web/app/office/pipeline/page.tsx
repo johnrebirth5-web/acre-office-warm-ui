@@ -292,9 +292,9 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                           })}
                           key={`${month.monthKey}-${bucket.status}`}
                         >
-                          <span>{bucket.status}</span>
-                          <strong>{bucket.count}</strong>
-                          <em>{bucket.metricLabel}</em>
+                          <span className="office-pipeline-history-link-status">{bucket.status}</span>
+                          <strong className="office-pipeline-history-link-count">{bucket.count}</strong>
+                          <em className="office-pipeline-history-link-metric">{bucket.metricLabel}</em>
                         </Link>
                       ))}
                     </div>

@@ -8035,9 +8035,26 @@ a {
     align-items: stretch;
   }
 
-  .office-pipeline-headline,
-  .office-pipeline-history-buckets {
+  .office-pipeline-headline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .office-pipeline-history-buckets {
+    grid-template-columns: 1fr;
+  }
+
+  .office-pipeline-history-link {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 10px;
+  }
+
+  .office-pipeline-history-link-status {
+    grid-column: 1 / -1;
+  }
+
+  .office-pipeline-history-link-metric {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .bm-activity-filter-grid {
@@ -9298,19 +9315,22 @@ a {
   padding: 10px 12px;
 }
 
-.office-pipeline-history-link span {
+.office-pipeline-history-link-status {
+  min-width: 0;
   color: var(--office-text-muted);
   font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
-.office-pipeline-history-link strong {
+.office-pipeline-history-link-count {
   justify-self: end;
   font-size: 1rem;
   font-variant-numeric: tabular-nums;
 }
 
-.office-pipeline-history-link em {
+.office-pipeline-history-link-metric {
   justify-self: end;
   color: var(--office-text);
   font-size: 0.82rem;
@@ -10082,9 +10102,18 @@ a {
   }
 
   .office-pipeline-rail-link em,
-  .office-pipeline-history-link em {
+  .office-pipeline-history-link-metric {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+
+  .office-pipeline-history-link {
+    align-items: start;
+    gap: 6px 10px;
+  }
+
+  .office-pipeline-history-link-status {
+    grid-column: 1 / -1;
   }
 
   .office-pipeline-selection-meta {
@@ -11431,6 +11460,21 @@ body,
 @media (max-width: 760px) {
   .office-page-header {
     grid-template-columns: 1fr;
+  }
+
+  .office-pipeline-rail-totals,
+  .office-pipeline-history-month header {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .office-pipeline-history-link {
+    grid-template-columns: 1fr;
+  }
+
+  .office-pipeline-history-link-count,
+  .office-pipeline-history-link-metric {
+    justify-self: start;
   }
 
   .office-agents-header-summary {
