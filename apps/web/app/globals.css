@@ -10329,7 +10329,7 @@ a {
 }
 
 html {
-  background: linear-gradient(180deg, #f4f7fb 0%, #e8eef5 100%);
+  background: #f4f7fb;
 }
 
 body,
@@ -10337,33 +10337,11 @@ body,
   position: relative;
   min-height: 100vh;
   color: var(--office-text);
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(43, 92, 179, 0.18),
-      transparent 26rem
-    ),
-    radial-gradient(
-      circle at top right,
-      rgba(255, 255, 255, 0.88),
-      transparent 18rem
-    ),
-    linear-gradient(180deg, #f4f7fb 0%, #edf2f7 44%, #e7edf5 100%);
+  background: #f4f7fb;
 }
 
 .acre-root::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(125deg, rgba(255, 255, 255, 0.52), transparent 38%),
-    radial-gradient(
-      circle at 15% 10%,
-      rgba(255, 255, 255, 0.34),
-      transparent 18%
-    );
-  opacity: 0.7;
+  content: none;
 }
 
 .app-shell,
@@ -10371,11 +10349,11 @@ body,
   width: min(1740px, calc(100% - 28px));
   margin: 14px auto;
   padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(211, 220, 232, 0.9);
   border-radius: 32px;
-  background: rgba(245, 248, 252, 0.68);
+  background: #f7f9fc;
   box-shadow: var(--office-shadow-md);
-  backdrop-filter: blur(28px) saturate(1.16);
+  backdrop-filter: none;
 }
 
 .app-grid,
@@ -10396,11 +10374,11 @@ body,
 }
 
 .office-backoffice-shell {
-  background: rgba(246, 249, 252, 0.62);
+  background: #f7f9fc;
 }
 
 .agent-backoffice-shell {
-  background: rgba(243, 247, 252, 0.62);
+  background: #f7f9fc;
 }
 
 .sidebar,
@@ -11507,12 +11485,12 @@ body,
    Long-running backdrop blur layers were the most likely cause of display
    corruption / artifacting during extended Chrome sessions on this app. */
 .acre-root::before {
-  position: absolute;
+  content: none;
 }
 
 .app-shell,
 .acre-app-shell {
-  background: rgba(245, 248, 252, 0.94);
+  background: #f7f9fc;
   backdrop-filter: none;
 }
 
