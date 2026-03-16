@@ -24,8 +24,9 @@ Use it only when the user explicitly asks for deployment or production sync work
 
 ### Public Entries
 
-- Active public entry: `http://45.55.247.137:3105/`
-- Active login entry: `http://45.55.247.137:3105/login`
+- Active public entry: `http://acresystem.us/`
+- Active login entry: `http://acresystem.us/login`
+- Direct fallback entry during DNS propagation or troubleshooting: `http://45.55.247.137:3105/`
 
 ### Runtime Facts
 
@@ -72,8 +73,13 @@ When a deployment is explicitly approved, use only this line:
 3. Only if those steps succeed, sync the built repo state into `/opt/acre-ui-rebuild/app`.
 4. Restore `/opt/acre-ui-rebuild/app` ownership to `acre:acre`.
 5. Restart `acre-ui-rebuild-web.service`.
-6. Validate through `http://45.55.247.137:3105/` and `http://45.55.247.137:3105/login`.
+6. Validate through `http://acresystem.us/` and `http://acresystem.us/login`.
 7. If runtime behavior disagrees with docs, trust systemd `ExecStart` and the active nginx upstream.
+
+If DNS propagation is still in flight, direct fallback validation may temporarily use:
+
+- `http://45.55.247.137:3105/`
+- `http://45.55.247.137:3105/login`
 
 ### Practical operator note
 

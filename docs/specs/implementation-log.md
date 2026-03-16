@@ -52,8 +52,9 @@
 - `/login` is now expected to render with empty email/password fields and should not show demo credentials or username-style autofill values
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
-- Default public entry: `http://45.55.247.137:3105/`
-- Default login entry: `http://45.55.247.137:3105/login`
+- Default public entry: `http://acresystem.us/`
+- Default login entry: `http://acresystem.us/login`
+- Direct fallback entry during DNS propagation: `http://45.55.247.137:3105/`
 - Default production runtime:
   - service `acre-ui-rebuild-web.service`
   - WorkingDirectory `/opt/acre-ui-rebuild/app`

@@ -25,7 +25,9 @@ Use this baseline unless the current task explicitly says otherwise:
 - default local browser entry: `http://localhost:3105/`
 - root `npm run dev` must bring up `@acre/web` on port `3105` unless the current task explicitly overrides `PORT`
 - default GitHub remote target: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
-- default DigitalOcean entry: `http://45.55.247.137:3105/`
+- default public entry: `http://acresystem.us/`
+- default public login entry: `http://acresystem.us/login`
+- direct DigitalOcean fallback entry: `http://45.55.247.137:3105/`
 - default production app root: `/opt/acre-ui-rebuild/app`
 - default production env file: `/etc/acre/acre-ui-rebuild.env`
 - default production service: `acre-ui-rebuild-web.service`
