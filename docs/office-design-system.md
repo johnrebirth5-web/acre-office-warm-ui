@@ -111,6 +111,10 @@
 - `EmptyState`
 - `SecondaryMetaList`
 
+Office 路由级 canonical 组合层：
+
+- [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/office/_components/office-list-page-template.tsx)
+
 使用原则：
 
 - 新页面优先复用这些 primitives
@@ -189,6 +193,7 @@
 
 - transactions 的 `PageHeader + SummaryChip + list card + filter bar + dense table + footer` 是 peer list pages 的直接参考，不要再为 contacts / agents / reports / accounting / settings 各自发明另一套 page composition
 - `OfficeListPage` 是 transactions 提炼出来的 canonical page shell；当 contacts 之类的 peer list page 需要页头 + summary + table card 时，优先直接复用这个组合层，而不是每页重新手写 `PageShell + PageHeader + ListPageTableSection`
+- transactions 和 contacts 现在共用 [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/office/_components/office-list-page-template.tsx) 作为 canonical route-level list template；后续 peer list page 应优先向这套 header/workbench/table/footer 骨架靠拢
 - 现在优先使用 `ListPageTableSection` 把 `filters -> table/list -> footer` 固定成一套顺序，避免每页各自排列 inventory section
 - 当一个页面需要多个 peer list modules 时，优先使用 `ListPageStack` 和 `ListPageSplit` 组织主列表与次级列表/明细区，而不是重新回到 `dashboard` 式 page-local grid
 - 如果页面还需要一层二级 summary，只能用 `ListPageSection + ListPageStatsGrid + StatCard`，不能再额外长出第二套 floating KPI strip

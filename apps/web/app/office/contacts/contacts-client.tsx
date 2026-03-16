@@ -13,13 +13,16 @@ import {
   FilterField,
   ListPageFilters,
   ListPageFooter,
-  OfficeListPage,
   SelectInput,
   StatusBadge,
   SummaryChip,
-  TextInput
+  TextInput,
 } from "@acre/ui";
 import type { OfficeContactRecord } from "@acre/db";
+import {
+  OfficeListPagePagination,
+  OfficeListPageTemplate,
+} from "../_components/office-list-page-template";
 
 type ContactsClientProps = {
   contacts: OfficeContactRecord[];
@@ -53,7 +56,19 @@ function getContactStageTone(stage: string) {
 }
 
 function normalizeStageFilter(value: string): (typeof stageOptions)[number] {
-  return stageOptions.includes(value as (typeof stageOptions)[number]) ? (value as (typeof stageOptions)[number]) : "All";
+  return stageOptions.includes(value as (typeof stageOptions)[number])
+    ? (value as (typeof stageOptions)[number])
+    : "All";
+}
+
+function buildContactPrimaryMeta(contact: OfficeContactRecord) {
+  const primaryValues = [contact.email, contact.phone, contact.source]
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return primaryValues.length > 0
+    ? primaryValues.join(" · ")
+    : "No direct contact info recorded";
 }
 
 function buildContactsHref(
@@ -63,7 +78,7 @@ function buildContactsHref(
     stage: string;
     page: number;
     pageSize: number;
-  }
+  },
 ) {
   const searchParams = new URLSearchParams();
 
@@ -87,11 +102,20 @@ function buildContactsHref(
   return query ? `${pathname}?${query}` : pathname;
 }
 
-export function ContactsClient({ contacts, totalCount, totalPages, page, pageSize, filters }: ContactsClientProps) {
+export function ContactsClient({
+  contacts,
+  totalCount,
+  totalPages,
+  page,
+  pageSize,
+  filters,
+}: ContactsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState(filters.q);
-  const [stageFilter, setStageFilter] = useState<(typeof stageOptions)[number]>(normalizeStageFilter(filters.stage));
+  const [stageFilter, setStageFilter] = useState<(typeof stageOptions)[number]>(
+    normalizeStageFilter(filters.stage),
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -104,10 +128,7 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
 
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
-  const summaryLabel =
-    filters.q || filters.stage !== "All"
-      ? `${totalCount} contacts match the current filters.`
-      : `${totalCount} contacts in the current organization.`;
+  const currentStageLabel = stageFilter === "All" ? "All stages" : stageFilter;
 
   function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,8 +137,8 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
         q: searchQuery,
         stage: stageFilter,
         page: 1,
-        pageSize
-      })
+        pageSize,
+      }),
     );
   }
 
@@ -129,8 +150,8 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
         q: "",
         stage: "All",
         page: 1,
-        pageSize
-      })
+        pageSize,
+      }),
     );
   }
 
@@ -140,8 +161,8 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
         q: searchQuery,
         stage: stageFilter,
         page: 1,
-        pageSize: nextPageSize
-      })
+        pageSize: nextPageSize,
+      }),
     );
   }
 
@@ -157,13 +178,15 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
       const response = await fetch("/api/office/contacts", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to create contact.");
       }
 
@@ -174,19 +197,25 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
           q: searchQuery,
           stage: stageFilter,
           page: 1,
-          pageSize
-        })
+          pageSize,
+        }),
       );
       router.refresh();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to create contact.");
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to create contact.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
   const contactFilters = (
-    <ListPageFilters as="form" className="bm-contacts-toolbar" onSubmit={handleFilterSubmit}>
+    <ListPageFilters
+      as="form"
+      className="bm-contacts-toolbar"
+      onSubmit={handleFilterSubmit}
+    >
       <FilterField className="bm-contacts-search-field" label="Search">
         <TextInput
           aria-label="Search contacts"
@@ -197,8 +226,13 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
         />
       </FilterField>
 
-      <FilterField className="bm-contacts-stage-field" label="Stage">
-        <SelectInput onChange={(event) => setStageFilter(event.target.value as (typeof stageOptions)[number])} value={stageFilter}>
+      <FilterField className="bm-contacts-stage-field" label="Current view">
+        <SelectInput
+          onChange={(event) =>
+            setStageFilter(event.target.value as (typeof stageOptions)[number])
+          }
+          value={stageFilter}
+        >
           {stageOptions.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -219,56 +253,33 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
   const contactFooter = (
     <ListPageFooter
       controls={
-        <>
-          <label className="office-list-page-size">
-            <span>Rows</span>
-            <SelectInput onChange={(event) => handlePageSizeChange(Number(event.target.value))} value={String(pageSize)}>
-              {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </SelectInput>
-          </label>
-
-          <div className="office-list-pager">
-            {page > 1 ? (
-              <Link
-                className="office-list-page-button"
-                href={buildContactsHref(pathname, {
-                  q: filters.q,
-                  stage: filters.stage,
-                  page: page - 1,
-                  pageSize
-                })}
-              >
-                «
-              </Link>
-            ) : (
-              <span className="office-list-page-button is-disabled">«</span>
-            )}
-
-            <span className="office-list-page-indicator">
-              Page {page} / {totalPages}
-            </span>
-
-            {page < totalPages ? (
-              <Link
-                className="office-list-page-button"
-                href={buildContactsHref(pathname, {
+        <OfficeListPagePagination
+          nextHref={
+            page < totalPages
+              ? buildContactsHref(pathname, {
                   q: filters.q,
                   stage: filters.stage,
                   page: page + 1,
-                  pageSize
-                })}
-              >
-                »
-              </Link>
-            ) : (
-              <span className="office-list-page-button is-disabled">»</span>
-            )}
-          </div>
-        </>
+                  pageSize,
+                })
+              : undefined
+          }
+          onPageSizeChange={handlePageSizeChange}
+          page={page}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          previousHref={
+            page > 1
+              ? buildContactsHref(pathname, {
+                  q: filters.q,
+                  stage: filters.stage,
+                  page: page - 1,
+                  pageSize,
+                })
+              : undefined
+          }
+          totalPages={totalPages}
+        />
       }
       summary={`${pageStart}-${pageEnd} of ${totalCount}`}
     />
@@ -277,8 +288,16 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
   const contactSummary = (
     <>
       <SummaryChip label="Contacts" value={totalCount} />
-      <SummaryChip label="Current view" tone="accent" value={stageFilter === "All" ? "All stages" : stageFilter} />
-      <Button className="office-list-page-primary-action" onClick={() => setIsModalOpen(true)} type="button">
+      <SummaryChip
+        label="Current view"
+        tone="accent"
+        value={currentStageLabel}
+      />
+      <Button
+        className="office-list-page-primary-action"
+        onClick={() => setIsModalOpen(true)}
+        type="button"
+      >
         New contact
       </Button>
     </>
@@ -286,62 +305,97 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
 
   return (
     <>
-      <OfficeListPage
+      <OfficeListPageTemplate
         className="office-contacts-page"
-        description="Organization-scoped contacts, follow-up context, and linked transaction visibility in one list."
+        description="Operational contact list with organization-scoped search, stage views, and follow-up visibility across the current office."
         eyebrow="Contacts"
         filters={contactFilters}
         footer={contactFooter}
-        sectionSubtitle={summaryLabel}
+        sectionSubtitle="Search, filter, and review the current office contact set."
         sectionTitle="Contact list"
         summary={contactSummary}
         title="Contacts"
       >
         <DataTable className="office-list-table office-list-table-wide bm-contacts-table">
           <DataTableHeader className="office-list-table-header office-list-table-header-contacts">
-            <span>Name</span>
+            <span>Contact</span>
             <span>Stage</span>
-            <span>Intent</span>
-            <span>Areas</span>
+            <span>Intent / budget</span>
+            <span>Preferred areas</span>
             <span>Last contact</span>
             <span>Next follow-up</span>
           </DataTableHeader>
           <DataTableBody className="office-list-table-body">
             {contacts.map((contact) => (
-              <DataTableRow className="office-list-table-row office-list-table-row-contacts" key={contact.id}>
+              <DataTableRow
+                className="office-list-table-row office-list-table-row-contacts"
+                key={contact.id}
+              >
                 <div className="office-list-table-main">
                   <strong>
-                    <Link href={`/office/contacts/${contact.id}`}>{contact.fullName}</Link>
+                    <Link href={`/office/contacts/${contact.id}`}>
+                      {contact.fullName}
+                    </Link>
                   </strong>
-                  <p>{contact.email || contact.phone || contact.source}</p>
+                  <p>{buildContactPrimaryMeta(contact)}</p>
+                  {contact.contactType || contact.owner ? (
+                    <div className="office-list-table-main-meta">
+                      {contact.contactType ? (
+                        <span>{contact.contactType}</span>
+                      ) : null}
+                      {contact.owner ? <span>{contact.owner}</span> : null}
+                    </div>
+                  ) : null}
                 </div>
-                <StatusBadge className="office-list-table-status" tone={getContactStageTone(contact.stage)}>
+                <StatusBadge
+                  className="office-list-table-status"
+                  tone={getContactStageTone(contact.stage)}
+                >
                   {contact.stage}
                 </StatusBadge>
-                <span>{contact.intent}</span>
-                <span>{contact.areas.join(", ") || "—"}</span>
+                <div className="office-list-table-cell-stack">
+                  <strong>{contact.intent || "—"}</strong>
+                  <p>{contact.budget}</p>
+                </div>
+                <div className="office-list-table-wrap-cell">
+                  {contact.areas.join(", ") || "—"}
+                </div>
                 <span>{contact.lastContactLabel}</span>
                 <span>{contact.nextFollowUpLabel}</span>
               </DataTableRow>
             ))}
             {contacts.length === 0 ? (
-              <EmptyState description="Try widening the search or resetting the stage filter." title="No contacts matched the current filters" />
+              <EmptyState
+                description="Try widening the search or resetting the stage filter."
+                title="No contacts matched the current filters"
+              />
             ) : null}
           </DataTableBody>
         </DataTable>
-      </OfficeListPage>
+      </OfficeListPageTemplate>
 
       {isModalOpen ? (
         <div className="bm-modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <section className="bm-transaction-modal bm-contact-modal" onClick={(event) => event.stopPropagation()}>
+          <section
+            className="bm-transaction-modal bm-contact-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
             <header className="bm-transaction-modal-header">
               <h3>NEW CONTACT</h3>
-              <button aria-label="Close create contact modal" onClick={() => setIsModalOpen(false)} type="button">
+              <button
+                aria-label="Close create contact modal"
+                onClick={() => setIsModalOpen(false)}
+                type="button"
+              >
                 ×
               </button>
             </header>
 
-            <form className="bm-transaction-modal-body" key={formVersion} onSubmit={handleCreateContact}>
+            <form
+              className="bm-transaction-modal-body"
+              key={formVersion}
+              onSubmit={handleCreateContact}
+            >
               <div className="bm-contact-form-grid">
                 <label className="bm-transaction-modal-field">
                   <span>Full name</span>
@@ -392,8 +446,14 @@ export function ContactsClient({ contacts, totalCount, totalPages, page, pageSiz
               <footer className="bm-transaction-modal-footer">
                 <span>Minimal contact create flow</span>
                 <div className="bm-transaction-modal-actions">
-                  {submitError ? <p className="bm-transaction-submit-error">{submitError}</p> : null}
-                  <button className="bm-transaction-next" disabled={isSubmitting} type="submit">
+                  {submitError ? (
+                    <p className="bm-transaction-submit-error">{submitError}</p>
+                  ) : null}
+                  <button
+                    className="bm-transaction-next"
+                    disabled={isSubmitting}
+                    type="submit"
+                  >
                     {isSubmitting ? "Saving..." : "Save contact"}
                   </button>
                 </div>

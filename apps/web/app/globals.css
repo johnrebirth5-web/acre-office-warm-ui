@@ -27,8 +27,16 @@ body {
   min-height: 100vh;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(20, 74, 119, 0.1), transparent 22rem),
-    radial-gradient(circle at top right, rgba(35, 124, 99, 0.1), transparent 26rem),
+    radial-gradient(
+      circle at top left,
+      rgba(20, 74, 119, 0.1),
+      transparent 22rem
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(35, 124, 99, 0.1),
+      transparent 26rem
+    ),
     linear-gradient(180deg, #f5f7fb 0%, #e8edf4 100%);
   font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -255,7 +263,11 @@ select {
   gap: 18px;
   padding: 20px;
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, rgba(15, 50, 45, 0.98), rgba(24, 49, 54, 0.95));
+  background: linear-gradient(
+    180deg,
+    rgba(15, 50, 45, 0.98),
+    rgba(24, 49, 54, 0.95)
+  );
   color: #f6efe3;
 }
 
@@ -314,7 +326,9 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.04);
-  transition: transform 140ms ease, background 140ms ease;
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
 }
 
 .nav-card:hover,
@@ -348,7 +362,11 @@ select {
   margin-top: auto;
   padding: 16px;
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.03)
+  );
 }
 
 .main-area {
@@ -403,7 +421,11 @@ select {
   align-content: start;
   padding: 18px;
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(24, 76, 69, 0.96), rgba(27, 59, 63, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(24, 76, 69, 0.96),
+    rgba(27, 59, 63, 0.94)
+  );
   color: #f7f0e6;
 }
 
@@ -621,7 +643,11 @@ select {
 @media (max-width: 820px) {
   body {
     background:
-      radial-gradient(circle at top center, rgba(24, 76, 69, 0.14), transparent 16rem),
+      radial-gradient(
+        circle at top center,
+        rgba(24, 76, 69, 0.14),
+        transparent 16rem
+      ),
       linear-gradient(180deg, #f7f1e7 0%, #efe6d7 100%);
   }
 
@@ -679,7 +705,7 @@ select {
     font-size: 0.75rem;
   }
 
-.mobile-rail a.is-active {
+  .mobile-rail a.is-active {
     background: rgba(255, 255, 255, 0.1);
   }
 }
@@ -712,7 +738,11 @@ select {
   padding: 18px 20px;
   border: 1px solid var(--line);
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 248, 252, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(245, 248, 252, 0.94)
+  );
 }
 
 .office-topbar-copy,
@@ -914,7 +944,11 @@ select {
 }
 
 .office-kpi-card-accent {
-  background: linear-gradient(180deg, rgba(20, 74, 119, 0.98), rgba(16, 59, 95, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(20, 74, 119, 0.98),
+    rgba(16, 59, 95, 0.94)
+  );
 }
 
 .office-kpi-card-accent strong,
@@ -1042,7 +1076,11 @@ select {
 .office-report-owner-bar-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(20, 74, 119, 0.94), rgba(34, 108, 177, 0.92));
+  background: linear-gradient(
+    90deg,
+    rgba(20, 74, 119, 0.94),
+    rgba(34, 108, 177, 0.92)
+  );
 }
 
 .office-table-primary strong {
@@ -1051,7 +1089,11 @@ select {
 }
 
 .office-sidebar {
-  background: linear-gradient(180deg, rgba(11, 31, 51, 0.98), rgba(17, 41, 63, 0.96));
+  background: linear-gradient(
+    180deg,
+    rgba(11, 31, 51, 0.98),
+    rgba(17, 41, 63, 0.96)
+  );
 }
 
 .office-brand-mark p,
@@ -1105,7 +1147,11 @@ select {
 }
 
 .office-sidebar-note {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.03)
+  );
 }
 
 @media (max-width: 1100px) {
@@ -1585,7 +1631,11 @@ select {
   width: 248px;
   height: 248px;
   border-radius: 50%;
-  background: conic-gradient(#e2e2e2 0deg, #e2e2e2 320deg, transparent 320deg 360deg);
+  background: conic-gradient(
+    #e2e2e2 0deg,
+    #e2e2e2 320deg,
+    transparent 320deg 360deg
+  );
 }
 
 .bm-goal-ring::after {
@@ -2951,7 +3001,10 @@ select {
 }
 
 .office-table-row-agent-billing-ledger {
-  grid-template-columns: 78px 84px minmax(188px, 1.3fr) 88px 92px 92px 96px 78px minmax(144px, 0.88fr);
+  grid-template-columns: 78px 84px minmax(
+      188px,
+      1.3fr
+    ) 88px 92px 92px 96px 78px minmax(144px, 0.88fr);
 }
 
 .office-table-row-recurring-rules {
@@ -3240,7 +3293,11 @@ select {
 
 .office-approval-view-link.is-active {
   border-color: var(--office-accent);
-  background: color-mix(in srgb, var(--office-accent) 10%, var(--office-surface));
+  background: color-mix(
+    in srgb,
+    var(--office-accent) 10%,
+    var(--office-surface)
+  );
 }
 
 .office-approval-filter-bar {
@@ -3572,7 +3629,10 @@ select {
 }
 
 .office-table-row-ledger {
-  grid-template-columns: 78px minmax(184px, 1.18fr) 92px 92px minmax(168px, 0.92fr);
+  grid-template-columns: 78px minmax(184px, 1.18fr) 92px 92px minmax(
+      168px,
+      0.92fr
+    );
 }
 
 .office-table-row-emd {
@@ -3588,7 +3648,10 @@ select {
 }
 
 .office-table-row-accounting-lines-manual {
-  grid-template-columns: minmax(182px, 1.18fr) minmax(156px, 0.94fr) 94px 94px 72px;
+  grid-template-columns: minmax(182px, 1.18fr) minmax(
+      156px,
+      0.94fr
+    ) 94px 94px 72px;
 }
 
 .office-table-row-accounting select,
@@ -4092,7 +4155,11 @@ select {
 }
 
 .office-pipeline-headline-card-accent {
-  background: linear-gradient(180deg, rgba(20, 74, 119, 0.96), rgba(16, 59, 95, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(20, 74, 119, 0.96),
+    rgba(16, 59, 95, 0.92)
+  );
 }
 
 .office-pipeline-headline-card-accent span,
@@ -4696,7 +4763,8 @@ select {
 /* Office design system */
 
 :root {
-  --office-font-sans: var(--font-office-sans), "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+  --office-font-sans:
+    var(--font-office-sans), "Inter", "SF Pro Text", "Segoe UI", sans-serif;
   --office-bg: #eef1f5;
   --office-bg-muted: #f6f8fb;
   --office-surface: #ffffff;
@@ -4909,7 +4977,9 @@ a {
   font-size: 0.92rem;
   font-weight: 500;
   text-decoration: none;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .office-nav-link:hover,
@@ -5084,6 +5154,10 @@ a {
   gap: 18px;
 }
 
+.office-canonical-list-page {
+  gap: 22px;
+}
+
 .office-list-page-stack,
 .office-settings-list-stack {
   display: grid;
@@ -5103,6 +5177,28 @@ a {
 
 .office-list-page-table-section > .office-section-body {
   gap: 14px;
+}
+
+.office-canonical-list-page-card > .office-section-body {
+  gap: 18px;
+}
+
+.office-list-page-workbench {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(194, 205, 220, 0.46);
+  border-radius: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(244, 247, 251, 0.94),
+    rgba(239, 244, 249, 0.88)
+  );
+}
+
+.office-list-page-table-region,
+.office-list-page-footer-region {
+  min-width: 0;
 }
 
 .office-transactions-page-actions {
@@ -5773,7 +5869,11 @@ a {
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .office-button:hover,
@@ -6104,7 +6204,11 @@ a {
   height: 14px;
   border-radius: 999px;
   background:
-    linear-gradient(180deg, rgba(217, 227, 240, 0.82), rgba(233, 240, 248, 0.98)),
+    linear-gradient(
+      180deg,
+      rgba(217, 227, 240, 0.82),
+      rgba(233, 240, 248, 0.98)
+    ),
     linear-gradient(90deg, rgba(132, 157, 191, 0.12), rgba(132, 157, 191, 0.04));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.88),
@@ -6118,7 +6222,11 @@ a {
   height: 10px;
   min-width: 52px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(101, 130, 166, 0.94), rgba(70, 96, 128, 0.96));
+  background: linear-gradient(
+    180deg,
+    rgba(101, 130, 166, 0.94),
+    rgba(70, 96, 128, 0.96)
+  );
   box-shadow:
     0 6px 14px rgba(53, 76, 105, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.34);
@@ -6129,7 +6237,11 @@ a {
 
 .office-horizontal-scrollbar-thumb[data-dragging="true"] {
   cursor: grabbing;
-  background: linear-gradient(180deg, rgba(77, 105, 139, 0.98), rgba(51, 74, 101, 0.98));
+  background: linear-gradient(
+    180deg,
+    rgba(77, 105, 139, 0.98),
+    rgba(51, 74, 101, 0.98)
+  );
   box-shadow:
     0 8px 18px rgba(46, 68, 95, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
@@ -6205,7 +6317,7 @@ a {
 .office-list-table-wide,
 .office-list-table-header-contacts,
 .office-list-table-row-contacts {
-  min-width: 780px;
+  min-width: 860px;
 }
 
 .bm-contacts-table-header,
@@ -6213,25 +6325,25 @@ a {
 .office-list-table-header-contacts,
 .office-list-table-row-contacts {
   grid-template-columns:
-    minmax(184px, 1.55fr)
-    minmax(82px, 0.6fr)
-    minmax(88px, 0.64fr)
-    minmax(128px, 0.9fr)
-    minmax(96px, 0.7fr)
-    minmax(98px, 0.72fr);
-  gap: 8px;
+    minmax(228px, 1.62fr)
+    minmax(98px, 0.7fr)
+    minmax(146px, 0.92fr)
+    minmax(180px, 1.12fr)
+    minmax(112px, 0.76fr)
+    minmax(126px, 0.84fr);
+  gap: 10px;
 }
 
 .bm-contacts-table-row {
-  align-items: start;
-  padding-top: 9px;
-  padding-bottom: 9px;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .office-list-table-row-contacts {
-  align-items: start;
-  padding-top: 9px;
-  padding-bottom: 9px;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .bm-contacts-table-row .office-table-primary,
@@ -6289,7 +6401,10 @@ a {
 
 .office-table-row-commission-assignments {
   min-width: 640px;
-  grid-template-columns: minmax(168px, 1.28fr) minmax(68px, 0.54fr) minmax(144px, 0.96fr) minmax(92px, 0.68fr) minmax(94px, 0.7fr);
+  grid-template-columns: minmax(168px, 1.28fr) minmax(68px, 0.54fr) minmax(
+      144px,
+      0.96fr
+    ) minmax(92px, 0.68fr) minmax(94px, 0.7fr);
 }
 
 .office-table-row-commission {
@@ -6307,12 +6422,18 @@ a {
 .office-table-row-report-status,
 .office-table-row-report-types {
   min-width: 500px;
-  grid-template-columns: minmax(128px, 1.08fr) minmax(62px, 0.52fr) minmax(92px, 0.72fr) minmax(92px, 0.72fr);
+  grid-template-columns: minmax(128px, 1.08fr) minmax(62px, 0.52fr) minmax(
+      92px,
+      0.72fr
+    ) minmax(92px, 0.72fr);
 }
 
 .office-table-row-report-transactions {
   min-width: 780px;
-  grid-template-columns: minmax(210px, 1.62fr) minmax(92px, 0.68fr) minmax(104px, 0.76fr) minmax(122px, 0.86fr) minmax(96px, 0.7fr) minmax(96px, 0.7fr);
+  grid-template-columns: minmax(210px, 1.62fr) minmax(92px, 0.68fr) minmax(
+      104px,
+      0.76fr
+    ) minmax(122px, 0.86fr) minmax(96px, 0.7fr) minmax(96px, 0.7fr);
 }
 
 .office-table-row-report-agents {
@@ -6329,34 +6450,52 @@ a {
 
 .office-table-row-report-teams {
   min-width: 720px;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(58px, 0.48fr) minmax(58px, 0.48fr) minmax(58px, 0.48fr) minmax(92px, 0.68fr) minmax(108px, 0.74fr);
+  grid-template-columns: minmax(180px, 1.4fr) minmax(58px, 0.48fr) minmax(
+      58px,
+      0.48fr
+    ) minmax(58px, 0.48fr) minmax(92px, 0.68fr) minmax(108px, 0.74fr);
 }
 
 .office-table-row-report-commission-status,
 .office-table-row-report-commission-plan,
 .office-table-row-report-accounting-types {
   min-width: 500px;
-  grid-template-columns: minmax(160px, 1.22fr) minmax(66px, 0.56fr) minmax(108px, 0.78fr);
+  grid-template-columns: minmax(160px, 1.22fr) minmax(66px, 0.56fr) minmax(
+      108px,
+      0.78fr
+    );
 }
 
 .office-table-row-report-commission-recent {
   min-width: 820px;
-  grid-template-columns: minmax(210px, 1.5fr) minmax(96px, 0.72fr) minmax(98px, 0.74fr) minmax(98px, 0.74fr) minmax(126px, 0.82fr);
+  grid-template-columns: minmax(210px, 1.5fr) minmax(96px, 0.72fr) minmax(
+      98px,
+      0.74fr
+    ) minmax(98px, 0.74fr) minmax(126px, 0.82fr);
 }
 
 .office-table-row-report-accounting-recent {
   min-width: 780px;
-  grid-template-columns: minmax(76px, 0.6fr) minmax(104px, 0.76fr) minmax(92px, 0.68fr) minmax(210px, 1.45fr) minmax(98px, 0.72fr);
+  grid-template-columns: minmax(76px, 0.6fr) minmax(104px, 0.76fr) minmax(
+      92px,
+      0.68fr
+    ) minmax(210px, 1.45fr) minmax(98px, 0.72fr);
 }
 
 .office-table-row-report-emd-status {
   min-width: 580px;
-  grid-template-columns: minmax(152px, 1.18fr) minmax(62px, 0.52fr) minmax(92px, 0.7fr) minmax(92px, 0.7fr);
+  grid-template-columns: minmax(152px, 1.18fr) minmax(62px, 0.52fr) minmax(
+      92px,
+      0.7fr
+    ) minmax(92px, 0.7fr);
 }
 
 .office-table-row-report-emd-recent {
   min-width: 780px;
-  grid-template-columns: minmax(210px, 1.5fr) minmax(92px, 0.72fr) minmax(92px, 0.7fr) minmax(92px, 0.7fr) minmax(96px, 0.72fr);
+  grid-template-columns: minmax(210px, 1.5fr) minmax(92px, 0.72fr) minmax(
+      92px,
+      0.7fr
+    ) minmax(92px, 0.7fr) minmax(96px, 0.72fr);
 }
 
 .office-reports-workspace,
@@ -6587,6 +6726,28 @@ a {
   align-content: center;
 }
 
+.office-list-table-main-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.office-list-table-main-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid rgba(194, 205, 220, 0.48);
+  border-radius: 999px;
+  background: rgba(236, 241, 247, 0.9);
+  color: var(--office-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .office-list-table-main strong a {
   color: inherit;
   text-decoration: none;
@@ -6598,6 +6759,33 @@ a {
   color: var(--office-text-muted);
   font-size: var(--office-text-meta-size);
   line-height: var(--office-line-body);
+}
+
+.office-list-table-cell-stack {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.office-list-table-cell-stack strong {
+  color: var(--office-text);
+  font-size: var(--office-text-body-size);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.office-list-table-cell-stack p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  line-height: 1.35;
+}
+
+.office-list-table-wrap-cell {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .office-list-table-status {
@@ -6634,27 +6822,37 @@ a {
 }
 
 .office-table-row-report-transactions > :is(:nth-child(5), :nth-child(6)),
-.office-table-row-report-status > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-report-types > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-report-agents > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
-.office-table-row-report-teams > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-report-status
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-types
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-agents
+  > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-report-teams
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
 .office-table-row-report-commission-status > :is(:nth-child(2), :nth-child(3)),
 .office-table-row-report-commission-plan > :is(:nth-child(2), :nth-child(3)),
-.office-table-row-report-commission-recent > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-commission-recent
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
 .office-table-row-report-accounting-types > :is(:nth-child(2), :nth-child(3)),
-.office-table-row-report-accounting-recent > :is(:nth-child(1), :nth-child(3), :nth-child(5)),
-.office-table-row-report-emd-status > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-report-emd-recent > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-report-accounting-recent
+  > :is(:nth-child(1), :nth-child(3), :nth-child(5)),
+.office-table-row-report-emd-status
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-emd-recent
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
 .office-table-row-accounting > :nth-child(4),
 .office-table-row-ledger > :is(:nth-child(3), :nth-child(4)),
 .office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-agent-billing-ledger > :is(:nth-child(5), :nth-child(6), :nth-child(7)),
+.office-table-row-agent-billing-ledger
+  > :is(:nth-child(5), :nth-child(6), :nth-child(7)),
 .office-table-row-recurring-rules > :nth-child(3),
 .office-table-row-agent-statement > :nth-child(3),
 .office-table-row-commission > :is(:nth-child(5), :nth-child(6)),
 .office-table-row-billing-open > :is(:nth-child(4), :nth-child(5)),
 .office-table-row-billing-upcoming > :nth-child(4),
-.office-table-row-billing-statements > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-billing-statements
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
 .bm-transactions-columns > :nth-child(3),
 .bm-transactions-row > :nth-child(3),
 .office-list-table-header-transactions > :nth-child(3),
@@ -6671,24 +6869,59 @@ a {
 .office-table-row-commission > :nth-child(4),
 .office-table-row-report-accounting-recent > :nth-child(2),
 .office-table-row-report-emd-recent > :nth-child(2),
-.office-table-row-billing-open > :is(:nth-child(1), :nth-child(2), :nth-child(6)),
-.office-table-row-billing-upcoming > :is(:nth-child(1), :nth-child(2), :nth-child(5)),
+.office-table-row-billing-open
+  > :is(:nth-child(1), :nth-child(2), :nth-child(6)),
+.office-table-row-billing-upcoming
+  > :is(:nth-child(1), :nth-child(2), :nth-child(5)),
 .office-table-row-billing-statements > :is(:nth-child(1), :nth-child(6)),
-.office-table-row-accounting > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(7)),
+.office-table-row-accounting
+  > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(7)),
 .office-table-row-ledger > :nth-child(1),
 .office-table-row-emd > :is(:nth-child(5), :nth-child(6)),
-.office-table-row-recurring-rules > :is(:nth-child(4), :nth-child(5), :nth-child(6)),
-.office-table-row-payment-methods > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-recurring-rules
+  > :is(:nth-child(4), :nth-child(5), :nth-child(6)),
+.office-table-row-payment-methods
+  > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
 .office-table-row-agent-statement > :is(:nth-child(1), :nth-child(4)),
 .office-table-row-chart > :is(:nth-child(1), :nth-child(3), :nth-child(4)),
-.bm-transactions-columns > :is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)),
-.bm-transactions-row > :is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)),
+.bm-transactions-columns
+  > :is(
+    :nth-child(3),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7)
+  ),
+.bm-transactions-row
+  > :is(
+    :nth-child(3),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7)
+  ),
 .bm-contacts-table-header > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
 .bm-contacts-table-row > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
-.office-list-table-header-transactions > :is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)),
-.office-list-table-row-transactions > :is(:nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)),
-.office-list-table-header-contacts > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
-.office-list-table-row-contacts > :is(:nth-child(2), :nth-child(5), :nth-child(6)) {
+.office-list-table-header-transactions
+  > :is(
+    :nth-child(3),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7)
+  ),
+.office-list-table-row-transactions
+  > :is(
+    :nth-child(3),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7)
+  ),
+.office-list-table-header-contacts
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
+.office-list-table-row-contacts
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6)) {
   white-space: nowrap;
 }
 
@@ -6834,7 +7067,10 @@ a {
 .office-dashboard-transactions-head,
 .office-dashboard-transactions-row {
   min-width: 0;
-  grid-template-columns: minmax(196px, 1.52fr) minmax(92px, 0.66fr) minmax(100px, 0.72fr) minmax(112px, 0.78fr);
+  grid-template-columns: minmax(196px, 1.52fr) minmax(92px, 0.66fr) minmax(
+      100px,
+      0.72fr
+    ) minmax(112px, 0.78fr);
   gap: 10px;
 }
 
@@ -6897,6 +7133,13 @@ a {
 .office-list-footer-controls,
 .bm-transactions-footer-controls,
 .bm-contacts-footer-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.office-list-page-pagination {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -7311,17 +7554,10 @@ a {
   --office-table-row-height: 60px;
   --office-agents-roster-min-width: 1240px;
   --office-agents-roster-gap: 8px;
-  --office-agents-roster-columns:
-    minmax(208px, 1.95fr)
-    minmax(118px, 0.84fr)
-    minmax(126px, 0.88fr)
-    minmax(116px, 0.8fr)
-    minmax(98px, 0.68fr)
-    minmax(104px, 0.72fr)
-    minmax(110px, 0.76fr)
-    minmax(124px, 0.82fr)
-    minmax(108px, 0.72fr)
-    minmax(96px, 0.66fr);
+  --office-agents-roster-columns: minmax(208px, 1.95fr) minmax(118px, 0.84fr)
+    minmax(126px, 0.88fr) minmax(116px, 0.8fr) minmax(98px, 0.68fr)
+    minmax(104px, 0.72fr) minmax(110px, 0.76fr) minmax(124px, 0.82fr)
+    minmax(108px, 0.72fr) minmax(96px, 0.66fr);
 }
 
 .office-agents-roster-head,
@@ -7416,12 +7652,8 @@ a {
 
 .office-agents-team-table {
   --office-agents-team-min-width: 760px;
-  --office-agents-team-columns:
-    minmax(220px, 2.2fr)
-    minmax(88px, 0.7fr)
-    minmax(96px, 0.76fr)
-    minmax(120px, 0.9fr)
-    minmax(94px, 0.7fr);
+  --office-agents-team-columns: minmax(220px, 2.2fr) minmax(88px, 0.7fr)
+    minmax(96px, 0.76fr) minmax(120px, 0.9fr) minmax(94px, 0.7fr);
 }
 
 .office-agents-team-table-head,
@@ -7969,12 +8201,18 @@ a {
 
 .office-table-row-settings-users {
   min-width: 640px;
-  grid-template-columns: minmax(188px, 1.45fr) minmax(108px, 0.76fr) minmax(120px, 0.84fr) minmax(92px, 0.66fr) minmax(82px, 0.56fr);
+  grid-template-columns: minmax(188px, 1.45fr) minmax(108px, 0.76fr) minmax(
+      120px,
+      0.84fr
+    ) minmax(92px, 0.66fr) minmax(82px, 0.56fr);
 }
 
 .office-table-row-settings-fields {
   min-width: 390px;
-  grid-template-columns: minmax(172px, 1.18fr) minmax(88px, 0.62fr) minmax(88px, 0.62fr);
+  grid-template-columns: minmax(172px, 1.18fr) minmax(88px, 0.62fr) minmax(
+      88px,
+      0.62fr
+    );
 }
 
 .office-table-row-settings-teams {
@@ -8419,12 +8657,18 @@ a {
 
 .office-table-row-billing-open {
   min-width: 800px;
-  grid-template-columns: 76px 78px minmax(172px, 1.28fr) 92px 96px 80px minmax(150px, 0.86fr);
+  grid-template-columns: 76px 78px minmax(172px, 1.28fr) 92px 96px 80px minmax(
+      150px,
+      0.86fr
+    );
 }
 
 .office-table-row-billing-upcoming {
   min-width: 730px;
-  grid-template-columns: 76px 86px minmax(182px, 1.35fr) 92px 80px minmax(148px, 0.84fr);
+  grid-template-columns: 76px 86px minmax(182px, 1.35fr) 92px 80px minmax(
+      148px,
+      0.84fr
+    );
 }
 
 .office-table-row-billing-statements {
@@ -8627,7 +8871,10 @@ a {
 }
 
 .office-pipeline-filters {
-  grid-template-columns: minmax(260px, 1.55fr) repeat(3, minmax(180px, 1fr)) auto;
+  grid-template-columns: minmax(260px, 1.55fr) repeat(
+      3,
+      minmax(180px, 1fr)
+    ) auto;
 }
 
 .office-pipeline-overview-strip {
@@ -9270,7 +9517,11 @@ a {
 .office-library-folder-button:hover,
 .office-library-folder-row.is-selected .office-library-folder-button,
 .office-library-folder-button-root.is-selected {
-  border-color: color-mix(in srgb, var(--office-accent) 26%, var(--office-border));
+  border-color: color-mix(
+    in srgb,
+    var(--office-accent) 26%,
+    var(--office-border)
+  );
   background: color-mix(in srgb, var(--office-accent) 10%, white);
 }
 
@@ -9311,7 +9562,8 @@ a {
 .office-library-folder-documents {
   margin: 0 0 4px 30px;
   padding-left: 12px;
-  border-left: 1px solid color-mix(in srgb, var(--office-border) 78%, transparent);
+  border-left: 1px solid
+    color-mix(in srgb, var(--office-border) 78%, transparent);
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -9334,7 +9586,11 @@ a {
 
 .office-library-document-entry:hover,
 .office-library-document-entry.is-selected {
-  border-color: color-mix(in srgb, var(--office-accent) 20%, var(--office-border));
+  border-color: color-mix(
+    in srgb,
+    var(--office-accent) 20%,
+    var(--office-border)
+  );
   background: color-mix(in srgb, var(--office-accent) 9%, white);
 }
 
@@ -9858,8 +10114,10 @@ a {
   --office-warning-soft: rgba(248, 214, 110, 0.22);
   --office-danger: #9f4343;
   --office-danger-soft: rgba(211, 109, 109, 0.15);
-  --office-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 16px 38px rgba(148, 163, 184, 0.16);
-  --office-shadow-md: 0 18px 48px rgba(15, 23, 42, 0.12), 0 30px 80px rgba(148, 163, 184, 0.16);
+  --office-shadow-sm:
+    0 1px 3px rgba(15, 23, 42, 0.06), 0 16px 38px rgba(148, 163, 184, 0.16);
+  --office-shadow-md:
+    0 18px 48px rgba(15, 23, 42, 0.12), 0 30px 80px rgba(148, 163, 184, 0.16);
   --office-radius-sm: 10px;
   --office-radius-md: 16px;
   --office-radius-lg: 24px;
@@ -9897,8 +10155,16 @@ body,
   min-height: 100vh;
   color: var(--office-text);
   background:
-    radial-gradient(circle at top left, rgba(43, 92, 179, 0.18), transparent 26rem),
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.88), transparent 18rem),
+    radial-gradient(
+      circle at top left,
+      rgba(43, 92, 179, 0.18),
+      transparent 26rem
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(255, 255, 255, 0.88),
+      transparent 18rem
+    ),
     linear-gradient(180deg, #f4f7fb 0%, #edf2f7 44%, #e7edf5 100%);
 }
 
@@ -9909,7 +10175,11 @@ body,
   pointer-events: none;
   background:
     linear-gradient(125deg, rgba(255, 255, 255, 0.52), transparent 38%),
-    radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.34), transparent 18%);
+    radial-gradient(
+      circle at 15% 10%,
+      rgba(255, 255, 255, 0.34),
+      transparent 18%
+    );
   opacity: 0.7;
 }
 
@@ -9957,7 +10227,11 @@ body,
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 249, 252, 0.9));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(247, 249, 252, 0.9)
+  );
   color: var(--office-text);
   box-shadow: var(--office-shadow-sm);
   overflow: hidden;
@@ -9967,7 +10241,11 @@ body,
 .agent-brand-panel {
   padding: 22px 18px 18px;
   border-bottom: 1px solid var(--office-border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 248, 252, 0.88));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(245, 248, 252, 0.88)
+  );
 }
 
 .brand-mark,
@@ -10163,7 +10441,11 @@ body,
   padding: 18px;
   border: 1px solid rgba(194, 205, 220, 0.64);
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(247, 249, 252, 0.96), rgba(241, 245, 250, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(247, 249, 252, 0.96),
+    rgba(241, 245, 250, 0.92)
+  );
 }
 
 .office-mobile-rail,
@@ -10274,9 +10556,36 @@ body,
   max-width: 100%;
 }
 
-.office-page-actions > :is(.office-button, .office-button-secondary, .office-toggle-link, .bm-create-button, .bm-view-toggle, .bm-transactions-page-button, .bm-contacts-page-button),
-.office-section-actions > :is(.office-button, .office-button-secondary, .office-toggle-link, .bm-create-button, .bm-view-toggle, .bm-transactions-page-button, .bm-contacts-page-button),
-.office-list-page-header-actions > :is(.office-button, .office-button-secondary, .office-toggle-link, .bm-create-button, .bm-view-toggle, .bm-transactions-page-button, .bm-contacts-page-button) {
+.office-page-actions
+  > :is(
+    .office-button,
+    .office-button-secondary,
+    .office-toggle-link,
+    .bm-create-button,
+    .bm-view-toggle,
+    .bm-transactions-page-button,
+    .bm-contacts-page-button
+  ),
+.office-section-actions
+  > :is(
+    .office-button,
+    .office-button-secondary,
+    .office-toggle-link,
+    .bm-create-button,
+    .bm-view-toggle,
+    .bm-transactions-page-button,
+    .bm-contacts-page-button
+  ),
+.office-list-page-header-actions
+  > :is(
+    .office-button,
+    .office-button-secondary,
+    .office-toggle-link,
+    .bm-create-button,
+    .bm-view-toggle,
+    .bm-transactions-page-button,
+    .bm-contacts-page-button
+  ) {
   min-width: 0;
   max-width: 100%;
   padding-top: 10px;
@@ -10293,7 +10602,11 @@ body,
   padding: 12px 15px;
   border: 1px solid rgba(194, 205, 220, 0.62);
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 249, 252, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(247, 249, 252, 0.92)
+  );
   box-shadow: 0 12px 24px rgba(148, 163, 184, 0.16);
 }
 
@@ -10305,7 +10618,11 @@ body,
 .office-summary-chip-accent,
 .office-transactions-summary-chip-accent {
   border-color: rgba(129, 160, 222, 0.46);
-  background: linear-gradient(180deg, rgba(241, 246, 255, 0.96), rgba(232, 239, 252, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(241, 246, 255, 0.96),
+    rgba(232, 239, 252, 0.94)
+  );
 }
 
 .office-section-card,
@@ -10330,7 +10647,11 @@ body,
 .list-row {
   border-color: rgba(194, 205, 220, 0.6);
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 249, 252, 0.9));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(247, 249, 252, 0.9)
+  );
   box-shadow: var(--office-shadow-sm);
 }
 
@@ -10390,7 +10711,11 @@ body,
   gap: 6px;
   padding: 13px 15px;
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 246, 250, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(243, 246, 250, 0.94)
+  );
 }
 
 .office-stat-card p,
@@ -10414,7 +10739,11 @@ body,
 
 .office-stat-card-accent,
 .office-kpi-card-accent {
-  background: linear-gradient(180deg, rgba(241, 246, 255, 0.96), rgba(232, 239, 252, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(241, 246, 255, 0.96),
+    rgba(232, 239, 252, 0.94)
+  );
 }
 
 .office-badge,
@@ -10593,7 +10922,9 @@ body,
 .office-pipeline-row,
 .bm-office-table-row {
   min-height: 54px;
-  transition: background-color 140ms ease, transform 140ms ease;
+  transition:
+    background-color 140ms ease,
+    transform 140ms ease;
 }
 
 .office-data-table-row:hover,
@@ -10648,7 +10979,11 @@ body,
   padding: 18px;
   border: 1px solid rgba(129, 160, 222, 0.44);
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(241, 246, 255, 0.96), rgba(232, 239, 252, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(241, 246, 255, 0.96),
+    rgba(232, 239, 252, 0.92)
+  );
 }
 
 .office-agent-callout strong {
@@ -10731,7 +11066,11 @@ body,
   padding: 12px 14px 0;
   border: 1px solid rgba(194, 205, 220, 0.5);
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(244, 247, 252, 0.96), rgba(234, 240, 248, 0.88));
+  background: linear-gradient(
+    180deg,
+    rgba(244, 247, 252, 0.96),
+    rgba(234, 240, 248, 0.88)
+  );
 }
 
 .bm-time-bar {
@@ -10772,7 +11111,11 @@ body,
 
 .bm-activity-section-link.is-active {
   border-color: rgba(129, 160, 222, 0.52);
-  background: linear-gradient(180deg, rgba(241, 246, 255, 0.96), rgba(232, 239, 252, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(241, 246, 255, 0.96),
+    rgba(232, 239, 252, 0.92)
+  );
 }
 
 .bm-activity-record,

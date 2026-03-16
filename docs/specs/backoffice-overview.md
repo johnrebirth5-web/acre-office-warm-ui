@@ -48,6 +48,8 @@ This file is the high-level product map for the current `Office / Back Office` s
   - transaction list, transaction detail, and transaction-centered workflow hub.
 - Current maturity:
   - `strong MVP`
+- Current notable behavior:
+  - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
 - Follow-up work:
   - deeper listing-side workflow parity
   - richer transaction automation
@@ -59,6 +61,8 @@ This file is the high-level product map for the current `Office / Back Office` s
   - internal contact/party management tied to transaction workflows and follow-up tasks.
 - Current maturity:
   - `MVP`
+- Current notable behavior:
+  - `/office/contacts` now uses the same canonical Office list-page template as `/office/transactions`, while keeping its own contact-specific fields and workflow content.
 - Follow-up work:
   - richer CRM-like workflows
   - more advanced relationship modeling

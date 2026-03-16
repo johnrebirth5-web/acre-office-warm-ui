@@ -28,6 +28,7 @@
   - agent management
 - Transaction detail now acts as a real workflow hub for contacts, finance, tasks/compliance, documents/forms/eSignature/incoming updates, offers, and commissions
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
+- `/office/transactions` and `/office/contacts` now share one canonical Office list-page template, including the same page header, summary/action block, workbench card, table card, and footer/pagination rhythm
 
 ## Current default baseline
 
