@@ -44,7 +44,6 @@ export default async function OfficeAgentsPage(props: OfficeAgentsPageProps) {
   return (
     <PageShell className="office-list-page office-agents-list-page">
       <PageHeader
-        className="office-agents-page-header"
         actions={
           <PageHeaderSummary className="office-agents-header-summary">
             <SummaryChip
