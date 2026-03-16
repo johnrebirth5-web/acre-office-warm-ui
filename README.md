@@ -732,6 +732,7 @@ npm run dev
 - bootstrap admin 首次成功登录后必须立即修改密码
 - 新用户通过 `/office/settings/users` 创建邀请并拿到 copyable invite link
 - 当前未实现 forgot password、邮件发送、2-step verification、OAuth / SSO
+- 详细使用说明见 [docs/specs/auth-usage-guide.md](./docs/specs/auth-usage-guide.md)
 
 直接运行 `npm run dev` 且未设置 `PORT` 时，Next.js 默认仍会使用：
 
