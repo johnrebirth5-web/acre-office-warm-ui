@@ -80,7 +80,19 @@ function getTeamTone(isActive: boolean) {
 }
 
 function getSecurityTone(value: string) {
-  return value === "Not available" ? "warning" as const : value === "No in-app password" ? "neutral" as const : "success" as const;
+  if (value === "Temporarily locked") {
+    return "danger" as const;
+  }
+
+  if (value === "Unavailable") {
+    return "warning" as const;
+  }
+
+  if (value === "Setup required" || value === "Password setup required" || value === "Password change required") {
+    return "accent" as const;
+  }
+
+  return "success" as const;
 }
 
 export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
@@ -274,7 +286,7 @@ export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
                     </SelectInput>
                   </FormField>
 
-                  <FormField className="office-form-grid-span-3" helper="Email stays read-only because the current local login flow is membership-email based." label="Email">
+                  <FormField className="office-form-grid-span-3" helper="Email stays read-only because it is the internal sign-in identifier for this account." label="Email">
                     <TextInput disabled value={snapshot.profile.email} />
                   </FormField>
 
@@ -439,7 +451,7 @@ export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
                 Open auth activity
               </Link>
             }
-            subtitle="Truthful account security context for the current local Office auth flow."
+            subtitle="Truthful account security context for the current internal Office account flow."
             title="Security"
           >
             <div className="office-account-security-list">
@@ -477,6 +489,9 @@ export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
             </div>
 
             <div className="office-account-security-actions">
+              <Link className="office-button office-button-secondary office-button-sm" href="/change-password">
+                Change password
+              </Link>
               <form action="/api/auth/logout" method="post">
                 <button className="office-button office-button-secondary office-button-sm" type="submit">
                   Sign out and switch user
@@ -485,7 +500,7 @@ export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
             </div>
 
             <p className="office-account-security-note">
-              Password reset and 2-step setup are not available in-app yet because the current Office access flow still uses local membership-email sign-in.
+              Forgot password, email delivery, and 2-step setup are not available in-app yet. Admins currently issue setup links from the Users page.
             </p>
           </SectionCard>
         </div>

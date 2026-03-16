@@ -456,9 +456,9 @@
     - 支持 `offer notifications`
     - 当前不会伪造 email / SMS / push channels
   - 当前安全区会如实展示：
-    - 当前 auth method = local seeded session
-    - 当前没有 in-app password management
-    - 当前没有 2-step verification flow
+    - 当前 auth method = internal password account
+    - 当前 password 可能处于已设置 / 需设置 / 需修改 / 临时锁定状态
+    - 当前没有 forgot-password 或 2-step verification flow
     - 当前 session 仍是 HTTP-only cookie + 12 hour max age
   - 当前页面会把 profile update 和 notification preference change 写入 `Activity Log`
 - `Billing / My Billing` 现在也已落成真实 Back Office 自助账务页：
@@ -576,6 +576,8 @@
   - `/office/company`
   - `/office/library`
   - `/office/accounting`
+  - `/change-password`
+  - `/invite/[token]`
 - 一组 API：
   - `/api/health`
   - `/api/db/seeded-context`
@@ -588,6 +590,14 @@
   - `/api/office/transactions/:transactionId/contacts/:contactLinkId`
   - `/api/office/transactions/:transactionId/tasks`
   - `/api/office/transactions/:transactionId/tasks/:taskId`
+  - `/api/auth/login`
+  - `/api/auth/logout`
+  - `/api/auth/change-password`
+  - `/api/auth/invitations/accept`
+  - `/api/office/settings/users`
+  - `/api/office/settings/users/:membershipId`
+  - `/api/office/settings/users/:membershipId/invitation`
+  - `/api/office/settings/users/:membershipId/unlock`
   - `/api/office/transactions/:transactionId/tasks/:taskId/workflow`
   - `/api/office/transactions/:transactionId/documents`
   - `/api/office/transactions/:transactionId/documents/:documentId`
@@ -645,13 +655,21 @@
   - 共享 tokens 集中在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/globals.css)
   - 共享 primitives 集中在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/packages/ui/src/index.tsx)
   - 设计规则文档见 [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/office-design-system.md)
-- 一个最小本地 auth/session 方案，当前已包含：
-  - seeded user 登录
+- 一个最小正式内部账号系统，当前已包含：
+  - bootstrap admin 保障
+  - invitation onboarding
+  - email + password 登录
+  - 5 次失败后锁定 1 小时
+  - 管理员解锁和 setup/reset link 重新签发
   - 登录后 signed cookie session
   - `POST /api/auth/login`
   - `POST /api/auth/logout`
+  - `POST /api/auth/change-password`
+  - `POST /api/auth/invitations/accept`
+  - `/invite/[token]`
+  - `/change-password`
   - `/office/*` 服务端保护
-  - 服务端可读取 `currentUser / currentMembership / currentOrganization / currentOffice`
+  - 服务端可读取 `currentUser / currentMembership / currentOrganization / currentOffice / currentCredential`
 - 一份 `Prisma + PostgreSQL` schema，覆盖组织、用户、房源、CRM、通知、活动、资源、vendor、审计日志
 - 一份 `Prisma + PostgreSQL` schema，当前也覆盖：
   - transactions / transaction contacts / transaction tasks
@@ -664,7 +682,7 @@
 
 - `Dashboard`、`Pipeline`、`Transactions`、`Contacts`、`Reports` 之外的大多数页面和 API 仍使用 `@acre/backoffice` 的内存示例数据
 - 已实现数据库 runtime、migration、seed，且 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Reports`、`Notifications`、`Account`、`Activity`、`Accounting` 已接入真实数据库；其余主页面和主 API 仍未完成数据库切换
-- 已实现最小本地 auth/session，但还没有复杂权限管理、数据级权限、第三方 auth provider
+- 已实现最小正式内部 auth/session，但还没有 forgot-password、2FA、第三方 auth provider、数据级权限
 - 未实现 `Brokermint` 中更深层的 offer ingestion / MLS-email sync，以及更完整的 accounting workflows（如 reconciliation、QuickBooks sync、ACH/网关自动扣款）
 - 写操作接口当前只覆盖：
   - `Transactions` 的 create / status update
@@ -672,7 +690,7 @@
   - `Accounting` 的最小 create / edit / EMD / Agent Billing write flows
   - `Agent Management` 的 profile / team / onboarding / goal write flows
 - 其余模块仍未实现真实 CRUD
-- 未实现测试体系
+- 测试体系仍不完整，但内部账号主链路已经补了基础 node tests（bootstrap admin / invite accept / password login / lockout / admin unlock）
 - 当前默认 GitHub 目标是 `acre-office-warm-ui`，默认生产线路是 `DigitalOcean :3105`；历史上的 Vercel 绑定只作为遗留说明，不是当前默认交付路径
 - 未实现对象存储、异步任务、AI 工作流、文件上传、OCR、第三方集成
 
@@ -702,6 +720,14 @@ npm run dev
 当前本地工作基线入口：
 
 - `http://localhost:3105/`
+
+当前本地 auth 基线：
+
+- `/login` 现在使用 email + password
+- 系统会确保 bootstrap admin `office@acreny.us` 存在
+- bootstrap admin 首次成功登录后必须立即修改密码
+- 新用户通过 `/office/settings/users` 创建邀请并拿到 copyable invite link
+- 当前未实现 forgot password、邮件发送、2-step verification、OAuth / SSO
 
 直接运行 `npm run dev` 且未设置 `PORT` 时，Next.js 默认仍会使用：
 
@@ -737,6 +763,12 @@ npm run lint
 
 ```bash
 npm run build
+```
+
+运行当前 Back Office hardening tests：
+
+```bash
+npm run test:backoffice-hardening
 ```
 
 校验 Prisma schema：

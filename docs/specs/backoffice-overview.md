@@ -114,11 +114,11 @@ This file is the high-level product map for the current `Office / Back Office` s
   - profile editing is limited to safe self-service fields on `User` and `AgentProfile`.
   - office, role, and team assignment remain visible but read-only in this page.
   - notification preferences are persisted explicitly per membership and only govern the real in-app inbox.
-  - security section stays truthful about the current local seeded auth flow and does not fake password or 2-step support.
+  - security section stays truthful about the current internal password-account flow and does not fake forgot-password, email delivery, or 2-step support.
   - profile and notification preference changes write into `AuditLog`.
 - Follow-up work:
   - add richer personal work drilldowns only where underlying workflow modules already exist
-  - revisit password / 2-step actions only when real auth support lands
+  - revisit forgot-password / 2-step actions only when real auth support lands
   - extend notification preference granularity only when new real inbox families exist
 
 ### Billing / My Billing
@@ -212,7 +212,8 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current maturity:
   - `MVP`
 - Current notable behavior:
-  - office-manager and office-admin are still both office roles, but user-management writes are now intended to stay on the admin side while manager keeps operational workflow control.
+  - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, and admin unlock / reissue actions.
+  - office-manager remains compatible internally, but normal create-user choices stay limited to Admin and User.
 - Follow-up work:
   - richer multi-office access controls
   - stronger template application behavior

@@ -5,7 +5,9 @@ import { getRequestOrigin } from "../../../../lib/request-origin";
 
 export async function POST(request: NextRequest) {
   const requestOrigin = getRequestOrigin(request);
-  const context = await getRequestSessionContext(request);
+  const context = await getRequestSessionContext(request, {
+    allowPasswordChangeRequired: true
+  });
 
   if (context) {
     await recordActivityLogEvent(prisma, {

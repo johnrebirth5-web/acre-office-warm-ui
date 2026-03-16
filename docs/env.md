@@ -8,7 +8,7 @@
 
 - 当前数据库相关代码使用 `DATABASE_URL`
 - 当前主页面和大多数 API 仍不依赖数据库，因此在“只跑前端和 mock API”时，即使没有真实数据库，也能运行
-- 但 `Office Pipeline workspace`、`Office Transactions`、`Office Contacts`、`Office Tasks`、`Office Accounting`、transaction finance、本地登录、`/office/activity` 和数据库 probe 已经依赖 `DATABASE_URL`
+- 但 `Office Pipeline workspace`、`Office Transactions`、`Office Contacts`、`Office Tasks`、`Office Accounting`、transaction finance、密码登录 / 邀请接受 / 用户管理、`/office/activity` 和数据库 probe 已经依赖 `DATABASE_URL`
 - transaction detail 下的 checklist/tasks 也已经依赖 `DATABASE_URL`
 - `Office Reports` 的 CSV 导出 route 也依赖 `DATABASE_URL`
 - `/api/office/activity/comments` 也依赖 `DATABASE_URL`
@@ -35,7 +35,7 @@
 - 对 Prisma 命令是必填
 - 对数据库 probe route 是必填
 - 对只看 mock 页面本地运行是“可不填”
-- 对 `/office/pipeline`、`/office/transactions`、`/office/contacts`、`/office/activity`、`/login`、数据库 probe 是必填
+- 对 `/office/pipeline`、`/office/transactions`、`/office/contacts`、`/office/activity`、`/login`、`/invite/[token]`、`/change-password`、`/office/settings/users`、数据库 probe 是必填
 - 对 `/office/tasks` 也是必填
 - 对 `/office/accounting` 也是必填
 - 对 transaction detail 下的 checklist/tasks 读写也是必填
@@ -65,7 +65,8 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/acre"
 - `/office/activity` 会失败
 - `/office/tasks` 会失败
 - `/office/accounting` 会失败
-- `/login` 和需要 session context 的 server-side 查询会失败
+- `/login`、`/invite/[token]`、`/change-password` 和需要 session context 的 server-side 查询会失败
+- `/office/settings/users` 以及其邀请 / 解锁写接口会失败
 - transaction detail 下的 checklist/tasks route 会失败
 - `/api/office/reports/export` 会失败
 - `/api/office/activity/comments` 会失败
@@ -88,6 +89,7 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/acre"
 
 - 本地 auth/session 的 cookie 签名 secret
 - 当前用于保护 `acre_local_session` 不被随意篡改
+- 当前 password login、invite accept、forced change-password 成功后都依赖这套 signed cookie
 
 是否必填：
 

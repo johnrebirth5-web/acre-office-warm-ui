@@ -1,11 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  getSessionCookieOptions,
-  getSessionSecret,
-  shouldShowSeededUsers,
-  shouldUseSecureCookies
-} from "./auth-session-config.ts";
+import { getSessionCookieOptions, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config.ts";
 
 function withEnv(
   nextEnv: Partial<Record<"NODE_ENV" | "ACRE_SESSION_SECRET" | "ACRE_SECURE_COOKIES", string | undefined>>,
@@ -65,12 +60,12 @@ test("production session creation requires an explicit secret", () => {
   });
 });
 
-test("seeded-user directory is hidden in production", () => {
-  withEnv({ NODE_ENV: "development" }, () => {
-    assert.equal(shouldShowSeededUsers(), true);
-  });
-
-  withEnv({ NODE_ENV: "production" }, () => {
-    assert.equal(shouldShowSeededUsers(), false);
+test("session cookies keep the expected internal-account defaults", () => {
+  withEnv({ NODE_ENV: "development", ACRE_SECURE_COOKIES: undefined }, () => {
+    const options = getSessionCookieOptions();
+    assert.equal(options.httpOnly, true);
+    assert.equal(options.sameSite, "lax");
+    assert.equal(options.maxAge, 60 * 60 * 12);
+    assert.equal(options.path, "/");
   });
 });

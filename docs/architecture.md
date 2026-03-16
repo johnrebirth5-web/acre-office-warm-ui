@@ -136,7 +136,7 @@
     - `Membership` 做 self scope / role / office assignment
     - `AgentProfile` 做 avatar / license / extension / onboarding context
     - `MembershipNotificationPreference` 做当前 membership 的 inbox preference state
-  - 当前 security section 只反映真实本地 auth 现状，不伪造 password reset、email delivery 或 2-step flows
+  - 当前 security section 只反映真实内部账号现状，不伪造 forgot-password、email delivery 或 2-step flows
 - 当前 `Office Billing / My Billing` 也已通过 Prisma service 和 route handlers 落地到：
   - `/office/billing`
   - `/api/office/billing/payment-methods`
@@ -504,12 +504,14 @@
 
 当前本地 auth 的主要链路是：
 
-1. 用户在 `/login` 提交 seeded email
-2. `/api/auth/login` 通过 `@acre/db` 查 active membership
-3. 服务端写入 signed cookie session
-4. `/office/*` layout 读取 session，并在服务端拿到 current user / membership / organization / office
-5. 未登录用户重定向到 `/login`
-6. `/api/office/dashboard` 读取当前 session context，而不是硬编码角色
+1. 管理员在 `/office/settings/users` 创建 invited user，系统生成 hashed invitation token 和 copyable link
+2. invited user 打开 `/invite/[token]`，设置 password，membership 从 `invited` 变为 `active`
+3. 用户在 `/login` 提交 email + password
+4. `/api/auth/login` 通过 `@acre/db` 校验 credential、failedLoginCount、lockedUntil
+5. 成功后服务端写入 signed cookie session
+6. `/office/*` layout 读取 session，并在服务端拿到 current user / membership / organization / office / credential
+7. 未登录用户重定向到 `/login`；must-change-password 用户重定向到 `/change-password`
+8. `/api/office/dashboard` 读取当前 session context，而不是硬编码角色
 
 ### 未来预期数据流
 

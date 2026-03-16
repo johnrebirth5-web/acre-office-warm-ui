@@ -8218,6 +8218,13 @@ a {
   font-weight: 600;
 }
 
+.office-inline-success {
+  margin: 0 0 16px;
+  color: var(--office-success-strong);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
 .office-settings-inline-form {
   display: flex;
   flex-wrap: wrap;
@@ -8240,11 +8247,14 @@ a {
 }
 
 .office-table-row-settings-users {
-  min-width: 640px;
-  grid-template-columns: minmax(188px, 1.45fr) minmax(108px, 0.76fr) minmax(
-      120px,
-      0.84fr
-    ) minmax(92px, 0.66fr) minmax(82px, 0.56fr);
+  min-width: 920px;
+  grid-template-columns:
+    minmax(208px, 1.55fr)
+    minmax(118px, 0.72fr)
+    minmax(128px, 0.82fr)
+    minmax(132px, 0.88fr)
+    minmax(188px, 1.08fr)
+    minmax(170px, 1fr);
 }
 
 .office-table-row-settings-fields {
@@ -8281,6 +8291,64 @@ a {
   flex-wrap: wrap;
   justify-content: flex-start;
   gap: 4px;
+}
+
+.office-settings-user-actions {
+  align-items: flex-start;
+}
+
+.office-settings-user-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.office-settings-user-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.office-settings-user-stack p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.office-settings-user-create-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.office-settings-generated-invite {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(20, 74, 119, 0.14);
+  border-radius: 18px;
+  background: rgba(20, 74, 119, 0.06);
+}
+
+.office-settings-generated-invite-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.office-settings-generated-invite-copy p,
+.office-settings-user-note {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.office-settings-generated-invite-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
 }
 
 .office-table-action-muted {

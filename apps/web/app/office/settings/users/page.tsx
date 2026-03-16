@@ -39,11 +39,12 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
           <PageHeaderSummary>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Total users" tone="accent" value={snapshot.summary.totalUsers} />
-            <SummaryChip label="Active users" value={snapshot.summary.activeUsers} />
-            <SummaryChip label="All-office access" value={snapshot.summary.allOfficeAccessCount} />
+            <SummaryChip label="Invited" value={snapshot.summary.invitedUsers} />
+            <SummaryChip label="Locked" value={snapshot.summary.lockedUsers} />
+            <SummaryChip label="Pending links" value={snapshot.summary.pendingInvitationCount} />
           </PageHeaderSummary>
         }
-        description="Administrative user access for the current organization, including role, active status, and office assignment."
+        description="Administrative management for internal Back Office accounts, including invitation onboarding, password setup state, lockouts, and office access."
         eyebrow="Office admin"
         title="Users"
       />

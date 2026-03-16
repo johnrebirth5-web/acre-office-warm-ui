@@ -57,7 +57,21 @@ export const databaseModules = [
 export { assertDatabaseUrl, getPrismaClient, prisma } from "./client";
 export { getOfficeActivitySnapshot } from "./activity";
 export { activityLogActions, addOfficeActivityComment, getOfficeActivityLogSnapshot, recordActivityLogEvent } from "./activity-log";
-export { findActiveMembershipContextByEmail, getSessionMembershipContext } from "./auth";
+export {
+  acceptInvitation,
+  authenticatePasswordUser,
+  changeInternalPassword,
+  createInvitedUser,
+  ensureBootstrapAdminAccount,
+  findActiveMembershipContextByEmail,
+  getBootstrapAdminEmail,
+  getInvitationSnapshot,
+  getMinimumPasswordLength,
+  getSessionMembershipContext,
+  issueInvitationForMembership,
+  revokeInvitationForMembership,
+  unlockInternalAccount
+} from "./auth";
 export { getSeededWorkspaceSnapshot } from "./bootstrap";
 export {
   getOfficeAccountSnapshot,
@@ -210,7 +224,17 @@ export {
   updateTransactionFinance,
   updateTransactionStatus
 } from "./transactions";
-export type { SessionMembershipContext } from "./auth";
+export type {
+  AcceptInvitationResult,
+  CreateInvitedUserInput,
+  InternalAuthBootstrapResult,
+  InvitationLookupStatus,
+  InvitationSnapshot,
+  IssueInvitationResult,
+  PasswordLoginResult,
+  SessionMembershipContext,
+  UnlockInternalAccountInput
+} from "./auth";
 export type {
   GetOfficeAccountSnapshotInput,
   OfficeAccountNotificationPreferenceState,

@@ -9,9 +9,16 @@
 ## Recently completed major work
 
 - Working baseline normalized around:
-  - local repo `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+  - local repo `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
   - GitHub remote `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
   - DigitalOcean default entry `http://45.55.247.137:3105/`
+- Internal auth now moved past seeded-email login:
+  - bootstrap admin enforcement
+  - invitation onboarding + password setup
+  - email + password login
+  - forced first password change
+  - 5-attempt account lockout + admin unlock
+  - signed cookie session kept as the current session model
 - `Office / Back Office` now has real route and workflow foundations across:
   - dashboard
   - pipeline
@@ -39,7 +46,7 @@
 ## Current default baseline
 
 - Product priority: `Back Office`, not the public site
-- Local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- Local source of truth: `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
 - Default local browser entry: `http://localhost:3105/`
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
@@ -59,6 +66,7 @@
 - Continue product and system cleanup before adding more large modules
 - Remove remaining mixed legacy assumptions from docs, specs, and operational notes
 - Tighten permissions, audit coverage, admin-managed configuration, and workflow state fidelity in existing modules
+- Keep hardening the minimal internal account system before adding forgot-password, email delivery, or 2FA
 - Keep filling practical module specs so future Codex runs can rely on repo docs instead of chat history
 - Plan future storage, job-runner, and integration upgrades only after the current single-Droplet baseline is fully normalized
 

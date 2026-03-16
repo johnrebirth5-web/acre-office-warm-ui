@@ -11,7 +11,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "test:backoffice-hardening": "node --test packages/auth/src/index.test.ts apps/web/lib/auth-session.test.ts apps/web/lib/request-origin.test.ts apps/web/lib/document-storage.test.ts",
+    "test:backoffice-hardening": "tsx --test packages/auth/src/index.test.ts packages/db/src/auth.test.ts apps/web/lib/auth-session.test.ts apps/web/lib/request-origin.test.ts apps/web/lib/document-storage.test.ts",
     "db:generate": "npm run db:generate --workspace=@acre/db",
     "db:migrate": "npm run db:migrate --workspace=@acre/db --",
     "db:seed": "npm run db:seed --workspace=@acre/db",
@@ -21,6 +21,7 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "tsx": "^4.21.0",
     "turbo": "^2.8.14",
     "typescript": "^5.9.3"
   }

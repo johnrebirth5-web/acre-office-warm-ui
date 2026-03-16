@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  can,
+  canAccessAccountActivity,
   canCommentOfficeActivity,
   canCommentOfficeOffers,
   canCreateOfficeContacts,
@@ -50,4 +52,15 @@ test("agent role does not inherit office write permissions", () => {
   assert.equal(canLinkOfficeContacts("agent"), false);
   assert.equal(canCommentOfficeActivity("agent"), false);
   assert.equal(canCommentOfficeOffers("agent"), false);
+});
+
+test("office user keeps internal read access without admin-only powers", () => {
+  assert.equal(can("office_user", "dashboard:view"), true);
+  assert.equal(canAccessAccountActivity("office_user"), true);
+  assert.equal(canViewOfficeTransactions("office_user"), true);
+  assert.equal(canViewOfficeContacts("office_user"), true);
+  assert.equal(canManageOfficeUsers("office_user"), false);
+  assert.equal(canManageOfficeSettings("office_user"), false);
+  assert.equal(canCreateOfficeTransactions("office_user"), false);
+  assert.equal(canCreateOfficeContacts("office_user"), false);
 });

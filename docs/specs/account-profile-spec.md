@@ -92,12 +92,13 @@ Current behavior:
 
 Current security section is intentionally truthful:
 
-- current auth method is local seeded email session
-- there is no in-app password management flow
+- current auth method is internal email + password
+- password may be in a set / setup required / change required / temporarily locked state
+- there is no forgot-password flow
 - there is no 2-step verification flow
 - session is still an HTTP-only cookie with a 12-hour max age
 
-The page includes real actions only where the system actually supports them today, such as sign-out and auth activity visibility.
+The page includes real actions only where the system actually supports them today, such as change-password, sign-out, and auth activity visibility.
 
 ## My Summary behavior
 
@@ -127,6 +128,7 @@ These events:
 ## Current limitations
 
 - no in-app password reset
+- no email delivery for setup/reset links
 - no 2-step verification enrollment or challenge flow
 - no email / SMS / push delivery
 - notification preferences are deliberately coarse and limited to currently real inbox families

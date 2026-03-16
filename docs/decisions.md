@@ -301,24 +301,27 @@ Trade-off：
   - reports page 的 CSV 导出当前采用单页专用 route，不引入通用导出框架
   - 其他模块继续保留 mock
 
-### 4. Auth 先采用本地 seeded-user + signed-cookie 方案
+### 4. Auth 先采用内部 invitation + password + signed-cookie 方案
 
 目的：
 
 - 尽快让 `/office/*` 具备最小服务端保护
-- 复用已存在的 seeded users / memberships
-- 不在这个阶段引入第三方 auth provider
+- 让 Back Office 拥有最小正式账号体系，而不是继续停留在 seeded email 演示态
+- 不在这个阶段引入第三方 auth provider / OAuth / SSO
 
 当前形态：
 
-- `/login` 使用 seeded email 登录
+- 管理员从 `/office/settings/users` 创建 invited user
+- invited user 通过 `/invite/[token]` 设置 password 并激活 membership
+- `/login` 使用 email + password 登录
+- 5 次失败后锁定 1 小时，管理员可以从 Users 页解锁
 - server-side signed cookie session
 - `/office/*` 通过 layout 做服务端拦截
 - office dashboard API 改为读取真实 session context
 
 未来：
 
-- 再决定是否升级到更完整的 auth provider、session store、数据级权限
+- 再决定是否升级到 forgot-password、2FA、session store、数据级权限
 
 ### 5. Documents / Forms / eSignature 先做内部 workflow foundation，不直接接第三方
 

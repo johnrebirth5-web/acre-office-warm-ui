@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   agent
   office_manager
+  office_user
   office_admin
 }
 
@@ -376,6 +377,7 @@ model Organization {
   updatedAt                         DateTime                           @updatedAt
   offices                           Office[]
   memberships                       Membership[]
+  invitations                       Invitation[]
   membershipNotificationPreferences MembershipNotificationPreference[]
   listings                          Listing[]
   clients                           Client[]
@@ -476,17 +478,18 @@ model Office {
 }
 
 model User {
-  id          String       @id @default(cuid())
-  email       String       @unique
+  id          String         @id @default(cuid())
+  email       String         @unique
   firstName   String
   lastName    String
   phone       String?
-  timezone    String       @default("America/New_York")
-  locale      String       @default("en-US")
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  timezone    String         @default("America/New_York")
+  locale      String         @default("en-US")
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
   memberships Membership[]
+  credential  UserCredential?
 }
 
 model Membership {
@@ -503,6 +506,8 @@ model Membership {
   organization                             Organization                       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                                   Office?                            @relation(fields: [officeId], references: [id], onDelete: SetNull)
   user                                     User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitations                              Invitation[]                       @relation("InvitationMembership")
+  sentInvitations                          Invitation[]                       @relation("InvitationInvitedByMembership")
   notificationPreference                   MembershipNotificationPreference?
   listingsOwned                            Listing[]
   clientsOwned                             Client[]
@@ -545,6 +550,42 @@ model Membership {
   checklistTemplatesUpdated                ChecklistTemplate[]                @relation("ChecklistTemplateUpdatedBy")
 
   @@unique([organizationId, userId])
+}
+
+model UserCredential {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  passwordHash      String
+  mustChangePassword Boolean @default(false)
+  failedLoginCount  Int      @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  lastFailedLoginAt DateTime?
+  passwordChangedAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invitation {
+  id                   String      @id @default(cuid())
+  organizationId       String
+  membershipId         String
+  email                String
+  tokenHash            String      @unique
+  expiresAt            DateTime
+  acceptedAt           DateTime?
+  revokedAt            DateTime?
+  invitedByMembershipId String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  membership           Membership   @relation("InvitationMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  invitedByMembership  Membership?  @relation("InvitationInvitedByMembership", fields: [invitedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, membershipId])
+  @@index([organizationId, email])
+  @@index([organizationId, expiresAt])
 }
 
 model MembershipNotificationPreference {

@@ -1,4 +1,4 @@
-export type UserRole = "agent" | "office_manager" | "office_admin";
+export type UserRole = "agent" | "office_manager" | "office_user" | "office_admin";
 
 export type AppPermission =
   | "dashboard:view"
@@ -85,6 +85,11 @@ const roleSummaries: Record<UserRole, RoleSummary> = {
     label: "Office Manager",
     description: "Operations user focused on listings intake, events, resources, and analytics."
   },
+  office_user: {
+    role: "office_user",
+    label: "Office User",
+    description: "Internal office user with broad workspace visibility but without admin-level system controls."
+  },
   office_admin: {
     role: "office_admin",
     label: "Office Admin",
@@ -154,6 +159,19 @@ const permissionMap: Record<UserRole, AppPermission[]> = {
     "fields:manage",
     "checklists:view",
     "checklists:manage",
+    "ai:use"
+  ],
+  office_user: [
+    "dashboard:view",
+    "activity:view",
+    "library:view",
+    "transactions:view",
+    "contacts:view",
+    "documents:view",
+    "offers:view",
+    "tasks:view",
+    "accounting:billing:view",
+    "notifications:view",
     "ai:use"
   ],
   office_admin: [
@@ -240,7 +258,7 @@ export function can(role: UserRole, permission: AppPermission): boolean {
 }
 
 export function isOfficeRole(role: UserRole): boolean {
-  return role === "office_manager" || role === "office_admin";
+  return role === "office_manager" || role === "office_user" || role === "office_admin";
 }
 
 export function canAccessAccountActivity(role: UserRole): boolean {

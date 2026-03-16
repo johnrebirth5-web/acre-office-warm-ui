@@ -12,8 +12,11 @@ import { prisma } from "./client";
 const userRoleLabelMap: Record<UserRole, string> = {
   agent: "Agent",
   office_manager: "Office Manager",
+  office_user: "Office User",
   office_admin: "Office Admin"
 };
+
+const officeInternalRoleCatalog: UserRole[] = ["office_admin", "office_user", "office_manager"];
 
 const membershipStatusLabelMap: Record<MembershipStatus, string> = {
   active: "Active",
@@ -79,19 +82,32 @@ export type OfficeAdminUserRow = {
   email: string;
   role: string;
   roleValue: UserRole;
+  roleEditorValue: string;
   officeAccessLabel: string;
   officeAccessValue: string;
   status: string;
   statusValue: MembershipStatus;
   title: string;
-  href: string;
+  authStatusLabel: string;
+  lockStatusLabel: string;
+  lockedUntilLabel: string;
+  invitationStatusLabel: string;
+  invitationExpiresAtLabel: string;
+  hasCredential: boolean;
+  hasActiveInvitation: boolean;
+  isLocked: boolean;
+  mustChangePassword: boolean;
+  href: string | null;
 };
 
 export type OfficeAdminUsersSnapshot = {
   summary: {
     totalUsers: number;
     activeUsers: number;
-    inactiveUsers: number;
+    invitedUsers: number;
+    disabledUsers: number;
+    lockedUsers: number;
+    pendingInvitationCount: number;
     allOfficeAccessCount: number;
   };
   filters: {
@@ -258,12 +274,103 @@ function formatOfficeAccessLabel(office: { name: string } | null) {
   return office?.name ?? "All offices";
 }
 
+function formatDateTimeLabel(value: Date | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function isOfficeInternalRole(role: UserRole) {
+  return officeInternalRoleCatalog.includes(role);
+}
+
+function mapOfficeAdminUserRow(membership: {
+  id: string;
+  userId: string;
+  role: UserRole;
+  status: MembershipStatus;
+  title: string | null;
+  officeId: string | null;
+  office: { name: string } | null;
+  user: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    credential: {
+      mustChangePassword: boolean;
+      lockedUntil: Date | null;
+    } | null;
+  };
+  invitations: Array<{
+    expiresAt: Date;
+  }>;
+}): OfficeAdminUserRow {
+  const pendingInvitation = membership.invitations[0] ?? null;
+  const isLocked = Boolean(membership.user.credential?.lockedUntil && membership.user.credential.lockedUntil > new Date());
+  const hasCredential = Boolean(membership.user.credential);
+  const name = `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email;
+  const mustChangePassword = membership.user.credential?.mustChangePassword ?? false;
+
+  let authStatusLabel = "Setup required";
+  if (mustChangePassword) {
+    authStatusLabel = "Password change required";
+  } else if (hasCredential) {
+    authStatusLabel = "Password set";
+  } else if (membership.status === "invited") {
+    authStatusLabel = "Pending password setup";
+  }
+
+  let invitationStatusLabel = "Not issued";
+  if (pendingInvitation) {
+    invitationStatusLabel = "Pending";
+  } else if (membership.status === "invited") {
+    invitationStatusLabel = "Reissue needed";
+  } else if (hasCredential) {
+    invitationStatusLabel = "Complete";
+  } else {
+    invitationStatusLabel = "Setup required";
+  }
+
+  return {
+    membershipId: membership.id,
+    userId: membership.userId,
+    name,
+    email: membership.user.email,
+    role: membership.role === "office_manager" ? "Office Manager (Legacy)" : userRoleLabelMap[membership.role],
+    roleValue: membership.role,
+    roleEditorValue: membership.role,
+    officeAccessLabel: formatOfficeAccessLabel(membership.office),
+    officeAccessValue: membership.officeId ?? "__all__",
+    status: formatMembershipStatusLabel(membership.status),
+    statusValue: membership.status,
+    title: membership.title ?? "",
+    authStatusLabel,
+    lockStatusLabel: isLocked ? "Locked" : "Not locked",
+    lockedUntilLabel: formatDateTimeLabel(membership.user.credential?.lockedUntil),
+    invitationStatusLabel,
+    invitationExpiresAtLabel: formatDateTimeLabel(pendingInvitation?.expiresAt),
+    hasCredential,
+    hasActiveInvitation: Boolean(pendingInvitation),
+    isLocked,
+    mustChangePassword,
+    href: null
+  };
+}
+
 function normalizeUserRole(value: string | undefined): UserRole | undefined {
   if (!value) {
     return undefined;
   }
 
-  if (value === "agent" || value === "office_manager" || value === "office_admin") {
+  if (value === "agent" || value === "office_manager" || value === "office_user" || value === "office_admin") {
     return value;
   }
 
@@ -457,9 +564,13 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
   const roleFilter = normalizeUserRole(input.role);
   const q = input.q?.trim() ?? "";
   const statusFilter = input.status?.trim() ?? "";
+  const now = new Date();
 
   const where: Prisma.MembershipWhereInput = {
-    organizationId: input.organizationId
+    organizationId: input.organizationId,
+    role: {
+      in: officeInternalRoleCatalog
+    }
   };
 
   if (officeFilterId === "__all__") {
@@ -472,11 +583,19 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     where.role = roleFilter;
   }
 
-  if (statusFilter === "active") {
-    where.status = "active";
-  } else if (statusFilter === "inactive") {
-    where.status = {
-      in: ["invited", "disabled"]
+  if (statusFilter === "active" || statusFilter === "invited" || statusFilter === "disabled") {
+    where.status = statusFilter;
+  } else if (statusFilter === "locked") {
+    where.user = {
+      is: {
+        credential: {
+          is: {
+            lockedUntil: {
+              gt: now
+            }
+          }
+        }
+      }
     };
   }
 
@@ -494,8 +613,23 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     prisma.membership.findMany({
       where,
       include: {
-        user: true,
-        office: true
+        user: {
+          include: {
+            credential: true
+          }
+        },
+        office: true,
+        invitations: {
+          where: {
+            acceptedAt: null,
+            revokedAt: null,
+            expiresAt: {
+              gt: now
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 1
+        }
       },
       orderBy: [{ office: { name: "asc" } }, { user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
     }),
@@ -509,26 +643,87 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
         name: true
       }
     }),
-    prisma.membership.groupBy({
-      by: ["status", "officeId"],
+    prisma.membership.findMany({
       where: {
-        organizationId: input.organizationId
+        organizationId: input.organizationId,
+        role: {
+          in: officeInternalRoleCatalog
+        }
       },
-      _count: {
-        _all: true
+      select: {
+        id: true,
+        status: true,
+        officeId: true,
+        role: true,
+        title: true,
+        userId: true,
+        office: {
+          select: {
+            name: true
+          }
+        },
+        user: {
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            credential: {
+              select: {
+                mustChangePassword: true,
+                lockedUntil: true
+              }
+            }
+          }
+        },
+        invitations: {
+          where: {
+            acceptedAt: null,
+            revokedAt: null,
+            expiresAt: {
+              gt: now
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 1,
+          select: {
+            expiresAt: true
+          }
+        }
       }
     })
   ]);
 
-  const totalUsers = summary.reduce((sum, entry) => sum + entry._count._all, 0);
-  const activeUsers = summary.filter((entry) => entry.status === "active").reduce((sum, entry) => sum + entry._count._all, 0);
-  const allOfficeAccessCount = summary.filter((entry) => entry.officeId === null).reduce((sum, entry) => sum + entry._count._all, 0);
+  const summaryRows = summary.map((membership) =>
+    mapOfficeAdminUserRow({
+      ...membership,
+      title: membership.title ?? null
+    })
+  );
+  const totalUsers = summaryRows.length;
+  const activeUsers = summaryRows.filter((entry) => entry.statusValue === "active").length;
+  const invitedUsers = summaryRows.filter((entry) => entry.statusValue === "invited").length;
+  const disabledUsers = summaryRows.filter((entry) => entry.statusValue === "disabled").length;
+  const lockedUsers = summaryRows.filter((entry) => entry.isLocked).length;
+  const pendingInvitationCount = summaryRows.filter((entry) => entry.hasActiveInvitation).length;
+  const allOfficeAccessCount = summaryRows.filter((entry) => entry.officeAccessValue === "__all__").length;
+
+  const roleOptions = [
+    { value: "office_admin", label: "Admin" },
+    { value: "office_user", label: "User" }
+  ];
+
+  if (summaryRows.some((entry) => entry.roleValue === "office_manager")) {
+    roleOptions.push({ value: "office_manager", label: "Office Manager (Legacy)" });
+  }
 
   return {
     summary: {
       totalUsers,
       activeUsers,
-      inactiveUsers: totalUsers - activeUsers,
+      invitedUsers,
+      disabledUsers,
+      lockedUsers,
+      pendingInvitationCount,
       allOfficeAccessCount
     },
     filters: {
@@ -536,31 +731,21 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       role: roleFilter ?? "",
       status: statusFilter,
       officeId: officeFilterId,
-      roleOptions: [
-        { value: "agent", label: userRoleLabelMap.agent },
-        { value: "office_manager", label: userRoleLabelMap.office_manager },
-        { value: "office_admin", label: userRoleLabelMap.office_admin }
-      ],
+      roleOptions,
       statusOptions: [
         { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" }
+        { value: "invited", label: "Invited" },
+        { value: "disabled", label: "Disabled" },
+        { value: "locked", label: "Locked" }
       ],
       officeOptions: [{ id: "__all__", label: "All offices" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
     },
-    rows: memberships.map((membership) => ({
-      membershipId: membership.id,
-      userId: membership.userId,
-      name: `${membership.user.firstName} ${membership.user.lastName}`,
-      email: membership.user.email,
-      role: userRoleLabelMap[membership.role],
-      roleValue: membership.role,
-      officeAccessLabel: formatOfficeAccessLabel(membership.office),
-      officeAccessValue: membership.officeId ?? "__all__",
-      status: formatMembershipStatusLabel(membership.status),
-      statusValue: membership.status,
-      title: membership.title ?? "",
-      href: `/office/agents/${membership.id}`
-    }))
+    rows: memberships.map((membership) =>
+      mapOfficeAdminUserRow({
+        ...membership,
+        title: membership.title ?? null
+      })
+    )
   };
 }
 
@@ -572,7 +757,11 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
         organizationId: input.organizationId
       },
       include: {
-        user: true,
+        user: {
+          include: {
+            credential: true
+          }
+        },
         office: true
       }
     });
@@ -581,9 +770,29 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       throw new Error("User membership was not found.");
     }
 
+    if (!isOfficeInternalRole(membership.role)) {
+      throw new Error("Agent memberships are managed outside the internal users page.");
+    }
+
     const nextRole = normalizeUserRole(input.role) ?? membership.role;
     const nextStatus = normalizeMembershipStatus(input.status) ?? membership.status;
     let nextOfficeId = typeof input.officeId === "string" ? input.officeId : input.officeId === null ? null : membership.officeId;
+
+    if (nextRole === "agent") {
+      throw new Error("Users page only supports internal Admin and User roles.");
+    }
+
+    if (nextRole === "office_manager" && membership.role !== "office_manager") {
+      throw new Error("The legacy Office Manager role cannot be assigned from this page.");
+    }
+
+    if (!membership.user.credential && nextStatus === "active") {
+      throw new Error("Invited users become active after they set a password.");
+    }
+
+    if (membership.user.credential && nextStatus === "invited") {
+      throw new Error("Issue a password setup link instead of moving a password account back to invited.");
+    }
 
     if (nextOfficeId === "__all__") {
       nextOfficeId = null;

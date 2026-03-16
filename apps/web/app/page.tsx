@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { getDefaultAppPath } from "@acre/auth";
-import { getCurrentSessionContext } from "../lib/auth-session";
+import { getCurrentSessionContext, mustChangePassword } from "../lib/auth-session";
 
 export default async function HomePage() {
-  const context = await getCurrentSessionContext();
+  const context = await getCurrentSessionContext({
+    allowPasswordChangeRequired: true
+  });
 
-  redirect(context ? getDefaultAppPath(context.currentMembership.role) : "/login");
+  redirect(context ? (mustChangePassword(context) ? "/change-password" : getDefaultAppPath(context.currentMembership.role)) : "/login");
 }

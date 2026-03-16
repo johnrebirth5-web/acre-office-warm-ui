@@ -28,7 +28,10 @@ export const activityLogActions = {
   agentOnboardingTemplateApplied: "agent.onboarding_template_applied",
   agentGoalCreated: "agent.goal_created",
   agentGoalUpdated: "agent.goal_updated",
+  authBootstrapAdminCreated: "auth.bootstrap_admin_created",
   settingsUserRoleChanged: "settings.user_role_changed",
+  settingsUserInvited: "settings.user_invited",
+  settingsUserInvitationRevoked: "settings.user_invitation_revoked",
   settingsUserActivated: "settings.user_activated",
   settingsUserDeactivated: "settings.user_deactivated",
   settingsOfficeAccessChanged: "settings.office_access_changed",
@@ -111,7 +114,13 @@ export const activityLogActions = {
   emdExpectedCreated: "emd.expected_created",
   emdReceived: "emd.received",
   emdRefunded: "emd.refunded",
+  authInvitationAccepted: "auth.invitation_accepted",
   authLogin: "auth.login",
+  authLoginFailed: "auth.login_failed",
+  authAccountLocked: "auth.account_locked",
+  authAccountUnlocked: "auth.account_unlocked",
+  authPasswordSetupIssued: "auth.password_setup_issued",
+  authPasswordChanged: "auth.password_changed",
   authLogout: "auth.logout"
 } as const;
 
@@ -125,6 +134,8 @@ export type ActivityLogEntityType =
   | "agent_onboarding_item"
   | "agent_goal"
   | "membership"
+  | "user_credential"
+  | "invitation"
   | "required_contact_role_setting"
   | "transaction_field_setting"
   | "checklist_template"
@@ -438,7 +449,16 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "emd.refunded": "EMD refunded / distributed",
   "account.profile_updated": "Account profile updated",
   "account.notification_preferences_updated": "Notification preferences updated",
+  "auth.bootstrap_admin_created": "Bootstrap admin created",
+  "settings.user_invited": "User invited",
+  "settings.user_invitation_revoked": "Invitation revoked",
+  "auth.invitation_accepted": "Invitation accepted",
   "auth.login": "Sign in",
+  "auth.login_failed": "Sign in failed",
+  "auth.account_locked": "Account locked",
+  "auth.account_unlocked": "Account unlocked",
+  "auth.password_setup_issued": "Password setup link issued",
+  "auth.password_changed": "Password changed",
   "auth.logout": "Sign out"
 };
 
@@ -466,7 +486,10 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.agentOnboardingItemReopened ||
       action === activityLogActions.agentOnboardingTemplateApplied ||
       action === activityLogActions.agentGoalCreated ||
-      action === activityLogActions.agentGoalUpdated
+      action === activityLogActions.agentGoalUpdated ||
+      action === activityLogActions.authBootstrapAdminCreated ||
+      action === activityLogActions.settingsUserInvited ||
+      action === activityLogActions.settingsUserInvitationRevoked
   },
   {
     key: "transactions",
@@ -576,7 +599,16 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
     label: "Authentication",
     matches: (action) =>
       action === activityLogActions.notificationPreferencesUpdated ||
+      action === activityLogActions.authBootstrapAdminCreated ||
+      action === activityLogActions.settingsUserInvited ||
+      action === activityLogActions.settingsUserInvitationRevoked ||
+      action === activityLogActions.authInvitationAccepted ||
       action === activityLogActions.authLogin ||
+      action === activityLogActions.authLoginFailed ||
+      action === activityLogActions.authAccountLocked ||
+      action === activityLogActions.authAccountUnlocked ||
+      action === activityLogActions.authPasswordSetupIssued ||
+      action === activityLogActions.authPasswordChanged ||
       action === activityLogActions.authLogout
   },
   {
@@ -711,6 +743,9 @@ function mapEntityTypeToObjectType(entityType: string): Exclude<ActivityLogObjec
     case "agent_goal":
     case "membership":
       return "agent";
+    case "user_credential":
+    case "invitation":
+      return "auth";
     case "required_contact_role_setting":
     case "transaction_field_setting":
       return "transaction";
@@ -825,6 +860,10 @@ function getActivityHref(record: ActivityLogRecord, payload: ParsedActivityPaylo
   }
 
   if (record.entityType === "membership") {
+    return payload.contextHref ?? "/office/settings/users";
+  }
+
+  if (record.entityType === "user_credential" || record.entityType === "invitation") {
     return payload.contextHref ?? "/office/settings/users";
   }
 
@@ -972,8 +1011,14 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "created an agent goal";
     case activityLogActions.agentGoalUpdated:
       return payload.changes.length === 1 ? `updated goal ${payload.changes[0].label.toLowerCase()}` : "updated an agent goal";
+    case activityLogActions.authBootstrapAdminCreated:
+      return "created the bootstrap admin account";
     case activityLogActions.settingsUserRoleChanged:
       return "changed a user role";
+    case activityLogActions.settingsUserInvited:
+      return "issued a user invitation";
+    case activityLogActions.settingsUserInvitationRevoked:
+      return "revoked a user invitation";
     case activityLogActions.settingsUserActivated:
       return "activated a user";
     case activityLogActions.settingsUserDeactivated:
@@ -1148,8 +1193,20 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "recorded earnest money received";
     case activityLogActions.emdRefunded:
       return "recorded an earnest money refund or distribution";
+    case activityLogActions.authInvitationAccepted:
+      return "accepted an invitation";
     case activityLogActions.authLogin:
       return "signed in";
+    case activityLogActions.authLoginFailed:
+      return "failed a sign-in attempt";
+    case activityLogActions.authAccountLocked:
+      return "locked an account after repeated sign-in failures";
+    case activityLogActions.authAccountUnlocked:
+      return "unlocked an account";
+    case activityLogActions.authPasswordSetupIssued:
+      return "issued a password setup link";
+    case activityLogActions.authPasswordChanged:
+      return "changed a password";
     case activityLogActions.authLogout:
       return "signed out";
     default:

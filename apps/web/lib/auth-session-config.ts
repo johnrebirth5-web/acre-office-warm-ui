@@ -30,7 +30,3 @@ export function getSessionCookieOptions() {
     maxAge: SESSION_COOKIE_MAX_AGE_SECONDS
   };
 }
-
-export function shouldShowSeededUsers() {
-  return process.env.NODE_ENV !== "production";
-}

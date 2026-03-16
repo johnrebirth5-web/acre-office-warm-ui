@@ -1,21 +1,20 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getDefaultAppPath, isOfficeRole, summarizeAccess } from "@acre/auth";
-import { findActiveMembershipContextByEmail, getSessionMembershipContext, type SessionMembershipContext } from "@acre/db";
+import { ensureBootstrapAdminAccount, getSessionMembershipContext, type SessionMembershipContext } from "@acre/db";
 import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import {
-  getSessionCookieOptions,
-  getSessionSecret,
-  shouldShowSeededUsers,
-  shouldUseSecureCookies
-} from "./auth-session-config";
+import { getSessionCookieOptions, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config";
 
 const SESSION_COOKIE_NAME = "acre_local_session";
 
 type SessionPayload = {
   membershipId: string;
   issuedAt: number;
+};
+
+type SessionContextOptions = {
+  allowPasswordChangeRequired?: boolean;
 };
 
 function signPayload(serializedPayload: string) {
@@ -68,11 +67,15 @@ export function createSessionCookieValue(membershipId: string) {
   });
 }
 
-export async function authenticateSeededUser(email: string): Promise<SessionMembershipContext | null> {
-  return findActiveMembershipContextByEmail(email);
+function isPasswordChangeBlocked(context: SessionMembershipContext | null, options?: SessionContextOptions) {
+  return Boolean(context?.currentCredential?.mustChangePassword) && !options?.allowPasswordChangeRequired;
 }
 
-export async function getCurrentSessionContext(): Promise<SessionMembershipContext | null> {
+export async function ensureBootstrapAdminSessionAccount() {
+  await ensureBootstrapAdminAccount();
+}
+
+export async function getCurrentSessionContext(options?: SessionContextOptions): Promise<SessionMembershipContext | null> {
   const cookieStore = await cookies();
   const session = decodeSession(cookieStore.get(SESSION_COOKIE_NAME)?.value);
 
@@ -80,24 +83,32 @@ export async function getCurrentSessionContext(): Promise<SessionMembershipConte
     return null;
   }
 
-  return getSessionMembershipContext(session.membershipId);
+  const context = await getSessionMembershipContext(session.membershipId);
+  return isPasswordChangeBlocked(context, options) ? null : context;
 }
 
-export async function getRequestSessionContext(request: NextRequest): Promise<SessionMembershipContext | null> {
+export async function getRequestSessionContext(request: NextRequest, options?: SessionContextOptions): Promise<SessionMembershipContext | null> {
   const session = decodeSession(request.cookies.get(SESSION_COOKIE_NAME)?.value);
 
   if (!session) {
     return null;
   }
 
-  return getSessionMembershipContext(session.membershipId);
+  const context = await getSessionMembershipContext(session.membershipId);
+  return isPasswordChangeBlocked(context, options) ? null : context;
 }
 
-export async function requireSessionContext(): Promise<SessionMembershipContext> {
-  const context = await getCurrentSessionContext();
+export async function requireSessionContext(options?: SessionContextOptions): Promise<SessionMembershipContext> {
+  const context = await getCurrentSessionContext({
+    allowPasswordChangeRequired: true
+  });
 
   if (!context) {
     redirect("/login");
+  }
+
+  if (isPasswordChangeBlocked(context, options)) {
+    redirect("/change-password");
   }
 
   return context;
@@ -135,4 +146,8 @@ export function getSessionAccess(context: SessionMembershipContext) {
   return summarizeAccess(context.currentMembership.role);
 }
 
-export { shouldShowSeededUsers, shouldUseSecureCookies };
+export function mustChangePassword(context: SessionMembershipContext | null) {
+  return Boolean(context?.currentCredential?.mustChangePassword);
+}
+
+export { shouldUseSecureCookies };

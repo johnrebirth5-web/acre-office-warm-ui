@@ -24,6 +24,7 @@ import { createNotificationsForMemberships } from "./notifications";
 const roleLabelMap: Record<UserRole, string> = {
   agent: "Agent",
   office_manager: "Office Manager",
+  office_user: "Office User",
   office_admin: "Office Admin"
 };
 

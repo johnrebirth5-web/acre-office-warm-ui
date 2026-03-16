@@ -228,7 +228,11 @@ async function getScopedMembership(input: {
       organizationId: input.organizationId
     },
     include: {
-      user: true,
+      user: {
+        include: {
+          credential: true
+        }
+      },
       office: true,
       agentProfile: true,
       teamMemberships: {
@@ -255,6 +259,26 @@ export async function getOfficeAccountSnapshot(input: GetOfficeAccountSnapshotIn
   recentTransactionCutoff.setDate(recentTransactionCutoff.getDate() - 30);
   const recentNotificationCutoff = new Date();
   recentNotificationCutoff.setDate(recentNotificationCutoff.getDate() - 14);
+  const credential = membership.user.credential;
+  const isLocked = Boolean(credential?.lockedUntil && credential.lockedUntil > new Date());
+  const passwordStatusLabel = isLocked
+    ? "Temporarily locked"
+    : !credential
+      ? membership.status === "invited"
+        ? "Setup required"
+        : "Password setup required"
+      : credential.mustChangePassword
+        ? "Password change required"
+        : "Password set";
+  const passwordStatusDescription = isLocked
+    ? `This account is locked until ${formatDateTimeLabel(credential?.lockedUntil)} after repeated failed sign-in attempts.`
+    : !credential
+      ? membership.status === "invited"
+        ? "Accept the invitation and set a password before this account can sign in."
+        : "Issue a setup link from Users to create an internal password for this account."
+      : credential.mustChangePassword
+        ? "This account must change its password before continuing into Back Office."
+        : "This account signs in with an internal Acre password and can change it in-app.";
 
   const [
     openTransactionTaskCount,
@@ -396,12 +420,12 @@ export async function getOfficeAccountSnapshot(input: GetOfficeAccountSnapshotIn
       recentCount: recentNotificationsCount
     },
     security: {
-      authMethodLabel: "Local seeded session",
-      authMethodDescription: "Current Office access uses a development-only seeded email login and browser session.",
-      passwordStatusLabel: "No in-app password",
-      passwordStatusDescription: "The current auth flow does not store or rotate passwords inside Acre.",
-      twoStepStatusLabel: "Not available",
-      twoStepStatusDescription: "2-step verification has not been implemented in the current Office auth flow.",
+      authMethodLabel: "Internal password account",
+      authMethodDescription: "Office access now uses invitation onboarding plus email and password sign-in.",
+      passwordStatusLabel,
+      passwordStatusDescription,
+      twoStepStatusLabel: "Unavailable",
+      twoStepStatusDescription: "2-step verification has not been implemented in the current internal account flow.",
       sessionStatusLabel: "12-hour HTTP-only session",
       sessionStatusDescription: "The active session is stored in an HTTP-only cookie with a 12-hour max age."
     },
