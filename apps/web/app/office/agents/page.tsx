@@ -44,16 +44,21 @@ export default async function OfficeAgentsPage(props: OfficeAgentsPageProps) {
   return (
     <PageShell className="office-list-page office-agents-list-page">
       <PageHeader
+        className="office-agents-page-header"
         actions={
-          <PageHeaderSummary>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Rostered members" tone="accent" value={snapshot.summary.totalMembers} />
-            <SummaryChip label="Active teams" value={snapshot.summary.activeTeamCount} />
-            <SummaryChip label="Onboarding in progress" value={snapshot.summary.onboardingInProgressCount} />
-            <SummaryChip label="Inactive members" value={snapshot.summary.inactiveMemberCount} />
+          <PageHeaderSummary className="office-agents-header-summary">
+            <SummaryChip
+              className="office-agents-summary-card office-agents-summary-card-featured"
+              label="Office scope"
+              value={context.currentOffice?.name ?? context.currentOrganization.name}
+            />
+            <SummaryChip className="office-agents-summary-card" label="Rostered members" tone="accent" value={snapshot.summary.totalMembers} />
+            <SummaryChip className="office-agents-summary-card" label="Active teams" value={snapshot.summary.activeTeamCount} />
+            <SummaryChip className="office-agents-summary-card" label="Onboarding in progress" value={snapshot.summary.onboardingInProgressCount} />
+            <SummaryChip className="office-agents-summary-card" label="Inactive members" value={snapshot.summary.inactiveMemberCount} />
           </PageHeaderSummary>
         }
-        description="Agent profiles, onboarding visibility, teams, goals, and operating performance for the current back-office workspace."
+        description="Agent profiles, onboarding progress, team assignments, goals, and day-to-day operating visibility for the current office."
         eyebrow="Agent management"
         title="Agents"
       />
