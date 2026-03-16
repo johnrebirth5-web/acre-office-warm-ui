@@ -7540,8 +7540,31 @@ a {
   gap: 18px;
 }
 
+.office-page-header.office-agents-page-header {
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+  gap: 20px 28px;
+  align-items: start;
+}
+
+.office-page-header.office-agents-page-header .office-page-heading {
+  max-width: none;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.office-page-header.office-agents-page-header .office-page-heading h2 {
+  max-width: none;
+}
+
+.office-page-header.office-agents-page-header .office-page-actions {
+  width: 100%;
+  margin-left: 0;
+  justify-self: stretch;
+}
+
 .office-agents-header-summary {
-  width: min(100%, 62rem);
+  width: min(100%, 74rem);
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -11321,6 +11344,14 @@ body,
   .office-dashboard-grid-wide,
   .bm-activity-layout {
     grid-template-columns: 1fr;
+  }
+
+  .office-page-header.office-agents-page-header {
+    grid-template-columns: 1fr;
+  }
+
+  .office-page-header.office-agents-page-header .office-page-actions {
+    justify-self: stretch;
   }
 
   .office-agents-summary-card-featured {
