@@ -1018,7 +1018,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                   ))}
                 </ReportsTable>
 
-                <ReportsTable>
+                <ReportsSummaryTable>
                   <div className="office-table-header office-table-row office-table-row-report-accounting-recent">
                     <span>Date</span>
                     <span>Type</span>
@@ -1043,7 +1043,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                   {snapshot.accountingSummary.recentTransactions.length === 0 ? (
                     <EmptyState description="No accounting rows matched the current filters." title="No accounting rows" />
                   ) : null}
-                </ReportsTable>
+                </ReportsSummaryTable>
               </div>
               <ListPageFooter summary={`${snapshot.accountingSummary.recentTransactions.length} recent accounting rows`} />
             </ListPageSection>
@@ -1120,7 +1120,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                   ))}
                 </ReportsTable>
 
-                <ReportsTable>
+                <ReportsSummaryTable>
                   <div className="office-table-header office-table-row office-table-row-report-emd-recent">
                     <span>Transaction</span>
                     <span>Status</span>
@@ -1145,7 +1145,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                   {snapshot.emdSummary.recentRecords.length === 0 ? (
                     <EmptyState description="No earnest money records matched the current filters." title="No EMD rows" />
                   ) : null}
-                </ReportsTable>
+                </ReportsSummaryTable>
               </div>
               <ListPageFooter summary={`${snapshot.emdSummary.recentRecords.length} recent earnest money rows`} />
             </ListPageSection>

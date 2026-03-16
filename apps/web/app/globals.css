@@ -6549,6 +6549,29 @@ a {
     minmax(92px, 0.72fr);
 }
 
+.office-report-summary-table .office-table-row-report-accounting-recent,
+.office-report-summary-table .office-table-row-report-emd-recent {
+  min-width: 0;
+}
+
+.office-report-summary-table .office-table-row-report-accounting-recent {
+  grid-template-columns:
+    minmax(102px, 0.78fr)
+    minmax(82px, 0.64fr)
+    minmax(88px, 0.68fr)
+    minmax(188px, 1.52fr)
+    minmax(92px, 0.72fr);
+}
+
+.office-report-summary-table .office-table-row-report-emd-recent {
+  grid-template-columns:
+    minmax(190px, 1.5fr)
+    minmax(88px, 0.68fr)
+    minmax(92px, 0.7fr)
+    minmax(92px, 0.7fr)
+    minmax(84px, 0.62fr);
+}
+
 .office-reports-kpi-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
