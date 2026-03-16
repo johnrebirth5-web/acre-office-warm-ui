@@ -492,71 +492,58 @@ export function TransactionIntakeWorkspace({
           </div>
         ) : null}
 
-        {(visibleCustomFields.length || (canConfigureSchema && (isConfigMode || localSchema.customFields.length > 0))) ? (
+        {visibleCustomFields.length ? (
           <section className="bm-transaction-modal-additional">
-            <header className="bm-transaction-modal-section-header bm-transaction-modal-section-header-plain">
-              <div>
-                <button type="button">Additional fields</button>
-              </div>
-              {canConfigureSchema ? <span>{isConfigMode ? "Admin form editing active" : "Office admin configurable"}</span> : null}
-            </header>
-
-            {visibleCustomFields.length ? (
-              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-additional">
-                {visibleCustomFields.map((field) => (
-                  <label className="bm-transaction-modal-field" key={field.fieldKey}>
-                    <div className="bm-transaction-field-head">
-                      <span>{getFieldValueLabel(field)}</span>
-                      {renderAdminControls({
-                        canConfigureSchema,
-                        isConfigMode,
-                        onToggleRequired: () =>
-                          updateCustomField(field.fieldKey, (entry) => ({
-                            ...entry,
-                            isRequired: !entry.isRequired
-                          })),
-                        onHide: () =>
-                          updateCustomField(field.fieldKey, (entry) => ({
-                            ...entry,
-                            isVisible: false
-                          })),
-                        onEdit: () => setEditorState(createCustomFieldEditorState(field)),
-                        requiredLabel: field.isRequired ? "Optional" : "Required"
-                      })}
-                    </div>
-                    {field.type === "select" ? (
-                      <select
-                        defaultValue=""
-                        disabled={!canEditValues}
-                        name={field.inputName}
-                        onChange={(event) => setFieldValue(field.inputName, event.target.value)}
-                        value={fieldValues[field.inputName] ?? ""}
-                      >
-                        <option value="">Select...</option>
-                        {field.options.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        disabled={!canEditValues}
-                        maxLength={field.type === "text" ? 50 : undefined}
-                        name={field.inputName}
-                        onChange={(event) => setFieldValue(field.inputName, event.target.value)}
-                        type={field.type === "date" ? "date" : "text"}
-                        value={fieldValues[field.inputName] ?? ""}
-                      />
-                    )}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div className="bm-transaction-empty-additional">
-                <p>No visible custom fields are configured for this office.</p>
-              </div>
-            )}
+            <div className="bm-transaction-modal-grid bm-transaction-modal-grid-additional">
+              {visibleCustomFields.map((field) => (
+                <label className="bm-transaction-modal-field" key={field.fieldKey}>
+                  <div className="bm-transaction-field-head">
+                    <span>{getFieldValueLabel(field)}</span>
+                    {renderAdminControls({
+                      canConfigureSchema,
+                      isConfigMode,
+                      onToggleRequired: () =>
+                        updateCustomField(field.fieldKey, (entry) => ({
+                          ...entry,
+                          isRequired: !entry.isRequired
+                        })),
+                      onHide: () =>
+                        updateCustomField(field.fieldKey, (entry) => ({
+                          ...entry,
+                          isVisible: false
+                        })),
+                      onEdit: () => setEditorState(createCustomFieldEditorState(field)),
+                      requiredLabel: field.isRequired ? "Optional" : "Required"
+                    })}
+                  </div>
+                  {field.type === "select" ? (
+                    <select
+                      defaultValue=""
+                      disabled={!canEditValues}
+                      name={field.inputName}
+                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+                      value={fieldValues[field.inputName] ?? ""}
+                    >
+                      <option value="">Select...</option>
+                      {field.options.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      disabled={!canEditValues}
+                      maxLength={field.type === "text" ? 50 : undefined}
+                      name={field.inputName}
+                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+                      type={field.type === "date" ? "date" : "text"}
+                      value={fieldValues[field.inputName] ?? ""}
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
           </section>
         ) : null}
 
