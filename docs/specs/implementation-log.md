@@ -8,11 +8,11 @@
 
 ## Recently completed major work
 
-- The working baseline is now centered on:
+- Working baseline normalized around:
   - local repo `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
   - GitHub remote `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
   - DigitalOcean default entry `http://45.55.247.137:3105/`
-- `Office / Back Office` now has real route and workflow foundations across the main product map:
+- `Office / Back Office` now has real route and workflow foundations across:
   - dashboard
   - pipeline
   - transactions
@@ -26,7 +26,13 @@
   - library
   - settings/admin
   - agent management
-- Transaction detail now acts as a real workflow hub for contacts, finance, tasks/compliance, documents/forms/eSignature/incoming updates, offers, and commissions
+- Transaction detail now acts as a real workflow hub for:
+  - contacts
+  - finance
+  - tasks and compliance
+  - documents, forms, eSignature, and incoming updates
+  - offers
+  - commissions
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
 - `/office/transactions` and `/office/contacts` now share one canonical Office list-page template, including the same page header, summary/action block, workbench card, table card, and footer/pagination rhythm
 
