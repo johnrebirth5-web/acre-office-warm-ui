@@ -40,6 +40,11 @@
   - documents, forms, eSignature, and incoming updates
   - offers
   - commissions
+- Transaction intake is now office-scoped and schema-driven across the create modal, `/office/transactions/new`, and transaction detail:
+  - built-in fields can be marked visible/hidden and required/optional
+  - `office_admin` can add custom `text / select / date` fields
+  - hidden address groups force `Transaction Name` visible + required
+  - intake schema edits and intake value edits both write to `Activity Log`
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
 - `/office/transactions` and `/office/contacts` now share one canonical Office list-page template, including the same page header, summary/action block, workbench card, table card, and footer/pagination rhythm
 

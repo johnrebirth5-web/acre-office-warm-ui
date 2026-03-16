@@ -115,7 +115,7 @@
   - 核心复用：
     - `Membership` 做用户 role / status / office access
     - `Team / TeamMembership` 做 team admin
-    - `RequiredContactRoleSetting / TransactionFieldSetting` 做 workflow requirements
+    - `RequiredContactRoleSetting / TransactionFieldSetting / TransactionCustomFieldDefinition` 做 workflow requirements 和 office-scoped transaction intake schema
     - `ChecklistTemplate / ChecklistTemplateItem` 做 checklist template admin
 - 当前 `Office Library` 已通过 Prisma service 和 route handlers 落地到：
   - `/office/library`
@@ -307,6 +307,7 @@
 - `AgentGoal`
 - `RequiredContactRoleSetting`
 - `TransactionFieldSetting`
+- `TransactionCustomFieldDefinition`
 - `ChecklistTemplate`
 - `ChecklistTemplateItem`
 - `FollowUpTask`
@@ -431,13 +432,15 @@
 2. `/office/activity` 先读取当前 office session，再调 `@acre/db` 的 `getOfficeActivityLogSnapshot`
 3. `/office/pipeline` 调 `@acre/db` 的 `getOfficePipelineWorkspaceSnapshot`
 4. `/office/transactions` 调 `@acre/db` 的 transaction service，并按 query-param 驱动的 `q / status / ownerMembershipId / teamId / type / startDate / endDate / page / pageSize` 做服务端过滤和分页
-5. `/office/transactions` 内的客户端 modal 调 `/api/office/transactions` 写入数据库；`GET /api/office/transactions` 也接受同一组 list-side query params
-6. `/office/transactions/:transactionId` 调 `getTransactionById`
-6. detail 页面通过 `/api/office/transactions/:transactionId` 更新 status
-7. detail 页面通过 `/api/office/transactions/:transactionId/finance` 更新最小 finance 字段
-8. detail 页面通过 transaction contact routes 做 link / unlink / set primary
-9. detail 页面通过 transaction task routes 做 create / edit / complete / reopen / request review / approve / reject，并按 linked document / signature / approval truth 决定任务是否真正可 complete
-10. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页
+5. `/office/transactions` modal、`/office/transactions/new` 页面和 transaction detail intake editor 共享同一份 office-scoped transaction intake schema，来自 `getOfficeTransactionIntakeSchema`
+6. `/office/transactions` 内的客户端 modal 调 `/api/office/transactions` 写入数据库；`GET /api/office/transactions` 也接受同一组 list-side query params
+7. `/office/transactions/:transactionId` 调 `getTransactionById`
+8. detail 页面通过 `/api/office/transactions/:transactionId` 更新 status
+9. detail 页面通过 `/api/office/transactions/:transactionId/intake` 更新 built-in/custom intake 字段
+10. detail 页面通过 `/api/office/transactions/:transactionId/finance` 更新最小 finance 字段
+11. detail 页面通过 transaction contact routes 做 link / unlink / set primary
+12. detail 页面通过 transaction task routes 做 create / edit / complete / reopen / request review / approve / reject，并按 linked document / signature / approval truth 决定任务是否真正可 complete
+13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页
 11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`
 12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 reporting workspace snapshot，覆盖 transaction、agent/team、commission、accounting、EMD 聚合
 13. `/office/accounting` 调 `@acre/db` 的 accounting service，返回 overview cards、accounting transaction list、general ledger、EMD records 和 chart of accounts
@@ -876,11 +879,12 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 原因：
 
 - Back Office 里真正需要 admin 可配置的对象，本质上就是现有运营模型的配置面
-- 当前最需要被配置的是：
+  - 当前最需要被配置的是：
   - user role / status / office access
   - team rosters
   - required contact roles
-  - transaction field requirements
+  - built-in transaction intake field requirements
+  - office-scoped custom transaction intake fields
   - checklist templates
 - 这些都已经有清晰的领域主轴，不值得再造一套 admin-only 影子模型
 
@@ -891,6 +895,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - `Fields`：新增显式 settings 模型
   - `RequiredContactRoleSetting`
   - `TransactionFieldSetting`
+  - `TransactionCustomFieldDefinition`
 - `Checklists`：新增显式模板模型
   - `ChecklistTemplate`
   - `ChecklistTemplateItem`

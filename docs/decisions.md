@@ -619,6 +619,7 @@ Trade-off：
 - 新增显式 settings 模型：
   - `RequiredContactRoleSetting`
   - `TransactionFieldSetting`
+  - `TransactionCustomFieldDefinition`
   - `ChecklistTemplate`
   - `ChecklistTemplateItem`
 - settings 写操作进入 `Activity Log`

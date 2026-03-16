@@ -1,4 +1,4 @@
-import { canManageOfficeFields, canViewOfficeFields } from "@acre/auth";
+import { canViewOfficeFields } from "@acre/auth";
 import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
 import { getOfficeFieldSettingsSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -8,8 +8,9 @@ import { OfficeSettingsFieldsClient } from "./fields-client";
 
 export default async function OfficeSettingsFieldsPage() {
   const context = await requireOfficeSession();
+  const isOfficeAdmin = context.currentMembership.role === "office_admin";
 
-  if (!canViewOfficeFields(context.currentMembership.role)) {
+  if (!canViewOfficeFields(context.currentMembership.role) || !isOfficeAdmin) {
     redirect("/office/settings");
   }
 
@@ -27,16 +28,17 @@ export default async function OfficeSettingsFieldsPage() {
             <SummaryChip label="Required roles" tone="accent" value={snapshot.summary.requiredRoleCount} />
             <SummaryChip label="Required fields" value={snapshot.summary.requiredFieldCount} />
             <SummaryChip label="Visible fields" value={snapshot.summary.visibleFieldCount} />
+            <SummaryChip label="Custom fields" value={snapshot.transactionCustomFieldDefinitions.length} />
           </PageHeaderSummary>
         }
-        description="Transaction workflow requirements for contact roles and field visibility/requiredness in the current office scope."
+        description="Transaction workflow requirements for contact roles, built-in intake fields, and custom office-defined fields in the current office scope."
         eyebrow="Office admin"
         title="Fields"
       />
 
       <ListPageStack className="office-settings-list-stack">
         <OfficeSettingsNav />
-        <OfficeSettingsFieldsClient canManageFields={canManageOfficeFields(context.currentMembership.role)} snapshot={snapshot} />
+        <OfficeSettingsFieldsClient canManageFields={isOfficeAdmin} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>
   );

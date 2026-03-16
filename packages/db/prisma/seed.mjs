@@ -552,18 +552,21 @@ async function main() {
   }
 
   const seededTransactionFieldSettings = [
-    { id: "seed-field-price", fieldKey: "price", isRequired: true, isVisible: true },
-    { id: "seed-field-important-date", fieldKey: "important_date", isRequired: true, isVisible: true },
-    { id: "seed-field-closing-date", fieldKey: "closing_date", isRequired: false, isVisible: true },
+    { id: "seed-field-transaction-type", fieldKey: "transaction_type", isRequired: false, isVisible: true },
+    { id: "seed-field-transaction-status", fieldKey: "transaction_status", isRequired: false, isVisible: true },
+    { id: "seed-field-representing", fieldKey: "representing", isRequired: false, isVisible: true },
+    { id: "seed-field-address", fieldKey: "address", isRequired: false, isVisible: true },
+    { id: "seed-field-city", fieldKey: "city", isRequired: false, isVisible: true },
+    { id: "seed-field-state", fieldKey: "state", isRequired: false, isVisible: true },
+    { id: "seed-field-zip-code", fieldKey: "zip_code", isRequired: false, isVisible: true },
+    { id: "seed-field-transaction-name", fieldKey: "transaction_name", isRequired: false, isVisible: true },
+    { id: "seed-field-price", fieldKey: "price", isRequired: false, isVisible: true },
+    { id: "seed-field-buyer-agreement", fieldKey: "buyer_agreement_date", isRequired: false, isVisible: true },
     { id: "seed-field-buyer-expiration", fieldKey: "buyer_expiration_date", isRequired: false, isVisible: true },
     { id: "seed-field-acceptance-date", fieldKey: "acceptance_date", isRequired: false, isVisible: true },
-    { id: "seed-field-company-referral", fieldKey: "company_referral", isRequired: false, isVisible: true },
-    {
-      id: "seed-field-company-referral-employee",
-      fieldKey: "company_referral_employee_name",
-      isRequired: false,
-      isVisible: true
-    }
+    { id: "seed-field-listing-date", fieldKey: "listing_date", isRequired: false, isVisible: true },
+    { id: "seed-field-listing-expiration", fieldKey: "listing_expiration_date", isRequired: false, isVisible: true },
+    { id: "seed-field-closing-date", fieldKey: "closing_date", isRequired: false, isVisible: true }
   ];
 
   for (const fieldSetting of seededTransactionFieldSettings) {
@@ -586,6 +589,74 @@ async function main() {
         fieldKey: fieldSetting.fieldKey,
         isRequired: fieldSetting.isRequired,
         isVisible: fieldSetting.isVisible
+      }
+    });
+  }
+
+  const seededTransactionCustomFieldDefinitions = [
+    { id: "seed-custom-field-agent-name", fieldKey: "agentName", label: "Agent Name", type: "text", sortOrder: 0, options: [] },
+    { id: "seed-custom-field-team-leader", fieldKey: "teamLeader", label: "Team Leader", type: "select", sortOrder: 1, options: ["Simon Park", "Naomi Chen", "Alice Tang"] },
+    { id: "seed-custom-field-licensed-agent-name", fieldKey: "licensedAgentName", label: "Licensed Agent Name", type: "text", sortOrder: 2, options: [] },
+    { id: "seed-custom-field-invoice-number", fieldKey: "invoiceNumber", label: "Invoice Number", type: "text", sortOrder: 3, options: [] },
+    { id: "seed-custom-field-buyer-tenant", fieldKey: "buyerTenant", label: "Buyer/Tenant", type: "text", sortOrder: 4, options: [] },
+    { id: "seed-custom-field-building-name", fieldKey: "buildingName", label: "Building Name", type: "text", sortOrder: 5, options: [] },
+    { id: "seed-custom-field-additional-address", fieldKey: "additionalAddress", label: "Address", type: "text", sortOrder: 6, options: [] },
+    { id: "seed-custom-field-unit-number", fieldKey: "unitNumber", label: "Unit # (If it's a house, fill out \"house\")", type: "text", sortOrder: 7, options: [] },
+    { id: "seed-custom-field-layout", fieldKey: "layout", label: "Layout", type: "text", sortOrder: 8, options: [] },
+    { id: "seed-custom-field-additional-city", fieldKey: "additionalCity", label: "City", type: "text", sortOrder: 9, options: [] },
+    { id: "seed-custom-field-additional-state", fieldKey: "additionalState", label: "State", type: "text", sortOrder: 10, options: [] },
+    { id: "seed-custom-field-additional-zip", fieldKey: "additionalZipCode", label: "Zip Code", type: "text", sortOrder: 11, options: [] },
+    { id: "seed-custom-field-move-in", fieldKey: "moveInDateClosingDate", label: "Move-In Date/Closing Date", type: "text", sortOrder: 12, options: [] },
+    { id: "seed-custom-field-commission-type", fieldKey: "commissionType", label: "Commission Type", type: "select", sortOrder: 13, options: ["Gross", "Net", "Custom"] },
+    { id: "seed-custom-field-leasing-contact", fieldKey: "leasingContact", label: "Leasing Contact", type: "text", sortOrder: 14, options: [] },
+    { id: "seed-custom-field-invoice-bill-to", fieldKey: "invoiceBillTo", label: "Invoice Bill To", type: "text", sortOrder: 15, options: [] },
+    { id: "seed-custom-field-currency-type", fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 16, options: ["USD", "CNY"] },
+    { id: "seed-custom-field-commission-amount", fieldKey: "commissionAmount", label: "Commission($)", type: "text", sortOrder: 17, options: [] },
+    { id: "seed-custom-field-your-rate", fieldKey: "yourCommissionRate", label: "Your Commission Rate", type: "text", sortOrder: 18, options: [] },
+    { id: "seed-custom-field-rebate", fieldKey: "rebate", label: "Rebate", type: "text", sortOrder: 19, options: [] },
+    { id: "seed-custom-field-reimbursement", fieldKey: "reimbursement", label: "Reimbursement", type: "text", sortOrder: 20, options: [] },
+    { id: "seed-custom-field-co-agent", fieldKey: "coAgentLegalName", label: "Co-Agent Legal Name", type: "text", sortOrder: 21, options: [] },
+    { id: "seed-custom-field-breakdown", fieldKey: "commissionBreakdown", label: "Commission Breakdown", type: "text", sortOrder: 22, options: [] },
+    { id: "seed-custom-field-company-referral", fieldKey: "companyReferral", label: "Company Referral", type: "select", sortOrder: 23, options: ["Yes", "No"] },
+    { id: "seed-custom-field-outside-referral", fieldKey: "outsideReferral", label: "Outside Referral", type: "select", sortOrder: 24, options: ["Yes", "No"] },
+    { id: "seed-custom-field-referral-fee", fieldKey: "referralFee", label: "Referral Fee", type: "text", sortOrder: 25, options: [] },
+    { id: "seed-custom-field-external-partners", fieldKey: "externalPartners", label: "External Partners", type: "text", sortOrder: 26, options: [] },
+    { id: "seed-custom-field-company-referral-employee", fieldKey: "companyReferralEmployeeName", label: "Company Referral Employee's Name", type: "text", sortOrder: 27, options: [] },
+    { id: "seed-custom-field-client-email", fieldKey: "clientEmail", label: "Client's Email", type: "text", sortOrder: 28, options: [] },
+    { id: "seed-custom-field-vendor-cafe", fieldKey: "uploadInvoiceToVendorCafe", label: "Upload Invoice to VendorCafe", type: "select", sortOrder: 29, options: ["Yes", "No"] },
+    { id: "seed-custom-field-note", fieldKey: "note", label: "Note(Rebate, Referral, Others)", type: "text", sortOrder: 30, options: [] },
+    { id: "seed-custom-field-commission-received", fieldKey: "commissionReceivedStatus", label: "Status of Commission Received(For Admin)", type: "select", sortOrder: 31, options: ["No", "Yes", "Partial"] },
+    { id: "seed-custom-field-commission-confirmation", fieldKey: "commissionConfirmation", label: "Commission Confirmation(For Agent, we'll process the payment once you select yes)", type: "select", sortOrder: 32, options: ["Yes", "No"] }
+  ];
+
+  for (const fieldDefinition of seededTransactionCustomFieldDefinitions) {
+    await prisma.transactionCustomFieldDefinition.upsert({
+      where: {
+        organizationId_officeId_fieldKey: {
+          organizationId: organization.id,
+          officeId: office.id,
+          fieldKey: fieldDefinition.fieldKey
+        }
+      },
+      update: {
+        label: fieldDefinition.label,
+        type: fieldDefinition.type,
+        isRequired: false,
+        isVisible: true,
+        sortOrder: fieldDefinition.sortOrder,
+        options: fieldDefinition.options
+      },
+      create: {
+        id: fieldDefinition.id,
+        organizationId: organization.id,
+        officeId: office.id,
+        fieldKey: fieldDefinition.fieldKey,
+        label: fieldDefinition.label,
+        type: fieldDefinition.type,
+        isRequired: false,
+        isVisible: true,
+        sortOrder: fieldDefinition.sortOrder,
+        options: fieldDefinition.options
       }
     });
   }

@@ -394,7 +394,11 @@
     - add / remove members
   - `Fields` 当前支持：
     - required contact roles
-    - transaction field required / visible settings
+    - built-in transaction intake field required / visible settings
+    - office-scoped custom transaction intake fields（text / select / date）
+    - 同一套 intake schema 驱动 `/office/transactions` modal、`/office/transactions/new` 和 transaction detail intake 编辑区
+    - transaction intake schema 结构调整与 intake 值编辑都会写入 `Activity Log`
+    - transaction field / custom field schema 管理由 `office_admin` 执行
   - `Checklists` 当前支持：
     - create template
     - edit template
@@ -556,7 +560,13 @@
   - major library actions 会写入 `Activity Log`
   - 当前文件存储仍然是本地文件系统 MVP，不是假装已接入对象存储
   - 当前 page count 只在已知值时显示；上传时暂未做稳定 PDF page indexing
-- `Create Transaction` 保持在 `Transactions` 页面内的 modal 结构，按 `NEW TRANSACTION / step 1 of 4` 真实截图铺出，包含顶部 `Type / Status / Representing` 和 `Additional fields`
+- `Create Transaction` 继续保留在 `Transactions` 页面内的 modal 结构，但现在改成 office-scoped schema-driven intake workspace；同一套 schema 也驱动 `/office/transactions/new` 和 transaction detail 的 intake 编辑区
+- transaction intake 现在支持：
+  - `office_admin` 在创建界面直接 `Edit Form` / `Add Custom Field`
+  - 隐藏 built-in 或 custom 字段，并让非 admin 后续不再看到也不再必填
+  - 新增 `text / select / date` 自定义字段
+  - 文本字段限制 50 个字符
+  - 当地址组被隐藏时，自动强制 `Transaction Name` 显示且必填
 - 基础页面路由：
   - `/` -> 登录后跳对应 workspace，未登录跳 `/login`
   - `/agent` -> `/agent/dashboard`
@@ -587,6 +597,7 @@
   - `/api/office/dashboard`
   - `/api/office/transactions`
   - `/api/office/transactions/:transactionId`
+  - `/api/office/transactions/:transactionId/intake`
   - `/api/office/transactions/:transactionId/finance`
   - `/api/office/transactions/:transactionId/contacts`
   - `/api/office/transactions/:transactionId/contacts/:contactLinkId`
@@ -600,6 +611,9 @@
   - `/api/office/settings/users/:membershipId`
   - `/api/office/settings/users/:membershipId/invitation`
   - `/api/office/settings/users/:membershipId/unlock`
+  - `/api/office/settings/fields`
+  - `/api/office/settings/fields/custom`
+  - `/api/office/settings/fields/custom/:fieldKey`
   - `/api/office/transactions/:transactionId/tasks/:taskId/workflow`
   - `/api/office/transactions/:transactionId/documents`
   - `/api/office/transactions/:transactionId/documents/:documentId`

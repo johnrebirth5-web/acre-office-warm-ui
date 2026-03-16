@@ -1,6 +1,7 @@
 import { Prisma, TransactionRepresenting, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
+import { getOfficeTransactionIntakeSchema, type OfficeTransactionCustomFieldDefinitionRecord, type OfficeTransactionFieldSettingRecord } from "./settings";
 import { listAvailableContactsForTransaction, type OfficeTransactionContact, type OfficeTransactionContactOption } from "./transaction-contacts";
 import {
   listTransactionDocumentsSnapshot,
@@ -151,6 +152,47 @@ export type UpdateTransactionFinanceInput = {
   actorMembershipId?: string;
 };
 
+export type UpdateTransactionIntakeInput = {
+  organizationId: string;
+  transactionId: string;
+  transactionType: string;
+  transactionStatus: string;
+  representing: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  transactionName: string;
+  price: string;
+  buyerAgreementDate?: string;
+  buyerExpirationDate?: string;
+  acceptanceDate?: string;
+  listingDate?: string;
+  listingExpirationDate?: string;
+  closingDate?: string;
+  additionalFields?: Record<string, string>;
+  actorMembershipId?: string;
+};
+
+export type PreparedTransactionIntakeSubmission = {
+  transactionType: string;
+  transactionStatus: string;
+  representing: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  transactionName: string;
+  price: string;
+  buyerAgreementDate: string;
+  buyerExpirationDate: string;
+  acceptanceDate: string;
+  listingDate: string;
+  listingExpirationDate: string;
+  closingDate: string;
+  additionalFields: Record<string, string>;
+};
+
 const transactionStatusLabelMap: Record<TransactionStatus, OfficeTransactionStatus> = {
   opportunity: "Opportunity",
   active: "Active",
@@ -293,6 +335,276 @@ function parseOptionalText(value: string | undefined) {
 
 function parseCreateFinanceDecimal(explicitValue: string | undefined, fallbackValue: string | undefined) {
   return parseOptionalDecimal(explicitValue) ?? parseOptionalDecimal(fallbackValue);
+}
+
+function normalizePayloadString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parseTransactionIntakeDateValue(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("A valid date is required.");
+  }
+
+  return value;
+}
+
+function validateTransactionIntakeSelectValue(
+  field: Pick<OfficeTransactionFieldSettingRecord | OfficeTransactionCustomFieldDefinitionRecord, "label" | "options">,
+  value: string
+) {
+  if (!value) {
+    return;
+  }
+
+  if (!field.options.includes(value)) {
+    throw new Error(`${field.label} must use one of the configured options.`);
+  }
+}
+
+function buildTransactionIntakeBuiltInDefaults() {
+  return {
+    transactionType: "",
+    transactionStatus: "",
+    representing: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    transactionName: "",
+    price: "",
+    buyerAgreementDate: "",
+    buyerExpirationDate: "",
+    acceptanceDate: "",
+    listingDate: "",
+    listingExpirationDate: "",
+    closingDate: ""
+  };
+}
+
+export function prepareTransactionIntakeSubmission(input: {
+  schema: Awaited<ReturnType<typeof getOfficeTransactionIntakeSchema>>;
+  payload: Record<string, unknown>;
+  existingTransaction?: OfficeTransactionDetail | null;
+}): PreparedTransactionIntakeSubmission {
+  const builtInValues = buildTransactionIntakeBuiltInDefaults();
+  const existingCustomFieldValues = { ...(input.existingTransaction?.additionalFields ?? {}) };
+  const visibleBuiltInFields = input.schema.builtInFields.filter((field) => field.isVisible);
+  const visibleCustomFields = input.schema.customFields.filter((field) => field.isVisible);
+  const topFieldDefaults: Partial<Record<OfficeTransactionFieldSettingRecord["fieldKey"], string>> = {
+    transaction_type: "Other",
+    transaction_status: "Opportunity",
+    representing: "Buyer"
+  };
+
+  for (const field of visibleBuiltInFields) {
+    const rawValue = normalizePayloadString(input.payload[field.inputName]);
+
+    if (field.isRequired && !rawValue) {
+      throw new Error(`${field.label} is required.`);
+    }
+
+    if (field.control === "select") {
+      validateTransactionIntakeSelectValue(field, rawValue);
+    }
+
+    const nextValue = field.control === "date" ? parseTransactionIntakeDateValue(rawValue) : rawValue;
+
+    switch (field.fieldKey) {
+      case "transaction_type":
+        builtInValues.transactionType = nextValue;
+        break;
+      case "transaction_status":
+        builtInValues.transactionStatus = nextValue;
+        break;
+      case "representing":
+        builtInValues.representing = nextValue;
+        break;
+      case "address":
+        builtInValues.address = nextValue;
+        break;
+      case "city":
+        builtInValues.city = nextValue;
+        break;
+      case "state":
+        builtInValues.state = nextValue;
+        break;
+      case "zip_code":
+        builtInValues.zipCode = nextValue;
+        break;
+      case "transaction_name":
+        builtInValues.transactionName = nextValue;
+        break;
+      case "price":
+        builtInValues.price = nextValue;
+        break;
+      case "buyer_agreement_date":
+        builtInValues.buyerAgreementDate = nextValue;
+        break;
+      case "buyer_expiration_date":
+        builtInValues.buyerExpirationDate = nextValue;
+        break;
+      case "acceptance_date":
+        builtInValues.acceptanceDate = nextValue;
+        break;
+      case "listing_date":
+        builtInValues.listingDate = nextValue;
+        break;
+      case "listing_expiration_date":
+        builtInValues.listingExpirationDate = nextValue;
+        break;
+      case "closing_date":
+        builtInValues.closingDate = nextValue;
+        break;
+      default:
+        break;
+    }
+  }
+
+  for (const field of input.schema.builtInFields.filter((entry) => !entry.isVisible)) {
+    const currentValue =
+      field.fieldKey === "transaction_type"
+        ? input.existingTransaction?.type ?? ""
+        : field.fieldKey === "transaction_status"
+          ? input.existingTransaction?.status ?? ""
+          : field.fieldKey === "representing"
+            ? input.existingTransaction?.representing ? input.existingTransaction.representing.charAt(0).toUpperCase() + input.existingTransaction.representing.slice(1) : ""
+            : field.fieldKey === "address"
+              ? input.existingTransaction?.address ?? ""
+              : field.fieldKey === "city"
+                ? input.existingTransaction?.city ?? ""
+                : field.fieldKey === "state"
+                  ? input.existingTransaction?.state ?? ""
+                  : field.fieldKey === "zip_code"
+                    ? input.existingTransaction?.zipCode ?? ""
+                    : field.fieldKey === "transaction_name"
+                      ? input.existingTransaction?.title ?? ""
+                      : field.fieldKey === "price"
+                        ? input.existingTransaction?.price ?? ""
+                        : field.fieldKey === "buyer_agreement_date"
+                          ? input.existingTransaction?.buyerAgreementDate ?? ""
+                          : field.fieldKey === "buyer_expiration_date"
+                            ? input.existingTransaction?.buyerExpirationDate ?? ""
+                            : field.fieldKey === "acceptance_date"
+                              ? input.existingTransaction?.acceptanceDate ?? ""
+                              : field.fieldKey === "listing_date"
+                                ? input.existingTransaction?.listingDate ?? ""
+                                : field.fieldKey === "listing_expiration_date"
+                                  ? input.existingTransaction?.listingExpirationDate ?? ""
+                                  : field.fieldKey === "closing_date"
+                                    ? input.existingTransaction?.closingDate ?? ""
+                                    : "";
+
+    switch (field.fieldKey) {
+      case "transaction_type":
+        builtInValues.transactionType = currentValue || topFieldDefaults.transaction_type || "";
+        break;
+      case "transaction_status":
+        builtInValues.transactionStatus = currentValue || topFieldDefaults.transaction_status || "";
+        break;
+      case "representing":
+        builtInValues.representing = currentValue || topFieldDefaults.representing || "";
+        break;
+      case "address":
+        builtInValues.address = currentValue;
+        break;
+      case "city":
+        builtInValues.city = currentValue;
+        break;
+      case "state":
+        builtInValues.state = currentValue;
+        break;
+      case "zip_code":
+        builtInValues.zipCode = currentValue;
+        break;
+      case "transaction_name":
+        builtInValues.transactionName = currentValue;
+        break;
+      case "price":
+        builtInValues.price = currentValue;
+        break;
+      case "buyer_agreement_date":
+        builtInValues.buyerAgreementDate = currentValue;
+        break;
+      case "buyer_expiration_date":
+        builtInValues.buyerExpirationDate = currentValue;
+        break;
+      case "acceptance_date":
+        builtInValues.acceptanceDate = currentValue;
+        break;
+      case "listing_date":
+        builtInValues.listingDate = currentValue;
+        break;
+      case "listing_expiration_date":
+        builtInValues.listingExpirationDate = currentValue;
+        break;
+      case "closing_date":
+        builtInValues.closingDate = currentValue;
+        break;
+      default:
+        break;
+    }
+  }
+
+  const additionalFields = { ...existingCustomFieldValues };
+
+  for (const field of visibleCustomFields) {
+    const rawValue = normalizePayloadString(input.payload[field.inputName]);
+
+    if (field.isRequired && !rawValue) {
+      throw new Error(`${field.label} is required.`);
+    }
+
+    if (field.type === "select") {
+      validateTransactionIntakeSelectValue(field, rawValue);
+    }
+
+    if (field.type === "text" && rawValue.length > 50) {
+      throw new Error(`${field.label} must be 50 characters or fewer.`);
+    }
+
+    additionalFields[field.fieldKey] = field.type === "date" ? parseTransactionIntakeDateValue(rawValue) : rawValue;
+  }
+
+  if (!builtInValues.transactionType) {
+    builtInValues.transactionType = topFieldDefaults.transaction_type ?? "Other";
+  }
+
+  if (!builtInValues.transactionStatus) {
+    builtInValues.transactionStatus = topFieldDefaults.transaction_status ?? "Opportunity";
+  }
+
+  if (!builtInValues.representing) {
+    builtInValues.representing = topFieldDefaults.representing ?? "Buyer";
+  }
+
+  if (!builtInValues.transactionName && !(builtInValues.address || input.existingTransaction?.address)) {
+    throw new Error("Transaction Name is required.");
+  }
+
+  return {
+    transactionType: builtInValues.transactionType,
+    transactionStatus: builtInValues.transactionStatus,
+    representing: builtInValues.representing,
+    address: builtInValues.address,
+    city: builtInValues.city,
+    state: builtInValues.state,
+    zipCode: builtInValues.zipCode,
+    transactionName: builtInValues.transactionName,
+    price: builtInValues.price,
+    buyerAgreementDate: builtInValues.buyerAgreementDate,
+    buyerExpirationDate: builtInValues.buyerExpirationDate,
+    acceptanceDate: builtInValues.acceptanceDate,
+    listingDate: builtInValues.listingDate,
+    listingExpirationDate: builtInValues.listingExpirationDate,
+    closingDate: builtInValues.closingDate,
+    additionalFields
+  };
 }
 
 function formatAuditCurrencyValue(value: Prisma.Decimal | null) {
@@ -982,6 +1294,184 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
         entityType: "transaction",
         entityId: input.transactionId,
         action: activityLogActions.transactionFinanceUpdated,
+        payload: {
+          officeId: existing.officeId,
+          transactionId: input.transactionId,
+          transactionLabel: buildTransactionObjectLabel(existing),
+          objectLabel: buildTransactionObjectLabel(existing),
+          changes,
+          details
+        }
+      });
+    }
+  });
+
+  return getTransactionById(input.organizationId, input.transactionId);
+}
+
+export async function updateTransactionIntake(input: UpdateTransactionIntakeInput): Promise<OfficeTransactionDetail | null> {
+  const existing = await prisma.transaction.findFirst({
+    where: {
+      id: input.transactionId,
+      organizationId: input.organizationId
+    },
+    select: {
+      id: true,
+      officeId: true,
+      title: true,
+      address: true,
+      city: true,
+      state: true,
+      zipCode: true,
+      type: true,
+      status: true,
+      representing: true,
+      price: true,
+      buyerAgreementDate: true,
+      buyerExpirationDate: true,
+      acceptanceDate: true,
+      listingDate: true,
+      listingExpirationDate: true,
+      closingDate: true,
+      companyReferral: true,
+      companyReferralEmployeeName: true,
+      grossCommission: true,
+      referralFee: true,
+      officeNet: true,
+      agentNet: true,
+      financeNotes: true,
+      additionalFields: true
+    }
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const existingAdditionalFields =
+    existing.additionalFields && typeof existing.additionalFields === "object" && !Array.isArray(existing.additionalFields)
+      ? Object.fromEntries(
+          Object.entries(existing.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
+        )
+      : {};
+  const mergedAdditionalFields = {
+    ...existingAdditionalFields,
+    ...(input.additionalFields ?? {})
+  };
+  const companyReferralValue = (mergedAdditionalFields.companyReferral ?? "").toString().trim().toLowerCase();
+  const nextCompanyReferral = companyReferralValue ? companyReferralValue === "yes" : existing.companyReferral;
+  const nextCompanyReferralEmployeeName = (
+    mergedAdditionalFields.companyReferralEmployeesName ?? mergedAdditionalFields.companyReferralEmployeeName ?? ""
+  ).trim() || existing.companyReferralEmployeeName || "";
+  const nextGrossCommission = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.commissionAmount) ?? existing.grossCommission;
+  const nextReferralFee = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.referralFee) ?? existing.referralFee;
+  const nextOfficeNet = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.officeNet) ?? existing.officeNet;
+  const nextAgentNet = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.agentNet) ?? existing.agentNet;
+  const nextFinanceNotes = parseOptionalText(mergedAdditionalFields.note) ?? existing.financeNotes;
+  const nextTitle = input.transactionName.trim() || input.address.trim() || existing.title;
+  const nextAddress = input.address.trim();
+  const nextCity = input.city.trim();
+  const nextState = input.state.trim();
+  const nextZipCode = input.zipCode.trim();
+  const nextPrice = parseOptionalDecimal(input.price);
+  const nextBuyerAgreementDate = parseOptionalDate(input.buyerAgreementDate);
+  const nextBuyerExpirationDate = parseOptionalDate(input.buyerExpirationDate);
+  const nextAcceptanceDate = parseOptionalDate(input.acceptanceDate);
+  const nextListingDate = parseOptionalDate(input.listingDate);
+  const nextListingExpirationDate = parseOptionalDate(input.listingExpirationDate);
+  const nextClosingDate = parseOptionalDate(input.closingDate);
+  const nextImportantDate = parseOptionalDate(input.buyerExpirationDate) ?? parseOptionalDate(input.closingDate);
+  const nextTransactionType = transactionTypeDbMap[input.transactionType] ?? existing.type;
+  const nextTransactionStatus = transactionStatusDbMap[(input.transactionStatus as OfficeTransactionStatus) || "Opportunity"] ?? existing.status;
+  const nextRepresenting = representingDbMap[input.representing] ?? existing.representing;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.transaction.update({
+      where: {
+        id: input.transactionId
+      },
+      data: {
+        type: nextTransactionType,
+        status: nextTransactionStatus,
+        representing: nextRepresenting,
+        title: nextTitle,
+        address: nextAddress,
+        city: nextCity,
+        state: nextState,
+        zipCode: nextZipCode,
+        price: nextPrice,
+        importantDate: nextImportantDate,
+        buyerAgreementDate: nextBuyerAgreementDate,
+        buyerExpirationDate: nextBuyerExpirationDate,
+        acceptanceDate: nextAcceptanceDate,
+        listingDate: nextListingDate,
+        listingExpirationDate: nextListingExpirationDate,
+        closingDate: nextClosingDate,
+        companyReferral: nextCompanyReferral,
+        companyReferralEmployeeName: nextCompanyReferralEmployeeName || null,
+        grossCommission: nextGrossCommission,
+        referralFee: nextReferralFee,
+        officeNet: nextOfficeNet,
+        agentNet: nextAgentNet,
+        financeNotes: nextFinanceNotes,
+        referralContext: nextCompanyReferral
+          ? {
+              companyReferralEmployeeName: nextCompanyReferralEmployeeName
+            }
+          : Prisma.JsonNull,
+        additionalFields: mergedAdditionalFields
+      }
+    });
+
+    const details = [
+      buildAuditDetail("Transaction name", existing.title, nextTitle),
+      buildAuditDetail("Address", existing.address, nextAddress),
+      buildAuditDetail("City", existing.city, nextCity),
+      buildAuditDetail("State", existing.state, nextState),
+      buildAuditDetail("Zip", existing.zipCode, nextZipCode),
+      buildAuditDetail("Type", transactionTypeLabelMap[existing.type], transactionTypeLabelMap[nextTransactionType]),
+      buildAuditDetail("Status", transactionStatusLabelMap[existing.status], transactionStatusLabelMap[nextTransactionStatus]),
+      buildAuditDetail("Representing", representingLabelMap[existing.representing], representingLabelMap[nextRepresenting]),
+      buildAuditDetail("Price", formatAuditCurrencyValue(existing.price), formatAuditCurrencyValue(nextPrice)),
+      buildAuditDetail("Buyer agreement date", formatAuditTextValue(formatDateValue(existing.buyerAgreementDate)), formatAuditTextValue(input.buyerAgreementDate)),
+      buildAuditDetail("Buyer expiration date", formatAuditTextValue(formatDateValue(existing.buyerExpirationDate)), formatAuditTextValue(input.buyerExpirationDate)),
+      buildAuditDetail("Acceptance date", formatAuditTextValue(formatDateValue(existing.acceptanceDate)), formatAuditTextValue(input.acceptanceDate)),
+      buildAuditDetail("Listing date", formatAuditTextValue(formatDateValue(existing.listingDate)), formatAuditTextValue(input.listingDate)),
+      buildAuditDetail("Listing expiration date", formatAuditTextValue(formatDateValue(existing.listingExpirationDate)), formatAuditTextValue(input.listingExpirationDate)),
+      buildAuditDetail("Closing date", formatAuditTextValue(formatDateValue(existing.closingDate)), formatAuditTextValue(input.closingDate)),
+      ...Object.keys(input.additionalFields ?? {}).map((fieldKey) =>
+        buildAuditDetail(fieldKey, formatAuditTextValue(existingAdditionalFields[fieldKey]), formatAuditTextValue(mergedAdditionalFields[fieldKey]))
+      )
+    ].filter((detail): detail is string => Boolean(detail));
+
+    const changes = [
+      buildAuditChange("Transaction name", existing.title, nextTitle),
+      buildAuditChange("Address", existing.address, nextAddress),
+      buildAuditChange("City", existing.city, nextCity),
+      buildAuditChange("State", existing.state, nextState),
+      buildAuditChange("Zip", existing.zipCode, nextZipCode),
+      buildAuditChange("Type", transactionTypeLabelMap[existing.type], transactionTypeLabelMap[nextTransactionType]),
+      buildAuditChange("Status", transactionStatusLabelMap[existing.status], transactionStatusLabelMap[nextTransactionStatus]),
+      buildAuditChange("Representing", representingLabelMap[existing.representing], representingLabelMap[nextRepresenting]),
+      buildAuditChange("Price", formatAuditCurrencyValue(existing.price), formatAuditCurrencyValue(nextPrice)),
+      buildAuditChange("Buyer agreement date", formatAuditTextValue(formatDateValue(existing.buyerAgreementDate)), formatAuditTextValue(input.buyerAgreementDate)),
+      buildAuditChange("Buyer expiration date", formatAuditTextValue(formatDateValue(existing.buyerExpirationDate)), formatAuditTextValue(input.buyerExpirationDate)),
+      buildAuditChange("Acceptance date", formatAuditTextValue(formatDateValue(existing.acceptanceDate)), formatAuditTextValue(input.acceptanceDate)),
+      buildAuditChange("Listing date", formatAuditTextValue(formatDateValue(existing.listingDate)), formatAuditTextValue(input.listingDate)),
+      buildAuditChange("Listing expiration date", formatAuditTextValue(formatDateValue(existing.listingExpirationDate)), formatAuditTextValue(input.listingExpirationDate)),
+      buildAuditChange("Closing date", formatAuditTextValue(formatDateValue(existing.closingDate)), formatAuditTextValue(input.closingDate)),
+      ...Object.keys(input.additionalFields ?? {}).map((fieldKey) =>
+        buildAuditChange(fieldKey, formatAuditTextValue(existingAdditionalFields[fieldKey]), formatAuditTextValue(mergedAdditionalFields[fieldKey]))
+      )
+    ].filter((change): change is NonNullable<typeof change> => Boolean(change));
+
+    if (details.length > 0) {
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId ?? null,
+        entityType: "transaction",
+        entityId: input.transactionId,
+        action: activityLogActions.transactionUpdated,
         payload: {
           officeId: existing.officeId,
           transactionId: input.transactionId,

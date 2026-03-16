@@ -38,6 +38,7 @@ export const databaseModules = [
   "agent_goals",
   "required_contact_role_settings",
   "transaction_field_settings",
+  "transaction_custom_field_definitions",
   "checklist_templates",
   "checklist_template_items",
   "commission_plans",
@@ -158,12 +159,15 @@ export {
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
 export { getOfficeReportsSnapshot, listOfficeReportTransactionsForExport } from "./reports";
 export {
+  createOfficeTransactionCustomFieldDefinition,
   createChecklistTemplate,
   getOfficeAdminUsersSnapshot,
   getOfficeChecklistTemplatesSnapshot,
   getOfficeFieldSettingsSnapshot,
+  getOfficeTransactionIntakeSchema,
   getOfficeSettingsSummarySnapshot,
   saveOfficeFieldSettings,
+  updateOfficeTransactionCustomFieldDefinition,
   updateChecklistTemplate,
   updateOfficeAdminUser
 } from "./settings";
@@ -221,7 +225,9 @@ export {
   listTransactions,
   officeTransactionsPageDefaults,
   officeTransactionsPageLimits,
+  prepareTransactionIntakeSubmission,
   updateTransactionFinance,
+  updateTransactionIntake,
   updateTransactionStatus
 } from "./transactions";
 export type {
@@ -374,6 +380,7 @@ export type {
 export type {
   ChecklistTemplateItemInput,
   CreateChecklistTemplateInput,
+  CreateOfficeTransactionCustomFieldDefinitionInput,
   GetOfficeAdminUsersInput,
   OfficeAdminUserRow,
   OfficeAdminUsersSnapshot,
@@ -383,9 +390,12 @@ export type {
   OfficeFieldSettingsSnapshot,
   OfficeRequiredContactRoleRecord,
   OfficeSettingsSummarySnapshot,
+  OfficeTransactionCustomFieldDefinitionRecord,
   OfficeTransactionFieldSettingRecord,
+  OfficeTransactionIntakeSchema,
   SaveOfficeFieldSettingsInput,
   UpdateChecklistTemplateInput,
+  UpdateOfficeTransactionCustomFieldDefinitionInput,
   UpdateOfficeAdminUserInput
 } from "./settings";
 export type { SeededMembershipSnapshot, SeededWorkspaceSnapshot } from "./bootstrap";
@@ -523,6 +533,8 @@ export type {
   OfficeTransactionSelectOption,
   OfficeTransactionSummary,
   OfficeTransactionStatus,
+  PreparedTransactionIntakeSubmission,
   UpdateTransactionFinanceInput,
+  UpdateTransactionIntakeInput,
   UpdateTransactionStatusInput
 } from "./transactions";

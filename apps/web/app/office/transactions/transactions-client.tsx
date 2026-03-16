@@ -20,6 +20,7 @@ import {
 } from "@acre/ui";
 import type {
   OfficeTransactionFilterOptions,
+  OfficeTransactionIntakeSchema,
   OfficeTransactionRecord,
   OfficeTransactionStatus,
   OfficeTransactionSummary,
@@ -28,6 +29,7 @@ import {
   OfficeListPagePagination,
   OfficeListPageTemplate,
 } from "../_components/office-list-page-template";
+import { TransactionIntakeWorkspace } from "./transaction-intake-form";
 
 type TransactionsClientProps = {
   transactions: OfficeTransactionRecord[];
@@ -37,6 +39,8 @@ type TransactionsClientProps = {
   page: number;
   pageSize: number;
   filterOptions: OfficeTransactionFilterOptions;
+  transactionIntakeSchema: OfficeTransactionIntakeSchema;
+  canManageIntakeSchema: boolean;
   filters: {
     q: string;
     status: OfficeTransactionStatus | "All";
@@ -48,46 +52,6 @@ type TransactionsClientProps = {
   };
 };
 
-type InlineSelectProps = {
-  label: string;
-  name: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-};
-
-type ModalField = {
-  label: string;
-  name: string;
-  type?: "text" | "date" | "email";
-  className?: string;
-};
-
-type AdditionalField = {
-  label: string;
-  name: string;
-  type: "input" | "select";
-  inputType?: "text" | "email";
-  options?: string[];
-};
-
-const topTypeOptions = [
-  "Sales",
-  "Sales (listing)",
-  "Rental/Leasing",
-  "Rental (listing)",
-  "Commercial Sales",
-  "Other",
-  "Commercial Lease",
-];
-const topStatusOptions = [
-  "Opportunity",
-  "Active",
-  "Pending",
-  "Closed",
-  "Cancelled",
-];
-const topRepresentingOptions = ["Buyer", "Seller", "Both"];
 const listStatusOptions = [
   "All",
   "Opportunity",
@@ -128,149 +92,6 @@ function getTransactionStatusTone(status: OfficeTransactionStatus) {
   return "neutral" as const;
 }
 
-const primaryFields: ModalField[] = [
-  { label: "Address", name: "address" },
-  { label: "City", name: "city" },
-  { label: "State", name: "state", className: "is-compact" },
-  { label: "Zip", name: "zipCode", className: "is-compact" },
-  {
-    label: "Transaction name",
-    name: "transactionName",
-    className: "is-span-4",
-  },
-  { label: "Price", name: "price" },
-  { label: "Buyer agreement date", name: "buyerAgreementDate", type: "date" },
-  { label: "Buyer expiration date", name: "buyerExpirationDate", type: "date" },
-  { label: "Acceptance date", name: "acceptanceDate", type: "date" },
-  { label: "Listing date", name: "listingDate", type: "date" },
-  {
-    label: "Listing expiration date",
-    name: "listingExpirationDate",
-    type: "date",
-  },
-  { label: "Closing date", name: "closingDate", type: "date" },
-];
-
-const additionalFields: AdditionalField[] = [
-  { label: "Agent Name", name: "agentName", type: "input" },
-  {
-    label: "Team Leader",
-    name: "teamLeader",
-    type: "select",
-    options: ["Simon Park", "Naomi Chen", "Alice Tang"],
-  },
-  { label: "Licensed Agent Name", name: "licensedAgentName", type: "input" },
-  { label: "Invoice Number", name: "invoiceNumber", type: "input" },
-  { label: "Buyer/Tenant", name: "buyerTenant", type: "input" },
-  { label: "Building Name", name: "buildingName", type: "input" },
-  { label: "Address", name: "additionalAddress", type: "input" },
-  {
-    label: `Unit # (If it's a house, fill out "house")`,
-    name: "unitNumber",
-    type: "input",
-  },
-  { label: "Layout", name: "layout", type: "input" },
-  { label: "City", name: "additionalCity", type: "input" },
-  { label: "State", name: "additionalState", type: "input" },
-  { label: "Zip Code", name: "additionalZipCode", type: "input" },
-  {
-    label: "Move-In Date/Closing Date",
-    name: "moveInDateClosingDate",
-    type: "input",
-  },
-  {
-    label: "Commission Type",
-    name: "commissionType",
-    type: "select",
-    options: ["Gross", "Net", "Custom"],
-  },
-  { label: "Leasing Contact", name: "leasingContact", type: "input" },
-  { label: "Invoice Bill To", name: "invoiceBillTo", type: "input" },
-  {
-    label: "Currency Type",
-    name: "currencyType",
-    type: "select",
-    options: ["USD", "CNY"],
-  },
-  { label: "Commission($)", name: "commissionAmount", type: "input" },
-  { label: "Your Commission Rate", name: "yourCommissionRate", type: "input" },
-  { label: "Rebate", name: "rebate", type: "input" },
-  { label: "Reimbursement", name: "reimbursement", type: "input" },
-  { label: "Co-Agent Legal Name", name: "coAgentLegalName", type: "input" },
-  { label: "Commission Breakdown", name: "commissionBreakdown", type: "input" },
-  {
-    label: "Company Referral",
-    name: "companyReferral",
-    type: "select",
-    options: ["Yes", "No"],
-  },
-  {
-    label: "Outside Referral",
-    name: "outsideReferral",
-    type: "select",
-    options: ["Yes", "No"],
-  },
-  { label: "Referral Fee", name: "referralFee", type: "input" },
-  { label: "External Partners", name: "externalPartners", type: "input" },
-  {
-    label: "Company Referral Employee's Name",
-    name: "companyReferralEmployeeName",
-    type: "input",
-  },
-  {
-    label: "Client's Email",
-    name: "clientEmail",
-    type: "input",
-    inputType: "email",
-  },
-  {
-    label: "Upload Invoice to VendorCafe",
-    name: "uploadInvoiceToVendorCafe",
-    type: "select",
-    options: ["Yes", "No"],
-  },
-  { label: "Note(Rebate, Referral, Others)", name: "note", type: "input" },
-  {
-    label: "Status of Commission Received(For Admin)",
-    name: "commissionReceivedStatus",
-    type: "select",
-    options: ["No", "Yes", "Partial"],
-  },
-  {
-    label:
-      "Commission Confirmation(For Agent, we'll process the payment once you select yes)",
-    name: "commissionConfirmation",
-    type: "select",
-    options: ["Yes", "No"],
-  },
-];
-
-function InlineSelect({
-  label,
-  name,
-  value,
-  onChange,
-  options,
-}: InlineSelectProps) {
-  return (
-    <label className="bm-modal-inline-select">
-      <span>{label}:</span>
-      <select
-        className={value ? "" : "is-empty"}
-        name={name}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
-      >
-        <option value="">select</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 
 function normalizeStatusFilter(
   value: string,
@@ -344,14 +165,13 @@ export function TransactionsClient({
   page,
   pageSize,
   filterOptions,
+  transactionIntakeSchema,
+  canManageIntakeSchema,
   filters,
 }: TransactionsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState("");
-  const [transactionStatus, setTransactionStatus] = useState("");
-  const [representing, setRepresenting] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     (typeof listStatusOptions)[number]
   >(normalizeStatusFilter(filters.status));
@@ -363,8 +183,6 @@ export function TransactionsClient({
   const [typeFilter, setTypeFilter] = useState(filters.type);
   const [startDate, setStartDate] = useState(filters.startDate);
   const [endDate, setEndDate] = useState(filters.endDate);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
   const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
@@ -466,60 +284,6 @@ export function TransactionsClient({
       page: 1,
       pageSize: nextPageSize,
     });
-  }
-
-  async function handleCreateTransaction(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitError("");
-    setIsSubmitting(true);
-
-    const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData.entries());
-
-    try {
-      const response = await fetch("/api/office/transactions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(body?.error ?? "Failed to create transaction.");
-      }
-
-      setIsModalOpen(false);
-      setFormVersion((current) => current + 1);
-      setTransactionType("");
-      setTransactionStatus("");
-      setRepresenting("");
-      router.push(
-        buildTransactionsHref(pathname, {
-          q: searchQuery,
-          status: statusFilter,
-          ownerMembershipId,
-          teamId,
-          type: typeFilter,
-          startDate,
-          endDate,
-          page: 1,
-          pageSize,
-        }),
-      );
-      router.refresh();
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Failed to create transaction.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
   }
 
   const transactionFilters = (
@@ -756,107 +520,38 @@ export function TransactionsClient({
             className="bm-transaction-modal"
             onClick={(event) => event.stopPropagation()}
           >
-            <header className="bm-transaction-modal-header">
-              <h3>NEW TRANSACTION</h3>
-              <button
-                aria-label="Close create transaction modal"
-                onClick={() => setIsModalOpen(false)}
-                type="button"
-              >
-                ×
-              </button>
-            </header>
-
-            <form
-              className="bm-transaction-modal-body"
+            <TransactionIntakeWorkspace
+              afterSubmit="refresh"
+              canConfigureSchema={canManageIntakeSchema}
+              canEditValues={true}
+              chrome="modal"
               key={formVersion}
-              onSubmit={handleCreateTransaction}
-            >
-              <div className="bm-transaction-modal-top-selects">
-                <InlineSelect
-                  label="Type"
-                  name="transactionType"
-                  onChange={setTransactionType}
-                  options={topTypeOptions}
-                  value={transactionType}
-                />
-                <InlineSelect
-                  label="Status"
-                  name="transactionStatus"
-                  onChange={setTransactionStatus}
-                  options={topStatusOptions}
-                  value={transactionStatus}
-                />
-                <InlineSelect
-                  label="Representing"
-                  name="representing"
-                  onChange={setRepresenting}
-                  options={topRepresentingOptions}
-                  value={representing}
-                />
-              </div>
-
-              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
-                {primaryFields.map((field) => (
-                  <label
-                    className={`bm-transaction-modal-field ${field.className ?? ""}`.trim()}
-                    key={field.name}
-                  >
-                    <span>{field.label}</span>
-                    <input name={field.name} type={field.type ?? "text"} />
-                  </label>
-                ))}
-              </div>
-
-              <section className="bm-transaction-modal-additional">
-                <header className="bm-transaction-modal-section-header">
-                  <button type="button">Additional fields</button>
-                  <span>configure</span>
-                </header>
-
-                <div className="bm-transaction-modal-grid bm-transaction-modal-grid-additional">
-                  {additionalFields.map((field) => (
-                    <label
-                      className="bm-transaction-modal-field"
-                      key={field.name}
-                    >
-                      <span>{field.label}</span>
-                      {field.type === "select" ? (
-                        <select defaultValue="" name={field.name}>
-                          <option value="">Select...</option>
-                          {field.options?.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          name={field.name}
-                          type={field.inputType ?? "text"}
-                        />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </section>
-
-              <footer className="bm-transaction-modal-footer">
-                <span>step 1 of 4</span>
-                <div className="bm-transaction-modal-actions">
-                  {submitError ? (
-                    <p className="bm-transaction-submit-error">{submitError}</p>
-                  ) : null}
-                  <button
-                    className="bm-transaction-next"
-                    disabled={isSubmitting}
-                    type="submit"
-                  >
-                    {isSubmitting ? "Saving..." : "Next →"}
-                  </button>
-                </div>
-              </footer>
-            </form>
+              mode="create"
+              onClose={() => setIsModalOpen(false)}
+              onSubmitted={() => {
+                setIsModalOpen(false);
+                setFormVersion((current) => current + 1);
+                router.push(
+                  buildTransactionsHref(pathname, {
+                    q: searchQuery,
+                    status: statusFilter,
+                    ownerMembershipId,
+                    teamId,
+                    type: typeFilter,
+                    startDate,
+                    endDate,
+                    page: 1,
+                    pageSize,
+                  }),
+                );
+              }}
+              schema={transactionIntakeSchema}
+              stepLabel="step 1 of 4"
+              submitEndpoint="/api/office/transactions"
+              submitLabel="Next →"
+              submitMethod="POST"
+              title="NEW TRANSACTION"
+            />
           </section>
         </div>
       ) : null}

@@ -1,4 +1,4 @@
-import { listTransactions, type OfficeTransactionStatus } from "@acre/db";
+import { getOfficeTransactionIntakeSchema, listTransactions, type OfficeTransactionStatus } from "@acre/db";
 import { requireOfficeSession } from "../../../lib/auth-session";
 import { TransactionsClient } from "./transactions-client";
 
@@ -66,9 +66,14 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
     page,
     pageSize
   });
+  const transactionIntakeSchema = await getOfficeTransactionIntakeSchema({
+    organizationId: context.currentOrganization.id,
+    officeId: context.currentOffice?.id ?? null
+  });
 
   return (
     <TransactionsClient
+      canManageIntakeSchema={context.currentMembership.role === "office_admin"}
       filterOptions={result.filterOptions}
       filters={{ q, status, ownerMembershipId, teamId, type, startDate, endDate }}
       page={result.page}
@@ -76,6 +81,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
       summary={result.summary}
       totalCount={result.totalCount}
       totalPages={result.totalPages}
+      transactionIntakeSchema={transactionIntakeSchema}
       transactions={result.transactions}
     />
   );

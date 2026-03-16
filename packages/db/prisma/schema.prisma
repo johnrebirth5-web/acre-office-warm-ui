@@ -317,13 +317,30 @@ enum AgentGoalPeriodType {
 }
 
 enum TransactionFieldKey {
+  transaction_type
+  transaction_status
+  representing
+  address
+  city
+  state
+  zip_code
+  transaction_name
   price
+  buyer_agreement_date
   important_date
   closing_date
   buyer_expiration_date
   acceptance_date
+  listing_date
+  listing_expiration_date
   company_referral
   company_referral_employee_name
+}
+
+enum TransactionCustomFieldType {
+  text
+  select
+  date
 }
 
 enum CommissionCalculationMode {
@@ -420,6 +437,7 @@ model Organization {
   commissionCalculations            CommissionCalculation[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
   transactionFieldSettings          TransactionFieldSetting[]
+  transactionCustomFieldDefinitions TransactionCustomFieldDefinition[]
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
 }
@@ -471,6 +489,7 @@ model Office {
   commissionCalculations            CommissionCalculation[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
   transactionFieldSettings          TransactionFieldSetting[]
+  transactionCustomFieldDefinitions TransactionCustomFieldDefinition[]
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
 
@@ -1591,6 +1610,26 @@ model TransactionFieldSetting {
 
   @@unique([organizationId, officeId, fieldKey])
   @@index([organizationId, officeId, isVisible])
+}
+
+model TransactionCustomFieldDefinition {
+  id             String                     @id @default(cuid())
+  organizationId String
+  officeId       String?
+  fieldKey       String
+  label          String
+  type           TransactionCustomFieldType
+  isRequired     Boolean                    @default(false)
+  isVisible      Boolean                    @default(true)
+  sortOrder      Int                        @default(0)
+  options        Json?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?                    @relation(fields: [officeId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, officeId, fieldKey])
+  @@index([organizationId, officeId, isVisible, sortOrder])
 }
 
 model ChecklistTemplate {

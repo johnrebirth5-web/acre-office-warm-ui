@@ -50,6 +50,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `strong MVP`
 - Current notable behavior:
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
+  - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now share one office-scoped schema-driven intake workspace with admin-managed built-in visibility/requiredness and custom fields.
 - Follow-up work:
   - deeper listing-side workflow parity
   - richer transaction automation
@@ -214,6 +215,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, and admin unlock / reissue actions.
   - office-manager remains compatible internally, but normal create-user choices stay limited to Admin and User.
+  - `Fields` now includes an office-scoped transaction intake schema builder for built-in fields and custom `text / select / date` fields; schema changes are `office_admin` only and are audited.
 - Follow-up work:
   - richer multi-office access controls
   - stronger template application behavior

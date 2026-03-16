@@ -1,4 +1,3 @@
-import { canManageOfficeFields } from "@acre/auth";
 import { saveOfficeFieldSettings } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
@@ -10,8 +9,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeFields(context.currentMembership.role)) {
-    return NextResponse.json({ error: "Field settings permission required." }, { status: 403 });
+  if (context.currentMembership.role !== "office_admin") {
+    return NextResponse.json({ error: "Office admin permission required." }, { status: 403 });
   }
 
   const body = (await request.json().catch(() => null)) as
@@ -24,6 +23,15 @@ export async function PATCH(request: NextRequest) {
           fieldKey?: string;
           isRequired?: boolean;
           isVisible?: boolean;
+        }>;
+        transactionCustomFieldDefinitions?: Array<{
+          fieldKey?: string;
+          label?: string;
+          type?: string;
+          isRequired?: boolean;
+          isVisible?: boolean;
+          sortOrder?: number;
+          options?: string[];
         }>;
       }
     | null;
@@ -43,6 +51,16 @@ export async function PATCH(request: NextRequest) {
           fieldKey: entry.fieldKey ?? "",
           isRequired: Boolean(entry.isRequired),
           isVisible: typeof entry.isVisible === "boolean" ? entry.isVisible : true
+        })) ?? [],
+      transactionCustomFieldDefinitions:
+        body?.transactionCustomFieldDefinitions?.map((entry) => ({
+          fieldKey: entry.fieldKey ?? "",
+          label: entry.label ?? "",
+          type: entry.type ?? "",
+          isRequired: Boolean(entry.isRequired),
+          isVisible: typeof entry.isVisible === "boolean" ? entry.isVisible : true,
+          sortOrder: typeof entry.sortOrder === "number" ? entry.sortOrder : undefined,
+          options: Array.isArray(entry.options) ? entry.options.map((option) => String(option ?? "")) : []
         })) ?? []
     });
 

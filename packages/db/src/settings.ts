@@ -2,6 +2,7 @@ import {
   MembershipStatus,
   Prisma,
   TransactionContactRole,
+  TransactionCustomFieldType,
   TransactionFieldKey,
   TransactionType,
   UserRole
@@ -44,14 +45,77 @@ const transactionTypeLabelMap: Record<TransactionType, string> = {
   other: "Other"
 };
 
-const transactionFieldCatalog: Array<{ key: TransactionFieldKey; label: string }> = [
-  { key: "price", label: "Price" },
-  { key: "important_date", label: "Important date" },
-  { key: "closing_date", label: "Closing date" },
-  { key: "buyer_expiration_date", label: "Buyer expiration date" },
-  { key: "acceptance_date", label: "Acceptance date" },
-  { key: "company_referral", label: "Company referral" },
-  { key: "company_referral_employee_name", label: "Referral employee name" }
+const transactionIntakeBuiltInFieldCatalog: Array<{
+  key: TransactionFieldKey;
+  label: string;
+  inputName: string;
+  section: "top" | "primary";
+  control: "text" | "date" | "select";
+  className?: string;
+  options?: string[];
+}> = [
+  { key: "transaction_type", label: "Type", inputName: "transactionType", section: "top", control: "select", options: ["Sales", "Sales (listing)", "Rental/Leasing", "Rental (listing)", "Commercial Sales", "Commercial Lease", "Other"] },
+  { key: "transaction_status", label: "Status", inputName: "transactionStatus", section: "top", control: "select", options: ["Opportunity", "Active", "Pending", "Closed", "Cancelled"] },
+  { key: "representing", label: "Representing", inputName: "representing", section: "top", control: "select", options: ["Buyer", "Seller", "Both", "Tenant", "Landlord"] },
+  { key: "address", label: "Address", inputName: "address", section: "primary", control: "text" },
+  { key: "city", label: "City", inputName: "city", section: "primary", control: "text" },
+  { key: "state", label: "State", inputName: "state", section: "primary", control: "text", className: "is-compact" },
+  { key: "zip_code", label: "Zip", inputName: "zipCode", section: "primary", control: "text", className: "is-compact" },
+  { key: "transaction_name", label: "Transaction Name", inputName: "transactionName", section: "primary", control: "text", className: "is-span-4" },
+  { key: "price", label: "Price", inputName: "price", section: "primary", control: "text" },
+  { key: "buyer_agreement_date", label: "Buyer Agreement Date", inputName: "buyerAgreementDate", section: "primary", control: "date" },
+  { key: "buyer_expiration_date", label: "Buyer Expiration Date", inputName: "buyerExpirationDate", section: "primary", control: "date" },
+  { key: "acceptance_date", label: "Acceptance Date", inputName: "acceptanceDate", section: "primary", control: "date" },
+  { key: "listing_date", label: "Listing Date", inputName: "listingDate", section: "primary", control: "date" },
+  { key: "listing_expiration_date", label: "Listing Expiration Date", inputName: "listingExpirationDate", section: "primary", control: "date" },
+  { key: "closing_date", label: "Closing Date", inputName: "closingDate", section: "primary", control: "date" }
+];
+
+const legacyCustomFieldSettingKeyMap: Partial<Record<string, TransactionFieldKey>> = {
+  companyReferral: "company_referral",
+  companyReferralEmployeeName: "company_referral_employee_name"
+};
+
+const defaultTransactionCustomFieldCatalog: Array<{
+  fieldKey: string;
+  label: string;
+  type: TransactionCustomFieldType;
+  sortOrder: number;
+  options: string[];
+}> = [
+  { fieldKey: "agentName", label: "Agent Name", type: "text", sortOrder: 0, options: [] },
+  { fieldKey: "teamLeader", label: "Team Leader", type: "select", sortOrder: 1, options: ["Simon Park", "Naomi Chen", "Alice Tang"] },
+  { fieldKey: "licensedAgentName", label: "Licensed Agent Name", type: "text", sortOrder: 2, options: [] },
+  { fieldKey: "invoiceNumber", label: "Invoice Number", type: "text", sortOrder: 3, options: [] },
+  { fieldKey: "buyerTenant", label: "Buyer/Tenant", type: "text", sortOrder: 4, options: [] },
+  { fieldKey: "buildingName", label: "Building Name", type: "text", sortOrder: 5, options: [] },
+  { fieldKey: "additionalAddress", label: "Address", type: "text", sortOrder: 6, options: [] },
+  { fieldKey: "unitNumber", label: "Unit # (If it's a house, fill out \"house\")", type: "text", sortOrder: 7, options: [] },
+  { fieldKey: "layout", label: "Layout", type: "text", sortOrder: 8, options: [] },
+  { fieldKey: "additionalCity", label: "City", type: "text", sortOrder: 9, options: [] },
+  { fieldKey: "additionalState", label: "State", type: "text", sortOrder: 10, options: [] },
+  { fieldKey: "additionalZipCode", label: "Zip Code", type: "text", sortOrder: 11, options: [] },
+  { fieldKey: "moveInDateClosingDate", label: "Move-In Date/Closing Date", type: "text", sortOrder: 12, options: [] },
+  { fieldKey: "commissionType", label: "Commission Type", type: "select", sortOrder: 13, options: ["Gross", "Net", "Custom"] },
+  { fieldKey: "leasingContact", label: "Leasing Contact", type: "text", sortOrder: 14, options: [] },
+  { fieldKey: "invoiceBillTo", label: "Invoice Bill To", type: "text", sortOrder: 15, options: [] },
+  { fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 16, options: ["USD", "CNY"] },
+  { fieldKey: "commissionAmount", label: "Commission($)", type: "text", sortOrder: 17, options: [] },
+  { fieldKey: "yourCommissionRate", label: "Your Commission Rate", type: "text", sortOrder: 18, options: [] },
+  { fieldKey: "rebate", label: "Rebate", type: "text", sortOrder: 19, options: [] },
+  { fieldKey: "reimbursement", label: "Reimbursement", type: "text", sortOrder: 20, options: [] },
+  { fieldKey: "coAgentLegalName", label: "Co-Agent Legal Name", type: "text", sortOrder: 21, options: [] },
+  { fieldKey: "commissionBreakdown", label: "Commission Breakdown", type: "text", sortOrder: 22, options: [] },
+  { fieldKey: "companyReferral", label: "Company Referral", type: "select", sortOrder: 23, options: ["Yes", "No"] },
+  { fieldKey: "outsideReferral", label: "Outside Referral", type: "select", sortOrder: 24, options: ["Yes", "No"] },
+  { fieldKey: "referralFee", label: "Referral Fee", type: "text", sortOrder: 25, options: [] },
+  { fieldKey: "externalPartners", label: "External Partners", type: "text", sortOrder: 26, options: [] },
+  { fieldKey: "companyReferralEmployeeName", label: "Company Referral Employee's Name", type: "text", sortOrder: 27, options: [] },
+  { fieldKey: "clientEmail", label: "Client's Email", type: "text", sortOrder: 28, options: [] },
+  { fieldKey: "uploadInvoiceToVendorCafe", label: "Upload Invoice to VendorCafe", type: "select", sortOrder: 29, options: ["Yes", "No"] },
+  { fieldKey: "note", label: "Note(Rebate, Referral, Others)", type: "text", sortOrder: 30, options: [] },
+  { fieldKey: "commissionReceivedStatus", label: "Status of Commission Received(For Admin)", type: "select", sortOrder: 31, options: ["No", "Yes", "Partial"] },
+  { fieldKey: "commissionConfirmation", label: "Commission Confirmation(For Agent, we'll process the payment once you select yes)", type: "select", sortOrder: 32, options: ["Yes", "No"] }
 ];
 
 const contactRoleCatalog: Array<{ role: TransactionContactRole; label: string }> = [
@@ -130,9 +194,42 @@ export type OfficeRequiredContactRoleRecord = {
 
 export type OfficeTransactionFieldSettingRecord = {
   fieldKey: TransactionFieldKey;
+  inputName: string;
   label: string;
+  section: "top" | "primary";
+  control: "text" | "date" | "select";
+  className: string;
+  options: string[];
   isRequired: boolean;
   isVisible: boolean;
+  isLockedRequired: boolean;
+  isLockedVisible: boolean;
+};
+
+export type OfficeTransactionCustomFieldDefinitionRecord = {
+  id: string | null;
+  fieldKey: string;
+  inputName: string;
+  label: string;
+  type: TransactionCustomFieldType;
+  isRequired: boolean;
+  isVisible: boolean;
+  sortOrder: number;
+  options: string[];
+  isDefault: boolean;
+};
+
+export type OfficeTransactionIntakeSchema = {
+  summary: {
+    builtInFieldCount: number;
+    visibleBuiltInFieldCount: number;
+    requiredBuiltInFieldCount: number;
+    customFieldCount: number;
+    visibleCustomFieldCount: number;
+    requiredCustomFieldCount: number;
+  };
+  builtInFields: OfficeTransactionFieldSettingRecord[];
+  customFields: OfficeTransactionCustomFieldDefinitionRecord[];
 };
 
 export type OfficeFieldSettingsSnapshot = {
@@ -143,6 +240,8 @@ export type OfficeFieldSettingsSnapshot = {
   };
   contactRoleSettings: OfficeRequiredContactRoleRecord[];
   transactionFieldSettings: OfficeTransactionFieldSettingRecord[];
+  transactionCustomFieldDefinitions: OfficeTransactionCustomFieldDefinitionRecord[];
+  transactionIntakeSchema: OfficeTransactionIntakeSchema;
 };
 
 export type OfficeChecklistTemplateItemRecord = {
@@ -211,6 +310,39 @@ export type SaveOfficeFieldSettingsInput = {
     isRequired: boolean;
     isVisible: boolean;
   }>;
+  transactionCustomFieldDefinitions?: Array<{
+    fieldKey: string;
+    label?: string;
+    type?: string;
+    isRequired: boolean;
+    isVisible: boolean;
+    sortOrder?: number;
+    options?: string[];
+  }>;
+};
+
+export type CreateOfficeTransactionCustomFieldDefinitionInput = {
+  organizationId: string;
+  officeId?: string | null;
+  actorMembershipId: string;
+  label: string;
+  type: string;
+  isRequired?: boolean;
+  isVisible?: boolean;
+  options?: string[];
+};
+
+export type UpdateOfficeTransactionCustomFieldDefinitionInput = {
+  organizationId: string;
+  officeId?: string | null;
+  actorMembershipId: string;
+  fieldKey: string;
+  label?: string;
+  type?: string;
+  isRequired?: boolean;
+  isVisible?: boolean;
+  sortOrder?: number;
+  options?: string[];
 };
 
 export type ChecklistTemplateItemInput = {
@@ -407,11 +539,22 @@ function normalizeContactRole(value: string): TransactionContactRole {
 
 function normalizeTransactionFieldKey(value: string): TransactionFieldKey {
   if (
+    value === "transaction_type" ||
+    value === "transaction_status" ||
+    value === "representing" ||
+    value === "address" ||
+    value === "city" ||
+    value === "state" ||
+    value === "zip_code" ||
+    value === "transaction_name" ||
     value === "price" ||
+    value === "buyer_agreement_date" ||
     value === "important_date" ||
     value === "closing_date" ||
     value === "buyer_expiration_date" ||
     value === "acceptance_date" ||
+    value === "listing_date" ||
+    value === "listing_expiration_date" ||
     value === "company_referral" ||
     value === "company_referral_employee_name"
   ) {
@@ -419,6 +562,24 @@ function normalizeTransactionFieldKey(value: string): TransactionFieldKey {
   }
 
   throw new Error("A valid transaction field key is required.");
+}
+
+function normalizeTransactionCustomFieldType(value: string): TransactionCustomFieldType {
+  if (value === "text" || value === "select" || value === "date") {
+    return value;
+  }
+
+  throw new Error("A valid transaction custom field type is required.");
+}
+
+function normalizeTransactionCustomFieldKey(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed || !/^[A-Za-z][A-Za-z0-9_]*$/.test(trimmed)) {
+    throw new Error("A valid transaction custom field key is required.");
+  }
+
+  return trimmed;
 }
 
 function normalizeTransactionType(value: string | undefined): TransactionType | null {
@@ -439,6 +600,135 @@ function normalizeTransactionType(value: string | undefined): TransactionType | 
   }
 
   throw new Error("A valid checklist transaction context is required.");
+}
+
+function normalizeTransactionCustomFieldOptions(type: TransactionCustomFieldType, options: string[] | undefined) {
+  if (type !== "select") {
+    return [];
+  }
+
+  const normalizedOptions = (options ?? [])
+    .map((option) => option.trim())
+    .filter(Boolean);
+
+  if (!normalizedOptions.length) {
+    throw new Error("Select fields require at least one option.");
+  }
+
+  return Array.from(new Set(normalizedOptions));
+}
+
+function readTransactionCustomFieldOptions(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((entry) => String(entry ?? "").trim()).filter(Boolean);
+}
+
+function slugifyTransactionCustomFieldLabel(label: string) {
+  const slug = label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (!slug) {
+    throw new Error("Field label is required.");
+  }
+
+  return `custom_${slug}`;
+}
+
+function buildOfficeTransactionBuiltInFieldRecord(input: {
+  fieldKey: TransactionFieldKey;
+  isRequired: boolean;
+  isVisible: boolean;
+  isLockedRequired?: boolean;
+  isLockedVisible?: boolean;
+}): OfficeTransactionFieldSettingRecord {
+  const catalogEntry = transactionIntakeBuiltInFieldCatalog.find((entry) => entry.key === input.fieldKey);
+
+  if (!catalogEntry) {
+    throw new Error("Unsupported transaction built-in field.");
+  }
+
+  return {
+    fieldKey: catalogEntry.key,
+    inputName: catalogEntry.inputName,
+    label: catalogEntry.label,
+    section: catalogEntry.section,
+    control: catalogEntry.control,
+    className: catalogEntry.className ?? "",
+    options: catalogEntry.options ?? [],
+    isRequired: input.isRequired,
+    isVisible: input.isVisible,
+    isLockedRequired: Boolean(input.isLockedRequired),
+    isLockedVisible: Boolean(input.isLockedVisible)
+  };
+}
+
+function buildOfficeTransactionCustomFieldRecord(input: {
+  id?: string | null;
+  fieldKey: string;
+  label: string;
+  type: TransactionCustomFieldType;
+  isRequired: boolean;
+  isVisible: boolean;
+  sortOrder: number;
+  options?: string[];
+  isDefault: boolean;
+}): OfficeTransactionCustomFieldDefinitionRecord {
+  return {
+    id: input.id ?? null,
+    fieldKey: input.fieldKey,
+    inputName: input.fieldKey,
+    label: input.label,
+    type: input.type,
+    isRequired: input.isRequired,
+    isVisible: input.isVisible,
+    sortOrder: input.sortOrder,
+    options: input.options ?? [],
+    isDefault: input.isDefault
+  };
+}
+
+function applyTransactionIdentityFallback(
+  builtInFields: OfficeTransactionFieldSettingRecord[]
+): OfficeTransactionFieldSettingRecord[] {
+  const addressFieldKeys = new Set<TransactionFieldKey>(["address", "city", "state", "zip_code"]);
+  const isAddressGroupHidden = builtInFields
+    .filter((entry) => addressFieldKeys.has(entry.fieldKey))
+    .every((entry) => !entry.isVisible);
+
+  if (!isAddressGroupHidden) {
+    return builtInFields;
+  }
+
+  return builtInFields.map((entry) =>
+    entry.fieldKey === "transaction_name"
+      ? {
+          ...entry,
+          isRequired: true,
+          isVisible: true,
+          isLockedRequired: true,
+          isLockedVisible: true
+        }
+      : entry
+  );
+}
+
+function buildLegacyCustomFieldFallbackState(
+  fieldKey: string,
+  transactionFieldSettingsMap: Map<TransactionFieldKey, { isRequired: boolean; isVisible: boolean }>
+) {
+  const legacyKey = legacyCustomFieldSettingKeyMap[fieldKey];
+
+  if (!legacyKey) {
+    return null;
+  }
+
+  return transactionFieldSettingsMap.get(legacyKey) ?? null;
 }
 
 function mapChecklistTemplateRecord(
@@ -897,22 +1187,61 @@ export async function getOfficeFieldSettingsSnapshot(input: {
   organizationId: string;
   officeId?: string | null;
 }): Promise<OfficeFieldSettingsSnapshot> {
-  const [requiredRoleSettings, transactionFieldSettings] = await Promise.all([
+  const [requiredRoleSettings, transactionIntakeSchema] = await Promise.all([
     prisma.requiredContactRoleSetting.findMany({
       where: {
         organizationId: input.organizationId,
         officeId: input.officeId ?? null
       }
     }),
+    getOfficeTransactionIntakeSchema(input)
+  ]);
+
+  const requiredRoleMap = new Map(requiredRoleSettings.map((entry) => [entry.role, entry.isRequired]));
+
+  const contactRoleRows = contactRoleCatalog.map((entry) => ({
+    role: entry.role,
+    label: entry.label,
+    isRequired: requiredRoleMap.get(entry.role) ?? false
+  }));
+
+  return {
+    summary: {
+      requiredRoleCount: contactRoleRows.filter((entry) => entry.isRequired).length,
+      requiredFieldCount:
+        transactionIntakeSchema.builtInFields.filter((entry) => entry.isRequired).length +
+        transactionIntakeSchema.customFields.filter((entry) => entry.isRequired).length,
+      visibleFieldCount:
+        transactionIntakeSchema.builtInFields.filter((entry) => entry.isVisible).length +
+        transactionIntakeSchema.customFields.filter((entry) => entry.isVisible).length
+    },
+    contactRoleSettings: contactRoleRows,
+    transactionFieldSettings: transactionIntakeSchema.builtInFields,
+    transactionCustomFieldDefinitions: transactionIntakeSchema.customFields,
+    transactionIntakeSchema
+  };
+}
+
+export async function getOfficeTransactionIntakeSchema(input: {
+  organizationId: string;
+  officeId?: string | null;
+}): Promise<OfficeTransactionIntakeSchema> {
+  const [transactionFieldSettings, transactionCustomFieldDefinitions] = await Promise.all([
     prisma.transactionFieldSetting.findMany({
       where: {
         organizationId: input.organizationId,
         officeId: input.officeId ?? null
       }
+    }),
+    prisma.transactionCustomFieldDefinition.findMany({
+      where: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null
+      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
     })
   ]);
 
-  const requiredRoleMap = new Map(requiredRoleSettings.map((entry) => [entry.role, entry.isRequired]));
   const fieldSettingsMap = new Map(
     transactionFieldSettings.map((entry) => [
       entry.fieldKey,
@@ -923,27 +1252,70 @@ export async function getOfficeFieldSettingsSnapshot(input: {
     ])
   );
 
-  const contactRoleRows = contactRoleCatalog.map((entry) => ({
-    role: entry.role,
-    label: entry.label,
-    isRequired: requiredRoleMap.get(entry.role) ?? false
-  }));
+  const builtInFields = applyTransactionIdentityFallback(
+    transactionIntakeBuiltInFieldCatalog.map((entry) =>
+      buildOfficeTransactionBuiltInFieldRecord({
+        fieldKey: entry.key,
+        isRequired: fieldSettingsMap.get(entry.key)?.isRequired ?? false,
+        isVisible: fieldSettingsMap.get(entry.key)?.isVisible ?? true
+      })
+    )
+  );
 
-  const transactionFieldRows = transactionFieldCatalog.map((entry) => ({
-    fieldKey: entry.key,
-    label: entry.label,
-    isRequired: fieldSettingsMap.get(entry.key)?.isRequired ?? false,
-    isVisible: fieldSettingsMap.get(entry.key)?.isVisible ?? true
-  }));
+  const persistedCustomFieldMap = new Map(transactionCustomFieldDefinitions.map((entry) => [entry.fieldKey, entry]));
+  const customFields = defaultTransactionCustomFieldCatalog
+    .map((entry) => {
+      const persisted = persistedCustomFieldMap.get(entry.fieldKey) ?? null;
+      const legacyFallback = buildLegacyCustomFieldFallbackState(entry.fieldKey, fieldSettingsMap);
+
+      return buildOfficeTransactionCustomFieldRecord({
+        id: persisted?.id ?? null,
+        fieldKey: entry.fieldKey,
+        label: persisted?.label ?? entry.label,
+        type: persisted?.type ?? entry.type,
+        isRequired: persisted?.isRequired ?? legacyFallback?.isRequired ?? false,
+        isVisible: persisted?.isVisible ?? legacyFallback?.isVisible ?? true,
+        sortOrder: persisted?.sortOrder ?? entry.sortOrder,
+        options: persisted ? readTransactionCustomFieldOptions(persisted.options) : entry.options,
+        isDefault: true
+      });
+    })
+    .concat(
+      transactionCustomFieldDefinitions
+        .filter((entry) => !defaultTransactionCustomFieldCatalog.some((defaultEntry) => defaultEntry.fieldKey === entry.fieldKey))
+        .map((entry) =>
+          buildOfficeTransactionCustomFieldRecord({
+            id: entry.id,
+            fieldKey: entry.fieldKey,
+            label: entry.label,
+            type: entry.type,
+            isRequired: entry.isRequired,
+            isVisible: entry.isVisible,
+            sortOrder: entry.sortOrder,
+            options: readTransactionCustomFieldOptions(entry.options),
+            isDefault: false
+          })
+        )
+    )
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+
+      return left.label.localeCompare(right.label);
+    });
 
   return {
     summary: {
-      requiredRoleCount: contactRoleRows.filter((entry) => entry.isRequired).length,
-      requiredFieldCount: transactionFieldRows.filter((entry) => entry.isRequired).length,
-      visibleFieldCount: transactionFieldRows.filter((entry) => entry.isVisible).length
+      builtInFieldCount: builtInFields.length,
+      visibleBuiltInFieldCount: builtInFields.filter((entry) => entry.isVisible).length,
+      requiredBuiltInFieldCount: builtInFields.filter((entry) => entry.isRequired).length,
+      customFieldCount: customFields.length,
+      visibleCustomFieldCount: customFields.filter((entry) => entry.isVisible).length,
+      requiredCustomFieldCount: customFields.filter((entry) => entry.isRequired).length
     },
-    contactRoleSettings: contactRoleRows,
-    transactionFieldSettings: transactionFieldRows
+    builtInFields,
+    customFields
   };
 }
 
@@ -957,6 +1329,12 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
     });
 
     const existingFieldSettings = await tx.transactionFieldSetting.findMany({
+      where: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null
+      }
+    });
+    const existingCustomFieldDefinitions = await tx.transactionCustomFieldDefinition.findMany({
       where: {
         organizationId: input.organizationId,
         officeId: input.officeId ?? null
@@ -1025,7 +1403,7 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
         });
       }
 
-      const fieldLabel = transactionFieldCatalog.find((catalogEntry) => catalogEntry.key === fieldKey)?.label ?? fieldKey;
+      const fieldLabel = transactionIntakeBuiltInFieldCatalog.find((catalogEntry) => catalogEntry.key === fieldKey)?.label ?? fieldKey;
       const requiredChange = buildChange(`${fieldLabel} required`, previousRequired ? "Yes" : "No", entry.isRequired ? "Yes" : "No");
       const visibilityChange = buildChange(`${fieldLabel} visible`, previousVisible ? "Yes" : "No", entry.isVisible ? "Yes" : "No");
 
@@ -1035,6 +1413,66 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
 
       if (visibilityChange) {
         fieldChanges.push(visibilityChange);
+      }
+    }
+
+    for (const entry of input.transactionCustomFieldDefinitions ?? []) {
+      const fieldKey = normalizeTransactionCustomFieldKey(entry.fieldKey);
+      const existing = existingCustomFieldDefinitions.find((setting) => setting.fieldKey === fieldKey) ?? null;
+      const defaultEntry = defaultTransactionCustomFieldCatalog.find((setting) => setting.fieldKey === fieldKey) ?? null;
+      const label = parseOptionalText(entry.label) ?? existing?.label ?? defaultEntry?.label ?? fieldKey;
+      const type = normalizeTransactionCustomFieldType(entry.type ?? existing?.type ?? defaultEntry?.type ?? "text");
+      const options = normalizeTransactionCustomFieldOptions(
+        type,
+        entry.options ?? (existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options)
+      );
+      const sortOrder = typeof entry.sortOrder === "number" ? entry.sortOrder : existing?.sortOrder ?? defaultEntry?.sortOrder ?? 0;
+      const previousLabel = existing?.label ?? defaultEntry?.label ?? fieldKey;
+      const previousType = existing?.type ?? defaultEntry?.type ?? "text";
+      const previousRequired = existing?.isRequired ?? buildLegacyCustomFieldFallbackState(fieldKey, new Map(existingFieldSettings.map((setting) => [setting.fieldKey, { isRequired: setting.isRequired, isVisible: setting.isVisible }])))?.isRequired ?? false;
+      const previousVisible = existing?.isVisible ?? buildLegacyCustomFieldFallbackState(fieldKey, new Map(existingFieldSettings.map((setting) => [setting.fieldKey, { isRequired: setting.isRequired, isVisible: setting.isVisible }])))?.isVisible ?? true;
+      const previousOptions = existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options ?? [];
+
+      if (existing) {
+        await tx.transactionCustomFieldDefinition.update({
+          where: {
+            id: existing.id
+          },
+          data: {
+            label,
+            type,
+            isRequired: entry.isRequired,
+            isVisible: entry.isVisible,
+            sortOrder,
+            options
+          }
+        });
+      } else {
+        await tx.transactionCustomFieldDefinition.create({
+          data: {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            fieldKey,
+            label,
+            type,
+            isRequired: entry.isRequired,
+            isVisible: entry.isVisible,
+            sortOrder,
+            options
+          }
+        });
+      }
+
+      const labelChange = buildChange(`${fieldKey} label`, previousLabel, label);
+      const typeChange = buildChange(`${label} type`, previousType, type);
+      const requiredChange = buildChange(`${label} required`, previousRequired ? "Yes" : "No", entry.isRequired ? "Yes" : "No");
+      const visibilityChange = buildChange(`${label} visible`, previousVisible ? "Yes" : "No", entry.isVisible ? "Yes" : "No");
+      const optionsChange = buildChange(`${label} options`, previousOptions.join(", ") || "—", options.join(", ") || "—");
+
+      for (const change of [labelChange, typeChange, requiredChange, visibilityChange, optionsChange]) {
+        if (change) {
+          fieldChanges.push(change);
+        }
       }
     }
 
@@ -1073,6 +1511,202 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
     }
 
     return getOfficeFieldSettingsSnapshot({
+      organizationId: input.organizationId,
+      officeId: input.officeId
+    });
+  });
+}
+
+async function hasSavedTransactionCustomFieldValues(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    fieldKey: string;
+  }
+) {
+  const officeFilter = input.officeId
+    ? Prisma.sql`AND "officeId" = ${input.officeId}`
+    : Prisma.sql`AND "officeId" IS NULL`;
+
+  const rows = await tx.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+    SELECT COUNT(*)::int AS "count"
+    FROM "Transaction"
+    WHERE "organizationId" = ${input.organizationId}
+    ${officeFilter}
+    AND "additionalFields" ? ${input.fieldKey}
+  `);
+
+  return Number(rows[0]?.count ?? 0) > 0;
+}
+
+export async function createOfficeTransactionCustomFieldDefinition(input: CreateOfficeTransactionCustomFieldDefinitionInput) {
+  return prisma.$transaction(async (tx) => {
+    const existingDefinitions = await tx.transactionCustomFieldDefinition.findMany({
+      where: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null
+      },
+      select: {
+        fieldKey: true,
+        sortOrder: true
+      }
+    });
+
+    const existingFieldKeys = new Set(
+      defaultTransactionCustomFieldCatalog.map((entry) => entry.fieldKey).concat(existingDefinitions.map((entry) => entry.fieldKey))
+    );
+    const baseFieldKey = slugifyTransactionCustomFieldLabel(input.label);
+    let fieldKey = baseFieldKey;
+    let suffix = 2;
+
+    while (existingFieldKeys.has(fieldKey)) {
+      fieldKey = `${baseFieldKey}_${suffix}`;
+      suffix += 1;
+    }
+
+    const type = normalizeTransactionCustomFieldType(input.type);
+    const options = normalizeTransactionCustomFieldOptions(type, input.options);
+    const label = parseOptionalText(input.label);
+
+    if (!label) {
+      throw new Error("Field label is required.");
+    }
+
+    const sortOrder = Math.max(-1, ...defaultTransactionCustomFieldCatalog.map((entry) => entry.sortOrder), ...existingDefinitions.map((entry) => entry.sortOrder)) + 1;
+
+    await tx.transactionCustomFieldDefinition.create({
+      data: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null,
+        fieldKey,
+        label,
+        type,
+        isRequired: Boolean(input.isRequired),
+        isVisible: typeof input.isVisible === "boolean" ? input.isVisible : true,
+        sortOrder,
+        options
+      }
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "transaction_field_setting",
+      entityId: `transaction-custom-field:${fieldKey}`,
+      action: activityLogActions.settingsTransactionFieldSettingsChanged,
+      payload: {
+        objectLabel: "Transaction field settings",
+        contextHref: "/office/settings/fields",
+        details: [`Created custom field: ${label}`],
+        changes: [
+          { label: `${label} type`, previousValue: "—", nextValue: type },
+          { label: `${label} required`, previousValue: "No", nextValue: input.isRequired ? "Yes" : "No" },
+          { label: `${label} visible`, previousValue: "No", nextValue: typeof input.isVisible === "boolean" ? (input.isVisible ? "Yes" : "No") : "Yes" }
+        ]
+      }
+    });
+
+    return getOfficeTransactionIntakeSchema({
+      organizationId: input.organizationId,
+      officeId: input.officeId
+    });
+  });
+}
+
+export async function updateOfficeTransactionCustomFieldDefinition(input: UpdateOfficeTransactionCustomFieldDefinitionInput) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.transactionCustomFieldDefinition.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null,
+        fieldKey: input.fieldKey
+      }
+    });
+    const defaultEntry = defaultTransactionCustomFieldCatalog.find((entry) => entry.fieldKey === input.fieldKey) ?? null;
+
+    if (!existing && !defaultEntry) {
+      throw new Error("Custom field was not found.");
+    }
+
+    const nextLabel = parseOptionalText(input.label) ?? existing?.label ?? defaultEntry?.label ?? input.fieldKey;
+    const nextType = normalizeTransactionCustomFieldType(input.type ?? existing?.type ?? defaultEntry?.type ?? "text");
+    const previousType = existing?.type ?? defaultEntry?.type ?? "text";
+
+    if (nextType !== previousType) {
+      const hasStoredValues = await hasSavedTransactionCustomFieldValues(tx, {
+        organizationId: input.organizationId,
+        officeId: input.officeId,
+        fieldKey: input.fieldKey
+      });
+
+      if (hasStoredValues) {
+        throw new Error("Field type cannot change after transactions have stored values.");
+      }
+    }
+
+    const nextOptions = normalizeTransactionCustomFieldOptions(
+      nextType,
+      input.options ?? (existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options)
+    );
+    const nextRequired = typeof input.isRequired === "boolean" ? input.isRequired : existing?.isRequired ?? false;
+    const nextVisible = typeof input.isVisible === "boolean" ? input.isVisible : existing?.isVisible ?? true;
+    const nextSortOrder = typeof input.sortOrder === "number" ? input.sortOrder : existing?.sortOrder ?? defaultEntry?.sortOrder ?? 0;
+
+    if (existing) {
+      await tx.transactionCustomFieldDefinition.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          label: nextLabel,
+          type: nextType,
+          isRequired: nextRequired,
+          isVisible: nextVisible,
+          sortOrder: nextSortOrder,
+          options: nextOptions
+        }
+      });
+    } else {
+      await tx.transactionCustomFieldDefinition.create({
+        data: {
+          organizationId: input.organizationId,
+          officeId: input.officeId ?? null,
+          fieldKey: normalizeTransactionCustomFieldKey(input.fieldKey),
+          label: nextLabel,
+          type: nextType,
+          isRequired: nextRequired,
+          isVisible: nextVisible,
+          sortOrder: nextSortOrder,
+          options: nextOptions
+        }
+      });
+    }
+
+    const previousLabel = existing?.label ?? defaultEntry?.label ?? input.fieldKey;
+    const previousOptions = existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options ?? [];
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "transaction_field_setting",
+      entityId: `transaction-custom-field:${input.fieldKey}`,
+      action: activityLogActions.settingsTransactionFieldSettingsChanged,
+      payload: {
+        objectLabel: "Transaction field settings",
+        contextHref: "/office/settings/fields",
+        details: [`Updated custom field: ${nextLabel}`],
+        changes: [
+          buildChange(`${input.fieldKey} label`, previousLabel, nextLabel),
+          buildChange(`${nextLabel} type`, previousType, nextType),
+          buildChange(`${nextLabel} required`, (existing?.isRequired ?? false) ? "Yes" : "No", nextRequired ? "Yes" : "No"),
+          buildChange(`${nextLabel} visible`, (existing?.isVisible ?? true) ? "Yes" : "No", nextVisible ? "Yes" : "No"),
+          buildChange(`${nextLabel} options`, previousOptions.join(", ") || "—", nextOptions.join(", ") || "—")
+        ].filter(Boolean) as ActivityLogChange[]
+      }
+    });
+
+    return getOfficeTransactionIntakeSchema({
       organizationId: input.organizationId,
       officeId: input.officeId
     });

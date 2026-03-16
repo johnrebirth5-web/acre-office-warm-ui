@@ -12,6 +12,7 @@ type OfficeSettingsFieldsClientProps = {
 
 type RoleState = Record<string, boolean>;
 type FieldState = Record<string, { isRequired: boolean; isVisible: boolean }>;
+type CustomFieldState = Record<string, { isRequired: boolean; isVisible: boolean }>;
 
 export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: OfficeSettingsFieldsClientProps) {
   const router = useRouter();
@@ -23,6 +24,17 @@ export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: Office
   const [fieldState, setFieldState] = useState<FieldState>(
     Object.fromEntries(
       snapshot.transactionFieldSettings.map((entry) => [
+        entry.fieldKey,
+        {
+          isRequired: entry.isRequired,
+          isVisible: entry.isVisible
+        }
+      ])
+    )
+  );
+  const [customFieldState, setCustomFieldState] = useState<CustomFieldState>(
+    Object.fromEntries(
+      snapshot.transactionCustomFieldDefinitions.map((entry) => [
         entry.fieldKey,
         {
           isRequired: entry.isRequired,
@@ -45,10 +57,31 @@ export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: Office
         ])
       )
     );
+    setCustomFieldState(
+      Object.fromEntries(
+        snapshot.transactionCustomFieldDefinitions.map((entry) => [
+          entry.fieldKey,
+          {
+            isRequired: entry.isRequired,
+            isVisible: entry.isVisible
+          }
+        ])
+      )
+    );
   }, [snapshot]);
 
   function setFieldValue(fieldKey: string, field: "isRequired" | "isVisible", value: boolean) {
     setFieldState((current) => ({
+      ...current,
+      [fieldKey]: {
+        ...(current[fieldKey] ?? { isRequired: false, isVisible: true }),
+        [field]: value
+      }
+    }));
+  }
+
+  function setCustomFieldValue(fieldKey: string, field: "isRequired" | "isVisible", value: boolean) {
+    setCustomFieldState((current) => ({
       ...current,
       [fieldKey]: {
         ...(current[fieldKey] ?? { isRequired: false, isVisible: true }),
@@ -76,6 +109,15 @@ export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: Office
             fieldKey: entry.fieldKey,
             isRequired: fieldState[entry.fieldKey]?.isRequired ?? false,
             isVisible: fieldState[entry.fieldKey]?.isVisible ?? true
+          })),
+          transactionCustomFieldDefinitions: snapshot.transactionCustomFieldDefinitions.map((entry) => ({
+            fieldKey: entry.fieldKey,
+            label: entry.label,
+            type: entry.type,
+            isRequired: customFieldState[entry.fieldKey]?.isRequired ?? false,
+            isVisible: customFieldState[entry.fieldKey]?.isVisible ?? true,
+            sortOrder: entry.sortOrder,
+            options: entry.options
           }))
         })
       });
@@ -155,6 +197,43 @@ export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: Office
             </Button>
           </div>
         ) : null}
+      </ListPageTableSection>
+
+      <ListPageTableSection
+        footer={<ListPageFooter summary={`${snapshot.transactionCustomFieldDefinitions.length} configurable custom fields`} />}
+        subtitle="Custom transaction fields are created from the transaction intake editor and can still be reviewed here for visibility and requiredness."
+        title="Custom transaction fields"
+      >
+        <DataTable className="office-table">
+          <DataTableHeader className="office-table-header office-table-row office-table-row-settings-fields">
+            <span>Field</span>
+            <span>Visible</span>
+            <span>Required</span>
+          </DataTableHeader>
+          <DataTableBody>
+            {snapshot.transactionCustomFieldDefinitions.map((entry) => (
+              <DataTableRow className="office-table-row office-table-row-settings-fields" key={entry.fieldKey}>
+                <strong>{entry.label}</strong>
+                <CheckboxField label="Visible">
+                  <input
+                    checked={customFieldState[entry.fieldKey]?.isVisible ?? true}
+                    disabled={!canManageFields}
+                    onChange={(event) => setCustomFieldValue(entry.fieldKey, "isVisible", event.target.checked)}
+                    type="checkbox"
+                  />
+                </CheckboxField>
+                <CheckboxField label="Required">
+                  <input
+                    checked={customFieldState[entry.fieldKey]?.isRequired ?? false}
+                    disabled={!canManageFields}
+                    onChange={(event) => setCustomFieldValue(entry.fieldKey, "isRequired", event.target.checked)}
+                    type="checkbox"
+                  />
+                </CheckboxField>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
       </ListPageTableSection>
     </ListPageStack>
   );

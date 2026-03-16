@@ -23,7 +23,10 @@ Provide a practical Back Office admin/settings area for access management, teams
   - add/remove members
 - fields admin supports:
   - required contact roles
-  - transaction field required / visible settings
+  - built-in transaction field required / visible settings
+  - office-scoped custom transaction intake fields (`text / select / date`)
+  - one shared intake schema across transaction create modal, `/office/transactions/new`, and transaction detail intake editing
+  - `office_admin`-only schema editing and audit coverage for schema/value changes
 - checklist template admin supports:
   - create/edit
   - activate/deactivate
@@ -31,7 +34,8 @@ Provide a practical Back Office admin/settings area for access management, teams
 
 ## Current gaps
 
-- no generic no-code schema builder
+- no generic no-code schema builder across every workflow module yet
+- transaction intake builder exists, but broader settings modules still do not expose the same level of schema configurability
 - office access is still bounded by current membership model, not a full ACL matrix
 - checklist templates are managed but not fully auto-applied everywhere
 

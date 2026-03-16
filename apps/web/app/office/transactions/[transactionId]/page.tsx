@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  getOfficeTransactionIntakeSchema,
   getTransactionById,
   getTransactionCommissionSnapshot,
   listTransactionOffersSnapshot,
@@ -9,6 +10,7 @@ import {
 import {
   canApproveOfficeDocuments,
   canApproveOfficeCommissions,
+  canEditOfficeTransactions,
   canManageOfficeDocuments,
   canManageOfficeCommissions,
   canManageOfficeOffers,
@@ -36,6 +38,7 @@ import { TransactionCommissionCard } from "./commission-card";
 import { TransactionOffersCard } from "./offers-card";
 import { TransactionStatusForm } from "./status-form";
 import { TransactionTasksCard } from "./tasks-card";
+import { TransactionIntakeWorkspace } from "../transaction-intake-form";
 
 type TransactionDetailPageProps = {
   params: Promise<{
@@ -46,12 +49,16 @@ type TransactionDetailPageProps = {
 export default async function OfficeTransactionDetailPage({ params }: TransactionDetailPageProps) {
   const context = await requireOfficeSession();
   const { transactionId } = await params;
-  const [transaction, tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot] = await Promise.all([
+  const [transaction, tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot, transactionIntakeSchema] = await Promise.all([
     getTransactionById(context.currentOrganization.id, transactionId),
     listTransactionTasks(context.currentOrganization.id, transactionId),
     listTransactionTaskAssigneeOptions(context.currentOrganization.id, transactionId),
     getTransactionCommissionSnapshot(context.currentOrganization.id, transactionId, context.currentOffice?.id ?? null),
-    listTransactionOffersSnapshot(context.currentOrganization.id, transactionId)
+    listTransactionOffersSnapshot(context.currentOrganization.id, transactionId),
+    getOfficeTransactionIntakeSchema({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null
+    })
   ]);
 
   if (!transaction) {
@@ -75,6 +82,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
   const canReviewOffersForRole = canReviewOfficeOffers(context.currentMembership.role);
   const canAcceptOffersForRole = canAcceptOfficeOffers(context.currentMembership.role);
   const canViewCommissionsForRole = canViewOfficeCommissions(context.currentMembership.role);
+  const canEditTransactionsForRole = canEditOfficeTransactions(context.currentMembership.role);
   const canManageCommissionsForRole = canManageOfficeCommissions(context.currentMembership.role);
   const canCalculateCommissionsForRole = canCalculateOfficeCommissions(context.currentMembership.role);
   const canApproveCommissionsForRole = canApproveOfficeCommissions(context.currentMembership.role);
@@ -245,22 +253,36 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         />
       ) : null}
 
-      <SectionCard subtitle="Additional custom fields stored with this transaction." title="Additional fields">
-        <div className="office-detail-grid">
-          {Object.entries(transaction.additionalFields).length > 0 ? (
-            Object.entries(transaction.additionalFields).map(([key, value]) => (
-              <div className="office-detail-field" key={key}>
-                <span>{key}</span>
-                <strong>{value || "—"}</strong>
-              </div>
-            ))
-          ) : (
-            <div className="office-detail-field">
-              <span>Fields</span>
-              <strong>No additional fields saved.</strong>
-            </div>
-          )}
-        </div>
+      <SectionCard subtitle="Edit the transaction intake fields and custom office-defined fields without leaving detail view." title="Intake fields">
+        <TransactionIntakeWorkspace
+          canConfigureSchema={context.currentMembership.role === "office_admin"}
+          canEditValues={canEditTransactionsForRole}
+          chrome="detail"
+          initialValues={{
+            transactionType: transaction.type,
+            transactionStatus: transaction.status,
+            representing: transaction.representing ? transaction.representing.charAt(0).toUpperCase() + transaction.representing.slice(1) : "",
+            address: transaction.address,
+            city: transaction.city,
+            state: transaction.state,
+            zipCode: transaction.zipCode,
+            transactionName: transaction.title,
+            price: transaction.price,
+            buyerAgreementDate: transaction.buyerAgreementDate,
+            buyerExpirationDate: transaction.buyerExpirationDate,
+            acceptanceDate: transaction.acceptanceDate,
+            listingDate: transaction.listingDate,
+            listingExpirationDate: transaction.listingExpirationDate,
+            closingDate: transaction.closingDate,
+            ...transaction.additionalFields
+          }}
+          mode="edit"
+          schema={transactionIntakeSchema}
+          submitEndpoint={`/api/office/transactions/${transaction.id}/intake`}
+          submitLabel="Save intake changes"
+          submitMethod="PATCH"
+          title="Office intake editor"
+        />
       </SectionCard>
     </PageShell>
   );
