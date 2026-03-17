@@ -1,4 +1,4 @@
-import type { PermissionKey } from "@acre/auth";
+import { resolveEffectivePermissions, type PermissionKey, type UserRole } from "@acre/auth";
 import type { PermissionOverrideValue, PermissionTreeStateNode } from "@acre/db";
 
 export type PermissionOverrideMap = Map<PermissionKey, PermissionOverrideValue>;
@@ -80,6 +80,45 @@ export function applyOverridesToPermissionTree(
       effectiveEnabled
     };
   });
+}
+
+export function buildPreviewPermissionTree(input: {
+  nodes: PermissionTreeStateNode[];
+  overrides: PermissionOverrideMap;
+  role: UserRole;
+  inheritedPermissions: Iterable<PermissionKey>;
+}) {
+  const inheritedPermissions = normalizePermissionKeys(input.inheritedPermissions);
+  const nextPermissions = new Set<PermissionKey>(inheritedPermissions);
+
+  for (const [permissionKey, effect] of input.overrides.entries()) {
+    if (effect === "allow") {
+      nextPermissions.add(permissionKey);
+      continue;
+    }
+
+    nextPermissions.delete(permissionKey);
+  }
+
+  const effectivePermissions = new Set(
+    resolveEffectivePermissions({
+      role: input.role,
+      permissions: [...nextPermissions]
+    })
+  );
+  const inheritedSet = new Set<PermissionKey>(inheritedPermissions);
+
+  function visit(nodes: PermissionTreeStateNode[]): PermissionTreeStateNode[] {
+    return nodes.map((node) => ({
+      ...node,
+      children: visit(node.children),
+      inheritedEnabled: inheritedSet.has(node.key),
+      overrideEffect: input.overrides.get(node.key) ?? null,
+      effectiveEnabled: effectivePermissions.has(node.key)
+    }));
+  }
+
+  return visit(input.nodes);
 }
 
 export function collectEnabledPermissionKeys(nodes: PermissionTreeStateNode[]) {

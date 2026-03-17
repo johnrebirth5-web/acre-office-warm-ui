@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { canManageOfficeUsers, canViewOfficeUsers } from "@acre/auth";
 import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
-import { getOfficeAdminUserDetailSnapshot, getOrganizationRoleTemplatesSnapshot } from "@acre/db";
+import { getOfficeAdminUserDetailSnapshot } from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../lib/auth-session";
 import { OfficeSettingsNav } from "../../settings-nav";
@@ -21,14 +21,11 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
   }
 
   const { membershipId } = await params;
-  const [snapshot, roleTemplates] = await Promise.all([
-    getOfficeAdminUserDetailSnapshot({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null,
-      membershipId
-    }),
-    getOrganizationRoleTemplatesSnapshot(context.currentOrganization.id)
-  ]);
+  const snapshot = await getOfficeAdminUserDetailSnapshot({
+    organizationId: context.currentOrganization.id,
+    officeId: context.currentOffice?.id ?? null,
+    membershipId
+  });
 
   if (!snapshot) {
     notFound();
@@ -55,11 +52,7 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
 
       <div className="office-list-page-stack office-settings-list-stack">
         <OfficeSettingsNav />
-        <OfficeSettingsUserDetailClient
-          canManageUsers={canManageOfficeUsers(context.currentMembership)}
-          roleTemplates={roleTemplates}
-          snapshot={snapshot}
-        />
+        <OfficeSettingsUserDetailClient canManageUsers={canManageOfficeUsers(context.currentMembership)} snapshot={snapshot} />
       </div>
     </PageShell>
   );

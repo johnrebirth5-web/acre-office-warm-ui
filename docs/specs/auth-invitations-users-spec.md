@@ -92,6 +92,7 @@ Current routes:
 - `/office/settings/roles`
 - `/office/settings/users`
 - `/office/settings/users/[membershipId]`
+- `/office/settings/users/[membershipId]/permissions`
 
 `/office/settings/users` now supports:
 
@@ -106,16 +107,20 @@ Current routes:
 - update role
 - update membership status
 - update office access
-- preview role-template permission inheritance when role changes
 - issue or reissue invite/setup/reset link
 - revoke active invite link
 - unlock locked account
 - review onboarding summary
-- review effective permissions
-- save per-user permission overrides (`inherit / allow / deny`)
-- reset user overrides back to role defaults
+- review a compact permission summary and open the dedicated permission editor
 - review commission summary
 - review recent audit/activity items tied to the user account
+
+`/office/settings/users/[membershipId]/permissions` now supports:
+
+- review the full effective permission tree on a dedicated full-page editor
+- edit per-user permission overrides with a BoldTrail-style two-column checkbox layout
+- save per-user permission overrides against the current role template
+- reset user overrides back to role defaults
 
 `/office/settings/roles` now supports:
 
