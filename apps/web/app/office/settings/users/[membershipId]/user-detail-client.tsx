@@ -552,6 +552,7 @@ export function OfficeSettingsUserDetailClient({
         </SectionCard>
 
         <SectionCard
+          className="office-settings-user-permissions-card"
           actions={
             <div className="office-settings-user-inline-badges">
               <Badge tone="accent">{selectedRoleTemplate?.label ?? snapshot.permissions.roleLabel}</Badge>
@@ -569,7 +570,7 @@ export function OfficeSettingsUserDetailClient({
             </p>
           ) : null}
 
-          <div className="office-settings-user-detail-actions">
+          <div className="office-settings-user-detail-actions office-settings-user-permission-toolbar">
             {canManageUsers ? (
               <>
                 <Button disabled={!isPermissionsDirty || roleChanged || pendingAction === "permissions-save"} onClick={handleSavePermissions}>
@@ -588,11 +589,13 @@ export function OfficeSettingsUserDetailClient({
             )}
           </div>
 
-          <PermissionTreeEditor
-            disabled={!canManageUsers || roleChanged}
-            nodes={previewTree}
-            onOverrideChange={setPermissionOverride}
-          />
+          <div className="office-settings-user-permission-editor">
+            <PermissionTreeEditor
+              disabled={!canManageUsers || roleChanged}
+              nodes={previewTree}
+              onOverrideChange={setPermissionOverride}
+            />
+          </div>
         </SectionCard>
       </div>
 

@@ -8870,6 +8870,54 @@ a {
   gap: 10px;
 }
 
+.office-settings-user-permissions-card > .office-section-head {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.office-settings-user-permissions-card .office-section-actions {
+  width: 100%;
+  margin-left: 0;
+  justify-self: stretch;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.office-settings-user-permissions-card > .office-section-body {
+  gap: 16px;
+}
+
+.office-settings-user-permission-toolbar {
+  justify-content: flex-start;
+}
+
+.office-settings-user-permission-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.office-settings-user-permission-editor .office-permission-node-header {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.office-settings-user-permission-editor .office-permission-node-copy,
+.office-settings-user-permission-editor .office-permission-node-controls {
+  min-width: 0;
+}
+
+.office-settings-user-permission-editor .office-permission-node-heading {
+  align-items: flex-start;
+}
+
+.office-settings-user-permission-editor .office-permission-node-heading strong {
+  line-height: 1.15;
+}
+
+.office-settings-user-permission-editor .office-permission-node-heading code {
+  overflow-wrap: anywhere;
+}
+
 .office-settings-user-permission-group ul {
   margin: 0;
   padding-left: 18px;
@@ -12065,6 +12113,15 @@ body,
   .office-page-actions,
   .office-section-actions {
     justify-content: flex-start;
+  }
+
+  .office-settings-user-permission-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .office-settings-user-permission-toolbar > * {
+    width: 100%;
   }
 
   .auth-shell {
