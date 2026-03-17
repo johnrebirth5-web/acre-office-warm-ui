@@ -1,21 +1,27 @@
 import { type TeamMembershipRole, type UserRole } from "@prisma/client";
+import {
+  buildTeamMembershipHierarchyMap,
+  formatTeamMembershipRoleLabel,
+  type TeamHierarchyMembershipRecord,
+  type TeamHierarchyTeamRecord
+} from "./team-hierarchy";
 
-const detailedTeamRoleLabelMap: Record<TeamMembershipRole, string> = {
-  leader_i: "Team Leader I",
-  leader_ii: "Team Leader II",
-  member: "Team Member"
-};
-
-const managedTeamTitlePattern = /^.+ - Team (Leader I|Leader II|Member)$/;
+const managedTeamTitlePattern = /^.+ \/ (Team Leader|Junior Team Leader(?: \(.+\))?|Member)$/;
 const managedIndependentTitle = "Independent";
 const managedNoActiveTeamTitle = "No active team";
 
 export type MembershipTitleTeamMembership = {
+  id?: string;
+  membershipId?: string;
   role: TeamMembershipRole;
+  teamPathLabel?: string;
   team: {
+    id?: string;
     name: string;
     isActive: boolean;
+    parentTeamId?: string | null;
   };
+  reportsToTeamMembershipId?: string | null;
 };
 
 function normalizeTitle(value: string | null | undefined) {
@@ -27,8 +33,8 @@ function compareManagedMembershipTitles(
   right: MembershipTitleTeamMembership
 ) {
   return (
-    left.team.name.localeCompare(right.team.name) ||
-    detailedTeamRoleLabelMap[left.role].localeCompare(detailedTeamRoleLabelMap[right.role])
+    (left.teamPathLabel ?? left.team.name).localeCompare(right.teamPathLabel ?? right.team.name) ||
+    formatTeamMembershipRoleLabel(left.role).localeCompare(formatTeamMembershipRoleLabel(right.role))
   );
 }
 
@@ -51,9 +57,43 @@ export function buildManagedMembershipTitle(
     .sort(compareManagedMembershipTitles);
 
   if (activeTeamMemberships.length > 0) {
+    const hierarchy = buildTeamMembershipHierarchyMap({
+      teams: activeTeamMemberships.map((teamMembership, index) => ({
+        id: teamMembership.team.id ?? `membership-title-team-${index}`,
+        name: teamMembership.team.name,
+        isActive: teamMembership.team.isActive,
+        parentTeamId: teamMembership.team.parentTeamId ?? null
+      }) satisfies TeamHierarchyTeamRecord),
+      teamMemberships: activeTeamMemberships.map((teamMembership, index) => ({
+        id: teamMembership.id ?? `membership-title-row-${index}`,
+        membershipId: teamMembership.membershipId ?? `membership-title-membership-${index}`,
+        teamId: teamMembership.team.id ?? `membership-title-team-${index}`,
+        role: teamMembership.role,
+        reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId ?? null,
+        label: ""
+      }) satisfies TeamHierarchyMembershipRecord)
+    });
+
     return activeTeamMemberships
-      .map((teamMembership) => `${teamMembership.team.name} - ${detailedTeamRoleLabelMap[teamMembership.role]}`)
-      .join(" / ");
+      .map((teamMembership, index) => {
+        const hierarchyLabel = hierarchy.hierarchyMap.get(teamMembership.id ?? `membership-title-row-${index}`)?.hierarchyLabel ?? "";
+        if (!hierarchyLabel) {
+          return "";
+        }
+
+        if (
+          teamMembership.teamPathLabel &&
+          hierarchyLabel.startsWith(teamMembership.team.name) &&
+          teamMembership.teamPathLabel !== teamMembership.team.name
+        ) {
+          return hierarchyLabel.replace(teamMembership.team.name, teamMembership.teamPathLabel);
+        }
+
+        return hierarchyLabel;
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))
+      .join(" • ");
   }
 
   if (role === "agent") {

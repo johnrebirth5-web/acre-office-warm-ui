@@ -17,6 +17,7 @@ import {
   type OfficeDataScope
 } from "./access";
 import { prisma } from "./client";
+import { buildTeamPathLabel, createTeamHierarchyIndex, expandSelectedTeamIds } from "./team-hierarchy";
 
 export type OfficeReportStatus = "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
 
@@ -540,7 +541,15 @@ function buildTimeSeries(
   return points;
 }
 
-function buildTransactionTeamFilter(input: GetOfficeReportsSnapshotInput, scopedOfficeId: string | null) {
+function selectedTeamIdsOrNone(selectedTeamIds: string[]) {
+  return selectedTeamIds.length > 0 ? selectedTeamIds : ["__no_team__"];
+}
+
+function buildTransactionTeamFilter(
+  input: GetOfficeReportsSnapshotInput,
+  scopedOfficeId: string | null,
+  selectedTeamIds: string[]
+) {
   if (!input.teamId?.trim()) {
     return null;
   }
@@ -551,7 +560,9 @@ function buildTransactionTeamFilter(input: GetOfficeReportsSnapshotInput, scoped
         teamMemberships: {
           some: {
             organizationId: input.organizationId,
-            teamId: input.teamId.trim(),
+            teamId: {
+              in: selectedTeamIdsOrNone(selectedTeamIds)
+            },
             ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
             team: {
               isActive: true
@@ -563,7 +574,11 @@ function buildTransactionTeamFilter(input: GetOfficeReportsSnapshotInput, scoped
   } satisfies Prisma.TransactionWhereInput;
 }
 
-function buildTransactionWhere(input: GetOfficeReportsSnapshotInput, scopedOfficeId: string | null): Prisma.TransactionWhereInput {
+function buildTransactionWhere(
+  input: GetOfficeReportsSnapshotInput,
+  scopedOfficeId: string | null,
+  selectedTeamIds: string[]
+): Prisma.TransactionWhereInput {
   const startDate = startOfDay(input.startDate);
   const endDate = endOfDay(input.endDate);
   const status = parseTransactionStatus(input.transactionStatus);
@@ -586,7 +601,7 @@ function buildTransactionWhere(input: GetOfficeReportsSnapshotInput, scopedOffic
     });
   }
 
-  const teamFilter = buildTransactionTeamFilter(input, scopedOfficeId);
+  const teamFilter = buildTransactionTeamFilter(input, scopedOfficeId, selectedTeamIds);
   if (teamFilter) {
     conditions.push(teamFilter);
   }
@@ -625,7 +640,11 @@ function buildTransactionWhere(input: GetOfficeReportsSnapshotInput, scopedOffic
   return conditions.length === 1 ? conditions[0] : { AND: conditions };
 }
 
-function buildClientWhere(input: GetOfficeReportsSnapshotInput, scopedOfficeId: string | null): Prisma.ClientWhereInput {
+function buildClientWhere(
+  input: GetOfficeReportsSnapshotInput,
+  scopedOfficeId: string | null,
+  selectedTeamIds: string[]
+): Prisma.ClientWhereInput {
   const conditions: Prisma.ClientWhereInput[] = [
     {
       organizationId: input.organizationId
@@ -655,7 +674,9 @@ function buildClientWhere(input: GetOfficeReportsSnapshotInput, scopedOfficeId: 
           teamMemberships: {
             some: {
               organizationId: input.organizationId,
-              teamId: input.teamId.trim(),
+              teamId: {
+                in: selectedTeamIdsOrNone(selectedTeamIds)
+              },
               ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
               team: {
                 isActive: true
@@ -672,7 +693,8 @@ function buildClientWhere(input: GetOfficeReportsSnapshotInput, scopedOfficeId: 
 
 function buildAccountingWhere(
   input: GetOfficeReportsSnapshotInput,
-  scopedOfficeId: string | null
+  scopedOfficeId: string | null,
+  selectedTeamIds: string[]
 ): Prisma.AccountingTransactionWhereInput {
   const startDate = startOfDay(input.startDate);
   const endDate = endOfDay(input.endDate);
@@ -712,7 +734,9 @@ function buildAccountingWhere(
               teamMemberships: {
                 some: {
                   organizationId: input.organizationId,
-                  teamId: input.teamId.trim(),
+                  teamId: {
+                    in: selectedTeamIdsOrNone(selectedTeamIds)
+                  },
                   ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
                   team: { isActive: true }
                 }
@@ -725,12 +749,14 @@ function buildAccountingWhere(
             ownerMembership: {
               is: {
                 teamMemberships: {
-                  some: {
-                    organizationId: input.organizationId,
-                    teamId: input.teamId.trim(),
-                    ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
-                    team: { isActive: true }
-                  }
+                some: {
+                  organizationId: input.organizationId,
+                  teamId: {
+                    in: selectedTeamIdsOrNone(selectedTeamIds)
+                  },
+                  ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
+                  team: { isActive: true }
+                }
                 }
               }
             }
@@ -779,7 +805,8 @@ function buildAccountingWhere(
 
 function buildCommissionWhere(
   input: GetOfficeReportsSnapshotInput,
-  scopedOfficeId: string | null
+  scopedOfficeId: string | null,
+  selectedTeamIds: string[]
 ): Prisma.CommissionCalculationWhereInput {
   const startDate = startOfDay(input.startDate);
   const endDate = endOfDay(input.endDate);
@@ -810,7 +837,9 @@ function buildCommissionWhere(
           teamMemberships: {
             some: {
               organizationId: input.organizationId,
-              teamId: input.teamId.trim(),
+              teamId: {
+                in: selectedTeamIdsOrNone(selectedTeamIds)
+              },
               ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
               team: { isActive: true }
             }
@@ -849,7 +878,8 @@ function buildCommissionWhere(
 
 function buildEarnestMoneyWhere(
   input: GetOfficeReportsSnapshotInput,
-  scopedOfficeId: string | null
+  scopedOfficeId: string | null,
+  selectedTeamIds: string[]
 ): Prisma.EarnestMoneyRecordWhereInput {
   const startDate = startOfDay(input.startDate);
   const endDate = endOfDay(input.endDate);
@@ -891,7 +921,9 @@ function buildEarnestMoneyWhere(
             teamMemberships: {
               some: {
                 organizationId: input.organizationId,
-                teamId: input.teamId.trim(),
+                teamId: {
+                  in: selectedTeamIdsOrNone(selectedTeamIds)
+                },
                 ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
                 team: { isActive: true }
               }
@@ -1022,12 +1054,31 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     viewerMembershipId: input.viewerMembershipId,
     officeId: scopedOfficeId
   });
+  const scopedTeams = await prisma.team.findMany({
+    where: {
+      organizationId: input.organizationId,
+      ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
+      ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      parentTeamId: true
+    },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }]
+  });
+  const teamHierarchyIndex = createTeamHierarchyIndex(scopedTeams);
+  const selectedTeamIds = input.teamId?.trim() ? expandSelectedTeamIds(teamHierarchyIndex, input.teamId) : [];
+  const teamPathLabelById = new Map(
+    scopedTeams.map((team) => [team.id, buildTeamPathLabel(teamHierarchyIndex, team.id) || team.name])
+  );
   const canViewFinancialAmounts = canViewCrossMemberFinancials(scope);
-  const transactionWhere = applyTransactionScope(buildTransactionWhere(input, scopedOfficeId), scope);
-  const clientWhere = applyClientScope(buildClientWhere(input, scopedOfficeId), scope);
-  const accountingWhere = applyAccountingScope(buildAccountingWhere(input, scopedOfficeId), scope);
-  const commissionWhere = applyCommissionScope(buildCommissionWhere(input, scopedOfficeId), scope);
-  const earnestMoneyWhere = applyEarnestMoneyScope(buildEarnestMoneyWhere(input, scopedOfficeId), scope);
+  const transactionWhere = applyTransactionScope(buildTransactionWhere(input, scopedOfficeId, selectedTeamIds), scope);
+  const clientWhere = applyClientScope(buildClientWhere(input, scopedOfficeId, selectedTeamIds), scope);
+  const accountingWhere = applyAccountingScope(buildAccountingWhere(input, scopedOfficeId, selectedTeamIds), scope);
+  const commissionWhere = applyCommissionScope(buildCommissionWhere(input, scopedOfficeId, selectedTeamIds), scope);
+  const earnestMoneyWhere = applyEarnestMoneyScope(buildEarnestMoneyWhere(input, scopedOfficeId, selectedTeamIds), scope);
   const startDate = startOfDay(input.startDate);
   const endDate = endOfDay(input.endDate);
   const now = new Date();
@@ -1139,14 +1190,15 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     }),
     prisma.team.findMany({
       where: {
-        organizationId: input.organizationId,
-        ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
-        ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+        id: {
+          in: scopedTeams.map((team) => team.id)
+        }
       },
       select: {
         id: true,
         name: true,
-        isActive: true
+        isActive: true,
+        parentTeamId: true
       },
       orderBy: [{ isActive: "desc" }, { name: "asc" }]
     }),
@@ -1356,10 +1408,10 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
     agentMetric.agentNet += Number(transaction.agentNet ?? 0);
 
     for (const teamMembership of dedupeTeamMemberships(transaction.ownerMembership?.teamMemberships ?? [])) {
-      agentMetric.teamLabels.add(teamMembership.team.name);
+      agentMetric.teamLabels.add(teamPathLabelById.get(teamMembership.teamId) ?? teamMembership.team.name);
       const teamMetric = teamPerformanceMap.get(teamMembership.teamId) ?? {
         teamId: teamMembership.teamId,
-        teamName: teamMembership.team.name,
+        teamName: teamPathLabelById.get(teamMembership.teamId) ?? teamMembership.team.name,
         ownerIds: new Set<string>(),
         transactionIds: new Set<string>(),
         transactionCount: 0,
@@ -1440,7 +1492,7 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       grossCommissionLabel: redactCurrency(formatCurrency(entry.grossCommission), canViewFinancialAmounts),
       officeNetLabel: redactCurrency(formatCurrency(entry.officeNet), canViewFinancialAmounts),
       agentNetLabel: redactCurrency(formatCurrency(entry.agentNet), canViewFinancialAmounts),
-      profileHref: entry.ownerMembershipId ? `/office/agents/${entry.ownerMembershipId}` : null
+      profileHref: entry.ownerMembershipId ? `/office/settings/users/${entry.ownerMembershipId}` : null
     }));
 
   const teamPerformanceRows = [...teamPerformanceMap.values()]
@@ -1637,7 +1689,7 @@ export async function getOfficeReportsSnapshot(input: GetOfficeReportsSnapshotIn
       })),
       teamOptions: teams.map((team) => ({
         id: team.id,
-        label: team.name
+        label: teamPathLabelById.get(team.id) ?? team.name
       })),
       commissionPlanOptions: commissionPlans.map((plan) => ({
         id: plan.id,
@@ -1732,7 +1784,23 @@ export async function listOfficeReportTransactionsForExport(
     officeId: scopedOfficeId
   });
   const canViewFinancialAmounts = canViewCrossMemberFinancials(scope);
-  const transactionWhere = applyTransactionScope(buildTransactionWhere(input, scopedOfficeId), scope);
+  const scopedTeams = await prisma.team.findMany({
+    where: {
+      organizationId: input.organizationId,
+      ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
+      ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      parentTeamId: true
+    },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }]
+  });
+  const teamHierarchyIndex = createTeamHierarchyIndex(scopedTeams);
+  const selectedTeamIds = input.teamId?.trim() ? expandSelectedTeamIds(teamHierarchyIndex, input.teamId) : [];
+  const transactionWhere = applyTransactionScope(buildTransactionWhere(input, scopedOfficeId, selectedTeamIds), scope);
 
   const transactions = await prisma.transaction.findMany({
     where: transactionWhere,

@@ -12,9 +12,10 @@ type AccountSpec = {
 
 type TeamSpec = {
   name: string;
+  parentTeamName?: string;
   memberships: Array<{
     email: string;
-    role: "leader_i" | "leader_ii" | "member";
+    role: "team_leader" | "junior_team_leader" | "member";
     reportsToEmail?: string;
   }>;
 };
@@ -57,35 +58,35 @@ const accountSpecs: AccountSpec[] = [
     firstName: "Yue",
     lastName: "Yu",
     role: "team_lead",
-    title: "Yue Team - Team Leader I"
+    title: "Yue Team / Team Leader"
   },
   {
     email: "yun@acreny.us",
     firstName: "Yunhao",
     lastName: "Teng",
-    role: "team_lead",
-    title: "Yue Team - Team Leader II"
+    role: "agent",
+    title: "Yue Team / Member"
   },
   {
     email: "linfen@acreny.us",
     firstName: "Linfen",
     lastName: "Ruan",
     role: "team_lead",
-    title: "Candy Team - Team Leader I"
+    title: "Candy Team / Team Leader"
   },
   {
     email: "dcai@acreny.us",
     firstName: "Ding",
     lastName: "Cai",
     role: "team_lead",
-    title: "Candy Team - Team Leader II / Ding Team - Team Leader I"
+    title: "Candy Team / Junior Team Leader (Ding Team)"
   },
   {
     email: "elaine@acreny.us",
     firstName: "Shuyu",
     lastName: "Fang",
     role: "agent",
-    title: "Candy Team - Team Member"
+    title: "Candy Team / Junior Team Leader (Ding Team) / Member"
   },
   {
     email: "jessie@acreny.us",
@@ -100,21 +101,23 @@ const teamSpecs: TeamSpec[] = [
   {
     name: "Yue Team",
     memberships: [
-      { email: "yue.yu@acreny.us", role: "leader_i" },
-      { email: "yun@acreny.us", role: "leader_ii", reportsToEmail: "yue.yu@acreny.us" }
+      { email: "yue.yu@acreny.us", role: "team_leader" },
+      { email: "yun@acreny.us", role: "member", reportsToEmail: "yue.yu@acreny.us" }
     ]
   },
   {
     name: "Candy Team",
     memberships: [
-      { email: "linfen@acreny.us", role: "leader_i" },
-      { email: "dcai@acreny.us", role: "leader_ii", reportsToEmail: "linfen@acreny.us" },
-      { email: "elaine@acreny.us", role: "member", reportsToEmail: "dcai@acreny.us" }
+      { email: "linfen@acreny.us", role: "team_leader" }
     ]
   },
   {
     name: "Ding Team",
-    memberships: [{ email: "dcai@acreny.us", role: "leader_i" }]
+    parentTeamName: "Candy Team",
+    memberships: [
+      { email: "dcai@acreny.us", role: "junior_team_leader" },
+      { email: "elaine@acreny.us", role: "member", reportsToEmail: "dcai@acreny.us" }
+    ]
   }
 ];
 
@@ -253,7 +256,7 @@ async function ensureAccount(
   };
 }
 
-async function ensureTeam(name: string, organizationId: string, officeId: string | null) {
+async function ensureTeam(name: string, organizationId: string, officeId: string | null, parentTeamId: string | null) {
   const existing = await prisma.team.findFirst({
     where: {
       organizationId,
@@ -262,7 +265,12 @@ async function ensureTeam(name: string, organizationId: string, officeId: string
   });
 
   if (existing) {
-    if (existing.name !== name || existing.isActive === false || (existing.officeId ?? null) !== officeId) {
+    if (
+      existing.name !== name ||
+      existing.isActive === false ||
+      (existing.officeId ?? null) !== officeId ||
+      (existing.parentTeamId ?? null) !== parentTeamId
+    ) {
       return prisma.team.update({
         where: {
           id: existing.id
@@ -270,6 +278,7 @@ async function ensureTeam(name: string, organizationId: string, officeId: string
         data: {
           name,
           officeId,
+          parentTeamId,
           isActive: true
         }
       });
@@ -284,6 +293,7 @@ async function ensureTeam(name: string, organizationId: string, officeId: string
       officeId,
       name,
       slug: slugify(name),
+      parentTeamId,
       isActive: true
     }
   });
@@ -298,6 +308,7 @@ async function main() {
   };
 
   const ensuredAccounts = new Map<string, Awaited<ReturnType<typeof ensureAccount>>>();
+  const ensuredTeams = new Map<string, Awaited<ReturnType<typeof ensureTeam>>>();
 
   for (const spec of accountSpecs) {
     const account = await ensureAccount(spec, context);
@@ -305,12 +316,22 @@ async function main() {
   }
 
   for (const teamSpec of teamSpecs) {
-    const team = await ensureTeam(teamSpec.name, context.organizationId, context.officeId);
+    const parentTeamId =
+      teamSpec.parentTeamName
+        ? (ensuredTeams.get(teamSpec.parentTeamName)?.id ?? null)
+        : null;
+
+    if (teamSpec.parentTeamName && !parentTeamId) {
+      throw new Error(`Missing parent team ${teamSpec.parentTeamName} for ${teamSpec.name}.`);
+    }
+
+    const team = await ensureTeam(teamSpec.name, context.organizationId, context.officeId, parentTeamId);
+    ensuredTeams.set(teamSpec.name, team);
     const teamMembershipsByEmail = new Map<string, string>();
 
     const sortedAssignments = [
-      ...teamSpec.memberships.filter((membership) => membership.role === "leader_i"),
-      ...teamSpec.memberships.filter((membership) => membership.role === "leader_ii"),
+      ...teamSpec.memberships.filter((membership) => membership.role === "team_leader"),
+      ...teamSpec.memberships.filter((membership) => membership.role === "junior_team_leader"),
       ...teamSpec.memberships.filter((membership) => membership.role === "member")
     ];
 

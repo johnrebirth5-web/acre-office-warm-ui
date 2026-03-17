@@ -11,7 +11,7 @@
 
 当前默认按这一套口径工作，除非任务明确说明要切到别的环境：
 
-- 本地源码目录：`/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- 本地源码目录：`/Users/openclaw_john/工作文件夹/Acre_latest_clean`
 - 默认本地浏览器入口：`http://localhost:3105/`
 - 默认 GitHub 仓库：`https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - 默认外部入口：`https://acresystem.us/`
@@ -376,8 +376,9 @@
     - rename
     - activate / deactivate
     - add / remove agent
-    - `Leader I / Leader II / Member` 层级角色
-    - team 内直属上级维护（`reportsToTeamMembershipId`）
+    - 递归 `Team Leader / Junior Team Leader / Member` 层级角色
+    - parent / child branch 结构维护
+    - branch 内直属上级维护（`reportsToTeamMembershipId`）
   - agent profile / team / onboarding / goal 变更会写入 `AuditLog`
 - `Office Admin / Settings` 现在也已接入真实数据库，作为一个真实的 admin/config 模块：
   - 路由：
@@ -408,7 +409,8 @@
     - rename
     - activate / deactivate
     - add / remove members
-    - 编辑 `Leader I / Leader II / Member`
+    - 编辑 `Team Leader / Junior Team Leader / Member`
+    - 设置 parent team / child branch
     - 设置直属上级
   - `Fields` 当前支持：
     - `Settings > Fields` 现在是唯一字段结构管理入口，不再在 transaction / contact / offer 业务页保留重复 schema 编辑能力
@@ -694,9 +696,9 @@
   - 一个最小的数据库读取 utility 和 API probe
 - 一个统一的 `Office / Back Office` 设计系统：
   - 主字体统一通过 root layout 加载
-  - 共享 tokens 集中在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/apps/web/app/globals.css)
-  - 共享 primitives 集中在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/packages/ui/src/index.tsx)
-  - 设计规则文档见 [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean/docs/office-design-system.md)
+  - 共享 tokens 集中在 [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css)
+  - 共享 primitives 集中在 [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/ui/src/index.tsx)
+  - 设计规则文档见 [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/office-design-system.md)
 - 一个最小正式内部账号系统，当前已包含：
   - bootstrap admin 保障
   - invitation onboarding

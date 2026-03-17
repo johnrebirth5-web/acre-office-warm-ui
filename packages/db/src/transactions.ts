@@ -13,6 +13,7 @@ import {
   type OfficeTransactionCustomFieldDefinitionRecord,
   type OfficeTransactionFieldSettingRecord
 } from "./field-settings";
+import { buildTeamPathLabel, createTeamHierarchyIndex, expandSelectedTeamIds } from "./team-hierarchy";
 import { listAvailableContactsForTransaction, type OfficeTransactionContact, type OfficeTransactionContactOption } from "./transaction-contacts";
 import {
   listTransactionDocumentsSnapshot,
@@ -880,6 +881,22 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     viewerMembershipId: input.viewerMembershipId,
     officeId: input.officeId ?? null
   });
+  const scopedTeams = await prisma.team.findMany({
+    where: {
+      organizationId: input.organizationId,
+      ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {}),
+      ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      parentTeamId: true
+    },
+    orderBy: [{ name: "asc" }]
+  });
+  const teamHierarchyIndex = createTeamHierarchyIndex(scopedTeams);
+  const selectedTeamIds = input.teamId?.trim() ? expandSelectedTeamIds(teamHierarchyIndex, input.teamId) : [];
   const whereConditions: Prisma.TransactionWhereInput[] = [
     {
       organizationId: input.organizationId
@@ -918,7 +935,9 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
           teamMemberships: {
             some: {
               organizationId: input.organizationId,
-              teamId: input.teamId.trim(),
+              teamId: {
+                in: selectedTeamIds.length > 0 ? selectedTeamIds : ["__no_team__"]
+              },
               ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {}),
               team: {
                 isActive: true
@@ -993,7 +1012,7 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
   });
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const page = Math.min(Math.max(Math.trunc(requestedPage) || defaultTransactionsPage, 1), totalPages);
-  const [transactions, financeAggregate, selfFinancialAggregate, ownerMemberships, teams] = await Promise.all([
+  const [transactions, financeAggregate, selfFinancialAggregate, ownerMemberships] = await Promise.all([
     prisma.transaction.findMany({
       where,
       include: {
@@ -1045,18 +1064,6 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
         user: true
       },
       orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
-    }),
-    prisma.team.findMany({
-      where: {
-        organizationId: input.organizationId,
-        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {}),
-        ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
-      },
-      select: {
-        id: true,
-        name: true
-      },
-      orderBy: [{ name: "asc" }]
     })
   ]);
 
@@ -1077,9 +1084,9 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
         id: membership.id,
         label: `${membership.user.firstName} ${membership.user.lastName}`
       })),
-      teamOptions: teams.map((team) => ({
+      teamOptions: scopedTeams.map((team) => ({
         id: team.id,
-        label: team.name
+        label: buildTeamPathLabel(teamHierarchyIndex, team.id) || team.name
       }))
     }
   };

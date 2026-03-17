@@ -28,6 +28,15 @@ import { prisma } from "./client";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import { resolveManagedMembershipStoredTitle, resolveMembershipDisplayTitle } from "./membership-titles";
 import { createNotificationsForMemberships } from "./notifications";
+import {
+  buildTeamMembershipHierarchyMap,
+  buildTeamPathLabel,
+  createTeamHierarchyIndex,
+  expandSelectedTeamIds,
+  formatTeamMembershipRoleLabel,
+  getDescendantTeamIds,
+  isLeaderTeamMembershipRole
+} from "./team-hierarchy";
 
 const roleLabelMap: Record<UserRole, string> = {
   agent: "Agent",
@@ -60,8 +69,8 @@ const onboardingItemStatusLabelMap: Record<AgentOnboardingItemStatus, string> = 
 };
 
 const teamRoleLabelMap: Record<TeamMembershipRole, string> = {
-  leader_i: "Leader I",
-  leader_ii: "Leader II",
+  team_leader: "Team Leader",
+  junior_team_leader: "Junior Team Leader",
   member: "Member"
 };
 
@@ -131,6 +140,9 @@ export type OfficeAgentTeamSummary = {
   name: string;
   slug: string;
   isActive: boolean;
+  parentTeamId: string | null;
+  teamPathLabel: string;
+  childTeamCount: number;
   memberCount: number;
   openTaskCount: number;
   openTransactionCount: number;
@@ -165,6 +177,10 @@ export type OfficeAgentProfileTeam = {
   name: string;
   slug: string;
   isActive: boolean;
+  teamPathLabel: string;
+  depth: number;
+  directManagerMembershipId: string | null;
+  rootLeaderLabel: string;
   role: string;
   roleValue: TeamMembershipRole;
   reportsToTeamMembershipId: string | null;
@@ -322,6 +338,7 @@ export type CreateAgentTeamInput = {
   officeId?: string | null;
   actorMembershipId: string;
   name: string;
+  parentTeamId?: string | null;
 };
 
 export type UpdateAgentTeamInput = {
@@ -331,6 +348,7 @@ export type UpdateAgentTeamInput = {
   teamId: string;
   name?: string;
   isActive?: boolean;
+  parentTeamId?: string | null;
 };
 
 export type DeleteAgentTeamInput = {
@@ -499,14 +517,27 @@ function normalizeOnboardingStatus(
 }
 
 function normalizeTeamRole(value: string | undefined): TeamMembershipRole {
-  if (value === "leader_i" || value === "leader_ii" || value === "member") {
+  if (value === "team_leader" || value === "junior_team_leader" || value === "member") {
     return value;
   }
 
-  return value === "lead" ? "leader_i" : "member";
+  if (value === "leader_i" || value === "lead") {
+    return "team_leader";
+  }
+
+  if (value === "leader_ii") {
+    return "junior_team_leader";
+  }
+
+  return "member";
 }
 
 function normalizeOptionalTeamMembershipId(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeOptionalTeamId(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
@@ -676,15 +707,11 @@ async function validateTeamMembershipHierarchy(
 ) {
   const parentId = normalizeOptionalTeamMembershipId(input.reportsToTeamMembershipId);
 
-  if (input.role === "leader_i" && parentId) {
-    throw new Error("Leader I cannot report to another team member.");
+  if (input.role !== "member" && parentId) {
+    throw new Error("Leaders cannot report to another team member inside the same branch.");
   }
 
   if (!parentId) {
-    if (input.role === "leader_ii") {
-      throw new Error("Leader II must report to a Leader I in the same team.");
-    }
-
     return null;
   }
 
@@ -711,16 +738,8 @@ async function validateTeamMembershipHierarchy(
     throw new Error("A team member cannot report to themselves.");
   }
 
-  if (input.role === "leader_ii" && parentMembership.role !== "leader_i") {
-    throw new Error("Leader II must report to a Leader I in the same team.");
-  }
-
-  if (input.role === "member" && parentMembership.role !== "leader_i" && parentMembership.role !== "leader_ii") {
-    throw new Error("Members can only report to a Leader I or Leader II in the same team.");
-  }
-
-  if (input.role === "leader_i") {
-    throw new Error("Leader I cannot report to another team member.");
+  if (input.role === "member" && !isLeaderTeamMembershipRole(parentMembership.role)) {
+    throw new Error("Members can only report to a team leader in the same branch.");
   }
 
   if (!input.existingTeamMembershipId) {
@@ -763,6 +782,70 @@ async function validateTeamMembershipHierarchy(
   return parentMembership.id;
 }
 
+async function validateTeamParentAssignment(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    teamId?: string | null;
+    parentTeamId?: string | null;
+  }
+) {
+  const parentTeamId = normalizeOptionalTeamId(input.parentTeamId);
+
+  if (!parentTeamId) {
+    return null;
+  }
+
+  if (input.teamId && input.teamId === parentTeamId) {
+    throw new Error("A team cannot be its own parent.");
+  }
+
+  const parentTeam = await tx.team.findFirst({
+    where: {
+      id: parentTeamId,
+      organizationId: input.organizationId,
+      ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
+    },
+    select: {
+      id: true,
+      parentTeamId: true
+    }
+  });
+
+  if (!parentTeam) {
+    throw new Error("Parent team must belong to the same office scope.");
+  }
+
+  const visited = new Set<string>();
+  let cursor: { id: string; parentTeamId: string | null } | null = parentTeam;
+
+  while (cursor && !visited.has(cursor.id)) {
+    if (input.teamId && cursor.id === input.teamId) {
+      throw new Error("This parent team would create a cycle.");
+    }
+
+    visited.add(cursor.id);
+
+    if (!cursor.parentTeamId) {
+      break;
+    }
+
+    cursor =
+      (await tx.team.findUnique({
+        where: {
+          id: cursor.parentTeamId
+        },
+        select: {
+          id: true,
+          parentTeamId: true
+        }
+      })) ?? null;
+  }
+
+  return parentTeam.id;
+}
+
 async function syncManagedMembershipTitle(tx: Prisma.TransactionClient, membershipId: string) {
   const membership = await tx.membership.findUnique({
     where: {
@@ -773,8 +856,11 @@ async function syncManagedMembershipTitle(tx: Prisma.TransactionClient, membersh
         include: {
           team: {
             select: {
+              id: true,
               name: true,
-              isActive: true
+              slug: true,
+              isActive: true,
+              parentTeamId: true
             }
           }
         }
@@ -786,10 +872,28 @@ async function syncManagedMembershipTitle(tx: Prisma.TransactionClient, membersh
     return;
   }
 
+  const teams = await tx.team.findMany({
+    where: {
+      organizationId: membership.organizationId,
+      ...(membership.officeId ? { OR: [{ officeId: membership.officeId }, { officeId: null }] } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      isActive: true,
+      parentTeamId: true
+    }
+  });
+  const hierarchyIndex = createTeamHierarchyIndex(teams);
+
   const nextTitle = resolveManagedMembershipStoredTitle({
     role: membership.role,
     fallbackTitle: membership.title,
-    teamMemberships: membership.teamMemberships
+    teamMemberships: membership.teamMemberships.map((teamMembership) => ({
+      ...teamMembership,
+      teamPathLabel: buildTeamPathLabel(hierarchyIndex, teamMembership.team.id) || teamMembership.team.name
+    }))
   });
 
   if ((membership.title ?? null) === nextTitle) {
@@ -818,6 +922,33 @@ async function syncManagedMembershipTitlesForTeam(tx: Prisma.TransactionClient, 
 
   for (const membershipId of new Set(teamMemberships.map((teamMembership) => teamMembership.membershipId))) {
     await syncManagedMembershipTitle(tx, membershipId);
+  }
+}
+
+async function syncManagedMembershipTitlesForTeamBranch(
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  teamId: string,
+  officeId?: string | null
+) {
+  const teams = await tx.team.findMany({
+    where: {
+      organizationId,
+      ...(officeId ? { OR: [{ officeId }, { officeId: null }] } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      isActive: true,
+      parentTeamId: true
+    }
+  });
+  const hierarchyIndex = createTeamHierarchyIndex(teams);
+  const descendantTeamIds = getDescendantTeamIds(hierarchyIndex, teamId);
+
+  for (const descendantTeamId of descendantTeamIds) {
+    await syncManagedMembershipTitlesForTeam(tx, descendantTeamId);
   }
 }
 
@@ -1244,6 +1375,23 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     viewerMembershipId: input.viewerMembershipId,
     officeId: scopedOfficeId ?? null
   });
+  const scopedTeams = await prisma.team.findMany({
+    where: {
+      organizationId: input.organizationId,
+      ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
+      ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      isActive: true,
+      parentTeamId: true
+    },
+    orderBy: [{ name: "asc" }]
+  });
+  const teamHierarchyIndex = createTeamHierarchyIndex(scopedTeams);
+  const filteredTeamIds = input.teamId ? expandSelectedTeamIds(teamHierarchyIndex, input.teamId) : [];
   const memberships = await prisma.membership.findMany({
     where: {
       organizationId: input.organizationId,
@@ -1255,7 +1403,9 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         ? {
             teamMemberships: {
               some: {
-                teamId: input.teamId
+                teamId: {
+                  in: filteredTeamIds.length > 0 ? filteredTeamIds : ["__no_team__"]
+                }
               }
             }
           }
@@ -1278,6 +1428,9 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       office: true,
       agentProfile: true,
       teamMemberships: {
+        where: {
+          ...(scopedTeams.length ? { teamId: { in: scopedTeams.map((team) => team.id) } } : {})
+        },
         include: {
           team: true,
           reportsToTeamMembership: {
@@ -1309,9 +1462,9 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     }),
     prisma.team.findMany({
       where: {
-        organizationId: input.organizationId,
-        ...(scopedOfficeId ? { OR: [{ officeId: scopedOfficeId }, { officeId: null }] } : {}),
-        ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+        id: {
+          in: scopedTeams.map((team) => team.id)
+        }
       },
       include: {
         memberships: {
@@ -1406,6 +1559,26 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
   const openTaskCountMap = new Map(openTaskCounts.map((item) => [item.assigneeMembershipId ?? "", item._count._all]));
   const openTransactionCountMap = new Map<string, number>();
   const recentClosedCountMap = new Map<string, number>();
+  const teamHierarchy = buildTeamMembershipHierarchyMap({
+    teams: teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      slug: team.slug,
+      isActive: team.isActive,
+      parentTeamId: team.parentTeamId ?? null
+    })),
+    teamMemberships: teams.flatMap((team) =>
+      team.memberships.map((teamMembership) => ({
+        id: teamMembership.id,
+        membershipId: teamMembership.membershipId,
+        teamId: teamMembership.teamId,
+        role: teamMembership.role,
+        reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
+        label: getMembershipLabel(teamMembership.membership)
+      }))
+    )
+  });
+  const teamPathLabelMap = new Map(teams.map((team) => [team.id, buildTeamPathLabel(teamHierarchy.index, team.id)]));
   const onboardingProgressMap = new Map<
     string,
     {
@@ -1540,7 +1713,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     };
     const teamLabels = membership.teamMemberships
       .filter((teamMembership) => teamMembership.team.isActive)
-      .map((teamMembership) => teamMembership.team.name);
+      .map((teamMembership) => teamHierarchy.hierarchyMap.get(teamMembership.id)?.teamPathLabel ?? teamMembership.team.name);
     const openTransactionCount = openTransactionCountMap.get(membership.id) ?? 0;
     const recentClosedTransactionCount = recentClosedCountMap.get(membership.id) ?? 0;
 
@@ -1554,9 +1727,12 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         resolveMembershipDisplayTitle({
           role: membership.role,
           fallbackTitle: membership.title,
-          teamMemberships: membership.teamMemberships
+          teamMemberships: membership.teamMemberships.map((teamMembership) => ({
+            ...teamMembership,
+            teamPathLabel: teamPathLabelMap.get(teamMembership.teamId) ?? teamMembership.team.name
+          }))
         }) || "—",
-      teamLabel: teamLabels.length ? teamLabels.join(", ") : "No team",
+      teamLabel: teamLabels.length ? [...new Set(teamLabels)].join(" • ") : "No team",
       membershipStatus: membershipStatusLabelMap[membership.status],
       membershipStatusValue: membership.status,
       onboardingStatus: onboardingStatusLabelMap[onboardingProgress.status],
@@ -1616,7 +1792,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       roleOptions,
       teamOptions: teams.map((team) => ({
         id: team.id,
-        label: team.name
+        label: teamPathLabelMap.get(team.id) ?? team.name
       }))
     },
     rows,
@@ -1625,6 +1801,9 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       name: team.name,
       slug: team.slug,
       isActive: team.isActive,
+      parentTeamId: team.parentTeamId ?? null,
+      teamPathLabel: teamPathLabelMap.get(team.id) ?? team.name,
+      childTeamCount: teamHierarchy.index.childTeamIdsByParentId.get(team.id)?.length ?? 0,
       memberCount: team.memberships.length,
       openTaskCount: team.memberships.reduce(
         (sum, teamMembership) => sum + (openTaskCountMap.get(teamMembership.membershipId) ?? 0),
@@ -1642,12 +1821,12 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
         teamMembershipId: teamMembership.id,
         membershipId: teamMembership.membershipId,
         label: getMembershipLabel(teamMembership.membership),
-        role: teamRoleLabelMap[teamMembership.role],
+        role: formatTeamMembershipRoleLabel(teamMembership.role),
         roleValue: teamMembership.role,
         reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
-        reportsToLabel: teamMembership.reportsToTeamMembership
-          ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership)
-          : "No direct manager"
+        reportsToLabel:
+          teamHierarchy.hierarchyMap.get(teamMembership.id)?.directManagerLabel ??
+          (teamMembership.reportsToTeamMembership ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership) : "No direct manager")
       }))
     }))
   };
@@ -1676,6 +1855,9 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       office: true,
       agentProfile: true,
       teamMemberships: {
+        where: {
+          ...(scope.visibleTeamIds ? { teamId: { in: scope.visibleTeamIds } } : {})
+        },
         include: {
           team: true,
           reportsToTeamMembership: {
@@ -1708,6 +1890,9 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         office: true,
         agentProfile: true,
         teamMemberships: {
+          where: {
+            ...(scope.visibleTeamIds ? { teamId: { in: scope.visibleTeamIds } } : {})
+          },
           include: {
             team: true,
             reportsToTeamMembership: {
@@ -1852,6 +2037,44 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       })
     ]);
 
+  const scopedTeamMemberships = availableTeams.length
+    ? await prisma.teamMembership.findMany({
+        where: {
+          organizationId: input.organizationId,
+          teamId: {
+            in: availableTeams.map((team) => team.id)
+          }
+        },
+        include: {
+          membership: {
+            include: {
+              user: true
+            }
+          }
+        }
+      })
+    : [];
+  const availableTeamHierarchy = buildTeamMembershipHierarchyMap({
+    teams: availableTeams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      slug: team.slug,
+      isActive: team.isActive,
+      parentTeamId: team.parentTeamId ?? null
+    })),
+    teamMemberships: scopedTeamMemberships.map((teamMembership) => ({
+      id: teamMembership.id,
+      membershipId: teamMembership.membershipId,
+      teamId: teamMembership.teamId,
+      role: teamMembership.role,
+      reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
+      label: getMembershipLabel(teamMembership.membership)
+    }))
+  });
+  const availableTeamPathLabelMap = new Map(
+    availableTeams.map((team) => [team.id, buildTeamPathLabel(availableTeamHierarchy.index, team.id)])
+  );
+
   const pipelineTransactions = await prisma.transaction.groupBy({
     by: ["status"],
     where: {
@@ -1961,7 +2184,10 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       title: resolveMembershipDisplayTitle({
         role: membership.role,
         fallbackTitle: membership.title,
-        teamMemberships: membership.teamMemberships
+        teamMemberships: membership.teamMemberships.map((teamMembership) => ({
+          ...teamMembership,
+          teamPathLabel: availableTeamPathLabelMap.get(teamMembership.teamId) ?? teamMembership.team.name
+        }))
       }),
       bio: membership.agentProfile?.bio ?? "",
       notes: membership.agentProfile?.notes ?? "",
@@ -2000,16 +2226,20 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       name: teamMembership.team.name,
       slug: teamMembership.team.slug,
       isActive: teamMembership.team.isActive,
-      role: teamRoleLabelMap[teamMembership.role],
+      teamPathLabel: availableTeamPathLabelMap.get(teamMembership.team.id) ?? teamMembership.team.name,
+      depth: availableTeamHierarchy.hierarchyMap.get(teamMembership.id)?.depth ?? 0,
+      directManagerMembershipId: availableTeamHierarchy.hierarchyMap.get(teamMembership.id)?.directManagerMembershipId ?? null,
+      rootLeaderLabel: availableTeamHierarchy.hierarchyMap.get(teamMembership.id)?.rootLeader?.label ?? "—",
+      role: formatTeamMembershipRoleLabel(teamMembership.role),
       roleValue: teamMembership.role,
       reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
-      reportsToLabel: teamMembership.reportsToTeamMembership
-        ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership)
-        : "No direct manager"
+      reportsToLabel:
+        availableTeamHierarchy.hierarchyMap.get(teamMembership.id)?.directManagerLabel ??
+        (teamMembership.reportsToTeamMembership ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership) : "No direct manager")
     })),
     availableTeams: availableTeams.map((team) => ({
       id: team.id,
-      label: team.name
+      label: availableTeamPathLabelMap.get(team.id) ?? team.name
     })),
     onboarding: {
       totalCount: onboardingItems.length,
@@ -2168,6 +2398,11 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
   }
 
   return prisma.$transaction(async (tx) => {
+    const parentTeamId = await validateTeamParentAssignment(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId,
+      parentTeamId: input.parentTeamId ?? null
+    });
     const baseSlug = slugify(name);
     const existingTeams = await tx.team.findMany({
       where: {
@@ -2186,9 +2421,21 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
         organizationId: input.organizationId,
         officeId: input.officeId ?? null,
         name,
-        slug
+        slug,
+        parentTeamId
       }
     });
+
+    const parentTeam = parentTeamId
+      ? await tx.team.findUnique({
+          where: {
+            id: parentTeamId
+          },
+          select: {
+            name: true
+          }
+        })
+      : null;
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -2200,7 +2447,7 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
         officeId: input.officeId ?? null,
         objectLabel: team.name,
         contextHref: `/office/agents?teamId=${team.id}`,
-        details: [`Status: Active`]
+        details: [`Status: Active`, `Parent team: ${parentTeam?.name ?? "None"}`]
       }
     });
 
@@ -2224,9 +2471,41 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
 
     const nextName = parseOptionalText(input.name) ?? team.name;
     const nextIsActive = typeof input.isActive === "boolean" ? input.isActive : team.isActive;
+    const nextParentTeamId =
+      input.parentTeamId === undefined
+        ? team.parentTeamId
+        : await validateTeamParentAssignment(tx, {
+            organizationId: input.organizationId,
+            officeId: input.officeId,
+            teamId: team.id,
+            parentTeamId: input.parentTeamId
+          });
+    const [currentParentTeam, nextParentTeam] = await Promise.all([
+      team.parentTeamId
+        ? tx.team.findUnique({
+            where: {
+              id: team.parentTeamId
+            },
+            select: {
+              name: true
+            }
+          })
+        : Promise.resolve(null),
+      nextParentTeamId
+        ? tx.team.findUnique({
+            where: {
+              id: nextParentTeamId
+            },
+            select: {
+              name: true
+            }
+          })
+        : Promise.resolve(null)
+    ]);
     const changes = [
       buildChange("Name", team.name, nextName),
-      buildChange("Status", team.isActive ? "Active" : "Inactive", nextIsActive ? "Active" : "Inactive")
+      buildChange("Status", team.isActive ? "Active" : "Inactive", nextIsActive ? "Active" : "Inactive"),
+      buildChange("Parent team", currentParentTeam?.name ?? "None", nextParentTeam?.name ?? "None")
     ].filter((change): change is ActivityLogChange => Boolean(change));
 
     const updatedTeam = await tx.team.update({
@@ -2236,11 +2515,27 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
       data: {
         name: nextName,
         slug: nextName === team.name ? team.slug : slugify(nextName),
-        isActive: nextIsActive
+        isActive: nextIsActive,
+        parentTeamId: nextParentTeamId
       }
     });
 
-    await syncManagedMembershipTitlesForTeam(tx, updatedTeam.id);
+    const nextLeaderRole: TeamMembershipRole = updatedTeam.parentTeamId ? "junior_team_leader" : "team_leader";
+    await tx.teamMembership.updateMany({
+      where: {
+        organizationId: input.organizationId,
+        teamId: updatedTeam.id,
+        role: {
+          in: ["team_leader", "junior_team_leader"]
+        }
+      },
+      data: {
+        role: nextLeaderRole,
+        reportsToTeamMembershipId: null
+      }
+    });
+
+    await syncManagedMembershipTitlesForTeamBranch(tx, input.organizationId, updatedTeam.id, input.officeId);
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -2275,11 +2570,17 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
       throw new Error("Team was not found.");
     }
 
-    const [memberCount, commissionAssignmentCount] = await Promise.all([
+    const [memberCount, childTeamCount, commissionAssignmentCount] = await Promise.all([
       tx.teamMembership.count({
         where: {
           organizationId: input.organizationId,
           teamId: input.teamId
+        }
+      }),
+      tx.team.count({
+        where: {
+          organizationId: input.organizationId,
+          parentTeamId: input.teamId
         }
       }),
       tx.commissionPlanAssignment.count({
@@ -2292,6 +2593,10 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
 
     if (memberCount > 0) {
       throw new Error("Remove all team members before deleting this team.");
+    }
+
+    if (childTeamCount > 0) {
+      throw new Error("Remove or reassign this team's child branches before deleting it.");
     }
 
     if (commissionAssignmentCount > 0) {
@@ -2350,6 +2655,35 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
     }
 
     const nextRole = normalizeTeamRole(input.role);
+    const expectedLeaderRole: TeamMembershipRole = team.parentTeamId ? "junior_team_leader" : "team_leader";
+    const existingLeader = await tx.teamMembership.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        teamId: input.teamId,
+        role: {
+          in: ["team_leader", "junior_team_leader"]
+        },
+        ...(existingTeamMembership ? { NOT: { id: existingTeamMembership.id } } : {})
+      },
+      select: {
+        id: true,
+        membershipId: true,
+        role: true
+      }
+    });
+
+    if (nextRole !== "member" && nextRole !== expectedLeaderRole) {
+      throw new Error(
+        team.parentTeamId
+          ? "Child teams can only assign a Junior Team Leader as the branch owner."
+          : "Top-level teams can only assign a Team Leader as the branch owner."
+      );
+    }
+
+    if (nextRole !== "member" && existingLeader) {
+      throw new Error("Each team can only have one active branch leader.");
+    }
+
     const directReports = existingTeamMembership
       ? await tx.teamMembership.findMany({
           where: {
@@ -2366,10 +2700,6 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
 
     if (nextRole === "member" && directReports.length > 0) {
       throw new Error("Members cannot keep direct reports. Reassign direct reports first.");
-    }
-
-    if (nextRole === "leader_ii" && directReports.some((directReport) => directReport.role === "leader_ii")) {
-      throw new Error("Leader II cannot keep direct Leader II reports. Reassign those members first.");
     }
 
     const nextReportsToTeamMembershipId = await validateTeamMembershipHierarchy(tx, {
@@ -2406,20 +2736,38 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
 
     await syncManagedMembershipTitle(tx, input.membershipId);
 
-    const directManager = teamMembership.reportsToTeamMembershipId
-      ? await tx.teamMembership.findUnique({
-          where: {
-            id: teamMembership.reportsToTeamMembershipId
-          },
-          include: {
-            membership: {
-              include: {
-                user: true
+    const directManager =
+      teamMembership.reportsToTeamMembershipId
+        ? await tx.teamMembership.findUnique({
+            where: {
+              id: teamMembership.reportsToTeamMembershipId
+            },
+            include: {
+              membership: {
+                include: {
+                  user: true
+                }
               }
             }
-          }
-        })
-      : null;
+          })
+        : team.parentTeamId && nextRole !== "member"
+          ? await tx.teamMembership.findFirst({
+              where: {
+                organizationId: input.organizationId,
+                teamId: team.parentTeamId,
+                role: {
+                  in: ["team_leader", "junior_team_leader"]
+                }
+              },
+              include: {
+                membership: {
+                  include: {
+                    user: true
+                  }
+                }
+              }
+            })
+          : null;
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -2466,16 +2814,30 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
       throw new Error("Team membership was not found.");
     }
 
-    const directReportCount = await tx.teamMembership.count({
-      where: {
-        organizationId: input.organizationId,
-        teamId: input.teamId,
-        reportsToTeamMembershipId: teamMembership.id
-      }
-    });
+    const [directReportCount, childTeamCount] = await Promise.all([
+      tx.teamMembership.count({
+        where: {
+          organizationId: input.organizationId,
+          teamId: input.teamId,
+          reportsToTeamMembershipId: teamMembership.id
+        }
+      }),
+      isLeaderTeamMembershipRole(teamMembership.role)
+        ? tx.team.count({
+            where: {
+              organizationId: input.organizationId,
+              parentTeamId: input.teamId
+            }
+          })
+        : Promise.resolve(0)
+    ]);
 
     if (directReportCount > 0) {
       throw new Error("Reassign or remove this member's direct reports before removing them from the team.");
+    }
+
+    if (childTeamCount > 0) {
+      throw new Error("Reassign this branch's child teams before removing its leader.");
     }
 
     await tx.teamMembership.delete({

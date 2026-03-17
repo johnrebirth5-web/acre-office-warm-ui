@@ -72,6 +72,17 @@ export {
   redactCurrency,
   resolveOfficeDataScope
 } from "./access";
+export {
+  buildTeamMembershipHierarchyMap,
+  buildTeamPathLabel,
+  createTeamHierarchyIndex,
+  expandSelectedTeamIds,
+  formatTeamMembershipRoleLabel,
+  getDescendantTeamIds,
+  getTeamDepth,
+  getTeamPath,
+  isLeaderTeamMembershipRole
+} from "./team-hierarchy";
 export { getOfficeActivitySnapshot } from "./activity";
 export { activityLogActions, addOfficeActivityComment, getOfficeActivityLogSnapshot, recordActivityLogEvent } from "./activity-log";
 export {

@@ -37,7 +37,8 @@ Provide a practical Back Office admin/settings area for access management, role 
   - activate/deactivate
   - delete empty teams with no remaining commission-plan assignments
   - add/remove members
-  - assign `Leader I / Leader II / Member`
+  - assign `Team Leader / Junior Team Leader / Member`
+  - maintain parent / child branch structure
   - maintain direct reporting lines inside a team
 - fields admin supports:
   - `Settings > Fields` as the single field-structure admin entry

@@ -314,8 +314,8 @@ enum AgentOnboardingStatus {
 }
 
 enum TeamMembershipRole {
-  leader_i
-  leader_ii
+  team_leader
+  junior_team_leader
   member
 }
 
@@ -1590,6 +1590,7 @@ model Team {
   id                        String                     @id @default(cuid())
   organizationId            String
   officeId                  String?
+  parentTeamId              String?
   name                      String
   slug                      String
   isActive                  Boolean                    @default(true)
@@ -1597,11 +1598,14 @@ model Team {
   updatedAt                 DateTime                   @updatedAt
   organization              Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                    Office?                    @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  parentTeam                Team?                      @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
+  childTeams                Team[]                     @relation("TeamHierarchy")
   memberships               TeamMembership[]
   commissionPlanAssignments CommissionPlanAssignment[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, officeId, isActive])
+  @@index([organizationId, officeId, parentTeamId])
 }
 
 model TeamMembership {

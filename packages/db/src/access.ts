@@ -2,16 +2,9 @@ import type { PermissionKey } from "@acre/auth";
 import { Prisma, type PrismaClient, type TeamMembershipRole, type UserRole } from "@prisma/client";
 import { prisma } from "./client";
 import { getMembershipEffectivePermissionKeys } from "./permissions";
+import { createTeamHierarchyIndex, getDescendantTeamIds, isLeaderTeamMembershipRole } from "./team-hierarchy";
 
 export type OfficeScopeResource = "transactions" | "reports" | "contacts" | "agents";
-
-type TeamMembershipNode = {
-  id: string;
-  teamId: string;
-  membershipId: string;
-  role: TeamMembershipRole;
-  reportsToTeamMembershipId: string | null;
-};
 
 export type OfficeDataScope = {
   viewerMembershipId: string;
@@ -69,61 +62,6 @@ function buildScopedOfficeOrNullFilter(officeId: string | null | undefined) {
 
   return {
     OR: [{ officeId }, { officeId: null }]
-  };
-}
-
-function collectVisibleHierarchyMembershipIds(
-  allTeamMemberships: TeamMembershipNode[],
-  viewerTeamMemberships: Array<Pick<TeamMembershipNode, "id" | "role">>
-) {
-  const visibleTeamMembershipIds = new Set<string>();
-  const childrenByParent = new Map<string, TeamMembershipNode[]>();
-  const nodeById = new Map(allTeamMemberships.map((teamMembership) => [teamMembership.id, teamMembership]));
-
-  for (const teamMembership of allTeamMemberships) {
-    const parentId = teamMembership.reportsToTeamMembershipId;
-
-    if (!parentId) {
-      continue;
-    }
-
-    const current = childrenByParent.get(parentId) ?? [];
-    current.push(teamMembership);
-    childrenByParent.set(parentId, current);
-  }
-
-  const stack = viewerTeamMemberships
-    .filter((teamMembership) => teamMembership.role === "leader_i" || teamMembership.role === "leader_ii")
-    .map((teamMembership) => teamMembership.id);
-
-  while (stack.length > 0) {
-    const currentId = stack.pop();
-
-    if (!currentId || visibleTeamMembershipIds.has(currentId)) {
-      continue;
-    }
-
-    const currentNode = nodeById.get(currentId);
-    if (!currentNode) {
-      continue;
-    }
-
-    visibleTeamMembershipIds.add(currentId);
-
-    for (const child of childrenByParent.get(currentId) ?? []) {
-      stack.push(child.id);
-    }
-  }
-
-  const visibleMembershipIds = new Set(
-    [...visibleTeamMembershipIds]
-      .map((teamMembershipId) => nodeById.get(teamMembershipId)?.membershipId ?? null)
-      .filter((membershipId): membershipId is string => Boolean(membershipId))
-  );
-
-  return {
-    visibleMembershipIds: [...visibleMembershipIds],
-    visibleTeamMembershipIds: [...visibleTeamMembershipIds]
   };
 }
 
@@ -194,11 +132,38 @@ export async function resolveOfficeDataScope(
   const viewerTeamIds = [...new Set(viewerTeamMemberships.map((teamMembership) => teamMembership.teamId))];
 
   if (scopePermissions.team && permissions.includes(scopePermissions.team) && viewerTeamIds.length > 0) {
+    const teams = await db.team.findMany({
+      where: {
+        organizationId: input.organizationId,
+        isActive: true,
+        ...(buildScopedOfficeOrNullFilter(scopedOfficeId) ?? {})
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+        parentTeamId: true
+      }
+    });
+    const hierarchyIndex = createTeamHierarchyIndex(teams);
+    const visibleTeamIds = new Set<string>(viewerTeamIds);
+
+    for (const viewerTeamMembership of viewerTeamMemberships) {
+      if (!isLeaderTeamMembershipRole(viewerTeamMembership.role)) {
+        continue;
+      }
+
+      for (const descendantTeamId of getDescendantTeamIds(hierarchyIndex, viewerTeamMembership.teamId)) {
+        visibleTeamIds.add(descendantTeamId);
+      }
+    }
+
     const teamMemberships = await db.teamMembership.findMany({
       where: {
         organizationId: input.organizationId,
         teamId: {
-          in: viewerTeamIds
+          in: [...visibleTeamIds]
         },
         team: {
           isActive: true,
@@ -207,15 +172,16 @@ export async function resolveOfficeDataScope(
       },
       select: {
         id: true,
-        teamId: true,
-        membershipId: true,
-        role: true,
-        reportsToTeamMembershipId: true
+        membershipId: true
       }
     });
-
-    const hierarchy = collectVisibleHierarchyMembershipIds(teamMemberships, viewerTeamMemberships);
-    const visibleMembershipIds = [...new Set([membership.id, ...hierarchy.visibleMembershipIds])];
+    const canSeeBranch = viewerTeamMemberships.some((teamMembership) => isLeaderTeamMembershipRole(teamMembership.role));
+    const visibleMembershipIds = canSeeBranch
+      ? [...new Set([membership.id, ...teamMemberships.map((teamMembership) => teamMembership.membershipId)])]
+      : [membership.id];
+    const visibleTeamMembershipIds = canSeeBranch
+      ? [...new Set([...viewerTeamMemberships.map((teamMembership) => teamMembership.id), ...teamMemberships.map((teamMembership) => teamMembership.id)])]
+      : viewerTeamMemberships.map((teamMembership) => teamMembership.id);
 
     return {
       viewerMembershipId: membership.id,
@@ -224,8 +190,8 @@ export async function resolveOfficeDataScope(
       officeId: scopedOfficeId,
       kind: "team",
       visibleMembershipIds,
-      visibleTeamIds: viewerTeamIds,
-      visibleTeamMembershipIds: hierarchy.visibleTeamMembershipIds
+      visibleTeamIds: [...visibleTeamIds],
+      visibleTeamMembershipIds
     };
   }
 

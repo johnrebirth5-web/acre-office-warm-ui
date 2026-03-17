@@ -21,7 +21,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { teamId } = await params;
-  const body = (await request.json().catch(() => null)) as { name?: string; isActive?: boolean } | null;
+  const body = (await request.json().catch(() => null)) as { name?: string; isActive?: boolean; parentTeamId?: string | null } | null;
 
   try {
     const team = await updateAgentTeam({
@@ -30,7 +30,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       actorMembershipId: context.currentMembership.id,
       teamId,
       name: body?.name,
-      isActive: typeof body?.isActive === "boolean" ? body.isActive : undefined
+      isActive: typeof body?.isActive === "boolean" ? body.isActive : undefined,
+      parentTeamId: body?.parentTeamId ?? undefined
     });
 
     return NextResponse.json({ team });

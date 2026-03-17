@@ -54,12 +54,13 @@ Provide a real Back Office agent management workspace for office operations, cov
   - accounting / billing
   - activity log
 - team hierarchy now supports:
-  - `Leader I`
-  - `Leader II`
+  - `Team Leader`
+  - `Junior Team Leader`
   - `Member`
+  - recursive child branches
   - explicit `reportsToTeamMembershipId`
-  - direct `Leader I -> Member`
-  - nested `Leader I -> Leader II -> Member`
+  - direct `Team Leader -> Member`
+  - nested `Team Leader -> Junior Team Leader -> Member`
 - roster/profile/reporting visibility is now resolved server-side from:
   - broad membership role
   - active team memberships

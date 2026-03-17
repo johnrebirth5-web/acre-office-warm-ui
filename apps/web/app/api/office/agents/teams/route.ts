@@ -14,14 +14,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Team management permission required." }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as { name?: string } | null;
+  const body = (await request.json().catch(() => null)) as { name?: string; parentTeamId?: string | null } | null;
 
   try {
     const team = await createAgentTeam({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
-      name: body?.name ?? ""
+      name: body?.name ?? "",
+      parentTeamId: body?.parentTeamId ?? null
     });
 
     return NextResponse.json({ team }, { status: 201 });

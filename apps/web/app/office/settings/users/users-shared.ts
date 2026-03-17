@@ -19,11 +19,11 @@ type EditableUserDetailShape = Pick<OfficeAdminUserDetailSnapshot["profile"], "r
 
 export function getRoleConfigurationHint(role: string) {
   if (role === "team_lead") {
-    return "Team Lead 是账号权限层级。Leader I / Leader II 和直属汇报关系需要在 Settings > Teams 里设置。";
+    return "Team Lead 是账号权限层级。真实团队层级、branch 归属和直属汇报关系需要在 Settings > Teams 里设置。";
   }
 
   if (role === "agent") {
-    return "Agent 是账号权限层级。成员归属、直属 Leader I / Leader II，以及是否独立都在 Settings > Teams 里维护。";
+    return "Agent 是账号权限层级。成员归属、所在 branch、直属 Team Leader / Junior Team Leader 都在 Settings > Teams 里维护。";
   }
 
   return "这里选择的是系统权限角色；团队层级和直属关系单独在 Settings > Teams 里维护。";

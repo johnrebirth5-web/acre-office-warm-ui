@@ -56,7 +56,7 @@
 ## Current default baseline
 
 - Product priority: `Back Office`, not the public site
-- Local source of truth: `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean`
+- Local source of truth: `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
 - Default local browser entry: `http://localhost:3105/`
 - Root `npm run dev` is now expected to bind `@acre/web` to `3105` by default
 - Local Docker development is now a supported long-running baseline:
@@ -84,7 +84,7 @@
 - Preferred repo-root deployment command: `npm run deploy:digitalocean`
 - UI glassmorphism has been reduced on long-lived shells, headers, badges, and overlays to lower GPU/compositor pressure after reports of prolonged-session screen artifacting
 - `acresystem.us` / `www.acresystem.us` now terminate HTTPS at nginx with a Let's Encrypt certificate, and HTTP redirects to HTTPS
-- Added the missing `TeamMembershipRole` enum migration so local and deployed databases upgrade legacy `lead` memberships to `leader_i` and include `leader_ii`, preventing access-scope crashes on `/office/transactions` and `/office/agents`
+- Added recursive team hierarchy support so local and deployed databases upgrade legacy `lead / leader_i / leader_ii` memberships into `team_leader / junior_team_leader`, add `Team.parentTeamId`, and keep descendant-scope access working across `/office/settings/users`, `/office/transactions`, and `/office/reports`
 - Back Office account access is now tiered as `owner / office_admin / accountant / human_resources / team_lead / agent`, with server-side scope enforcement and finance redaction applied to dashboard, transactions, reports, exports, and agent views
 - Team hierarchy is now modeled explicitly with `TeamMembership.role + reportsToTeamMembershipId`, and the repo includes a one-off provisioning script for the initial `acreny.us` account batch plus invite-link output
 - Office table column widths can now be resized and saved at the organization level by `owner / office_admin`, with the shared layout applied across list/workspace tables for every user in the same org

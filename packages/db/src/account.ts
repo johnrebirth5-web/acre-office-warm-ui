@@ -4,6 +4,7 @@ import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } fr
 import { prisma } from "./client";
 import { resolveMembershipDisplayTitle } from "./membership-titles";
 import { officeNotificationInboxTypes } from "./notifications";
+import { formatTeamMembershipRoleLabel as formatHierarchyRoleLabel } from "./team-hierarchy";
 import { listOfficeDocumentApprovalQueue } from "./transaction-tasks";
 
 const notificationPreferenceDefaults = {
@@ -415,7 +416,7 @@ export async function getOfficeAccountSnapshot(input: GetOfficeAccountSnapshotIn
       teams: membership.teamMemberships.map((teamMembership) => ({
         id: teamMembership.team.id,
         name: teamMembership.team.name,
-        roleLabel: teamMembership.role === "member" ? "Member" : teamMembership.role === "leader_ii" ? "Leader II" : "Leader I",
+        roleLabel: formatHierarchyRoleLabel(teamMembership.role),
         isActive: teamMembership.team.isActive
       }))
     },

@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
+import { buildTeamPathLabel, createTeamHierarchyIndex, expandSelectedTeamIds } from "./team-hierarchy";
 
 export type OfficeCommissionCalculationStatusLabel =
   | "Draft"
@@ -1554,6 +1555,24 @@ function sumAgentStatementAmounts(
 export async function getOfficeCommissionManagementSnapshot(
   input: GetOfficeCommissionManagementSnapshotInput
 ): Promise<OfficeCommissionManagementSnapshot> {
+  const scopedTeams = await prisma.team.findMany({
+    where: {
+      organizationId: input.organizationId,
+      ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
+    },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      parentTeamId: true
+    }
+  });
+  const teamHierarchyIndex = createTeamHierarchyIndex(scopedTeams);
+  const selectedTeamIds = input.teamId?.trim() ? expandSelectedTeamIds(teamHierarchyIndex, input.teamId) : [];
+  const teamPathLabelById = new Map(
+    scopedTeams.map((team) => [team.id, buildTeamPathLabel(teamHierarchyIndex, team.id) || team.name])
+  );
   const calculationWhere: Prisma.CommissionCalculationWhereInput = {
     organizationId: input.organizationId,
     ...(input.officeId ? { officeId: input.officeId } : {})
@@ -1568,7 +1587,9 @@ export async function getOfficeCommissionManagementSnapshot(
     const teamMemberships = await prisma.teamMembership.findMany({
       where: {
         organizationId: input.organizationId,
-        teamId: input.teamId.trim(),
+        teamId: {
+          in: selectedTeamIds.length > 0 ? selectedTeamIds : ["__no_team__"]
+        },
         ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
       },
       select: {
@@ -1623,19 +1644,32 @@ export async function getOfficeCommissionManagementSnapshot(
         input.membershipId?.trim() && input.teamId?.trim()
           ? [
               {
-                OR: [{ membershipId: input.membershipId.trim() }, { teamId: input.teamId.trim() }]
+                OR: [
+                  { membershipId: input.membershipId.trim() },
+                  {
+                    teamId: {
+                      in: selectedTeamIds.length > 0 ? selectedTeamIds : ["__no_team__"]
+                    }
+                  }
+                ]
               }
             ]
           : input.membershipId?.trim()
             ? [{ membershipId: input.membershipId.trim() }]
             : input.teamId?.trim()
-              ? [{ teamId: input.teamId.trim() }]
+              ? [
+                  {
+                    teamId: {
+                      in: selectedTeamIds.length > 0 ? selectedTeamIds : ["__no_team__"]
+                    }
+                  }
+                ]
               : []
       )
     ]
   };
 
-  const [plans, assignments, calculations, memberships, teams, transactions] = await Promise.all([
+  const [plans, assignments, calculations, memberships, transactions] = await Promise.all([
     prisma.commissionPlan.findMany({
       where: {
         organizationId: input.organizationId,
@@ -1689,17 +1723,6 @@ export async function getOfficeCommissionManagementSnapshot(
       },
       orderBy: [{ user: { firstName: "asc" } }]
     }),
-    prisma.team.findMany({
-      where: {
-        organizationId: input.organizationId,
-        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
-      },
-      orderBy: [{ isActive: "desc" }, { name: "asc" }],
-      select: {
-        id: true,
-        name: true
-      }
-    }),
     prisma.transaction.findMany({
       where: {
         organizationId: input.organizationId,
@@ -1749,9 +1772,9 @@ export async function getOfficeCommissionManagementSnapshot(
         id: membership.id,
         label: `${membership.user.firstName} ${membership.user.lastName}`
       })),
-      teamOptions: teams.map((team) => ({
+      teamOptions: scopedTeams.map((team) => ({
         id: team.id,
-        label: team.name
+        label: teamPathLabelById.get(team.id) ?? team.name
       })),
       commissionPlanOptions: plans.map((plan) => ({
         id: plan.id,
@@ -1773,7 +1796,15 @@ export async function getOfficeCommissionManagementSnapshot(
       assignmentCount: plan.assignments.length,
       rules: plan.rules.map(mapCommissionRule)
     })),
-    assignments: assignments.map(mapCommissionAssignmentRecord),
+    assignments: assignments.map((assignment) => ({
+      ...mapCommissionAssignmentRecord(assignment),
+      targetLabel:
+        assignment.membership
+          ? `${assignment.membership.user.firstName} ${assignment.membership.user.lastName}`
+          : assignment.teamId
+            ? teamPathLabelById.get(assignment.teamId) ?? assignment.team?.name ?? "Unassigned target"
+            : "Unassigned target"
+    })),
     calculations: calculations.map(mapCommissionCalculationRow),
     statement
   };

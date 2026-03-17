@@ -221,7 +221,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, admin unlock / reissue actions, and the member operational roster view.
   - normal create-user choices now expose the Back Office tier catalog: `owner / office_admin / accountant / human_resources / team_lead / agent`
   - legacy `office_manager / office_user` stay compatible internally, but are not the primary create-user flow
-  - `Teams` now supports `Leader I / Leader II / Member` hierarchy plus explicit direct-manager assignment
+  - `Teams` now supports recursive `Team Leader / Junior Team Leader / Member` hierarchy, parent-child branches, and explicit direct-manager assignment
   - shared Office table widths are now organization-scoped settings: `owner / office_admin` can resize current Back Office table columns, and saved widths apply to all users in the same org
   - `Fields` is now the single schema-management surface for `transaction / contact / offer`, including sort order, required / visible, custom field create-edit-delete, hidden-field restore, and transaction-only required contact roles.
 - Follow-up work:

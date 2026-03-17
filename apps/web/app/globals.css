@@ -8938,12 +8938,12 @@ a {
 }
 
 .office-table-row-settings-teams {
-  min-width: 700px;
+  min-width: 840px;
   grid-template-columns:
-    minmax(188px, 1.45fr)
-    minmax(86px, 0.66fr)
-    minmax(86px, 0.66fr)
-    minmax(104px, 0.76fr)
+    minmax(220px, 1.45fr)
+    minmax(180px, 1.05fr)
+    minmax(78px, 0.58fr)
+    minmax(88px, 0.66fr)
     minmax(94px, 0.68fr)
     minmax(104px, 0.76fr);
 }
@@ -9497,7 +9497,7 @@ a {
 
 .office-settings-team-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(160px, 0.8fr) auto;
+  grid-template-columns: minmax(0, 1.35fr) minmax(180px, 1fr) minmax(160px, 0.8fr) auto;
   gap: 12px;
   align-items: end;
 }
@@ -9552,7 +9552,7 @@ a {
 
 .office-settings-team-assign {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.35fr) minmax(160px, 0.82fr) minmax(180px, 1fr) auto;
   gap: 12px;
   align-items: end;
 }
