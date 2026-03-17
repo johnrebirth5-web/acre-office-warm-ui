@@ -9365,7 +9365,7 @@ a {
 
 .office-permission-node-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+  grid-template-columns: 22px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
