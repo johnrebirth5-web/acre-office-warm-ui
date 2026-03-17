@@ -19,14 +19,14 @@ type EditableUserDetailShape = Pick<OfficeAdminUserDetailSnapshot["profile"], "r
 
 export function getRoleConfigurationHint(role: string) {
   if (role === "team_lead") {
-    return "Team Lead 是账号权限层级。真实团队层级、branch 归属和直属汇报关系需要在 Settings > Teams 里设置。";
+    return "This controls account permissions only. Team hierarchy, branch ownership, and reporting lines are managed in Settings > Teams.";
   }
 
   if (role === "agent") {
-    return "Agent 是账号权限层级。成员归属、所在 branch、直属 Team Leader / Junior Team Leader 都在 Settings > Teams 里维护。";
+    return "This controls account permissions only. Branch assignment and direct leader relationships are managed in Settings > Teams.";
   }
 
-  return "这里选择的是系统权限角色；团队层级和直属关系单独在 Settings > Teams 里维护。";
+  return "This changes the system permission template. Team structure and reporting relationships are managed separately in Settings > Teams.";
 }
 
 export function getMembershipTone(status: OfficeAdminUserRow["statusValue"] | OfficeAdminUserDetailSnapshot["profile"]["statusValue"]) {

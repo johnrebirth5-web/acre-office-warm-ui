@@ -221,13 +221,21 @@ export function OfficeSettingsUserDetailClient({
           </div>
 
           <div className="office-settings-user-hero-copy">
-            <div className="office-settings-user-hero-heading">
-              <h3>{snapshot.profile.name}</h3>
-              <Badge tone={snapshot.profile.roleValue === "owner" || snapshot.profile.roleValue === "office_admin" ? "accent" : "neutral"}>
-                {snapshot.profile.role}
-              </Badge>
-              <StatusBadge tone={getMembershipTone(snapshot.profile.statusValue)}>{snapshot.profile.status}</StatusBadge>
-              <StatusBadge tone={getOnboardingTone(snapshot.profile.onboardingStatusValue)}>{snapshot.profile.onboardingStatusLabel}</StatusBadge>
+            <div className="office-settings-user-hero-topline">
+              <div className="office-settings-user-hero-heading">
+                <h3>{snapshot.profile.name}</h3>
+                <Badge tone={snapshot.profile.roleValue === "owner" || snapshot.profile.roleValue === "office_admin" ? "accent" : "neutral"}>
+                  {snapshot.profile.role}
+                </Badge>
+                <StatusBadge tone={getMembershipTone(snapshot.profile.statusValue)}>{snapshot.profile.status}</StatusBadge>
+                <StatusBadge tone={getOnboardingTone(snapshot.profile.onboardingStatusValue)}>{snapshot.profile.onboardingStatusLabel}</StatusBadge>
+              </div>
+
+              {profileLinkHref ? (
+                <Link className="office-button office-button-secondary office-button-sm" href={profileLinkHref}>
+                  {operationsHref ? "Jump to operations" : "Open agent profile"}
+                </Link>
+              ) : null}
             </div>
 
             <div className="office-settings-user-hero-meta">
@@ -257,15 +265,12 @@ export function OfficeSettingsUserDetailClient({
               </div>
             </div>
 
-            <div className="office-settings-user-hero-actions">
-              <Badge tone={getInvitationTone(snapshot.profile)}>{snapshot.profile.invitationStatusLabel}</Badge>
-              {snapshot.profile.invitationExpiresAtLabel ? <span>Invite expires {snapshot.profile.invitationExpiresAtLabel}</span> : null}
-              {snapshot.profile.isLocked ? <StatusBadge tone="danger">Locked until {snapshot.profile.lockedUntilLabel}</StatusBadge> : null}
-              {profileLinkHref ? (
-                <Link className="office-button office-button-secondary office-button-sm" href={profileLinkHref}>
-                  {operationsHref ? "Jump to operations" : "Open agent profile"}
-                </Link>
-              ) : null}
+            <div className="office-settings-user-hero-banner">
+              <div className="office-settings-user-hero-banner-copy">
+                <Badge tone={getInvitationTone(snapshot.profile)}>{snapshot.profile.invitationStatusLabel}</Badge>
+                {snapshot.profile.invitationExpiresAtLabel ? <span>Invite expires {snapshot.profile.invitationExpiresAtLabel}</span> : null}
+                {snapshot.profile.isLocked ? <StatusBadge tone="danger">Locked until {snapshot.profile.lockedUntilLabel}</StatusBadge> : null}
+              </div>
             </div>
           </div>
         </div>
@@ -273,54 +278,66 @@ export function OfficeSettingsUserDetailClient({
 
       <div className="office-detail-two-column office-settings-user-detail-grid">
         <SectionCard
+          className="office-settings-user-access-card"
           subtitle="Update role, membership lifecycle, office access, and invitation state from one place."
           title="Account access"
         >
-          <form className="office-form-grid office-form-grid-3" onSubmit={handleSaveUser}>
-            <FormField label="Role">
-              <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("role", event.target.value)} value={draft.role}>
-                {getRoleEditorOptions(snapshot.profile).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </SelectInput>
-              <p className="office-settings-user-note">{getRoleConfigurationHint(draft.role)}</p>
-            </FormField>
+          <form className="office-settings-user-access-form" onSubmit={handleSaveUser}>
+            <div className="office-form-grid office-form-grid-3 office-settings-user-access-controls">
+              <FormField label="Role">
+                <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("role", event.target.value)} value={draft.role}>
+                  {getRoleEditorOptions(snapshot.profile).map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
 
-            <FormField label="Membership">
-              <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("status", event.target.value)} value={draft.status}>
-                {getStatusEditorOptions(snapshot.profile).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </SelectInput>
-            </FormField>
+              <FormField label="Membership">
+                <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("status", event.target.value)} value={draft.status}>
+                  {getStatusEditorOptions(snapshot.profile).map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
 
-            <FormField label="Office access">
-              <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("officeId", event.target.value)} value={draft.officeId}>
-                {snapshot.editors.officeOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </SelectInput>
-            </FormField>
+              <FormField label="Office access">
+                <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("officeId", event.target.value)} value={draft.officeId}>
+                  {snapshot.editors.officeOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
+            </div>
 
-            <FormField label="Current lock status">
-              <TextInput readOnly value={snapshot.profile.isLocked ? `Locked until ${snapshot.profile.lockedUntilLabel}` : snapshot.profile.lockStatusLabel} />
-            </FormField>
+            <div className="office-settings-user-access-callout">
+              <strong>Permissions scope</strong>
+              <p>{getRoleConfigurationHint(draft.role)}</p>
+            </div>
 
-            <FormField label="Last failed login">
-              <TextInput readOnly value={snapshot.profile.lastFailedLoginAtLabel || "—"} />
-            </FormField>
+            <div className="office-settings-user-security-grid">
+              <div className="office-detail-field">
+                <span>Current lock status</span>
+                <strong>{snapshot.profile.isLocked ? `Locked until ${snapshot.profile.lockedUntilLabel}` : snapshot.profile.lockStatusLabel}</strong>
+              </div>
 
-            <FormField label="Password changed">
-              <TextInput readOnly value={snapshot.profile.passwordChangedAtLabel || "—"} />
-            </FormField>
+              <div className="office-detail-field">
+                <span>Last failed login</span>
+                <strong>{snapshot.profile.lastFailedLoginAtLabel || "—"}</strong>
+              </div>
 
-            <div className="office-form-grid-span-3 office-settings-user-detail-actions">
+              <div className="office-detail-field">
+                <span>Password changed</span>
+                <strong>{snapshot.profile.passwordChangedAtLabel || "—"}</strong>
+              </div>
+            </div>
+
+            <div className="office-settings-user-detail-actions office-settings-user-access-actions">
               {canManageUsers ? (
                 <>
                   <Button disabled={pendingAction === "save"} type="submit">
@@ -363,17 +380,7 @@ export function OfficeSettingsUserDetailClient({
         </SectionCard>
 
         <SectionCard
-          actions={
-            roleChanged ? (
-              <Button disabled type="button" variant="secondary">
-                Save access to edit permissions
-              </Button>
-            ) : (
-              <Link className="office-button office-button-primary office-button-sm" href={permissionEditorHref}>
-                {canManageUsers ? "Edit permissions" : "View permissions"}
-              </Link>
-            )
-          }
+          className="office-settings-user-permissions-card"
           subtitle="Open a dedicated full-page editor to review the permission tree and manage per-user overrides."
           title="Permissions"
         >
@@ -383,7 +390,23 @@ export function OfficeSettingsUserDetailClient({
             </p>
           ) : null}
 
-          <div className="office-agents-profile-summary-grid">
+          <div className="office-settings-user-permissions-cta">
+            <div className="office-settings-user-permissions-copy">
+              <strong>{canManageUsers ? "Dedicated manage page" : "Dedicated read-only page"}</strong>
+              <p>Review role defaults, inherited permissions, and member-level overrides in a focused editor.</p>
+            </div>
+            {roleChanged ? (
+              <Button disabled type="button" variant="secondary">
+                Save access to edit permissions
+              </Button>
+            ) : (
+              <Link className="office-button office-button-primary office-button-sm" href={permissionEditorHref}>
+                {canManageUsers ? "Edit permissions" : "View permissions"}
+              </Link>
+            )}
+          </div>
+
+          <div className="office-settings-user-permissions-grid">
             <div className="office-detail-field">
               <span>Current role template</span>
               <strong>{snapshot.permissions.roleLabel}</strong>

@@ -8055,6 +8055,10 @@ a {
   grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
 }
 
+.office-agents-profile-secondary-columns > * {
+  min-width: 0;
+}
+
 .office-agents-operational-facts,
 .office-agents-agenda-panel {
   min-width: 0;
@@ -8108,14 +8112,16 @@ a {
 .office-agents-template-list {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .office-agents-agenda-item,
 .office-agents-template-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 14px;
+  min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--office-border);
   border-radius: 12px;
@@ -8125,6 +8131,12 @@ a {
 .office-agents-agenda-item > :first-child,
 .office-agents-template-item > :first-child {
   min-width: 0;
+}
+
+.office-agents-agenda-item strong,
+.office-agents-template-item strong {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .office-agents-agenda-item p,
@@ -8139,7 +8151,8 @@ a {
   gap: 6px;
   justify-items: end;
   text-align: right;
-  flex-shrink: 0;
+  min-width: 0;
+  align-content: start;
 }
 
 .office-agents-agenda-item-meta small,
@@ -8151,6 +8164,18 @@ a {
 .office-agents-agenda-item-meta a {
   color: var(--office-accent);
   font-weight: 700;
+}
+
+@media (max-width: 1500px) {
+  .office-agents-agenda-item,
+  .office-agents-template-item {
+    grid-template-columns: 1fr;
+  }
+
+  .office-agents-agenda-item-meta {
+    justify-items: start;
+    text-align: left;
+  }
 }
 
 .office-agents-goal-card-head {
@@ -8314,6 +8339,13 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .office-settings-user-detail-grid,
+  .office-settings-user-security-grid,
+  .office-settings-user-permissions-grid,
+  .office-settings-user-permissions-cta {
+    grid-template-columns: 1fr;
+  }
+
   .office-permission-node-header {
     grid-template-columns: 1fr;
   }
@@ -8387,6 +8419,10 @@ a {
   }
 
   .office-settings-user-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .office-settings-user-hero-topline {
     grid-template-columns: 1fr;
   }
 
@@ -9119,6 +9155,7 @@ a {
 
 .office-settings-user-detail-grid {
   align-items: start;
+  grid-template-columns: minmax(0, 1.32fr) minmax(320px, 0.88fr);
 }
 
 .office-settings-user-hero {
@@ -9154,6 +9191,13 @@ a {
   gap: 12px;
 }
 
+.office-settings-user-hero-topline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
 .office-settings-user-hero-heading {
   display: flex;
   flex-wrap: wrap;
@@ -9177,7 +9221,8 @@ a {
 .office-settings-user-hero-meta div {
   display: grid;
   gap: 4px;
-  padding: 12px 14px;
+  min-width: 0;
+  padding: 14px 16px;
   border: 1px solid var(--office-border);
   border-radius: 14px;
   background: var(--office-surface-subtle);
@@ -9197,6 +9242,7 @@ a {
 .office-settings-user-hero-meta strong,
 .office-detail-field strong {
   font-size: 0.92rem;
+  line-height: 1.35;
 }
 
 .office-settings-user-hero-actions,
@@ -9206,6 +9252,112 @@ a {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.office-settings-user-hero-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(177, 188, 204, 0.34);
+  background: linear-gradient(180deg, rgba(237, 244, 255, 0.72) 0%, rgba(255, 255, 255, 0.96) 100%);
+}
+
+.office-settings-user-hero-banner-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  min-width: 0;
+}
+
+.office-settings-user-hero-banner-copy span {
+  color: var(--office-text-muted);
+  font-size: 0.88rem;
+}
+
+.office-settings-user-access-card > .office-section-body,
+.office-settings-user-permissions-card > .office-section-body {
+  gap: 16px;
+}
+
+.office-settings-user-access-form {
+  display: grid;
+  gap: 16px;
+}
+
+.office-settings-user-access-controls {
+  gap: 14px 16px;
+}
+
+.office-settings-user-access-callout {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid rgba(177, 188, 204, 0.34);
+  border-radius: 16px;
+  background: var(--office-surface-subtle);
+}
+
+.office-settings-user-access-callout strong {
+  color: var(--office-text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.office-settings-user-access-callout p {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--office-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.office-settings-user-security-grid,
+.office-settings-user-permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.office-settings-user-security-grid .office-detail-field,
+.office-settings-user-permissions-grid .office-detail-field {
+  min-height: 0;
+}
+
+.office-settings-user-access-actions {
+  padding-top: 6px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
+}
+
+.office-settings-user-permissions-cta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.office-settings-user-permissions-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.office-settings-user-permissions-copy strong {
+  color: var(--office-text);
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.office-settings-user-permissions-copy p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .office-user-permissions-page {
