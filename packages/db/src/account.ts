@@ -2,6 +2,7 @@ import { canAccessOfficeDocumentApprovals, canSecondaryReviewOfficeTasks, getRol
 import { AgentOnboardingStatus, MembershipStatus, TaskStatus, TransactionTaskStatus, TransactionStatus } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
+import { resolveMembershipDisplayTitle } from "./membership-titles";
 import { officeNotificationInboxTypes } from "./notifications";
 import { listOfficeDocumentApprovalQueue } from "./transaction-tasks";
 
@@ -402,7 +403,12 @@ export async function getOfficeAccountSnapshot(input: GetOfficeAccountSnapshotIn
       officeName: membership.office?.name ?? "All offices",
       officeMarket: membership.office?.market ?? "Organization-wide",
       roleLabel: getRoleSummary(membership.role).label,
-      title: membership.title ?? "Not assigned",
+      title:
+        resolveMembershipDisplayTitle({
+          role: membership.role,
+          fallbackTitle: membership.title,
+          teamMemberships: membership.teamMemberships
+        }) || "Not assigned",
       membershipStatusLabel: membershipStatusLabelMap[membership.status],
       startDateLabel: formatDateLabel(membership.agentProfile?.startDate),
       onboardingStatusLabel: onboardingStatusLabelMap[membership.agentProfile?.onboardingStatus ?? AgentOnboardingStatus.not_started],

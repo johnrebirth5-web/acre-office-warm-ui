@@ -26,6 +26,7 @@ import {
 } from "./access";
 import { prisma } from "./client";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
+import { resolveManagedMembershipStoredTitle, resolveMembershipDisplayTitle } from "./membership-titles";
 import { createNotificationsForMemberships } from "./notifications";
 
 const roleLabelMap: Record<UserRole, string> = {
@@ -762,6 +763,64 @@ async function validateTeamMembershipHierarchy(
   return parentMembership.id;
 }
 
+async function syncManagedMembershipTitle(tx: Prisma.TransactionClient, membershipId: string) {
+  const membership = await tx.membership.findUnique({
+    where: {
+      id: membershipId
+    },
+    include: {
+      teamMemberships: {
+        include: {
+          team: {
+            select: {
+              name: true,
+              isActive: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!membership) {
+    return;
+  }
+
+  const nextTitle = resolveManagedMembershipStoredTitle({
+    role: membership.role,
+    fallbackTitle: membership.title,
+    teamMemberships: membership.teamMemberships
+  });
+
+  if ((membership.title ?? null) === nextTitle) {
+    return;
+  }
+
+  await tx.membership.update({
+    where: {
+      id: membership.id
+    },
+    data: {
+      title: nextTitle
+    }
+  });
+}
+
+async function syncManagedMembershipTitlesForTeam(tx: Prisma.TransactionClient, teamId: string) {
+  const teamMemberships = await tx.teamMembership.findMany({
+    where: {
+      teamId
+    },
+    select: {
+      membershipId: true
+    }
+  });
+
+  for (const membershipId of new Set(teamMemberships.map((teamMembership) => teamMembership.membershipId))) {
+    await syncManagedMembershipTitle(tx, membershipId);
+  }
+}
+
 function getActivityActionLabel(action: string) {
   switch (action) {
     case activityLogActions.transactionCreated:
@@ -1491,7 +1550,12 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       email: membership.user.email,
       officeName: membership.office?.name ?? "Unassigned",
       role: roleLabelMap[membership.role],
-      title: membership.title ?? "—",
+      title:
+        resolveMembershipDisplayTitle({
+          role: membership.role,
+          fallbackTitle: membership.title,
+          teamMemberships: membership.teamMemberships
+        }) || "—",
       teamLabel: teamLabels.length ? teamLabels.join(", ") : "No team",
       membershipStatus: membershipStatusLabelMap[membership.status],
       membershipStatusValue: membership.status,
@@ -1894,7 +1958,11 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       role: roleLabelMap[membership.role],
       membershipStatus: membershipStatusLabelMap[membership.status],
       membershipStatusValue: membership.status,
-      title: membership.title ?? "",
+      title: resolveMembershipDisplayTitle({
+        role: membership.role,
+        fallbackTitle: membership.title,
+        teamMemberships: membership.teamMemberships
+      }),
       bio: membership.agentProfile?.bio ?? "",
       notes: membership.agentProfile?.notes ?? "",
       licenseNumber: membership.agentProfile?.licenseNumber ?? "",
@@ -2172,6 +2240,8 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
       }
     });
 
+    await syncManagedMembershipTitlesForTeam(tx, updatedTeam.id);
+
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
       membershipId: input.actorMembershipId,
@@ -2334,6 +2404,8 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
       }
     });
 
+    await syncManagedMembershipTitle(tx, input.membershipId);
+
     const directManager = teamMembership.reportsToTeamMembershipId
       ? await tx.teamMembership.findUnique({
           where: {
@@ -2411,6 +2483,8 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
         id: teamMembership.id
       }
     });
+
+    await syncManagedMembershipTitle(tx, input.membershipId);
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,

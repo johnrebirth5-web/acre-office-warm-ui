@@ -13,6 +13,7 @@ import {
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
+import { resolveMembershipDisplayTitle } from "./membership-titles";
 
 const userRoleLabelMap: Record<UserRole, string> = {
   owner: "Owner",
@@ -703,6 +704,13 @@ function mapOfficeAdminUserRow(membership: {
   role: UserRole;
   status: MembershipStatus;
   title: string | null;
+  teamMemberships?: Array<{
+    role: TeamMembershipRole;
+    team: {
+      name: string;
+      isActive: boolean;
+    };
+  }>;
   officeId: string | null;
   office: { name: string } | null;
   user: {
@@ -759,7 +767,11 @@ function mapOfficeAdminUserRow(membership: {
     officeAccessValue: membership.officeId ?? "__all__",
     status: formatMembershipStatusLabel(membership.status),
     statusValue: membership.status,
-    title: membership.title ?? "",
+    title: resolveMembershipDisplayTitle({
+      role: membership.role,
+      fallbackTitle: membership.title,
+      teamMemberships: membership.teamMemberships ?? []
+    }),
     authStatusLabel,
     onboardingStatusLabel: membership.agentProfile ? formatOnboardingStatusLabel(membership.agentProfile.onboardingStatus) : "—",
     onboardingStatusValue: membership.agentProfile?.onboardingStatus ?? null,
@@ -1384,6 +1396,17 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
             onboardingStatus: true
           }
         },
+        teamMemberships: {
+          select: {
+            role: true,
+            team: {
+              select: {
+                name: true,
+                isActive: true
+              }
+            }
+          }
+        },
         user: {
           select: {
             email: true,
@@ -1621,7 +1644,11 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       roleValue: membership.role,
       status: formatMembershipStatusLabel(membership.status),
       statusValue: membership.status,
-      title: membership.title ?? "",
+      title: resolveMembershipDisplayTitle({
+        role: membership.role,
+        fallbackTitle: membership.title,
+        teamMemberships: membership.teamMemberships
+      }),
       officeAccessLabel: formatOfficeAccessLabel(membership.office),
       officeAccessValue: membership.officeId ?? "__all__",
       officeName: membership.office?.name ?? "All offices",
