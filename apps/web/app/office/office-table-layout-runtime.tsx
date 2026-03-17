@@ -30,8 +30,7 @@ type DragState = {
   columnIndex: number;
   columns: OfficeTableLayoutColumn[];
   startX: number;
-  startLeftWidth: number;
-  startRightWidth: number;
+  startColumnWidth: number;
 };
 
 const GRID_TABLE_ELEMENT_SELECTOR = [
@@ -385,18 +384,12 @@ function OfficeTableLayoutRuntime(props: {
       }
 
       const delta = event.clientX - dragState.startX;
-      const total = dragState.startLeftWidth + dragState.startRightWidth;
-      const nextLeftWidth = Math.max(minimumColumnWidth, Math.min(dragState.startLeftWidth + delta, total - minimumColumnWidth));
-      const nextRightWidth = Math.max(minimumColumnWidth, total - nextLeftWidth);
+      const nextWidth = Math.max(minimumColumnWidth, dragState.startColumnWidth + delta);
       const nextColumns = dragState.columns.map((column) => ({ ...column }));
 
       nextColumns[dragState.columnIndex] = {
         ...nextColumns[dragState.columnIndex],
-        width: nextLeftWidth
-      };
-      nextColumns[dragState.columnIndex + 1] = {
-        ...nextColumns[dragState.columnIndex + 1],
-        width: nextRightWidth
+        width: nextWidth
       };
 
       dragStateRef.current = {
@@ -420,10 +413,9 @@ function OfficeTableLayoutRuntime(props: {
 
     function startDragging(key: string, columnIndex: number, event: PointerEvent) {
       const columns = getHeaderColumnsForKey(key);
-      const leftColumn = columns[columnIndex];
-      const rightColumn = columns[columnIndex + 1];
+      const column = columns[columnIndex];
 
-      if (!leftColumn || !rightColumn) {
+      if (!column) {
         return;
       }
 
@@ -432,8 +424,7 @@ function OfficeTableLayoutRuntime(props: {
         columnIndex,
         columns,
         startX: event.clientX,
-        startLeftWidth: leftColumn.width,
-        startRightWidth: rightColumn.width
+        startColumnWidth: column.width
       };
 
       document.body.classList.add("office-table-column-resizing");
@@ -441,15 +432,11 @@ function OfficeTableLayoutRuntime(props: {
     }
 
     function ensureResizeHandles(key: string, headerCells: HTMLElement[]) {
-      if (!canManageRef.current || headerCells.length < 2) {
+      if (!canManageRef.current || headerCells.length === 0) {
         return;
       }
 
       headerCells.forEach((cell, index) => {
-        if (index === headerCells.length - 1) {
-          return;
-        }
-
         if (cell.querySelector(":scope > .office-table-resize-handle")) {
           return;
         }
