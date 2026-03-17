@@ -65,7 +65,7 @@ test("session cookies keep the expected internal-account defaults", () => {
     const options = getSessionCookieOptions();
     assert.equal(options.httpOnly, true);
     assert.equal(options.sameSite, "lax");
-    assert.equal(options.maxAge, 60 * 60 * 12);
+    assert.equal(options.maxAge, 60 * 60 * 24 * 30);
     assert.equal(options.path, "/");
   });
 });

@@ -61,7 +61,7 @@
   - Docker volumes persist PostgreSQL data, `node_modules`, Next cache, and local document storage
   - local Docker runtime currently uses `colima` on macOS
   - seeing the bottom-left `N` dev tools badge locally is expected while the app runs under `next dev`, even inside Docker
-- `/login` is now expected to render with empty email/password fields and should not show demo credentials or username-style autofill values
+- `/login` should never prefill demo credentials, but now keeps standard username/password autofill semantics so browsers can save and reuse the real login
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
 - Default public entry: `https://acresystem.us/`

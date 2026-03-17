@@ -65,9 +65,11 @@ This spec describes what is implemented now, not the eventual full auth platform
   - email
   - password
 - Successful login still creates the same signed `acre_local_session` cookie
+- the session cookie is persistent for `30` days
 - Generic invalid-credential messaging is used
 - Accounts lock for 1 hour after 5 failed password attempts
 - Successful login clears lock state and failed-attempt count
+- the login form now uses standard browser autofill/password-manager semantics (`username` + `current-password`) so Chrome / Google password save prompts can appear normally
 - `/change-password` handles:
   - forced first login password change
   - optional self-service change for signed-in users

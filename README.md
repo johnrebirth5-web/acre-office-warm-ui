@@ -800,8 +800,9 @@ Docker 本地开发说明：
 当前本地 auth 基线：
 
 - `/login` 现在使用 email + password
-- `/login` 首屏必须保持空白，不要预填任何演示账号、用户名或默认密码；如果浏览器对 `localhost` 自动填充，也要尽量压制
+- `/login` 不预填任何演示账号、用户名或默认密码，但会保留标准浏览器/密码管理器自动填充与保存语义
 - `/login` 只接受邮箱，不支持 `admin` 这类用户名
+- 成功登录后会写入一个持续 `30` 天的 `acre_local_session` cookie；当前是固定持久期，不是每次访问自动续期
 - 系统会确保 bootstrap admin `office@acreny.us` 存在
 - bootstrap admin 首次成功登录后必须立即修改密码
 - 新用户通过 `/office/settings/users` 创建邀请并拿到 copyable invite link

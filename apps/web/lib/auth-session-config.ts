@@ -1,5 +1,5 @@
 const DEV_SESSION_SECRET = "acre-local-session-dev-only";
-const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 12;
+const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 export function getSessionSecret() {
   const configuredSecret = process.env.ACRE_SESSION_SECRET?.trim();
