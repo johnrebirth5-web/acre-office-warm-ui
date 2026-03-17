@@ -19,7 +19,7 @@ type OfficeLibraryPageProps = {
 export default async function OfficeLibraryPage(props: OfficeLibraryPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeLibrary(context.currentMembership.role)) {
+  if (!canViewOfficeLibrary(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -51,7 +51,7 @@ export default async function OfficeLibraryPage(props: OfficeLibraryPageProps) {
       />
 
       <OfficeLibraryClient
-        canManageLibrary={canManageOfficeLibrary(context.currentMembership.role)}
+        canManageLibrary={canManageOfficeLibrary(context.currentMembership)}
         snapshot={snapshot}
       />
     </PageShell>

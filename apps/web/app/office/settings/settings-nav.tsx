@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const settingsLinks = [
   { href: "/office/settings", label: "Overview" },
+  { href: "/office/settings/roles", label: "Roles" },
   { href: "/office/settings/users", label: "Users" },
   { href: "/office/settings/teams", label: "Teams" },
   { href: "/office/settings/fields", label: "Fields" },

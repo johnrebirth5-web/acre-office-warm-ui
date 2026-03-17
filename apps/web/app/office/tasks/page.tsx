@@ -29,7 +29,7 @@ type OfficeTasksPageProps = {
 export default async function OfficeTasksPage(props: OfficeTasksPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canAccessOfficeTasks(context.currentMembership.role)) {
+  if (!canAccessOfficeTasks(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -38,7 +38,6 @@ export default async function OfficeTasksPage(props: OfficeTasksPageProps) {
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
     membershipId: context.currentMembership.id,
-    role: context.currentMembership.role,
     view: searchParams.view,
     transactionStatus: searchParams.transactionStatus,
     assigneeMembershipId: searchParams.assigneeMembershipId,
@@ -68,9 +67,9 @@ export default async function OfficeTasksPage(props: OfficeTasksPageProps) {
       />
 
       <OfficeTasksClient
-        canApproveDocuments={canApproveOfficeDocuments(context.currentMembership.role)}
-        canReviewTasks={canReviewOfficeTasks(context.currentMembership.role)}
-        canSecondaryReviewTasks={canSecondaryReviewOfficeTasks(context.currentMembership.role)}
+        canApproveDocuments={canApproveOfficeDocuments(context.currentMembership)}
+        canReviewTasks={canReviewOfficeTasks(context.currentMembership)}
+        canSecondaryReviewTasks={canSecondaryReviewOfficeTasks(context.currentMembership)}
         currentMembershipId={context.currentMembership.id}
         snapshot={snapshot}
       />

@@ -9,7 +9,7 @@ import { OfficeSettingsChecklistsClient } from "./checklists-client";
 export default async function OfficeSettingsChecklistsPage() {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeChecklists(context.currentMembership.role)) {
+  if (!canViewOfficeChecklists(context.currentMembership)) {
     redirect("/office/settings");
   }
 
@@ -36,7 +36,7 @@ export default async function OfficeSettingsChecklistsPage() {
 
       <ListPageStack className="office-settings-list-stack">
         <OfficeSettingsNav />
-        <OfficeSettingsChecklistsClient canManageChecklists={canManageOfficeChecklists(context.currentMembership.role)} snapshot={snapshot} />
+        <OfficeSettingsChecklistsClient canManageChecklists={canManageOfficeChecklists(context.currentMembership)} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>
   );

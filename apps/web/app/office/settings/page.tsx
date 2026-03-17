@@ -9,7 +9,7 @@ import { OfficeSettingsNav } from "./settings-nav";
 export default async function OfficeSettingsPage() {
   const context = await requireOfficeSession();
 
-  if (!canAccessOfficeSettings(context.currentMembership.role)) {
+  if (!canAccessOfficeSettings(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -49,6 +49,16 @@ export default async function OfficeSettingsPage() {
           </p>
           <Link className="office-settings-link" href="/office/settings/users">
             Open users
+          </Link>
+        </SectionCard>
+
+        <SectionCard subtitle="Organization-wide role templates that seed effective permissions for every member." title="Roles">
+          <p className="office-settings-copy">
+            Edit the default permission template for each fixed Back Office role, then layer user-specific allow or deny overrides from
+            the user detail page.
+          </p>
+          <Link className="office-settings-link" href="/office/settings/roles">
+            Open role templates
           </Link>
         </SectionCard>
 

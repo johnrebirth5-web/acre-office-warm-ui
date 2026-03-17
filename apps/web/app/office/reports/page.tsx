@@ -303,7 +303,7 @@ function getWorkflowTone(value: string) {
 export default async function OfficeReportsPage(props: ReportsPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeReports(context.currentMembership.role)) {
+  if (!canViewOfficeReports(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 

@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canAccessOfficeNotifications(context.currentMembership.role)) {
+  if (!canAccessOfficeNotifications(context.currentMembership)) {
     return NextResponse.json({ error: "Notification access required." }, { status: 403 });
   }
 

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeGoals(context.currentMembership.role)) {
+  if (!canManageOfficeGoals(context.currentMembership)) {
     return NextResponse.json({ error: "Goal management permission required." }, { status: 403 });
   }
 

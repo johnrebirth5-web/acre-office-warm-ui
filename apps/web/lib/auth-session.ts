@@ -117,8 +117,8 @@ export async function requireSessionContext(options?: SessionContextOptions): Pr
 export async function requireOfficeSession(): Promise<SessionMembershipContext> {
   const context = await requireSessionContext();
 
-  if (!isOfficeRole(context.currentMembership.role)) {
-    redirect(getDefaultAppPath(context.currentMembership.role));
+  if (!isOfficeRole(context.currentMembership)) {
+    redirect(getDefaultAppPath(context.currentMembership));
   }
 
   return context;
@@ -127,7 +127,7 @@ export async function requireOfficeSession(): Promise<SessionMembershipContext> 
 export async function requireRequestOfficeSession(request: NextRequest): Promise<SessionMembershipContext | null> {
   const context = await getRequestSessionContext(request);
 
-  if (!context || !isOfficeRole(context.currentMembership.role)) {
+  if (!context || !isOfficeRole(context.currentMembership)) {
     return null;
   }
 
@@ -143,7 +143,7 @@ export function getSessionCookieSettings() {
 }
 
 export function getSessionAccess(context: SessionMembershipContext) {
-  return summarizeAccess(context.currentMembership.role);
+  return summarizeAccess(context.currentMembership);
 }
 
 export function mustChangePassword(context: SessionMembershipContext | null) {

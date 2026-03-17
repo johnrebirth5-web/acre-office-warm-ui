@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canCommentOfficeActivity(context.currentMembership.role)) {
+  if (!canCommentOfficeActivity(context.currentMembership)) {
     return NextResponse.json({ error: "Activity comment access required." }, { status: 403 });
   }
 

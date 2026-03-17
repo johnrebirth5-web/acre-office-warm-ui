@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canViewOfficeTransactions(context.currentMembership.role)) {
+  if (!canViewOfficeTransactions(context.currentMembership)) {
     return NextResponse.json({ error: "Transaction access required." }, { status: 403 });
   }
 
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canCreateOfficeTransactions(context.currentMembership.role)) {
+  if (!canCreateOfficeTransactions(context.currentMembership)) {
     return NextResponse.json({ error: "Transaction create access required." }, { status: 403 });
   }
 

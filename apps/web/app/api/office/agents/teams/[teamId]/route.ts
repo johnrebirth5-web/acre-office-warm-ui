@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeTeams(context.currentMembership.role)) {
+  if (!canManageOfficeTeams(context.currentMembership)) {
     return NextResponse.json({ error: "Team management permission required." }, { status: 403 });
   }
 
@@ -46,7 +46,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeTeams(context.currentMembership.role)) {
+  if (!canManageOfficeTeams(context.currentMembership)) {
     return NextResponse.json({ error: "Team management permission required." }, { status: 403 });
   }
 

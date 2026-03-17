@@ -32,6 +32,15 @@ This spec describes what is implemented now, not the eventual full auth platform
 - `team_lead` is the scoped manager role; effective visibility depends on team hierarchy
 - `agent` is the self-scoped production role
 - `office_manager` and `office_user` stay compatible internally where needed, but are legacy-only create choices
+- runtime authorization no longer reads only `membership.role`
+- each fixed role now has an organization-scoped role template
+- each membership can also carry explicit permission overrides:
+  - `allow`
+  - `deny`
+- effective permissions resolve as:
+  - role template permissions
+  - plus membership `allow`
+  - minus membership `deny`
 - Users page only exposes:
   - `Owner`
   - `Office Admin`
@@ -78,6 +87,7 @@ This spec describes what is implemented now, not the eventual full auth platform
 
 Current routes:
 
+- `/office/settings/roles`
 - `/office/settings/users`
 - `/office/settings/users/[membershipId]`
 
@@ -94,13 +104,22 @@ Current routes:
 - update role
 - update membership status
 - update office access
+- preview role-template permission inheritance when role changes
 - issue or reissue invite/setup/reset link
 - revoke active invite link
 - unlock locked account
 - review onboarding summary
-- review role-derived permissions
+- review effective permissions
+- save per-user permission overrides (`inherit / allow / deny`)
+- reset user overrides back to role defaults
 - review commission summary
 - review recent audit/activity items tied to the user account
+
+`/office/settings/roles` now supports:
+
+- review every fixed Back Office role template for the current organization
+- enable/disable permissions on the role template itself
+- save template changes so all members on that role inherit the updated baseline unless they have explicit user overrides
 
 ### Audit / activity log
 
@@ -116,6 +135,9 @@ The auth layer now records at least:
 - password changed
 - password setup link issued
 - role changed
+- role template updated
+- user permission overrides changed
+- user permission overrides reset
 - account activated / deactivated
 
 ## Current limitations
@@ -127,6 +149,7 @@ These are intentionally still out of scope:
 - 2FA / 2SV
 - OAuth / SSO
 - session store redesign
+- organization-defined custom role creation
 
 ## Local verification checklist
 

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canViewOfficeLibrary(context.currentMembership.role)) {
+  if (!canViewOfficeLibrary(context.currentMembership)) {
     return NextResponse.json({ error: "Library access required." }, { status: 403 });
   }
 

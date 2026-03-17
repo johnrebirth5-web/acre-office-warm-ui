@@ -54,7 +54,10 @@ export const databaseModules = [
   "incoming_updates"
   ,
   "offers",
-  "offer_comments"
+  "offer_comments",
+  "organization_role_templates",
+  "organization_role_template_permissions",
+  "membership_permission_overrides"
 ] as const;
 
 export { assertDatabaseUrl, getPrismaClient, prisma } from "./client";
@@ -188,6 +191,15 @@ export {
   updateOfficeAdminUser
 } from "./settings";
 export {
+  ensureOrganizationRoleTemplates,
+  getMembershipEffectivePermissionKeys,
+  getMembershipEffectivePermissions,
+  getOrganizationRoleTemplatesSnapshot,
+  resetMembershipPermissionOverrides,
+  saveMembershipPermissionOverrides,
+  saveOrganizationRoleTemplatePermissions
+} from "./permissions";
+export {
   createIncomingUpdate,
   createSignatureRequest,
   createTransactionDocument,
@@ -246,6 +258,17 @@ export {
   updateTransactionIntake,
   updateTransactionStatus
 } from "./transactions";
+export type {
+  MembershipEffectivePermissionsSnapshot,
+  MembershipPermissionOverrideRecord,
+  OrganizationRoleTemplateSnapshot,
+  OrganizationRoleTemplatesSnapshot,
+  PermissionOverrideValue,
+  PermissionTreeStateNode,
+  ResetMembershipPermissionOverridesInput,
+  SaveMembershipPermissionOverridesInput,
+  SaveOrganizationRoleTemplatePermissionsInput
+} from "./permissions";
 export type {
   AcceptInvitationResult,
   CreateInvitedUserInput,

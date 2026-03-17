@@ -43,7 +43,7 @@ type OfficeAccountingPageProps = {
 export default async function OfficeAccountingPage(props: OfficeAccountingPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canAccessOfficeAccounting(context.currentMembership.role)) {
+  if (!canAccessOfficeAccounting(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -60,7 +60,7 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
       q: searchParams.q,
       entryId: searchParams.entryId
     }),
-    canViewOfficeAgentBilling(context.currentMembership.role)
+    canViewOfficeAgentBilling(context.currentMembership)
       ? getOfficeAgentBillingSnapshot({
           organizationId: context.currentOrganization.id,
           officeId: context.currentOffice?.id ?? null,
@@ -72,7 +72,7 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
           q: searchParams.billingQ
         })
       : null,
-    canViewOfficeCommissions(context.currentMembership.role)
+    canViewOfficeCommissions(context.currentMembership)
       ? getOfficeCommissionManagementSnapshot({
           organizationId: context.currentOrganization.id,
           officeId: context.currentOffice?.id ?? null,
@@ -105,15 +105,15 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
 
       <OfficeAccountingClient
         agentBillingSnapshot={agentBillingSnapshot}
-        canManageAccounting={canManageOfficeAccounting(context.currentMembership.role)}
-        canManageAgentBilling={canManageOfficeAgentBilling(context.currentMembership.role)}
-        canManageCommissions={canManageOfficeCommissions(context.currentMembership.role)}
-        canManagePayments={canManageOfficePayments(context.currentMembership.role)}
-        canApproveCommissions={canApproveOfficeCommissions(context.currentMembership.role)}
-        canCalculateCommissions={canCalculateOfficeCommissions(context.currentMembership.role)}
-        canViewCommissions={canViewOfficeCommissions(context.currentMembership.role)}
+        canManageAccounting={canManageOfficeAccounting(context.currentMembership)}
+        canManageAgentBilling={canManageOfficeAgentBilling(context.currentMembership)}
+        canManageCommissions={canManageOfficeCommissions(context.currentMembership)}
+        canManagePayments={canManageOfficePayments(context.currentMembership)}
+        canApproveCommissions={canApproveOfficeCommissions(context.currentMembership)}
+        canCalculateCommissions={canCalculateOfficeCommissions(context.currentMembership)}
+        canViewCommissions={canViewOfficeCommissions(context.currentMembership)}
         commissionSnapshot={commissionSnapshot}
-        canViewAgentBilling={canViewOfficeAgentBilling(context.currentMembership.role)}
+        canViewAgentBilling={canViewOfficeAgentBilling(context.currentMembership)}
         officeLabel={context.currentOffice?.name ?? context.currentOrganization.name}
         snapshot={snapshot}
       />

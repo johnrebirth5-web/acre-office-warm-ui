@@ -9,7 +9,7 @@ import { OfficeSettingsTeamsClient } from "./teams-client";
 export default async function OfficeSettingsTeamsPage() {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeTeams(context.currentMembership.role)) {
+  if (!canViewOfficeTeams(context.currentMembership)) {
     redirect("/office/settings");
   }
 
@@ -37,7 +37,7 @@ export default async function OfficeSettingsTeamsPage() {
 
       <ListPageStack className="office-settings-list-stack">
         <OfficeSettingsNav />
-        <OfficeSettingsTeamsClient canManageTeams={canManageOfficeTeams(context.currentMembership.role)} snapshot={snapshot} />
+        <OfficeSettingsTeamsClient canManageTeams={canManageOfficeTeams(context.currentMembership)} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>
   );

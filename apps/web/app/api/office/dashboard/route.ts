@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!isOfficeRole(context.currentMembership.role)) {
+  if (!isOfficeRole(context.currentMembership)) {
     return NextResponse.json({ error: "Office access required." }, { status: 403 });
   }
 

@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canViewOfficeCommissions(context.currentMembership.role)) {
+  if (!canViewOfficeCommissions(context.currentMembership)) {
     return NextResponse.json({ error: "Commission visibility access required." }, { status: 403 });
   }
 

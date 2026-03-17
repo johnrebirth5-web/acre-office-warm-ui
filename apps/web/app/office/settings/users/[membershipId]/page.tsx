@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { canManageOfficeUsers, canViewOfficeUsers, getRoleSummary, summarizeAccess } from "@acre/auth";
+import { canManageOfficeUsers, canViewOfficeUsers } from "@acre/auth";
 import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
-import { getOfficeAdminUserDetailSnapshot } from "@acre/db";
+import { getOfficeAdminUserDetailSnapshot, getOrganizationRoleTemplatesSnapshot } from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../lib/auth-session";
 import { OfficeSettingsNav } from "../../settings-nav";
@@ -16,23 +16,23 @@ type OfficeSettingsUserDetailPageProps = {
 export default async function OfficeSettingsUserDetailPage({ params }: OfficeSettingsUserDetailPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeUsers(context.currentMembership.role)) {
+  if (!canViewOfficeUsers(context.currentMembership)) {
     redirect("/office/settings");
   }
 
   const { membershipId } = await params;
-  const snapshot = await getOfficeAdminUserDetailSnapshot({
-    organizationId: context.currentOrganization.id,
-    officeId: context.currentOffice?.id ?? null,
-    membershipId
-  });
+  const [snapshot, roleTemplates] = await Promise.all([
+    getOfficeAdminUserDetailSnapshot({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      membershipId
+    }),
+    getOrganizationRoleTemplatesSnapshot(context.currentOrganization.id)
+  ]);
 
   if (!snapshot) {
     notFound();
   }
-
-  const access = summarizeAccess(snapshot.profile.roleValue);
-  const roleSummary = getRoleSummary(snapshot.profile.roleValue);
 
   return (
     <PageShell className="office-detail-page office-settings-user-detail-page">
@@ -44,7 +44,8 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
             </Link>
             <SummaryChip label="Office access" value={snapshot.profile.officeAccessLabel} />
             <SummaryChip label="Role" value={snapshot.profile.role} />
-            <SummaryChip label="Permissions" tone="accent" value={access.permissionCount} />
+            <SummaryChip label="Permissions" tone="accent" value={snapshot.permissions.effectivePermissions.length} />
+            <SummaryChip label="Overrides" value={snapshot.permissions.overrides.length} />
           </PageHeaderSummary>
         }
         description={`${snapshot.profile.email}${snapshot.profile.title ? ` · ${snapshot.profile.title}` : ""}`}
@@ -55,9 +56,8 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
       <div className="office-list-page-stack office-settings-list-stack">
         <OfficeSettingsNav />
         <OfficeSettingsUserDetailClient
-          canManageUsers={canManageOfficeUsers(context.currentMembership.role)}
-          permissionDescription={roleSummary.description}
-          permissions={access.permissions}
+          canManageUsers={canManageOfficeUsers(context.currentMembership)}
+          roleTemplates={roleTemplates}
           snapshot={snapshot}
         />
       </div>

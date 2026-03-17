@@ -8278,6 +8278,10 @@ a {
   .office-settings-user-hero-meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .office-permission-node-header {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1120px) {
@@ -8359,6 +8363,11 @@ a {
 
   .office-settings-user-hero-meta {
     grid-template-columns: 1fr;
+  }
+
+  .office-permission-tree-nested {
+    margin-left: 0;
+    padding-left: 12px;
   }
 }
 
@@ -8762,6 +8771,8 @@ a {
 .office-settings-user-hero-copy,
 .office-settings-user-permissions,
 .office-settings-user-permission-group,
+.office-settings-role-template-list,
+.office-permission-tree,
 .office-settings-user-context-list,
 .office-settings-user-team-list,
 .office-settings-user-onboarding-list,
@@ -8834,6 +8845,113 @@ a {
 
 .office-settings-user-permission-group li {
   line-height: 1.45;
+}
+
+.office-settings-role-template-card .office-section-body {
+  display: grid;
+  gap: 18px;
+}
+
+.office-permission-tree {
+  gap: 14px;
+}
+
+.office-permission-tree-nested {
+  margin-left: 12px;
+  padding-left: 16px;
+  border-left: 1px solid var(--office-border);
+}
+
+.office-permission-node {
+  display: grid;
+  gap: 12px;
+}
+
+.office-permission-node-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+  gap: 16px;
+  align-items: start;
+}
+
+.office-permission-node-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.office-permission-node-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.office-permission-node-heading strong {
+  font-size: 0.94rem;
+}
+
+.office-permission-node-heading code {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--office-surface-subtle);
+  color: var(--office-text-muted);
+  font-size: 0.72rem;
+}
+
+.office-permission-node-copy p {
+  margin: 0;
+  color: var(--office-text-muted);
+  line-height: 1.45;
+}
+
+.office-permission-node-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.office-permission-node-controls {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.office-permission-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.office-permission-checkbox input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.office-permission-checkbox span {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid var(--office-border-strong);
+  background: var(--office-surface);
+  box-shadow: inset 0 0 0 2px transparent;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.office-permission-checkbox input:checked + span {
+  border-color: var(--office-accent-strong);
+  background: var(--office-accent-soft);
+  box-shadow: inset 0 0 0 4px var(--office-accent-strong);
+}
+
+.office-permission-checkbox input:disabled + span {
+  opacity: 0.55;
 }
 
 .office-settings-user-context-list {

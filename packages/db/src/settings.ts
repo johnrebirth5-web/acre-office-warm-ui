@@ -14,6 +14,7 @@ import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } fr
 import { prisma } from "./client";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import { resolveMembershipDisplayTitle } from "./membership-titles";
+import { getMembershipEffectivePermissions, type MembershipEffectivePermissionsSnapshot } from "./permissions";
 
 const userRoleLabelMap: Record<UserRole, string> = {
   owner: "Owner",
@@ -319,6 +320,7 @@ export type OfficeAdminUserDetailSnapshot = {
     }>;
   };
   commission: OfficeAgentCommissionSummary;
+  permissions: MembershipEffectivePermissionsSnapshot;
   recentActivity: OfficeAdminUserDetailActivityItem[];
 };
 
@@ -1594,7 +1596,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     ...membership.invitations.map((invitation) => invitation.id)
   ].filter((value): value is string => Boolean(value));
 
-  const [onboardingItems, recentActivity, commission] = await Promise.all([
+  const [onboardingItems, recentActivity, commission, permissions] = await Promise.all([
     prisma.agentOnboardingItem.findMany({
       where: {
         organizationId: input.organizationId,
@@ -1621,6 +1623,10 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
     getAgentCommissionSummary({
       organizationId: input.organizationId,
       officeId: membership.officeId,
+      membershipId: input.membershipId
+    }),
+    getMembershipEffectivePermissions({
+      organizationId: input.organizationId,
       membershipId: input.membershipId
     })
   ]);
@@ -1699,6 +1705,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       }))
     },
     commission,
+    permissions,
     recentActivity: recentActivity.map((item) => ({
       id: item.id,
       actionLabel: formatActionLabel(item.action),

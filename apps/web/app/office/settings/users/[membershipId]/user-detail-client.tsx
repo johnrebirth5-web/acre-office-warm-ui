@@ -1,14 +1,25 @@
 "use client";
 
+import type { PermissionKey } from "@acre/auth";
+import type {
+  OfficeAdminUserDetailSnapshot,
+  OrganizationRoleTemplatesSnapshot,
+  PermissionOverrideValue,
+  PermissionTreeStateNode
+} from "@acre/db";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Badge, Button, FormField, SectionCard, SelectInput, StatusBadge, TextInput } from "@acre/ui";
-import type { OfficeAdminUserDetailSnapshot } from "@acre/db";
+import {
+  applyOverridesToPermissionTree,
+  buildPermissionOverrideMap,
+  collectEnabledPermissionKeys,
+  serializePermissionOverrideMap
+} from "../../permissions-shared";
 import {
   copyTextToClipboard,
   formatInviteExpiry,
-  getAuthTone,
   getInvitationTone,
   getIssueLinkLabel,
   getMembershipTone,
@@ -20,9 +31,8 @@ import {
 
 type OfficeSettingsUserDetailClientProps = {
   snapshot: OfficeAdminUserDetailSnapshot;
+  roleTemplates: OrganizationRoleTemplatesSnapshot;
   canManageUsers: boolean;
-  permissions: string[];
-  permissionDescription: string;
 };
 
 type DetailDraft = {
@@ -43,43 +53,100 @@ type MutationResponse = {
   expiresAt: string;
 } | null;
 
-function formatPermissionLabel(permission: string) {
-  const [group, action] = permission.split(":");
-  const groupLabel = (group ?? permission)
-    .split("_")
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
-  const actionLabel = (action ?? "")
-    .split("_")
-    .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
+const inheritPermissionValue = "__inherit__";
 
-  return actionLabel ? `${groupLabel}: ${actionLabel}` : groupLabel;
+function getPermissionStateTone(enabled: boolean) {
+  return enabled ? "success" : "neutral";
 }
 
-function groupPermissions(permissions: string[]) {
-  const groups = new Map<string, string[]>();
-
-  for (const permission of permissions) {
-    const [group] = permission.split(":");
-    const groupLabel = (group ?? "general")
-      .split("_")
-      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-      .join(" ");
-    const bucket = groups.get(groupLabel) ?? [];
-    bucket.push(formatPermissionLabel(permission));
-    groups.set(groupLabel, bucket);
+function getPermissionOverrideTone(effect: PermissionOverrideValue | null) {
+  if (effect === "allow") {
+    return "success" as const;
   }
 
-  return [...groups.entries()];
+  if (effect === "deny") {
+    return "danger" as const;
+  }
+
+  return "neutral" as const;
+}
+
+function getPermissionOverrideLabel(effect: PermissionOverrideValue | null) {
+  if (effect === "allow") {
+    return "User allow";
+  }
+
+  if (effect === "deny") {
+    return "User deny";
+  }
+
+  return "Inherit";
+}
+
+function PermissionTreeEditor(props: {
+  nodes: PermissionTreeStateNode[];
+  disabled: boolean;
+  onOverrideChange: (permissionKey: PermissionKey, effect: PermissionOverrideValue | null) => void;
+  level?: number;
+}) {
+  const level = props.level ?? 0;
+
+  return (
+    <div className={`office-permission-tree${level > 0 ? " office-permission-tree-nested" : ""}`}>
+      {props.nodes.map((node) => (
+        <div className="office-permission-node" key={node.key}>
+          <div className="office-permission-node-header">
+            <div className="office-permission-node-copy">
+              <div className="office-permission-node-heading">
+                <strong>{node.label}</strong>
+                <code>{node.key}</code>
+              </div>
+              <p>{node.description}</p>
+              <div className="office-permission-node-badges">
+                <Badge tone={getPermissionStateTone(node.effectiveEnabled)}>{node.effectiveEnabled ? "Enabled" : "Disabled"}</Badge>
+                <Badge tone={node.inheritedEnabled ? "accent" : "neutral"}>
+                  {node.inheritedEnabled ? "Role template" : "Not inherited"}
+                </Badge>
+                <Badge tone={getPermissionOverrideTone(node.overrideEffect)}>{getPermissionOverrideLabel(node.overrideEffect)}</Badge>
+              </div>
+            </div>
+
+            <div className="office-permission-node-controls">
+              <SelectInput
+                disabled={props.disabled || !node.editable}
+                onChange={(event) =>
+                  props.onOverrideChange(
+                    node.key,
+                    event.target.value === inheritPermissionValue ? null : (event.target.value as PermissionOverrideValue)
+                  )
+                }
+                value={node.overrideEffect ?? inheritPermissionValue}
+              >
+                <option value={inheritPermissionValue}>Inherit role template</option>
+                <option value="allow">Allow for this user</option>
+                <option value="deny">Deny for this user</option>
+              </SelectInput>
+            </div>
+          </div>
+
+          {node.children.length > 0 ? (
+            <PermissionTreeEditor
+              disabled={props.disabled}
+              level={level + 1}
+              nodes={node.children}
+              onOverrideChange={props.onOverrideChange}
+            />
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function OfficeSettingsUserDetailClient({
   snapshot,
-  canManageUsers,
-  permissions,
-  permissionDescription
+  roleTemplates,
+  canManageUsers
 }: OfficeSettingsUserDetailClientProps) {
   const router = useRouter();
   const [draft, setDraft] = useState<DetailDraft>({
@@ -91,6 +158,21 @@ export function OfficeSettingsUserDetailClient({
   const [submitError, setSubmitError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(null);
+  const [permissionOverrides, setPermissionOverrides] = useState(() => buildPermissionOverrideMap(snapshot.permissions.overrides));
+
+  useEffect(() => {
+    setDraft({
+      role: snapshot.profile.roleValue,
+      status: snapshot.profile.statusValue,
+      officeId: snapshot.profile.officeAccessValue
+    });
+    setPermissionOverrides(buildPermissionOverrideMap(snapshot.permissions.overrides));
+  }, [
+    snapshot.permissions.overrides,
+    snapshot.profile.officeAccessValue,
+    snapshot.profile.roleValue,
+    snapshot.profile.statusValue
+  ]);
 
   function refreshCurrentPage() {
     startTransition(() => {
@@ -225,7 +307,96 @@ export function OfficeSettingsUserDetailClient({
     }
   }
 
-  const permissionGroups = groupPermissions(permissions);
+  async function handleSavePermissions() {
+    setPendingAction("permissions-save");
+    setSubmitError("");
+    setActionNotice("");
+
+    try {
+      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/permissions`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          overrides: [...permissionOverrides.entries()].map(([permissionKey, effect]) => ({
+            permissionKey,
+            effect
+          }))
+        })
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to update permission overrides.");
+      }
+
+      setActionNotice("User permission overrides updated.");
+      refreshCurrentPage();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to update permission overrides.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleResetPermissions() {
+    setPendingAction("permissions-reset");
+    setSubmitError("");
+    setActionNotice("");
+
+    try {
+      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/permissions`, {
+        method: "DELETE"
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to reset permission overrides.");
+      }
+
+      setPermissionOverrides(new Map<PermissionKey, PermissionOverrideValue>());
+      setActionNotice("Permission overrides reset to role defaults.");
+      refreshCurrentPage();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to reset permission overrides.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  function setPermissionOverride(permissionKey: PermissionKey, effect: PermissionOverrideValue | null) {
+    setPermissionOverrides((current) => {
+      const next = new Map(current);
+
+      if (effect) {
+        next.set(permissionKey, effect);
+      } else {
+        next.delete(permissionKey);
+      }
+
+      return next;
+    });
+  }
+
+  const roleTemplateMap = useMemo(
+    () => new Map(roleTemplates.roles.map((template) => [template.role, template])),
+    [roleTemplates.roles]
+  );
+  const selectedRoleTemplate = roleTemplateMap.get(draft.role as OfficeAdminUserDetailSnapshot["profile"]["roleValue"]) ?? null;
+  const previewTree = useMemo(() => {
+    const baseTree = selectedRoleTemplate?.tree ?? snapshot.permissions.tree;
+    return applyOverridesToPermissionTree(baseTree, permissionOverrides);
+  }, [permissionOverrides, selectedRoleTemplate, snapshot.permissions.tree]);
+  const effectivePreviewPermissions = useMemo(() => collectEnabledPermissionKeys(previewTree), [previewTree]);
+  const serializedInitialOverrides = useMemo(
+    () => serializePermissionOverrideMap(buildPermissionOverrideMap(snapshot.permissions.overrides)),
+    [snapshot.permissions.overrides]
+  );
+  const serializedDraftOverrides = useMemo(() => serializePermissionOverrideMap(permissionOverrides), [permissionOverrides]);
+  const isPermissionsDirty = serializedInitialOverrides !== serializedDraftOverrides;
+  const roleChanged = draft.role !== snapshot.profile.roleValue;
+  const activeRoleDescription = selectedRoleTemplate?.description ?? snapshot.permissions.roleDescription;
 
   return (
     <div className="office-settings-user-detail-stack">
@@ -234,7 +405,7 @@ export function OfficeSettingsUserDetailClient({
 
       <SectionCard className="office-settings-user-hero-card">
         <div className="office-settings-user-hero">
-          <div className="office-settings-user-avatar" aria-hidden="true">
+          <div aria-hidden="true" className="office-settings-user-avatar">
             {snapshot.profile.name.charAt(0).toUpperCase()}
           </div>
 
@@ -380,19 +551,48 @@ export function OfficeSettingsUserDetailClient({
           ) : null}
         </SectionCard>
 
-        <SectionCard subtitle={permissionDescription} title="Permissions">
-          <div className="office-settings-user-permissions">
-            {permissionGroups.map(([groupLabel, entries]) => (
-              <div className="office-settings-user-permission-group" key={groupLabel}>
-                <strong>{groupLabel}</strong>
-                <ul>
-                  {entries.map((permission) => (
-                    <li key={permission}>{permission}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+        <SectionCard
+          actions={
+            <div className="office-settings-user-inline-badges">
+              <Badge tone="accent">{selectedRoleTemplate?.label ?? snapshot.permissions.roleLabel}</Badge>
+              <Badge tone="neutral">{snapshot.permissions.overrides.length} persisted overrides</Badge>
+              <Badge tone="success">{effectivePreviewPermissions.length} effective permissions</Badge>
+            </div>
+          }
+          subtitle={activeRoleDescription}
+          title="Permissions"
+        >
+          {roleChanged ? (
+            <p className="office-form-helper">
+              Role changes are previewed live below. Save access first, then save permission overrides if you want them applied against
+              the new role template.
+            </p>
+          ) : null}
+
+          <div className="office-settings-user-detail-actions">
+            {canManageUsers ? (
+              <>
+                <Button disabled={!isPermissionsDirty || roleChanged || pendingAction === "permissions-save"} onClick={handleSavePermissions}>
+                  {pendingAction === "permissions-save" ? "Saving..." : "Save permissions"}
+                </Button>
+                <Button
+                  disabled={permissionOverrides.size === 0 || pendingAction === "permissions-reset"}
+                  onClick={handleResetPermissions}
+                  variant="secondary"
+                >
+                  {pendingAction === "permissions-reset" ? "Resetting..." : "Reset to role defaults"}
+                </Button>
+              </>
+            ) : (
+              <span className="office-table-action-muted">View only</span>
+            )}
           </div>
+
+          <PermissionTreeEditor
+            disabled={!canManageUsers || roleChanged}
+            nodes={previewTree}
+            onOverrideChange={setPermissionOverride}
+          />
         </SectionCard>
       </div>
 
@@ -449,7 +649,17 @@ export function OfficeSettingsUserDetailClient({
                   </p>
                 </div>
                 <div className="office-settings-user-onboarding-meta">
-                  <StatusBadge tone={item.statusValue === "completed" ? "success" : item.statusValue === "in_progress" ? "accent" : item.statusValue === "reopened" ? "warning" : "neutral"}>
+                  <StatusBadge
+                    tone={
+                      item.statusValue === "completed"
+                        ? "success"
+                        : item.statusValue === "in_progress"
+                          ? "accent"
+                          : item.statusValue === "reopened"
+                            ? "warning"
+                            : "neutral"
+                    }
+                  >
                     {item.statusLabel}
                   </StatusBadge>
                   {item.completedAtLabel ? <small>Completed {item.completedAtLabel}</small> : null}

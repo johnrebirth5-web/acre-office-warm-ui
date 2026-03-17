@@ -30,12 +30,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const action = body?.action?.trim();
   const rejectionReason = body?.rejectionReason?.trim();
   const activitySource = body?.source === "approve_docs_queue" ? body.source : undefined;
-  const role = context.currentMembership.role;
-  const canManageTasks = canManageOfficeTasks(role);
-  const canReviewTasks = canReviewOfficeTasks(role);
-  const canApproveDocuments = canApproveOfficeDocuments(role);
-  const canSecondaryReviewTasks = canSecondaryReviewOfficeTasks(role);
-  const canAccessDocumentApprovals = canAccessOfficeDocumentApprovals(role);
+  const subject = context.currentMembership;
+  const canManageTasks = canManageOfficeTasks(subject);
+  const canReviewTasks = canReviewOfficeTasks(subject);
+  const canApproveDocuments = canApproveOfficeDocuments(subject);
+  const canSecondaryReviewTasks = canSecondaryReviewOfficeTasks(subject);
+  const canAccessDocumentApprovals = canAccessOfficeDocumentApprovals(subject);
 
   if (!action) {
     return NextResponse.json({ error: "Workflow action is required." }, { status: 400 });

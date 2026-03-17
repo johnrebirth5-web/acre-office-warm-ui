@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canUseOfficeForms(context.currentMembership.role)) {
+  if (!canUseOfficeForms(context.currentMembership)) {
     return NextResponse.json({ error: "Form access required." }, { status: 403 });
   }
 

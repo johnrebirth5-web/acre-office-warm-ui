@@ -45,6 +45,7 @@
   - `Library`
   - `Accounting`
   - `Settings > Company`
+  - `Settings > Roles`
   - `Settings > Users`
   - `Settings > Teams`
   - `Settings > Fields`
@@ -381,14 +382,26 @@
 - `Office Admin / Settings` 现在也已接入真实数据库，作为一个真实的 admin/config 模块：
   - 路由：
     - `/office/settings`
+    - `/office/settings/roles`
     - `/office/settings/users`
     - `/office/settings/teams`
     - `/office/settings/fields`
     - `/office/settings/checklists`
+  - 当前权限模型已经从固定 `role -> permission map` 升级为：
+    - 固定角色目录
+    - organization-scoped role templates
+    - membership-level `allow / deny` permission overrides
+    - permission-driven `self / team / company` scope resolution
+  - `Roles` 当前支持：
+    - 查看每个固定角色在当前组织内的模板权限
+    - 按角色模板启用 / 禁用具体权限
+    - 保存后让同角色成员自动继承新模板，除非该成员存在显式用户覆盖
   - `Users` 当前支持：
     - role change
     - active / inactive membership status
     - office assignment
+    - per-user permission override editor (`inherit / allow / deny`)
+    - reset back to role defaults
     - invite 角色目录：`owner / office_admin / accountant / human_resources / team_lead / agent`
   - `Teams` 当前在 admin context 内支持：
     - create
@@ -616,8 +629,10 @@
   - `/api/auth/invitations/accept`
   - `/api/office/settings/users`
   - `/api/office/settings/users/:membershipId`
+  - `/api/office/settings/users/:membershipId/permissions`
   - `/api/office/settings/users/:membershipId/invitation`
   - `/api/office/settings/users/:membershipId/unlock`
+  - `/api/office/settings/roles/:role`
   - `/api/office/settings/fields`
   - `/api/office/settings/fields/custom`
   - `/api/office/settings/fields/custom/:fieldKey`

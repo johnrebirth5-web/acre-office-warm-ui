@@ -230,7 +230,6 @@ export type ListOfficeTasksInput = {
   organizationId: string;
   officeId?: string | null;
   membershipId: string;
-  role: UserRole;
   view?: string;
   transactionStatus?: string;
   assigneeMembershipId?: string;

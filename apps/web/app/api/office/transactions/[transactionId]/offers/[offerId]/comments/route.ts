@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canCommentOfficeOffers(context.currentMembership.role)) {
+  if (!canCommentOfficeOffers(context.currentMembership)) {
     return NextResponse.json({ error: "Offer comment access required." }, { status: 403 });
   }
 

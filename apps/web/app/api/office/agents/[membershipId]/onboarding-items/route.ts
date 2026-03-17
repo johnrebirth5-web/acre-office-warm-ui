@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeOnboarding(context.currentMembership.role)) {
+  if (!canManageOfficeOnboarding(context.currentMembership)) {
     return NextResponse.json({ error: "Onboarding management permission required." }, { status: 403 });
   }
 

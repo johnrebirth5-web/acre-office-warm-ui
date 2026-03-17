@@ -12,7 +12,7 @@ type OfficeNotificationOpenPageProps = {
 export default async function OfficeNotificationOpenPage({ params }: OfficeNotificationOpenPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canAccessOfficeNotifications(context.currentMembership.role)) {
+  if (!canAccessOfficeNotifications(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 

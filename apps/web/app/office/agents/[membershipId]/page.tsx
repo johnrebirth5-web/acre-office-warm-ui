@@ -13,7 +13,7 @@ type OfficeAgentProfilePageProps = {
 export default async function OfficeAgentProfilePage({ params }: OfficeAgentProfilePageProps) {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeAgents(context.currentMembership.role)) {
+  if (!canViewOfficeAgents(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -31,10 +31,10 @@ export default async function OfficeAgentProfilePage({ params }: OfficeAgentProf
 
   return (
     <AgentProfileClient
-      canManageAgents={canManageOfficeAgents(context.currentMembership.role)}
-      canManageGoals={canManageOfficeGoals(context.currentMembership.role)}
-      canManageOnboarding={canManageOfficeOnboarding(context.currentMembership.role)}
-      canManageTeams={canManageOfficeTeams(context.currentMembership.role)}
+      canManageAgents={canManageOfficeAgents(context.currentMembership)}
+      canManageGoals={canManageOfficeGoals(context.currentMembership)}
+      canManageOnboarding={canManageOfficeOnboarding(context.currentMembership)}
+      canManageTeams={canManageOfficeTeams(context.currentMembership)}
       snapshot={snapshot}
     />
   );

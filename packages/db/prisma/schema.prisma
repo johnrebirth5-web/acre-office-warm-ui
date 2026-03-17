@@ -110,6 +110,17 @@ enum ResourceType {
 enum LibraryDocumentVisibility {
   company_wide
   office_only
+  private
+}
+
+enum ContactVisibility {
+  organization_shared
+  private
+}
+
+enum PermissionOverrideEffect {
+  allow
+  deny
 }
 
 enum TransactionType {
@@ -447,6 +458,9 @@ model Organization {
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
   tableLayouts                      OrganizationTableLayout[]
+  roleTemplates                     OrganizationRoleTemplate[]
+  roleTemplatePermissions           OrganizationRoleTemplatePermission[]
+  membershipPermissionOverrides     MembershipPermissionOverride[]
 }
 
 model Office {
@@ -577,8 +591,61 @@ model Membership {
   checklistTemplatesCreated                ChecklistTemplate[]                @relation("ChecklistTemplateCreatedBy")
   checklistTemplatesUpdated                ChecklistTemplate[]                @relation("ChecklistTemplateUpdatedBy")
   updatedTableLayouts                      OrganizationTableLayout[]          @relation("OrganizationTableLayoutUpdatedBy")
+  updatedRoleTemplates                     OrganizationRoleTemplate[]         @relation("OrganizationRoleTemplateUpdatedBy")
+  permissionOverrides                      MembershipPermissionOverride[]     @relation("MembershipPermissionOverrideMembership")
+  createdPermissionOverrides               MembershipPermissionOverride[]     @relation("MembershipPermissionOverrideCreatedBy")
+  ownedLibraryFolders                      LibraryFolder[]                    @relation("LibraryFolderOwner")
+  ownedLibraryDocuments                    LibraryDocument[]                  @relation("LibraryDocumentOwner")
 
   @@unique([organizationId, userId])
+}
+
+model OrganizationRoleTemplate {
+  id                    String                           @id @default(cuid())
+  organizationId        String
+  role                  UserRole
+  label                 String
+  description           String?
+  updatedByMembershipId String?
+  createdAt             DateTime                         @default(now())
+  updatedAt             DateTime                         @updatedAt
+  organization          Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedByMembership   Membership?                      @relation("OrganizationRoleTemplateUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+  permissions           OrganizationRoleTemplatePermission[]
+
+  @@unique([organizationId, role])
+  @@index([organizationId, updatedAt])
+}
+
+model OrganizationRoleTemplatePermission {
+  id                         String                   @id @default(cuid())
+  organizationId             String
+  organizationRoleTemplateId String
+  permissionKey              String
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  organization               Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationRoleTemplate   OrganizationRoleTemplate @relation(fields: [organizationRoleTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationRoleTemplateId, permissionKey])
+  @@index([organizationId, permissionKey])
+}
+
+model MembershipPermissionOverride {
+  id                    String                   @id @default(cuid())
+  organizationId        String
+  membershipId          String
+  permissionKey         String
+  effect                PermissionOverrideEffect
+  createdByMembershipId String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  membership            Membership               @relation("MembershipPermissionOverrideMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership?              @relation("MembershipPermissionOverrideCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([membershipId, permissionKey])
+  @@index([organizationId, permissionKey])
 }
 
 model OrganizationTableLayout {
@@ -769,6 +836,7 @@ model Client {
   id                  String               @id @default(cuid())
   organizationId      String
   ownerMembershipId   String?
+  visibility          ContactVisibility    @default(organization_shared)
   fullName            String
   email               String?
   phone               String?
@@ -792,6 +860,7 @@ model Client {
   transactionContacts TransactionContact[]
 
   @@index([organizationId, stage])
+  @@index([organizationId, visibility])
 }
 
 model TransactionContact {
@@ -1015,8 +1084,10 @@ model LibraryFolder {
   officeId              String?
   parentFolderId        String?
   createdByMembershipId String?
+  ownerMembershipId     String?
   name                  String
   description           String?
+  visibility            LibraryDocumentVisibility @default(company_wide)
   sortOrder             Int               @default(0)
   isActive              Boolean           @default(true)
   createdAt             DateTime          @default(now())
@@ -1026,10 +1097,12 @@ model LibraryFolder {
   parentFolder          LibraryFolder?    @relation("LibraryFolderParent", fields: [parentFolderId], references: [id], onDelete: SetNull)
   childFolders          LibraryFolder[]   @relation("LibraryFolderParent")
   createdByMembership   Membership?       @relation("LibraryFolderCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+  ownerMembership       Membership?       @relation("LibraryFolderOwner", fields: [ownerMembershipId], references: [id], onDelete: SetNull)
   documents             LibraryDocument[]
 
   @@index([organizationId, officeId, isActive, sortOrder])
   @@index([organizationId, parentFolderId, isActive, sortOrder])
+  @@index([organizationId, visibility])
 }
 
 model LibraryDocument {
@@ -1038,6 +1111,7 @@ model LibraryDocument {
   officeId               String?
   folderId               String?
   uploadedByMembershipId String?
+  ownerMembershipId      String?
   title                  String
   originalFileName       String
   mimeType               String
@@ -1055,6 +1129,7 @@ model LibraryDocument {
   office                 Office?                   @relation(fields: [officeId], references: [id], onDelete: SetNull)
   folder                 LibraryFolder?            @relation(fields: [folderId], references: [id], onDelete: SetNull)
   uploadedByMembership   Membership?               @relation("LibraryDocumentUploadedBy", fields: [uploadedByMembershipId], references: [id], onDelete: SetNull)
+  ownerMembership        Membership?               @relation("LibraryDocumentOwner", fields: [ownerMembershipId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, officeId, folderId, createdAt])
   @@index([organizationId, officeId, category])

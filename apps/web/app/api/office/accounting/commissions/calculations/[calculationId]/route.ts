@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeCommissions(context.currentMembership.role) && !canApproveOfficeCommissions(context.currentMembership.role)) {
+  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
     return NextResponse.json({ error: "Commission review access required." }, { status: 403 });
   }
 

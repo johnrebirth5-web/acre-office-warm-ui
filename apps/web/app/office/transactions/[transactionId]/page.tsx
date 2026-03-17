@@ -77,24 +77,24 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
     id: task.id,
     title: task.title
   }));
-  const canViewDocumentsForRole = canViewOfficeDocuments(context.currentMembership.role);
-  const canManageDocumentsForRole = canManageOfficeDocuments(context.currentMembership.role);
-  const canUseFormsForRole = canUseOfficeForms(context.currentMembership.role);
-  const canManageSignaturesForRole = canManageOfficeSignatures(context.currentMembership.role);
-  const canReviewIncomingUpdatesForRole = canReviewOfficeIncomingUpdates(context.currentMembership.role);
-  const canReviewTasksForRole = canReviewOfficeTasks(context.currentMembership.role);
-  const canSecondaryReviewTasksForRole = canSecondaryReviewOfficeTasks(context.currentMembership.role);
-  const canApproveDocumentsForRole = canApproveOfficeDocuments(context.currentMembership.role);
-  const canViewOffersForRole = canViewOfficeOffers(context.currentMembership.role);
-  const canManageOffersForRole = canManageOfficeOffers(context.currentMembership.role);
-  const canReviewOffersForRole = canReviewOfficeOffers(context.currentMembership.role);
-  const canAcceptOffersForRole = canAcceptOfficeOffers(context.currentMembership.role);
-  const canViewCommissionsForRole = canViewOfficeCommissions(context.currentMembership.role);
-  const canEditTransactionsForRole = canEditOfficeTransactions(context.currentMembership.role);
-  const canManageTransactionFinanceForRole = canManageOfficeTransactionFinance(context.currentMembership.role);
-  const canManageCommissionsForRole = canManageOfficeCommissions(context.currentMembership.role);
-  const canCalculateCommissionsForRole = canCalculateOfficeCommissions(context.currentMembership.role);
-  const canApproveCommissionsForRole = canApproveOfficeCommissions(context.currentMembership.role);
+  const canViewDocumentsForRole = canViewOfficeDocuments(context.currentMembership);
+  const canManageDocumentsForRole = canManageOfficeDocuments(context.currentMembership);
+  const canUseFormsForRole = canUseOfficeForms(context.currentMembership);
+  const canManageSignaturesForRole = canManageOfficeSignatures(context.currentMembership);
+  const canReviewIncomingUpdatesForRole = canReviewOfficeIncomingUpdates(context.currentMembership);
+  const canReviewTasksForRole = canReviewOfficeTasks(context.currentMembership);
+  const canSecondaryReviewTasksForRole = canSecondaryReviewOfficeTasks(context.currentMembership);
+  const canApproveDocumentsForRole = canApproveOfficeDocuments(context.currentMembership);
+  const canViewOffersForRole = canViewOfficeOffers(context.currentMembership);
+  const canManageOffersForRole = canManageOfficeOffers(context.currentMembership);
+  const canReviewOffersForRole = canReviewOfficeOffers(context.currentMembership);
+  const canAcceptOffersForRole = canAcceptOfficeOffers(context.currentMembership);
+  const canViewCommissionsForRole = canViewOfficeCommissions(context.currentMembership);
+  const canEditTransactionsForRole = canEditOfficeTransactions(context.currentMembership);
+  const canManageTransactionFinanceForRole = canManageOfficeTransactionFinance(context.currentMembership);
+  const canManageCommissionsForRole = canManageOfficeCommissions(context.currentMembership);
+  const canCalculateCommissionsForRole = canCalculateOfficeCommissions(context.currentMembership);
+  const canApproveCommissionsForRole = canApproveOfficeCommissions(context.currentMembership);
 
   return (
     <PageShell className="bm-transaction-detail-page office-detail-page">
@@ -267,7 +267,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
 
       <SectionCard subtitle="Edit the transaction intake fields and custom office-defined fields without leaving detail view." title="Intake fields">
         <TransactionIntakeWorkspace
-          canConfigureSchema={canManageOfficeFields(context.currentMembership.role)}
+          canConfigureSchema={canManageOfficeFields(context.currentMembership)}
           canEditValues={canEditTransactionsForRole}
           chrome="detail"
           initialValues={{

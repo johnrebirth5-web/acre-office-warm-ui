@@ -12,7 +12,13 @@
 - 数据库 schema、Prisma client、migration、seed 已接入
 - 数据库现在已经覆盖主要 `Office / Back Office` 模块，但 agent/resource feed 和部分次级路径仍保留 mock 或过渡数据
 - 权限模型存在，且当前已经接入一个最小本地 session
-- 但还没有复杂权限管理或数据级权限
+- 当前授权已不再是单纯 `membership.role -> fixed permissionMap`
+- 当前真实模型是：
+  - `@acre/auth` 中的静态 permission catalog
+  - organization-scoped role templates
+  - membership-level `allow / deny` overrides
+  - team hierarchy 驱动的 `self / team / company` scope resolution
+- 数据级 scope 也开始由显式 view permission 驱动，而不是只靠角色白名单
 - `Office / Back Office` 的页面主线已经开始按 `Brokermint` 的后台结构收敛，其中 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Approve Docs`、`Reports`、`Notifications`、`Account`、`Billing`、`Activity`、`Library` 已经切到真实数据库，其他页面仍主要由静态示例数据驱动
 - `Transaction detail` 现在已经进入真实 workflow 阶段，除 overview / status / contacts / finance / tasks 外，还包含：
   - offers
@@ -21,7 +27,7 @@
   - forms / eSignature
   - incoming updates
   - commission management
-- `Activity` 虽然已经是数据库驱动的真实 activity log，但当前覆盖范围仍只限于仓库里已经实现的真实写入路径；当前 documents / forms / signatures / incoming updates 已接入事件，但 approvals / settings 变更还没有真实事件源
+- `Activity` 虽然已经是数据库驱动的真实 activity log，但当前覆盖范围仍只限于仓库里已经实现的真实写入路径；当前 documents / forms / signatures / incoming updates、部分 approvals，以及 roles / user permissions 等 settings 变更都已接入事件，但仍不是所有 settings 模块都已完整覆盖
 - `Buyer Offers` 当前已经作为 transaction hub 内的真实 workflow foundation 落地，但仍是内部 Back Office offer management，不包含 MLS / email ingestion 或 client-facing portal
 - `Activity` 当前还是一个受限访问的 account activity 模块，不把它当作所有 office 角色都能直接访问的普通页面；首版只允许 `office_admin` 和 `office_manager`
 
@@ -108,12 +114,15 @@
   - agent profile summary
 - 当前 `Office Admin / Settings` 已通过 Prisma service 和 route handlers 落地到：
   - `/office/settings`
+  - `/office/settings/roles`
   - `/office/settings/users`
   - `/office/settings/teams`
   - `/office/settings/fields`
   - `/office/settings/checklists`
   - 核心复用：
     - `Membership` 做用户 role / status / office access
+    - `OrganizationRoleTemplate / OrganizationRoleTemplatePermission` 做 organization-scoped role templates
+    - `MembershipPermissionOverride` 做 per-user allow / deny overrides
     - `Team / TeamMembership` 做 team admin
     - `RequiredContactRoleSetting / TransactionFieldSetting / TransactionCustomFieldDefinition` 做 workflow requirements 和 office-scoped transaction intake schema
     - `ChecklistTemplate / ChecklistTemplateItem` 做 checklist template admin
@@ -126,6 +135,7 @@
   - 当前 scope 仍只支持：
     - company-wide (`officeId = null`)
     - current office only (`officeId = currentOfficeId`)
+    - private (`ownerMembershipId = current membership`)
   - 当前 preview 仍是 PDF-first；其他文件类型只保证 open / download
 - 当前 `Office Account / My Profile` 也已通过 Prisma service 和 route handlers 落地到：
   - `/office/account`
@@ -270,6 +280,7 @@
 
 - 页面展示
 - API 返回 access summary
+- organization role templates + membership overrides 共同决定 effective permissions
 - 当前也承载 `Back Office` 审核相关权限，例如：
   - `documents:approve`
   - `tasks:review`
@@ -277,8 +288,8 @@
 
 未实现：
 
-- 复杂权限管理
-- 数据级权限
+- 自定义角色创建
+- 全模块最细粒度业务动作的完整等价实现
 
 ### `packages/db`
 

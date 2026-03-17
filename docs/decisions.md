@@ -98,18 +98,24 @@ Trade-off：
 影响：
 
 - 当前 `@acre/auth` 已经独立
-- 页面和 API 已经可以读角色摘要
+- 页面和 API 已经统一走 `PermissionSubject -> effective permissions`
+- 固定角色仍然保留，但只作为模板入口
+- 当前权限模型已经升级为：
+  - 代码定义的静态 permission catalog
+  - organization-scoped role templates
+  - membership-level `allow / deny` overrides
 
 未实现：
 
 - 复杂 session 体系
 - middleware
-- 数据级权限
+- 自定义角色创建
+- 全模块最细粒度业务动作都完全补齐
 
 Trade-off：
 
-- 当前看起来像“只定义了权限字符串”
-- 但这比以后从 UI 代码里回收权限逻辑要安全得多
+- 模型明显比早期 `role -> fixed permission map` 更复杂
+- 但这比继续把真实权限需求硬塞进角色白名单更安全，也更接近 `BoldTrail / Brokermint` 的后台管理方式
 
 ## 关键决策 6：Listings 是数据中轴
 
@@ -230,7 +236,7 @@ Trade-off：
 
 这些限制是当前真实存在的，不应忽略：
 
-- 只有最小本地 auth/session，没有第三方 provider、没有复杂权限管理
+- 只有最小本地 auth/session，没有第三方 provider，也还没有自定义角色创建
 - 主页面和主 API 还没有切到真实数据库读写
 - 写 API 当前只覆盖 `Transactions` 和 `Contacts` 的最小闭环
 - 没有测试

@@ -22,7 +22,7 @@ type OfficeApproveDocsPageProps = {
 export default async function OfficeApproveDocsPage(props: OfficeApproveDocsPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canAccessOfficeDocumentApprovals(context.currentMembership.role)) {
+  if (!canAccessOfficeDocumentApprovals(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -31,7 +31,7 @@ export default async function OfficeApproveDocsPage(props: OfficeApproveDocsPage
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
     membershipId: context.currentMembership.id,
-    canSecondaryReviewTasks: canSecondaryReviewOfficeTasks(context.currentMembership.role),
+    canSecondaryReviewTasks: canSecondaryReviewOfficeTasks(context.currentMembership),
     queue: searchParams.queue,
     assigneeMembershipId: searchParams.assigneeMembershipId,
     dueWindow: searchParams.dueWindow,
@@ -54,9 +54,9 @@ export default async function OfficeApproveDocsPage(props: OfficeApproveDocsPage
       />
 
       <OfficeApproveDocsClient
-        canApproveDocuments={canApproveOfficeDocuments(context.currentMembership.role)}
-        canReviewTasks={canReviewOfficeTasks(context.currentMembership.role)}
-        canSecondaryReviewTasks={canSecondaryReviewOfficeTasks(context.currentMembership.role)}
+        canApproveDocuments={canApproveOfficeDocuments(context.currentMembership)}
+        canReviewTasks={canReviewOfficeTasks(context.currentMembership)}
+        canSecondaryReviewTasks={canSecondaryReviewOfficeTasks(context.currentMembership)}
         currentMembershipId={context.currentMembership.id}
         snapshot={snapshot}
       />

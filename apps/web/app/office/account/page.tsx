@@ -27,7 +27,7 @@ export default async function OfficeAccountPage() {
               Open notifications
             </Link>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Role" value={getRoleSummary(context.currentMembership.role).label} />
+            <SummaryChip label="Role" value={getRoleSummary(context.currentMembership).label} />
             <SummaryChip label="Open tasks" tone="accent" value={snapshot.summary.openTaskCount} />
           </PageHeaderSummary>
         }

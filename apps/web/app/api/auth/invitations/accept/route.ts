@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(new URL(`/invite/${token}`, requestOrigin), 303);
   }
 
-  const response = NextResponse.redirect(new URL(getDefaultAppPath(result.context.currentMembership.role), requestOrigin), 303);
+  const response = NextResponse.redirect(new URL(getDefaultAppPath(result.context.currentMembership), requestOrigin), 303);
   response.cookies.set(
     getSessionCookieName(),
     createSessionCookieValue(result.context.currentMembership.id),

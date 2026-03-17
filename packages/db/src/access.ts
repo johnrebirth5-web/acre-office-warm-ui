@@ -1,16 +1,9 @@
+import type { PermissionKey } from "@acre/auth";
 import { Prisma, type PrismaClient, type TeamMembershipRole, type UserRole } from "@prisma/client";
 import { prisma } from "./client";
+import { getMembershipEffectivePermissionKeys } from "./permissions";
 
-const organizationWideRoles = new Set<UserRole>([
-  "owner",
-  "office_admin",
-  "accountant",
-  "human_resources",
-  "office_manager",
-  "office_user"
-]);
-
-const crossMemberFinancialRoles = new Set<UserRole>(["owner", "office_admin", "accountant", "human_resources", "office_manager"]);
+export type OfficeScopeResource = "transactions" | "reports" | "contacts" | "agents";
 
 type TeamMembershipNode = {
   id: string;
@@ -23,12 +16,51 @@ type TeamMembershipNode = {
 export type OfficeDataScope = {
   viewerMembershipId: string;
   viewerRole: UserRole;
+  viewerPermissions: PermissionKey[];
   officeId: string | null;
   kind: "organization" | "team" | "self";
   visibleMembershipIds: string[] | null;
   visibleTeamIds: string[] | null;
   visibleTeamMembershipIds: string[] | null;
 };
+
+const scopePermissionMap: Record<
+  OfficeScopeResource,
+  {
+    base: PermissionKey;
+    team: PermissionKey | null;
+    company: PermissionKey | null;
+  }
+> = {
+  transactions: {
+    base: "transactions:view",
+    team: "transactions:view:team",
+    company: "transactions:view:company"
+  },
+  reports: {
+    base: "reports:view:personal",
+    team: "reports:view:team",
+    company: "reports:view:company"
+  },
+  contacts: {
+    base: "contacts:view",
+    team: "contacts:view:team",
+    company: "contacts:view:company"
+  },
+  agents: {
+    base: "agents:view",
+    team: "agents:view:team",
+    company: "agents:view:company"
+  }
+};
+
+const crossMemberFinancialPermissions = new Set<PermissionKey>([
+  "reports:view:company",
+  "accounting:view",
+  "accounting:billing:view",
+  "commissions:view:company",
+  "transactions:finance"
+]);
 
 function buildScopedOfficeOrNullFilter(officeId: string | null | undefined) {
   if (!officeId) {
@@ -100,6 +132,7 @@ export async function resolveOfficeDataScope(
     organizationId: string;
     viewerMembershipId: string;
     officeId?: string | null;
+    resource?: OfficeScopeResource;
   },
   db: PrismaClient | Prisma.TransactionClient = prisma
 ): Promise<OfficeDataScope> {
@@ -119,11 +152,21 @@ export async function resolveOfficeDataScope(
   }
 
   const scopedOfficeId = input.officeId ?? null;
+  const resource = input.resource ?? "transactions";
+  const permissions = await getMembershipEffectivePermissionKeys(
+    {
+      organizationId: input.organizationId,
+      membershipId: membership.id
+    },
+    db
+  );
+  const scopePermissions = scopePermissionMap[resource];
 
-  if (organizationWideRoles.has(membership.role)) {
+  if (scopePermissions.company && permissions.includes(scopePermissions.company)) {
     return {
       viewerMembershipId: membership.id,
       viewerRole: membership.role,
+      viewerPermissions: permissions,
       officeId: scopedOfficeId,
       kind: "organization",
       visibleMembershipIds: null,
@@ -150,7 +193,7 @@ export async function resolveOfficeDataScope(
 
   const viewerTeamIds = [...new Set(viewerTeamMemberships.map((teamMembership) => teamMembership.teamId))];
 
-  if (membership.role === "team_lead" && viewerTeamIds.length > 0) {
+  if (scopePermissions.team && permissions.includes(scopePermissions.team) && viewerTeamIds.length > 0) {
     const teamMemberships = await db.teamMembership.findMany({
       where: {
         organizationId: input.organizationId,
@@ -177,6 +220,7 @@ export async function resolveOfficeDataScope(
     return {
       viewerMembershipId: membership.id,
       viewerRole: membership.role,
+      viewerPermissions: permissions,
       officeId: scopedOfficeId,
       kind: "team",
       visibleMembershipIds,
@@ -188,6 +232,7 @@ export async function resolveOfficeDataScope(
   return {
     viewerMembershipId: membership.id,
     viewerRole: membership.role,
+    viewerPermissions: permissions,
     officeId: scopedOfficeId,
     kind: "self",
     visibleMembershipIds: [membership.id],
@@ -256,7 +301,7 @@ export function canAccessMembership(scope: OfficeDataScope, membershipId: string
 }
 
 export function canViewCrossMemberFinancials(scope: OfficeDataScope) {
-  return crossMemberFinancialRoles.has(scope.viewerRole);
+  return scope.viewerPermissions.some((permission) => crossMemberFinancialPermissions.has(permission));
 }
 
 export function canViewFinancialsForMembership(scope: OfficeDataScope, membershipId: string | null | undefined) {

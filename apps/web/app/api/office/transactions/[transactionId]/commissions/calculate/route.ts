@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canCalculateOfficeCommissions(context.currentMembership.role)) {
+  if (!canCalculateOfficeCommissions(context.currentMembership)) {
     return NextResponse.json({ error: "Commission calculation access required." }, { status: 403 });
   }
 

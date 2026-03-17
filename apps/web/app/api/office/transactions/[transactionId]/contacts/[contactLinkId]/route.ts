@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canLinkOfficeContacts(context.currentMembership.role)) {
+  if (!canLinkOfficeContacts(context.currentMembership)) {
     return NextResponse.json({ error: "Contact linking access required." }, { status: 403 });
   }
 
@@ -49,7 +49,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canLinkOfficeContacts(context.currentMembership.role)) {
+  if (!canLinkOfficeContacts(context.currentMembership)) {
     return NextResponse.json({ error: "Contact linking access required." }, { status: 403 });
   }
 

@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeLibrary(context.currentMembership.role)) {
+  if (!canManageOfficeLibrary(context.currentMembership)) {
     return NextResponse.json({ error: "Library management access required." }, { status: 403 });
   }
 

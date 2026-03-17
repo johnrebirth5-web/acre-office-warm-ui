@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canViewOfficeContacts(context.currentMembership.role)) {
+  if (!canViewOfficeContacts(context.currentMembership)) {
     return NextResponse.json({ error: "Contact access required." }, { status: 403 });
   }
 
@@ -48,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canEditOfficeContacts(context.currentMembership.role)) {
+  if (!canEditOfficeContacts(context.currentMembership)) {
     return NextResponse.json({ error: "Contact edit access required." }, { status: 403 });
   }
 

@@ -7,5 +7,5 @@ export default async function HomePage() {
     allowPasswordChangeRequired: true
   });
 
-  redirect(context ? (mustChangePassword(context) ? "/change-password" : getDefaultAppPath(context.currentMembership.role)) : "/login");
+  redirect(context ? (mustChangePassword(context) ? "/change-password" : getDefaultAppPath(context.currentMembership)) : "/login");
 }

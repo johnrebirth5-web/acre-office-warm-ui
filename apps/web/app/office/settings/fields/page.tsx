@@ -8,9 +8,9 @@ import { OfficeSettingsFieldsClient } from "./fields-client";
 
 export default async function OfficeSettingsFieldsPage() {
   const context = await requireOfficeSession();
-  const canManageFields = canManageOfficeFields(context.currentMembership.role);
+  const canManageFields = canManageOfficeFields(context.currentMembership);
 
-  if (!canViewOfficeFields(context.currentMembership.role) || !canManageFields) {
+  if (!canViewOfficeFields(context.currentMembership) || !canManageFields) {
     redirect("/office/settings");
   }
 

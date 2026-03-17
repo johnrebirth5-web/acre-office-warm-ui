@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeOffers(context.currentMembership.role)) {
+  if (!canManageOfficeOffers(context.currentMembership)) {
     return NextResponse.json({ error: "Offer management access required." }, { status: 403 });
   }
 

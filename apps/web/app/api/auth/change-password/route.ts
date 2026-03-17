@@ -53,6 +53,6 @@ export async function POST(request: NextRequest) {
     return buildErrorRedirect(requestOrigin, "unknown");
   }
 
-  const destination = forced ? getDefaultAppPath(context.currentMembership.role) : "/office/account";
+  const destination = forced ? getDefaultAppPath(context.currentMembership) : "/office/account";
   return NextResponse.redirect(new URL(destination, requestOrigin), 303);
 }

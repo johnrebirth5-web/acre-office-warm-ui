@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeSignatures(context.currentMembership.role)) {
+  if (!canManageOfficeSignatures(context.currentMembership)) {
     return NextResponse.json({ error: "Signature access required." }, { status: 403 });
   }
 

@@ -2,20 +2,28 @@
 
 ## Goal
 
-Provide a practical Back Office admin/settings area for access management, teams, field requirements, and checklist templates.
+Provide a practical Back Office admin/settings area for access management, role templates, teams, field requirements, and checklist templates.
 
 ## Current implemented foundation
 
 - routes exist:
   - `/office/settings`
+  - `/office/settings/roles`
   - `/office/settings/users`
   - `/office/settings/teams`
   - `/office/settings/fields`
   - `/office/settings/checklists`
+- roles admin supports:
+  - fixed Back Office role catalog
+  - organization-level role templates
+  - enable/disable permissions per role template
+  - template changes that immediately alter inherited permissions for all members on that role
 - users admin supports:
   - role update
   - activate/deactivate
   - office access within current membership model
+  - per-user permission override editing with `inherit / allow / deny`
+  - reset user overrides back to role defaults
   - Back Office tier catalog:
     - `owner`
     - `office_admin`
@@ -51,11 +59,12 @@ Provide a practical Back Office admin/settings area for access management, teams
 
 - no generic no-code schema builder across every workflow module yet
 - transaction intake builder exists, but broader settings modules still do not expose the same level of schema configurability
-- office access is still bounded by current membership model plus explicit team hierarchy / scope resolution, not a full ACL matrix
+- role catalog is still fixed; admins cannot create brand-new custom roles
+- some business actions already have permission keys, but the underlying module action surface is still catching up in places
 - checklist templates are managed but not fully auto-applied everywhere
 
 ## Future direction
 
-- stronger office/user access controls
+- stronger office/user access controls on top of the new role-template + user-override baseline
 - richer template application behavior
 - broader settings coverage for future workflow modules

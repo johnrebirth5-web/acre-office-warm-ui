@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeTasks(context.currentMembership.role)) {
+  if (!canManageOfficeTasks(context.currentMembership)) {
     return NextResponse.json({ error: "Task list access required." }, { status: 403 });
   }
 

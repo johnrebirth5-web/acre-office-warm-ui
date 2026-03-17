@@ -174,7 +174,8 @@ type LibraryWriter = Pick<typeof prisma, "libraryFolder" | "libraryDocument">;
 
 const visibilityLabelMap: Record<LibraryDocumentVisibility, string> = {
   company_wide: "Company-wide",
-  office_only: "Office only"
+  office_only: "Office only",
+  private: "Private"
 };
 
 function formatDateTimeValue(date: Date) {
@@ -227,11 +228,19 @@ function matchesScope(recordOfficeId: string | null, scope: OfficeLibraryScope, 
   return recordOfficeId === null || (Boolean(currentOfficeId) && recordOfficeId === currentOfficeId);
 }
 
-function getScopeLabelForOfficeId(officeId: string | null) {
+function getScopeLabelForOfficeId(officeId: string | null, visibility: LibraryDocumentVisibility = getVisibilityForOfficeId(officeId)) {
+  if (visibility === LibraryDocumentVisibility.private) {
+    return visibilityLabelMap.private;
+  }
+
   return officeId ? visibilityLabelMap.office_only : visibilityLabelMap.company_wide;
 }
 
-function getVisibilityForOfficeId(officeId: string | null) {
+function getVisibilityForOfficeId(officeId: string | null, preferredVisibility?: LibraryDocumentVisibility) {
+  if (preferredVisibility === LibraryDocumentVisibility.private) {
+    return LibraryDocumentVisibility.private;
+  }
+
   return officeId ? LibraryDocumentVisibility.office_only : LibraryDocumentVisibility.company_wide;
 }
 
@@ -239,6 +248,10 @@ function resolveOfficeIdForVisibility(
   currentOfficeId: string | null | undefined,
   visibility: LibraryDocumentVisibility | undefined
 ) {
+  if (visibility === LibraryDocumentVisibility.private) {
+    return null;
+  }
+
   if (visibility === LibraryDocumentVisibility.office_only && currentOfficeId) {
     return currentOfficeId;
   }
@@ -348,7 +361,7 @@ function mapLibraryDocument(
     folderId: record.folderId,
     folderName: record.folder?.name ?? "",
     folderPath,
-    scopeLabel: getScopeLabelForOfficeId(record.officeId),
+    scopeLabel: getScopeLabelForOfficeId(record.officeId, record.visibility),
     uploadedByName: formatMembershipName(record.uploadedByMembership),
     createdAt: formatDateTimeValue(record.createdAt),
     updatedAt: formatDateTimeValue(record.updatedAt),
@@ -479,8 +492,8 @@ function buildFolderTree(
       name: folder.name,
       description: folder.description ?? "",
       parentFolderId: folder.parentFolderId,
-      scopeKey: getVisibilityForOfficeId(folder.officeId),
-      scopeLabel: getScopeLabelForOfficeId(folder.officeId),
+      scopeKey: getVisibilityForOfficeId(folder.officeId, folder.visibility),
+      scopeLabel: getScopeLabelForOfficeId(folder.officeId, folder.visibility),
       isActive: folder.isActive,
       sortOrder: folder.sortOrder,
       documentCount: totalCounts.get(folder.id) ?? 0,
@@ -553,7 +566,7 @@ function getSelectedFolder(
     key: folder.id,
     name: folder.name,
     description: folder.description ?? "",
-    scopeLabel: getScopeLabelForOfficeId(folder.officeId),
+    scopeLabel: getScopeLabelForOfficeId(folder.officeId, folder.visibility),
     documentCount: totalCounts.get(folder.id) ?? 0
   };
 }
@@ -793,7 +806,7 @@ export async function createLibraryFolder(input: CreateLibraryFolderInput) {
         officeId,
         objectLabel: created.name,
         details: [
-          `Scope: ${getScopeLabelForOfficeId(officeId)}`,
+          `Scope: ${getScopeLabelForOfficeId(officeId, created.visibility)}`,
           ...(parentFolder ? [`Parent folder: ${parentFolder.name}`] : [])
         ],
         contextHref: buildLibraryContextHref(created.id)
@@ -872,7 +885,7 @@ export async function createLibraryDocument(input: CreateLibraryDocumentInput) {
     const officeId = folder
       ? folder.officeId
       : resolveOfficeIdForVisibility(input.currentOfficeId ?? null, input.visibility ?? LibraryDocumentVisibility.company_wide);
-    const visibility = getVisibilityForOfficeId(officeId);
+    const visibility = getVisibilityForOfficeId(officeId, input.visibility ?? LibraryDocumentVisibility.company_wide);
     const sortOrder = await tx.libraryDocument.count({
       where: {
         organizationId: input.organizationId,
@@ -944,7 +957,7 @@ export async function updateLibraryDocument(input: UpdateLibraryDocumentInput) {
         : nextFolder
           ? nextFolder.officeId
           : resolveOfficeIdForVisibility(input.currentOfficeId ?? null, input.visibility ?? existing.visibility);
-    const nextVisibility = getVisibilityForOfficeId(nextOfficeId);
+    const nextVisibility = getVisibilityForOfficeId(nextOfficeId, input.visibility ?? existing.visibility);
     const nextTitle = input.title === undefined ? existing.title : normalizeText(input.title) || existing.title;
     const nextSummary =
       input.summary === undefined ? existing.summary : normalizeOptionalText(input.summary);
@@ -980,7 +993,7 @@ export async function updateLibraryDocument(input: UpdateLibraryDocumentInput) {
       ...buildChanges(existing.folder?.name ?? "Unfiled", nextFolder?.name ?? "Unfiled", "Folder"),
       ...buildChanges(existing.category ?? "", saved.category ?? "", "Category"),
       ...buildChanges(existing.summary ?? "", saved.summary ?? "", "Summary"),
-      ...buildChanges(existing.visibility === LibraryDocumentVisibility.company_wide ? "Company-wide" : "Office only", saved.visibility === LibraryDocumentVisibility.company_wide ? "Company-wide" : "Office only", "Visibility"),
+      ...buildChanges(visibilityLabelMap[existing.visibility], visibilityLabelMap[saved.visibility], "Visibility"),
       ...buildChanges(existing.tags.join(", "), saved.tags.join(", "), "Tags")
     ];
 

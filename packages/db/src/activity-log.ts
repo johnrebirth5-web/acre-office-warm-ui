@@ -36,6 +36,9 @@ export const activityLogActions = {
   settingsUserActivated: "settings.user_activated",
   settingsUserDeactivated: "settings.user_deactivated",
   settingsOfficeAccessChanged: "settings.office_access_changed",
+  settingsRoleTemplateUpdated: "settings.role_template_updated",
+  settingsUserPermissionsChanged: "settings.user_permissions_changed",
+  settingsUserPermissionsReset: "settings.user_permissions_reset",
   settingsTableLayoutUpdated: "settings.table_layout_updated",
   settingsRequiredContactRolesChanged: "settings.required_contact_roles_changed",
   settingsTransactionFieldSettingsChanged: "settings.transaction_field_settings_changed",
@@ -142,6 +145,8 @@ export type ActivityLogEntityType =
   | "transaction_field_setting"
   | "checklist_template"
   | "organization_table_layout"
+  | "organization_role_template"
+  | "membership_permission_override"
   | "transaction"
   | "offer"
   | "contact"
@@ -455,6 +460,9 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "account.profile_updated": "Account profile updated",
   "account.notification_preferences_updated": "Notification preferences updated",
   "auth.bootstrap_admin_created": "Bootstrap admin created",
+  "settings.role_template_updated": "Role template updated",
+  "settings.user_permissions_changed": "User permissions updated",
+  "settings.user_permissions_reset": "User permissions reset",
   "settings.user_invited": "User invited",
   "settings.user_invitation_revoked": "Invitation revoked",
   "auth.invitation_accepted": "Invitation accepted",
@@ -486,6 +494,9 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.settingsUserActivated ||
       action === activityLogActions.settingsUserDeactivated ||
       action === activityLogActions.settingsOfficeAccessChanged ||
+      action === activityLogActions.settingsRoleTemplateUpdated ||
+      action === activityLogActions.settingsUserPermissionsChanged ||
+      action === activityLogActions.settingsUserPermissionsReset ||
       action === activityLogActions.settingsTableLayoutUpdated ||
       action === activityLogActions.agentOnboardingItemCreated ||
       action === activityLogActions.agentOnboardingItemUpdated ||
@@ -749,6 +760,8 @@ function mapEntityTypeToObjectType(entityType: string): Exclude<ActivityLogObjec
     case "agent_onboarding_item":
     case "agent_goal":
     case "membership":
+    case "organization_role_template":
+    case "membership_permission_override":
       return "agent";
     case "user_credential":
     case "invitation":
@@ -867,6 +880,14 @@ function getActivityHref(record: ActivityLogRecord, payload: ParsedActivityPaylo
   }
 
   if (record.entityType === "membership") {
+    return payload.contextHref ?? "/office/settings/users";
+  }
+
+  if (record.entityType === "organization_role_template") {
+    return payload.contextHref ?? "/office/settings/roles";
+  }
+
+  if (record.entityType === "membership_permission_override") {
     return payload.contextHref ?? "/office/settings/users";
   }
 
@@ -1024,6 +1045,12 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "created the bootstrap admin account";
     case activityLogActions.settingsUserRoleChanged:
       return "changed a user role";
+    case activityLogActions.settingsRoleTemplateUpdated:
+      return "updated a role template";
+    case activityLogActions.settingsUserPermissionsChanged:
+      return "updated user permission overrides";
+    case activityLogActions.settingsUserPermissionsReset:
+      return "reset user permission overrides";
     case activityLogActions.settingsUserInvited:
       return "issued a user invitation";
     case activityLogActions.settingsUserInvitationRevoked:

@@ -11,6 +11,7 @@ import {
   canAccessOfficeNotifications,
   canAccessOfficeSettings,
   canAccessOfficeTasks,
+  canManageOfficeSettings,
   canManageOfficeUsers,
   canViewOfficeAgents,
   canViewOfficeChecklists,
@@ -20,17 +21,17 @@ import {
   canViewOfficeReports,
   canViewOfficeTeams,
   canViewOfficeTransactions,
-  type UserRole
+  type PermissionSubject
 } from "@acre/auth";
 import { SiteReleaseBadge } from "../site-release-badge";
 
 type NavGroup = {
   title: string;
   icon: string;
-  items: Array<{ label: string; href?: string; isVisible?: (role: UserRole) => boolean }>;
+  items: Array<{ label: string; href?: string; isVisible?: (subject: PermissionSubject) => boolean }>;
 };
 
-function getNavGroups(role: UserRole): NavGroup[] {
+function getNavGroups(subject: PermissionSubject): NavGroup[] {
   return [
     {
       title: "Overview",
@@ -45,7 +46,7 @@ function getNavGroups(role: UserRole): NavGroup[] {
         { label: "Activity", href: "/office/activity", isVisible: canAccessAccountActivity },
         { label: "Library", href: "/office/library", isVisible: canViewOfficeLibrary },
         { label: "Accounting", href: "/office/accounting", isVisible: canAccessOfficeAccounting }
-      ].filter((item) => item.isVisible?.(role) ?? true)
+      ].filter((item) => item.isVisible?.(subject) ?? true)
     },
     {
       title: "To Do",
@@ -53,19 +54,20 @@ function getNavGroups(role: UserRole): NavGroup[] {
       items: [
         { label: "Approve docs", href: "/office/approve-docs", isVisible: canAccessOfficeDocumentApprovals },
         { label: "Task list", href: "/office/tasks", isVisible: canAccessOfficeTasks }
-      ].filter((item) => item.isVisible?.(role) ?? true)
+      ].filter((item) => item.isVisible?.(subject) ?? true)
     },
     {
       title: "Settings",
       icon: "⚙",
       items: [
         { label: "Settings", href: "/office/settings", isVisible: canAccessOfficeSettings },
+        { label: "Roles", href: "/office/settings/roles", isVisible: canManageOfficeSettings },
         { label: "Users", href: "/office/settings/users", isVisible: canManageOfficeUsers },
         { label: "Teams", href: "/office/settings/teams", isVisible: canViewOfficeTeams },
         { label: "Checklists", href: "/office/settings/checklists", isVisible: canViewOfficeChecklists },
         { label: "Fields", href: "/office/settings/fields", isVisible: canViewOfficeFields },
         { label: "Commission plans", href: "/office/accounting#commission-management", isVisible: canAccessOfficeAccounting }
-      ].filter((item) => item.isVisible?.(role) ?? true)
+      ].filter((item) => item.isVisible?.(subject) ?? true)
     },
     {
       title: "User",
@@ -76,14 +78,14 @@ function getNavGroups(role: UserRole): NavGroup[] {
         { label: "Billing", href: "/office/billing" },
         { label: "Add-ons" },
         { label: "Sign out" }
-      ].filter((item) => item.isVisible?.(role) ?? true)
+      ].filter((item) => item.isVisible?.(subject) ?? true)
     }
   ].filter((group) => group.items.length > 0);
 }
 
 type OfficeNavProps = {
   currentOfficeName: string;
-  currentRole: UserRole;
+  currentAccess: PermissionSubject;
 };
 
 function normalizeHref(href: string) {
@@ -99,11 +101,11 @@ function splitLocationKey(locationKey: string) {
   };
 }
 
-export function OfficeNav({ currentOfficeName, currentRole }: OfficeNavProps) {
+export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) {
   const pathname = usePathname();
   const [currentHash, setCurrentHash] = useState("");
   const [pendingLocationKey, setPendingLocationKey] = useState<string | null>(null);
-  const navGroups = getNavGroups(currentRole);
+  const navGroups = getNavGroups(currentAccess);
 
   useLayoutEffect(() => {
     function syncHash() {
@@ -238,37 +240,37 @@ export function OfficeNav({ currentOfficeName, currentRole }: OfficeNavProps) {
         <Link className={isMobileSectionActive("/office/dashboard") ? "is-active" : ""} href="/office/dashboard">
           Dash
         </Link>
-        {canAccessOfficeTasks(currentRole) ? (
+        {canAccessOfficeTasks(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/tasks") ? "is-active" : ""} href="/office/tasks">
             Tasks
           </Link>
         ) : null}
-        {canViewOfficeTransactions(currentRole) ? (
+        {canViewOfficeTransactions(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/transactions") ? "is-active" : ""} href="/office/transactions">
             Trans
           </Link>
         ) : null}
-        {canViewOfficeAgents(currentRole) ? (
+        {canViewOfficeAgents(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/agents") ? "is-active" : ""} href="/office/agents">
             Agents
           </Link>
         ) : null}
-        {canAccessAccountActivity(currentRole) ? (
+        {canAccessAccountActivity(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/activity") ? "is-active" : ""} href="/office/activity">
             Activity
           </Link>
         ) : null}
-        {canViewOfficeLibrary(currentRole) ? (
+        {canViewOfficeLibrary(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/library") ? "is-active" : ""} href="/office/library">
             Library
           </Link>
         ) : null}
-        {canAccessOfficeAccounting(currentRole) ? (
+        {canAccessOfficeAccounting(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/accounting") ? "is-active" : ""} href="/office/accounting">
             Acct
           </Link>
         ) : null}
-        {canAccessOfficeSettings(currentRole) ? (
+        {canAccessOfficeSettings(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/settings") ? "is-active" : ""} href="/office/settings">
             Admin
           </Link>

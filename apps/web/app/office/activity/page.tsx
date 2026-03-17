@@ -77,7 +77,7 @@ function getAlertTone(severity: string) {
 export default async function OfficeActivityPage(props: OfficeActivityPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canAccessAccountActivity(context.currentMembership.role)) {
+  if (!canAccessAccountActivity(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -86,8 +86,8 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
     currentMembershipId: context.currentMembership.id,
-    canReviewTasks: canReviewOfficeTasks(context.currentMembership.role),
-    canSecondaryReviewTasks: canSecondaryReviewOfficeTasks(context.currentMembership.role),
+    canReviewTasks: canReviewOfficeTasks(context.currentMembership),
+    canSecondaryReviewTasks: canSecondaryReviewOfficeTasks(context.currentMembership),
     view: searchParams.view,
     activitySection: searchParams.activitySection,
     alertSection: searchParams.alertSection,

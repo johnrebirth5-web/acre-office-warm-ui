@@ -9,7 +9,7 @@ import { TransactionIntakeWorkspace } from "../transaction-intake-form";
 export default async function OfficeTransactionCreatePage() {
   const context = await requireOfficeSession();
 
-  if (!canCreateOfficeTransactions(context.currentMembership.role)) {
+  if (!canCreateOfficeTransactions(context.currentMembership)) {
     redirect("/office/transactions");
   }
 
@@ -33,7 +33,7 @@ export default async function OfficeTransactionCreatePage() {
       <SectionCard className="bm-new-transaction-card bm-new-transaction-live-card" title="Transaction intake">
         <TransactionIntakeWorkspace
           afterSubmit="go-detail"
-          canConfigureSchema={canManageOfficeFields(context.currentMembership.role)}
+          canConfigureSchema={canManageOfficeFields(context.currentMembership)}
           canEditValues={true}
           chrome="page"
           mode="create"

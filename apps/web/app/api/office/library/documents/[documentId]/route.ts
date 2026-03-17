@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeLibrary(context.currentMembership.role)) {
+  if (!canManageOfficeLibrary(context.currentMembership)) {
     return NextResponse.json({ error: "Library management access required." }, { status: 403 });
   }
 
@@ -78,7 +78,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeLibrary(context.currentMembership.role)) {
+  if (!canManageOfficeLibrary(context.currentMembership)) {
     return NextResponse.json({ error: "Library management access required." }, { status: 403 });
   }
 

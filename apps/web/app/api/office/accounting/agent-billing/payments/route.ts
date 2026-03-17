@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficePayments(context.currentMembership.role)) {
+  if (!canManageOfficePayments(context.currentMembership)) {
     return NextResponse.json({ error: "Payments management access required." }, { status: 403 });
   }
 

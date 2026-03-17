@@ -15,7 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   });
 
   if (context) {
-    redirect(mustChangePassword(context) ? "/change-password" : getDefaultAppPath(context.currentMembership.role));
+    redirect(mustChangePassword(context) ? "/change-password" : getDefaultAppPath(context.currentMembership));
   }
 
   const params = searchParams ? await searchParams : undefined;

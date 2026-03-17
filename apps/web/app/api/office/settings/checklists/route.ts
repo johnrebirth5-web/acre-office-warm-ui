@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeChecklists(context.currentMembership.role)) {
+  if (!canManageOfficeChecklists(context.currentMembership)) {
     return NextResponse.json({ error: "Checklist management permission required." }, { status: 403 });
   }
 

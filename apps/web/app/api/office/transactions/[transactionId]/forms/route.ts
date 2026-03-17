@@ -19,7 +19,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canUseOfficeForms(context.currentMembership.role) || !canManageOfficeDocuments(context.currentMembership.role)) {
+  if (!canUseOfficeForms(context.currentMembership) || !canManageOfficeDocuments(context.currentMembership)) {
     return NextResponse.json({ error: "Form access required." }, { status: 403 });
   }
 

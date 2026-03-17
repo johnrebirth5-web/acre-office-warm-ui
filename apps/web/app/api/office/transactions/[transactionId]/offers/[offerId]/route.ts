@@ -37,10 +37,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
     if (body?.action) {
       if (body.action === "accept") {
-        if (!canAcceptOfficeOffers(context.currentMembership.role)) {
+        if (!canAcceptOfficeOffers(context.currentMembership)) {
           return NextResponse.json({ error: "Offer acceptance access required." }, { status: 403 });
         }
-      } else if (!canReviewOfficeOffers(context.currentMembership.role) && !canManageOfficeOffers(context.currentMembership.role)) {
+      } else if (!canReviewOfficeOffers(context.currentMembership) && !canManageOfficeOffers(context.currentMembership)) {
         return NextResponse.json({ error: "Offer review access required." }, { status: 403 });
       }
 
@@ -67,7 +67,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ offer });
     }
 
-    if (!canManageOfficeOffers(context.currentMembership.role)) {
+    if (!canManageOfficeOffers(context.currentMembership)) {
       return NextResponse.json({ error: "Offer management access required." }, { status: 403 });
     }
 

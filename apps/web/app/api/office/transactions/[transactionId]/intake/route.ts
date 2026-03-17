@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canEditOfficeTransactions(context.currentMembership.role)) {
+  if (!canEditOfficeTransactions(context.currentMembership)) {
     return NextResponse.json({ error: "Transaction edit access required." }, { status: 403 });
   }
 

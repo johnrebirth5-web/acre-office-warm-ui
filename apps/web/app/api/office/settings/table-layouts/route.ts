@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeSettings(context.currentMembership.role)) {
+  if (!canManageOfficeSettings(context.currentMembership)) {
     return NextResponse.json({ error: "Settings management permission required." }, { status: 403 });
   }
 

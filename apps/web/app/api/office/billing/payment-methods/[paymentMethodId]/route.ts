@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canViewOfficeAgentBilling(context.currentMembership.role)) {
+  if (!canViewOfficeAgentBilling(context.currentMembership)) {
     return NextResponse.json({ error: "Billing access required." }, { status: 403 });
   }
 

@@ -17,7 +17,7 @@ type OfficeNotificationsPageProps = {
 export default async function OfficeNotificationsPage(props: OfficeNotificationsPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canAccessOfficeNotifications(context.currentMembership.role)) {
+  if (!canAccessOfficeNotifications(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 

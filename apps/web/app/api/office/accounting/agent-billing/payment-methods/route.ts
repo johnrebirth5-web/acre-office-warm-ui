@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeAgentBilling(context.currentMembership.role)) {
+  if (!canManageOfficeAgentBilling(context.currentMembership)) {
     return NextResponse.json({ error: "Agent billing management access required." }, { status: 403 });
   }
 

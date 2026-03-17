@@ -75,7 +75,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
 
   return (
     <TransactionsClient
-      canManageIntakeSchema={canManageOfficeFields(context.currentMembership.role)}
+      canManageIntakeSchema={canManageOfficeFields(context.currentMembership)}
       filterOptions={result.filterOptions}
       filters={{ q, status, ownerMembershipId, teamId, type, startDate, endDate }}
       page={result.page}

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=invalid_credentials", requestOrigin), 303);
   }
 
-  const redirectPath = mustChangePassword(result.context) ? "/change-password" : getDefaultAppPath(result.context.currentMembership.role);
+  const redirectPath = mustChangePassword(result.context) ? "/change-password" : getDefaultAppPath(result.context.currentMembership);
   const response = NextResponse.redirect(new URL(redirectPath, requestOrigin), 303);
 
   response.cookies.set(getSessionCookieName(), createSessionCookieValue(result.context.currentMembership.id), getSessionCookieSettings());

@@ -38,7 +38,7 @@ export default async function ChangePasswordPage({ searchParams }: ChangePasswor
   const forced = mustChangePassword(context);
 
   if (!forced && !context.currentCredential) {
-    redirect(getDefaultAppPath(context.currentMembership.role));
+    redirect(getDefaultAppPath(context.currentMembership));
   }
 
   return (

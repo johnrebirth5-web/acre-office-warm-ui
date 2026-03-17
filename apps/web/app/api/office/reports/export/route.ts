@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  if (!canViewOfficeReports(sessionContext.currentMembership.role)) {
+  if (!canViewOfficeReports(sessionContext.currentMembership)) {
     return new Response(JSON.stringify({ error: "Reports access required." }), {
       status: 403,
       headers: {

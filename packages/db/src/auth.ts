@@ -1,9 +1,10 @@
 import { compare, hash } from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { UserRole } from "@acre/auth";
+import type { PermissionKey, UserRole } from "@acre/auth";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
+import { getMembershipEffectivePermissionKeys } from "./permissions";
 
 const BOOTSTRAP_ADMIN_EMAIL = "office@acreny.us";
 const BOOTSTRAP_ADMIN_PASSWORD_HASH = "$2b$12$9bAUwJ5kE4bpEEPpOEEMZerc0UTtV9lZrh3EEAQcqu2xxHC.62rmO";
@@ -91,6 +92,7 @@ export type SessionMembershipContext = {
     role: UserRole;
     title: string | null;
     status: "active" | "invited" | "disabled";
+    permissions: PermissionKey[];
   };
   currentOrganization: {
     id: string;
@@ -237,7 +239,7 @@ function getInvitationExpiry() {
   return new Date(Date.now() + INVITATION_EXPIRY_MS);
 }
 
-function mapMembershipContext(membership: MembershipSessionRecord): SessionMembershipContext {
+function mapMembershipContext(membership: MembershipSessionRecord, permissions: PermissionKey[]): SessionMembershipContext {
   return {
     currentUser: {
       id: membership.user.id,
@@ -262,7 +264,8 @@ function mapMembershipContext(membership: MembershipSessionRecord): SessionMembe
       id: membership.id,
       role: membership.role,
       title: membership.title,
-      status: membership.status
+      status: membership.status,
+      permissions
     },
     currentOrganization: {
       id: membership.organization.id,
@@ -279,6 +282,21 @@ function mapMembershipContext(membership: MembershipSessionRecord): SessionMembe
         }
       : null
   };
+}
+
+async function buildMembershipContext(
+  membership: MembershipSessionRecord,
+  db: PrismaClient | Prisma.TransactionClient = prisma
+): Promise<SessionMembershipContext> {
+  const permissions = await getMembershipEffectivePermissionKeys(
+    {
+      organizationId: membership.organizationId,
+      membershipId: membership.id
+    },
+    db
+  );
+
+  return mapMembershipContext(membership, permissions);
 }
 
 async function getPrimaryOrganization() {
@@ -720,7 +738,7 @@ export async function authenticatePasswordUser(email: string, password: string):
 
   return {
     status: "success",
-    context: mapMembershipContext(authenticatedMembership satisfies MembershipSessionRecord)
+    context: await buildMembershipContext(authenticatedMembership satisfies MembershipSessionRecord)
   };
 }
 
@@ -963,7 +981,7 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Ac
 
   return {
     status: "success",
-    context: mapMembershipContext(acceptedMembership satisfies MembershipSessionRecord)
+    context: await buildMembershipContext(acceptedMembership satisfies MembershipSessionRecord)
   };
 }
 
@@ -1338,7 +1356,7 @@ export async function findActiveMembershipContextByEmail(email: string): Promise
     return null;
   }
 
-  return mapMembershipContext(membership satisfies MembershipSessionRecord);
+  return buildMembershipContext(membership satisfies MembershipSessionRecord);
 }
 
 export async function getSessionMembershipContext(membershipId: string): Promise<SessionMembershipContext | null> {
@@ -1352,5 +1370,5 @@ export async function getSessionMembershipContext(membershipId: string): Promise
     return null;
   }
 
-  return mapMembershipContext(membership);
+  return buildMembershipContext(membership);
 }

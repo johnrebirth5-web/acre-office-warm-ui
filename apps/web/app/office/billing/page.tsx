@@ -9,7 +9,7 @@ import { OfficeBillingClient } from "./billing-client";
 export default async function OfficeBillingPage() {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeAgentBilling(context.currentMembership.role)) {
+  if (!canViewOfficeAgentBilling(context.currentMembership)) {
     redirect("/office/dashboard");
   }
 
@@ -32,7 +32,7 @@ export default async function OfficeBillingPage() {
               Open billing activity
             </Link>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Role" value={getRoleSummary(context.currentMembership.role).label} />
+            <SummaryChip label="Role" value={getRoleSummary(context.currentMembership).label} />
             <SummaryChip label="Outstanding balance" tone="accent" value={snapshot.summary.outstandingBalanceLabel} />
           </PageHeaderSummary>
         }

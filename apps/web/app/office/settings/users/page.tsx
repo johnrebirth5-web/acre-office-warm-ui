@@ -18,7 +18,7 @@ type OfficeSettingsUsersPageProps = {
 export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsersPageProps) {
   const context = await requireOfficeSession();
 
-  if (!canViewOfficeUsers(context.currentMembership.role)) {
+  if (!canViewOfficeUsers(context.currentMembership)) {
     redirect("/office/settings");
   }
 
@@ -51,7 +51,7 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
 
       <ListPageStack className="office-settings-list-stack">
         <OfficeSettingsNav />
-        <OfficeSettingsUsersClient canManageUsers={canManageOfficeUsers(context.currentMembership.role)} snapshot={snapshot} />
+        <OfficeSettingsUsersClient canManageUsers={canManageOfficeUsers(context.currentMembership)} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>
   );
