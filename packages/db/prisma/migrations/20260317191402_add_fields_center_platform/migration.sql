@@ -1,0 +1,26 @@
+-- DropIndex
+DROP INDEX "TransactionCustomFieldDefinition_organizationId_officeId_is_idx";
+
+-- DropIndex
+DROP INDEX "TransactionFieldSetting_organizationId_officeId_isVisible_idx";
+
+-- RenameIndex
+ALTER INDEX "ContactCustomFieldDefinition_org_office_visible_archived_order_" RENAME TO "ContactCustomFieldDefinition_organizationId_officeId_isVisi_idx";
+
+-- RenameIndex
+ALTER INDEX "ContactCustomFieldDefinition_organizationId_officeId_fieldKey_k" RENAME TO "ContactCustomFieldDefinition_organizationId_officeId_fieldK_key";
+
+-- RenameIndex
+ALTER INDEX "ContactFieldSetting_org_office_visible_order_idx" RENAME TO "ContactFieldSetting_organizationId_officeId_isVisible_sortO_idx";
+
+-- RenameIndex
+ALTER INDEX "OfferCustomFieldDefinition_org_office_visible_archived_order_id" RENAME TO "OfferCustomFieldDefinition_organizationId_officeId_isVisibl_idx";
+
+-- RenameIndex
+ALTER INDEX "OfferFieldSetting_org_office_visible_order_idx" RENAME TO "OfferFieldSetting_organizationId_officeId_isVisible_sortOrd_idx";
+
+-- RenameIndex
+ALTER INDEX "TransactionCustomFieldDefinition_org_office_visible_archived_or" RENAME TO "TransactionCustomFieldDefinition_organizationId_officeId_is_idx";
+
+-- RenameIndex
+ALTER INDEX "TransactionFieldSetting_org_office_visible_order_idx" RENAME TO "TransactionFieldSetting_organizationId_officeId_isVisible_s_idx";
