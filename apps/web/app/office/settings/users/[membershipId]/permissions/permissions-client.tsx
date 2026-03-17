@@ -5,7 +5,7 @@ import type { OfficeAdminUserDetailSnapshot, PermissionOverrideValue, Permission
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useMemo, useState } from "react";
-import { Badge, Button, StatusBadge } from "@acre/ui";
+import { Badge, Button, ConfirmActionDialog, StatusBadge } from "@acre/ui";
 import {
   buildPermissionOverrideMap,
   buildPermissionTreeMaps,
@@ -17,6 +17,13 @@ import {
 type OfficeSettingsUserPermissionsClientProps = {
   snapshot: OfficeAdminUserDetailSnapshot;
   canManageUsers: boolean;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 function countPermissionNodes(node: PermissionTreeStateNode): number {
@@ -136,6 +143,7 @@ export function OfficeSettingsUserPermissionsClient({
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   const previewTree = useMemo(
     () =>
@@ -321,7 +329,17 @@ export function OfficeSettingsUserPermissionsClient({
               </Link>
               <Button
                 disabled={permissionOverrides.size === 0 || pendingAction === "reset"}
-                onClick={handleResetPermissions}
+                onClick={() =>
+                  setConfirmDialog({
+                    title: "Reset all user permission overrides?",
+                    description:
+                      "This removes every user-level override and returns this person to the current role-template defaults.",
+                    confirmLabel: "Reset overrides",
+                    onConfirm: () => {
+                      void handleResetPermissions();
+                    }
+                  })
+                }
                 variant="secondary"
               >
                 {pendingAction === "reset" ? "Resetting..." : "Reset to role defaults"}
@@ -334,6 +352,24 @@ export function OfficeSettingsUserPermissionsClient({
           )}
         </div>
       </section>
+
+      <ConfirmActionDialog
+        cancelLabel="Keep overrides"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
     </div>
   );
 }

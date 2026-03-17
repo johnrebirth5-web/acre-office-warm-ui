@@ -8847,6 +8847,56 @@ a {
   border-top: 1px solid rgba(194, 205, 220, 0.54);
 }
 
+.office-confirm-dialog {
+  width: min(100%, 480px);
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+}
+
+.office-confirm-dialog-head {
+  display: grid;
+  gap: 8px;
+}
+
+.office-confirm-dialog-kicker {
+  color: var(--office-danger);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.office-confirm-dialog-head h3 {
+  margin: 0;
+}
+
+.office-confirm-dialog-head p {
+  margin: 0;
+  color: var(--office-text-muted);
+}
+
+.office-confirm-dialog-body {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(194, 205, 220, 0.54);
+  border-radius: 16px;
+  background: rgba(247, 249, 252, 0.88);
+}
+
+.office-confirm-dialog-body p {
+  margin: 0;
+  color: var(--office-text-muted);
+}
+
+.office-confirm-dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .office-settings-inline-form {
   display: flex;
   flex-wrap: wrap;

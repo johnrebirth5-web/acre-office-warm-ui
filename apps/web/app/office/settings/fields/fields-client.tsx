@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   Button,
   CheckboxField,
+  ConfirmActionDialog,
   SelectInput,
   TextInput,
   TextareaInput
@@ -45,6 +46,13 @@ type FieldEditorState = {
     label: string;
     isEnabled: boolean;
   }>;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 const customFieldTypeOptions = [
@@ -204,6 +212,7 @@ export function OfficeSettingsFieldsClient({
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [editorState, setEditorState] = useState<FieldEditorState | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   useEffect(() => {
     setCurrentModule(snapshot.currentModule);
@@ -661,7 +670,22 @@ export function OfficeSettingsFieldsClient({
                       pendingAction.length > 0 ||
                       (entry.kind === "builtIn" && entry.field.isLockedVisible)
                     }
-                    onClick={() => handleDeleteField(entry)}
+                    onClick={() =>
+                      setConfirmDialog({
+                        title:
+                          entry.kind === "builtIn"
+                            ? `Hide ${entry.field.label}?`
+                            : `Delete ${entry.field.label}?`,
+                        description:
+                          entry.kind === "builtIn"
+                            ? "This built-in field will be hidden from the module forms and can still be restored later from Hidden fields."
+                            : "This custom field will be deleted from the module if it has no saved usage blocking the action.",
+                        confirmLabel: entry.kind === "builtIn" ? "Hide field" : "Delete field",
+                        onConfirm: () => {
+                          void handleDeleteField(entry);
+                        }
+                      })
+                    }
                     type="button"
                   >
                     ×
@@ -736,6 +760,24 @@ export function OfficeSettingsFieldsClient({
           </section>
         ) : null}
       </section>
+
+      <ConfirmActionDialog
+        cancelLabel="Cancel"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
 
       {editorState ? (
         <div className="bm-modal-overlay" onClick={() => setEditorState(null)}>

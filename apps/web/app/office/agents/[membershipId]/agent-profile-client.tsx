@@ -6,6 +6,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import {
   Badge,
   Button,
+  ConfirmActionDialog,
   FormField,
   PageHeader,
   PageShell,
@@ -55,6 +56,13 @@ type GoalDraft = {
   targetOfficeNet: string;
   targetAgentNet: string;
   notes: string;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 function buildProfileState(snapshot: OfficeAgentProfileSnapshot): ProfileState {
@@ -150,6 +158,7 @@ export function AgentProfileClient({
   );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   const availableTeamOptions = useMemo(
     () => snapshot.availableTeams.filter((team) => !snapshot.teams.some((assigned) => assigned.id === team.id)),
@@ -475,7 +484,16 @@ export function AgentProfileClient({
                 {canManageTeams ? (
                   <Button
                     disabled={pendingAction === `remove-team:${team.id}`}
-                    onClick={() => handleRemoveTeam(team.id)}
+                    onClick={() =>
+                      setConfirmDialog({
+                        title: `Remove ${snapshot.profile.displayName} from ${team.name}?`,
+                        description: "This will remove the agent's current assignment to this team.",
+                        confirmLabel: "Remove from team",
+                        onConfirm: () => {
+                          void handleRemoveTeam(team.id);
+                        }
+                      })
+                    }
                     size="sm"
                     variant="ghost"
                   >
@@ -893,6 +911,24 @@ export function AgentProfileClient({
       </div>
 
       {error ? <p className="office-form-error">{error}</p> : null}
+
+      <ConfirmActionDialog
+        cancelLabel="Keep assignment"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
     </PageShell>
   );
 }

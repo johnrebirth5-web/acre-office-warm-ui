@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
-import { Button, EmptyState, FilterBar, FilterField, SecondaryMetaList, SelectInput, TextInput, TextareaInput } from "@acre/ui";
+import { Button, ConfirmActionDialog, EmptyState, FilterBar, FilterField, SecondaryMetaList, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 import type {
   OfficeLibraryDocument,
   OfficeLibraryFolderNode,
@@ -27,6 +27,13 @@ type DocumentResponse = {
     id: string;
     folderId: string | null;
   };
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 function formatFileSize(bytes: number) {
@@ -87,6 +94,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isRoutingPending, startRoutingTransition] = useTransition();
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   function buildLibraryUrl(updates: Record<string, string | null>) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -283,12 +291,6 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
   async function handleDeleteDocument() {
     if (!snapshot.selectedDocument) {
-      return;
-    }
-
-    const shouldDelete = window.confirm(`Delete "${snapshot.selectedDocument.title}"? This removes the stored file.`);
-
-    if (!shouldDelete) {
       return;
     }
 
@@ -621,7 +623,16 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                   <Button
                     className="office-inline-action"
                     disabled={pendingAction === "delete-document"}
-                    onClick={handleDeleteDocument}
+                    onClick={() =>
+                      setConfirmDialog({
+                        title: `Delete ${selectedDocument.title}?`,
+                        description: "This permanently removes the library document record and its stored file.",
+                        confirmLabel: "Delete document",
+                        onConfirm: () => {
+                          void handleDeleteDocument();
+                        }
+                      })
+                    }
                     type="button"
                     variant="danger"
                   >
@@ -882,6 +893,24 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
       ) : null}
 
       {isRoutingPending ? <p className="office-form-helper">Refreshing library view...</p> : null}
+
+      <ConfirmActionDialog
+        cancelLabel="Keep document"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
     </>
   );
 }

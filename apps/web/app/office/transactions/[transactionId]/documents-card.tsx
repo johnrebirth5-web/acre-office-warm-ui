@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, CheckboxField, EmptyState, FormField, SelectInput, StatusBadge, TextInput } from "@acre/ui";
+import { Button, CheckboxField, ConfirmActionDialog, EmptyState, FormField, SelectInput, StatusBadge, TextInput } from "@acre/ui";
 import type { OfficeTransactionDocument, OfficeTransactionDocumentFilter } from "@acre/db";
 
 type TaskOption = {
@@ -31,6 +31,13 @@ type UploadState = {
   linkedTaskId: string;
   isRequired: boolean;
   isUnsorted: boolean;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 const documentFilterOptions: Array<{ key: OfficeTransactionDocumentFilter; label: string }> = [
@@ -99,6 +106,7 @@ export function TransactionDocumentsCard({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   const visibleDocuments = useMemo(() => {
     if (filter === "signed") {
@@ -229,7 +237,8 @@ export function TransactionDocumentsCard({
   }
 
   return (
-    <section className="bm-detail-card" id="transaction-documents">
+    <>
+      <section className="bm-detail-card" id="transaction-documents">
       <div className="bm-card-head">
         <div>
           <h3>Documents</h3>
@@ -287,7 +296,16 @@ export function TransactionDocumentsCard({
                       <Button
                         className="office-inline-action-sm"
                         disabled={pendingAction === `delete:${document.id}`}
-                        onClick={() => handleDeleteDocument(document.id)}
+                        onClick={() =>
+                          setConfirmDialog({
+                            title: `Delete ${document.title}?`,
+                            description: "This permanently removes the transaction document and its stored file.",
+                            confirmLabel: "Delete document",
+                            onConfirm: () => {
+                              void handleDeleteDocument(document.id);
+                            }
+                          })
+                        }
                         size="sm"
                         variant="danger"
                       >
@@ -420,8 +438,27 @@ export function TransactionDocumentsCard({
         </div>
       ) : null}
 
-      {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
-    </section>
+        {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+      </section>
+
+      <ConfirmActionDialog
+        cancelLabel="Keep document"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
+    </>
   );
 }
 
@@ -442,6 +479,7 @@ export function TransactionUnsortedDocumentsCard({
   );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   async function handleMoveToStructured(documentId: string) {
     setPendingAction(`move:${documentId}`);
@@ -495,7 +533,8 @@ export function TransactionUnsortedDocumentsCard({
   }
 
   return (
-    <section className="bm-detail-card" id="transaction-unsorted-documents">
+    <>
+      <section className="bm-detail-card" id="transaction-unsorted-documents">
       <div className="bm-card-head">
         <div>
           <h3>Unsorted documents</h3>
@@ -529,7 +568,16 @@ export function TransactionUnsortedDocumentsCard({
                     <Button
                       className="office-inline-action-sm"
                       disabled={pendingAction === `delete:${document.id}`}
-                      onClick={() => handleDelete(document.id)}
+                      onClick={() =>
+                        setConfirmDialog({
+                          title: `Delete ${document.title}?`,
+                          description: "This permanently removes the unsorted document and its stored file from the transaction.",
+                          confirmLabel: "Delete document",
+                          onConfirm: () => {
+                            void handleDelete(document.id);
+                          }
+                        })
+                      }
                       size="sm"
                       variant="danger"
                     >
@@ -581,7 +629,26 @@ export function TransactionUnsortedDocumentsCard({
         )}
       </div>
 
-      {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
-    </section>
+        {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+      </section>
+
+      <ConfirmActionDialog
+        cancelLabel="Keep document"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
+    </>
   );
 }

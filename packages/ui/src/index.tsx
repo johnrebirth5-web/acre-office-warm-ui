@@ -40,6 +40,51 @@ export function Button(props: ComponentPropsWithoutRef<"button"> & { variant?: B
   return <button className={buttonClassName(variant, size, className)} type={type} {...rest} />;
 }
 
+export function ConfirmActionDialog(props: {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  confirmVariant?: ButtonVariant;
+  children?: ReactNode;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!props.isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="bm-modal-overlay" onClick={props.onCancel}>
+      <section
+        aria-label={props.title}
+        aria-modal="true"
+        className="bm-transaction-modal office-confirm-dialog"
+        onClick={(event) => event.stopPropagation()}
+        role="alertdialog"
+      >
+        <header className="office-confirm-dialog-head">
+          <span className="office-confirm-dialog-kicker">Confirm action</span>
+          <h3>{props.title}</h3>
+          <p>{props.description}</p>
+        </header>
+
+        {props.children ? <div className="office-confirm-dialog-body">{props.children}</div> : null}
+
+        <footer className="office-confirm-dialog-footer">
+          <Button onClick={props.onCancel} type="button" variant="secondary">
+            {props.cancelLabel ?? "Cancel"}
+          </Button>
+          <Button onClick={props.onConfirm} type="button" variant={props.confirmVariant ?? "danger"}>
+            {props.confirmLabel ?? "Confirm"}
+          </Button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 export function PageShell(props: { className?: string; children: ReactNode }) {
   return <div className={cx("office-page-shell", props.className)}>{props.children}</div>;
 }

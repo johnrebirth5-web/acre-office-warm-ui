@@ -6,6 +6,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import {
   Button,
   CheckboxField,
+  ConfirmActionDialog,
   EmptyState,
   FormField,
   HorizontalScrollArea,
@@ -29,6 +30,13 @@ type PaymentMethodFormState = {
   last4: string;
   isDefault: boolean;
   autoPayEnabled: boolean;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 function BillingTable(props: { children: ReactNode }) {
@@ -102,6 +110,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
   const [paymentMethodFormState, setPaymentMethodFormState] = useState<PaymentMethodFormState>(buildEmptyPaymentMethodState);
   const [pendingAction, setPendingAction] = useState<"" | "save-payment-method" | "remove-payment-method">("");
   const [formError, setFormError] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   function openPaymentMethodCreate() {
     setFormError("");
@@ -155,10 +164,6 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
   }
 
   async function handleRemovePaymentMethod(paymentMethodId: string) {
-    if (!window.confirm("Remove this payment-method reference from your billing profile?")) {
-      return;
-    }
-
     setFormError("");
     setPendingAction("remove-payment-method");
 
@@ -509,7 +514,17 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                         {method.statusValue !== "removed" ? (
                           <Button
                             disabled={pendingAction === "remove-payment-method"}
-                            onClick={() => handleRemovePaymentMethod(method.id)}
+                            onClick={() =>
+                              setConfirmDialog({
+                                title: `Remove ${method.label}?`,
+                                description:
+                                  "This removes the payment-method reference from your billing profile. It does not charge or refund anything.",
+                                confirmLabel: "Remove method",
+                                onConfirm: () => {
+                                  void handleRemovePaymentMethod(method.id);
+                                }
+                              })
+                            }
                             size="sm"
                             variant="secondary"
                           >
@@ -659,6 +674,24 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
           </section>
         </div>
       ) : null}
+
+      <ConfirmActionDialog
+        cancelLabel="Keep method"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
     </>
   );
 }

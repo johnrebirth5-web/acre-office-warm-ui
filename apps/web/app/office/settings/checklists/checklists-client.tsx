@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
   Button,
   CheckboxField,
+  ConfirmActionDialog,
   DataTable,
   DataTableBody,
   DataTableHeader,
@@ -44,6 +45,13 @@ type TemplateDraft = {
   transactionType: string;
   isActive: boolean;
   items: TemplateItemDraft[];
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 function buildTemplateDraft(template: OfficeChecklistTemplateRecord): TemplateDraft {
@@ -93,6 +101,7 @@ export function OfficeSettingsChecklistsClient({ snapshot, canManageChecklists }
   const [templateDrafts, setTemplateDrafts] = useState<Record<string, TemplateDraft>>(
     Object.fromEntries(snapshot.templates.map((template) => [template.id, buildTemplateDraft(template)]))
   );
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   useEffect(() => {
     setTemplateDrafts(Object.fromEntries(snapshot.templates.map((template) => [template.id, buildTemplateDraft(template)])));
@@ -340,7 +349,20 @@ export function OfficeSettingsChecklistsClient({ snapshot, canManageChecklists }
                   </div>
 
                   {newTemplate.items.length > 1 ? (
-                    <button className="office-settings-item-delete" onClick={() => removeTemplateItem("new", index)} type="button">
+                    <button
+                      className="office-settings-item-delete"
+                      onClick={() =>
+                        setConfirmDialog({
+                          title: `Remove row ${index + 1}?`,
+                          description: "This removes the checklist row from the draft before you save the template.",
+                          confirmLabel: "Remove row",
+                          onConfirm: () => {
+                            removeTemplateItem("new", index);
+                          }
+                        })
+                      }
+                      type="button"
+                    >
                       Remove row
                     </button>
                   ) : null}
@@ -481,7 +503,20 @@ export function OfficeSettingsChecklistsClient({ snapshot, canManageChecklists }
                       </div>
 
                       {canManageChecklists && draft.items.length > 1 ? (
-                        <button className="office-settings-item-delete" onClick={() => removeTemplateItem(template.id, index)} type="button">
+                        <button
+                          className="office-settings-item-delete"
+                          onClick={() =>
+                            setConfirmDialog({
+                              title: `Remove row ${index + 1}?`,
+                              description: "This removes the checklist row from the current template draft until you save again.",
+                              confirmLabel: "Remove row",
+                              onConfirm: () => {
+                                removeTemplateItem(template.id, index);
+                              }
+                            })
+                          }
+                          type="button"
+                        >
                           Remove row
                         </button>
                       ) : null}
@@ -503,6 +538,24 @@ export function OfficeSettingsChecklistsClient({ snapshot, canManageChecklists }
             <EmptyState description="Create your first checklist template to configure workflow rows." title="No templates to edit" />
           ) : null}
         </div>
+
+        <ConfirmActionDialog
+          cancelLabel="Keep row"
+          confirmLabel={confirmDialog?.confirmLabel}
+          description={confirmDialog?.description ?? ""}
+          isOpen={Boolean(confirmDialog)}
+          onCancel={() => setConfirmDialog(null)}
+          onConfirm={() => {
+            if (!confirmDialog) {
+              return;
+            }
+
+            const action = confirmDialog.onConfirm;
+            setConfirmDialog(null);
+            action();
+          }}
+          title={confirmDialog?.title ?? ""}
+        />
       </ListPageSection>
     </ListPageStack>
   );

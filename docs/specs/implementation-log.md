@@ -50,6 +50,7 @@
   - contact and offer custom values now persist in `Client.additionalFields` and `Offer.additionalFields`
   - field-structure changes write to `Activity Log`
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
+- Destructive Back Office actions now use a shared confirmation dialog before delete/remove/unlink-style execution, replacing one-click deletes and ad-hoc `window.confirm` prompts
 - `/office/transactions` and `/office/contacts` now share one canonical Office list-page template, including the same page header, summary/action block, workbench card, table card, and footer/pagination rhythm
 
 ## Current default baseline

@@ -6,6 +6,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import {
   Badge,
   Button,
+  ConfirmActionDialog,
   DataTable,
   DataTableBody,
   DataTableHeader,
@@ -40,6 +41,13 @@ type TeamMemberDraft = {
   reportsToTeamMembershipId: string;
 };
 
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+};
+
 export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSettingsTeamsClientProps) {
   const router = useRouter();
   const [newTeamName, setNewTeamName] = useState("");
@@ -72,6 +80,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
       )
     )
   );
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   const memberOptions = useMemo(
     () =>
@@ -303,8 +312,9 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
   }
 
   return (
-    <ListPageStack>
-      {submitError ? <p className="office-inline-error">{submitError}</p> : null}
+    <>
+      <ListPageStack>
+        {submitError ? <p className="office-inline-error">{submitError}</p> : null}
 
       <ListPageTableSection footer={<ListPageFooter summary={`${snapshot.teams.length} team rows`} />} subtitle="Same list/table rhythm as Transactions, with team-level operational metrics." title="Teams list">
         <DataTable className="office-table">
@@ -410,7 +420,17 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                         </Button>
                         <Button
                           disabled={pendingAction === `delete-team:${team.id}`}
-                          onClick={() => handleDeleteTeam(team.id)}
+                          onClick={() =>
+                            setConfirmDialog({
+                              title: `Delete ${team.name}?`,
+                              description:
+                                "This permanently deletes the team record after the current server-side safety checks pass.",
+                              confirmLabel: "Delete team",
+                              onConfirm: () => {
+                                void handleDeleteTeam(team.id);
+                              }
+                            })
+                          }
                           size="sm"
                           variant="danger"
                         >
@@ -487,7 +507,17 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                               <button
                                 className="office-settings-pill-button"
                                 disabled={pendingAction === `remove-member:${team.id}:${member.membershipId}`}
-                                onClick={() => handleRemoveMember(team.id, member.membershipId)}
+                                onClick={() =>
+                                  setConfirmDialog({
+                                    title: `Remove ${member.label} from ${team.name}?`,
+                                    description:
+                                      "This removes the team membership but keeps the agent active in the roster.",
+                                    confirmLabel: "Remove member",
+                                    onConfirm: () => {
+                                      void handleRemoveMember(team.id, member.membershipId);
+                                    }
+                                  })
+                                }
                                 type="button"
                               >
                                 Remove
@@ -565,6 +595,25 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
           )}
         </div>
       </ListPageSection>
-    </ListPageStack>
+      </ListPageStack>
+
+      <ConfirmActionDialog
+        cancelLabel="Cancel"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
+    </>
   );
 }

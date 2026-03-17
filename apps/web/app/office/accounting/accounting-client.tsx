@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { OfficeAccountingSnapshot, OfficeAgentBillingSnapshot, OfficeCommissionManagementSnapshot } from "@acre/db";
 import {
   Button,
+  ConfirmActionDialog,
   DataTable,
   DataTableBody,
   DataTableHeader,
@@ -91,6 +92,13 @@ type EarnestMoneyFormState = {
   heldExternally: boolean;
   trackInLedger: boolean;
   notes: string;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 const accountingTypeOptions: AccountingTypeOption[] = [
@@ -337,6 +345,7 @@ export function OfficeAccountingClient({
   const [isSavingEarnestMoney, setIsSavingEarnestMoney] = useState(false);
   const [entryError, setEntryError] = useState("");
   const [earnestMoneyError, setEarnestMoneyError] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [filterState, setFilterState] = useState({
     type: snapshot.filters.type,
     status: snapshot.filters.status,
@@ -452,6 +461,17 @@ export function OfficeAccountingClient({
       ...current,
       lineItems: current.lineItems.length === 1 ? [createEmptyLineItem()] : current.lineItems.filter((_, lineItemIndex) => lineItemIndex !== index)
     }));
+  }
+
+  function requestRemoveLineItem(index: number) {
+    setConfirmDialog({
+      title: `Remove line item ${index + 1}?`,
+      description: "This removes the line item from the current accounting draft before you save it.",
+      confirmLabel: "Remove line item",
+      onConfirm: () => {
+        removeLineItem(index);
+      }
+    });
   }
 
   function openCreateEntryModal() {
@@ -779,7 +799,7 @@ export function OfficeAccountingClient({
                   memberOptions={snapshot.memberOptions}
                   onAddLineItem={addLineItem}
                   onLineItemChange={updateLineItem}
-                  onRemoveLineItem={removeLineItem}
+                  onRemoveLineItem={requestRemoveLineItem}
                   onUpdateField={updateEntryField}
                   paymentMethodOptions={paymentMethodOptions}
                   transactionOptions={snapshot.filters.transactionOptions}
@@ -921,7 +941,7 @@ export function OfficeAccountingClient({
                 memberOptions={snapshot.memberOptions}
                 onAddLineItem={addLineItem}
                 onLineItemChange={updateLineItem}
-                onRemoveLineItem={removeLineItem}
+                onRemoveLineItem={requestRemoveLineItem}
                 onUpdateField={updateEntryField}
                 paymentMethodOptions={paymentMethodOptions}
                 transactionOptions={snapshot.filters.transactionOptions}
@@ -1069,6 +1089,24 @@ export function OfficeAccountingClient({
           </section>
         </div>
       ) : null}
+
+      <ConfirmActionDialog
+        cancelLabel="Keep line item"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
     </>
   );
 }

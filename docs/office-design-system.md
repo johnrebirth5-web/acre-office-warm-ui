@@ -161,6 +161,7 @@ Office 路由级 canonical 组合层：
 - 旧的 `bm-create-button`、`bm-view-toggle`、`bm-transactions-page-button`、`bm-contacts-page-button` 视为兼容层，不再作为新页面的首选
 - link-style actions 优先复用同一套按钮尺寸、圆角、hover 和 focus 状态
 - 任务、通知、审批队列里的行级动作也必须回到这套按钮等级，不再允许 page-local action chrome 漂移
+- 所有 destructive action，尤其是 `Delete / Remove / Unlink / Reset` 这类会移除记录、关联、行项目或覆盖的动作，不允许一击执行；必须先经过统一的确认弹窗，再进入真正的删除/移除请求
 
 ## 页面模板规则
 

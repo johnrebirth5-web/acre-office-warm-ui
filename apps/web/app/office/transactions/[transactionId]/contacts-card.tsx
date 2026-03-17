@@ -3,12 +3,20 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ConfirmActionDialog } from "@acre/ui";
 import type { OfficeTransactionContact, OfficeTransactionContactOption } from "@acre/db";
 
 type TransactionContactsCardProps = {
   transactionId: string;
   contacts: OfficeTransactionContact[];
   availableContacts: OfficeTransactionContactOption[];
+};
+
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
 };
 
 export function TransactionContactsCard({
@@ -21,6 +29,7 @@ export function TransactionContactsCard({
   const [makePrimary, setMakePrimary] = useState(false);
   const [actionError, setActionError] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   async function handleLinkContact() {
     if (!selectedContactId) {
@@ -137,7 +146,16 @@ export function TransactionContactsCard({
                 <button
                   className="bm-view-toggle"
                   disabled={pendingAction === `unlink:${contact.id}`}
-                  onClick={() => handleUnlink(contact.id)}
+                  onClick={() =>
+                    setConfirmDialog({
+                      title: `Unlink ${contact.fullName}?`,
+                      description: "This removes the contact from the transaction without deleting the contact record itself.",
+                      confirmLabel: "Unlink contact",
+                      onConfirm: () => {
+                        void handleUnlink(contact.id);
+                      }
+                    })
+                  }
                   type="button"
                 >
                   {pendingAction === `unlink:${contact.id}` ? "Removing..." : "Unlink"}
@@ -172,6 +190,24 @@ export function TransactionContactsCard({
       </div>
 
       {actionError ? <p className="bm-transaction-submit-error">{actionError}</p> : null}
+
+      <ConfirmActionDialog
+        cancelLabel="Keep link"
+        confirmLabel={confirmDialog?.confirmLabel}
+        description={confirmDialog?.description ?? ""}
+        isOpen={Boolean(confirmDialog)}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          if (!confirmDialog) {
+            return;
+          }
+
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog(null);
+          action();
+        }}
+        title={confirmDialog?.title ?? ""}
+      />
     </section>
   );
 }
