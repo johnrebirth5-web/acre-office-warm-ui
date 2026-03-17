@@ -8561,8 +8561,8 @@ a {
 
 .office-fields-shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
@@ -8576,16 +8576,15 @@ a {
 }
 
 .office-fields-module-rail {
-  padding: 18px;
+  padding: 20px 22px;
   display: grid;
-  gap: 16px;
-  position: sticky;
-  top: 18px;
+  gap: 18px;
+  position: static;
 }
 
 .office-fields-module-rail-head {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .office-fields-module-rail-head span,
@@ -8608,7 +8607,8 @@ a {
 
 .office-fields-module-list {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .office-fields-module-link {
@@ -8621,6 +8621,7 @@ a {
   border-radius: 18px;
   background: rgba(247, 249, 252, 0.9);
   color: inherit;
+  min-height: 122px;
   transition:
     border-color 140ms ease,
     background-color 140ms ease,
@@ -8647,7 +8648,7 @@ a {
 }
 
 .office-fields-panel {
-  padding: 22px;
+  padding: 24px;
   display: grid;
   gap: 18px;
 }
