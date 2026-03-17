@@ -57,7 +57,7 @@ export default async function OfficeSettingsFieldsPage({ searchParams }: OfficeS
       />
 
       <ListPageStack className="office-settings-list-stack">
-        <OfficeSettingsNav />
+        <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsFieldsClient canManageFields={canManageFields} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>

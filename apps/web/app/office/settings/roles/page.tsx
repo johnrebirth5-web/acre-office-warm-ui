@@ -32,7 +32,7 @@ export default async function OfficeSettingsRolesPage() {
       />
 
       <div className="office-list-page-stack office-settings-list-stack">
-        <OfficeSettingsNav />
+        <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsRolesClient canManageSettings={canManageOfficeSettings(context.currentMembership)} snapshot={snapshot} />
       </div>
     </PageShell>

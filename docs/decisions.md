@@ -586,8 +586,8 @@ Trade-off：
   - `AgentOnboardingItem`
   - `AgentOnboardingTemplateItem`
   - `AgentGoal`
-- `/office/agents` 是 roster 页面
-- `/office/agents/:membershipId` 是 profile/detail 页面
+- `Settings / Users` 现在承接 canonical member roster / detail 页面
+- `/office/agents` 与 `/office/agents/:membershipId` 降级为 legacy redirect
 - roster 现在承载管理型摘要，而不只是目录：
   - membership status
   - onboarding progress

@@ -97,6 +97,7 @@ Current routes:
 `/office/settings/users` now supports:
 
 - search / filter the internal account roster
+- switch between `access` and `operations` views inside the same route
 - open a dedicated detail page for each membership
 - create invited users from a modal / drawer flow
 - copy the generated invite link without leaving the page
@@ -104,6 +105,7 @@ Current routes:
 `/office/settings/users/[membershipId]` now supports:
 
 - review core account identity, office access, team context, and sign-in timestamps
+- review and edit operational profile, team assignments, onboarding, goals, and workload context without leaving the user detail route
 - update role
 - update membership status
 - update office access

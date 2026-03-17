@@ -1,15 +1,4 @@
-import {
-  canManageOfficeAgents,
-  canManageOfficeGoals,
-  canManageOfficeOnboarding,
-  canManageOfficeTeams,
-  canViewOfficeAgents
-} from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
-import { getOfficeAgentsRosterSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
-import { requireOfficeSession } from "../../../lib/auth-session";
-import { OfficeAgentsClient } from "./agents-client";
 
 type OfficeAgentsPageProps = {
   searchParams?: Promise<{
@@ -23,54 +12,33 @@ type OfficeAgentsPageProps = {
 };
 
 export default async function OfficeAgentsPage(props: OfficeAgentsPageProps) {
-  const context = await requireOfficeSession();
+  const searchParams = (await props.searchParams) ?? {};
+  const nextSearchParams = new URLSearchParams();
+  nextSearchParams.set("view", "operations");
 
-  if (!canViewOfficeAgents(context.currentMembership)) {
-    redirect("/office/dashboard");
+  if (searchParams.q) {
+    nextSearchParams.set("q", searchParams.q);
   }
 
-  const searchParams = (await props.searchParams) ?? {};
-  const snapshot = await getOfficeAgentsRosterSnapshot({
-    organizationId: context.currentOrganization.id,
-    viewerMembershipId: context.currentMembership.id,
-    officeId: context.currentOffice?.id ?? null,
-    officeFilterId: searchParams.officeId,
-    role: searchParams.role,
-    teamId: searchParams.teamId,
-    onboardingStatus: searchParams.onboardingStatus,
-    membershipStatus: searchParams.membershipStatus,
-    q: searchParams.q
-  });
+  if (searchParams.role) {
+    nextSearchParams.set("role", searchParams.role);
+  }
 
-  return (
-    <PageShell className="office-list-page office-agents-list-page">
-      <PageHeader
-        className="office-agents-page-header"
-        actions={
-          <PageHeaderSummary className="office-agents-header-summary">
-            <SummaryChip
-              className="office-agents-summary-card office-agents-summary-card-featured"
-              label="Office scope"
-              value={context.currentOffice?.name ?? context.currentOrganization.name}
-            />
-            <SummaryChip className="office-agents-summary-card" label="Rostered members" tone="accent" value={snapshot.summary.totalMembers} />
-            <SummaryChip className="office-agents-summary-card" label="Active teams" value={snapshot.summary.activeTeamCount} />
-            <SummaryChip className="office-agents-summary-card" label="Onboarding in progress" value={snapshot.summary.onboardingInProgressCount} />
-            <SummaryChip className="office-agents-summary-card" label="Inactive members" value={snapshot.summary.inactiveMemberCount} />
-          </PageHeaderSummary>
-        }
-        description="Agent profiles, onboarding progress, team assignments, goals, and day-to-day operating visibility for the current office."
-        eyebrow="Agent management"
-        title="Agents"
-      />
+  if (searchParams.officeId) {
+    nextSearchParams.set("officeId", searchParams.officeId);
+  }
 
-      <OfficeAgentsClient
-        canManageAgents={canManageOfficeAgents(context.currentMembership)}
-        canManageGoals={canManageOfficeGoals(context.currentMembership)}
-        canManageOnboarding={canManageOfficeOnboarding(context.currentMembership)}
-        canManageTeams={canManageOfficeTeams(context.currentMembership)}
-        snapshot={snapshot}
-      />
-    </PageShell>
-  );
+  if (searchParams.teamId) {
+    nextSearchParams.set("teamId", searchParams.teamId);
+  }
+
+  if (searchParams.onboardingStatus) {
+    nextSearchParams.set("onboardingStatus", searchParams.onboardingStatus);
+  }
+
+  if (searchParams.membershipStatus) {
+    nextSearchParams.set("membershipStatus", searchParams.membershipStatus);
+  }
+
+  redirect(`/office/settings/users?${nextSearchParams.toString()}`);
 }

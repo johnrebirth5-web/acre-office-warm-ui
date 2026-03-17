@@ -36,7 +36,7 @@ export default async function OfficeSettingsTeamsPage() {
       />
 
       <ListPageStack className="office-settings-list-stack">
-        <OfficeSettingsNav />
+        <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsTeamsClient canManageTeams={canManageOfficeTeams(context.currentMembership)} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>

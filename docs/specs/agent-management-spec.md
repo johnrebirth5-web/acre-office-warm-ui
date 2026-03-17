@@ -6,20 +6,21 @@ Provide a real Back Office agent management workspace for office operations, cov
 
 ## Current implemented foundation
 
-- `Agent Management` already exists as a real Back Office module
-- current routes:
+- `Agent Management` now survives primarily as underlying domain foundation plus legacy redirect routes
+- canonical routes now live under:
+  - `/office/settings/users?view=operations`
+  - `/office/settings/users/[membershipId]`
+- legacy routes:
   - `/office/agents`
   - `/office/agents/[membershipId]`
-- current nav exposure:
-  - it is currently exposed as a top-level Office nav item
-  - if future product direction changes, it could be repositioned without changing the underlying data model
-- agent roster currently supports management-oriented visibility for:
+  - both redirect into the unified `Users` workspace
+- operational roster view currently supports management-oriented visibility for:
   - office
   - role
   - team
   - onboarding status
   - task / transaction / billing / goal progress summaries
-- agent profile currently acts as an operational profile hub with sections for:
+- the unified user detail page currently acts as the operational profile hub with sections for:
   - profile basics
   - office / role
   - teams

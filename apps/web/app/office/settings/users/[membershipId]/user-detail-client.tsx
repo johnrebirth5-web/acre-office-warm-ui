@@ -20,6 +20,8 @@ import {
 type OfficeSettingsUserDetailClientProps = {
   snapshot: OfficeAdminUserDetailSnapshot;
   canManageUsers: boolean;
+  mode?: "full" | "access-only";
+  operationsHref?: string | null;
 };
 
 type DetailDraft = {
@@ -42,7 +44,9 @@ type MutationResponse = {
 
 export function OfficeSettingsUserDetailClient({
   snapshot,
-  canManageUsers
+  canManageUsers,
+  mode = "full",
+  operationsHref
 }: OfficeSettingsUserDetailClientProps) {
   const router = useRouter();
   const [draft, setDraft] = useState<DetailDraft>({
@@ -202,6 +206,8 @@ export function OfficeSettingsUserDetailClient({
 
   const roleChanged = draft.role !== snapshot.profile.roleValue;
   const permissionEditorHref = `/office/settings/users/${snapshot.profile.membershipId}/permissions`;
+  const profileLinkHref = operationsHref ?? snapshot.profile.agentProfileHref;
+  const showOperationalSections = mode === "full";
 
   return (
     <div className="office-settings-user-detail-stack">
@@ -255,9 +261,9 @@ export function OfficeSettingsUserDetailClient({
               <Badge tone={getInvitationTone(snapshot.profile)}>{snapshot.profile.invitationStatusLabel}</Badge>
               {snapshot.profile.invitationExpiresAtLabel ? <span>Invite expires {snapshot.profile.invitationExpiresAtLabel}</span> : null}
               {snapshot.profile.isLocked ? <StatusBadge tone="danger">Locked until {snapshot.profile.lockedUntilLabel}</StatusBadge> : null}
-              {snapshot.profile.agentProfileHref ? (
-                <Link className="office-button office-button-secondary office-button-sm" href={snapshot.profile.agentProfileHref}>
-                  Open agent profile
+              {profileLinkHref ? (
+                <Link className="office-button office-button-secondary office-button-sm" href={profileLinkHref}>
+                  {operationsHref ? "Jump to operations" : "Open agent profile"}
                 </Link>
               ) : null}
             </div>
@@ -398,140 +404,144 @@ export function OfficeSettingsUserDetailClient({
         </SectionCard>
       </div>
 
-      <div className="office-detail-two-column office-settings-user-detail-grid">
-        <SectionCard subtitle="Current office, team memberships, and related profile routing." title="Context">
-          <div className="office-settings-user-context-list">
-            <div className="office-secondary-meta-row">
-              <dt>Office</dt>
-              <dd>{snapshot.profile.officeName}</dd>
-            </div>
-            <div className="office-secondary-meta-row">
-              <dt>Title</dt>
-              <dd>{snapshot.profile.title || "—"}</dd>
-            </div>
-            <div className="office-secondary-meta-row">
-              <dt>Team summary</dt>
-              <dd>{snapshot.profile.teamSummary}</dd>
-            </div>
-          </div>
-
-          <div className="office-settings-user-team-list">
-            {snapshot.teams.map((team) => (
-              <article className="office-settings-user-team-item" key={team.id}>
-                <div>
-                  <strong>{team.name}</strong>
-                  <p>
-                    {team.roleLabel} · {team.reportsToLabel}
-                  </p>
+      {showOperationalSections ? (
+        <>
+          <div className="office-detail-two-column office-settings-user-detail-grid">
+            <SectionCard subtitle="Current office, team memberships, and related profile routing." title="Context">
+              <div className="office-settings-user-context-list">
+                <div className="office-secondary-meta-row">
+                  <dt>Office</dt>
+                  <dd>{snapshot.profile.officeName}</dd>
                 </div>
-                <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
-              </article>
-            ))}
-            {snapshot.teams.length === 0 ? <p className="office-form-helper">No team assignments yet.</p> : null}
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          subtitle={`${snapshot.onboarding.completedCount} of ${snapshot.onboarding.totalCount} items complete.`}
-          title="Onboarding"
-        >
-          <div className="office-settings-user-inline-badges">
-            <StatusBadge tone={getOnboardingTone(snapshot.onboarding.statusValue)}>{snapshot.onboarding.statusLabel}</StatusBadge>
-            <Badge tone="neutral">{snapshot.onboarding.totalCount} items</Badge>
-          </div>
-
-          <div className="office-settings-user-onboarding-list">
-            {snapshot.onboarding.items.map((item) => (
-              <article className="office-settings-user-onboarding-item" key={item.id}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <p>
-                    {item.category}
-                    {item.dueAtLabel ? ` · Due ${item.dueAtLabel}` : ""}
-                  </p>
+                <div className="office-secondary-meta-row">
+                  <dt>Title</dt>
+                  <dd>{snapshot.profile.title || "—"}</dd>
                 </div>
-                <div className="office-settings-user-onboarding-meta">
-                  <StatusBadge
-                    tone={
-                      item.statusValue === "completed"
-                        ? "success"
-                        : item.statusValue === "in_progress"
-                          ? "accent"
-                          : item.statusValue === "reopened"
-                            ? "warning"
-                            : "neutral"
-                    }
-                  >
-                    {item.statusLabel}
-                  </StatusBadge>
-                  {item.completedAtLabel ? <small>Completed {item.completedAtLabel}</small> : null}
+                <div className="office-secondary-meta-row">
+                  <dt>Team summary</dt>
+                  <dd>{snapshot.profile.teamSummary}</dd>
                 </div>
-              </article>
-            ))}
-            {snapshot.onboarding.items.length === 0 ? <p className="office-form-helper">No onboarding items have been assigned.</p> : null}
-          </div>
-        </SectionCard>
-      </div>
-
-      <SectionCard subtitle="Current commission assignment and recent persisted calculation visibility for this membership." title="Commission summary">
-        <div className="office-agents-profile-summary-grid">
-          <div className="office-detail-field">
-            <span>Active plan</span>
-            <strong>{snapshot.commission.activePlanLabel || "Manual / unassigned"}</strong>
-          </div>
-          <div className="office-detail-field">
-            <span>Plan source</span>
-            <strong>{snapshot.commission.activePlanSourceLabel || "No active assignment"}</strong>
-          </div>
-          <div className="office-detail-field">
-            <span>Statement ready</span>
-            <strong>{snapshot.commission.statementReadyLabel}</strong>
-          </div>
-          <div className="office-detail-field">
-            <span>Payable</span>
-            <strong>{snapshot.commission.payableLabel}</strong>
-          </div>
-        </div>
-
-        <div className="office-note-list">
-          {snapshot.commission.recentCalculations.map((calculation) => (
-            <article className="office-note-item" key={calculation.id}>
-              <span>{calculation.status}</span>
-              <div>
-                <strong>{calculation.transactionHref ? <Link href={calculation.transactionHref}>{calculation.transactionLabel}</Link> : calculation.transactionLabel}</strong>
-                <p>
-                  {calculation.recipientLabel} · {calculation.statementAmountLabel}
-                </p>
               </div>
-            </article>
-          ))}
-          {snapshot.commission.recentCalculations.length === 0 ? (
-            <p className="office-form-helper">No commission calculations have been recorded for this user yet.</p>
-          ) : null}
-        </div>
-      </SectionCard>
 
-      <SectionCard subtitle="Latest audit trail items tied to this user account, invitations, and credential events." title="Recent activity">
-        <div className="office-settings-user-activity-list">
-          {snapshot.recentActivity.map((item) => (
-            <article className="office-settings-user-activity-item" key={item.id}>
-              <div className="office-settings-user-activity-copy">
-                <strong>{item.actionLabel}</strong>
-                <p>{item.detail}</p>
-                <small>
-                  {item.actorDisplayName} · {item.timestampLabel}
-                </small>
+              <div className="office-settings-user-team-list">
+                {snapshot.teams.map((team) => (
+                  <article className="office-settings-user-team-item" key={team.id}>
+                    <div>
+                      <strong>{team.name}</strong>
+                      <p>
+                        {team.roleLabel} · {team.reportsToLabel}
+                      </p>
+                    </div>
+                    <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
+                  </article>
+                ))}
+                {snapshot.teams.length === 0 ? <p className="office-form-helper">No team assignments yet.</p> : null}
               </div>
-              {item.href ? (
-                <Link className="office-button office-button-secondary office-button-sm" href={item.href}>
-                  Open
-                </Link>
+            </SectionCard>
+
+            <SectionCard
+              subtitle={`${snapshot.onboarding.completedCount} of ${snapshot.onboarding.totalCount} items complete.`}
+              title="Onboarding"
+            >
+              <div className="office-settings-user-inline-badges">
+                <StatusBadge tone={getOnboardingTone(snapshot.onboarding.statusValue)}>{snapshot.onboarding.statusLabel}</StatusBadge>
+                <Badge tone="neutral">{snapshot.onboarding.totalCount} items</Badge>
+              </div>
+
+              <div className="office-settings-user-onboarding-list">
+                {snapshot.onboarding.items.map((item) => (
+                  <article className="office-settings-user-onboarding-item" key={item.id}>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>
+                        {item.category}
+                        {item.dueAtLabel ? ` · Due ${item.dueAtLabel}` : ""}
+                      </p>
+                    </div>
+                    <div className="office-settings-user-onboarding-meta">
+                      <StatusBadge
+                        tone={
+                          item.statusValue === "completed"
+                            ? "success"
+                            : item.statusValue === "in_progress"
+                              ? "accent"
+                              : item.statusValue === "reopened"
+                                ? "warning"
+                                : "neutral"
+                        }
+                      >
+                        {item.statusLabel}
+                      </StatusBadge>
+                      {item.completedAtLabel ? <small>Completed {item.completedAtLabel}</small> : null}
+                    </div>
+                  </article>
+                ))}
+                {snapshot.onboarding.items.length === 0 ? <p className="office-form-helper">No onboarding items have been assigned.</p> : null}
+              </div>
+            </SectionCard>
+          </div>
+
+          <SectionCard subtitle="Current commission assignment and recent persisted calculation visibility for this membership." title="Commission summary">
+            <div className="office-agents-profile-summary-grid">
+              <div className="office-detail-field">
+                <span>Active plan</span>
+                <strong>{snapshot.commission.activePlanLabel || "Manual / unassigned"}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Plan source</span>
+                <strong>{snapshot.commission.activePlanSourceLabel || "No active assignment"}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Statement ready</span>
+                <strong>{snapshot.commission.statementReadyLabel}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Payable</span>
+                <strong>{snapshot.commission.payableLabel}</strong>
+              </div>
+            </div>
+
+            <div className="office-note-list">
+              {snapshot.commission.recentCalculations.map((calculation) => (
+                <article className="office-note-item" key={calculation.id}>
+                  <span>{calculation.status}</span>
+                  <div>
+                    <strong>{calculation.transactionHref ? <Link href={calculation.transactionHref}>{calculation.transactionLabel}</Link> : calculation.transactionLabel}</strong>
+                    <p>
+                      {calculation.recipientLabel} · {calculation.statementAmountLabel}
+                    </p>
+                  </div>
+                </article>
+              ))}
+              {snapshot.commission.recentCalculations.length === 0 ? (
+                <p className="office-form-helper">No commission calculations have been recorded for this user yet.</p>
               ) : null}
-            </article>
-          ))}
-          {snapshot.recentActivity.length === 0 ? <p className="office-form-helper">No recent user activity yet.</p> : null}
-        </div>
-      </SectionCard>
+            </div>
+          </SectionCard>
+
+          <SectionCard subtitle="Latest audit trail items tied to this user account, invitations, and credential events." title="Recent activity">
+            <div className="office-settings-user-activity-list">
+              {snapshot.recentActivity.map((item) => (
+                <article className="office-settings-user-activity-item" key={item.id}>
+                  <div className="office-settings-user-activity-copy">
+                    <strong>{item.actionLabel}</strong>
+                    <p>{item.detail}</p>
+                    <small>
+                      {item.actorDisplayName} · {item.timestampLabel}
+                    </small>
+                  </div>
+                  {item.href ? (
+                    <Link className="office-button office-button-secondary office-button-sm" href={item.href}>
+                      Open
+                    </Link>
+                  ) : null}
+                </article>
+              ))}
+              {snapshot.recentActivity.length === 0 ? <p className="office-form-helper">No recent user activity yet.</p> : null}
+            </div>
+          </SectionCard>
+        </>
+      ) : null}
     </div>
   );
 }

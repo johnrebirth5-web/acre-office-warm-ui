@@ -1,11 +1,23 @@
 import Link from "next/link";
-import { canManageOfficeUsers, canViewOfficeUsers } from "@acre/auth";
+import {
+  canManageOfficeAgents,
+  canManageOfficeGoals,
+  canManageOfficeOnboarding,
+  canManageOfficeTeams,
+  canManageOfficeUsers,
+  canViewOfficeAgents,
+  canViewOfficeUsers
+} from "@acre/auth";
 import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
-import { getOfficeAdminUserDetailSnapshot } from "@acre/db";
+import {
+  getOfficeAdminUserDetailSnapshot,
+  getOfficeAgentProfileSnapshot,
+  type OfficeUserDetailWorkspaceSnapshot
+} from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../lib/auth-session";
 import { OfficeSettingsNav } from "../../settings-nav";
-import { OfficeSettingsUserDetailClient } from "./user-detail-client";
+import { OfficeSettingsUserWorkspaceDetailClient } from "./user-workspace-detail-client";
 
 type OfficeSettingsUserDetailPageProps = {
   params: Promise<{
@@ -15,21 +27,46 @@ type OfficeSettingsUserDetailPageProps = {
 
 export default async function OfficeSettingsUserDetailPage({ params }: OfficeSettingsUserDetailPageProps) {
   const context = await requireOfficeSession();
+  const canViewUsers = canViewOfficeUsers(context.currentMembership);
+  const canViewAgents = canViewOfficeAgents(context.currentMembership);
 
-  if (!canViewOfficeUsers(context.currentMembership)) {
+  if (!canViewUsers && !canViewAgents) {
     redirect("/office/settings");
   }
 
   const { membershipId } = await params;
-  const snapshot = await getOfficeAdminUserDetailSnapshot({
-    organizationId: context.currentOrganization.id,
-    officeId: context.currentOffice?.id ?? null,
-    membershipId
-  });
+  const [accessSnapshot, operationsSnapshot] = await Promise.all([
+    canViewUsers
+      ? getOfficeAdminUserDetailSnapshot({
+          organizationId: context.currentOrganization.id,
+          officeId: context.currentOffice?.id ?? null,
+          membershipId
+        })
+      : Promise.resolve(null),
+    canViewAgents
+      ? getOfficeAgentProfileSnapshot({
+          organizationId: context.currentOrganization.id,
+          viewerMembershipId: context.currentMembership.id,
+          officeId: context.currentOffice?.id ?? null,
+          membershipId
+        })
+      : Promise.resolve(null)
+  ]);
 
-  if (!snapshot) {
+  if (!accessSnapshot && !operationsSnapshot) {
     notFound();
   }
+
+  const snapshot: OfficeUserDetailWorkspaceSnapshot = {
+    access: accessSnapshot,
+    operations: operationsSnapshot
+  };
+  const primaryTitle = accessSnapshot?.profile.name ?? operationsSnapshot?.profile.displayName ?? "User";
+  const primaryDescription = accessSnapshot
+    ? `${accessSnapshot.profile.email}${accessSnapshot.profile.title ? ` · ${accessSnapshot.profile.title}` : ""}`
+    : `${operationsSnapshot?.profile.email ?? ""}${operationsSnapshot?.profile.title ? ` · ${operationsSnapshot.profile.title}` : ""}`;
+  const roleLabel = accessSnapshot?.profile.role ?? operationsSnapshot?.profile.role ?? "—";
+  const officeLabel = accessSnapshot?.profile.officeAccessLabel ?? operationsSnapshot?.profile.officeName ?? "—";
 
   return (
     <PageShell className="office-detail-page office-settings-user-detail-page">
@@ -39,20 +76,37 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
             <Link className="office-button office-button-secondary office-button-sm" href="/office/settings/users">
               Back to users
             </Link>
-            <SummaryChip label="Office access" value={snapshot.profile.officeAccessLabel} />
-            <SummaryChip label="Role" value={snapshot.profile.role} />
-            <SummaryChip label="Permissions" tone="accent" value={snapshot.permissions.effectivePermissions.length} />
-            <SummaryChip label="Overrides" value={snapshot.permissions.overrides.length} />
+            <SummaryChip label={accessSnapshot ? "Office access" : "Office"} value={officeLabel} />
+            <SummaryChip label="Role" value={roleLabel} />
+            {accessSnapshot ? (
+              <>
+                <SummaryChip label="Permissions" tone="accent" value={accessSnapshot.permissions.effectivePermissions.length} />
+                <SummaryChip label="Overrides" value={accessSnapshot.permissions.overrides.length} />
+              </>
+            ) : null}
+            {operationsSnapshot && !accessSnapshot ? (
+              <>
+                <SummaryChip label="Membership" tone="accent" value={operationsSnapshot.profile.membershipStatus} />
+                <SummaryChip label="Onboarding" value={operationsSnapshot.profile.onboardingStatus} />
+              </>
+            ) : null}
           </PageHeaderSummary>
         }
-        description={`${snapshot.profile.email}${snapshot.profile.title ? ` · ${snapshot.profile.title}` : ""}`}
+        description={primaryDescription}
         eyebrow="Office admin"
-        title={snapshot.profile.name}
+        title={primaryTitle}
       />
 
       <div className="office-list-page-stack office-settings-list-stack">
-        <OfficeSettingsNav />
-        <OfficeSettingsUserDetailClient canManageUsers={canManageOfficeUsers(context.currentMembership)} snapshot={snapshot} />
+        <OfficeSettingsNav currentAccess={context.currentMembership} />
+        <OfficeSettingsUserWorkspaceDetailClient
+          canManageAgents={canManageOfficeAgents(context.currentMembership)}
+          canManageGoals={canManageOfficeGoals(context.currentMembership)}
+          canManageOnboarding={canManageOfficeOnboarding(context.currentMembership)}
+          canManageTeams={canManageOfficeTeams(context.currentMembership)}
+          canManageUsers={canManageOfficeUsers(context.currentMembership)}
+          snapshot={snapshot}
+        />
       </div>
     </PageShell>
   );

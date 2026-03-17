@@ -2,18 +2,35 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  canAccessOfficeSettings,
+  canViewOfficeAgents,
+  canViewOfficeChecklists,
+  canViewOfficeFields,
+  canViewOfficeTeams,
+  canViewOfficeUsers,
+  canManageOfficeSettings,
+  type PermissionSubject
+} from "@acre/auth";
 
-const settingsLinks = [
-  { href: "/office/settings", label: "Overview" },
-  { href: "/office/settings/roles", label: "Roles" },
-  { href: "/office/settings/users", label: "Users" },
-  { href: "/office/settings/teams", label: "Teams" },
-  { href: "/office/settings/fields", label: "Fields" },
-  { href: "/office/settings/checklists", label: "Checklists" }
-];
+function getSettingsLinks(currentAccess: PermissionSubject) {
+  return [
+    { href: "/office/settings", label: "Overview", isVisible: canAccessOfficeSettings(currentAccess) },
+    { href: "/office/settings/roles", label: "Roles", isVisible: canManageOfficeSettings(currentAccess) },
+    { href: "/office/settings/users", label: "Users", isVisible: canViewOfficeUsers(currentAccess) || canViewOfficeAgents(currentAccess) },
+    { href: "/office/settings/teams", label: "Teams", isVisible: canViewOfficeTeams(currentAccess) },
+    { href: "/office/settings/fields", label: "Fields", isVisible: canViewOfficeFields(currentAccess) },
+    { href: "/office/settings/checklists", label: "Checklists", isVisible: canViewOfficeChecklists(currentAccess) }
+  ].filter((link) => link.isVisible);
+}
 
-export function OfficeSettingsNav() {
+type OfficeSettingsNavProps = {
+  currentAccess: PermissionSubject;
+};
+
+export function OfficeSettingsNav({ currentAccess }: OfficeSettingsNavProps) {
   const pathname = usePathname();
+  const settingsLinks = getSettingsLinks(currentAccess);
 
   return (
     <nav className="office-settings-nav" aria-label="Office settings sections">

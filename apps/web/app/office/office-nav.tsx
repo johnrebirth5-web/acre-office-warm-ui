@@ -12,7 +12,6 @@ import {
   canAccessOfficeSettings,
   canAccessOfficeTasks,
   canManageOfficeSettings,
-  canManageOfficeUsers,
   canViewOfficeAgents,
   canViewOfficeChecklists,
   canViewOfficeContacts,
@@ -21,6 +20,7 @@ import {
   canViewOfficeReports,
   canViewOfficeTeams,
   canViewOfficeTransactions,
+  canViewOfficeUsers,
   type PermissionSubject
 } from "@acre/auth";
 import { SiteReleaseBadge } from "../site-release-badge";
@@ -30,6 +30,10 @@ type NavGroup = {
   icon: string;
   items: Array<{ label: string; href?: string; isVisible?: (subject: PermissionSubject) => boolean }>;
 };
+
+function canViewUnifiedUsers(subject: PermissionSubject) {
+  return canViewOfficeUsers(subject) || canViewOfficeAgents(subject);
+}
 
 function getNavGroups(subject: PermissionSubject): NavGroup[] {
   return [
@@ -41,7 +45,6 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
         { label: "Pipeline", href: "/office/pipeline", isVisible: canViewOfficeTransactions },
         { label: "Transactions", href: "/office/transactions", isVisible: canViewOfficeTransactions },
         { label: "Contacts", href: "/office/contacts", isVisible: canViewOfficeContacts },
-        { label: "Agents", href: "/office/agents", isVisible: canViewOfficeAgents },
         { label: "Reports", href: "/office/reports", isVisible: canViewOfficeReports },
         { label: "Activity", href: "/office/activity", isVisible: canAccessAccountActivity },
         { label: "Library", href: "/office/library", isVisible: canViewOfficeLibrary },
@@ -62,7 +65,7 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
       items: [
         { label: "Settings", href: "/office/settings", isVisible: canAccessOfficeSettings },
         { label: "Roles", href: "/office/settings/roles", isVisible: canManageOfficeSettings },
-        { label: "Users", href: "/office/settings/users", isVisible: canManageOfficeUsers },
+        { label: "Users", href: "/office/settings/users", isVisible: canViewUnifiedUsers },
         { label: "Teams", href: "/office/settings/teams", isVisible: canViewOfficeTeams },
         { label: "Checklists", href: "/office/settings/checklists", isVisible: canViewOfficeChecklists },
         { label: "Fields", href: "/office/settings/fields", isVisible: canViewOfficeFields },

@@ -106,7 +106,7 @@
   - `transactionStatus`
   - `transactionType`
   - `commissionPlanId`
-- 当前 `Reports` workspace 的 summary rows 会 drill-down 到真实 `/office/transactions`、`/office/accounting`、`/office/agents/:membershipId`
+- 当前 `Reports` workspace 的 summary rows 会 drill-down 到真实 `/office/transactions`、`/office/accounting`、`/office/settings/users/:membershipId`
 - 当前 `Reports` 页面也保留 CSV 导出路径，使用当前 session 和过滤条件直接导出真实 transaction 行
 - 当前 `Commission Management` 已通过 Prisma service 和 route handlers 落地到：
   - `/office/accounting`
@@ -485,7 +485,7 @@
 32. buyer offers 继续落在 transaction hub 内，不另建第二个 offer app；offer 的 documents / forms / signatures 直接复用现有 foundation，并通过 `offerId` 做 linkage
 33. offer workflow 当前支持显式状态迁移、internal comments、comparison，以及 accepted offer -> transaction field 的可见回写
 34. `/office/transactions/:transactionId` 还会通过 `getTransactionCommissionSnapshot` 读取 assigned plan、persisted calculations 和 transaction-level summary
-35. `/office/agents/:membershipId` 还会通过 `getAgentCommissionSummary` 聚合 active plan、recent calculations、statement-ready / payable / paid totals
+35. `/office/settings/users/:membershipId` 的 operations 区块会通过 `getAgentCommissionSummary` 聚合 active plan、recent calculations、statement-ready / payable / paid totals
 36. `Activity Log + Operational Alerts` 现在也会显示：
    - missing required document
    - signature pending
@@ -495,7 +495,7 @@
    - rejected tasks needing action
    - offers awaiting review
    - offers expiring soon
-37. `/office/agents` 读取 `AgentProfile / Team / TeamMembership / AgentOnboardingItem / AgentGoal / AgentOnboardingTemplateItem`，并聚合 transactions / tasks / billing / activity 数据形成更接近管理工作台的 roster snapshot
+37. `/office/settings/users?view=operations` 读取 `AgentProfile / Team / TeamMembership / AgentOnboardingItem / AgentGoal / AgentOnboardingTemplateItem`，并聚合 transactions / tasks / billing / activity 数据形成 operational roster snapshot
 36. roster snapshot 当前会额外提供：
    - membership status
    - onboarding progress label
@@ -503,7 +503,7 @@
    - goal progress summary
    - billing summary label
    - team-level open task / open transaction / onboarding in-progress counts
-37. `/office/agents/:membershipId` 读取 profile snapshot，展示 basics、teams、onboarding、goals、recent transactions、recent activity，并额外聚合 operational agenda、current goal summary、open/pending charges、commission summary
+37. `/office/settings/users/:membershipId` 组合 access snapshot 和 profile snapshot，展示 basics、teams、onboarding、goals、recent transactions、recent activity，并额外聚合 operational agenda、current goal summary、open/pending charges、commission summary
 38. `/api/office/agents/*` 负责 profile、team、onboarding、goal 的最小 create / update 写入，并同步写入 `AuditLog`
 39. `/api/office/agents/:membershipId/onboarding-template` 会把 office 范围内的默认 onboarding 模板条目实例化到具体 agent
 40. Dashboard 的 weekly updates / useful links / training links 仍使用静态内容
@@ -863,7 +863,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 
 ### 7. Agent Management 复用 Membership 作为身份主轴，只补必要的 profile / team / onboarding / goal 模型
 
-`/office/agents` 当前不是“用户列表重命名”，而是一个真正的 agent management 模块。
+当前不再保留顶层 `/office/agents` 作为 canonical UI；agent management 能力已经并入 `Settings / Users`，但底层模型仍是独立的 operational foundation。
 
 这样设计的原因是：
 
@@ -884,8 +884,8 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - `AgentOnboardingItem` 作为独立 onboarding checklist，不和 transaction tasks 混成一套
 - `AgentOnboardingTemplateItem` 作为组织级/office 级默认 onboarding 模板条目，避免每个 agent 从零创建 checklist
 - `AgentGoal` 提供月 / 季 / 年目标，并尽量从 transactions / accounting 派生实际进度
-- `/office/agents` 作为管理 roster，会集中展示 onboarding progress、goal progress、transaction summary、billing summary、membership status
-- `/office/agents/:membershipId` 聚合 profile basics、teams、onboarding、goals、recent transactions、billing summary、recent activity，并额外展示 operational agenda 和 template defaults
+- `/office/settings/users?view=operations` 作为管理 roster，会集中展示 onboarding progress、goal progress、transaction summary、billing summary、membership status
+- `/office/settings/users/:membershipId` 聚合 profile basics、teams、onboarding、goals、recent transactions、billing summary、recent activity，并额外展示 operational agenda 和 template defaults
 
 当前明确没做的部分：
 

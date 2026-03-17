@@ -35,7 +35,7 @@ export default async function OfficeSettingsChecklistsPage() {
       />
 
       <ListPageStack className="office-settings-list-stack">
-        <OfficeSettingsNav />
+        <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsChecklistsClient canManageChecklists={canManageOfficeChecklists(context.currentMembership)} snapshot={snapshot} />
       </ListPageStack>
     </PageShell>

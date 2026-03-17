@@ -33,7 +33,7 @@ export default async function OfficeSettingsPage() {
         title="Settings"
       />
 
-      <OfficeSettingsNav />
+      <OfficeSettingsNav currentAccess={context.currentMembership} />
 
       <section className="office-settings-summary-grid">
         <StatCard hint="Current org scope" label="Users" value={snapshot.summary.usersCount} />
@@ -43,9 +43,9 @@ export default async function OfficeSettingsPage() {
       </section>
 
       <section className="office-settings-section-grid">
-        <SectionCard subtitle="Roles, access state, and office assignment." title="Users">
+        <SectionCard subtitle="Account access and member operations in one workspace." title="Users">
           <p className="office-settings-copy">
-            Manage office access, role changes, and active/inactive membership status for the current Back Office organization.
+            Manage invitations, access state, office assignment, onboarding, goals, and operational member visibility from a unified route.
           </p>
           <Link className="office-settings-link" href="/office/settings/users">
             Open users

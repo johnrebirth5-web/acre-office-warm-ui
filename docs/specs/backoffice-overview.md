@@ -217,7 +217,8 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current maturity:
   - `MVP`
 - Current notable behavior:
-  - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, and admin unlock / reissue actions.
+  - `Users` is now the unified member workspace under `Settings`, combining internal account administration with the former agent roster / profile operational views.
+  - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, admin unlock / reissue actions, and the member operational roster view.
   - normal create-user choices now expose the Back Office tier catalog: `owner / office_admin / accountant / human_resources / team_lead / agent`
   - legacy `office_manager / office_user` stay compatible internally, but are not the primary create-user flow
   - `Teams` now supports `Leader I / Leader II / Member` hierarchy plus explicit direct-manager assignment
@@ -231,13 +232,11 @@ This file is the high-level product map for the current `Office / Back Office` s
 ### Agent Management
 
 - What it is for:
-  - agent roster, operational profile hub, onboarding, goals, team visibility, and progress tracking.
+  - legacy route family that now redirects into `Settings / Users` operational views.
 - Current maturity:
-  - `MVP+`
+  - `legacy redirect`
 - Follow-up work:
-  - stronger onboarding template system
-  - richer goal/performance views
-  - optional self-view mode beyond the current tiered server-side scope / financial redaction model
+  - keep the underlying `AgentProfile / Team / onboarding / goal` foundation strong inside the unified member workspace
 
 ### Commission Management
 
