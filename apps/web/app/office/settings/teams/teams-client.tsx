@@ -419,7 +419,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
           </form>
         ) : null}
 
-        <div className="office-settings-card-grid">
+        <div className="office-settings-card-grid office-settings-teams-grid">
           {snapshot.teams.length ? (
             snapshot.teams.map((team) => {
               const draft = teamDrafts[team.id] ?? {
@@ -445,42 +445,44 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                   title={team.teamPathLabel}
                 >
                   <div className="office-settings-team-editor">
-                    <FormField label="Team name">
-                      <TextInput
-                        disabled={!canManageTeams}
-                        onChange={(event) => setTeamDraft(team.id, "name", event.target.value)}
-                        value={draft.name}
-                      />
-                    </FormField>
+                    <div className="office-settings-team-editor-grid">
+                      <FormField label="Team name">
+                        <TextInput
+                          disabled={!canManageTeams}
+                          onChange={(event) => setTeamDraft(team.id, "name", event.target.value)}
+                          value={draft.name}
+                        />
+                      </FormField>
 
-                    <FormField label="Parent team">
-                      <SelectInput
-                        disabled={!canManageTeams}
-                        onChange={(event) => setTeamDraft(team.id, "parentTeamId", event.target.value)}
-                        value={draft.parentTeamId}
-                      >
-                        <option value="">No parent team</option>
-                        {parentTeamOptions.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.teamPathLabel}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    </FormField>
+                      <FormField label="Parent team">
+                        <SelectInput
+                          disabled={!canManageTeams}
+                          onChange={(event) => setTeamDraft(team.id, "parentTeamId", event.target.value)}
+                          value={draft.parentTeamId}
+                        >
+                          <option value="">No parent team</option>
+                          {parentTeamOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.teamPathLabel}
+                            </option>
+                          ))}
+                        </SelectInput>
+                      </FormField>
 
-                    <FormField label="Status">
-                      <SelectInput
-                        disabled={!canManageTeams}
-                        onChange={(event) => setTeamDraft(team.id, "isActive", event.target.value === "active")}
-                        value={draft.isActive ? "active" : "inactive"}
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </SelectInput>
-                    </FormField>
+                      <FormField label="Status">
+                        <SelectInput
+                          disabled={!canManageTeams}
+                          onChange={(event) => setTeamDraft(team.id, "isActive", event.target.value === "active")}
+                          value={draft.isActive ? "active" : "inactive"}
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </SelectInput>
+                      </FormField>
+                    </div>
 
                     {canManageTeams ? (
-                      <div className="office-settings-actions">
+                      <div className="office-settings-team-editor-actions">
                         <Button
                           disabled={pendingAction === `save-team:${team.id}`}
                           onClick={() => handleSaveTeam(team.id)}
@@ -518,7 +520,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                     </div>
 
                     {team.members.length ? (
-                      <ul className="office-settings-pill-list">
+                      <div className="office-settings-team-member-list">
                         {team.members.map((member) => {
                           const memberDraft = memberDrafts[member.teamMembershipId] ?? {
                             role: member.roleValue,
@@ -527,10 +529,16 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                           const managerOptions = getManagerOptions(team, memberDraft.role, member.teamMembershipId);
 
                           return (
-                          <li className="office-settings-pill" key={member.membershipId}>
-                            <Link href={`/office/settings/users/${member.membershipId}`}>{member.label}</Link>
+                          <article className={`office-settings-team-member-row${canManageTeams ? "" : " is-readonly"}`} key={member.membershipId}>
+                            <div className="office-settings-team-member-copy">
+                              <Link href={`/office/settings/users/${member.membershipId}`}>{member.label}</Link>
+                              <p>
+                                {member.role}
+                                {member.reportsToLabel !== "No direct manager" ? ` · Reports to ${member.reportsToLabel}` : ""}
+                              </p>
+                            </div>
                             {canManageTeams ? (
-                              <>
+                              <div className="office-settings-team-member-controls">
                                 <SelectInput
                                   onChange={(event) => {
                                     const nextRole = event.target.value;
@@ -561,105 +569,108 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                                     </option>
                                   ))}
                                 </SelectInput>
-                                <button
-                                  className="office-settings-pill-button"
+                              </div>
+                            ) : null}
+                            {canManageTeams ? (
+                              <div className="office-settings-team-member-actions">
+                                <Button
                                   disabled={pendingAction === `save-member:${team.id}:${member.membershipId}`}
                                   onClick={() => handleSaveMember(team.id, member.membershipId, member.teamMembershipId)}
+                                  size="sm"
                                   type="button"
+                                  variant="secondary"
                                 >
                                   Save
-                                </button>
-                              </>
-                            ) : (
-                              <span>
-                                {member.role}
-                                {member.reportsToLabel !== "No direct manager" ? ` · Reports to ${member.reportsToLabel}` : ""}
-                              </span>
-                            )}
-                            {canManageTeams ? (
-                              <button
-                                className="office-settings-pill-button"
-                                disabled={pendingAction === `remove-member:${team.id}:${member.membershipId}`}
-                                onClick={() =>
-                                  setConfirmDialog({
-                                    title: `Remove ${member.label} from ${team.name}?`,
-                                    description:
-                                      "This removes the team membership but keeps the agent active in the roster.",
-                                    confirmLabel: "Remove member",
-                                    onConfirm: () => {
-                                      void handleRemoveMember(team.id, member.membershipId);
-                                    }
-                                  })
-                                }
-                                type="button"
-                              >
-                                Remove
-                              </button>
+                                </Button>
+                                <Button
+                                  disabled={pendingAction === `remove-member:${team.id}:${member.membershipId}`}
+                                  onClick={() =>
+                                    setConfirmDialog({
+                                      title: `Remove ${member.label} from ${team.name}?`,
+                                      description:
+                                        "This removes the team membership but keeps the agent active in the roster.",
+                                      confirmLabel: "Remove member",
+                                      onConfirm: () => {
+                                        void handleRemoveMember(team.id, member.membershipId);
+                                      }
+                                    })
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="ghost"
+                                >
+                                  Remove
+                                </Button>
+                              </div>
                             ) : null}
-                          </li>
+                          </article>
                           );
                         })}
-                      </ul>
+                      </div>
                     ) : (
                       <EmptyState description="Add members from the current roster to make this team operational." title="No team members yet" />
                     )}
                   </div>
 
                   {canManageTeams ? (
-                    <div className="office-settings-team-assign">
-                      <FormField className="is-wide" label="Add member">
-                        <SelectInput onChange={(event) => setTeamDraft(team.id, "nextMembershipId", event.target.value)} value={draft.nextMembershipId}>
-                          <option value="">Select a roster member</option>
-                          {availableMembers.map((option) => (
-                            <option key={option.membershipId} value={option.membershipId}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </SelectInput>
-                      </FormField>
+                    <div className="office-settings-team-assign-panel">
+                      <div className="office-settings-team-assign-grid">
+                        <FormField className="is-wide" label="Add member">
+                          <SelectInput onChange={(event) => setTeamDraft(team.id, "nextMembershipId", event.target.value)} value={draft.nextMembershipId}>
+                            <option value="">Select a roster member</option>
+                            {availableMembers.map((option) => (
+                              <option key={option.membershipId} value={option.membershipId}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </SelectInput>
+                        </FormField>
 
-                      <FormField label="Role">
-                        <SelectInput
-                          onChange={(event) => {
-                            const nextRole = event.target.value;
-                            setTeamDraft(team.id, "nextRole", nextRole);
-                            if (isLeaderRoleValue(nextRole)) {
-                              setTeamDraft(team.id, "nextReportsToTeamMembershipId", "");
-                            }
-                          }}
-                          value={draft.nextRole}
+                        <FormField label="Role">
+                          <SelectInput
+                            onChange={(event) => {
+                              const nextRole = event.target.value;
+                              setTeamDraft(team.id, "nextRole", nextRole);
+                              if (isLeaderRoleValue(nextRole)) {
+                                setTeamDraft(team.id, "nextReportsToTeamMembershipId", "");
+                              }
+                            }}
+                            value={draft.nextRole}
+                          >
+                            {teamRoleOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </SelectInput>
+                        </FormField>
+
+                        <FormField label="Direct manager">
+                          <SelectInput
+                            disabled={isLeaderRoleValue(draft.nextRole)}
+                            onChange={(event) => setTeamDraft(team.id, "nextReportsToTeamMembershipId", event.target.value)}
+                            value={draft.nextReportsToTeamMembershipId}
+                          >
+                            <option value="">{getDirectManagerPlaceholder(team, draft.nextRole)}</option>
+                            {nextManagerOptions.map((option) => (
+                              <option key={option.teamMembershipId} value={option.teamMembershipId}>
+                                {option.label} · {option.role}
+                              </option>
+                            ))}
+                          </SelectInput>
+                        </FormField>
+                      </div>
+
+                      <div className="office-settings-team-assign-actions">
+                        <Button
+                          disabled={!draft.nextMembershipId || pendingAction === `add-member:${team.id}`}
+                          onClick={() => handleAddMember(team.id)}
+                          size="sm"
+                          variant="secondary"
                         >
-                          {teamRoleOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </SelectInput>
-                      </FormField>
-
-                      <FormField label="Direct manager">
-                        <SelectInput
-                          disabled={isLeaderRoleValue(draft.nextRole)}
-                          onChange={(event) => setTeamDraft(team.id, "nextReportsToTeamMembershipId", event.target.value)}
-                          value={draft.nextReportsToTeamMembershipId}
-                        >
-                          <option value="">{getDirectManagerPlaceholder(team, draft.nextRole)}</option>
-                          {nextManagerOptions.map((option) => (
-                            <option key={option.teamMembershipId} value={option.teamMembershipId}>
-                              {option.label} · {option.role}
-                            </option>
-                          ))}
-                        </SelectInput>
-                      </FormField>
-
-                      <Button
-                        disabled={!draft.nextMembershipId || pendingAction === `add-member:${team.id}`}
-                        onClick={() => handleAddMember(team.id)}
-                        size="sm"
-                        variant="secondary"
-                      >
-                        {pendingAction === `add-member:${team.id}` ? "Adding..." : "Add member"}
-                      </Button>
+                          {pendingAction === `add-member:${team.id}` ? "Adding..." : "Add member"}
+                        </Button>
+                      </div>
                     </div>
                   ) : null}
                 </ListPageSection>

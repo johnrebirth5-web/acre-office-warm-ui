@@ -8052,7 +8052,7 @@ a {
 .office-agents-profile-secondary-columns {
   margin-top: 16px;
   align-items: start;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(240px, 0.92fr) minmax(0, 1.08fr);
 }
 
 .office-agents-profile-secondary-columns > * {
@@ -8167,6 +8167,10 @@ a {
 }
 
 @media (max-width: 1500px) {
+  .office-agents-profile-secondary-columns {
+    grid-template-columns: 1fr;
+  }
+
   .office-agents-agenda-item,
   .office-agents-template-item {
     grid-template-columns: 1fr;
@@ -9644,14 +9648,36 @@ a {
 
 .office-settings-team-card .office-section-body {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
 .office-settings-team-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(180px, 1fr) minmax(160px, 0.8fr) auto;
+  gap: 14px;
+}
+
+.office-settings-teams-grid {
+  grid-template-columns: 1fr;
+}
+
+.office-settings-team-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.92fr) minmax(180px, 0.72fr);
   gap: 12px;
   align-items: end;
+}
+
+.office-settings-team-editor-actions,
+.office-settings-team-assign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.office-settings-team-editor-actions {
+  padding-top: 4px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
 }
 
 .office-settings-team-members {
@@ -9669,44 +9695,73 @@ a {
   font-size: var(--office-text-meta-size);
 }
 
-.office-settings-pill-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.office-settings-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--office-border);
-  border-radius: 999px;
-  background: var(--office-surface-subtle);
-  font-size: var(--office-text-meta-size);
-}
-
-.office-settings-pill a {
-  font-weight: 700;
-}
-
-.office-settings-pill-button {
-  border: 0;
-  background: transparent;
-  color: var(--office-danger);
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.office-settings-team-assign {
+.office-settings-team-member-list {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(160px, 0.82fr) minmax(180px, 1fr) auto;
+  gap: 10px;
+}
+
+.office-settings-team-member-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.95fr) minmax(0, 1.25fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--office-border);
+  border-radius: 16px;
+  background: var(--office-surface-subtle);
+}
+
+.office-settings-team-member-row.is-readonly {
+  grid-template-columns: 1fr;
+}
+
+.office-settings-team-member-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.office-settings-team-member-copy a {
+  font-weight: 700;
+}
+
+.office-settings-team-member-copy p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.office-settings-team-member-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.82fr) minmax(220px, 1fr);
   gap: 12px;
   align-items: end;
+}
+
+.office-settings-team-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.office-settings-team-assign-panel {
+  display: grid;
+  gap: 12px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
+}
+
+.office-settings-team-assign-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(180px, 0.8fr) minmax(220px, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.office-settings-team-assign-actions {
+  justify-content: flex-start;
 }
 
 .office-settings-checkbox-grid {
@@ -10208,7 +10263,10 @@ a {
   .office-table-row-settings-teams,
   .office-table-row-settings-checklists,
   .office-settings-team-editor,
-  .office-settings-team-assign,
+  .office-settings-team-editor-grid,
+  .office-settings-team-member-row,
+  .office-settings-team-member-controls,
+  .office-settings-team-assign-grid,
   .office-settings-template-meta,
   .office-fields-panel-head,
   .office-fields-section-head,
@@ -10220,6 +10278,10 @@ a {
 
   .office-table-actions,
   .office-settings-actions {
+    justify-content: flex-start;
+  }
+
+  .office-settings-team-member-actions {
     justify-content: flex-start;
   }
 
