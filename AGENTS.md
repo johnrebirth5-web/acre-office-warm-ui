@@ -75,6 +75,12 @@ Current repo priority is the `Back Office` product line. Favor:
 
 Do not spend effort on speculative public-site features unless the task explicitly asks for them.
 
+## Language / Communication
+
+- Default to Chinese when communicating with the user in this workspace, including explanations, plans, progress updates, final summaries, and general collaboration.
+- If the user explicitly requests English or another language, switch to that language for the current task or thread.
+- Do not force-translate code symbols, file paths, terminal commands, API names, library names, permission keys, table names, or interface names when keeping the original wording avoids ambiguity.
+
 ## Engineering rules
 
 - Reuse `@acre/ui` shared primitives before adding page-specific visual patterns.
