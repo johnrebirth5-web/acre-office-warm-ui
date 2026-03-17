@@ -21,7 +21,8 @@
     "db:generate": "npm run db:generate --workspace=@acre/db",
     "db:migrate": "npm run db:migrate --workspace=@acre/db --",
     "db:seed": "npm run db:seed --workspace=@acre/db",
-    "db:validate": "npm run db:validate --workspace=@acre/db"
+    "db:validate": "npm run db:validate --workspace=@acre/db",
+    "db:sync:from-production": "bash ./scripts/sync-production-db-to-local.sh"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

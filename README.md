@@ -790,10 +790,41 @@ npm run docker:dev:ps
 npm run docker:dev:down
 ```
 
+如果你需要把 `DigitalOcean` 线上最新数据库拉到本地，但又不希望本地操作回写线上，现在可以使用：
+
+```bash
+npm run db:sync:from-production
+```
+
+这条命令的行为是：
+
+- 通过 `ssh` 到 `root@45.55.247.137`
+- 从服务器环境文件 `/etc/acre/acre-ui-rebuild.env` 里读取生产 `DATABASE_URL`
+- 仅使用 `pg_dump` 只读导出线上数据
+- 把线上数据先导入本地临时 schema，再 upsert 合并进本地 `public` schema
+- 本地新增、且线上不存在的记录会保留
+- 不会把任何本地数据回写到线上
+
+当前同步工作流的限制：
+
+- 如果你在本地改的是“线上原本就存在的同一条记录”，下一次同步时会被线上版本覆盖
+- 这条命令依赖本地 Docker `db` 服务正在运行
+- 线上机器上需要可用的 `pg_dump`
+- 线上和本地 schema 需要基本一致；如果刚改过 Prisma schema，先跑本地 migration / generate
+- 如果你本地还保留着历史 seed 数据或旧测试数据，它们也会被视为“本地独有数据”继续保留；首次想做成纯线上基线时，可临时加 `ACRE_SYNC_RESET_LOCAL=1`
+
+建议：
+
+- 日常开发仍然只连本地数据库
+- 需要最新线上数据时，再手动执行一次同步
+- 不要把本地 `DATABASE_URL` 直接改成生产库连接串
+- 首次从老的 seed 本地库切到线上基线时，可执行 `ACRE_SYNC_RESET_LOCAL=1 npm run db:sync:from-production`；这会清空当前本地业务数据后再导入线上数据
+
 Docker 本地开发说明：
 
 - `docker-compose.yml` 会把容器内 `DATABASE_URL` 固定到 `postgresql://postgres:postgres@db:5432/acre`
 - 这允许你保留宿主机 `.env.local` 里的 `localhost` 版本连接串，不必为了 Docker 手工反复改
+- 如果你希望宿主机 `npm run dev` 和 Docker `web` 看到的是同一套本地库，宿主机 `.env.local` 应该与 `.env.example` 一致，使用 `postgresql://postgres:postgres@localhost:5432/acre`
 - 如果宿主机上已经有一个 PostgreSQL 正在占用 `5432`，需要先停掉它，或者改 compose 的端口映射
 - 这套 Docker 基线只用于本地开发，不改变当前生产 `DigitalOcean + systemd + nginx` 部署线路
 

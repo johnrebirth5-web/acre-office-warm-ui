@@ -269,7 +269,62 @@ ACRE_SECURE_COOKIES=false
 - `web` 使用仓库内 `Dockerfile.dev`
 - `web` 和 `db` 都配置为 `restart: unless-stopped`
 - 文档文件会持久化到 Docker volume，而不是容器临时层
+- 如果你希望宿主机 `npm run dev` 与 Docker `web` 共享同一套本地数据库，宿主机 `.env.local` 的 `DATABASE_URL` 应保持为 `postgresql://postgres:postgres@localhost:5432/acre`
 - 如果宿主机已有 PostgreSQL 占用 `5432`，需要先停掉宿主机实例，或修改 compose 端口映射
+
+### 生产数据到本地的单向同步
+
+如果你需要把 `DigitalOcean` 线上最新数据拉到本地开发库，但又不希望本地写操作回写线上，可以使用：
+
+```bash
+npm run db:sync:from-production
+```
+
+当前同步行为：
+
+- 通过 `ssh` 连接默认生产主机 `root@45.55.247.137`
+- 从 `/etc/acre/acre-ui-rebuild.env` 读取生产 `DATABASE_URL`
+- 在远端仅执行 `pg_dump` 只读导出
+- 在本地 Docker `db` 容器里先导入 `prod_sync_stage` 临时 schema
+- 再把 stage 数据 upsert 合并进本地 `public` schema
+- 线上不存在的本地记录会保留，不会被删除
+- 这是一条单向同步线：本地不会把数据回写线上
+
+当前限制：
+
+- 本地如果改的是与线上同一主键的既有记录，下一次同步时会被线上版本覆盖
+- 该脚本依赖本地 `docker compose` 的 `db` 服务正在运行
+- 该脚本依赖远端主机上可用的 `pg_dump`
+- 同步前应保证本地 schema 与当前代码匹配；如果刚改过 Prisma schema，先运行 `npm run db:generate` 以及需要的 migration
+- 如果你本地之前跑过 seed 或旧测试数据，这些“线上不存在”的本地记录会默认保留；如果首次要做成纯线上基线，可临时开启 `ACRE_SYNC_RESET_LOCAL=1`
+
+### 本地同步脚本相关变量
+
+以下变量是同步脚本的 operator override，不是 Web 应用 runtime 必填项：
+
+- `ACRE_DEPLOY_HOST`
+  - 默认 `root@45.55.247.137`
+- `ACRE_DEPLOY_SSH_KEY`
+  - 默认 `$HOME/.ssh/acre_do_ed25519`
+- `ACRE_DEPLOY_ENV_FILE`
+  - 默认 `/etc/acre/acre-ui-rebuild.env`
+- `ACRE_LOCAL_DB_SERVICE`
+  - 默认 `db`
+- `ACRE_LOCAL_DB_HOST`
+  - 默认 `127.0.0.1`
+- `ACRE_LOCAL_DB_NAME`
+  - 默认 `acre`
+- `ACRE_LOCAL_DB_USER`
+  - 默认 `postgres`
+- `ACRE_LOCAL_DB_PASSWORD`
+  - 默认 `postgres`
+- `ACRE_SYNC_STAGE_SCHEMA`
+  - 默认 `prod_sync_stage`
+- `ACRE_SYNC_KEEP_STAGE_SCHEMA`
+  - 默认 `0`
+- `ACRE_SYNC_RESET_LOCAL`
+  - 默认 `0`
+  - 设为 `1` 时，会先清空本地 `public` schema 里的业务数据，再把线上数据导入本地
 
 当前实现说明：
 
