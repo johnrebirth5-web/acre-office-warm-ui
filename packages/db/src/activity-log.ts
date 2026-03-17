@@ -35,6 +35,7 @@ export const activityLogActions = {
   settingsUserActivated: "settings.user_activated",
   settingsUserDeactivated: "settings.user_deactivated",
   settingsOfficeAccessChanged: "settings.office_access_changed",
+  settingsTableLayoutUpdated: "settings.table_layout_updated",
   settingsRequiredContactRolesChanged: "settings.required_contact_roles_changed",
   settingsTransactionFieldSettingsChanged: "settings.transaction_field_settings_changed",
   settingsChecklistTemplateCreated: "settings.checklist_template_created",
@@ -139,6 +140,7 @@ export type ActivityLogEntityType =
   | "required_contact_role_setting"
   | "transaction_field_setting"
   | "checklist_template"
+  | "organization_table_layout"
   | "transaction"
   | "offer"
   | "contact"
@@ -368,6 +370,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.user_activated": "User activated",
   "settings.user_deactivated": "User deactivated",
   "settings.office_access_changed": "Office access changed",
+  "settings.table_layout_updated": "Shared table layout updated",
   "settings.required_contact_roles_changed": "Required contact roles changed",
   "settings.transaction_field_settings_changed": "Transaction field settings changed",
   "settings.checklist_template_created": "Checklist template created",
@@ -480,6 +483,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.settingsUserActivated ||
       action === activityLogActions.settingsUserDeactivated ||
       action === activityLogActions.settingsOfficeAccessChanged ||
+      action === activityLogActions.settingsTableLayoutUpdated ||
       action === activityLogActions.agentOnboardingItemCreated ||
       action === activityLogActions.agentOnboardingItemUpdated ||
       action === activityLogActions.agentOnboardingItemCompleted ||
@@ -1025,6 +1029,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "deactivated a user";
     case activityLogActions.settingsOfficeAccessChanged:
       return "changed office access";
+    case activityLogActions.settingsTableLayoutUpdated:
+      return "updated shared table column widths";
     case activityLogActions.settingsRequiredContactRolesChanged:
       return "updated required contact roles";
     case activityLogActions.settingsTransactionFieldSettingsChanged:

@@ -8,6 +8,7 @@ export const databaseModules = [
   "users",
   "memberships",
   "membership_notification_preferences",
+  "organization_table_layouts",
   "listings",
   "listing_share_links",
   "clients",
@@ -170,6 +171,7 @@ export {
 } from "./contacts";
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
 export { getOfficeReportsSnapshot, listOfficeReportTransactionsForExport } from "./reports";
+export { getOfficeTableLayouts, saveOfficeTableLayout, type OfficeTableLayoutColumn, type OfficeTableLayoutMap } from "./table-layouts";
 export {
   createOfficeTransactionCustomFieldDefinition,
   createChecklistTemplate,

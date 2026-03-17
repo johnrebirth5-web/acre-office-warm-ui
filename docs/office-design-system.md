@@ -250,6 +250,7 @@ Office 路由级 canonical 组合层：
   - 摘要双栏 / 状态汇总 / type 汇总这类短表不应该机械复用宽表拖拽条，应优先在栏内自适应排版
 - 报表和 accounting 的 KPI / stat 区优先使用响应式 `auto-fit` 网格，避免在平板或窄桌面里挤成过窄高卡片
 - `StatCard` 的高度应由内容主导，不要用过大的固定最小高度制造空白
+- 共享业务表格现在支持 organization-level 列宽持久化：只有 `owner / office_admin` 可以拖拽列边界并保存，保存后同组织所有用户看到同一套列宽
 
 ## Responsive rules
 
@@ -303,6 +304,7 @@ Back Office 当前统一采用两种合法实现，不能再混用第三套页�
 - row class 负责定义列模板和 `min-width`
 - 外层容器负责 `overflow-x: auto`
 - 页面只补本页需要的列模板，不再重复定义一整套 table chrome
+- 如果列宽被组织级设置覆盖，页面本地 CSS 只提供默认初始宽度，不应再试图绕过共享列宽运行时
 
 ## Migration boundary
 

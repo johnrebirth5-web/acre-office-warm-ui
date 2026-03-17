@@ -2495,8 +2495,12 @@ select {
 
 .bm-transaction-config-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(177, 188, 204, 0.38);
 }
 
 .bm-new-transaction-live-card > .office-section-body {
@@ -3877,6 +3881,9 @@ select {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(177, 188, 204, 0.38);
 }
 
 .bm-accounting-line-items {
@@ -3911,6 +3918,7 @@ select {
 
 .bm-accounting-modal-body {
   gap: 18px;
+  padding: 8px 24px 28px;
 }
 
 .bm-emd-modal {
@@ -6268,6 +6276,12 @@ a {
   gap: 10px;
 }
 
+.office-form-actions {
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
+}
+
 .office-filter-bar > *,
 .office-report-filters > *,
 .office-form-actions > *,
@@ -7354,7 +7368,9 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
   color: var(--office-text-muted);
   font-size: var(--office-text-meta-size);
   flex-wrap: wrap;
@@ -8593,6 +8609,9 @@ a {
 .office-settings-user-create-actions {
   display: flex;
   justify-content: flex-start;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
 }
 
 .office-settings-generated-invite {
@@ -8713,6 +8732,7 @@ a {
 
 .office-settings-users-modal-body {
   gap: 16px;
+  padding: 8px 24px 28px;
 }
 
 .office-settings-user-detail-grid {
@@ -8943,6 +8963,8 @@ a {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
 }
 
 .office-settings-template-form,
@@ -9168,6 +9190,9 @@ a {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
 }
 
 .office-billing-summary-grid {
@@ -11976,4 +12001,57 @@ body,
 
 .bm-modal-overlay {
   background: rgba(15, 23, 42, 0.42);
+}
+
+.office-table-header > *,
+.office-list-table-header > *,
+.office-dashboard-transactions-head > *,
+.office-pipeline-table-head > *,
+.office-agents-roster-head > *,
+.office-agents-team-table-head > *,
+.office-task-table thead th,
+.office-approval-table thead th,
+.bm-offer-comparison-table thead th {
+  position: relative;
+}
+
+.office-table-resizable-cell {
+  overflow: visible;
+}
+
+.office-table-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 16px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 3;
+}
+
+.office-table-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 20%;
+  bottom: 20%;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--office-border-strong) 72%, transparent);
+  opacity: 0;
+  transition: opacity 160ms ease, background 160ms ease;
+}
+
+.office-table-resize-handle:hover::before,
+.office-table-resize-handle:active::before,
+.office-table-column-resizing .office-table-resize-handle::before {
+  opacity: 1;
+}
+
+.office-table-column-resizing,
+.office-table-column-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }

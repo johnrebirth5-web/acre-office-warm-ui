@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { canManageOfficeSettings } from "@acre/auth";
 import { requireOfficeSession } from "../../lib/auth-session";
 import { OfficeNav } from "./office-nav";
+import { OfficeTableLayoutRuntime } from "./office-table-layout-runtime";
 
 export default async function OfficeLayout({ children }: { children: ReactNode }) {
   const context = await requireOfficeSession();
@@ -9,7 +11,10 @@ export default async function OfficeLayout({ children }: { children: ReactNode }
     <main className="app-shell acre-app-shell office-dashboard-shell office-backoffice-shell">
       <div className="app-grid acre-app-grid office-dashboard-grid-shell">
         <OfficeNav currentOfficeName={context.currentOffice?.name ?? "Acre"} currentRole={context.currentMembership.role} />
-        <div className="main-area acre-main-area office-dashboard-main">{children}</div>
+        <div className="main-area acre-main-area office-dashboard-main">
+          <OfficeTableLayoutRuntime canManageTableLayouts={canManageOfficeSettings(context.currentMembership.role)} />
+          {children}
+        </div>
       </div>
     </main>
   );

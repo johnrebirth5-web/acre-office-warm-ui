@@ -41,6 +41,10 @@ Provide a practical Back Office admin/settings area for access management, teams
   - create/edit
   - activate/deactivate
   - task rows
+- shared table layout admin now supports:
+  - organization-wide saved column widths across current Back Office tables
+  - `owner / office_admin`-only column resizing
+  - saved widths applied to all users in the same organization, not only the admin who dragged them
 
 ## Current gaps
 

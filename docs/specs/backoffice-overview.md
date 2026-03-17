@@ -218,6 +218,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - normal create-user choices now expose the Back Office tier catalog: `owner / office_admin / accountant / human_resources / team_lead / agent`
   - legacy `office_manager / office_user` stay compatible internally, but are not the primary create-user flow
   - `Teams` now supports `Leader I / Leader II / Member` hierarchy plus explicit direct-manager assignment
+  - shared Office table widths are now organization-scoped settings: `owner / office_admin` can resize current Back Office table columns, and saved widths apply to all users in the same org
   - `Fields` now includes an office-scoped transaction intake schema builder for built-in fields and custom `text / select / date` fields; schema changes are `owner / office_admin` only and are audited.
 - Follow-up work:
   - richer multi-office access controls

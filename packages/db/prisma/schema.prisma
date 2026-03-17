@@ -446,6 +446,7 @@ model Organization {
   transactionCustomFieldDefinitions TransactionCustomFieldDefinition[]
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
+  tableLayouts                      OrganizationTableLayout[]
 }
 
 model Office {
@@ -575,8 +576,24 @@ model Membership {
   calculatedCommissionCalculations         CommissionCalculation[]            @relation("CommissionCalculationCalculatedBy")
   checklistTemplatesCreated                ChecklistTemplate[]                @relation("ChecklistTemplateCreatedBy")
   checklistTemplatesUpdated                ChecklistTemplate[]                @relation("ChecklistTemplateUpdatedBy")
+  updatedTableLayouts                      OrganizationTableLayout[]          @relation("OrganizationTableLayoutUpdatedBy")
 
   @@unique([organizationId, userId])
+}
+
+model OrganizationTableLayout {
+  id                    String       @id @default(cuid())
+  organizationId        String
+  updatedByMembershipId String?
+  tableKey              String
+  columnLayout          Json
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedByMembership   Membership?  @relation("OrganizationTableLayoutUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, tableKey])
+  @@index([organizationId])
 }
 
 model UserCredential {
