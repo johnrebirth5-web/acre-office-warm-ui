@@ -19,6 +19,7 @@ export const activityLogActions = {
   teamCreated: "team.created",
   teamUpdated: "team.updated",
   teamDeactivated: "team.deactivated",
+  teamDeleted: "team.deleted",
   teamMemberAdded: "team.member_added",
   teamMemberRemoved: "team.member_removed",
   agentOnboardingItemCreated: "agent.onboarding_item_created",
@@ -357,6 +358,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "team.created": "Team created",
   "team.updated": "Team updated",
   "team.deactivated": "Team deactivated",
+  "team.deleted": "Team deleted",
   "team.member_added": "Agent added to team",
   "team.member_removed": "Agent removed from team",
   "agent.onboarding_item_created": "Onboarding item created",
@@ -477,6 +479,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.teamCreated ||
       action === activityLogActions.teamUpdated ||
       action === activityLogActions.teamDeactivated ||
+      action === activityLogActions.teamDeleted ||
       action === activityLogActions.teamMemberAdded ||
       action === activityLogActions.teamMemberRemoved ||
       action === activityLogActions.settingsUserRoleChanged ||
@@ -997,6 +1000,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return payload.changes.length === 1 ? `updated team ${payload.changes[0].label.toLowerCase()}` : "updated a team";
     case activityLogActions.teamDeactivated:
       return "deactivated a team";
+    case activityLogActions.teamDeleted:
+      return "deleted a team";
     case activityLogActions.teamMemberAdded:
       return "added an agent to a team";
     case activityLogActions.teamMemberRemoved:

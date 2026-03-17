@@ -186,6 +186,28 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
     }
   }
 
+  async function handleDeleteTeam(teamId: string) {
+    setPendingAction(`delete-team:${teamId}`);
+    setSubmitError("");
+
+    try {
+      const response = await fetch(`/api/office/agents/teams/${teamId}`, {
+        method: "DELETE"
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to delete team.");
+      }
+
+      router.refresh();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to delete team.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   async function handleAddMember(teamId: string) {
     const draft = teamDrafts[teamId];
     if (!draft?.nextMembershipId) {
@@ -377,14 +399,24 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                     </FormField>
 
                     {canManageTeams ? (
-                      <Button
-                        disabled={pendingAction === `save-team:${team.id}`}
-                        onClick={() => handleSaveTeam(team.id)}
-                        size="sm"
-                        variant="secondary"
-                      >
-                        {pendingAction === `save-team:${team.id}` ? "Saving..." : "Save team"}
-                      </Button>
+                      <div className="office-settings-actions">
+                        <Button
+                          disabled={pendingAction === `save-team:${team.id}`}
+                          onClick={() => handleSaveTeam(team.id)}
+                          size="sm"
+                          variant="secondary"
+                        >
+                          {pendingAction === `save-team:${team.id}` ? "Saving..." : "Save team"}
+                        </Button>
+                        <Button
+                          disabled={pendingAction === `delete-team:${team.id}`}
+                          onClick={() => handleDeleteTeam(team.id)}
+                          size="sm"
+                          variant="danger"
+                        >
+                          {pendingAction === `delete-team:${team.id}` ? "Deleting..." : "Delete team"}
+                        </Button>
+                      </div>
                     ) : null}
                   </div>
 

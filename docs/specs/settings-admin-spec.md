@@ -27,6 +27,7 @@ Provide a practical Back Office admin/settings area for access management, teams
   - create
   - rename
   - activate/deactivate
+  - delete empty teams with no remaining commission-plan assignments
   - add/remove members
   - assign `Leader I / Leader II / Member`
   - maintain direct reporting lines inside a team

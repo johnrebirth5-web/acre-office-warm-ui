@@ -332,6 +332,13 @@ export type UpdateAgentTeamInput = {
   isActive?: boolean;
 };
 
+export type DeleteAgentTeamInput = {
+  organizationId: string;
+  officeId?: string | null;
+  actorMembershipId: string;
+  teamId: string;
+};
+
 export type AddAgentToTeamInput = {
   organizationId: string;
   officeId?: string | null;
@@ -789,6 +796,8 @@ function getActivityActionLabel(action: string) {
       return "Team updated";
     case "team.deactivated":
       return "Team deactivated";
+    case "team.deleted":
+      return "Team deleted";
     case "team.member_added":
       return "Agent added to team";
     case "team.member_removed":
@@ -2179,6 +2188,69 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
     });
 
     return updatedTeam;
+  });
+}
+
+export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
+  return prisma.$transaction(async (tx) => {
+    const team = await tx.team.findFirst({
+      where: {
+        id: input.teamId,
+        organizationId: input.organizationId,
+        ...(input.officeId ? { officeId: input.officeId } : {})
+      }
+    });
+
+    if (!team) {
+      throw new Error("Team was not found.");
+    }
+
+    const [memberCount, commissionAssignmentCount] = await Promise.all([
+      tx.teamMembership.count({
+        where: {
+          organizationId: input.organizationId,
+          teamId: input.teamId
+        }
+      }),
+      tx.commissionPlanAssignment.count({
+        where: {
+          organizationId: input.organizationId,
+          teamId: input.teamId
+        }
+      })
+    ]);
+
+    if (memberCount > 0) {
+      throw new Error("Remove all team members before deleting this team.");
+    }
+
+    if (commissionAssignmentCount > 0) {
+      throw new Error("Remove this team's commission plan assignments before deleting it.");
+    }
+
+    await tx.team.delete({
+      where: {
+        id: input.teamId
+      }
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "team",
+      entityId: input.teamId,
+      action: activityLogActions.teamDeleted,
+      payload: {
+        officeId: team.officeId,
+        objectLabel: team.name,
+        contextHref: "/office/settings/teams",
+        details: []
+      }
+    });
+
+    return {
+      id: input.teamId
+    };
   });
 }
 

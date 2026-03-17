@@ -118,6 +118,7 @@ export {
   createAgentGoal,
   createAgentOnboardingItem,
   createAgentTeam,
+  deleteAgentTeam,
   getOfficeAgentProfileSnapshot,
   getOfficeAgentsRosterSnapshot,
   removeAgentFromTeam,
