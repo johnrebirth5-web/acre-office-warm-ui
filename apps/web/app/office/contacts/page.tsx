@@ -1,4 +1,4 @@
-import { listContacts, officeContactsPageDefaults, officeContactsPageLimits } from "@acre/db";
+import { getOfficeContactFieldSchema, listContacts, officeContactsPageDefaults, officeContactsPageLimits } from "@acre/db";
 import { requireOfficeSession } from "../../../lib/auth-session";
 import { ContactsClient } from "./contacts-client";
 
@@ -35,6 +35,10 @@ export default async function OfficeContactsPage(props: OfficeContactsPageProps)
     page,
     pageSize
   });
+  const schema = await getOfficeContactFieldSchema({
+    organizationId: context.currentOrganization.id,
+    officeId: context.currentOffice?.id ?? null
+  });
 
-  return <ContactsClient contacts={result.contacts} filters={{ q, stage }} page={result.page} pageSize={result.pageSize} totalCount={result.totalCount} totalPages={result.totalPages} />;
+  return <ContactsClient contacts={result.contacts} filters={{ q, stage }} page={result.page} pageSize={result.pageSize} schema={schema} totalCount={result.totalCount} totalPages={result.totalPages} />;
 }

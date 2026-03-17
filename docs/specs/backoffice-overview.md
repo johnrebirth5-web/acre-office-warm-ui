@@ -50,7 +50,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `strong MVP`
 - Current notable behavior:
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
-  - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now share one office-scoped schema-driven intake workspace with admin-managed built-in visibility/requiredness and custom fields.
+  - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now consume one office-scoped schema managed centrally from `Settings > Fields`.
   - the built-in `Type / Status / Representing` dropdowns now keep stable system values while allowing office admins to edit which options are available and how each option label is displayed.
 - Follow-up work:
   - deeper listing-side workflow parity
@@ -65,6 +65,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `MVP`
 - Current notable behavior:
   - `/office/contacts` now uses the same canonical Office list-page template as `/office/transactions`, while keeping its own contact-specific fields and workflow content.
+  - contact create/detail now render built-in and custom fields from the centralized `Settings > Fields` schema and persist custom values into `Client.additionalFields`.
 - Follow-up work:
   - richer CRM-like workflows
   - more advanced relationship modeling
@@ -202,6 +203,8 @@ This file is the high-level product map for the current `Office / Back Office` s
   - buyer offer workflow inside transaction management, including comparison, comments, and offer-linked docs/forms/signatures.
 - Current maturity:
   - `MVP`
+- Current notable behavior:
+  - offer create/edit now render built-in and custom fields from the centralized `Settings > Fields` schema and persist custom values into `Offer.additionalFields`.
 - Follow-up work:
   - optional global offers queue
   - inbound offer ingestion when a real source exists
@@ -219,7 +222,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - legacy `office_manager / office_user` stay compatible internally, but are not the primary create-user flow
   - `Teams` now supports `Leader I / Leader II / Member` hierarchy plus explicit direct-manager assignment
   - shared Office table widths are now organization-scoped settings: `owner / office_admin` can resize current Back Office table columns, and saved widths apply to all users in the same org
-  - `Fields` now includes an office-scoped transaction intake schema builder for built-in fields and custom `text / select / date` fields; schema changes are `owner / office_admin` only and are audited.
+  - `Fields` is now the single schema-management surface for `transaction / contact / offer`, including sort order, required / visible, custom field create-edit-delete, hidden-field restore, and transaction-only required contact roles.
 - Follow-up work:
   - richer multi-office access controls
   - stronger template application behavior

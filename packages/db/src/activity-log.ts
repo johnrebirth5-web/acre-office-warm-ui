@@ -42,6 +42,8 @@ export const activityLogActions = {
   settingsTableLayoutUpdated: "settings.table_layout_updated",
   settingsRequiredContactRolesChanged: "settings.required_contact_roles_changed",
   settingsTransactionFieldSettingsChanged: "settings.transaction_field_settings_changed",
+  settingsContactFieldSettingsChanged: "settings.contact_field_settings_changed",
+  settingsOfferFieldSettingsChanged: "settings.offer_field_settings_changed",
   settingsChecklistTemplateCreated: "settings.checklist_template_created",
   settingsChecklistTemplateUpdated: "settings.checklist_template_updated",
   settingsChecklistTemplateActivated: "settings.checklist_template_activated",
@@ -380,6 +382,8 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.table_layout_updated": "Shared table layout updated",
   "settings.required_contact_roles_changed": "Required contact roles changed",
   "settings.transaction_field_settings_changed": "Transaction field settings changed",
+  "settings.contact_field_settings_changed": "Contact field settings changed",
+  "settings.offer_field_settings_changed": "Offer field settings changed",
   "settings.checklist_template_created": "Checklist template created",
   "settings.checklist_template_updated": "Checklist template updated",
   "settings.checklist_template_activated": "Checklist template activated",
@@ -507,7 +511,9 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.agentGoalUpdated ||
       action === activityLogActions.authBootstrapAdminCreated ||
       action === activityLogActions.settingsUserInvited ||
-      action === activityLogActions.settingsUserInvitationRevoked
+      action === activityLogActions.settingsUserInvitationRevoked ||
+      action === activityLogActions.settingsContactFieldSettingsChanged ||
+      action === activityLogActions.settingsOfferFieldSettingsChanged
   },
   {
     key: "transactions",
@@ -1067,6 +1073,10 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "updated required contact roles";
     case activityLogActions.settingsTransactionFieldSettingsChanged:
       return "updated transaction field settings";
+    case activityLogActions.settingsContactFieldSettingsChanged:
+      return "updated contact field settings";
+    case activityLogActions.settingsOfferFieldSettingsChanged:
+      return "updated offer field settings";
     case activityLogActions.settingsChecklistTemplateCreated:
       return "created a checklist template";
     case activityLogActions.settingsChecklistTemplateUpdated:

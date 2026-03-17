@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  getOfficeOfferFieldSchema,
   getOfficeTransactionIntakeSchema,
   getTransactionById,
   getTransactionCommissionSnapshot,
@@ -11,7 +12,6 @@ import {
   canApproveOfficeDocuments,
   canApproveOfficeCommissions,
   canEditOfficeTransactions,
-  canManageOfficeFields,
   canManageOfficeTransactionFinance,
   canManageOfficeDocuments,
   canManageOfficeCommissions,
@@ -62,12 +62,16 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
     notFound();
   }
 
-  const [tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot, transactionIntakeSchema] = await Promise.all([
+  const [tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot, transactionIntakeSchema, offerFieldSchema] = await Promise.all([
     listTransactionTasks(context.currentOrganization.id, transactionId),
     listTransactionTaskAssigneeOptions(context.currentOrganization.id, transactionId),
     getTransactionCommissionSnapshot(context.currentOrganization.id, transactionId, context.currentOffice?.id ?? null),
     listTransactionOffersSnapshot(context.currentOrganization.id, transactionId),
     getOfficeTransactionIntakeSchema({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null
+    }),
+    getOfficeOfferFieldSchema({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
     })
@@ -193,6 +197,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
           canReviewOffers={canReviewOffersForRole}
           canUseForms={canUseFormsForRole}
           formTemplates={transaction.formTemplates}
+          fieldSchema={offerFieldSchema}
           snapshot={offersSnapshot}
           taskOptions={taskOptions}
           transactionId={transaction.id}
@@ -265,9 +270,8 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         />
       ) : null}
 
-      <SectionCard subtitle="Edit the transaction intake fields and custom office-defined fields without leaving detail view." title="Intake fields">
+      <SectionCard subtitle="Review and update transaction values using the current centralized intake schema." title="Intake fields">
         <TransactionIntakeWorkspace
-          canConfigureSchema={canManageOfficeFields(context.currentMembership)}
           canEditValues={canEditTransactionsForRole}
           chrome="detail"
           initialValues={{

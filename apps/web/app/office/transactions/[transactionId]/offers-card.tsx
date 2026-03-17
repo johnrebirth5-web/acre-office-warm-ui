@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -13,7 +13,7 @@ import {
   TextInput,
   TextareaInput
 } from "@acre/ui";
-import type { OfficeFormTemplateOption, OfficeTransactionOffersSnapshot } from "@acre/db";
+import type { OfficeFormTemplateOption, OfficeOfferFieldSchema, OfficeTransactionOffersSnapshot } from "@acre/db";
 
 type TaskOption = {
   id: string;
@@ -23,6 +23,7 @@ type TaskOption = {
 type TransactionOffersCardProps = {
   transactionId: string;
   snapshot: OfficeTransactionOffersSnapshot;
+  fieldSchema: OfficeOfferFieldSchema;
   taskOptions: TaskOption[];
   formTemplates: OfficeFormTemplateOption[];
   canManageOffers: boolean;
@@ -34,15 +35,8 @@ type TransactionOffersCardProps = {
 };
 
 type OfferFormState = {
-  title: string;
-  offeringPartyName: string;
-  buyerName: string;
-  price: string;
-  earnestMoneyAmount: string;
-  financingType: string;
-  closingDateOffered: string;
-  expirationAt: string;
-  notes: string;
+  values: Record<string, string>;
+  additionalFields: Record<string, string>;
   isPrimaryOffer: boolean;
 };
 
@@ -64,6 +58,10 @@ type SignatureDraftState = {
   recipientRole: string;
   signingOrder: string;
 };
+
+type OfferVisibleField =
+  | { kind: "builtIn"; field: OfficeOfferFieldSchema["builtInFields"][number] }
+  | { kind: "custom"; field: OfficeOfferFieldSchema["customFields"][number] };
 
 const offerActionMap: Record<
   OfficeTransactionOffersSnapshot["offers"][number]["statusValue"],
@@ -106,21 +104,61 @@ const offerActionMap: Record<
   expired: []
 };
 
+function sortSchemaFieldEntries(fields: OfferVisibleField[]) {
+  return [...fields].sort((left, right) => {
+    if (left.field.sortOrder !== right.field.sortOrder) {
+      return left.field.sortOrder - right.field.sortOrder;
+    }
+
+    return left.field.label.localeCompare(right.field.label);
+  });
+}
+
 function buildOfferFormState(
+  fieldSchema: OfficeOfferFieldSchema,
   offer?: OfficeTransactionOffersSnapshot["offers"][number]
 ): OfferFormState {
+  const values: Record<string, string> = {};
+  const additionalFields: Record<string, string> = {};
+
+  for (const field of fieldSchema.builtInFields) {
+    values[field.inputName] = String((offer as Record<string, unknown> | undefined)?.[field.inputName] ?? "");
+  }
+
+  for (const field of fieldSchema.customFields) {
+    additionalFields[field.fieldKey] = offer?.additionalFields[field.fieldKey] ?? "";
+  }
+
   return {
-    title: offer?.title ?? "",
-    offeringPartyName: offer?.offeringPartyName ?? "",
-    buyerName: offer?.buyerName ?? "",
-    price: offer?.price ?? "",
-    earnestMoneyAmount: offer?.earnestMoneyAmount ?? "",
-    financingType: offer?.financingType ?? "",
-    closingDateOffered: offer?.closingDateOffered ?? "",
-    expirationAt: offer?.expirationAt ?? "",
-    notes: offer?.notes ?? "",
+    values,
+    additionalFields,
     isPrimaryOffer: offer?.isPrimaryOffer ?? false
   };
+}
+
+function buildOfferPayload(fieldSchema: OfficeOfferFieldSchema, state: OfferFormState) {
+  return {
+    ...state.values,
+    ...Object.fromEntries(
+      fieldSchema.customFields.map((field) => [
+        field.inputName,
+        state.additionalFields[field.fieldKey] ?? ""
+      ])
+    ),
+    isPrimaryOffer: state.isPrimaryOffer
+  };
+}
+
+function getOfferFieldLabel(label: string, isRequired: boolean) {
+  return isRequired ? `${label} *` : label;
+}
+
+function getOfferFieldClassName(fieldClassName: string, context: "create" | "edit") {
+  if (!fieldClassName.includes("is-span-4")) {
+    return undefined;
+  }
+
+  return context === "create" ? "bm-offer-create-notes" : "bm-offer-edit-notes";
 }
 
 function buildOfferUploadState(): OfferUploadState {
@@ -167,6 +205,7 @@ function getOfferTone(status: OfficeTransactionOffersSnapshot["offers"][number][
 export function TransactionOffersCard({
   transactionId,
   snapshot,
+  fieldSchema,
   taskOptions,
   formTemplates,
   canManageOffers,
@@ -177,9 +216,13 @@ export function TransactionOffersCard({
   canManageSignatures
 }: TransactionOffersCardProps) {
   const router = useRouter();
-  const [newOfferState, setNewOfferState] = useState<OfferFormState>(buildOfferFormState());
+  const [newOfferState, setNewOfferState] = useState<OfferFormState>(() =>
+    buildOfferFormState(fieldSchema)
+  );
   const [offerStates, setOfferStates] = useState<Record<string, OfferFormState>>(
-    Object.fromEntries(snapshot.offers.map((offer) => [offer.id, buildOfferFormState(offer)]))
+    Object.fromEntries(
+      snapshot.offers.map((offer) => [offer.id, buildOfferFormState(fieldSchema, offer)])
+    )
   );
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>(
     Object.fromEntries(snapshot.offers.map((offer) => [offer.id, ""]))
@@ -195,17 +238,114 @@ export function TransactionOffersCard({
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    setNewOfferState(buildOfferFormState(fieldSchema));
+    setOfferStates(
+      Object.fromEntries(
+        snapshot.offers.map((offer) => [offer.id, buildOfferFormState(fieldSchema, offer)])
+      )
+    );
+    setCommentDrafts(
+      Object.fromEntries(snapshot.offers.map((offer) => [offer.id, ""]))
+    );
+    setUploadStates(
+      Object.fromEntries(snapshot.offers.map((offer) => [offer.id, buildOfferUploadState()]))
+    );
+    setFormDrafts(
+      Object.fromEntries(
+        snapshot.offers.map((offer) => [offer.id, buildOfferFormDraftState(formTemplates)])
+      )
+    );
+    setSignatureDrafts({});
+    setSelectedFiles({});
+  }, [fieldSchema, formTemplates, snapshot.offers]);
+
+  const visibleOfferFields: OfferVisibleField[] = sortSchemaFieldEntries([
+    ...fieldSchema.builtInFields
+      .filter((field) => field.isVisible)
+      .map((field) => ({ kind: "builtIn" as const, field })),
+    ...fieldSchema.customFields
+      .filter((field) => field.isVisible)
+      .map((field) => ({ kind: "custom" as const, field }))
+  ]);
+
   const comparisonRows = useMemo(
     () => snapshot.offers.map((offer) => offer.comparison),
     [snapshot.offers]
   );
 
-  function updateOfferState(offerId: string, field: keyof OfferFormState, value: string | boolean) {
+  function updateNewOfferValue(fieldName: string, value: string) {
+    setNewOfferState((current) => ({
+      ...current,
+      values: {
+        ...current.values,
+        [fieldName]: value
+      }
+    }));
+  }
+
+  function updateNewOfferAdditionalField(fieldKey: string, value: string) {
+    setNewOfferState((current) => ({
+      ...current,
+      additionalFields: {
+        ...current.additionalFields,
+        [fieldKey]: value
+      }
+    }));
+  }
+
+  function updateOfferValue(offerId: string, fieldName: string, value: string) {
     setOfferStates((current) => ({
       ...current,
       [offerId]: {
-        ...(current[offerId] ?? buildOfferFormState(snapshot.offers.find((offer) => offer.id === offerId))),
-        [field]: value
+        ...(current[offerId] ??
+          buildOfferFormState(
+            fieldSchema,
+            snapshot.offers.find((offer) => offer.id === offerId)
+          )),
+        values: {
+          ...(current[offerId]?.values ??
+            buildOfferFormState(
+              fieldSchema,
+              snapshot.offers.find((offer) => offer.id === offerId)
+            ).values),
+          [fieldName]: value
+        }
+      }
+    }));
+  }
+
+  function updateOfferAdditionalField(offerId: string, fieldKey: string, value: string) {
+    setOfferStates((current) => ({
+      ...current,
+      [offerId]: {
+        ...(current[offerId] ??
+          buildOfferFormState(
+            fieldSchema,
+            snapshot.offers.find((offer) => offer.id === offerId)
+          )),
+        additionalFields: {
+          ...(current[offerId]?.additionalFields ??
+            buildOfferFormState(
+              fieldSchema,
+              snapshot.offers.find((offer) => offer.id === offerId)
+            ).additionalFields),
+          [fieldKey]: value
+        }
+      }
+    }));
+  }
+
+  function updateOfferPrimaryFlag(offerId: string, value: boolean) {
+    setOfferStates((current) => ({
+      ...current,
+      [offerId]: {
+        ...(current[offerId] ??
+          buildOfferFormState(
+            fieldSchema,
+            snapshot.offers.find((offer) => offer.id === offerId)
+          )),
+        isPrimaryOffer: value
       }
     }));
   }
@@ -241,7 +381,7 @@ export function TransactionOffersCard({
   }
 
   async function handleCreateOffer() {
-    if (!newOfferState.title.trim() || !newOfferState.offeringPartyName.trim()) {
+    if (!newOfferState.values.title?.trim() || !newOfferState.values.offeringPartyName?.trim()) {
       setError("Offer title and offer party are required.");
       return;
     }
@@ -255,7 +395,7 @@ export function TransactionOffersCard({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(newOfferState)
+        body: JSON.stringify(buildOfferPayload(fieldSchema, newOfferState))
       });
 
       if (!response.ok) {
@@ -263,7 +403,7 @@ export function TransactionOffersCard({
         throw new Error(body?.error ?? "Offer could not be created.");
       }
 
-      setNewOfferState(buildOfferFormState());
+      setNewOfferState(buildOfferFormState(fieldSchema));
       router.refresh();
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Offer could not be created.");
@@ -275,7 +415,7 @@ export function TransactionOffersCard({
   async function handleSaveOffer(offerId: string) {
     const offerState = offerStates[offerId];
 
-    if (!offerState?.title.trim() || !offerState.offeringPartyName.trim()) {
+    if (!offerState?.values.title?.trim() || !offerState.values.offeringPartyName?.trim()) {
       setError("Offer title and offer party are required.");
       return;
     }
@@ -289,7 +429,7 @@ export function TransactionOffersCard({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(offerState)
+        body: JSON.stringify(buildOfferPayload(fieldSchema, offerState))
       });
 
       if (!response.ok) {
@@ -513,65 +653,79 @@ export function TransactionOffersCard({
 
       {canManageOffers ? (
         <div className="bm-offer-create-grid">
-          <FormField label="Offer title">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Offer #1 / Highest and best"
-              value={newOfferState.title}
-            />
-          </FormField>
-          <FormField label="Offering party">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, offeringPartyName: event.target.value }))}
-              placeholder="Buyer / agent / party"
-              value={newOfferState.offeringPartyName}
-            />
-          </FormField>
-          <FormField label="Buyer name">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, buyerName: event.target.value }))}
-              value={newOfferState.buyerName}
-            />
-          </FormField>
-          <FormField label="Price">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, price: event.target.value }))}
-              value={newOfferState.price}
-            />
-          </FormField>
-          <FormField label="Earnest money">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, earnestMoneyAmount: event.target.value }))}
-              value={newOfferState.earnestMoneyAmount}
-            />
-          </FormField>
-          <FormField label="Financing type">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, financingType: event.target.value }))}
-              value={newOfferState.financingType}
-            />
-          </FormField>
-          <FormField label="Closing date offered">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, closingDateOffered: event.target.value }))}
-              type="date"
-              value={newOfferState.closingDateOffered}
-            />
-          </FormField>
-          <FormField label="Expiration">
-            <TextInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, expirationAt: event.target.value }))}
-              type="date"
-              value={newOfferState.expirationAt}
-            />
-          </FormField>
-          <FormField className="bm-offer-create-notes" label="Notes">
-            <TextareaInput
-              onChange={(event) => setNewOfferState((current) => ({ ...current, notes: event.target.value }))}
-              rows={3}
-              value={newOfferState.notes}
-            />
-          </FormField>
+          {visibleOfferFields.map((entry) => {
+            const field = entry.field;
+            const fieldType =
+              entry.kind === "builtIn" ? entry.field.control : entry.field.type;
+            const fieldClassName =
+              entry.kind === "builtIn" ? entry.field.className : "";
+            const fieldValue =
+              entry.kind === "builtIn"
+                ? newOfferState.values[field.inputName] ?? ""
+                : newOfferState.additionalFields[field.fieldKey] ?? "";
+
+            return (
+              <FormField
+                className={getOfferFieldClassName(fieldClassName, "create")}
+                key={`create:${entry.kind}:${field.fieldKey}`}
+                label={getOfferFieldLabel(field.label, field.isRequired)}
+              >
+                {fieldType === "textarea" ? (
+                  <TextareaInput
+                    onChange={(event) =>
+                      entry.kind === "builtIn"
+                        ? updateNewOfferValue(field.inputName, event.target.value)
+                        : updateNewOfferAdditionalField(
+                            field.fieldKey,
+                            event.target.value
+                          )
+                    }
+                    rows={3}
+                    value={fieldValue}
+                  />
+                ) : fieldType === "select" ? (
+                  <SelectInput
+                    onChange={(event) =>
+                      entry.kind === "builtIn"
+                        ? updateNewOfferValue(field.inputName, event.target.value)
+                        : updateNewOfferAdditionalField(
+                            field.fieldKey,
+                            event.target.value
+                          )
+                    }
+                    value={fieldValue}
+                  >
+                    <option value="">Select...</option>
+                    {field.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </SelectInput>
+                ) : (
+                  <TextInput
+                    onChange={(event) =>
+                      entry.kind === "builtIn"
+                        ? updateNewOfferValue(field.inputName, event.target.value)
+                        : updateNewOfferAdditionalField(
+                            field.fieldKey,
+                            event.target.value
+                          )
+                    }
+                    placeholder={
+                      field.inputName === "title"
+                        ? "Offer #1 / Highest and best"
+                        : field.inputName === "offeringPartyName"
+                          ? "Buyer / agent / party"
+                          : undefined
+                    }
+                    type={fieldType === "date" ? "date" : "text"}
+                    value={fieldValue}
+                  />
+                )}
+              </FormField>
+            );
+          })}
           <div className="bm-offer-create-actions">
             <Button disabled={pendingAction === "create-offer"} onClick={handleCreateOffer}>
               {pendingAction === "create-offer" ? "Saving..." : "Create offer"}
@@ -583,7 +737,8 @@ export function TransactionOffersCard({
       <div className="bm-offer-list">
         {snapshot.offers.length ? (
           snapshot.offers.map((offer) => {
-            const offerState = offerStates[offer.id] ?? buildOfferFormState(offer);
+            const offerState =
+              offerStates[offer.id] ?? buildOfferFormState(fieldSchema, offer);
             const uploadState = uploadStates[offer.id] ?? buildOfferUploadState();
             const formDraft = formDrafts[offer.id] ?? buildOfferFormDraftState(formTemplates);
 
@@ -614,39 +769,95 @@ export function TransactionOffersCard({
 
                 {canManageOffers ? (
                   <div className="bm-offer-edit-grid">
-                    <FormField label="Offer title">
-                      <TextInput value={offerState.title} onChange={(event) => updateOfferState(offer.id, "title", event.target.value)} />
-                    </FormField>
-                    <FormField label="Offering party">
-                      <TextInput value={offerState.offeringPartyName} onChange={(event) => updateOfferState(offer.id, "offeringPartyName", event.target.value)} />
-                    </FormField>
-                    <FormField label="Buyer name">
-                      <TextInput value={offerState.buyerName} onChange={(event) => updateOfferState(offer.id, "buyerName", event.target.value)} />
-                    </FormField>
-                    <FormField label="Price">
-                      <TextInput value={offerState.price} onChange={(event) => updateOfferState(offer.id, "price", event.target.value)} />
-                    </FormField>
-                    <FormField label="Earnest money">
-                      <TextInput value={offerState.earnestMoneyAmount} onChange={(event) => updateOfferState(offer.id, "earnestMoneyAmount", event.target.value)} />
-                    </FormField>
-                    <FormField label="Financing type">
-                      <TextInput value={offerState.financingType} onChange={(event) => updateOfferState(offer.id, "financingType", event.target.value)} />
-                    </FormField>
-                    <FormField label="Closing date offered">
-                      <TextInput type="date" value={offerState.closingDateOffered} onChange={(event) => updateOfferState(offer.id, "closingDateOffered", event.target.value)} />
-                    </FormField>
-                    <FormField label="Expiration">
-                      <TextInput type="date" value={offerState.expirationAt} onChange={(event) => updateOfferState(offer.id, "expirationAt", event.target.value)} />
-                    </FormField>
+                    {visibleOfferFields.map((entry) => {
+                      const field = entry.field;
+                      const fieldType =
+                        entry.kind === "builtIn" ? entry.field.control : entry.field.type;
+                      const fieldClassName =
+                        entry.kind === "builtIn" ? entry.field.className : "";
+                      const fieldValue =
+                        entry.kind === "builtIn"
+                          ? offerState.values[field.inputName] ?? ""
+                          : offerState.additionalFields[field.fieldKey] ?? "";
+
+                      return (
+                        <FormField
+                          className={getOfferFieldClassName(fieldClassName, "edit")}
+                          key={`${offer.id}:${entry.kind}:${field.fieldKey}`}
+                          label={getOfferFieldLabel(field.label, field.isRequired)}
+                        >
+                          {fieldType === "textarea" ? (
+                            <TextareaInput
+                              rows={3}
+                              value={fieldValue}
+                              onChange={(event) =>
+                                entry.kind === "builtIn"
+                                  ? updateOfferValue(
+                                      offer.id,
+                                      field.inputName,
+                                      event.target.value
+                                    )
+                                  : updateOfferAdditionalField(
+                                      offer.id,
+                                      field.fieldKey,
+                                      event.target.value
+                                    )
+                              }
+                            />
+                          ) : fieldType === "select" ? (
+                            <SelectInput
+                              value={fieldValue}
+                              onChange={(event) =>
+                                entry.kind === "builtIn"
+                                  ? updateOfferValue(
+                                      offer.id,
+                                      field.inputName,
+                                      event.target.value
+                                    )
+                                  : updateOfferAdditionalField(
+                                      offer.id,
+                                      field.fieldKey,
+                                      event.target.value
+                                    )
+                              }
+                            >
+                              <option value="">Select...</option>
+                              {field.options.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </SelectInput>
+                          ) : (
+                            <TextInput
+                              type={fieldType === "date" ? "date" : "text"}
+                              value={fieldValue}
+                              onChange={(event) =>
+                                entry.kind === "builtIn"
+                                  ? updateOfferValue(
+                                      offer.id,
+                                      field.inputName,
+                                      event.target.value
+                                    )
+                                  : updateOfferAdditionalField(
+                                      offer.id,
+                                      field.fieldKey,
+                                      event.target.value
+                                    )
+                              }
+                            />
+                          )}
+                        </FormField>
+                      );
+                    })}
                     <FormField className="bm-offer-edit-checkbox" label="Primary offer">
                       <input
                         checked={offerState.isPrimaryOffer}
-                        onChange={(event) => updateOfferState(offer.id, "isPrimaryOffer", event.target.checked)}
+                        onChange={(event) =>
+                          updateOfferPrimaryFlag(offer.id, event.target.checked)
+                        }
                         type="checkbox"
                       />
-                    </FormField>
-                    <FormField className="bm-offer-edit-notes" label="Notes">
-                      <TextareaInput rows={3} value={offerState.notes} onChange={(event) => updateOfferState(offer.id, "notes", event.target.value)} />
                     </FormField>
                     <div className="bm-offer-action-row">
                       <Button

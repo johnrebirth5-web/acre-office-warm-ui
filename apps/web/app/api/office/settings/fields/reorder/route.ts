@@ -1,5 +1,5 @@
 import { canManageOfficeFields } from "@acre/auth";
-import { createOfficeCustomFieldDefinition } from "@acre/db";
+import { reorderOfficeFields } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 
@@ -17,32 +17,31 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as
     | {
         module?: string;
-        label?: string;
-        type?: string;
-        isRequired?: boolean;
-        isVisible?: boolean;
-        options?: string[];
+        fieldOrder?: Array<{
+          kind?: string;
+          fieldKey?: string;
+        }>;
       }
     | null;
 
   try {
-    const snapshot = await createOfficeCustomFieldDefinition({
+    const snapshot = await reorderOfficeFields({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
       module: body?.module === "contact" || body?.module === "offer" ? body.module : "transaction",
-      label: body?.label ?? "",
-      type: body?.type ?? "",
-      isRequired: Boolean(body?.isRequired),
-      isVisible: typeof body?.isVisible === "boolean" ? body.isVisible : true,
-      options: Array.isArray(body?.options) ? body.options.map((option) => String(option ?? "")) : []
+      fieldOrder:
+        body?.fieldOrder?.map((entry) => ({
+          kind: entry.kind === "custom" ? "custom" : "builtIn",
+          fieldKey: String(entry.fieldKey ?? "")
+        })) ?? []
     });
 
-    return NextResponse.json({ snapshot }, { status: 201 });
+    return NextResponse.json({ snapshot });
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to create custom field."
+        error: error instanceof Error ? error.message : "Failed to reorder fields."
       },
       { status: 400 }
     );

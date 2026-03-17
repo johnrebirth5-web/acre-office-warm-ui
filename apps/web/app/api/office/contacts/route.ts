@@ -1,5 +1,5 @@
 import { canCreateOfficeContacts, canViewOfficeContacts } from "@acre/auth";
-import { createContact, listContacts, officeContactsPageDefaults, officeContactsPageLimits } from "@acre/db";
+import { createContact, getOfficeContactFieldSchema, listContacts, officeContactsPageDefaults, officeContactsPageLimits, prepareContactFieldSubmission } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
 
@@ -75,31 +75,43 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json()) as Record<string, unknown>;
-  const fullName = String(body.fullName ?? "").trim();
+  try {
+    const schema = await getOfficeContactFieldSchema({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null
+    });
+    const submission = prepareContactFieldSubmission({
+      schema,
+      payload: body
+    });
+    const contact = await createContact({
+      organizationId: context.currentOrganization.id,
+      ownerMembershipId: context.currentMembership.id,
+      actorMembershipId: context.currentMembership.id,
+      actorOfficeId: context.currentOffice?.id,
+      fullName: submission.fullName,
+      email: submission.email,
+      phone: submission.phone,
+      contactType: submission.contactType,
+      source: submission.source,
+      stage: submission.stage,
+      intent: submission.intent,
+      budgetMin: submission.budgetMin,
+      budgetMax: submission.budgetMax,
+      preferredAreas: parsePreferredAreas(submission.preferredAreas),
+      notes: submission.notes,
+      lastContactAt: submission.lastContactAt,
+      nextFollowUpAt: submission.nextFollowUpAt,
+      additionalFields: submission.additionalFields
+    });
 
-  if (!fullName) {
-    return NextResponse.json({ error: "Full name is required." }, { status: 400 });
+    return NextResponse.json({ contact }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Failed to create contact."
+      },
+      { status: 400 }
+    );
   }
-
-  const contact = await createContact({
-    organizationId: context.currentOrganization.id,
-    ownerMembershipId: context.currentMembership.id,
-    actorMembershipId: context.currentMembership.id,
-    actorOfficeId: context.currentOffice?.id,
-    fullName,
-    email: String(body.email ?? ""),
-    phone: String(body.phone ?? ""),
-    contactType: String(body.contactType ?? ""),
-    source: String(body.source ?? ""),
-    stage: String(body.stage ?? ""),
-    intent: String(body.intent ?? ""),
-    budgetMin: String(body.budgetMin ?? ""),
-    budgetMax: String(body.budgetMax ?? ""),
-    preferredAreas: parsePreferredAreas(body.preferredAreas),
-    notes: String(body.notes ?? ""),
-    lastContactAt: String(body.lastContactAt ?? ""),
-    nextFollowUpAt: String(body.nextFollowUpAt ?? "")
-  });
-
-  return NextResponse.json({ contact }, { status: 201 });
 }

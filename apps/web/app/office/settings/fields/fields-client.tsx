@@ -1,98 +1,237 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button, CheckboxField, DataTable, DataTableBody, DataTableHeader, DataTableRow, ListPageFooter, ListPageSection, ListPageStack, ListPageTableSection } from "@acre/ui";
-import type { OfficeFieldSettingsSnapshot } from "@acre/db";
+import {
+  Button,
+  CheckboxField,
+  SelectInput,
+  TextInput,
+  TextareaInput
+} from "@acre/ui";
+import type {
+  OfficeFieldBuiltInRecord,
+  OfficeFieldCustomDefinitionRecord,
+  OfficeFieldModule,
+  OfficeFieldModuleSettingsSnapshot,
+  OfficeFieldSettingsSnapshot,
+  OfficeRequiredContactRoleRecord
+} from "@acre/db";
 
 type OfficeSettingsFieldsClientProps = {
   snapshot: OfficeFieldSettingsSnapshot;
   canManageFields: boolean;
 };
 
-type RoleState = Record<string, boolean>;
-type FieldState = Record<string, { isRequired: boolean; isVisible: boolean }>;
-type CustomFieldState = Record<string, { isRequired: boolean; isVisible: boolean }>;
+type FieldEntry =
+  | { kind: "builtIn"; field: OfficeFieldBuiltInRecord }
+  | { kind: "custom"; field: OfficeFieldCustomDefinitionRecord };
 
-export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: OfficeSettingsFieldsClientProps) {
-  const router = useRouter();
-  const [pendingAction, setPendingAction] = useState(false);
+type FieldEditorState = {
+  mode: "create" | "edit";
+  kind: "builtIn" | "custom";
+  fieldKey: string;
+  label: string;
+  type: "text" | "select" | "date" | "textarea";
+  isRequired: boolean;
+  isVisible: boolean;
+  isLockedRequired: boolean;
+  isLockedVisible: boolean;
+  sortOrder: number;
+  optionsText: string;
+  selectOptions: Array<{
+    value: string;
+    label: string;
+    isEnabled: boolean;
+  }>;
+};
+
+const customFieldTypeOptions = [
+  { value: "text", label: "Text" },
+  { value: "select", label: "Dropdown" },
+  { value: "date", label: "Date" }
+] as const;
+
+function sortFieldEntries(entries: FieldEntry[]) {
+  return [...entries].sort((left, right) => {
+    if (left.field.sortOrder !== right.field.sortOrder) {
+      return left.field.sortOrder - right.field.sortOrder;
+    }
+
+    if (left.kind !== right.kind) {
+      return left.kind === "builtIn" ? -1 : 1;
+    }
+
+    return left.field.label.localeCompare(right.field.label);
+  });
+}
+
+function buildFieldEntries(snapshot: OfficeFieldModuleSettingsSnapshot, isVisible: boolean) {
+  return sortFieldEntries([
+    ...snapshot.builtInFields
+      .filter((field) => field.isVisible === isVisible)
+      .map((field) => ({ kind: "builtIn" as const, field })),
+    ...snapshot.customFields
+      .filter((field) => field.isVisible === isVisible)
+      .map((field) => ({ kind: "custom" as const, field }))
+  ]);
+}
+
+function getFieldTypeLabel(entry: FieldEntry) {
+  const type = entry.kind === "builtIn" ? entry.field.control : entry.field.type;
+  const optionCount = entry.field.options.length;
+
+  if (type === "textarea") {
+    return "long text";
+  }
+
+  if (type === "select") {
+    return optionCount > 0 ? `dropdown (${optionCount} options)` : "dropdown";
+  }
+
+  return type;
+}
+
+function buildModulePayload(snapshot: OfficeFieldModuleSettingsSnapshot) {
+  return {
+    module: snapshot.module,
+    contactRoleSettings:
+      snapshot.module === "transaction"
+        ? snapshot.requiredContactRoles.map((role) => ({
+            role: role.role,
+            isRequired: role.isRequired
+          }))
+        : undefined,
+    builtInFieldSettings: snapshot.builtInFields.map((field) => ({
+      fieldKey: field.fieldKey,
+      isRequired: field.isRequired,
+      isVisible: field.isVisible,
+      sortOrder: field.sortOrder,
+      selectOptions:
+        field.control === "select"
+          ? field.selectOptions.map((option) => ({
+              value: option.value,
+              label: option.label,
+              isEnabled: option.isEnabled
+            }))
+          : undefined
+    })),
+    customFieldDefinitions: snapshot.customFields.map((field) => ({
+      fieldKey: field.fieldKey,
+      label: field.label,
+      type: field.type,
+      isRequired: field.isRequired,
+      isVisible: field.isVisible,
+      sortOrder: field.sortOrder,
+      options: field.options
+    }))
+  };
+}
+
+function parseOptionsText(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/[\n,]/)
+        .map((option) => option.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function buildEditorStateFromField(entry: FieldEntry): FieldEditorState {
+  const fieldType = entry.kind === "builtIn" ? entry.field.control : entry.field.type;
+
+  return {
+    mode: "edit",
+    kind: entry.kind,
+    fieldKey: entry.field.fieldKey,
+    label: entry.field.label,
+    type: fieldType,
+    isRequired: entry.field.isRequired,
+    isVisible: entry.field.isVisible,
+    isLockedRequired: entry.kind === "builtIn" ? entry.field.isLockedRequired : false,
+    isLockedVisible: entry.kind === "builtIn" ? entry.field.isLockedVisible : false,
+    sortOrder: entry.field.sortOrder,
+    optionsText:
+      entry.kind === "custom" && entry.field.type === "select"
+        ? entry.field.options.join("\n")
+        : "",
+    selectOptions:
+      entry.kind === "builtIn" && entry.field.control === "select"
+        ? entry.field.selectOptions.map((option) => ({ ...option }))
+        : []
+  };
+}
+
+function buildCreateEditorState(module: OfficeFieldModule, sortOrder: number): FieldEditorState {
+  return {
+    mode: "create",
+    kind: "custom",
+    fieldKey: "",
+    label: "",
+    type: module === "transaction" ? "text" : "text",
+    isRequired: false,
+    isVisible: true,
+    isLockedRequired: false,
+    isLockedVisible: false,
+    sortOrder,
+    optionsText: "",
+    selectOptions: []
+  };
+}
+
+function buildSummaryRecord(snapshot: OfficeFieldModuleSettingsSnapshot) {
+  return {
+    module: snapshot.module,
+    label: snapshot.label,
+    description: snapshot.description,
+    fieldCount: snapshot.summary.fieldCount,
+    customFieldCount: snapshot.summary.customFieldCount,
+    hiddenFieldCount: snapshot.summary.hiddenFieldCount
+  };
+}
+
+export function OfficeSettingsFieldsClient({
+  snapshot,
+  canManageFields
+}: OfficeSettingsFieldsClientProps) {
+  const pathname = usePathname();
+  const [currentModule, setCurrentModule] = useState(snapshot.currentModule);
+  const [modules, setModules] = useState(snapshot.modules);
+  const [pendingAction, setPendingAction] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [roleState, setRoleState] = useState<RoleState>(
-    Object.fromEntries(snapshot.contactRoleSettings.map((entry) => [entry.role, entry.isRequired]))
-  );
-  const [fieldState, setFieldState] = useState<FieldState>(
-    Object.fromEntries(
-      snapshot.transactionFieldSettings.map((entry) => [
-        entry.fieldKey,
-        {
-          isRequired: entry.isRequired,
-          isVisible: entry.isVisible
-        }
-      ])
-    )
-  );
-  const [customFieldState, setCustomFieldState] = useState<CustomFieldState>(
-    Object.fromEntries(
-      snapshot.transactionCustomFieldDefinitions.map((entry) => [
-        entry.fieldKey,
-        {
-          isRequired: entry.isRequired,
-          isVisible: entry.isVisible
-        }
-      ])
-    )
-  );
+  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [editorState, setEditorState] = useState<FieldEditorState | null>(null);
 
   useEffect(() => {
-    setRoleState(Object.fromEntries(snapshot.contactRoleSettings.map((entry) => [entry.role, entry.isRequired])));
-    setFieldState(
-      Object.fromEntries(
-        snapshot.transactionFieldSettings.map((entry) => [
-          entry.fieldKey,
-          {
-            isRequired: entry.isRequired,
-            isVisible: entry.isVisible
-          }
-        ])
-      )
-    );
-    setCustomFieldState(
-      Object.fromEntries(
-        snapshot.transactionCustomFieldDefinitions.map((entry) => [
-          entry.fieldKey,
-          {
-            isRequired: entry.isRequired,
-            isVisible: entry.isVisible
-          }
-        ])
-      )
-    );
+    setCurrentModule(snapshot.currentModule);
+    setModules(snapshot.modules);
+    setEditorState(null);
+    setSubmitError("");
+    setSubmitSuccess("");
   }, [snapshot]);
 
-  function setFieldValue(fieldKey: string, field: "isRequired" | "isVisible", value: boolean) {
-    setFieldState((current) => ({
-      ...current,
-      [fieldKey]: {
-        ...(current[fieldKey] ?? { isRequired: false, isVisible: true }),
-        [field]: value
-      }
-    }));
+  const visibleEntries = buildFieldEntries(currentModule, true);
+  const hiddenEntries = buildFieldEntries(currentModule, false);
+
+  function applyModuleSnapshot(nextModule: OfficeFieldModuleSettingsSnapshot) {
+    setCurrentModule(nextModule);
+    setModules((current) =>
+      current.map((entry) =>
+        entry.module === nextModule.module ? buildSummaryRecord(nextModule) : entry
+      )
+    );
   }
 
-  function setCustomFieldValue(fieldKey: string, field: "isRequired" | "isVisible", value: boolean) {
-    setCustomFieldState((current) => ({
-      ...current,
-      [fieldKey]: {
-        ...(current[fieldKey] ?? { isRequired: false, isVisible: true }),
-        [field]: value
-      }
-    }));
-  }
-
-  async function handleSave() {
-    setPendingAction(true);
+  async function persistModuleSnapshot(
+    nextModule: OfficeFieldModuleSettingsSnapshot,
+    successMessage: string
+  ) {
+    setPendingAction(`save:${nextModule.module}`);
     setSubmitError("");
+    setSubmitSuccess("");
 
     try {
       const response = await fetch("/api/office/settings/fields", {
@@ -100,26 +239,7 @@ export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: Office
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          contactRoleSettings: snapshot.contactRoleSettings.map((entry) => ({
-            role: entry.role,
-            isRequired: roleState[entry.role] ?? false
-          })),
-          transactionFieldSettings: snapshot.transactionFieldSettings.map((entry) => ({
-            fieldKey: entry.fieldKey,
-            isRequired: fieldState[entry.fieldKey]?.isRequired ?? false,
-            isVisible: fieldState[entry.fieldKey]?.isVisible ?? true
-          })),
-          transactionCustomFieldDefinitions: snapshot.transactionCustomFieldDefinitions.map((entry) => ({
-            fieldKey: entry.fieldKey,
-            label: entry.label,
-            type: entry.type,
-            isRequired: customFieldState[entry.fieldKey]?.isRequired ?? false,
-            isVisible: customFieldState[entry.fieldKey]?.isVisible ?? true,
-            sortOrder: entry.sortOrder,
-            options: entry.options
-          }))
-        })
+        body: JSON.stringify(buildModulePayload(nextModule))
       });
 
       if (!response.ok) {
@@ -127,114 +247,663 @@ export function OfficeSettingsFieldsClient({ snapshot, canManageFields }: Office
         throw new Error(body?.error ?? "Failed to save field settings.");
       }
 
-      router.refresh();
+      const body = (await response.json()) as {
+        snapshot: OfficeFieldModuleSettingsSnapshot;
+      };
+      applyModuleSnapshot(body.snapshot);
+      setSubmitSuccess(successMessage);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to save field settings.");
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to save field settings."
+      );
     } finally {
-      setPendingAction(false);
+      setPendingAction("");
+    }
+  }
+
+  async function handleRoleToggle(role: string, isRequired: boolean) {
+    const nextModule = {
+      ...currentModule,
+      requiredContactRoles: currentModule.requiredContactRoles.map((entry) =>
+        entry.role === role ? { ...entry, isRequired } : entry
+      )
+    };
+
+    await persistModuleSnapshot(nextModule, "Required contact roles updated.");
+  }
+
+  function openCreateModal() {
+    const highestSortOrder = Math.max(
+      -1,
+      ...currentModule.builtInFields.map((field) => field.sortOrder),
+      ...currentModule.customFields.map((field) => field.sortOrder)
+    );
+    setEditorState(buildCreateEditorState(currentModule.module, highestSortOrder + 1));
+  }
+
+  function openEditModal(entry: FieldEntry) {
+    setEditorState(buildEditorStateFromField(entry));
+  }
+
+  function updateEditor(partial: Partial<FieldEditorState>) {
+    setEditorState((current) => (current ? { ...current, ...partial } : current));
+  }
+
+  function updateEditorSelectOption(
+    value: string,
+    field: "label" | "isEnabled",
+    nextValue: string | boolean
+  ) {
+    setEditorState((current) =>
+      current
+        ? {
+            ...current,
+            selectOptions: current.selectOptions.map((option) =>
+              option.value === value ? { ...option, [field]: nextValue } : option
+            )
+          }
+        : current
+    );
+  }
+
+  async function handleDeleteField(entry: FieldEntry) {
+    if (entry.kind === "builtIn") {
+      if (entry.field.isLockedVisible) {
+        return;
+      }
+
+      const nextModule = {
+        ...currentModule,
+        builtInFields: currentModule.builtInFields.map((field) =>
+          field.fieldKey === entry.field.fieldKey
+            ? { ...field, isVisible: false }
+            : field
+        )
+      };
+      await persistModuleSnapshot(nextModule, `${entry.field.label} hidden.`);
+      return;
+    }
+
+    setPendingAction(`delete:${entry.field.fieldKey}`);
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    try {
+      const response = await fetch(
+        `/api/office/settings/fields/custom/${entry.field.fieldKey}?module=${currentModule.module}`,
+        {
+          method: "DELETE"
+        }
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to delete custom field.");
+      }
+
+      const body = (await response.json()) as {
+        snapshot: OfficeFieldModuleSettingsSnapshot;
+      };
+      applyModuleSnapshot(body.snapshot);
+      setSubmitSuccess(`${entry.field.label} deleted.`);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to delete custom field."
+      );
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  async function handleRestoreField(entry: FieldEntry) {
+    if (entry.kind === "builtIn") {
+      const nextModule = {
+        ...currentModule,
+        builtInFields: currentModule.builtInFields.map((field) =>
+          field.fieldKey === entry.field.fieldKey
+            ? { ...field, isVisible: true }
+            : field
+        )
+      };
+      await persistModuleSnapshot(nextModule, `${entry.field.label} restored.`);
+      return;
+    }
+
+    setPendingAction(`restore:${entry.field.fieldKey}`);
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    try {
+      const response = await fetch(
+        `/api/office/settings/fields/custom/${entry.field.fieldKey}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            module: currentModule.module,
+            isVisible: true
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to restore field.");
+      }
+
+      const body = (await response.json()) as {
+        snapshot: OfficeFieldModuleSettingsSnapshot;
+      };
+      applyModuleSnapshot(body.snapshot);
+      setSubmitSuccess(`${entry.field.label} restored.`);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to restore field.");
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  async function handleMoveField(fieldKey: string, direction: "up" | "down") {
+    const currentIndex = visibleEntries.findIndex((entry) => entry.field.fieldKey === fieldKey);
+
+    if (currentIndex < 0) {
+      return;
+    }
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= visibleEntries.length) {
+      return;
+    }
+
+    const nextVisibleEntries = [...visibleEntries];
+    const [movedEntry] = nextVisibleEntries.splice(currentIndex, 1);
+    nextVisibleEntries.splice(targetIndex, 0, movedEntry);
+
+    setPendingAction(`reorder:${fieldKey}`);
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    try {
+      const response = await fetch("/api/office/settings/fields/reorder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          module: currentModule.module,
+          fieldOrder: [...nextVisibleEntries, ...hiddenEntries].map((entry) => ({
+            kind: entry.kind,
+            fieldKey: entry.field.fieldKey
+          }))
+        })
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to reorder fields.");
+      }
+
+      const body = (await response.json()) as {
+        snapshot: OfficeFieldModuleSettingsSnapshot;
+      };
+      applyModuleSnapshot(body.snapshot);
+      setSubmitSuccess("Field order updated.");
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to reorder fields.");
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  async function handleEditorSave() {
+    if (!editorState) {
+      return;
+    }
+
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    if (editorState.kind === "builtIn") {
+      const nextModule = {
+        ...currentModule,
+        builtInFields: currentModule.builtInFields.map((field) =>
+          field.fieldKey === editorState.fieldKey
+            ? {
+                ...field,
+                isRequired: editorState.isLockedRequired ? field.isRequired : editorState.isRequired,
+                isVisible: editorState.isLockedVisible ? field.isVisible : editorState.isVisible,
+                selectOptions:
+                  field.control === "select"
+                    ? editorState.selectOptions.map((option) => ({ ...option }))
+                    : field.selectOptions,
+                options:
+                  field.control === "select"
+                    ? editorState.selectOptions
+                        .filter((option) => option.isEnabled)
+                        .map((option) => option.value)
+                    : field.options
+              }
+            : field
+        )
+      };
+
+      await persistModuleSnapshot(nextModule, `${editorState.label} updated.`);
+      setEditorState(null);
+      return;
+    }
+
+    const options =
+      editorState.type === "select" ? parseOptionsText(editorState.optionsText) : [];
+    const requestBody = {
+      module: currentModule.module,
+      label: editorState.label,
+      type: editorState.type,
+      isRequired: editorState.isRequired,
+      isVisible: editorState.isVisible,
+      sortOrder: editorState.sortOrder,
+      options
+    };
+
+    setPendingAction(
+      editorState.mode === "create"
+        ? `create:${currentModule.module}`
+        : `update:${editorState.fieldKey}`
+    );
+
+    try {
+      const response = await fetch(
+        editorState.mode === "create"
+          ? "/api/office/settings/fields/custom"
+          : `/api/office/settings/fields/custom/${editorState.fieldKey}`,
+        {
+          method: editorState.mode === "create" ? "POST" : "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(requestBody)
+        }
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(
+          body?.error ??
+            (editorState.mode === "create"
+              ? "Failed to create custom field."
+              : "Failed to update custom field.")
+        );
+      }
+
+      const body = (await response.json()) as {
+        snapshot: OfficeFieldModuleSettingsSnapshot;
+      };
+      applyModuleSnapshot(body.snapshot);
+      setEditorState(null);
+      setSubmitSuccess(
+        editorState.mode === "create"
+          ? "Custom field added."
+          : `${editorState.label} updated.`
+      );
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : editorState.mode === "create"
+            ? "Failed to create custom field."
+            : "Failed to update custom field."
+      );
+    } finally {
+      setPendingAction("");
     }
   }
 
   return (
-    <ListPageStack>
-      {submitError ? <p className="office-inline-error">{submitError}</p> : null}
-
-      <ListPageSection subtitle="These roles are required for the office workflow before a transaction is considered fully staffed." title="Required contact roles">
-        <div className="office-settings-checkbox-grid">
-          {snapshot.contactRoleSettings.map((entry) => (
-            <CheckboxField className="office-settings-checkbox-item" key={entry.role} label={entry.label}>
-              <input
-                checked={roleState[entry.role] ?? false}
-                disabled={!canManageFields}
-                onChange={(event) => setRoleState((current) => ({ ...current, [entry.role]: event.target.checked }))}
-                type="checkbox"
-              />
-            </CheckboxField>
-          ))}
+    <div className="office-fields-shell">
+      <aside className="office-fields-module-rail">
+        <div className="office-fields-module-rail-head">
+          <span>Lists & templates</span>
+          <strong>Field modules</strong>
         </div>
-      </ListPageSection>
+        <div className="office-fields-module-list">
+          {modules.map((module) => {
+            const isActive = module.module === currentModule.module;
+            return (
+              <Link
+                className={`office-fields-module-link${isActive ? " is-active" : ""}`}
+                href={`${pathname}?module=${module.module}`}
+                key={module.module}
+              >
+                <div>
+                  <strong>{module.label}</strong>
+                  <p>{module.fieldCount} fields</p>
+                </div>
+                <span>{module.hiddenFieldCount} hidden</span>
+              </Link>
+            );
+          })}
+        </div>
+      </aside>
 
-      <ListPageTableSection
-        footer={<ListPageFooter summary={`${snapshot.transactionFieldSettings.length} configurable transaction fields`} />}
-        subtitle="Control which transaction fields stay visible and which are enforced as required in Back Office."
-        title="Transaction field behavior"
-      >
-        <DataTable className="office-table">
-          <DataTableHeader className="office-table-header office-table-row office-table-row-settings-fields">
-            <span>Field</span>
-            <span>Visible</span>
-            <span>Required</span>
-          </DataTableHeader>
-          <DataTableBody>
-            {snapshot.transactionFieldSettings.map((entry) => (
-              <DataTableRow className="office-table-row office-table-row-settings-fields" key={entry.fieldKey}>
-                <strong>{entry.label}</strong>
-                <CheckboxField label="Visible">
-                  <input
-                    checked={fieldState[entry.fieldKey]?.isVisible ?? true}
-                    disabled={!canManageFields}
-                    onChange={(event) => setFieldValue(entry.fieldKey, "isVisible", event.target.checked)}
-                    type="checkbox"
-                  />
-                </CheckboxField>
-                <CheckboxField label="Required">
-                  <input
-                    checked={fieldState[entry.fieldKey]?.isRequired ?? false}
-                    disabled={!canManageFields}
-                    onChange={(event) => setFieldValue(entry.fieldKey, "isRequired", event.target.checked)}
-                    type="checkbox"
-                  />
-                </CheckboxField>
-              </DataTableRow>
-            ))}
-          </DataTableBody>
-        </DataTable>
-
-        {canManageFields ? (
-          <div className="office-settings-actions">
-            <Button disabled={pendingAction} onClick={handleSave} variant="secondary">
-              {pendingAction ? "Saving..." : "Save field settings"}
-            </Button>
+      <section className="office-fields-panel">
+        <div className="office-fields-panel-head">
+          <div>
+            <h2>{currentModule.label}</h2>
+            <p>{currentModule.description}</p>
           </div>
-        ) : null}
-      </ListPageTableSection>
+          {canManageFields ? (
+            <Button onClick={openCreateModal} type="button">
+              Add field
+            </Button>
+          ) : null}
+        </div>
 
-      <ListPageTableSection
-        footer={<ListPageFooter summary={`${snapshot.transactionCustomFieldDefinitions.length} configurable custom fields`} />}
-        subtitle="Custom transaction fields are created from the transaction intake editor and can still be reviewed here for visibility and requiredness."
-        title="Custom transaction fields"
-      >
-        <DataTable className="office-table">
-          <DataTableHeader className="office-table-header office-table-row office-table-row-settings-fields">
-            <span>Field</span>
-            <span>Visible</span>
-            <span>Required</span>
-          </DataTableHeader>
-          <DataTableBody>
-            {snapshot.transactionCustomFieldDefinitions.map((entry) => (
-              <DataTableRow className="office-table-row office-table-row-settings-fields" key={entry.fieldKey}>
-                <strong>{entry.label}</strong>
-                <CheckboxField label="Visible">
+        {submitError ? <p className="office-inline-error">{submitError}</p> : null}
+        {submitSuccess ? <p className="office-inline-success">{submitSuccess}</p> : null}
+
+        <div className="office-fields-list">
+          {visibleEntries.map((entry, index) => (
+            <article className="office-fields-row" key={`${entry.kind}:${entry.field.fieldKey}`}>
+              <button
+                className="office-fields-row-main"
+                onClick={() => openEditModal(entry)}
+                type="button"
+              >
+                <span aria-hidden="true" className="office-fields-row-grip">
+                  ≡
+                </span>
+                <div className="office-fields-row-copy">
+                  <strong>{entry.field.label}</strong>
+                  <p>{entry.kind === "custom" ? "Custom field" : "Built-in field"}</p>
+                </div>
+                <span className="office-fields-row-type">{getFieldTypeLabel(entry)}</span>
+                <span className="office-fields-row-state">
+                  {entry.field.isRequired ? "Required" : "Optional"}
+                </span>
+              </button>
+
+              {canManageFields ? (
+                <div className="office-fields-row-actions">
+                  <button
+                    aria-label={`Move ${entry.field.label} up`}
+                    className="office-fields-row-action"
+                    disabled={index === 0 || pendingAction.startsWith("reorder:")}
+                    onClick={() => handleMoveField(entry.field.fieldKey, "up")}
+                    type="button"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    aria-label={`Move ${entry.field.label} down`}
+                    className="office-fields-row-action"
+                    disabled={
+                      index === visibleEntries.length - 1 || pendingAction.startsWith("reorder:")
+                    }
+                    onClick={() => handleMoveField(entry.field.fieldKey, "down")}
+                    type="button"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    aria-label={`Edit ${entry.field.label}`}
+                    className="office-fields-row-action"
+                    onClick={() => openEditModal(entry)}
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    aria-label={entry.kind === "builtIn" ? `Hide ${entry.field.label}` : `Delete ${entry.field.label}`}
+                    className="office-fields-row-action is-danger"
+                    disabled={
+                      pendingAction.length > 0 ||
+                      (entry.kind === "builtIn" && entry.field.isLockedVisible)
+                    }
+                    onClick={() => handleDeleteField(entry)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
+            </article>
+          ))}
+
+          {visibleEntries.length === 0 ? (
+            <div className="office-fields-empty">
+              <strong>No visible fields</strong>
+              <p>Restore hidden fields or add a new custom field for this module.</p>
+            </div>
+          ) : null}
+        </div>
+
+        {hiddenEntries.length ? (
+          <section className="office-fields-hidden">
+            <div className="office-fields-section-head">
+              <div>
+                <h3>Hidden fields</h3>
+                <p>Restore fields without leaving the centralized fields workspace.</p>
+              </div>
+            </div>
+            <div className="office-fields-hidden-list">
+              {hiddenEntries.map((entry) => (
+                <article className="office-fields-hidden-row" key={`hidden:${entry.kind}:${entry.field.fieldKey}`}>
+                  <div>
+                    <strong>{entry.field.label}</strong>
+                    <p>
+                      {entry.kind === "custom" ? "Custom field" : "Built-in field"} ·{" "}
+                      {getFieldTypeLabel(entry)}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={pendingAction.length > 0}
+                    onClick={() => handleRestoreField(entry)}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Restore
+                  </Button>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {currentModule.module === "transaction" ? (
+          <section className="office-fields-roles">
+            <div className="office-fields-section-head">
+              <div>
+                <h3>Required contact roles</h3>
+                <p>These roles remain transaction-only workflow requirements.</p>
+              </div>
+            </div>
+            <div className="office-settings-checkbox-grid">
+              {currentModule.requiredContactRoles.map((entry: OfficeRequiredContactRoleRecord) => (
+                <CheckboxField className="office-settings-checkbox-item" key={entry.role} label={entry.label}>
                   <input
-                    checked={customFieldState[entry.fieldKey]?.isVisible ?? true}
-                    disabled={!canManageFields}
-                    onChange={(event) => setCustomFieldValue(entry.fieldKey, "isVisible", event.target.checked)}
+                    checked={entry.isRequired}
+                    disabled={!canManageFields || pendingAction.length > 0}
+                    onChange={(event) =>
+                      handleRoleToggle(entry.role, event.target.checked)
+                    }
                     type="checkbox"
                   />
                 </CheckboxField>
-                <CheckboxField label="Required">
-                  <input
-                    checked={customFieldState[entry.fieldKey]?.isRequired ?? false}
-                    disabled={!canManageFields}
-                    onChange={(event) => setCustomFieldValue(entry.fieldKey, "isRequired", event.target.checked)}
-                    type="checkbox"
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </section>
+
+      {editorState ? (
+        <div className="bm-modal-overlay" onClick={() => setEditorState(null)}>
+          <section
+            className="office-fields-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="office-fields-modal-head">
+              <div>
+                <h3>
+                  {editorState.mode === "create" ? "Add field" : editorState.label}
+                </h3>
+                <p>
+                  {editorState.kind === "builtIn"
+                    ? "Built-in field settings"
+                    : "Custom field settings"}
+                </p>
+              </div>
+              <button
+                aria-label="Close field editor"
+                className="office-fields-modal-close"
+                onClick={() => setEditorState(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="office-fields-modal-body">
+              <label className="office-fields-modal-field">
+                <span>Field label</span>
+                <TextInput
+                  disabled={editorState.kind === "builtIn"}
+                  onChange={(event) => updateEditor({ label: event.target.value })}
+                  value={editorState.label}
+                />
+              </label>
+
+              <label className="office-fields-modal-field">
+                <span>Field type</span>
+                {editorState.kind === "builtIn" ? (
+                  <TextInput
+                    disabled
+                    value={
+                      editorState.type === "textarea"
+                        ? "long text"
+                        : editorState.type === "select"
+                          ? "dropdown"
+                          : editorState.type
+                    }
                   />
-                </CheckboxField>
-              </DataTableRow>
-            ))}
-          </DataTableBody>
-        </DataTable>
-      </ListPageTableSection>
-    </ListPageStack>
+                ) : (
+                  <SelectInput
+                    onChange={(event) =>
+                      updateEditor({
+                        type: event.target.value as FieldEditorState["type"]
+                      })
+                    }
+                    value={editorState.type}
+                  >
+                    {customFieldTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </SelectInput>
+                )}
+              </label>
+
+              <CheckboxField
+                className="office-fields-modal-checkbox"
+                label="Required"
+              >
+                <input
+                  checked={editorState.isRequired}
+                  disabled={editorState.isLockedRequired}
+                  onChange={(event) =>
+                    updateEditor({ isRequired: event.target.checked })
+                  }
+                  type="checkbox"
+                />
+              </CheckboxField>
+
+              <CheckboxField
+                className="office-fields-modal-checkbox"
+                label="Visible"
+              >
+                <input
+                  checked={editorState.isVisible}
+                  disabled={editorState.isLockedVisible}
+                  onChange={(event) =>
+                    updateEditor({ isVisible: event.target.checked })
+                  }
+                  type="checkbox"
+                />
+              </CheckboxField>
+
+              {editorState.kind === "custom" && editorState.type === "select" ? (
+                <label className="office-fields-modal-field is-full">
+                  <span>Dropdown options</span>
+                  <TextareaInput
+                    onChange={(event) =>
+                      updateEditor({ optionsText: event.target.value })
+                    }
+                    placeholder="One option per line"
+                    rows={6}
+                    value={editorState.optionsText}
+                  />
+                </label>
+              ) : null}
+
+              {editorState.kind === "builtIn" && editorState.type === "select" ? (
+                <div className="office-fields-modal-option-list">
+                  <div className="office-fields-modal-option-head">
+                    <span>Enabled</span>
+                    <span>Display label</span>
+                  </div>
+                  {editorState.selectOptions.map((option) => (
+                    <div className="office-fields-modal-option-row" key={option.value}>
+                      <label className="office-fields-option-toggle">
+                        <input
+                          checked={option.isEnabled}
+                          onChange={(event) =>
+                            updateEditorSelectOption(
+                              option.value,
+                              "isEnabled",
+                              event.target.checked
+                            )
+                          }
+                          type="checkbox"
+                        />
+                        <span>{option.value}</span>
+                      </label>
+                      <TextInput
+                        onChange={(event) =>
+                          updateEditorSelectOption(
+                            option.value,
+                            "label",
+                            event.target.value
+                          )
+                        }
+                        value={option.label}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <footer className="office-fields-modal-footer">
+              <Button
+                onClick={() => setEditorState(null)}
+                type="button"
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={pendingAction.length > 0}
+                onClick={handleEditorSave}
+                type="button"
+              >
+                {pendingAction.length > 0 ? "Saving..." : editorState.mode === "create" ? "Add field" : "Save changes"}
+              </Button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+    </div>
   );
 }

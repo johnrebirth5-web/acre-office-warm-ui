@@ -1,5 +1,5 @@
 import { canManageOfficeOffers } from "@acre/auth";
-import { createOffer } from "@acre/db";
+import { createOffer, getOfficeOfferFieldSchema, prepareOfferFieldSubmission } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 
@@ -21,39 +21,32 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const { transactionId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        title?: string;
-        offeringPartyName?: string;
-        buyerName?: string;
-        price?: string;
-        earnestMoneyAmount?: string;
-        financingType?: string;
-        closingDateOffered?: string;
-        expirationAt?: string;
-        notes?: string;
-      }
-    | null;
-
-  if (!body?.title?.trim() || !body.offeringPartyName?.trim()) {
-    return NextResponse.json({ error: "Offer title and offer party are required." }, { status: 400 });
-  }
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
   try {
+    const schema = await getOfficeOfferFieldSchema({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null
+    });
+    const submission = prepareOfferFieldSubmission({
+      schema,
+      payload: body ?? {}
+    });
     const offer = await createOffer({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       transactionId,
       actorMembershipId: context.currentMembership.id,
-      title: body.title,
-      offeringPartyName: body.offeringPartyName,
-      buyerName: body.buyerName,
-      price: body.price,
-      earnestMoneyAmount: body.earnestMoneyAmount,
-      financingType: body.financingType,
-      closingDateOffered: body.closingDateOffered,
-      expirationAt: body.expirationAt,
-      notes: body.notes
+      title: submission.title,
+      offeringPartyName: submission.offeringPartyName,
+      buyerName: submission.buyerName,
+      price: submission.price,
+      earnestMoneyAmount: submission.earnestMoneyAmount,
+      financingType: submission.financingType,
+      closingDateOffered: submission.closingDateOffered,
+      expirationAt: submission.expirationAt,
+      notes: submission.notes,
+      additionalFields: submission.additionalFields
     });
 
     if (!offer) {

@@ -2,17 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button, FormField, PageHeader, PageShell, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
-import type { OfficeContactDetail } from "@acre/db";
+import type { OfficeContactDetail, OfficeContactFieldSchema } from "@acre/db";
 
 type ContactDetailClientProps = {
   contact: OfficeContactDetail;
+  schema: OfficeContactFieldSchema;
 };
 
-export function ContactDetailClient({ contact }: ContactDetailClientProps) {
-  const router = useRouter();
-  const [formState, setFormState] = useState({
+type ContactVisibleField =
+  | { kind: "builtIn"; field: OfficeContactFieldSchema["builtInFields"][number] }
+  | { kind: "custom"; field: OfficeContactFieldSchema["customFields"][number] };
+
+function sortSchemaFieldEntries(fields: ContactVisibleField[]) {
+  return [...fields].sort((left, right) => {
+    if (left.field.sortOrder !== right.field.sortOrder) {
+      return left.field.sortOrder - right.field.sortOrder;
+    }
+
+    return left.field.label.localeCompare(right.field.label);
+  });
+}
+
+function buildContactDetailValues(schema: OfficeContactFieldSchema, contact: OfficeContactDetail) {
+  const values: Record<string, string> = {
     fullName: contact.fullName,
     email: contact.email,
     phone: contact.phone,
@@ -25,8 +39,31 @@ export function ContactDetailClient({ contact }: ContactDetailClientProps) {
     preferredAreas: contact.areas.join(", "),
     notes: contact.notes,
     lastContactAt: contact.lastContactAt,
-    nextFollowUpAt: contact.nextFollowUpAt
-  });
+    nextFollowUpAt: contact.nextFollowUpAt,
+  };
+
+  for (const field of schema.customFields) {
+    values[field.inputName] = contact.additionalFields[field.fieldKey] ?? "";
+  }
+
+  return values;
+}
+
+function getContactFieldLabel(label: string, isRequired: boolean) {
+  return isRequired ? `${label} *` : label;
+}
+
+function getContactDetailFieldClassName(fieldClassName: string) {
+  return fieldClassName.includes("is-span-4")
+    ? "office-detail-field office-detail-field-wide"
+    : "office-detail-field";
+}
+
+export function ContactDetailClient({ contact, schema }: ContactDetailClientProps) {
+  const router = useRouter();
+  const [formState, setFormState] = useState<Record<string, string>>(() =>
+    buildContactDetailValues(schema, contact),
+  );
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDueAt, setTaskDueAt] = useState("");
   const [selectedTransactionId, setSelectedTransactionId] = useState(contact.availableTransactions[0]?.id ?? "");
@@ -37,7 +74,21 @@ export function ContactDetailClient({ contact }: ContactDetailClientProps) {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
 
-  function updateField(name: keyof typeof formState, value: string) {
+  useEffect(() => {
+    setFormState(buildContactDetailValues(schema, contact));
+    setSelectedTransactionId(contact.availableTransactions[0]?.id ?? "");
+  }, [contact, schema]);
+
+  const visibleFields: ContactVisibleField[] = sortSchemaFieldEntries([
+    ...schema.builtInFields
+      .filter((field) => field.isVisible)
+      .map((field) => ({ kind: "builtIn" as const, field })),
+    ...schema.customFields
+      .filter((field) => field.isVisible)
+      .map((field) => ({ kind: "custom" as const, field })),
+  ]);
+
+  function updateField(name: string, value: string) {
     setFormState((current) => ({
       ...current,
       [name]: value
@@ -144,45 +195,58 @@ export function ContactDetailClient({ contact }: ContactDetailClientProps) {
 
       <SectionCard subtitle="Core profile, lifecycle, and follow-up details for this contact." title="Overview">
         <form className="office-detail-grid" onSubmit={handleSave}>
-          <FormField className="office-detail-field" label="Full name">
-            <TextInput onChange={(event) => updateField("fullName", event.target.value)} type="text" value={formState.fullName} />
-          </FormField>
-          <FormField className="office-detail-field" label="Email">
-            <TextInput onChange={(event) => updateField("email", event.target.value)} type="email" value={formState.email} />
-          </FormField>
-          <FormField className="office-detail-field" label="Phone">
-            <TextInput onChange={(event) => updateField("phone", event.target.value)} type="text" value={formState.phone} />
-          </FormField>
-          <FormField className="office-detail-field" label="Contact type">
-            <TextInput onChange={(event) => updateField("contactType", event.target.value)} type="text" value={formState.contactType} />
-          </FormField>
-          <FormField className="office-detail-field" label="Source">
-            <TextInput onChange={(event) => updateField("source", event.target.value)} type="text" value={formState.source} />
-          </FormField>
-          <FormField className="office-detail-field" label="Stage">
-            <TextInput onChange={(event) => updateField("stage", event.target.value)} type="text" value={formState.stage} />
-          </FormField>
-          <FormField className="office-detail-field" label="Intent">
-            <TextInput onChange={(event) => updateField("intent", event.target.value)} type="text" value={formState.intent} />
-          </FormField>
-          <FormField className="office-detail-field" label="Budget min">
-            <TextInput onChange={(event) => updateField("budgetMin", event.target.value)} type="text" value={formState.budgetMin} />
-          </FormField>
-          <FormField className="office-detail-field" label="Budget max">
-            <TextInput onChange={(event) => updateField("budgetMax", event.target.value)} type="text" value={formState.budgetMax} />
-          </FormField>
-          <FormField className="office-detail-field" label="Preferred areas">
-            <TextInput onChange={(event) => updateField("preferredAreas", event.target.value)} type="text" value={formState.preferredAreas} />
-          </FormField>
-          <FormField className="office-detail-field" label="Last contact">
-            <TextInput onChange={(event) => updateField("lastContactAt", event.target.value)} type="date" value={formState.lastContactAt} />
-          </FormField>
-          <FormField className="office-detail-field" label="Next follow-up">
-            <TextInput onChange={(event) => updateField("nextFollowUpAt", event.target.value)} type="date" value={formState.nextFollowUpAt} />
-          </FormField>
-          <FormField className="office-detail-field office-detail-field-wide" label="Notes">
-            <TextareaInput onChange={(event) => updateField("notes", event.target.value)} value={formState.notes} />
-          </FormField>
+          {visibleFields.map((entry) => {
+            const field = entry.field;
+            const fieldType =
+              entry.kind === "builtIn" ? entry.field.control : entry.field.type;
+            const fieldClassName =
+              entry.kind === "builtIn" ? entry.field.className : "";
+
+            return (
+              <FormField
+                className={getContactDetailFieldClassName(fieldClassName)}
+                key={`${entry.kind}:${field.fieldKey}`}
+                label={getContactFieldLabel(field.label, field.isRequired)}
+              >
+                {fieldType === "textarea" ? (
+                  <TextareaInput
+                    onChange={(event) =>
+                      updateField(field.inputName, event.target.value)
+                    }
+                    value={formState[field.inputName] ?? ""}
+                  />
+                ) : fieldType === "select" ? (
+                  <SelectInput
+                    onChange={(event) =>
+                      updateField(field.inputName, event.target.value)
+                    }
+                    value={formState[field.inputName] ?? ""}
+                  >
+                    <option value="">Select...</option>
+                    {field.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </SelectInput>
+                ) : (
+                  <TextInput
+                    onChange={(event) =>
+                      updateField(field.inputName, event.target.value)
+                    }
+                    type={
+                      fieldType === "date"
+                        ? "date"
+                        : field.inputName === "email"
+                          ? "email"
+                          : "text"
+                    }
+                    value={formState[field.inputName] ?? ""}
+                  />
+                )}
+              </FormField>
+            );
+          })}
           <div className="office-form-actions">
             <Button disabled={isSaving} type="submit">
               {isSaving ? "Saving..." : "Save contact"}

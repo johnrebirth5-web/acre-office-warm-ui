@@ -455,6 +455,10 @@ model Organization {
   requiredContactRoleSettings       RequiredContactRoleSetting[]
   transactionFieldSettings          TransactionFieldSetting[]
   transactionCustomFieldDefinitions TransactionCustomFieldDefinition[]
+  contactFieldSettings              ContactFieldSetting[]
+  contactCustomFieldDefinitions     ContactCustomFieldDefinition[]
+  offerFieldSettings                OfferFieldSetting[]
+  offerCustomFieldDefinitions       OfferCustomFieldDefinition[]
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
   tableLayouts                      OrganizationTableLayout[]
@@ -512,6 +516,10 @@ model Office {
   requiredContactRoleSettings       RequiredContactRoleSetting[]
   transactionFieldSettings          TransactionFieldSetting[]
   transactionCustomFieldDefinitions TransactionCustomFieldDefinition[]
+  contactFieldSettings              ContactFieldSetting[]
+  contactCustomFieldDefinitions     ContactCustomFieldDefinition[]
+  offerFieldSettings                OfferFieldSetting[]
+  offerCustomFieldDefinitions       OfferCustomFieldDefinition[]
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
 
@@ -848,6 +856,7 @@ model Client {
   budgetMax           Decimal?             @db.Decimal(12, 2)
   preferredAreas      String[]
   needsSummary        Json?
+  additionalFields    Json?
   notes               String?
   lastContactAt       DateTime?
   nextFollowUpAt      DateTime?
@@ -1321,6 +1330,7 @@ model Offer {
   closingDateOffered    DateTime?
   expirationAt          DateTime?
   isPrimaryOffer        Boolean               @default(false)
+  additionalFields      Json?
   notes                 String?
   submittedAt           DateTime?
   acceptedAt            DateTime?
@@ -1729,6 +1739,7 @@ model TransactionFieldSetting {
   fieldKey       TransactionFieldKey
   isRequired     Boolean             @default(false)
   isVisible      Boolean             @default(true)
+  sortOrder      Int                 @default(0)
   options        Json?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -1736,7 +1747,7 @@ model TransactionFieldSetting {
   office         Office?             @relation(fields: [officeId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, officeId, fieldKey])
-  @@index([organizationId, officeId, isVisible])
+  @@index([organizationId, officeId, isVisible, sortOrder])
 }
 
 model TransactionCustomFieldDefinition {
@@ -1749,6 +1760,7 @@ model TransactionCustomFieldDefinition {
   isRequired     Boolean                    @default(false)
   isVisible      Boolean                    @default(true)
   sortOrder      Int                        @default(0)
+  isArchived     Boolean                    @default(false)
   options        Json?
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
@@ -1756,7 +1768,85 @@ model TransactionCustomFieldDefinition {
   office         Office?                    @relation(fields: [officeId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, officeId, fieldKey])
+  @@index([organizationId, officeId, isVisible, isArchived, sortOrder])
+}
+
+model ContactFieldSetting {
+  id             String       @id @default(cuid())
+  organizationId String
+  officeId       String?
+  fieldKey       String
+  isRequired     Boolean      @default(false)
+  isVisible      Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  options        Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, officeId, fieldKey])
   @@index([organizationId, officeId, isVisible, sortOrder])
+}
+
+model ContactCustomFieldDefinition {
+  id             String                     @id @default(cuid())
+  organizationId String
+  officeId       String?
+  fieldKey       String
+  label          String
+  type           TransactionCustomFieldType
+  isRequired     Boolean                    @default(false)
+  isVisible      Boolean                    @default(true)
+  sortOrder      Int                        @default(0)
+  isArchived     Boolean                    @default(false)
+  options        Json?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?                    @relation(fields: [officeId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, officeId, fieldKey])
+  @@index([organizationId, officeId, isVisible, isArchived, sortOrder])
+}
+
+model OfferFieldSetting {
+  id             String       @id @default(cuid())
+  organizationId String
+  officeId       String?
+  fieldKey       String
+  isRequired     Boolean      @default(false)
+  isVisible      Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  options        Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, officeId, fieldKey])
+  @@index([organizationId, officeId, isVisible, sortOrder])
+}
+
+model OfferCustomFieldDefinition {
+  id             String                     @id @default(cuid())
+  organizationId String
+  officeId       String?
+  fieldKey       String
+  label          String
+  type           TransactionCustomFieldType
+  isRequired     Boolean                    @default(false)
+  isVisible      Boolean                    @default(true)
+  sortOrder      Int                        @default(0)
+  isArchived     Boolean                    @default(false)
+  options        Json?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?                    @relation(fields: [officeId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, officeId, fieldKey])
+  @@index([organizationId, officeId, isVisible, isArchived, sortOrder])
 }
 
 model ChecklistTemplate {

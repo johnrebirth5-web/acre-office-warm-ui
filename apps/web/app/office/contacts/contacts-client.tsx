@@ -18,7 +18,7 @@ import {
   SummaryChip,
   TextInput,
 } from "@acre/ui";
-import type { OfficeContactRecord } from "@acre/db";
+import type { OfficeContactFieldSchema, OfficeContactRecord } from "@acre/db";
 import {
   OfficeListPagePagination,
   OfficeListPageTemplate,
@@ -26,6 +26,7 @@ import {
 
 type ContactsClientProps = {
   contacts: OfficeContactRecord[];
+  schema: OfficeContactFieldSchema;
   totalCount: number;
   totalPages: number;
   page: number;
@@ -38,6 +39,49 @@ type ContactsClientProps = {
 
 const stageOptions = ["All", "Warm", "Tour booked", "Nurture", "New"] as const;
 const pageSizeOptions = [10, 20, 50, 100] as const;
+const contactCreateDefaults: Record<string, string> = {
+  source: "Manual entry",
+  stage: "New",
+  intent: "Unknown",
+};
+
+type ContactVisibleField =
+  | { kind: "builtIn"; field: OfficeContactFieldSchema["builtInFields"][number] }
+  | { kind: "custom"; field: OfficeContactFieldSchema["customFields"][number] };
+
+function sortSchemaFieldEntries(fields: ContactVisibleField[]) {
+  return [...fields].sort((left, right) => {
+    if (left.field.sortOrder !== right.field.sortOrder) {
+      return left.field.sortOrder - right.field.sortOrder;
+    }
+
+    return left.field.label.localeCompare(right.field.label);
+  });
+}
+
+function buildContactCreateValues(schema: OfficeContactFieldSchema) {
+  const values: Record<string, string> = {};
+
+  for (const field of schema.builtInFields) {
+    values[field.inputName] = contactCreateDefaults[field.inputName] ?? "";
+  }
+
+  for (const field of schema.customFields) {
+    values[field.inputName] = "";
+  }
+
+  return values;
+}
+
+function getContactFieldLabel(label: string, isRequired: boolean) {
+  return isRequired ? `${label} *` : label;
+}
+
+function getContactModalFieldClassName(fieldClassName: string) {
+  return fieldClassName.includes("is-span-4")
+    ? "bm-transaction-modal-field is-span-4"
+    : "bm-transaction-modal-field";
+}
 
 function getContactStageTone(stage: string) {
   if (stage === "Tour booked") {
@@ -104,6 +148,7 @@ function buildContactsHref(
 
 export function ContactsClient({
   contacts,
+  schema,
   totalCount,
   totalPages,
   page,
@@ -119,12 +164,27 @@ export function ContactsClient({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [formVersion, setFormVersion] = useState(0);
+  const [createValues, setCreateValues] = useState<Record<string, string>>(() =>
+    buildContactCreateValues(schema),
+  );
 
   useEffect(() => {
     setSearchQuery(filters.q);
     setStageFilter(normalizeStageFilter(filters.stage));
   }, [filters.q, filters.stage]);
+
+  useEffect(() => {
+    setCreateValues(buildContactCreateValues(schema));
+  }, [schema]);
+
+  const visibleFields: ContactVisibleField[] = sortSchemaFieldEntries([
+    ...schema.builtInFields
+      .filter((field) => field.isVisible)
+      .map((field) => ({ kind: "builtIn" as const, field })),
+    ...schema.customFields
+      .filter((field) => field.isVisible)
+      .map((field) => ({ kind: "custom" as const, field })),
+  ]);
 
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
@@ -166,13 +226,17 @@ export function ContactsClient({
     );
   }
 
+  function setCreateValue(fieldName: string, value: string) {
+    setCreateValues((current) => ({
+      ...current,
+      [fieldName]: value,
+    }));
+  }
+
   async function handleCreateContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setSubmitError("");
-
-    const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData.entries());
 
     try {
       const response = await fetch("/api/office/contacts", {
@@ -180,7 +244,7 @@ export function ContactsClient({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(createValues),
       });
 
       if (!response.ok) {
@@ -191,7 +255,7 @@ export function ContactsClient({
       }
 
       setIsModalOpen(false);
-      setFormVersion((current) => current + 1);
+      setCreateValues(buildContactCreateValues(schema));
       router.push(
         buildContactsHref(pathname, {
           q: searchQuery,
@@ -393,58 +457,69 @@ export function ContactsClient({
 
             <form
               className="bm-transaction-modal-body"
-              key={formVersion}
               onSubmit={handleCreateContact}
             >
               <div className="bm-contact-form-grid">
-                <label className="bm-transaction-modal-field">
-                  <span>Full name</span>
-                  <input name="fullName" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Email</span>
-                  <input name="email" type="email" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Phone</span>
-                  <input name="phone" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Contact type</span>
-                  <input name="contactType" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Source</span>
-                  <input name="source" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Stage</span>
-                  <input defaultValue="New" name="stage" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Intent</span>
-                  <input name="intent" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Budget min</span>
-                  <input name="budgetMin" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field">
-                  <span>Budget max</span>
-                  <input name="budgetMax" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field is-span-4">
-                  <span>Preferred areas (comma separated)</span>
-                  <input name="preferredAreas" type="text" />
-                </label>
-                <label className="bm-transaction-modal-field is-span-4">
-                  <span>Notes</span>
-                  <input name="notes" type="text" />
-                </label>
+                {visibleFields.map((entry) => {
+                  const field = entry.field;
+                  const fieldType =
+                    entry.kind === "builtIn" ? entry.field.control : entry.field.type;
+                  const fieldClassName =
+                    entry.kind === "builtIn" ? entry.field.className : "";
+
+                  return (
+                    <label
+                      className={getContactModalFieldClassName(fieldClassName)}
+                      key={`${entry.kind}:${field.fieldKey}`}
+                    >
+                      <span>{getContactFieldLabel(field.label, field.isRequired)}</span>
+                      {fieldType === "textarea" ? (
+                        <textarea
+                          name={field.inputName}
+                          onChange={(event) =>
+                            setCreateValue(field.inputName, event.target.value)
+                          }
+                          rows={4}
+                          value={createValues[field.inputName] ?? ""}
+                        />
+                      ) : fieldType === "select" ? (
+                        <select
+                          name={field.inputName}
+                          onChange={(event) =>
+                            setCreateValue(field.inputName, event.target.value)
+                          }
+                          value={createValues[field.inputName] ?? ""}
+                        >
+                          <option value="">Select...</option>
+                          {field.options.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          name={field.inputName}
+                          onChange={(event) =>
+                            setCreateValue(field.inputName, event.target.value)
+                          }
+                          type={
+                            fieldType === "date"
+                              ? "date"
+                              : field.inputName === "email"
+                                ? "email"
+                                : "text"
+                          }
+                          value={createValues[field.inputName] ?? ""}
+                        />
+                      )}
+                    </label>
+                  );
+                })}
               </div>
 
               <footer className="bm-transaction-modal-footer">
-                <span>Minimal contact create flow</span>
+                <span>Contact fields follow the centralized schema in Settings</span>
                 <div className="bm-transaction-modal-actions">
                   {submitError ? (
                     <p className="bm-transaction-submit-error">{submitError}</p>

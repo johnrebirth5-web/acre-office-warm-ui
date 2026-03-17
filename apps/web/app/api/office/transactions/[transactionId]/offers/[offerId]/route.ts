@@ -1,5 +1,5 @@
 import { canAcceptOfficeOffers, canManageOfficeOffers, canReviewOfficeOffers } from "@acre/auth";
-import { transitionOfferStatus, updateOffer } from "@acre/db";
+import { getOfficeOfferFieldSchema, listTransactionOffersSnapshot, prepareOfferFieldSubmission, transitionOfferStatus, updateOffer } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
 
@@ -18,21 +18,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { transactionId, offerId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | {
-        action?: string;
-        title?: string;
-        offeringPartyName?: string;
-        buyerName?: string;
-        price?: string;
-        earnestMoneyAmount?: string;
-        financingType?: string;
-        closingDateOffered?: string;
-        expirationAt?: string;
-        isPrimaryOffer?: boolean;
-        notes?: string;
-      }
-    | null;
+  const body = (await request.json().catch(() => null)) as (Record<string, unknown> & { action?: string; isPrimaryOffer?: boolean }) | null;
 
   try {
     if (body?.action) {
@@ -71,21 +57,41 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Offer management access required." }, { status: 403 });
     }
 
+    const [schema, offersSnapshot] = await Promise.all([
+      getOfficeOfferFieldSchema({
+        organizationId: context.currentOrganization.id,
+        officeId: context.currentOffice?.id ?? null
+      }),
+      listTransactionOffersSnapshot(context.currentOrganization.id, transactionId)
+    ]);
+    const existingOffer = offersSnapshot.offers.find((offer) => offer.id === offerId) ?? null;
+
+    if (!existingOffer) {
+      return NextResponse.json({ error: "Offer not found." }, { status: 404 });
+    }
+
+    const submission = prepareOfferFieldSubmission({
+      schema,
+      payload: body ?? {},
+      existingOffer
+    });
+
     const offer = await updateOffer({
       organizationId: context.currentOrganization.id,
       transactionId,
       offerId,
       actorMembershipId: context.currentMembership.id,
-      title: body?.title,
-      offeringPartyName: body?.offeringPartyName,
-      buyerName: body?.buyerName,
-      price: body?.price,
-      earnestMoneyAmount: body?.earnestMoneyAmount,
-      financingType: body?.financingType,
-      closingDateOffered: body?.closingDateOffered,
-      expirationAt: body?.expirationAt,
+      title: submission.title,
+      offeringPartyName: submission.offeringPartyName,
+      buyerName: submission.buyerName,
+      price: submission.price,
+      earnestMoneyAmount: submission.earnestMoneyAmount,
+      financingType: submission.financingType,
+      closingDateOffered: submission.closingDateOffered,
+      expirationAt: submission.expirationAt,
       isPrimaryOffer: body?.isPrimaryOffer,
-      notes: body?.notes
+      notes: submission.notes,
+      additionalFields: submission.additionalFields
     });
 
     if (!offer) {

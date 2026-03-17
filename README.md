@@ -411,13 +411,17 @@
     - 编辑 `Leader I / Leader II / Member`
     - 设置直属上级
   - `Fields` 当前支持：
-    - required contact roles
-    - built-in transaction intake field required / visible settings
-    - `Type / Status / Representing` 这三个系统下拉现在也支持 `owner / office_admin` 调整可用选项和显示名称
-    - office-scoped custom transaction intake fields（text / select / date）
-    - 同一套 intake schema 驱动 `/office/transactions` modal、`/office/transactions/new` 和 transaction detail intake 编辑区
-    - transaction intake schema 结构调整与 intake 值编辑都会写入 `Activity Log`
-    - transaction field / custom field schema 管理由 `owner / office_admin` 执行
+    - `Settings > Fields` 现在是唯一字段结构管理入口，不再在 transaction / contact / offer 业务页保留重复 schema 编辑能力
+    - 第一批集中管理模块：
+      - transaction fields
+      - contact fields
+      - offer fields
+    - 三个模块都支持字段排序、required / visible、custom field create / edit / delete
+    - transaction 模块继续支持 `Type / Status / Representing` 系统下拉的可用选项和显示名称管理
+    - transaction 模块继续保留 required contact roles admin，但已收口到同一页内
+    - `/office/transactions`、`/office/contacts`、transaction detail 里的 offers 表单现在都只消费 schema 并保存值
+    - contact / offer 的 custom field 值分别持久化到 `Client.additionalFields` 和 `Offer.additionalFields`
+    - field structure 变更继续写入 `Activity Log`
   - `Checklists` 当前支持：
     - create template
     - edit template

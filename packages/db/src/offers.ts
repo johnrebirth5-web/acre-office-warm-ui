@@ -86,6 +86,7 @@ export type OfficeOfferRecord = {
   expirationAt: string;
   isPrimaryOffer: boolean;
   notes: string;
+  additionalFields: Record<string, string>;
   submittedAt: string;
   acceptedAt: string;
   rejectedAt: string;
@@ -121,6 +122,7 @@ export type CreateOfferInput = {
   closingDateOffered?: string;
   expirationAt?: string;
   notes?: string;
+  additionalFields?: Record<string, string>;
 };
 
 export type UpdateOfferInput = {
@@ -138,6 +140,7 @@ export type UpdateOfferInput = {
   expirationAt?: string;
   isPrimaryOffer?: boolean;
   notes?: string;
+  additionalFields?: Record<string, string>;
 };
 
 export type TransitionOfferAction =
@@ -412,6 +415,12 @@ function mapOfferRecord(record: OfferRecord): OfficeOfferRecord {
     expirationAt: formatDateValue(record.expirationAt),
     isPrimaryOffer: record.isPrimaryOffer,
     notes: record.notes ?? "",
+    additionalFields:
+      record.additionalFields && typeof record.additionalFields === "object" && !Array.isArray(record.additionalFields)
+        ? Object.fromEntries(
+            Object.entries(record.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
+          )
+        : {},
     submittedAt: formatDateTimeValue(record.submittedAt),
     acceptedAt: formatDateTimeValue(record.acceptedAt),
     rejectedAt: formatDateTimeValue(record.rejectedAt),
@@ -672,6 +681,7 @@ export async function createOffer(input: CreateOfferInput): Promise<OfficeOfferR
         financingType: parseOptionalText(input.financingType),
         closingDateOffered: parseOptionalDate(input.closingDateOffered),
         expirationAt: parseOptionalDate(input.expirationAt),
+        additionalFields: input.additionalFields ?? Prisma.JsonNull,
         notes: parseOptionalText(input.notes),
         status: OfferStatus.draft
       }
@@ -751,6 +761,18 @@ export async function updateOffer(input: UpdateOfferInput): Promise<OfficeOfferR
       return null;
     }
 
+    const existingAdditionalFields =
+      existing.additionalFields &&
+      typeof existing.additionalFields === "object" &&
+      !Array.isArray(existing.additionalFields)
+        ? Object.fromEntries(
+            Object.entries(existing.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [
+              key,
+              String(value ?? "")
+            ])
+          )
+        : Prisma.JsonNull;
+
     const nextValues = {
       title: input.title?.trim() || existing.title,
       offeringPartyName: input.offeringPartyName?.trim() || existing.offeringPartyName,
@@ -763,6 +785,10 @@ export async function updateOffer(input: UpdateOfferInput): Promise<OfficeOfferR
       closingDateOffered:
         input.closingDateOffered === undefined ? existing.closingDateOffered : parseOptionalDate(input.closingDateOffered),
       expirationAt: input.expirationAt === undefined ? existing.expirationAt : parseOptionalDate(input.expirationAt),
+      additionalFields:
+        input.additionalFields === undefined
+          ? existingAdditionalFields
+          : input.additionalFields,
       notes: input.notes === undefined ? existing.notes : parseOptionalText(input.notes),
       isPrimaryOffer: input.isPrimaryOffer ?? existing.isPrimaryOffer
     };
@@ -798,7 +824,18 @@ export async function updateOffer(input: UpdateOfferInput): Promise<OfficeOfferR
       buildOfferChange("Closing date", formatDateValue(existing.closingDateOffered), formatDateValue(saved.closingDateOffered)),
       buildOfferChange("Expiration", formatDateValue(existing.expirationAt), formatDateValue(saved.expirationAt)),
       buildOfferChange("Primary offer", existing.isPrimaryOffer ? "Yes" : "No", saved.isPrimaryOffer ? "Yes" : "No"),
-      buildOfferChange("Notes", existing.notes, saved.notes)
+      buildOfferChange("Notes", existing.notes, saved.notes),
+      ...Object.keys(input.additionalFields ?? {}).map((fieldKey) =>
+        buildOfferChange(
+          fieldKey,
+          existing.additionalFields && typeof existing.additionalFields === "object" && !Array.isArray(existing.additionalFields)
+            ? String((existing.additionalFields as Record<string, Prisma.JsonValue>)[fieldKey] ?? "")
+            : "",
+          nextValues.additionalFields && typeof nextValues.additionalFields === "object" && !Array.isArray(nextValues.additionalFields)
+            ? String((nextValues.additionalFields as Record<string, Prisma.JsonValue>)[fieldKey] ?? "")
+            : ""
+        )
+      )
     ].filter((change): change is NonNullable<typeof change> => Boolean(change));
 
     if (changes.length > 0) {

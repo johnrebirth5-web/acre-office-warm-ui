@@ -177,18 +177,28 @@ export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
 export { getOfficeReportsSnapshot, listOfficeReportTransactionsForExport } from "./reports";
 export { getOfficeTableLayouts, saveOfficeTableLayout, type OfficeTableLayoutColumn, type OfficeTableLayoutMap } from "./table-layouts";
 export {
-  createOfficeTransactionCustomFieldDefinition,
-  createChecklistTemplate,
   getOfficeFieldSettingsSnapshot,
+  getOfficeTransactionIntakeSchema,
+  getOfficeContactFieldSchema,
+  getOfficeOfferFieldSchema,
+  saveOfficeFieldSettings,
+  reorderOfficeFields,
+  createOfficeCustomFieldDefinition,
+  updateOfficeCustomFieldDefinition,
+  deleteOfficeCustomFieldDefinition,
+  createOfficeTransactionCustomFieldDefinition,
+  updateOfficeTransactionCustomFieldDefinition,
+  prepareContactFieldSubmission,
+  prepareOfferFieldSubmission
+} from "./field-settings";
+export {
+  createChecklistTemplate,
   getOfficeAdminUserDetailSnapshot,
   getOfficeAdminUsersSnapshot,
   getOfficeChecklistTemplatesSnapshot,
   getOfficeSettingsSummarySnapshot,
-  getOfficeTransactionIntakeSchema,
-  saveOfficeFieldSettings,
   updateChecklistTemplate,
-  updateOfficeAdminUser,
-  updateOfficeTransactionCustomFieldDefinition
+  updateOfficeAdminUser
 } from "./settings";
 export {
   ensureOrganizationRoleTemplates,
@@ -417,8 +427,34 @@ export type {
   UpdateLibraryFolderInput
 } from "./library";
 export type {
-  ChecklistTemplateItemInput,
+  CreateOfficeCustomFieldDefinitionInput,
   CreateOfficeTransactionCustomFieldDefinitionInput,
+  DeleteOfficeCustomFieldDefinitionInput,
+  OfficeContactCustomFieldDefinitionRecord,
+  OfficeContactFieldSchema,
+  OfficeContactFieldSettingRecord,
+  OfficeFieldBuiltInRecord,
+  OfficeFieldCustomDefinitionRecord,
+  OfficeFieldModule,
+  OfficeFieldModuleSettingsSnapshot,
+  OfficeFieldSettingsSnapshot,
+  OfficeOfferCustomFieldDefinitionRecord,
+  OfficeOfferFieldSchema,
+  OfficeOfferFieldSettingRecord,
+  OfficeRequiredContactRoleRecord,
+  OfficeTransactionCustomFieldDefinitionRecord,
+  OfficeTransactionBuiltInSelectOptionRecord,
+  OfficeTransactionFieldSettingRecord,
+  OfficeTransactionIntakeSchema,
+  PreparedContactFieldSubmission,
+  PreparedOfferFieldSubmission,
+  ReorderOfficeFieldsInput,
+  SaveOfficeFieldSettingsInput,
+  UpdateOfficeCustomFieldDefinitionInput,
+  UpdateOfficeTransactionCustomFieldDefinitionInput
+} from "./field-settings";
+export type {
+  ChecklistTemplateItemInput,
   CreateChecklistTemplateInput,
   GetOfficeAdminUserDetailInput,
   GetOfficeAdminUsersInput,
@@ -429,15 +465,8 @@ export type {
   OfficeChecklistTemplateItemRecord,
   OfficeChecklistTemplateRecord,
   OfficeChecklistTemplatesSnapshot,
-  OfficeRequiredContactRoleRecord,
   OfficeSettingsSummarySnapshot,
-  OfficeTransactionBuiltInSelectOptionRecord,
-  OfficeTransactionCustomFieldDefinitionRecord,
-  OfficeTransactionFieldSettingRecord,
-  OfficeTransactionIntakeSchema,
-  SaveOfficeFieldSettingsInput,
   UpdateChecklistTemplateInput,
-  UpdateOfficeTransactionCustomFieldDefinitionInput,
   UpdateOfficeAdminUserInput
 } from "./settings";
 export type { SeededMembershipSnapshot, SeededWorkspaceSnapshot } from "./bootstrap";

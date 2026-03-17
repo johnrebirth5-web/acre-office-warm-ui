@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { canCreateOfficeTransactions, canManageOfficeFields } from "@acre/auth";
+import { canCreateOfficeTransactions } from "@acre/auth";
 import { getOfficeTransactionIntakeSchema } from "@acre/db";
 import { PageHeader, PageShell, SectionCard } from "@acre/ui";
 import { redirect } from "next/navigation";
@@ -26,14 +26,13 @@ export default async function OfficeTransactionCreatePage() {
             Back to transactions
           </Link>
         }
-        description="Create a transaction using the current office intake schema. Office admins can manage visibility, requiredness, and custom fields in place."
+        description="Create a transaction using the current office intake schema. Field structure is managed centrally from Settings > Fields."
         title="New transaction"
       />
 
       <SectionCard className="bm-new-transaction-card bm-new-transaction-live-card" title="Transaction intake">
         <TransactionIntakeWorkspace
           afterSubmit="go-detail"
-          canConfigureSchema={canManageOfficeFields(context.currentMembership)}
           canEditValues={true}
           chrome="page"
           mode="create"

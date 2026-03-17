@@ -40,12 +40,15 @@ Provide a practical Back Office admin/settings area for access management, role 
   - assign `Leader I / Leader II / Member`
   - maintain direct reporting lines inside a team
 - fields admin supports:
-  - required contact roles
-  - built-in transaction field required / visible settings
-  - built-in `Type / Status / Representing` dropdown option enable/disable plus display-label editing
-  - office-scoped custom transaction intake fields (`text / select / date`)
-  - one shared intake schema across transaction create modal, `/office/transactions/new`, and transaction detail intake editing
-  - `office_admin`-only schema editing and audit coverage for schema/value changes
+  - `Settings > Fields` as the single field-structure admin entry
+  - module rail for `transaction / contact / offer`
+  - per-module built-in field `required / visible / sort order`
+  - per-module custom field create / edit / delete for `text / select / date`
+  - hidden-field restore workflow from the same page
+  - transaction-only `Type / Status / Representing` dropdown option enable/disable plus display-label editing
+  - transaction-only required contact roles admin in the same `Fields` page
+  - one shared schema source consumed by transaction create/detail, contact create/detail, and offer create/edit
+  - `office_admin`-only schema editing and audit coverage for field-structure changes
 - checklist template admin supports:
   - create/edit
   - activate/deactivate
@@ -57,8 +60,7 @@ Provide a practical Back Office admin/settings area for access management, role 
 
 ## Current gaps
 
-- no generic no-code schema builder across every workflow module yet
-- transaction intake builder exists, but broader settings modules still do not expose the same level of schema configurability
+- the first centralized field platform only covers `transaction / contact / offer`, not every future workflow module
 - role catalog is still fixed; admins cannot create brand-new custom roles
 - some business actions already have permission keys, but the underlying module action surface is still catching up in places
 - checklist templates are managed but not fully auto-applied everywhere
@@ -67,4 +69,4 @@ Provide a practical Back Office admin/settings area for access management, role 
 
 - stronger office/user access controls on top of the new role-template + user-override baseline
 - richer template application behavior
-- broader settings coverage for future workflow modules
+- broader centralized field coverage for future workflow modules

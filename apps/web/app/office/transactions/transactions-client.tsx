@@ -40,7 +40,6 @@ type TransactionsClientProps = {
   pageSize: number;
   filterOptions: OfficeTransactionFilterOptions;
   transactionIntakeSchema: OfficeTransactionIntakeSchema;
-  canManageIntakeSchema: boolean;
   filters: {
     q: string;
     status: OfficeTransactionStatus | "All";
@@ -166,7 +165,6 @@ export function TransactionsClient({
   pageSize,
   filterOptions,
   transactionIntakeSchema,
-  canManageIntakeSchema,
   filters,
 }: TransactionsClientProps) {
   const router = useRouter();
@@ -522,7 +520,6 @@ export function TransactionsClient({
           >
             <TransactionIntakeWorkspace
               afterSubmit="refresh"
-              canConfigureSchema={canManageIntakeSchema}
               canEditValues={true}
               chrome="modal"
               key={formVersion}

@@ -8,7 +8,11 @@ import {
   resolveOfficeDataScope
 } from "./access";
 import { prisma } from "./client";
-import { getOfficeTransactionIntakeSchema, type OfficeTransactionCustomFieldDefinitionRecord, type OfficeTransactionFieldSettingRecord } from "./settings";
+import {
+  getOfficeTransactionIntakeSchema,
+  type OfficeTransactionCustomFieldDefinitionRecord,
+  type OfficeTransactionFieldSettingRecord
+} from "./field-settings";
 import { listAvailableContactsForTransaction, type OfficeTransactionContact, type OfficeTransactionContactOption } from "./transaction-contacts";
 import {
   listTransactionDocumentsSnapshot,

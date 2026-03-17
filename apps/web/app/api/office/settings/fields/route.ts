@@ -16,21 +16,23 @@ export async function PATCH(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as
     | {
+        module?: string;
         contactRoleSettings?: Array<{
           role?: string;
           isRequired?: boolean;
         }>;
-        transactionFieldSettings?: Array<{
+        builtInFieldSettings?: Array<{
           fieldKey?: string;
           isRequired?: boolean;
           isVisible?: boolean;
+          sortOrder?: number;
           selectOptions?: Array<{
             value?: string;
             label?: string;
             isEnabled?: boolean;
           }>;
         }>;
-        transactionCustomFieldDefinitions?: Array<{
+        customFieldDefinitions?: Array<{
           fieldKey?: string;
           label?: string;
           type?: string;
@@ -47,16 +49,18 @@ export async function PATCH(request: NextRequest) {
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
+      module: body?.module === "contact" || body?.module === "offer" ? body.module : "transaction",
       contactRoleSettings:
         body?.contactRoleSettings?.map((entry) => ({
           role: entry.role ?? "",
           isRequired: Boolean(entry.isRequired)
         })) ?? [],
-      transactionFieldSettings:
-        body?.transactionFieldSettings?.map((entry) => ({
+      builtInFieldSettings:
+        body?.builtInFieldSettings?.map((entry) => ({
           fieldKey: entry.fieldKey ?? "",
           isRequired: Boolean(entry.isRequired),
           isVisible: typeof entry.isVisible === "boolean" ? entry.isVisible : true,
+          sortOrder: typeof entry.sortOrder === "number" ? entry.sortOrder : undefined,
           selectOptions: Array.isArray(entry.selectOptions)
             ? entry.selectOptions.map((option) => ({
                 value: String(option.value ?? ""),
@@ -65,8 +69,8 @@ export async function PATCH(request: NextRequest) {
               }))
             : undefined
         })) ?? [],
-      transactionCustomFieldDefinitions:
-        body?.transactionCustomFieldDefinitions?.map((entry) => ({
+      customFieldDefinitions:
+        body?.customFieldDefinitions?.map((entry) => ({
           fieldKey: entry.fieldKey ?? "",
           label: entry.label ?? "",
           type: entry.type ?? "",

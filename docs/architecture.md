@@ -903,9 +903,9 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
   - user role / status / office access
   - team rosters
   - required contact roles
-  - built-in transaction intake field requirements
+  - module field requirements for transaction / contact / offer
   - built-in transaction dropdown option labels / availability for `Type / Status / Representing`
-  - office-scoped custom transaction intake fields
+  - custom fields for transaction / contact / offer
   - checklist templates
 - 这些都已经有清晰的领域主轴，不值得再造一套 admin-only 影子模型
 
@@ -917,10 +917,22 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
   - `RequiredContactRoleSetting`
   - `TransactionFieldSetting`
   - `TransactionCustomFieldDefinition`
+  - `ContactFieldSetting`
+  - `ContactCustomFieldDefinition`
+  - `OfferFieldSetting`
+  - `OfferCustomFieldDefinition`
+  - `Client.additionalFields`
+  - `Offer.additionalFields`
 - `Checklists`：新增显式模板模型
   - `ChecklistTemplate`
   - `ChecklistTemplateItem`
 - settings 相关变更写入 `Activity Log`
+
+当前字段平台实现约束：
+
+- `Settings > Fields` 是唯一 schema 管理入口
+- transaction / contact / offer 业务页只按当前 schema 渲染并保存值
+- transaction 保留 required contact roles 和 `Type / Status / Representing` dropdown option 管理，但都已集中到 `Fields` 页面
 
 已知边界：
 

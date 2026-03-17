@@ -41,11 +41,14 @@
   - offers
   - commissions
 - Transaction intake is now office-scoped and schema-driven across the create modal, `/office/transactions/new`, and transaction detail:
-  - built-in fields can be marked visible/hidden and required/optional
-  - built-in `Type / Status / Representing` dropdowns support office-admin option enable/disable and display-name overrides without changing stored enum values
-  - `office_admin` can add custom `text / select / date` fields
-  - hidden address groups force `Transaction Name` visible + required
-  - intake schema edits and intake value edits both write to `Activity Log`
+  - `Settings > Fields` is now the single field-structure admin surface
+  - first centralized modules are `transaction / contact / offer`
+  - built-in fields can be sorted, marked visible/hidden, and required/optional
+  - built-in `Type / Status / Representing` dropdowns still support office-admin option enable/disable and display-name overrides without changing stored enum values
+  - `office_admin` can add custom `text / select / date` fields per module
+  - hidden address groups still force `Transaction Name` visible + required
+  - contact and offer custom values now persist in `Client.additionalFields` and `Offer.additionalFields`
+  - field-structure changes write to `Activity Log`
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
 - `/office/transactions` and `/office/contacts` now share one canonical Office list-page template, including the same page header, summary/action block, workbench card, table card, and footer/pagination rhythm
 

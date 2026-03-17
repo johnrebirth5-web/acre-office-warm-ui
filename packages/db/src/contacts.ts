@@ -75,6 +75,7 @@ export type OfficeContactDetail = {
   nextFollowUpAt: string;
   ownerMembershipId: string | null;
   ownerName: string;
+  additionalFields: Record<string, string>;
   linkedTransactions: OfficeContactLinkedTransaction[];
   availableTransactions: OfficeTransactionLinkOption[];
   followUpTasks: OfficeContactTask[];
@@ -110,6 +111,7 @@ export type SaveContactInput = {
   notes?: string;
   lastContactAt?: string;
   nextFollowUpAt?: string;
+  additionalFields?: Record<string, string>;
 };
 
 export type CreateFollowUpTaskInput = {
@@ -369,6 +371,7 @@ export async function createContact(input: SaveContactInput): Promise<OfficeCont
         budgetMin: parseOptionalDecimal(input.budgetMin),
         budgetMax: parseOptionalDecimal(input.budgetMax),
         preferredAreas: input.preferredAreas?.filter(Boolean) ?? [],
+        additionalFields: input.additionalFields ?? Prisma.JsonNull,
         notes: input.notes?.trim() || null,
         lastContactAt: parseOptionalDate(input.lastContactAt),
         nextFollowUpAt: parseOptionalDate(input.nextFollowUpAt)
@@ -411,6 +414,7 @@ export async function updateContact(contactId: string, input: SaveContactInput):
       source: true,
       stage: true,
       intent: true,
+      additionalFields: true,
       notes: true,
       budgetMin: true,
       budgetMax: true,
@@ -432,6 +436,9 @@ export async function updateContact(contactId: string, input: SaveContactInput):
     source: input.source?.trim() || "Manual entry",
     stage: input.stage?.trim() || "New",
     intent: input.intent?.trim() || "Unknown",
+    additionalFields: input.additionalFields ?? (existing.additionalFields && typeof existing.additionalFields === "object" && !Array.isArray(existing.additionalFields)
+      ? Object.fromEntries(Object.entries(existing.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")]))
+      : {}),
     notes: input.notes?.trim() || null,
     budgetMin: parseOptionalDecimal(input.budgetMin),
     budgetMax: parseOptionalDecimal(input.budgetMax),
@@ -454,6 +461,7 @@ export async function updateContact(contactId: string, input: SaveContactInput):
         budgetMin: nextValues.budgetMin,
         budgetMax: nextValues.budgetMax,
         preferredAreas: nextValues.preferredAreas,
+        additionalFields: nextValues.additionalFields,
         notes: nextValues.notes,
         lastContactAt: nextValues.lastContactAt,
         nextFollowUpAt: nextValues.nextFollowUpAt
@@ -472,7 +480,16 @@ export async function updateContact(contactId: string, input: SaveContactInput):
       buildContactChangedDetail("Budget", formatBudget(existing.budgetMin, existing.budgetMax), formatBudget(nextValues.budgetMin, nextValues.budgetMax)),
       buildContactChangedDetail("Areas", formatAreas(existing.preferredAreas), formatAreas(nextValues.preferredAreas)),
       buildContactChangedDetail("Last contact", formatDateValue(existing.lastContactAt), formatDateValue(nextValues.lastContactAt)),
-      buildContactChangedDetail("Next follow-up", formatDateValue(existing.nextFollowUpAt), formatDateValue(nextValues.nextFollowUpAt))
+      buildContactChangedDetail("Next follow-up", formatDateValue(existing.nextFollowUpAt), formatDateValue(nextValues.nextFollowUpAt)),
+      ...Object.keys(nextValues.additionalFields).map((fieldKey) =>
+        buildContactChangedDetail(
+          fieldKey,
+          existing.additionalFields && typeof existing.additionalFields === "object" && !Array.isArray(existing.additionalFields)
+            ? String((existing.additionalFields as Record<string, Prisma.JsonValue>)[fieldKey] ?? "")
+            : "",
+          nextValues.additionalFields[fieldKey] ?? ""
+        )
+      )
     ].filter((detail): detail is string => Boolean(detail));
     const changes = [
       buildContactChange("Full name", existing.fullName, nextValues.fullName),
@@ -486,7 +503,16 @@ export async function updateContact(contactId: string, input: SaveContactInput):
       buildContactChange("Budget", formatBudget(existing.budgetMin, existing.budgetMax), formatBudget(nextValues.budgetMin, nextValues.budgetMax)),
       buildContactChange("Areas", formatAreas(existing.preferredAreas), formatAreas(nextValues.preferredAreas)),
       buildContactChange("Last contact", formatDateValue(existing.lastContactAt), formatDateValue(nextValues.lastContactAt)),
-      buildContactChange("Next follow-up", formatDateValue(existing.nextFollowUpAt), formatDateValue(nextValues.nextFollowUpAt))
+      buildContactChange("Next follow-up", formatDateValue(existing.nextFollowUpAt), formatDateValue(nextValues.nextFollowUpAt)),
+      ...Object.keys(nextValues.additionalFields).map((fieldKey) =>
+        buildContactChange(
+          fieldKey,
+          existing.additionalFields && typeof existing.additionalFields === "object" && !Array.isArray(existing.additionalFields)
+            ? String((existing.additionalFields as Record<string, Prisma.JsonValue>)[fieldKey] ?? "")
+            : "",
+          nextValues.additionalFields[fieldKey] ?? ""
+        )
+      )
     ].filter((change): change is NonNullable<typeof change> => Boolean(change));
 
     if (details.length > 0) {
@@ -599,6 +625,12 @@ export async function getContactById(organizationId: string, contactId: string):
     budgetMin: client.budgetMin ? String(client.budgetMin) : "",
     budgetMax: client.budgetMax ? String(client.budgetMax) : "",
     areas: client.preferredAreas,
+    additionalFields:
+      client.additionalFields && typeof client.additionalFields === "object" && !Array.isArray(client.additionalFields)
+        ? Object.fromEntries(
+            Object.entries(client.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
+          )
+        : {},
     notes: client.notes ?? "",
     lastContactAt: formatDateValue(client.lastContactAt),
     nextFollowUpAt: formatDateValue(client.nextFollowUpAt),
