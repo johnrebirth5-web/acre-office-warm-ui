@@ -8051,6 +8051,34 @@ a {
 
 .office-agents-profile-secondary-columns {
   margin-top: 16px;
+  align-items: start;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.office-agents-operational-facts,
+.office-agents-agenda-panel {
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--office-border);
+  border-radius: 18px;
+  background: var(--office-surface-subtle);
+  box-shadow: var(--office-shadow-sm);
+}
+
+.office-agents-operational-facts {
+  gap: 10px;
+  align-content: start;
+}
+
+.office-agents-operational-facts .office-secondary-meta-row {
+  gap: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--office-border);
+}
+
+.office-agents-operational-facts .office-secondary-meta-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .office-agents-agenda-panel {
@@ -8060,6 +8088,7 @@ a {
 
 .office-agents-agenda-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
@@ -8093,6 +8122,11 @@ a {
   background: var(--office-bg-muted);
 }
 
+.office-agents-agenda-item > :first-child,
+.office-agents-template-item > :first-child {
+  min-width: 0;
+}
+
 .office-agents-agenda-item p,
 .office-agents-template-item p {
   margin: 4px 0 0;
@@ -8105,6 +8139,7 @@ a {
   gap: 6px;
   justify-items: end;
   text-align: right;
+  flex-shrink: 0;
 }
 
 .office-agents-agenda-item-meta small,

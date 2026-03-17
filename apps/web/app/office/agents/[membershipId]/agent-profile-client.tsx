@@ -514,7 +514,7 @@ export function AgentProfileClient({
           </div>
 
           <div className="office-detail-two-column office-agents-profile-secondary-columns">
-            <div className="office-secondary-meta-list">
+            <dl className="office-secondary-meta-list office-agents-operational-facts">
               <div className="office-secondary-meta-row">
                 <dt>Current goal summary</dt>
                 <dd>{snapshot.summary.currentGoalSummary}</dd>
@@ -531,9 +531,9 @@ export function AgentProfileClient({
                 <dt>Membership status</dt>
                 <dd>{snapshot.profile.membershipStatus}</dd>
               </div>
-            </div>
+            </dl>
 
-            <div className="office-agents-agenda-panel">
+            <section aria-label="Operational agenda" className="office-agents-agenda-panel">
               <div className="office-agents-agenda-head">
                 <strong>Operational agenda</strong>
                 <span>{snapshot.operationalAgenda.length} current items</span>
@@ -558,7 +558,7 @@ export function AgentProfileClient({
                   <p className="office-form-helper">No urgent onboarding or transaction workload items right now.</p>
                 ) : null}
               </div>
-            </div>
+            </section>
           </div>
         </SectionCard>
       </div>
