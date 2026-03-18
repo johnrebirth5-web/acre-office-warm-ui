@@ -1124,7 +1124,10 @@ export function CommissionManagementPanel({
                       <p>{row.recipientRole || row.recipientType}</p>
                     </div>
                     <span>{row.recipientLabel}</span>
-                    <span>{row.commissionPlanLabel}</span>
+                    <div className="office-table-primary">
+                      <strong>{row.commissionPlanLabel}</strong>
+                      <p>{row.commissionPlanDetailLabel}</p>
+                    </div>
                     <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
                     <div className="office-table-primary">
                       <strong>{row.statementAmountLabel}</strong>

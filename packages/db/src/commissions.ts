@@ -102,6 +102,7 @@ export type OfficeCommissionCalculationRow = {
   recipientRole: string;
   commissionPlanId: string;
   commissionPlanLabel: string;
+  commissionPlanDetailLabel: string;
   status: OfficeCommissionCalculationStatusLabel;
   statusValue: CommissionCalculationStatus;
   grossCommissionLabel: string;
@@ -363,6 +364,20 @@ function formatCurrency(value: Prisma.Decimal | number | string | null | undefin
   }).format(numericValue);
 }
 
+function formatPercentLabel(value: Prisma.Decimal | number | string | null | undefined) {
+  const numericValue = Number(value ?? 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0";
+  }
+
+  if (Number.isInteger(numericValue)) {
+    return String(numericValue);
+  }
+
+  return numericValue.toFixed(2).replace(/\.?0+$/, "");
+}
+
 function formatDateValue(value: Date | null | undefined) {
   return value ? value.toISOString().slice(0, 10) : "";
 }
@@ -569,6 +584,24 @@ function mapCommissionCalculationRow(calculation: Prisma.CommissionCalculationGe
     storedContext?.members[0]?.agentPercent
       ? buildCommissionSplitLabel(storedContext.members[0].agentPercent)
       : "Default split chain";
+  const storedChainMember =
+    calculation.membershipId && storedContext
+      ? storedContext.members.find((member) => member.membershipId === calculation.membershipId) ?? null
+      : null;
+  const highestChainPercent =
+    storedContext?.members.length
+      ? new Prisma.Decimal(storedContext.members[storedContext.members.length - 1]?.agentPercent ?? 0)
+      : null;
+  const grossAfterReferral = Prisma.Decimal.max(new Prisma.Decimal(0), calculation.grossCommission.minus(calculation.referralFee));
+  const effectiveSharePercent =
+    grossAfterReferral.gt(0)
+      ? calculation.statementAmount.mul(new Prisma.Decimal(100)).div(grossAfterReferral)
+      : new Prisma.Decimal(0);
+  const effectiveShareLabel = `${formatPercentLabel(effectiveSharePercent)}% actual share`;
+  const companyResidualPercent =
+    highestChainPercent
+      ? Prisma.Decimal.max(new Prisma.Decimal(0), new Prisma.Decimal(100).minus(highestChainPercent))
+      : null;
 
   return {
     id: calculation.id,
@@ -582,7 +615,18 @@ function mapCommissionCalculationRow(calculation: Prisma.CommissionCalculationGe
     recipientLabel,
     recipientRole: calculation.recipientRole ?? "",
     commissionPlanId: calculation.commissionPlanId ?? "",
-    commissionPlanLabel: calculation.commissionPlan?.name ?? (storedContext ? defaultSplitLabel : "Manual / transaction finance"),
+    commissionPlanLabel:
+      calculation.commissionPlan?.name ??
+      (calculation.recipientType === "brokerage"
+        ? companyResidualPercent
+          ? `${formatPercentLabel(companyResidualPercent)}% company residual`
+          : "Company residual"
+        : storedChainMember
+          ? buildCommissionSplitLabel(storedChainMember.agentPercent)
+          : storedContext
+            ? defaultSplitLabel
+            : "Manual / transaction finance"),
+    commissionPlanDetailLabel: effectiveShareLabel,
     status: commissionCalculationStatusLabelMap[calculation.status],
     statusValue: calculation.status,
     grossCommissionLabel: formatCurrency(calculation.grossCommission),

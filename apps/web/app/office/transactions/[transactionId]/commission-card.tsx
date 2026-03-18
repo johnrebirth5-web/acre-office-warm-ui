@@ -211,7 +211,9 @@ export function TransactionCommissionCard({
                 <span>{row.recipientRole || "—"}</span>
                 <div className="office-table-primary">
                   <strong>{row.commissionPlanLabel}</strong>
-                  <p>{row.grossCommissionLabel} gross</p>
+                  <p>
+                    {row.commissionPlanDetailLabel} · {row.grossCommissionLabel} gross
+                  </p>
                 </div>
                 <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
                 <div className="office-table-primary">
