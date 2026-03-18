@@ -25,8 +25,9 @@ import {
   buildTeamMembershipHierarchyMap,
   buildTeamPathLabel,
   createTeamHierarchyIndex,
+  formatAssignableTeamLabel,
   formatTeamMembershipRoleLabel as formatHierarchyRoleLabel,
-  isLeaderTeamMembershipRole
+  isValidBranchLeaderRole
 } from "./team-hierarchy";
 
 const userRoleLabelMap: Record<UserRole, string> = {
@@ -1683,7 +1684,10 @@ async function listOfficeAdminAssignableTeams(input: {
   const teamManagerOptionsMap = new Map<string, OfficeAdminAssignableTeamManager[]>(
     teams.map((team) => {
       const managers = teamMemberships
-        .filter((teamMembership) => teamMembership.teamId === team.id && isLeaderTeamMembershipRole(teamMembership.role))
+        .filter(
+          (teamMembership) =>
+            teamMembership.teamId === team.id && isValidBranchLeaderRole(team.parentTeamId ?? null, teamMembership.role)
+        )
         .sort((left, right) => {
           if (left.role !== right.role) {
             return left.role === "team_leader" ? -1 : 1;
@@ -1708,13 +1712,12 @@ async function listOfficeAdminAssignableTeams(input: {
   return teams.map((team) => {
     const managerOptions = teamManagerOptionsMap.get(team.id) ?? [];
     const teamPathLabel = teamPathLabelMap.get(team.id) ?? team.name;
-    const managerSummary = managerOptions.map((manager) => manager.label).join(", ");
 
     return {
       id: team.id,
       officeId: team.officeId ?? null,
       officeName: team.office?.name ?? "All offices",
-      label: managerSummary ? `${teamPathLabel} · Leaders: ${managerSummary}` : teamPathLabel,
+      label: formatAssignableTeamLabel(teamPathLabel, managerOptions.map((manager) => manager.label)),
       managerOptions,
       defaultReportsToTeamMembershipId: managerOptions.length === 1 ? managerOptions[0]?.teamMembershipId ?? null : null
     };

@@ -64,6 +64,21 @@ export function isLeaderTeamMembershipRole(role: TeamMembershipRole) {
   return leaderRoles.has(role);
 }
 
+export function getExpectedBranchLeaderRole(parentTeamId: string | null | undefined): TeamMembershipRole {
+  return parentTeamId ? "junior_team_leader" : "team_leader";
+}
+
+export function isValidBranchLeaderRole(parentTeamId: string | null | undefined, role: TeamMembershipRole) {
+  return isLeaderTeamMembershipRole(role) && role === getExpectedBranchLeaderRole(parentTeamId);
+}
+
+export function formatAssignableTeamLabel(teamPathLabel: string, leaderLabels: string[]) {
+  const normalizedLeaderLabels = leaderLabels.map((label) => label.trim()).filter(Boolean);
+  const noun = normalizedLeaderLabels.length > 1 ? "Leaders" : "Leader";
+  const summary = normalizedLeaderLabels.length > 0 ? normalizedLeaderLabels.join(", ") : "Unassigned";
+  return `${teamPathLabel} · ${noun}: ${summary}`;
+}
+
 export function formatTeamMembershipRoleLabel(role: TeamMembershipRole) {
   if (role === "team_leader") {
     return "Team Leader";
@@ -231,12 +246,17 @@ export function buildTeamMembershipHierarchyMap(input: {
     currentMemberships.push(teamMembership);
     membershipsByTeamId.set(teamMembership.teamId, currentMemberships);
 
-    if (!isLeaderTeamMembershipRole(teamMembership.role)) {
+    const team = index.teamById.get(teamMembership.teamId);
+    if (!team || !isValidBranchLeaderRole(team.parentTeamId, teamMembership.role)) {
       continue;
     }
 
     const currentLeader = leaderByTeamId.get(teamMembership.teamId);
-    if (!currentLeader || currentLeader.role === "junior_team_leader") {
+    if (
+      !currentLeader ||
+      teamMembership.label.localeCompare(currentLeader.label) < 0 ||
+      (teamMembership.label === currentLeader.label && teamMembership.id.localeCompare(currentLeader.id) < 0)
+    ) {
       leaderByTeamId.set(teamMembership.teamId, teamMembership);
     }
   }

@@ -63,6 +63,8 @@ Provide a real Back Office agent management workspace for office operations, cov
   - explicit `reportsToTeamMembershipId`
   - direct `Team Leader -> Member`
   - nested `Team Leader -> Junior Team Leader -> Member`
+  - branch-owner summaries and team-assignment dropdowns now only count leader roles that match the current branch shape
+  - explicit child branches can exist before a `Junior Team Leader` is assigned, and those branches should surface as `Leader: Unassigned` rather than borrowing the parent-team summary
 - the operational profile now edits default commission via:
   - reusable split template selection
   - custom agent percentage

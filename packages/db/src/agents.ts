@@ -38,9 +38,12 @@ import {
   buildTeamPathLabel,
   createTeamHierarchyIndex,
   expandSelectedTeamIds,
+  formatAssignableTeamLabel,
   formatTeamMembershipRoleLabel,
+  getExpectedBranchLeaderRole,
   getDescendantTeamIds,
-  isLeaderTeamMembershipRole
+  isLeaderTeamMembershipRole,
+  isValidBranchLeaderRole
 } from "./team-hierarchy";
 
 const roleLabelMap: Record<UserRole, string> = {
@@ -724,6 +727,7 @@ async function validateTeamMembershipHierarchy(
     organizationId: string;
     officeId?: string | null;
     teamId: string;
+    teamParentTeamId?: string | null;
     membershipId: string;
     role: TeamMembershipRole;
     reportsToTeamMembershipId?: string | null;
@@ -763,8 +767,8 @@ async function validateTeamMembershipHierarchy(
     throw new Error("A team member cannot report to themselves.");
   }
 
-  if (input.role === "member" && !isLeaderTeamMembershipRole(parentMembership.role)) {
-    throw new Error("Members can only report to a team leader in the same branch.");
+  if (input.role === "member" && !isValidBranchLeaderRole(input.teamParentTeamId ?? null, parentMembership.role)) {
+    throw new Error("Members can only report to the current branch leader in the same branch.");
   }
 
   if (!input.existingTeamMembershipId) {
@@ -2111,7 +2115,10 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
   >(
     availableTeams.map((team) => {
       const managers = scopedTeamMemberships
-        .filter((teamMembership) => teamMembership.teamId === team.id && isLeaderTeamMembershipRole(teamMembership.role))
+        .filter(
+          (teamMembership) =>
+            teamMembership.teamId === team.id && isValidBranchLeaderRole(team.parentTeamId ?? null, teamMembership.role)
+        )
         .sort((left, right) => {
           if (left.role !== right.role) {
             return left.role === "team_leader" ? -1 : 1;
@@ -2297,11 +2304,10 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     availableTeams: availableTeams.map((team) => {
       const managerOptions = availableTeamManagerOptionsMap.get(team.id) ?? [];
       const teamPathLabel = availableTeamPathLabelMap.get(team.id) ?? team.name;
-      const managerSummary = managerOptions.map((manager) => manager.label).join(", ");
 
       return {
         id: team.id,
-        label: managerSummary ? `${teamPathLabel} · Leaders: ${managerSummary}` : teamPathLabel,
+        label: formatAssignableTeamLabel(teamPathLabel, managerOptions.map((manager) => manager.label)),
         managerOptions,
         defaultReportsToTeamMembershipId: managerOptions.length === 1 ? managerOptions[0]?.teamMembershipId ?? null : null
       };
@@ -2612,7 +2618,7 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
       }
     });
 
-    const nextLeaderRole: TeamMembershipRole = updatedTeam.parentTeamId ? "junior_team_leader" : "team_leader";
+    const nextLeaderRole = getExpectedBranchLeaderRole(updatedTeam.parentTeamId);
     await tx.teamMembership.updateMany({
       where: {
         organizationId: input.organizationId,
@@ -2771,7 +2777,7 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
   }
 
   const nextRole = normalizeTeamRole(input.role);
-  const expectedLeaderRole: TeamMembershipRole = team.parentTeamId ? "junior_team_leader" : "team_leader";
+  const expectedLeaderRole = getExpectedBranchLeaderRole(team.parentTeamId);
   const existingLeader = await tx.teamMembership.findFirst({
     where: {
       organizationId: input.organizationId,
@@ -2822,6 +2828,7 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
     organizationId: input.organizationId,
     officeId: input.officeId,
     teamId: input.teamId,
+    teamParentTeamId: team.parentTeamId,
     membershipId: input.membershipId,
     role: nextRole,
     reportsToTeamMembershipId: input.reportsToTeamMembershipId,

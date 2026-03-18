@@ -43,6 +43,8 @@ Provide a practical Back Office admin/settings area for access management, role 
   - maintain direct reporting lines inside a team
   - show inherited parent-branch managers for branch leaders instead of leaving the direct-manager field visually blank
   - surface invalid root/child branch leader-role mismatches so admins can correct legacy team data intentionally
+  - keep branch-owner summaries scoped to the team's valid owner role only, instead of mixing in invalid legacy leader assignments
+  - show explicit `Root team / Child branch / Branch owner / Unassigned` state so empty child branches are distinguishable from parent-team role mismatches
 - fields admin supports:
   - `Settings > Fields` as the single field-structure admin entry
   - module rail for `transaction / contact / offer`

@@ -89,6 +89,10 @@
 - Back Office account access is now tiered as `owner / office_admin / accountant / human_resources / team_lead / agent`, with server-side scope enforcement and finance redaction applied to dashboard, transactions, reports, exports, and agent views
 - Team hierarchy is now modeled explicitly with `TeamMembership.role + reportsToTeamMembershipId`, and the repo includes a one-off provisioning script for the initial `acreny.us` account batch plus invite-link output
 - `Settings > Teams` now shows inherited parent-branch managers for leader rows and flags invalid root/child branch leader-role mismatches instead of silently displaying the first allowed option
+- Team labels and branch summaries now treat branch ownership consistently:
+  - assignable team dropdowns always render `Team path · Leader: ...` and show `Leader: Unassigned` when a branch exists without an active owner
+  - only leader roles that match the current team shape count as branch owners, so invalid root/child mismatches no longer appear in branch-owner summaries or manager pickers
+  - `Settings > Teams` now makes `Root team / Child branch / Branch owner` status explicit so an empty child branch is distinguishable from an invalid leader assignment on the parent team
 - Office table column widths can now be resized and saved at the organization level by `owner / office_admin`, with the shared layout applied across list/workspace tables for every user in the same org
 - Commission V2 now uses membership-level default split settings plus reporting-line chain calculation:
   - new `CommissionSplitTemplate` + `MembershipCommissionSetting` models

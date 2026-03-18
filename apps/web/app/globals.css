@@ -9915,6 +9915,13 @@ a {
   gap: 14px;
 }
 
+.office-settings-team-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .office-settings-teams-grid {
   grid-template-columns: 1fr;
 }
@@ -9942,6 +9949,22 @@ a {
 .office-settings-team-members {
   display: grid;
   gap: 12px;
+}
+
+.office-settings-team-meta {
+  display: grid;
+  gap: 6px;
+}
+
+.office-settings-team-meta .office-form-helper {
+  margin: 0;
+}
+
+.office-settings-team-warning {
+  margin: 0;
+  color: #93581d;
+  font-size: var(--office-text-meta-size);
+  line-height: var(--office-line-body);
 }
 
 .office-settings-team-members-head {
