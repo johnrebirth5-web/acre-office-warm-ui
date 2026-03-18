@@ -1650,6 +1650,10 @@ export async function calculateTransactionCommission(
     return null;
   }
 
+  if (transaction.grossCommission === null) {
+    throw new Error("Set Gross commission in Finance before calculating commission.");
+  }
+
   const effectiveAt = transaction.createdAt ?? new Date();
 
   await prisma.$transaction(async (tx) => {

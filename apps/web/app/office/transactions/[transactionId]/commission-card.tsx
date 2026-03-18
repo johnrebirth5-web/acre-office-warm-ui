@@ -157,6 +157,7 @@ export function TransactionCommissionCard({
             </Button>
           </div>
         </form>
+        {error ? <p className="office-form-error">{error}</p> : null}
 
         <div className="office-inline-meta">
           <span>Latest mode: {snapshot.mode === "default_split_chain" ? "Default split chain" : "Legacy advanced plan"}</span>
@@ -261,8 +262,6 @@ export function TransactionCommissionCard({
             ) : null}
           </div>
         </HorizontalScrollArea>
-
-        {error ? <p className="office-form-error">{error}</p> : null}
       </SectionCard>
     </section>
   );
