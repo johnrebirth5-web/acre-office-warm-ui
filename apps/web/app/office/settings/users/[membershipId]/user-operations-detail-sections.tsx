@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Badge,
   Button,
@@ -130,6 +130,10 @@ function buildEmptyOnboardingDraft(): OnboardingDraft {
   };
 }
 
+function getAssignableTeams(snapshot: OfficeAgentProfileSnapshot) {
+  return snapshot.availableTeams.filter((team) => !snapshot.teams.some((assigned) => assigned.id === team.id));
+}
+
 export function UserOperationsDetailSections({
   snapshot,
   canManageAgents,
@@ -138,8 +142,12 @@ export function UserOperationsDetailSections({
   canManageTeams
 }: UserOperationsDetailSectionsProps) {
   const router = useRouter();
+  const initialAssignableTeam = getAssignableTeams(snapshot)[0] ?? null;
   const [profileState, setProfileState] = useState<ProfileState>(buildProfileState(snapshot));
-  const [selectedTeamId, setSelectedTeamId] = useState(snapshot.availableTeams[0]?.id ?? "");
+  const [selectedTeamId, setSelectedTeamId] = useState(initialAssignableTeam?.id ?? "");
+  const [selectedReportsToTeamMembershipId, setSelectedReportsToTeamMembershipId] = useState(
+    initialAssignableTeam?.defaultReportsToTeamMembershipId ?? ""
+  );
   const [newOnboardingItem, setNewOnboardingItem] = useState<OnboardingDraft>(buildEmptyOnboardingDraft);
   const [newGoal, setNewGoal] = useState<GoalDraft>(buildEmptyGoalDraft);
   const [onboardingDrafts, setOnboardingDrafts] = useState<Record<string, OnboardingDraft>>(
@@ -153,12 +161,39 @@ export function UserOperationsDetailSections({
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
   const availableTeamOptions = useMemo(
-    () => snapshot.availableTeams.filter((team) => !snapshot.teams.some((assigned) => assigned.id === team.id)),
+    () => getAssignableTeams(snapshot),
     [snapshot.availableTeams, snapshot.teams]
   );
+  const selectedTeamOption = useMemo(
+    () => availableTeamOptions.find((team) => team.id === selectedTeamId) ?? null,
+    [availableTeamOptions, selectedTeamId]
+  );
+
+  useEffect(() => {
+    if (!selectedTeamOption) {
+      if (selectedReportsToTeamMembershipId) {
+        setSelectedReportsToTeamMembershipId("");
+      }
+      return;
+    }
+
+    const managerStillAvailable = selectedTeamOption.managerOptions.some(
+      (manager) => manager.teamMembershipId === selectedReportsToTeamMembershipId
+    );
+
+    if (!managerStillAvailable) {
+      setSelectedReportsToTeamMembershipId(selectedTeamOption.defaultReportsToTeamMembershipId ?? "");
+    }
+  }, [selectedReportsToTeamMembershipId, selectedTeamOption]);
 
   function setProfileField(field: keyof ProfileState, value: string) {
     setProfileState((current) => ({ ...current, [field]: value }));
+  }
+
+  function handleSelectedTeamChange(nextTeamId: string) {
+    setSelectedTeamId(nextTeamId);
+    const nextTeam = availableTeamOptions.find((team) => team.id === nextTeamId) ?? null;
+    setSelectedReportsToTeamMembershipId(nextTeam?.defaultReportsToTeamMembershipId ?? "");
   }
 
   function setOnboardingField(itemId: string, field: keyof OnboardingDraft, value: string) {
@@ -224,7 +259,8 @@ export function UserOperationsDetailSections({
         },
         body: JSON.stringify({
           membershipId: snapshot.profile.membershipId,
-          role: "member"
+          role: "member",
+          reportsToTeamMembershipId: selectedReportsToTeamMembershipId || null
         })
       });
 
@@ -527,14 +563,30 @@ export function UserOperationsDetailSections({
 
           {canManageTeams && availableTeamOptions.length ? (
             <div className="office-inline-form">
-              <SelectInput onChange={(event) => setSelectedTeamId(event.target.value)} value={selectedTeamId}>
-                <option value="">Select team to assign</option>
-                {availableTeamOptions.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.label}
-                  </option>
-                ))}
-              </SelectInput>
+              <FormField label="Team">
+                <SelectInput onChange={(event) => handleSelectedTeamChange(event.target.value)} value={selectedTeamId}>
+                  <option value="">Select team to assign</option>
+                  {availableTeamOptions.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.label}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
+              <FormField label="Direct manager">
+                <SelectInput
+                  disabled={!selectedTeamOption || selectedTeamOption.managerOptions.length === 0}
+                  onChange={(event) => setSelectedReportsToTeamMembershipId(event.target.value)}
+                  value={selectedReportsToTeamMembershipId}
+                >
+                  <option value="">No direct manager</option>
+                  {(selectedTeamOption?.managerOptions ?? []).map((manager) => (
+                    <option key={manager.teamMembershipId} value={manager.teamMembershipId}>
+                      {manager.label} · {manager.role}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
               <Button disabled={!selectedTeamId || pendingAction === "assign-team"} onClick={handleAssignTeam} type="button">
                 {pendingAction === "assign-team" ? "Assigning..." : "Add to team"}
               </Button>
