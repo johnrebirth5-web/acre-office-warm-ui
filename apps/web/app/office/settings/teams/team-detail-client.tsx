@@ -202,6 +202,9 @@ export function OfficeSettingsTeamDetailClient({
 
                   <div className="office-settings-team-directory-card-actions">
                     <Badge tone="neutral">{getBranchTypeLabel(childTeam)}</Badge>
+                    <Link className="office-button office-button-secondary office-button-sm" href={`/office/settings/teams/${childTeam.id}`}>
+                      View members
+                    </Link>
                   </div>
                 </article>
               );
