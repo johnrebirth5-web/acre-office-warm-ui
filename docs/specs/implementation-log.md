@@ -102,6 +102,7 @@
   - creating a Team or Junior Team requires selecting its owner in the same flow
   - the current owner cannot be removed or demoted without first transferring ownership
   - promoting another member into the owner role now transfers leadership instead of forcing admins through a temporary ownerless state
+  - legacy `Junior Team Leader` assignments that were still sitting inside the parent Team now auto-create a leader-named Junior Team and move that leader plus direct reports into the correct child structure
   - the current Back Office UI intentionally opens only two levels today while the underlying recursive team model remains in place for future expansion
 - Office table column widths can now be resized and saved at the organization level by `owner / office_admin`, with the shared layout applied across list/workspace tables for every user in the same org
 - Commission V2 now uses membership-level default split settings plus reporting-line chain calculation:

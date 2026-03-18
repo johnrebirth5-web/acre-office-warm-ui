@@ -526,6 +526,29 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
+async function buildUniqueTeamSlug(
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  baseName: string,
+  excludedTeamId?: string | null
+) {
+  const baseSlug = slugify(baseName) || "team";
+  const existingTeams = await tx.team.findMany({
+    where: {
+      organizationId,
+      slug: {
+        startsWith: baseSlug
+      },
+      ...(excludedTeamId ? { NOT: { id: excludedTeamId } } : {})
+    },
+    select: {
+      slug: true
+    }
+  });
+
+  return existingTeams.some((team) => team.slug === baseSlug) ? `${baseSlug}-${existingTeams.length + 1}` : baseSlug;
+}
+
 function normalizeOnboardingStatus(
   explicitStatus: AgentOnboardingStatus | null | undefined,
   items: Array<{ status: AgentOnboardingItemStatus }>
@@ -686,6 +709,127 @@ function getMembershipLabel(membership: {
   };
 }) {
   return `${membership.user.firstName} ${membership.user.lastName}`;
+}
+
+function buildLeaderOwnedTeamName(leaderLabel: string) {
+  const normalized = leaderLabel.trim();
+  return normalized ? `${normalized} Team` : "Leader Team";
+}
+
+async function materializeImplicitJuniorTeamsForOrganization(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    actorMembershipId: string;
+  }
+) {
+  const invalidJuniorLeaders = await tx.teamMembership.findMany({
+    where: {
+      organizationId: input.organizationId,
+      role: "junior_team_leader",
+      team: {
+        parentTeamId: null,
+        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
+      }
+    },
+    include: {
+      team: true,
+      membership: {
+        include: {
+          user: true
+        }
+      }
+    },
+    orderBy: [{ createdAt: "asc" }]
+  });
+
+  for (const invalidJuniorLeader of invalidJuniorLeaders) {
+    const desiredTeamName = buildLeaderOwnedTeamName(getMembershipLabel(invalidJuniorLeader.membership));
+    const childTeams = await tx.team.findMany({
+      where: {
+        organizationId: input.organizationId,
+        parentTeamId: invalidJuniorLeader.teamId
+      },
+      include: {
+        memberships: {
+          select: {
+            id: true,
+            membershipId: true,
+            role: true
+          }
+        }
+      },
+      orderBy: [{ createdAt: "asc" }]
+    });
+    const existingOwnedTeam =
+      childTeams.find((team) =>
+        team.memberships.some(
+          (membership) =>
+            membership.membershipId === invalidJuniorLeader.membershipId && membership.role === "junior_team_leader"
+        )
+      ) ??
+      childTeams.find((team) => team.name === desiredTeamName && !team.memberships.some((membership) => membership.role === "junior_team_leader")) ??
+      null;
+
+    const targetTeam =
+      existingOwnedTeam ??
+      (await tx.team.create({
+        data: {
+          organizationId: input.organizationId,
+          officeId: invalidJuniorLeader.team.officeId,
+          name: desiredTeamName,
+          slug: await buildUniqueTeamSlug(tx, input.organizationId, desiredTeamName),
+          parentTeamId: invalidJuniorLeader.teamId
+        }
+      }));
+
+    if (!existingOwnedTeam) {
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+        entityType: "team",
+        entityId: targetTeam.id,
+        action: activityLogActions.teamCreated,
+        payload: {
+          officeId: targetTeam.officeId,
+          objectLabel: targetTeam.name,
+          contextHref: `/office/settings/teams/${invalidJuniorLeader.teamId}`,
+          details: [
+            `Status: Active`,
+            `Parent team: ${invalidJuniorLeader.team.name}`,
+            `Auto-created for Junior Team Leader: ${getMembershipLabel(invalidJuniorLeader.membership)}`
+          ]
+        }
+      });
+    }
+
+    await tx.teamMembership.update({
+      where: {
+        id: invalidJuniorLeader.id
+      },
+      data: {
+        officeId: targetTeam.officeId,
+        teamId: targetTeam.id,
+        role: "junior_team_leader",
+        reportsToTeamMembershipId: null
+      }
+    });
+
+    await tx.teamMembership.updateMany({
+      where: {
+        organizationId: input.organizationId,
+        teamId: invalidJuniorLeader.teamId,
+        reportsToTeamMembershipId: invalidJuniorLeader.id
+      },
+      data: {
+        officeId: targetTeam.officeId,
+        teamId: targetTeam.id
+      }
+    });
+
+    await syncManagedMembershipTitlesForTeamBranch(tx, input.organizationId, invalidJuniorLeader.teamId, input.officeId);
+  }
 }
 
 function redactAgentGoalFinancials(goal: OfficeAgentGoalRecord, allowed: boolean): OfficeAgentGoalRecord {
@@ -1441,6 +1585,13 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     viewerMembershipId: input.viewerMembershipId,
     officeId: scopedOfficeId ?? null
   });
+  await prisma.$transaction((tx) =>
+    materializeImplicitJuniorTeamsForOrganization(tx, {
+      organizationId: input.organizationId,
+      officeId: scopedOfficeId ?? null,
+      actorMembershipId: input.viewerMembershipId
+    })
+  );
   const scopedTeams = await prisma.team.findMany({
     where: {
       organizationId: input.organizationId,
@@ -1905,6 +2056,13 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     viewerMembershipId: input.viewerMembershipId,
     officeId: input.officeId ?? null
   });
+  await prisma.$transaction((tx) =>
+    materializeImplicitJuniorTeamsForOrganization(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      actorMembershipId: input.viewerMembershipId
+    })
+  );
 
   if (!canAccessMembership(scope, input.membershipId)) {
     return null;
@@ -2565,51 +2723,41 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
               organizationId: input.organizationId,
               membershipId: leaderMembership.id,
               teamId: parentTeamId,
-              role: "member",
+              role: {
+                in: ["member", "junior_team_leader"]
+              },
               team: {
                 isActive: true
               }
             },
             select: {
-              id: true
+              id: true,
+              role: true
             }
           })
         : null;
+    const reusableDirectReports =
+      reusableParentMembership
+        ? await tx.teamMembership.findMany({
+            where: {
+              organizationId: input.organizationId,
+              teamId: parentTeamId ?? undefined,
+              reportsToTeamMembershipId: reusableParentMembership.id
+            },
+            select: {
+              id: true,
+              membershipId: true
+            }
+          })
+        : [];
 
     if (reusableParentMembership) {
-      const directReportCount = await tx.teamMembership.count({
-        where: {
-          organizationId: input.organizationId,
-          teamId: parentTeamId ?? undefined,
-          reportsToTeamMembershipId: reusableParentMembership.id
-        }
-      });
-
-      if (directReportCount > 0) {
+      if (reusableParentMembership.role === "member" && reusableDirectReports.length > 0) {
         throw new Error("Reassign this future Junior Team Leader's direct reports before creating the new Junior Team.");
       }
-
-      await tx.teamMembership.delete({
-        where: {
-          id: reusableParentMembership.id
-        }
-      });
-      await syncManagedMembershipTitle(tx, leaderMembership.id);
     }
 
-    const baseSlug = slugify(name);
-    const existingTeams = await tx.team.findMany({
-      where: {
-        organizationId: input.organizationId,
-        slug: {
-          startsWith: baseSlug
-        }
-      },
-      select: {
-        slug: true
-      }
-    });
-    const slug = existingTeams.some((team) => team.slug === baseSlug) ? `${baseSlug}-${existingTeams.length + 1}` : baseSlug;
+    const slug = await buildUniqueTeamSlug(tx, input.organizationId, name);
     const team = await tx.team.create({
       data: {
         organizationId: input.organizationId,
@@ -2620,16 +2768,58 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
       }
     });
     const leaderRole = getExpectedBranchLeaderRole(parentTeamId);
-
-    await assignMembershipToTeamTx(tx, {
-      organizationId: input.organizationId,
-      officeId: input.officeId,
-      actorMembershipId: input.actorMembershipId,
-      teamId: team.id,
-      membershipId: leaderMembership.id,
-      role: leaderRole,
-      reportsToTeamMembershipId: null
-    });
+    if (!reusableParentMembership) {
+      await assignMembershipToTeamTx(tx, {
+        organizationId: input.organizationId,
+        officeId: input.officeId,
+        actorMembershipId: input.actorMembershipId,
+        teamId: team.id,
+        membershipId: leaderMembership.id,
+        role: leaderRole,
+        reportsToTeamMembershipId: null
+      });
+    } else if (reusableParentMembership.role === "member") {
+      await tx.teamMembership.delete({
+        where: {
+          id: reusableParentMembership.id
+        }
+      });
+      await assignMembershipToTeamTx(tx, {
+        organizationId: input.organizationId,
+        officeId: input.officeId,
+        actorMembershipId: input.actorMembershipId,
+        teamId: team.id,
+        membershipId: leaderMembership.id,
+        role: leaderRole,
+        reportsToTeamMembershipId: null
+      });
+    } else {
+      await tx.teamMembership.update({
+        where: {
+          id: reusableParentMembership.id
+        },
+        data: {
+          officeId: team.officeId,
+          teamId: team.id,
+          role: leaderRole,
+          reportsToTeamMembershipId: null
+        }
+      });
+      if (reusableDirectReports.length > 0) {
+        await tx.teamMembership.updateMany({
+          where: {
+            id: {
+              in: reusableDirectReports.map((teamMembership) => teamMembership.id)
+            }
+          },
+          data: {
+            officeId: team.officeId,
+            teamId: team.id
+          }
+        });
+      }
+      await syncManagedMembershipTitlesForTeamBranch(tx, input.organizationId, parentTeamId ?? team.id, input.officeId);
+    }
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
