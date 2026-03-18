@@ -52,6 +52,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
   - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now consume one office-scoped schema managed centrally from `Settings > Fields`.
   - the built-in `Type / Status / Representing` dropdowns now keep stable system values while allowing office admins to edit which options are available and how each option label is displayed.
+  - `New transaction` owner search for `Agent Name` is sourced from office/global sales memberships for company-scope creators, not just the currently visible transaction roster.
 - Follow-up work:
   - deeper listing-side workflow parity
   - richer transaction automation

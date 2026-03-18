@@ -37,6 +37,8 @@ type BodyFieldRecord =
       className: string;
     };
 
+const maxVisibleOwnerSuggestions = 20;
+
 function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialValues: Record<string, string> | undefined) {
   const nextValues: Record<string, string> = {};
 
@@ -182,7 +184,7 @@ export function TransactionIntakeWorkspace({
       }))
       .filter((entry) => !normalizedQuery || entry.score >= 0)
       .sort((left, right) => left.score - right.score || left.option.label.localeCompare(right.option.label))
-      .slice(0, 8)
+      .slice(0, maxVisibleOwnerSuggestions)
       .map((entry) => entry.option);
   }, [ownerAssignment, ownerSearchValue]);
 

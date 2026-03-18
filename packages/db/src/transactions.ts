@@ -314,6 +314,16 @@ const maxTransactionsPageSize = 100;
 const transactionOwnerRoleValues = ["agent", "team_lead"] satisfies UserRole[];
 const selectableTransactionOwnerStatuses = ["active", "invited"] satisfies MembershipStatus[];
 
+function buildTransactionOwnerOfficeWhere(officeId: string | null | undefined): Prisma.MembershipWhereInput | undefined {
+  if (!officeId) {
+    return undefined;
+  }
+
+  return {
+    OR: [{ officeId }, { officeId: null }]
+  };
+}
+
 function formatTransactionOwnerRoleLabel(role: UserRole) {
   if (role === "team_lead") {
     return "Team Lead";
@@ -1128,35 +1138,38 @@ export async function getOfficeTransactionOwnerAssignment(input: {
     viewerMembershipId: input.viewerMembershipId,
     officeId: input.officeId ?? null
   });
+  const canSelectDifferentOwner =
+    scope.viewerPermissions.includes("transactions:create") && scope.viewerPermissions.includes("transactions:view:company");
 
   const [viewerMembership, ownerMemberships] = await Promise.all([
     prisma.membership.findFirst({
       where: {
         id: input.viewerMembershipId,
         organizationId: input.organizationId,
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        ...(buildTransactionOwnerOfficeWhere(input.officeId) ?? {})
       },
       include: {
         user: true
       }
     }),
-    prisma.membership.findMany({
-      where: {
-        organizationId: input.organizationId,
-        status: {
-          in: selectableTransactionOwnerStatuses
-        },
-        ...(scope.visibleMembershipIds ? { id: { in: scope.visibleMembershipIds } } : {}),
-        ...(input.officeId ? { officeId: input.officeId } : {}),
-        role: {
-          in: transactionOwnerRoleValues
-        }
-      },
-      include: {
-        user: true
-      },
-      orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
-    })
+    canSelectDifferentOwner
+      ? prisma.membership.findMany({
+          where: {
+            organizationId: input.organizationId,
+            status: {
+              in: selectableTransactionOwnerStatuses
+            },
+            ...(buildTransactionOwnerOfficeWhere(input.officeId) ?? {}),
+            role: {
+              in: transactionOwnerRoleValues
+            }
+          },
+          include: {
+            user: true
+          },
+          orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
+        })
+      : Promise.resolve([])
   ]);
 
   if (!viewerMembership) {
@@ -1166,8 +1179,7 @@ export async function getOfficeTransactionOwnerAssignment(input: {
   return {
     currentOwnerMembershipId: viewerMembership.id,
     currentOwnerLabel: `${viewerMembership.user.firstName} ${viewerMembership.user.lastName}`.trim() || viewerMembership.user.email,
-    canSelectDifferentOwner:
-      scope.viewerPermissions.includes("transactions:create") && scope.viewerPermissions.includes("transactions:view:company"),
+    canSelectDifferentOwner,
     options: ownerMemberships.map((membership) => ({
       id: membership.id,
       label: `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email,
@@ -1271,7 +1283,10 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
         status: {
           in: selectableTransactionOwnerStatuses
         },
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        ...(buildTransactionOwnerOfficeWhere(input.officeId) ?? {}),
+        role: {
+          in: transactionOwnerRoleValues
+        }
       },
       include: {
         user: true

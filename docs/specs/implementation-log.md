@@ -107,6 +107,7 @@
 - `Settings > Fields` custom field editor now supports `Protected from deletion`, and the transaction `Agent Name` field is hard-protected so admins must hide it instead of deleting the owner-linked schema row
 - Transaction intake now retires the legacy `Team Leader` custom field from both `New Transaction` and `Settings > Fields`; team hierarchy should come only from membership/team assignment, not from a second dropdown on the transaction form
 - Transaction owner selection for `New Transaction` now treats `invited` sales memberships the same as `active` ones, so admins can create transactions for agents/team leads who never log into the system themselves
+- `New Transaction > Agent Name` owner search now sources assignable owners from office/global sales memberships instead of the viewer's current transaction roster visibility, so admins can still find unassigned or not-yet-rostered agents and company-level members with `officeId = null`
 - `Create user` now supports immediate operational placement:
   - admins with team permissions can assign a new sales user into a top-level team or junior branch during invitation
   - the same create flow can optionally set the user's direct manager from current branch leaders
