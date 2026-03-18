@@ -101,7 +101,6 @@ export function PageHeader(props: {
       <div className="office-page-heading">
         {props.eyebrow ? <span className="office-eyebrow">{props.eyebrow}</span> : null}
         <h2>{props.title}</h2>
-        {props.description ? <p>{props.description}</p> : null}
       </div>
       {props.actions ? <div className="office-page-actions">{props.actions}</div> : null}
     </section>
