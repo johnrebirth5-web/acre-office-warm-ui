@@ -11,6 +11,7 @@ type TransactionFinanceFormProps = {
   officeNet: string;
   agentNet: string;
   financeNotes: string;
+  canAutoCalculateCommission?: boolean;
   readOnly?: boolean;
 };
 
@@ -21,6 +22,7 @@ export function TransactionFinanceForm({
   officeNet,
   agentNet,
   financeNotes,
+  canAutoCalculateCommission = false,
   readOnly = false
 }: TransactionFinanceFormProps) {
   const router = useRouter();
@@ -44,6 +46,8 @@ export function TransactionFinanceForm({
   async function handleSaveFinance() {
     setError("");
     setIsSaving(true);
+    const shouldAutoCalculate = canAutoCalculateCommission && formState.grossCommission.trim().length > 0;
+    let financeSaved = false;
 
     try {
       const response = await fetch(`/api/office/transactions/${transactionId}/finance`, {
@@ -59,13 +63,34 @@ export function TransactionFinanceForm({
         throw new Error(body?.error ?? "Failed to update finance.");
       }
 
+      financeSaved = true;
+
+      if (shouldAutoCalculate) {
+        const calculateResponse = await fetch(`/api/office/transactions/${transactionId}/commissions/calculate`, {
+          method: "POST"
+        });
+
+        if (!calculateResponse.ok) {
+          const body = (await calculateResponse.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? "Automatic commission recalculation failed.");
+        }
+      }
+
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to update finance.");
+      const fallbackMessage =
+        financeSaved && shouldAutoCalculate
+          ? "Finance saved, but automatic commission recalculation failed."
+          : "Failed to update finance.";
+      const detailMessage = saveError instanceof Error ? saveError.message : fallbackMessage;
+
+      setError(financeSaved && shouldAutoCalculate ? `Finance saved. ${detailMessage}` : detailMessage);
     } finally {
       setIsSaving(false);
     }
   }
+
+  const willAutoCalculate = canAutoCalculateCommission && formState.grossCommission.trim().length > 0;
 
   return (
     <div className="bm-transaction-finance-form">
@@ -93,8 +118,11 @@ export function TransactionFinanceForm({
       {!readOnly ? (
         <div className="office-form-actions">
           <Button disabled={isSaving} onClick={handleSaveFinance} type="button">
-            {isSaving ? "Saving..." : "Save finance"}
+            {isSaving ? (willAutoCalculate ? "Saving & recalculating..." : "Saving...") : willAutoCalculate ? "Save finance & recalculate" : "Save finance"}
           </Button>
+          {canAutoCalculateCommission ? (
+            <p className="office-form-helper">Saving a Gross commission value will automatically recalculate commission for this transaction.</p>
+          ) : null}
           {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
         </div>
       ) : null}

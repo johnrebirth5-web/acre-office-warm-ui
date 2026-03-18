@@ -191,6 +191,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         <SectionCard subtitle="Minimal finance layer for commissions, office net, and notes." title="Finance">
           <TransactionFinanceForm
             agentNet={transaction.agentNet}
+            canAutoCalculateCommission={canCalculateCommissionsForRole}
             financeNotes={transaction.financeNotes}
             grossCommission={transaction.grossCommission}
             officeNet={transaction.officeNet}
