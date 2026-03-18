@@ -474,6 +474,8 @@ export type {
   UpdateOfficeTransactionCustomFieldDefinitionInput
 } from "./field-settings";
 export type {
+  OfficeAdminAssignableTeam,
+  OfficeAdminAssignableTeamManager,
   ChecklistTemplateItemInput,
   CreateChecklistTemplateInput,
   GetOfficeAdminUserDetailInput,

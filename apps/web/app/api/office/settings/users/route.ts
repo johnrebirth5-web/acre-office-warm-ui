@@ -1,4 +1,4 @@
-import { canManageOfficeUsers } from "@acre/auth";
+import { canManageOfficeTeams, canManageOfficeUsers } from "@acre/auth";
 import { createInvitedUser } from "@acre/db";
 import type { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
@@ -33,12 +33,18 @@ export async function POST(request: NextRequest) {
         splitTemplateId?: string | null;
         customAgentPercent?: string | null;
         commissionEffectiveFrom?: string | null;
+        teamId?: string | null;
+        reportsToTeamMembershipId?: string | null;
       }
     | null;
 
   try {
     if (!body?.role || !isCreateableUserRole(body.role)) {
       throw new Error("A supported Back Office role is required.");
+    }
+
+    if ((body?.teamId?.trim() || body?.reportsToTeamMembershipId?.trim()) && !canManageOfficeTeams(context.currentMembership)) {
+      return NextResponse.json({ error: "Team management permission required." }, { status: 403 });
     }
 
     const result = await createInvitedUser({
@@ -52,7 +58,10 @@ export async function POST(request: NextRequest) {
       title: typeof body?.title === "string" ? body.title : null,
       splitTemplateId: typeof body?.splitTemplateId === "string" ? body.splitTemplateId : undefined,
       customAgentPercent: typeof body?.customAgentPercent === "string" ? body.customAgentPercent : undefined,
-      commissionEffectiveFrom: typeof body?.commissionEffectiveFrom === "string" ? body.commissionEffectiveFrom : undefined
+      commissionEffectiveFrom: typeof body?.commissionEffectiveFrom === "string" ? body.commissionEffectiveFrom : undefined,
+      teamId: typeof body?.teamId === "string" ? body.teamId : undefined,
+      reportsToTeamMembershipId:
+        typeof body?.reportsToTeamMembershipId === "string" ? body.reportsToTeamMembershipId : undefined
     });
 
     return NextResponse.json({

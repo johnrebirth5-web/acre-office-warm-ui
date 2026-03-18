@@ -11,12 +11,19 @@ import {
   UserRole
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
+import { resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { listCommissionSplitTemplateOptions, type OfficeCommissionSplitTemplateOption } from "./commission-defaults";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import { resolveMembershipDisplayTitle } from "./membership-titles";
 import { getMembershipEffectivePermissions, type MembershipEffectivePermissionsSnapshot } from "./permissions";
-import { buildTeamMembershipHierarchyMap, buildTeamPathLabel, createTeamHierarchyIndex, formatTeamMembershipRoleLabel as formatHierarchyRoleLabel } from "./team-hierarchy";
+import {
+  buildTeamMembershipHierarchyMap,
+  buildTeamPathLabel,
+  createTeamHierarchyIndex,
+  formatTeamMembershipRoleLabel as formatHierarchyRoleLabel,
+  isLeaderTeamMembershipRole
+} from "./team-hierarchy";
 
 const userRoleLabelMap: Record<UserRole, string> = {
   owner: "Owner",
@@ -253,7 +260,27 @@ export type OfficeAdminUsersSnapshot = {
     statusOptions: Array<{ value: string; label: string }>;
     officeOptions: Array<{ id: string; label: string }>;
   };
+  createOptions: {
+    assignableTeams: OfficeAdminAssignableTeam[];
+  };
   rows: OfficeAdminUserRow[];
+};
+
+export type OfficeAdminAssignableTeamManager = {
+  teamMembershipId: string;
+  membershipId: string;
+  label: string;
+  role: string;
+  roleValue: TeamMembershipRole;
+};
+
+export type OfficeAdminAssignableTeam = {
+  id: string;
+  officeId: string | null;
+  officeName: string;
+  label: string;
+  managerOptions: OfficeAdminAssignableTeamManager[];
+  defaultReportsToTeamMembershipId: string | null;
 };
 
 export type OfficeAdminUserDetailActivityItem = {
@@ -431,6 +458,7 @@ export type OfficeChecklistTemplatesSnapshot = {
 
 export type GetOfficeAdminUsersInput = {
   organizationId: string;
+  viewerMembershipId: string;
   officeId?: string | null;
   q?: string;
   role?: string;
@@ -1334,7 +1362,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     ];
   }
 
-  const [memberships, offices, teams, summary, commissionTemplateOptions] = await Promise.all([
+  const [memberships, offices, teams, summary, commissionTemplateOptions, assignableTeams] = await Promise.all([
     prisma.membership.findMany({
       where,
       include: {
@@ -1475,7 +1503,12 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     listCommissionSplitTemplateOptions(
       input.organizationId,
       officeFilterId && officeFilterId !== "__all__" ? officeFilterId : null
-    )
+    ),
+    listOfficeAdminAssignableTeams({
+      organizationId: input.organizationId,
+      viewerMembershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null
+    })
   ]);
   const teamHierarchyIndex = createTeamHierarchyIndex(teams);
   const withTeamPathLabels = <T extends { teamMemberships?: Array<{ team: { id?: string; name: string } }> }>(entry: T) => ({
@@ -1542,6 +1575,9 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       ],
       officeOptions: [{ id: "__all__", label: "All offices" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
     },
+    createOptions: {
+      assignableTeams
+    },
     rows: memberships.map((membership) =>
       mapOfficeAdminUserRow({
         ...withTeamPathLabels(membership),
@@ -1549,6 +1585,124 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       })
     )
   };
+}
+
+async function listOfficeAdminAssignableTeams(input: {
+  organizationId: string;
+  viewerMembershipId: string;
+  officeId?: string | null;
+}): Promise<OfficeAdminAssignableTeam[]> {
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null,
+    resource: "agents"
+  });
+
+  if (scope.visibleTeamIds !== null && scope.visibleTeamIds.length === 0) {
+    return [];
+  }
+
+  const teams = await prisma.team.findMany({
+    where: {
+      organizationId: input.organizationId,
+      isActive: true,
+      ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {}),
+      ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      isActive: true,
+      parentTeamId: true,
+      officeId: true,
+      office: {
+        select: {
+          name: true
+        }
+      }
+    },
+    orderBy: [{ office: { name: "asc" } }, { name: "asc" }]
+  });
+
+  if (teams.length === 0) {
+    return [];
+  }
+
+  const teamMemberships = await prisma.teamMembership.findMany({
+    where: {
+      organizationId: input.organizationId,
+      teamId: {
+        in: teams.map((team) => team.id)
+      }
+    },
+    include: {
+      membership: {
+        include: {
+          user: true
+        }
+      }
+    }
+  });
+
+  const hierarchy = buildTeamMembershipHierarchyMap({
+    teams: teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      slug: team.slug,
+      isActive: team.isActive,
+      parentTeamId: team.parentTeamId ?? null
+    })),
+    teamMemberships: teamMemberships.map((teamMembership) => ({
+      id: teamMembership.id,
+      membershipId: teamMembership.membershipId,
+      teamId: teamMembership.teamId,
+      role: teamMembership.role,
+      reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
+      label: `${teamMembership.membership.user.firstName} ${teamMembership.membership.user.lastName}`.trim() || teamMembership.membership.user.email
+    }))
+  });
+  const teamPathLabelMap = new Map(teams.map((team) => [team.id, buildTeamPathLabel(hierarchy.index, team.id) || team.name]));
+  const teamManagerOptionsMap = new Map<string, OfficeAdminAssignableTeamManager[]>(
+    teams.map((team) => {
+      const managers = teamMemberships
+        .filter((teamMembership) => teamMembership.teamId === team.id && isLeaderTeamMembershipRole(teamMembership.role))
+        .sort((left, right) => {
+          if (left.role !== right.role) {
+            return left.role === "team_leader" ? -1 : 1;
+          }
+
+          const leftLabel = `${left.membership.user.firstName} ${left.membership.user.lastName}`.trim() || left.membership.user.email;
+          const rightLabel = `${right.membership.user.firstName} ${right.membership.user.lastName}`.trim() || right.membership.user.email;
+          return leftLabel.localeCompare(rightLabel);
+        })
+        .map((teamMembership) => ({
+          teamMembershipId: teamMembership.id,
+          membershipId: teamMembership.membershipId,
+          label: `${teamMembership.membership.user.firstName} ${teamMembership.membership.user.lastName}`.trim() || teamMembership.membership.user.email,
+          role: formatHierarchyRoleLabel(teamMembership.role),
+          roleValue: teamMembership.role
+        }));
+
+      return [team.id, managers];
+    })
+  );
+
+  return teams.map((team) => {
+    const managerOptions = teamManagerOptionsMap.get(team.id) ?? [];
+    const teamPathLabel = teamPathLabelMap.get(team.id) ?? team.name;
+    const managerSummary = managerOptions.map((manager) => manager.label).join(", ");
+
+    return {
+      id: team.id,
+      officeId: team.officeId ?? null,
+      officeName: team.office?.name ?? "All offices",
+      label: managerSummary ? `${teamPathLabel} · Leaders: ${managerSummary}` : teamPathLabel,
+      managerOptions,
+      defaultReportsToTeamMembershipId: managerOptions.length === 1 ? managerOptions[0]?.teamMembershipId ?? null : null
+    };
+  });
 }
 
 function deriveOnboardingStatus(

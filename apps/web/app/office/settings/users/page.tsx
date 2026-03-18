@@ -1,4 +1,4 @@
-import { canManageOfficeUsers, canViewOfficeAgents, canViewOfficeUsers } from "@acre/auth";
+import { canManageOfficeTeams, canManageOfficeUsers, canViewOfficeAgents, canViewOfficeUsers } from "@acre/auth";
 import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
 import { getOfficeAdminUsersSnapshot, getOfficeAgentsRosterSnapshot, type OfficeUsersWorkspaceSnapshot, type OfficeUsersWorkspaceView } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -59,6 +59,7 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
   if (activeView === "access" && canViewUsers) {
     snapshot.access = await getOfficeAdminUsersSnapshot({
       organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
       q: searchParams.q,
       role: searchParams.role,
@@ -117,6 +118,7 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
       <ListPageStack className="office-settings-list-stack">
         <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsUsersWorkspaceClient
+          canManageTeams={canManageOfficeTeams(context.currentMembership)}
           canManageUsers={canManageOfficeUsers(context.currentMembership)}
           snapshot={snapshot}
         />

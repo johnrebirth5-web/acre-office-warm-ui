@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { PermissionKey, UserRole } from "@acre/auth";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
+import { assignMembershipToTeamTx } from "./agents";
 import { prisma } from "./client";
 import { saveMembershipCommissionSetting } from "./commission-defaults";
 import { getMembershipEffectivePermissionKeys } from "./permissions";
@@ -176,6 +177,8 @@ export type CreateInvitedUserInput = {
   splitTemplateId?: string;
   customAgentPercent?: string;
   commissionEffectiveFrom?: string;
+  teamId?: string;
+  reportsToTeamMembershipId?: string;
 };
 
 export type AcceptInvitationInput = {
@@ -1064,9 +1067,15 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
   const normalizedEmail = normalizeEmail(input.email);
   const firstName = normalizeRequiredText(input.firstName, "First name");
   const lastName = normalizeRequiredText(input.lastName, "Last name");
+  const teamId = input.teamId?.trim() ? input.teamId.trim() : null;
+  const reportsToTeamMembershipId = input.reportsToTeamMembershipId?.trim() ? input.reportsToTeamMembershipId.trim() : null;
 
   if (!inviteEligibleRoleCatalog.includes(input.role)) {
     throw new Error("Unsupported role for invited account creation.");
+  }
+
+  if (reportsToTeamMembershipId && !teamId) {
+    throw new Error("Choose a team before selecting a direct manager.");
   }
 
   return prisma.$transaction(async (tx) => {
@@ -1134,6 +1143,18 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
         },
         tx
       );
+    }
+
+    if (teamId) {
+      await assignMembershipToTeamTx(tx, {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? membership.officeId ?? null,
+        actorMembershipId: input.actorMembershipId,
+        teamId,
+        membershipId: membership.id,
+        role: "member",
+        reportsToTeamMembershipId
+      });
     }
 
     const { invitation, rawToken, expiresAt } = await createInvitationRecord(tx, {

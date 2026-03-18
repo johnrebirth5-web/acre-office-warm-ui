@@ -19,6 +19,7 @@ import {
 type OfficeSettingsUsersClientProps = {
   snapshot: OfficeAdminUsersSnapshot;
   canManageUsers: boolean;
+  canManageTeams: boolean;
 };
 
 type CreateUserDraft = {
@@ -31,6 +32,8 @@ type CreateUserDraft = {
   splitTemplateId: string;
   customAgentPercent: string;
   commissionEffectiveFrom: string;
+  teamId: string;
+  reportsToTeamMembershipId: string;
 };
 
 type GeneratedInviteState = {
@@ -81,7 +84,11 @@ function buildUsersHref(
 
 function getDefaultOfficeId(snapshot: OfficeAdminUsersSnapshot) {
   const preferredOfficeId = snapshot.filters.officeId.trim();
-  return snapshot.filters.officeOptions.some((option) => option.id === preferredOfficeId) ? preferredOfficeId : "__all__";
+  if (preferredOfficeId && snapshot.filters.officeOptions.some((option) => option.id === preferredOfficeId)) {
+    return preferredOfficeId;
+  }
+
+  return snapshot.filters.officeOptions.find((option) => option.id !== "__all__")?.id ?? "__all__";
 }
 
 function buildCreateUserDraft(snapshot: OfficeAdminUsersSnapshot): CreateUserDraft {
@@ -94,11 +101,31 @@ function buildCreateUserDraft(snapshot: OfficeAdminUsersSnapshot): CreateUserDra
     title: "",
     splitTemplateId: "",
     customAgentPercent: "",
-    commissionEffectiveFrom: new Date().toISOString().slice(0, 10)
+    commissionEffectiveFrom: new Date().toISOString().slice(0, 10),
+    teamId: "",
+    reportsToTeamMembershipId: ""
   };
 }
 
-export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSettingsUsersClientProps) {
+function roleSupportsTeamAssignment(role: string) {
+  return role === "agent" || role === "team_lead";
+}
+
+function getCreateAssignableTeams(snapshot: OfficeAdminUsersSnapshot, officeId: string) {
+  if (!officeId || officeId === "__all__") {
+    return snapshot.createOptions.assignableTeams;
+  }
+
+  return snapshot.createOptions.assignableTeams.filter((team) => team.officeId === officeId || team.officeId === null);
+}
+
+function formatCreateTeamOptionLabel(
+  team: OfficeAdminUsersSnapshot["createOptions"]["assignableTeams"][number]
+) {
+  return `${team.officeName} · ${team.label}`;
+}
+
+export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageTeams }: OfficeSettingsUsersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState(snapshot.filters.q);
@@ -111,6 +138,9 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createUserDraft, setCreateUserDraft] = useState<CreateUserDraft>(() => buildCreateUserDraft(snapshot));
   const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(null);
+  const canAssignTeamOnCreate = canManageTeams && roleSupportsTeamAssignment(createUserDraft.role);
+  const createAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.officeId);
+  const selectedCreateTeam = createAssignableTeams.find((team) => team.id === createUserDraft.teamId) ?? null;
 
   useEffect(() => {
     setSearchQuery(snapshot.filters.q);
@@ -126,6 +156,56 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
           }
     );
   }, [snapshot]);
+
+  useEffect(() => {
+    const nextAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.officeId);
+    const nextSelectedTeam = nextAssignableTeams.find((team) => team.id === createUserDraft.teamId) ?? null;
+
+    if (!canAssignTeamOnCreate) {
+      if (createUserDraft.teamId || createUserDraft.reportsToTeamMembershipId) {
+        setCreateUserDraft((current) => ({
+          ...current,
+          teamId: "",
+          reportsToTeamMembershipId: ""
+        }));
+      }
+      return;
+    }
+
+    const teamStillAvailable = createUserDraft.teamId
+      ? nextAssignableTeams.some((team) => team.id === createUserDraft.teamId)
+      : true;
+
+    if (!teamStillAvailable && (createUserDraft.teamId || createUserDraft.reportsToTeamMembershipId)) {
+      setCreateUserDraft((current) => ({
+        ...current,
+        teamId: "",
+        reportsToTeamMembershipId: ""
+      }));
+      return;
+    }
+
+    if (!nextSelectedTeam) {
+      return;
+    }
+
+    const managerStillAvailable = nextSelectedTeam.managerOptions.some(
+      (manager) => manager.teamMembershipId === createUserDraft.reportsToTeamMembershipId
+    );
+
+    if (!managerStillAvailable) {
+      setCreateUserDraft((current) => ({
+        ...current,
+        reportsToTeamMembershipId: nextSelectedTeam.defaultReportsToTeamMembershipId ?? ""
+      }));
+    }
+  }, [
+    canAssignTeamOnCreate,
+    createUserDraft.officeId,
+    createUserDraft.reportsToTeamMembershipId,
+    createUserDraft.teamId,
+    snapshot
+  ]);
 
   function refreshCurrentPage() {
     startTransition(() => {
@@ -178,12 +258,18 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
         throw new Error("Choose a default split template or enter a custom agent split.");
       }
 
+      const createPayload = {
+        ...createUserDraft,
+        teamId: canAssignTeamOnCreate ? createUserDraft.teamId : "",
+        reportsToTeamMembershipId: canAssignTeamOnCreate ? createUserDraft.reportsToTeamMembershipId : ""
+      };
+
       const response = await fetch("/api/office/settings/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(createUserDraft)
+        body: JSON.stringify(createPayload)
       });
 
       const body = (await response.json().catch(() => null)) as
@@ -406,9 +492,54 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
                   </SelectInput>
                 </FormField>
 
-                <FormField label="Title">
+              <FormField label="Title">
                   <TextInput onChange={(event) => setCreateField("title", event.target.value)} placeholder="Back Office title" value={createUserDraft.title} />
                 </FormField>
+
+                {canAssignTeamOnCreate ? (
+                  <>
+                    <FormField label="Team / branch">
+                      <SelectInput
+                        onChange={(event) =>
+                          setCreateUserDraft((current) => {
+                            const nextTeamId = event.target.value;
+                            const nextTeam = createAssignableTeams.find((team) => team.id === nextTeamId) ?? null;
+
+                            return {
+                              ...current,
+                              teamId: nextTeamId,
+                              reportsToTeamMembershipId: nextTeam?.defaultReportsToTeamMembershipId ?? ""
+                            };
+                          })
+                        }
+                        value={createUserDraft.teamId}
+                      >
+                        <option value="">No team assignment</option>
+                        {createAssignableTeams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {formatCreateTeamOptionLabel(team)}
+                          </option>
+                        ))}
+                      </SelectInput>
+                      <p className="office-settings-user-note">Optional. Choose a top-level team or a junior branch during onboarding.</p>
+                    </FormField>
+
+                    <FormField label="Direct manager">
+                      <SelectInput
+                        disabled={!selectedCreateTeam || selectedCreateTeam.managerOptions.length === 0}
+                        onChange={(event) => setCreateField("reportsToTeamMembershipId", event.target.value)}
+                        value={createUserDraft.reportsToTeamMembershipId}
+                      >
+                        <option value="">No direct manager</option>
+                        {(selectedCreateTeam?.managerOptions ?? []).map((manager) => (
+                          <option key={manager.teamMembershipId} value={manager.teamMembershipId}>
+                            {manager.label} · {manager.role}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </FormField>
+                  </>
+                ) : null}
 
                 <FormField label="Default split template">
                   <SelectInput

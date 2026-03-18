@@ -2722,138 +2722,158 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
 }
 
 export async function addAgentToTeam(input: AddAgentToTeamInput) {
-  return prisma.$transaction(async (tx) => {
-    const [team, membership, existingTeamMembership, otherTeamMembership] = await Promise.all([
-      tx.team.findFirst({
-        where: {
-          id: input.teamId,
-          organizationId: input.organizationId,
-          ...(input.officeId ? { officeId: input.officeId } : {})
-        }
-      }),
-      ensureMembershipExists(tx, input.organizationId, input.membershipId, input.officeId),
-      tx.teamMembership.findUnique({
-        where: {
-          teamId_membershipId: {
-            teamId: input.teamId,
-            membershipId: input.membershipId
-          }
-        }
-      }),
-      tx.teamMembership.findFirst({
-        where: {
-          organizationId: input.organizationId,
-          membershipId: input.membershipId,
-          NOT: {
-            teamId: input.teamId
-          },
-          team: {
-            isActive: true
-          }
-        },
-        include: {
-          team: true
-        }
-      })
-    ]);
+  return prisma.$transaction(async (tx) => assignMembershipToTeamTx(tx, input));
+}
 
-    if (!team) {
-      throw new Error("Team was not found.");
-    }
-
-    if (otherTeamMembership) {
-      throw new Error(
-        `Each membership can only belong to one active team per organization. Remove the existing team assignment from ${otherTeamMembership.team.name} first.`
-      );
-    }
-
-    const nextRole = normalizeTeamRole(input.role);
-    const expectedLeaderRole: TeamMembershipRole = team.parentTeamId ? "junior_team_leader" : "team_leader";
-    const existingLeader = await tx.teamMembership.findFirst({
+export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, input: AddAgentToTeamInput) {
+  const [team, membership, existingTeamMembership, otherTeamMembership] = await Promise.all([
+    tx.team.findFirst({
       where: {
+        id: input.teamId,
         organizationId: input.organizationId,
-        teamId: input.teamId,
-        role: {
-          in: ["team_leader", "junior_team_leader"]
-        },
-        ...(existingTeamMembership ? { NOT: { id: existingTeamMembership.id } } : {})
-      },
-      select: {
-        id: true,
-        membershipId: true,
-        role: true
+        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
       }
-    });
-
-    if (nextRole !== "member" && nextRole !== expectedLeaderRole) {
-      throw new Error(
-        team.parentTeamId
-          ? "Child teams can only assign a Junior Team Leader as the branch owner."
-          : "Top-level teams can only assign a Team Leader as the branch owner."
-      );
-    }
-
-    if (nextRole !== "member" && existingLeader) {
-      throw new Error("Each team can only have one active branch leader.");
-    }
-
-    const directReports = existingTeamMembership
-      ? await tx.teamMembership.findMany({
-          where: {
-            organizationId: input.organizationId,
-            teamId: input.teamId,
-            reportsToTeamMembershipId: existingTeamMembership.id
-          },
-          select: {
-            id: true,
-            role: true
-          }
-        })
-      : [];
-
-    if (nextRole === "member" && directReports.length > 0) {
-      throw new Error("Members cannot keep direct reports. Reassign direct reports first.");
-    }
-
-    const nextReportsToTeamMembershipId = await validateTeamMembershipHierarchy(tx, {
-      organizationId: input.organizationId,
-      officeId: input.officeId,
-      teamId: input.teamId,
-      membershipId: input.membershipId,
-      role: nextRole,
-      reportsToTeamMembershipId: input.reportsToTeamMembershipId,
-      existingTeamMembershipId: existingTeamMembership?.id ?? null
-    });
-
-    const teamMembership = await tx.teamMembership.upsert({
+    }),
+    ensureMembershipExists(tx, input.organizationId, input.membershipId, input.officeId),
+    tx.teamMembership.findUnique({
       where: {
         teamId_membershipId: {
           teamId: input.teamId,
           membershipId: input.membershipId
         }
-      },
-      update: {
-        role: nextRole,
-        officeId: team.officeId,
-        reportsToTeamMembershipId: nextReportsToTeamMembershipId
-      },
-      create: {
-        organizationId: input.organizationId,
-        officeId: team.officeId,
-        teamId: input.teamId,
-        membershipId: input.membershipId,
-        role: nextRole,
-        reportsToTeamMembershipId: nextReportsToTeamMembershipId
       }
-    });
+    }),
+    tx.teamMembership.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.membershipId,
+        NOT: {
+          teamId: input.teamId
+        },
+        team: {
+          isActive: true
+        }
+      },
+      include: {
+        team: true
+      }
+    })
+  ]);
 
-    await syncManagedMembershipTitle(tx, input.membershipId);
+  if (!team) {
+    throw new Error("Team was not found.");
+  }
 
-    const directManager =
-      teamMembership.reportsToTeamMembershipId
-        ? await tx.teamMembership.findUnique({
+  if (otherTeamMembership) {
+    throw new Error(
+      `Each membership can only belong to one active team per organization. Remove the existing team assignment from ${otherTeamMembership.team.name} first.`
+    );
+  }
+
+  const nextRole = normalizeTeamRole(input.role);
+  const expectedLeaderRole: TeamMembershipRole = team.parentTeamId ? "junior_team_leader" : "team_leader";
+  const existingLeader = await tx.teamMembership.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      teamId: input.teamId,
+      role: {
+        in: ["team_leader", "junior_team_leader"]
+      },
+      ...(existingTeamMembership ? { NOT: { id: existingTeamMembership.id } } : {})
+    },
+    select: {
+      id: true,
+      membershipId: true,
+      role: true
+    }
+  });
+
+  if (nextRole !== "member" && nextRole !== expectedLeaderRole) {
+    throw new Error(
+      team.parentTeamId
+        ? "Child teams can only assign a Junior Team Leader as the branch owner."
+        : "Top-level teams can only assign a Team Leader as the branch owner."
+    );
+  }
+
+  if (nextRole !== "member" && existingLeader) {
+    throw new Error("Each team can only have one active branch leader.");
+  }
+
+  const directReports = existingTeamMembership
+    ? await tx.teamMembership.findMany({
+        where: {
+          organizationId: input.organizationId,
+          teamId: input.teamId,
+          reportsToTeamMembershipId: existingTeamMembership.id
+        },
+        select: {
+          id: true,
+          role: true
+        }
+      })
+    : [];
+
+  if (nextRole === "member" && directReports.length > 0) {
+    throw new Error("Members cannot keep direct reports. Reassign direct reports first.");
+  }
+
+  const nextReportsToTeamMembershipId = await validateTeamMembershipHierarchy(tx, {
+    organizationId: input.organizationId,
+    officeId: input.officeId,
+    teamId: input.teamId,
+    membershipId: input.membershipId,
+    role: nextRole,
+    reportsToTeamMembershipId: input.reportsToTeamMembershipId,
+    existingTeamMembershipId: existingTeamMembership?.id ?? null
+  });
+
+  const teamMembership = await tx.teamMembership.upsert({
+    where: {
+      teamId_membershipId: {
+        teamId: input.teamId,
+        membershipId: input.membershipId
+      }
+    },
+    update: {
+      role: nextRole,
+      officeId: team.officeId,
+      reportsToTeamMembershipId: nextReportsToTeamMembershipId
+    },
+    create: {
+      organizationId: input.organizationId,
+      officeId: team.officeId,
+      teamId: input.teamId,
+      membershipId: input.membershipId,
+      role: nextRole,
+      reportsToTeamMembershipId: nextReportsToTeamMembershipId
+    }
+  });
+
+  await syncManagedMembershipTitle(tx, input.membershipId);
+
+  const directManager =
+    teamMembership.reportsToTeamMembershipId
+      ? await tx.teamMembership.findUnique({
+          where: {
+            id: teamMembership.reportsToTeamMembershipId
+          },
+          include: {
+            membership: {
+              include: {
+                user: true
+              }
+            }
+          }
+        })
+      : team.parentTeamId && nextRole !== "member"
+        ? await tx.teamMembership.findFirst({
             where: {
-              id: teamMembership.reportsToTeamMembershipId
+              organizationId: input.organizationId,
+              teamId: team.parentTeamId,
+              role: {
+                in: ["team_leader", "junior_team_leader"]
+              }
             },
             include: {
               membership: {
@@ -2863,44 +2883,26 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
               }
             }
           })
-        : team.parentTeamId && nextRole !== "member"
-          ? await tx.teamMembership.findFirst({
-              where: {
-                organizationId: input.organizationId,
-                teamId: team.parentTeamId,
-                role: {
-                  in: ["team_leader", "junior_team_leader"]
-                }
-              },
-              include: {
-                membership: {
-                  include: {
-                    user: true
-                  }
-                }
-              }
-            })
-          : null;
+        : null;
 
-    await recordActivityLogEvent(tx, {
-      organizationId: input.organizationId,
-      membershipId: input.actorMembershipId,
-      entityType: "team",
-      entityId: team.id,
-      action: activityLogActions.teamMemberAdded,
-      payload: {
-        officeId: team.officeId,
-        objectLabel: `${team.name} · ${getMembershipLabel(membership)}`,
-        contextHref: `/office/agents/${input.membershipId}`,
-        details: [
-          `Team role: ${teamRoleLabelMap[teamMembership.role]}`,
-          `Direct manager: ${directManager ? getMembershipLabel(directManager.membership) : "None"}`
-        ]
-      }
-    });
-
-    return teamMembership;
+  await recordActivityLogEvent(tx, {
+    organizationId: input.organizationId,
+    membershipId: input.actorMembershipId,
+    entityType: "team",
+    entityId: team.id,
+    action: activityLogActions.teamMemberAdded,
+    payload: {
+      officeId: team.officeId,
+      objectLabel: `${team.name} · ${getMembershipLabel(membership)}`,
+      contextHref: `/office/settings/users/${input.membershipId}`,
+      details: [
+        `Team role: ${teamRoleLabelMap[teamMembership.role]}`,
+        `Direct manager: ${directManager ? getMembershipLabel(directManager.membership) : "None"}`
+      ]
+    }
   });
+
+  return teamMembership;
 }
 
 export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
