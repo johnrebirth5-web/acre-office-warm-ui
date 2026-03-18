@@ -375,6 +375,60 @@ export function OfficeSettingsFieldsClient({
     }
   }
 
+  async function handleHideField(entry: FieldEntry) {
+    if (entry.kind === "builtIn") {
+      if (entry.field.isLockedVisible) {
+        return;
+      }
+
+      const nextModule = {
+        ...currentModule,
+        builtInFields: currentModule.builtInFields.map((field) =>
+          field.fieldKey === entry.field.fieldKey
+            ? { ...field, isVisible: false }
+            : field
+        )
+      };
+      await persistModuleSnapshot(nextModule, `${entry.field.label} hidden.`);
+      return;
+    }
+
+    setPendingAction(`hide:${entry.field.fieldKey}`);
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    try {
+      const response = await fetch(
+        `/api/office/settings/fields/custom/${entry.field.fieldKey}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            module: currentModule.module,
+            isVisible: false
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Failed to hide field.");
+      }
+
+      const body = (await response.json()) as {
+        snapshot: OfficeFieldModuleSettingsSnapshot;
+      };
+      applyModuleSnapshot(body.snapshot);
+      setSubmitSuccess(`${entry.field.label} hidden.`);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to hide field.");
+    } finally {
+      setPendingAction("");
+    }
+  }
+
   async function handleRestoreField(entry: FieldEntry) {
     if (entry.kind === "builtIn") {
       const nextModule = {
@@ -675,6 +729,27 @@ export function OfficeSettingsFieldsClient({
                   >
                     Edit
                   </button>
+                  {entry.kind === "custom" ? (
+                    <button
+                      aria-label={`Hide ${entry.field.label}`}
+                      className="office-fields-row-action"
+                      disabled={pendingAction.length > 0}
+                      onClick={() =>
+                        setConfirmDialog({
+                          title: `Hide ${entry.field.label}?`,
+                          description:
+                            "This custom field will be hidden from active module forms and can still be restored later from Hidden fields.",
+                          confirmLabel: "Hide field",
+                          onConfirm: () => {
+                            void handleHideField(entry);
+                          }
+                        })
+                      }
+                      type="button"
+                    >
+                      Hide
+                    </button>
+                  ) : null}
                   <button
                     aria-label={entry.kind === "builtIn" ? `Hide ${entry.field.label}` : `Delete ${entry.field.label}`}
                     className="office-fields-row-action is-danger"
@@ -697,7 +772,7 @@ export function OfficeSettingsFieldsClient({
                         description:
                           entry.kind === "builtIn"
                             ? "This built-in field will be hidden from the module forms and can still be restored later from Hidden fields."
-                            : "This custom field will be deleted from the module if it has no saved usage blocking the action.",
+                            : "This custom field will be permanently deleted only if no saved records still use it. If you just want to stop showing it, use Hide instead.",
                         confirmLabel: entry.kind === "builtIn" ? "Hide field" : "Delete field",
                         onConfirm: () => {
                           void handleDeleteField(entry);
