@@ -1066,7 +1066,7 @@ async function ensureMembershipExists(
     where: {
       id: membershipId,
       organizationId,
-      ...(officeId ? { officeId } : {})
+      ...(officeId ? { OR: [{ officeId }, { officeId: null }] } : {})
     },
     include: {
       user: true,

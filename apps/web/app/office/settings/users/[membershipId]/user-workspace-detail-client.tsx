@@ -27,6 +27,7 @@ export function OfficeSettingsUserWorkspaceDetailClient({
     <div className="office-settings-user-detail-stack">
       {snapshot.access ? (
         <OfficeSettingsUserDetailClient
+          canManageTeams={canManageTeams}
           canManageUsers={canManageUsers}
           mode={accessMode}
           operationsHref={snapshot.operations ? "#profile" : undefined}

@@ -40,7 +40,8 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
       ? getOfficeAdminUserDetailSnapshot({
           organizationId: context.currentOrganization.id,
           officeId: context.currentOffice?.id ?? null,
-          membershipId
+          membershipId,
+          viewerMembershipId: context.currentMembership.id
         })
       : Promise.resolve(null),
     canViewAgents

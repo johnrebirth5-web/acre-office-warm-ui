@@ -110,6 +110,9 @@
   - admins with team permissions can assign a new sales user into a top-level team or junior branch during invitation
   - the same create flow can optionally set the user's direct manager from current branch leaders
   - the unified user detail page continues to support later team reassignment or removal without a separate agent-only route
+- `Settings > Users > [membership]` now keeps the `Teams` card available for admins with `teams:manage` even when the target member has no current branch visibility through the agent roster yet:
+  - assignable team options come from the current office team-management scope instead of the viewer's agent roster visibility
+  - members with `officeId = null` can still be assigned to the current office's teams from the user detail page
 
 ## Next recommended work
 

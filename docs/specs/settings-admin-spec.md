@@ -22,6 +22,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - role update
   - activate/deactivate
   - office access within current membership model
+  - team assignment / removal from the unified user detail page when the admin has `teams:manage`, including users who have not yet joined their first branch
   - per-user permission override editing with `inherit / allow / deny`
   - reset user overrides back to role defaults
   - Back Office tier catalog:

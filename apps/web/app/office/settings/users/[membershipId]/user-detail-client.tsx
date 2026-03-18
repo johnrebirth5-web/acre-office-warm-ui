@@ -16,10 +16,12 @@ import {
   getRoleEditorOptions,
   getStatusEditorOptions
 } from "../users-shared";
+import { UserTeamAssignmentsCard } from "./user-team-assignments-card";
 
 type OfficeSettingsUserDetailClientProps = {
   snapshot: OfficeAdminUserDetailSnapshot;
   canManageUsers: boolean;
+  canManageTeams: boolean;
   mode?: "full" | "access-only";
   operationsHref?: string | null;
 };
@@ -45,6 +47,7 @@ type MutationResponse = {
 export function OfficeSettingsUserDetailClient({
   snapshot,
   canManageUsers,
+  canManageTeams,
   mode = "full",
   operationsHref
 }: OfficeSettingsUserDetailClientProps) {
@@ -426,6 +429,22 @@ export function OfficeSettingsUserDetailClient({
           </div>
         </SectionCard>
       </div>
+
+      {showOperationalSections ? (
+        <UserTeamAssignmentsCard
+          availableTeams={snapshot.availableTeams}
+          canManageTeams={canManageTeams}
+          memberName={snapshot.profile.name}
+          membershipId={snapshot.profile.membershipId}
+          teams={snapshot.teams.map((team) => ({
+            id: team.id,
+            name: team.name,
+            roleLabel: team.roleLabel,
+            reportsToLabel: team.reportsToLabel,
+            isActive: team.isActive
+          }))}
+        />
+      ) : null}
 
       {showOperationalSections ? (
         <>

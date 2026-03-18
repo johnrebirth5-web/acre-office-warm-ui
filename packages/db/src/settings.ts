@@ -16,7 +16,11 @@ import { prisma } from "./client";
 import { listCommissionSplitTemplateOptions, type OfficeCommissionSplitTemplateOption } from "./commission-defaults";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import { resolveMembershipDisplayTitle } from "./membership-titles";
-import { getMembershipEffectivePermissions, type MembershipEffectivePermissionsSnapshot } from "./permissions";
+import {
+  getMembershipEffectivePermissionKeys,
+  getMembershipEffectivePermissions,
+  type MembershipEffectivePermissionsSnapshot
+} from "./permissions";
 import {
   buildTeamMembershipHierarchyMap,
   buildTeamPathLabel,
@@ -329,13 +333,17 @@ export type OfficeAdminUserDetailSnapshot = {
   };
   teams: Array<{
     id: string;
+    teamMembershipId: string;
     name: string;
     teamPathLabel: string;
     rootLeaderLabel: string;
     roleLabel: string;
+    roleValue: TeamMembershipRole;
+    reportsToTeamMembershipId: string | null;
     reportsToLabel: string;
     isActive: boolean;
   }>;
+  availableTeams: OfficeAdminAssignableTeam[];
   onboarding: {
     totalCount: number;
     completedCount: number;
@@ -470,6 +478,7 @@ export type GetOfficeAdminUserDetailInput = {
   organizationId: string;
   officeId?: string | null;
   membershipId: string;
+  viewerMembershipId?: string | null;
 };
 
 export type UpdateOfficeAdminUserInput = {
@@ -1592,14 +1601,21 @@ async function listOfficeAdminAssignableTeams(input: {
   viewerMembershipId: string;
   officeId?: string | null;
 }): Promise<OfficeAdminAssignableTeam[]> {
-  const scope = await resolveOfficeDataScope({
+  const permissionKeys = await getMembershipEffectivePermissionKeys({
     organizationId: input.organizationId,
-    viewerMembershipId: input.viewerMembershipId,
-    officeId: input.officeId ?? null,
-    resource: "agents"
+    membershipId: input.viewerMembershipId
   });
+  const canManageTeams = permissionKeys.includes("teams:manage");
+  const scope = canManageTeams
+    ? null
+    : await resolveOfficeDataScope({
+        organizationId: input.organizationId,
+        viewerMembershipId: input.viewerMembershipId,
+        officeId: input.officeId ?? null,
+        resource: "agents"
+      });
 
-  if (scope.visibleTeamIds !== null && scope.visibleTeamIds.length === 0) {
+  if (scope?.visibleTeamIds !== null && scope?.visibleTeamIds.length === 0) {
     return [];
   }
 
@@ -1608,7 +1624,7 @@ async function listOfficeAdminAssignableTeams(input: {
       organizationId: input.organizationId,
       isActive: true,
       ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {}),
-      ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
+      ...(scope?.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
     },
     select: {
       id: true,
@@ -1875,6 +1891,13 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       membershipId: input.membershipId
     })
   ]);
+  const availableTeams = input.viewerMembershipId
+    ? (await listOfficeAdminAssignableTeams({
+        organizationId: input.organizationId,
+        viewerMembershipId: input.viewerMembershipId,
+        officeId: input.officeId ?? membership.officeId ?? null
+      })).filter((team) => !membership.teamMemberships.some((teamMembership) => teamMembership.teamId === team.id))
+    : [];
 
   const completedCount = onboardingItems.filter((item) => item.status === "completed").length;
   const onboardingStatusValue = deriveOnboardingStatus(membership.agentProfile?.onboardingStatus, onboardingItems.length, completedCount);
@@ -1928,11 +1951,14 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       officeOptions: [{ id: "__all__", label: "All offices" }, ...offices.map((office) => ({ id: office.id, label: office.name }))]
     },
     teams: membership.teamMemberships.map((teamMembership) => ({
-      id: teamMembership.id,
+      id: teamMembership.team.id,
+      teamMembershipId: teamMembership.id,
       name: teamMembership.team.name,
       teamPathLabel: teamPathLabelMap.get(teamMembership.team.id) ?? teamMembership.team.name,
       rootLeaderLabel: teamHierarchy.hierarchyMap.get(teamMembership.id)?.rootLeader?.label ?? "—",
       roleLabel: formatHierarchyRoleLabel(teamMembership.role),
+      roleValue: teamMembership.role,
+      reportsToTeamMembershipId: teamMembership.reportsToTeamMembershipId,
       reportsToLabel:
         teamHierarchy.hierarchyMap.get(teamMembership.id)?.directManagerLabel ??
         (teamMembership.reportsToTeamMembership
@@ -1941,6 +1967,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
           : "No direct manager"),
       isActive: teamMembership.team.isActive
     })),
+    availableTeams,
     onboarding: {
       totalCount: onboardingItems.length,
       completedCount,
