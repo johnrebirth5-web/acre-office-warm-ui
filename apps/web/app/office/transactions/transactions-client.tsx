@@ -490,11 +490,25 @@ export function TransactionsClient({
                     viewBox="0 0 24 24"
                   >
                     <path
-                      d="M4.75 10.5 12 4.75l7.25 5.75v8a.5.5 0 0 1-.5.5h-4.5v-4.75a.5.5 0 0 0-.5-.5h-3.5a.5.5 0 0 0-.5.5V19h-4.5a.5.5 0 0 1-.5-.5z"
+                      d="M5.5 10.25 12 5l6.5 5.25"
                       stroke="currentColor"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="1.7"
+                      strokeWidth="1.8"
+                    />
+                    <path
+                      d="M7.25 9.75V18a.75.75 0 0 0 .75.75h8a.75.75 0 0 0 .75-.75V9.75"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.8"
+                    />
+                    <path
+                      d="M10.25 18.75V14.5a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 .75.75v4.25"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.8"
                     />
                   </svg>
                 </span>
