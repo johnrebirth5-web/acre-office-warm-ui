@@ -483,7 +483,20 @@ export function TransactionsClient({
                 <span
                   className={`bm-transaction-home-icon${transaction.isFlagged ? " is-flagged" : ""}`}
                 >
-                  ⌂
+                  <svg
+                    aria-hidden="true"
+                    className="bm-transaction-home-icon-svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M4.75 10.5 12 4.75l7.25 5.75v8a.5.5 0 0 1-.5.5h-4.5v-4.75a.5.5 0 0 0-.5-.5h-3.5a.5.5 0 0 0-.5.5V19h-4.5a.5.5 0 0 1-.5-.5z"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.7"
+                    />
+                  </svg>
                 </span>
                 <div className="office-list-table-main">
                   <strong className={transaction.isFlagged ? "is-flagged" : ""}>

@@ -2059,6 +2059,12 @@ select {
   font-size: 0.84rem;
 }
 
+.bm-transaction-home-icon-svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
 .bm-transaction-home-icon.is-flagged {
   background: #ef4d46;
 }

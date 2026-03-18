@@ -59,6 +59,7 @@
 - Local source of truth: `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
 - Default local browser entry: `http://localhost:3105/`
 - Root `npm run dev` is now expected to bind `@acre/web` to `3105` by default
+- Local development now defaults `@acre/web` to `next dev --webpack` instead of Turbopack to avoid recurring false `Module not found` errors when Docker bind mounts add or rename files under `app/`
 - Local Docker development is now a supported long-running baseline:
   - `npm run docker:dev:up` starts `web + db`
   - the `web` container bind-mounts the local repo, so Docker uses the same source tree instead of a second copied checkout

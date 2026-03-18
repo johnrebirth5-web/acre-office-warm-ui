@@ -784,6 +784,8 @@ npm run dev
 
 当前仓库根目录的 `npm run dev` 会默认把 `@acre/web` 启动到 `3105`。
 
+为降低 `Docker + Colima + bind mount` 下新增/重命名文件时偶发的假性 `Module not found` 与 stale Turbopack 问题，当前开发脚本默认使用 `next dev --webpack`。
+
 如果你希望本地环境更稳定、重启后更容易恢复，也可以直接使用 Docker 开发基线：
 
 ```bash

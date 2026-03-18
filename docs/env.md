@@ -246,6 +246,7 @@ ACRE_SECURE_COOKIES=false
 
 - 可以不配置真实数据库
 - 直接运行 `npm run dev`
+- 当前默认走 `next dev --webpack`，用来降低 `Docker/Colima` bind mount 下 Turbopack 对新增文件偶发报错的问题
 
 如果你要开始接数据库：
 
