@@ -112,6 +112,20 @@
   - `/office/accounting`
   - transaction detail
   - agent profile summary
+  - 默认真源已经切到：
+    - `CommissionSplitTemplate`
+    - `MembershipCommissionSetting`
+  - 旧 `CommissionPlan / CommissionPlanAssignment / CommissionPlanRule` 继续保留为 `Advanced settings / legacy compatibility`
+  - transaction commission 默认使用：
+    - owner membership 的 default split
+    - `TeamMembership.reportsToTeamMembershipId` 向上的 reporting line
+    - transaction `createdAt` 作为默认 split / hierarchy 的锁定口径时间
+  - 计算结果继续写入 `CommissionCalculation`，但一笔 transaction 现在可以生成：
+    - owner row
+    - one or more upline rows
+    - company row
+    - optional referral row
+  - commission 可见性已经接入 server-side data scope，避免通过 summary 或 hidden rows 反推上级 split
 - 当前 `Office Admin / Settings` 已通过 Prisma service 和 route handlers 落地到：
   - `/office/settings`
   - `/office/settings/roles`
@@ -121,6 +135,7 @@
   - `/office/settings/checklists`
   - 核心复用：
     - `Membership` 做用户 role / status / office access
+    - `MembershipCommissionSetting` 做 user default commission split 真源
     - `OrganizationRoleTemplate / OrganizationRoleTemplatePermission` 做 organization-scoped role templates
     - `MembershipPermissionOverride` 做 per-user allow / deny overrides
     - `Team / TeamMembership` 做 team admin
@@ -160,6 +175,7 @@
   - 当前 statements 是 live-generated monthly summaries，不是 durable statement snapshots，也没有 PDF download
   - 当前 payment-method self-service 只允许当前 membership 操作自己的方法记录，不允许跨成员编辑
 - 当前已有最小本地登录 / 登出 / cookie session
+- agent-management / user profile 现在会把 default commission split 作为结构化字段编辑，而不是自由文本 plan 名称
 - 生产环境下 `ACRE_SESSION_SECRET` 现在应视为必填，不再继续回退到仓库内开发默认值
 - 当前已经有 transaction、contact、task、activity、library、accounting、agent management、settings 等模块的 service-to-db 数据访问层
 - 当前 dashboard 业务指标也已有最小查询 service

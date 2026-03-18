@@ -22,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   const { membershipId } = await params;
   const body = (await request.json().catch(() => null)) as
-    | {
+      | {
         displayName?: string;
         bio?: string;
         notes?: string;
@@ -30,6 +30,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         licenseState?: string;
         startDate?: string;
         commissionPlanName?: string;
+        splitTemplateId?: string;
+        customAgentPercent?: string;
+        commissionEffectiveFrom?: string;
+        commissionEffectiveTo?: string;
         avatarUrl?: string;
         internalExtension?: string;
       }
@@ -48,6 +52,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       licenseState: body?.licenseState,
       startDate: body?.startDate,
       commissionPlanName: body?.commissionPlanName,
+      splitTemplateId: body?.splitTemplateId,
+      customAgentPercent: body?.customAgentPercent,
+      commissionEffectiveFrom: body?.commissionEffectiveFrom,
+      commissionEffectiveTo: body?.commissionEffectiveTo,
       avatarUrl: body?.avatarUrl,
       internalExtension: body?.internalExtension
     });

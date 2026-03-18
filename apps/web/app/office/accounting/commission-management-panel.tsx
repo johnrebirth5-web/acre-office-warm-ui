@@ -48,6 +48,13 @@ type CommissionAssignmentFormState = {
   effectiveTo: string;
 };
 
+type SplitTemplateFormState = {
+  splitTemplateId: string;
+  name: string;
+  agentPercent: string;
+  isActive: string;
+};
+
 function CommissionTable(props: { children: ReactNode }) {
   return (
     <HorizontalScrollArea>
@@ -165,6 +172,33 @@ function buildPlanStateFromPlan(snapshot: OfficeCommissionManagementSnapshot, co
   };
 }
 
+function buildSplitTemplateFormState(): SplitTemplateFormState {
+  return {
+    splitTemplateId: "",
+    name: "",
+    agentPercent: "",
+    isActive: "true"
+  };
+}
+
+function buildSplitTemplateFormStateFromTemplate(
+  snapshot: OfficeCommissionManagementSnapshot,
+  splitTemplateId: string
+): SplitTemplateFormState {
+  const template = snapshot.splitTemplates.find((entry) => entry.id === splitTemplateId);
+
+  if (!template) {
+    return buildSplitTemplateFormState();
+  }
+
+  return {
+    splitTemplateId: template.id,
+    name: template.name,
+    agentPercent: template.agentPercent,
+    isActive: template.isActive ? "true" : "false"
+  };
+}
+
 export function CommissionManagementPanel({
   snapshot,
   canViewCommissions,
@@ -188,6 +222,8 @@ export function CommissionManagementPanel({
   const [planFormState, setPlanFormState] = useState<CommissionPlanFormState>(() =>
     snapshot ? buildPlanStateFromSnapshot(snapshot) : buildPlanStateFromSnapshot({
       overview: {
+        activeSplitTemplatesCount: 0,
+        membersWithDefaultSplitCount: 0,
         activePlansCount: 0,
         activeAssignmentsCount: 0,
         calculatedRowsCount: 0,
@@ -208,6 +244,9 @@ export function CommissionManagementPanel({
         commissionPlanOptions: [],
         transactionOptions: []
       },
+      splitTemplates: [],
+      memberDefaults: [],
+      advancedReviewItems: [],
       plans: [],
       assignments: [],
       calculations: [],
@@ -222,6 +261,7 @@ export function CommissionManagementPanel({
     effectiveFrom: new Date().toISOString().slice(0, 10),
     effectiveTo: ""
   });
+  const [splitTemplateFormState, setSplitTemplateFormState] = useState<SplitTemplateFormState>(() => buildSplitTemplateFormState());
   const [selectedStatementMembershipId, setSelectedStatementMembershipId] = useState(snapshot?.filters.membershipId ?? "");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>(
     Object.fromEntries((snapshot?.calculations ?? []).map((row) => [row.id, row.statusValue]))
@@ -250,6 +290,11 @@ export function CommissionManagementPanel({
     });
     setStatusDrafts(Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue])));
     setSelectedStatementMembershipId(snapshot.filters.membershipId);
+    setSplitTemplateFormState((current) =>
+      current.splitTemplateId && snapshot.splitTemplates.some((template) => template.id === current.splitTemplateId)
+        ? current
+        : buildSplitTemplateFormState()
+    );
   }, [
     snapshot,
     snapshot?.calculations,
@@ -259,7 +304,8 @@ export function CommissionManagementPanel({
     snapshot?.filters.teamId,
     snapshot?.filters.startDate,
     snapshot?.filters.status,
-    snapshot?.filters.transactionId
+    snapshot?.filters.transactionId,
+    snapshot?.splitTemplates
   ]);
 
   if (!canViewCommissions || !snapshot) {
@@ -429,6 +475,70 @@ export function CommissionManagementPanel({
     }
   }
 
+  async function handleSaveSplitTemplate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPendingAction("save-split-template");
+    setError("");
+
+    try {
+      const response = await fetch(
+        splitTemplateFormState.splitTemplateId
+          ? `/api/office/accounting/commissions/split-templates/${splitTemplateFormState.splitTemplateId}`
+          : "/api/office/accounting/commissions/split-templates",
+        {
+          method: splitTemplateFormState.splitTemplateId ? "PATCH" : "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: splitTemplateFormState.name,
+            agentPercent: splitTemplateFormState.agentPercent,
+            isActive: splitTemplateFormState.isActive === "true"
+          })
+        }
+      );
+
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to save split template.");
+      }
+
+      setSplitTemplateFormState(buildSplitTemplateFormState());
+      router.refresh();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Failed to save split template.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleDeleteSplitTemplate() {
+    if (!splitTemplateFormState.splitTemplateId) {
+      return;
+    }
+
+    setPendingAction("delete-split-template");
+    setError("");
+
+    try {
+      const response = await fetch(`/api/office/accounting/commissions/split-templates/${splitTemplateFormState.splitTemplateId}`, {
+        method: "DELETE"
+      });
+
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to delete split template.");
+      }
+
+      setSplitTemplateFormState(buildSplitTemplateFormState());
+      router.refresh();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete split template.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   async function handleUpdateCalculationStatus(calculationId: string) {
     setPendingAction(`status:${calculationId}`);
     setError("");
@@ -505,6 +615,8 @@ export function CommissionManagementPanel({
     <section className="office-accounting-panel" id="commissions">
       <ListPageSection subtitle="Commission plans, assignments, calculated rows, and statement-ready visibility." title="Commission management">
         <ListPageStatsGrid className="office-commission-kpi-grid">
+          <StatCard hint="active reusable default split templates" label="Split templates" value={snapshot.overview.activeSplitTemplatesCount} />
+          <StatCard hint="members with an active default split" label="Member defaults" value={snapshot.overview.membersWithDefaultSplitCount} />
           <StatCard hint="active plans configured for this office scope" label="Active plans" value={snapshot.overview.activePlansCount} />
           <StatCard hint="active plan assignments across agents and teams" label="Assignments" value={snapshot.overview.activeAssignmentsCount} />
           <StatCard hint="persisted commission rows in the current filter window" label="Calculated rows" value={snapshot.overview.calculatedRowsCount} />
@@ -513,6 +625,139 @@ export function CommissionManagementPanel({
           <StatCard hint="rows marked paid" label="Paid" value={snapshot.overview.paidLabel} />
         </ListPageStatsGrid>
 
+        <div className="office-detail-two-column">
+          <div className="office-side-stack">
+            <ListPageSection subtitle="Reusable 20/80, 50/50, and similar defaults for member onboarding and profile updates." title="Split templates">
+              <form className="office-form-grid office-form-grid-3" onSubmit={handleSaveSplitTemplate}>
+                <FormField label="Existing template">
+                  <SelectInput
+                    disabled={!canManageCommissions}
+                    onChange={(event) => setSplitTemplateFormState(buildSplitTemplateFormStateFromTemplate(snapshot, event.target.value))}
+                    value={splitTemplateFormState.splitTemplateId}
+                  >
+                    <option value="">New template</option>
+                    {snapshot.splitTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+                <FormField label="Template name">
+                  <TextInput
+                    onChange={(event) => setSplitTemplateFormState((current) => ({ ...current, name: event.target.value }))}
+                    readOnly={!canManageCommissions}
+                    value={splitTemplateFormState.name}
+                  />
+                </FormField>
+                <FormField label="Agent split %">
+                  <TextInput
+                    onChange={(event) => setSplitTemplateFormState((current) => ({ ...current, agentPercent: event.target.value }))}
+                    readOnly={!canManageCommissions}
+                    value={splitTemplateFormState.agentPercent}
+                  />
+                </FormField>
+                <FormField label="Status">
+                  <SelectInput
+                    disabled={!canManageCommissions}
+                    onChange={(event) => setSplitTemplateFormState((current) => ({ ...current, isActive: event.target.value }))}
+                    value={splitTemplateFormState.isActive}
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </SelectInput>
+                </FormField>
+                {canManageCommissions ? (
+                  <div className="office-inline-form office-inline-form-compact office-form-grid-span-3">
+                    <Button disabled={pendingAction === "save-split-template"} type="submit">
+                      {pendingAction === "save-split-template" ? "Saving..." : "Save split template"}
+                    </Button>
+                    {splitTemplateFormState.splitTemplateId ? (
+                      <Button
+                        disabled={pendingAction === "delete-split-template"}
+                        onClick={() => void handleDeleteSplitTemplate()}
+                        type="button"
+                        variant="secondary"
+                      >
+                        {pendingAction === "delete-split-template" ? "Deleting..." : "Delete template"}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </form>
+
+              <div className="office-note-list">
+                {snapshot.splitTemplates.map((template) => (
+                  <article className="office-note-item" key={template.id}>
+                    <span>{template.isActive ? "Active" : "Inactive"}</span>
+                    <div>
+                      <strong>{template.name}</strong>
+                      <p>
+                        {template.label} · {template.usageCount} member defaults
+                      </p>
+                    </div>
+                  </article>
+                ))}
+                {snapshot.splitTemplates.length === 0 ? (
+                  <article className="office-note-item">
+                    <span>None</span>
+                    <div>
+                      <strong>No split templates yet</strong>
+                      <p>Create reusable split ratios here for user onboarding and profile editing.</p>
+                    </div>
+                  </article>
+                ) : null}
+              </div>
+            </ListPageSection>
+          </div>
+
+          <div className="office-side-stack">
+            <ListPageSection subtitle="Current member-level default split source, ratio, and effective date." title="Member defaults">
+              <div className="office-note-list">
+                {snapshot.memberDefaults.map((setting) => (
+                  <article className="office-note-item" key={setting.id}>
+                    <span>{setting.sourceType === "template" ? "Template" : "Custom"}</span>
+                    <div>
+                      <strong>{setting.membershipLabel}</strong>
+                      <p>
+                        {setting.settingLabel} · {setting.sourceLabel} · Effective {setting.effectiveFrom}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+                {snapshot.memberDefaults.length === 0 ? (
+                  <article className="office-note-item">
+                    <span>None</span>
+                    <div>
+                      <strong>No member defaults in scope</strong>
+                      <p>Assign default splits from user creation or the user profile page.</p>
+                    </div>
+                  </article>
+                ) : null}
+              </div>
+            </ListPageSection>
+
+            {snapshot.advancedReviewItems.length ? (
+              <ListPageSection subtitle="Legacy plan or assignment items that still need manual review." title="Advanced review">
+                <div className="office-note-list">
+                  {snapshot.advancedReviewItems.map((item) => (
+                    <article className="office-note-item" key={item}>
+                      <span>Review</span>
+                      <div>
+                        <strong>Legacy commission item</strong>
+                        <p>{item}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </ListPageSection>
+            ) : null}
+          </div>
+        </div>
+
+        <details className="office-section-card">
+          <summary>Advanced settings</summary>
+          <div className="office-section-body">
         <ListPageFilters
           as="form"
           className="office-report-filters"
@@ -963,6 +1208,8 @@ export function CommissionManagementPanel({
         </div>
 
         {error ? <p className="office-form-error">{error}</p> : null}
+          </div>
+        </details>
       </ListPageSection>
     </section>
   );

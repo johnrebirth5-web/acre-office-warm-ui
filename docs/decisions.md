@@ -571,6 +571,31 @@ Trade-off：
 
 ## 关键决策 10：Agent Management 建在现有 Membership / Office 身份基础上，而不是另建第二套人员系统
 
+## 关键决策 9.6：Commission 默认真源改为 membership-level split，而不是继续把 plan name 文本当配置
+
+原因：
+
+- 真实业务的日常默认值主要是 `agent/company` split，再沿 reporting line 自动递进分账
+- 把默认值挂在 membership 上，才能在创建用户、调整上下级、按历史生效日期回放时保持稳定口径
+- 旧 `CommissionPlan` 仍有价值，但更适合作为 advanced / legacy fee engine，而不是所有日常 split 的真源
+
+影响：
+
+- 新增 durable 模型：
+  - `CommissionSplitTemplate`
+  - `MembershipCommissionSetting`
+- transaction 默认 commission 计算改成 owner + upline chain 的差额递进模型
+- `AgentProfile.commissionPlanName` 只保留 shadow label / 兼容用途
+- `Accounting > Commission` 主页面默认显示 split templates 和 member defaults，旧 plan / assignment / fee 工具下沉到 `Advanced settings`
+- create user、user detail、agent profile 现在都写入结构化 default split，而不是自由文本 plan 名称
+
+Trade-off：
+
+- 系统里现在同时存在“新 default split 真源”和“旧 legacy commission plan”两层能力
+- 这不是最简模型，但能在不砍掉旧 fee / status 工具的前提下，把日常 agent split workflow 做对
+
+## 关键决策 10：Agent Management 建在现有 Membership / Office 身份基础上，而不是另建第二套人员系统
+
 原因：
 
 - agent 的身份、office 归属、角色和权限已经通过 `User + Membership + Office` 建立

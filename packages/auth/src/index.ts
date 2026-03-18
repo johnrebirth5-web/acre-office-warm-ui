@@ -1153,6 +1153,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "tasks:view",
     "accounting:view",
     "accounting:billing:view",
+    "commissions:view",
+    "commissions:view:team",
     "notifications:view",
     "ai:use"
   ],
@@ -1171,6 +1173,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "tasks:view",
     "accounting:view",
     "accounting:billing:view",
+    "commissions:view",
     "notifications:view",
     "ai:use"
   ],

@@ -89,6 +89,12 @@
 - Team hierarchy is now modeled explicitly with `TeamMembership.role + reportsToTeamMembershipId`, and the repo includes a one-off provisioning script for the initial `acreny.us` account batch plus invite-link output
 - `Settings > Teams` now shows inherited parent-branch managers for leader rows and flags invalid root/child branch leader-role mismatches instead of silently displaying the first allowed option
 - Office table column widths can now be resized and saved at the organization level by `owner / office_admin`, with the shared layout applied across list/workspace tables for every user in the same org
+- Commission V2 now uses membership-level default split settings plus reporting-line chain calculation:
+  - new `CommissionSplitTemplate` + `MembershipCommissionSetting` models
+  - create-user and profile editing now write structured default commission values
+  - transaction commission defaults lock to `Transaction.createdAt`
+  - accounting commission page now leads with split templates / member defaults and keeps legacy plan tools under advanced settings
+  - team assignments now block multiple active reporting lines for one membership inside the same organization
 
 ## Next recommended work
 

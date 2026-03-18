@@ -32,7 +32,10 @@ type ProfileState = {
   licenseNumber: string;
   licenseState: string;
   startDate: string;
-  commissionPlanName: string;
+  splitTemplateId: string;
+  customAgentPercent: string;
+  commissionEffectiveFrom: string;
+  commissionEffectiveTo: string;
   avatarUrl: string;
   internalExtension: string;
 };
@@ -71,7 +74,10 @@ function buildProfileState(snapshot: OfficeAgentProfileSnapshot): ProfileState {
     licenseNumber: snapshot.profile.licenseNumber,
     licenseState: snapshot.profile.licenseState,
     startDate: snapshot.profile.startDate,
-    commissionPlanName: snapshot.profile.commissionPlanName,
+    splitTemplateId: snapshot.defaultCommission.splitTemplateId,
+    customAgentPercent: snapshot.defaultCommission.customAgentPercent,
+    commissionEffectiveFrom: snapshot.defaultCommission.effectiveFrom || new Date().toISOString().slice(0, 10),
+    commissionEffectiveTo: snapshot.defaultCommission.effectiveTo,
     avatarUrl: snapshot.profile.avatarUrl,
     internalExtension: snapshot.profile.internalExtension
   };
@@ -401,7 +407,7 @@ export function UserOperationsDetailSections({
       </section>
 
       <section id="profile">
-        <SectionCard subtitle="Back-office profile, licensing, commission-plan, and internal operating metadata for this membership." title="Profile basics">
+        <SectionCard subtitle="Back-office profile, licensing, default commission split, and internal operating metadata for this membership." title="Profile basics">
           <form className="office-detail-grid" onSubmit={handleProfileSave}>
             <FormField className="office-detail-field" label="Display name">
               <TextInput onChange={(event) => setProfileField("displayName", event.target.value)} readOnly={!canManageAgents} value={profileState.displayName} />
@@ -415,12 +421,56 @@ export function UserOperationsDetailSections({
             <FormField className="office-detail-field" label="Start date">
               <TextInput onChange={(event) => setProfileField("startDate", event.target.value)} readOnly={!canManageAgents} type="date" value={profileState.startDate} />
             </FormField>
-            <FormField className="office-detail-field" label="Commission plan">
-              <TextInput onChange={(event) => setProfileField("commissionPlanName", event.target.value)} readOnly={!canManageAgents} value={profileState.commissionPlanName} />
+            <FormField className="office-detail-field" label="Default split template">
+              <SelectInput
+                disabled={!canManageAgents}
+                onChange={(event) =>
+                  setProfileState((current) => ({
+                    ...current,
+                    splitTemplateId: event.target.value,
+                    customAgentPercent: event.target.value ? "" : current.customAgentPercent
+                  }))
+                }
+                value={profileState.splitTemplateId}
+              >
+                <option value="">Custom split</option>
+                {snapshot.defaultCommission.templateOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label} ({option.agentPercent}/{option.companyPercent})
+                  </option>
+                ))}
+              </SelectInput>
+            </FormField>
+            <FormField className="office-detail-field" label="Custom agent split %">
+              <TextInput
+                onChange={(event) =>
+                  setProfileState((current) => ({
+                    ...current,
+                    customAgentPercent: event.target.value,
+                    splitTemplateId: event.target.value.trim() ? "" : current.splitTemplateId
+                  }))
+                }
+                placeholder="Example: 50"
+                readOnly={!canManageAgents}
+                value={profileState.customAgentPercent}
+              />
+            </FormField>
+            <FormField className="office-detail-field" label="Split effective from">
+              <TextInput
+                onChange={(event) => setProfileField("commissionEffectiveFrom", event.target.value)}
+                readOnly={!canManageAgents}
+                type="date"
+                value={profileState.commissionEffectiveFrom}
+              />
             </FormField>
             <FormField className="office-detail-field" label="Internal extension">
               <TextInput onChange={(event) => setProfileField("internalExtension", event.target.value)} readOnly={!canManageAgents} value={profileState.internalExtension} />
             </FormField>
+            <div className="office-detail-field">
+              <span>Current default split</span>
+              <strong>{snapshot.defaultCommission.settingLabel || snapshot.profile.commissionPlanName || "Not configured"}</strong>
+              <p>{snapshot.defaultCommission.sourceLabel || "Choose a template or enter a custom split."}</p>
+            </div>
             <FormField className="office-detail-field office-detail-field-wide" label="Bio">
               <TextareaInput onChange={(event) => setProfileField("bio", event.target.value)} readOnly={!canManageAgents} value={profileState.bio} />
             </FormField>
@@ -551,19 +601,19 @@ export function UserOperationsDetailSections({
         </SectionCard>
       </div>
 
-      <SectionCard subtitle="Current commission plan, recent calculated rows, and payout-readiness visibility for this member." title="Commission summary">
+      <SectionCard subtitle="Default split, recent calculated rows, and payout-readiness visibility for this member." title="Commission summary">
         {snapshot.financialsRestricted ? (
           <p className="office-form-helper">Commission and payout amounts are restricted for your current access level on this profile.</p>
         ) : null}
         <div className="office-agents-profile-summary-grid">
-          <StatCard hint="active assigned plan when available" label="Active plan" value={snapshot.commissions.activePlanLabel || "Manual / unassigned"} />
+          <StatCard hint="default split used for normal transaction commission calculation" label="Default split" value={snapshot.commissions.defaultSplitLabel || "Not configured"} />
           <StatCard hint="rows already in statement-ready status" label="Statement ready" value={snapshot.commissions.statementReadyLabel} />
           <StatCard hint="rows that can move into payout handling" label="Payable" value={snapshot.commissions.payableLabel} />
           <StatCard hint="rows already marked paid in the commission workflow" label="Paid" value={snapshot.commissions.paidLabel} />
         </div>
 
-        {snapshot.commissions.activePlanSourceLabel ? (
-          <p className="office-form-helper">Plan source: {snapshot.commissions.activePlanSourceLabel}</p>
+        {snapshot.commissions.defaultSplitSourceLabel ? (
+          <p className="office-form-helper">Default split source: {snapshot.commissions.defaultSplitSourceLabel}</p>
         ) : null}
 
         <div className="office-note-list">

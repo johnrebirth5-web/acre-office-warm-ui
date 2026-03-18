@@ -25,6 +25,11 @@ import {
   resolveOfficeDataScope
 } from "./access";
 import { prisma } from "./client";
+import {
+  getMembershipCommissionEditorSnapshot,
+  saveMembershipCommissionSetting,
+  type OfficeMembershipCommissionEditorSnapshot
+} from "./commission-defaults";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import { resolveManagedMembershipStoredTitle, resolveMembershipDisplayTitle } from "./membership-titles";
 import { createNotificationsForMemberships } from "./notifications";
@@ -263,6 +268,7 @@ export type OfficeAgentProfileSnapshot = {
     avatarUrl: string;
     internalExtension: string;
   };
+  defaultCommission: OfficeMembershipCommissionEditorSnapshot;
   summary: {
     activeTaskCount: number;
     openTransactionCount: number;
@@ -329,6 +335,10 @@ export type SaveAgentProfileInput = {
   licenseState?: string;
   startDate?: string;
   commissionPlanName?: string;
+  splitTemplateId?: string;
+  customAgentPercent?: string;
+  commissionEffectiveFrom?: string;
+  commissionEffectiveTo?: string;
   avatarUrl?: string;
   internalExtension?: string;
 };
@@ -1920,6 +1930,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     commissionSummary,
     recentActivity,
     availableTeams,
+    defaultCommission,
     templateDefaults,
     openTransactionTasks,
     allTransactionsForSummary
@@ -1992,6 +2003,11 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
           ...(scope.visibleTeamIds ? { id: { in: scope.visibleTeamIds } } : {})
         },
         orderBy: [{ name: "asc" }]
+      }),
+      getMembershipCommissionEditorSnapshot({
+        organizationId: input.organizationId,
+        officeId: input.officeId,
+        membershipId: input.membershipId
       }),
       listActiveOnboardingTemplateItems(prisma, input.organizationId, input.officeId),
       prisma.transactionTask.findMany({
@@ -2200,6 +2216,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       avatarUrl: membership.agentProfile?.avatarUrl ?? "",
       internalExtension: membership.agentProfile?.internalExtension ?? ""
     },
+    defaultCommission,
     summary: {
       activeTaskCount,
       openTransactionCount: pipelineTransactions
@@ -2309,7 +2326,6 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
         licenseNumber: parseOptionalText(input.licenseNumber),
         licenseState: parseOptionalText(input.licenseState),
         startDate: parseOptionalDate(input.startDate),
-        commissionPlanName: parseOptionalText(input.commissionPlanName),
         avatarUrl: parseOptionalText(input.avatarUrl),
         internalExtension: parseOptionalText(input.internalExtension)
       },
@@ -2323,21 +2339,49 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
         licenseNumber: parseOptionalText(input.licenseNumber),
         licenseState: parseOptionalText(input.licenseState),
         startDate: parseOptionalDate(input.startDate),
-        commissionPlanName: parseOptionalText(input.commissionPlanName),
         avatarUrl: parseOptionalText(input.avatarUrl),
         internalExtension: parseOptionalText(input.internalExtension)
       }
     });
 
+    const shouldSaveDefaultCommission =
+      input.splitTemplateId !== undefined ||
+      input.customAgentPercent !== undefined ||
+      input.commissionEffectiveFrom !== undefined ||
+      input.commissionEffectiveTo !== undefined;
+
+    if (shouldSaveDefaultCommission) {
+      await saveMembershipCommissionSetting(
+        {
+          organizationId: input.organizationId,
+          officeId: input.officeId ?? membership.officeId,
+          membershipId: input.membershipId,
+          splitTemplateId: input.splitTemplateId,
+          customAgentPercent: input.customAgentPercent,
+          effectiveFrom: input.commissionEffectiveFrom ?? "",
+          effectiveTo: input.commissionEffectiveTo,
+          actorMembershipId: input.actorMembershipId,
+          contextHref: `/office/agents/${input.membershipId}`,
+          recordActivity: false
+        },
+        tx
+      );
+    }
+
     await syncAgentProfileOnboardingStatus(tx, input.organizationId, input.membershipId, input.officeId);
 
+    const finalProfile = await tx.agentProfile.findUnique({
+      where: {
+        membershipId: input.membershipId
+      }
+    });
     const nextDisplayName = savedProfile.displayName?.trim() || `${membership.user.firstName} ${membership.user.lastName}`;
     const nextLicense = savedProfile.licenseNumber?.trim() || "—";
-    const nextPlan = savedProfile.commissionPlanName?.trim() || "—";
+    const nextPlan = finalProfile?.commissionPlanName?.trim() || "—";
     const changes = [
       buildChange("Display name", previousDisplayName, nextDisplayName),
       buildChange("License number", previousLicense, nextLicense),
-      buildChange("Commission plan", previousPlan, nextPlan)
+      buildChange("Default split", previousPlan, nextPlan)
     ].filter((change): change is ActivityLogChange => Boolean(change));
 
     await recordActivityLogEvent(tx, {
@@ -2355,7 +2399,7 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
       }
     });
 
-    return savedProfile;
+    return finalProfile ?? savedProfile;
   });
 }
 
@@ -2631,7 +2675,7 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
 
 export async function addAgentToTeam(input: AddAgentToTeamInput) {
   return prisma.$transaction(async (tx) => {
-    const [team, membership, existingTeamMembership] = await Promise.all([
+    const [team, membership, existingTeamMembership, otherTeamMembership] = await Promise.all([
       tx.team.findFirst({
         where: {
           id: input.teamId,
@@ -2647,11 +2691,32 @@ export async function addAgentToTeam(input: AddAgentToTeamInput) {
             membershipId: input.membershipId
           }
         }
+      }),
+      tx.teamMembership.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: input.membershipId,
+          NOT: {
+            teamId: input.teamId
+          },
+          team: {
+            isActive: true
+          }
+        },
+        include: {
+          team: true
+        }
       })
     ]);
 
     if (!team) {
       throw new Error("Team was not found.");
+    }
+
+    if (otherTeamMembership) {
+      throw new Error(
+        `Each membership can only belong to one active team per organization. Remove the existing team assignment from ${otherTeamMembership.team.name} first.`
+      );
     }
 
     const nextRole = normalizeTeamRole(input.role);

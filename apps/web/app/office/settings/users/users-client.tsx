@@ -28,6 +28,9 @@ type CreateUserDraft = {
   role: string;
   officeId: string;
   title: string;
+  splitTemplateId: string;
+  customAgentPercent: string;
+  commissionEffectiveFrom: string;
 };
 
 type GeneratedInviteState = {
@@ -88,7 +91,10 @@ function buildCreateUserDraft(snapshot: OfficeAdminUsersSnapshot): CreateUserDra
     email: "",
     role: "agent",
     officeId: getDefaultOfficeId(snapshot),
-    title: ""
+    title: "",
+    splitTemplateId: "",
+    customAgentPercent: "",
+    commissionEffectiveFrom: new Date().toISOString().slice(0, 10)
   };
 }
 
@@ -168,6 +174,10 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
     setActionNotice("");
 
     try {
+      if (!createUserDraft.splitTemplateId && !createUserDraft.customAgentPercent.trim()) {
+        throw new Error("Choose a default split template or enter a custom agent split.");
+      }
+
       const response = await fetch("/api/office/settings/users", {
         method: "POST",
         headers: {
@@ -400,12 +410,57 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers }: OfficeSe
                   <TextInput onChange={(event) => setCreateField("title", event.target.value)} placeholder="Back Office title" value={createUserDraft.title} />
                 </FormField>
 
+                <FormField label="Default split template">
+                  <SelectInput
+                    onChange={(event) =>
+                      setCreateUserDraft((current) => ({
+                        ...current,
+                        splitTemplateId: event.target.value,
+                        customAgentPercent: event.target.value ? "" : current.customAgentPercent
+                      }))
+                    }
+                    value={createUserDraft.splitTemplateId}
+                  >
+                    <option value="">Select template</option>
+                    {snapshot.filters.commissionTemplateOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label} ({option.agentPercent}/{option.companyPercent})
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+
+                <FormField label="Custom agent split %">
+                  <TextInput
+                    onChange={(event) =>
+                      setCreateUserDraft((current) => ({
+                        ...current,
+                        customAgentPercent: event.target.value,
+                        splitTemplateId: event.target.value.trim() ? "" : current.splitTemplateId
+                      }))
+                    }
+                    placeholder="Example: 50"
+                    value={createUserDraft.customAgentPercent}
+                  />
+                </FormField>
+
+                <FormField label="Split effective from">
+                  <TextInput
+                    onChange={(event) => setCreateField("commissionEffectiveFrom", event.target.value)}
+                    required
+                    type="date"
+                    value={createUserDraft.commissionEffectiveFrom}
+                  />
+                </FormField>
+
                 <div className="office-form-grid-span-3 office-settings-user-create-actions">
                   <Button disabled={pendingAction === "create-user"} type="submit">
                     {pendingAction === "create-user" ? "Creating..." : "Create invited user"}
                   </Button>
                 </div>
               </form>
+
+              <p className="office-settings-user-note">Choose a split template or enter a custom agent percentage. The company share is calculated from the remaining balance.</p>
 
               {latestInvite ? (
                 <div className="office-settings-generated-invite">

@@ -2,11 +2,13 @@
 
 ## Goal
 
-Provide a durable commission automation MVP inside Back Office, covering plans, assignments, rules, persisted calculations, and statement/payout-ready visibility.
+Provide a durable commission automation MVP inside Back Office, with a default split-chain system for day-to-day use and legacy advanced plans preserved for fee-heavy or transitional cases.
 
 ## Current implemented foundation
 
 - commission plans exist
+- split templates now exist for reusable `20/80` / `50/50` style defaults
+- membership-level default commission settings now exist as the primary source of truth
 - assignments exist for:
   - agents
   - teams
@@ -20,9 +22,19 @@ Provide a durable commission automation MVP inside Back Office, covering plans, 
   - flat fee deduction
   - sliding scale
 - transaction-level calculations are persisted
+- default transaction calculation now supports:
+  - owner membership split
+  - recursive reporting-line uplines
+  - differential share allocation per level
+  - company remainder
+  - transaction `createdAt` as the locking date for default split / hierarchy replay
 - transaction detail has a commission section
 - accounting has a commission management area
 - agent profile shows commission summary
+- strict visibility now applies:
+  - agent sees self rows only
+  - manager sees self + downline rows
+  - admin/accountant sees full chain and company rows
 - internal statuses include:
   - draft
   - calculated
@@ -37,9 +49,11 @@ Provide a durable commission automation MVP inside Back Office, covering plans, 
 - no payroll / tax workflow
 - no full enterprise rule engine
 - statement generation is still MVP-level
+- legacy fee/status tools still coexist with the new default split-chain path
 
 ## Future direction
 
 - strengthen accounting bridge for payable items
 - deepen statement snapshots and payout workflow
 - expand commission summary/report outputs without redesigning the foundation
+- continue shrinking the legacy plan surface so most daily commission work stays inside split templates + membership defaults

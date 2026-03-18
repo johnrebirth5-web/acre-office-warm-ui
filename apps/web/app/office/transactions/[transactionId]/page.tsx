@@ -65,7 +65,12 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
   const [tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot, transactionIntakeSchema, offerFieldSchema] = await Promise.all([
     listTransactionTasks(context.currentOrganization.id, transactionId),
     listTransactionTaskAssigneeOptions(context.currentOrganization.id, transactionId),
-    getTransactionCommissionSnapshot(context.currentOrganization.id, transactionId, context.currentOffice?.id ?? null),
+    getTransactionCommissionSnapshot(
+      context.currentOrganization.id,
+      transactionId,
+      context.currentOffice?.id ?? null,
+      context.currentMembership.id
+    ),
     listTransactionOffersSnapshot(context.currentOrganization.id, transactionId),
     getOfficeTransactionIntakeSchema({
       organizationId: context.currentOrganization.id,

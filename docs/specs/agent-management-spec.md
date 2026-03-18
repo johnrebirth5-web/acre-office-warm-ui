@@ -22,6 +22,7 @@ Provide a real Back Office agent management workspace for office operations, cov
   - task / transaction / billing / goal progress summaries
 - the unified user detail page currently acts as the operational profile hub with sections for:
   - profile basics
+  - default commission
   - office / role
   - teams
   - onboarding
@@ -34,6 +35,7 @@ Provide a real Back Office agent management workspace for office operations, cov
   - `AgentProfile`
   - `Team`
   - `TeamMembership`
+  - `MembershipCommissionSetting`
   - `AgentOnboardingItem`
   - `AgentOnboardingTemplateItem`
   - `AgentGoal`
@@ -61,6 +63,11 @@ Provide a real Back Office agent management workspace for office operations, cov
   - explicit `reportsToTeamMembershipId`
   - direct `Team Leader -> Member`
   - nested `Team Leader -> Junior Team Leader -> Member`
+- the operational profile now edits default commission via:
+  - reusable split template selection
+  - custom agent percentage
+  - effective-from date
+- one membership can now belong to only one active team / reporting line per organization
 - roster/profile/reporting visibility is now resolved server-side from:
   - broad membership role
   - active team memberships
@@ -83,3 +90,4 @@ Provide a real Back Office agent management workspace for office operations, cov
 - add more team-level rollups where operationally useful
 - optionally introduce a safer self-view mode for agents without turning this into a second portal
 - keep the module operational and brokerage-focused rather than expanding into a generic HR or recruiting product
+- keep commission editing tied to the same membership/team hierarchy instead of inventing a second parallel org chart

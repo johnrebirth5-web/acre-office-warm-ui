@@ -261,6 +261,8 @@
     - `CommissionPlanAssignment`
     - `CommissionPlanRule`
     - `CommissionCalculation`
+    - `CommissionSplitTemplate`
+    - `MembershipCommissionSetting`
   - 现在也包含最小 `Agent Billing` foundation：
     - `Agent ledger`
     - `One-time charges`
@@ -288,6 +290,18 @@
     - `made_payment`
     - `refund`
   - 当前 commission management 已支持：
+    - `split template library` 作为默认主界面：
+      - 维护 `20/80`、`50/50` 等 reusable split ratios
+      - 支持新增 / 改名 / 停用 / 删除
+    - user create / profile edit 现在写入结构化 `default split`，而不是把 `commissionPlanName` 文本当真源
+    - transaction 默认 commission 现在支持：
+      - 从 owner membership 起算
+      - 沿 `reportsToTeamMembershipId` 向上取直属上级链
+      - 按 transaction `createdAt` 锁定默认 split 和 reporting line 口径
+      - 差额递进分账：
+        - owner 先拿自己的 split
+        - 每级上级只拿高于下级的差额
+        - company 拿剩余 balance
     - commission plan create / update
     - membership / agent plan assignment
     - team-level plan assignment
@@ -301,20 +315,19 @@
       - `referral fee`
       - `flat fee deduction`
       - `sliding scale`
-    - transaction detail commission section:
-      - assigned plan
-      - calculation inputs
-      - persisted outputs
-      - recalculate
-      - commission row status update
-    - accounting 内的 commission management 区块：
-      - plans
-      - assignments
-      - team filter
-      - calculated rows / queue
-      - statement snapshot generation
+    - transaction detail commission section 默认显示 `default split chain`
+    - accounting 内的 commission management 主视图：
+      - split templates
+      - current member defaults
+      - advanced review queue for legacy plans / assignments
+    - legacy plan / fee / status tools 仍保留在 `Advanced settings`
     - agent profile 的 commission summary
-      - active plan source visibility
+      - default split source visibility
+      - current default split editor
+    - commission row visibility 现在按 viewer scope 收敛：
+      - 本人只看自己
+      - team lead / manager 看自己和下级
+      - admin / accountant 看全链路和 company rows
   - 当前 commission workflow 状态包括：
     - `draft`
     - `calculated`
@@ -378,6 +391,7 @@
     - add / remove agent
     - 递归 `Team Leader / Junior Team Leader / Member` 层级角色
     - parent / child branch 结构维护
+    - 同 organization 单 membership 只允许一个 active reporting line / team assignment
     - branch 内直属上级维护（`reportsToTeamMembershipId`）
   - agent profile / team / onboarding / goal 变更会写入 `AuditLog`
 - `Office Admin / Settings` 现在也已接入真实数据库，作为一个真实的 admin/config 模块：

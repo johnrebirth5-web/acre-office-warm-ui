@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { OfficeTransactionCommissionSnapshot } from "@acre/db";
 import { Button, FormField, HorizontalScrollArea, SectionCard, SelectInput, StatCard, StatusBadge, TextInput } from "@acre/ui";
 
@@ -46,13 +46,17 @@ export function TransactionCommissionCard({
   canApproveCommissions
 }: TransactionCommissionCardProps) {
   const router = useRouter();
-  const [selectedPlanId, setSelectedPlanId] = useState(snapshot.planId);
+  const [selectedPlanId, setSelectedPlanId] = useState(snapshot.mode === "legacy_plan" ? snapshot.planId : "");
   const [calculationNote, setCalculationNote] = useState("");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>(
     Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue]))
   );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setSelectedPlanId(snapshot.mode === "legacy_plan" ? snapshot.planId : "");
+  }, [snapshot.mode, snapshot.planId]);
 
   async function handleCalculate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -118,7 +122,7 @@ export function TransactionCommissionCard({
   return (
     <section id="commission">
       <SectionCard
-        subtitle="Assigned commission plan, calculation inputs, and persisted commission rows for this transaction."
+        subtitle="Default split chain, optional advanced plan override, and persisted commission rows for this transaction."
         title="Commission"
       >
         <div className="office-kpi-grid office-commission-kpi-grid">
@@ -131,18 +135,13 @@ export function TransactionCommissionCard({
           <StatCard hint="rows already marked payable" label="Payable" value={snapshot.summary.payableLabel} />
         </div>
 
-        <form className="office-inline-form office-inline-form-wrap" onSubmit={handleCalculate}>
-          <FormField label="Commission plan">
-            <SelectInput disabled={!canCalculateCommissions || pendingAction === "calculate"} onChange={(event) => setSelectedPlanId(event.target.value)} value={selectedPlanId}>
-              <option value="">Use assigned / manual inputs</option>
-              {snapshot.availablePlans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.label}
-                </option>
-              ))}
-            </SelectInput>
-          </FormField>
+        <div className="office-inline-meta">
+          <span>Default split: {snapshot.defaultSplitLabel || "Not configured"}</span>
+          <span>Source: {snapshot.defaultSplitSourceLabel || "No default split configured"}</span>
+        </div>
+        {snapshot.visibilityNote ? <p className="office-form-helper">{snapshot.visibilityNote}</p> : null}
 
+        <form className="office-inline-form office-inline-form-wrap" onSubmit={handleCalculate}>
           <FormField className="office-inline-form-field-wide" label="Calculation note">
             <TextInput disabled={!canCalculateCommissions || pendingAction === "calculate"} onChange={(event) => setCalculationNote(event.target.value)} value={calculationNote} />
           </FormField>
@@ -155,9 +154,35 @@ export function TransactionCommissionCard({
         </form>
 
         <div className="office-inline-meta">
-          <span>Plan source: {snapshot.planSourceLabel}</span>
-          <span>Active plan: {snapshot.planLabel}</span>
+          <span>Latest mode: {snapshot.mode === "default_split_chain" ? "Default split chain" : "Legacy advanced plan"}</span>
+          <span>Advanced reference: {snapshot.planLabel}</span>
         </div>
+        <details className="office-section-card">
+          <summary>Advanced settings</summary>
+          <div className="office-section-body">
+            <div className="office-inline-meta">
+              <span>Plan source: {snapshot.planSourceLabel}</span>
+              <span>Used reference: {snapshot.planLabel}</span>
+            </div>
+            <form className="office-inline-form office-inline-form-wrap" onSubmit={handleCalculate}>
+              <FormField label="Advanced plan override">
+                <SelectInput disabled={!canCalculateCommissions || pendingAction === "calculate"} onChange={(event) => setSelectedPlanId(event.target.value)} value={selectedPlanId}>
+                  <option value="">Use default split chain</option>
+                  {snapshot.availablePlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.label}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
+              <div className="office-inline-form-actions">
+                <Button disabled={!canCalculateCommissions || pendingAction === "calculate"} type="submit" variant="secondary">
+                  {pendingAction === "calculate" ? "Saving..." : "Recalculate with selected mode"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </details>
 
         <HorizontalScrollArea>
           <div className="office-table">

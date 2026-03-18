@@ -448,6 +448,8 @@ model Organization {
   agentOnboardingTemplateItems      AgentOnboardingTemplateItem[]
   agentOnboardingItems              AgentOnboardingItem[]
   agentGoals                        AgentGoal[]
+  commissionSplitTemplates          CommissionSplitTemplate[]
+  membershipCommissionSettings      MembershipCommissionSetting[]
   commissionPlans                   CommissionPlan[]
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionPlanRules               CommissionPlanRule[]
@@ -510,6 +512,8 @@ model Office {
   agentOnboardingTemplateItems      AgentOnboardingTemplateItem[]
   agentOnboardingItems              AgentOnboardingItem[]
   agentGoals                        AgentGoal[]
+  commissionSplitTemplates          CommissionSplitTemplate[]
+  membershipCommissionSettings      MembershipCommissionSetting[]
   commissionPlans                   CommissionPlan[]
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionCalculations            CommissionCalculation[]
@@ -593,6 +597,7 @@ model Membership {
   agentOnboardingItems                     AgentOnboardingItem[]
   completedAgentOnboardingItems            AgentOnboardingItem[]              @relation("AgentOnboardingCompletedBy")
   agentGoals                               AgentGoal[]
+  membershipCommissionSettings             MembershipCommissionSetting[]
   commissionPlanAssignments                CommissionPlanAssignment[]
   commissionCalculations                   CommissionCalculation[]            @relation("CommissionCalculationMembership")
   calculatedCommissionCalculations         CommissionCalculation[]            @relation("CommissionCalculationCalculatedBy")
@@ -1896,6 +1901,44 @@ model ChecklistTemplateItem {
 
   @@index([organizationId, officeId, checklistTemplateId])
   @@index([organizationId, sortOrder])
+}
+
+model CommissionSplitTemplate {
+  id                 String                       @id @default(cuid())
+  organizationId     String
+  officeId           String?
+  name               String
+  agentPercent       Decimal                      @db.Decimal(7, 4)
+  isActive           Boolean                      @default(true)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+  organization       Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office             Office?                      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membershipSettings MembershipCommissionSetting[]
+
+  @@unique([organizationId, officeId, name])
+  @@index([organizationId, officeId, isActive])
+}
+
+model MembershipCommissionSetting {
+  id              String                  @id @default(cuid())
+  organizationId  String
+  officeId        String?
+  membershipId    String
+  splitTemplateId String?
+  agentPercent    Decimal                 @db.Decimal(7, 4)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office          Office?                 @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership      Membership              @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  splitTemplate   CommissionSplitTemplate? @relation(fields: [splitTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, officeId, membershipId])
+  @@index([organizationId, splitTemplateId])
+  @@index([organizationId, membershipId, effectiveFrom, effectiveTo])
 }
 
 model CommissionPlan {

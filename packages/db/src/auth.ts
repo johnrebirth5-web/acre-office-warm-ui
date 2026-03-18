@@ -4,6 +4,7 @@ import type { PermissionKey, UserRole } from "@acre/auth";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
+import { saveMembershipCommissionSetting } from "./commission-defaults";
 import { getMembershipEffectivePermissionKeys } from "./permissions";
 
 const BOOTSTRAP_ADMIN_EMAIL = "office@acreny.us";
@@ -172,6 +173,9 @@ export type CreateInvitedUserInput = {
   role: UserRole;
   officeId?: string | null;
   title?: string | null;
+  splitTemplateId?: string;
+  customAgentPercent?: string;
+  commissionEffectiveFrom?: string;
 };
 
 export type AcceptInvitationInput = {
@@ -1114,6 +1118,23 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
         office: true
       }
     });
+
+    if (input.splitTemplateId?.trim() || input.customAgentPercent?.trim()) {
+      await saveMembershipCommissionSetting(
+        {
+          organizationId: input.organizationId,
+          officeId: input.officeId ?? membership.officeId ?? null,
+          membershipId: membership.id,
+          splitTemplateId: input.splitTemplateId,
+          customAgentPercent: input.customAgentPercent,
+          effectiveFrom: input.commissionEffectiveFrom ?? new Date().toISOString().slice(0, 10),
+          actorMembershipId: input.actorMembershipId,
+          contextHref: `/office/settings/users/${membership.id}`,
+          recordActivity: false
+        },
+        tx
+      );
+    }
 
     const { invitation, rawToken, expiresAt } = await createInvitationRecord(tx, {
       organizationId: input.organizationId,

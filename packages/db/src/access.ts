@@ -4,7 +4,7 @@ import { prisma } from "./client";
 import { getMembershipEffectivePermissionKeys } from "./permissions";
 import { createTeamHierarchyIndex, getDescendantTeamIds, isLeaderTeamMembershipRole } from "./team-hierarchy";
 
-export type OfficeScopeResource = "transactions" | "reports" | "contacts" | "agents";
+export type OfficeScopeResource = "transactions" | "reports" | "contacts" | "agents" | "commissions";
 
 export type OfficeDataScope = {
   viewerMembershipId: string;
@@ -44,6 +44,11 @@ const scopePermissionMap: Record<
     base: "agents:view",
     team: "agents:view:team",
     company: "agents:view:company"
+  },
+  commissions: {
+    base: "commissions:view",
+    team: "commissions:view:team",
+    company: "commissions:view:company"
   }
 };
 

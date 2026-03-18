@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
+import { listCommissionSplitTemplateOptions, type OfficeCommissionSplitTemplateOption } from "./commission-defaults";
 import { getAgentCommissionSummary, type OfficeAgentCommissionSummary } from "./commissions";
 import { resolveMembershipDisplayTitle } from "./membership-titles";
 import { getMembershipEffectivePermissions, type MembershipEffectivePermissionsSnapshot } from "./permissions";
@@ -247,6 +248,7 @@ export type OfficeAdminUsersSnapshot = {
     role: string;
     status: string;
     officeId: string;
+    commissionTemplateOptions: OfficeCommissionSplitTemplateOption[];
     roleOptions: Array<{ value: string; label: string }>;
     statusOptions: Array<{ value: string; label: string }>;
     officeOptions: Array<{ id: string; label: string }>;
@@ -1332,7 +1334,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
     ];
   }
 
-  const [memberships, offices, teams, summary] = await Promise.all([
+  const [memberships, offices, teams, summary, commissionTemplateOptions] = await Promise.all([
     prisma.membership.findMany({
       where,
       include: {
@@ -1469,7 +1471,11 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
           }
         }
       }
-    })
+    }),
+    listCommissionSplitTemplateOptions(
+      input.organizationId,
+      officeFilterId && officeFilterId !== "__all__" ? officeFilterId : null
+    )
   ]);
   const teamHierarchyIndex = createTeamHierarchyIndex(teams);
   const withTeamPathLabels = <T extends { teamMemberships?: Array<{ team: { id?: string; name: string } }> }>(entry: T) => ({
@@ -1526,6 +1532,7 @@ export async function getOfficeAdminUsersSnapshot(input: GetOfficeAdminUsersInpu
       role: roleFilter ?? "",
       status: statusFilter,
       officeId: officeFilterId,
+      commissionTemplateOptions,
       roleOptions,
       statusOptions: [
         { value: "active", label: "Active" },

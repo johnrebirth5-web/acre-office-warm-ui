@@ -44,9 +44,11 @@ export const databaseModules = [
   "checklist_templates",
   "checklist_template_items",
   "commission_plans",
+  "commission_split_templates",
   "commission_plan_assignments",
   "commission_plan_rules",
   "commission_calculations",
+  "membership_commission_settings",
   "transaction_documents",
   "form_templates",
   "transaction_forms",
@@ -174,6 +176,12 @@ export {
   saveCommissionPlan,
   updateCommissionCalculationStatus
 } from "./commissions";
+export {
+  deleteCommissionSplitTemplate,
+  listCommissionSplitTemplateOptions,
+  listCommissionSplitTemplates,
+  saveCommissionSplitTemplate
+} from "./commission-defaults";
 export {
   createContact,
   createFollowUpTask,

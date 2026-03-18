@@ -23,13 +23,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | {
+      | {
         email?: string;
         firstName?: string;
         lastName?: string;
         role?: string;
         officeId?: string | null;
         title?: string | null;
+        splitTemplateId?: string | null;
+        customAgentPercent?: string | null;
+        commissionEffectiveFrom?: string | null;
       }
     | null;
 
@@ -46,7 +49,10 @@ export async function POST(request: NextRequest) {
       lastName: body?.lastName ?? "",
       role: body.role,
       officeId: typeof body?.officeId === "string" && body.officeId !== "__all__" ? body.officeId : null,
-      title: typeof body?.title === "string" ? body.title : null
+      title: typeof body?.title === "string" ? body.title : null,
+      splitTemplateId: typeof body?.splitTemplateId === "string" ? body.splitTemplateId : undefined,
+      customAgentPercent: typeof body?.customAgentPercent === "string" ? body.customAgentPercent : undefined,
+      commissionEffectiveFrom: typeof body?.commissionEffectiveFrom === "string" ? body.commissionEffectiveFrom : undefined
     });
 
     return NextResponse.json({

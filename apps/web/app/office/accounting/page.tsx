@@ -76,6 +76,7 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
       ? getOfficeCommissionManagementSnapshot({
           organizationId: context.currentOrganization.id,
           officeId: context.currentOffice?.id ?? null,
+          viewerMembershipId: context.currentMembership.id,
           membershipId: searchParams.commissionMembershipId,
           teamId: searchParams.commissionTeamId,
           commissionPlanId: searchParams.commissionPlanId,
