@@ -93,6 +93,10 @@
   - assignable team dropdowns always render `Team path · Leader: ...` and show `Leader: Unassigned` when a branch exists without an active owner
   - only leader roles that match the current team shape count as branch owners, so invalid root/child mismatches no longer appear in branch-owner summaries or manager pickers
   - `Settings > Teams` now makes `Root team / Child branch / Branch owner` status explicit so an empty child branch is distinguishable from an invalid leader assignment on the parent team
+- `Settings > Teams` now defaults to a directory-style hierarchy browser:
+  - the landing page shows top-level team cards only, with leader, direct-agent, and child-branch summaries
+  - opening `/office/settings/teams/[teamId]` shows child-branch cards first and the selected team's direct agents below, so root-team and child-branch structure no longer compete on the same page
+  - the previous dense all-team editor remains available as an advanced manage view for deeper admin cleanup
 - Office table column widths can now be resized and saved at the organization level by `owner / office_admin`, with the shared layout applied across list/workspace tables for every user in the same org
 - Commission V2 now uses membership-level default split settings plus reporting-line chain calculation:
   - new `CommissionSplitTemplate` + `MembershipCommissionSetting` models

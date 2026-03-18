@@ -55,6 +55,9 @@ Provide a real Back Office agent management workspace for office operations, cov
   - tasks
   - accounting / billing
   - activity log
+- `Settings > Teams` now separates hierarchy browsing into:
+  - a top-level team directory for root-team summaries
+  - a team detail page for child-branch cards first, then direct agents assigned to the selected team
 - team hierarchy now supports:
   - `Team Leader`
   - `Junior Team Leader`

@@ -11,6 +11,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - `/office/settings/roles`
   - `/office/settings/users`
   - `/office/settings/teams`
+  - `/office/settings/teams/[teamId]`
   - `/office/settings/fields`
   - `/office/settings/checklists`
 - roles admin supports:
@@ -45,6 +46,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - surface invalid root/child branch leader-role mismatches so admins can correct legacy team data intentionally
   - keep branch-owner summaries scoped to the team's valid owner role only, instead of mixing in invalid legacy leader assignments
   - show explicit `Root team / Child branch / Branch owner / Unassigned` state so empty child branches are distinguishable from parent-team role mismatches
+  - default `Teams` landing view is now a top-level team directory; branch/member structure is reviewed from each team's detail page instead of mixing every level into one long admin canvas
 - fields admin supports:
   - `Settings > Fields` as the single field-structure admin entry
   - module rail for `transaction / contact / offer`

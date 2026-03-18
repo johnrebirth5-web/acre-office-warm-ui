@@ -9967,6 +9967,120 @@ a {
   line-height: var(--office-line-body);
 }
 
+.office-settings-team-directory-grid {
+  align-items: stretch;
+}
+
+.office-settings-team-directory-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(194, 205, 220, 0.54);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 253, 0.98)),
+    var(--office-surface-subtle);
+  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.05);
+}
+
+.office-settings-team-directory-card.is-child-branch {
+  background:
+    linear-gradient(180deg, rgba(251, 252, 255, 0.98), rgba(244, 248, 253, 0.98)),
+    var(--office-surface-subtle);
+}
+
+.office-settings-team-directory-card-head,
+.office-settings-team-directory-card-actions,
+.office-settings-team-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.office-settings-team-directory-card-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.office-settings-team-directory-card-copy strong {
+  color: var(--office-text);
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.office-settings-team-directory-card-copy p,
+.office-settings-team-directory-card-body p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  line-height: 1.5;
+}
+
+.office-settings-team-directory-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.office-settings-team-directory-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(194, 205, 220, 0.54);
+  border-radius: 999px;
+  background: rgba(238, 243, 249, 0.9);
+  color: var(--office-text-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.office-settings-team-directory-card-body {
+  display: grid;
+  gap: 8px;
+}
+
+.office-settings-team-detail-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.office-settings-team-detail-member-list {
+  display: grid;
+  gap: 12px;
+}
+
+.office-settings-team-detail-member-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--office-border);
+  border-radius: 16px;
+  background: var(--office-surface-subtle);
+}
+
+.office-settings-team-detail-member-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.office-settings-team-detail-member-copy strong {
+  color: var(--office-text);
+  font-size: 0.98rem;
+}
+
+.office-settings-team-detail-member-copy p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  line-height: 1.45;
+}
+
 .office-settings-team-members-head {
   display: flex;
   flex-wrap: wrap;
@@ -10546,6 +10660,7 @@ a {
   .office-table-row-settings-checklists,
   .office-settings-team-editor,
   .office-settings-team-editor-grid,
+  .office-settings-team-detail-stats,
   .office-settings-team-member-row,
   .office-settings-team-member-controls,
   .office-settings-team-assign-grid,
