@@ -40,6 +40,8 @@ Provide a practical Back Office admin/settings area for access management, role 
   - assign `Team Leader / Junior Team Leader / Member`
   - maintain parent / child branch structure
   - maintain direct reporting lines inside a team
+  - show inherited parent-branch managers for branch leaders instead of leaving the direct-manager field visually blank
+  - surface invalid root/child branch leader-role mismatches so admins can correct legacy team data intentionally
 - fields admin supports:
   - `Settings > Fields` as the single field-structure admin entry
   - module rail for `transaction / contact / offer`

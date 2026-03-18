@@ -87,6 +87,7 @@
 - Added recursive team hierarchy support so local and deployed databases upgrade legacy `lead / leader_i / leader_ii` memberships into `team_leader / junior_team_leader`, add `Team.parentTeamId`, and keep descendant-scope access working across `/office/settings/users`, `/office/transactions`, and `/office/reports`
 - Back Office account access is now tiered as `owner / office_admin / accountant / human_resources / team_lead / agent`, with server-side scope enforcement and finance redaction applied to dashboard, transactions, reports, exports, and agent views
 - Team hierarchy is now modeled explicitly with `TeamMembership.role + reportsToTeamMembershipId`, and the repo includes a one-off provisioning script for the initial `acreny.us` account batch plus invite-link output
+- `Settings > Teams` now shows inherited parent-branch managers for leader rows and flags invalid root/child branch leader-role mismatches instead of silently displaying the first allowed option
 - Office table column widths can now be resized and saved at the organization level by `owner / office_admin`, with the shared layout applied across list/workspace tables for every user in the same org
 
 ## Next recommended work

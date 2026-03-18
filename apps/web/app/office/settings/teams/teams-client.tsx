@@ -49,8 +49,22 @@ type ConfirmDialogState = {
   onConfirm: () => void;
 };
 
+const inheritedManagerOptionValue = "__inherited_manager__";
+
 function isLeaderRoleValue(roleValue: string) {
   return roleValue === "team_leader" || roleValue === "junior_team_leader" || roleValue === "leader_i" || roleValue === "leader_ii";
+}
+
+function getTeamMemberRoleLabel(roleValue: string) {
+  if (roleValue === "team_leader" || roleValue === "leader_i") {
+    return "Team Leader";
+  }
+
+  if (roleValue === "junior_team_leader" || roleValue === "leader_ii") {
+    return "Junior Team Leader";
+  }
+
+  return "Member";
 }
 
 function getLeaderRoleValue(team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number]) {
@@ -61,19 +75,83 @@ function getLeaderRoleLabel(team: OfficeSettingsTeamsClientProps["snapshot"]["te
   return team.parentTeamId ? "Junior Team Leader" : "Team Leader";
 }
 
-function getTeamRoleOptions(team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number]) {
-  return [
+function isInvalidLeaderRoleForTeam(
+  team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number],
+  roleValue: string
+) {
+  return isLeaderRoleValue(roleValue) && roleValue !== getLeaderRoleValue(team);
+}
+
+function getTeamRoleOptions(
+  team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number],
+  currentRoleValue?: string
+) {
+  const options = [
     { value: getLeaderRoleValue(team), label: getLeaderRoleLabel(team) },
     { value: "member", label: "Member" }
   ];
+
+  if (!currentRoleValue || !isInvalidLeaderRoleForTeam(team, currentRoleValue)) {
+    return options;
+  }
+
+  return [
+    {
+      value: currentRoleValue,
+      label: `${getTeamMemberRoleLabel(currentRoleValue)} (${team.parentTeamId ? "invalid for child branch" : "invalid for root team"})`
+    },
+    ...options
+  ];
+}
+
+function getParentBranchLeader(
+  teams: OfficeSettingsTeamsClientProps["snapshot"]["teams"],
+  team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number]
+) {
+  if (!team.parentTeamId) {
+    return null;
+  }
+
+  const parentTeam = teams.find((candidate) => candidate.id === team.parentTeamId);
+  if (!parentTeam) {
+    return null;
+  }
+
+  return parentTeam.members.find((member) => isLeaderRoleValue(member.roleValue)) ?? null;
+}
+
+function getInheritedManagerOption(
+  teams: OfficeSettingsTeamsClientProps["snapshot"]["teams"],
+  team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number],
+  roleValue: string
+) {
+  if (!isLeaderRoleValue(roleValue)) {
+    return null;
+  }
+
+  const parentLeader = getParentBranchLeader(teams, team);
+  if (!parentLeader) {
+    return null;
+  }
+
+  return {
+    value: inheritedManagerOptionValue,
+    label: `${parentLeader.label} · ${parentLeader.role}`
+  };
 }
 
 function getDirectManagerPlaceholder(
+  teams: OfficeSettingsTeamsClientProps["snapshot"]["teams"],
   team: OfficeSettingsTeamsClientProps["snapshot"]["teams"][number],
   roleValue: string
 ) {
   if (!isLeaderRoleValue(roleValue)) {
     return "Use branch leader";
+  }
+
+  const parentLeader = getParentBranchLeader(teams, team);
+  if (parentLeader) {
+    return `Inherited from ${parentLeader.label}`;
   }
 
   return team.parentTeamId ? "Managed by parent branch" : "No direct manager";
@@ -433,6 +511,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
               const availableMembers = memberOptions.filter((option) => !team.members.some((member) => member.membershipId === option.membershipId));
               const nextManagerOptions = getManagerOptions(team, draft.nextRole);
               const teamRoleOptions = getTeamRoleOptions(team);
+              const inheritedNextManagerOption = getInheritedManagerOption(snapshot.teams, team, draft.nextRole);
               const parentTeamOptions = snapshot.teams.filter((candidate) => candidate.id !== team.id);
               const parentTeamLabel = team.parentTeamId ? team.teamPathLabel.split(" / ").slice(0, -1).join(" / ") : "Root team";
 
@@ -526,7 +605,9 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                             role: member.roleValue,
                             reportsToTeamMembershipId: member.reportsToTeamMembershipId ?? ""
                           };
+                          const memberRoleOptions = getTeamRoleOptions(team, memberDraft.role);
                           const managerOptions = getManagerOptions(team, memberDraft.role, member.teamMembershipId);
+                          const inheritedManagerOption = getInheritedManagerOption(snapshot.teams, team, memberDraft.role);
 
                           return (
                           <article className={`office-settings-team-member-row${canManageTeams ? "" : " is-readonly"}`} key={member.membershipId}>
@@ -549,7 +630,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                                   }}
                                   value={memberDraft.role}
                                 >
-                                  {teamRoleOptions.map((option) => (
+                                  {memberRoleOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
                                       {option.label}
                                     </option>
@@ -560,9 +641,12 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                                   onChange={(event) =>
                                     setMemberDraft(member.teamMembershipId, "reportsToTeamMembershipId", event.target.value)
                                   }
-                                  value={memberDraft.reportsToTeamMembershipId}
+                                  value={inheritedManagerOption ? inheritedManagerOption.value : memberDraft.reportsToTeamMembershipId}
                                 >
-                                  <option value="">{getDirectManagerPlaceholder(team, memberDraft.role)}</option>
+                                  <option value="">{getDirectManagerPlaceholder(snapshot.teams, team, memberDraft.role)}</option>
+                                  {inheritedManagerOption ? (
+                                    <option value={inheritedManagerOption.value}>{inheritedManagerOption.label}</option>
+                                  ) : null}
                                   {managerOptions.map((option) => (
                                     <option key={option.teamMembershipId} value={option.teamMembershipId}>
                                       {option.label} · {option.role}
@@ -649,9 +733,12 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                           <SelectInput
                             disabled={isLeaderRoleValue(draft.nextRole)}
                             onChange={(event) => setTeamDraft(team.id, "nextReportsToTeamMembershipId", event.target.value)}
-                            value={draft.nextReportsToTeamMembershipId}
+                            value={inheritedNextManagerOption ? inheritedNextManagerOption.value : draft.nextReportsToTeamMembershipId}
                           >
-                            <option value="">{getDirectManagerPlaceholder(team, draft.nextRole)}</option>
+                            <option value="">{getDirectManagerPlaceholder(snapshot.teams, team, draft.nextRole)}</option>
+                            {inheritedNextManagerOption ? (
+                              <option value={inheritedNextManagerOption.value}>{inheritedNextManagerOption.label}</option>
+                            ) : null}
                             {nextManagerOptions.map((option) => (
                               <option key={option.teamMembershipId} value={option.teamMembershipId}>
                                 {option.label} · {option.role}
