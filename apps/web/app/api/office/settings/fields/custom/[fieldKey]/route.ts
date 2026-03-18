@@ -28,6 +28,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         type?: string;
         isRequired?: boolean;
         isVisible?: boolean;
+        isDeletionLocked?: boolean;
         sortOrder?: number;
         options?: string[];
       }
@@ -44,6 +45,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       type: body?.type,
       isRequired: typeof body?.isRequired === "boolean" ? body.isRequired : undefined,
       isVisible: typeof body?.isVisible === "boolean" ? body.isVisible : undefined,
+      isDeletionLocked:
+        typeof body?.isDeletionLocked === "boolean" ? body.isDeletionLocked : undefined,
       sortOrder: typeof body?.sortOrder === "number" ? body.sortOrder : undefined,
       options: Array.isArray(body?.options) ? body.options.map((option) => String(option ?? "")) : undefined
     });

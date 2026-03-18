@@ -38,6 +38,7 @@ type OfficeFieldDefaultCustomCatalogEntry = {
   type: TransactionCustomFieldType;
   sortOrder: number;
   options: string[];
+  isDeletionLocked?: boolean;
 };
 
 const contactRoleLabelMap: Record<TransactionContactRole, string> = {
@@ -171,7 +172,14 @@ const legacyCustomFieldSettingKeyMap: Partial<Record<string, TransactionFieldKey
 };
 
 const defaultTransactionCustomFieldCatalog: OfficeFieldDefaultCustomCatalogEntry[] = [
-  { fieldKey: "agentName", label: "Agent Name", type: "text", sortOrder: 100, options: [] },
+  {
+    fieldKey: "agentName",
+    label: "Agent Name",
+    type: "text",
+    sortOrder: 100,
+    options: [],
+    isDeletionLocked: true
+  },
   { fieldKey: "licensedAgentName", label: "Licensed Agent Name", type: "text", sortOrder: 102, options: [] },
   { fieldKey: "invoiceNumber", label: "Invoice Number", type: "text", sortOrder: 103, options: [] },
   { fieldKey: "buyerTenant", label: "Buyer/Tenant", type: "text", sortOrder: 104, options: [] },
@@ -335,6 +343,8 @@ export type OfficeFieldCustomDefinitionRecord = {
   type: TransactionCustomFieldType;
   isRequired: boolean;
   isVisible: boolean;
+  isDeletionLocked: boolean;
+  isLockedDeletion: boolean;
   sortOrder: number;
   options: string[];
   isDefault: boolean;
@@ -433,6 +443,7 @@ export type SaveOfficeFieldSettingsInput = {
     type?: string;
     isRequired: boolean;
     isVisible: boolean;
+    isDeletionLocked?: boolean;
     sortOrder?: number;
     options?: string[];
   }>;
@@ -447,6 +458,7 @@ export type CreateOfficeCustomFieldDefinitionInput = {
   type: string;
   isRequired?: boolean;
   isVisible?: boolean;
+  isDeletionLocked?: boolean;
   options?: string[];
 };
 
@@ -460,6 +472,7 @@ export type UpdateOfficeCustomFieldDefinitionInput = {
   type?: string;
   isRequired?: boolean;
   isVisible?: boolean;
+  isDeletionLocked?: boolean;
   sortOrder?: number;
   options?: string[];
 };
@@ -560,6 +573,12 @@ function getDefaultCustomCatalog(module: OfficeFieldModule) {
   return module === "transaction"
     ? defaultTransactionCustomFieldCatalog.filter((entry) => !retiredTransactionCustomFieldKeys.has(entry.fieldKey))
     : [];
+}
+
+function isDefaultCustomFieldDeletionLocked(
+  defaultEntry: OfficeFieldDefaultCustomCatalogEntry | null | undefined
+) {
+  return Boolean(defaultEntry?.isDeletionLocked);
 }
 
 function getFieldSettingsAction(module: OfficeFieldModule) {
@@ -836,6 +855,8 @@ function buildOfficeCustomFieldRecord(input: {
   type: TransactionCustomFieldType;
   isRequired: boolean;
   isVisible: boolean;
+  isDeletionLocked: boolean;
+  isLockedDeletion?: boolean;
   sortOrder: number;
   options?: string[];
   isDefault: boolean;
@@ -849,6 +870,8 @@ function buildOfficeCustomFieldRecord(input: {
     type: input.type,
     isRequired: input.isRequired,
     isVisible: input.isVisible,
+    isDeletionLocked: input.isDeletionLocked,
+    isLockedDeletion: Boolean(input.isLockedDeletion),
     sortOrder: input.sortOrder,
     options: input.options ?? [],
     isDefault: input.isDefault,
@@ -1067,8 +1090,9 @@ export async function getOfficeTransactionIntakeSchema(input: {
   const customFields = defaultTransactionCustomFields
     .map((entry) => {
       const persisted = persistedCustomFieldMap.get(entry.fieldKey) ?? null;
+      const isDeletionLocked = isDefaultCustomFieldDeletionLocked(entry) || Boolean(persisted?.isDeletionLocked);
 
-      if (persisted?.isArchived) {
+      if (persisted?.isArchived && !isDeletionLocked) {
         return null;
       }
 
@@ -1083,6 +1107,8 @@ export async function getOfficeTransactionIntakeSchema(input: {
         type: (persisted?.type ?? entry.type) as TransactionCustomFieldType,
         isRequired: persisted?.isRequired ?? legacyFallback?.isRequired ?? false,
         isVisible: persisted?.isVisible ?? legacyFallback?.isVisible ?? true,
+        isDeletionLocked,
+        isLockedDeletion: isDefaultCustomFieldDeletionLocked(entry),
         sortOrder: persisted?.sortOrder ?? entry.sortOrder,
         options: persisted ? readTransactionCustomFieldOptions(persisted.options) : entry.options,
         isDefault: true,
@@ -1103,6 +1129,8 @@ export async function getOfficeTransactionIntakeSchema(input: {
             type: entry.type,
             isRequired: entry.isRequired,
             isVisible: entry.isVisible,
+            isDeletionLocked: entry.isDeletionLocked,
+            isLockedDeletion: false,
             sortOrder: entry.sortOrder,
             options: readTransactionCustomFieldOptions(entry.options),
             isDefault: false,
@@ -1162,6 +1190,8 @@ function buildGenericModuleFieldSchema(
           type: entry.type,
           isRequired: entry.isRequired,
           isVisible: entry.isVisible,
+          isDeletionLocked: entry.isDeletionLocked,
+          isLockedDeletion: false,
           sortOrder: entry.sortOrder,
           options: readTransactionCustomFieldOptions(entry.options),
           isDefault: false,
@@ -1729,6 +1759,7 @@ async function upsertCustomFieldDefinitionTx(
     type: TransactionCustomFieldType;
     isRequired: boolean;
     isVisible: boolean;
+    isDeletionLocked: boolean;
     sortOrder: number;
     options: string[];
     isArchived?: boolean;
@@ -1755,6 +1786,7 @@ async function upsertCustomFieldDefinitionTx(
             type: input.type,
             isRequired: input.isRequired,
             isVisible: input.isVisible,
+            isDeletionLocked: input.isDeletionLocked,
             sortOrder: input.sortOrder,
             isArchived: Boolean(input.isArchived),
             options: input.options
@@ -1771,6 +1803,7 @@ async function upsertCustomFieldDefinitionTx(
           type: input.type,
           isRequired: input.isRequired,
           isVisible: input.isVisible,
+          isDeletionLocked: input.isDeletionLocked,
           sortOrder: input.sortOrder,
           isArchived: Boolean(input.isArchived),
           options: input.options
@@ -1794,6 +1827,7 @@ async function upsertCustomFieldDefinitionTx(
             type: input.type,
             isRequired: input.isRequired,
             isVisible: input.isVisible,
+            isDeletionLocked: input.isDeletionLocked,
             sortOrder: input.sortOrder,
             isArchived: Boolean(input.isArchived),
             options: input.options
@@ -1810,6 +1844,7 @@ async function upsertCustomFieldDefinitionTx(
           type: input.type,
           isRequired: input.isRequired,
           isVisible: input.isVisible,
+          isDeletionLocked: input.isDeletionLocked,
           sortOrder: input.sortOrder,
           isArchived: Boolean(input.isArchived),
           options: input.options
@@ -1834,6 +1869,7 @@ async function upsertCustomFieldDefinitionTx(
             type: input.type,
             isRequired: input.isRequired,
             isVisible: input.isVisible,
+            isDeletionLocked: input.isDeletionLocked,
             sortOrder: input.sortOrder,
             isArchived: Boolean(input.isArchived),
             options: input.options
@@ -1850,6 +1886,7 @@ async function upsertCustomFieldDefinitionTx(
           type: input.type,
           isRequired: input.isRequired,
           isVisible: input.isVisible,
+          isDeletionLocked: input.isDeletionLocked,
           sortOrder: input.sortOrder,
           isArchived: Boolean(input.isArchived),
           options: input.options
@@ -2120,6 +2157,7 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
       const fieldKey = normalizeTransactionCustomFieldKey(entry.fieldKey);
       const existing = existingCustomFieldDefinitions.find((setting) => setting.fieldKey === fieldKey) ?? null;
       const defaultEntry = getDefaultCustomCatalog(module).find((setting) => setting.fieldKey === fieldKey) ?? null;
+      const defaultDeletionLock = isDefaultCustomFieldDeletionLocked(defaultEntry);
       const label = parseOptionalText(entry.label) ?? existing?.label ?? defaultEntry?.label ?? fieldKey;
       const type = normalizeTransactionCustomFieldType(entry.type ?? existing?.type ?? defaultEntry?.type ?? "text");
       const options = normalizeTransactionCustomFieldOptions(type, entry.options ?? (existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options));
@@ -2128,8 +2166,14 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
       const previousType = existing?.type ?? defaultEntry?.type ?? "text";
       const previousRequired = existing?.isRequired ?? false;
       const previousVisible = existing?.isVisible ?? true;
+      const previousDeletionLock = defaultDeletionLock || Boolean(existing?.isDeletionLocked);
       const previousSortOrder = existing?.sortOrder ?? defaultEntry?.sortOrder ?? 0;
       const previousOptions = existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options ?? [];
+      const nextDeletionLock =
+        defaultDeletionLock ||
+        (typeof entry.isDeletionLocked === "boolean"
+          ? entry.isDeletionLocked
+          : Boolean(existing?.isDeletionLocked));
 
       await upsertCustomFieldDefinitionTx(tx, module, {
         organizationId: input.organizationId,
@@ -2139,6 +2183,7 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
         type,
         isRequired: entry.isRequired,
         isVisible: entry.isVisible,
+        isDeletionLocked: nextDeletionLock,
         sortOrder,
         options,
         isArchived: false
@@ -2149,6 +2194,7 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
         buildChange(`${label} type`, previousType, type),
         buildChange(buildFieldChangeLabel(label, "required"), previousRequired ? "Yes" : "No", entry.isRequired ? "Yes" : "No"),
         buildChange(buildFieldChangeLabel(label, "visible"), previousVisible ? "Yes" : "No", entry.isVisible ? "Yes" : "No"),
+        buildChange(buildFieldChangeLabel(label, "delete lock"), previousDeletionLock ? "Yes" : "No", nextDeletionLock ? "Yes" : "No"),
         buildChange(buildFieldChangeLabel(label, "order"), String(previousSortOrder), String(sortOrder)),
         buildChange(buildFieldChangeLabel(label, "options"), previousOptions.join(", ") || "—", options.join(", ") || "—")
       ]) {
@@ -2216,6 +2262,7 @@ export async function createOfficeCustomFieldDefinition(input: CreateOfficeCusto
       module
     });
     const sortOrder = Math.max(-1, ...currentSnapshot.builtInFields.map((entry) => entry.sortOrder), ...currentSnapshot.customFields.map((entry) => entry.sortOrder)) + 1;
+    const isDeletionLocked = Boolean(input.isDeletionLocked);
 
     await upsertCustomFieldDefinitionTx(tx, module, {
       organizationId: input.organizationId,
@@ -2225,6 +2272,7 @@ export async function createOfficeCustomFieldDefinition(input: CreateOfficeCusto
       type,
       isRequired: Boolean(input.isRequired),
       isVisible: typeof input.isVisible === "boolean" ? input.isVisible : true,
+      isDeletionLocked,
       sortOrder,
       options,
       isArchived: false
@@ -2243,7 +2291,8 @@ export async function createOfficeCustomFieldDefinition(input: CreateOfficeCusto
         changes: [
           { label: `${label} type`, previousValue: "—", nextValue: type },
           { label: `${label} required`, previousValue: "No", nextValue: input.isRequired ? "Yes" : "No" },
-          { label: `${label} visible`, previousValue: "No", nextValue: typeof input.isVisible === "boolean" ? (input.isVisible ? "Yes" : "No") : "Yes" }
+          { label: `${label} visible`, previousValue: "No", nextValue: typeof input.isVisible === "boolean" ? (input.isVisible ? "Yes" : "No") : "Yes" },
+          { label: `${label} delete lock`, previousValue: "No", nextValue: isDeletionLocked ? "Yes" : "No" }
         ]
       }
     });
@@ -2293,8 +2342,14 @@ export async function updateOfficeCustomFieldDefinition(input: UpdateOfficeCusto
       nextType,
       input.options ?? (existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options)
     );
+    const defaultDeletionLock = isDefaultCustomFieldDeletionLocked(defaultEntry);
     const nextRequired = typeof input.isRequired === "boolean" ? input.isRequired : existing?.isRequired ?? false;
     const nextVisible = typeof input.isVisible === "boolean" ? input.isVisible : existing?.isVisible ?? true;
+    const nextDeletionLock =
+      defaultDeletionLock ||
+      (typeof input.isDeletionLocked === "boolean"
+        ? input.isDeletionLocked
+        : Boolean(existing?.isDeletionLocked));
     const nextSortOrder = typeof input.sortOrder === "number" ? input.sortOrder : existing?.sortOrder ?? defaultEntry?.sortOrder ?? 0;
 
     await upsertCustomFieldDefinitionTx(tx, module, {
@@ -2305,6 +2360,7 @@ export async function updateOfficeCustomFieldDefinition(input: UpdateOfficeCusto
       type: nextType,
       isRequired: nextRequired,
       isVisible: nextVisible,
+      isDeletionLocked: nextDeletionLock,
       sortOrder: nextSortOrder,
       options: nextOptions,
       isArchived: false
@@ -2312,6 +2368,7 @@ export async function updateOfficeCustomFieldDefinition(input: UpdateOfficeCusto
 
     const previousLabel = existing?.label ?? defaultEntry?.label ?? input.fieldKey;
     const previousOptions = existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options ?? [];
+    const previousDeletionLock = defaultDeletionLock || Boolean(existing?.isDeletionLocked);
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -2328,6 +2385,7 @@ export async function updateOfficeCustomFieldDefinition(input: UpdateOfficeCusto
           buildChange(`${nextLabel} type`, previousType, nextType),
           buildChange(buildFieldChangeLabel(nextLabel, "required"), (existing?.isRequired ?? false) ? "Yes" : "No", nextRequired ? "Yes" : "No"),
           buildChange(buildFieldChangeLabel(nextLabel, "visible"), (existing?.isVisible ?? true) ? "Yes" : "No", nextVisible ? "Yes" : "No"),
+          buildChange(buildFieldChangeLabel(nextLabel, "delete lock"), previousDeletionLock ? "Yes" : "No", nextDeletionLock ? "Yes" : "No"),
           buildChange(buildFieldChangeLabel(nextLabel, "order"), String(existing?.sortOrder ?? defaultEntry?.sortOrder ?? 0), String(nextSortOrder)),
           buildChange(buildFieldChangeLabel(nextLabel, "options"), previousOptions.join(", ") || "—", nextOptions.join(", ") || "—")
         ].filter(Boolean) as ActivityLogChange[]
@@ -2359,8 +2417,15 @@ export async function deleteOfficeCustomFieldDefinition(input: DeleteOfficeCusto
 
     const label = existing?.label ?? defaultEntry?.label ?? input.fieldKey;
     const type = existing?.type ?? defaultEntry?.type ?? "text";
+    const isDeletionLocked =
+      isDefaultCustomFieldDeletionLocked(defaultEntry) || Boolean(existing?.isDeletionLocked);
     const sortOrder = existing?.sortOrder ?? defaultEntry?.sortOrder ?? 0;
     const options = existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options ?? [];
+
+    if (isDeletionLocked) {
+      throw new Error("This field is protected from deletion.");
+    }
+
     const hasStoredValues = await hasSavedCustomFieldValues(tx, {
       organizationId: input.organizationId,
       officeId: input.officeId,
@@ -2389,6 +2454,7 @@ export async function deleteOfficeCustomFieldDefinition(input: DeleteOfficeCusto
         type: defaultEntry.type,
         isRequired: false,
         isVisible: false,
+        isDeletionLocked,
         sortOrder,
         options: defaultEntry.options,
         isArchived: true
@@ -2465,6 +2531,8 @@ export async function reorderOfficeFields(input: ReorderOfficeFieldsInput) {
 
       const existing = existingCustoms.find((entry) => entry.fieldKey === item.fieldKey) ?? null;
       const defaultEntry = getDefaultCustomCatalog(module).find((entry) => entry.fieldKey === item.fieldKey) ?? null;
+      const isDeletionLocked =
+        isDefaultCustomFieldDeletionLocked(defaultEntry) || Boolean(existing?.isDeletionLocked);
 
       if (!existing && !defaultEntry) {
         continue;
@@ -2478,6 +2546,7 @@ export async function reorderOfficeFields(input: ReorderOfficeFieldsInput) {
         type: (existing?.type ?? defaultEntry?.type ?? "text") as TransactionCustomFieldType,
         isRequired: existing?.isRequired ?? false,
         isVisible: existing?.isVisible ?? true,
+        isDeletionLocked,
         sortOrder: index,
         options: existing ? readTransactionCustomFieldOptions(existing.options) : defaultEntry?.options ?? [],
         isArchived: false

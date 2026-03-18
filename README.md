@@ -434,6 +434,8 @@
       - contact fields
       - offer fields
     - 三个模块都支持字段排序、required / visible、custom field create / edit / delete
+    - custom field create / edit 现在支持 `Protected from deletion`；被保护字段会保留灰色禁用删除按钮，需改用隐藏而不是删除
+    - transaction 里的系统联动 custom field（当前 `Agent Name`）默认受删除保护，避免破坏 owner-assignment 联动
     - transaction 模块继续支持 `Type / Status / Representing` 系统下拉的可用选项和显示名称管理
     - transaction 模块继续保留 required contact roles admin，但已收口到同一页内
     - `/office/transactions`、`/office/contacts`、transaction detail 里的 offers 表单现在都只消费 schema 并保存值

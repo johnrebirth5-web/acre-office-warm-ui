@@ -1768,6 +1768,7 @@ model TransactionCustomFieldDefinition {
   type           TransactionCustomFieldType
   isRequired     Boolean                    @default(false)
   isVisible      Boolean                    @default(true)
+  isDeletionLocked Boolean                  @default(false)
   sortOrder      Int                        @default(0)
   isArchived     Boolean                    @default(false)
   options        Json?
@@ -1807,6 +1808,7 @@ model ContactCustomFieldDefinition {
   type           TransactionCustomFieldType
   isRequired     Boolean                    @default(false)
   isVisible      Boolean                    @default(true)
+  isDeletionLocked Boolean                  @default(false)
   sortOrder      Int                        @default(0)
   isArchived     Boolean                    @default(false)
   options        Json?
@@ -1846,6 +1848,7 @@ model OfferCustomFieldDefinition {
   type           TransactionCustomFieldType
   isRequired     Boolean                    @default(false)
   isVisible      Boolean                    @default(true)
+  isDeletionLocked Boolean                  @default(false)
   sortOrder      Int                        @default(0)
   isArchived     Boolean                    @default(false)
   options        Json?

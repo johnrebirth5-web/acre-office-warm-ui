@@ -37,8 +37,10 @@ type FieldEditorState = {
   type: "text" | "select" | "date" | "textarea";
   isRequired: boolean;
   isVisible: boolean;
+  isDeletionLocked: boolean;
   isLockedRequired: boolean;
   isLockedVisible: boolean;
+  isLockedDeletion: boolean;
   sortOrder: number;
   optionsText: string;
   selectOptions: Array<{
@@ -131,6 +133,7 @@ function buildModulePayload(snapshot: OfficeFieldModuleSettingsSnapshot) {
       type: field.type,
       isRequired: field.isRequired,
       isVisible: field.isVisible,
+      isDeletionLocked: field.isDeletionLocked,
       sortOrder: field.sortOrder,
       options: field.options
     }))
@@ -159,8 +162,10 @@ function buildEditorStateFromField(entry: FieldEntry): FieldEditorState {
     type: fieldType,
     isRequired: entry.field.isRequired,
     isVisible: entry.field.isVisible,
+    isDeletionLocked: entry.kind === "custom" ? entry.field.isDeletionLocked : false,
     isLockedRequired: entry.kind === "builtIn" ? entry.field.isLockedRequired : false,
     isLockedVisible: entry.kind === "builtIn" ? entry.field.isLockedVisible : false,
+    isLockedDeletion: entry.kind === "custom" ? entry.field.isLockedDeletion : true,
     sortOrder: entry.field.sortOrder,
     optionsText:
       entry.kind === "custom" && entry.field.type === "select"
@@ -182,8 +187,10 @@ function buildCreateEditorState(module: OfficeFieldModule, sortOrder: number): F
     type: module === "transaction" ? "text" : "text",
     isRequired: false,
     isVisible: true,
+    isDeletionLocked: false,
     isLockedRequired: false,
     isLockedVisible: false,
+    isLockedDeletion: false,
     sortOrder,
     optionsText: "",
     selectOptions: []
@@ -330,6 +337,10 @@ export function OfficeSettingsFieldsClient({
         )
       };
       await persistModuleSnapshot(nextModule, `${entry.field.label} hidden.`);
+      return;
+    }
+
+    if (entry.field.isDeletionLocked) {
       return;
     }
 
@@ -512,6 +523,7 @@ export function OfficeSettingsFieldsClient({
       type: editorState.type,
       isRequired: editorState.isRequired,
       isVisible: editorState.isVisible,
+      isDeletionLocked: editorState.isDeletionLocked,
       sortOrder: editorState.sortOrder,
       options
     };
@@ -668,7 +680,13 @@ export function OfficeSettingsFieldsClient({
                     className="office-fields-row-action is-danger"
                     disabled={
                       pendingAction.length > 0 ||
-                      (entry.kind === "builtIn" && entry.field.isLockedVisible)
+                      (entry.kind === "builtIn" && entry.field.isLockedVisible) ||
+                      (entry.kind === "custom" && entry.field.isDeletionLocked)
+                    }
+                    title={
+                      entry.kind === "custom" && entry.field.isDeletionLocked
+                        ? `${entry.field.label} is protected from deletion.`
+                        : undefined
                     }
                     onClick={() =>
                       setConfirmDialog({
@@ -874,6 +892,22 @@ export function OfficeSettingsFieldsClient({
                   type="checkbox"
                 />
               </CheckboxField>
+
+              {editorState.kind === "custom" ? (
+                <CheckboxField
+                  className="office-fields-modal-checkbox"
+                  label="Protected from deletion"
+                >
+                  <input
+                    checked={editorState.isDeletionLocked}
+                    disabled={editorState.isLockedDeletion}
+                    onChange={(event) =>
+                      updateEditor({ isDeletionLocked: event.target.checked })
+                    }
+                    type="checkbox"
+                  />
+                </CheckboxField>
+              ) : null}
 
               {editorState.kind === "custom" && editorState.type === "select" ? (
                 <label className="office-fields-modal-field is-full">

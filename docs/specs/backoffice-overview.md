@@ -223,7 +223,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - legacy `office_manager / office_user` stay compatible internally, but are not the primary create-user flow
   - `Teams` now supports recursive `Team Leader / Junior Team Leader / Member` hierarchy, parent-child branches, and explicit direct-manager assignment
   - shared Office table widths are now organization-scoped settings: `owner / office_admin` can resize current Back Office table columns, and saved widths apply to all users in the same org
-  - `Fields` is now the single schema-management surface for `transaction / contact / offer`, including sort order, required / visible, custom field create-edit-delete, hidden-field restore, and transaction-only required contact roles.
+  - `Fields` is now the single schema-management surface for `transaction / contact / offer`, including sort order, required / visible, custom field create-edit-delete, per-field deletion protection, hidden-field restore, and transaction-only required contact roles.
 - Follow-up work:
   - richer multi-office access controls
   - stronger template application behavior

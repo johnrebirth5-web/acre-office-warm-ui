@@ -597,7 +597,7 @@ async function main() {
   }
 
   const seededTransactionCustomFieldDefinitions = [
-    { id: "seed-custom-field-agent-name", fieldKey: "agentName", label: "Agent Name", type: "text", sortOrder: 0, options: [] },
+    { id: "seed-custom-field-agent-name", fieldKey: "agentName", label: "Agent Name", type: "text", sortOrder: 0, options: [], isDeletionLocked: true },
     { id: "seed-custom-field-team-leader", fieldKey: "teamLeader", label: "Team Leader", type: "select", sortOrder: 1, options: ["Simon Park", "Naomi Chen", "Alice Tang"] },
     { id: "seed-custom-field-licensed-agent-name", fieldKey: "licensedAgentName", label: "Licensed Agent Name", type: "text", sortOrder: 2, options: [] },
     { id: "seed-custom-field-invoice-number", fieldKey: "invoiceNumber", label: "Invoice Number", type: "text", sortOrder: 3, options: [] },
@@ -646,6 +646,7 @@ async function main() {
         type: fieldDefinition.type,
         isRequired: false,
         isVisible: true,
+        isDeletionLocked: Boolean(fieldDefinition.isDeletionLocked),
         sortOrder: fieldDefinition.sortOrder,
         options: fieldDefinition.options
       },
@@ -658,6 +659,7 @@ async function main() {
         type: fieldDefinition.type,
         isRequired: false,
         isVisible: true,
+        isDeletionLocked: Boolean(fieldDefinition.isDeletionLocked),
         sortOrder: fieldDefinition.sortOrder,
         options: fieldDefinition.options
       }

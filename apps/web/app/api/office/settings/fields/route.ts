@@ -38,6 +38,7 @@ export async function PATCH(request: NextRequest) {
           type?: string;
           isRequired?: boolean;
           isVisible?: boolean;
+          isDeletionLocked?: boolean;
           sortOrder?: number;
           options?: string[];
         }>;
@@ -76,6 +77,8 @@ export async function PATCH(request: NextRequest) {
           type: entry.type ?? "",
           isRequired: Boolean(entry.isRequired),
           isVisible: typeof entry.isVisible === "boolean" ? entry.isVisible : true,
+          isDeletionLocked:
+            typeof entry.isDeletionLocked === "boolean" ? entry.isDeletionLocked : undefined,
           sortOrder: typeof entry.sortOrder === "number" ? entry.sortOrder : undefined,
           options: Array.isArray(entry.options) ? entry.options.map((option) => String(option ?? "")) : []
         })) ?? []

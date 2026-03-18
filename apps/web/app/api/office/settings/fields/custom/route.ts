@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
         type?: string;
         isRequired?: boolean;
         isVisible?: boolean;
+        isDeletionLocked?: boolean;
         options?: string[];
       }
     | null;
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
       type: body?.type ?? "",
       isRequired: Boolean(body?.isRequired),
       isVisible: typeof body?.isVisible === "boolean" ? body.isVisible : true,
+      isDeletionLocked: Boolean(body?.isDeletionLocked),
       options: Array.isArray(body?.options) ? body.options.map((option) => String(option ?? "")) : []
     });
 
