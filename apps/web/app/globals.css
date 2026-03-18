@@ -1033,10 +1033,19 @@ select {
   align-items: center;
   justify-content: center;
   min-height: 34px;
+  min-width: max-content;
+  padding: 0 10px;
   border-radius: 10px;
   background: rgba(20, 74, 119, 0.08);
   color: var(--accent);
   font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.office-note-item > div {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .office-report-owner-list {

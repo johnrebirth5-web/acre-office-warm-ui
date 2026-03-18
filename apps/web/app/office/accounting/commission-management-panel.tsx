@@ -700,7 +700,7 @@ export function CommissionManagementPanel({
                 ))}
                 {snapshot.splitTemplates.length === 0 ? (
                   <article className="office-note-item">
-                    <span>None</span>
+                    <span>Empty</span>
                     <div>
                       <strong>No split templates yet</strong>
                       <p>Create reusable split ratios here for user onboarding and profile editing.</p>
@@ -727,7 +727,7 @@ export function CommissionManagementPanel({
                 ))}
                 {snapshot.memberDefaults.length === 0 ? (
                   <article className="office-note-item">
-                    <span>None</span>
+                    <span>Empty</span>
                     <div>
                       <strong>No member defaults in scope</strong>
                       <p>Assign default splits from user creation or the user profile page.</p>
