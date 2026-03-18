@@ -140,6 +140,11 @@ export function TransactionCommissionCard({
           <span>Source: {snapshot.defaultSplitSourceLabel || "No default split configured"}</span>
         </div>
         {snapshot.visibilityNote ? <p className="office-form-helper">{snapshot.visibilityNote}</p> : null}
+        {!canCalculateCommissions ? (
+          <p className="office-form-helper">
+            Your current role can view commission data here, but only commission managers can run Calculate for this transaction.
+          </p>
+        ) : null}
 
         <form className="office-inline-form office-inline-form-wrap" onSubmit={handleCalculate}>
           <FormField className="office-inline-form-field-wide" label="Calculation note">
