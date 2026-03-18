@@ -187,6 +187,30 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         <TransactionStatusForm currentStatus={transaction.status} transactionId={transaction.id} />
       </SectionCard>
 
+      {transaction.canViewFinancials ? (
+        <SectionCard subtitle="Minimal finance layer for commissions, office net, and notes." title="Finance">
+          <TransactionFinanceForm
+            agentNet={transaction.agentNet}
+            financeNotes={transaction.financeNotes}
+            grossCommission={transaction.grossCommission}
+            officeNet={transaction.officeNet}
+            readOnly={!canManageTransactionFinanceForRole}
+            referralFee={transaction.referralFee}
+            transactionId={transaction.id}
+          />
+        </SectionCard>
+      ) : null}
+
+      {canViewCommissionsForRole && commissionSnapshot ? (
+        <TransactionCommissionCard
+          canApproveCommissions={canApproveCommissionsForRole}
+          canCalculateCommissions={canCalculateCommissionsForRole}
+          canManageCommissions={canManageCommissionsForRole}
+          snapshot={commissionSnapshot}
+          transactionId={transaction.id}
+        />
+      ) : null}
+
       <TransactionContactsCard
         availableContacts={transaction.availableContacts}
         contacts={transaction.contacts}
@@ -250,30 +274,6 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         incomingUpdates={transaction.incomingUpdates}
         transactionId={transaction.id}
       />
-
-      {transaction.canViewFinancials ? (
-        <SectionCard subtitle="Minimal finance layer for commissions, office net, and notes." title="Finance">
-          <TransactionFinanceForm
-            agentNet={transaction.agentNet}
-            financeNotes={transaction.financeNotes}
-            grossCommission={transaction.grossCommission}
-            officeNet={transaction.officeNet}
-            readOnly={!canManageTransactionFinanceForRole}
-            referralFee={transaction.referralFee}
-            transactionId={transaction.id}
-          />
-        </SectionCard>
-      ) : null}
-
-      {canViewCommissionsForRole && commissionSnapshot ? (
-        <TransactionCommissionCard
-          canApproveCommissions={canApproveCommissionsForRole}
-          canCalculateCommissions={canCalculateCommissionsForRole}
-          canManageCommissions={canManageCommissionsForRole}
-          snapshot={commissionSnapshot}
-          transactionId={transaction.id}
-        />
-      ) : null}
 
       <SectionCard subtitle="Review and update transaction values using the current centralized intake schema." title="Intake fields">
         <TransactionIntakeWorkspace
