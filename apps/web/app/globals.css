@@ -2250,6 +2250,10 @@ select {
   gap: 5px;
 }
 
+.bm-transaction-modal-field-owner {
+  grid-column: 1 / -1;
+}
+
 .bm-transaction-field-head {
   display: flex;
   align-items: flex-start;
@@ -2307,7 +2311,8 @@ select {
 .bm-transaction-owner-field {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: 6px;
+  max-width: 34rem;
 }
 
 .bm-transaction-owner-field input[readonly] {
@@ -2366,6 +2371,10 @@ select {
 
 .bm-transaction-owner-empty {
   padding: 10px 12px;
+}
+
+.bm-transaction-owner-helper {
+  max-width: 34rem;
 }
 
 .bm-transaction-modal-additional {
@@ -6337,6 +6346,13 @@ a {
   font-size: 0.76rem;
 }
 
+.office-form-helper {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: var(--office-text-helper-size);
+  line-height: 1.45;
+}
+
 .office-filter-bar,
 .office-report-filters,
 .office-form-actions,
@@ -8847,6 +8863,19 @@ a {
 .office-fields-row-action.is-danger,
 .office-fields-modal-close {
   color: var(--office-danger);
+}
+
+.office-fields-row-action:disabled,
+.office-fields-modal-close:disabled {
+  cursor: not-allowed;
+  border-color: rgba(194, 205, 220, 0.7);
+  background: rgba(244, 247, 251, 0.92);
+  color: var(--office-text-soft);
+  box-shadow: none;
+}
+
+.office-fields-row-action.is-danger:disabled {
+  color: rgba(159, 93, 93, 0.7);
 }
 
 .office-fields-hidden,

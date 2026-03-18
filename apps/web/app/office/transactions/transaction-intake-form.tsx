@@ -102,8 +102,8 @@ export function TransactionIntakeWorkspace({
   );
   const canSearchOwners = mode === "create" && ownerAssignment?.canSelectDifferentOwner;
   const ownerHelperText = canSearchOwners
-    ? "Admins can search agents or team leads here and assign the transaction owner before saving."
-    : "Sales users can only create transactions for themselves.";
+    ? "Search and select the transaction owner before saving."
+    : "This transaction will be assigned to your account.";
   const pristineFieldValues = useMemo(() => {
     const nextValues = buildInitialFieldValues(localSchema, initialValues);
 
@@ -159,6 +159,11 @@ export function TransactionIntakeWorkspace({
         className: ""
       }))
   ].sort((left, right) => left.field.sortOrder - right.field.sortOrder);
+  const ownerFieldEntry =
+    ownerAssignment
+      ? visibleBodyFields.find((entry) => entry.kind === "custom" && entry.field.fieldKey === "agentName") ?? null
+      : null;
+  const remainingBodyFields = ownerFieldEntry ? visibleBodyFields.filter((entry) => entry !== ownerFieldEntry) : visibleBodyFields;
   const selectedOwnerOption = useMemo(
     () => ownerAssignment?.options.find((option) => option.id === selectedOwnerMembershipId) ?? null,
     [ownerAssignment?.options, selectedOwnerMembershipId]
@@ -221,6 +226,125 @@ export function TransactionIntakeWorkspace({
     if (typeof window !== "undefined" && window.confirm("Discard unsaved transaction changes?")) {
       onClose();
     }
+  }
+
+  function renderBodyField(entry: BodyFieldRecord) {
+    const key = `${entry.kind}:${entry.field.fieldKey}`;
+
+    if (entry.kind === "built-in") {
+      const field = entry.field;
+      const className = `bm-transaction-modal-field ${entry.className}`.trim();
+
+      return (
+        <label className={className} key={key}>
+          <div className="bm-transaction-field-head">
+            <span>{getFieldValueLabel(field)}</span>
+          </div>
+          {field.control === "textarea" ? (
+            <textarea
+              disabled={!canEditValues}
+              name={field.inputName}
+              onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+              rows={4}
+              value={fieldValues[field.inputName] ?? ""}
+            />
+          ) : (
+            <input
+              disabled={!canEditValues}
+              name={field.inputName}
+              onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+              type={field.control === "date" ? "date" : "text"}
+              value={fieldValues[field.inputName] ?? ""}
+            />
+          )}
+        </label>
+      );
+    }
+
+    const field = entry.field;
+    const isAgentOwnerField = field.fieldKey === "agentName" && Boolean(ownerAssignment);
+    const className = `bm-transaction-modal-field ${entry.className} ${isAgentOwnerField ? "bm-transaction-modal-field-owner" : ""}`.trim();
+
+    return (
+      <label className={className} key={key}>
+        <div className="bm-transaction-field-head">
+          <span>{getFieldValueLabel(field)}</span>
+        </div>
+        {isAgentOwnerField ? (
+          <div className="bm-transaction-owner-field">
+            <input
+              autoComplete="off"
+              aria-expanded={canSearchOwners ? ownerSuggestionsOpen : undefined}
+              aria-haspopup={canSearchOwners ? "listbox" : undefined}
+              disabled={!canEditValues || !canSearchOwners}
+              name={field.inputName}
+              onBlur={() => {
+                if (canSearchOwners) {
+                  window.setTimeout(() => setOwnerSuggestionsOpen(false), 120);
+                }
+              }}
+              onChange={(event) => handleOwnerSearchChange(event.target.value)}
+              onFocus={() => {
+                if (canSearchOwners) {
+                  setOwnerSuggestionsOpen(true);
+                }
+              }}
+              placeholder={canSearchOwners ? "Search an agent or team lead..." : ownerAssignment?.currentOwnerLabel || "Assigned owner"}
+              readOnly={!canSearchOwners}
+              type="text"
+              value={canSearchOwners ? ownerSearchValue : ownerAssignment?.currentOwnerLabel ?? ""}
+            />
+            {canSearchOwners && ownerSuggestionsOpen ? (
+              <div className="bm-transaction-owner-suggestions" role="listbox">
+                {filteredOwnerOptions.length ? (
+                  filteredOwnerOptions.map((option) => (
+                    <button
+                      className={`bm-transaction-owner-suggestion${selectedOwnerMembershipId === option.id ? " is-selected" : ""}`}
+                      key={option.id}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        handleOwnerSelect(option);
+                      }}
+                      type="button"
+                    >
+                      <strong>{option.label}</strong>
+                      <span>{option.roleLabel}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="bm-transaction-owner-empty">No matching sales members.</div>
+                )}
+              </div>
+            ) : null}
+            <small className="office-form-helper bm-transaction-owner-helper">{ownerHelperText}</small>
+          </div>
+        ) : field.type === "select" ? (
+          <select
+            defaultValue=""
+            disabled={!canEditValues}
+            name={field.inputName}
+            onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+            value={fieldValues[field.inputName] ?? ""}
+          >
+            <option value="">Select...</option>
+            {field.options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            disabled={!canEditValues}
+            maxLength={field.type === "text" ? 50 : undefined}
+            name={field.inputName}
+            onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+            type={field.type === "date" ? "date" : "text"}
+            value={fieldValues[field.inputName] ?? ""}
+          />
+        )}
+      </label>
+    );
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -344,132 +468,15 @@ export function TransactionIntakeWorkspace({
           </div>
         ) : null}
 
-        {visibleBodyFields.length ? (
+        {ownerFieldEntry ? (
+          <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary bm-transaction-modal-grid-owner">
+            {renderBodyField(ownerFieldEntry)}
+          </div>
+        ) : null}
+
+        {remainingBodyFields.length ? (
           <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
-            {visibleBodyFields.map((entry) => {
-              const key = `${entry.kind}:${entry.field.fieldKey}`;
-              const className = `bm-transaction-modal-field ${entry.className}`.trim();
-
-              if (entry.kind === "built-in") {
-                const field = entry.field;
-
-                return (
-                  <label className={className} key={key}>
-                    <div className="bm-transaction-field-head">
-                      <span>{getFieldValueLabel(field)}</span>
-                    </div>
-                    {field.control === "textarea" ? (
-                      <textarea
-                        disabled={!canEditValues}
-                        name={field.inputName}
-                        onChange={(event) => setFieldValue(field.inputName, event.target.value)}
-                        rows={4}
-                        value={fieldValues[field.inputName] ?? ""}
-                      />
-                    ) : (
-                      <input
-                        disabled={!canEditValues}
-                        name={field.inputName}
-                        onChange={(event) => setFieldValue(field.inputName, event.target.value)}
-                        type={field.control === "date" ? "date" : "text"}
-                        value={fieldValues[field.inputName] ?? ""}
-                      />
-                    )}
-                  </label>
-                );
-              }
-
-              const field = entry.field;
-              const isAgentOwnerField = field.fieldKey === "agentName" && Boolean(ownerAssignment);
-              return (
-                <label className={className} key={key}>
-                  <div className="bm-transaction-field-head">
-                    <span>{getFieldValueLabel(field)}</span>
-                  </div>
-                  {isAgentOwnerField ? (
-                    <div className="bm-transaction-owner-field">
-                      <input
-                        autoComplete="off"
-                        aria-expanded={canSearchOwners ? ownerSuggestionsOpen : undefined}
-                        aria-haspopup={canSearchOwners ? "listbox" : undefined}
-                        disabled={!canEditValues || !canSearchOwners}
-                        name={field.inputName}
-                        onBlur={() => {
-                          if (canSearchOwners) {
-                            window.setTimeout(() => setOwnerSuggestionsOpen(false), 120);
-                          }
-                        }}
-                        onChange={(event) => handleOwnerSearchChange(event.target.value)}
-                        onFocus={() => {
-                          if (canSearchOwners) {
-                            setOwnerSuggestionsOpen(true);
-                          }
-                        }}
-                        placeholder={
-                          canSearchOwners
-                            ? "Search an agent or team lead..."
-                            : ownerAssignment?.currentOwnerLabel || "Assigned owner"
-                        }
-                        readOnly={!canSearchOwners}
-                        type="text"
-                        value={
-                          canSearchOwners
-                            ? ownerSearchValue
-                            : ownerAssignment?.currentOwnerLabel ?? ""
-                        }
-                      />
-                      {canSearchOwners && ownerSuggestionsOpen ? (
-                        <div className="bm-transaction-owner-suggestions" role="listbox">
-                          {filteredOwnerOptions.length ? (
-                            filteredOwnerOptions.map((option) => (
-                              <button
-                                className={`bm-transaction-owner-suggestion${selectedOwnerMembershipId === option.id ? " is-selected" : ""}`}
-                                key={option.id}
-                                onMouseDown={(event) => {
-                                  event.preventDefault();
-                                  handleOwnerSelect(option);
-                                }}
-                                type="button"
-                              >
-                                <strong>{option.label}</strong>
-                                <span>{option.roleLabel}</span>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="bm-transaction-owner-empty">No matching sales members.</div>
-                          )}
-                        </div>
-                      ) : null}
-                      <small className="office-form-helper">{ownerHelperText}</small>
-                    </div>
-                  ) : field.type === "select" ? (
-                    <select
-                      defaultValue=""
-                      disabled={!canEditValues}
-                      name={field.inputName}
-                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
-                      value={fieldValues[field.inputName] ?? ""}
-                    >
-                      <option value="">Select...</option>
-                      {field.options.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      disabled={!canEditValues}
-                      maxLength={field.type === "text" ? 50 : undefined}
-                      name={field.inputName}
-                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
-                      type={field.type === "date" ? "date" : "text"}
-                      value={fieldValues[field.inputName] ?? ""}
-                    />
-                  )}
-                </label>
-              );
-            })}
+            {remainingBodyFields.map((entry) => renderBodyField(entry))}
           </div>
         ) : null}
 
