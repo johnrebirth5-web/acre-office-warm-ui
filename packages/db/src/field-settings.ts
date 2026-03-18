@@ -172,7 +172,6 @@ const legacyCustomFieldSettingKeyMap: Partial<Record<string, TransactionFieldKey
 
 const defaultTransactionCustomFieldCatalog: OfficeFieldDefaultCustomCatalogEntry[] = [
   { fieldKey: "agentName", label: "Agent Name", type: "text", sortOrder: 100, options: [] },
-  { fieldKey: "teamLeader", label: "Team Leader", type: "select", sortOrder: 101, options: ["Simon Park", "Naomi Chen", "Alice Tang"] },
   { fieldKey: "licensedAgentName", label: "Licensed Agent Name", type: "text", sortOrder: 102, options: [] },
   { fieldKey: "invoiceNumber", label: "Invoice Number", type: "text", sortOrder: 103, options: [] },
   { fieldKey: "buyerTenant", label: "Buyer/Tenant", type: "text", sortOrder: 104, options: [] },
@@ -211,6 +210,8 @@ const defaultTransactionCustomFieldCatalog: OfficeFieldDefaultCustomCatalogEntry
     options: ["Yes", "No"]
   }
 ];
+
+const retiredTransactionCustomFieldKeys = new Set(["teamLeader"]);
 
 const contactBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
   {
@@ -556,7 +557,9 @@ function getBuiltInCatalog(module: OfficeFieldModule) {
 }
 
 function getDefaultCustomCatalog(module: OfficeFieldModule) {
-  return module === "transaction" ? defaultTransactionCustomFieldCatalog : [];
+  return module === "transaction"
+    ? defaultTransactionCustomFieldCatalog.filter((entry) => !retiredTransactionCustomFieldKeys.has(entry.fieldKey))
+    : [];
 }
 
 function getFieldSettingsAction(module: OfficeFieldModule) {
@@ -1056,8 +1059,12 @@ export async function getOfficeTransactionIntakeSchema(input: {
     )
   );
 
-  const persistedCustomFieldMap = new Map(transactionCustomFieldDefinitions.map((entry) => [entry.fieldKey, entry]));
-  const customFields = defaultTransactionCustomFieldCatalog
+  const defaultTransactionCustomFields = getDefaultCustomCatalog("transaction");
+  const activeTransactionCustomFieldDefinitions = transactionCustomFieldDefinitions.filter(
+    (entry) => !retiredTransactionCustomFieldKeys.has(entry.fieldKey)
+  );
+  const persistedCustomFieldMap = new Map(activeTransactionCustomFieldDefinitions.map((entry) => [entry.fieldKey, entry]));
+  const customFields = defaultTransactionCustomFields
     .map((entry) => {
       const persisted = persistedCustomFieldMap.get(entry.fieldKey) ?? null;
 
@@ -1084,9 +1091,9 @@ export async function getOfficeTransactionIntakeSchema(input: {
     })
     .filter((entry): entry is OfficeTransactionCustomFieldDefinitionRecord => Boolean(entry))
     .concat(
-      transactionCustomFieldDefinitions
+      activeTransactionCustomFieldDefinitions
         .filter(
-          (entry) => !entry.isArchived && !defaultTransactionCustomFieldCatalog.some((defaultEntry) => defaultEntry.fieldKey === entry.fieldKey)
+          (entry) => !entry.isArchived && !defaultTransactionCustomFields.some((defaultEntry) => defaultEntry.fieldKey === entry.fieldKey)
         )
         .map((entry) =>
           buildOfficeCustomFieldRecord({

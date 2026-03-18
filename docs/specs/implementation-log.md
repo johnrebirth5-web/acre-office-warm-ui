@@ -103,6 +103,7 @@
   - sales roles can only create transactions for themselves and see a locked self owner label
   - admin/company-scope roles can search active agents or team leads by name and assign ownership before create
   - backend now enforces the same rule and persists `additionalFields.agentName` from the actual selected owner instead of arbitrary free text
+- Transaction intake now retires the legacy `Team Leader` custom field from both `New Transaction` and `Settings > Fields`; team hierarchy should come only from membership/team assignment, not from a second dropdown on the transaction form
 
 ## Next recommended work
 
