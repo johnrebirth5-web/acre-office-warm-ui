@@ -70,6 +70,10 @@ export function TransactionIntakeWorkspace({
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => buildInitialFieldValues(schema, initialValues));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const pristineFieldValues = buildInitialFieldValues(localSchema, initialValues);
+  const hasUnsavedChanges = Object.keys(pristineFieldValues).some(
+    (fieldName) => (fieldValues[fieldName] ?? "") !== (pristineFieldValues[fieldName] ?? "")
+  );
 
   useEffect(() => {
     setLocalSchema(schema);
@@ -101,6 +105,21 @@ export function TransactionIntakeWorkspace({
       ...current,
       [fieldName]: value
     }));
+  }
+
+  function requestClose() {
+    if (!onClose || isSubmitting) {
+      return;
+    }
+
+    if (!hasUnsavedChanges) {
+      onClose();
+      return;
+    }
+
+    if (typeof window !== "undefined" && window.confirm("Discard unsaved transaction changes?")) {
+      onClose();
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -153,7 +172,7 @@ export function TransactionIntakeWorkspace({
             <h3>{title ?? "NEW TRANSACTION"}</h3>
           </div>
           {onClose ? (
-            <button aria-label="Close transaction intake" onClick={onClose} type="button">
+            <button aria-label="Close transaction intake" onClick={requestClose} type="button">
               ×
             </button>
           ) : null}

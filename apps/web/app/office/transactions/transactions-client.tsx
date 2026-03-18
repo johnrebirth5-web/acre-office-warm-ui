@@ -513,7 +513,7 @@ export function TransactionsClient({
       </OfficeListPageTemplate>
 
       {isModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsModalOpen(false)}>
+        <div className="bm-modal-overlay">
           <section
             className="bm-transaction-modal"
             onClick={(event) => event.stopPropagation()}
