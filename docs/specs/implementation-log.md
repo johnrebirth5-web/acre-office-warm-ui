@@ -96,6 +96,7 @@
   - accounting commission page now leads with split templates / member defaults and keeps legacy plan tools under advanced settings
   - team assignments now block multiple active reporting lines for one membership inside the same organization
   - saving `Finance > Gross commission` on transaction detail now auto-triggers commission recalculation when the current role can calculate commissions
+- Agent profile team assignment now shows leader names inside team options and allows choosing the direct manager during the initial `Add to team` action, so admins can place agents directly under the right branch lead without a second pass in `Settings > Teams`
 
 ## Next recommended work
 

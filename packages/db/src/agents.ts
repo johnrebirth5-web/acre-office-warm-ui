@@ -192,6 +192,21 @@ export type OfficeAgentProfileTeam = {
   reportsToLabel: string;
 };
 
+export type OfficeAgentProfileAvailableTeamManager = {
+  teamMembershipId: string;
+  membershipId: string;
+  label: string;
+  role: string;
+  roleValue: TeamMembershipRole;
+};
+
+export type OfficeAgentProfileAvailableTeam = {
+  id: string;
+  label: string;
+  managerOptions: OfficeAgentProfileAvailableTeamManager[];
+  defaultReportsToTeamMembershipId: string | null;
+};
+
 export type OfficeAgentOnboardingItemRecord = {
   id: string;
   title: string;
@@ -283,7 +298,7 @@ export type OfficeAgentProfileSnapshot = {
   };
   commissions: OfficeAgentCommissionSummary;
   teams: OfficeAgentProfileTeam[];
-  availableTeams: Array<{ id: string; label: string }>;
+  availableTeams: OfficeAgentProfileAvailableTeam[];
   onboarding: {
     totalCount: number;
     completedCount: number;
@@ -2090,6 +2105,31 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
   const availableTeamPathLabelMap = new Map(
     availableTeams.map((team) => [team.id, buildTeamPathLabel(availableTeamHierarchy.index, team.id)])
   );
+  const availableTeamManagerOptionsMap = new Map<
+    string,
+    OfficeAgentProfileAvailableTeamManager[]
+  >(
+    availableTeams.map((team) => {
+      const managers = scopedTeamMemberships
+        .filter((teamMembership) => teamMembership.teamId === team.id && isLeaderTeamMembershipRole(teamMembership.role))
+        .sort((left, right) => {
+          if (left.role !== right.role) {
+            return left.role === "team_leader" ? -1 : 1;
+          }
+
+          return getMembershipLabel(left.membership).localeCompare(getMembershipLabel(right.membership));
+        })
+        .map((teamMembership) => ({
+          teamMembershipId: teamMembership.id,
+          membershipId: teamMembership.membershipId,
+          label: getMembershipLabel(teamMembership.membership),
+          role: formatTeamMembershipRoleLabel(teamMembership.role),
+          roleValue: teamMembership.role
+        }));
+
+      return [team.id, managers];
+    })
+  );
 
   const pipelineTransactions = await prisma.transaction.groupBy({
     by: ["status"],
@@ -2254,10 +2294,18 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         availableTeamHierarchy.hierarchyMap.get(teamMembership.id)?.directManagerLabel ??
         (teamMembership.reportsToTeamMembership ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership) : "No direct manager")
     })),
-    availableTeams: availableTeams.map((team) => ({
-      id: team.id,
-      label: availableTeamPathLabelMap.get(team.id) ?? team.name
-    })),
+    availableTeams: availableTeams.map((team) => {
+      const managerOptions = availableTeamManagerOptionsMap.get(team.id) ?? [];
+      const teamPathLabel = availableTeamPathLabelMap.get(team.id) ?? team.name;
+      const managerSummary = managerOptions.map((manager) => manager.label).join(", ");
+
+      return {
+        id: team.id,
+        label: managerSummary ? `${teamPathLabel} · Leaders: ${managerSummary}` : teamPathLabel,
+        managerOptions,
+        defaultReportsToTeamMembershipId: managerOptions.length === 1 ? managerOptions[0]?.teamMembershipId ?? null : null
+      };
+    }),
     onboarding: {
       totalCount: onboardingItems.length,
       completedCount: completedOnboardingCount,
