@@ -28,7 +28,6 @@ export default async function OfficeSettingsPage() {
             <SummaryChip label="Teams" value={snapshot.summary.teamsCount} />
           </PageHeaderSummary>
         }
-        description="Administrative controls for user access, team configuration, transaction workflow requirements, and reusable checklists."
         eyebrow="Office admin"
         title="Settings"
       />

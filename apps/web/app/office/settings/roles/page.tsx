@@ -26,7 +26,6 @@ export default async function OfficeSettingsRolesPage() {
             <SummaryChip label="Assigned members" value={totalMembers} />
           </PageHeaderSummary>
         }
-        description="Manage the organization-level permission template for each fixed Back Office role. Template changes flow into every member on that role unless a user-specific allow or deny override exists."
         eyebrow="Office admin"
         title="Roles"
       />

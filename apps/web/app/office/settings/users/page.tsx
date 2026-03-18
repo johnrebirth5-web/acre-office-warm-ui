@@ -106,11 +106,6 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
             ) : null}
           </PageHeaderSummary>
         }
-        description={
-          snapshot.access
-            ? "Unified member workspace for account access, invitations, password setup, lockouts, and office assignment."
-            : "Unified member workspace for team, onboarding, workload, transaction, goal, and billing visibility."
-        }
         eyebrow="Office admin"
         title="Users"
       />

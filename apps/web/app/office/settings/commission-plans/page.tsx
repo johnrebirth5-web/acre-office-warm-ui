@@ -56,7 +56,6 @@ export default async function OfficeSettingsCommissionPlansPage(props: OfficeSet
             <SummaryChip label="Calculated rows" value={snapshot.overview.calculatedRowsCount} />
           </PageHeaderSummary>
         }
-        description="Primary commission workspace for split templates, member default splits, advanced legacy plan settings, and payout review visibility."
         eyebrow="Office admin"
         title="Commission plans"
       />

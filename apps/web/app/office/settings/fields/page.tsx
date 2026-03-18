@@ -51,7 +51,6 @@ export default async function OfficeSettingsFieldsPage({ searchParams }: OfficeS
             <SummaryChip label="Custom fields" value={currentModule.summary.customFieldCount} />
           </PageHeaderSummary>
         }
-        description="Manage field structure for transaction, contact, and offer workflows from one centralized admin surface."
         eyebrow="Office admin"
         title="Fields"
       />

@@ -30,7 +30,6 @@ export default async function OfficeSettingsTeamsPage() {
             <SummaryChip label="Onboarding in progress" value={snapshot.summary.onboardingInProgressCount} />
           </PageHeaderSummary>
         }
-        description="Administrative team roster management for operational grouping, assignment, and active/inactive team structure."
         eyebrow="Office admin"
         title="Teams"
       />

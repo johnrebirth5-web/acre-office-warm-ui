@@ -29,7 +29,6 @@ export default async function OfficeSettingsChecklistsPage() {
             <SummaryChip label="Active templates" value={snapshot.summary.activeTemplates} />
           </PageHeaderSummary>
         }
-        description="Reusable checklist templates for transaction workflows, due offsets, and document/compliance requirements."
         eyebrow="Office admin"
         title="Checklists"
       />
