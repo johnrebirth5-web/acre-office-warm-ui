@@ -299,6 +299,12 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
             ...transaction.additionalFields
           }}
           mode="edit"
+          ownerAssignment={{
+            currentOwnerMembershipId: transaction.ownerMembershipId ?? "",
+            currentOwnerLabel: transaction.ownerName,
+            canSelectDifferentOwner: false,
+            options: []
+          }}
           schema={transactionIntakeSchema}
           submitEndpoint={`/api/office/transactions/${transaction.id}/intake`}
           submitLabel="Save intake changes"

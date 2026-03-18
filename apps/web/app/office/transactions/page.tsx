@@ -1,4 +1,4 @@
-import { getOfficeTransactionIntakeSchema, listTransactions, type OfficeTransactionStatus } from "@acre/db";
+import { getOfficeTransactionIntakeSchema, getOfficeTransactionOwnerAssignment, listTransactions, type OfficeTransactionStatus } from "@acre/db";
 import { requireOfficeSession } from "../../../lib/auth-session";
 import { TransactionsClient } from "./transactions-client";
 
@@ -53,24 +53,31 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
     defaultTransactionsPageSize,
     maxTransactionsPageSize
   );
-  const result = await listTransactions({
-    organizationId: context.currentOrganization.id,
-    viewerMembershipId: context.currentMembership.id,
-    officeId: context.currentOffice?.id,
-    search: q,
-    status,
-    ownerMembershipId,
-    teamId,
-    type,
-    startDate,
-    endDate,
-    page,
-    pageSize
-  });
-  const transactionIntakeSchema = await getOfficeTransactionIntakeSchema({
-    organizationId: context.currentOrganization.id,
-    officeId: context.currentOffice?.id ?? null
-  });
+  const [result, transactionIntakeSchema, transactionOwnerAssignment] = await Promise.all([
+    listTransactions({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id,
+      search: q,
+      status,
+      ownerMembershipId,
+      teamId,
+      type,
+      startDate,
+      endDate,
+      page,
+      pageSize
+    }),
+    getOfficeTransactionIntakeSchema({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null
+    }),
+    getOfficeTransactionOwnerAssignment({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null
+    })
+  ]);
 
   return (
     <TransactionsClient
@@ -82,6 +89,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
       totalCount={result.totalCount}
       totalPages={result.totalPages}
       transactionIntakeSchema={transactionIntakeSchema}
+      transactionOwnerAssignment={transactionOwnerAssignment}
       transactions={result.transactions}
     />
   );

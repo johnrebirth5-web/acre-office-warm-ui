@@ -1,5 +1,12 @@
 import { canCreateOfficeTransactions, canViewOfficeTransactions } from "@acre/auth";
-import { createTransaction, getOfficeTransactionIntakeSchema, listTransactions, prepareTransactionIntakeSubmission, type OfficeTransactionStatus } from "@acre/db";
+import {
+  createTransaction,
+  getOfficeTransactionIntakeSchema,
+  getOfficeTransactionOwnerAssignment,
+  listTransactions,
+  prepareTransactionIntakeSubmission,
+  type OfficeTransactionStatus
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
 
@@ -92,14 +99,34 @@ export async function POST(request: NextRequest) {
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
     });
+    const ownerAssignment = await getOfficeTransactionOwnerAssignment({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null
+    });
     const submission = prepareTransactionIntakeSubmission({
       schema,
       payload: body
     });
+    const requestedOwnerMembershipId = typeof body.ownerMembershipId === "string" ? body.ownerMembershipId.trim() : "";
+    let ownerMembershipId = context.currentMembership.id;
+
+    if (ownerAssignment.canSelectDifferentOwner) {
+      const selectedOwner = ownerAssignment.options.find((option) => option.id === requestedOwnerMembershipId);
+
+      if (!selectedOwner) {
+        throw new Error("Select an agent owner before creating a transaction.");
+      }
+
+      ownerMembershipId = selectedOwner.id;
+    } else if (requestedOwnerMembershipId && requestedOwnerMembershipId !== context.currentMembership.id) {
+      throw new Error("Sales users can only create transactions for themselves.");
+    }
+
     const transaction = await createTransaction({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id,
-      ownerMembershipId: context.currentMembership.id,
+      ownerMembershipId,
       actorMembershipId: context.currentMembership.id,
       transactionType: submission.transactionType,
       transactionStatus: submission.transactionStatus,

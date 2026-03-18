@@ -278,6 +278,7 @@ export {
 } from "./transaction-tasks";
 export {
   createTransaction,
+  getOfficeTransactionOwnerAssignment,
   getTransactionById,
   listTransactions,
   officeTransactionsPageDefaults,
@@ -627,5 +628,7 @@ export type {
   PreparedTransactionIntakeSubmission,
   UpdateTransactionFinanceInput,
   UpdateTransactionIntakeInput,
+  OfficeTransactionOwnerAssignment,
+  OfficeTransactionOwnerOption,
   UpdateTransactionStatusInput
 } from "./transactions";

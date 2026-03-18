@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { canCreateOfficeTransactions } from "@acre/auth";
-import { getOfficeTransactionIntakeSchema } from "@acre/db";
+import { getOfficeTransactionIntakeSchema, getOfficeTransactionOwnerAssignment } from "@acre/db";
 import { PageHeader, PageShell, SectionCard } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
@@ -13,10 +13,17 @@ export default async function OfficeTransactionCreatePage() {
     redirect("/office/transactions");
   }
 
-  const schema = await getOfficeTransactionIntakeSchema({
-    organizationId: context.currentOrganization.id,
-    officeId: context.currentOffice?.id ?? null
-  });
+  const [schema, ownerAssignment] = await Promise.all([
+    getOfficeTransactionIntakeSchema({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null
+    }),
+    getOfficeTransactionOwnerAssignment({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null
+    })
+  ]);
 
   return (
     <PageShell className="bm-new-transaction-page">
@@ -36,6 +43,7 @@ export default async function OfficeTransactionCreatePage() {
           canEditValues={true}
           chrome="page"
           mode="create"
+          ownerAssignment={ownerAssignment}
           schema={schema}
           submitEndpoint="/api/office/transactions"
           submitLabel="Create transaction"

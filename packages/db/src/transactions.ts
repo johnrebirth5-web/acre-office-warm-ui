@@ -52,6 +52,20 @@ export type OfficeTransactionFilterOptions = {
   teamOptions: OfficeTransactionSelectOption[];
 };
 
+export type OfficeTransactionOwnerOption = {
+  id: string;
+  label: string;
+  roleLabel: string;
+  roleValue: UserRole;
+};
+
+export type OfficeTransactionOwnerAssignment = {
+  currentOwnerMembershipId: string;
+  currentOwnerLabel: string;
+  canSelectDifferentOwner: boolean;
+  options: OfficeTransactionOwnerOption[];
+};
+
 export type OfficeTransactionListResult = {
   transactions: OfficeTransactionRecord[];
   summary: OfficeTransactionSummary;
@@ -297,6 +311,15 @@ const representingLabelMap: Record<TransactionRepresenting, string> = {
 const defaultTransactionsPage = 1;
 const defaultTransactionsPageSize = 20;
 const maxTransactionsPageSize = 100;
+const transactionOwnerRoleValues = ["agent", "team_lead"] satisfies UserRole[];
+
+function formatTransactionOwnerRoleLabel(role: UserRole) {
+  if (role === "team_lead") {
+    return "Team Lead";
+  }
+
+  return "Agent";
+}
 
 function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
@@ -1092,6 +1115,63 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
   };
 }
 
+export async function getOfficeTransactionOwnerAssignment(input: {
+  organizationId: string;
+  viewerMembershipId: string;
+  officeId?: string | null;
+}): Promise<OfficeTransactionOwnerAssignment> {
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null
+  });
+
+  const [viewerMembership, ownerMemberships] = await Promise.all([
+    prisma.membership.findFirst({
+      where: {
+        id: input.viewerMembershipId,
+        organizationId: input.organizationId,
+        ...(input.officeId ? { officeId: input.officeId } : {})
+      },
+      include: {
+        user: true
+      }
+    }),
+    prisma.membership.findMany({
+      where: {
+        organizationId: input.organizationId,
+        status: "active",
+        ...(scope.visibleMembershipIds ? { id: { in: scope.visibleMembershipIds } } : {}),
+        ...(input.officeId ? { officeId: input.officeId } : {}),
+        role: {
+          in: transactionOwnerRoleValues
+        }
+      },
+      include: {
+        user: true
+      },
+      orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
+    })
+  ]);
+
+  if (!viewerMembership) {
+    throw new Error("Viewer membership was not found.");
+  }
+
+  return {
+    currentOwnerMembershipId: viewerMembership.id,
+    currentOwnerLabel: `${viewerMembership.user.firstName} ${viewerMembership.user.lastName}`.trim() || viewerMembership.user.email,
+    canSelectDifferentOwner:
+      scope.viewerPermissions.includes("transactions:create") && scope.viewerPermissions.includes("transactions:view:company"),
+    options: ownerMemberships.map((membership) => ({
+      id: membership.id,
+      label: `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email,
+      roleLabel: formatTransactionOwnerRoleLabel(membership.role),
+      roleValue: membership.role
+    }))
+  };
+}
+
 export const officeTransactionsPageDefaults = {
   page: defaultTransactionsPage,
   pageSize: defaultTransactionsPageSize
@@ -1178,18 +1258,37 @@ export async function getTransactionById(input: GetTransactionByIdInput): Promis
 }
 
 export async function createTransaction(input: CreateTransactionInput): Promise<OfficeTransactionDetail> {
-  const additionalFields = { ...(input.additionalFields ?? {}) };
-
-  const companyReferralValue = (additionalFields.companyReferral ?? "").toString().toLowerCase();
-  const companyReferral = companyReferralValue === "yes";
-  const companyReferralEmployeeName = (additionalFields.companyReferralEmployeesName ?? additionalFields.companyReferralEmployeeName ?? "").trim();
-  const grossCommission = parseCreateFinanceDecimal(input.grossCommission, additionalFields.commissionAmount);
-  const referralFee = parseCreateFinanceDecimal(input.referralFee, additionalFields.referralFee);
-  const officeNet = parseCreateFinanceDecimal(input.officeNet, additionalFields.officeNet);
-  const agentNet = parseCreateFinanceDecimal(input.agentNet, additionalFields.agentNet);
-  const financeNotes = parseOptionalText(input.financeNotes) ?? parseOptionalText(additionalFields.note);
-
   const transaction = await prisma.$transaction(async (tx) => {
+    const ownerMembership = await tx.membership.findFirst({
+      where: {
+        id: input.ownerMembershipId,
+        organizationId: input.organizationId,
+        status: "active",
+        ...(input.officeId ? { officeId: input.officeId } : {})
+      },
+      include: {
+        user: true
+      }
+    });
+
+    if (!ownerMembership) {
+      throw new Error("Transaction owner was not found.");
+    }
+
+    const ownerLabel = `${ownerMembership.user.firstName} ${ownerMembership.user.lastName}`.trim() || ownerMembership.user.email;
+    const additionalFields: Record<string, string> = {
+      ...(input.additionalFields ?? {}),
+      agentName: ownerLabel
+    };
+    const companyReferralValue = (additionalFields.companyReferral ?? "").toString().toLowerCase();
+    const companyReferral = companyReferralValue === "yes";
+    const companyReferralEmployeeName = (additionalFields.companyReferralEmployeesName ?? additionalFields.companyReferralEmployeeName ?? "").trim();
+    const grossCommission = parseCreateFinanceDecimal(input.grossCommission, additionalFields.commissionAmount);
+    const referralFee = parseCreateFinanceDecimal(input.referralFee, additionalFields.referralFee);
+    const officeNet = parseCreateFinanceDecimal(input.officeNet, additionalFields.officeNet);
+    const agentNet = parseCreateFinanceDecimal(input.agentNet, additionalFields.agentNet);
+    const financeNotes = parseOptionalText(input.financeNotes) ?? parseOptionalText(additionalFields.note);
+
     const created = await tx.transaction.create({
       data: {
         organizationId: input.organizationId,
@@ -1495,7 +1594,12 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
       officeNet: true,
       agentNet: true,
       financeNotes: true,
-      additionalFields: true
+      additionalFields: true,
+      ownerMembership: {
+        include: {
+          user: true
+        }
+      }
     }
   });
 
@@ -1513,6 +1617,14 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
     ...existingAdditionalFields,
     ...(input.additionalFields ?? {})
   };
+  const ownerLabel =
+    existing.ownerMembership
+      ? `${existing.ownerMembership.user.firstName} ${existing.ownerMembership.user.lastName}`.trim() || existing.ownerMembership.user.email
+      : existingAdditionalFields.agentName ?? "";
+
+  if (ownerLabel) {
+    mergedAdditionalFields.agentName = ownerLabel;
+  }
   const companyReferralValue = (mergedAdditionalFields.companyReferral ?? "").toString().trim().toLowerCase();
   const nextCompanyReferral = companyReferralValue ? companyReferralValue === "yes" : existing.companyReferral;
   const nextCompanyReferralEmployeeName = (

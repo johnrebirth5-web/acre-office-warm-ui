@@ -21,6 +21,7 @@ import {
 import type {
   OfficeTransactionFilterOptions,
   OfficeTransactionIntakeSchema,
+  OfficeTransactionOwnerAssignment,
   OfficeTransactionRecord,
   OfficeTransactionStatus,
   OfficeTransactionSummary,
@@ -40,6 +41,7 @@ type TransactionsClientProps = {
   pageSize: number;
   filterOptions: OfficeTransactionFilterOptions;
   transactionIntakeSchema: OfficeTransactionIntakeSchema;
+  transactionOwnerAssignment: OfficeTransactionOwnerAssignment;
   filters: {
     q: string;
     status: OfficeTransactionStatus | "All";
@@ -165,6 +167,7 @@ export function TransactionsClient({
   pageSize,
   filterOptions,
   transactionIntakeSchema,
+  transactionOwnerAssignment,
   filters,
 }: TransactionsClientProps) {
   const router = useRouter();
@@ -542,6 +545,7 @@ export function TransactionsClient({
                   }),
                 );
               }}
+              ownerAssignment={transactionOwnerAssignment}
               schema={transactionIntakeSchema}
               stepLabel="step 1 of 4"
               submitEndpoint="/api/office/transactions"

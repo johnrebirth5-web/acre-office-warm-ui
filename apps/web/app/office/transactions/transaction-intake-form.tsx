@@ -1,8 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useState, type FormEvent } from "react";
-import type { OfficeTransactionCustomFieldDefinitionRecord, OfficeTransactionIntakeSchema } from "@acre/db";
+import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
+import type {
+  OfficeTransactionCustomFieldDefinitionRecord,
+  OfficeTransactionIntakeSchema,
+  OfficeTransactionOwnerAssignment
+} from "@acre/db";
 
 type TransactionIntakeWorkspaceProps = {
   mode: "create" | "edit";
@@ -15,6 +19,7 @@ type TransactionIntakeWorkspaceProps = {
   title?: string;
   stepLabel?: string;
   initialValues?: Record<string, string>;
+  ownerAssignment?: OfficeTransactionOwnerAssignment;
   afterSubmit?: "refresh" | "go-detail";
   onClose?: () => void;
   onSubmitted?: (transactionId: string) => void;
@@ -50,6 +55,23 @@ function getFieldValueLabel(field: Pick<OfficeTransactionIntakeSchema["builtInFi
   return field.isRequired ? `${field.label} *` : field.label;
 }
 
+function buildOwnerSearchScore(label: string, query: string) {
+  const normalizedLabel = label.toLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return 0;
+  }
+
+  const directIndex = normalizedLabel.indexOf(normalizedQuery);
+  if (directIndex >= 0) {
+    return directIndex;
+  }
+
+  const compactIndex = normalizedLabel.replace(/\s+/g, "").indexOf(normalizedQuery.replace(/\s+/g, ""));
+  return compactIndex >= 0 ? compactIndex + 100 : -1;
+}
+
 export function TransactionIntakeWorkspace({
   mode,
   chrome,
@@ -61,6 +83,7 @@ export function TransactionIntakeWorkspace({
   title,
   stepLabel,
   initialValues,
+  ownerAssignment,
   afterSubmit = "refresh",
   onClose,
   onSubmitted
@@ -68,17 +91,54 @@ export function TransactionIntakeWorkspace({
   const router = useRouter();
   const [localSchema, setLocalSchema] = useState(schema);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => buildInitialFieldValues(schema, initialValues));
+  const [ownerSearchValue, setOwnerSearchValue] = useState("");
+  const [selectedOwnerMembershipId, setSelectedOwnerMembershipId] = useState("");
+  const [ownerSuggestionsOpen, setOwnerSuggestionsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const pristineFieldValues = buildInitialFieldValues(localSchema, initialValues);
+  const ownerFieldInputName = useMemo(
+    () => localSchema.customFields.find((field) => field.fieldKey === "agentName")?.inputName ?? "",
+    [localSchema.customFields]
+  );
+  const canSearchOwners = mode === "create" && ownerAssignment?.canSelectDifferentOwner;
+  const ownerHelperText = canSearchOwners
+    ? "Admins can search active agents or team leads here and assign the transaction owner before saving."
+    : "Sales users can only create transactions for themselves.";
+  const pristineFieldValues = useMemo(() => {
+    const nextValues = buildInitialFieldValues(localSchema, initialValues);
+
+    if (ownerAssignment && ownerFieldInputName) {
+      nextValues[ownerFieldInputName] =
+        mode === "create" && ownerAssignment.canSelectDifferentOwner ? "" : ownerAssignment.currentOwnerLabel;
+    }
+
+    return nextValues;
+  }, [initialValues, localSchema, mode, ownerAssignment, ownerFieldInputName]);
   const hasUnsavedChanges = Object.keys(pristineFieldValues).some(
     (fieldName) => (fieldValues[fieldName] ?? "") !== (pristineFieldValues[fieldName] ?? "")
   );
 
   useEffect(() => {
     setLocalSchema(schema);
-    setFieldValues(buildInitialFieldValues(schema, initialValues));
-  }, [schema, initialValues]);
+    const nextValues = buildInitialFieldValues(schema, initialValues);
+    const nextOwnerFieldInputName = schema.customFields.find((field) => field.fieldKey === "agentName")?.inputName ?? "";
+
+    if (ownerAssignment && nextOwnerFieldInputName) {
+      nextValues[nextOwnerFieldInputName] =
+        mode === "create" && ownerAssignment.canSelectDifferentOwner ? "" : ownerAssignment.currentOwnerLabel;
+    }
+
+    setFieldValues(nextValues);
+    setOwnerSearchValue(mode === "create" && ownerAssignment?.canSelectDifferentOwner ? "" : ownerAssignment?.currentOwnerLabel ?? "");
+    setSelectedOwnerMembershipId(
+      mode === "create"
+        ? ownerAssignment?.canSelectDifferentOwner
+          ? ""
+          : ownerAssignment?.currentOwnerMembershipId ?? ""
+        : ownerAssignment?.currentOwnerMembershipId ?? ""
+    );
+    setOwnerSuggestionsOpen(false);
+  }, [schema, initialValues, mode, ownerAssignment]);
 
   const visibleTopFields = [...localSchema.builtInFields]
     .filter((field) => field.section === "top" && field.isVisible)
@@ -99,12 +159,53 @@ export function TransactionIntakeWorkspace({
         className: ""
       }))
   ].sort((left, right) => left.field.sortOrder - right.field.sortOrder);
+  const selectedOwnerOption = useMemo(
+    () => ownerAssignment?.options.find((option) => option.id === selectedOwnerMembershipId) ?? null,
+    [ownerAssignment?.options, selectedOwnerMembershipId]
+  );
+  const filteredOwnerOptions = useMemo(() => {
+    if (!ownerAssignment?.canSelectDifferentOwner) {
+      return [];
+    }
+
+    const normalizedQuery = ownerSearchValue.trim().toLowerCase();
+
+    return ownerAssignment.options
+      .map((option) => ({
+        option,
+        score: buildOwnerSearchScore(option.label, normalizedQuery)
+      }))
+      .filter((entry) => !normalizedQuery || entry.score >= 0)
+      .sort((left, right) => left.score - right.score || left.option.label.localeCompare(right.option.label))
+      .slice(0, 8)
+      .map((entry) => entry.option);
+  }, [ownerAssignment, ownerSearchValue]);
 
   function setFieldValue(fieldName: string, value: string) {
     setFieldValues((current) => ({
       ...current,
       [fieldName]: value
     }));
+  }
+
+  function handleOwnerSearchChange(value: string) {
+    setOwnerSearchValue(value);
+    setOwnerSuggestionsOpen(true);
+    setSelectedOwnerMembershipId("");
+
+    if (ownerFieldInputName) {
+      setFieldValue(ownerFieldInputName, value);
+    }
+  }
+
+  function handleOwnerSelect(option: OfficeTransactionOwnerAssignment["options"][number]) {
+    setOwnerSearchValue(option.label);
+    setSelectedOwnerMembershipId(option.id);
+    setOwnerSuggestionsOpen(false);
+
+    if (ownerFieldInputName) {
+      setFieldValue(ownerFieldInputName, option.label);
+    }
   }
 
   function requestClose() {
@@ -125,15 +226,37 @@ export function TransactionIntakeWorkspace({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError("");
+    if (canSearchOwners && !selectedOwnerMembershipId) {
+      setSubmitError("Select an agent owner before creating the transaction.");
+      return;
+    }
     setIsSubmitting(true);
 
     try {
+      const payload: Record<string, string> = {
+        ...fieldValues,
+        ...(ownerAssignment && ownerFieldInputName
+          ? {
+              [ownerFieldInputName]:
+                canSearchOwners
+                  ? selectedOwnerOption?.label ?? ownerSearchValue.trim()
+                  : ownerAssignment.currentOwnerLabel
+            }
+          : {})
+      };
+
+      if (mode === "create" && ownerAssignment) {
+        payload.ownerMembershipId = canSearchOwners
+          ? selectedOwnerMembershipId
+          : ownerAssignment.currentOwnerMembershipId;
+      }
+
       const response = await fetch(submitEndpoint, {
         method: submitMethod,
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(fieldValues)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -155,7 +278,16 @@ export function TransactionIntakeWorkspace({
       }
 
       if (mode === "create") {
-        setFieldValues(buildInitialFieldValues(localSchema, {}));
+        const resetValues = buildInitialFieldValues(localSchema, {});
+
+        if (ownerAssignment && ownerFieldInputName) {
+          resetValues[ownerFieldInputName] = canSearchOwners ? "" : ownerAssignment.currentOwnerLabel;
+        }
+
+        setFieldValues(resetValues);
+        setOwnerSearchValue(canSearchOwners ? "" : ownerAssignment?.currentOwnerLabel ?? "");
+        setSelectedOwnerMembershipId(canSearchOwners ? "" : ownerAssignment?.currentOwnerMembershipId ?? "");
+        setOwnerSuggestionsOpen(false);
       }
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Failed to save transaction intake.");
@@ -248,12 +380,69 @@ export function TransactionIntakeWorkspace({
               }
 
               const field = entry.field;
+              const isAgentOwnerField = field.fieldKey === "agentName" && Boolean(ownerAssignment);
               return (
                 <label className={className} key={key}>
                   <div className="bm-transaction-field-head">
                     <span>{getFieldValueLabel(field)}</span>
                   </div>
-                  {field.type === "select" ? (
+                  {isAgentOwnerField ? (
+                    <div className="bm-transaction-owner-field">
+                      <input
+                        autoComplete="off"
+                        aria-expanded={canSearchOwners ? ownerSuggestionsOpen : undefined}
+                        aria-haspopup={canSearchOwners ? "listbox" : undefined}
+                        disabled={!canEditValues || !canSearchOwners}
+                        name={field.inputName}
+                        onBlur={() => {
+                          if (canSearchOwners) {
+                            window.setTimeout(() => setOwnerSuggestionsOpen(false), 120);
+                          }
+                        }}
+                        onChange={(event) => handleOwnerSearchChange(event.target.value)}
+                        onFocus={() => {
+                          if (canSearchOwners) {
+                            setOwnerSuggestionsOpen(true);
+                          }
+                        }}
+                        placeholder={
+                          canSearchOwners
+                            ? "Search an agent or team lead..."
+                            : ownerAssignment?.currentOwnerLabel || "Assigned owner"
+                        }
+                        readOnly={!canSearchOwners}
+                        type="text"
+                        value={
+                          canSearchOwners
+                            ? ownerSearchValue
+                            : ownerAssignment?.currentOwnerLabel ?? ""
+                        }
+                      />
+                      {canSearchOwners && ownerSuggestionsOpen ? (
+                        <div className="bm-transaction-owner-suggestions" role="listbox">
+                          {filteredOwnerOptions.length ? (
+                            filteredOwnerOptions.map((option) => (
+                              <button
+                                className={`bm-transaction-owner-suggestion${selectedOwnerMembershipId === option.id ? " is-selected" : ""}`}
+                                key={option.id}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  handleOwnerSelect(option);
+                                }}
+                                type="button"
+                              >
+                                <strong>{option.label}</strong>
+                                <span>{option.roleLabel}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="bm-transaction-owner-empty">No matching sales members.</div>
+                          )}
+                        </div>
+                      ) : null}
+                      <small className="office-form-helper">{ownerHelperText}</small>
+                    </div>
+                  ) : field.type === "select" ? (
                     <select
                       defaultValue=""
                       disabled={!canEditValues}
