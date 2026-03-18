@@ -835,7 +835,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
   - calculation inputs
   - persisted outputs
   - recalculate
-- `/office/accounting` 提供 commission management area：
+- `/office/settings/commission-plans` 提供 primary commission management area：
   - plan list
   - assignment list
   - team-aware assignment targets

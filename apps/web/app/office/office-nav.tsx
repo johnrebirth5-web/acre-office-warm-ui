@@ -12,6 +12,7 @@ import {
   canAccessOfficeSettings,
   canAccessOfficeTasks,
   canManageOfficeSettings,
+  canViewOfficeCommissions,
   canViewOfficeAgents,
   canViewOfficeChecklists,
   canViewOfficeContacts,
@@ -69,7 +70,7 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
         { label: "Teams", href: "/office/settings/teams", isVisible: canViewOfficeTeams },
         { label: "Checklists", href: "/office/settings/checklists", isVisible: canViewOfficeChecklists },
         { label: "Fields", href: "/office/settings/fields", isVisible: canViewOfficeFields },
-        { label: "Commission plans", href: "/office/accounting#commission-management", isVisible: canAccessOfficeAccounting }
+        { label: "Commission plans", href: "/office/settings/commission-plans", isVisible: canViewOfficeCommissions }
       ].filter((item) => item.isVisible?.(subject) ?? true)
     },
     {

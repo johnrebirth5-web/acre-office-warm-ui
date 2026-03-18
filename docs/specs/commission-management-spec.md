@@ -29,7 +29,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - company remainder
   - transaction `createdAt` as the locking date for default split / hierarchy replay
 - transaction detail has a commission section
-- accounting has a commission management area
+- `/office/settings/commission-plans` is the primary commission management workspace
 - agent profile shows commission summary
 - strict visibility now applies:
   - agent sees self rows only

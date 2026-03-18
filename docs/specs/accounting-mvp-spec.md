@@ -23,7 +23,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - current-membership summary / ledger / statement list
   - masked payment-method reference maintenance
   - no live gateway or ACH execution
-- commission management exists inside accounting
+- commission management primary workspace now lives at `/office/settings/commission-plans`
 
 ## Current gaps
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import type { OfficeAccountingSnapshot, OfficeAgentBillingSnapshot, OfficeCommissionManagementSnapshot } from "@acre/db";
+import type { OfficeAccountingSnapshot, OfficeAgentBillingSnapshot } from "@acre/db";
 import {
   Button,
   ConfirmActionDialog,
@@ -27,21 +27,15 @@ import {
   TextInput
 } from "@acre/ui";
 import { AgentBillingPanel } from "./agent-billing-panel";
-import { CommissionManagementPanel } from "./commission-management-panel";
 
 type OfficeAccountingClientProps = {
   snapshot: OfficeAccountingSnapshot;
   agentBillingSnapshot: OfficeAgentBillingSnapshot | null;
-  commissionSnapshot: OfficeCommissionManagementSnapshot | null;
   officeLabel: string;
   canManageAccounting: boolean;
   canViewAgentBilling: boolean;
   canManageAgentBilling: boolean;
   canManagePayments: boolean;
-  canViewCommissions: boolean;
-  canManageCommissions: boolean;
-  canCalculateCommissions: boolean;
-  canApproveCommissions: boolean;
 };
 
 type AccountingTypeOption = {
@@ -322,16 +316,11 @@ function buildEarnestMoneyState(record?: OfficeAccountingSnapshot["earnestMoneyR
 export function OfficeAccountingClient({
   snapshot,
   agentBillingSnapshot,
-  commissionSnapshot,
   officeLabel,
   canManageAccounting,
   canViewAgentBilling,
   canManageAgentBilling,
-  canManagePayments,
-  canViewCommissions,
-  canManageCommissions,
-  canCalculateCommissions,
-  canApproveCommissions
+  canManagePayments
 }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -376,6 +365,20 @@ export function OfficeAccountingClient({
   useEffect(() => {
     setEntryFormState(buildEntryStateFromSelectedEntry(snapshot));
   }, [snapshot.selectedTransaction]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const hash = window.location.hash;
+    if (hash !== "#commissions" && hash !== "#commission-management") {
+      return;
+    }
+
+    const nextQuery = searchParams.toString();
+    router.replace(nextQuery ? `/office/settings/commission-plans?${nextQuery}` : "/office/settings/commission-plans");
+  }, [router, searchParams]);
 
   const selectedEntryConfig = getAccountingTypeConfig(entryFormState.type);
   const entryModalConfig = getAccountingTypeConfig(entryFormState.type);
@@ -594,7 +597,6 @@ export function OfficeAccountingClient({
       <nav className="office-section-nav" aria-label="Accounting sections">
         <a href="#accounting-overview">Overview</a>
         <a href="#accounting-ledger">Accounting transactions</a>
-        <a href="#commissions">Commissions</a>
         <a href="#agent-billing">Agent billing</a>
         <a href="#earnest-money">Earnest money</a>
         <a href="#chart-of-accounts">Chart of accounts</a>
@@ -907,14 +909,6 @@ export function OfficeAccountingClient({
           </ListPageTableSection>
         </ListPageStack>
       </ListPageSplit>
-
-      <CommissionManagementPanel
-        canApproveCommissions={canApproveCommissions}
-        canCalculateCommissions={canCalculateCommissions}
-        canManageCommissions={canManageCommissions}
-        canViewCommissions={canViewCommissions}
-        snapshot={commissionSnapshot}
-      />
 
       <AgentBillingPanel
         canManageAgentBilling={canManageAgentBilling}

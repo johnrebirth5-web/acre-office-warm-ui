@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { canAccessOfficeSettings } from "@acre/auth";
+import { canAccessOfficeSettings, canViewOfficeCommissions } from "@acre/auth";
 import { PageHeader, PageHeaderSummary, PageShell, SectionCard, StatCard, SummaryChip } from "@acre/ui";
 import { getOfficeSettingsSummarySnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -88,6 +88,17 @@ export default async function OfficeSettingsPage() {
             Open checklist templates
           </Link>
         </SectionCard>
+
+        {canViewOfficeCommissions(context.currentMembership) ? (
+          <SectionCard subtitle="Default split templates, member-level defaults, and advanced legacy commission tools." title="Commission plans">
+            <p className="office-settings-copy">
+              Open the commission workspace to manage reusable split templates, review member defaults, and work through advanced plan settings.
+            </p>
+            <Link className="office-settings-link" href="/office/settings/commission-plans">
+              Open commission plans
+            </Link>
+          </SectionCard>
+        ) : null}
       </section>
     </PageShell>
   );

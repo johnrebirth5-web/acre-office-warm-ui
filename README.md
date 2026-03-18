@@ -316,10 +316,11 @@
       - `flat fee deduction`
       - `sliding scale`
     - transaction detail commission section 默认显示 `default split chain`
-    - accounting 内的 commission management 主视图：
+    - `/office/settings/commission-plans` 现在是 commission management 主视图：
       - split templates
       - current member defaults
       - advanced review queue for legacy plans / assignments
+    - `/office/accounting` 现在只保留 ledger / billing / EMD 等账务主流程，旧 commission hash 链接会自动跳转到新的 settings commission 页面
     - legacy plan / fee / status tools 仍保留在 `Advanced settings`
     - agent profile 的 commission summary
       - default split source visibility

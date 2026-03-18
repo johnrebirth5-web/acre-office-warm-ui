@@ -200,10 +200,6 @@ function buildAccountingHref(
   overrides: {
     type?: string | null;
     status?: string | null;
-    commissionMembershipId?: string | null;
-    commissionTeamId?: string | null;
-    commissionStatus?: string | null;
-    commissionPlanId?: string | null;
     anchor?: string | null;
   }
 ) {
@@ -228,6 +224,31 @@ function buildAccountingHref(
   if (overrides.status?.trim()) {
     searchParams.set("status", overrides.status.trim());
   }
+
+  const query = searchParams.toString();
+  const href = query ? `/office/accounting?${query}` : "/office/accounting";
+
+  return overrides.anchor ? `${href}${overrides.anchor}` : href;
+}
+
+function buildCommissionHref(
+  currentFilters: {
+    startDate: string;
+    endDate: string;
+    ownerMembershipId: string;
+    teamId: string;
+    transactionStatus: string;
+    transactionType: string;
+    commissionPlanId: string;
+  },
+  overrides: {
+    commissionMembershipId?: string | null;
+    commissionTeamId?: string | null;
+    commissionStatus?: string | null;
+    commissionPlanId?: string | null;
+  }
+) {
+  const searchParams = new URLSearchParams();
 
   if (overrides.commissionMembershipId?.trim()) {
     searchParams.set("commissionMembershipId", overrides.commissionMembershipId.trim());
@@ -263,9 +284,7 @@ function buildAccountingHref(
   }
 
   const query = searchParams.toString();
-  const href = query ? `/office/accounting?${query}` : "/office/accounting";
-
-  return overrides.anchor ? `${href}${overrides.anchor}` : href;
+  return query ? `/office/settings/commission-plans?${query}` : "/office/settings/commission-plans";
 }
 
 function getTransactionStatusTone(status: OfficeReportStatus) {
@@ -831,7 +850,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
               actions={
                 <Link
                   className="office-button office-button-secondary"
-                  href={buildAccountingHref(
+                  href={buildCommissionHref(
                     {
                       startDate: snapshot.filters.startDate,
                       endDate: snapshot.filters.endDate,
@@ -841,9 +860,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                       transactionType: snapshot.filters.transactionType,
                       commissionPlanId: snapshot.filters.commissionPlanId
                     },
-                    {
-                      anchor: "#commissions"
-                    }
+                    {}
                   )}
                 >
                   Open commissions
@@ -869,7 +886,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                   {snapshot.commissionSummary.byStatus.map((row) => (
                     <Link
                       className="office-table-row office-table-row-report-commission-status"
-                      href={buildAccountingHref(
+                      href={buildCommissionHref(
                         {
                           startDate: snapshot.filters.startDate,
                           endDate: snapshot.filters.endDate,
@@ -880,8 +897,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                           commissionPlanId: snapshot.filters.commissionPlanId
                         },
                         {
-                          commissionStatus: row.status.toLowerCase().replaceAll(" ", "_"),
-                          anchor: "#commissions"
+                          commissionStatus: row.status.toLowerCase().replaceAll(" ", "_")
                         }
                       )}
                       key={row.status}
