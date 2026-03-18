@@ -220,6 +220,18 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageT
     }));
   }
 
+  function openCreateModal() {
+    setSubmitError("");
+    setActionNotice("");
+    setIsCreateModalOpen(true);
+  }
+
+  function closeCreateModal() {
+    setSubmitError("");
+    setActionNotice("");
+    setIsCreateModalOpen(false);
+  }
+
   function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     router.push(
@@ -326,7 +338,7 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageT
             <p>Search by name, email, role, or office, then open a user to manage access, invitation state, and activity.</p>
           </div>
           {canManageUsers ? (
-            <Button className="office-settings-users-create-button" onClick={() => setIsCreateModalOpen(true)} type="button">
+            <Button className="office-settings-users-create-button" onClick={openCreateModal} type="button">
               Create user
             </Button>
           ) : null}
@@ -378,9 +390,6 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageT
               </Button>
             </div>
           </form>
-
-          {submitError ? <p className="office-inline-error">{submitError}</p> : null}
-          {actionNotice ? <p className="office-inline-success">{actionNotice}</p> : null}
 
           <DataTable className="office-table office-settings-users-table">
             <DataTableHeader className="office-table-header office-table-row office-table-row-settings-users-roster">
@@ -439,178 +448,233 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageT
       </section>
 
       {isCreateModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsCreateModalOpen(false)}>
-          <section className="bm-transaction-modal office-settings-users-create-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="bm-modal-overlay office-settings-users-modal-overlay" onClick={closeCreateModal}>
+          <section
+            aria-labelledby="office-settings-users-create-title"
+            aria-modal="true"
+            className="bm-transaction-modal office-settings-users-create-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
             <header className="bm-transaction-modal-header office-settings-users-modal-header">
-              <div className="bm-transaction-modal-title-block">
-                <h3>Create user</h3>
+              <div className="bm-transaction-modal-title-block office-settings-users-modal-title-block">
+                <span className="office-settings-users-modal-kicker">Internal accounts</span>
+                <h3 id="office-settings-users-create-title">Create user</h3>
                 <p>Invite a new internal Back Office account and copy the setup link from this panel.</p>
               </div>
-              <button aria-label="Close create user panel" onClick={() => setIsCreateModalOpen(false)} type="button">
+              <Button aria-label="Close create user panel" onClick={closeCreateModal} size="sm" type="button" variant="ghost">
                 Close
-              </button>
+              </Button>
             </header>
 
             <div className="bm-transaction-modal-body office-settings-users-modal-body">
-              <form className="office-form-grid office-form-grid-3" onSubmit={handleCreateUser}>
-                <FormField label="First name">
-                  <TextInput onChange={(event) => setCreateField("firstName", event.target.value)} required value={createUserDraft.firstName} />
-                </FormField>
+              <form className="office-settings-users-create-form" onSubmit={handleCreateUser}>
+                <section className="office-settings-users-create-section">
+                  <div className="office-settings-users-create-section-head">
+                    <h4>Account details</h4>
+                    <p>Capture the invited user identity, office assignment, and role before sending the setup link.</p>
+                  </div>
 
-                <FormField label="Last name">
-                  <TextInput onChange={(event) => setCreateField("lastName", event.target.value)} required value={createUserDraft.lastName} />
-                </FormField>
+                  <div className="office-form-grid office-form-grid-3 office-settings-users-create-grid">
+                    <FormField label="First name">
+                      <TextInput autoComplete="given-name" onChange={(event) => setCreateField("firstName", event.target.value)} required value={createUserDraft.firstName} />
+                    </FormField>
 
-                <FormField label="Email">
-                  <TextInput
-                    autoComplete="email"
-                    onChange={(event) => setCreateField("email", event.target.value)}
-                    required
-                    type="email"
-                    value={createUserDraft.email}
-                  />
-                </FormField>
+                    <FormField label="Last name">
+                      <TextInput autoComplete="family-name" onChange={(event) => setCreateField("lastName", event.target.value)} required value={createUserDraft.lastName} />
+                    </FormField>
 
-                <FormField label="Role">
-                  <SelectInput onChange={(event) => setCreateField("role", event.target.value)} value={createUserDraft.role}>
-                    {createRoleOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </SelectInput>
-                  <p className="office-settings-user-note">{getRoleConfigurationHint(createUserDraft.role)}</p>
-                </FormField>
+                    <FormField label="Email">
+                      <TextInput
+                        autoComplete="email"
+                        onChange={(event) => setCreateField("email", event.target.value)}
+                        required
+                        type="email"
+                        value={createUserDraft.email}
+                      />
+                    </FormField>
 
-                <FormField label="Office access">
-                  <SelectInput onChange={(event) => setCreateField("officeId", event.target.value)} value={createUserDraft.officeId}>
-                    {snapshot.filters.officeOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </FormField>
+                    <FormField label="Role">
+                      <SelectInput onChange={(event) => setCreateField("role", event.target.value)} value={createUserDraft.role}>
+                        {createRoleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </FormField>
 
-              <FormField label="Title">
-                  <TextInput onChange={(event) => setCreateField("title", event.target.value)} placeholder="Back Office title" value={createUserDraft.title} />
-                </FormField>
+                    <FormField label="Office access">
+                      <SelectInput onChange={(event) => setCreateField("officeId", event.target.value)} value={createUserDraft.officeId}>
+                        {snapshot.filters.officeOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </FormField>
+
+                    <FormField label="Title">
+                      <TextInput onChange={(event) => setCreateField("title", event.target.value)} placeholder="Back Office title" value={createUserDraft.title} />
+                    </FormField>
+
+                    <p className="office-form-grid-span-3 office-settings-users-modal-note">{getRoleConfigurationHint(createUserDraft.role)}</p>
+                  </div>
+                </section>
 
                 {canAssignTeamOnCreate ? (
-                  <>
-                    <FormField label="Team / branch">
-                      <SelectInput
-                        onChange={(event) =>
-                          setCreateUserDraft((current) => {
-                            const nextTeamId = event.target.value;
-                            const nextTeam = createAssignableTeams.find((team) => team.id === nextTeamId) ?? null;
+                  <section className="office-settings-users-create-section">
+                    <div className="office-settings-users-create-section-head">
+                      <h4>Placement</h4>
+                      <p>Optionally assign a branch and manager so the user lands in the right reporting structure on day one.</p>
+                    </div>
 
-                            return {
-                              ...current,
-                              teamId: nextTeamId,
-                              reportsToTeamMembershipId: nextTeam?.defaultReportsToTeamMembershipId ?? ""
-                            };
-                          })
-                        }
-                        value={createUserDraft.teamId}
-                      >
-                        <option value="">No team assignment</option>
-                        {createAssignableTeams.map((team) => (
-                          <option key={team.id} value={team.id}>
-                            {formatCreateTeamOptionLabel(team)}
-                          </option>
-                        ))}
-                      </SelectInput>
-                      <p className="office-settings-user-note">Optional. Choose a top-level team or a junior branch during onboarding.</p>
-                    </FormField>
+                    <div className="office-form-grid office-settings-users-create-grid">
+                      <FormField label="Team / branch">
+                        <SelectInput
+                          onChange={(event) =>
+                            setCreateUserDraft((current) => {
+                              const nextTeamId = event.target.value;
+                              const nextTeam = createAssignableTeams.find((team) => team.id === nextTeamId) ?? null;
 
-                    <FormField label="Direct manager">
-                      <SelectInput
-                        disabled={!selectedCreateTeam || selectedCreateTeam.managerOptions.length === 0}
-                        onChange={(event) => setCreateField("reportsToTeamMembershipId", event.target.value)}
-                        value={createUserDraft.reportsToTeamMembershipId}
-                      >
-                        <option value="">No direct manager</option>
-                        {(selectedCreateTeam?.managerOptions ?? []).map((manager) => (
-                          <option key={manager.teamMembershipId} value={manager.teamMembershipId}>
-                            {manager.label} · {manager.role}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    </FormField>
-                  </>
+                              return {
+                                ...current,
+                                teamId: nextTeamId,
+                                reportsToTeamMembershipId: nextTeam?.defaultReportsToTeamMembershipId ?? ""
+                              };
+                            })
+                          }
+                          value={createUserDraft.teamId}
+                        >
+                          <option value="">No team assignment</option>
+                          {createAssignableTeams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {formatCreateTeamOptionLabel(team)}
+                            </option>
+                          ))}
+                        </SelectInput>
+                      </FormField>
+
+                      <FormField label="Direct manager">
+                        <SelectInput
+                          disabled={!selectedCreateTeam || selectedCreateTeam.managerOptions.length === 0}
+                          onChange={(event) => setCreateField("reportsToTeamMembershipId", event.target.value)}
+                          value={createUserDraft.reportsToTeamMembershipId}
+                        >
+                          <option value="">No direct manager</option>
+                          {(selectedCreateTeam?.managerOptions ?? []).map((manager) => (
+                            <option key={manager.teamMembershipId} value={manager.teamMembershipId}>
+                              {manager.label} · {manager.role}
+                            </option>
+                          ))}
+                        </SelectInput>
+                      </FormField>
+
+                      <p className="office-form-grid-span-2 office-settings-users-modal-note">
+                        Optional. Choose a top-level team or a junior branch during onboarding.
+                      </p>
+                    </div>
+                  </section>
                 ) : null}
 
-                <FormField label="Default split template">
-                  <SelectInput
-                    onChange={(event) =>
-                      setCreateUserDraft((current) => ({
-                        ...current,
-                        splitTemplateId: event.target.value,
-                        customAgentPercent: event.target.value ? "" : current.customAgentPercent
-                      }))
-                    }
-                    value={createUserDraft.splitTemplateId}
-                  >
-                    <option value="">Select template</option>
-                    {snapshot.filters.commissionTemplateOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label} ({option.agentPercent}/{option.companyPercent})
-                      </option>
-                    ))}
-                  </SelectInput>
-                </FormField>
+                <section className="office-settings-users-create-section">
+                  <div className="office-settings-users-create-section-head">
+                    <h4>Commission defaults</h4>
+                    <p>Pick a split template or enter a custom agent percentage before the invitation is sent.</p>
+                  </div>
 
-                <FormField label="Custom agent split %">
-                  <TextInput
-                    onChange={(event) =>
-                      setCreateUserDraft((current) => ({
-                        ...current,
-                        customAgentPercent: event.target.value,
-                        splitTemplateId: event.target.value.trim() ? "" : current.splitTemplateId
-                      }))
-                    }
-                    placeholder="Example: 50"
-                    value={createUserDraft.customAgentPercent}
-                  />
-                </FormField>
+                  <div className="office-form-grid office-form-grid-3 office-settings-users-create-grid">
+                    <FormField label="Default split template">
+                      <SelectInput
+                        onChange={(event) =>
+                          setCreateUserDraft((current) => ({
+                            ...current,
+                            splitTemplateId: event.target.value,
+                            customAgentPercent: event.target.value ? "" : current.customAgentPercent
+                          }))
+                        }
+                        value={createUserDraft.splitTemplateId}
+                      >
+                        <option value="">Select template</option>
+                        {snapshot.filters.commissionTemplateOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label} ({option.agentPercent}/{option.companyPercent})
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </FormField>
 
-                <FormField label="Split effective from">
-                  <TextInput
-                    onChange={(event) => setCreateField("commissionEffectiveFrom", event.target.value)}
-                    required
-                    type="date"
-                    value={createUserDraft.commissionEffectiveFrom}
-                  />
-                </FormField>
+                    <FormField label="Custom agent split %">
+                      <TextInput
+                        onChange={(event) =>
+                          setCreateUserDraft((current) => ({
+                            ...current,
+                            customAgentPercent: event.target.value,
+                            splitTemplateId: event.target.value.trim() ? "" : current.splitTemplateId
+                          }))
+                        }
+                        placeholder="Example: 50"
+                        value={createUserDraft.customAgentPercent}
+                      />
+                    </FormField>
 
-                <div className="office-form-grid-span-3 office-settings-user-create-actions">
-                  <Button disabled={pendingAction === "create-user"} type="submit">
-                    {pendingAction === "create-user" ? "Creating..." : "Create invited user"}
-                  </Button>
-                </div>
-              </form>
+                    <FormField label="Split effective from">
+                      <TextInput
+                        onChange={(event) => setCreateField("commissionEffectiveFrom", event.target.value)}
+                        required
+                        type="date"
+                        value={createUserDraft.commissionEffectiveFrom}
+                      />
+                    </FormField>
 
-              <p className="office-settings-user-note">Choose a split template or enter a custom agent percentage. The company share is calculated from the remaining balance.</p>
-
-              {latestInvite ? (
-                <div className="office-settings-generated-invite">
-                  <div className="office-settings-generated-invite-copy">
-                    <strong>{latestInvite.actionLabel}</strong>
-                    <p>
-                      {latestInvite.email} · Expires {latestInvite.expiresAtLabel}
+                    <p className="office-form-grid-span-3 office-settings-users-modal-note">
+                      Choose a split template or enter a custom agent percentage. The company share is calculated from the remaining balance.
                     </p>
                   </div>
-                  <div className="office-settings-generated-invite-actions">
-                    <TextInput readOnly value={latestInvite.invitationUrl} />
-                    <Button disabled={pendingAction === "copy-invite"} onClick={handleCopyLatestInvite} variant="secondary">
-                      {pendingAction === "copy-invite" ? "Copying..." : "Copy link"}
+                </section>
+
+                {submitError ? <p className="office-inline-error office-settings-users-modal-feedback">{submitError}</p> : null}
+                {actionNotice ? <p className="office-inline-success office-settings-users-modal-feedback">{actionNotice}</p> : null}
+
+                <footer className="office-settings-users-modal-footer">
+                  <div className="office-settings-users-modal-footer-copy">
+                    <strong>Send the invite after review</strong>
+                    <p>The newest setup link will appear below immediately after the user record is created.</p>
+                  </div>
+
+                  <div className="office-settings-user-create-actions">
+                    <Button disabled={pendingAction === "create-user"} type="submit">
+                      {pendingAction === "create-user" ? "Creating..." : "Create invited user"}
                     </Button>
                   </div>
+                </footer>
+              </form>
+
+              <section className="office-settings-users-invite-panel">
+                <div className="office-settings-users-invite-panel-head">
+                  <h4>Invite link</h4>
+                  <p>Copy the latest generated link here and send it to the user to finish setup.</p>
                 </div>
-              ) : (
-                <p className="office-settings-user-note">Create a user to generate a copyable invite link here.</p>
-              )}
+
+                {latestInvite ? (
+                  <div className="office-settings-generated-invite">
+                    <div className="office-settings-generated-invite-copy">
+                      <strong>{latestInvite.actionLabel}</strong>
+                      <p>
+                        {latestInvite.email} · Expires {latestInvite.expiresAtLabel}
+                      </p>
+                    </div>
+                    <div className="office-settings-generated-invite-actions">
+                      <TextInput readOnly value={latestInvite.invitationUrl} />
+                      <Button disabled={pendingAction === "copy-invite"} onClick={handleCopyLatestInvite} variant="secondary">
+                        {pendingAction === "copy-invite" ? "Copying..." : "Copy link"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="office-settings-user-note">Create a user to generate a copyable invite link here.</p>
+                )}
+              </section>
             </div>
           </section>
         </div>

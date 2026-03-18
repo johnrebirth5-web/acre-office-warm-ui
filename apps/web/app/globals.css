@@ -9130,18 +9130,120 @@ a {
   line-height: 1.45;
 }
 
+.office-settings-users-modal-overlay {
+  padding: 28px;
+}
+
+.office-settings-users-create-modal {
+  width: min(960px, calc(100vw - 40px));
+  max-height: min(92vh, 980px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, #f8fbff 100%);
+}
+
+.office-settings-users-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid rgba(194, 205, 220, 0.6);
+}
+
+.office-settings-users-modal-title-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.office-settings-users-modal-kicker {
+  color: var(--office-accent-strong);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.office-settings-users-modal-header p,
+.office-settings-users-create-section-head p,
+.office-settings-users-modal-footer-copy p,
+.office-settings-users-invite-panel-head p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.office-settings-users-modal-body {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 22px 28px 28px;
+  overflow: auto;
+}
+
+.office-settings-users-create-form {
+  display: grid;
+  gap: 18px;
+}
+
+.office-settings-users-create-section,
+.office-settings-users-invite-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid rgba(194, 205, 220, 0.56);
+  border-radius: 20px;
+  background: rgba(248, 250, 253, 0.92);
+}
+
+.office-settings-users-create-section-head {
+  display: grid;
+  gap: 6px;
+}
+
+.office-settings-users-create-section-head h4,
+.office-settings-users-invite-panel-head h4 {
+  margin: 0;
+  color: var(--office-text);
+  font-size: 0.94rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.office-settings-users-create-grid {
+  gap: 14px 16px;
+}
+
+.office-settings-users-modal-note {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed rgba(194, 205, 220, 0.74);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--office-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.office-settings-users-modal-feedback {
+  margin: 0;
+}
+
 .office-settings-user-create-actions {
   display: flex;
-  justify-content: flex-start;
-  margin-top: 8px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(177, 188, 204, 0.34);
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
 }
 
 .office-settings-generated-invite {
   display: grid;
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 0;
   padding: 16px;
   border: 1px solid rgba(20, 74, 119, 0.14);
   border-radius: 18px;
@@ -9166,6 +9268,31 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+}
+
+.office-settings-users-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+
+.office-settings-users-modal-footer-copy {
+  display: grid;
+  gap: 4px;
+  max-width: 34rem;
+}
+
+.office-settings-users-modal-footer-copy strong,
+.office-settings-generated-invite-copy strong {
+  color: var(--office-text);
+}
+
+.office-settings-users-invite-panel-head {
+  display: grid;
+  gap: 6px;
 }
 
 .office-settings-users-roster-card > .office-section-body,
@@ -9250,15 +9377,6 @@ a {
   justify-items: start;
 }
 
-.office-settings-users-create-modal {
-  width: min(860px, calc(100vw - 32px));
-}
-
-.office-settings-users-modal-body {
-  gap: 16px;
-  padding: 8px 24px 28px;
-}
-
 .office-settings-user-detail-grid {
   align-items: start;
   grid-template-columns: minmax(0, 1.32fr) minmax(320px, 0.88fr);
@@ -9282,6 +9400,38 @@ a {
   font-size: 2.6rem;
   font-weight: 800;
   letter-spacing: -0.04em;
+}
+
+@media (max-width: 900px) {
+  .office-settings-users-modal-overlay {
+    padding: 16px;
+  }
+
+  .office-settings-users-create-modal {
+    width: min(100%, calc(100vw - 16px));
+  }
+
+  .office-settings-users-modal-header,
+  .office-settings-users-modal-body {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .office-settings-users-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .office-settings-generated-invite-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .office-settings-user-create-actions,
+  .office-settings-user-create-actions .office-button,
+  .office-settings-generated-invite-actions .office-button {
+    width: 100%;
+  }
 }
 
 .office-settings-user-hero-copy,
