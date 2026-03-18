@@ -104,6 +104,7 @@
   - admin/company-scope roles can search active agents or team leads by name and assign ownership before create
   - backend now enforces the same rule and persists `additionalFields.agentName` from the actual selected owner instead of arbitrary free text
 - Transaction intake now retires the legacy `Team Leader` custom field from both `New Transaction` and `Settings > Fields`; team hierarchy should come only from membership/team assignment, not from a second dropdown on the transaction form
+- Transaction owner selection for `New Transaction` now treats `invited` sales memberships the same as `active` ones, so admins can create transactions for agents/team leads who never log into the system themselves
 
 ## Next recommended work
 

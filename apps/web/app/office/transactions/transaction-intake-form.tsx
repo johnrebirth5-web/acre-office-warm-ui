@@ -102,7 +102,7 @@ export function TransactionIntakeWorkspace({
   );
   const canSearchOwners = mode === "create" && ownerAssignment?.canSelectDifferentOwner;
   const ownerHelperText = canSearchOwners
-    ? "Admins can search active agents or team leads here and assign the transaction owner before saving."
+    ? "Admins can search agents or team leads here and assign the transaction owner before saving."
     : "Sales users can only create transactions for themselves.";
   const pristineFieldValues = useMemo(() => {
     const nextValues = buildInitialFieldValues(localSchema, initialValues);

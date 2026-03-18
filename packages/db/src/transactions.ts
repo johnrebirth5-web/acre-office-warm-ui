@@ -1,4 +1,4 @@
-import { Prisma, TransactionRepresenting, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
+import { MembershipStatus, Prisma, TransactionRepresenting, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import {
   buildTransactionVisibilityWhere,
@@ -312,6 +312,7 @@ const defaultTransactionsPage = 1;
 const defaultTransactionsPageSize = 20;
 const maxTransactionsPageSize = 100;
 const transactionOwnerRoleValues = ["agent", "team_lead"] satisfies UserRole[];
+const selectableTransactionOwnerStatuses = ["active", "invited"] satisfies MembershipStatus[];
 
 function formatTransactionOwnerRoleLabel(role: UserRole) {
   if (role === "team_lead") {
@@ -1067,7 +1068,9 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
-        status: "active",
+        status: {
+          in: selectableTransactionOwnerStatuses
+        },
         ...(scope.visibleMembershipIds ? { id: { in: scope.visibleMembershipIds } } : {}),
         ...(input.officeId ? { officeId: input.officeId } : {}),
         role: {
@@ -1140,7 +1143,9 @@ export async function getOfficeTransactionOwnerAssignment(input: {
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
-        status: "active",
+        status: {
+          in: selectableTransactionOwnerStatuses
+        },
         ...(scope.visibleMembershipIds ? { id: { in: scope.visibleMembershipIds } } : {}),
         ...(input.officeId ? { officeId: input.officeId } : {}),
         role: {
@@ -1263,7 +1268,9 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
       where: {
         id: input.ownerMembershipId,
         organizationId: input.organizationId,
-        status: "active",
+        status: {
+          in: selectableTransactionOwnerStatuses
+        },
         ...(input.officeId ? { officeId: input.officeId } : {})
       },
       include: {
