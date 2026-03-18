@@ -34,19 +34,20 @@ Provide a practical Back Office admin/settings area for access management, role 
     - `team_lead`
     - `agent`
 - teams admin supports:
-  - create
+  - create `Team / Junior Team` with a required owner at creation time
   - rename
   - activate/deactivate
   - delete empty teams with no remaining commission-plan assignments
   - add/remove members
   - assign `Team Leader / Junior Team Leader / Member`
-  - maintain parent / child branch structure
+  - maintain `Team / Junior Team` structure in the current two-level admin product flow while keeping the underlying recursive data model available for future expansion
   - maintain direct reporting lines inside a team
   - show inherited parent-branch managers for branch leaders instead of leaving the direct-manager field visually blank
   - surface invalid root/child branch leader-role mismatches so admins can correct legacy team data intentionally
   - keep branch-owner summaries scoped to the team's valid owner role only, instead of mixing in invalid legacy leader assignments
-  - show explicit `Root team / Child branch / Branch owner / Unassigned` state so empty child branches are distinguishable from parent-team role mismatches
-  - default `Teams` landing view is now a top-level team directory; branch/member structure is reviewed from each team's detail page instead of mixing every level into one long admin canvas
+  - show explicit `Team / Junior Team / Team Leader / Junior Team Leader / Unassigned` state so legacy mismatches are distinguishable from valid hierarchy ownership
+  - prevent current owners from being removed or demoted without transferring ownership first, so teams no longer become leaderless through normal admin flows
+  - default `Teams` landing view is now a top-level Team directory; Junior Team/member structure is reviewed from each Team detail page instead of mixing every level into one long admin canvas
 - fields admin supports:
   - `Settings > Fields` as the single field-structure admin entry
   - module rail for `transaction / contact / offer`

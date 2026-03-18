@@ -56,18 +56,21 @@ Provide a real Back Office agent management workspace for office operations, cov
   - accounting / billing
   - activity log
 - `Settings > Teams` now separates hierarchy browsing into:
-  - a top-level team directory for root-team summaries
-  - a team detail page for child-branch cards first, then direct agents assigned to the selected team
+  - a top-level Team directory for root-team summaries
+  - a Team detail page for Junior Team cards first, then direct agents assigned to the selected Team
 - team hierarchy now supports:
   - `Team Leader`
   - `Junior Team Leader`
   - `Member`
-  - recursive child branches
+  - recursive child branches in the underlying data model
+  - current Back Office admin flow intentionally opens only `Team -> Junior Team` to keep the product hierarchy readable today while leaving future depth available
   - explicit `reportsToTeamMembershipId`
   - direct `Team Leader -> Member`
   - nested `Team Leader -> Junior Team Leader -> Member`
   - branch-owner summaries and team-assignment dropdowns now only count leader roles that match the current branch shape
-  - explicit child branches can exist before a `Junior Team Leader` is assigned, and those branches should surface as `Leader: Unassigned` rather than borrowing the parent-team summary
+  - creating a `Team` or `Junior Team` now requires picking the corresponding owner up front
+  - promoting another member to the owner role transfers leadership instead of leaving the team without an owner
+  - legacy ownerless child branches can still surface as `Leader: Unassigned` until they are cleaned up, but normal admin creation paths no longer create new empty branches
 - the operational profile now edits default commission via:
   - reusable split template selection
   - custom agent percentage

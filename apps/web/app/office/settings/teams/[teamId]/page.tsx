@@ -5,7 +5,13 @@ import { getOfficeAgentsRosterSnapshot } from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../lib/auth-session";
 import { OfficeSettingsNav } from "../../settings-nav";
-import { getBranchLeaderLabel, getBranchTypeLabel, getDirectMembers } from "../team-directory-shared";
+import {
+  getBranchLeaderLabel,
+  getBranchTypeLabel,
+  getChildCollectionLabel,
+  getDirectMembers,
+  getLeaderTitleLabel
+} from "../team-directory-shared";
 import { OfficeSettingsTeamDetailClient } from "../team-detail-client";
 
 type OfficeSettingsTeamDetailPageProps = {
@@ -43,9 +49,9 @@ export default async function OfficeSettingsTeamDetailPage({ params }: OfficeSet
             <Link className="office-button office-button-secondary office-button-sm" href="/office/settings/teams">
               Back to teams
             </Link>
-            <SummaryChip label="Branch type" value={getBranchTypeLabel(team)} />
-            <SummaryChip label="Leader" tone="accent" value={getBranchLeaderLabel(team)} />
-            <SummaryChip label="Child branches" value={team.childTeamCount} />
+            <SummaryChip label="Type" value={getBranchTypeLabel(team)} />
+            <SummaryChip label={getLeaderTitleLabel(team)} tone="accent" value={getBranchLeaderLabel(team)} />
+            <SummaryChip label={getChildCollectionLabel(team)} value={team.childTeamCount} />
             <SummaryChip label="Direct agents" value={directMembers.length} />
           </PageHeaderSummary>
         }

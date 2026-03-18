@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { Badge, Button, EmptyState, FormField, ListPageSection, StatusBadge, TextInput } from "@acre/ui";
+import { Badge, Button, EmptyState, FormField, ListPageSection, SelectInput, StatusBadge, TextInput } from "@acre/ui";
 import type { OfficeAgentsRosterSnapshot } from "@acre/db";
 import {
+  getAssignableLeaderOptions,
   getBranchLeaderLabel,
   getChildTeams,
   getDirectMembers,
   getInvalidLeaderMembers,
+  getLeaderTitleLabel,
   getMemberNamesLabel,
   getRootTeams
 } from "./team-directory-shared";
@@ -22,14 +24,16 @@ type OfficeSettingsTeamsClientProps = {
 export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSettingsTeamsClientProps) {
   const router = useRouter();
   const rootTeams = useMemo(() => getRootTeams(snapshot), [snapshot]);
+  const leaderOptions = useMemo(() => getAssignableLeaderOptions(snapshot), [snapshot]);
   const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamLeaderMembershipId, setNewTeamLeaderMembershipId] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
 
   async function handleCreateRootTeam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!newTeamName.trim()) {
+    if (!newTeamName.trim() || !newTeamLeaderMembershipId) {
       return;
     }
 
@@ -44,7 +48,8 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
         },
         body: JSON.stringify({
           name: newTeamName.trim(),
-          parentTeamId: null
+          parentTeamId: null,
+          leaderMembershipId: newTeamLeaderMembershipId
         })
       });
 
@@ -55,6 +60,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
       }
 
       setNewTeamName("");
+      setNewTeamLeaderMembershipId("");
       router.refresh();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Failed to create team.");
@@ -73,24 +79,37 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
             </Link>
           ) : null
         }
-        subtitle="Start from the top-level teams. Open a team to review its child branches and direct agents."
-        title="Top-Level Teams"
+        subtitle="Start from the top-level Teams. Open a Team to review its Junior Teams and direct agents."
+        title="Teams"
       >
         {submitError ? <p className="office-inline-error">{submitError}</p> : null}
 
         {canManageTeams ? (
           <form className="office-settings-inline-form" onSubmit={handleCreateRootTeam}>
-            <FormField className="is-wide" label="New top-level team">
+            <FormField className="is-wide" label="New Team name">
               <TextInput
                 onChange={(event) => setNewTeamName(event.target.value)}
-                placeholder="Create a top-level team..."
+                placeholder="Create a Team..."
                 value={newTeamName}
               />
             </FormField>
-            <Button disabled={pendingAction === "create-root-team"} type="submit">
-              {pendingAction === "create-root-team" ? "Creating..." : "Create root team"}
+            <FormField label="Team Leader">
+              <SelectInput onChange={(event) => setNewTeamLeaderMembershipId(event.target.value)} value={newTeamLeaderMembershipId}>
+                <option value="">Select Team Leader</option>
+                {leaderOptions.map((option) => (
+                  <option key={option.membershipId} value={option.membershipId}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectInput>
+            </FormField>
+            <Button disabled={!leaderOptions.length || pendingAction === "create-root-team"} type="submit">
+              {pendingAction === "create-root-team" ? "Creating..." : "Create Team"}
             </Button>
           </form>
+        ) : null}
+        {canManageTeams && leaderOptions.length === 0 ? (
+          <p className="office-form-helper">Add or free up an active roster member before creating another Team.</p>
         ) : null}
 
         {rootTeams.length ? (
@@ -106,7 +125,9 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                   <div className="office-settings-team-directory-card-head">
                     <div className="office-settings-team-directory-card-copy">
                       <strong>{team.name}</strong>
-                      <p>Leader: {getBranchLeaderLabel(team)}</p>
+                      <p>
+                        {getLeaderTitleLabel(team)}: {getBranchLeaderLabel(team)}
+                      </p>
                     </div>
                     <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
                   </div>
@@ -114,13 +135,13 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                   <div className="office-settings-team-directory-card-meta">
                     <span>{team.memberCount} total members</span>
                     <span>{directMembers.length} direct agents</span>
-                    <span>{team.childTeamCount} child branches</span>
+                    <span>{team.childTeamCount} Junior Teams</span>
                     <span>{team.openTransactionCount} open transactions</span>
                   </div>
 
                   <div className="office-settings-team-directory-card-body">
                     <p>
-                      Child branches: {childPreview.length ? childPreview.join(", ") : "No child branches yet"}
+                      Junior Teams: {childPreview.length ? childPreview.join(", ") : "No Junior Teams yet"}
                       {childTeams.length > childPreview.length ? ` +${childTeams.length - childPreview.length} more` : ""}
                     </p>
                     <p>Direct agents: {getMemberNamesLabel(directMembers)}</p>
@@ -133,7 +154,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
                   </div>
 
                   <div className="office-settings-team-directory-card-actions">
-                    <Badge tone="neutral">Root team</Badge>
+                    <Badge tone="neutral">Team</Badge>
                     <Link className="office-button office-button-secondary office-button-sm" href={`/office/settings/teams/${team.id}`}>
                       View team
                     </Link>
@@ -144,8 +165,8 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
           </div>
         ) : (
           <EmptyState
-            description="Create the first top-level team to start organizing branches and direct agents."
-            title="No top-level teams yet"
+            description="Create the first Team to start organizing Junior Teams and direct agents."
+            title="No Teams yet"
           />
         )}
       </ListPageSection>

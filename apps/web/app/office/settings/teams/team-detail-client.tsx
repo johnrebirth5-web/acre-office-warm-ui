@@ -3,14 +3,28 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { Badge, Button, EmptyState, FormField, ListPageSection, ListPageStatsGrid, StatCard, StatusBadge, TextInput } from "@acre/ui";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  FormField,
+  ListPageSection,
+  ListPageStatsGrid,
+  SelectInput,
+  StatCard,
+  StatusBadge,
+  TextInput
+} from "@acre/ui";
 import type { OfficeAgentsRosterSnapshot } from "@acre/db";
 import {
+  getAssignableLeaderOptions,
   getBranchLeaderLabel,
   getBranchTypeLabel,
+  getChildCollectionLabel,
   getChildTeams,
   getDirectMembers,
   getInvalidLeaderMembers,
+  getLeaderTitleLabel,
   getMemberNamesLabel
 } from "./team-directory-shared";
 
@@ -29,7 +43,12 @@ export function OfficeSettingsTeamDetailClient({
   const team = useMemo(() => snapshot.teams.find((item) => item.id === teamId) ?? null, [snapshot, teamId]);
   const childTeams = useMemo(() => (team ? getChildTeams(snapshot, team.id) : []), [snapshot, team]);
   const directMembers = useMemo(() => (team ? getDirectMembers(team) : []), [team]);
+  const childLeaderOptions = useMemo(
+    () => (team && !team.parentTeamId ? getAssignableLeaderOptions(snapshot, team.id) : []),
+    [snapshot, team]
+  );
   const [newChildTeamName, setNewChildTeamName] = useState("");
+  const [newChildLeaderMembershipId, setNewChildLeaderMembershipId] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
 
@@ -42,7 +61,7 @@ export function OfficeSettingsTeamDetailClient({
   async function handleCreateChildTeam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!newChildTeamName.trim()) {
+    if (!newChildTeamName.trim() || !newChildLeaderMembershipId) {
       return;
     }
 
@@ -57,20 +76,22 @@ export function OfficeSettingsTeamDetailClient({
         },
         body: JSON.stringify({
           name: newChildTeamName.trim(),
-          parentTeamId: selectedTeam.id
+          parentTeamId: selectedTeam.id,
+          leaderMembershipId: newChildLeaderMembershipId
         })
       });
 
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Failed to create child team.");
+        throw new Error(payload?.error ?? "Failed to create Junior Team.");
       }
 
       setNewChildTeamName("");
+      setNewChildLeaderMembershipId("");
       router.refresh();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to create child team.");
+      setSubmitError(error instanceof Error ? error.message : "Failed to create Junior Team.");
     } finally {
       setPendingAction(null);
     }
@@ -85,13 +106,13 @@ export function OfficeSettingsTeamDetailClient({
             <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
           </div>
         }
-        subtitle="Read the branch structure from top to bottom: child branches first, direct agents second."
-        title="Team Summary"
+        subtitle={`Read this ${getBranchTypeLabel(team)} from top to bottom: ${getChildCollectionLabel(team).toLowerCase()} first, direct agents second.`}
+        title={`${getBranchTypeLabel(team)} Summary`}
       >
         <ListPageStatsGrid className="office-settings-team-detail-stats">
-          <StatCard hint="current branch owner" label="Leader" tone="accent" value={getBranchLeaderLabel(team)} />
+          <StatCard hint="current owner" label={getLeaderTitleLabel(team)} tone="accent" value={getBranchLeaderLabel(team)} />
           <StatCard hint="all memberships assigned to this team" label="Total members" value={team.memberCount} />
-          <StatCard hint="direct children under this team" label="Child branches" value={team.childTeamCount} />
+          <StatCard hint="direct child teams under this record" label={getChildCollectionLabel(team)} value={team.childTeamCount} />
           <StatCard hint="members assigned directly here" label="Direct agents" value={directMembers.length} />
           <StatCard hint="work currently owned by this team" label="Open tasks" value={team.openTaskCount} />
           <StatCard hint="live production under this team" label="Open transactions" value={team.openTransactionCount} />
@@ -106,24 +127,41 @@ export function OfficeSettingsTeamDetailClient({
             </Link>
           ) : null
         }
-        subtitle="Every child branch gets its own card. If no branch owner is assigned yet, the card stays visible as Unassigned."
-        title="Child Branches"
+        subtitle={
+          team.parentTeamId
+            ? "Nested teams stay visible here for audit clarity, but creating deeper levels is reserved for future hierarchy expansion."
+            : "Every Junior Team gets its own card with a required Junior Team Leader and member summary."
+        }
+        title={getChildCollectionLabel(team)}
       >
         {submitError ? <p className="office-inline-error">{submitError}</p> : null}
 
-        {canManageTeams ? (
+        {canManageTeams && !team.parentTeamId ? (
           <form className="office-settings-inline-form" onSubmit={handleCreateChildTeam}>
-            <FormField className="is-wide" label="New child branch">
+            <FormField className="is-wide" label="New Junior Team name">
               <TextInput
                 onChange={(event) => setNewChildTeamName(event.target.value)}
-                placeholder={`Create a child branch under ${team.name}...`}
+                placeholder={`Create a Junior Team under ${team.name}...`}
                 value={newChildTeamName}
               />
             </FormField>
-            <Button disabled={pendingAction === "create-child-team"} type="submit">
-              {pendingAction === "create-child-team" ? "Creating..." : "Create child branch"}
+            <FormField label="Junior Team Leader">
+              <SelectInput onChange={(event) => setNewChildLeaderMembershipId(event.target.value)} value={newChildLeaderMembershipId}>
+                <option value="">Select Junior Team Leader</option>
+                {childLeaderOptions.map((option) => (
+                  <option key={option.membershipId} value={option.membershipId}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectInput>
+            </FormField>
+            <Button disabled={!childLeaderOptions.length || pendingAction === "create-child-team"} type="submit">
+              {pendingAction === "create-child-team" ? "Creating..." : "Create Junior Team"}
             </Button>
           </form>
+        ) : null}
+        {canManageTeams && !team.parentTeamId && childLeaderOptions.length === 0 ? (
+          <p className="office-form-helper">Move or free up an eligible agent before creating another Junior Team.</p>
         ) : null}
 
         {childTeams.length ? (
@@ -137,7 +175,9 @@ export function OfficeSettingsTeamDetailClient({
                   <div className="office-settings-team-directory-card-head">
                     <div className="office-settings-team-directory-card-copy">
                       <strong>{childTeam.name}</strong>
-                      <p>Branch owner: {getBranchLeaderLabel(childTeam)}</p>
+                      <p>
+                        {getLeaderTitleLabel(childTeam)}: {getBranchLeaderLabel(childTeam)}
+                      </p>
                     </div>
                     <StatusBadge tone={childTeam.isActive ? "success" : "neutral"}>
                       {childTeam.isActive ? "Active" : "Inactive"}
@@ -159,20 +199,28 @@ export function OfficeSettingsTeamDetailClient({
                       </p>
                     ) : null}
                   </div>
+
+                  <div className="office-settings-team-directory-card-actions">
+                    <Badge tone="neutral">{getBranchTypeLabel(childTeam)}</Badge>
+                  </div>
                 </article>
               );
             })}
           </div>
         ) : (
           <EmptyState
-            description="This team does not have any child branches yet. Direct agents will stay in the section below."
-            title="No child branches yet"
+            description={
+              team.parentTeamId
+                ? "No nested teams sit under this Junior Team right now."
+                : "This Team does not have any Junior Teams yet. Direct agents stay in the section below."
+            }
+            title={`No ${getChildCollectionLabel(team)} yet`}
           />
         )}
       </ListPageSection>
 
       <ListPageSection
-        subtitle="These members belong directly to this team instead of any child branch."
+        subtitle={`These members belong directly to this ${getBranchTypeLabel(team)} instead of any ${getChildCollectionLabel(team).toLowerCase()}.`}
         title="Direct Agents"
       >
         {directMembers.length ? (
@@ -192,7 +240,7 @@ export function OfficeSettingsTeamDetailClient({
           </div>
         ) : (
           <EmptyState
-            description="All active memberships for this team currently sit inside child branches."
+            description={`All active memberships for this ${getBranchTypeLabel(team)} currently sit inside ${getChildCollectionLabel(team).toLowerCase()}.`}
             title="No direct agents"
           />
         )}

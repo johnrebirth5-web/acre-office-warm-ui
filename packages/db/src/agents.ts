@@ -42,6 +42,7 @@ import {
   formatTeamMembershipRoleLabel,
   getExpectedBranchLeaderRole,
   getDescendantTeamIds,
+  getTeamDepth,
   isLeaderTeamMembershipRole,
   isValidBranchLeaderRole
 } from "./team-hierarchy";
@@ -149,6 +150,7 @@ export type OfficeAgentTeamSummary = {
   slug: string;
   isActive: boolean;
   parentTeamId: string | null;
+  depth: number;
   teamPathLabel: string;
   childTeamCount: number;
   memberCount: number;
@@ -367,6 +369,7 @@ export type CreateAgentTeamInput = {
   actorMembershipId: string;
   name: string;
   parentTeamId?: string | null;
+  leaderMembershipId: string;
 };
 
 export type UpdateAgentTeamInput = {
@@ -737,7 +740,7 @@ async function validateTeamMembershipHierarchy(
   const parentId = normalizeOptionalTeamMembershipId(input.reportsToTeamMembershipId);
 
   if (input.role !== "member" && parentId) {
-    throw new Error("Leaders cannot report to another team member inside the same branch.");
+    throw new Error("Leaders cannot report to another team member inside the same team.");
   }
 
   if (!parentId) {
@@ -768,7 +771,7 @@ async function validateTeamMembershipHierarchy(
   }
 
   if (input.role === "member" && !isValidBranchLeaderRole(input.teamParentTeamId ?? null, parentMembership.role)) {
-    throw new Error("Members can only report to the current branch leader in the same branch.");
+    throw new Error("Members can only report to the current team leader inside the same team.");
   }
 
   if (!input.existingTeamMembershipId) {
@@ -818,6 +821,7 @@ async function validateTeamParentAssignment(
     officeId?: string | null;
     teamId?: string | null;
     parentTeamId?: string | null;
+    maxDepth?: number | null;
   }
 ) {
   const parentTeamId = normalizeOptionalTeamId(input.parentTeamId);
@@ -870,6 +874,39 @@ async function validateTeamParentAssignment(
           parentTeamId: true
         }
       })) ?? null;
+  }
+
+  if (typeof input.maxDepth === "number") {
+    const scopedTeams = await tx.team.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ...(input.officeId ? { OR: [{ officeId: input.officeId }, { officeId: null }] } : {})
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+        parentTeamId: true
+      }
+    });
+    const hierarchyIndex = createTeamHierarchyIndex(scopedTeams);
+    const nextDepth = getTeamDepth(hierarchyIndex, parentTeam.id) + 1;
+
+    if (nextDepth > input.maxDepth) {
+      throw new Error("Current team settings only support Team -> Junior Team. Choose a top-level Team as the parent.");
+    }
+
+    if (input.teamId) {
+      const currentDepth = getTeamDepth(hierarchyIndex, input.teamId);
+      const subtreeHeight = getDescendantTeamIds(hierarchyIndex, input.teamId).reduce((height, descendantTeamId) => {
+        return Math.max(height, getTeamDepth(hierarchyIndex, descendantTeamId) - currentDepth);
+      }, 0);
+
+      if (nextDepth + subtreeHeight > input.maxDepth) {
+        throw new Error("Reassign or remove this team's nested child teams before turning it into a Junior Team.");
+      }
+    }
   }
 
   return parentTeam.id;
@@ -1831,6 +1868,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       slug: team.slug,
       isActive: team.isActive,
       parentTeamId: team.parentTeamId ?? null,
+      depth: getTeamDepth(teamHierarchy.index, team.id),
       teamPathLabel: teamPathLabelMap.get(team.id) ?? team.name,
       childTeamCount: teamHierarchy.index.childTeamIdsByParentId.get(team.id)?.length ?? 0,
       memberCount: team.memberships.length,
@@ -2490,17 +2528,75 @@ export async function applyAgentOnboardingTemplate(input: ApplyAgentOnboardingTe
 
 export async function createAgentTeam(input: CreateAgentTeamInput) {
   const name = input.name.trim();
+  const leaderMembershipId = input.leaderMembershipId.trim();
 
   if (!name) {
     throw new Error("Team name is required.");
+  }
+
+  if (!leaderMembershipId) {
+    throw new Error("A team owner is required when creating a Team or Junior Team.");
   }
 
   return prisma.$transaction(async (tx) => {
     const parentTeamId = await validateTeamParentAssignment(tx, {
       organizationId: input.organizationId,
       officeId: input.officeId,
-      parentTeamId: input.parentTeamId ?? null
+      parentTeamId: input.parentTeamId ?? null,
+      maxDepth: 1
     });
+    const [leaderMembership, parentTeam] = await Promise.all([
+      ensureMembershipExists(tx, input.organizationId, leaderMembershipId, input.officeId),
+      parentTeamId
+        ? tx.team.findUnique({
+            where: {
+              id: parentTeamId
+            },
+            select: {
+              name: true
+            }
+          })
+        : Promise.resolve(null)
+    ]);
+    const reusableParentMembership =
+      parentTeamId
+        ? await tx.teamMembership.findFirst({
+            where: {
+              organizationId: input.organizationId,
+              membershipId: leaderMembership.id,
+              teamId: parentTeamId,
+              role: "member",
+              team: {
+                isActive: true
+              }
+            },
+            select: {
+              id: true
+            }
+          })
+        : null;
+
+    if (reusableParentMembership) {
+      const directReportCount = await tx.teamMembership.count({
+        where: {
+          organizationId: input.organizationId,
+          teamId: parentTeamId ?? undefined,
+          reportsToTeamMembershipId: reusableParentMembership.id
+        }
+      });
+
+      if (directReportCount > 0) {
+        throw new Error("Reassign this future Junior Team Leader's direct reports before creating the new Junior Team.");
+      }
+
+      await tx.teamMembership.delete({
+        where: {
+          id: reusableParentMembership.id
+        }
+      });
+      await syncManagedMembershipTitle(tx, leaderMembership.id);
+    }
+
     const baseSlug = slugify(name);
     const existingTeams = await tx.team.findMany({
       where: {
@@ -2523,17 +2619,17 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
         parentTeamId
       }
     });
+    const leaderRole = getExpectedBranchLeaderRole(parentTeamId);
 
-    const parentTeam = parentTeamId
-      ? await tx.team.findUnique({
-          where: {
-            id: parentTeamId
-          },
-          select: {
-            name: true
-          }
-        })
-      : null;
+    await assignMembershipToTeamTx(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId,
+      actorMembershipId: input.actorMembershipId,
+      teamId: team.id,
+      membershipId: leaderMembership.id,
+      role: leaderRole,
+      reportsToTeamMembershipId: null
+    });
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -2545,7 +2641,11 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
         officeId: input.officeId ?? null,
         objectLabel: team.name,
         contextHref: `/office/agents?teamId=${team.id}`,
-        details: [`Status: Active`, `Parent team: ${parentTeam?.name ?? "None"}`]
+        details: [
+          `Status: Active`,
+          `Parent team: ${parentTeam?.name ?? "None"}`,
+          `${teamRoleLabelMap[leaderRole]}: ${getMembershipLabel(leaderMembership)}`
+        ]
       }
     });
 
@@ -2576,7 +2676,8 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
             organizationId: input.organizationId,
             officeId: input.officeId,
             teamId: team.id,
-            parentTeamId: input.parentTeamId
+            parentTeamId: input.parentTeamId,
+            maxDepth: 1
           });
     const [currentParentTeam, nextParentTeam] = await Promise.all([
       team.parentTeamId
@@ -2694,7 +2795,7 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
     }
 
     if (childTeamCount > 0) {
-      throw new Error("Remove or reassign this team's child branches before deleting it.");
+      throw new Error("Remove or reassign this team's Junior Teams before deleting it.");
     }
 
     if (commissionAssignmentCount > 0) {
@@ -2778,14 +2879,11 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
 
   const nextRole = normalizeTeamRole(input.role);
   const expectedLeaderRole = getExpectedBranchLeaderRole(team.parentTeamId);
-  const existingLeader = await tx.teamMembership.findFirst({
+  const validLeaderMemberships = await tx.teamMembership.findMany({
     where: {
       organizationId: input.organizationId,
       teamId: input.teamId,
-      role: {
-        in: ["team_leader", "junior_team_leader"]
-      },
-      ...(existingTeamMembership ? { NOT: { id: existingTeamMembership.id } } : {})
+      role: expectedLeaderRole
     },
     select: {
       id: true,
@@ -2793,18 +2891,23 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
       role: true
     }
   });
+  const currentMembershipIsValidLeader = existingTeamMembership
+    ? validLeaderMemberships.some((leader) => leader.id === existingTeamMembership.id)
+    : false;
+  const otherValidLeaders = validLeaderMemberships.filter((leader) => leader.id !== existingTeamMembership?.id);
 
   if (nextRole !== "member" && nextRole !== expectedLeaderRole) {
     throw new Error(
       team.parentTeamId
-        ? "Child teams can only assign a Junior Team Leader as the branch owner."
-        : "Top-level teams can only assign a Team Leader as the branch owner."
+        ? "Junior Teams can only assign a Junior Team Leader as the owner."
+        : "Teams can only assign a Team Leader as the owner."
     );
   }
 
-  if (nextRole !== "member" && existingLeader) {
-    throw new Error("Each team can only have one active branch leader.");
+  if (nextRole !== "member" && otherValidLeaders.length > 1) {
+    throw new Error("This team currently has multiple active leaders. Clean that up before assigning a new owner.");
   }
+  const transferLeader = nextRole === expectedLeaderRole ? otherValidLeaders[0] ?? null : null;
 
   const directReports = existingTeamMembership
     ? await tx.teamMembership.findMany({
@@ -2819,6 +2922,14 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
         }
       })
     : [];
+
+  if (nextRole === "member" && currentMembershipIsValidLeader && otherValidLeaders.length === 0) {
+    throw new Error(
+      team.parentTeamId
+        ? "Transfer this Junior Team to another Junior Team Leader before changing the current owner."
+        : "Transfer this Team to another Team Leader before changing the current owner."
+    );
+  }
 
   if (nextRole === "member" && directReports.length > 0) {
     throw new Error("Members cannot keep direct reports. Reassign direct reports first.");
@@ -2856,6 +2967,29 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
       reportsToTeamMembershipId: nextReportsToTeamMembershipId
     }
   });
+
+  if (transferLeader) {
+    await tx.teamMembership.update({
+      where: {
+        id: transferLeader.id
+      },
+      data: {
+        role: "member",
+        reportsToTeamMembershipId: teamMembership.id
+      }
+    });
+    await tx.teamMembership.updateMany({
+      where: {
+        organizationId: input.organizationId,
+        teamId: input.teamId,
+        reportsToTeamMembershipId: transferLeader.id
+      },
+      data: {
+        reportsToTeamMembershipId: teamMembership.id
+      }
+    });
+    await syncManagedMembershipTitle(tx, transferLeader.membershipId);
+  }
 
   await syncManagedMembershipTitle(tx, input.membershipId);
 
@@ -2904,7 +3038,8 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
       contextHref: `/office/settings/users/${input.membershipId}`,
       details: [
         `Team role: ${teamRoleLabelMap[teamMembership.role]}`,
-        `Direct manager: ${directManager ? getMembershipLabel(directManager.membership) : "None"}`
+        `Direct manager: ${directManager ? getMembershipLabel(directManager.membership) : "None"}`,
+        ...(transferLeader ? [`Leadership transferred from another ${teamRoleLabelMap[expectedLeaderRole]}`] : [])
       ]
     }
   });
@@ -2936,7 +3071,8 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
       throw new Error("Team membership was not found.");
     }
 
-    const [directReportCount, childTeamCount] = await Promise.all([
+    const expectedLeaderRole = getExpectedBranchLeaderRole(team.parentTeamId);
+    const [directReportCount, childTeamCount, otherValidLeaderCount] = await Promise.all([
       tx.teamMembership.count({
         where: {
           organizationId: input.organizationId,
@@ -2951,15 +3087,33 @@ export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
               parentTeamId: input.teamId
             }
           })
-        : Promise.resolve(0)
+        : Promise.resolve(0),
+      tx.teamMembership.count({
+        where: {
+          organizationId: input.organizationId,
+          teamId: input.teamId,
+          role: expectedLeaderRole,
+          NOT: {
+            id: teamMembership.id
+          }
+        }
+      })
     ]);
+
+    if (teamMembership.role === expectedLeaderRole && otherValidLeaderCount === 0) {
+      throw new Error(
+        team.parentTeamId
+          ? "Transfer this Junior Team to another Junior Team Leader before removing the current owner."
+          : "Transfer this Team to another Team Leader before removing the current owner."
+      );
+    }
 
     if (directReportCount > 0) {
       throw new Error("Reassign or remove this member's direct reports before removing them from the team.");
     }
 
     if (childTeamCount > 0) {
-      throw new Error("Reassign this branch's child teams before removing its leader.");
+      throw new Error("Reassign this team's Junior Teams before removing its leader.");
     }
 
     await tx.teamMembership.delete({
