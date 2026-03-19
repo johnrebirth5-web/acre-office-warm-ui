@@ -52,6 +52,9 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - `Final Agent Net`
   - `Final Office Net`
   - prerequisite flags for `client referral` / `rebate`
+- transaction creation intake now supports a structured finance seed path:
+  - `New Transaction` create modal and `/office/transactions/new` can capture `gross commission`, `finance notes`, and current fee-ledger values at create time
+  - create-time finance input writes the same transaction finance storage used by detail finance instead of leaving those values only inside legacy custom text fields
 - transaction detail commission section now supports:
   - current stakeholder breakdown
   - current calculation version summary

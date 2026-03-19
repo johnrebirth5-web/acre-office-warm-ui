@@ -143,6 +143,23 @@ export async function POST(request: NextRequest) {
       listingDate: submission.listingDate,
       listingExpirationDate: submission.listingExpirationDate,
       closingDate: submission.closingDate,
+      grossCommission: typeof body.grossCommission === "string" ? body.grossCommission : undefined,
+      financeNotes: typeof body.financeNotes === "string" ? body.financeNotes : undefined,
+      fees: Array.isArray(body.fees)
+        ? body.fees.map((fee) => {
+            const record = fee && typeof fee === "object" ? (fee as Record<string, unknown>) : {};
+
+            return {
+              feeType: typeof record.feeType === "string" ? record.feeType : "",
+              rate: typeof record.rate === "string" ? record.rate : undefined,
+              amount: typeof record.amount === "string" ? record.amount : undefined,
+              selectedCalculationType:
+                typeof record.selectedCalculationType === "string" ? record.selectedCalculationType : undefined,
+              approvalStatus: typeof record.approvalStatus === "string" ? record.approvalStatus : undefined,
+              notes: typeof record.notes === "string" ? record.notes : undefined
+            };
+          })
+        : undefined,
       additionalFields: submission.additionalFields
     });
 

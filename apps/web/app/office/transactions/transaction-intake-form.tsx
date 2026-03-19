@@ -7,6 +7,12 @@ import type {
   OfficeTransactionIntakeSchema,
   OfficeTransactionOwnerAssignment
 } from "@acre/db";
+import {
+  buildLegacyFinanceFieldValuesFromDraft,
+  buildStructuredFinancePayloadFromDraft,
+  createTransactionFinanceCreateDraft,
+  TransactionFinanceCreateFields
+} from "./transaction-finance-create-fields";
 
 type TransactionIntakeWorkspaceProps = {
   mode: "create" | "edit";
@@ -38,6 +44,16 @@ type BodyFieldRecord =
     };
 
 const maxVisibleOwnerSuggestions = 20;
+const createModeStructuredFinanceFieldKeys = new Set([
+  "commissionAmount",
+  "rebate",
+  "reimbursement",
+  "companyReferral",
+  "outsideReferral",
+  "referralFee",
+  "companyReferralEmployeeName",
+  "note"
+]);
 
 function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialValues: Record<string, string> | undefined) {
   const nextValues: Record<string, string> = {};
@@ -96,6 +112,7 @@ export function TransactionIntakeWorkspace({
   const [ownerSearchValue, setOwnerSearchValue] = useState("");
   const [selectedOwnerMembershipId, setSelectedOwnerMembershipId] = useState("");
   const [ownerSuggestionsOpen, setOwnerSuggestionsOpen] = useState(false);
+  const [financeDraft, setFinanceDraft] = useState(() => createTransactionFinanceCreateDraft());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const ownerFieldInputName = useMemo(
@@ -106,6 +123,7 @@ export function TransactionIntakeWorkspace({
   const ownerHelperText = canSearchOwners
     ? "Search and select the transaction owner before saving."
     : "This transaction will be assigned to your account.";
+  const pristineFinanceDraft = useMemo(() => createTransactionFinanceCreateDraft(), []);
   const pristineFieldValues = useMemo(() => {
     const nextValues = buildInitialFieldValues(localSchema, initialValues);
 
@@ -116,9 +134,11 @@ export function TransactionIntakeWorkspace({
 
     return nextValues;
   }, [initialValues, localSchema, mode, ownerAssignment, ownerFieldInputName]);
-  const hasUnsavedChanges = Object.keys(pristineFieldValues).some(
+  const hasUnsavedFieldChanges = Object.keys(pristineFieldValues).some(
     (fieldName) => (fieldValues[fieldName] ?? "") !== (pristineFieldValues[fieldName] ?? "")
   );
+  const hasUnsavedFinanceChanges = mode === "create" && JSON.stringify(financeDraft) !== JSON.stringify(pristineFinanceDraft);
+  const hasUnsavedChanges = hasUnsavedFieldChanges || hasUnsavedFinanceChanges;
 
   useEffect(() => {
     setLocalSchema(schema);
@@ -140,6 +160,9 @@ export function TransactionIntakeWorkspace({
         : ownerAssignment?.currentOwnerMembershipId ?? ""
     );
     setOwnerSuggestionsOpen(false);
+    if (mode === "create") {
+      setFinanceDraft(createTransactionFinanceCreateDraft());
+    }
   }, [schema, initialValues, mode, ownerAssignment]);
 
   const visibleTopFields = [...localSchema.builtInFields]
@@ -155,6 +178,7 @@ export function TransactionIntakeWorkspace({
       })),
     ...localSchema.customFields
       .filter((field) => field.isVisible)
+      .filter((field) => !(mode === "create" && createModeStructuredFinanceFieldKeys.has(field.fieldKey)))
       .map((field) => ({
         kind: "custom" as const,
         field,
@@ -358,8 +382,9 @@ export function TransactionIntakeWorkspace({
     setIsSubmitting(true);
 
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, unknown> = {
         ...fieldValues,
+        ...(mode === "create" ? buildLegacyFinanceFieldValuesFromDraft(financeDraft) : {}),
         ...(ownerAssignment && ownerFieldInputName
           ? {
               [ownerFieldInputName]:
@@ -374,6 +399,9 @@ export function TransactionIntakeWorkspace({
         payload.ownerMembershipId = canSearchOwners
           ? selectedOwnerMembershipId
           : ownerAssignment.currentOwnerMembershipId;
+        payload.grossCommission = financeDraft.grossCommission;
+        payload.financeNotes = financeDraft.financeNotes;
+        payload.fees = buildStructuredFinancePayloadFromDraft(financeDraft).fees;
       }
 
       const response = await fetch(submitEndpoint, {
@@ -413,6 +441,7 @@ export function TransactionIntakeWorkspace({
         setOwnerSearchValue(canSearchOwners ? "" : ownerAssignment?.currentOwnerLabel ?? "");
         setSelectedOwnerMembershipId(canSearchOwners ? "" : ownerAssignment?.currentOwnerMembershipId ?? "");
         setOwnerSuggestionsOpen(false);
+        setFinanceDraft(createTransactionFinanceCreateDraft());
       }
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Failed to save transaction intake.");
@@ -479,6 +508,10 @@ export function TransactionIntakeWorkspace({
           <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
             {remainingBodyFields.map((entry) => renderBodyField(entry))}
           </div>
+        ) : null}
+
+        {mode === "create" ? (
+          <TransactionFinanceCreateFields draft={financeDraft} onChange={setFinanceDraft} />
         ) : null}
 
         <footer className="bm-transaction-modal-footer">

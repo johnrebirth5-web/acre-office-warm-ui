@@ -48,6 +48,7 @@
   - `office_admin` can add custom `text / select / date` fields per module
   - hidden address groups still force `Transaction Name` visible + required
   - contact and offer custom values now persist in `Client.additionalFields` and `Offer.additionalFields`
+  - create-mode intake now routes legacy finance-style fields like `Commission($) / Rebate / Referral Fee / Reimbursement / Note` through a structured finance section so new transactions write real `grossCommission`, fee-ledger rows, and finance notes instead of disconnected text-only values
   - field-structure changes write to `Activity Log`
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
 - Destructive Back Office actions now use a shared confirmation dialog before delete/remove/unlink-style execution, replacing one-click deletes and ad-hoc `window.confirm` prompts

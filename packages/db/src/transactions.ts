@@ -189,6 +189,14 @@ export type CreateTransactionInput = {
   officeNet?: string;
   agentNet?: string;
   financeNotes?: string;
+  fees?: Array<{
+    feeType: string;
+    rate?: string;
+    amount?: string;
+    selectedCalculationType?: string;
+    approvalStatus?: string;
+    notes?: string;
+  }>;
   additionalFields?: Record<string, string>;
 };
 
@@ -1464,7 +1472,7 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
       }
     });
 
-    await ensureTransactionFinanceFees(tx, {
+    const financeFees = await ensureTransactionFinanceFees(tx, {
       organizationId: input.organizationId,
       officeId: input.officeId ?? created.officeId,
       transactionId: created.id,
@@ -1473,6 +1481,73 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
       companyReferral: created.companyReferral,
       additionalFields: created.additionalFields
     });
+
+    if (input.fees && input.fees.length > 0) {
+      const feeByType = new Map(financeFees.map((fee) => [fee.feeType, fee]));
+
+      for (const feeInput of input.fees) {
+        const feeType = parseTransactionFinanceFeeType(feeInput.feeType);
+
+        if (!feeType) {
+          continue;
+        }
+
+        const existingFee = feeByType.get(feeType);
+
+        if (!existingFee) {
+          continue;
+        }
+
+        const normalized = normalizeTransactionFinanceFeeForPersistence({
+          feeType,
+          grossCommission: created.grossCommission,
+          existingRate: existingFee.rate,
+          existingAmount: existingFee.amount,
+          existingCalculationType: existingFee.selectedCalculationType,
+          existingApprovalStatus: existingFee.approvalStatus,
+          rate: parseOptionalDecimal(feeInput.rate),
+          amount: parseOptionalDecimal(feeInput.amount),
+          selectedCalculationType: parseTransactionFinanceCalculationType(feeInput.selectedCalculationType),
+          requestedApprovalStatus: parseTransactionFinanceApprovalStatus(feeInput.approvalStatus),
+          notes: parseOptionalText(feeInput.notes) ?? existingFee.notes
+        });
+
+        await tx.transactionFinanceFee.update({
+          where: {
+            id: existingFee.id
+          },
+          data: {
+            rate: normalized.rate,
+            amount: normalized.amount,
+            selectedCalculationType: normalized.selectedCalculationType,
+            approvalRequired: normalized.approvalRequired,
+            approvalStatus: normalized.approvalStatus,
+            notes: normalized.notes,
+            approvedAt: normalized.approvalStatus === "approved" ? new Date() : null,
+            approvedByMembershipId: normalized.approvalStatus === "approved" ? input.actorMembershipId ?? null : null
+          }
+        });
+      }
+
+      const refreshedFees = await tx.transactionFinanceFee.findMany({
+        where: {
+          organizationId: input.organizationId,
+          transactionId: created.id
+        }
+      });
+      const computedPreSplitTotal = refreshedFees
+        .filter((fee) => fee.selectedCalculationType === "pre_split")
+        .reduce((sum, fee) => sum.plus(fee.amount ?? 0), new Prisma.Decimal(0));
+
+      await tx.transaction.update({
+        where: {
+          id: created.id
+        },
+        data: {
+          referralFee: computedPreSplitTotal
+        }
+      });
+    }
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,

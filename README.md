@@ -96,6 +96,10 @@
   - 支持搜索、状态 / owner / team / type / date window 筛选和服务端分页
   - 顶部 `MY NET INCOME` 现在按真实 `officeNet` 聚合，不再硬编码 `$ 0`
   - `Create Transaction` modal 会真实写入数据库
+  - `Create Transaction` / `/office/transactions/new` 现在把 legacy finance 文本字段折叠成结构化 finance intake：
+    - `Gross commission` 直接写 transaction finance
+    - `Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee / Reimbursement` 直接创建 fee ledger 当前行
+    - `Finance notes` 直接写 transaction `financeNotes`
   - 已有 transaction detail 页面
   - transaction detail 现在会渲染真实 linked contacts，并支持 link / unlink / set primary
   - transaction detail 现在有真实 `Checklist / Tasks` 区块，可创建、编辑并执行 document-linked review workflow
