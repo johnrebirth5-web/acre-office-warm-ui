@@ -117,11 +117,10 @@
     - 财务可确认 `Client Referral` / `Rebate` 前置条件
     - 页面显示 `Pre-Split Total / Post-Split Total / Net Commission Base / Final Agent Net / Final Office Net`
     - 支持 calculation history、current version、manual override 和操作备注
-  - transaction detail 现在有最小真实 `Documents / Forms / eSignature / Incoming updates` workflow：
+  - transaction detail 现在有最小真实 `Documents / Forms / eSignature` workflow：
     - `Documents`
     - `Unsorted documents`
     - `Forms & eSignature`
-    - `Incoming updates`
   - transaction detail 现在也有真实 `Offers` workflow：
     - offer create / edit
     - explicit status transitions：
@@ -163,7 +162,7 @@
     - accepted
     - rejected
     - applied
-    当前没有 live Folio / vendor sync
+    当前没有 live Folio / vendor sync，且默认不再在 transaction detail 页面暴露 UI
   - 文档文件当前使用本地文件系统存储：
     - 默认目录：`.local-storage/documents`
     - 可用 `ACRE_DOCUMENTS_STORAGE_DIR` 覆盖

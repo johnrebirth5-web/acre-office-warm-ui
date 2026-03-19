@@ -37,9 +37,10 @@
   - contacts
   - finance
   - tasks and compliance
-  - documents, forms, eSignature, and incoming updates
+  - documents and forms / eSignature
   - offers
   - commissions
+- Incoming update review foundation still exists in the data/API layer, but the section is now hidden from the default transaction detail UI to keep the workflow hub focused on active operations.
 - Transaction intake is now office-scoped and schema-driven across the create modal, `/office/transactions/new`, and transaction detail:
   - `Settings > Fields` is now the single field-structure admin surface
   - first centralized modules are `transaction / contact / offer`

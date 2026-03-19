@@ -10,7 +10,7 @@ Provide a real transaction-centered document workflow with structured documents,
   - Documents
   - Unsorted documents
   - Forms & eSignature
-  - Incoming updates
+- incoming updates review foundation remains implemented in the data/API layer, but it is not currently surfaced on the default transaction detail page
 - `/office/approve-docs` now reads the same task-linked document review workflow for manager/reviewer processing
 - documents support:
   - upload

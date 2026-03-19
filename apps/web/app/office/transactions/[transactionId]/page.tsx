@@ -21,7 +21,6 @@ import {
   canAcceptOfficeOffers,
   canReviewOfficeTasks,
   canReviewOfficeOffers,
-  canReviewOfficeIncomingUpdates,
   canSecondaryReviewOfficeTasks,
   canUseOfficeForms,
   canViewOfficeCommissions,
@@ -35,7 +34,6 @@ import { TransactionContactsCard } from "./contacts-card";
 import { TransactionDocumentsCard, TransactionUnsortedDocumentsCard } from "./documents-card";
 import { TransactionFinanceForm } from "./finance-form";
 import { TransactionFormsSignaturesCard } from "./forms-signatures-card";
-import { TransactionIncomingUpdatesCard } from "./incoming-updates-card";
 import { TransactionCommissionCard } from "./commission-card";
 import { TransactionOffersCard } from "./offers-card";
 import { TransactionStatusForm } from "./status-form";
@@ -91,7 +89,6 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
   const canManageDocumentsForRole = canManageOfficeDocuments(context.currentMembership);
   const canUseFormsForRole = canUseOfficeForms(context.currentMembership);
   const canManageSignaturesForRole = canManageOfficeSignatures(context.currentMembership);
-  const canReviewIncomingUpdatesForRole = canReviewOfficeIncomingUpdates(context.currentMembership);
   const canReviewTasksForRole = canReviewOfficeTasks(context.currentMembership);
   const canSecondaryReviewTasksForRole = canSecondaryReviewOfficeTasks(context.currentMembership);
   const canApproveDocumentsForRole = canApproveOfficeDocuments(context.currentMembership);
@@ -355,19 +352,6 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
           formTemplates={transaction.formTemplates}
           forms={transaction.forms}
           taskOptions={taskOptions}
-          transactionId={transaction.id}
-        />
-      </TransactionDetailCollapsibleSection>
-
-      <TransactionDetailCollapsibleSection
-        sectionKey="incoming-updates"
-        storageScope={transactionDetailSectionStorageScope}
-        subtitle="Review future Folio-like external updates before applying safe mapped changes to the transaction."
-        title="Incoming updates"
-      >
-        <TransactionIncomingUpdatesCard
-          canReviewIncomingUpdates={canReviewIncomingUpdatesForRole}
-          incomingUpdates={transaction.incomingUpdates}
           transactionId={transaction.id}
         />
       </TransactionDetailCollapsibleSection>

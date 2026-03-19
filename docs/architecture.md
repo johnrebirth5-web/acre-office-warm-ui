@@ -25,7 +25,6 @@
   - documents
   - unsorted documents
   - forms / eSignature
-  - incoming updates
   - commission management
 - `Activity` 虽然已经是数据库驱动的真实 activity log，但当前覆盖范围仍只限于仓库里已经实现的真实写入路径；当前 documents / forms / signatures / incoming updates、部分 approvals，以及 roles / user permissions 等 settings 变更都已接入事件，但仍不是所有 settings 模块都已完整覆盖
 - `Buyer Offers` 当前已经作为 transaction hub 内的真实 workflow foundation 落地，但仍是内部 Back Office offer management，不包含 MLS / email ingestion 或 client-facing portal
@@ -69,7 +68,7 @@
   - `Contacts`：list / detail / create / edit / follow-up task create / transaction link
   - `Account`：current-membership profile update、notification preference save、self summary snapshot
   - `Library`：folder create / rename、document upload / rename / move / delete、inline preview / download
-  - `Transaction detail`：finance update、linked contacts 管理、transaction tasks create / update、documents / forms / signatures / incoming updates、commission calculation
+  - `Transaction detail`：finance update、linked contacts 管理、transaction tasks create / update、documents / forms / signatures、commission calculation
   - `Approve Docs`：server-side document review queue snapshot；approve / reject / reopen / complete 继续复用 transaction task workflow route
   - `Activity`：server-side 同时读取真实 `AuditLog` 和实时派生 alerts，渲染 `Activity Log + Operational Alerts`
     - `AuditLog` 是唯一活动事件源
@@ -237,7 +236,7 @@
 - 当前文档文件不是接入 S3 / R2，而是本地文件系统 MVP
 - `Company Library` 也复用同一套本地文件系统存储基础，但按 organization / library scope 单独分目录
 - 当前 eSignature 不是第三方 vendor integration，而是内部状态机 foundation
-- 当前 incoming updates 不是 live Folio sync，而是内部 review-ready model
+- 当前 incoming updates 不是 live Folio sync，而是内部 review-ready model；底层 route/service 仍保留，但默认不在 transaction detail 页面暴露
 
 不要把“规划中”当成“已接入”。
 
@@ -495,7 +494,7 @@
 26. secondary approval 当前已实现，并要求 second approver 与 first approver 必须是不同 membership
 27. 删除 required document、取消提交条件或让签名重新变成未完成时，会触发 task workflow 重新评估并必要时 reopen
 28. `/api/office/tasks/views` 以 membership 维度持久化 saved views
-29. transaction detail 的 documents / forms / signatures / incoming updates 统一通过 `packages/db/src/transaction-documents.ts` 读取和写入
+29. transaction detail 的 documents / forms / signatures，以及隐藏中的 incoming update foundation，统一通过 `packages/db/src/transaction-documents.ts` 读取和写入
 30. 文件本体当前通过 `apps/web/lib/document-storage.ts` 写入本地文件系统；document metadata 仍在 PostgreSQL
 31. document / form / signature / incoming update 的关键动作会写入 `AuditLog`
 32. buyer offers 继续落在 transaction hub 内，不另建第二个 offer app；offer 的 documents / forms / signatures 直接复用现有 foundation，并通过 `offerId` 做 linkage

@@ -191,6 +191,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current maturity:
   - `MVP`
 - Current notable behavior:
+  - `Incoming updates` foundation still exists in the data/API layer, but the transaction detail page no longer shows that section by default.
   - nested transaction child routes now need to respect the parent transaction scope instead of resolving by child id alone.
   - current single-Droplet deployment intentionally keeps local filesystem document storage, with production storage expected under `/var/lib/acre/documents`.
 - Follow-up work:
