@@ -69,5 +69,5 @@ test("hierarchy leader selection ignores invalid leader roles for the current br
 
   assert.equal(hierarchy.leaderByTeamId.get("team-root")?.label, "Linfen Ruan");
   assert.equal(hierarchy.leaderByTeamId.has("team-child"), false);
-  assert.equal(hierarchy.hierarchyMap.get("tm-child-member")?.directManagerLabel, "No direct manager");
+  assert.equal(hierarchy.hierarchyMap.get("tm-child-member")?.directManagerLabel, "Linfen Ruan");
 });

@@ -287,12 +287,17 @@ export function buildTeamMembershipHierarchyMap(input: {
     const explicitDirectManager = teamMembership.reportsToTeamMembershipId
       ? membershipByTeamMembershipId.get(teamMembership.reportsToTeamMembershipId) ?? null
       : null;
+    const sameTeamLeader = leaderByTeamId.get(teamMembership.teamId) ?? null;
+    const parentTeamLeader =
+      team?.parentTeamId
+        ? leaderByTeamId.get(team.parentTeamId) ?? null
+        : null;
     const directManager =
       explicitDirectManager ??
       (teamMembership.role === "member"
-        ? leaderByTeamId.get(teamMembership.teamId) ?? null
+        ? sameTeamLeader ?? parentTeamLeader
         : team?.parentTeamId
-          ? leaderByTeamId.get(team.parentTeamId) ?? null
+          ? parentTeamLeader
           : null);
 
     hierarchyMap.set(teamMembership.id, {
