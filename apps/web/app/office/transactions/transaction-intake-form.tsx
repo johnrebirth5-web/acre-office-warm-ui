@@ -322,7 +322,6 @@ export function TransactionIntakeWorkspace({
           </div>
         ) : field.type === "select" ? (
           <select
-            defaultValue=""
             disabled={!canEditValues}
             name={field.inputName}
             onChange={(event) => setFieldValue(field.inputName, event.target.value)}

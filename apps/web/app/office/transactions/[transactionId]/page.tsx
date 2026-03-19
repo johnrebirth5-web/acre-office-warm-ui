@@ -188,7 +188,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
       </SectionCard>
 
       {transaction.canViewFinancials ? (
-        <SectionCard subtitle="Minimal finance layer for commissions, office net, and notes." title="Finance">
+        <SectionCard subtitle="Manage the fee ledger, prerequisites, and finance inputs used by commission calculations." title="Finance">
           <TransactionFinanceForm
             approvalBlockers={commissionSnapshot?.approvalBlockers ?? []}
             canAutoCalculateCommission={canCalculateCommissionsForRole}

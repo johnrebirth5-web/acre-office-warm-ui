@@ -209,10 +209,30 @@ export function TransactionFinanceForm({
   }
 
   const willAutoCalculate = canAutoCalculateCommission && formState.grossCommission.trim().length > 0;
+  const prerequisiteCards = [
+    {
+      checked: formState.clientReferralFormApproved,
+      description: "Must be signed and approved before Client Referral can be included in the commission run.",
+      field: "clientReferralFormApproved" as const,
+      title: "Client referral form approved"
+    },
+    {
+      checked: formState.rebateAgreementSigned,
+      description: "Required before any rebate fee is counted in final commission calculation.",
+      field: "rebateAgreementSigned" as const,
+      title: "Rebate agreement signed"
+    },
+    {
+      checked: formState.rebateGoogleFormSubmitted,
+      description: "Finance must confirm the Google Form submission before rebate can be formally calculated.",
+      field: "rebateGoogleFormSubmitted" as const,
+      title: "Rebate Google Form submitted"
+    }
+  ];
 
   return (
-    <div className="bm-transaction-finance-form">
-      <div className="office-kpi-grid office-commission-kpi-grid">
+    <div className="office-transaction-finance-form">
+      <div className="office-kpi-grid office-commission-kpi-grid office-transaction-finance-kpis">
         <StatCard hint="current finance input" label="Gross commission" value={summary?.grossCommissionLabel ?? "$0"} />
         <StatCard hint="sum of all pre-split fees" label="Pre-Split total" value={summary?.preSplitTotalLabel ?? "$0"} />
         <StatCard hint="sum of all post-split fees" label="Post-Split total" value={summary?.postSplitTotalLabel ?? "$0"} />
@@ -223,149 +243,181 @@ export function TransactionFinanceForm({
         <StatCard hint="latest saved commission version" label="Current version" value={summary?.currentVersionLabel ?? "Not calculated"} />
       </div>
 
-      <label className="office-detail-field">
-        <span>Gross commission</span>
-        <input disabled={readOnly} onChange={(event) => setTopLevelField("grossCommission", event.target.value)} type="text" value={formState.grossCommission} />
-      </label>
-
-      <div className="office-detail-grid">
-        <label className="office-detail-field">
-          <span>
-            <input
-              checked={formState.clientReferralFormApproved}
-              disabled={readOnly}
-              onChange={(event) => setPrerequisiteField("clientReferralFormApproved", event.target.checked)}
-              type="checkbox"
-            />{" "}
-            Client referral form signed and approved
-          </span>
-        </label>
-        <label className="office-detail-field">
-          <span>
-            <input
-              checked={formState.rebateAgreementSigned}
-              disabled={readOnly}
-              onChange={(event) => setPrerequisiteField("rebateAgreementSigned", event.target.checked)}
-              type="checkbox"
-            />{" "}
-            Rebate agreement signed
-          </span>
-        </label>
-        <label className="office-detail-field">
-          <span>
-            <input
-              checked={formState.rebateGoogleFormSubmitted}
-              disabled={readOnly}
-              onChange={(event) => setPrerequisiteField("rebateGoogleFormSubmitted", event.target.checked)}
-              type="checkbox"
-            />{" "}
-            Rebate Google Form submitted
-          </span>
-        </label>
-      </div>
-
-      <HorizontalScrollArea>
-        <div className="office-table">
-          <div className="office-table-header office-table-row office-table-row-commission">
-            <span>Fee</span>
-            <span>Calculation</span>
-            <span>Rate %</span>
-            <span>Amount</span>
-            <span>Approval</span>
-            <span>Notes</span>
+      <div className="office-transaction-finance-grid">
+        <section className="office-transaction-finance-panel">
+          <div className="office-transaction-finance-panel-head">
+            <div>
+              <h4>Finance setup</h4>
+              <p>Set the gross commission and keep working notes on this transaction.</p>
+            </div>
           </div>
 
-          {formState.fees.map((fee, index) => (
-            <div className="office-table-row office-table-row-commission" key={fee.id}>
-              <div className="office-table-primary">
-                <strong>{fee.feeTypeLabel}</strong>
-                <p>{fee.approvalHelperText}</p>
-                {fee.prerequisiteHelperText ? <p>{fee.prerequisiteHelperText}</p> : null}
-              </div>
-              <SelectInput
-                disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                onChange={(event) =>
-                  updateFee(index, (current) => ({
-                    ...current,
-                    selectedCalculationTypeValue: event.target.value as FinanceFeeDraft["selectedCalculationTypeValue"],
-                    selectedCalculationTypeLabel:
-                      event.target.value === "pre_split"
-                        ? "Pre-Split"
-                        : event.target.value === "post_split"
-                          ? "Post-Split"
-                          : "Reimbursement"
-                  }))
-                }
-                value={fee.selectedCalculationTypeValue}
-              >
-                <option value="pre_split">Pre-Split</option>
-                <option value="post_split">Post-Split</option>
-                <option value="reimbursement">Reimbursement</option>
-              </SelectInput>
+          <div className="office-transaction-finance-fields">
+            <label className="office-detail-field">
+              <span>Gross commission</span>
               <input
-                disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                onChange={(event) => syncFeeNumbers(index, "rate", event.target.value)}
+                disabled={readOnly}
+                onChange={(event) => setTopLevelField("grossCommission", event.target.value)}
                 type="text"
-                value={fee.rate}
+                value={formState.grossCommission}
               />
-              <input disabled={readOnly} onChange={(event) => syncFeeNumbers(index, "amount", event.target.value)} type="text" value={fee.amount} />
-              <SelectInput
-                disabled={readOnly || !fee.approvalRequired}
-                onChange={(event) =>
-                  updateFee(index, (current) => ({
-                    ...current,
-                    approvalStatusValue: event.target.value as FinanceFeeDraft["approvalStatusValue"],
-                    approvalStatus:
-                      event.target.value === "approved"
-                        ? "Approved"
-                        : event.target.value === "pending"
-                          ? "Pending approval"
-                          : "Not required"
-                  }))
-                }
-                value={fee.approvalRequired ? fee.approvalStatusValue : "not_required"}
-              >
-                <option value="not_required">Not required</option>
-                <option value="pending">Pending approval</option>
-                <option value="approved">Approved</option>
-              </SelectInput>
+            </label>
+
+            <label className="office-detail-field office-detail-field-wide">
+              <span>Finance notes</span>
               <textarea
                 disabled={readOnly}
-                onChange={(event) =>
-                  updateFee(index, (current) => ({
-                    ...current,
-                    notes: event.target.value
-                  }))
-                }
-                rows={2}
-                value={fee.notes}
+                onChange={(event) => setTopLevelField("financeNotes", event.target.value)}
+                rows={4}
+                value={formState.financeNotes}
               />
-            </div>
-          ))}
-        </div>
-      </HorizontalScrollArea>
+            </label>
+          </div>
+        </section>
 
-      <label className="office-detail-field office-detail-field-wide">
-        <span>Finance notes</span>
-        <textarea disabled={readOnly} onChange={(event) => setTopLevelField("financeNotes", event.target.value)} rows={3} value={formState.financeNotes} />
-      </label>
+        <section className="office-transaction-finance-panel">
+          <div className="office-transaction-finance-panel-head">
+            <div>
+              <h4>Prerequisites</h4>
+              <p>These checks gate Client Referral and Rebate before finance can finalize the commission.</p>
+            </div>
+          </div>
+
+          <div className="office-transaction-finance-prereq-grid">
+            {prerequisiteCards.map((card) => (
+              <label
+                className={`office-transaction-finance-prereq-card${card.checked ? " is-checked" : ""}${readOnly ? " is-readonly" : ""}`}
+                key={card.field}
+              >
+                <input
+                  checked={card.checked}
+                  disabled={readOnly}
+                  onChange={(event) => setPrerequisiteField(card.field, event.target.checked)}
+                  type="checkbox"
+                />
+                <div className="office-transaction-finance-prereq-copy">
+                  <strong>{card.title}</strong>
+                  <p>{card.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <section className="office-transaction-finance-panel office-transaction-finance-ledger-panel">
+        <div className="office-transaction-finance-panel-head office-transaction-finance-panel-head-split">
+          <div>
+            <h4>Fee ledger</h4>
+            <p>Choose how each fee is handled and keep a clean finance trail for review, calculation, and payslip output.</p>
+          </div>
+          <p className="office-transaction-finance-panel-note">
+            Pre-Split reduces the split base. Post-Split deducts from the owner agent after the split.
+          </p>
+        </div>
+
+        <HorizontalScrollArea>
+          <div className="office-table office-transaction-finance-ledger">
+            <div className="office-table-header office-table-row office-table-row-transaction-finance">
+              <span>Fee</span>
+              <span>Calculation</span>
+              <span>Rate %</span>
+              <span>Amount</span>
+              <span>Approval</span>
+              <span>Notes</span>
+            </div>
+
+            {formState.fees.map((fee, index) => (
+              <div className="office-table-row office-table-row-transaction-finance" key={fee.id}>
+                <div className="office-table-primary">
+                  <strong>{fee.feeTypeLabel}</strong>
+                  <p>{fee.approvalHelperText}</p>
+                  {fee.prerequisiteHelperText ? <p>{fee.prerequisiteHelperText}</p> : null}
+                </div>
+                <SelectInput
+                  disabled={readOnly || fee.feeTypeValue === "reimbursement"}
+                  onChange={(event) =>
+                    updateFee(index, (current) => ({
+                      ...current,
+                      selectedCalculationTypeValue: event.target.value as FinanceFeeDraft["selectedCalculationTypeValue"],
+                      selectedCalculationTypeLabel:
+                        event.target.value === "pre_split"
+                          ? "Pre-Split"
+                          : event.target.value === "post_split"
+                            ? "Post-Split"
+                            : "Reimbursement"
+                    }))
+                  }
+                  value={fee.selectedCalculationTypeValue}
+                >
+                  <option value="pre_split">Pre-Split</option>
+                  <option value="post_split">Post-Split</option>
+                  <option value="reimbursement">Reimbursement</option>
+                </SelectInput>
+                <input
+                  disabled={readOnly || fee.feeTypeValue === "reimbursement"}
+                  onChange={(event) => syncFeeNumbers(index, "rate", event.target.value)}
+                  type="text"
+                  value={fee.rate}
+                />
+                <input disabled={readOnly} onChange={(event) => syncFeeNumbers(index, "amount", event.target.value)} type="text" value={fee.amount} />
+                <SelectInput
+                  disabled={readOnly || !fee.approvalRequired}
+                  onChange={(event) =>
+                    updateFee(index, (current) => ({
+                      ...current,
+                      approvalStatusValue: event.target.value as FinanceFeeDraft["approvalStatusValue"],
+                      approvalStatus:
+                        event.target.value === "approved"
+                          ? "Approved"
+                          : event.target.value === "pending"
+                            ? "Pending approval"
+                            : "Not required"
+                    }))
+                  }
+                  value={fee.approvalRequired ? fee.approvalStatusValue : "not_required"}
+                >
+                  <option value="not_required">Not required</option>
+                  <option value="pending">Pending approval</option>
+                  <option value="approved">Approved</option>
+                </SelectInput>
+                <textarea
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    updateFee(index, (current) => ({
+                      ...current,
+                      notes: event.target.value
+                    }))
+                  }
+                  rows={3}
+                  value={fee.notes}
+                />
+              </div>
+            ))}
+          </div>
+        </HorizontalScrollArea>
+      </section>
 
       {approvalBlockers.length > 0 ? (
-        <div className="office-section-card">
-          <div className="office-section-body">
-            <strong>Calculation blockers</strong>
-            <ul>
-              {approvalBlockers.map((blocker) => (
-                <li key={blocker}>{blocker}</li>
-              ))}
-            </ul>
+        <section className="office-transaction-finance-panel office-transaction-finance-blockers-panel">
+          <div className="office-transaction-finance-panel-head">
+            <div>
+              <h4>Calculation blockers</h4>
+              <p>These issues must be resolved before finance can finalize the commission run.</p>
+            </div>
           </div>
-        </div>
+
+          <ul className="office-transaction-finance-blocker-list">
+            {approvalBlockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {readOnly ? <p className="office-form-helper">Financial details are read-only for your current access level.</p> : null}
       {!readOnly ? (
-        <div className="office-form-actions">
+        <div className="office-form-actions office-transaction-finance-actions">
           <Button disabled={isSaving} onClick={handleSaveFinance} type="button">
             {isSaving ? (willAutoCalculate ? "Saving & recalculating..." : "Saving...") : willAutoCalculate ? "Save finance & recalculate" : "Save finance"}
           </Button>
