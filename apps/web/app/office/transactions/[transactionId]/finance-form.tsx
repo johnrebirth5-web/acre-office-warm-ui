@@ -7,7 +7,7 @@ import type {
   OfficeTransactionFinanceFeeRecord,
   OfficeTransactionFinancePrerequisiteSnapshot
 } from "@acre/db";
-import { Button, HorizontalScrollArea, SelectInput, StatCard } from "@acre/ui";
+import { Button, SelectInput, StatCard } from "@acre/ui";
 
 type FinanceFeeDraft = {
   id: string;
@@ -316,86 +316,103 @@ export function TransactionFinanceForm({
           </p>
         </div>
 
-        <HorizontalScrollArea>
-          <div className="office-table office-transaction-finance-ledger">
-            <div className="office-table-header office-table-row office-table-row-transaction-finance">
-              <span>Fee</span>
-              <span>Calculation</span>
-              <span>Rate %</span>
-              <span>Amount</span>
-              <span>Approval</span>
-              <span>Notes</span>
-            </div>
-
-            {formState.fees.map((fee, index) => (
-              <div className="office-table-row office-table-row-transaction-finance" key={fee.id}>
-                <div className="office-table-primary">
+        <div className="office-transaction-finance-ledger-list">
+          {formState.fees.map((fee, index) => (
+            <article className="office-transaction-finance-fee-card" key={fee.id}>
+              <div className="office-transaction-finance-fee-head">
+                <div className="office-transaction-finance-fee-copy">
                   <strong>{fee.feeTypeLabel}</strong>
                   <p>{fee.approvalHelperText}</p>
                   {fee.prerequisiteHelperText ? <p>{fee.prerequisiteHelperText}</p> : null}
                 </div>
-                <SelectInput
-                  disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                  onChange={(event) =>
-                    updateFee(index, (current) => ({
-                      ...current,
-                      selectedCalculationTypeValue: event.target.value as FinanceFeeDraft["selectedCalculationTypeValue"],
-                      selectedCalculationTypeLabel:
-                        event.target.value === "pre_split"
-                          ? "Pre-Split"
-                          : event.target.value === "post_split"
-                            ? "Post-Split"
-                            : "Reimbursement"
-                    }))
-                  }
-                  value={fee.selectedCalculationTypeValue}
-                >
-                  <option value="pre_split">Pre-Split</option>
-                  <option value="post_split">Post-Split</option>
-                  <option value="reimbursement">Reimbursement</option>
-                </SelectInput>
-                <input
-                  disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                  onChange={(event) => syncFeeNumbers(index, "rate", event.target.value)}
-                  type="text"
-                  value={fee.rate}
-                />
-                <input disabled={readOnly} onChange={(event) => syncFeeNumbers(index, "amount", event.target.value)} type="text" value={fee.amount} />
-                <SelectInput
-                  disabled={readOnly || !fee.approvalRequired}
-                  onChange={(event) =>
-                    updateFee(index, (current) => ({
-                      ...current,
-                      approvalStatusValue: event.target.value as FinanceFeeDraft["approvalStatusValue"],
-                      approvalStatus:
-                        event.target.value === "approved"
-                          ? "Approved"
-                          : event.target.value === "pending"
-                            ? "Pending approval"
-                            : "Not required"
-                    }))
-                  }
-                  value={fee.approvalRequired ? fee.approvalStatusValue : "not_required"}
-                >
-                  <option value="not_required">Not required</option>
-                  <option value="pending">Pending approval</option>
-                  <option value="approved">Approved</option>
-                </SelectInput>
-                <textarea
-                  disabled={readOnly}
-                  onChange={(event) =>
-                    updateFee(index, (current) => ({
-                      ...current,
-                      notes: event.target.value
-                    }))
-                  }
-                  rows={3}
-                  value={fee.notes}
-                />
+                <div className="office-transaction-finance-fee-summary">
+                  <span>{fee.selectedCalculationTypeLabel}</span>
+                  <span>{fee.approvalRequired ? fee.approvalStatus : "No approval needed"}</span>
+                </div>
               </div>
-            ))}
-          </div>
-        </HorizontalScrollArea>
+
+              <div className="office-transaction-finance-fee-fields">
+                <label className="office-detail-field">
+                  <span>Calculation</span>
+                  <SelectInput
+                    disabled={readOnly || fee.feeTypeValue === "reimbursement"}
+                    onChange={(event) =>
+                      updateFee(index, (current) => ({
+                        ...current,
+                        selectedCalculationTypeValue: event.target.value as FinanceFeeDraft["selectedCalculationTypeValue"],
+                        selectedCalculationTypeLabel:
+                          event.target.value === "pre_split"
+                            ? "Pre-Split"
+                            : event.target.value === "post_split"
+                              ? "Post-Split"
+                              : "Reimbursement"
+                      }))
+                    }
+                    value={fee.selectedCalculationTypeValue}
+                  >
+                    <option value="pre_split">Pre-Split</option>
+                    <option value="post_split">Post-Split</option>
+                    <option value="reimbursement">Reimbursement</option>
+                  </SelectInput>
+                </label>
+
+                <label className="office-detail-field">
+                  <span>Rate %</span>
+                  <input
+                    disabled={readOnly || fee.feeTypeValue === "reimbursement"}
+                    onChange={(event) => syncFeeNumbers(index, "rate", event.target.value)}
+                    type="text"
+                    value={fee.rate}
+                  />
+                </label>
+
+                <label className="office-detail-field">
+                  <span>Amount</span>
+                  <input disabled={readOnly} onChange={(event) => syncFeeNumbers(index, "amount", event.target.value)} type="text" value={fee.amount} />
+                </label>
+
+                <label className="office-detail-field">
+                  <span>Approval</span>
+                  <SelectInput
+                    disabled={readOnly || !fee.approvalRequired}
+                    onChange={(event) =>
+                      updateFee(index, (current) => ({
+                        ...current,
+                        approvalStatusValue: event.target.value as FinanceFeeDraft["approvalStatusValue"],
+                        approvalStatus:
+                          event.target.value === "approved"
+                            ? "Approved"
+                            : event.target.value === "pending"
+                              ? "Pending approval"
+                              : "Not required"
+                      }))
+                    }
+                    value={fee.approvalRequired ? fee.approvalStatusValue : "not_required"}
+                  >
+                    <option value="not_required">Not required</option>
+                    <option value="pending">Pending approval</option>
+                    <option value="approved">Approved</option>
+                  </SelectInput>
+                </label>
+
+                <label className="office-detail-field office-transaction-finance-fee-notes">
+                  <span>Notes</span>
+                  <textarea
+                    disabled={readOnly}
+                    onChange={(event) =>
+                      updateFee(index, (current) => ({
+                        ...current,
+                        notes: event.target.value
+                      }))
+                    }
+                    rows={3}
+                    value={fee.notes}
+                  />
+                </label>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
 
       {approvalBlockers.length > 0 ? (

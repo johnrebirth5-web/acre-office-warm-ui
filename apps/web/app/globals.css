@@ -2844,74 +2844,83 @@ select {
   line-height: 1.45;
 }
 
-.office-transaction-finance-ledger {
-  width: 100%;
-  min-width: 0;
+.office-transaction-finance-ledger-list {
+  display: grid;
+  gap: 12px;
 }
 
-.office-table-row-transaction-finance {
-  min-width: 1080px;
-  grid-template-columns:
-    minmax(240px, 1.72fr)
-    minmax(132px, 0.88fr)
-    minmax(88px, 0.58fr)
-    minmax(118px, 0.74fr)
-    minmax(136px, 0.84fr)
-    minmax(240px, 1.42fr);
+.office-transaction-finance-fee-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(194, 205, 220, 0.56);
+  border-radius: 18px;
+  background: rgba(249, 251, 253, 0.9);
 }
 
-.office-transaction-finance-ledger .office-table-header {
-  align-items: center;
-}
-
-.office-transaction-finance-ledger .office-table-row {
+.office-transaction-finance-fee-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: start;
-  min-height: 0;
-  padding-top: 14px;
-  padding-bottom: 14px;
 }
 
-.office-transaction-finance-ledger .office-table-row > :not(:first-child) {
-  align-self: start;
-}
-
-.office-transaction-finance-ledger .office-table-primary {
+.office-transaction-finance-fee-copy {
   display: grid;
   gap: 6px;
-  padding-top: 2px;
+  min-width: 0;
 }
 
-.office-transaction-finance-ledger .office-table-primary strong {
+.office-transaction-finance-fee-copy strong {
   color: var(--office-text);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
-.office-transaction-finance-ledger .office-table-primary p {
+.office-transaction-finance-fee-copy p {
   margin: 0;
-  max-width: none;
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  line-height: 1.45;
 }
 
-.office-transaction-finance-ledger select,
-.office-transaction-finance-ledger input,
-.office-transaction-finance-ledger textarea {
+.office-transaction-finance-fee-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.office-transaction-finance-fee-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(194, 205, 220, 0.56);
+  border-radius: 999px;
+  background: rgba(237, 242, 248, 0.92);
+  color: var(--office-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.office-transaction-finance-fee-fields {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) repeat(3, minmax(140px, 0.78fr));
+  gap: 12px;
+}
+
+.office-transaction-finance-fee-notes {
+  grid-column: 1 / -1;
+}
+
+.office-transaction-finance-fee-fields select,
+.office-transaction-finance-fee-fields input,
+.office-transaction-finance-fee-fields textarea {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--office-border-strong);
-  border-radius: 10px;
-  background: #fff;
-  color: var(--office-text);
-  font: inherit;
-}
-
-.office-transaction-finance-ledger select,
-.office-transaction-finance-ledger input {
-  min-height: 40px;
-  padding: 0 12px;
-}
-
-.office-transaction-finance-ledger textarea {
-  min-height: 76px;
-  padding: 10px 12px;
-  resize: vertical;
 }
 
 .office-transaction-finance-blocker-list {
@@ -2934,9 +2943,27 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .office-transaction-finance-fee-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .office-transaction-finance-fee-head {
+    grid-template-columns: 1fr;
+  }
+
+  .office-transaction-finance-fee-summary {
+    justify-content: flex-start;
+  }
+
   .office-transaction-finance-panel-note {
     justify-self: start;
     max-width: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .office-transaction-finance-fee-fields {
+    grid-template-columns: 1fr;
   }
 }
 
