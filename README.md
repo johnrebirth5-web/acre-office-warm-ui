@@ -639,6 +639,7 @@
   - 新增 `text / select / date` 自定义字段
   - 文本字段限制 50 个字符
   - 当地址组被隐藏时，自动强制 `Transaction Name` 显示且必填
+  - `New Transaction` create 模式现在只保留一套主地址字段；重复的 legacy `Address / City / State / Zip Code`、文本版 `Move-In Date/Closing Date`，以及已被结构化 finance 取代的旧 commission 状态/拆分占位字段不再显示
 - 基础页面路由：
   - `/` -> 登录后跳对应 workspace，未登录跳 `/login`
   - `/agent` -> `/agent/dashboard`

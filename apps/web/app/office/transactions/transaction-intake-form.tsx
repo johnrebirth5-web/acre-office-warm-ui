@@ -54,6 +54,18 @@ const createModeStructuredFinanceFieldKeys = new Set([
   "companyReferralEmployeeName",
   "note"
 ]);
+const createModeRetiredLegacyFieldKeys = new Set([
+  "additionalAddress",
+  "additionalCity",
+  "additionalState",
+  "additionalZipCode",
+  "moveInDateClosingDate",
+  "commissionType",
+  "yourCommissionRate",
+  "commissionBreakdown",
+  "commissionReceivedStatus",
+  "commissionConfirmation"
+]);
 
 function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialValues: Record<string, string> | undefined) {
   const nextValues: Record<string, string> = {};
@@ -178,7 +190,14 @@ export function TransactionIntakeWorkspace({
       })),
     ...localSchema.customFields
       .filter((field) => field.isVisible)
-      .filter((field) => !(mode === "create" && createModeStructuredFinanceFieldKeys.has(field.fieldKey)))
+      .filter(
+        (field) =>
+          !(
+            mode === "create" &&
+            (createModeStructuredFinanceFieldKeys.has(field.fieldKey) ||
+              createModeRetiredLegacyFieldKeys.has(field.fieldKey))
+          )
+      )
       .map((field) => ({
         kind: "custom" as const,
         field,
