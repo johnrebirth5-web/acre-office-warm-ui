@@ -613,7 +613,7 @@ async function main() {
     { id: "seed-custom-field-commission-type", fieldKey: "commissionType", label: "Commission Type", type: "select", sortOrder: 13, options: ["Gross", "Net", "Custom"] },
     { id: "seed-custom-field-leasing-contact", fieldKey: "leasingContact", label: "Leasing Contact", type: "text", sortOrder: 14, options: [] },
     { id: "seed-custom-field-invoice-bill-to", fieldKey: "invoiceBillTo", label: "Invoice Bill To", type: "text", sortOrder: 15, options: [] },
-    { id: "seed-custom-field-currency-type", fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 16, options: ["USD", "CNY"] },
+    { id: "seed-custom-field-currency-type", fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 16, options: ["USD"] },
     { id: "seed-custom-field-commission-amount", fieldKey: "commissionAmount", label: "Commission($)", type: "text", sortOrder: 17, options: [] },
     { id: "seed-custom-field-your-rate", fieldKey: "yourCommissionRate", label: "Your Commission Rate", type: "text", sortOrder: 18, options: [] },
     { id: "seed-custom-field-rebate", fieldKey: "rebate", label: "Rebate", type: "text", sortOrder: 19, options: [] },

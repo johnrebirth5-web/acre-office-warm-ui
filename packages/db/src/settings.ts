@@ -178,7 +178,7 @@ const defaultTransactionCustomFieldCatalog: Array<{
   { fieldKey: "commissionType", label: "Commission Type", type: "select", sortOrder: 13, options: ["Gross", "Net", "Custom"] },
   { fieldKey: "leasingContact", label: "Leasing Contact", type: "text", sortOrder: 14, options: [] },
   { fieldKey: "invoiceBillTo", label: "Invoice Bill To", type: "text", sortOrder: 15, options: [] },
-  { fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 16, options: ["USD", "CNY"] },
+  { fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 16, options: ["USD"] },
   { fieldKey: "commissionAmount", label: "Commission($)", type: "text", sortOrder: 17, options: [] },
   { fieldKey: "yourCommissionRate", label: "Your Commission Rate", type: "text", sortOrder: 18, options: [] },
   { fieldKey: "rebate", label: "Rebate", type: "text", sortOrder: 19, options: [] },

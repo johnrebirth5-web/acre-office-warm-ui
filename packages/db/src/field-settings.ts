@@ -194,7 +194,7 @@ const defaultTransactionCustomFieldCatalog: OfficeFieldDefaultCustomCatalogEntry
   { fieldKey: "commissionType", label: "Commission Type", type: "select", sortOrder: 113, options: ["Gross", "Net", "Custom"] },
   { fieldKey: "leasingContact", label: "Leasing Contact", type: "text", sortOrder: 114, options: [] },
   { fieldKey: "invoiceBillTo", label: "Invoice Bill To", type: "text", sortOrder: 115, options: [] },
-  { fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 116, options: ["USD", "CNY"] },
+  { fieldKey: "currencyType", label: "Currency Type", type: "select", sortOrder: 116, options: ["USD"] },
   { fieldKey: "commissionAmount", label: "Commission($)", type: "text", sortOrder: 117, options: [] },
   { fieldKey: "yourCommissionRate", label: "Your Commission Rate", type: "text", sortOrder: 118, options: [] },
   { fieldKey: "rebate", label: "Rebate", type: "text", sortOrder: 119, options: [] },
@@ -220,6 +220,12 @@ const defaultTransactionCustomFieldCatalog: OfficeFieldDefaultCustomCatalogEntry
 ];
 
 const retiredTransactionCustomFieldKeys = new Set(["teamLeader"]);
+const systemManagedTransactionCustomFieldConfig: Partial<Record<string, { isVisible?: boolean; options?: string[] }>> = {
+  currencyType: {
+    isVisible: false,
+    options: ["USD"]
+  }
+};
 
 const contactBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
   {
@@ -1099,6 +1105,7 @@ export async function getOfficeTransactionIntakeSchema(input: {
       const legacyFallback = buildLegacyCustomFieldFallbackState(entry.fieldKey, new Map(
         [...fieldSettingsMap.entries()].map(([fieldKey, value]) => [fieldKey, { isRequired: value.isRequired, isVisible: value.isVisible }])
       ));
+      const systemManagedConfig = systemManagedTransactionCustomFieldConfig[entry.fieldKey];
 
       return buildOfficeCustomFieldRecord({
         id: persisted?.id ?? null,
@@ -1106,11 +1113,11 @@ export async function getOfficeTransactionIntakeSchema(input: {
         label: persisted?.label ?? entry.label,
         type: (persisted?.type ?? entry.type) as TransactionCustomFieldType,
         isRequired: persisted?.isRequired ?? legacyFallback?.isRequired ?? false,
-        isVisible: persisted?.isVisible ?? legacyFallback?.isVisible ?? true,
+        isVisible: systemManagedConfig?.isVisible ?? persisted?.isVisible ?? legacyFallback?.isVisible ?? true,
         isDeletionLocked,
         isLockedDeletion: isDefaultCustomFieldDeletionLocked(entry),
         sortOrder: persisted?.sortOrder ?? entry.sortOrder,
-        options: persisted ? readTransactionCustomFieldOptions(persisted.options) : entry.options,
+        options: systemManagedConfig?.options ?? (persisted ? readTransactionCustomFieldOptions(persisted.options) : entry.options),
         isDefault: true,
         isArchived: false
       });

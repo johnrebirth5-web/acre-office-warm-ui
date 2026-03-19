@@ -759,6 +759,8 @@ export function prepareTransactionIntakeSubmission(input: {
     additionalFields[field.fieldKey] = field.type === "date" ? parseTransactionIntakeDateValue(rawValue) : rawValue;
   }
 
+  additionalFields.currencyType = "USD";
+
   if (!builtInValues.transactionType) {
     builtInValues.transactionType = getTopFieldFallbackValue("transaction_type", true);
   }
