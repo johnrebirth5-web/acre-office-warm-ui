@@ -76,9 +76,11 @@ export function TransactionDetailCollapsibleSection({
         </span>
       </button>
 
-      <div className="office-transaction-collapsible-panel" hidden={!isExpanded} id={panelId}>
-        {children}
-      </div>
+      {isExpanded ? (
+        <div className="office-transaction-collapsible-panel" id={panelId}>
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }
