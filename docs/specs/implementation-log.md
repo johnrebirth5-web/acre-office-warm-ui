@@ -55,6 +55,10 @@
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
 - Destructive Back Office actions now use a shared confirmation dialog before delete/remove/unlink-style execution, replacing one-click deletes and ad-hoc `window.confirm` prompts
 - `/office/transactions` and `/office/contacts` now share one canonical Office list-page template, including the same page header, summary/action block, workbench card, table card, and footer/pagination rhythm
+- Transaction detail now collapses the long operational stack below `Status`:
+  - `Intake fields` moved directly under `Status` and defaults open
+  - every section from `Intake fields` downward now uses a user-scoped remembered expand/collapse state in local browser storage
+  - the remember key is isolated by `organizationId + membershipId`, so one user's section preference does not become the default for everyone else
 
 ## Current default baseline
 

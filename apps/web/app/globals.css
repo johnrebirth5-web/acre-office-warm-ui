@@ -5859,6 +5859,76 @@ a {
   gap: 12px;
 }
 
+.office-transaction-collapsible-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.office-transaction-collapsible-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.office-transaction-collapsible-trigger:hover {
+  background: var(--office-bg-muted);
+}
+
+.office-transaction-collapsible-trigger:focus-visible {
+  outline: 2px solid var(--office-focus-ring);
+  outline-offset: -2px;
+}
+
+.office-transaction-collapsible-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--office-border);
+  border-radius: 999px;
+  background: var(--office-surface-subtle);
+  color: var(--office-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.office-transaction-collapsible-card.is-expanded .office-transaction-collapsible-trigger {
+  border-bottom: 1px solid rgba(194, 205, 220, 0.46);
+}
+
+.office-transaction-collapsible-panel {
+  display: grid;
+  gap: 16px;
+  padding: 16px 18px 18px;
+}
+
+.office-transaction-collapsible-panel > .office-section-card,
+.office-transaction-collapsible-panel > .bm-detail-card,
+.office-transaction-collapsible-panel > section > .office-section-card,
+.office-transaction-collapsible-panel > section > .bm-detail-card {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.office-transaction-collapsible-panel > .office-section-card > .office-section-head:first-child,
+.office-transaction-collapsible-panel > .bm-detail-card > .bm-card-head:first-child,
+.office-transaction-collapsible-panel > section > .office-section-card > .office-section-head:first-child,
+.office-transaction-collapsible-panel > section > .bm-detail-card > .bm-card-head:first-child {
+  display: none;
+}
+
 .bm-detail-card .bm-document-filter-strip {
   display: flex;
   flex-wrap: wrap;

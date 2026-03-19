@@ -482,11 +482,11 @@ export function TransactionIntakeWorkspace({
             </button>
           ) : null}
         </header>
-      ) : (
+      ) : title ? (
         <div className="bm-transaction-intake-toolbar">
-          {title ? <strong>{title}</strong> : null}
+          <strong>{title}</strong>
         </div>
-      )}
+      ) : null}
 
       <form className="bm-transaction-modal-body bm-transaction-intake-form" onSubmit={handleSubmit}>
         {visibleTopFields.length ? (

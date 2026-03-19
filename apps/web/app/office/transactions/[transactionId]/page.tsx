@@ -41,6 +41,7 @@ import { TransactionOffersCard } from "./offers-card";
 import { TransactionStatusForm } from "./status-form";
 import { TransactionTasksCard } from "./tasks-card";
 import { TransactionIntakeWorkspace } from "../transaction-intake-form";
+import { TransactionDetailCollapsibleSection } from "./transaction-detail-collapsible-section";
 
 type TransactionDetailPageProps = {
   params: Promise<{
@@ -104,6 +105,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
   const canManageCommissionsForRole = canManageOfficeCommissions(context.currentMembership);
   const canCalculateCommissionsForRole = canCalculateOfficeCommissions(context.currentMembership);
   const canApproveCommissionsForRole = canApproveOfficeCommissions(context.currentMembership);
+  const transactionDetailSectionStorageScope = `${context.currentOrganization.id}:${context.currentMembership.id}`;
 
   return (
     <PageShell className="bm-transaction-detail-page office-detail-page">
@@ -187,97 +189,13 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         <TransactionStatusForm currentStatus={transaction.status} transactionId={transaction.id} />
       </SectionCard>
 
-      {transaction.canViewFinancials ? (
-        <SectionCard subtitle="Manage the fee ledger, prerequisites, and finance inputs used by commission calculations." title="Finance">
-          <TransactionFinanceForm
-            approvalBlockers={commissionSnapshot?.approvalBlockers ?? []}
-            canAutoCalculateCommission={canCalculateCommissionsForRole}
-            financeNotes={transaction.financeNotes}
-            fees={transaction.financeFees}
-            grossCommission={transaction.grossCommission}
-            prerequisites={transaction.financePrerequisites}
-            readOnly={!canManageTransactionFinanceForRole}
-            summary={commissionSnapshot?.summary ?? null}
-            transactionId={transaction.id}
-          />
-        </SectionCard>
-      ) : null}
-
-      {canViewCommissionsForRole && commissionSnapshot ? (
-        <TransactionCommissionCard
-          canApproveCommissions={canApproveCommissionsForRole}
-          canCalculateCommissions={canCalculateCommissionsForRole}
-          canManageCommissions={canManageCommissionsForRole}
-          snapshot={commissionSnapshot}
-          transactionId={transaction.id}
-        />
-      ) : null}
-
-      <TransactionContactsCard
-        availableContacts={transaction.availableContacts}
-        contacts={transaction.contacts}
-        transactionId={transaction.id}
-      />
-
-      {canViewOffersForRole ? (
-        <TransactionOffersCard
-          canAcceptOffers={canAcceptOffersForRole}
-          canManageDocuments={canManageDocumentsForRole}
-          canManageOffers={canManageOffersForRole}
-          canManageSignatures={canManageSignaturesForRole}
-          canReviewOffers={canReviewOffersForRole}
-          canUseForms={canUseFormsForRole}
-          formTemplates={transaction.formTemplates}
-          fieldSchema={offerFieldSchema}
-          snapshot={offersSnapshot}
-          taskOptions={taskOptions}
-          transactionId={transaction.id}
-        />
-      ) : null}
-
-      <TransactionTasksCard
-        assigneeOptions={taskAssigneeOptions}
-        canApproveDocuments={canApproveDocumentsForRole}
-        currentMembershipId={context.currentMembership.id}
-        canReviewTasks={canReviewTasksForRole}
-        canSecondaryReviewTasks={canSecondaryReviewTasksForRole}
-        tasks={tasks}
-        transactionId={transaction.id}
-      />
-
-      <TransactionDocumentsCard
-        canManageDocuments={canManageDocumentsForRole}
-        canViewDocuments={canViewDocumentsForRole}
-        documents={transaction.documents}
-        taskOptions={taskOptions}
-        transactionId={transaction.id}
-      />
-
-      <TransactionUnsortedDocumentsCard
-        canManageDocuments={canManageDocumentsForRole}
-        canViewDocuments={canViewDocumentsForRole}
-        documents={transaction.documents}
-        taskOptions={taskOptions}
-        transactionId={transaction.id}
-      />
-
-      <TransactionFormsSignaturesCard
-        canManageSignatures={canManageSignaturesForRole}
-        canUseForms={canUseFormsForRole}
-        canViewDocuments={canViewDocumentsForRole}
-        formTemplates={transaction.formTemplates}
-        forms={transaction.forms}
-        taskOptions={taskOptions}
-        transactionId={transaction.id}
-      />
-
-      <TransactionIncomingUpdatesCard
-        canReviewIncomingUpdates={canReviewIncomingUpdatesForRole}
-        incomingUpdates={transaction.incomingUpdates}
-        transactionId={transaction.id}
-      />
-
-      <SectionCard subtitle="Review and update transaction values using the current centralized intake schema." title="Intake fields">
+      <TransactionDetailCollapsibleSection
+        defaultExpanded
+        sectionKey="intake-fields"
+        storageScope={transactionDetailSectionStorageScope}
+        subtitle="Review and update transaction values using the current centralized intake schema."
+        title="Intake fields"
+      >
         <TransactionIntakeWorkspace
           canEditValues={canEditTransactionsForRole}
           chrome="detail"
@@ -310,9 +228,149 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
           submitEndpoint={`/api/office/transactions/${transaction.id}/intake`}
           submitLabel="Save intake changes"
           submitMethod="PATCH"
-          title="Office intake editor"
         />
-      </SectionCard>
+      </TransactionDetailCollapsibleSection>
+
+      {transaction.canViewFinancials ? (
+        <TransactionDetailCollapsibleSection
+          sectionKey="finance"
+          storageScope={transactionDetailSectionStorageScope}
+          subtitle="Manage the fee ledger, prerequisites, and finance inputs used by commission calculations."
+          title="Finance"
+        >
+          <TransactionFinanceForm
+            approvalBlockers={commissionSnapshot?.approvalBlockers ?? []}
+            canAutoCalculateCommission={canCalculateCommissionsForRole}
+            financeNotes={transaction.financeNotes}
+            fees={transaction.financeFees}
+            grossCommission={transaction.grossCommission}
+            prerequisites={transaction.financePrerequisites}
+            readOnly={!canManageTransactionFinanceForRole}
+            summary={commissionSnapshot?.summary ?? null}
+            transactionId={transaction.id}
+          />
+        </TransactionDetailCollapsibleSection>
+      ) : null}
+
+      {canViewCommissionsForRole && commissionSnapshot ? (
+        <TransactionDetailCollapsibleSection
+          sectionKey="commission"
+          storageScope={transactionDetailSectionStorageScope}
+          subtitle="Structured fee logic, final stakeholder split, and calculation history for this transaction."
+          title="Commission"
+        >
+          <TransactionCommissionCard
+            canApproveCommissions={canApproveCommissionsForRole}
+            canCalculateCommissions={canCalculateCommissionsForRole}
+            canManageCommissions={canManageCommissionsForRole}
+            snapshot={commissionSnapshot}
+            transactionId={transaction.id}
+          />
+        </TransactionDetailCollapsibleSection>
+      ) : null}
+
+      <TransactionDetailCollapsibleSection sectionKey="contacts" storageScope={transactionDetailSectionStorageScope} title="Contacts">
+        <TransactionContactsCard
+          availableContacts={transaction.availableContacts}
+          contacts={transaction.contacts}
+          transactionId={transaction.id}
+        />
+      </TransactionDetailCollapsibleSection>
+
+      {canViewOffersForRole ? (
+        <TransactionDetailCollapsibleSection
+          sectionKey="offers"
+          storageScope={transactionDetailSectionStorageScope}
+          subtitle="Back-office offer tracking, comparison, comments, and offer-linked documents/forms/signatures."
+          title="Offers"
+        >
+          <TransactionOffersCard
+            canAcceptOffers={canAcceptOffersForRole}
+            canManageDocuments={canManageDocumentsForRole}
+            canManageOffers={canManageOffersForRole}
+            canManageSignatures={canManageSignaturesForRole}
+            canReviewOffers={canReviewOffersForRole}
+            canUseForms={canUseFormsForRole}
+            formTemplates={transaction.formTemplates}
+            fieldSchema={offerFieldSchema}
+            snapshot={offersSnapshot}
+            taskOptions={taskOptions}
+            transactionId={transaction.id}
+          />
+        </TransactionDetailCollapsibleSection>
+      ) : null}
+
+      <TransactionDetailCollapsibleSection sectionKey="tasks" storageScope={transactionDetailSectionStorageScope} title="Checklist / Tasks">
+        <TransactionTasksCard
+          assigneeOptions={taskAssigneeOptions}
+          canApproveDocuments={canApproveDocumentsForRole}
+          currentMembershipId={context.currentMembership.id}
+          canReviewTasks={canReviewTasksForRole}
+          canSecondaryReviewTasks={canSecondaryReviewTasksForRole}
+          tasks={tasks}
+          transactionId={transaction.id}
+        />
+      </TransactionDetailCollapsibleSection>
+
+      <TransactionDetailCollapsibleSection
+        sectionKey="documents"
+        storageScope={transactionDetailSectionStorageScope}
+        subtitle="Structured back-office files linked to this transaction and its checklist tasks."
+        title="Documents"
+      >
+        <TransactionDocumentsCard
+          canManageDocuments={canManageDocumentsForRole}
+          canViewDocuments={canViewDocumentsForRole}
+          documents={transaction.documents}
+          taskOptions={taskOptions}
+          transactionId={transaction.id}
+        />
+      </TransactionDetailCollapsibleSection>
+
+      <TransactionDetailCollapsibleSection
+        sectionKey="unsorted-documents"
+        storageScope={transactionDetailSectionStorageScope}
+        subtitle="Files that landed in the transaction but have not been organized into the main workflow yet."
+        title="Unsorted documents"
+      >
+        <TransactionUnsortedDocumentsCard
+          canManageDocuments={canManageDocumentsForRole}
+          canViewDocuments={canViewDocumentsForRole}
+          documents={transaction.documents}
+          taskOptions={taskOptions}
+          transactionId={transaction.id}
+        />
+      </TransactionDetailCollapsibleSection>
+
+      <TransactionDetailCollapsibleSection
+        sectionKey="forms-signatures"
+        storageScope={transactionDetailSectionStorageScope}
+        subtitle="Generate transaction packets from templates, keep them tied to checklist tasks, and track manual signature status."
+        title="Forms & eSignature"
+      >
+        <TransactionFormsSignaturesCard
+          canManageSignatures={canManageSignaturesForRole}
+          canUseForms={canUseFormsForRole}
+          canViewDocuments={canViewDocumentsForRole}
+          formTemplates={transaction.formTemplates}
+          forms={transaction.forms}
+          taskOptions={taskOptions}
+          transactionId={transaction.id}
+        />
+      </TransactionDetailCollapsibleSection>
+
+      <TransactionDetailCollapsibleSection
+        sectionKey="incoming-updates"
+        storageScope={transactionDetailSectionStorageScope}
+        subtitle="Review future Folio-like external updates before applying safe mapped changes to the transaction."
+        title="Incoming updates"
+      >
+        <TransactionIncomingUpdatesCard
+          canReviewIncomingUpdates={canReviewIncomingUpdatesForRole}
+          incomingUpdates={transaction.incomingUpdates}
+          transactionId={transaction.id}
+        />
+      </TransactionDetailCollapsibleSection>
     </PageShell>
   );
 }

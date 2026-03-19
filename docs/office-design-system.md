@@ -222,6 +222,13 @@ Office 路由级 canonical 组合层：
 3. `DetailSection` / `SectionCard`
 4. section 间距统一，不要一页一个节奏
 
+transaction detail 补充规则：
+
+- `Overview` 和首个核心 workflow section 可以保持直接展开
+- 当 detail 页进入长工作流堆栈时，优先把次级模块做成可折叠 section，减少整页默认高度
+- 如果折叠状态需要记忆，必须按当前用户隔离，不要把一个人的展开偏好变成组织级默认
+- 折叠外壳应复用同一套 card/header token，并避免展开后出现双层标题
+
 ### Workspace pages
 
 适用：
