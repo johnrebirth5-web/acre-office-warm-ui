@@ -122,6 +122,7 @@
   - `agent` always keeps self commission visibility
   - `team_lead` always keeps self + downline commission visibility
   - `/office/dashboard` now shows the current logged-in membership's total commission, current-month commission, and monthly commission history
+  - the dashboard keeps the current month expanded while older commission months now live inside a collapsible history block to save vertical space
   - `/office/transactions/[transactionId]` now respects scoped commission visibility even when older org role templates are missing the newer commission view keys
   - commission plan management and statement-generation surfaces stay restricted to admin/review roles instead of piggybacking on the new self-service visibility baseline
   - backend now enforces the same rule and persists `additionalFields.agentName` from the actual selected owner instead of arbitrary free text

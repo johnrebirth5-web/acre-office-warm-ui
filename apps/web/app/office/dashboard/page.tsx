@@ -61,6 +61,13 @@ export default async function OfficeDashboardPage() {
   const livePipelineCount = snapshot.transactionCountsByStatus
     .filter((metric) => metric.status !== "Closed" && metric.status !== "Cancelled")
     .reduce((total, metric) => total + metric.count, 0);
+  const currentCommissionMonth =
+    snapshot.commission.monthlyTotals.find((month) => month.isCurrent) ??
+    snapshot.commission.monthlyTotals[snapshot.commission.monthlyTotals.length - 1] ??
+    null;
+  const historicalCommissionMonths = currentCommissionMonth
+    ? snapshot.commission.monthlyTotals.filter((month) => month.monthKey !== currentCommissionMonth.monthKey)
+    : snapshot.commission.monthlyTotals;
 
   return (
     <PageShell className="office-dashboard-page office-list-page">
@@ -219,23 +226,47 @@ export default async function OfficeDashboardPage() {
 
           <div className="office-dashboard-commission-meta">
             <span>{snapshot.commission.calculationCount} persisted commission row(s) tied to your membership.</span>
-            <span>Monthly totals below reflect your own statement amounts only.</span>
+            <span>Monthly totals reflect your own statement amounts only. Previous months stay tucked into history to save space.</span>
           </div>
 
-          <div className="office-dashboard-commission-month-grid">
-            {snapshot.commission.monthlyTotals.map((month) => (
+          {currentCommissionMonth ? (
+            <div className="office-dashboard-commission-month-panel">
               <article
-                className={`office-dashboard-commission-month${month.isCurrent ? " is-current" : ""}`}
-                key={month.monthKey}
+                className={`office-dashboard-commission-month office-dashboard-commission-month-current${currentCommissionMonth.isCurrent ? " is-current" : ""}`}
               >
                 <div className="office-dashboard-commission-month-copy">
-                  <strong>{month.label}</strong>
-                  <span>{month.calculationCount} row(s)</span>
+                  <span className="office-dashboard-commission-month-eyebrow">Current month</span>
+                  <strong>{currentCommissionMonth.label}</strong>
+                  <span>{currentCommissionMonth.calculationCount} row(s)</span>
                 </div>
-                <strong className="office-dashboard-commission-month-amount">{month.totalLabel}</strong>
+                <strong className="office-dashboard-commission-month-amount">{currentCommissionMonth.totalLabel}</strong>
               </article>
-            ))}
-          </div>
+
+              {historicalCommissionMonths.length ? (
+                <details className="office-dashboard-commission-history">
+                  <summary>
+                    <div className="office-dashboard-commission-history-copy">
+                      <strong>Previous months</strong>
+                      <span>{historicalCommissionMonths.length} month(s) in history</span>
+                    </div>
+                    <span className="office-dashboard-commission-history-action">Expand</span>
+                  </summary>
+
+                  <div className="office-dashboard-commission-history-list">
+                    {historicalCommissionMonths.map((month) => (
+                      <article className="office-dashboard-commission-history-item" key={month.monthKey}>
+                        <div className="office-dashboard-commission-month-copy">
+                          <strong>{month.label}</strong>
+                          <span>{month.calculationCount} row(s)</span>
+                        </div>
+                        <strong className="office-dashboard-commission-month-amount">{month.totalLabel}</strong>
+                      </article>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
+            </div>
+          ) : null}
         </SectionCard>
       </div>
     </PageShell>

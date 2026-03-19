@@ -32,7 +32,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - `/office/dashboard` now includes a self-service commission summary for the current logged-in membership:
   - total persisted commission
   - current-month commission
-  - monthly commission totals
+  - current month always visible, with older monthly totals tucked into a collapsible history menu
 - `/office/settings/commission-plans` is the primary commission management workspace
 - agent profile shows commission summary
 - strict visibility now applies:

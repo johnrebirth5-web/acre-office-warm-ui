@@ -7474,10 +7474,9 @@ a {
   font-size: var(--office-text-meta-size);
 }
 
-.office-dashboard-commission-month-grid {
+.office-dashboard-commission-month-panel {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .office-dashboard-commission-month {
@@ -7491,6 +7490,10 @@ a {
   background: rgba(247, 249, 252, 0.86);
 }
 
+.office-dashboard-commission-month-current {
+  min-height: 92px;
+}
+
 .office-dashboard-commission-month.is-current {
   border-color: rgba(78, 120, 198, 0.52);
   background: linear-gradient(180deg, rgba(241, 246, 255, 0.98), rgba(232, 239, 252, 0.94));
@@ -7499,6 +7502,14 @@ a {
 .office-dashboard-commission-month-copy {
   display: grid;
   gap: 4px;
+}
+
+.office-dashboard-commission-month-eyebrow {
+  color: var(--office-text-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .office-dashboard-commission-month-copy strong {
@@ -7516,6 +7527,85 @@ a {
   font-size: 0.88rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.office-dashboard-commission-history {
+  overflow: hidden;
+  border: 1px solid rgba(194, 205, 220, 0.54);
+  border-radius: 18px;
+  background: rgba(250, 252, 255, 0.92);
+}
+
+.office-dashboard-commission-history summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.office-dashboard-commission-history summary::-webkit-details-marker {
+  display: none;
+}
+
+.office-dashboard-commission-history[open] summary {
+  border-bottom: 1px solid rgba(194, 205, 220, 0.46);
+}
+
+.office-dashboard-commission-history-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.office-dashboard-commission-history-copy strong {
+  color: var(--office-text);
+  font-size: 0.82rem;
+}
+
+.office-dashboard-commission-history-copy span,
+.office-dashboard-commission-history-action {
+  color: var(--office-text-muted);
+  font-size: 0.72rem;
+}
+
+.office-dashboard-commission-history-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.office-dashboard-commission-history-action::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 180ms ease;
+}
+
+.office-dashboard-commission-history[open] .office-dashboard-commission-history-action::after {
+  transform: rotate(225deg);
+}
+
+.office-dashboard-commission-history-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.office-dashboard-commission-history-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
 }
 
 .office-list-footer,
@@ -13124,8 +13214,10 @@ body,
     flex-basis: 100%;
   }
 
-  .office-dashboard-commission-month-grid {
-    grid-template-columns: 1fr;
+  .office-dashboard-commission-history summary,
+  .office-dashboard-commission-history-item {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 
