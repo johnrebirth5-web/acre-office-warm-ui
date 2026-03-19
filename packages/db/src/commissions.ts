@@ -682,8 +682,8 @@ export function normalizeTransactionFinanceFeeForPersistence(input: {
     definition.defaultCalculationType === "reimbursement"
       ? "reimbursement"
       : input.selectedCalculationType ?? input.existingCalculationType;
-  let nextRate = input.rate ?? input.existingRate ?? definition.defaultRate ?? new Prisma.Decimal(0);
-  let nextAmount = input.amount ?? input.existingAmount ?? new Prisma.Decimal(0);
+  let nextRate = input.rate;
+  let nextAmount = input.amount;
 
   if (input.rate && input.amount === null && input.grossCommission && input.grossCommission.gt(0)) {
     nextAmount = input.grossCommission.mul(input.rate).div(new Prisma.Decimal(100));
@@ -773,7 +773,9 @@ export async function ensureTransactionFinanceFees(
             companyReferral: input.companyReferral,
             additionalFields: input.additionalFields ?? null
           });
-          const seededRate = seededAmount ? deriveRateFromAmount(seededAmount, input.grossCommission) ?? definition.defaultRate : definition.defaultRate;
+          const seededRate = seededAmount
+            ? deriveRateFromAmount(seededAmount, input.grossCommission) ?? definition.defaultRate
+            : null;
           const approval = normalizeFinanceFeeApprovalStatus({
             definition,
             rate: seededRate,
@@ -787,7 +789,7 @@ export async function ensureTransactionFinanceFees(
             feeType: definition.feeType,
             defaultRate: definition.defaultRate,
             rate: seededRate,
-            amount: seededAmount ?? new Prisma.Decimal(0),
+            amount: seededAmount,
             defaultCalculationType: definition.defaultCalculationType,
             selectedCalculationType: definition.defaultCalculationType,
             approvalRequired: approval.approvalRequired,

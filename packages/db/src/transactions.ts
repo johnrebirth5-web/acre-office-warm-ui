@@ -509,6 +509,18 @@ function parseCreateFinanceDecimal(explicitValue: string | undefined, fallbackVa
   return parseOptionalDecimal(explicitValue) ?? parseOptionalDecimal(fallbackValue);
 }
 
+function hasStructuredFinanceFeeSubmission(input: {
+  rate?: string;
+  amount?: string;
+  notes?: string;
+}) {
+  return [input.rate, input.amount, input.notes].some((value) => value?.trim().length);
+}
+
+function parseStructuredFinanceFeeNotes(value: string | undefined, fallbackValue: string | null) {
+  return value === undefined ? fallbackValue : parseOptionalText(value);
+}
+
 function normalizePayloadString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -1488,9 +1500,17 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
       const feeByType = new Map(financeFees.map((fee) => [fee.feeType, fee]));
 
       for (const feeInput of input.fees) {
+        if (!hasStructuredFinanceFeeSubmission(feeInput)) {
+          continue;
+        }
+
         const feeType = parseTransactionFinanceFeeType(feeInput.feeType);
 
         if (!feeType) {
+          continue;
+        }
+
+        if (feeType === "company_referral" && !created.companyReferral) {
           continue;
         }
 
@@ -1511,7 +1531,7 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
           amount: parseOptionalDecimal(feeInput.amount),
           selectedCalculationType: parseTransactionFinanceCalculationType(feeInput.selectedCalculationType),
           requestedApprovalStatus: parseTransactionFinanceApprovalStatus(feeInput.approvalStatus),
-          notes: parseOptionalText(feeInput.notes) ?? existingFee.notes
+          notes: parseStructuredFinanceFeeNotes(feeInput.notes, existingFee.notes)
         });
 
         await tx.transactionFinanceFee.update({
@@ -1748,6 +1768,13 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
         continue;
       }
 
+      const isBlockedCompanyReferralFee = feeType === "company_referral" && !existing.companyReferral;
+      const parsedRate = isBlockedCompanyReferralFee ? null : parseOptionalDecimal(feeInput.rate);
+      const parsedAmount = isBlockedCompanyReferralFee ? null : parseOptionalDecimal(feeInput.amount);
+      const parsedNotes = isBlockedCompanyReferralFee
+        ? null
+        : parseStructuredFinanceFeeNotes(feeInput.notes, existingFee.notes);
+
       const normalized = normalizeTransactionFinanceFeeForPersistence({
         feeType,
         grossCommission: nextGrossCommission,
@@ -1755,11 +1782,11 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
         existingAmount: existingFee.amount,
         existingCalculationType: existingFee.selectedCalculationType,
         existingApprovalStatus: existingFee.approvalStatus,
-        rate: parseOptionalDecimal(feeInput.rate),
-        amount: parseOptionalDecimal(feeInput.amount),
+        rate: parsedRate,
+        amount: parsedAmount,
         selectedCalculationType: parseTransactionFinanceCalculationType(feeInput.selectedCalculationType),
         requestedApprovalStatus: parseTransactionFinanceApprovalStatus(feeInput.approvalStatus),
-        notes: parseOptionalText(feeInput.notes) ?? existingFee.notes
+        notes: parsedNotes
       });
 
       await tx.transactionFinanceFee.update({

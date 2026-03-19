@@ -49,6 +49,7 @@
   - hidden address groups still force `Transaction Name` visible + required
   - contact and offer custom values now persist in `Client.additionalFields` and `Offer.additionalFields`
   - create-mode intake now routes legacy finance-style fields like `Commission($) / Rebate / Referral Fee / Reimbursement / Note` through a structured finance section so new transactions write real `grossCommission`, fee-ledger rows, and finance notes instead of disconnected text-only values
+  - structured create-time finance now keeps untouched fee rows truly empty instead of auto-materializing placeholder `20%` rebate / client referral / company referral records, and clearing a fee in Finance now actually removes its stored rate/amount instead of restoring hidden defaults
   - `New Transaction` create mode now hides the duplicate legacy secondary address block plus retired text-only commission placeholders like `Move-In Date/Closing Date`, `Commission Type`, `Your Commission Rate`, `Commission Breakdown`, and admin-only commission confirmation/status dropdowns so agents only fill the canonical address and structured finance inputs
   - field-structure changes write to `Activity Log`
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference

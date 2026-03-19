@@ -41,7 +41,7 @@ const defaultFinanceFeeDrafts: TransactionFinanceCreateFeeDraft[] = [
   {
     feeTypeValue: "rebate",
     feeTypeLabel: "Rebate",
-    rate: "20",
+    rate: "",
     amount: "",
     selectedCalculationTypeValue: "pre_split",
     notes: "",
@@ -51,7 +51,7 @@ const defaultFinanceFeeDrafts: TransactionFinanceCreateFeeDraft[] = [
   {
     feeTypeValue: "client_referral",
     feeTypeLabel: "Client Referral",
-    rate: "20",
+    rate: "",
     amount: "",
     selectedCalculationTypeValue: "pre_split",
     notes: "",
@@ -71,7 +71,7 @@ const defaultFinanceFeeDrafts: TransactionFinanceCreateFeeDraft[] = [
   {
     feeTypeValue: "company_referral",
     feeTypeLabel: "Company Referral",
-    rate: "20",
+    rate: "",
     amount: "",
     selectedCalculationTypeValue: "post_split",
     notes: "",
@@ -99,6 +99,34 @@ const defaultFinanceFeeDrafts: TransactionFinanceCreateFeeDraft[] = [
     prerequisiteHelperText: "Company reimburses up to 50% of the amount, capped at 10% of final agent net."
   }
 ];
+
+function cloneFeeDraft(fee: TransactionFinanceCreateFeeDraft): TransactionFinanceCreateFeeDraft {
+  return { ...fee };
+}
+
+function clearFeeFinancialValues(fee: TransactionFinanceCreateFeeDraft): TransactionFinanceCreateFeeDraft {
+  return {
+    ...fee,
+    rate: "",
+    amount: "",
+    notes: ""
+  };
+}
+
+function hasConfiguredFinanceFeeValue(fee: TransactionFinanceCreateFeeDraft) {
+  return [fee.rate, fee.amount, fee.notes].some((value) => value.trim().length > 0);
+}
+
+function shouldPersistFinanceFee(
+  draft: TransactionFinanceCreateDraft,
+  fee: TransactionFinanceCreateFeeDraft
+) {
+  if (fee.feeTypeValue === "company_referral" && draft.companyReferral !== "Yes") {
+    return false;
+  }
+
+  return hasConfiguredFinanceFeeValue(fee);
+}
 
 export function createTransactionFinanceCreateDraft(): TransactionFinanceCreateDraft {
   return {
@@ -167,13 +195,15 @@ export function buildStructuredFinancePayloadFromDraft(draft: TransactionFinance
   return {
     grossCommission: draft.grossCommission,
     financeNotes: draft.financeNotes,
-    fees: draft.fees.map((fee) => ({
-      feeType: fee.feeTypeValue,
-      rate: fee.rate,
-      amount: fee.amount,
-      selectedCalculationType: fee.selectedCalculationTypeValue,
-      notes: fee.notes
-    }))
+    fees: draft.fees
+      .filter((fee) => shouldPersistFinanceFee(draft, fee))
+      .map((fee) => ({
+        feeType: fee.feeTypeValue,
+        rate: fee.rate,
+        amount: fee.amount,
+        selectedCalculationType: fee.selectedCalculationTypeValue,
+        notes: fee.notes
+      }))
   };
 }
 
@@ -193,7 +223,11 @@ export function TransactionFinanceCreateFields({
     onChange({
       ...draft,
       companyReferral: value,
-      companyReferralEmployeeName: value === "Yes" ? draft.companyReferralEmployeeName : ""
+      companyReferralEmployeeName: value === "Yes" ? draft.companyReferralEmployeeName : "",
+      fees:
+        value === "Yes"
+          ? draft.fees.map(cloneFeeDraft)
+          : draft.fees.map((fee) => (fee.feeTypeValue === "company_referral" ? clearFeeFinancialValues(fee) : cloneFeeDraft(fee)))
     });
   }
 

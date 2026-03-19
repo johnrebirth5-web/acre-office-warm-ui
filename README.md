@@ -99,6 +99,7 @@
   - `Create Transaction` / `/office/transactions/new` 现在把 legacy finance 文本字段折叠成结构化 finance intake：
     - `Gross commission` 直接写 transaction finance
     - `Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee / Reimbursement` 直接创建 fee ledger 当前行
+    - 新建页默认不会再偷偷提交 `20%` 占位 fee；只有 agent 明确填写的 fee 才会落库
     - `Finance notes` 直接写 transaction `financeNotes`
   - 已有 transaction detail 页面
   - transaction detail 现在会渲染真实 linked contacts，并支持 link / unlink / set primary
