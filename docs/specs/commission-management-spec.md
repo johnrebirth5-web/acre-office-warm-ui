@@ -29,7 +29,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - company remainder
   - transaction `createdAt` as the locking date for default split / hierarchy replay
 - transaction detail has a commission section
-- `/office/dashboard` now includes a self-service commission summary for the current logged-in membership:
+- `/office/dashboard` now includes a self-service commission summary for sales-role memberships (`agent / team_lead`) only:
   - total persisted commission
   - current-month commission
   - current month always visible, with older monthly totals tucked into a collapsible history menu

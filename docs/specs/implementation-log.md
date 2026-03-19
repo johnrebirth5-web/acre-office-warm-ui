@@ -121,7 +121,7 @@
 - Commission self-service visibility is now aligned to sales hierarchy expectations:
   - `agent` always keeps self commission visibility
   - `team_lead` always keeps self + downline commission visibility
-  - `/office/dashboard` now shows the current logged-in membership's total commission, current-month commission, and monthly commission history
+  - `/office/dashboard` now shows the self-service commission summary only for sales roles, so admins and non-sales office roles do not get a redundant `My commissions` card on their dashboard
   - the dashboard keeps the current month expanded while older commission months now live inside a collapsible history block to save vertical space
   - `/office/transactions/[transactionId]` now respects scoped commission visibility even when older org role templates are missing the newer commission view keys
   - commission plan management and statement-generation surfaces stay restricted to admin/review roles instead of piggybacking on the new self-service visibility baseline

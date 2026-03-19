@@ -14,6 +14,7 @@ import {
   canManageOfficeTransactionFinance,
   canManageOfficeUsers,
   canSecondaryReviewOfficeTasks,
+  canViewOfficeCommissionSelfServiceSummary,
   canViewOfficeContacts,
   canViewOfficeCommissions,
   canViewOfficeReports,
@@ -86,6 +87,17 @@ test("agent role keeps scoped pipeline access without finance or admin-only powe
   assert.equal(canManageOfficeUsers("agent"), false);
   assert.equal(canManageOfficeSettings("agent"), false);
   assert.equal(canViewOfficeReports("agent"), false);
+});
+
+test("commission self-service dashboard summary stays sales-only", () => {
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("agent"), true);
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("team_lead"), true);
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("office_admin"), false);
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("owner"), false);
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("accountant"), false);
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("human_resources"), false);
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("office_manager"), false);
+  assert.equal(canViewOfficeCommissionSelfServiceSummary("office_user"), false);
 });
 
 test("required commission visibility baselines survive narrowed permission snapshots", () => {

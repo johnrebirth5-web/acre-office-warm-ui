@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { canViewOfficeCommissionSelfServiceSummary } from "@acre/auth";
 import { getOfficeDashboardBusinessSnapshot } from "@acre/db";
 import {
   DataTable,
@@ -56,6 +57,7 @@ export default async function OfficeDashboardPage() {
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id
   });
+  const canViewCommissionSelfServiceSummary = canViewOfficeCommissionSelfServiceSummary(context.currentMembership);
 
   const chartPointLabels = snapshot.chart.points.map((point) => point.label);
   const livePipelineCount = snapshot.transactionCountsByStatus
@@ -76,7 +78,9 @@ export default async function OfficeDashboardPage() {
           <PageHeaderSummary>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Access" value={access.label} />
-            <SummaryChip label="My month commission" tone="accent" value={snapshot.commission.currentMonthCommissionLabel} />
+            {canViewCommissionSelfServiceSummary ? (
+              <SummaryChip label="My month commission" tone="accent" value={snapshot.commission.currentMonthCommissionLabel} />
+            ) : null}
             <SummaryChip label="Live pipeline" tone="accent" value={livePipelineCount} />
           </PageHeaderSummary>
         }
@@ -212,62 +216,64 @@ export default async function OfficeDashboardPage() {
           </SectionCard>
         </div>
 
-        <SectionCard
-          className="office-dashboard-commission-card office-list-card"
-          subtitle="Your own persisted commission rows only. Team or company allocations are not rolled into this dashboard card."
-          title="My commissions"
-        >
-          <div className="office-kpi-grid office-commission-kpi-grid">
-            <StatCard hint="all persisted rows tied to your membership" label="Total commission" value={snapshot.commission.totalCommissionLabel} />
-            <StatCard hint="rows calculated in the current calendar month" label="This month" value={snapshot.commission.currentMonthCommissionLabel} />
-            <StatCard hint="rows already marked payable" label="Payable" value={snapshot.commission.payableLabel} />
-            <StatCard hint="rows already marked paid" label="Paid" value={snapshot.commission.paidLabel} />
-          </div>
-
-          <div className="office-dashboard-commission-meta">
-            <span>{snapshot.commission.calculationCount} persisted commission row(s) tied to your membership.</span>
-            <span>Monthly totals reflect your own statement amounts only. Previous months stay tucked into history to save space.</span>
-          </div>
-
-          {currentCommissionMonth ? (
-            <div className="office-dashboard-commission-month-panel">
-              <article
-                className={`office-dashboard-commission-month office-dashboard-commission-month-current${currentCommissionMonth.isCurrent ? " is-current" : ""}`}
-              >
-                <div className="office-dashboard-commission-month-copy">
-                  <span className="office-dashboard-commission-month-eyebrow">Current month</span>
-                  <strong>{currentCommissionMonth.label}</strong>
-                  <span>{currentCommissionMonth.calculationCount} row(s)</span>
-                </div>
-                <strong className="office-dashboard-commission-month-amount">{currentCommissionMonth.totalLabel}</strong>
-              </article>
-
-              {historicalCommissionMonths.length ? (
-                <details className="office-dashboard-commission-history">
-                  <summary>
-                    <div className="office-dashboard-commission-history-copy">
-                      <strong>Previous months</strong>
-                      <span>{historicalCommissionMonths.length} month(s) in history</span>
-                    </div>
-                    <span className="office-dashboard-commission-history-action">Expand</span>
-                  </summary>
-
-                  <div className="office-dashboard-commission-history-list">
-                    {historicalCommissionMonths.map((month) => (
-                      <article className="office-dashboard-commission-history-item" key={month.monthKey}>
-                        <div className="office-dashboard-commission-month-copy">
-                          <strong>{month.label}</strong>
-                          <span>{month.calculationCount} row(s)</span>
-                        </div>
-                        <strong className="office-dashboard-commission-month-amount">{month.totalLabel}</strong>
-                      </article>
-                    ))}
-                  </div>
-                </details>
-              ) : null}
+        {canViewCommissionSelfServiceSummary ? (
+          <SectionCard
+            className="office-dashboard-commission-card office-list-card"
+            subtitle="Your own persisted commission rows only. Team or company allocations are not rolled into this dashboard card."
+            title="My commissions"
+          >
+            <div className="office-kpi-grid office-commission-kpi-grid">
+              <StatCard hint="all persisted rows tied to your membership" label="Total commission" value={snapshot.commission.totalCommissionLabel} />
+              <StatCard hint="rows calculated in the current calendar month" label="This month" value={snapshot.commission.currentMonthCommissionLabel} />
+              <StatCard hint="rows already marked payable" label="Payable" value={snapshot.commission.payableLabel} />
+              <StatCard hint="rows already marked paid" label="Paid" value={snapshot.commission.paidLabel} />
             </div>
-          ) : null}
-        </SectionCard>
+
+            <div className="office-dashboard-commission-meta">
+              <span>{snapshot.commission.calculationCount} persisted commission row(s) tied to your membership.</span>
+              <span>Monthly totals reflect your own statement amounts only. Previous months stay tucked into history to save space.</span>
+            </div>
+
+            {currentCommissionMonth ? (
+              <div className="office-dashboard-commission-month-panel">
+                <article
+                  className={`office-dashboard-commission-month office-dashboard-commission-month-current${currentCommissionMonth.isCurrent ? " is-current" : ""}`}
+                >
+                  <div className="office-dashboard-commission-month-copy">
+                    <span className="office-dashboard-commission-month-eyebrow">Current month</span>
+                    <strong>{currentCommissionMonth.label}</strong>
+                    <span>{currentCommissionMonth.calculationCount} row(s)</span>
+                  </div>
+                  <strong className="office-dashboard-commission-month-amount">{currentCommissionMonth.totalLabel}</strong>
+                </article>
+
+                {historicalCommissionMonths.length ? (
+                  <details className="office-dashboard-commission-history">
+                    <summary>
+                      <div className="office-dashboard-commission-history-copy">
+                        <strong>Previous months</strong>
+                        <span>{historicalCommissionMonths.length} month(s) in history</span>
+                      </div>
+                      <span className="office-dashboard-commission-history-action">Expand</span>
+                    </summary>
+
+                    <div className="office-dashboard-commission-history-list">
+                      {historicalCommissionMonths.map((month) => (
+                        <article className="office-dashboard-commission-history-item" key={month.monthKey}>
+                          <div className="office-dashboard-commission-month-copy">
+                            <strong>{month.label}</strong>
+                            <span>{month.calculationCount} row(s)</span>
+                          </div>
+                          <strong className="office-dashboard-commission-month-amount">{month.totalLabel}</strong>
+                        </article>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </div>
+            ) : null}
+          </SectionCard>
+        ) : null}
       </div>
     </PageShell>
   );
