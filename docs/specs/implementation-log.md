@@ -118,6 +118,12 @@
 - `New transaction` owner assignment now treats the `Agent Name` field as the real owner control:
   - sales roles can only create transactions for themselves and see a locked self owner label
   - admin/company-scope roles can search active agents or team leads by name and assign ownership before create
+- Commission self-service visibility is now aligned to sales hierarchy expectations:
+  - `agent` always keeps self commission visibility
+  - `team_lead` always keeps self + downline commission visibility
+  - `/office/dashboard` now shows the current logged-in membership's total commission, current-month commission, and monthly commission history
+  - `/office/transactions/[transactionId]` now respects scoped commission visibility even when older org role templates are missing the newer commission view keys
+  - commission plan management and statement-generation surfaces stay restricted to admin/review roles instead of piggybacking on the new self-service visibility baseline
   - backend now enforces the same rule and persists `additionalFields.agentName` from the actual selected owner instead of arbitrary free text
 - `Settings > Fields` custom field editor now supports `Protected from deletion`, and the transaction `Agent Name` field is hard-protected so admins must hide it instead of deleting the owner-linked schema row
 - Transaction intake now retires the legacy `Team Leader` custom field from both `New Transaction` and `Settings > Fields`; team hierarchy should come only from membership/team assignment, not from a second dropdown on the transaction form

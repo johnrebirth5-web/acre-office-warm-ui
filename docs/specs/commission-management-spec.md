@@ -29,12 +29,19 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - company remainder
   - transaction `createdAt` as the locking date for default split / hierarchy replay
 - transaction detail has a commission section
+- `/office/dashboard` now includes a self-service commission summary for the current logged-in membership:
+  - total persisted commission
+  - current-month commission
+  - monthly commission totals
 - `/office/settings/commission-plans` is the primary commission management workspace
 - agent profile shows commission summary
 - strict visibility now applies:
   - agent sees self rows only
   - manager sees self + downline rows
   - admin/accountant sees full chain and company rows
+- self-service visibility is separated from commission management:
+  - sales roles can view scoped commission data on dashboard and transaction detail
+  - commission plan / statement management stays in admin-review surfaces only
 - internal statuses include:
   - draft
   - calculated

@@ -20,6 +20,23 @@ export type OfficeDashboardChartPoint = {
   value: number;
 };
 
+export type OfficeDashboardCommissionMonth = {
+  monthKey: string;
+  label: string;
+  totalLabel: string;
+  calculationCount: number;
+  isCurrent: boolean;
+};
+
+export type OfficeDashboardCommissionSnapshot = {
+  totalCommissionLabel: string;
+  currentMonthCommissionLabel: string;
+  payableLabel: string;
+  paidLabel: string;
+  calculationCount: number;
+  monthlyTotals: OfficeDashboardCommissionMonth[];
+};
+
 export type OfficeDashboardBusinessSnapshot = {
   goal: {
     progressPercent: number;
@@ -38,6 +55,7 @@ export type OfficeDashboardBusinessSnapshot = {
   transactionCountsByStatus: OfficeDashboardStatusMetric[];
   contactsNeedingFollowUp: number;
   recentTransactions: OfficeDashboardRecentTransaction[];
+  commission: OfficeDashboardCommissionSnapshot;
 };
 
 type GetOfficeDashboardBusinessSnapshotInput = {
@@ -89,6 +107,10 @@ function buildAxisLabels(maxValue: number) {
   return Array.from({ length: 11 }, (_, index) => String(axisMax - index * step));
 }
 
+function buildMonthKey(value: Date) {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export async function getOfficeDashboardBusinessSnapshot(
   input: GetOfficeDashboardBusinessSnapshotInput
 ): Promise<OfficeDashboardBusinessSnapshot> {
@@ -135,8 +157,18 @@ export async function getOfficeDashboardBusinessSnapshot(
 
   const now = new Date();
   const chartWindowStart = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+  const commissionWindowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-  const [recentTransactions, groupedStatuses, totalTransactions, closedTransactions, contactsNeedingFollowUp, monthlyTransactions] =
+  const [
+    recentTransactions,
+    groupedStatuses,
+    totalTransactions,
+    closedTransactions,
+    contactsNeedingFollowUp,
+    monthlyTransactions,
+    commissionTotalsByStatus,
+    recentCommissionRows
+  ] =
     await Promise.all([
       prisma.transaction.findMany({
         where: transactionWhere,
@@ -185,6 +217,35 @@ export async function getOfficeDashboardBusinessSnapshot(
           createdAt: true
         },
         orderBy: [{ createdAt: "asc" }]
+      }),
+      prisma.commissionCalculation.groupBy({
+        by: ["status"],
+        where: {
+          organizationId: input.organizationId,
+          membershipId: scope.viewerMembershipId,
+          ...(input.officeId ? { officeId: input.officeId } : {})
+        },
+        _sum: {
+          statementAmount: true
+        },
+        _count: {
+          _all: true
+        }
+      }),
+      prisma.commissionCalculation.findMany({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: scope.viewerMembershipId,
+          ...(input.officeId ? { officeId: input.officeId } : {}),
+          calculatedAt: {
+            gte: commissionWindowStart
+          }
+        },
+        select: {
+          calculatedAt: true,
+          statementAmount: true
+        },
+        orderBy: [{ calculatedAt: "asc" }]
       })
     ]);
 
@@ -212,6 +273,60 @@ export async function getOfficeDashboardBusinessSnapshot(
 
   const maxPointValue = Math.max(...points.map((point) => point.value), 0);
   const progressPercent = totalTransactions > 0 ? Math.round((closedTransactions / totalTransactions) * 100) : 0;
+  const currentMonthKey = buildMonthKey(now);
+  const commissionTotalsByMonth = new Map<
+    string,
+    {
+      total: number;
+      calculationCount: number;
+    }
+  >();
+
+  for (const row of recentCommissionRows) {
+    const monthKey = buildMonthKey(row.calculatedAt);
+    const current =
+      commissionTotalsByMonth.get(monthKey) ??
+      {
+        total: 0,
+        calculationCount: 0
+      };
+
+    current.total += Number(row.statementAmount ?? 0);
+    current.calculationCount += 1;
+    commissionTotalsByMonth.set(monthKey, current);
+  }
+
+  const monthlyCommissionTotals = Array.from({ length: 12 }, (_, index) => {
+    const monthDate = new Date(commissionWindowStart.getFullYear(), commissionWindowStart.getMonth() + index, 1);
+    const monthKey = buildMonthKey(monthDate);
+    const totals =
+      commissionTotalsByMonth.get(monthKey) ??
+      {
+        total: 0,
+        calculationCount: 0
+      };
+
+    return {
+      monthKey,
+      label: monthDate.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric"
+      }),
+      totalLabel: formatCurrency(totals.total),
+      calculationCount: totals.calculationCount,
+      isCurrent: monthKey === currentMonthKey
+    };
+  });
+  const totalCommissionAmount = commissionTotalsByStatus.reduce(
+    (sum, entry) => sum + Number(entry._sum.statementAmount ?? 0),
+    0
+  );
+  const currentMonthCommissionAmount = commissionTotalsByMonth.get(currentMonthKey)?.total ?? 0;
+  const payableCommissionAmount =
+    commissionTotalsByStatus.find((entry) => entry.status === "payable")?._sum.statementAmount ?? new Prisma.Decimal(0);
+  const paidCommissionAmount =
+    commissionTotalsByStatus.find((entry) => entry.status === "paid")?._sum.statementAmount ?? new Prisma.Decimal(0);
+  const commissionCalculationCount = commissionTotalsByStatus.reduce((sum, entry) => sum + entry._count._all, 0);
 
   return {
     goal: {
@@ -230,6 +345,14 @@ export async function getOfficeDashboardBusinessSnapshot(
     },
     transactionCountsByStatus,
     contactsNeedingFollowUp,
+    commission: {
+      totalCommissionLabel: formatCurrency(totalCommissionAmount),
+      currentMonthCommissionLabel: formatCurrency(currentMonthCommissionAmount),
+      payableLabel: formatCurrency(Number(payableCommissionAmount ?? 0)),
+      paidLabel: formatCurrency(Number(paidCommissionAmount ?? 0)),
+      calculationCount: commissionCalculationCount,
+      monthlyTotals: monthlyCommissionTotals
+    },
     recentTransactions: recentTransactions.map((transaction) => ({
       id: transaction.id,
       label: `${transaction.address}, ${transaction.city}, ${transaction.state} ${transaction.zipCode}`.replace(/,\s+,/g, ", "),

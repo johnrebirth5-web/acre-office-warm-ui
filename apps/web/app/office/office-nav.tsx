@@ -7,12 +7,12 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import {
   canAccessAccountActivity,
   canAccessOfficeAccounting,
+  canAccessOfficeCommissionWorkspace,
   canAccessOfficeDocumentApprovals,
   canAccessOfficeNotifications,
   canAccessOfficeSettings,
   canAccessOfficeTasks,
   canManageOfficeSettings,
-  canViewOfficeCommissions,
   canViewOfficeAgents,
   canViewOfficeChecklists,
   canViewOfficeContacts,
@@ -70,7 +70,7 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
         { label: "Teams", href: "/office/settings/teams", isVisible: canViewOfficeTeams },
         { label: "Checklists", href: "/office/settings/checklists", isVisible: canViewOfficeChecklists },
         { label: "Fields", href: "/office/settings/fields", isVisible: canViewOfficeFields },
-        { label: "Commission plans", href: "/office/settings/commission-plans", isVisible: canViewOfficeCommissions }
+        { label: "Commission plans", href: "/office/settings/commission-plans", isVisible: canAccessOfficeCommissionWorkspace }
       ].filter((item) => item.isVisible?.(subject) ?? true)
     },
     {

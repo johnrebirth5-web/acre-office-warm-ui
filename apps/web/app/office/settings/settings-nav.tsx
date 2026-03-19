@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  canAccessOfficeCommissionWorkspace,
   canAccessOfficeSettings,
-  canViewOfficeCommissions,
   canViewOfficeAgents,
   canViewOfficeChecklists,
   canViewOfficeFields,
@@ -22,7 +22,7 @@ function getSettingsLinks(currentAccess: PermissionSubject) {
     { href: "/office/settings/teams", label: "Teams", isVisible: canViewOfficeTeams(currentAccess) },
     { href: "/office/settings/fields", label: "Fields", isVisible: canViewOfficeFields(currentAccess) },
     { href: "/office/settings/checklists", label: "Checklists", isVisible: canViewOfficeChecklists(currentAccess) },
-    { href: "/office/settings/commission-plans", label: "Commission plans", isVisible: canViewOfficeCommissions(currentAccess) }
+    { href: "/office/settings/commission-plans", label: "Commission plans", isVisible: canAccessOfficeCommissionWorkspace(currentAccess) }
   ].filter((link) => link.isVisible);
 }
 

@@ -1,4 +1,4 @@
-import { canViewOfficeCommissions } from "@acre/auth";
+import { canApproveOfficeCommissions, canManageOfficeCommissions } from "@acre/auth";
 import { generateCommissionStatementSnapshot } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canViewOfficeCommissions(context.currentMembership)) {
-    return NextResponse.json({ error: "Commission visibility access required." }, { status: 403 });
+  if (!canManageOfficeCommissions(context.currentMembership) && !canApproveOfficeCommissions(context.currentMembership)) {
+    return NextResponse.json({ error: "Commission statement management access required." }, { status: 403 });
   }
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;

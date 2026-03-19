@@ -1,4 +1,5 @@
 import {
+  canAccessOfficeCommissionWorkspace,
   canAccessOfficeSettings,
   canApproveOfficeCommissions,
   canCalculateOfficeCommissions,
@@ -26,8 +27,9 @@ type OfficeSettingsCommissionPlansPageProps = {
 
 export default async function OfficeSettingsCommissionPlansPage(props: OfficeSettingsCommissionPlansPageProps) {
   const context = await requireOfficeSession();
+  const canAccessCommissionWorkspace = canAccessOfficeCommissionWorkspace(context.currentMembership);
 
-  if (!canViewOfficeCommissions(context.currentMembership)) {
+  if (!canViewOfficeCommissions(context.currentMembership) || !canAccessCommissionWorkspace) {
     redirect(canAccessOfficeSettings(context.currentMembership) ? "/office/settings" : "/office/dashboard");
   }
 

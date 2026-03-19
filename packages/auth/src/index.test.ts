@@ -15,6 +15,7 @@ import {
   canManageOfficeUsers,
   canSecondaryReviewOfficeTasks,
   canViewOfficeContacts,
+  canViewOfficeCommissions,
   canViewOfficeReports,
   canViewOfficeTransactions
 } from "./index.ts";
@@ -64,6 +65,7 @@ test("team lead keeps scoped pipeline access without admin-only settings", () =>
   assert.equal(canEditOfficeTransactions("team_lead"), true);
   assert.equal(canViewOfficeContacts("team_lead"), true);
   assert.equal(canViewOfficeReports("team_lead"), true);
+  assert.equal(canViewOfficeCommissions("team_lead"), true);
   assert.equal(canManageOfficeUsers("team_lead"), false);
   assert.equal(canManageOfficeSettings("team_lead"), false);
   assert.equal(canManageOfficeTransactionFinance("team_lead"), false);
@@ -75,6 +77,7 @@ test("agent role keeps scoped pipeline access without finance or admin-only powe
   assert.equal(canEditOfficeTransactions("agent"), true);
   assert.equal(canManageOfficeTransactionFinance("agent"), false);
   assert.equal(canViewOfficeContacts("agent"), true);
+  assert.equal(canViewOfficeCommissions("agent"), true);
   assert.equal(canCreateOfficeContacts("agent"), true);
   assert.equal(canEditOfficeContacts("agent"), true);
   assert.equal(canLinkOfficeContacts("agent"), true);
@@ -83,6 +86,20 @@ test("agent role keeps scoped pipeline access without finance or admin-only powe
   assert.equal(canManageOfficeUsers("agent"), false);
   assert.equal(canManageOfficeSettings("agent"), false);
   assert.equal(canViewOfficeReports("agent"), false);
+});
+
+test("required commission visibility baselines survive narrowed permission snapshots", () => {
+  assert.equal(can({ role: "agent", permissions: ["dashboard:view"] }, "commissions:view"), true);
+  assert.equal(
+    can(
+      {
+        role: "team_lead",
+        permissions: ["dashboard:view", "transactions:view", "transactions:view:team"]
+      },
+      "commissions:view:team"
+    ),
+    true
+  );
 });
 
 test("office user keeps internal read access without admin-only powers", () => {

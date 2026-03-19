@@ -493,7 +493,14 @@ export type {
 } from "./settings";
 export type { OfficeUserDetailWorkspaceSnapshot, OfficeUsersWorkspaceSnapshot, OfficeUsersWorkspaceView } from "./users-workspace";
 export type { SeededMembershipSnapshot, SeededWorkspaceSnapshot } from "./bootstrap";
-export type { OfficeDashboardBusinessSnapshot, OfficeDashboardChartPoint, OfficeDashboardRecentTransaction, OfficeDashboardStatusMetric } from "./dashboard";
+export type {
+  OfficeDashboardBusinessSnapshot,
+  OfficeDashboardChartPoint,
+  OfficeDashboardCommissionMonth,
+  OfficeDashboardCommissionSnapshot,
+  OfficeDashboardRecentTransaction,
+  OfficeDashboardStatusMetric
+} from "./dashboard";
 export type {
   CalculateTransactionCommissionInput,
   OfficeCommissionAssignmentSourceType,

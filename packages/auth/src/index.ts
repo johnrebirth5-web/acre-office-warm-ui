@@ -1267,6 +1267,15 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
   ]
 };
 
+const requiredRoleBaselinePermissions: Partial<Record<UserRole, PermissionKey[]>> = {
+  agent: ["commissions:view"],
+  team_lead: ["commissions:view", "commissions:view:team"]
+};
+
+function applyRequiredRoleBaselinePermissions(role: UserRole, permissions: readonly PermissionKey[]) {
+  return prunePermissionsByDependencies([...(permissions ?? []), ...(requiredRoleBaselinePermissions[role] ?? [])]);
+}
+
 function getSubjectRole(subject: PermissionSubject): UserRole {
   return typeof subject === "string" ? subject : subject.role;
 }
@@ -1369,7 +1378,7 @@ export function getRoleSummary(subject: PermissionSubject): RoleSummary {
 }
 
 export function getPermissionsForRole(role: UserRole): PermissionKey[] {
-  return prunePermissionsByDependencies(systemRoleTemplatePermissions[role] ?? []);
+  return applyRequiredRoleBaselinePermissions(role, systemRoleTemplatePermissions[role] ?? []);
 }
 
 export function getSystemRoleTemplatePermissions(role: UserRole): PermissionKey[] {
@@ -1385,7 +1394,7 @@ export function resolveEffectivePermissions(subject: PermissionSubject): Permiss
     return getPermissionsForRole(subject.role);
   }
 
-  return sanitizePermissions(subject.permissions);
+  return applyRequiredRoleBaselinePermissions(subject.role, sanitizePermissions(subject.permissions));
 }
 
 export function can(subject: PermissionSubject, permission: PermissionKey): boolean {
@@ -1607,6 +1616,15 @@ export function canCalculateOfficeCommissions(subject: PermissionSubject): boole
 
 export function canApproveOfficeCommissions(subject: PermissionSubject): boolean {
   return can(subject, "commissions:approve");
+}
+
+export function canAccessOfficeCommissionWorkspace(subject: PermissionSubject): boolean {
+  return (
+    canAccessOfficeSettings(subject) ||
+    canManageOfficeCommissions(subject) ||
+    canCalculateOfficeCommissions(subject) ||
+    canApproveOfficeCommissions(subject)
+  );
 }
 
 export function canAccessOfficeTasks(subject: PermissionSubject): boolean {
