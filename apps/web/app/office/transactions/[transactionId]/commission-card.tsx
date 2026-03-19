@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import type { OfficeTransactionCommissionSnapshot } from "@acre/db";
-import { Button, FormField, HorizontalScrollArea, SectionCard, SelectInput, StatCard, StatusBadge, TextInput } from "@acre/ui";
+import { Button, HorizontalScrollArea, SectionCard, SelectInput, StatCard, StatusBadge, TextInput } from "@acre/ui";
 
 type TransactionCommissionCardProps = {
   transactionId: string;
@@ -46,8 +46,12 @@ export function TransactionCommissionCard({
   canApproveCommissions
 }: TransactionCommissionCardProps) {
   const router = useRouter();
-  const [selectedPlanId, setSelectedPlanId] = useState(snapshot.mode === "legacy_plan" ? snapshot.planId : "");
   const [calculationNote, setCalculationNote] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideNote, setOverrideNote] = useState("");
+  const [overrideDrafts, setOverrideDrafts] = useState<Record<string, string>>(
+    Object.fromEntries(snapshot.stakeholderBreakdown.map((row) => [row.key, row.finalAmount]))
+  );
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>(
     Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue]))
   );
@@ -55,8 +59,9 @@ export function TransactionCommissionCard({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setSelectedPlanId(snapshot.mode === "legacy_plan" ? snapshot.planId : "");
-  }, [snapshot.mode, snapshot.planId]);
+    setStatusDrafts(Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue])));
+    setOverrideDrafts(Object.fromEntries(snapshot.stakeholderBreakdown.map((row) => [row.key, row.finalAmount])));
+  }, [snapshot]);
 
   async function handleCalculate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,7 +75,6 @@ export function TransactionCommissionCard({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          commissionPlanId: selectedPlanId,
           notes: calculationNote
         })
       });
@@ -85,6 +89,43 @@ export function TransactionCommissionCard({
       router.refresh();
     } catch (calculateError) {
       setError(calculateError instanceof Error ? calculateError.message : "Failed to calculate commissions.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleOverride(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPendingAction("override");
+    setError("");
+
+    try {
+      const response = await fetch(`/api/office/transactions/${transactionId}/commissions/override`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          overrideReason,
+          notes: overrideNote,
+          stakeholderAmounts: snapshot.stakeholderBreakdown.map((row) => ({
+            key: row.key,
+            amount: overrideDrafts[row.key] ?? row.finalAmount
+          }))
+        })
+      });
+
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to apply override.");
+      }
+
+      setOverrideReason("");
+      setOverrideNote("");
+      router.refresh();
+    } catch (overrideError) {
+      setError(overrideError instanceof Error ? overrideError.message : "Failed to apply override.");
     } finally {
       setPendingAction(null);
     }
@@ -121,18 +162,16 @@ export function TransactionCommissionCard({
 
   return (
     <section id="commission">
-      <SectionCard
-        subtitle="Default split chain, optional advanced plan override, and persisted commission rows for this transaction."
-        title="Commission"
-      >
+      <SectionCard subtitle="Structured fee logic, final stakeholder split, and calculation history for this transaction." title="Commission">
         <div className="office-kpi-grid office-commission-kpi-grid">
-          <StatCard hint="transaction finance input" label="Gross commission" value={snapshot.summary.grossCommissionLabel} />
-          <StatCard hint="transaction-level referral deduction" label="Referral fee" value={snapshot.summary.referralFeeLabel} />
-          <StatCard hint="plan-driven deductions" label="Calculated fees" value={snapshot.summary.feesLabel} />
-          <StatCard hint="current transaction finance office share" label="Office net" value={snapshot.summary.officeNetLabel} />
-          <StatCard hint="current transaction finance agent share" label="Agent net" value={snapshot.summary.agentNetLabel} />
-          <StatCard hint="rows in statement-ready status" label="Statement ready" value={snapshot.summary.statementReadyLabel} />
-          <StatCard hint="rows already marked payable" label="Payable" value={snapshot.summary.payableLabel} />
+          <StatCard hint="finance input" label="Gross commission" value={snapshot.summary.grossCommissionLabel} />
+          <StatCard hint="all pre-split fees" label="Pre-Split total" value={snapshot.summary.preSplitTotalLabel} />
+          <StatCard hint="all post-split fees" label="Post-Split total" value={snapshot.summary.postSplitTotalLabel} />
+          <StatCard hint="gross minus pre-split fees" label="Net commission base" value={snapshot.summary.netCommissionBaseLabel} />
+          <StatCard hint="current owner-agent payout" label="Final agent net" value={snapshot.summary.agentNetLabel} />
+          <StatCard hint="current company payout" label="Final office net" value={snapshot.summary.officeNetLabel} />
+          <StatCard hint="separate reimbursement adjustment" label="Reimbursement" value={snapshot.summary.reimbursementLabel} />
+          <StatCard hint="current effective calculation version" label="Current version" value={snapshot.summary.currentVersionLabel} />
         </div>
 
         <div className="office-inline-meta">
@@ -140,6 +179,18 @@ export function TransactionCommissionCard({
           <span>Source: {snapshot.defaultSplitSourceLabel || "No default split configured"}</span>
         </div>
         {snapshot.visibilityNote ? <p className="office-form-helper">{snapshot.visibilityNote}</p> : null}
+        {snapshot.approvalBlockers.length > 0 ? (
+          <div className="office-section-card">
+            <div className="office-section-body">
+              <strong>Current blockers</strong>
+              <ul>
+                {snapshot.approvalBlockers.map((blocker) => (
+                  <li key={blocker}>{blocker}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : null}
         {!canCalculateCommissions ? (
           <p className="office-form-helper">
             Your current role can view commission data here, but only commission managers can run Calculate for this transaction.
@@ -147,55 +198,158 @@ export function TransactionCommissionCard({
         ) : null}
 
         <form className="office-inline-form office-inline-form-wrap" onSubmit={handleCalculate}>
-          <FormField className="office-inline-form-field-wide" label="Calculation note">
+          <label className="office-detail-field office-detail-field-wide">
+            <span>Calculation note</span>
             <TextInput disabled={!canCalculateCommissions || pendingAction === "calculate"} onChange={(event) => setCalculationNote(event.target.value)} value={calculationNote} />
-          </FormField>
-
+          </label>
           <div className="office-inline-form-actions">
             <Button disabled={!canCalculateCommissions || pendingAction === "calculate"} type="submit">
-              {pendingAction === "calculate" ? "Calculating..." : snapshot.calculations.length > 0 ? "Recalculate" : "Calculate"}
+              {pendingAction === "calculate" ? "Calculating..." : snapshot.versionHistory.length > 0 ? "Recalculate" : "Calculate"}
             </Button>
           </div>
         </form>
-        {error ? <p className="office-form-error">{error}</p> : null}
 
-        <div className="office-inline-meta">
-          <span>Latest mode: {snapshot.mode === "default_split_chain" ? "Default split chain" : "Legacy advanced plan"}</span>
-          <span>Advanced reference: {snapshot.planLabel}</span>
-        </div>
-        <details className="office-section-card">
-          <summary>Advanced settings</summary>
-          <div className="office-section-body">
-            <div className="office-inline-meta">
-              <span>Plan source: {snapshot.planSourceLabel}</span>
-              <span>Used reference: {snapshot.planLabel}</span>
+        <HorizontalScrollArea>
+          <div className="office-table">
+            <div className="office-table-header office-table-row office-table-row-commission">
+              <span>Stakeholder</span>
+              <span>Role</span>
+              <span>Share</span>
+              <span>Base</span>
+              <span>Post-Split</span>
+              <span>Reimbursement</span>
+              <span>Final</span>
             </div>
-            <form className="office-inline-form office-inline-form-wrap" onSubmit={handleCalculate}>
-              <FormField label="Advanced plan override">
-                <SelectInput disabled={!canCalculateCommissions || pendingAction === "calculate"} onChange={(event) => setSelectedPlanId(event.target.value)} value={selectedPlanId}>
-                  <option value="">Use default split chain</option>
-                  {snapshot.availablePlans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.label}
-                    </option>
+
+            {snapshot.stakeholderBreakdown.map((row) => (
+              <div className="office-table-row office-table-row-commission" key={row.key}>
+                <div className="office-table-primary">
+                  <strong>{row.recipientLabel}</strong>
+                </div>
+                <span>{row.recipientRole}</span>
+                <span>{row.sharePercentLabel}</span>
+                <span>{row.baseAmountLabel}</span>
+                <span>{row.postSplitAdjustmentLabel}</span>
+                <span>{row.reimbursementAdjustmentLabel}</span>
+                <strong>{row.finalAmountLabel}</strong>
+              </div>
+            ))}
+
+            {snapshot.stakeholderBreakdown.length === 0 ? (
+              <div className="bm-accounting-empty">
+                <p>Run the finance calculation to generate stakeholder breakdown rows.</p>
+              </div>
+            ) : null}
+          </div>
+        </HorizontalScrollArea>
+
+        {(canManageCommissions || canApproveCommissions) && snapshot.stakeholderBreakdown.length > 0 ? (
+          <form className="office-section-card" onSubmit={handleOverride}>
+            <div className="office-section-body">
+              <div className="office-detail-grid">
+                <label className="office-detail-field office-detail-field-wide">
+                  <span>Override reason</span>
+                  <input
+                    disabled={pendingAction === "override"}
+                    onChange={(event) => setOverrideReason(event.target.value)}
+                    type="text"
+                    value={overrideReason}
+                  />
+                </label>
+                <label className="office-detail-field office-detail-field-wide">
+                  <span>Override note</span>
+                  <textarea
+                    disabled={pendingAction === "override"}
+                    onChange={(event) => setOverrideNote(event.target.value)}
+                    rows={2}
+                    value={overrideNote}
+                  />
+                </label>
+              </div>
+
+              <HorizontalScrollArea>
+                <div className="office-table">
+                  <div className="office-table-header office-table-row office-table-row-commission">
+                    <span>Stakeholder</span>
+                    <span>Current final</span>
+                    <span>Override amount</span>
+                  </div>
+
+                  {snapshot.stakeholderBreakdown.map((row) => (
+                    <div className="office-table-row office-table-row-commission" key={`override:${row.key}`}>
+                      <div className="office-table-primary">
+                        <strong>{row.recipientLabel}</strong>
+                        <p>{row.recipientRole}</p>
+                      </div>
+                      <span>{row.finalAmountLabel}</span>
+                      <input
+                        disabled={pendingAction === "override"}
+                        onChange={(event) =>
+                          setOverrideDrafts((current) => ({
+                            ...current,
+                            [row.key]: event.target.value
+                          }))
+                        }
+                        type="text"
+                        value={overrideDrafts[row.key] ?? row.finalAmount}
+                      />
+                    </div>
                   ))}
-                </SelectInput>
-              </FormField>
+                </div>
+              </HorizontalScrollArea>
+
               <div className="office-inline-form-actions">
-                <Button disabled={!canCalculateCommissions || pendingAction === "calculate"} type="submit" variant="secondary">
-                  {pendingAction === "calculate" ? "Saving..." : "Recalculate with selected mode"}
+                <Button disabled={pendingAction === "override"} type="submit" variant="secondary">
+                  {pendingAction === "override" ? "Saving override..." : "Apply override"}
                 </Button>
               </div>
-            </form>
+            </div>
+          </form>
+        ) : null}
+
+        <HorizontalScrollArea>
+          <div className="office-table">
+            <div className="office-table-header office-table-row office-table-row-commission">
+              <span>Version</span>
+              <span>Type</span>
+              <span>Created</span>
+              <span>By</span>
+              <span>Agent net</span>
+              <span>Office net</span>
+              <span>Notes</span>
+            </div>
+
+            {snapshot.versionHistory.map((version) => (
+              <div className="office-table-row office-table-row-commission" key={version.id}>
+                <div className="office-table-primary">
+                  <strong>Version {version.versionNumber}</strong>
+                  <p>{version.isCurrent ? "Current" : "Historical"}</p>
+                </div>
+                <span>{version.sourceTypeLabel}</span>
+                <span>{version.createdAt || "—"}</span>
+                <span>{version.createdByLabel}</span>
+                <span>{version.finalAgentNetLabel}</span>
+                <span>{version.finalOfficeNetLabel}</span>
+                <div className="office-table-primary">
+                  <strong>{version.overrideReason || version.notes || "—"}</strong>
+                  <p>{version.overrideReason && version.notes ? version.notes : ""}</p>
+                </div>
+              </div>
+            ))}
+
+            {snapshot.versionHistory.length === 0 ? (
+              <div className="bm-accounting-empty">
+                <p>No finance calculation history has been saved for this transaction yet.</p>
+              </div>
+            ) : null}
           </div>
-        </details>
+        </HorizontalScrollArea>
 
         <HorizontalScrollArea>
           <div className="office-table">
             <div className="office-table-header office-table-row office-table-row-commission">
               <span>Recipient</span>
               <span>Role</span>
-              <span>Plan</span>
               <span>Status</span>
               <span>Statement</span>
               <span>Calculated</span>
@@ -209,12 +363,6 @@ export function TransactionCommissionCard({
                   <p>{row.recipientType}</p>
                 </div>
                 <span>{row.recipientRole || "—"}</span>
-                <div className="office-table-primary">
-                  <strong>{row.commissionPlanLabel}</strong>
-                  <p>
-                    {row.commissionPlanDetailLabel} · {row.grossCommissionLabel} gross
-                  </p>
-                </div>
                 <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
                 <div className="office-table-primary">
                   <strong>{row.statementAmountLabel}</strong>
@@ -259,11 +407,13 @@ export function TransactionCommissionCard({
 
             {snapshot.calculations.length === 0 ? (
               <div className="bm-accounting-empty">
-                <p>No commission calculations have been saved for this transaction yet.</p>
+                <p>No current payout rows have been saved for this transaction yet.</p>
               </div>
             ) : null}
           </div>
         </HorizontalScrollArea>
+
+        {error ? <p className="office-form-error">{error}</p> : null}
       </SectionCard>
     </section>
   );

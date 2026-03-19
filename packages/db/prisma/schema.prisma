@@ -392,6 +392,32 @@ enum CommissionCalculationStatus {
   paid
 }
 
+enum TransactionFinanceFeeType {
+  rebate
+  client_referral
+  external_referral
+  company_referral
+  channel_development_fee
+  reimbursement
+}
+
+enum TransactionFinanceCalculationType {
+  pre_split
+  post_split
+  reimbursement
+}
+
+enum TransactionFinanceApprovalStatus {
+  not_required
+  pending
+  approved
+}
+
+enum TransactionFinanceVersionSource {
+  calculated
+  overridden
+}
+
 enum EarnestMoneyStatus {
   not_received
   overdue
@@ -454,6 +480,8 @@ model Organization {
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionPlanRules               CommissionPlanRule[]
   commissionCalculations            CommissionCalculation[]
+  transactionFinanceFees            TransactionFinanceFee[]
+  transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
   transactionFieldSettings          TransactionFieldSetting[]
   transactionCustomFieldDefinitions TransactionCustomFieldDefinition[]
@@ -517,6 +545,8 @@ model Office {
   commissionPlans                   CommissionPlan[]
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionCalculations            CommissionCalculation[]
+  transactionFinanceFees            TransactionFinanceFee[]
+  transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
   transactionFieldSettings          TransactionFieldSetting[]
   transactionCustomFieldDefinitions TransactionCustomFieldDefinition[]
@@ -601,6 +631,8 @@ model Membership {
   commissionPlanAssignments                CommissionPlanAssignment[]
   commissionCalculations                   CommissionCalculation[]            @relation("CommissionCalculationMembership")
   calculatedCommissionCalculations         CommissionCalculation[]            @relation("CommissionCalculationCalculatedBy")
+  approvedTransactionFinanceFees           TransactionFinanceFee[]            @relation("TransactionFinanceFeeApprovedBy")
+  createdTransactionFinanceCalculationVersions TransactionFinanceCalculationVersion[] @relation("TransactionFinanceCalculationVersionCreatedBy")
   checklistTemplatesCreated                ChecklistTemplate[]                @relation("ChecklistTemplateCreatedBy")
   checklistTemplatesUpdated                ChecklistTemplate[]                @relation("ChecklistTemplateUpdatedBy")
   updatedTableLayouts                      OrganizationTableLayout[]          @relation("OrganizationTableLayoutUpdatedBy")
@@ -755,6 +787,9 @@ model Transaction {
   closingDate                    DateTime?
   companyReferral                Boolean                         @default(false)
   companyReferralEmployeeName    String?
+  clientReferralFormApproved     Boolean                         @default(false)
+  rebateAgreementSigned          Boolean                         @default(false)
+  rebateGoogleFormSubmitted      Boolean                         @default(false)
   referralContext                Json?
   grossCommission                Decimal?                        @db.Decimal(12, 2)
   referralFee                    Decimal?                        @db.Decimal(12, 2)
@@ -781,6 +816,8 @@ model Transaction {
   incomingUpdates                IncomingUpdate[]
   offers                         Offer[]
   commissionCalculations         CommissionCalculation[]
+  financeFees                    TransactionFinanceFee[]
+  financeCalculationVersions     TransactionFinanceCalculationVersion[]
   membershipLinks                TransactionMembershipLink[]
 
   @@index([organizationId, status])
@@ -2018,6 +2055,7 @@ model CommissionCalculation {
   organizationId           String
   officeId                 String?
   transactionId            String
+  transactionFinanceCalculationVersionId String?
   membershipId             String?
   commissionPlanId         String?
   accountingTransactionId  String?
@@ -2039,6 +2077,7 @@ model CommissionCalculation {
   organization             Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                   Office?                     @relation(fields: [officeId], references: [id], onDelete: SetNull)
   transaction              Transaction                 @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transactionFinanceCalculationVersion TransactionFinanceCalculationVersion? @relation(fields: [transactionFinanceCalculationVersionId], references: [id], onDelete: SetNull)
   membership               Membership?                 @relation("CommissionCalculationMembership", fields: [membershipId], references: [id], onDelete: SetNull)
   commissionPlan           CommissionPlan?             @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
   accountingTransaction    AccountingTransaction?      @relation(fields: [accountingTransactionId], references: [id], onDelete: SetNull)
@@ -2046,9 +2085,72 @@ model CommissionCalculation {
 
   @@index([organizationId, officeId, status])
   @@index([organizationId, transactionId])
+  @@index([organizationId, transactionFinanceCalculationVersionId])
   @@index([organizationId, membershipId])
   @@index([organizationId, commissionPlanId])
   @@index([organizationId, calculatedAt])
+}
+
+model TransactionFinanceFee {
+  id                     String                           @id @default(cuid())
+  organizationId         String
+  officeId               String?
+  transactionId          String
+  feeType                TransactionFinanceFeeType
+  defaultRate            Decimal?                         @db.Decimal(5, 2)
+  rate                   Decimal?                         @db.Decimal(5, 2)
+  amount                 Decimal?                         @db.Decimal(12, 2)
+  defaultCalculationType TransactionFinanceCalculationType
+  selectedCalculationType TransactionFinanceCalculationType
+  approvalRequired       Boolean                          @default(false)
+  approvalStatus         TransactionFinanceApprovalStatus @default(not_required)
+  notes                  String?
+  approvedAt             DateTime?
+  approvedByMembershipId String?
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+  organization           Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                 Office?                          @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  transaction            Transaction                      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  approvedByMembership   Membership?                      @relation("TransactionFinanceFeeApprovedBy", fields: [approvedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([transactionId, feeType])
+  @@index([organizationId, officeId, feeType])
+  @@index([organizationId, transactionId])
+}
+
+model TransactionFinanceCalculationVersion {
+  id                    String                         @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  transactionId         String
+  versionNumber         Int
+  sourceType            TransactionFinanceVersionSource
+  isCurrent             Boolean                        @default(false)
+  grossCommission       Decimal                        @default(0) @db.Decimal(12, 2)
+  preSplitTotal         Decimal                        @default(0) @db.Decimal(12, 2)
+  postSplitTotal        Decimal                        @default(0) @db.Decimal(12, 2)
+  netCommissionBase     Decimal                        @default(0) @db.Decimal(12, 2)
+  reimbursementAmount   Decimal                        @default(0) @db.Decimal(12, 2)
+  finalAgentNet         Decimal                        @default(0) @db.Decimal(12, 2)
+  finalOfficeNet        Decimal                        @default(0) @db.Decimal(12, 2)
+  feeBreakdown          Json?
+  stakeholderBreakdown  Json?
+  blockingIssues        Json?
+  notes                 String?
+  overrideReason        String?
+  createdByMembershipId String?
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+  organization          Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                        @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  transaction           Transaction                    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership?                    @relation("TransactionFinanceCalculationVersionCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+  commissionCalculations CommissionCalculation[]
+
+  @@unique([transactionId, versionNumber])
+  @@index([organizationId, officeId, isCurrent])
+  @@index([organizationId, transactionId, isCurrent])
 }
 
 model EarnestMoneyRecord {

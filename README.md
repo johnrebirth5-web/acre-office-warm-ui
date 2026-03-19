@@ -99,7 +99,19 @@
   - 已有 transaction detail 页面
   - transaction detail 现在会渲染真实 linked contacts，并支持 link / unlink / set primary
   - transaction detail 现在有真实 `Checklist / Tasks` 区块，可创建、编辑并执行 document-linked review workflow
-  - transaction detail 现在有最小真实 `Finance` 区块，可编辑 gross commission / referral fee / office net / agent net / finance notes
+  - transaction detail 的 `Finance / Commission` 现在是结构化佣金工作台：
+    - 维护 `Gross commission`
+    - 维护 transaction 级 fee ledger：
+      - `Rebate`
+      - `Client Referral`
+      - `External Referral`
+      - `Company Referral`
+      - `Channel Development Fee`
+      - `Reimbursement`
+    - 每个费用项可选择 `Pre-Split / Post-Split / Reimbursement`
+    - 财务可确认 `Client Referral` / `Rebate` 前置条件
+    - 页面显示 `Pre-Split Total / Post-Split Total / Net Commission Base / Final Agent Net / Final Office Net`
+    - 支持 calculation history、current version、manual override 和操作备注
   - transaction detail 现在有最小真实 `Documents / Forms / eSignature / Incoming updates` workflow：
     - `Documents`
     - `Unsorted documents`
@@ -309,13 +321,25 @@
       - direct agent assignment overrides team assignment
       - team assignment applies when no active direct assignment exists
     - transaction-level persisted commission calculations
+    - transaction finance rule engine：
+      - 支持按费用类型维护结构化 fee ledger，而不是只靠单个 `referralFee`
+      - `Pre-Split` 费用会先扣减 `Gross Commission`，再进入 split chain
+      - `Post-Split` 费用会在 split 后只从 owner agent 份额扣减，第一版全部加回 `Company`
+      - `Reimbursement` 独立于 split base，按 `Final Agent Net` 的 `10%` 上限再取其中 `50%`
+      - `Client Referral` / `Rebate` 需要前置条件确认后才允许进入正式 calculation
+      - `Channel Development Fee` / `Client Referral` / `Rebate` 超默认上限时会进入 approval-required 状态
+      - 每次 calculate / override 都会生成可追溯的 transaction finance calculation version
     - plan rule types:
       - `base split`
       - `brokerage fee`
       - `referral fee`
       - `flat fee deduction`
       - `sliding scale`
-    - transaction detail commission section 默认显示 `default split chain`
+    - transaction detail commission section 现在显示：
+      - current stakeholder breakdown
+      - current finance version summary
+      - version history
+      - finance/admin override controls
     - `/office/settings/commission-plans` 现在是 commission management 主视图：
       - split templates
       - current member defaults
@@ -337,6 +361,7 @@
     - `payable`
     - `paid`
   - 当前 statement / payout-ready 是内部 snapshot 和可见性基础，不代表真实 ACH / bank payout 已执行
+  - transaction statement / payslip 当前读取 transaction finance 的 `current version` commission rows，不会重复统计历史版本
   - `credit_memo / journal_entry / transfer` 当前已有基础 list/view 和 line-item 录入能力
   - 已有最小 general ledger posting layer
   - `Agent Billing` 当前已支持：
@@ -699,6 +724,7 @@
   - `/api/office/accounting/commissions/calculations/:calculationId`
   - `/api/office/accounting/commissions/statements`
   - `/api/office/transactions/:transactionId/commissions/calculate`
+  - `/api/office/transactions/:transactionId/commissions/override`
   - `/api/listings`
   - `/api/clients`
   - `/api/events`

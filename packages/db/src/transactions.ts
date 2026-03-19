@@ -1,4 +1,14 @@
-import { MembershipStatus, Prisma, TransactionRepresenting, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
+import {
+  MembershipStatus,
+  Prisma,
+  TransactionFinanceApprovalStatus,
+  TransactionFinanceCalculationType,
+  TransactionFinanceFeeType,
+  TransactionRepresenting,
+  TransactionStatus,
+  TransactionType,
+  UserRole
+} from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import {
   buildTransactionVisibilityWhere,
@@ -14,6 +24,14 @@ import {
   type OfficeTransactionFieldSettingRecord
 } from "./field-settings";
 import { buildTeamPathLabel, createTeamHierarchyIndex, expandSelectedTeamIds } from "./team-hierarchy";
+import {
+  buildTransactionFinancePrerequisiteSnapshot,
+  ensureTransactionFinanceFees,
+  mapTransactionFinanceFeeRecord,
+  normalizeTransactionFinanceFeeForPersistence,
+  type OfficeTransactionFinanceFeeRecord,
+  type OfficeTransactionFinancePrerequisiteSnapshot
+} from "./commissions";
 import { listAvailableContactsForTransaction, type OfficeTransactionContact, type OfficeTransactionContactOption } from "./transaction-contacts";
 import {
   listTransactionDocumentsSnapshot,
@@ -111,6 +129,8 @@ export type OfficeTransactionDetail = {
   officeNet: string;
   agentNet: string;
   financeNotes: string;
+  financeFees: OfficeTransactionFinanceFeeRecord[];
+  financePrerequisites: OfficeTransactionFinancePrerequisiteSnapshot;
   additionalFields: Record<string, string>;
   contacts: OfficeTransactionContact[];
   availableContacts: OfficeTransactionContactOption[];
@@ -187,6 +207,17 @@ export type UpdateTransactionFinanceInput = {
   officeNet?: string;
   agentNet?: string;
   financeNotes?: string;
+  clientReferralFormApproved?: boolean;
+  rebateAgreementSigned?: boolean;
+  rebateGoogleFormSubmitted?: boolean;
+  fees?: Array<{
+    feeType: string;
+    rate?: string;
+    amount?: string;
+    selectedCalculationType?: string;
+    approvalStatus?: string;
+    notes?: string;
+  }>;
   actorMembershipId?: string;
 };
 
@@ -414,6 +445,56 @@ function parseOptionalDecimal(value: string | undefined) {
 function parseOptionalText(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function parseTransactionFinanceFeeType(value: string | undefined): TransactionFinanceFeeType | null {
+  if (
+    value === "rebate" ||
+    value === "client_referral" ||
+    value === "external_referral" ||
+    value === "company_referral" ||
+    value === "channel_development_fee" ||
+    value === "reimbursement"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function parseTransactionFinanceCalculationType(value: string | undefined): TransactionFinanceCalculationType | null {
+  if (value === "pre_split" || value === "post_split" || value === "reimbursement") {
+    return value;
+  }
+
+  return null;
+}
+
+function parseTransactionFinanceApprovalStatus(value: string | undefined): TransactionFinanceApprovalStatus | null {
+  if (value === "not_required" || value === "pending" || value === "approved") {
+    return value;
+  }
+
+  return null;
+}
+
+function transactionFinanceLabel(value: TransactionFinanceFeeType) {
+  switch (value) {
+    case "rebate":
+      return "Rebate";
+    case "client_referral":
+      return "Client Referral";
+    case "external_referral":
+      return "External Referral";
+    case "company_referral":
+      return "Company Referral";
+    case "channel_development_fee":
+      return "Channel Development Fee";
+    case "reimbursement":
+      return "Reimbursement";
+    default:
+      return value;
+  }
 }
 
 function parseCreateFinanceDecimal(explicitValue: string | undefined, fallbackValue: string | undefined) {
@@ -826,6 +907,9 @@ function mapTransactionDetail(
     closingDate: Date | null;
     companyReferral: boolean;
     companyReferralEmployeeName: string | null;
+    clientReferralFormApproved: boolean;
+    rebateAgreementSigned: boolean;
+    rebateGoogleFormSubmitted: boolean;
     grossCommission: Prisma.Decimal | null;
     referralFee: Prisma.Decimal | null;
     officeNet: Prisma.Decimal | null;
@@ -850,6 +934,7 @@ function mapTransactionDetail(
     forms?: OfficeTransactionForm[];
     incomingUpdates?: OfficeIncomingUpdate[];
     formTemplates?: OfficeFormTemplateOption[];
+    financeFees?: OfficeTransactionFinanceFeeRecord[];
   },
   canViewFinancials: boolean
 ): OfficeTransactionDetail {
@@ -892,6 +977,12 @@ function mapTransactionDetail(
     officeNet: redactCurrency(transaction.officeNet ? String(transaction.officeNet) : "", canViewFinancials),
     agentNet: redactCurrency(transaction.agentNet ? String(transaction.agentNet) : "", canViewFinancials),
     financeNotes: canViewFinancials ? transaction.financeNotes ?? "" : "Restricted",
+    financeFees: transaction.financeFees ?? [],
+    financePrerequisites: buildTransactionFinancePrerequisiteSnapshot({
+      clientReferralFormApproved: transaction.clientReferralFormApproved,
+      rebateAgreementSigned: transaction.rebateAgreementSigned,
+      rebateGoogleFormSubmitted: transaction.rebateGoogleFormSubmitted
+    }),
     additionalFields:
       transaction.additionalFields && typeof transaction.additionalFields === "object" && !Array.isArray(transaction.additionalFields)
         ? Object.fromEntries(
@@ -1241,6 +1332,17 @@ export async function getTransactionById(input: GetTransactionByIdInput): Promis
   }
 
   const canViewFinancials = canViewFinancialsForMembership(scope, transaction.ownerMembershipId);
+  const financeFees = await prisma.$transaction((tx) =>
+    ensureTransactionFinanceFees(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? transaction.officeId,
+      transactionId: transaction.id,
+      grossCommission: transaction.grossCommission,
+      referralFee: transaction.referralFee,
+      companyReferral: transaction.companyReferral,
+      additionalFields: transaction.additionalFields
+    })
+  );
 
   const [availableContacts, documentsSnapshot] = await Promise.all([
     listAvailableContactsForTransaction(input.organizationId, input.transactionId),
@@ -1265,6 +1367,11 @@ export async function getTransactionById(input: GetTransactionByIdInput): Promis
         notes: transactionContact.notes ?? ""
       })),
       availableContacts,
+      financeFees: financeFees.map((fee) =>
+        mapTransactionFinanceFeeRecord(fee, {
+          restrictAmounts: !canViewFinancials
+        })
+      ),
       documents: documentsSnapshot.documents,
       forms: documentsSnapshot.forms,
       incomingUpdates: documentsSnapshot.incomingUpdates,
@@ -1355,6 +1462,16 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
           }
         }
       }
+    });
+
+    await ensureTransactionFinanceFees(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? created.officeId,
+      transactionId: created.id,
+      grossCommission: created.grossCommission,
+      referralFee: created.referralFee,
+      companyReferral: created.companyReferral,
+      additionalFields: created.additionalFields
     });
 
     await recordActivityLogEvent(tx, {
@@ -1502,11 +1619,16 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
       address: true,
       city: true,
       state: true,
+      companyReferral: true,
+      additionalFields: true,
       grossCommission: true,
       referralFee: true,
       officeNet: true,
       agentNet: true,
-      financeNotes: true
+      financeNotes: true,
+      clientReferralFormApproved: true,
+      rebateAgreementSigned: true,
+      rebateGoogleFormSubmitted: true
     }
   });
 
@@ -1514,13 +1636,87 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
     return null;
   }
 
-  const nextGrossCommission = parseOptionalDecimal(input.grossCommission);
-  const nextReferralFee = parseOptionalDecimal(input.referralFee);
-  const nextOfficeNet = parseOptionalDecimal(input.officeNet);
-  const nextAgentNet = parseOptionalDecimal(input.agentNet);
-  const nextFinanceNotes = parseOptionalText(input.financeNotes);
+  const nextGrossCommission = parseOptionalDecimal(input.grossCommission) ?? existing.grossCommission;
+  const manualReferralFee = parseOptionalDecimal(input.referralFee);
+  const nextOfficeNet = parseOptionalDecimal(input.officeNet) ?? existing.officeNet;
+  const nextAgentNet = parseOptionalDecimal(input.agentNet) ?? existing.agentNet;
+  const nextFinanceNotes = input.financeNotes !== undefined ? parseOptionalText(input.financeNotes) : existing.financeNotes;
+  const nextClientReferralFormApproved = input.clientReferralFormApproved ?? existing.clientReferralFormApproved;
+  const nextRebateAgreementSigned = input.rebateAgreementSigned ?? existing.rebateAgreementSigned;
+  const nextRebateGoogleFormSubmitted = input.rebateGoogleFormSubmitted ?? existing.rebateGoogleFormSubmitted;
 
   await prisma.$transaction(async (tx) => {
+    const financeFees = await ensureTransactionFinanceFees(tx, {
+      organizationId: input.organizationId,
+      officeId: existing.officeId,
+      transactionId: input.transactionId,
+      grossCommission: existing.grossCommission,
+      referralFee: existing.referralFee,
+      companyReferral: existing.companyReferral,
+      additionalFields: existing.additionalFields
+    });
+    const feeByType = new Map(financeFees.map((fee) => [fee.feeType, fee]));
+    const feeDetails: string[] = [];
+
+    for (const feeInput of input.fees ?? []) {
+      const feeType = parseTransactionFinanceFeeType(feeInput.feeType);
+
+      if (!feeType) {
+        continue;
+      }
+
+      const existingFee = feeByType.get(feeType);
+
+      if (!existingFee) {
+        continue;
+      }
+
+      const normalized = normalizeTransactionFinanceFeeForPersistence({
+        feeType,
+        grossCommission: nextGrossCommission,
+        existingRate: existingFee.rate,
+        existingAmount: existingFee.amount,
+        existingCalculationType: existingFee.selectedCalculationType,
+        existingApprovalStatus: existingFee.approvalStatus,
+        rate: parseOptionalDecimal(feeInput.rate),
+        amount: parseOptionalDecimal(feeInput.amount),
+        selectedCalculationType: parseTransactionFinanceCalculationType(feeInput.selectedCalculationType),
+        requestedApprovalStatus: parseTransactionFinanceApprovalStatus(feeInput.approvalStatus),
+        notes: parseOptionalText(feeInput.notes) ?? existingFee.notes
+      });
+
+      await tx.transactionFinanceFee.update({
+        where: {
+          id: existingFee.id
+        },
+        data: {
+          rate: normalized.rate,
+          amount: normalized.amount,
+          selectedCalculationType: normalized.selectedCalculationType,
+          approvalRequired: normalized.approvalRequired,
+          approvalStatus: normalized.approvalStatus,
+          notes: normalized.notes,
+          approvedAt: normalized.approvalStatus === "approved" ? new Date() : null,
+          approvedByMembershipId: normalized.approvalStatus === "approved" ? input.actorMembershipId : null
+        }
+      });
+
+      feeDetails.push(
+        `${feeType}: ${transactionFinanceLabel(feeType)} ${formatAuditCurrencyValue(existingFee.amount)} -> ${formatAuditCurrencyValue(normalized.amount)}`
+      );
+    }
+
+    const refreshedFees = await tx.transactionFinanceFee.findMany({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: input.transactionId
+      }
+    });
+    const computedPreSplitTotal = refreshedFees
+      .filter((fee) => fee.selectedCalculationType === "pre_split")
+      .reduce((sum, fee) => sum.plus(fee.amount ?? 0), new Prisma.Decimal(0));
+    const nextReferralFee = input.fees && input.fees.length > 0 ? computedPreSplitTotal : manualReferralFee ?? existing.referralFee;
+
     await tx.transaction.update({
       where: {
         id: input.transactionId
@@ -1530,7 +1726,10 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
         referralFee: nextReferralFee,
         officeNet: nextOfficeNet,
         agentNet: nextAgentNet,
-        financeNotes: nextFinanceNotes
+        financeNotes: nextFinanceNotes,
+        clientReferralFormApproved: nextClientReferralFormApproved,
+        rebateAgreementSigned: nextRebateAgreementSigned,
+        rebateGoogleFormSubmitted: nextRebateGoogleFormSubmitted
       }
     });
 
@@ -1539,14 +1738,33 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
       buildAuditDetail("Referral fee", formatAuditCurrencyValue(existing.referralFee), formatAuditCurrencyValue(nextReferralFee)),
       buildAuditDetail("Office net", formatAuditCurrencyValue(existing.officeNet), formatAuditCurrencyValue(nextOfficeNet)),
       buildAuditDetail("Agent net", formatAuditCurrencyValue(existing.agentNet), formatAuditCurrencyValue(nextAgentNet)),
-      buildAuditDetail("Finance notes", formatAuditTextValue(existing.financeNotes), formatAuditTextValue(nextFinanceNotes))
+      buildAuditDetail("Finance notes", formatAuditTextValue(existing.financeNotes), formatAuditTextValue(nextFinanceNotes)),
+      buildAuditDetail(
+        "Client referral form approved",
+        existing.clientReferralFormApproved ? "Yes" : "No",
+        nextClientReferralFormApproved ? "Yes" : "No"
+      ),
+      buildAuditDetail("Rebate agreement signed", existing.rebateAgreementSigned ? "Yes" : "No", nextRebateAgreementSigned ? "Yes" : "No"),
+      buildAuditDetail(
+        "Rebate Google Form submitted",
+        existing.rebateGoogleFormSubmitted ? "Yes" : "No",
+        nextRebateGoogleFormSubmitted ? "Yes" : "No"
+      ),
+      ...feeDetails
     ].filter((detail): detail is string => Boolean(detail));
     const changes = [
       buildAuditChange("Gross commission", formatAuditCurrencyValue(existing.grossCommission), formatAuditCurrencyValue(nextGrossCommission)),
       buildAuditChange("Referral fee", formatAuditCurrencyValue(existing.referralFee), formatAuditCurrencyValue(nextReferralFee)),
       buildAuditChange("Office net", formatAuditCurrencyValue(existing.officeNet), formatAuditCurrencyValue(nextOfficeNet)),
       buildAuditChange("Agent net", formatAuditCurrencyValue(existing.agentNet), formatAuditCurrencyValue(nextAgentNet)),
-      buildAuditChange("Finance notes", formatAuditTextValue(existing.financeNotes), formatAuditTextValue(nextFinanceNotes))
+      buildAuditChange("Finance notes", formatAuditTextValue(existing.financeNotes), formatAuditTextValue(nextFinanceNotes)),
+      buildAuditChange("Client referral form approved", existing.clientReferralFormApproved ? "Yes" : "No", nextClientReferralFormApproved ? "Yes" : "No"),
+      buildAuditChange("Rebate agreement signed", existing.rebateAgreementSigned ? "Yes" : "No", nextRebateAgreementSigned ? "Yes" : "No"),
+      buildAuditChange(
+        "Rebate Google Form submitted",
+        existing.rebateGoogleFormSubmitted ? "Yes" : "No",
+        nextRebateGoogleFormSubmitted ? "Yes" : "No"
+      )
     ].filter((change): change is NonNullable<typeof change> => Boolean(change));
 
     if (details.length > 0) {

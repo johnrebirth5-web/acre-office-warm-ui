@@ -6,6 +6,10 @@ import {
   CommissionRecipientType,
   CommissionRuleFeeType,
   Prisma,
+  TransactionFinanceApprovalStatus,
+  TransactionFinanceCalculationType,
+  TransactionFinanceFeeType,
+  TransactionFinanceVersionSource,
   TeamMembershipRole
 } from "@prisma/client";
 import { resolveOfficeDataScope } from "./access";
@@ -32,6 +36,66 @@ export type OfficeCommissionCalculationStatusLabel =
   | "Paid";
 
 export type OfficeCommissionCalculationRecipientLabel = "Agent" | "Brokerage" | "Referral";
+export type OfficeTransactionFinanceCalculationLabel = "Pre-Split" | "Post-Split" | "Reimbursement";
+export type OfficeTransactionFinanceApprovalLabel = "Not required" | "Pending approval" | "Approved";
+
+export type OfficeTransactionFinanceFeeRecord = {
+  id: string;
+  feeTypeValue: TransactionFinanceFeeType;
+  feeTypeLabel: string;
+  defaultRate: string;
+  rate: string;
+  amount: string;
+  defaultCalculationTypeValue: TransactionFinanceCalculationType;
+  defaultCalculationTypeLabel: OfficeTransactionFinanceCalculationLabel;
+  selectedCalculationTypeValue: TransactionFinanceCalculationType;
+  selectedCalculationTypeLabel: OfficeTransactionFinanceCalculationLabel;
+  approvalRequired: boolean;
+  approvalStatusValue: TransactionFinanceApprovalStatus;
+  approvalStatus: OfficeTransactionFinanceApprovalLabel;
+  notes: string;
+  approvalHelperText: string;
+  prerequisiteHelperText: string;
+};
+
+export type OfficeTransactionFinancePrerequisiteSnapshot = {
+  clientReferralFormApproved: boolean;
+  rebateAgreementSigned: boolean;
+  rebateGoogleFormSubmitted: boolean;
+  clientReferralReady: boolean;
+  rebateReady: boolean;
+};
+
+export type OfficeTransactionCommissionStakeholderRow = {
+  key: string;
+  membershipId: string;
+  recipientLabel: string;
+  recipientRole: string;
+  sharePercent: string;
+  sharePercentLabel: string;
+  baseAmount: string;
+  baseAmountLabel: string;
+  postSplitAdjustment: string;
+  postSplitAdjustmentLabel: string;
+  reimbursementAdjustment: string;
+  reimbursementAdjustmentLabel: string;
+  finalAmount: string;
+  finalAmountLabel: string;
+};
+
+export type OfficeTransactionFinanceVersionRecord = {
+  id: string;
+  versionNumber: number;
+  sourceTypeValue: TransactionFinanceVersionSource;
+  sourceTypeLabel: string;
+  createdAt: string;
+  createdByLabel: string;
+  notes: string;
+  overrideReason: string;
+  finalAgentNetLabel: string;
+  finalOfficeNetLabel: string;
+  isCurrent: boolean;
+};
 
 export type OfficeCommissionPlanRuleRecord = {
   id: string;
@@ -187,6 +251,10 @@ export type OfficeTransactionCommissionSnapshot = {
   planSourceLabel: string;
   planSourceValue: OfficeCommissionAssignmentSourceType | "manual";
   availablePlans: OfficeCommissionPlanOption[];
+  feeBreakdown: OfficeTransactionFinanceFeeRecord[];
+  stakeholderBreakdown: OfficeTransactionCommissionStakeholderRow[];
+  versionHistory: OfficeTransactionFinanceVersionRecord[];
+  approvalBlockers: string[];
   calculations: OfficeCommissionCalculationRow[];
   summary: {
     grossCommissionLabel: string;
@@ -194,6 +262,11 @@ export type OfficeTransactionCommissionSnapshot = {
     feesLabel: string;
     officeNetLabel: string;
     agentNetLabel: string;
+    preSplitTotalLabel: string;
+    postSplitTotalLabel: string;
+    netCommissionBaseLabel: string;
+    reimbursementLabel: string;
+    currentVersionLabel: string;
     statementReadyLabel: string;
     payableLabel: string;
   };
@@ -277,6 +350,19 @@ export type CalculateTransactionCommissionInput = {
   actorMembershipId: string;
 };
 
+export type OverrideTransactionCommissionInput = {
+  organizationId: string;
+  officeId?: string | null;
+  transactionId: string;
+  overrideReason: string;
+  notes?: string;
+  stakeholderAmounts: Array<{
+    key: string;
+    amount: string;
+  }>;
+  actorMembershipId: string;
+};
+
 export type UpdateCommissionCalculationStatusInput = {
   organizationId: string;
   calculationId: string;
@@ -353,6 +439,93 @@ const commissionRuleFeeTypeLabelMap: Record<CommissionRuleFeeType, string> = {
   percentage: "Percentage",
   flat: "Flat"
 };
+
+const transactionFinanceCalculationTypeLabelMap: Record<TransactionFinanceCalculationType, OfficeTransactionFinanceCalculationLabel> = {
+  pre_split: "Pre-Split",
+  post_split: "Post-Split",
+  reimbursement: "Reimbursement"
+};
+
+const transactionFinanceApprovalStatusLabelMap: Record<TransactionFinanceApprovalStatus, OfficeTransactionFinanceApprovalLabel> = {
+  not_required: "Not required",
+  pending: "Pending approval",
+  approved: "Approved"
+};
+
+const transactionFinanceVersionSourceLabelMap: Record<TransactionFinanceVersionSource, string> = {
+  calculated: "Calculated",
+  overridden: "Manual override"
+};
+
+type TransactionFinanceFeeDefinition = {
+  feeType: TransactionFinanceFeeType;
+  label: string;
+  defaultRate: Prisma.Decimal | null;
+  defaultCalculationType: TransactionFinanceCalculationType;
+  maxAutoApprovedRate: Prisma.Decimal | null;
+  approvalHelperText: string;
+  prerequisiteHelperText: string;
+};
+
+const channelDevelopmentApprovalPrompt = "Over 20% requires Cathy approval email and pay@acreny.us cc before it can be calculated.";
+const financeFeeDefinitions: TransactionFinanceFeeDefinition[] = [
+  {
+    feeType: "rebate",
+    label: "Rebate",
+    defaultRate: new Prisma.Decimal(20),
+    defaultCalculationType: "pre_split",
+    maxAutoApprovedRate: new Prisma.Decimal(20),
+    approvalHelperText: "Over 20% requires Cathy approval email and pay@acreny.us cc before it can be calculated.",
+    prerequisiteHelperText: "Requires signed rebate agreement and submitted rebate Google Form."
+  },
+  {
+    feeType: "client_referral",
+    label: "Client Referral",
+    defaultRate: new Prisma.Decimal(20),
+    defaultCalculationType: "pre_split",
+    maxAutoApprovedRate: new Prisma.Decimal(20),
+    approvalHelperText: "Over 20% requires Cathy approval email and pay@acreny.us cc before it can be calculated.",
+    prerequisiteHelperText: "Requires signed and approved Agent Referral Form."
+  },
+  {
+    feeType: "external_referral",
+    label: "External Referral",
+    defaultRate: null,
+    defaultCalculationType: "post_split",
+    maxAutoApprovedRate: null,
+    approvalHelperText: "No automatic approval threshold.",
+    prerequisiteHelperText: ""
+  },
+  {
+    feeType: "company_referral",
+    label: "Company Referral",
+    defaultRate: new Prisma.Decimal(20),
+    defaultCalculationType: "post_split",
+    maxAutoApprovedRate: null,
+    approvalHelperText: "No automatic approval threshold.",
+    prerequisiteHelperText: ""
+  },
+  {
+    feeType: "channel_development_fee",
+    label: "Channel Development Fee",
+    defaultRate: null,
+    defaultCalculationType: "post_split",
+    maxAutoApprovedRate: new Prisma.Decimal(20),
+    approvalHelperText: channelDevelopmentApprovalPrompt,
+    prerequisiteHelperText: ""
+  },
+  {
+    feeType: "reimbursement",
+    label: "Reimbursement",
+    defaultRate: null,
+    defaultCalculationType: "reimbursement",
+    maxAutoApprovedRate: null,
+    approvalHelperText: "Calculated separately from split math.",
+    prerequisiteHelperText: "Company reimburses up to 50% of the amount, capped at 10% of final agent net."
+  }
+];
+
+const financeFeeDefinitionByType = new Map(financeFeeDefinitions.map((definition) => [definition.feeType, definition]));
 
 function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
@@ -431,6 +604,262 @@ function parseOptionalText(value: string | undefined | null) {
 
 function decimalToString(value: Prisma.Decimal | null | undefined) {
   return value ? String(value) : "";
+}
+
+function getTransactionFinanceFeeDefinition(feeType: TransactionFinanceFeeType) {
+  const definition = financeFeeDefinitionByType.get(feeType);
+
+  if (!definition) {
+    throw new Error(`Unsupported transaction finance fee type: ${feeType}`);
+  }
+
+  return definition;
+}
+
+function getTransactionFinanceFeeSortOrder(feeType: TransactionFinanceFeeType) {
+  return financeFeeDefinitions.findIndex((definition) => definition.feeType === feeType);
+}
+
+function sortTransactionFinanceFees<T extends { feeType: TransactionFinanceFeeType }>(fees: T[]) {
+  return [...fees].sort((left, right) => getTransactionFinanceFeeSortOrder(left.feeType) - getTransactionFinanceFeeSortOrder(right.feeType));
+}
+
+function parseLegacyAdditionalFieldDecimal(value: Prisma.JsonValue | null | undefined) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+
+  return parseOptionalDecimal(String(value));
+}
+
+function deriveRateFromAmount(amount: Prisma.Decimal | null | undefined, grossCommission: Prisma.Decimal | null | undefined) {
+  if (!amount || !grossCommission || grossCommission.lte(0)) {
+    return null;
+  }
+
+  return amount.mul(new Prisma.Decimal(100)).div(grossCommission);
+}
+
+function normalizeFinanceFeeApprovalStatus(input: {
+  definition: TransactionFinanceFeeDefinition;
+  rate: Prisma.Decimal | null;
+  requestedStatus: TransactionFinanceApprovalStatus | null | undefined;
+}) {
+  const approvalRequired = Boolean(
+    input.definition.maxAutoApprovedRate &&
+      input.rate &&
+      input.rate.gt(input.definition.maxAutoApprovedRate)
+  );
+
+  if (!approvalRequired) {
+    return {
+      approvalRequired: false,
+      approvalStatus: "not_required" as const
+    };
+  }
+
+  return {
+    approvalRequired: true,
+    approvalStatus: input.requestedStatus === "approved" ? ("approved" as const) : ("pending" as const)
+  };
+}
+
+export function normalizeTransactionFinanceFeeForPersistence(input: {
+  feeType: TransactionFinanceFeeType;
+  grossCommission: Prisma.Decimal | null;
+  existingRate: Prisma.Decimal | null;
+  existingAmount: Prisma.Decimal | null;
+  existingCalculationType: TransactionFinanceCalculationType;
+  existingApprovalStatus: TransactionFinanceApprovalStatus;
+  rate: Prisma.Decimal | null;
+  amount: Prisma.Decimal | null;
+  selectedCalculationType: TransactionFinanceCalculationType | null;
+  requestedApprovalStatus: TransactionFinanceApprovalStatus | null;
+  notes: string | null;
+}) {
+  const definition = getTransactionFinanceFeeDefinition(input.feeType);
+  const selectedCalculationType =
+    definition.defaultCalculationType === "reimbursement"
+      ? "reimbursement"
+      : input.selectedCalculationType ?? input.existingCalculationType;
+  let nextRate = input.rate ?? input.existingRate ?? definition.defaultRate ?? new Prisma.Decimal(0);
+  let nextAmount = input.amount ?? input.existingAmount ?? new Prisma.Decimal(0);
+
+  if (input.rate && input.amount === null && input.grossCommission && input.grossCommission.gt(0)) {
+    nextAmount = input.grossCommission.mul(input.rate).div(new Prisma.Decimal(100));
+  } else if (!input.rate && input.amount && input.grossCommission && input.grossCommission.gt(0)) {
+    nextRate = deriveRateFromAmount(input.amount, input.grossCommission) ?? nextRate;
+  }
+
+  const approval = normalizeFinanceFeeApprovalStatus({
+    definition,
+    rate: nextRate,
+    requestedStatus: input.requestedApprovalStatus ?? input.existingApprovalStatus
+  });
+
+  return {
+    rate: nextRate,
+    amount: nextAmount,
+    selectedCalculationType,
+    approvalRequired: approval.approvalRequired,
+    approvalStatus: approval.approvalStatus,
+    notes: input.notes
+  };
+}
+
+function buildInitialTransactionFinanceFeeSeed(input: {
+  feeType: TransactionFinanceFeeType;
+  grossCommission: Prisma.Decimal | null;
+  referralFee: Prisma.Decimal | null;
+  companyReferral: boolean;
+  additionalFields: Prisma.JsonValue | null | undefined;
+}) {
+  const additionalFields =
+    input.additionalFields && typeof input.additionalFields === "object" && !Array.isArray(input.additionalFields)
+      ? (input.additionalFields as Record<string, Prisma.JsonValue>)
+      : {};
+
+  if (input.feeType === "rebate") {
+    return parseLegacyAdditionalFieldDecimal(additionalFields.rebate);
+  }
+
+  if (input.feeType === "reimbursement") {
+    return parseLegacyAdditionalFieldDecimal(additionalFields.reimbursement);
+  }
+
+  if (input.referralFee?.gt(0)) {
+    if (input.companyReferral && input.feeType === "company_referral") {
+      return input.referralFee;
+    }
+
+    if (!input.companyReferral && input.feeType === "client_referral") {
+      return input.referralFee;
+    }
+  }
+
+  return null;
+}
+
+export async function ensureTransactionFinanceFees(
+  tx: ScopedPrismaClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    transactionId: string;
+    grossCommission: Prisma.Decimal | null;
+    referralFee: Prisma.Decimal | null;
+    companyReferral: boolean;
+    additionalFields?: Prisma.JsonValue | null;
+  }
+) {
+  const existingFees = await tx.transactionFinanceFee.findMany({
+    where: {
+      organizationId: input.organizationId,
+      transactionId: input.transactionId
+    }
+  });
+  const existingFeeTypes = new Set(existingFees.map((fee) => fee.feeType));
+
+  if (existingFees.length < financeFeeDefinitions.length) {
+    const missingDefinitions = financeFeeDefinitions.filter((definition) => !existingFeeTypes.has(definition.feeType));
+
+    if (missingDefinitions.length > 0) {
+      await tx.transactionFinanceFee.createMany({
+        data: missingDefinitions.map((definition) => {
+          const seededAmount = buildInitialTransactionFinanceFeeSeed({
+            feeType: definition.feeType,
+            grossCommission: input.grossCommission,
+            referralFee: input.referralFee,
+            companyReferral: input.companyReferral,
+            additionalFields: input.additionalFields ?? null
+          });
+          const seededRate = seededAmount ? deriveRateFromAmount(seededAmount, input.grossCommission) ?? definition.defaultRate : definition.defaultRate;
+          const approval = normalizeFinanceFeeApprovalStatus({
+            definition,
+            rate: seededRate,
+            requestedStatus: null
+          });
+
+          return {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            transactionId: input.transactionId,
+            feeType: definition.feeType,
+            defaultRate: definition.defaultRate,
+            rate: seededRate,
+            amount: seededAmount ?? new Prisma.Decimal(0),
+            defaultCalculationType: definition.defaultCalculationType,
+            selectedCalculationType: definition.defaultCalculationType,
+            approvalRequired: approval.approvalRequired,
+            approvalStatus: approval.approvalStatus
+          };
+        })
+      });
+    }
+  }
+
+  const fees = await tx.transactionFinanceFee.findMany({
+    where: {
+      organizationId: input.organizationId,
+      transactionId: input.transactionId
+    }
+  });
+
+  return sortTransactionFinanceFees(fees);
+}
+
+export function mapTransactionFinanceFeeRecord(
+  fee: {
+    id: string;
+    feeType: TransactionFinanceFeeType;
+    defaultRate: Prisma.Decimal | null;
+    rate: Prisma.Decimal | null;
+    amount: Prisma.Decimal | null;
+    defaultCalculationType: TransactionFinanceCalculationType;
+    selectedCalculationType: TransactionFinanceCalculationType;
+    approvalRequired: boolean;
+    approvalStatus: TransactionFinanceApprovalStatus;
+    notes: string | null;
+  },
+  options?: {
+    restrictAmounts?: boolean;
+  }
+): OfficeTransactionFinanceFeeRecord {
+  const definition = getTransactionFinanceFeeDefinition(fee.feeType);
+  const restricted = Boolean(options?.restrictAmounts);
+
+  return {
+    id: fee.id,
+    feeTypeValue: fee.feeType,
+    feeTypeLabel: definition.label,
+    defaultRate: restricted ? "Restricted" : decimalToString(fee.defaultRate),
+    rate: restricted ? "Restricted" : decimalToString(fee.rate),
+    amount: restricted ? "Restricted" : decimalToString(fee.amount),
+    defaultCalculationTypeValue: fee.defaultCalculationType,
+    defaultCalculationTypeLabel: transactionFinanceCalculationTypeLabelMap[fee.defaultCalculationType],
+    selectedCalculationTypeValue: fee.selectedCalculationType,
+    selectedCalculationTypeLabel: transactionFinanceCalculationTypeLabelMap[fee.selectedCalculationType],
+    approvalRequired: fee.approvalRequired,
+    approvalStatusValue: fee.approvalStatus,
+    approvalStatus: transactionFinanceApprovalStatusLabelMap[fee.approvalStatus],
+    notes: fee.notes ?? "",
+    approvalHelperText: definition.approvalHelperText,
+    prerequisiteHelperText: definition.prerequisiteHelperText
+  };
+}
+
+export function buildTransactionFinancePrerequisiteSnapshot(input: {
+  clientReferralFormApproved: boolean;
+  rebateAgreementSigned: boolean;
+  rebateGoogleFormSubmitted: boolean;
+}): OfficeTransactionFinancePrerequisiteSnapshot {
+  return {
+    clientReferralFormApproved: input.clientReferralFormApproved,
+    rebateAgreementSigned: input.rebateAgreementSigned,
+    rebateGoogleFormSubmitted: input.rebateGoogleFormSubmitted,
+    clientReferralReady: input.clientReferralFormApproved,
+    rebateReady: input.rebateAgreementSigned && input.rebateGoogleFormSubmitted
+  };
 }
 
 function buildTransactionLabel(transaction: {
@@ -828,6 +1257,31 @@ type StoredTransactionCommissionContext = {
   members: StoredTransactionCommissionChainMember[];
 };
 
+type StoredTransactionFinanceFeeBreakdownRow = {
+  feeType: TransactionFinanceFeeType;
+  label: string;
+  calculationType: TransactionFinanceCalculationType;
+  rate: string;
+  amount: string;
+  approvalRequired: boolean;
+  approvalStatus: TransactionFinanceApprovalStatus;
+  notes: string;
+};
+
+type StoredTransactionFinanceStakeholderBreakdownRow = {
+  key: string;
+  membershipId: string;
+  recipientLabel: string;
+  recipientRole: string;
+  recipientRoleValue: string;
+  recipientType: CommissionRecipientType;
+  sharePercent: string;
+  baseAmount: string;
+  postSplitAdjustment: string;
+  reimbursementAdjustment: string;
+  finalAmount: string;
+};
+
 type DerivedTransactionCommissionChainMember = {
   membershipId: string;
   membershipLabel: string;
@@ -908,6 +1362,136 @@ function buildStoredTransactionCommissionContext(input: {
       recipientRoleValue: member.recipientRoleValue,
       agentPercent: String(member.agentPercent)
     }))
+  };
+}
+
+function parseStoredTransactionFinanceFeeBreakdown(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+
+      const row = entry as Record<string, Prisma.JsonValue>;
+
+      if (
+        typeof row.feeType !== "string" ||
+        typeof row.label !== "string" ||
+        typeof row.calculationType !== "string" ||
+        typeof row.rate !== "string" ||
+        typeof row.amount !== "string" ||
+        typeof row.approvalRequired !== "boolean" ||
+        typeof row.approvalStatus !== "string" ||
+        typeof row.notes !== "string"
+      ) {
+        return null;
+      }
+
+      if (
+        row.feeType !== "rebate" &&
+        row.feeType !== "client_referral" &&
+        row.feeType !== "external_referral" &&
+        row.feeType !== "company_referral" &&
+        row.feeType !== "channel_development_fee" &&
+        row.feeType !== "reimbursement"
+      ) {
+        return null;
+      }
+
+      if (row.calculationType !== "pre_split" && row.calculationType !== "post_split" && row.calculationType !== "reimbursement") {
+        return null;
+      }
+
+      if (row.approvalStatus !== "not_required" && row.approvalStatus !== "pending" && row.approvalStatus !== "approved") {
+        return null;
+      }
+
+      return {
+        feeType: row.feeType,
+        label: row.label,
+        calculationType: row.calculationType,
+        rate: row.rate,
+        amount: row.amount,
+        approvalRequired: row.approvalRequired,
+        approvalStatus: row.approvalStatus,
+        notes: row.notes
+      } satisfies StoredTransactionFinanceFeeBreakdownRow;
+    })
+    .filter((entry): entry is StoredTransactionFinanceFeeBreakdownRow => Boolean(entry));
+}
+
+function parseStoredTransactionFinanceStakeholderBreakdown(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+
+      const row = entry as Record<string, Prisma.JsonValue>;
+
+      if (
+        typeof row.key !== "string" ||
+        typeof row.membershipId !== "string" ||
+        typeof row.recipientLabel !== "string" ||
+        typeof row.recipientRole !== "string" ||
+        typeof row.recipientRoleValue !== "string" ||
+        typeof row.recipientType !== "string" ||
+        typeof row.sharePercent !== "string" ||
+        typeof row.baseAmount !== "string" ||
+        typeof row.postSplitAdjustment !== "string" ||
+        typeof row.reimbursementAdjustment !== "string" ||
+        typeof row.finalAmount !== "string"
+      ) {
+        return null;
+      }
+
+      if (row.recipientType !== "agent" && row.recipientType !== "brokerage" && row.recipientType !== "referral") {
+        return null;
+      }
+
+      return {
+        key: row.key,
+        membershipId: row.membershipId,
+        recipientLabel: row.recipientLabel,
+        recipientRole: row.recipientRole,
+        recipientRoleValue: row.recipientRoleValue,
+        recipientType: row.recipientType,
+        sharePercent: row.sharePercent,
+        baseAmount: row.baseAmount,
+        postSplitAdjustment: row.postSplitAdjustment,
+        reimbursementAdjustment: row.reimbursementAdjustment,
+        finalAmount: row.finalAmount
+      } satisfies StoredTransactionFinanceStakeholderBreakdownRow;
+    })
+    .filter((entry): entry is StoredTransactionFinanceStakeholderBreakdownRow => Boolean(entry));
+}
+
+function mapStoredTransactionFinanceStakeholderRow(
+  row: StoredTransactionFinanceStakeholderBreakdownRow
+): OfficeTransactionCommissionStakeholderRow {
+  return {
+    key: row.key,
+    membershipId: row.membershipId,
+    recipientLabel: row.recipientLabel,
+    recipientRole: row.recipientRole,
+    sharePercent: row.sharePercent,
+    sharePercentLabel: `${formatPercentLabel(row.sharePercent)}%`,
+    baseAmount: row.baseAmount,
+    baseAmountLabel: formatCurrency(row.baseAmount),
+    postSplitAdjustment: row.postSplitAdjustment,
+    postSplitAdjustmentLabel: formatCurrency(row.postSplitAdjustment),
+    reimbursementAdjustment: row.reimbursementAdjustment,
+    reimbursementAdjustmentLabel: formatCurrency(row.reimbursementAdjustment),
+    finalAmount: row.finalAmount,
+    finalAmountLabel: formatCurrency(row.finalAmount)
   };
 }
 
@@ -1119,6 +1703,247 @@ function buildDefaultSplitCalculationRows(input: {
   };
 }
 
+type NormalizedTransactionFinanceFee = {
+  id: string;
+  feeType: TransactionFinanceFeeType;
+  label: string;
+  rate: Prisma.Decimal;
+  amount: Prisma.Decimal;
+  selectedCalculationType: TransactionFinanceCalculationType;
+  approvalRequired: boolean;
+  approvalStatus: TransactionFinanceApprovalStatus;
+  notes: string;
+};
+
+type ComputedTransactionFinanceStakeholderRow = {
+  key: string;
+  membershipId: string;
+  recipientLabel: string;
+  recipientRole: string;
+  recipientRoleValue: string;
+  recipientType: CommissionRecipientType;
+  sharePercent: Prisma.Decimal;
+  baseAmount: Prisma.Decimal;
+  postSplitAdjustment: Prisma.Decimal;
+  reimbursementAdjustment: Prisma.Decimal;
+  finalAmount: Prisma.Decimal;
+};
+
+type ComputedTransactionFinanceResult = {
+  normalizedFees: NormalizedTransactionFinanceFee[];
+  approvalBlockers: string[];
+  preSplitTotal: Prisma.Decimal;
+  postSplitTotal: Prisma.Decimal;
+  netCommissionBase: Prisma.Decimal;
+  reimbursementAmount: Prisma.Decimal;
+  finalAgentNet: Prisma.Decimal;
+  finalOfficeNet: Prisma.Decimal;
+  stakeholderRows: ComputedTransactionFinanceStakeholderRow[];
+};
+
+function normalizeTransactionFinanceFees(
+  fees: Array<{
+    id: string;
+    feeType: TransactionFinanceFeeType;
+    rate: Prisma.Decimal | null;
+    amount: Prisma.Decimal | null;
+    selectedCalculationType: TransactionFinanceCalculationType;
+    approvalRequired: boolean;
+    approvalStatus: TransactionFinanceApprovalStatus;
+    notes: string | null;
+  }>
+) {
+  return sortTransactionFinanceFees(
+    fees.map((fee) => {
+      const definition = getTransactionFinanceFeeDefinition(fee.feeType);
+
+      return {
+        id: fee.id,
+        feeType: fee.feeType,
+        label: definition.label,
+        rate: fee.rate ?? new Prisma.Decimal(0),
+        amount: fee.amount ?? new Prisma.Decimal(0),
+        selectedCalculationType: fee.selectedCalculationType,
+        approvalRequired: fee.approvalRequired,
+        approvalStatus: fee.approvalStatus,
+        notes: fee.notes ?? ""
+      } satisfies NormalizedTransactionFinanceFee;
+    })
+  );
+}
+
+function buildTransactionFinanceBlockingIssues(input: {
+  fees: NormalizedTransactionFinanceFee[];
+  prerequisites: OfficeTransactionFinancePrerequisiteSnapshot;
+}) {
+  const blockers: string[] = [];
+
+  for (const fee of input.fees) {
+    if (fee.amount.lte(0)) {
+      continue;
+    }
+
+    if (fee.approvalRequired && fee.approvalStatus !== "approved") {
+      blockers.push(`${fee.label} exceeds the allowed rate and must be approved before calculation.`);
+    }
+
+    if (fee.feeType === "client_referral" && !input.prerequisites.clientReferralReady) {
+      blockers.push("Client Referral requires a signed and approved Agent Referral Form before calculation.");
+    }
+
+    if (fee.feeType === "rebate" && !input.prerequisites.rebateReady) {
+      blockers.push("Rebate requires a signed Rebate Agreement and submitted Rebate Google Form before calculation.");
+    }
+  }
+
+  return blockers;
+}
+
+function buildStoredTransactionFinanceFeeBreakdownRows(fees: NormalizedTransactionFinanceFee[]): StoredTransactionFinanceFeeBreakdownRow[] {
+  return fees.map((fee) => ({
+    feeType: fee.feeType,
+    label: fee.label,
+    calculationType: fee.selectedCalculationType,
+    rate: String(fee.rate),
+    amount: String(fee.amount),
+    approvalRequired: fee.approvalRequired,
+    approvalStatus: fee.approvalStatus,
+    notes: fee.notes
+  }));
+}
+
+function buildStoredTransactionFinanceStakeholderBreakdownRows(
+  rows: ComputedTransactionFinanceStakeholderRow[]
+): StoredTransactionFinanceStakeholderBreakdownRow[] {
+  return rows.map((row) => ({
+    key: row.key,
+    membershipId: row.membershipId,
+    recipientLabel: row.recipientLabel,
+    recipientRole: row.recipientRole,
+    recipientRoleValue: row.recipientRoleValue,
+    recipientType: row.recipientType,
+    sharePercent: String(row.sharePercent),
+    baseAmount: String(row.baseAmount),
+    postSplitAdjustment: String(row.postSplitAdjustment),
+    reimbursementAdjustment: String(row.reimbursementAdjustment),
+    finalAmount: String(row.finalAmount)
+  }));
+}
+
+function buildCommissionStakeholderKey(input: {
+  recipientType: CommissionRecipientType;
+  membershipId: string | null;
+}) {
+  if (input.recipientType === "brokerage") {
+    return "company";
+  }
+
+  return input.membershipId ?? "";
+}
+
+function calculateTransactionFinanceResult(input: {
+  grossCommission: Prisma.Decimal;
+  fees: Array<{
+    id: string;
+    feeType: TransactionFinanceFeeType;
+    rate: Prisma.Decimal | null;
+    amount: Prisma.Decimal | null;
+    selectedCalculationType: TransactionFinanceCalculationType;
+    approvalRequired: boolean;
+    approvalStatus: TransactionFinanceApprovalStatus;
+    notes: string | null;
+  }>;
+  chain: DerivedTransactionCommissionChainMember[];
+  prerequisites: OfficeTransactionFinancePrerequisiteSnapshot;
+}) {
+  const normalizedFees = normalizeTransactionFinanceFees(input.fees);
+  const approvalBlockers = buildTransactionFinanceBlockingIssues({
+    fees: normalizedFees,
+    prerequisites: input.prerequisites
+  });
+  const preSplitTotal = normalizedFees
+    .filter((fee) => fee.selectedCalculationType === "pre_split")
+    .reduce((sum, fee) => sum.plus(fee.amount), new Prisma.Decimal(0));
+  const postSplitTotal = normalizedFees
+    .filter((fee) => fee.selectedCalculationType === "post_split")
+    .reduce((sum, fee) => sum.plus(fee.amount), new Prisma.Decimal(0));
+  const reimbursementBase = normalizedFees
+    .filter((fee) => fee.selectedCalculationType === "reimbursement")
+    .reduce((sum, fee) => sum.plus(fee.amount), new Prisma.Decimal(0));
+  const baseSplit = buildDefaultSplitCalculationRows({
+    grossCommission: input.grossCommission,
+    referralFee: preSplitTotal,
+    chain: input.chain
+  });
+  const ownerBaseAmount = baseSplit.memberRows[0]?.statementAmount ?? new Prisma.Decimal(0);
+
+  if (postSplitTotal.gt(0) && input.chain.length === 0) {
+    approvalBlockers.push("Post-split fees require a transaction owner and split chain before calculation.");
+  }
+
+  if (postSplitTotal.gt(ownerBaseAmount)) {
+    approvalBlockers.push("Post-split deductions exceed the owner agent share for this transaction.");
+  }
+
+  if (approvalBlockers.length > 0) {
+    return {
+      normalizedFees,
+      approvalBlockers,
+      preSplitTotal,
+      postSplitTotal,
+      netCommissionBase: baseSplit.grossAfterReferral,
+      reimbursementAmount: new Prisma.Decimal(0),
+      finalAgentNet: ownerBaseAmount,
+      finalOfficeNet: baseSplit.companyAmount,
+      stakeholderRows: [] as ComputedTransactionFinanceStakeholderRow[]
+    } satisfies ComputedTransactionFinanceResult;
+  }
+
+  const reimbursementCap = ownerBaseAmount.minus(postSplitTotal).mul(new Prisma.Decimal(10)).div(new Prisma.Decimal(100));
+  const reimbursementEligible = Prisma.Decimal.max(new Prisma.Decimal(0), reimbursementCap);
+  const reimbursementAmount = Prisma.Decimal.min(reimbursementBase, reimbursementEligible).mul(new Prisma.Decimal(50)).div(new Prisma.Decimal(100));
+  const stakeholderRows: ComputedTransactionFinanceStakeholderRow[] = baseSplit.memberRows.map((row, index) => ({
+    key: row.membershipId,
+    membershipId: row.membershipId,
+    recipientLabel: row.membershipLabel,
+    recipientRole: row.recipientRole,
+    recipientRoleValue: row.recipientRoleValue,
+    recipientType: "agent",
+    sharePercent: row.sharePercent,
+    baseAmount: row.statementAmount,
+    postSplitAdjustment: index === 0 ? postSplitTotal.neg() : new Prisma.Decimal(0),
+    reimbursementAdjustment: index === 0 ? reimbursementAmount : new Prisma.Decimal(0),
+    finalAmount: index === 0 ? row.statementAmount.minus(postSplitTotal).plus(reimbursementAmount) : row.statementAmount
+  }));
+  const companyFinalAmount = baseSplit.companyAmount.plus(postSplitTotal).minus(reimbursementAmount);
+
+  stakeholderRows.push({
+    key: "company",
+    membershipId: "",
+    recipientLabel: "Company",
+    recipientRole: "Brokerage",
+    recipientRoleValue: "brokerage",
+    recipientType: "brokerage",
+    sharePercent: baseSplit.companyPercent,
+    baseAmount: baseSplit.companyAmount,
+    postSplitAdjustment: postSplitTotal,
+    reimbursementAdjustment: reimbursementAmount.neg(),
+    finalAmount: companyFinalAmount
+  });
+
+  return {
+    normalizedFees,
+    approvalBlockers,
+    preSplitTotal,
+    postSplitTotal,
+    netCommissionBase: baseSplit.grossAfterReferral,
+    reimbursementAmount,
+    finalAgentNet: stakeholderRows[0]?.finalAmount ?? new Prisma.Decimal(0),
+    finalOfficeNet: companyFinalAmount,
+    stakeholderRows
+  } satisfies ComputedTransactionFinanceResult;
+}
+
 function filterVisibleCommissionRows(
   calculations: Array<{
     membershipId: string | null;
@@ -1196,20 +2021,53 @@ function buildTransactionCommissionSummary(
   }>,
   options?: {
     restrictTotals?: boolean;
+    currentVersion?: {
+      versionNumber: number;
+      sourceType: TransactionFinanceVersionSource;
+      preSplitTotal: Prisma.Decimal;
+      postSplitTotal: Prisma.Decimal;
+      netCommissionBase: Prisma.Decimal;
+      reimbursementAmount: Prisma.Decimal;
+      finalAgentNet: Prisma.Decimal;
+      finalOfficeNet: Prisma.Decimal;
+    } | null;
+    feeRows?: Array<{
+      amount: Prisma.Decimal | null;
+      selectedCalculationType: TransactionFinanceCalculationType;
+    }>;
   }
 ) {
   const summarySource = calculations[0] ?? null;
   const officeNetTotal = calculations
     .filter((row) => row.recipientType === "brokerage")
     .reduce((sum, row) => sum.plus(row.statementAmount), new Prisma.Decimal(0));
-  const agentNetTotal = calculations
-    .filter((row) => row.recipientType === "agent")
-    .reduce((sum, row) => sum.plus(row.statementAmount), new Prisma.Decimal(0));
   const grossCommission = summarySource?.grossCommission ?? transaction.grossCommission ?? new Prisma.Decimal(0);
-  const referralFee = summarySource?.referralFee ?? transaction.referralFee ?? new Prisma.Decimal(0);
-  const fees = summarySource?.fees ?? new Prisma.Decimal(0);
+  const fallbackPreSplitTotal =
+    options?.feeRows
+      ?.filter((fee) => fee.selectedCalculationType === "pre_split")
+      .reduce((sum, fee) => sum.plus(fee.amount ?? new Prisma.Decimal(0)), new Prisma.Decimal(0)) ??
+    summarySource?.referralFee ??
+    transaction.referralFee ??
+    new Prisma.Decimal(0);
+  const fallbackPostSplitTotal =
+    options?.feeRows
+      ?.filter((fee) => fee.selectedCalculationType === "post_split")
+      .reduce((sum, fee) => sum.plus(fee.amount ?? new Prisma.Decimal(0)), new Prisma.Decimal(0)) ??
+    summarySource?.fees ??
+    new Prisma.Decimal(0);
+  const preSplitTotal = options?.currentVersion?.preSplitTotal ?? fallbackPreSplitTotal;
+  const postSplitTotal = options?.currentVersion?.postSplitTotal ?? fallbackPostSplitTotal;
+  const netCommissionBase =
+    options?.currentVersion?.netCommissionBase ?? Prisma.Decimal.max(new Prisma.Decimal(0), grossCommission.minus(preSplitTotal));
+  const reimbursementAmount = options?.currentVersion?.reimbursementAmount ?? new Prisma.Decimal(0);
+  const ownerAgentNet = options?.currentVersion?.finalAgentNet ?? transaction.agentNet ?? new Prisma.Decimal(0);
+  const fallbackCompanyNet = officeNetTotal.gt(0) ? officeNetTotal : transaction.officeNet ?? new Prisma.Decimal(0);
+  const companyNet = options?.currentVersion?.finalOfficeNet ?? fallbackCompanyNet;
   const statementReadyTotal = sumAgentStatementAmounts(calculations, "statement_ready");
   const payableTotal = sumAgentStatementAmounts(calculations, "payable");
+  const currentVersionLabel = options?.currentVersion
+    ? `Version ${options.currentVersion.versionNumber} · ${transactionFinanceVersionSourceLabelMap[options.currentVersion.sourceType]}`
+    : "Not calculated";
 
   if (options?.restrictTotals) {
     return {
@@ -1218,6 +2076,11 @@ function buildTransactionCommissionSummary(
       feesLabel: "Restricted",
       officeNetLabel: "Restricted",
       agentNetLabel: "Restricted",
+      preSplitTotalLabel: "Restricted",
+      postSplitTotalLabel: "Restricted",
+      netCommissionBaseLabel: "Restricted",
+      reimbursementLabel: "Restricted",
+      currentVersionLabel,
       statementReadyLabel: formatCurrency(statementReadyTotal),
       payableLabel: formatCurrency(payableTotal)
     };
@@ -1225,10 +2088,15 @@ function buildTransactionCommissionSummary(
 
   return {
     grossCommissionLabel: formatCurrency(grossCommission),
-    referralFeeLabel: formatCurrency(referralFee),
-    feesLabel: formatCurrency(fees),
-    officeNetLabel: formatCurrency(officeNetTotal.gt(0) ? officeNetTotal : transaction.officeNet),
-    agentNetLabel: formatCurrency(agentNetTotal.gt(0) ? agentNetTotal : transaction.agentNet),
+    referralFeeLabel: formatCurrency(preSplitTotal),
+    feesLabel: formatCurrency(postSplitTotal),
+    officeNetLabel: formatCurrency(companyNet),
+    agentNetLabel: formatCurrency(ownerAgentNet),
+    preSplitTotalLabel: formatCurrency(preSplitTotal),
+    postSplitTotalLabel: formatCurrency(postSplitTotal),
+    netCommissionBaseLabel: formatCurrency(netCommissionBase),
+    reimbursementLabel: formatCurrency(reimbursementAmount),
+    currentVersionLabel,
     statementReadyLabel: formatCurrency(statementReadyTotal),
     payableLabel: formatCurrency(payableTotal)
   };
@@ -1372,6 +2240,37 @@ function buildCommissionChanges(
   });
 
   return changes;
+}
+
+function mapTransactionFinanceVersionRecord(
+  version: Prisma.TransactionFinanceCalculationVersionGetPayload<{
+    include: {
+      createdByMembership: {
+        include: {
+          user: true;
+        };
+      };
+    };
+  }>
+): OfficeTransactionFinanceVersionRecord {
+  const createdByLabel =
+    version.createdByMembership
+      ? `${version.createdByMembership.user.firstName} ${version.createdByMembership.user.lastName}`.trim()
+      : "System";
+
+  return {
+    id: version.id,
+    versionNumber: version.versionNumber,
+    sourceTypeValue: version.sourceType,
+    sourceTypeLabel: transactionFinanceVersionSourceLabelMap[version.sourceType],
+    createdAt: formatDateValue(version.createdAt),
+    createdByLabel,
+    notes: version.notes ?? "",
+    overrideReason: version.overrideReason ?? "",
+    finalAgentNetLabel: formatCurrency(version.finalAgentNet),
+    finalOfficeNetLabel: formatCurrency(version.finalOfficeNet),
+    isCurrent: version.isCurrent
+  };
 }
 
 export async function saveCommissionPlan(input: SaveCommissionPlanInput): Promise<OfficeCommissionPlanRecord> {
@@ -1702,23 +2601,15 @@ export async function calculateTransactionCommission(
 
   await prisma.$transaction(async (tx) => {
     const storedContext = parseStoredTransactionCommissionContext(transaction.commissionContext);
-    const explicitPlan = input.commissionPlanId
-      ? await tx.commissionPlan.findFirst({
-          where: {
-            id: input.commissionPlanId,
-            organizationId: input.organizationId
-          },
-          include: {
-            rules: {
-              where: {
-                isActive: true
-              },
-              orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
-            }
-          }
-        })
-      : null;
-    const plan = explicitPlan ?? null;
+    const fees = await ensureTransactionFinanceFees(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? transaction.officeId,
+      transactionId: transaction.id,
+      grossCommission: transaction.grossCommission,
+      referralFee: transaction.referralFee,
+      companyReferral: transaction.companyReferral,
+      additionalFields: transaction.additionalFields
+    });
     const previousRows = await tx.commissionCalculation.findMany({
       where: {
         organizationId: input.organizationId,
@@ -1738,15 +2629,100 @@ export async function calculateTransactionCommission(
           .reduce((sum, row) => sum.plus(row.statementAmount), new Prisma.Decimal(0))
       } as const);
     const grossCommission = transaction.grossCommission ?? new Prisma.Decimal(0);
-    const transactionReferralFee = transaction.referralFee ?? new Prisma.Decimal(0);
-    const transactionOfficeNet = transaction.officeNet ?? new Prisma.Decimal(0);
-    const transactionAgentNet = transaction.agentNet ?? new Prisma.Decimal(0);
-    const legacyCalculated = calculatePlanDrivenValues({
+    const note = parseOptionalText(input.notes) ?? parseOptionalText(transaction.financeNotes);
+    const chain =
+      transaction.ownerMembershipId
+        ? await buildDefaultTransactionCommissionChain(tx, {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? transaction.officeId,
+            ownerMembershipId: transaction.ownerMembershipId,
+            effectiveAt,
+            transactionCommissionContext: transaction.commissionContext
+          })
+        : [];
+    const prerequisites = buildTransactionFinancePrerequisiteSnapshot({
+      clientReferralFormApproved: transaction.clientReferralFormApproved,
+      rebateAgreementSigned: transaction.rebateAgreementSigned,
+      rebateGoogleFormSubmitted: transaction.rebateGoogleFormSubmitted
+    });
+    const calculated = calculateTransactionFinanceResult({
       grossCommission,
-      transactionReferralFee,
-      transactionOfficeNet,
-      transactionAgentNet,
-      plan
+      fees,
+      chain,
+      prerequisites
+    });
+
+    if (calculated.approvalBlockers.length > 0) {
+      throw new Error(calculated.approvalBlockers.join(" "));
+    }
+
+    if (transaction.ownerMembershipId && (!storedContext || storedContext.ownerMembershipId !== transaction.ownerMembershipId)) {
+      await tx.transaction.update({
+        where: {
+          id: transaction.id
+        },
+        data: {
+          commissionContext: buildStoredTransactionCommissionContext({
+            ownerMembershipId: transaction.ownerMembershipId,
+            effectiveAt,
+            members: chain
+          }) satisfies Prisma.InputJsonValue
+        }
+      });
+    }
+
+    const previousVersion = await tx.transactionFinanceCalculationVersion.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: transaction.id
+      },
+      orderBy: [{ versionNumber: "desc" }]
+    });
+    const versionNumber = (previousVersion?.versionNumber ?? 0) + 1;
+
+    await tx.transactionFinanceCalculationVersion.updateMany({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: transaction.id,
+        isCurrent: true
+      },
+      data: {
+        isCurrent: false
+      }
+    });
+
+    const version = await tx.transactionFinanceCalculationVersion.create({
+      data: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? transaction.officeId ?? null,
+        transactionId: transaction.id,
+        versionNumber,
+        sourceType: "calculated",
+        isCurrent: true,
+        grossCommission,
+        preSplitTotal: calculated.preSplitTotal,
+        postSplitTotal: calculated.postSplitTotal,
+        netCommissionBase: calculated.netCommissionBase,
+        reimbursementAmount: calculated.reimbursementAmount,
+        finalAgentNet: calculated.finalAgentNet,
+        finalOfficeNet: calculated.finalOfficeNet,
+        feeBreakdown: buildStoredTransactionFinanceFeeBreakdownRows(calculated.normalizedFees) satisfies Prisma.InputJsonValue,
+        stakeholderBreakdown: buildStoredTransactionFinanceStakeholderBreakdownRows(calculated.stakeholderRows) satisfies Prisma.InputJsonValue,
+        blockingIssues: [] satisfies Prisma.InputJsonValue,
+        notes: note,
+        createdByMembershipId: input.actorMembershipId
+      }
+    });
+
+    await tx.transaction.update({
+      where: {
+        id: transaction.id
+      },
+      data: {
+        referralFee: calculated.preSplitTotal,
+        officeNet: calculated.finalOfficeNet,
+        agentNet: calculated.finalAgentNet
+      }
     });
 
     await tx.commissionCalculation.deleteMany({
@@ -1756,191 +2732,28 @@ export async function calculateTransactionCommission(
       }
     });
 
-    const rows: Prisma.CommissionCalculationCreateManyInput[] = [];
-    const officeLabel = transaction.office?.name ?? "Brokerage";
-    const note = parseOptionalText(input.notes) ?? parseOptionalText(transaction.financeNotes);
-    let activityOfficeNet = legacyCalculated.officeNet;
-    let activityAgentNet = legacyCalculated.agentNet;
-    let activityFees = legacyCalculated.fees;
-    let activityPlanLabel = plan?.name ?? "Manual / transaction finance";
-
-    if (!plan) {
-      const chain =
-        transaction.ownerMembershipId
-          ? await buildDefaultTransactionCommissionChain(tx, {
-              organizationId: input.organizationId,
-              officeId: input.officeId ?? transaction.officeId,
-              ownerMembershipId: transaction.ownerMembershipId,
-              effectiveAt,
-              transactionCommissionContext: transaction.commissionContext
-            })
-          : [];
-      const chainCalculated = buildDefaultSplitCalculationRows({
-        grossCommission,
-        referralFee: transactionReferralFee,
-        chain
-      });
-
-      activityOfficeNet = chainCalculated.companyAmount;
-      activityAgentNet = chainCalculated.memberRows.reduce((sum, row) => sum.plus(row.statementAmount), new Prisma.Decimal(0));
-      activityFees = new Prisma.Decimal(0);
-      activityPlanLabel = chain[0] ? buildCommissionSplitLabel(chain[0].agentPercent) : "Default split chain";
-
-      if (transaction.ownerMembershipId && (!storedContext || storedContext.ownerMembershipId !== transaction.ownerMembershipId)) {
-        await tx.transaction.update({
-          where: {
-            id: transaction.id
-          },
-          data: {
-            commissionContext: buildStoredTransactionCommissionContext({
-              ownerMembershipId: transaction.ownerMembershipId,
-              effectiveAt,
-              members: chain
-            }) satisfies Prisma.InputJsonValue
-          }
-        });
-      }
-
-      rows.push({
-        organizationId: input.organizationId,
-        officeId: input.officeId ?? transaction.officeId ?? null,
-        transactionId: transaction.id,
-        membershipId: null,
-        commissionPlanId: null,
-        accountingTransactionId: null,
-        recipientType: "brokerage",
-        recipientRole: "brokerage",
-        recipientName: officeLabel,
-        grossCommission,
-        referralFee: transactionReferralFee,
-        fees: new Prisma.Decimal(0),
-        officeNet: chainCalculated.companyAmount,
-        agentNet: new Prisma.Decimal(0),
-        statementAmount: chainCalculated.companyAmount,
-        status: "calculated",
-        notes: note,
-        calculatedAt: new Date(),
-        calculatedByMembershipId: input.actorMembershipId
-      });
-
-      for (const memberRow of chainCalculated.memberRows) {
-        rows.push({
-          organizationId: input.organizationId,
-          officeId: input.officeId ?? transaction.officeId ?? null,
-          transactionId: transaction.id,
-          membershipId: memberRow.membershipId,
-          commissionPlanId: null,
-          accountingTransactionId: null,
-          recipientType: "agent",
-          recipientRole: memberRow.recipientRoleValue,
-          recipientName: memberRow.membershipLabel,
-          grossCommission,
-          referralFee: transactionReferralFee,
-          fees: new Prisma.Decimal(0),
-          officeNet: new Prisma.Decimal(0),
-          agentNet: memberRow.statementAmount,
-          statementAmount: memberRow.statementAmount,
-          status: "calculated",
-          notes: note,
-          calculatedAt: new Date(),
-          calculatedByMembershipId: input.actorMembershipId
-        });
-      }
-
-      if (transactionReferralFee.gt(0)) {
-        rows.push({
-          organizationId: input.organizationId,
-          officeId: input.officeId ?? transaction.officeId ?? null,
-          transactionId: transaction.id,
-          membershipId: null,
-          commissionPlanId: null,
-          accountingTransactionId: null,
-          recipientType: "referral",
-          recipientRole: "referral",
-          recipientName: transaction.companyReferralEmployeeName?.trim() || "Referral recipient",
-          grossCommission,
-          referralFee: transactionReferralFee,
-          fees: new Prisma.Decimal(0),
-          officeNet: new Prisma.Decimal(0),
-          agentNet: new Prisma.Decimal(0),
-          statementAmount: transactionReferralFee,
-          status: "calculated",
-          notes: note,
-          calculatedAt: new Date(),
-          calculatedByMembershipId: input.actorMembershipId
-        });
-      }
-    } else {
-      rows.push({
-        organizationId: input.organizationId,
-        officeId: input.officeId ?? transaction.officeId ?? null,
-        transactionId: transaction.id,
-        membershipId: null,
-        commissionPlanId: plan.id,
-        accountingTransactionId: null,
-        recipientType: "brokerage",
-        recipientRole: "brokerage",
-        recipientName: officeLabel,
-        grossCommission,
-        referralFee: legacyCalculated.referralFee,
-        fees: legacyCalculated.fees,
-        officeNet: legacyCalculated.officeNet,
-        agentNet: new Prisma.Decimal(0),
-        statementAmount: legacyCalculated.officeNet,
-        status: "calculated",
-        notes: note,
-        calculatedAt: new Date(),
-        calculatedByMembershipId: input.actorMembershipId
-      });
-
-      if (transaction.ownerMembershipId && transaction.ownerMembership) {
-        rows.push({
-          organizationId: input.organizationId,
-          officeId: input.officeId ?? transaction.officeId ?? null,
-          transactionId: transaction.id,
-          membershipId: transaction.ownerMembershipId,
-          commissionPlanId: plan.id,
-          accountingTransactionId: null,
-          recipientType: "agent",
-          recipientRole: transaction.ownerMembership.role,
-          recipientName: `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}`,
-          grossCommission,
-          referralFee: legacyCalculated.referralFee,
-          fees: legacyCalculated.fees,
-          officeNet: new Prisma.Decimal(0),
-          agentNet: legacyCalculated.agentNet,
-          statementAmount: legacyCalculated.agentNet,
-          status: "calculated",
-          notes: note,
-          calculatedAt: new Date(),
-          calculatedByMembershipId: input.actorMembershipId
-        });
-      }
-
-      if (legacyCalculated.referralFee.gt(0)) {
-        rows.push({
-          organizationId: input.organizationId,
-          officeId: input.officeId ?? transaction.officeId ?? null,
-          transactionId: transaction.id,
-          membershipId: null,
-          commissionPlanId: plan.id,
-          accountingTransactionId: null,
-          recipientType: "referral",
-          recipientRole: "referral",
-          recipientName: transaction.companyReferralEmployeeName?.trim() || "Referral recipient",
-          grossCommission,
-          referralFee: legacyCalculated.referralFee,
-          fees: new Prisma.Decimal(0),
-          officeNet: new Prisma.Decimal(0),
-          agentNet: new Prisma.Decimal(0),
-          statementAmount: legacyCalculated.referralFee,
-          status: "calculated",
-          notes: note,
-          calculatedAt: new Date(),
-          calculatedByMembershipId: input.actorMembershipId
-        });
-      }
-    }
+    const rows: Prisma.CommissionCalculationCreateManyInput[] = calculated.stakeholderRows.map((row) => ({
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? transaction.officeId ?? null,
+      transactionId: transaction.id,
+      transactionFinanceCalculationVersionId: version.id,
+      membershipId: row.membershipId || null,
+      commissionPlanId: null,
+      accountingTransactionId: null,
+      recipientType: row.recipientType,
+      recipientRole: row.recipientRoleValue,
+      recipientName: row.recipientLabel,
+      grossCommission,
+      referralFee: calculated.preSplitTotal,
+      fees: calculated.postSplitTotal,
+      officeNet: row.recipientType === "brokerage" ? row.finalAmount : new Prisma.Decimal(0),
+      agentNet: row.recipientType === "agent" ? row.finalAmount : new Prisma.Decimal(0),
+      statementAmount: row.finalAmount,
+      status: "calculated",
+      notes: note,
+      calculatedAt: new Date(),
+      calculatedByMembershipId: input.actorMembershipId
+    }));
 
     await tx.commissionCalculation.createMany({
       data: rows
@@ -1950,7 +2763,7 @@ export async function calculateTransactionCommission(
       organizationId: input.organizationId,
       membershipId: input.actorMembershipId,
       entityType: "commission_calculation",
-      entityId: `${transaction.id}:${Date.now()}`,
+      entityId: version.id,
       action: previousRows.length > 0 ? activityLogActions.commissionRecalculated : activityLogActions.commissionCalculated,
       payload: {
         officeId: transaction.officeId,
@@ -1960,16 +2773,222 @@ export async function calculateTransactionCommission(
         contextHref: `/office/transactions/${transaction.id}#commission`,
         changes: buildCommissionChanges(previousAgentRow, {
           grossCommission,
-          referralFee: transactionReferralFee,
-          officeNet: activityOfficeNet,
-          agentNet: activityAgentNet,
-          fees: activityFees
+          referralFee: calculated.preSplitTotal,
+          officeNet: calculated.finalOfficeNet,
+          agentNet: calculated.finalAgentNet,
+          fees: calculated.postSplitTotal
         }),
         details: [
-          `Mode: ${plan ? "Legacy advanced plan" : "Default split chain"}`,
-          `Reference: ${activityPlanLabel}`,
-          `Agent net: ${formatCurrency(activityAgentNet)}`,
-          `Office net: ${formatCurrency(activityOfficeNet)}`
+          "Mode: Finance rule engine",
+          `Reference: ${chain[0] ? buildCommissionSplitLabel(chain[0].agentPercent) : "Default split chain"}`,
+          `Version: ${versionNumber}`,
+          `Agent net: ${formatCurrency(calculated.finalAgentNet)}`,
+          `Office net: ${formatCurrency(calculated.finalOfficeNet)}`
+        ]
+      }
+    });
+  });
+
+  return getTransactionCommissionSnapshot(
+    input.organizationId,
+    input.transactionId,
+    input.officeId ?? transaction.officeId ?? null,
+    input.actorMembershipId
+  );
+}
+
+export async function overrideTransactionCommission(
+  input: OverrideTransactionCommissionInput
+): Promise<OfficeTransactionCommissionSnapshot | null> {
+  const transaction = await prisma.transaction.findFirst({
+    where: {
+      id: input.transactionId,
+      organizationId: input.organizationId
+    },
+    include: {
+      office: true
+    }
+  });
+
+  if (!transaction) {
+    return null;
+  }
+
+  const overrideReason = parseOptionalText(input.overrideReason);
+
+  if (!overrideReason) {
+    throw new Error("Override reason is required.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const currentVersion = await tx.transactionFinanceCalculationVersion.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: transaction.id,
+        isCurrent: true
+      },
+      orderBy: [{ versionNumber: "desc" }]
+    });
+
+    if (!currentVersion) {
+      throw new Error("Run the finance calculation before applying a manual override.");
+    }
+
+    const currentStakeholderRows = parseStoredTransactionFinanceStakeholderBreakdown(currentVersion.stakeholderBreakdown);
+
+    if (currentStakeholderRows.length === 0) {
+      throw new Error("Current calculation does not have stakeholder rows to override.");
+    }
+
+    const overrideEntries = input.stakeholderAmounts
+      .map((entry) => ({
+        key: entry.key.trim(),
+        amount: parseOptionalDecimal(entry.amount)
+      }))
+      .filter((entry) => entry.key && entry.amount !== null);
+
+    if (overrideEntries.length === 0) {
+      throw new Error("Enter at least one stakeholder override amount.");
+    }
+
+    const validKeys = new Set(currentStakeholderRows.map((row) => row.key));
+
+    for (const entry of overrideEntries) {
+      if (!validKeys.has(entry.key)) {
+        throw new Error("One or more override rows no longer match the current calculation. Refresh and try again.");
+      }
+    }
+
+    const overrideMap = new Map(overrideEntries.map((entry) => [entry.key, entry.amount ?? new Prisma.Decimal(0)]));
+    const nextStakeholderRows = currentStakeholderRows.map((row) => ({
+      ...row,
+      finalAmount: String(overrideMap.get(row.key) ?? parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0))
+    }));
+    const ownerAgentRow = nextStakeholderRows.find((row) => row.recipientType === "agent") ?? null;
+    const companyRow = nextStakeholderRows.find((row) => row.recipientType === "brokerage") ?? null;
+    const nextFinalAgentNet = ownerAgentRow ? parseOptionalDecimal(ownerAgentRow.finalAmount) ?? new Prisma.Decimal(0) : new Prisma.Decimal(0);
+    const nextFinalOfficeNet = companyRow ? parseOptionalDecimal(companyRow.finalAmount) ?? new Prisma.Decimal(0) : new Prisma.Decimal(0);
+    const note = parseOptionalText(input.notes) ?? currentVersion.notes;
+    const previousRows = await tx.commissionCalculation.findMany({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: transaction.id
+      },
+      orderBy: [{ createdAt: "asc" }]
+    });
+    const previousAgentRow =
+      previousRows.find((row) => row.recipientType === "agent") ??
+      ({
+        grossCommission: previousRows[0]?.grossCommission ?? currentVersion.grossCommission,
+        referralFee: previousRows[0]?.referralFee ?? currentVersion.preSplitTotal,
+        officeNet: previousRows.find((row) => row.recipientType === "brokerage")?.statementAmount ?? currentVersion.finalOfficeNet,
+        agentNet: previousRows.find((row) => row.recipientType === "agent")?.statementAmount ?? currentVersion.finalAgentNet
+      } as const);
+    const versionNumber = currentVersion.versionNumber + 1;
+
+    await tx.transactionFinanceCalculationVersion.updateMany({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: transaction.id,
+        isCurrent: true
+      },
+      data: {
+        isCurrent: false
+      }
+    });
+
+    const version = await tx.transactionFinanceCalculationVersion.create({
+      data: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? transaction.officeId ?? null,
+        transactionId: transaction.id,
+        versionNumber,
+        sourceType: "overridden",
+        isCurrent: true,
+        grossCommission: currentVersion.grossCommission,
+        preSplitTotal: currentVersion.preSplitTotal,
+        postSplitTotal: currentVersion.postSplitTotal,
+        netCommissionBase: currentVersion.netCommissionBase,
+        reimbursementAmount: currentVersion.reimbursementAmount,
+        finalAgentNet: nextFinalAgentNet,
+        finalOfficeNet: nextFinalOfficeNet,
+        feeBreakdown: currentVersion.feeBreakdown ?? ([] satisfies Prisma.InputJsonValue),
+        stakeholderBreakdown: nextStakeholderRows satisfies Prisma.InputJsonValue,
+        blockingIssues: currentVersion.blockingIssues ?? ([] satisfies Prisma.InputJsonValue),
+        notes: note,
+        overrideReason,
+        createdByMembershipId: input.actorMembershipId
+      }
+    });
+
+    await tx.transaction.update({
+      where: {
+        id: transaction.id
+      },
+      data: {
+        referralFee: currentVersion.preSplitTotal,
+        officeNet: nextFinalOfficeNet,
+        agentNet: nextFinalAgentNet
+      }
+    });
+
+    await tx.commissionCalculation.deleteMany({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: transaction.id
+      }
+    });
+
+    await tx.commissionCalculation.createMany({
+      data: nextStakeholderRows.map((row) => ({
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? transaction.officeId ?? null,
+        transactionId: transaction.id,
+        transactionFinanceCalculationVersionId: version.id,
+        membershipId: row.membershipId || null,
+        commissionPlanId: null,
+        accountingTransactionId: null,
+        recipientType: row.recipientType,
+        recipientRole: row.recipientRoleValue,
+        recipientName: row.recipientLabel,
+        grossCommission: currentVersion.grossCommission,
+        referralFee: currentVersion.preSplitTotal,
+        fees: currentVersion.postSplitTotal,
+        officeNet: row.recipientType === "brokerage" ? parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0) : new Prisma.Decimal(0),
+        agentNet: row.recipientType === "agent" ? parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0) : new Prisma.Decimal(0),
+        statementAmount: parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0),
+        status: "calculated",
+        notes: note,
+        calculatedAt: new Date(),
+        calculatedByMembershipId: input.actorMembershipId
+      }))
+    });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "commission_calculation",
+      entityId: version.id,
+      action: activityLogActions.commissionRecalculated,
+      payload: {
+        officeId: transaction.officeId,
+        transactionId: transaction.id,
+        transactionLabel: buildTransactionLabel(transaction),
+        objectLabel: buildTransactionLabel(transaction),
+        contextHref: `/office/transactions/${transaction.id}#commission`,
+        changes: buildCommissionChanges(previousAgentRow, {
+          grossCommission: currentVersion.grossCommission,
+          referralFee: currentVersion.preSplitTotal,
+          officeNet: nextFinalOfficeNet,
+          agentNet: nextFinalAgentNet,
+          fees: currentVersion.postSplitTotal
+        }),
+        details: [
+          "Mode: Manual override",
+          `Version: ${versionNumber}`,
+          `Reason: ${overrideReason}`,
+          `Agent net: ${formatCurrency(nextFinalAgentNet)}`,
+          `Office net: ${formatCurrency(nextFinalOfficeNet)}`
         ]
       }
     });
@@ -2530,8 +3549,19 @@ export async function getTransactionCommissionSnapshot(
   if (transaction.ownerMembershipId) {
     await backfillMembershipCommissionSettingsFromLegacy(organizationId, officeId ?? transaction.officeId, [transaction.ownerMembershipId]);
   }
+  const financeFees = await prisma.$transaction((tx) =>
+    ensureTransactionFinanceFees(tx, {
+      organizationId,
+      officeId: officeId ?? transaction.officeId,
+      transactionId: transaction.id,
+      grossCommission: transaction.grossCommission,
+      referralFee: transaction.referralFee,
+      companyReferral: transaction.companyReferral,
+      additionalFields: transaction.additionalFields
+    })
+  );
 
-  const [assignment, defaultSetting, plans, calculations] = await Promise.all([
+  const [assignment, defaultSetting, plans, calculations, versions] = await Promise.all([
     transaction.ownerMembershipId
       ? resolveActiveCommissionPlanAssignment(prisma, {
           organizationId,
@@ -2565,9 +3595,47 @@ export async function getTransactionCommissionSnapshot(
         accountingTransaction: true
       },
       orderBy: [{ calculatedAt: "desc" }, { createdAt: "desc" }]
+    }),
+    prisma.transactionFinanceCalculationVersion.findMany({
+      where: {
+        organizationId,
+        transactionId
+      },
+      include: {
+        createdByMembership: {
+          include: {
+            user: true
+          }
+        }
+      },
+      orderBy: [{ versionNumber: "desc" }]
     })
   ]);
   const storedContext = parseStoredTransactionCommissionContext(transaction.commissionContext);
+  const prerequisites = buildTransactionFinancePrerequisiteSnapshot({
+    clientReferralFormApproved: transaction.clientReferralFormApproved,
+    rebateAgreementSigned: transaction.rebateAgreementSigned,
+    rebateGoogleFormSubmitted: transaction.rebateGoogleFormSubmitted
+  });
+  const previewChain =
+    transaction.grossCommission && transaction.ownerMembershipId
+      ? await buildDefaultTransactionCommissionChain(prisma, {
+          organizationId,
+          officeId: officeId ?? transaction.officeId,
+          ownerMembershipId: transaction.ownerMembershipId,
+          effectiveAt,
+          transactionCommissionContext: transaction.commissionContext
+        })
+      : [];
+  const previewCalculation =
+    transaction.grossCommission
+      ? calculateTransactionFinanceResult({
+          grossCommission: transaction.grossCommission,
+          fees: financeFees,
+          chain: previewChain,
+          prerequisites
+        })
+      : null;
   const visibility = filterVisibleCommissionRows(
     calculations.map((calculation) => ({
       membershipId: calculation.membershipId,
@@ -2589,8 +3657,62 @@ export async function getTransactionCommissionSnapshot(
       ? `Locked on ${formatDateValue(new Date(storedContext.sourceDate)) || formatDateValue(effectiveAt)}`
       : defaultSetting?.sourceLabel ?? "No default split configured";
   const latestCalculatedPlan = calculations.find((row) => Boolean(row.commissionPlanId)) ?? null;
+  const currentVersion = versions.find((version) => version.isCurrent) ?? versions[0] ?? null;
   const summary = buildTransactionCommissionSummary(transaction, visibleCalculations, {
-    restrictTotals: restrictedTotals
+    restrictTotals: restrictedTotals,
+    currentVersion:
+      currentVersion
+        ? {
+            versionNumber: currentVersion.versionNumber,
+            sourceType: currentVersion.sourceType,
+            preSplitTotal: currentVersion.preSplitTotal,
+            postSplitTotal: currentVersion.postSplitTotal,
+            netCommissionBase: currentVersion.netCommissionBase,
+            reimbursementAmount: currentVersion.reimbursementAmount,
+            finalAgentNet: currentVersion.finalAgentNet,
+            finalOfficeNet: currentVersion.finalOfficeNet
+          }
+        : null,
+    feeRows: financeFees
+  });
+  const rawStakeholderBreakdown =
+    currentVersion
+      ? parseStoredTransactionFinanceStakeholderBreakdown(currentVersion.stakeholderBreakdown)
+      : previewCalculation?.stakeholderRows.map((row) => ({
+          key: row.key,
+          membershipId: row.membershipId,
+          recipientLabel: row.recipientLabel,
+          recipientRole: row.recipientRole,
+          recipientRoleValue: row.recipientRoleValue,
+          recipientType: row.recipientType,
+          sharePercent: String(row.sharePercent),
+          baseAmount: String(row.baseAmount),
+          postSplitAdjustment: String(row.postSplitAdjustment),
+          reimbursementAdjustment: String(row.reimbursementAdjustment),
+          finalAmount: String(row.finalAmount)
+        })) ?? [];
+  const stakeholderVisibility = filterVisibleCommissionRows(
+    rawStakeholderBreakdown.map((row) => ({
+      membershipId: row.membershipId || null,
+      recipientType: row.recipientType
+    })),
+    scope
+  );
+  const stakeholderBreakdown = stakeholderVisibility.visibleRowIndexes.map((index) =>
+    mapStoredTransactionFinanceStakeholderRow(rawStakeholderBreakdown[index]!)
+  );
+  const versionHistory = versions.map((version) => {
+    const mapped = mapTransactionFinanceVersionRecord(version);
+
+    if (!restrictedTotals) {
+      return mapped;
+    }
+
+    return {
+      ...mapped,
+      finalAgentNetLabel: "Restricted",
+      finalOfficeNetLabel: "Restricted"
+    };
   });
 
   return {
@@ -2608,6 +3730,14 @@ export async function getTransactionCommissionSnapshot(
         : assignment?.sourceLabel ?? defaultSplitSourceLabel,
     planSourceValue: latestCalculatedPlan?.commissionPlanId ? "manual" : assignment?.sourceType ?? "manual",
     availablePlans: plans,
+    feeBreakdown: financeFees.map((fee) =>
+      mapTransactionFinanceFeeRecord(fee, {
+        restrictAmounts: restrictedTotals
+      })
+    ),
+    stakeholderBreakdown,
+    versionHistory,
+    approvalBlockers: previewCalculation?.approvalBlockers ?? [],
     calculations: visibleCalculations.map(mapCommissionCalculationRow),
     summary
   };

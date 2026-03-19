@@ -190,13 +190,14 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
       {transaction.canViewFinancials ? (
         <SectionCard subtitle="Minimal finance layer for commissions, office net, and notes." title="Finance">
           <TransactionFinanceForm
-            agentNet={transaction.agentNet}
+            approvalBlockers={commissionSnapshot?.approvalBlockers ?? []}
             canAutoCalculateCommission={canCalculateCommissionsForRole}
             financeNotes={transaction.financeNotes}
+            fees={transaction.financeFees}
             grossCommission={transaction.grossCommission}
-            officeNet={transaction.officeNet}
+            prerequisites={transaction.financePrerequisites}
             readOnly={!canManageTransactionFinanceForRole}
-            referralFee={transaction.referralFee}
+            summary={commissionSnapshot?.summary ?? null}
             transactionId={transaction.id}
           />
         </SectionCard>

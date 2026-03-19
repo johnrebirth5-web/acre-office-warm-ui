@@ -28,17 +28,39 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         officeNet?: string;
         agentNet?: string;
         financeNotes?: string;
+        clientReferralFormApproved?: boolean;
+        rebateAgreementSigned?: boolean;
+        rebateGoogleFormSubmitted?: boolean;
+        fees?: Array<{
+          feeType?: string;
+          rate?: string;
+          amount?: string;
+          selectedCalculationType?: string;
+          approvalStatus?: string;
+          notes?: string;
+        }>;
       }
     | null;
 
   const transaction = await updateTransactionFinance({
     organizationId: context.currentOrganization.id,
     transactionId,
-    grossCommission: body?.grossCommission ?? "",
-    referralFee: body?.referralFee ?? "",
-    officeNet: body?.officeNet ?? "",
-    agentNet: body?.agentNet ?? "",
-    financeNotes: body?.financeNotes ?? "",
+    grossCommission: body?.grossCommission,
+    referralFee: body?.referralFee,
+    officeNet: body?.officeNet,
+    agentNet: body?.agentNet,
+    financeNotes: body?.financeNotes,
+    clientReferralFormApproved: body?.clientReferralFormApproved,
+    rebateAgreementSigned: body?.rebateAgreementSigned,
+    rebateGoogleFormSubmitted: body?.rebateGoogleFormSubmitted,
+    fees: body?.fees?.map((fee) => ({
+      feeType: typeof fee?.feeType === "string" ? fee.feeType : "",
+      rate: typeof fee?.rate === "string" ? fee.rate : undefined,
+      amount: typeof fee?.amount === "string" ? fee.amount : undefined,
+      selectedCalculationType: typeof fee?.selectedCalculationType === "string" ? fee.selectedCalculationType : undefined,
+      approvalStatus: typeof fee?.approvalStatus === "string" ? fee.approvalStatus : undefined,
+      notes: typeof fee?.notes === "string" ? fee.notes : undefined
+    })),
     actorMembershipId: context.currentMembership.id
   });
 
