@@ -1,0 +1,211 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { after, test } from "node:test";
+import { Prisma, type UserRole } from "@prisma/client";
+import { getOfficeAgentsRosterSnapshot } from "./agents.ts";
+import { prisma } from "./client.ts";
+import { updateOfficeAdminUser } from "./settings.ts";
+
+after(async () => {
+  await prisma.$disconnect();
+});
+
+async function createSettingsTestContext() {
+  const suffix = randomUUID().slice(0, 8);
+  const organization = await prisma.organization.create({
+    data: {
+      name: `Settings Test ${suffix}`,
+      slug: `settings-test-${suffix}`
+    }
+  });
+
+  const office = await prisma.office.create({
+    data: {
+      organizationId: organization.id,
+      name: `Settings Office ${suffix}`,
+      slug: `settings-office-${suffix}`,
+      market: "New York",
+      isPrimary: true
+    }
+  });
+
+  const trackedUserIds: string[] = [];
+
+  async function createMembership(role: UserRole, prefix: string, firstName: string, lastName: string, title?: string | null) {
+    const user = await prisma.user.create({
+      data: {
+        email: `${prefix}-${randomUUID().slice(0, 8)}@example.com`,
+        firstName,
+        lastName,
+        timezone: "America/New_York",
+        locale: "en-US",
+        isActive: true
+      }
+    });
+    trackedUserIds.push(user.id);
+
+    const membership = await prisma.membership.create({
+      data: {
+        organizationId: organization.id,
+        officeId: office.id,
+        userId: user.id,
+        role,
+        status: "active",
+        title: title ?? null,
+        permissions: Prisma.JsonNull
+      }
+    });
+
+    return {
+      user,
+      membership
+    };
+  }
+
+  const admin = await createMembership("office_admin", `settings-admin-${suffix}`, "Settings", "Admin", "Office Admin");
+
+  return {
+    organization,
+    office,
+    adminMembership: admin.membership,
+    createMembership,
+    async cleanup() {
+      await prisma.organization.delete({
+        where: {
+          id: organization.id
+        }
+      });
+
+      await prisma.user.deleteMany({
+        where: {
+          id: {
+            in: trackedUserIds
+          }
+        }
+      });
+    }
+  };
+}
+
+test("updateOfficeAdminUser blocks downgrading an active team leader to agent", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const leader = await context.createMembership("team_lead", "team-leader", "Team", "Leader", "Team Lead");
+    await prisma.userCredential.create({
+      data: {
+        userId: leader.user.id,
+        passwordHash: "test-password-hash"
+      }
+    });
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: "Leader Team",
+        slug: `leader-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: team.id,
+        membershipId: leader.membership.id,
+        role: "team_leader"
+      }
+    });
+
+    await assert.rejects(
+      () =>
+        updateOfficeAdminUser({
+          organizationId: context.organization.id,
+          actorMembershipId: context.adminMembership.id,
+          membershipId: leader.membership.id,
+          role: "agent"
+        }),
+      /Remove or transfer this user's active Team \/ Junior Team leadership assignments in Settings > Teams before changing the account role to Agent\./
+    );
+
+    const refreshedMembership = await prisma.membership.findUnique({
+      where: {
+        id: leader.membership.id
+      }
+    });
+
+    assert.equal(refreshedMembership?.role, "team_lead");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("getOfficeAgentsRosterSnapshot stays side-effect free for legacy junior leader cleanup", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const legacyLeader = await context.createMembership("team_lead", "legacy-leader", "Legacy", "Leader", "Team Lead");
+    const rootTeam = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: "Legacy Root Team",
+        slug: `legacy-root-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    const legacyTeamMembership = await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: rootTeam.id,
+        membershipId: legacyLeader.membership.id,
+        role: "junior_team_leader"
+      }
+    });
+
+    const [initialTeamCount, initialAuditCount] = await Promise.all([
+      prisma.team.count({
+        where: {
+          organizationId: context.organization.id
+        }
+      }),
+      prisma.auditLog.count({
+        where: {
+          organizationId: context.organization.id
+        }
+      })
+    ]);
+
+    await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    const [finalTeamCount, finalAuditCount, refreshedTeamMembership] = await Promise.all([
+      prisma.team.count({
+        where: {
+          organizationId: context.organization.id
+        }
+      }),
+      prisma.auditLog.count({
+        where: {
+          organizationId: context.organization.id
+        }
+      }),
+      prisma.teamMembership.findUnique({
+        where: {
+          id: legacyTeamMembership.id
+        }
+      })
+    ]);
+
+    assert.equal(finalTeamCount, initialTeamCount);
+    assert.equal(finalAuditCount, initialAuditCount);
+    assert.equal(refreshedTeamMembership?.teamId, rootTeam.id);
+    assert.equal(refreshedTeamMembership?.role, "junior_team_leader");
+  } finally {
+    await context.cleanup();
+  }
+});

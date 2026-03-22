@@ -27,6 +27,7 @@ import {
   createTeamHierarchyIndex,
   formatAssignableTeamLabel,
   formatTeamMembershipRoleLabel as formatHierarchyRoleLabel,
+  isLeaderTeamMembershipRole,
   isValidBranchLeaderRole
 } from "./team-hierarchy";
 
@@ -326,6 +327,7 @@ export type OfficeAdminUserDetailSnapshot = {
     createdAtLabel: string;
     onboardingStatusLabel: string;
     onboardingStatusValue: AgentOnboardingStatus;
+    hasActiveLeaderAssignments: boolean;
     teamSummary: string;
     agentProfileHref: string | null;
   };
@@ -824,6 +826,19 @@ function mapOfficeAdminUserRow(membership: {
     mustChangePassword,
     href: `/office/settings/users/${membership.id}`
   };
+}
+
+function hasActiveLeaderAssignments(
+  teamMemberships:
+    | Array<{
+        role: TeamMembershipRole;
+        team: {
+          isActive: boolean;
+        };
+      }>
+    | undefined
+) {
+  return (teamMemberships ?? []).some((teamMembership) => teamMembership.team.isActive && isLeaderTeamMembershipRole(teamMembership.role));
 }
 
 function normalizeUserRole(value: string | undefined): UserRole | undefined {
@@ -1904,6 +1919,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
 
   const completedCount = onboardingItems.filter((item) => item.status === "completed").length;
   const onboardingStatusValue = deriveOnboardingStatus(membership.agentProfile?.onboardingStatus, onboardingItems.length, completedCount);
+  const activeLeaderAssignments = hasActiveLeaderAssignments(membership.teamMemberships);
   const teamSummary = membership.teamMemberships.length
     ? membership.teamMemberships
         .map((teamMembership) => teamPathLabelMap.get(teamMembership.team.id) ?? teamMembership.team.name)
@@ -1947,6 +1963,7 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
       createdAtLabel: formatDateLabel(membership.createdAt),
       onboardingStatusLabel: formatOnboardingStatusLabel(onboardingStatusValue),
       onboardingStatusValue,
+      hasActiveLeaderAssignments: activeLeaderAssignments,
       teamSummary,
       agentProfileHref: membership.agentProfile ? `/office/agents/${membership.id}` : null
     },
@@ -2015,7 +2032,17 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
             credential: true
           }
         },
-        office: true
+        office: true,
+        teamMemberships: {
+          select: {
+            role: true,
+            team: {
+              select: {
+                isActive: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -2045,6 +2072,12 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
 
     if (membership.user.credential && nextStatus === "invited") {
       throw new Error("Issue a password setup link instead of moving a password account back to invited.");
+    }
+
+    if (nextRole === "agent" && membership.role !== "agent" && hasActiveLeaderAssignments(membership.teamMemberships)) {
+      throw new Error(
+        "Remove or transfer this user's active Team / Junior Team leadership assignments in Settings > Teams before changing the account role to Agent."
+      );
     }
 
     if (nextOfficeId === "__all__") {

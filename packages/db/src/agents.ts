@@ -839,6 +839,19 @@ async function materializeImplicitJuniorTeamsForOrganization(
   }
 }
 
+// Read paths must stay side-effect free. Only explicit management writes or one-off backfills
+// should trigger legacy junior-team materialization.
+export async function materializeImplicitJuniorTeamsForManagementAction(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    actorMembershipId: string;
+  }
+) {
+  return materializeImplicitJuniorTeamsForOrganization(tx, input);
+}
+
 function redactAgentGoalFinancials(goal: OfficeAgentGoalRecord, allowed: boolean): OfficeAgentGoalRecord {
   if (allowed) {
     return goal;
@@ -1653,13 +1666,6 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
     viewerMembershipId: input.viewerMembershipId,
     officeId: scopedOfficeId ?? null
   });
-  await prisma.$transaction((tx) =>
-    materializeImplicitJuniorTeamsForOrganization(tx, {
-      organizationId: input.organizationId,
-      officeId: scopedOfficeId ?? null,
-      actorMembershipId: input.viewerMembershipId
-    })
-  );
   const scopedTeams = await prisma.team.findMany({
     where: {
       organizationId: input.organizationId,
@@ -2124,13 +2130,6 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     viewerMembershipId: input.viewerMembershipId,
     officeId: input.officeId ?? null
   });
-  await prisma.$transaction((tx) =>
-    materializeImplicitJuniorTeamsForOrganization(tx, {
-      organizationId: input.organizationId,
-      officeId: input.officeId ?? null,
-      actorMembershipId: input.viewerMembershipId
-    })
-  );
 
   if (!canAccessMembership(scope, input.membershipId)) {
     return null;
@@ -2765,6 +2764,11 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
   }
 
   return prisma.$transaction(async (tx) => {
+    await materializeImplicitJuniorTeamsForManagementAction(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      actorMembershipId: input.actorMembershipId
+    });
     const parentTeamId = await validateTeamParentAssignment(tx, {
       organizationId: input.organizationId,
       officeId: input.officeId,
@@ -2923,6 +2927,11 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
 
 export async function updateAgentTeam(input: UpdateAgentTeamInput) {
   return prisma.$transaction(async (tx) => {
+    await materializeImplicitJuniorTeamsForManagementAction(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      actorMembershipId: input.actorMembershipId
+    });
     const team = await tx.team.findFirst({
       where: {
         id: input.teamId,
@@ -3051,6 +3060,11 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
 
 export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
   return prisma.$transaction(async (tx) => {
+    await materializeImplicitJuniorTeamsForManagementAction(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      actorMembershipId: input.actorMembershipId
+    });
     const team = await tx.team.findFirst({
       where: {
         id: input.teamId,
@@ -3123,7 +3137,14 @@ export async function deleteAgentTeam(input: DeleteAgentTeamInput) {
 }
 
 export async function addAgentToTeam(input: AddAgentToTeamInput) {
-  return prisma.$transaction(async (tx) => assignMembershipToTeamTx(tx, input));
+  return prisma.$transaction(async (tx) => {
+    await materializeImplicitJuniorTeamsForManagementAction(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      actorMembershipId: input.actorMembershipId
+    });
+    return assignMembershipToTeamTx(tx, input);
+  });
 }
 
 export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, input: AddAgentToTeamInput) {
@@ -3350,6 +3371,11 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
 
 export async function removeAgentFromTeam(input: RemoveAgentFromTeamInput) {
   return prisma.$transaction(async (tx) => {
+    await materializeImplicitJuniorTeamsForManagementAction(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      actorMembershipId: input.actorMembershipId
+    });
     const [team, membership, teamMembership] = await Promise.all([
       tx.team.findFirst({
         where: {

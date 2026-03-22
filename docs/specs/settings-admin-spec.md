@@ -24,6 +24,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - activate/deactivate
   - office access within current membership model
   - team assignment / removal from the unified user detail page when the admin has `teams:manage`, including users who have not yet joined their first branch
+  - users who still own an active `Team / Junior Team` cannot be downgraded to the `agent` permission template from `Settings > Users` until that leadership is transferred or removed in `Settings > Teams`
   - per-user permission override editing with `inherit / allow / deny`
   - reset user overrides back to role defaults
   - Back Office tier catalog:
@@ -48,6 +49,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - show explicit `Team / Junior Team / Team Leader / Junior Team Leader / Unassigned` state so legacy mismatches are distinguishable from valid hierarchy ownership
   - prevent current owners from being removed or demoted without transferring ownership first, so teams no longer become leaderless through normal admin flows
   - auto-materialize a missing Junior Team for legacy `Junior Team Leader` assignments that were left inside the parent Team, using a leader-named Team record instead of leaving the leader stranded without a group
+  - legacy Junior Team materialization is now limited to explicit management writes or one-off backfills; simply opening `Users` / `Teams` roster views must stay side-effect free
   - default `Teams` landing view is now a top-level Team directory; Junior Team/member structure is reviewed from each Team detail page instead of mixing every level into one long admin canvas
 - fields admin supports:
   - `Settings > Fields` as the single field-structure admin entry

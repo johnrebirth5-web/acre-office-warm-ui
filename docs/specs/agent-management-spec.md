@@ -20,6 +20,7 @@ Provide a real Back Office agent management workspace for office operations, cov
   - team
   - onboarding status
   - task / transaction / billing / goal progress summaries
+  - read-only roster/profile loading must remain side-effect free; legacy team normalization belongs to explicit admin writes or one-off backfills, not page opens
 - the unified user detail page currently acts as the operational profile hub with sections for:
   - profile basics
   - default commission
@@ -71,6 +72,7 @@ Provide a real Back Office agent management workspace for office operations, cov
   - creating a `Team` or `Junior Team` now requires picking the corresponding owner up front
   - promoting another member to the owner role transfers leadership instead of leaving the team without an owner
   - legacy `Junior Team Leader` records that still sit directly in the parent Team are now auto-normalized into a real Junior Team named after that leader, with direct reports moved into the same child team
+  - that legacy normalization now runs only from explicit management actions instead of from roster/profile read paths
   - legacy ownerless child branches can still surface as `Leader: Unassigned` until they are cleaned up, but normal admin creation paths no longer create new empty branches
 - the operational profile now edits default commission via:
   - reusable split template selection

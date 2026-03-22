@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { PermissionKey, UserRole } from "@acre/auth";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
-import { assignMembershipToTeamTx } from "./agents";
+import { assignMembershipToTeamTx, materializeImplicitJuniorTeamsForManagementAction } from "./agents";
 import { prisma } from "./client";
 import { saveMembershipCommissionSetting } from "./commission-defaults";
 import { getMembershipEffectivePermissionKeys } from "./permissions";
@@ -1146,6 +1146,11 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
     }
 
     if (teamId) {
+      await materializeImplicitJuniorTeamsForManagementAction(tx, {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? membership.officeId ?? null,
+        actorMembershipId: input.actorMembershipId
+      });
       await assignMembershipToTeamTx(tx, {
         organizationId: input.organizationId,
         officeId: input.officeId ?? membership.officeId ?? null,

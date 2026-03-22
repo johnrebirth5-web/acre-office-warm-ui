@@ -290,7 +290,7 @@ export function OfficeSettingsUserDetailClient({
               <FormField label="Role">
                 <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("role", event.target.value)} value={draft.role}>
                   {getRoleEditorOptions(snapshot.profile).map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <option disabled={option.disabled} key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
@@ -321,6 +321,11 @@ export function OfficeSettingsUserDetailClient({
             <div className="office-settings-user-access-callout">
               <strong>Permissions scope</strong>
               <p>{getRoleConfigurationHint(draft.role)}</p>
+              {snapshot.profile.hasActiveLeaderAssignments && snapshot.profile.roleValue !== "agent" ? (
+                <p className="office-form-helper">
+                  Active Team / Junior Team owners cannot be switched to Agent until leadership is transferred or removed in Settings &gt; Teams.
+                </p>
+              ) : null}
             </div>
 
             <div className="office-settings-user-security-grid">

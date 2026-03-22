@@ -14,8 +14,19 @@ type UserSecurityShape = Pick<
   "statusValue" | "hasCredential" | "mustChangePassword" | "hasActiveInvitation" | "roleValue"
 >;
 
-type EditableUserShape = Pick<OfficeAdminUserRow, "roleValue" | "statusValue" | "hasCredential">;
-type EditableUserDetailShape = Pick<OfficeAdminUserDetailSnapshot["profile"], "roleValue" | "statusValue" | "hasCredential">;
+type RoleEditorOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
+type EditableUserShape = Pick<OfficeAdminUserRow, "roleValue" | "statusValue" | "hasCredential"> & {
+  hasActiveLeaderAssignments?: boolean;
+};
+type EditableUserDetailShape = Pick<
+  OfficeAdminUserDetailSnapshot["profile"],
+  "roleValue" | "statusValue" | "hasCredential" | "hasActiveLeaderAssignments"
+>;
 
 export function getRoleConfigurationHint(role: string) {
   if (role === "team_lead") {
@@ -86,15 +97,27 @@ export function getInvitationTone(user: UserSecurityShape) {
 }
 
 export function getRoleEditorOptions(user: EditableUserShape | EditableUserDetailShape) {
-  if (user.roleValue === "office_manager") {
-    return [{ value: "office_manager", label: "Office Manager (Legacy)" }, ...createRoleOptions];
+  const baseOptions: RoleEditorOption[] =
+    user.roleValue === "office_manager"
+      ? [{ value: "office_manager", label: "Office Manager (Legacy)" }, ...createRoleOptions]
+      : user.roleValue === "office_user"
+        ? [{ value: "office_user", label: "Office User (Legacy)" }, ...createRoleOptions]
+        : [...createRoleOptions];
+  const lockAgentRole = Boolean(user.hasActiveLeaderAssignments) && user.roleValue !== "agent";
+
+  if (!lockAgentRole) {
+    return baseOptions;
   }
 
-  if (user.roleValue === "office_user") {
-    return [{ value: "office_user", label: "Office User (Legacy)" }, ...createRoleOptions];
-  }
-
-  return createRoleOptions;
+  return baseOptions.map((option) =>
+    option.value === "agent"
+      ? {
+          ...option,
+          label: "Agent (remove team leadership first)",
+          disabled: true
+        }
+      : option
+  );
 }
 
 export function getStatusEditorOptions(user: EditableUserShape | EditableUserDetailShape) {
