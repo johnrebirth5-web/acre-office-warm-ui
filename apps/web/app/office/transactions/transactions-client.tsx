@@ -31,6 +31,7 @@ import {
   OfficeListPageTemplate,
 } from "../_components/office-list-page-template";
 import { TransactionIntakeWorkspace } from "./transaction-intake-form";
+import type { TransactionStatusFieldPolicy } from "./transaction-status-rules";
 
 type TransactionsClientProps = {
   transactions: OfficeTransactionRecord[];
@@ -42,6 +43,7 @@ type TransactionsClientProps = {
   filterOptions: OfficeTransactionFilterOptions;
   transactionIntakeSchema: OfficeTransactionIntakeSchema;
   transactionOwnerAssignment: OfficeTransactionOwnerAssignment;
+  transactionStatusFieldPolicy: TransactionStatusFieldPolicy;
   filters: {
     q: string;
     status: OfficeTransactionStatus | "All";
@@ -168,6 +170,7 @@ export function TransactionsClient({
   filterOptions,
   transactionIntakeSchema,
   transactionOwnerAssignment,
+  transactionStatusFieldPolicy,
   filters,
 }: TransactionsClientProps) {
   const router = useRouter();
@@ -574,6 +577,7 @@ export function TransactionsClient({
               }}
               ownerAssignment={transactionOwnerAssignment}
               schema={transactionIntakeSchema}
+              statusFieldPolicy={transactionStatusFieldPolicy}
               stepLabel="step 1 of 4"
               submitEndpoint="/api/office/transactions"
               submitLabel="Next →"

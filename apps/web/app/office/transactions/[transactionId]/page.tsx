@@ -12,6 +12,7 @@ import {
   canApproveOfficeDocuments,
   canApproveOfficeCommissions,
   canEditOfficeTransactions,
+  canManageOfficeTransactionStatus,
   canManageOfficeTransactionFinance,
   canManageOfficeDocuments,
   canManageOfficeCommissions,
@@ -39,6 +40,7 @@ import { TransactionOffersCard } from "./offers-card";
 import { TransactionStatusForm } from "./status-form";
 import { TransactionTasksCard } from "./tasks-card";
 import { TransactionIntakeWorkspace } from "../transaction-intake-form";
+import { getEditTransactionStatusFieldPolicy } from "../transaction-status-rules";
 import { TransactionDetailCollapsibleSection } from "./transaction-detail-collapsible-section";
 
 type TransactionDetailPageProps = {
@@ -98,6 +100,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
   const canAcceptOffersForRole = canAcceptOfficeOffers(context.currentMembership);
   const canViewCommissionsForRole = canViewOfficeCommissions(context.currentMembership);
   const canEditTransactionsForRole = canEditOfficeTransactions(context.currentMembership);
+  const canManageTransactionStatusForRole = canManageOfficeTransactionStatus(context.currentMembership);
   const canManageTransactionFinanceForRole = canManageOfficeTransactionFinance(context.currentMembership);
   const canManageCommissionsForRole = canManageOfficeCommissions(context.currentMembership);
   const canCalculateCommissionsForRole = canCalculateOfficeCommissions(context.currentMembership);
@@ -183,7 +186,11 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
       </DetailSection>
 
       <SectionCard subtitle="Update the primary workflow status for this transaction." title="Status">
-        <TransactionStatusForm currentStatus={transaction.status} transactionId={transaction.id} />
+        <TransactionStatusForm
+          canManageStatus={canManageTransactionStatusForRole}
+          currentStatus={transaction.status}
+          transactionId={transaction.id}
+        />
       </SectionCard>
 
       <TransactionDetailCollapsibleSection
@@ -222,6 +229,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
             options: []
           }}
           schema={transactionIntakeSchema}
+          statusFieldPolicy={getEditTransactionStatusFieldPolicy(canManageTransactionStatusForRole)}
           submitEndpoint={`/api/office/transactions/${transaction.id}/intake`}
           submitLabel="Save intake changes"
           submitMethod="PATCH"

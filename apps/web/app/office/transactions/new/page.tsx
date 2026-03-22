@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { canCreateOfficeTransactions } from "@acre/auth";
+import { canCreateOfficeTransactions, canManageOfficeTransactionStatus } from "@acre/auth";
 import { getOfficeTransactionIntakeSchema, getOfficeTransactionOwnerAssignment } from "@acre/db";
 import { PageHeader, PageShell, SectionCard } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
 import { TransactionIntakeWorkspace } from "../transaction-intake-form";
+import { getCreateTransactionStatusFieldPolicy } from "../transaction-status-rules";
 
 export default async function OfficeTransactionCreatePage() {
   const context = await requireOfficeSession();
+  const canManageTransactionStatus = canManageOfficeTransactionStatus(context.currentMembership);
 
   if (!canCreateOfficeTransactions(context.currentMembership)) {
     redirect("/office/transactions");
@@ -45,6 +47,7 @@ export default async function OfficeTransactionCreatePage() {
           mode="create"
           ownerAssignment={ownerAssignment}
           schema={schema}
+          statusFieldPolicy={getCreateTransactionStatusFieldPolicy(canManageTransactionStatus)}
           submitEndpoint="/api/office/transactions"
           submitLabel="Create transaction"
           submitMethod="POST"

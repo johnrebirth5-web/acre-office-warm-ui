@@ -1,4 +1,4 @@
-import { canCreateOfficeTransactions, canViewOfficeTransactions } from "@acre/auth";
+import { canCreateOfficeTransactions, canManageOfficeTransactionStatus, canViewOfficeTransactions } from "@acre/auth";
 import {
   createTransaction,
   getOfficeTransactionIntakeSchema,
@@ -9,11 +9,34 @@ import {
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
+import { isCreateTransactionStatusValue } from "../../../office/transactions/transaction-status-rules";
 
 const transactionStatusOptions = ["All", "Opportunity", "Active", "Pending", "Closed", "Cancelled"] as const;
 const defaultTransactionsPage = 1;
 const defaultTransactionsPageSize = 20;
 const maxTransactionsPageSize = 100;
+
+function applyCreateTransactionStatusRules(
+  schema: Awaited<ReturnType<typeof getOfficeTransactionIntakeSchema>>
+) {
+  return {
+    ...schema,
+    builtInFields: schema.builtInFields.map((field) => {
+      if (field.fieldKey !== "transaction_status") {
+        return field;
+      }
+
+      return {
+        ...field,
+        options: field.selectOptions.filter((option) => isCreateTransactionStatusValue(option.value)).map((option) => option.value),
+        selectOptions: field.selectOptions.map((option) => ({
+          ...option,
+          isEnabled: isCreateTransactionStatusValue(option.value)
+        }))
+      };
+    })
+  };
+}
 
 function parsePositiveInteger(value: string | null, fallback: number, max?: number) {
   if (!value || !value.trim()) {
@@ -95,10 +118,13 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as Record<string, unknown>;
 
   try {
-    const schema = await getOfficeTransactionIntakeSchema({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null
-    });
+    const canManageTransactionStatus = canManageOfficeTransactionStatus(context.currentMembership);
+    const schema = applyCreateTransactionStatusRules(
+      await getOfficeTransactionIntakeSchema({
+        organizationId: context.currentOrganization.id,
+        officeId: context.currentOffice?.id ?? null
+      })
+    );
     const ownerAssignment = await getOfficeTransactionOwnerAssignment({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
@@ -106,10 +132,12 @@ export async function POST(request: NextRequest) {
     });
     const submission = prepareTransactionIntakeSubmission({
       schema,
-      payload: body
+      payload: canManageTransactionStatus ? body : { ...body, transactionStatus: "pending" }
     });
+    const statusField = schema.builtInFields.find((field) => field.fieldKey === "transaction_status");
     const requestedOwnerMembershipId = typeof body.ownerMembershipId === "string" ? body.ownerMembershipId.trim() : "";
     let ownerMembershipId = context.currentMembership.id;
+    let transactionStatus = "pending";
 
     if (ownerAssignment.canSelectDifferentOwner) {
       const selectedOwner = ownerAssignment.options.find((option) => option.id === requestedOwnerMembershipId);
@@ -123,13 +151,21 @@ export async function POST(request: NextRequest) {
       throw new Error("Sales users can only create transactions for themselves.");
     }
 
+    if (canManageTransactionStatus && statusField?.isVisible) {
+      if (!isCreateTransactionStatusValue(submission.transactionStatus)) {
+        throw new Error("New transactions can only start as Pending, Closed, or Cancelled.");
+      }
+
+      transactionStatus = submission.transactionStatus;
+    }
+
     const transaction = await createTransaction({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id,
       ownerMembershipId,
       actorMembershipId: context.currentMembership.id,
       transactionType: submission.transactionType,
-      transactionStatus: submission.transactionStatus,
+      transactionStatus,
       representing: submission.representing,
       address: submission.address,
       city: submission.city,

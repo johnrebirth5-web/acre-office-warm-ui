@@ -1,5 +1,7 @@
 import { getOfficeTransactionIntakeSchema, getOfficeTransactionOwnerAssignment, listTransactions, type OfficeTransactionStatus } from "@acre/db";
+import { canManageOfficeTransactionStatus } from "@acre/auth";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getCreateTransactionStatusFieldPolicy } from "./transaction-status-rules";
 import { TransactionsClient } from "./transactions-client";
 
 type OfficeTransactionsPageProps = {
@@ -39,6 +41,7 @@ function normalizeStatusFilter(value: string | undefined): OfficeTransactionStat
 
 export default async function OfficeTransactionsPage(props: OfficeTransactionsPageProps) {
   const context = await requireOfficeSession();
+  const canManageTransactionStatus = canManageOfficeTransactionStatus(context.currentMembership);
   const searchParams = (await props.searchParams) ?? {};
   const q = searchParams.q?.trim() ?? "";
   const status = normalizeStatusFilter(searchParams.status);
@@ -90,6 +93,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
       totalPages={result.totalPages}
       transactionIntakeSchema={transactionIntakeSchema}
       transactionOwnerAssignment={transactionOwnerAssignment}
+      transactionStatusFieldPolicy={getCreateTransactionStatusFieldPolicy(canManageTransactionStatus)}
       transactions={result.transactions}
     />
   );

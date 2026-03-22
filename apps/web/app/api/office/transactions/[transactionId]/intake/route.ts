@@ -1,4 +1,4 @@
-import { canEditOfficeTransactions } from "@acre/auth";
+import { canEditOfficeTransactions, canManageOfficeTransactionStatus } from "@acre/auth";
 import { getOfficeTransactionIntakeSchema, getTransactionById, prepareTransactionIntakeSubmission, updateTransactionIntake } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
@@ -34,13 +34,21 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   try {
+    const canManageTransactionStatus = canManageOfficeTransactionStatus(context.currentMembership);
     const schema = await getOfficeTransactionIntakeSchema({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
     });
+    const requestBody = body ?? {};
     const submission = prepareTransactionIntakeSubmission({
       schema,
-      payload: body ?? {},
+      payload: {
+        ...requestBody,
+        transactionStatus:
+          canManageTransactionStatus && typeof requestBody.transactionStatus === "string" && requestBody.transactionStatus.trim()
+            ? requestBody.transactionStatus
+            : existingTransaction.statusValue
+      },
       existingTransaction
     });
     const transaction = await updateTransactionIntake({
@@ -48,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       transactionId,
       actorMembershipId: context.currentMembership.id,
       transactionType: submission.transactionType,
-      transactionStatus: submission.transactionStatus,
+      transactionStatus: canManageTransactionStatus ? submission.transactionStatus : existingTransaction.statusValue,
       representing: submission.representing,
       address: submission.address,
       city: submission.city,

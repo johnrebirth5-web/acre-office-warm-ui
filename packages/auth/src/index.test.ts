@@ -11,6 +11,7 @@ import {
   canEditOfficeTransactions,
   canLinkOfficeContacts,
   canManageOfficeSettings,
+  canManageOfficeTransactionStatus,
   canManageOfficeTransactionFinance,
   canManageOfficeUsers,
   canSecondaryReviewOfficeTasks,
@@ -39,6 +40,7 @@ test("office manager keeps operational write access but not admin-only settings 
 test("office admin retains admin-only powers and secondary review access", () => {
   assert.equal(canManageOfficeUsers("office_admin"), true);
   assert.equal(canManageOfficeSettings("office_admin"), true);
+  assert.equal(canManageOfficeTransactionStatus("office_admin"), true);
   assert.equal(canSecondaryReviewOfficeTasks("office_admin"), true);
   assert.equal(canCommentOfficeActivity("office_admin"), true);
   assert.equal(canCommentOfficeOffers("office_admin"), true);
@@ -47,6 +49,7 @@ test("office admin retains admin-only powers and secondary review access", () =>
 test("owner keeps full office-admin level control", () => {
   assert.equal(canManageOfficeUsers("owner"), true);
   assert.equal(canManageOfficeSettings("owner"), true);
+  assert.equal(canManageOfficeTransactionStatus("owner"), true);
   assert.equal(canManageOfficeTransactionFinance("owner"), true);
   assert.equal(canViewOfficeReports("owner"), true);
 });
@@ -64,6 +67,7 @@ test("team lead keeps scoped pipeline access without admin-only settings", () =>
   assert.equal(canViewOfficeTransactions("team_lead"), true);
   assert.equal(canCreateOfficeTransactions("team_lead"), true);
   assert.equal(canEditOfficeTransactions("team_lead"), true);
+  assert.equal(canManageOfficeTransactionStatus("team_lead"), false);
   assert.equal(canViewOfficeContacts("team_lead"), true);
   assert.equal(canViewOfficeReports("team_lead"), true);
   assert.equal(canViewOfficeCommissions("team_lead"), true);
@@ -76,6 +80,7 @@ test("agent role keeps scoped pipeline access without finance or admin-only powe
   assert.equal(canViewOfficeTransactions("agent"), true);
   assert.equal(canCreateOfficeTransactions("agent"), true);
   assert.equal(canEditOfficeTransactions("agent"), true);
+  assert.equal(canManageOfficeTransactionStatus("agent"), false);
   assert.equal(canManageOfficeTransactionFinance("agent"), false);
   assert.equal(canViewOfficeContacts("agent"), true);
   assert.equal(canViewOfficeCommissions("agent"), true);
@@ -119,6 +124,7 @@ test("office user keeps internal read access without admin-only powers", () => {
   assert.equal(canAccessAccountActivity("office_user"), true);
   assert.equal(canViewOfficeTransactions("office_user"), true);
   assert.equal(canViewOfficeContacts("office_user"), true);
+  assert.equal(canManageOfficeTransactionStatus("office_user"), false);
   assert.equal(canManageOfficeUsers("office_user"), false);
   assert.equal(canManageOfficeSettings("office_user"), false);
   assert.equal(canCreateOfficeTransactions("office_user"), false);

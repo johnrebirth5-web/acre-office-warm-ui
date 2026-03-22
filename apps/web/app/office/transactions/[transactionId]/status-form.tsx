@@ -1,24 +1,32 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@acre/ui";
 import type { OfficeTransactionStatus } from "@acre/db";
+import { allOfficeTransactionStatusOptions } from "../transaction-status-rules";
 
 type TransactionStatusFormProps = {
   transactionId: string;
   currentStatus: OfficeTransactionStatus;
+  canManageStatus: boolean;
 };
 
-const statusOptions: OfficeTransactionStatus[] = ["Opportunity", "Active", "Pending", "Closed", "Cancelled"];
-
-export function TransactionStatusForm({ transactionId, currentStatus }: TransactionStatusFormProps) {
+export function TransactionStatusForm({ transactionId, currentStatus, canManageStatus }: TransactionStatusFormProps) {
   const router = useRouter();
   const [status, setStatus] = useState<OfficeTransactionStatus>(currentStatus);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    setStatus(currentStatus);
+  }, [currentStatus]);
+
   async function handleUpdateStatus() {
+    if (!canManageStatus) {
+      return;
+    }
+
     setError("");
     setIsSaving(true);
 
@@ -48,17 +56,25 @@ export function TransactionStatusForm({ transactionId, currentStatus }: Transact
     <div className="office-form-actions">
       <label className="office-detail-field">
         <span>Status</span>
-        <select onChange={(event) => setStatus(event.target.value as OfficeTransactionStatus)} value={status}>
-          {statusOptions.map((option) => (
+        <select
+          disabled={!canManageStatus}
+          onChange={(event) => setStatus(event.target.value as OfficeTransactionStatus)}
+          value={status}
+        >
+          {allOfficeTransactionStatusOptions.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
           ))}
         </select>
       </label>
-      <Button disabled={isSaving} onClick={handleUpdateStatus} type="button">
-        {isSaving ? "Saving..." : "Update status"}
-      </Button>
+      {canManageStatus ? (
+        <Button disabled={isSaving} onClick={handleUpdateStatus} type="button">
+          {isSaving ? "Saving..." : "Update status"}
+        </Button>
+      ) : (
+        <p className="office-form-helper">Only admins can change transaction status.</p>
+      )}
       {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
     </div>
   );

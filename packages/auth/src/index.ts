@@ -1522,6 +1522,12 @@ export function canEditOfficeTransactions(subject: PermissionSubject): boolean {
   return can(subject, "transactions:edit");
 }
 
+export function canManageOfficeTransactionStatus(subject: PermissionSubject): boolean {
+  const role = getSubjectRole(subject);
+
+  return (role === "owner" || role === "office_admin") && canEditOfficeTransactions(subject);
+}
+
 export function canManageOfficeTransactionFinance(subject: PermissionSubject): boolean {
   return can(subject, "transactions:finance");
 }

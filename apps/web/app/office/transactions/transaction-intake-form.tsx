@@ -13,6 +13,7 @@ import {
   createTransactionFinanceCreateDraft,
   TransactionFinanceCreateFields
 } from "./transaction-finance-create-fields";
+import type { TransactionStatusFieldPolicy, TransactionStatusValue } from "./transaction-status-rules";
 
 type TransactionIntakeWorkspaceProps = {
   mode: "create" | "edit";
@@ -26,6 +27,7 @@ type TransactionIntakeWorkspaceProps = {
   stepLabel?: string;
   initialValues?: Record<string, string>;
   ownerAssignment?: OfficeTransactionOwnerAssignment;
+  statusFieldPolicy?: TransactionStatusFieldPolicy;
   afterSubmit?: "refresh" | "go-detail";
   onClose?: () => void;
   onSubmitted?: (transactionId: string) => void;
@@ -81,6 +83,31 @@ function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialV
   return nextValues;
 }
 
+function getTransactionStatusInputName(schema: OfficeTransactionIntakeSchema) {
+  return schema.builtInFields.find((field) => field.fieldKey === "transaction_status")?.inputName ?? "";
+}
+
+function applyTransactionStatusFieldPolicy(
+  schema: OfficeTransactionIntakeSchema,
+  fieldValues: Record<string, string>,
+  statusFieldPolicy: TransactionStatusFieldPolicy | undefined
+) {
+  if (!statusFieldPolicy?.enforcedValue) {
+    return fieldValues;
+  }
+
+  const statusFieldInputName = getTransactionStatusInputName(schema);
+
+  if (!statusFieldInputName) {
+    return fieldValues;
+  }
+
+  return {
+    ...fieldValues,
+    [statusFieldInputName]: statusFieldPolicy.enforcedValue
+  };
+}
+
 function getFieldValueLabel(field: Pick<OfficeTransactionIntakeSchema["builtInFields"][number] | OfficeTransactionCustomFieldDefinitionRecord, "label" | "isRequired">) {
   return field.isRequired ? `${field.label} *` : field.label;
 }
@@ -114,13 +141,16 @@ export function TransactionIntakeWorkspace({
   stepLabel,
   initialValues,
   ownerAssignment,
+  statusFieldPolicy,
   afterSubmit = "refresh",
   onClose,
   onSubmitted
 }: TransactionIntakeWorkspaceProps) {
   const router = useRouter();
   const [localSchema, setLocalSchema] = useState(schema);
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => buildInitialFieldValues(schema, initialValues));
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() =>
+    applyTransactionStatusFieldPolicy(schema, buildInitialFieldValues(schema, initialValues), statusFieldPolicy)
+  );
   const [ownerSearchValue, setOwnerSearchValue] = useState("");
   const [selectedOwnerMembershipId, setSelectedOwnerMembershipId] = useState("");
   const [ownerSuggestionsOpen, setOwnerSuggestionsOpen] = useState(false);
@@ -144,8 +174,8 @@ export function TransactionIntakeWorkspace({
         mode === "create" && ownerAssignment.canSelectDifferentOwner ? "" : ownerAssignment.currentOwnerLabel;
     }
 
-    return nextValues;
-  }, [initialValues, localSchema, mode, ownerAssignment, ownerFieldInputName]);
+    return applyTransactionStatusFieldPolicy(localSchema, nextValues, statusFieldPolicy);
+  }, [initialValues, localSchema, mode, ownerAssignment, ownerFieldInputName, statusFieldPolicy]);
   const hasUnsavedFieldChanges = Object.keys(pristineFieldValues).some(
     (fieldName) => (fieldValues[fieldName] ?? "") !== (pristineFieldValues[fieldName] ?? "")
   );
@@ -162,7 +192,7 @@ export function TransactionIntakeWorkspace({
         mode === "create" && ownerAssignment.canSelectDifferentOwner ? "" : ownerAssignment.currentOwnerLabel;
     }
 
-    setFieldValues(nextValues);
+    setFieldValues(applyTransactionStatusFieldPolicy(schema, nextValues, statusFieldPolicy));
     setOwnerSearchValue(mode === "create" && ownerAssignment?.canSelectDifferentOwner ? "" : ownerAssignment?.currentOwnerLabel ?? "");
     setSelectedOwnerMembershipId(
       mode === "create"
@@ -175,7 +205,7 @@ export function TransactionIntakeWorkspace({
     if (mode === "create") {
       setFinanceDraft(createTransactionFinanceCreateDraft());
     }
-  }, [schema, initialValues, mode, ownerAssignment]);
+  }, [schema, initialValues, mode, ownerAssignment, statusFieldPolicy]);
 
   const visibleTopFields = [...localSchema.builtInFields]
     .filter((field) => field.section === "top" && field.isVisible)
@@ -456,7 +486,7 @@ export function TransactionIntakeWorkspace({
           resetValues[ownerFieldInputName] = canSearchOwners ? "" : ownerAssignment.currentOwnerLabel;
         }
 
-        setFieldValues(resetValues);
+        setFieldValues(applyTransactionStatusFieldPolicy(localSchema, resetValues, statusFieldPolicy));
         setOwnerSearchValue(canSearchOwners ? "" : ownerAssignment?.currentOwnerLabel ?? "");
         setSelectedOwnerMembershipId(canSearchOwners ? "" : ownerAssignment?.currentOwnerMembershipId ?? "");
         setOwnerSuggestionsOpen(false);
@@ -498,20 +528,35 @@ export function TransactionIntakeWorkspace({
                 </div>
                 <select
                   className={fieldValues[field.inputName] ? "" : "is-empty"}
-                  disabled={!canEditValues}
+                  disabled={!canEditValues || (field.fieldKey === "transaction_status" && statusFieldPolicy ? !statusFieldPolicy.canEdit : false)}
                   name={field.inputName}
                   onChange={(event) => setFieldValue(field.inputName, event.target.value)}
                   value={fieldValues[field.inputName] ?? ""}
                 >
                   <option value="">select</option>
                   {field.selectOptions
-                    .filter((option) => option.isEnabled)
+                    .filter((option) => {
+                      if (field.fieldKey === "transaction_status" && statusFieldPolicy) {
+                        const isAllowedValue = statusFieldPolicy.allowedValues.includes(option.value as TransactionStatusValue);
+
+                        if (!isAllowedValue) {
+                          return false;
+                        }
+
+                        return mode === "create" ? true : option.isEnabled || fieldValues[field.inputName] === option.value;
+                      }
+
+                      return option.isEnabled;
+                    })
                     .map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
                     ))}
                 </select>
+                {field.fieldKey === "transaction_status" && statusFieldPolicy?.helperText ? (
+                  <small className="office-form-helper">{statusFieldPolicy.helperText}</small>
+                ) : null}
               </label>
             ))}
           </div>
