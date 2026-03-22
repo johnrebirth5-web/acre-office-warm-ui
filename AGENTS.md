@@ -27,6 +27,7 @@ Use this baseline unless the current task explicitly says otherwise:
 - local Docker dev baseline is supported and preferred when the user wants a longer-running local environment:
   - `npm run docker:dev:up` starts `web + db`
   - the `web` container bind-mounts `/Users/openclaw_john/工作文件夹/Acre_latest_clean` into `/app`, so Docker uses the same working tree instead of a second copied checkout
+  - the local Docker `db` container keeps PostgreSQL on container port `5432`, but publishes to host port `5433`; host-mode `.env.local` / Prisma commands should use `127.0.0.1:5433`, while container-to-container access stays on `db:5432`
   - `/Users/openclaw_john/工作文件夹/acre-ui-rebuild-clean` is a stale partial directory and must not be treated as the active repo or Docker source of truth
   - PostgreSQL data, `node_modules`, Next cache, and local documents live in Docker volumes
   - macOS local container runtime may use `colima`

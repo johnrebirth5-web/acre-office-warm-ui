@@ -826,7 +826,7 @@ npm run docker:dev:up
 当前 Docker 开发基线会启动：
 
 - `web`：Next.js 开发服务，端口 `3105`
-- `db`：PostgreSQL 16，端口 `5432`
+- `db`：PostgreSQL 16，容器端口 `5432`，宿主机发布端口 `5433`
 - 持久化 volume：Postgres 数据、`node_modules`、Next cache、documents storage
 - 自动重启策略：`unless-stopped`
 
@@ -879,9 +879,10 @@ npm run db:sync:from-production
 Docker 本地开发说明：
 
 - `docker-compose.yml` 会把容器内 `DATABASE_URL` 固定到 `postgresql://postgres:postgres@db:5432/acre`
-- 这允许你保留宿主机 `.env.local` 里的 `localhost` 版本连接串，不必为了 Docker 手工反复改
-- 如果你希望宿主机 `npm run dev` 和 Docker `web` 看到的是同一套本地库，宿主机 `.env.local` 应该与 `.env.example` 一致，使用 `postgresql://postgres:postgres@localhost:5432/acre`
-- 如果宿主机上已经有一个 PostgreSQL 正在占用 `5432`，需要先停掉它，或者改 compose 的端口映射
+- 宿主机默认应把 `.env.local` 指向 `postgresql://postgres:postgres@127.0.0.1:5433/acre`
+- 这样 Docker 里的 Acre 数据库不会再和本机常见的 `5432` PostgreSQL 冲突
+- 如果你希望宿主机 `npm run dev` 和 Docker `web` 看到的是同一套本地库，宿主机 `.env.local` 应该与 `.env.example` 一致，使用 `postgresql://postgres:postgres@127.0.0.1:5433/acre`
+- 如果宿主机上另一个服务已经占用了 `5433`，需要同步修改 compose 的 host 端口映射和宿主机 `.env.local`
 - 这套 Docker 基线只用于本地开发，不改变当前生产 `DigitalOcean + systemd + nginx` 部署线路
 
 当前本地 auth 基线：

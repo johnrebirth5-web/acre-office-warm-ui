@@ -48,13 +48,14 @@
 示例格式：
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/acre"
+DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5433/acre"
 ```
 
 Docker 本地开发补充：
 
 - 当前仓库根目录的 `docker-compose.yml` 会把容器内 `DATABASE_URL` 覆盖为 `postgresql://postgres:postgres@db:5432/acre`
-- 这意味着宿主机 `.env.local` 仍可以继续保留 `localhost:5432`
+- 当前仓库默认把 Docker `db` 发布到宿主机 `127.0.0.1:5433`，避免和本机 Homebrew/Postgres 常见的 `5432` 冲突
+- 这意味着宿主机 `.env.local` 应保持为 `127.0.0.1:5433`，而不是 `localhost:5432`
 - 如果你要改 Docker 下的数据库连接串，可以设置 `ACRE_DOCKER_DATABASE_URL`
 
 缺失后的影响：
@@ -270,8 +271,9 @@ ACRE_SECURE_COOKIES=false
 - `web` 使用仓库内 `Dockerfile.dev`
 - `web` 和 `db` 都配置为 `restart: unless-stopped`
 - 文档文件会持久化到 Docker volume，而不是容器临时层
-- 如果你希望宿主机 `npm run dev` 与 Docker `web` 共享同一套本地数据库，宿主机 `.env.local` 的 `DATABASE_URL` 应保持为 `postgresql://postgres:postgres@localhost:5432/acre`
-- 如果宿主机已有 PostgreSQL 占用 `5432`，需要先停掉宿主机实例，或修改 compose 端口映射
+- 如果你希望宿主机 `npm run dev` 与 Docker `web` 共享同一套本地数据库，宿主机 `.env.local` 的 `DATABASE_URL` 应保持为 `postgresql://postgres:postgres@127.0.0.1:5433/acre`
+- 容器内部仍然固定使用 `postgresql://postgres:postgres@db:5432/acre`
+- 如果宿主机另一个服务占用了 `5433`，需要同步修改 compose 的 host 端口映射和宿主机 `.env.local`
 
 ### 生产数据到本地的单向同步
 

@@ -71,6 +71,7 @@
 - Local Docker development is now a supported long-running baseline:
   - `npm run docker:dev:up` starts `web + db`
   - the `web` container bind-mounts the local repo, so Docker uses the same source tree instead of a second copied checkout
+  - host-mode Prisma / `.env.local` now target `127.0.0.1:5433`, while Docker-internal traffic still uses `db:5432`, so local Homebrew/Postgres on `5432` no longer hijacks Acre's default dev database path
   - Docker volumes persist PostgreSQL data, `node_modules`, Next cache, and local document storage
   - local Docker runtime currently uses `colima` on macOS
   - seeing the bottom-left `N` dev tools badge locally is expected while the app runs under `next dev`, even inside Docker
