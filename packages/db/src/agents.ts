@@ -44,7 +44,8 @@ import {
   getDescendantTeamIds,
   getTeamDepth,
   isLeaderTeamMembershipRole,
-  isValidBranchLeaderRole
+  isValidBranchLeaderRole,
+  resolveUserRoleForTeamMembershipRole
 } from "./team-hierarchy";
 
 const roleLabelMap: Record<UserRole, string> = {
@@ -815,6 +816,12 @@ async function materializeImplicitJuniorTeamsForOrganization(
         reportsToTeamMembershipId: null
       }
     });
+    await syncLeaderAccountRoleForTeamAssignment(tx, {
+      organizationId: input.organizationId,
+      actorMembershipId: input.actorMembershipId,
+      membership: invalidJuniorLeader.membership,
+      teamRole: "junior_team_leader"
+    });
 
     await tx.teamMembership.updateMany({
       where: {
@@ -1265,6 +1272,67 @@ async function ensureMembershipExists(
   }
 
   return membership;
+}
+
+type ManagedMembershipRecord = {
+  id: string;
+  role: UserRole;
+  user: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+};
+
+async function syncLeaderAccountRoleForTeamAssignment(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    actorMembershipId: string;
+    membership: ManagedMembershipRecord;
+    teamRole: TeamMembershipRole;
+  }
+) {
+  const nextMembershipRole = resolveUserRoleForTeamMembershipRole(input.membership.role, input.teamRole);
+
+  if (nextMembershipRole === input.membership.role) {
+    return {
+      nextMembershipRole,
+      promotionDetail: ""
+    };
+  }
+
+  await tx.membership.update({
+    where: {
+      id: input.membership.id
+    },
+    data: {
+      role: nextMembershipRole
+    }
+  });
+
+  const promotionDetail = `Account role auto-upgraded: ${roleLabelMap[input.membership.role]} -> ${roleLabelMap[nextMembershipRole]}`;
+
+  await recordActivityLogEvent(tx, {
+    organizationId: input.organizationId,
+    membershipId: input.actorMembershipId,
+    entityType: "membership",
+    entityId: input.membership.id,
+    action: activityLogActions.settingsUserRoleChanged,
+    payload: {
+      objectLabel: getMembershipLabel(input.membership),
+      contextHref: `/office/settings/users/${input.membership.id}`,
+      details: [promotionDetail],
+      changes: [buildChange("Role", roleLabelMap[input.membership.role], roleLabelMap[nextMembershipRole])].filter(
+        (change): change is ActivityLogChange => Boolean(change)
+      )
+    }
+  });
+
+  return {
+    nextMembershipRole,
+    promotionDetail
+  };
 }
 
 async function listActiveOnboardingTemplateItems(
@@ -2805,6 +2873,12 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
           reportsToTeamMembershipId: null
         }
       });
+      await syncLeaderAccountRoleForTeamAssignment(tx, {
+        organizationId: input.organizationId,
+        actorMembershipId: input.actorMembershipId,
+        membership: leaderMembership,
+        teamRole: leaderRole
+      });
       if (reusableDirectReports.length > 0) {
         await tx.teamMembership.updateMany({
           where: {
@@ -2821,6 +2895,7 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
       await syncManagedMembershipTitlesForTeamBranch(tx, input.organizationId, parentTeamId ?? team.id, input.officeId);
     }
 
+    const createdLeaderRole = resolveUserRoleForTeamMembershipRole(leaderMembership.role, leaderRole);
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
       membershipId: input.actorMembershipId,
@@ -2834,7 +2909,10 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
         details: [
           `Status: Active`,
           `Parent team: ${parentTeam?.name ?? "None"}`,
-          `${teamRoleLabelMap[leaderRole]}: ${getMembershipLabel(leaderMembership)}`
+          `${teamRoleLabelMap[leaderRole]}: ${getMembershipLabel(leaderMembership)}`,
+          ...(createdLeaderRole !== leaderMembership.role
+            ? [`Account role auto-upgraded: ${roleLabelMap[leaderMembership.role]} -> ${roleLabelMap[createdLeaderRole]}`]
+            : [])
         ]
       }
     });
@@ -2910,6 +2988,24 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
     });
 
     const nextLeaderRole = getExpectedBranchLeaderRole(updatedTeam.parentTeamId);
+    const leaderMemberships = await tx.teamMembership.findMany({
+      where: {
+        organizationId: input.organizationId,
+        teamId: updatedTeam.id,
+        role: {
+          in: ["team_leader", "junior_team_leader"]
+        }
+      },
+      include: {
+        membership: {
+          include: {
+            user: true,
+            office: true,
+            agentProfile: true
+          }
+        }
+      }
+    });
     await tx.teamMembership.updateMany({
       where: {
         organizationId: input.organizationId,
@@ -2923,6 +3019,14 @@ export async function updateAgentTeam(input: UpdateAgentTeamInput) {
         reportsToTeamMembershipId: null
       }
     });
+    for (const leaderMembership of leaderMemberships) {
+      await syncLeaderAccountRoleForTeamAssignment(tx, {
+        organizationId: input.organizationId,
+        actorMembershipId: input.actorMembershipId,
+        membership: leaderMembership.membership,
+        teamRole: nextLeaderRole
+      });
+    }
 
     await syncManagedMembershipTitlesForTeamBranch(tx, input.organizationId, updatedTeam.id, input.officeId);
 
@@ -3157,6 +3261,12 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
       reportsToTeamMembershipId: nextReportsToTeamMembershipId
     }
   });
+  const roleSync = await syncLeaderAccountRoleForTeamAssignment(tx, {
+    organizationId: input.organizationId,
+    actorMembershipId: input.actorMembershipId,
+    membership,
+    teamRole: nextRole
+  });
 
   if (transferLeader) {
     await tx.teamMembership.update({
@@ -3229,6 +3339,7 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
       details: [
         `Team role: ${teamRoleLabelMap[teamMembership.role]}`,
         `Direct manager: ${directManager ? getMembershipLabel(directManager.membership) : "None"}`,
+        ...(roleSync.promotionDetail ? [roleSync.promotionDetail] : []),
         ...(transferLeader ? [`Leadership transferred from another ${teamRoleLabelMap[expectedLeaderRole]}`] : [])
       ]
     }

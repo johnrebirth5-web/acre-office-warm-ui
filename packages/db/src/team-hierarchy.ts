@@ -1,4 +1,4 @@
-import { type TeamMembershipRole } from "@prisma/client";
+import { type TeamMembershipRole, type UserRole } from "@prisma/client";
 
 export type TeamHierarchyTeamRecord = {
   id: string;
@@ -62,6 +62,14 @@ function sortTeams(left: TeamHierarchyTeamRecord, right: TeamHierarchyTeamRecord
 
 export function isLeaderTeamMembershipRole(role: TeamMembershipRole) {
   return leaderRoles.has(role);
+}
+
+export function resolveUserRoleForTeamMembershipRole(currentRole: UserRole, teamRole: TeamMembershipRole): UserRole {
+  if (currentRole === "agent" && isLeaderTeamMembershipRole(teamRole)) {
+    return "team_lead";
+  }
+
+  return currentRole;
 }
 
 export function getExpectedBranchLeaderRole(parentTeamId: string | null | undefined): TeamMembershipRole {

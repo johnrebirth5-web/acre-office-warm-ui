@@ -122,6 +122,7 @@
   - saving `Finance > Gross commission` on transaction detail now auto-triggers commission recalculation when the current role can calculate commissions
 - Agent profile team assignment now shows leader names inside team options and allows choosing the direct manager during the initial `Add to team` action, so admins can place agents directly under the right branch lead without a second pass in `Settings > Teams`
 - Team hierarchy and commission chain derivation now honor explicit `reportsToTeamMembershipId` links even for leader roles, so same-branch `junior_team_leader -> team_leader` reporting lines propagate correctly into multi-level commission splits
+- Assigning a `team_leader` or `junior_team_leader` team role now auto-upgrades `agent` accounts to the `team_lead` permission template, preventing leader-visibility mismatches on transactions and commission self-service pages
 - Child-team members without a same-team leader now temporarily fall back to the parent team leader for hierarchy/commission-chain resolution, so ownerless junior branches do not silently collapse to `member + company` only while the branch leader assignment is being cleaned up
 - Transaction and accounting commission tables now show each row's actual effective share in the `Plan` column detail instead of repeating the owner's default split label for every recipient
 - `New transaction` owner assignment now treats the `Agent Name` field as the real owner control:

@@ -32,6 +32,7 @@ This spec describes what is implemented now, not the eventual full auth platform
 - `team_lead` is the scoped manager role; effective visibility depends on team hierarchy
 - `agent` is the self-scoped production role
 - `office_manager` and `office_user` stay compatible internally where needed, but are legacy-only create choices
+- assigning `Team Leader` or `Junior Team Leader` in `Settings > Teams` now auto-upgrades an `agent` account to `team_lead` so branch ownership and manager visibility stay aligned
 - runtime authorization no longer reads only `membership.role`
 - each fixed role now has an organization-scoped role template
 - each membership can also carry explicit permission overrides:

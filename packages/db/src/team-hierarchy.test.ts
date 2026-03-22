@@ -4,7 +4,8 @@ import {
   buildTeamMembershipHierarchyMap,
   formatAssignableTeamLabel,
   getExpectedBranchLeaderRole,
-  isValidBranchLeaderRole
+  isValidBranchLeaderRole,
+  resolveUserRoleForTeamMembershipRole
 } from "./team-hierarchy.ts";
 
 test("branch leader role expectation follows root vs child team structure", () => {
@@ -70,4 +71,11 @@ test("hierarchy leader selection ignores invalid leader roles for the current br
   assert.equal(hierarchy.leaderByTeamId.get("team-root")?.label, "Linfen Ruan");
   assert.equal(hierarchy.leaderByTeamId.has("team-child"), false);
   assert.equal(hierarchy.hierarchyMap.get("tm-child-member")?.directManagerLabel, "Linfen Ruan");
+});
+
+test("leader team assignments promote agent accounts to team lead access", () => {
+  assert.equal(resolveUserRoleForTeamMembershipRole("agent", "team_leader"), "team_lead");
+  assert.equal(resolveUserRoleForTeamMembershipRole("agent", "junior_team_leader"), "team_lead");
+  assert.equal(resolveUserRoleForTeamMembershipRole("agent", "member"), "agent");
+  assert.equal(resolveUserRoleForTeamMembershipRole("office_admin", "junior_team_leader"), "office_admin");
 });
