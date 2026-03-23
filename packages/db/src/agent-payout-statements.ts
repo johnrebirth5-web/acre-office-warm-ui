@@ -1,6 +1,7 @@
 import {
   AgentPayoutStatementPeriodBasis,
   CommissionCalculationStatus,
+  MembershipStatus,
   Prisma
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
@@ -188,6 +189,8 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
   payable: "Payable",
   paid: "Paid"
 };
+
+const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 
 function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
@@ -477,7 +480,9 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
-        status: "active",
+        status: {
+          in: selectableAgentMembershipStatuses
+        },
         role: "agent",
         ...(input.officeId ? { officeId: input.officeId } : {})
       },
@@ -598,7 +603,9 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
       where: {
         id: membershipId,
         organizationId: input.organizationId,
-        status: "active",
+        status: {
+          in: selectableAgentMembershipStatuses
+        },
         role: "agent",
         ...(input.officeId ? { officeId: input.officeId } : {})
       },

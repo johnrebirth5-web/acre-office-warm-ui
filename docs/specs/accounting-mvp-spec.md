@@ -8,6 +8,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 
 - `/office/accounting` exists and is database-backed
 - `/office/accounting` is now an `office_admin`-only agent statement workspace
+- admin-operated agent selection must treat `invited` agents as operationally usable, not hidden, because many agents never log in and are fully managed by office admins
 - chart of accounts foundation exists
 - accounting transactions and line items exist
 - general ledger entries exist

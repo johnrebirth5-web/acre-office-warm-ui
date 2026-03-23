@@ -14,6 +14,10 @@ This spec describes what is implemented now, not the eventual full auth platform
   - `invited`
   - `active`
   - `disabled`
+- for admin-operated Back Office workflows, `invited` sales memberships are still operationally usable:
+  - `invited` means the user has not completed their own password/login setup yet
+  - it does **not** mean the agent should disappear from admin assignment, transaction creation, commission, or payout-statement workflows
+  - for `agent` and other sales-side operational identities, admins should treat `invited` the same as `active` unless the action specifically requires that user to sign in personally
 - `UserCredential` now owns auth state:
   - password hash
   - must-change-password flag

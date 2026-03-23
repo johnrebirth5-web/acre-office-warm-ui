@@ -142,6 +142,7 @@
 - `Settings > Fields` custom field editor now supports `Protected from deletion`, and the transaction `Agent Name` field is hard-protected so admins must hide it instead of deleting the owner-linked schema row
 - Transaction intake now retires the legacy `Team Leader` custom field from both `New Transaction` and `Settings > Fields`; team hierarchy should come only from membership/team assignment, not from a second dropdown on the transaction form
 - Transaction owner selection for `New Transaction` now treats `invited` sales memberships the same as `active` ones, so admins can create transactions for agents/team leads who never log into the system themselves
+- Admin-operated accounting now follows the same rule: invited agents stay selectable in `/office/accounting` statement generation, because invitation status should not block office admins from doing payroll/commission operations for agents who never log in personally
 - `New Transaction > Agent Name` owner search now sources assignable owners from office/global sales memberships instead of the viewer's current transaction roster visibility, so admins can still find unassigned or not-yet-rostered agents and company-level members with `officeId = null`
 - Transaction status handling is now tightened around admin control:
   - `Create transaction` only allows `Pending / Closed / Cancelled`
