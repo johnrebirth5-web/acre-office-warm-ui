@@ -164,6 +164,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [highlightedAgentIndex, setHighlightedAgentIndex] = useState(0);
   const [selectedCalculationIds, setSelectedCalculationIds] = useState<string[]>(snapshot.candidateRows.map((row) => row.id));
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
@@ -194,6 +195,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       periodEnd: snapshot.filters.periodEnd,
       periodBasis: snapshot.filters.periodBasis
     });
+    setIsPreviewLoading(false);
   }, [snapshot.filters.membershipId, snapshot.filters.periodBasis, snapshot.filters.periodEnd, snapshot.filters.periodStart]);
 
   useEffect(() => {
@@ -304,6 +306,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     }
 
     setFilterState((current) => ({ ...current, membershipId: resolvedMembershipId }));
+    setIsPreviewLoading(true);
 
     startTransition(() => {
       router.push(
@@ -314,6 +317,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           periodBasis: filterState.periodBasis
         })
       );
+      setIsPreviewLoading(false);
     });
   }
 
@@ -329,6 +333,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     setAgentSearchValue("");
     setIsAgentPickerOpen(false);
     setHighlightedAgentIndex(0);
+    setIsPreviewLoading(false);
     startTransition(() => {
       router.push(pathname);
     });
@@ -353,12 +358,16 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }
 
   async function handleGenerateStatement() {
-    if (!hasValidRange || selectedCalculationIds.length === 0) {
+    if (!canLoadCandidates) {
+      setFilterError("Choose one agent and a valid statement date range before generating.");
       return;
     }
 
     setIsGenerating(true);
     setGenerationError("");
+    setFilterError("");
+
+    const resolvedMembershipId = resolvedFilterMembershipId;
 
     try {
       const response = await fetch("/api/office/accounting/statements", {
@@ -367,11 +376,18 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          membershipId: snapshot.filters.membershipId,
-          periodStart: snapshot.filters.periodStart,
-          periodEnd: snapshot.filters.periodEnd,
-          periodBasis: snapshot.filters.periodBasis,
-          commissionCalculationIds: selectedCalculationIds
+          membershipId: resolvedMembershipId,
+          periodStart: filterState.periodStart,
+          periodEnd: filterState.periodEnd,
+          periodBasis: filterState.periodBasis,
+          commissionCalculationIds:
+            snapshot.filters.membershipId === resolvedMembershipId &&
+            snapshot.filters.periodStart === filterState.periodStart &&
+            snapshot.filters.periodEnd === filterState.periodEnd &&
+            snapshot.filters.periodBasis === filterState.periodBasis &&
+            selectedCalculationIds.length > 0
+              ? selectedCalculationIds
+              : []
         })
       });
       const body = (await response.json().catch(() => null)) as { error?: string; statementId?: string } | null;
@@ -383,10 +399,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       startTransition(() => {
         router.push(
           buildAccountingHref(pathname, {
-            membershipId: snapshot.filters.membershipId,
-            periodStart: snapshot.filters.periodStart,
-            periodEnd: snapshot.filters.periodEnd,
-            periodBasis: snapshot.filters.periodBasis,
+            membershipId: resolvedMembershipId,
+            periodStart: filterState.periodStart,
+            periodEnd: filterState.periodEnd,
+            periodBasis: filterState.periodBasis,
             statementId: body.statementId
           })
         );
@@ -402,7 +418,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   return (
     <ListPageStack className="office-accounting-statements-stack">
       <ListPageSection
-        subtitle="Pick an agent, set the payout window, and decide whether the date filter should follow commission calculated date or transaction closing date."
+        subtitle="Pick an agent and date window, then generate the statement directly. Use preview only if you want to inspect or uncheck rows first."
         title="Statement filters"
       >
         <ListPageFilters as="form" className="office-report-filters office-list-filters" onSubmit={handleApplyFilters}>
@@ -499,8 +515,11 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           </FilterField>
 
           <div className="office-filter-actions">
-            <Button disabled={!canLoadCandidates} type="submit">
-              Load candidates
+            <Button disabled={isGenerating || !canLoadCandidates} onClick={handleGenerateStatement} type="button">
+              {isGenerating ? "Generating..." : "Generate statement"}
+            </Button>
+            <Button disabled={isPreviewLoading || !canLoadCandidates} type="submit" variant="secondary">
+              {isPreviewLoading ? "Loading..." : "Preview candidates"}
             </Button>
             <Button onClick={resetFilters} type="button" variant="secondary">
               Reset
@@ -524,7 +543,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
         {snapshot.filters.periodBasis === "closing_date" && snapshot.skippedMissingClosingDateCount > 0 ? (
           <p className="office-form-helper">
-            {snapshot.skippedMissingClosingDateCount} statement-ready row(s) were skipped because the linked transaction does not have a closing date yet.
+            {snapshot.skippedMissingClosingDateCount} eligible row(s) were skipped because the linked transaction does not have a closing date yet.
           </p>
         ) : null}
       </ListPageSection>
@@ -544,7 +563,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 </div>
               ) : null
             }
-            subtitle="Only statement-ready agent commission rows inside the current window can be added to a payout statement."
+            subtitle="Preview the unpaid agent commission rows that would be used for this statement if you want to review them before generating."
             title="Candidate rows"
           >
             {hasValidRange ? (
@@ -592,7 +611,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 </HorizontalScrollArea>
               ) : (
                 <EmptyState
-                  description="No statement-ready agent commission rows matched the current agent and period settings."
+                  description="No eligible unpaid agent commission rows matched the current agent and period settings."
                   title="No payout candidates"
                 />
               )

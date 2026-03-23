@@ -18,7 +18,8 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - general ledger entries exist
 - EMD workflow exists
 - agent payout statements now exist:
-  - candidate selection from statement-ready commission rows
+  - direct statement generation from eligible unpaid agent commission rows in the selected period
+  - optional candidate preview / uncheck flow before final generation
   - durable statement snapshot
   - PDF download
 - agent billing exists:

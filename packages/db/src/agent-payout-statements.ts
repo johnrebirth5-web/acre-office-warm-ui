@@ -193,6 +193,11 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
 
 const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 const selectableAgentPayoutMembershipRoles = ["agent", "team_lead"] satisfies UserRole[];
+const selectableAgentPayoutCalculationStatuses = [
+  "calculated",
+  "reviewed",
+  "statement_ready"
+] satisfies CommissionCalculationStatus[];
 
 function buildOfficeOrGlobalMembershipWhere(officeId: string | null | undefined): Prisma.MembershipWhereInput | undefined {
   if (!officeId) {
@@ -353,7 +358,9 @@ function buildAgentPayoutStatementWhere(input: {
     ...(buildOfficeOrGlobalCommissionWhere(input.officeId) ?? {}),
     membershipId: input.membershipId,
     recipientType: "agent",
-    status: "statement_ready"
+    status: {
+      in: selectableAgentPayoutCalculationStatuses
+    }
   };
 
   if (input.periodBasis === "closing_date") {
@@ -584,7 +591,9 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
             ...(buildOfficeOrGlobalCommissionWhere(input.officeId) ?? {}),
             membershipId,
             recipientType: "agent",
-            status: "statement_ready",
+            status: {
+              in: selectableAgentPayoutCalculationStatuses
+            },
             transaction: {
               closingDate: null
             }
@@ -630,10 +639,6 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
     throw new Error("Statement start date must be on or before the end date.");
   }
 
-  if (commissionCalculationIds.length === 0) {
-    throw new Error("Select at least one commission row for this statement.");
-  }
-
   return prisma.$transaction(async (tx) => {
     const membership = await tx.membership.findFirst({
       where: {
@@ -656,28 +661,37 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
       throw new Error("Agent not found for statement generation.");
     }
 
+    const eligibleWhere = buildAgentPayoutStatementWhere({
+      organizationId: input.organizationId,
+      officeId: input.officeId,
+      membershipId,
+      periodStart,
+      periodEnd,
+      periodBasis
+    });
+
     const calculations = await tx.commissionCalculation.findMany({
-      where: {
-        ...buildAgentPayoutStatementWhere({
-          organizationId: input.organizationId,
-          officeId: input.officeId,
-          membershipId,
-          periodStart,
-          periodEnd,
-          periodBasis
-        }),
-        id: {
-          in: commissionCalculationIds
-        }
-      },
+      where:
+        commissionCalculationIds.length > 0
+          ? {
+              ...eligibleWhere,
+              id: {
+                in: commissionCalculationIds
+              }
+            }
+          : eligibleWhere,
       include: {
         transaction: true
       },
       orderBy: [{ calculatedAt: "desc" }, { transaction: { closingDate: "desc" } }]
     });
 
-    if (calculations.length !== commissionCalculationIds.length) {
+    if (commissionCalculationIds.length > 0 && calculations.length !== commissionCalculationIds.length) {
       throw new Error("Some selected commission rows are no longer eligible for this statement.");
+    }
+
+    if (calculations.length === 0) {
+      throw new Error("No eligible commission rows were found for this agent and period.");
     }
 
     const totals = summarizeAgentPayoutStatementRows(calculations);
