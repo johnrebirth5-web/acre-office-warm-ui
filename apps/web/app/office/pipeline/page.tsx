@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { canViewOfficeTransactions } from "@acre/auth";
 import { getOfficePipelineWorkspaceSnapshot } from "@acre/db";
-import { PageHeader, PageShell, StatusBadge, SummaryChip } from "@acre/ui";
+import { PageHeader, PageHeaderSummary, PageShell, StatusBadge, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
 
@@ -144,13 +144,13 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
     <PageShell className="office-list-page office-pipeline-page office-pipeline-v2-page">
       <PageHeader
         actions={
-          <div className="office-pipeline-page-actions">
+          <PageHeaderSummary>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Visible metric" tone="accent" value={snapshot.metricModeLabel} />
             <SummaryChip label="Selection" value={snapshot.selection.label} />
-          </div>
+          </PageHeaderSummary>
         }
-        description="Pending queue and six-month closed history for the current office visibility scope."
+        description="A calm workbench for reviewing pending deals, monthly closed activity, and the transactions visible inside your current scope."
         eyebrow="Pipeline"
         title="Pipeline"
       />
@@ -224,7 +224,16 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
 
       <section className="office-pipeline-v2-layout">
         <aside className="office-pipeline-v2-sidebar">
-          <section className="office-pipeline-v2-stage-stack" aria-label="Pipeline stage summary">
+          <section className="office-pipeline-v2-focus-card" aria-label="Pipeline stage summary">
+            <div className="office-pipeline-v2-focus-head">
+              <div className="office-pipeline-v2-focus-copy">
+                <span className="office-pipeline-v2-sidebar-label">Pipeline focus</span>
+                <p>Use the two main cards to switch between open work and this month&apos;s closed results.</p>
+              </div>
+              <span className="office-pipeline-v2-selection-pill">{snapshot.selection.label}</span>
+            </div>
+
+            <div className="office-pipeline-v2-stage-grid">
             <Link
               className={`office-pipeline-v2-stage-card office-pipeline-v2-stage-card-pending ${
                 snapshot.selection.kind === "pending" ? "is-active" : ""
@@ -234,11 +243,10 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 historyMonth: null
               })}
             >
-              <span className="office-pipeline-v2-stage-title">
-                Pending
-                <b>{snapshot.pendingSummary.count}</b>
-              </span>
+              <span className="office-pipeline-v2-stage-card-label">Pending</span>
+              <strong>{snapshot.pendingSummary.count}</strong>
               <em>{snapshot.pendingSummary.metricLabel}</em>
+              <small>Deals still in motion</small>
             </Link>
 
             {currentMonthClosed ? (
@@ -251,19 +259,21 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                   historyMonth: currentMonthClosed.monthKey
                 })}
               >
-                <span className="office-pipeline-v2-stage-title">
-                  Closed
-                  <b>{currentMonthClosed.count}</b>
-                </span>
-                <small>This month</small>
+                <span className="office-pipeline-v2-stage-card-label">Closed This Month</span>
+                <strong>{currentMonthClosed.count}</strong>
                 <em>{currentMonthClosed.metricLabel}</em>
+                <small>{currentMonthClosed.label}</small>
               </Link>
             ) : null}
+            </div>
           </section>
 
           <section className="office-pipeline-v2-history-card">
             <div className="office-pipeline-v2-history-head">
-              <span className="office-pipeline-v2-sidebar-label">Closed</span>
+              <div className="office-pipeline-v2-history-head-copy">
+                <span className="office-pipeline-v2-sidebar-label">Closed history</span>
+                <p>Recent monthly performance, kept visible even when a month is empty.</p>
+              </div>
               <small>Last 6 months</small>
             </div>
             <div className="office-pipeline-v2-history-list">
