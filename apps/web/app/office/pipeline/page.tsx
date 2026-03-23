@@ -138,6 +138,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
   const officeMetricOptions = snapshot.filters.metricOptions.filter((option) => option.scope === "office");
   const myMetricOptions = snapshot.filters.metricOptions.filter((option) => option.scope === "my");
   const transactionCountLabel = new Intl.NumberFormat("en-US").format(snapshot.summary.totalCount);
+  const currentMonthClosed = snapshot.historyMonths.find((month) => month.isCurrentMonth) ?? snapshot.historyMonths[0] ?? null;
 
   return (
     <PageShell className="office-list-page office-pipeline-page office-pipeline-v2-page">
@@ -223,17 +224,42 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
 
       <section className="office-pipeline-v2-layout">
         <aside className="office-pipeline-v2-sidebar">
-          <Link
-            className={`office-pipeline-v2-pending-card ${snapshot.selection.kind === "pending" ? "is-active" : ""}`}
-            href={buildPipelineHref(hrefBaseFilters, {
-              view: "pending",
-              historyMonth: null
-            })}
-          >
-            <span className="office-pipeline-v2-sidebar-label">Pending</span>
-            <strong>{snapshot.pendingSummary.count}</strong>
-            <em>{snapshot.pendingSummary.metricLabel}</em>
-          </Link>
+          <section className="office-pipeline-v2-stage-stack" aria-label="Pipeline stage summary">
+            <Link
+              className={`office-pipeline-v2-stage-card office-pipeline-v2-stage-card-pending ${
+                snapshot.selection.kind === "pending" ? "is-active" : ""
+              }`}
+              href={buildPipelineHref(hrefBaseFilters, {
+                view: "pending",
+                historyMonth: null
+              })}
+            >
+              <span className="office-pipeline-v2-stage-title">
+                Pending
+                <b>{snapshot.pendingSummary.count}</b>
+              </span>
+              <em>{snapshot.pendingSummary.metricLabel}</em>
+            </Link>
+
+            {currentMonthClosed ? (
+              <Link
+                className={`office-pipeline-v2-stage-card office-pipeline-v2-stage-card-closed ${
+                  snapshot.selection.kind === "history" && snapshot.filters.historyMonth === currentMonthClosed.monthKey ? "is-active" : ""
+                }`}
+                href={buildPipelineHref(hrefBaseFilters, {
+                  view: "history",
+                  historyMonth: currentMonthClosed.monthKey
+                })}
+              >
+                <span className="office-pipeline-v2-stage-title">
+                  Closed
+                  <b>{currentMonthClosed.count}</b>
+                </span>
+                <small>This month</small>
+                <em>{currentMonthClosed.metricLabel}</em>
+              </Link>
+            ) : null}
+          </section>
 
           <section className="office-pipeline-v2-history-card">
             <div className="office-pipeline-v2-history-head">

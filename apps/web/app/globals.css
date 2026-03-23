@@ -11851,53 +11851,148 @@ a {
   text-transform: uppercase;
 }
 
-.office-pipeline-v2-pending-card,
+.office-pipeline-v2-stage-card,
 .office-pipeline-v2-history-row {
   text-decoration: none;
 }
 
-.office-pipeline-v2-pending-card {
+.office-pipeline-v2-stage-stack {
   display: grid;
-  gap: 6px;
-  padding: 18px;
-  border: 1px solid rgba(15, 43, 116, 0.1);
-  border-radius: 20px;
-  background: #f9fbff;
+  gap: 0;
 }
 
-.office-pipeline-v2-pending-card strong {
+.office-pipeline-v2-stage-card {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px 24px 26px;
   color: var(--office-text);
-  font-size: 2rem;
+  background: #fff;
+  border-top: 2px dashed rgba(31, 41, 55, 0.6);
+  border-bottom: 2px dashed rgba(31, 41, 55, 0.6);
+  position: relative;
+  overflow: hidden;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.office-pipeline-v2-stage-card::before,
+.office-pipeline-v2-stage-card::after {
+  content: "";
+  position: absolute;
+  top: -18px;
+  bottom: -18px;
+  width: 2px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(31, 41, 55, 0.65) 0,
+    rgba(31, 41, 55, 0.65) 5px,
+    transparent 5px,
+    transparent 11px
+  );
+  pointer-events: none;
+}
+
+.office-pipeline-v2-stage-card-pending::before {
+  left: 12%;
+  transform: rotate(8deg);
+}
+
+.office-pipeline-v2-stage-card-pending::after {
+  right: 12%;
+  transform: rotate(-8deg);
+}
+
+.office-pipeline-v2-stage-card-closed {
+  margin-top: -2px;
+  padding-top: 22px;
+  width: 84%;
+  justify-self: center;
+}
+
+.office-pipeline-v2-stage-card-closed::before {
+  left: 9%;
+  transform: rotate(8deg);
+}
+
+.office-pipeline-v2-stage-card-closed::after {
+  right: 9%;
+  transform: rotate(-8deg);
+}
+
+.office-pipeline-v2-stage-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: inherit;
+  font-size: clamp(2rem, 3vw, 2.85rem);
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
   line-height: 1;
 }
 
-.office-pipeline-v2-pending-card em {
-  color: var(--office-text);
-  font-size: 1rem;
-  font-style: normal;
-  font-weight: 700;
+.office-pipeline-v2-stage-title b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(60, 93, 180, 0.12);
+  color: #173a8f;
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
-.office-pipeline-v2-pending-card:hover,
+.office-pipeline-v2-stage-card small {
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.office-pipeline-v2-stage-card em {
+  color: inherit;
+  font-size: clamp(1.35rem, 2.1vw, 2rem);
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.office-pipeline-v2-stage-card:hover,
 .office-pipeline-v2-history-row:hover {
   border-color: rgba(15, 43, 116, 0.2);
   background: #f4f7ff;
 }
 
-.office-pipeline-v2-pending-card.is-active,
+.office-pipeline-v2-stage-card.is-active,
 .office-pipeline-v2-history-row.is-active {
   border-color: rgba(15, 43, 116, 0.16);
   background: linear-gradient(180deg, #444 0%, #2f2f2f 100%);
   box-shadow: 0 20px 36px rgba(15, 23, 42, 0.18);
+  transform: translateY(-1px);
 }
 
-.office-pipeline-v2-pending-card.is-active .office-pipeline-v2-sidebar-label,
-.office-pipeline-v2-pending-card.is-active strong,
-.office-pipeline-v2-pending-card.is-active em,
+.office-pipeline-v2-stage-card.is-active .office-pipeline-v2-stage-title,
+.office-pipeline-v2-stage-card.is-active small,
+.office-pipeline-v2-stage-card.is-active em,
 .office-pipeline-v2-history-row.is-active strong,
 .office-pipeline-v2-history-row.is-active small,
 .office-pipeline-v2-history-row.is-active b,
 .office-pipeline-v2-history-row.is-active em {
+  color: #fff;
+}
+
+.office-pipeline-v2-stage-card.is-active .office-pipeline-v2-stage-title b {
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
 }
 
