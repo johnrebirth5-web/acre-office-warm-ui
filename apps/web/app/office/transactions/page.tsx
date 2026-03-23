@@ -1,30 +1,32 @@
-import { getOfficeTransactionIntakeSchema, getOfficeTransactionOwnerAssignment, listTransactions, type OfficeTransactionStatus } from "@acre/db";
-import { canManageOfficeTransactionStatus } from "@acre/auth";
+import {
+  getOfficeTransactionOwnerAssignment,
+  getOfficeTransactionSearchLayoutSnapshot,
+  listTransactions
+} from "@acre/db";
+import { canManageOfficeFields, canManageOfficeTransactionStatus } from "@acre/auth";
 import { requireOfficeSession } from "../../../lib/auth-session";
 import { getCreateTransactionStatusFieldPolicy } from "./transaction-status-rules";
 import { TransactionsClient } from "./transactions-client";
 
 type OfficeTransactionsPageProps = {
-  searchParams?: Promise<{
-    q?: string;
-    status?: string;
-    ownerMembershipId?: string;
-    teamId?: string;
-    type?: string;
-    startDate?: string;
-    endDate?: string;
-    page?: string;
-    pageSize?: string;
-  }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const transactionStatusOptions = ["All", "Opportunity", "Active", "Pending", "Closed", "Cancelled"] as const;
 const defaultTransactionsPage = 1;
 const defaultTransactionsPageSize = 20;
 const maxTransactionsPageSize = 100;
 
-function parsePositiveInteger(value: string | undefined, fallback: number, max?: number) {
-  const numeric = Number.parseInt(value ?? "", 10);
+function readSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : undefined;
+  }
+
+  return value;
+}
+
+function parsePositiveInteger(value: string | string[] | undefined, fallback: number, max?: number) {
+  const normalized = readSearchParamValue(value);
+  const numeric = Number.parseInt(normalized ?? "", 10);
 
   if (!Number.isFinite(numeric) || numeric < 1) {
     return fallback;
@@ -33,47 +35,23 @@ function parsePositiveInteger(value: string | undefined, fallback: number, max?:
   return max ? Math.min(numeric, max) : numeric;
 }
 
-function normalizeStatusFilter(value: string | undefined): OfficeTransactionStatus | "All" {
-  return transactionStatusOptions.includes((value ?? "All") as (typeof transactionStatusOptions)[number])
-    ? ((value ?? "All") as OfficeTransactionStatus | "All")
-    : "All";
-}
-
 export default async function OfficeTransactionsPage(props: OfficeTransactionsPageProps) {
   const context = await requireOfficeSession();
   const canManageTransactionStatus = canManageOfficeTransactionStatus(context.currentMembership);
+  const canManageSearchLayout = canManageOfficeFields(context.currentMembership);
   const searchParams = (await props.searchParams) ?? {};
-  const q = searchParams.q?.trim() ?? "";
-  const status = normalizeStatusFilter(searchParams.status);
-  const ownerMembershipId = searchParams.ownerMembershipId?.trim() ?? "";
-  const teamId = searchParams.teamId?.trim() ?? "";
-  const type = searchParams.type?.trim() ?? "";
-  const startDate = searchParams.startDate?.trim() ?? "";
-  const endDate = searchParams.endDate?.trim() ?? "";
   const page = parsePositiveInteger(searchParams.page, defaultTransactionsPage);
   const pageSize = parsePositiveInteger(
     searchParams.pageSize,
     defaultTransactionsPageSize,
     maxTransactionsPageSize
   );
-  const [result, transactionIntakeSchema, transactionOwnerAssignment] = await Promise.all([
-    listTransactions({
+  const [searchLayout, transactionOwnerAssignment] = await Promise.all([
+    getOfficeTransactionSearchLayoutSnapshot({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
-      officeId: context.currentOffice?.id,
-      search: q,
-      status,
-      ownerMembershipId,
-      teamId,
-      type,
-      startDate,
-      endDate,
-      page,
-      pageSize
-    }),
-    getOfficeTransactionIntakeSchema({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null
+      officeId: context.currentOffice?.id ?? null,
+      searchParams
     }),
     getOfficeTransactionOwnerAssignment({
       organizationId: context.currentOrganization.id,
@@ -81,17 +59,31 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
       officeId: context.currentOffice?.id ?? null
     })
   ]);
+  const result = await listTransactions({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id,
+    search: searchLayout.listFilters.q,
+    status: searchLayout.listFilters.status,
+    ownerMembershipId: searchLayout.listFilters.ownerMembershipId,
+    teamId: searchLayout.listFilters.teamId,
+    type: searchLayout.listFilters.type,
+    startDate: searchLayout.listFilters.startDate,
+    endDate: searchLayout.listFilters.endDate,
+    fieldFilters: searchLayout.listFilters.fieldFilters,
+    page,
+    pageSize
+  });
 
   return (
     <TransactionsClient
-      filterOptions={result.filterOptions}
-      filters={{ q, status, ownerMembershipId, teamId, type, startDate, endDate }}
+      canManageSearchLayout={canManageSearchLayout}
       page={result.page}
       pageSize={result.pageSize}
+      searchLayout={searchLayout}
       summary={result.summary}
       totalCount={result.totalCount}
       totalPages={result.totalPages}
-      transactionIntakeSchema={transactionIntakeSchema}
       transactionOwnerAssignment={transactionOwnerAssignment}
       transactionStatusFieldPolicy={getCreateTransactionStatusFieldPolicy(canManageTransactionStatus)}
       transactions={result.transactions}

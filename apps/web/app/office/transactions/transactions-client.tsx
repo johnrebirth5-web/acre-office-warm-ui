@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Button,
+  CheckboxField,
   DataTable,
   DataTableBody,
   DataTableHeader,
@@ -16,19 +17,18 @@ import {
   SelectInput,
   StatusBadge,
   SummaryChip,
-  TextInput,
+  TextInput
 } from "@acre/ui";
 import type {
-  OfficeTransactionFilterOptions,
-  OfficeTransactionIntakeSchema,
-  OfficeTransactionOwnerAssignment,
   OfficeTransactionRecord,
-  OfficeTransactionStatus,
-  OfficeTransactionSummary,
+  OfficeTransactionOwnerAssignment,
+  OfficeTransactionSearchFieldDescriptor,
+  OfficeTransactionSearchLayoutSnapshot,
+  OfficeTransactionSummary
 } from "@acre/db";
 import {
   OfficeListPagePagination,
-  OfficeListPageTemplate,
+  OfficeListPageTemplate
 } from "../_components/office-list-page-template";
 import { TransactionIntakeWorkspace } from "./transaction-intake-form";
 import type { TransactionStatusFieldPolicy } from "./transaction-status-rules";
@@ -40,42 +40,33 @@ type TransactionsClientProps = {
   totalPages: number;
   page: number;
   pageSize: number;
-  filterOptions: OfficeTransactionFilterOptions;
-  transactionIntakeSchema: OfficeTransactionIntakeSchema;
+  searchLayout: OfficeTransactionSearchLayoutSnapshot;
+  canManageSearchLayout: boolean;
   transactionOwnerAssignment: OfficeTransactionOwnerAssignment;
   transactionStatusFieldPolicy: TransactionStatusFieldPolicy;
-  filters: {
-    q: string;
-    status: OfficeTransactionStatus | "All";
-    ownerMembershipId: string;
-    teamId: string;
-    type: string;
-    startDate: string;
-    endDate: string;
-  };
 };
 
-const listStatusOptions = [
-  "All",
-  "Opportunity",
-  "Active",
-  "Pending",
-  "Closed",
-  "Cancelled",
-] as const;
-const transactionTypeFilterOptions = [
-  { value: "", label: "All types" },
-  { value: "sales", label: "Sales" },
-  { value: "sales_listing", label: "Sales (listing)" },
-  { value: "rental_leasing", label: "Rental/Leasing" },
-  { value: "rental_listing", label: "Rental (listing)" },
-  { value: "commercial_sales", label: "Commercial Sales" },
-  { value: "commercial_lease", label: "Commercial Lease" },
-  { value: "other", label: "Other" },
-] as const;
-const pageSizeOptions = [10, 20, 50, 100] as const;
+type SearchFilterState = {
+  system: OfficeTransactionSearchLayoutSnapshot["filters"]["system"];
+  builtin: OfficeTransactionSearchLayoutSnapshot["filters"]["builtin"];
+  custom: OfficeTransactionSearchLayoutSnapshot["filters"]["custom"];
+};
 
-function getTransactionStatusTone(status: OfficeTransactionStatus) {
+type SearchLayoutResponse = {
+  snapshot?: OfficeTransactionSearchLayoutSnapshot;
+  error?: string;
+};
+
+const pageSizeOptions = [10, 20, 50, 100] as const;
+const statusValueLabelMap: Record<string, string> = {
+  opportunity: "Opportunity",
+  active: "Active",
+  pending: "Pending",
+  closed: "Closed",
+  cancelled: "Cancelled"
+};
+
+function getTransactionStatusTone(status: OfficeTransactionRecord["status"]) {
   if (status === "Pending") {
     return "warning" as const;
   }
@@ -95,69 +86,348 @@ function getTransactionStatusTone(status: OfficeTransactionStatus) {
   return "neutral" as const;
 }
 
+function buildSearchFieldId(field: Pick<OfficeTransactionSearchFieldDescriptor, "kind" | "key">) {
+  return `${field.kind}:${field.key}`;
+}
 
-function normalizeStatusFilter(
-  value: string,
-): (typeof listStatusOptions)[number] {
-  return listStatusOptions.includes(value as (typeof listStatusOptions)[number])
-    ? (value as (typeof listStatusOptions)[number])
-    : "All";
+function buildEmptyFieldFilterValue() {
+  return {
+    value: "",
+    from: "",
+    to: ""
+  };
+}
+
+function cloneFilterState(filters: OfficeTransactionSearchLayoutSnapshot["filters"]): SearchFilterState {
+  return {
+    system: {
+      q: filters.system.q,
+      ownerMembershipId: filters.system.ownerMembershipId,
+      teamId: filters.system.teamId,
+      createdAt: {
+        from: filters.system.createdAt.from,
+        to: filters.system.createdAt.to
+      }
+    },
+    builtin: Object.fromEntries(
+      Object.entries(filters.builtin).map(([key, value]) => [
+        key,
+        {
+          value: value.value,
+          from: value.from,
+          to: value.to
+        }
+      ])
+    ),
+    custom: Object.fromEntries(
+      Object.entries(filters.custom).map(([key, value]) => [
+        key,
+        {
+          value: value.value,
+          from: value.from,
+          to: value.to
+        }
+      ])
+    )
+  };
+}
+
+function buildLayoutSelectionState(
+  availableFields: OfficeTransactionSearchLayoutSnapshot["availableFields"],
+  selectedFields: OfficeTransactionSearchLayoutSnapshot["selectedFields"]
+) {
+  const selectedIds = new Set(selectedFields.map((field) => buildSearchFieldId(field)));
+
+  return Object.fromEntries(
+    availableFields.map((field) => [buildSearchFieldId(field), selectedIds.has(buildSearchFieldId(field))])
+  ) as Record<string, boolean>;
+}
+
+function getFieldEmptyOptionLabel(field: OfficeTransactionSearchFieldDescriptor) {
+  if (field.emptyOptionLabel) {
+    return field.emptyOptionLabel;
+  }
+
+  if (field.kind === "system" && field.key === "owner") {
+    return "All owners";
+  }
+
+  if (field.kind === "system" && field.key === "team") {
+    return "All teams";
+  }
+
+  return `Any ${field.label.toLowerCase()}`;
 }
 
 function buildTransactionsHref(
   pathname: string,
-  params: {
-    q: string;
-    status: string;
-    ownerMembershipId: string;
-    teamId: string;
-    type: string;
-    startDate: string;
-    endDate: string;
+  input: {
+    selectedFields: OfficeTransactionSearchFieldDescriptor[];
+    filters: SearchFilterState;
     page: number;
     pageSize: number;
-  },
+  }
 ) {
   const searchParams = new URLSearchParams();
+  const selectedFieldIds = new Set(input.selectedFields.map((field) => buildSearchFieldId(field)));
 
-  if (params.q.trim()) {
-    searchParams.set("q", params.q.trim());
+  if (selectedFieldIds.has("system:search") && input.filters.system.q.trim()) {
+    searchParams.set("q", input.filters.system.q.trim());
   }
 
-  if (params.status && params.status !== "All") {
-    searchParams.set("status", params.status);
+  if (selectedFieldIds.has("system:owner") && input.filters.system.ownerMembershipId.trim()) {
+    searchParams.set("ownerMembershipId", input.filters.system.ownerMembershipId.trim());
   }
 
-  if (params.ownerMembershipId.trim()) {
-    searchParams.set("ownerMembershipId", params.ownerMembershipId.trim());
+  if (selectedFieldIds.has("system:team") && input.filters.system.teamId.trim()) {
+    searchParams.set("teamId", input.filters.system.teamId.trim());
   }
 
-  if (params.teamId.trim()) {
-    searchParams.set("teamId", params.teamId.trim());
+  if (selectedFieldIds.has("system:created_at")) {
+    if (input.filters.system.createdAt.from.trim()) {
+      searchParams.set("startDate", input.filters.system.createdAt.from.trim());
+    }
+
+    if (input.filters.system.createdAt.to.trim()) {
+      searchParams.set("endDate", input.filters.system.createdAt.to.trim());
+    }
   }
 
-  if (params.type.trim()) {
-    searchParams.set("type", params.type.trim());
+  for (const field of input.selectedFields) {
+    if (field.kind === "system") {
+      continue;
+    }
+
+    const source = field.kind === "builtin" ? input.filters.builtin : input.filters.custom;
+    const filterValue = source[field.key] ?? buildEmptyFieldFilterValue();
+
+    if (field.kind === "builtin" && field.key === "transaction_status") {
+      const statusLabel = statusValueLabelMap[filterValue.value];
+
+      if (statusLabel) {
+        searchParams.set("status", statusLabel);
+      }
+
+      continue;
+    }
+
+    if (field.kind === "builtin" && field.key === "transaction_type") {
+      if (filterValue.value.trim()) {
+        searchParams.set("type", filterValue.value.trim());
+      }
+
+      continue;
+    }
+
+    const baseKey = field.kind === "builtin" ? `field_${field.key}` : `custom_${field.key}`;
+
+    if (field.control === "date") {
+      if (filterValue.from.trim()) {
+        searchParams.set(`${baseKey}_from`, filterValue.from.trim());
+      }
+
+      if (filterValue.to.trim()) {
+        searchParams.set(`${baseKey}_to`, filterValue.to.trim());
+      }
+
+      continue;
+    }
+
+    if (filterValue.value.trim()) {
+      searchParams.set(baseKey, filterValue.value.trim());
+    }
   }
 
-  if (params.startDate.trim()) {
-    searchParams.set("startDate", params.startDate.trim());
+  if (input.page > 1) {
+    searchParams.set("page", String(input.page));
   }
 
-  if (params.endDate.trim()) {
-    searchParams.set("endDate", params.endDate.trim());
-  }
-
-  if (params.page > 1) {
-    searchParams.set("page", String(params.page));
-  }
-
-  if (params.pageSize !== 20) {
-    searchParams.set("pageSize", String(params.pageSize));
+  if (input.pageSize !== 20) {
+    searchParams.set("pageSize", String(input.pageSize));
   }
 
   const query = searchParams.toString();
   return query ? `${pathname}?${query}` : pathname;
+}
+
+function getFieldFilterValue(
+  field: OfficeTransactionSearchFieldDescriptor,
+  filters: SearchFilterState
+) {
+  if (field.kind === "builtin") {
+    return filters.builtin[field.key] ?? buildEmptyFieldFilterValue();
+  }
+
+  if (field.kind === "custom") {
+    return filters.custom[field.key] ?? buildEmptyFieldFilterValue();
+  }
+
+  return buildEmptyFieldFilterValue();
+}
+
+function getSearchLayoutFieldHint(field: OfficeTransactionSearchFieldDescriptor) {
+  if (field.kind === "system" && field.key === "search") {
+    return "Global keyword search across transactions, contacts, and owner names.";
+  }
+
+  if (field.kind === "system" && field.key === "created_at") {
+    return "Office-level transaction creation date range.";
+  }
+
+  if (field.control === "date") {
+    return "Date range filter with From and To values.";
+  }
+
+  if (field.control === "select") {
+    return "Dropdown filter using the current configured options.";
+  }
+
+  return "Text filter with partial matching.";
+}
+
+function SearchDateRangeField(props: {
+  label: string;
+  value: { from: string; to: string };
+  onChange: (nextValue: { from: string; to: string }) => void;
+}) {
+  return (
+    <FilterField className="office-transaction-search-date-field" label={props.label}>
+      <div className="office-transaction-search-date-range">
+        <label className="office-transaction-search-date-input">
+          <span>From</span>
+          <TextInput
+            onChange={(event) =>
+              props.onChange({
+                from: event.target.value,
+                to: props.value.to
+              })
+            }
+            type="date"
+            value={props.value.from}
+          />
+        </label>
+        <label className="office-transaction-search-date-input">
+          <span>To</span>
+          <TextInput
+            onChange={(event) =>
+              props.onChange({
+                from: props.value.from,
+                to: event.target.value
+              })
+            }
+            type="date"
+            value={props.value.to}
+          />
+        </label>
+      </div>
+    </FilterField>
+  );
+}
+
+function TransactionSearchLayoutModal(props: {
+  isOpen: boolean;
+  availableFields: OfficeTransactionSearchLayoutSnapshot["availableFields"];
+  layoutSelection: Record<string, boolean>;
+  isSaving: boolean;
+  error: string;
+  onToggleField: (fieldId: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  if (!props.isOpen) {
+    return null;
+  }
+
+  const groups: Array<OfficeTransactionSearchFieldDescriptor["groupLabel"]> = [
+    "Operational",
+    "Built-in",
+    "Custom"
+  ];
+
+  return (
+    <div className="bm-modal-overlay" onClick={() => !props.isSaving && props.onClose()}>
+      <section
+        aria-label="Edit transaction search fields"
+        aria-modal="true"
+        className="office-fields-modal office-transaction-search-layout-modal"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <header className="office-fields-modal-head office-transaction-search-layout-head">
+          <div>
+            <h3>Edit search fields</h3>
+            <p>Choose which transaction fields appear in the shared office search workbench.</p>
+          </div>
+          <button
+            aria-label="Close search field editor"
+            className="office-fields-modal-close"
+            disabled={props.isSaving}
+            onClick={props.onClose}
+            type="button"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="office-fields-modal-body office-transaction-search-layout-body">
+          {groups.map((group) => {
+            const groupFields = props.availableFields.filter((field) => field.groupLabel === group);
+
+            if (!groupFields.length) {
+              return null;
+            }
+
+            return (
+              <section className="office-transaction-search-layout-group" key={group}>
+                <div className="office-transaction-search-layout-group-head">
+                  <strong>{group}</strong>
+                  <p>
+                    {group === "Operational"
+                      ? "Shared workbench filters that are not part of the transaction field schema."
+                      : group === "Built-in"
+                        ? "Visible built-in transaction fields from Settings > Fields."
+                        : "Visible custom transaction fields from Settings > Fields."}
+                  </p>
+                </div>
+                <div className="office-transaction-search-layout-list">
+                  {groupFields.map((field) => {
+                    const fieldId = buildSearchFieldId(field);
+
+                    return (
+                      <div
+                        className="office-fields-modal-checkbox office-transaction-search-layout-checkbox"
+                        key={fieldId}
+                      >
+                        <CheckboxField className="office-transaction-search-layout-checkbox-field" label={field.label}>
+                          <input
+                            checked={Boolean(props.layoutSelection[fieldId])}
+                            disabled={props.isSaving}
+                            onChange={() => props.onToggleField(fieldId)}
+                            type="checkbox"
+                          />
+                        </CheckboxField>
+                        <small>{getSearchLayoutFieldHint(field)}</small>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+
+        <footer className="office-fields-modal-footer office-transaction-search-layout-footer">
+          {props.error ? <p className="bm-inline-error office-transaction-search-layout-error">{props.error}</p> : null}
+          <Button disabled={props.isSaving} onClick={props.onClose} type="button" variant="secondary">
+            Cancel
+          </Button>
+          <Button disabled={props.isSaving} onClick={props.onSave} type="button">
+            {props.isSaving ? "Saving..." : "Save fields"}
+          </Button>
+        </footer>
+      </section>
+    </div>
+  );
 }
 
 export function TransactionsClient({
@@ -167,218 +437,356 @@ export function TransactionsClient({
   totalPages,
   page,
   pageSize,
-  filterOptions,
-  transactionIntakeSchema,
+  searchLayout,
+  canManageSearchLayout,
   transactionOwnerAssignment,
-  transactionStatusFieldPolicy,
-  filters,
+  transactionStatusFieldPolicy
 }: TransactionsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<
-    (typeof listStatusOptions)[number]
-  >(normalizeStatusFilter(filters.status));
-  const [searchQuery, setSearchQuery] = useState(filters.q);
-  const [ownerMembershipId, setOwnerMembershipId] = useState(
-    filters.ownerMembershipId,
-  );
-  const [teamId, setTeamId] = useState(filters.teamId);
-  const [typeFilter, setTypeFilter] = useState(filters.type);
-  const [startDate, setStartDate] = useState(filters.startDate);
-  const [endDate, setEndDate] = useState(filters.endDate);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSearchLayoutModalOpen, setIsSearchLayoutModalOpen] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
+  const [searchFilters, setSearchFilters] = useState<SearchFilterState>(() =>
+    cloneFilterState(searchLayout.filters)
+  );
+  const [layoutSelection, setLayoutSelection] = useState<Record<string, boolean>>(() =>
+    buildLayoutSelectionState(searchLayout.availableFields, searchLayout.selectedFields)
+  );
+  const [layoutSaveError, setLayoutSaveError] = useState("");
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
 
-    if (isModalOpen) {
+    if (isCreateModalOpen || isSearchLayoutModalOpen) {
       document.body.style.overflow = "hidden";
     }
 
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isModalOpen]);
+  }, [isCreateModalOpen, isSearchLayoutModalOpen]);
 
   useEffect(() => {
-    setSearchQuery(filters.q);
-  }, [filters.q]);
-
-  useEffect(() => {
-    setStatusFilter(normalizeStatusFilter(filters.status));
-  }, [filters.status]);
-
-  useEffect(() => {
-    setOwnerMembershipId(filters.ownerMembershipId);
-  }, [filters.ownerMembershipId]);
-
-  useEffect(() => {
-    setTeamId(filters.teamId);
-  }, [filters.teamId]);
-
-  useEffect(() => {
-    setTypeFilter(filters.type);
-  }, [filters.type]);
-
-  useEffect(() => {
-    setStartDate(filters.startDate);
-  }, [filters.startDate]);
-
-  useEffect(() => {
-    setEndDate(filters.endDate);
-  }, [filters.endDate]);
+    setSearchFilters(cloneFilterState(searchLayout.filters));
+    setLayoutSelection(buildLayoutSelectionState(searchLayout.availableFields, searchLayout.selectedFields));
+    setLayoutSaveError("");
+    setIsSavingLayout(false);
+  }, [searchLayout]);
 
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
+  const selectedDraftFields = useMemo(
+    () =>
+      searchLayout.availableFields.filter((field) => layoutSelection[buildSearchFieldId(field)]),
+    [layoutSelection, searchLayout.availableFields]
+  );
 
-  function navigateWithAppliedFilters(
-    overrides: Partial<TransactionsClientProps["filters"]> & {
-      page?: number;
-      pageSize?: number;
-    },
+  function updateSystemFilters(
+    updater: (current: SearchFilterState["system"]) => SearchFilterState["system"]
   ) {
+    setSearchFilters((current) => ({
+      ...current,
+      system: updater(current.system)
+    }));
+  }
+
+  function updateNamedFieldFilter(
+    kind: "builtin" | "custom",
+    key: string,
+    updater: (
+      currentValue: {
+        value: string;
+        from: string;
+        to: string;
+      }
+    ) => {
+      value: string;
+      from: string;
+      to: string;
+    }
+  ) {
+    setSearchFilters((current) => {
+      const currentMap = current[kind];
+      return {
+        ...current,
+        [kind]: {
+          ...currentMap,
+          [key]: updater(currentMap[key] ?? buildEmptyFieldFilterValue())
+        }
+      };
+    });
+  }
+
+  function navigateWithFilters(nextSelectedFields: OfficeTransactionSearchLayoutSnapshot["selectedFields"], nextPage: number, nextPageSize: number) {
     router.push(
       buildTransactionsHref(pathname, {
-        q: overrides.q ?? filters.q,
-        status: overrides.status ?? filters.status,
-        ownerMembershipId:
-          overrides.ownerMembershipId ?? filters.ownerMembershipId,
-        teamId: overrides.teamId ?? filters.teamId,
-        type: overrides.type ?? filters.type,
-        startDate: overrides.startDate ?? filters.startDate,
-        endDate: overrides.endDate ?? filters.endDate,
-        page: overrides.page ?? page,
-        pageSize: overrides.pageSize ?? pageSize,
-      }),
+        selectedFields: nextSelectedFields,
+        filters: searchFilters,
+        page: nextPage,
+        pageSize: nextPageSize
+      })
     );
   }
 
   function handleApplyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    router.push(
-      buildTransactionsHref(pathname, {
-        q: searchQuery,
-        status: statusFilter,
-        ownerMembershipId,
-        teamId,
-        type: typeFilter,
-        startDate,
-        endDate,
-        page: 1,
-        pageSize,
-      }),
-    );
+    navigateWithFilters(searchLayout.selectedFields, 1, pageSize);
   }
 
   function resetFilters() {
-    setSearchQuery("");
-    setStatusFilter("All");
-    setOwnerMembershipId("");
-    setTeamId("");
-    setTypeFilter("");
-    setStartDate("");
-    setEndDate("");
+    setSearchFilters({
+      system: {
+        q: "",
+        ownerMembershipId: "",
+        teamId: "",
+        createdAt: {
+          from: "",
+          to: ""
+        }
+      },
+      builtin: Object.fromEntries(
+        searchLayout.availableFields
+          .filter((field) => field.kind === "builtin")
+          .map((field) => [field.key, buildEmptyFieldFilterValue()])
+      ),
+      custom: Object.fromEntries(
+        searchLayout.availableFields
+          .filter((field) => field.kind === "custom")
+          .map((field) => [field.key, buildEmptyFieldFilterValue()])
+      )
+    });
     router.push(pathname);
   }
 
   function handlePageSizeChange(nextPageSize: number) {
-    navigateWithAppliedFilters({
-      page: 1,
-      pageSize: nextPageSize,
-    });
+    navigateWithFilters(searchLayout.selectedFields, 1, nextPageSize);
+  }
+
+  function toggleLayoutField(fieldId: string) {
+    setLayoutSelection((current) => ({
+      ...current,
+      [fieldId]: !current[fieldId]
+    }));
+  }
+
+  async function handleSaveSearchLayout() {
+    setIsSavingLayout(true);
+    setLayoutSaveError("");
+
+    try {
+      const response = await fetch("/api/office/transactions/search-layout", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          fields: selectedDraftFields.map((field) => ({
+            kind: field.kind,
+            key: field.key
+          }))
+        })
+      });
+      const body = (await response.json().catch(() => null)) as SearchLayoutResponse | null;
+
+      if (!response.ok || !body?.snapshot) {
+        throw new Error(body?.error ?? "Failed to save search fields.");
+      }
+
+      setIsSearchLayoutModalOpen(false);
+      setLayoutSelection(buildLayoutSelectionState(body.snapshot.availableFields, body.snapshot.selectedFields));
+
+      const nextHref = buildTransactionsHref(pathname, {
+        selectedFields: body.snapshot.selectedFields,
+        filters: searchFilters,
+        page: 1,
+        pageSize
+      });
+      const currentHref = buildTransactionsHref(pathname, {
+        selectedFields: searchLayout.selectedFields,
+        filters: searchFilters,
+        page,
+        pageSize
+      });
+
+      if (nextHref === currentHref) {
+        router.refresh();
+      } else {
+        router.push(nextHref);
+      }
+    } catch (error) {
+      setLayoutSaveError(error instanceof Error ? error.message : "Failed to save search fields.");
+    } finally {
+      setIsSavingLayout(false);
+    }
+  }
+
+  function renderSearchField(field: OfficeTransactionSearchFieldDescriptor) {
+    if (field.kind === "system" && field.key === "search") {
+      return (
+        <FilterField className="bm-transactions-search" key={buildSearchFieldId(field)} label={field.label}>
+          <TextInput
+            aria-label="Search transactions"
+            onChange={(event) =>
+              updateSystemFilters((current) => ({
+                ...current,
+                q: event.target.value
+              }))
+            }
+            placeholder={field.placeholder}
+            value={searchFilters.system.q}
+          />
+        </FilterField>
+      );
+    }
+
+    if (field.kind === "system" && field.key === "owner") {
+      return (
+        <FilterField key={buildSearchFieldId(field)} label={field.label}>
+          <SelectInput
+            onChange={(event) =>
+              updateSystemFilters((current) => ({
+                ...current,
+                ownerMembershipId: event.target.value
+              }))
+            }
+            value={searchFilters.system.ownerMembershipId}
+          >
+            <option value="">{getFieldEmptyOptionLabel(field)}</option>
+            {field.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectInput>
+        </FilterField>
+      );
+    }
+
+    if (field.kind === "system" && field.key === "team") {
+      return (
+        <FilterField key={buildSearchFieldId(field)} label={field.label}>
+          <SelectInput
+            onChange={(event) =>
+              updateSystemFilters((current) => ({
+                ...current,
+                teamId: event.target.value
+              }))
+            }
+            value={searchFilters.system.teamId}
+          >
+            <option value="">{getFieldEmptyOptionLabel(field)}</option>
+            {field.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectInput>
+        </FilterField>
+      );
+    }
+
+    if (field.kind === "system" && field.key === "created_at") {
+      return (
+        <SearchDateRangeField
+          key={buildSearchFieldId(field)}
+          label={field.label}
+          onChange={(nextValue) =>
+            updateSystemFilters((current) => ({
+              ...current,
+              createdAt: nextValue
+            }))
+          }
+          value={searchFilters.system.createdAt}
+        />
+      );
+    }
+
+    if (field.kind === "system") {
+      return null;
+    }
+
+    const fieldKind = field.kind;
+    const filterValue = getFieldFilterValue(field, searchFilters);
+
+    if (field.control === "date") {
+      return (
+        <SearchDateRangeField
+          key={buildSearchFieldId(field)}
+          label={field.label}
+          onChange={(nextValue) =>
+            updateNamedFieldFilter(fieldKind, field.key, () => ({
+              value: "",
+              from: nextValue.from,
+              to: nextValue.to
+            }))
+          }
+          value={{
+            from: filterValue.from,
+            to: filterValue.to
+          }}
+        />
+      );
+    }
+
+    if (field.control === "select") {
+      return (
+        <FilterField key={buildSearchFieldId(field)} label={field.label}>
+          <SelectInput
+            onChange={(event) =>
+              updateNamedFieldFilter(fieldKind, field.key, (current) => ({
+                ...current,
+                value: event.target.value
+              }))
+            }
+            value={filterValue.value}
+          >
+            <option value="">{getFieldEmptyOptionLabel(field)}</option>
+            {field.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectInput>
+        </FilterField>
+      );
+    }
+
+    return (
+      <FilterField key={buildSearchFieldId(field)} label={field.label}>
+        <TextInput
+          onChange={(event) =>
+            updateNamedFieldFilter(fieldKind, field.key, (current) => ({
+              ...current,
+              value: event.target.value
+            }))
+          }
+          placeholder={field.placeholder}
+          value={filterValue.value}
+        />
+      </FilterField>
+    );
   }
 
   const transactionFilters = (
     <ListPageFilters
       as="form"
-      className="bm-transactions-toolbar"
+      className="bm-transactions-toolbar office-transaction-search-layout-filters"
       onSubmit={handleApplyFilters}
     >
-      <FilterField className="bm-transactions-search" label="Search">
-        <TextInput
-          aria-label="Search transactions"
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search address, contact, mls # ..."
-          value={searchQuery}
-        />
-      </FilterField>
-
-      <FilterField label="Current view">
-        <SelectInput
-          aria-label="Filter transactions by status"
-          onChange={(event) =>
-            setStatusFilter(
-              event.target.value as (typeof listStatusOptions)[number],
-            )
-          }
-          value={statusFilter}
-        >
-          {listStatusOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </SelectInput>
-      </FilterField>
-
-      <FilterField label="Owner / agent">
-        <SelectInput
-          onChange={(event) => setOwnerMembershipId(event.target.value)}
-          value={ownerMembershipId}
-        >
-          <option value="">All owners</option>
-          {filterOptions.ownerOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </SelectInput>
-      </FilterField>
-
-      <FilterField label="Team">
-        <SelectInput
-          onChange={(event) => setTeamId(event.target.value)}
-          value={teamId}
-        >
-          <option value="">All teams</option>
-          {filterOptions.teamOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </SelectInput>
-      </FilterField>
-
-      <FilterField label="Type">
-        <SelectInput
-          onChange={(event) => setTypeFilter(event.target.value)}
-          value={typeFilter}
-        >
-          {transactionTypeFilterOptions.map((option) => (
-            <option key={option.value || "all"} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </SelectInput>
-      </FilterField>
-
-      <FilterField label="Start date">
-        <TextInput
-          onChange={(event) => setStartDate(event.target.value)}
-          type="date"
-          value={startDate}
-        />
-      </FilterField>
-
-      <FilterField label="End date">
-        <TextInput
-          onChange={(event) => setEndDate(event.target.value)}
-          type="date"
-          value={endDate}
-        />
-      </FilterField>
+      {searchLayout.selectedFields.length ? (
+        searchLayout.selectedFields.map((field) => renderSearchField(field))
+      ) : (
+        <div className="office-transaction-search-empty">
+          <strong>No search fields configured</strong>
+          <p>
+            {canManageSearchLayout
+              ? "Use Edit fields to choose which filters should appear for this office."
+              : "An office admin can enable transaction search fields for this workspace."}
+          </p>
+        </div>
+      )}
 
       <div className="office-filter-actions">
         <Button type="submit">Apply filters</Button>
@@ -396,15 +804,10 @@ export function TransactionsClient({
           nextHref={
             page < totalPages
               ? buildTransactionsHref(pathname, {
-                  q: filters.q,
-                  status: filters.status,
-                  ownerMembershipId: filters.ownerMembershipId,
-                  teamId: filters.teamId,
-                  type: filters.type,
-                  startDate: filters.startDate,
-                  endDate: filters.endDate,
+                  selectedFields: searchLayout.selectedFields,
+                  filters: searchFilters,
                   page: page + 1,
-                  pageSize,
+                  pageSize
                 })
               : undefined
           }
@@ -415,15 +818,10 @@ export function TransactionsClient({
           previousHref={
             page > 1
               ? buildTransactionsHref(pathname, {
-                  q: filters.q,
-                  status: filters.status,
-                  ownerMembershipId: filters.ownerMembershipId,
-                  teamId: filters.teamId,
-                  type: filters.type,
-                  startDate: filters.startDate,
-                  endDate: filters.endDate,
+                  selectedFields: searchLayout.selectedFields,
+                  filters: searchFilters,
                   page: page - 1,
-                  pageSize,
+                  pageSize
                 })
               : undefined
           }
@@ -444,7 +842,7 @@ export function TransactionsClient({
       />
       <Button
         className="office-list-page-primary-action bm-transactions-create"
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => setIsCreateModalOpen(true)}
         type="button"
       >
         Create transaction
@@ -456,10 +854,22 @@ export function TransactionsClient({
     <>
       <OfficeListPageTemplate
         className="bm-transactions-page"
-        description="Operational transaction list with query-param filters for status, owner, team, type, and date-window drill-down."
+        description="Operational transaction list with office-shared, configurable search fields and query-driven drill-down."
         eyebrow="Transactions"
         filters={transactionFilters}
         footer={transactionFooter}
+        sectionActions={
+          canManageSearchLayout ? (
+            <Button
+              onClick={() => setIsSearchLayoutModalOpen(true)}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              Edit fields
+            </Button>
+          ) : null
+        }
         sectionSubtitle="Search, filter, and review the current office transaction set."
         sectionTitle="Transaction list"
         summary={transactionSummary}
@@ -537,7 +947,7 @@ export function TransactionsClient({
 
             {transactions.length === 0 ? (
               <EmptyState
-                description="Try widening the search or switching the current view."
+                description="Try widening the search or adjusting the visible filter fields."
                 title="No transactions matched the current filters"
               />
             ) : null}
@@ -545,7 +955,18 @@ export function TransactionsClient({
         </DataTable>
       </OfficeListPageTemplate>
 
-      {isModalOpen ? (
+      <TransactionSearchLayoutModal
+        availableFields={searchLayout.availableFields}
+        error={layoutSaveError}
+        isOpen={isSearchLayoutModalOpen}
+        isSaving={isSavingLayout}
+        layoutSelection={layoutSelection}
+        onClose={() => !isSavingLayout && setIsSearchLayoutModalOpen(false)}
+        onSave={handleSaveSearchLayout}
+        onToggleField={toggleLayoutField}
+      />
+
+      {isCreateModalOpen ? (
         <div className="bm-modal-overlay">
           <section
             className="bm-transaction-modal"
@@ -557,26 +978,21 @@ export function TransactionsClient({
               chrome="modal"
               key={formVersion}
               mode="create"
-              onClose={() => setIsModalOpen(false)}
+              onClose={() => setIsCreateModalOpen(false)}
               onSubmitted={() => {
-                setIsModalOpen(false);
+                setIsCreateModalOpen(false);
                 setFormVersion((current) => current + 1);
                 router.push(
                   buildTransactionsHref(pathname, {
-                    q: searchQuery,
-                    status: statusFilter,
-                    ownerMembershipId,
-                    teamId,
-                    type: typeFilter,
-                    startDate,
-                    endDate,
+                    selectedFields: searchLayout.selectedFields,
+                    filters: searchFilters,
                     page: 1,
-                    pageSize,
-                  }),
+                    pageSize
+                  })
                 );
               }}
               ownerAssignment={transactionOwnerAssignment}
-              schema={transactionIntakeSchema}
+              schema={searchLayout.schema}
               statusFieldPolicy={transactionStatusFieldPolicy}
               stepLabel="step 1 of 4"
               submitEndpoint="/api/office/transactions"

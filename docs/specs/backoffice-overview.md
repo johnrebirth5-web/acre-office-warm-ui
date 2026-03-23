@@ -52,6 +52,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
   - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now consume one office-scoped schema managed centrally from `Settings > Fields`.
+  - the `/office/transactions` search workbench is now office-shared and schema-driven: admins with `fields:manage` can use `Edit fields` to add or remove operational, built-in, and custom filter blocks, while hidden or archived transaction fields are automatically removed from saved search layouts.
   - the built-in `Type / Status / Representing` dropdowns now keep stable system values while allowing office admins to edit which options are available and how each option label is displayed.
   - `New transaction` owner search for `Agent Name` is sourced from office/global sales memberships for company-scope creators, not just the currently visible transaction roster.
   - `New transaction` status creation is now limited to `Pending / Closed / Cancelled`, and non-admin users are forced to `Pending` and cannot change transaction status from create or detail-edit flows.
@@ -230,6 +231,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `Teams` now supports recursive `Team Leader / Junior Team Leader / Member` hierarchy, parent-child branches, and explicit direct-manager assignment
   - shared Office table widths are now organization-scoped settings: `owner / office_admin` can resize current Back Office table columns, and saved widths apply to all users in the same org
   - `Fields` is now the single schema-management surface for `transaction / contact / offer`, including sort order, required / visible, custom field create-edit-delete, per-field deletion protection, hidden-field restore, and transaction-only required contact roles.
+  - transaction search layouts now depend on the same transaction field visibility rules, so hidden or archived transaction fields no longer remain selectable in `/office/transactions`
 - Follow-up work:
   - richer multi-office access controls
   - stronger template application behavior

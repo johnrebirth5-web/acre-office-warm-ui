@@ -47,6 +47,7 @@
   - built-in fields can be sorted, marked visible/hidden, and required/optional
   - built-in `Type / Status / Representing` dropdowns still support office-admin option enable/disable and display-name overrides without changing stored enum values
   - `office_admin` can add custom `text / select / date` fields per module
+  - `/office/transactions` search is now backed by an office-shared `TransactionSearchLayout`: users with `fields:manage` can open `Edit fields` to add or remove operational, built-in, and custom filters, while legacy `q / status / type / ownerMembershipId / teamId / startDate / endDate` params remain compatible and hidden/archived transaction fields are automatically stripped from saved search layouts
   - hidden address groups still force `Transaction Name` visible + required
   - contact and offer custom values now persist in `Client.additionalFields` and `Offer.additionalFields`
   - create-mode intake now routes legacy finance-style fields like `Commission($) / Rebate / Referral Fee / Reimbursement / Note` through a structured finance section so new transactions write real `grossCommission`, fee-ledger rows, and finance notes instead of disconnected text-only values

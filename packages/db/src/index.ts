@@ -43,6 +43,7 @@ export const databaseModules = [
   "transaction_custom_field_definitions",
   "checklist_templates",
   "checklist_template_items",
+  "transaction_search_layouts",
   "commission_plans",
   "commission_split_templates",
   "commission_plan_assignments",
@@ -284,12 +285,14 @@ export {
 } from "./transaction-tasks";
 export {
   createTransaction,
+  getOfficeTransactionSearchLayoutSnapshot,
   getOfficeTransactionOwnerAssignment,
   getTransactionById,
   listTransactions,
   officeTransactionsPageDefaults,
   officeTransactionsPageLimits,
   prepareTransactionIntakeSubmission,
+  saveOfficeTransactionSearchLayout,
   updateTransactionFinance,
   updateTransactionIntake,
   updateTransactionStatus
@@ -642,14 +645,20 @@ export type {
 } from "./transaction-tasks";
 export type {
   CreateTransactionInput,
+  GetOfficeTransactionSearchLayoutSnapshotInput,
+  OfficeTransactionFieldFilterInput,
   OfficeTransactionDetail,
   OfficeTransactionFilterOptions,
   OfficeTransactionListResult,
   OfficeTransactionRecord,
+  OfficeTransactionSearchFieldDescriptor,
+  OfficeTransactionSearchFieldReference,
+  OfficeTransactionSearchLayoutSnapshot,
   OfficeTransactionSelectOption,
   OfficeTransactionSummary,
   OfficeTransactionStatus,
   PreparedTransactionIntakeSubmission,
+  SaveOfficeTransactionSearchLayoutInput,
   UpdateTransactionFinanceInput,
   UpdateTransactionIntakeInput,
   OfficeTransactionOwnerAssignment,

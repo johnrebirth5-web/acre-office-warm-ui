@@ -6750,6 +6750,51 @@ a {
   padding: 0;
 }
 
+.office-transaction-search-date-field {
+  min-width: min(260px, 100%);
+}
+
+.office-transaction-search-date-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.office-transaction-search-date-input {
+  display: grid;
+  gap: 6px;
+}
+
+.office-transaction-search-date-input > span {
+  color: var(--office-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.office-transaction-search-empty {
+  display: grid;
+  gap: 6px;
+  min-width: min(320px, 100%);
+  flex: 1 1 260px;
+  padding: 14px 16px;
+  border: 1px dashed rgba(194, 205, 220, 0.7);
+  border-radius: 16px;
+  background: rgba(250, 251, 253, 0.9);
+}
+
+.office-transaction-search-empty strong,
+.office-transaction-search-empty p {
+  margin: 0;
+}
+
+.office-transaction-search-empty p {
+  color: var(--office-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .office-data-table,
 .office-table,
 .office-list-table,
@@ -9411,6 +9456,10 @@ a {
   overflow: auto;
 }
 
+.office-transaction-search-layout-modal {
+  width: min(100%, 860px);
+}
+
 .office-fields-modal-head,
 .office-fields-modal-footer {
   padding: 20px 22px;
@@ -9481,6 +9530,73 @@ a {
   justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid rgba(194, 205, 220, 0.54);
+}
+
+.office-transaction-search-layout-head {
+  align-items: start;
+}
+
+.office-transaction-search-layout-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.office-transaction-search-layout-group {
+  display: grid;
+  gap: 12px;
+}
+
+.office-transaction-search-layout-group + .office-transaction-search-layout-group {
+  padding-top: 18px;
+  border-top: 1px solid rgba(194, 205, 220, 0.54);
+}
+
+.office-transaction-search-layout-group-head {
+  display: grid;
+  gap: 4px;
+}
+
+.office-transaction-search-layout-group-head strong,
+.office-transaction-search-layout-checkbox-field span {
+  color: var(--office-text);
+}
+
+.office-transaction-search-layout-group-head p,
+.office-transaction-search-layout-checkbox small {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.office-transaction-search-layout-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.office-transaction-search-layout-checkbox {
+  display: grid;
+  gap: 8px;
+}
+
+.office-transaction-search-layout-checkbox-field {
+  min-height: 56px;
+  align-items: start;
+}
+
+.office-transaction-search-layout-checkbox-field input {
+  margin-top: 3px;
+}
+
+.office-transaction-search-layout-footer {
+  align-items: center;
+}
+
+.office-transaction-search-layout-error {
+  margin: 0 auto 0 0;
+  max-width: 360px;
 }
 
 .office-confirm-dialog {

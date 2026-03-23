@@ -492,6 +492,7 @@ model Organization {
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
   tableLayouts                      OrganizationTableLayout[]
+  transactionSearchLayouts          TransactionSearchLayout[]
   roleTemplates                     OrganizationRoleTemplate[]
   roleTemplatePermissions           OrganizationRoleTemplatePermission[]
   membershipPermissionOverrides     MembershipPermissionOverride[]
@@ -556,6 +557,7 @@ model Office {
   offerCustomFieldDefinitions       OfferCustomFieldDefinition[]
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
+  transactionSearchLayouts          TransactionSearchLayout[]
 
   @@unique([organizationId, slug])
 }
@@ -636,6 +638,7 @@ model Membership {
   checklistTemplatesCreated                ChecklistTemplate[]                @relation("ChecklistTemplateCreatedBy")
   checklistTemplatesUpdated                ChecklistTemplate[]                @relation("ChecklistTemplateUpdatedBy")
   updatedTableLayouts                      OrganizationTableLayout[]          @relation("OrganizationTableLayoutUpdatedBy")
+  updatedTransactionSearchLayouts          TransactionSearchLayout[]          @relation("TransactionSearchLayoutUpdatedBy")
   updatedRoleTemplates                     OrganizationRoleTemplate[]         @relation("OrganizationRoleTemplateUpdatedBy")
   permissionOverrides                      MembershipPermissionOverride[]     @relation("MembershipPermissionOverrideMembership")
   createdPermissionOverrides               MembershipPermissionOverride[]     @relation("MembershipPermissionOverrideCreatedBy")
@@ -706,6 +709,22 @@ model OrganizationTableLayout {
 
   @@unique([organizationId, tableKey])
   @@index([organizationId])
+}
+
+model TransactionSearchLayout {
+  id                    String       @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  updatedByMembershipId String?
+  fieldLayout           Json
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  updatedByMembership   Membership?  @relation("TransactionSearchLayoutUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, officeId])
+  @@index([organizationId, officeId])
 }
 
 model UserCredential {
