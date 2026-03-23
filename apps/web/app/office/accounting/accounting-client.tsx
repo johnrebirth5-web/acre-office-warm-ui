@@ -16,7 +16,6 @@ import {
   HorizontalScrollArea,
   ListPageFilters,
   ListPageSection,
-  ListPageSplit,
   ListPageStack,
   ListPageStatsGrid,
   SelectInput,
@@ -548,224 +547,218 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         ) : null}
       </ListPageSection>
 
-      <ListPageSplit>
-        <ListPageStack>
-          <ListPageSection
-            actions={
-              snapshot.candidateRows.length > 0 ? (
-                <div className="office-section-actions">
-                  <Button onClick={() => toggleAllCandidates(true)} size="sm" type="button" variant="secondary">
-                    Select all
-                  </Button>
-                  <Button onClick={() => toggleAllCandidates(false)} size="sm" type="button" variant="ghost">
-                    Clear
-                  </Button>
-                </div>
-              ) : null
-            }
-            subtitle="Preview the unpaid agent commission rows that would be used for this statement if you want to review them before generating."
-            title="Candidate rows"
-          >
-            {hasValidRange ? (
-              snapshot.candidateRows.length > 0 ? (
-                <HorizontalScrollArea>
-                  <DataTable className="office-table">
-                    <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
-                      <span>Select</span>
-                      <span>Transaction</span>
-                      <span>Closing</span>
-                      <span>Calculated</span>
-                      <span>Gross</span>
-                      <span>Fees</span>
-                      <span>Payout</span>
-                      <span>Status</span>
-                    </DataTableHeader>
-                    <DataTableBody>
-                      {snapshot.candidateRows.map((row) => (
-                        <DataTableRow className="office-table-row office-table-row-ledger" key={row.id}>
-                          <CheckboxField label="">
-                            <input
-                              checked={selectedIdLookup.has(row.id)}
-                              onChange={(event) => toggleCandidate(row.id, event.target.checked)}
-                              type="checkbox"
-                            />
-                          </CheckboxField>
-                          <div className="office-table-primary">
-                            <strong>
-                              <Link href={row.transactionHref}>{row.transactionLabel}</Link>
-                            </strong>
-                            <p>{row.propertyAddress}</p>
-                          </div>
-                          <span>{row.closingDate || "Missing"}</span>
-                          <span>{row.calculatedAt}</span>
-                          <span>{row.grossCommissionLabel}</span>
-                          <span>{row.feesLabel}</span>
-                          <span>{row.statementAmountLabel}</span>
-                          <span>
-                            <StatusBadge tone={getStatementStatusTone(row.status)}>{row.status}</StatusBadge>
-                          </span>
-                        </DataTableRow>
-                      ))}
-                    </DataTableBody>
-                  </DataTable>
-                </HorizontalScrollArea>
-              ) : (
-                <EmptyState
-                  description="No eligible unpaid agent commission rows matched the current agent and period settings."
-                  title="No payout candidates"
-                />
-              )
-            ) : (
-              <EmptyState
-                description="Choose an agent plus a valid start and end date to load payout candidates."
-                title="Set a statement window"
-              />
-            )}
-          </ListPageSection>
-
-          <ListPageSection
-            actions={
-              <Button disabled={isGenerating || selectedSummary.count === 0 || !hasValidRange} onClick={handleGenerateStatement} type="button">
-                {isGenerating ? "Generating..." : "Generate statement"}
+      <ListPageSection
+        actions={
+          snapshot.candidateRows.length > 0 ? (
+            <div className="office-section-actions">
+              <Button onClick={() => toggleAllCandidates(true)} size="sm" type="button" variant="secondary">
+                Select all
               </Button>
-            }
-            subtitle="Selection is reset to all loaded candidates whenever the current filter window changes."
-            title="Selected payout summary"
-          >
+              <Button onClick={() => toggleAllCandidates(false)} size="sm" type="button" variant="ghost">
+                Clear
+              </Button>
+            </div>
+          ) : null
+        }
+        subtitle="Preview the unpaid agent commission rows that would be used for this statement if you want to review them before generating."
+        title="Candidate rows"
+      >
+        {hasValidRange ? (
+          snapshot.candidateRows.length > 0 ? (
+            <HorizontalScrollArea>
+              <DataTable className="office-table">
+                <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                  <span>Select</span>
+                  <span>Transaction</span>
+                  <span>Closing</span>
+                  <span>Calculated</span>
+                  <span>Gross</span>
+                  <span>Fees</span>
+                  <span>Payout</span>
+                  <span>Status</span>
+                </DataTableHeader>
+                <DataTableBody>
+                  {snapshot.candidateRows.map((row) => (
+                    <DataTableRow className="office-table-row office-table-row-ledger" key={row.id}>
+                      <CheckboxField label="">
+                        <input
+                          checked={selectedIdLookup.has(row.id)}
+                          onChange={(event) => toggleCandidate(row.id, event.target.checked)}
+                          type="checkbox"
+                        />
+                      </CheckboxField>
+                      <div className="office-table-primary">
+                        <strong>
+                          <Link href={row.transactionHref}>{row.transactionLabel}</Link>
+                        </strong>
+                        <p>{row.propertyAddress}</p>
+                      </div>
+                      <span>{row.closingDate || "Missing"}</span>
+                      <span>{row.calculatedAt}</span>
+                      <span>{row.grossCommissionLabel}</span>
+                      <span>{row.feesLabel}</span>
+                      <span>{row.statementAmountLabel}</span>
+                      <span>
+                        <StatusBadge tone={getStatementStatusTone(row.status)}>{row.status}</StatusBadge>
+                      </span>
+                    </DataTableRow>
+                  ))}
+                </DataTableBody>
+              </DataTable>
+            </HorizontalScrollArea>
+          ) : (
+            <EmptyState
+              description="No eligible unpaid agent commission rows matched the current agent and period settings."
+              title="No payout candidates"
+            />
+          )
+        ) : (
+          <EmptyState
+            description="Choose an agent plus a valid start and end date to load payout candidates."
+            title="Set a statement window"
+          />
+        )}
+      </ListPageSection>
+
+      <ListPageSection
+        actions={
+          <Button disabled={isGenerating || selectedSummary.count === 0 || !hasValidRange} onClick={handleGenerateStatement} type="button">
+            {isGenerating ? "Generating..." : "Generate statement"}
+          </Button>
+        }
+        subtitle="Selection is reset to all loaded candidates whenever the current filter window changes."
+        title="Selected payout summary"
+      >
+        <ListPageStatsGrid>
+          <StatCard hint="currently selected rows" label="Selected rows" value={selectedSummary.count} />
+          <StatCard hint="sum of selected gross commission" label="Gross commission" value={formatCurrency(selectedSummary.gross)} />
+          <StatCard hint="sum of selected fees" label="Fees" value={formatCurrency(selectedSummary.fees)} />
+          <StatCard hint="sum of selected payout rows" label="Net payout" value={formatCurrency(selectedSummary.payout)} />
+        </ListPageStatsGrid>
+
+        {generationError ? <p className="office-inline-error">{generationError}</p> : null}
+      </ListPageSection>
+
+      <ListPageSection subtitle="Saved payout statements stay durable, so PDF downloads always rebuild from the same saved snapshot." title="Statement history">
+        {snapshot.history.length > 0 ? (
+          <HorizontalScrollArea>
+            <DataTable className="office-table">
+              <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                <span>Generated</span>
+                <span>Agent</span>
+                <span>Period</span>
+                <span>Basis</span>
+                <span>Rows</span>
+                <span>Total payout</span>
+                <span>Actions</span>
+              </DataTableHeader>
+              <DataTableBody>
+                {snapshot.history.map((statement) => (
+                  <DataTableRow className="office-table-row office-table-row-ledger" key={statement.id}>
+                    <span>{statement.generatedAtLabel}</span>
+                    <strong>{statement.agentLabel}</strong>
+                    <span>{statement.periodLabel}</span>
+                    <span>{statement.periodBasisLabel}</span>
+                    <span>{statement.lineItemCount}</span>
+                    <span>{statement.totalStatementAmountLabel}</span>
+                    <div className="bm-accounting-inline-actions">
+                      <Button
+                        onClick={() =>
+                          startTransition(() => {
+                            router.push(
+                              buildAccountingHref(pathname, {
+                                membershipId: snapshot.filters.membershipId,
+                                periodStart: snapshot.filters.periodStart,
+                                periodEnd: snapshot.filters.periodEnd,
+                                periodBasis: snapshot.filters.periodBasis,
+                                statementId: statement.id
+                              })
+                            );
+                          })
+                        }
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        Open
+                      </Button>
+                      <a className="office-button office-button-sm" href={`/api/office/accounting/statements/${statement.id}/pdf`} rel="noreferrer" target="_blank">
+                        PDF
+                      </a>
+                    </div>
+                  </DataTableRow>
+                ))}
+              </DataTableBody>
+            </DataTable>
+          </HorizontalScrollArea>
+        ) : (
+          <EmptyState description="Generated statements will appear here once a payout snapshot has been saved." title="No saved statements yet" />
+        )}
+      </ListPageSection>
+
+      <ListPageSection
+        subtitle={
+          snapshot.selectedStatement
+            ? `${snapshot.selectedStatement.periodBasisLabel} · ${snapshot.selectedStatement.periodLabel}`
+            : "Select a saved statement to review the durable line-item snapshot and download its PDF."
+        }
+        title={snapshot.selectedStatement ? "Statement detail" : "Select a statement"}
+      >
+        {snapshot.selectedStatement ? (
+          <>
             <ListPageStatsGrid>
-              <StatCard hint="currently selected rows" label="Selected rows" value={selectedSummary.count} />
-              <StatCard hint="sum of selected gross commission" label="Gross commission" value={formatCurrency(selectedSummary.gross)} />
-              <StatCard hint="sum of selected fees" label="Fees" value={formatCurrency(selectedSummary.fees)} />
-              <StatCard hint="sum of selected payout rows" label="Net payout" value={formatCurrency(selectedSummary.payout)} />
+              <StatCard hint="agent on this saved payout statement" label="Agent" value={snapshot.selectedStatement.agentLabel} />
+              <StatCard hint="saved snapshot row count" label="Rows" value={snapshot.selectedStatement.lineItemCount} />
+              <StatCard hint="snapshot total gross commission" label="Gross commission" value={snapshot.selectedStatement.totalGrossCommissionLabel} />
+              <StatCard hint="snapshot total payout amount" label="Net payout" value={snapshot.selectedStatement.totalStatementAmountLabel} />
             </ListPageStatsGrid>
 
-            {generationError ? <p className="office-inline-error">{generationError}</p> : null}
-          </ListPageSection>
-        </ListPageStack>
+            <div className="office-inline-meta">
+              <span>Generated: {snapshot.selectedStatement.generatedAtLabel}</span>
+              <span>Generated by: {snapshot.selectedStatement.generatedByLabel}</span>
+              <a className="office-button office-button-sm office-button-secondary" href={`/api/office/accounting/statements/${snapshot.selectedStatement.id}/pdf`} rel="noreferrer" target="_blank">
+                Download PDF
+              </a>
+            </div>
 
-        <ListPageStack>
-          <ListPageSection subtitle="Saved payout statements stay durable, so PDF downloads always rebuild from the same saved snapshot." title="Statement history">
-            {snapshot.history.length > 0 ? (
-              <HorizontalScrollArea>
-                <DataTable className="office-table">
-                  <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
-                    <span>Generated</span>
-                    <span>Agent</span>
-                    <span>Period</span>
-                    <span>Basis</span>
-                    <span>Rows</span>
-                    <span>Total payout</span>
-                    <span>Actions</span>
-                  </DataTableHeader>
-                  <DataTableBody>
-                    {snapshot.history.map((statement) => (
-                      <DataTableRow className="office-table-row office-table-row-ledger" key={statement.id}>
-                        <span>{statement.generatedAtLabel}</span>
-                        <strong>{statement.agentLabel}</strong>
-                        <span>{statement.periodLabel}</span>
-                        <span>{statement.periodBasisLabel}</span>
-                        <span>{statement.lineItemCount}</span>
-                        <span>{statement.totalStatementAmountLabel}</span>
-                        <div className="bm-accounting-inline-actions">
-                          <Button
-                            onClick={() =>
-                              startTransition(() => {
-                                router.push(
-                                  buildAccountingHref(pathname, {
-                                    membershipId: snapshot.filters.membershipId,
-                                    periodStart: snapshot.filters.periodStart,
-                                    periodEnd: snapshot.filters.periodEnd,
-                                    periodBasis: snapshot.filters.periodBasis,
-                                    statementId: statement.id
-                                  })
-                                );
-                              })
-                            }
-                            size="sm"
-                            type="button"
-                            variant="secondary"
-                          >
-                            Open
-                          </Button>
-                          <a className="office-button office-button-sm" href={`/api/office/accounting/statements/${statement.id}/pdf`} rel="noreferrer" target="_blank">
-                            PDF
-                          </a>
-                        </div>
-                      </DataTableRow>
-                    ))}
-                  </DataTableBody>
-                </DataTable>
-              </HorizontalScrollArea>
-            ) : (
-              <EmptyState description="Generated statements will appear here once a payout snapshot has been saved." title="No saved statements yet" />
-            )}
-          </ListPageSection>
-
-          <ListPageSection
-            subtitle={
-              snapshot.selectedStatement
-                ? `${snapshot.selectedStatement.periodBasisLabel} · ${snapshot.selectedStatement.periodLabel}`
-                : "Select a saved statement to review the durable line-item snapshot and download its PDF."
-            }
-            title={snapshot.selectedStatement ? "Statement detail" : "Select a statement"}
-          >
-            {snapshot.selectedStatement ? (
-              <>
-                <ListPageStatsGrid>
-                  <StatCard hint="agent on this saved payout statement" label="Agent" value={snapshot.selectedStatement.agentLabel} />
-                  <StatCard hint="saved snapshot row count" label="Rows" value={snapshot.selectedStatement.lineItemCount} />
-                  <StatCard hint="snapshot total gross commission" label="Gross commission" value={snapshot.selectedStatement.totalGrossCommissionLabel} />
-                  <StatCard hint="snapshot total payout amount" label="Net payout" value={snapshot.selectedStatement.totalStatementAmountLabel} />
-                </ListPageStatsGrid>
-
-                <div className="office-inline-meta">
-                  <span>Generated: {snapshot.selectedStatement.generatedAtLabel}</span>
-                  <span>Generated by: {snapshot.selectedStatement.generatedByLabel}</span>
-                  <a className="office-button office-button-sm office-button-secondary" href={`/api/office/accounting/statements/${snapshot.selectedStatement.id}/pdf`} rel="noreferrer" target="_blank">
-                    Download PDF
-                  </a>
-                </div>
-
-                <HorizontalScrollArea>
-                  <DataTable className="office-table">
-                    <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
-                      <span>Transaction</span>
-                      <span>Closing</span>
-                      <span>Calculated</span>
-                      <span>Gross</span>
-                      <span>Fees</span>
-                      <span>Payout</span>
-                      <span>Status at save</span>
-                    </DataTableHeader>
-                    <DataTableBody>
-                      {snapshot.selectedStatement.lineItems.map((lineItem) => (
-                        <DataTableRow className="office-table-row office-table-row-ledger" key={lineItem.id}>
-                          <div className="office-table-primary">
-                            <strong>
-                              <Link href={lineItem.transactionHref}>{lineItem.transactionLabel}</Link>
-                            </strong>
-                            <p>{lineItem.propertyAddress}</p>
-                          </div>
-                          <span>{lineItem.closingDate || "Missing"}</span>
-                          <span>{lineItem.calculatedAt}</span>
-                          <span>{lineItem.grossCommissionLabel}</span>
-                          <span>{lineItem.feesLabel}</span>
-                          <span>{lineItem.statementAmountLabel}</span>
-                          <span>
-                            <StatusBadge tone={getStatementStatusTone(lineItem.statusAtGeneration)}>{lineItem.statusAtGeneration}</StatusBadge>
-                          </span>
-                        </DataTableRow>
-                      ))}
-                    </DataTableBody>
-                  </DataTable>
-                </HorizontalScrollArea>
-              </>
-            ) : (
-              <EmptyState description="Use the history list to open a saved statement and inspect its locked payout lines." title="No statement selected" />
-            )}
-          </ListPageSection>
-        </ListPageStack>
-      </ListPageSplit>
+            <HorizontalScrollArea>
+              <DataTable className="office-table">
+                <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                  <span>Transaction</span>
+                  <span>Closing</span>
+                  <span>Calculated</span>
+                  <span>Gross</span>
+                  <span>Fees</span>
+                  <span>Payout</span>
+                  <span>Status at save</span>
+                </DataTableHeader>
+                <DataTableBody>
+                  {snapshot.selectedStatement.lineItems.map((lineItem) => (
+                    <DataTableRow className="office-table-row office-table-row-ledger" key={lineItem.id}>
+                      <div className="office-table-primary">
+                        <strong>
+                          <Link href={lineItem.transactionHref}>{lineItem.transactionLabel}</Link>
+                        </strong>
+                        <p>{lineItem.propertyAddress}</p>
+                      </div>
+                      <span>{lineItem.closingDate || "Missing"}</span>
+                      <span>{lineItem.calculatedAt}</span>
+                      <span>{lineItem.grossCommissionLabel}</span>
+                      <span>{lineItem.feesLabel}</span>
+                      <span>{lineItem.statementAmountLabel}</span>
+                      <span>
+                        <StatusBadge tone={getStatementStatusTone(lineItem.statusAtGeneration)}>{lineItem.statusAtGeneration}</StatusBadge>
+                      </span>
+                    </DataTableRow>
+                  ))}
+                </DataTableBody>
+              </DataTable>
+            </HorizontalScrollArea>
+          </>
+        ) : (
+          <EmptyState description="Use the history list to open a saved statement and inspect its locked payout lines." title="No statement selected" />
+        )}
+      </ListPageSection>
     </ListPageStack>
   );
 }
