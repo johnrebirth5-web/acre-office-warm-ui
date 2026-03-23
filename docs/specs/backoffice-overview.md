@@ -20,12 +20,13 @@ This file is the high-level product map for the current `Office / Back Office` s
 ### Pipeline
 
 - What it is for:
-  - management-oriented pipeline workspace with live funnel summary, monthly closed/cancelled rollups, top-level metric summary, and a query-driven working transaction list.
+  - management-oriented pipeline workspace focused on the pending queue, six months of closed history, scoped metric switching, and a query-driven working transaction list.
 - Current maturity:
   - `MVP / refined`
 - Current notable behavior:
-  - pipeline working list now follows the shared Back Office table/workspace contract instead of page-local row sizing.
-  - funnel rail selection, monthly history selection, and right-side working list stay URL-driven and scoped to the current office/org context.
+  - the left rail now exposes only `Pending` plus fixed `Closed` monthly history, instead of the earlier full-stage funnel.
+  - top-right metric switching now separates office metrics from personal metrics and enforces role-based visibility for office-level financials.
+  - monthly history selection and right-side working list stay URL-driven and scoped to the current office/org context.
 - Follow-up work:
   - deeper analytics drilldowns
   - more advanced owner/team slicing

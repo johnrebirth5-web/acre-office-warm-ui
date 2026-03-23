@@ -557,9 +557,11 @@ export type {
   OfficePipelineHistoryMonth,
   OfficePipelineHistoryStatus,
   OfficePipelineMetricMode,
+  OfficePipelineMetricScope,
   OfficePipelineOwnerOption,
   OfficePipelineRepresentingFilter,
   OfficePipelineStatus,
+  OfficePipelineView,
   OfficePipelineWorkspaceRow,
   OfficePipelineWorkspaceSnapshot
 } from "./pipeline";

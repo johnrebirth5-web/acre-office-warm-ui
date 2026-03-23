@@ -61,25 +61,32 @@
   - `Recent Transactions`（真实数据库）
 - `Pipeline` 现在也已接入真实数据库：
   - 页面已经从简单 bucket board 改成 `pipeline workspace`
-  - 顶部现在是 `workspace summary`，把当前过滤上下文、当前 working list、live funnel、recent history 的真实 count 和 metric 放在同一层级
-  - 左侧是更密集的 `Opportunity / Active / Pending` live funnel rail，以及最近几个月的 `Closed / Cancelled` 月度 rollup
-  - 右侧是统一的真实 transaction working list，而不是按列拆开的 card board
+  - 当前主界面已经收敛成更接近 `Brokermint` 的双栏工作台：
+    - 左侧只保留 `Pending` 概览和最近 `6` 个月的 `Closed` 历史
+    - 右侧是当前所选 `Pending` 或月份 `Closed` 的真实 transaction list
   - 支持 query-param 驱动的顶层过滤：
     - `side / representing`
     - `metric mode`
-    - `owner / agent`
-    - `search`
+    - `view / historyMonth`
+    - `owner / agent` 与 `search` 继续作为兼容 URL 参数保留
   - 当前 metric mode 现在支持真实可得的数据：
-    - `Transaction volume`
     - `Office net`
+    - `Office sales volume`
     - `Office gross`
-  - `Transaction volume` 当前使用 transaction `price`
+    - `My net income`
+    - `My sales volume`
+  - `Office net` / `Office sales volume` / `Office gross` 只有 `Owner / Office Admin` 可见
+  - `My net income` / `My sales volume` 会按当前用户真实 scope 聚合：
+    - `team leader`：自己 + 全部下级
+    - `junior team leader`：自己 + 下级 agent
+    - 其他角色：默认只看自己
+  - `Office sales volume` 和 `My sales volume` 当前都使用 transaction `price`
   - `Office net` 当前使用 transaction finance / commission workflow 已存储的 `officeNet`
   - `Office gross` 当前来自 transaction finance 上的 `grossCommission`；缺失 finance 数据时按 `0` 处理
-  - 左侧 funnel / history 选择会通过 URL 持久化，并直接驱动右侧 working list
-  - stage / history 选择可以清除回当前 top filter 下的 `all filtered transactions`
-  - `Closed / Cancelled` 月度历史优先使用 `closingDate`，没有时回退到 `updatedAt`
-  - transaction row 会显示 title / address、city / state、status、side、owner、price、所选 metric、key date、updated，并可进入真实 transaction detail
+  - `My net income` 当前使用 transaction 上已存储的 `agentNet`
+  - 默认打开页面时，优先落到“当月 `Closed`”，没有时回退到最近一个有 closed 的月份，再没有才回退到 `Pending`
+  - `Closed` 月度历史优先使用 `closingDate`，没有时回退到 `updatedAt`
+  - transaction row 会显示地址、所选 metric、owner、status / side、key date，并可进入真实 transaction detail
 - `Transactions` 当前已实现一版更接近 `Brokermint` 的静态高密度列表页，包含顶部统计、搜索、分页和交易列表
 - `Transactions` 现在是当前第一个接入真实数据库的 `Office` 模块：
   - 列表页使用 PostgreSQL / Prisma 读取真实 transaction 数据

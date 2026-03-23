@@ -6,32 +6,36 @@ Evolve `/office/pipeline` into a stronger BoldTrail/Brokermint-style management 
 
 ## Current implemented foundation
 
-- real left-side funnel summary rail with denser live-stage rows
-- monthly `Closed / Cancelled` rollups
-- top-level workspace summary tied to the current working list
-- right-side unified transaction list
+- dual-column pipeline workspace with a `Pending` summary card and fixed six-month `Closed` history rail
+- right-side transaction list driven by the current `Pending` or monthly `Closed` selection
+- default landing selection now prefers the current month's `Closed` bucket, then the most recent month with closed records, then `Pending`
 - URL-driven filters:
   - side / representing
-  - owner
-  - search
   - metric mode
+  - hidden compatibility support for `owner`, `search`, and old stage/history params
 - supported metric modes:
-  - transaction volume
+  - office sales volume
   - office net
   - office gross
-- current selection can reset back to all filtered transactions without losing top-level filters
-- right-side rows show title/address, city/state, status, side, owner, price, selected metric, key date, and updated date
+  - my net income
+  - my sales volume
+- office-level metrics are visible only to `owner` and `office_admin`
+- personal metrics reuse current office data scope:
+  - `team leader` sees self + branch
+  - `junior team leader` sees self + subordinate agents
+  - other roles stay self-scoped
+- right-side rows now emphasize address, selected metric value, owner, and key date instead of the older grid table
 
 ## Current gaps
 
 - still lighter than full target-product parity
-- drilldown depth is limited
+- historical drilldown is intentionally limited to six recent months
 - no automation or drag/drop behavior
 - no deeper analytics layers
 
 ## Future direction
 
-- improve manager scanning and context summaries
+- improve manager scanning and context summaries for pending vs closed review
 - deepen historical rollups and comparisons
 - improve cross-links into transaction work queues
 - keep the page as a working pipeline workspace, not a kanban board
