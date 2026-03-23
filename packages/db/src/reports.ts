@@ -9,7 +9,7 @@ import {
 } from "@prisma/client";
 import { buildTransactionVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
-import { buildTeamMembershipHierarchyMap, formatTeamMembershipRoleLabel, isLeaderTeamMembershipRole } from "./team-hierarchy";
+import { buildTeamMembershipHierarchyMap, buildTeamPathLabel, formatTeamMembershipRoleLabel, isLeaderTeamMembershipRole } from "./team-hierarchy";
 
 export type OfficeReportStatus = "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
 export type OfficeTransactionReportDateOperator = "eq" | "gte" | "lte" | "range";
@@ -266,6 +266,14 @@ const reportStatusLabelMap: Record<TransactionStatus, OfficeReportStatus> = {
   cancelled: "Cancelled"
 };
 
+const reportStatusSortOrder: Record<TransactionStatus, number> = {
+  opportunity: 0,
+  active: 1,
+  pending: 2,
+  closed: 3,
+  cancelled: 4
+};
+
 const reportStatusFilterMap: Record<string, TransactionStatus> = {
   pending: "pending",
   closed: "closed",
@@ -345,15 +353,9 @@ const companyReferralOptions: OfficeTransactionReportOption[] = [
 
 const selectableOwnerRoles = ["agent", "team_lead"] satisfies UserRole[];
 const selectableMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
-const sortableColumns: Record<OfficeTransactionReportSortBy, Prisma.TransactionOrderByWithRelationInput | Prisma.TransactionOrderByWithRelationInput[]> = {
-  created_at: [{ createdAt: "desc" }],
-  asking_price: [{ askingPrice: "desc" }, { createdAt: "desc" }],
-  purchased_price: [{ purchasedPrice: "desc" }, { price: "desc" }, { createdAt: "desc" }],
-  gross_commission: [{ grossCommission: "desc" }, { createdAt: "desc" }],
-  status: [{ status: "asc" }, { createdAt: "desc" }]
-};
+const truthyReportFieldValues = new Set(["yes", "true", "1", "y"]);
 
-function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
+function formatCurrencyTotal(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
 
   return new Intl.NumberFormat("en-US", {
@@ -361,6 +363,14 @@ function formatCurrency(value: Prisma.Decimal | number | string | null | undefin
     currency: "USD",
     maximumFractionDigits: numericValue % 1 === 0 ? 0 : 2
   }).format(numericValue);
+}
+
+function formatCurrencyCell(value: Prisma.Decimal | number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return formatCurrencyTotal(value);
 }
 
 function formatDateValue(value: Date | null | undefined) {
@@ -465,6 +475,131 @@ function normalizeAdditionalFields(value: Prisma.JsonValue | null | undefined) {
 
 function getPurchasedPriceValue(record: Pick<TransactionReportRecord, "purchasedPrice" | "price">) {
   return record.purchasedPrice ?? record.price;
+}
+
+function getNumericValue(value: Prisma.Decimal | null | undefined) {
+  return value === null || value === undefined ? null : Number(value);
+}
+
+function compareNullableNumbers(left: number | null, right: number | null, direction: OfficeTransactionReportSortDirection) {
+  if (left === null && right === null) {
+    return 0;
+  }
+
+  if (left === null) {
+    return 1;
+  }
+
+  if (right === null) {
+    return -1;
+  }
+
+  return direction === "asc" ? left - right : right - left;
+}
+
+function compareDates(left: Date | null | undefined, right: Date | null | undefined, direction: OfficeTransactionReportSortDirection) {
+  if (!left && !right) {
+    return 0;
+  }
+
+  if (!left) {
+    return 1;
+  }
+
+  if (!right) {
+    return -1;
+  }
+
+  return direction === "asc" ? left.getTime() - right.getTime() : right.getTime() - left.getTime();
+}
+
+function compareStatuses(
+  left: TransactionStatus,
+  right: TransactionStatus,
+  direction: OfficeTransactionReportSortDirection
+) {
+  const difference = reportStatusSortOrder[left] - reportStatusSortOrder[right];
+  return direction === "asc" ? difference : -difference;
+}
+
+function normalizeLayoutValue(value: string) {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9+]/g, "");
+}
+
+function classifyLayout(value: string) {
+  const normalized = normalizeLayoutValue(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const bedroomMatch = normalized.match(/^(\d+)\+?(B|BR|BED|BEDS|BEDROOM|BEDROOMS)?\+?$/);
+
+  if (bedroomMatch) {
+    const bedroomCount = Number(bedroomMatch[1]);
+
+    if (bedroomCount === 1) {
+      return "1B";
+    }
+
+    if (bedroomCount === 2) {
+      return "2B";
+    }
+
+    if (bedroomCount === 3) {
+      return "3B";
+    }
+
+    if (bedroomCount >= 4) {
+      return "4B+";
+    }
+  }
+
+  return "Others";
+}
+
+function matchesLayoutFilter(value: string, selectedLayouts: string[]) {
+  if (selectedLayouts.length === 0) {
+    return true;
+  }
+
+  const category = classifyLayout(value);
+  return category ? selectedLayouts.includes(category) : false;
+}
+
+function resolveCompanyReferralFlag(companyReferral: boolean, additionalFields: Record<string, string>) {
+  const legacyValue = (additionalFields.companyReferral ?? "").trim().toLowerCase();
+  return companyReferral || truthyReportFieldValues.has(legacyValue);
+}
+
+function matchesCompanyReferralFilter(
+  companyReferral: boolean,
+  selectedValue: OfficeTransactionReportsFilters["companyReferral"]
+) {
+  if (!selectedValue) {
+    return true;
+  }
+
+  return selectedValue === "yes" ? companyReferral : !companyReferral;
+}
+
+function getCompanyReferralEmployeeName(
+  companyReferralEmployeeName: string | null,
+  additionalFields: Record<string, string>
+) {
+  const candidates = [
+    companyReferralEmployeeName,
+    additionalFields.companyReferralEmployeeName,
+    additionalFields.companyReferralEmployeesName
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate?.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
 }
 
 function buildDateColumnWhere(
@@ -634,14 +769,8 @@ function buildClosingMoveInWhere(
 async function loadReportTeamLeaderInfo(input: {
   organizationId: string;
   visibleMembershipIds: string[] | null;
+  visibleTeamIds: string[] | null;
 }) {
-  const membershipFilter =
-    input.visibleMembershipIds === null
-      ? undefined
-      : {
-          in: input.visibleMembershipIds.length > 0 ? input.visibleMembershipIds : ["__no_membership__"]
-        };
-
   const [teams, teamMemberships] = await Promise.all([
     prisma.team.findMany({
       where: {
@@ -658,8 +787,7 @@ async function loadReportTeamLeaderInfo(input: {
     }),
     prisma.teamMembership.findMany({
       where: {
-        organizationId: input.organizationId,
-        ...(membershipFilter ? { membershipId: membershipFilter } : {})
+        organizationId: input.organizationId
       },
       select: {
         id: true,
@@ -697,43 +825,85 @@ async function loadReportTeamLeaderInfo(input: {
   });
 
   const leaderIdsByMembershipId = new Map<string, string[]>();
-  const leaderLabelByMembershipId = new Map<string, string>();
+  const leaderLabelSetByMembershipId = new Map<string, Set<string>>();
   const optionMap = new Map<string, string>();
+  const visibleMembershipIdSet = input.visibleMembershipIds === null ? null : new Set(input.visibleMembershipIds);
+  const visibleTeamIdSet = input.visibleTeamIds === null ? null : new Set(input.visibleTeamIds);
+  const teamMembershipById = new Map(
+    teamMemberships.map((teamMembership) => [
+      teamMembership.id,
+      {
+        ...teamMembership,
+        label:
+          `${teamMembership.membership.user.firstName} ${teamMembership.membership.user.lastName}`.trim() ||
+          teamMembership.membership.user.email
+      }
+    ])
+  );
+  const baseTeamMemberships = teamMemberships
+    .filter((teamMembership) => (visibleMembershipIdSet ? visibleMembershipIdSet.has(teamMembership.membershipId) : true))
+    .filter((teamMembership) => (visibleTeamIdSet ? visibleTeamIdSet.has(teamMembership.teamId) : true))
+    .sort((left, right) => {
+      const leftLabel = `${left.membership.user.firstName} ${left.membership.user.lastName}`.trim() || left.membership.user.email;
+      const rightLabel = `${right.membership.user.firstName} ${right.membership.user.lastName}`.trim() || right.membership.user.email;
+      return leftLabel.localeCompare(rightLabel) || left.id.localeCompare(right.id);
+    });
 
-  for (const teamMembership of teamMemberships) {
+  for (const teamMembership of baseTeamMemberships) {
     const hierarchyRecord = hierarchy.hierarchyMap.get(teamMembership.id);
     const selfLabel =
       `${teamMembership.membership.user.firstName} ${teamMembership.membership.user.lastName}`.trim() ||
       teamMembership.membership.user.email;
-    const resolvedLeaderId = isLeaderTeamMembershipRole(teamMembership.role)
-      ? teamMembership.membershipId
-      : hierarchyRecord?.directManagerMembershipId ?? hierarchyRecord?.rootLeader?.membershipId ?? null;
-    const resolvedLeaderLabel = isLeaderTeamMembershipRole(teamMembership.role)
-      ? selfLabel
-      : hierarchyRecord?.directManagerLabel && hierarchyRecord.directManagerLabel !== "No direct manager"
-        ? hierarchyRecord.directManagerLabel
-        : hierarchyRecord?.rootLeader?.label ?? "";
+    const directManager =
+      hierarchyRecord?.directManagerTeamMembershipId
+        ? teamMembershipById.get(hierarchyRecord.directManagerTeamMembershipId) ?? null
+        : null;
+    const rootLeader = hierarchyRecord?.rootLeader ?? null;
+    const resolvedLeader = isLeaderTeamMembershipRole(teamMembership.role)
+      ? {
+          membershipId: teamMembership.membershipId,
+          label: selfLabel,
+          roleLabel: formatTeamMembershipRoleLabel(teamMembership.role),
+          teamPathLabel: hierarchyRecord?.teamPathLabel ?? buildTeamPathLabel(hierarchy.index, teamMembership.teamId)
+        }
+      : directManager
+        ? {
+            membershipId: directManager.membershipId,
+            label: directManager.label,
+            roleLabel: formatTeamMembershipRoleLabel(directManager.role),
+            teamPathLabel: buildTeamPathLabel(hierarchy.index, directManager.teamId)
+          }
+        : rootLeader
+          ? {
+              membershipId: rootLeader.membershipId,
+              label: rootLeader.label,
+              roleLabel: rootLeader.roleLabel,
+              teamPathLabel: rootLeader.teamPathLabel
+            }
+          : null;
 
-    if (!resolvedLeaderId || !resolvedLeaderLabel) {
+    if (!resolvedLeader) {
       continue;
     }
 
     const currentLeaderIds = leaderIdsByMembershipId.get(teamMembership.membershipId) ?? [];
-    if (!currentLeaderIds.includes(resolvedLeaderId)) {
-      currentLeaderIds.push(resolvedLeaderId);
+    if (!currentLeaderIds.includes(resolvedLeader.membershipId)) {
+      currentLeaderIds.push(resolvedLeader.membershipId);
       leaderIdsByMembershipId.set(teamMembership.membershipId, currentLeaderIds);
     }
 
-    if (!leaderLabelByMembershipId.has(teamMembership.membershipId)) {
-      leaderLabelByMembershipId.set(teamMembership.membershipId, resolvedLeaderLabel);
-    }
+    const currentLeaderLabels = leaderLabelSetByMembershipId.get(teamMembership.membershipId) ?? new Set<string>();
+    currentLeaderLabels.add(resolvedLeader.label);
+    leaderLabelSetByMembershipId.set(teamMembership.membershipId, currentLeaderLabels);
 
-    const teamLabel = hierarchyRecord ? hierarchyRecord.teamPathLabel : "";
-    const roleLabel = formatTeamMembershipRoleLabel(teamMembership.role);
-    optionMap.set(
-      resolvedLeaderId,
-      teamLabel ? `${resolvedLeaderLabel} · ${roleLabel} · ${teamLabel}` : `${resolvedLeaderLabel} · ${roleLabel}`
-    );
+    if (!optionMap.has(resolvedLeader.membershipId)) {
+      optionMap.set(
+        resolvedLeader.membershipId,
+        resolvedLeader.teamPathLabel
+          ? `${resolvedLeader.label} · ${resolvedLeader.roleLabel} · ${resolvedLeader.teamPathLabel}`
+          : `${resolvedLeader.label} · ${resolvedLeader.roleLabel}`
+      );
+    }
   }
 
   return {
@@ -741,29 +911,63 @@ async function loadReportTeamLeaderInfo(input: {
       .sort((left, right) => left[1].localeCompare(right[1]))
       .map(([id, label]) => ({ id, label })),
     leaderIdsByMembershipId,
-    leaderLabelByMembershipId
+    leaderLabelByMembershipId: new Map(
+      [...leaderLabelSetByMembershipId.entries()].map(([membershipId, labels]) => [
+        membershipId,
+        [...labels].sort((left, right) => left.localeCompare(right)).join(", ")
+      ])
+    )
   } satisfies LoadedTeamLeaderInfo;
 }
 
-function mapSortOrder(sortBy: OfficeTransactionReportSortBy, sortDirection: OfficeTransactionReportSortDirection) {
-  const config = sortableColumns[sortBy];
+function sortTransactions(
+  transactions: TransactionReportRecord[],
+  sortBy: OfficeTransactionReportSortBy,
+  sortDirection: OfficeTransactionReportSortDirection
+) {
+  return [...transactions].sort((left, right) => {
+    const primaryComparison =
+      sortBy === "created_at"
+        ? compareDates(left.createdAt, right.createdAt, sortDirection)
+        : sortBy === "asking_price"
+          ? compareNullableNumbers(getNumericValue(left.askingPrice), getNumericValue(right.askingPrice), sortDirection)
+          : sortBy === "purchased_price"
+            ? compareNullableNumbers(getNumericValue(getPurchasedPriceValue(left)), getNumericValue(getPurchasedPriceValue(right)), sortDirection)
+            : sortBy === "gross_commission"
+              ? compareNullableNumbers(getNumericValue(left.grossCommission), getNumericValue(right.grossCommission), sortDirection)
+              : compareStatuses(left.status, right.status, sortDirection);
 
-  if (Array.isArray(config)) {
-    return config.map((entry, index) => {
-      if (index === 0) {
-        const key = Object.keys(entry)[0] as keyof typeof entry;
-        return {
-          [key]: sortDirection
-        };
-      }
+    if (primaryComparison !== 0) {
+      return primaryComparison;
+    }
 
-      return entry;
-    });
-  }
+    const createdAtComparison = compareDates(left.createdAt, right.createdAt, "desc");
 
-  const key = Object.keys(config)[0] as keyof typeof config;
+    if (createdAtComparison !== 0) {
+      return createdAtComparison;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function getFeeTotals(financeFees: TransactionReportRecord["financeFees"]) {
+  const rebateFees = financeFees.filter((fee) => fee.feeType === "rebate");
+  const referralFees = financeFees.filter(
+    (fee) => fee.feeType === "client_referral" || fee.feeType === "external_referral" || fee.feeType === "company_referral"
+  );
+  const reimbursementFees = financeFees.filter((fee) => fee.feeType === "reimbursement");
+  const rebateAmount = rebateFees.reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
+  const referralAmount = referralFees.reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
+  const reimbursementAmount = reimbursementFees.reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
+
   return {
-    [key]: sortDirection
+    rebateAmount,
+    referralAmount,
+    reimbursementAmount,
+    hasRebate: rebateFees.some((fee) => fee.amount !== null),
+    hasReferral: referralFees.some((fee) => fee.amount !== null),
+    hasReimbursement: reimbursementFees.some((fee) => fee.amount !== null)
   };
 }
 
@@ -772,15 +976,10 @@ function buildReportRow(
   teamLeaderInfo: LoadedTeamLeaderInfo
 ): OfficeTransactionReportRow {
   const additionalFields = normalizeAdditionalFields(transaction.additionalFields);
-  const rebateAmount = transaction.financeFees
-    .filter((fee) => fee.feeType === "rebate")
-    .reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
-  const referralAmount = transaction.financeFees
-    .filter((fee) => fee.feeType === "client_referral" || fee.feeType === "external_referral" || fee.feeType === "company_referral")
-    .reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
-  const reimbursementAmount = transaction.financeFees
-    .filter((fee) => fee.feeType === "reimbursement")
-    .reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
+  const { rebateAmount, referralAmount, reimbursementAmount, hasRebate, hasReferral, hasReimbursement } = getFeeTotals(
+    transaction.financeFees
+  );
+  const companyReferral = resolveCompanyReferralFlag(transaction.companyReferral, additionalFields);
 
   return {
     transactionNumber: transaction.id,
@@ -801,25 +1000,25 @@ function buildReportRow(
     state: transaction.state,
     zipCode: transaction.zipCode,
     layout: additionalFields.layout ?? "",
-    askingPrice: formatCurrency(transaction.askingPrice),
-    purchasedPrice: formatCurrency(getPurchasedPriceValue(transaction)),
+    askingPrice: formatCurrencyCell(transaction.askingPrice),
+    purchasedPrice: formatCurrencyCell(getPurchasedPriceValue(transaction)),
     offerAcceptanceDate: formatDateValue(transaction.acceptanceDate),
     closingMoveInDate: formatDateValue(transaction.moveInDate ?? transaction.closingDate),
     commissionType: additionalFields.commissionType ?? "",
     invoiceBillTo: additionalFields.invoiceBillTo ?? "",
     leasingContact: additionalFields.leasingContact ?? "",
     currencyType: additionalFields.currencyType ?? "USD",
-    grossCommission: formatCurrency(transaction.grossCommission),
+    grossCommission: formatCurrencyCell(transaction.grossCommission),
     commissionRate: additionalFields.yourCommissionRate ?? "",
-    rebate: formatCurrency(rebateAmount),
-    referral: formatCurrency(referralAmount),
-    reimbursement: formatCurrency(reimbursementAmount),
+    rebate: formatCurrencyCell(hasRebate ? rebateAmount : null),
+    referral: formatCurrencyCell(hasReferral ? referralAmount : null),
+    reimbursement: formatCurrencyCell(hasReimbursement ? reimbursementAmount : null),
     coAgentLegalName: additionalFields.coAgentLegalName ?? "",
     commissionBreakdown: additionalFields.commissionBreakdown ?? "",
     notes: additionalFields.note ?? additionalFields.notes ?? "",
     externalPartners: additionalFields.externalPartners ?? "",
-    companyReferral: transaction.companyReferral ? "Yes" : "No",
-    companyReferralEmployeeName: transaction.companyReferralEmployeeName ?? additionalFields.companyReferralEmployeeName ?? "",
+    companyReferral: companyReferral ? "Yes" : "No",
+    companyReferralEmployeeName: getCompanyReferralEmployeeName(transaction.companyReferralEmployeeName, additionalFields),
     href: `/office/transactions/${transaction.id}`
   };
 }
@@ -834,9 +1033,11 @@ export async function getOfficeTransactionReportsWorkspace(
     resource: "reports"
   });
   const visibleMembershipIds = scope.visibleMembershipIds;
+  const visibilityWhere = buildTransactionVisibilityWhere(scope);
   const teamLeaderInfo = await loadReportTeamLeaderInfo({
     organizationId: input.organizationId,
-    visibleMembershipIds
+    visibleMembershipIds,
+    visibleTeamIds: scope.visibleTeamIds
   });
   const membershipVisibilityFilter =
     visibleMembershipIds === null
@@ -844,6 +1045,30 @@ export async function getOfficeTransactionReportsWorkspace(
       : {
           in: visibleMembershipIds.length > 0 ? visibleMembershipIds : ["__no_membership__"]
         };
+  const visibleOfficeIds =
+    visibleMembershipIds === null
+      ? null
+      : Array.from(
+          new Set(
+            (
+              await prisma.transaction.findMany({
+                where: {
+                  organizationId: input.organizationId,
+                  officeId: {
+                    not: null
+                  },
+                  ...visibilityWhere
+                },
+                select: {
+                  officeId: true
+                },
+                distinct: ["officeId"]
+              })
+            )
+              .map((transaction) => transaction.officeId)
+              .filter((officeId): officeId is string => Boolean(officeId))
+          )
+        );
   const [ownerMemberships, departmentOptions] = await Promise.all([
     prisma.membership.findMany({
       where: {
@@ -870,7 +1095,14 @@ export async function getOfficeTransactionReportsWorkspace(
     }),
     prisma.office.findMany({
       where: {
-        organizationId: input.organizationId
+        organizationId: input.organizationId,
+        ...(visibleOfficeIds === null
+          ? {}
+          : {
+              id: {
+                in: visibleOfficeIds.length > 0 ? visibleOfficeIds : ["__no_office__"]
+              }
+            })
       },
       select: {
         id: true,
@@ -961,7 +1193,7 @@ export async function getOfficeTransactionReportsWorkspace(
     {
       organizationId: input.organizationId
     },
-    buildTransactionVisibilityWhere(scope)
+    visibilityWhere
   ];
 
   if (filters.ownerMembershipId) {
@@ -1028,23 +1260,6 @@ export async function getOfficeTransactionReportsWorkspace(
         path: ["invoiceNumber"],
         equals: filters.invoiceNumber
       }
-    });
-  }
-
-  if (filters.layouts.length > 0) {
-    whereConditions.push({
-      OR: filters.layouts.map((layout) => ({
-        additionalFields: {
-          path: ["layout"],
-          equals: layout
-        }
-      }))
-    });
-  }
-
-  if (filters.companyReferral) {
-    whereConditions.push({
-      companyReferral: filters.companyReferral === "yes"
     });
   }
 
@@ -1151,19 +1366,33 @@ export async function getOfficeTransactionReportsWorkspace(
         }
       }
     },
-    orderBy: mapSortOrder(sortBy, sortDirection)
+    orderBy: [{ createdAt: "desc" }]
   });
-  const rows = transactions.map((transaction) => buildReportRow(transaction, teamLeaderInfo));
-  const summary = rows.reduce(
-    (accumulator, row) => ({
-      totalTransactions: accumulator.totalTransactions + 1,
-      askingPrice: accumulator.askingPrice + Number(parseOptionalDecimal(row.askingPrice)?.toString() ?? 0),
-      purchasedPrice: accumulator.purchasedPrice + Number(parseOptionalDecimal(row.purchasedPrice)?.toString() ?? 0),
-      grossCommission: accumulator.grossCommission + Number(parseOptionalDecimal(row.grossCommission)?.toString() ?? 0),
-      rebate: accumulator.rebate + Number(parseOptionalDecimal(row.rebate)?.toString() ?? 0),
-      referral: accumulator.referral + Number(parseOptionalDecimal(row.referral)?.toString() ?? 0),
-      reimbursement: accumulator.reimbursement + Number(parseOptionalDecimal(row.reimbursement)?.toString() ?? 0)
-    }),
+  const filteredTransactions = transactions.filter((transaction) => {
+    const additionalFields = normalizeAdditionalFields(transaction.additionalFields);
+    const companyReferral = resolveCompanyReferralFlag(transaction.companyReferral, additionalFields);
+
+    return (
+      matchesLayoutFilter(additionalFields.layout ?? "", filters.layouts) &&
+      matchesCompanyReferralFilter(companyReferral, filters.companyReferral)
+    );
+  });
+  const sortedTransactions = sortTransactions(filteredTransactions, sortBy, sortDirection);
+  const rows = sortedTransactions.map((transaction) => buildReportRow(transaction, teamLeaderInfo));
+  const summary = sortedTransactions.reduce(
+    (accumulator, transaction) => {
+      const { rebateAmount, referralAmount, reimbursementAmount } = getFeeTotals(transaction.financeFees);
+
+      return {
+        totalTransactions: accumulator.totalTransactions + 1,
+        askingPrice: accumulator.askingPrice + Number(transaction.askingPrice ?? 0),
+        purchasedPrice: accumulator.purchasedPrice + Number(getPurchasedPriceValue(transaction) ?? 0),
+        grossCommission: accumulator.grossCommission + Number(transaction.grossCommission ?? 0),
+        rebate: accumulator.rebate + rebateAmount,
+        referral: accumulator.referral + referralAmount,
+        reimbursement: accumulator.reimbursement + reimbursementAmount
+      };
+    },
     {
       totalTransactions: 0,
       askingPrice: 0,
@@ -1179,12 +1408,12 @@ export async function getOfficeTransactionReportsWorkspace(
     filters,
     summary: {
       totalTransactions: summary.totalTransactions,
-      totalAskingPrice: formatCurrency(summary.askingPrice),
-      totalPurchasedPrice: formatCurrency(summary.purchasedPrice),
-      totalGrossCommission: formatCurrency(summary.grossCommission),
-      totalRebate: formatCurrency(summary.rebate),
-      totalReferral: formatCurrency(summary.referral),
-      totalReimbursement: formatCurrency(summary.reimbursement)
+      totalAskingPrice: formatCurrencyTotal(summary.askingPrice),
+      totalPurchasedPrice: formatCurrencyTotal(summary.purchasedPrice),
+      totalGrossCommission: formatCurrencyTotal(summary.grossCommission),
+      totalRebate: formatCurrencyTotal(summary.rebate),
+      totalReferral: formatCurrencyTotal(summary.referral),
+      totalReimbursement: formatCurrencyTotal(summary.reimbursement)
     },
     columns: officeTransactionReportColumns,
     rows,
