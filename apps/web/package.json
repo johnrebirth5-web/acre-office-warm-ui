@@ -14,6 +14,7 @@
     "@acre/backoffice": "0.1.0",
     "@acre/db": "0.1.0",
     "@acre/ui": "0.1.0",
+    "@react-pdf/renderer": "^4.3.2",
     "next": "^16.1.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

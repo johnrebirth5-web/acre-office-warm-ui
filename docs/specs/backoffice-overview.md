@@ -176,12 +176,13 @@ This file is the high-level product map for the current `Office / Back Office` s
 ### Accounting
 
 - What it is for:
-  - transaction-side accounting, chart of accounts, accounting transactions, EMD, agent billing, commission management.
+  - admin-controlled agent payout statements on top of the existing accounting and commission foundation.
 - Current maturity:
   - `MVP`
 - Current notable behavior:
-  - `/office/accounting` remains the admin/operations accounting workspace.
-  - `/office/accounting` is no longer exposed through the sales self-service billing permission path.
+  - `/office/accounting` is now an `office_admin`-only `Agent Statements` workspace.
+  - the page lets admin select an agent, choose a date window, switch between `calculated date` and `closing date`, review statement-ready commission rows, save a durable payout snapshot, and download a PDF.
+  - old ledger / agent billing / EMD UI is no longer rendered on `/office/accounting`, but the underlying accounting and billing foundation still exists.
   - `/office/billing` provides the current signed-in user's self-service billing view on top of the same accounting and agent-billing records.
 - Follow-up work:
   - stronger reporting

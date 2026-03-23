@@ -1569,6 +1569,10 @@ export function canAccessOfficeAccounting(subject: PermissionSubject): boolean {
   return can(subject, "accounting:view");
 }
 
+export function canAccessOfficeAdminAccountingWorkspace(subject: PermissionSubject): boolean {
+  return getSubjectRole(subject) === "office_admin";
+}
+
 export function canManageOfficeAccounting(subject: PermissionSubject): boolean {
   return can(subject, "accounting:manage");
 }

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   can,
   canAccessAccountActivity,
+  canAccessOfficeAdminAccountingWorkspace,
   canAccessOfficeAccounting,
   canCommentOfficeActivity,
   canCommentOfficeOffers,
@@ -44,6 +45,7 @@ test("office admin retains admin-only powers and secondary review access", () =>
   assert.equal(canManageOfficeSettings("office_admin"), true);
   assert.equal(canManageOfficeTransactionStatus("office_admin"), true);
   assert.equal(canSecondaryReviewOfficeTasks("office_admin"), true);
+  assert.equal(canAccessOfficeAdminAccountingWorkspace("office_admin"), true);
   assert.equal(canCommentOfficeActivity("office_admin"), true);
   assert.equal(canCommentOfficeOffers("office_admin"), true);
 });
@@ -54,6 +56,7 @@ test("owner keeps full office-admin level control", () => {
   assert.equal(canManageOfficeTransactionStatus("owner"), true);
   assert.equal(canManageOfficeTransactionFinance("owner"), true);
   assert.equal(canViewOfficeReports("owner"), true);
+  assert.equal(canAccessOfficeAdminAccountingWorkspace("owner"), false);
 });
 
 test("accountant and human resources keep Tier 2 reporting access without transaction finance editing", () => {
@@ -130,6 +133,7 @@ test("office user keeps internal read access without admin-only powers", () => {
   assert.equal(canAccessAccountActivity("office_user"), true);
   assert.equal(canViewOfficeTransactions("office_user"), true);
   assert.equal(canViewOfficeContacts("office_user"), true);
+  assert.equal(canAccessOfficeAdminAccountingWorkspace("office_user"), false);
   assert.equal(canManageOfficeTransactionStatus("office_user"), false);
   assert.equal(canManageOfficeUsers("office_user"), false);
   assert.equal(canManageOfficeSettings("office_user"), false);

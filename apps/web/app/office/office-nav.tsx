@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useState } from "react";
 import {
   canAccessAccountActivity,
-  canAccessOfficeAccounting,
+  canAccessOfficeAdminAccountingWorkspace,
   canAccessOfficeCommissionWorkspace,
   canAccessOfficeDocumentApprovals,
   canAccessOfficeNotifications,
@@ -49,7 +49,7 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
         { label: "Reports", href: "/office/reports", isVisible: canViewOfficeReports },
         { label: "Activity", href: "/office/activity", isVisible: canAccessAccountActivity },
         { label: "Library", href: "/office/library", isVisible: canViewOfficeLibrary },
-        { label: "Accounting", href: "/office/accounting", isVisible: canAccessOfficeAccounting }
+        { label: "Accounting", href: "/office/accounting", isVisible: canAccessOfficeAdminAccountingWorkspace }
       ].filter((item) => item.isVisible?.(subject) ?? true)
     },
     {
@@ -269,7 +269,7 @@ export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) 
             Library
           </Link>
         ) : null}
-        {canAccessOfficeAccounting(currentAccess) ? (
+        {canAccessOfficeAdminAccountingWorkspace(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/accounting") ? "is-active" : ""} href="/office/accounting">
             Acct
           </Link>

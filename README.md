@@ -275,9 +275,21 @@
     - `commissionPlanId`
   - 页面内 summary rows 可 drill-down 到真实 `/office/transactions`、`/office/accounting`、`/office/agents/:membershipId`
   - CSV 导出仍保留，并继续复用当前 transaction 过滤上下文导出真实 transaction 行
-- `Accounting` 现在也已接入真实数据库，作为一个最小但真实的 back-office accounting MVP：
+- `Accounting` 现在也已接入真实数据库，但当前产品入口已经收口成 admin-only 的 `Agent Statements` 工作台：
   - 路由：`/office/accounting`
-  - 基于 `LedgerAccount / AccountingTransaction / AccountingTransactionLineItem / GeneralLedgerEntry / EarnestMoneyRecord`
+  - 只有 `office_admin` 可见和可访问
+  - 当前页面只做：
+    - 选择某个 agent
+    - 选择任意时间段
+    - 按 `Calculated date / Closing date` 两种口径筛选 statement-ready commission rows
+    - 勾选本期要发的单子
+    - 生成 durable payout statement snapshot
+    - 下载 PDF
+  - 工资单 snapshot 现在基于：
+    - `AgentPayoutStatement`
+    - `AgentPayoutStatementLine`
+  - 工资单金额来自 `CommissionCalculation` 的 agent rows；生成后会把纳入本期的 row 从 `statement_ready` 推进到 `payable`
+  - 底层 accounting foundation 仍继续存在，基于 `LedgerAccount / AccountingTransaction / AccountingTransactionLineItem / GeneralLedgerEntry / EarnestMoneyRecord`
   - 已有最小 chart of accounts foundation
   - 现在也包含最小 `Commission Management / Commission Automation` foundation：
     - `CommissionPlan`
@@ -294,7 +306,7 @@
     - `Collections / payments received`
     - `Credit memo application`
     - `Statement` on-screen summary
-  - `Accounting` 仍然是 admin / operations workspace；当前用户的 self-service billing view 在独立的 `/office/billing`
+  - 当前用户的 self-service billing view 在独立的 `/office/billing`
   - 支持 accounting transaction types：
     - `invoice`
     - `bill`
@@ -355,7 +367,7 @@
       - split templates
       - current member defaults
       - advanced review queue for legacy plans / assignments
-    - `/office/accounting` 现在只保留 ledger / billing / EMD 等账务主流程，旧 commission hash 链接会自动跳转到新的 settings commission 页面
+    - `/office/accounting` 不再承载旧 ledger / billing / EMD UI；commission 主视图继续在 `/office/settings/commission-plans`
     - legacy plan / fee / status tools 仍保留在 `Advanced settings`
     - agent profile 的 commission summary
       - default split source visibility
@@ -735,6 +747,8 @@
   - `/api/office/accounting/commissions/assignments`
   - `/api/office/accounting/commissions/calculations/:calculationId`
   - `/api/office/accounting/commissions/statements`
+  - `/api/office/accounting/statements`
+  - `/api/office/accounting/statements/:statementId/pdf`
   - `/api/office/transactions/:transactionId/commissions/calculate`
   - `/api/office/transactions/:transactionId/commissions/override`
   - `/api/listings`

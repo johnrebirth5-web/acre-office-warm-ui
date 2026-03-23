@@ -477,12 +477,13 @@ Trade-off：
 - 只新增最小 durable 模型：
   - `AgentRecurringChargeRule`
   - `AgentPaymentMethod`
-- `/office/accounting` 现在包含：
-  - overview
-  - accounting transactions
-  - agent billing
-  - earnest money
-  - chart of accounts
+- 页面入口上，`/office/accounting` 当前收口成 `office_admin` 专属的 `Agent Statements` 工作台：
+  - agent 选择
+  - 任意日期范围
+  - `calculated_at / closing_date` 两种 period basis
+  - 候选佣金行勾选
+  - durable payout statement snapshot + PDF 下载
+- old accounting / agent billing / EMD UI 不再继续挂在 `/office/accounting` 页面上，但底层 foundation 仍保留
 
 Trade-off：
 
@@ -537,6 +538,8 @@ Trade-off：
   - `CommissionPlanAssignment`
   - `CommissionPlanRule`
   - `CommissionCalculation`
+  - `AgentPayoutStatement`
+  - `AgentPayoutStatementLine`
 - `CommissionPlanAssignment` 允许绑定到：
   - `membership`
   - `team`
@@ -544,7 +547,7 @@ Trade-off：
   - direct agent assignment > team assignment
   - 没有 active direct assignment 时才回退到 team assignment
 - commission plan 不单独做成新 app，而是嵌在：
-  - `/office/accounting`
+  - `/office/settings/commission-plans`
   - transaction detail finance / commission context
   - agent profile commission summary
 - 当前支持的基础规则：
@@ -569,6 +572,7 @@ Trade-off：
   - giant enterprise commission rule engine
   - 自动外部出款
 - 当前 `statement_ready / payable / paid` 只是内部状态与可见性，不自动代表外部银行资金已打出
+- `AgentPayoutStatement` 生成时会把被纳入该期工资单的 agent rows 从 `statement_ready` 推进到 `payable`，避免重复出单
 
 ## 关键决策 10：Agent Management 建在现有 Membership / Office 身份基础上，而不是另建第二套人员系统
 

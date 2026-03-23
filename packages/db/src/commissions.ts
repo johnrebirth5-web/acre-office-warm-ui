@@ -2397,7 +2397,7 @@ export async function saveCommissionPlan(input: SaveCommissionPlanInput): Promis
       payload: {
         officeId: input.officeId ?? null,
         objectLabel: name,
-        contextHref: "/office/accounting#commissions",
+        contextHref: "/office/settings/commission-plans",
         details: [
           `Mode: ${commissionCalculationModeLabelMap[calculationMode]}`,
           `Active rules: ${normalizedRules.length}`
@@ -2560,7 +2560,7 @@ export async function assignCommissionPlanToMembership(input: SaveCommissionPlan
       payload: {
         officeId: input.officeId ?? membership?.officeId ?? team?.officeId ?? null,
         objectLabel: `${plan.name} · ${membership ? `${membership.user.firstName} ${membership.user.lastName}` : team?.name ?? "Assignment target"}`,
-        contextHref: membership ? `/office/agents/${membership.id}` : "/office/accounting#commissions",
+        contextHref: membership ? `/office/agents/${membership.id}` : "/office/settings/commission-plans",
         details: [
           `Plan: ${plan.name}`,
           `${membership ? "Agent" : "Team"}: ${membership ? `${membership.user.firstName} ${membership.user.lastName}` : team?.name ?? "—"}`,
@@ -3130,7 +3130,7 @@ export async function generateCommissionStatementSnapshot(
       payload: {
         officeId: input.officeId ?? membership.officeId ?? null,
         objectLabel: `${membership.user.firstName} ${membership.user.lastName} commission statement`,
-        contextHref: `/office/accounting#commissions`,
+        contextHref: `/office/settings/commission-plans`,
         details: [
           `Agent: ${membership.user.firstName} ${membership.user.lastName}`,
           `Statement-ready: ${summary.statementReadyLabel}`,

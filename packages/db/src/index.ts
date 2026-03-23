@@ -49,6 +49,8 @@ export const databaseModules = [
   "commission_plan_assignments",
   "commission_plan_rules",
   "commission_calculations",
+  "agent_payout_statements",
+  "agent_payout_statement_lines",
   "transaction_finance_fees",
   "transaction_finance_calculation_versions",
   "membership_commission_settings",
@@ -154,6 +156,11 @@ export {
   updateAccountingTransaction,
   updateEarnestMoneyRecord
 } from "./accounting";
+export {
+  createAgentPayoutStatement,
+  getOfficeAgentPayoutStatementDetail,
+  getOfficeAgentPayoutStatementsWorkspaceSnapshot
+} from "./agent-payout-statements";
 export {
   applyAgentBillingCreditMemo,
   createAgentBillingCharges,
@@ -369,6 +376,17 @@ export type {
   SaveAccountingTransactionInput,
   UpdateEarnestMoneyRecordInput
 } from "./accounting";
+export type {
+  CreateAgentPayoutStatementInput,
+  GetOfficeAgentPayoutStatementDetailInput,
+  GetOfficeAgentPayoutStatementsWorkspaceInput,
+  OfficeAgentPayoutStatementCandidateRow,
+  OfficeAgentPayoutStatementDetail,
+  OfficeAgentPayoutStatementLineRecord,
+  OfficeAgentPayoutStatementMemberOption,
+  OfficeAgentPayoutStatementRecord,
+  OfficeAgentPayoutStatementsWorkspaceSnapshot
+} from "./agent-payout-statements";
 export type {
   ApplyAgentBillingCreditMemoInput,
   CreateAgentBillingChargesInput,

@@ -171,7 +171,13 @@
     - `AgentRecurringChargeRule` 做 future recurring visibility
     - `AgentPaymentMethod` 做 masked payment-method reference foundation
     - `AuditLog` 做 billing-related recent activity
-  - 当前 statements 是 live-generated monthly summaries，不是 durable statement snapshots，也没有 PDF download
+- 当前 statements 是 live-generated monthly summaries，不是 durable statement snapshots，也没有 PDF download
+- 当前 `Office Accounting` 页面已经从旧 ledger/billing/EMD 工作台收口为 `office_admin` 专属的 `Agent Statements` 工作台：
+  - `/office/accounting`
+  - 只允许 `office_admin`
+  - 基于 `CommissionCalculation` 的 agent rows 生成 durable `AgentPayoutStatement` / `AgentPayoutStatementLine`
+  - 支持按 `calculatedAt` 或 transaction `closingDate` 两种口径筛选
+  - 生成后可直接下载 PDF
   - 当前 payment-method self-service 只允许当前 membership 操作自己的方法记录，不允许跨成员编辑
 - 当前已有最小本地登录 / 登出 / cookie session
 - agent-management / user profile 现在会把 default commission split 作为结构化字段编辑，而不是自由文本 plan 名称
@@ -469,8 +475,8 @@
 13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页
 11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`
 12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 reporting workspace snapshot，覆盖 transaction、agent/team、commission、accounting、EMD 聚合
-13. `/office/accounting` 调 `@acre/db` 的 accounting service，返回 overview cards、accounting transaction list、general ledger、EMD records 和 chart of accounts
-14. `/office/accounting` 也会调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
+13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、候选 commission rows、saved statement history 和 selected statement detail
+14. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
 15. `/api/office/accounting/transactions` 与 `/api/office/accounting/earnest-money` 负责最小 create / update 写入；posting 成功后同步生成 GL entries 和 `AuditLog`
 16. `/api/office/accounting/commissions/*` 与 `/api/office/transactions/:transactionId/commissions/calculate` 负责 commission plan、assignment、calculation、status、statement snapshot 的最小写入，并同步写入 `AuditLog`
 17. `/office/activity` 读取 `AuditLog`，并结合 transaction / task / contact / follow-up / accounting / EMD / commission 的实时数据库状态派生 operational alerts
@@ -698,9 +704,9 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 
 更高级的 CRM 自动化、提醒编排、批量任务、线索分配仍未实现。
 
-### 5. Accounting 当前是 transaction-side accounting foundation
+### 5. Accounting 当前是 foundation + admin payout workspace
 
-`/office/accounting` 现在不再是占位页，而是一个最小但真实的 accounting MVP。它的边界是刻意收住的：
+`Accounting` 的底层 foundation 仍然是 transaction-side accounting，但 `/office/accounting` 的当前页面入口已经收口成 `office_admin` 专属的 agent payout workspace：
 
 - 目标是支持 brokerage / agent / transaction 相关的 accounting workflow
 - 不是 QuickBooks 替代品
@@ -716,6 +722,8 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - `AccountingTransactionApplication`
 - `AgentRecurringChargeRule`
 - `AgentPaymentMethod`
+- `AgentPayoutStatement`
+- `AgentPayoutStatementLine`
 
 当前支持的 accounting transaction types：
 
@@ -746,9 +754,18 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - refund / distribution
 - ledger-tracked optional posting
 
+当前 `/office/accounting` 页面只负责：
+
+- 选择一个 agent
+- 选择 payout period
+- 按 `Calculated date / Closing date` 带出 `statement_ready` 的 agent commission rows
+- 勾选本期要发的 rows
+- 生成 durable payout snapshot
+- 直接导出 PDF
+
 ### 6. Agent Billing 建在现有 Accounting foundation 上，不另建第二套 billing 系统
 
-`Agent Billing` 当前不是独立 app，也不是第二套账务系统，而是 `/office/accounting` 里的一个一等模块。
+`Agent Billing` 当前不是独立 app，也不是第二套账务系统，但它现在主要作为底层 foundation 和 `/office/billing` 的数据来源存在，而不是 `/office/accounting` 的当前页面主模块。
 
 这样做的原因是：
 
@@ -766,7 +783,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - 用 `AgentRecurringChargeRule` 表达 recurring charge rule
 - 用 `AgentPaymentMethod` 表达 masked payment method foundation
 
-当前 `/office/accounting` 中的 Agent Billing 区块支持：
+当前底层 Agent Billing foundation 支持：
 
 - overview cards
 - agent ledger

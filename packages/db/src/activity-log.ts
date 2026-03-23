@@ -112,6 +112,7 @@ export const activityLogActions = {
   accountingPaymentMethodUpdated: "accounting.payment_method_updated",
   accountingPaymentMethodRemoved: "accounting.payment_method_removed",
   accountingAgentCreditApplied: "accounting.agent_credit_applied",
+  agentPayoutStatementGenerated: "agent_payout_statement.generated",
   commissionPlanCreated: "commission.plan_created",
   commissionPlanUpdated: "commission.plan_updated",
   commissionPlanAssigned: "commission.plan_assigned",
@@ -168,6 +169,7 @@ export type ActivityLogEntityType =
   | "commission_plan"
   | "commission_calculation"
   | "commission_statement"
+  | "agent_payout_statement"
   | "agent_recurring_charge_rule"
   | "agent_payment_method"
   | "earnest_money";
@@ -454,6 +456,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "accounting.payment_method_updated": "Payment method updated",
   "accounting.payment_method_removed": "Payment method removed",
   "accounting.agent_credit_applied": "Credit applied",
+  "agent_payout_statement.generated": "Agent payout statement generated",
   "commission.plan_created": "Commission plan created",
   "commission.plan_updated": "Commission plan updated",
   "commission.plan_assigned": "Commission plan assigned",
@@ -612,6 +615,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.accountingPaymentMethodUpdated ||
       action === activityLogActions.accountingPaymentMethodRemoved ||
       action === activityLogActions.accountingAgentCreditApplied ||
+      action === activityLogActions.agentPayoutStatementGenerated ||
       action === activityLogActions.commissionPlanCreated ||
       action === activityLogActions.commissionPlanUpdated ||
       action === activityLogActions.commissionPlanAssigned ||
@@ -806,6 +810,7 @@ function mapEntityTypeToObjectType(entityType: string): Exclude<ActivityLogObjec
     case "commission_plan":
     case "commission_calculation":
     case "commission_statement":
+    case "agent_payout_statement":
     case "agent_recurring_charge_rule":
     case "agent_payment_method":
     case "earnest_money":
@@ -868,11 +873,15 @@ function getActivityHref(record: ActivityLogRecord, payload: ParsedActivityPaylo
   }
 
   if (record.entityType === "commission_plan" || record.entityType === "commission_statement") {
-    return payload.contextHref ?? "/office/accounting#commissions";
+    return payload.contextHref ?? "/office/settings/commission-plans";
+  }
+
+  if (record.entityType === "agent_payout_statement") {
+    return payload.contextHref ?? "/office/accounting";
   }
 
   if (record.entityType === "commission_calculation") {
-    return payload.contextHref ?? (payload.transactionId ? `/office/transactions/${payload.transactionId}#commission` : "/office/accounting#commissions");
+    return payload.contextHref ?? (payload.transactionId ? `/office/transactions/${payload.transactionId}#commission` : "/office/settings/commission-plans");
   }
 
   if (record.entityType === "agent_profile") {
@@ -1233,6 +1242,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "removed a payment method";
     case activityLogActions.accountingAgentCreditApplied:
       return "applied a credit memo to an outstanding balance";
+    case activityLogActions.agentPayoutStatementGenerated:
+      return "generated an agent payout statement";
     case activityLogActions.commissionPlanCreated:
       return "created a commission plan";
     case activityLogActions.commissionPlanUpdated:

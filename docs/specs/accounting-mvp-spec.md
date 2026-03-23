@@ -2,15 +2,20 @@
 
 ## Goal
 
-Provide a durable Back Office accounting foundation focused on transaction-side accounting, EMD, agent billing, and operational ledger visibility.
+Provide a durable Back Office accounting foundation focused on transaction-side accounting, EMD, agent billing, and admin-controlled agent payout statements.
 
 ## Current implemented foundation
 
 - `/office/accounting` exists and is database-backed
+- `/office/accounting` is now an `office_admin`-only agent statement workspace
 - chart of accounts foundation exists
 - accounting transactions and line items exist
 - general ledger entries exist
 - EMD workflow exists
+- agent payout statements now exist:
+  - candidate selection from statement-ready commission rows
+  - durable statement snapshot
+  - PDF download
 - agent billing exists:
   - ledger
   - one-time charges
@@ -32,6 +37,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - no payroll
 - no ACH payout execution
 - chart editing is still read-first / limited
+- old ledger / agent-billing / EMD UI is no longer exposed through `/office/accounting`
 
 ## Future direction
 

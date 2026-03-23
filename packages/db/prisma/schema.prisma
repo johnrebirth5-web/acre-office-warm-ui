@@ -392,6 +392,11 @@ enum CommissionCalculationStatus {
   paid
 }
 
+enum AgentPayoutStatementPeriodBasis {
+  calculated_at
+  closing_date
+}
+
 enum TransactionFinanceFeeType {
   rebate
   client_referral
@@ -480,6 +485,7 @@ model Organization {
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionPlanRules               CommissionPlanRule[]
   commissionCalculations            CommissionCalculation[]
+  agentPayoutStatements             AgentPayoutStatement[]
   transactionFinanceFees            TransactionFinanceFee[]
   transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
@@ -546,6 +552,7 @@ model Office {
   commissionPlans                   CommissionPlan[]
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionCalculations            CommissionCalculation[]
+  agentPayoutStatements             AgentPayoutStatement[]
   transactionFinanceFees            TransactionFinanceFee[]
   transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
@@ -633,6 +640,8 @@ model Membership {
   commissionPlanAssignments                CommissionPlanAssignment[]
   commissionCalculations                   CommissionCalculation[]            @relation("CommissionCalculationMembership")
   calculatedCommissionCalculations         CommissionCalculation[]            @relation("CommissionCalculationCalculatedBy")
+  agentPayoutStatements                    AgentPayoutStatement[]
+  generatedAgentPayoutStatements           AgentPayoutStatement[]             @relation("AgentPayoutStatementGeneratedBy")
   approvedTransactionFinanceFees           TransactionFinanceFee[]            @relation("TransactionFinanceFeeApprovedBy")
   createdTransactionFinanceCalculationVersions TransactionFinanceCalculationVersion[] @relation("TransactionFinanceCalculationVersionCreatedBy")
   checklistTemplatesCreated                ChecklistTemplate[]                @relation("ChecklistTemplateCreatedBy")
@@ -2108,6 +2117,55 @@ model CommissionCalculation {
   @@index([organizationId, membershipId])
   @@index([organizationId, commissionPlanId])
   @@index([organizationId, calculatedAt])
+}
+
+model AgentPayoutStatement {
+  id                    String                           @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  membershipId          String
+  periodStart           DateTime
+  periodEnd             DateTime
+  periodBasis           AgentPayoutStatementPeriodBasis
+  generatedAt           DateTime                         @default(now())
+  generatedByMembershipId String?
+  lineItemCount         Int                              @default(0)
+  totalStatementAmount  Decimal                          @default(0) @db.Decimal(12, 2)
+  totalGrossCommission  Decimal                          @default(0) @db.Decimal(12, 2)
+  totalOfficeNet        Decimal                          @default(0) @db.Decimal(12, 2)
+  totalAgentNet         Decimal                          @default(0) @db.Decimal(12, 2)
+  organization          Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                          @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership            Membership                       @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  generatedByMembership Membership?                      @relation("AgentPayoutStatementGeneratedBy", fields: [generatedByMembershipId], references: [id], onDelete: SetNull)
+  lineItems             AgentPayoutStatementLine[]
+
+  @@index([organizationId, officeId, generatedAt])
+  @@index([organizationId, membershipId, generatedAt])
+  @@index([organizationId, periodStart, periodEnd])
+}
+
+model AgentPayoutStatementLine {
+  id                    String                @id @default(cuid())
+  statementId           String
+  commissionCalculationId String
+  transactionId         String
+  transactionLabel      String
+  propertyAddress       String
+  closingDate           DateTime?
+  calculatedAt          DateTime
+  statusAtGeneration    CommissionCalculationStatus
+  grossCommission       Decimal               @default(0) @db.Decimal(12, 2)
+  referralFee           Decimal               @default(0) @db.Decimal(12, 2)
+  fees                  Decimal               @default(0) @db.Decimal(12, 2)
+  officeNet             Decimal               @default(0) @db.Decimal(12, 2)
+  agentNet              Decimal               @default(0) @db.Decimal(12, 2)
+  statementAmount       Decimal               @default(0) @db.Decimal(12, 2)
+  statement             AgentPayoutStatement  @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@index([statementId])
+  @@index([commissionCalculationId])
+  @@index([transactionId])
 }
 
 model TransactionFinanceFee {

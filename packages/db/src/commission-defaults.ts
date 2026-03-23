@@ -751,7 +751,7 @@ export async function saveCommissionSplitTemplate(input: SaveCommissionSplitTemp
       payload: {
         officeId: input.officeId ?? null,
         objectLabel: name,
-        contextHref: "/office/accounting#commissions",
+        contextHref: "/office/settings/commission-plans",
         details: [`Split: ${buildCommissionSplitLabel(agentPercent)}`]
       }
     });
@@ -790,7 +790,7 @@ export async function deleteCommissionSplitTemplate(input: DeleteCommissionSplit
       payload: {
         officeId: template.officeId,
         objectLabel: template.name,
-        contextHref: "/office/accounting#commissions",
+        contextHref: "/office/settings/commission-plans",
         details: ["Split template deleted"]
       }
     });
