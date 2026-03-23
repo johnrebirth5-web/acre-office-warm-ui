@@ -355,6 +355,16 @@ const selectableOwnerRoles = ["agent", "team_lead"] satisfies UserRole[];
 const selectableMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 const truthyReportFieldValues = new Set(["yes", "true", "1", "y"]);
 
+function buildScopedOfficeOrNullFilter(officeId: string | null | undefined) {
+  if (!officeId) {
+    return undefined;
+  }
+
+  return {
+    OR: [{ officeId }, { officeId: null }]
+  };
+}
+
 function formatCurrencyTotal(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
 
@@ -770,12 +780,14 @@ async function loadReportTeamLeaderInfo(input: {
   organizationId: string;
   visibleMembershipIds: string[] | null;
   visibleTeamIds: string[] | null;
+  officeId?: string | null;
 }) {
   const [teams, teamMemberships] = await Promise.all([
     prisma.team.findMany({
       where: {
         organizationId: input.organizationId,
-        isActive: true
+        isActive: true,
+        ...(buildScopedOfficeOrNullFilter(input.officeId) ?? {})
       },
       select: {
         id: true,
@@ -787,7 +799,11 @@ async function loadReportTeamLeaderInfo(input: {
     }),
     prisma.teamMembership.findMany({
       where: {
-        organizationId: input.organizationId
+        organizationId: input.organizationId,
+        team: {
+          isActive: true,
+          ...(buildScopedOfficeOrNullFilter(input.officeId) ?? {})
+        }
       },
       select: {
         id: true,
@@ -1029,7 +1045,7 @@ export async function getOfficeTransactionReportsWorkspace(
   const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.viewerMembershipId,
-    officeId: null,
+    officeId: input.officeId ?? null,
     resource: "reports"
   });
   const visibleMembershipIds = scope.visibleMembershipIds;
@@ -1037,7 +1053,8 @@ export async function getOfficeTransactionReportsWorkspace(
   const teamLeaderInfo = await loadReportTeamLeaderInfo({
     organizationId: input.organizationId,
     visibleMembershipIds,
-    visibleTeamIds: scope.visibleTeamIds
+    visibleTeamIds: scope.visibleTeamIds,
+    officeId: input.officeId ?? null
   });
   const membershipVisibilityFilter =
     visibleMembershipIds === null
@@ -1046,7 +1063,9 @@ export async function getOfficeTransactionReportsWorkspace(
           in: visibleMembershipIds.length > 0 ? visibleMembershipIds : ["__no_membership__"]
         };
   const visibleOfficeIds =
-    visibleMembershipIds === null
+    input.officeId
+      ? [input.officeId]
+      : visibleMembershipIds === null
       ? null
       : Array.from(
           new Set(
@@ -1073,6 +1092,7 @@ export async function getOfficeTransactionReportsWorkspace(
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
+        ...(buildScopedOfficeOrNullFilter(input.officeId) ?? {}),
         status: {
           in: selectableMembershipStatuses
         },
@@ -1199,6 +1219,12 @@ export async function getOfficeTransactionReportsWorkspace(
   if (filters.ownerMembershipId) {
     whereConditions.push({
       ownerMembershipId: filters.ownerMembershipId
+    });
+  }
+
+  if (input.officeId) {
+    whereConditions.push({
+      officeId: input.officeId
     });
   }
 

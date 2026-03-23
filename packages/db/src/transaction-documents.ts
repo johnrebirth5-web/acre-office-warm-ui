@@ -2023,17 +2023,26 @@ export async function createIncomingUpdate(input: CreateIncomingUpdateInput): Pr
 }
 
 function buildIncomingTransactionChanges(payload: Record<string, string>) {
-  return [
+  const changes = [
     { key: "title", label: "Transaction title" },
     { key: "address", label: "Address" },
     { key: "city", label: "City" },
     { key: "state", label: "State" },
     { key: "zipCode", label: "Zip code" },
     { key: "status", label: "Status" },
-    { key: "price", label: "Price" },
     { key: "importantDate", label: "Important date" },
     { key: "closingDate", label: "Closing date" }
   ].filter((entry) => payload[entry.key]);
+
+  if (payload.askingPrice) {
+    changes.push({ key: "askingPrice", label: "Asking price" });
+  }
+
+  if (payload.purchasedPrice || payload.price) {
+    changes.push({ key: "purchasedPrice", label: "Purchased price" });
+  }
+
+  return changes;
 }
 
 export async function reviewIncomingUpdate(input: ReviewIncomingUpdateInput): Promise<OfficeIncomingUpdate | null> {
@@ -2055,6 +2064,7 @@ export async function reviewIncomingUpdate(input: ReviewIncomingUpdateInput): Pr
             state: true,
             zipCode: true,
             status: true,
+            askingPrice: true,
             purchasedPrice: true,
             price: true,
             importantDate: true,
@@ -2125,8 +2135,20 @@ export async function reviewIncomingUpdate(input: ReviewIncomingUpdateInput): Pr
           }
         }
 
-        if (change.key === "price") {
-          const numeric = Number(payload.price);
+        if (change.key === "askingPrice") {
+          const numeric = Number(payload.askingPrice);
+
+          if (Number.isFinite(numeric)) {
+            const nextAskingPrice = new Prisma.Decimal(numeric);
+            updateData.askingPrice = nextAskingPrice;
+            updatePayloadChanges.push(
+              ...buildChanges(formatCurrency(existing.transaction.askingPrice), formatCurrency(numeric), change.label)
+            );
+          }
+        }
+
+        if (change.key === "purchasedPrice") {
+          const numeric = Number(payload.purchasedPrice ?? payload.price);
 
           if (Number.isFinite(numeric)) {
             const nextPurchasedPrice = new Prisma.Decimal(numeric);

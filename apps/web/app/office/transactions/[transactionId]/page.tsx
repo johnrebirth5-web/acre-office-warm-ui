@@ -49,6 +49,14 @@ type TransactionDetailPageProps = {
   }>;
 };
 
+function formatTransactionCurrency(value: string) {
+  if (!value) {
+    return "—";
+  }
+
+  return `$${Number(value).toLocaleString("en-US")}`;
+}
+
 export default async function OfficeTransactionDetailPage({ params }: TransactionDetailPageProps) {
   const context = await requireOfficeSession();
   const { transactionId } = await params;
@@ -144,11 +152,11 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
           </div>
           <div className="office-detail-field">
             <span>Asking Price</span>
-            <strong>{transaction.askingPrice ? `$${Number(transaction.askingPrice).toLocaleString("en-US")}` : "$0"}</strong>
+            <strong>{formatTransactionCurrency(transaction.askingPrice)}</strong>
           </div>
           <div className="office-detail-field">
             <span>Purchased Price</span>
-            <strong>{transaction.purchasedPrice ? `$${Number(transaction.purchasedPrice).toLocaleString("en-US")}` : "$0"}</strong>
+            <strong>{formatTransactionCurrency(transaction.purchasedPrice)}</strong>
           </div>
           <div className="office-detail-field">
             <span>Owner</span>

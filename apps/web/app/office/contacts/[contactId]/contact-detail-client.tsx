@@ -263,9 +263,10 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
               <span>
                 <Link href={`/office/transactions/${transaction.id}`}>{transaction.label}</Link>
               </span>
-              <strong>
-                {transaction.status} · {transaction.price}
-              </strong>
+              <strong>{transaction.status}</strong>
+              <span>
+                Asking: {transaction.askingPrice || "—"} · Purchased: {transaction.purchasedPrice || "—"}
+              </span>
             </div>
           ))}
           {contact.linkedTransactions.length === 0 ? (

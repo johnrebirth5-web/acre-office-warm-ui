@@ -300,6 +300,18 @@ test("reports workspace enforces scope, keeps exports aligned, and derives team 
       [context.office.id, context.secondaryOffice.id].sort()
     );
 
+    const scopedAdminWorkspace = await getOfficeTransactionReportsWorkspace({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    assert.deepEqual(
+      scopedAdminWorkspace.rows.map((row) => row.transactionNumber).sort(),
+      [agentTransaction.id, leadTransaction.id].sort()
+    );
+    assert.deepEqual(scopedAdminWorkspace.filters.departmentOptions.map((option) => option.id), [context.office.id]);
+
     const agentWorkspace = await getOfficeTransactionReportsWorkspace({
       organizationId: context.organization.id,
       viewerMembershipId: context.agentMembership.id,

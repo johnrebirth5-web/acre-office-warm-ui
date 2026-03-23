@@ -1052,6 +1052,14 @@ function formatCurrency(value: Prisma.Decimal | number | string | null | undefin
   }).format(numericValue);
 }
 
+function formatOptionalCurrency(value: Prisma.Decimal | number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  return formatCurrency(value);
+}
+
 function getPurchasedPriceValue<T extends { purchasedPrice: Prisma.Decimal | null; price: Prisma.Decimal | null }>(transaction: T) {
   return transaction.purchasedPrice ?? transaction.price;
 }
@@ -1611,9 +1619,9 @@ function mapTransactionRecord(
     id: transaction.id,
     address: `${transaction.address}, ${transaction.city}, ${transaction.state} ${transaction.zipCode}`.replace(/,\s+,/g, ", "),
     importantDate: formatImportantDate(transaction.importantDate),
-    askingPrice: formatCurrency(askingPrice),
-    purchasedPrice: formatCurrency(purchasedPrice),
-    price: formatCurrency(purchasedPrice),
+    askingPrice: formatOptionalCurrency(askingPrice),
+    purchasedPrice: formatOptionalCurrency(purchasedPrice),
+    price: formatOptionalCurrency(purchasedPrice),
     owner: transaction.ownerMembership
       ? `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}`
       : "Unassigned",

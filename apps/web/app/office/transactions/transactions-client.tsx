@@ -86,6 +86,10 @@ function getTransactionStatusTone(status: OfficeTransactionRecord["status"]) {
   return "neutral" as const;
 }
 
+function formatTransactionPriceCell(value: string) {
+  return value || "—";
+}
+
 function buildSearchFieldId(field: Pick<OfficeTransactionSearchFieldDescriptor, "kind" | "key">) {
   return `${field.kind}:${field.key}`;
 }
@@ -933,8 +937,8 @@ export function TransactionsClient({
                   </strong>
                 </div>
                 <div className="office-list-table-main">
-                  <strong>{transaction.askingPrice || "$0"}</strong>
-                  <p>{transaction.purchasedPrice || "$0"}</p>
+                  <strong>{formatTransactionPriceCell(transaction.askingPrice)}</strong>
+                  <p>{formatTransactionPriceCell(transaction.purchasedPrice)}</p>
                 </div>
                 <span>{transaction.owner}</span>
                 <span>{transaction.representing}</span>

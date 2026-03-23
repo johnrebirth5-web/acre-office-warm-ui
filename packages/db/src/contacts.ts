@@ -48,7 +48,8 @@ export type OfficeContactLinkedTransaction = {
   id: string;
   label: string;
   status: string;
-  price: string;
+  askingPrice: string;
+  purchasedPrice: string;
   role: string;
   isPrimary: boolean;
 };
@@ -95,7 +96,7 @@ const maxContactsPageSize = 100;
 
 function formatTransactionPrice(value: Prisma.Decimal | null) {
   if (!value) {
-    return "$0";
+    return "";
   }
 
   return new Intl.NumberFormat("en-US", {
@@ -614,7 +615,8 @@ export async function getContactById(organizationId: string, contactId: string):
     id: transactionContact.transaction.id,
     label: `${transactionContact.transaction.address}, ${transactionContact.transaction.city}, ${transactionContact.transaction.state} ${transactionContact.transaction.zipCode}`,
     status: transactionContact.transaction.status,
-    price: formatTransactionPrice(transactionContact.transaction.purchasedPrice ?? transactionContact.transaction.price),
+    askingPrice: formatTransactionPrice(transactionContact.transaction.askingPrice),
+    purchasedPrice: formatTransactionPrice(transactionContact.transaction.purchasedPrice ?? transactionContact.transaction.price),
     role: formatTransactionContactRole(transactionContact.role),
     isPrimary: transactionContact.isPrimary
   }));
