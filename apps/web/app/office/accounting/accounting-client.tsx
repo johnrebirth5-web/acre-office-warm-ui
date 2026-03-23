@@ -164,7 +164,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [highlightedAgentIndex, setHighlightedAgentIndex] = useState(0);
   const [selectedCalculationIds, setSelectedCalculationIds] = useState<string[]>(snapshot.candidateRows.map((row) => row.id));
   const [isGenerating, setIsGenerating] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+  const [filterError, setFilterError] = useState("");
+  const [generationError, setGenerationError] = useState("");
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
     .map((option) => ({
@@ -247,6 +248,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       payout: 0
     }
   );
+  const resolvedFilterMembershipId = resolveTypedAgentMembershipId(
+    snapshot.filters.memberOptions,
+    filterState.membershipId,
+    agentSearchValue
+  );
+  const hasFilterAgent = resolvedFilterMembershipId.trim().length > 0;
+  const hasFilterDateWindow = filterState.periodStart.trim().length > 0 && filterState.periodEnd.trim().length > 0;
+  const hasFilterDateOrder = !hasFilterDateWindow || filterState.periodStart.trim() <= filterState.periodEnd.trim();
+  const canLoadCandidates = hasFilterAgent && hasFilterDateWindow && hasFilterDateOrder;
   const hasValidRange = filterState.membershipId.trim() && filterState.periodStart.trim() && filterState.periodEnd.trim();
 
   function selectAgentOption(option: AgentOption) {
@@ -254,7 +264,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     setAgentSearchValue(option.label);
     setIsAgentPickerOpen(false);
     setHighlightedAgentIndex(0);
-    setSubmitError("");
+    setFilterError("");
   }
 
   function handleAgentSearchChange(value: string) {
@@ -269,21 +279,27 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     });
     setIsAgentPickerOpen(true);
     setHighlightedAgentIndex(0);
-    setSubmitError("");
+    setFilterError("");
   }
 
   function handleApplyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitError("");
+    setFilterError("");
 
-    const resolvedMembershipId = resolveTypedAgentMembershipId(
-      snapshot.filters.memberOptions,
-      filterState.membershipId,
-      agentSearchValue
-    );
+    const resolvedMembershipId = resolvedFilterMembershipId;
 
     if (agentSearchValue.trim() && !resolvedMembershipId) {
-      setSubmitError("Select an agent from the search results before loading candidates.");
+      setFilterError("Select an agent from the search results before loading candidates.");
+      return;
+    }
+
+    if (!filterState.periodStart.trim() || !filterState.periodEnd.trim()) {
+      setFilterError("Choose both a period start and period end date before loading candidates.");
+      return;
+    }
+
+    if (filterState.periodStart.trim() > filterState.periodEnd.trim()) {
+      setFilterError("Period start must be on or before period end.");
       return;
     }
 
@@ -302,7 +318,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }
 
   function resetFilters() {
-    setSubmitError("");
+    setFilterError("");
+    setGenerationError("");
     setFilterState({
       membershipId: "",
       periodStart: "",
@@ -341,7 +358,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     }
 
     setIsGenerating(true);
-    setSubmitError("");
+    setGenerationError("");
 
     try {
       const response = await fetch("/api/office/accounting/statements", {
@@ -376,7 +393,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         router.refresh();
       });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to generate the agent statement.");
+      setGenerationError(error instanceof Error ? error.message : "Failed to generate the agent statement.");
     } finally {
       setIsGenerating(false);
     }
@@ -482,12 +499,28 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           </FilterField>
 
           <div className="office-filter-actions">
-            <Button type="submit">Load candidates</Button>
+            <Button disabled={!canLoadCandidates} type="submit">
+              Load candidates
+            </Button>
             <Button onClick={resetFilters} type="button" variant="secondary">
               Reset
             </Button>
           </div>
         </ListPageFilters>
+
+        {filterError ? <p className="office-inline-error">{filterError}</p> : null}
+
+        {!filterError && !canLoadCandidates ? (
+          <p className="office-form-helper">
+            {!hasFilterAgent && agentSearchValue.trim()
+              ? "Pick one agent from the search results to continue."
+              : !hasFilterAgent
+                ? "Choose an agent to continue."
+                : !hasFilterDateWindow
+                  ? "Choose both period dates to load candidates."
+                  : "Period start must be on or before period end."}
+          </p>
+        ) : null}
 
         {snapshot.filters.periodBasis === "closing_date" && snapshot.skippedMissingClosingDateCount > 0 ? (
           <p className="office-form-helper">
@@ -587,7 +620,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <StatCard hint="sum of selected payout rows" label="Net payout" value={formatCurrency(selectedSummary.payout)} />
             </ListPageStatsGrid>
 
-            {submitError ? <p className="office-inline-error">{submitError}</p> : null}
+            {generationError ? <p className="office-inline-error">{generationError}</p> : null}
           </ListPageSection>
         </ListPageStack>
 
