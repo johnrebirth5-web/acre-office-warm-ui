@@ -2,6 +2,7 @@ import {
   AgentPayoutStatementPeriodBasis,
   CommissionCalculationStatus,
   MembershipStatus,
+  UserRole,
   Prisma
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
@@ -191,6 +192,39 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
 };
 
 const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
+const selectableAgentPayoutMembershipRoles = ["agent", "team_lead"] satisfies UserRole[];
+
+function buildOfficeOrGlobalMembershipWhere(officeId: string | null | undefined): Prisma.MembershipWhereInput | undefined {
+  if (!officeId) {
+    return undefined;
+  }
+
+  return {
+    OR: [{ officeId }, { officeId: null }]
+  };
+}
+
+function buildOfficeOrGlobalStatementWhere(officeId: string | null | undefined): Prisma.AgentPayoutStatementWhereInput | undefined {
+  if (!officeId) {
+    return undefined;
+  }
+
+  return {
+    OR: [{ officeId }, { officeId: null }]
+  };
+}
+
+function buildOfficeOrGlobalCommissionWhere(
+  officeId: string | null | undefined
+): Prisma.CommissionCalculationWhereInput | undefined {
+  if (!officeId) {
+    return undefined;
+  }
+
+  return {
+    OR: [{ officeId }, { officeId: null }]
+  };
+}
 
 function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
@@ -316,7 +350,7 @@ function buildAgentPayoutStatementWhere(input: {
 }) {
   const baseWhere: Prisma.CommissionCalculationWhereInput = {
     organizationId: input.organizationId,
-    ...(input.officeId ? { officeId: input.officeId } : {}),
+    ...(buildOfficeOrGlobalCommissionWhere(input.officeId) ?? {}),
     membershipId: input.membershipId,
     recipientType: "agent",
     status: "statement_ready"
@@ -444,7 +478,7 @@ export async function getOfficeAgentPayoutStatementDetail(
     where: {
       id: input.statementId,
       organizationId: input.organizationId,
-      ...(input.officeId ? { officeId: input.officeId } : {})
+      ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
     },
     include: {
       membership: {
@@ -483,8 +517,10 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
         status: {
           in: selectableAgentMembershipStatuses
         },
-        role: "agent",
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        role: {
+          in: selectableAgentPayoutMembershipRoles
+        },
+        ...(buildOfficeOrGlobalMembershipWhere(input.officeId) ?? {})
       },
       include: {
         user: true
@@ -494,7 +530,7 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
     prisma.agentPayoutStatement.findMany({
       where: {
         organizationId: input.organizationId,
-        ...(input.officeId ? { officeId: input.officeId } : {}),
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {}),
         ...(membershipId ? { membershipId } : {})
       },
       include: {
@@ -545,7 +581,7 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
       ? prisma.commissionCalculation.count({
           where: {
             organizationId: input.organizationId,
-            ...(input.officeId ? { officeId: input.officeId } : {}),
+            ...(buildOfficeOrGlobalCommissionWhere(input.officeId) ?? {}),
             membershipId,
             recipientType: "agent",
             status: "statement_ready",
@@ -606,8 +642,10 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
         status: {
           in: selectableAgentMembershipStatuses
         },
-        role: "agent",
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        role: {
+          in: selectableAgentPayoutMembershipRoles
+        },
+        ...(buildOfficeOrGlobalMembershipWhere(input.officeId) ?? {})
       },
       include: {
         user: true

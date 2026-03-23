@@ -9,6 +9,10 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - `/office/accounting` exists and is database-backed
 - `/office/accounting` is now an `office_admin`-only agent statement workspace
 - admin-operated agent selection must treat `invited` agents as operationally usable, not hidden, because many agents never log in and are fully managed by office admins
+- the statement workspace should source selectable payees from office/global sales memberships, not just office-local active agents:
+  - include `agent` and `team_lead`
+  - include `active` and `invited`
+  - include current-office memberships plus company-level memberships with `officeId = null`
 - chart of accounts foundation exists
 - accounting transactions and line items exist
 - general ledger entries exist

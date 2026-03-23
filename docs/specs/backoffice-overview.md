@@ -183,6 +183,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `/office/accounting` is now an `office_admin`-only `Agent Statements` workspace.
   - the page lets admin select an agent, choose a date window, switch between `calculated date` and `closing date`, review statement-ready commission rows, save a durable payout snapshot, and download a PDF.
   - invited agents remain selectable for admin-operated accounting workflows; `invited` only means the agent has not completed self-login, not that the office should be blocked from creating transactions, calculating commissions, or generating payout statements for them.
+  - accounting payee search follows the same office/global sales-member rule as transaction owner search, so admins can select current-office or company-level `agent / team_lead` memberships instead of being limited to office-local `active agent` rows only.
   - old ledger / agent billing / EMD UI is no longer rendered on `/office/accounting`, but the underlying accounting and billing foundation still exists.
   - `/office/billing` provides the current signed-in user's self-service billing view on top of the same accounting and agent-billing records.
 - Follow-up work:
