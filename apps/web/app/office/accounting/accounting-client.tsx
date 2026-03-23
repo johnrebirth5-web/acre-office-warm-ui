@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { startTransition, useEffect, useState, type FormEvent } from "react";
+import { startTransition, useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { OfficeAgentPayoutStatementsWorkspaceSnapshot } from "@acre/db";
 import {
   Button,
@@ -35,6 +35,8 @@ type FilterState = {
   periodEnd: string;
   periodBasis: "calculated_at" | "closing_date";
 };
+
+type AgentOption = OfficeAgentPayoutStatementsWorkspaceSnapshot["filters"]["memberOptions"][number];
 
 function buildAccountingHref(
   pathname: string,
@@ -97,9 +99,56 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function normalizeSearchValue(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function getAgentSearchRank(option: AgentOption, query: string) {
+  if (!query) {
+    return 0;
+  }
+
+  const normalizedLabel = normalizeSearchValue(option.label);
+
+  if (normalizedLabel === query) {
+    return 0;
+  }
+
+  if (normalizedLabel.startsWith(query)) {
+    return 1;
+  }
+
+  if (normalizedLabel.includes(` ${query}`)) {
+    return 2;
+  }
+
+  if (normalizedLabel.includes(query)) {
+    return 3;
+  }
+
+  return Number.POSITIVE_INFINITY;
+}
+
+function resolveTypedAgentMembershipId(options: AgentOption[], membershipId: string, searchValue: string) {
+  if (membershipId.trim()) {
+    return membershipId.trim();
+  }
+
+  const normalizedQuery = normalizeSearchValue(searchValue);
+
+  if (!normalizedQuery) {
+    return "";
+  }
+
+  const exactMatch = options.find((option) => normalizeSearchValue(option.label) === normalizedQuery);
+  return exactMatch?.id ?? "";
+}
+
 export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const agentListboxId = useId();
+  const agentPickerRef = useRef<HTMLDivElement | null>(null);
   const candidateRowKey = snapshot.candidateRows.map((row) => row.id).join("|");
   const [filterState, setFilterState] = useState<FilterState>({
     membershipId: snapshot.filters.membershipId,
@@ -107,9 +156,35 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     periodEnd: snapshot.filters.periodEnd,
     periodBasis: snapshot.filters.periodBasis
   });
+  const [agentSearchValue, setAgentSearchValue] = useState(
+    snapshot.filters.memberOptions.find((option) => option.id === snapshot.filters.membershipId)?.label ?? ""
+  );
+  const deferredAgentSearchValue = useDeferredValue(agentSearchValue);
+  const [isAgentPickerOpen, setIsAgentPickerOpen] = useState(false);
+  const [highlightedAgentIndex, setHighlightedAgentIndex] = useState(0);
   const [selectedCalculationIds, setSelectedCalculationIds] = useState<string[]>(snapshot.candidateRows.map((row) => row.id));
   const [isGenerating, setIsGenerating] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
+  const filteredAgentOptions = snapshot.filters.memberOptions
+    .map((option) => ({
+      option,
+      rank: getAgentSearchRank(option, normalizedAgentSearchValue)
+    }))
+    .filter((entry) => entry.rank !== Number.POSITIVE_INFINITY)
+    .sort((left, right) => {
+      if (left.rank !== right.rank) {
+        return left.rank - right.rank;
+      }
+
+      return left.option.label.localeCompare(right.option.label);
+    })
+    .slice(0, 8)
+    .map((entry) => entry.option);
+  const activeDescendantId =
+    isAgentPickerOpen && filteredAgentOptions[highlightedAgentIndex]
+      ? `${agentListboxId}-${filteredAgentOptions[highlightedAgentIndex].id}`
+      : undefined;
 
   useEffect(() => {
     setFilterState({
@@ -121,8 +196,40 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }, [snapshot.filters.membershipId, snapshot.filters.periodBasis, snapshot.filters.periodEnd, snapshot.filters.periodStart]);
 
   useEffect(() => {
+    const nextLabel = snapshot.filters.memberOptions.find((option) => option.id === snapshot.filters.membershipId)?.label ?? "";
+    setAgentSearchValue(nextLabel);
+    setIsAgentPickerOpen(false);
+    setHighlightedAgentIndex(0);
+  }, [snapshot.filters.memberOptions, snapshot.filters.membershipId]);
+
+  useEffect(() => {
     setSelectedCalculationIds(snapshot.candidateRows.map((row) => row.id));
   }, [candidateRowKey, snapshot.candidateRows]);
+
+  useEffect(() => {
+    if (highlightedAgentIndex < filteredAgentOptions.length) {
+      return;
+    }
+
+    setHighlightedAgentIndex(filteredAgentOptions.length > 0 ? filteredAgentOptions.length - 1 : 0);
+  }, [filteredAgentOptions, highlightedAgentIndex]);
+
+  useEffect(() => {
+    if (!isAgentPickerOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (agentPickerRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsAgentPickerOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isAgentPickerOpen]);
 
   const selectedIdLookup = new Set(selectedCalculationIds);
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
@@ -142,13 +249,50 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   );
   const hasValidRange = filterState.membershipId.trim() && filterState.periodStart.trim() && filterState.periodEnd.trim();
 
+  function selectAgentOption(option: AgentOption) {
+    setFilterState((current) => ({ ...current, membershipId: option.id }));
+    setAgentSearchValue(option.label);
+    setIsAgentPickerOpen(false);
+    setHighlightedAgentIndex(0);
+    setSubmitError("");
+  }
+
+  function handleAgentSearchChange(value: string) {
+    setAgentSearchValue(value);
+    setFilterState((current) => {
+      const currentOption = snapshot.filters.memberOptions.find((option) => option.id === current.membershipId);
+
+      return {
+        ...current,
+        membershipId: currentOption && currentOption.label === value ? current.membershipId : ""
+      };
+    });
+    setIsAgentPickerOpen(true);
+    setHighlightedAgentIndex(0);
+    setSubmitError("");
+  }
+
   function handleApplyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError("");
+
+    const resolvedMembershipId = resolveTypedAgentMembershipId(
+      snapshot.filters.memberOptions,
+      filterState.membershipId,
+      agentSearchValue
+    );
+
+    if (agentSearchValue.trim() && !resolvedMembershipId) {
+      setSubmitError("Select an agent from the search results before loading candidates.");
+      return;
+    }
+
+    setFilterState((current) => ({ ...current, membershipId: resolvedMembershipId }));
+
     startTransition(() => {
       router.push(
         buildAccountingHref(pathname, {
-          membershipId: filterState.membershipId,
+          membershipId: resolvedMembershipId,
           periodStart: filterState.periodStart,
           periodEnd: filterState.periodEnd,
           periodBasis: filterState.periodBasis
@@ -165,6 +309,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       periodEnd: "",
       periodBasis: "calculated_at"
     });
+    setAgentSearchValue("");
+    setIsAgentPickerOpen(false);
+    setHighlightedAgentIndex(0);
     startTransition(() => {
       router.push(pathname);
     });
@@ -243,14 +390,80 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       >
         <ListPageFilters as="form" className="office-report-filters office-list-filters" onSubmit={handleApplyFilters}>
           <FilterField label="Agent">
-            <SelectInput onChange={(event) => setFilterState((current) => ({ ...current, membershipId: event.target.value }))} value={filterState.membershipId}>
-              <option value="">Select agent</option>
-              {snapshot.filters.memberOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectInput>
+            <div className="office-autocomplete" ref={agentPickerRef}>
+              <TextInput
+                aria-activedescendant={activeDescendantId}
+                aria-autocomplete="list"
+                aria-controls={agentListboxId}
+                aria-expanded={isAgentPickerOpen}
+                autoComplete="off"
+                onChange={(event) => handleAgentSearchChange(event.target.value)}
+                onFocus={() => setIsAgentPickerOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setIsAgentPickerOpen(true);
+                    setHighlightedAgentIndex((current) =>
+                      filteredAgentOptions.length === 0 ? 0 : Math.min(current + 1, filteredAgentOptions.length - 1)
+                    );
+                    return;
+                  }
+
+                  if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setIsAgentPickerOpen(true);
+                    setHighlightedAgentIndex((current) => Math.max(current - 1, 0));
+                    return;
+                  }
+
+                  if (event.key === "Enter" && isAgentPickerOpen && filteredAgentOptions[highlightedAgentIndex]) {
+                    event.preventDefault();
+                    selectAgentOption(filteredAgentOptions[highlightedAgentIndex]);
+                    return;
+                  }
+
+                  if (event.key === "Escape") {
+                    setIsAgentPickerOpen(false);
+                  }
+                }}
+                placeholder="Type agent name"
+                role="combobox"
+                type="search"
+                value={agentSearchValue}
+              />
+
+              {isAgentPickerOpen ? (
+                <div className="office-autocomplete-panel" id={agentListboxId} role="listbox">
+                  {filteredAgentOptions.length > 0 ? (
+                    filteredAgentOptions.map((option, index) => (
+                      <button
+                        aria-selected={filterState.membershipId === option.id}
+                        className={[
+                          "office-autocomplete-option",
+                          highlightedAgentIndex === index ? "is-active" : "",
+                          filterState.membershipId === option.id ? "is-selected" : ""
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        id={`${agentListboxId}-${option.id}`}
+                        key={option.id}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          selectAgentOption(option);
+                        }}
+                        role="option"
+                        type="button"
+                      >
+                        <span>{option.label}</span>
+                        {filterState.membershipId === option.id ? <strong>Selected</strong> : null}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="office-autocomplete-empty">No matching agents.</div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </FilterField>
 
           <FilterField label="Period start">
