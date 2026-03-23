@@ -2055,6 +2055,7 @@ export async function reviewIncomingUpdate(input: ReviewIncomingUpdateInput): Pr
             state: true,
             zipCode: true,
             status: true,
+            purchasedPrice: true,
             price: true,
             importantDate: true,
             closingDate: true
@@ -2128,8 +2129,16 @@ export async function reviewIncomingUpdate(input: ReviewIncomingUpdateInput): Pr
           const numeric = Number(payload.price);
 
           if (Number.isFinite(numeric)) {
-            updateData.price = new Prisma.Decimal(numeric);
-            updatePayloadChanges.push(...buildChanges(formatCurrency(existing.transaction.price), formatCurrency(numeric), change.label));
+            const nextPurchasedPrice = new Prisma.Decimal(numeric);
+            updateData.purchasedPrice = nextPurchasedPrice;
+            updateData.price = nextPurchasedPrice;
+            updatePayloadChanges.push(
+              ...buildChanges(
+                formatCurrency(existing.transaction.purchasedPrice ?? existing.transaction.price),
+                formatCurrency(numeric),
+                change.label
+              )
+            );
           }
         }
 

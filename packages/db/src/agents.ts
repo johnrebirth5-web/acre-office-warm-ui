@@ -112,6 +112,10 @@ const defaultOnboardingItems = [
   }
 ] as const;
 
+function getPurchasedPriceValue(transaction: { purchasedPrice: Prisma.Decimal | null; price: Prisma.Decimal | null }) {
+  return transaction.purchasedPrice ?? transaction.price ?? new Prisma.Decimal(0);
+}
+
 export type OfficeAgentRosterRow = {
   membershipId: string;
   name: string;
@@ -1858,6 +1862,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       select: {
         ownerMembershipId: true,
         status: true,
+        purchasedPrice: true,
         price: true,
         officeNet: true,
         agentNet: true,
@@ -1992,7 +1997,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
           getGoalProgressSourceDate(transaction) <= goal.endsAt
       );
 
-      const closedVolume = closedTransactions.reduce((sum, transaction) => sum.plus(transaction.price ?? 0), new Prisma.Decimal(0));
+      const closedVolume = closedTransactions.reduce((sum, transaction) => sum.plus(getPurchasedPriceValue(transaction)), new Prisma.Decimal(0));
       const officeNet = closedTransactions.reduce((sum, transaction) => sum.plus(transaction.officeNet ?? 0), new Prisma.Decimal(0));
       const agentNet = closedTransactions.reduce((sum, transaction) => sum.plus(transaction.agentNet ?? 0), new Prisma.Decimal(0));
 
@@ -2360,6 +2365,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         },
         select: {
           status: true,
+          purchasedPrice: true,
           price: true,
           officeNet: true,
           agentNet: true,
@@ -2462,6 +2468,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         },
         select: {
           status: true,
+          purchasedPrice: true,
           price: true,
           officeNet: true,
           agentNet: true,
@@ -2477,7 +2484,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
           getGoalProgressSourceDate(transaction) <= goal.endsAt
       );
 
-      const closedVolume = closedTransactions.reduce((sum, transaction) => sum.plus(transaction.price ?? 0), new Prisma.Decimal(0));
+      const closedVolume = closedTransactions.reduce((sum, transaction) => sum.plus(getPurchasedPriceValue(transaction)), new Prisma.Decimal(0));
       const officeNet = closedTransactions.reduce((sum, transaction) => sum.plus(transaction.officeNet ?? 0), new Prisma.Decimal(0));
       const agentNet = closedTransactions.reduce((sum, transaction) => sum.plus(transaction.agentNet ?? 0), new Prisma.Decimal(0));
 
@@ -2643,7 +2650,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       id: transaction.id,
       label: `${transaction.title} · ${transaction.address}, ${transaction.city}, ${transaction.state}`,
       status: transaction.status,
-      priceLabel: formatCurrency(transaction.price),
+      priceLabel: formatCurrency(getPurchasedPriceValue(transaction)),
       href: `/office/transactions/${transaction.id}`
     })),
     recentActivity: recentActivity.map((item) => ({

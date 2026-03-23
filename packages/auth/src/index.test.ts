@@ -100,7 +100,7 @@ test("agent role keeps scoped pipeline access without finance or admin-only powe
   assert.equal(canCommentOfficeOffers("agent"), false);
   assert.equal(canManageOfficeUsers("agent"), false);
   assert.equal(canManageOfficeSettings("agent"), false);
-  assert.equal(canViewOfficeReports("agent"), false);
+  assert.equal(canViewOfficeReports("agent"), true);
 });
 
 test("commission self-service dashboard summary stays sales-only", () => {

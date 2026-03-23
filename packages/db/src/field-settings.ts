@@ -115,14 +115,30 @@ const transactionIntakeBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
     className: "is-span-4",
     sortOrder: 14
   },
-  { key: "price", label: "Price", inputName: "price", section: "primary", control: "text", sortOrder: 15 },
+  { key: "asking_price", label: "Asking Price", inputName: "askingPrice", section: "primary", control: "text", sortOrder: 15 },
+  {
+    key: "purchased_price",
+    label: "Purchased Price",
+    inputName: "purchasedPrice",
+    section: "primary",
+    control: "text",
+    sortOrder: 16
+  },
+  {
+    key: "move_in_date",
+    label: "Move-In Date",
+    inputName: "moveInDate",
+    section: "primary",
+    control: "date",
+    sortOrder: 17
+  },
   {
     key: "buyer_agreement_date",
     label: "Buyer Agreement Date",
     inputName: "buyerAgreementDate",
     section: "primary",
     control: "date",
-    sortOrder: 16
+    sortOrder: 18
   },
   {
     key: "buyer_expiration_date",
@@ -130,7 +146,7 @@ const transactionIntakeBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
     inputName: "buyerExpirationDate",
     section: "primary",
     control: "date",
-    sortOrder: 17
+    sortOrder: 19
   },
   {
     key: "acceptance_date",
@@ -138,7 +154,7 @@ const transactionIntakeBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
     inputName: "acceptanceDate",
     section: "primary",
     control: "date",
-    sortOrder: 18
+    sortOrder: 20
   },
   {
     key: "listing_date",
@@ -146,7 +162,7 @@ const transactionIntakeBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
     inputName: "listingDate",
     section: "primary",
     control: "date",
-    sortOrder: 19
+    sortOrder: 21
   },
   {
     key: "listing_expiration_date",
@@ -154,7 +170,7 @@ const transactionIntakeBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
     inputName: "listingExpirationDate",
     section: "primary",
     control: "date",
-    sortOrder: 20
+    sortOrder: 22
   },
   {
     key: "closing_date",
@@ -162,7 +178,7 @@ const transactionIntakeBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
     inputName: "closingDate",
     section: "primary",
     control: "date",
-    sortOrder: 21
+    sortOrder: 23
   }
 ];
 

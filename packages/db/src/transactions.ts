@@ -48,6 +48,8 @@ export type OfficeTransactionRecord = {
   id: string;
   address: string;
   importantDate: string;
+  askingPrice: string;
+  purchasedPrice: string;
   price: string;
   owner: string;
   representing: string;
@@ -193,6 +195,8 @@ export type OfficeTransactionDetail = {
   state: string;
   zipCode: string;
   typeValue: string;
+  askingPrice: string;
+  purchasedPrice: string;
   price: string;
   type: string;
   statusValue: string;
@@ -206,6 +210,7 @@ export type OfficeTransactionDetail = {
   listingDate: string;
   listingExpirationDate: string;
   closingDate: string;
+  moveInDate: string;
   companyReferral: "Yes" | "No";
   companyReferralEmployeeName: string;
   ownerName: string;
@@ -265,13 +270,16 @@ export type CreateTransactionInput = {
   state: string;
   zipCode: string;
   transactionName: string;
-  price: string;
+  askingPrice?: string;
+  purchasedPrice?: string;
+  price?: string;
   buyerAgreementDate?: string;
   buyerExpirationDate?: string;
   acceptanceDate?: string;
   listingDate?: string;
   listingExpirationDate?: string;
   closingDate?: string;
+  moveInDate?: string;
   grossCommission?: string;
   referralFee?: string;
   officeNet?: string;
@@ -328,13 +336,16 @@ export type UpdateTransactionIntakeInput = {
   state: string;
   zipCode: string;
   transactionName: string;
-  price: string;
+  askingPrice?: string;
+  purchasedPrice?: string;
+  price?: string;
   buyerAgreementDate?: string;
   buyerExpirationDate?: string;
   acceptanceDate?: string;
   listingDate?: string;
   listingExpirationDate?: string;
   closingDate?: string;
+  moveInDate?: string;
   additionalFields?: Record<string, string>;
   actorMembershipId?: string;
 };
@@ -348,6 +359,8 @@ export type PreparedTransactionIntakeSubmission = {
   state: string;
   zipCode: string;
   transactionName: string;
+  askingPrice: string;
+  purchasedPrice: string;
   price: string;
   buyerAgreementDate: string;
   buyerExpirationDate: string;
@@ -355,6 +368,7 @@ export type PreparedTransactionIntakeSubmission = {
   listingDate: string;
   listingExpirationDate: string;
   closingDate: string;
+  moveInDate: string;
   additionalFields: Record<string, string>;
 };
 
@@ -1038,6 +1052,14 @@ function formatCurrency(value: Prisma.Decimal | number | string | null | undefin
   }).format(numericValue);
 }
 
+function getPurchasedPriceValue<T extends { purchasedPrice: Prisma.Decimal | null; price: Prisma.Decimal | null }>(transaction: T) {
+  return transaction.purchasedPrice ?? transaction.price;
+}
+
+function getAskingPriceValue<T extends { askingPrice: Prisma.Decimal | null }>(transaction: T) {
+  return transaction.askingPrice;
+}
+
 function formatImportantDate(date: Date | null) {
   if (!date) {
     return "";
@@ -1218,13 +1240,16 @@ function buildTransactionIntakeBuiltInDefaults() {
     state: "",
     zipCode: "",
     transactionName: "",
+    askingPrice: "",
+    purchasedPrice: "",
     price: "",
     buyerAgreementDate: "",
     buyerExpirationDate: "",
     acceptanceDate: "",
     listingDate: "",
     listingExpirationDate: "",
-    closingDate: ""
+    closingDate: "",
+    moveInDate: ""
   };
 }
 
@@ -1260,8 +1285,12 @@ export function prepareTransactionIntakeSubmission(input: {
         return input.existingTransaction?.zipCode ?? "";
       case "transaction_name":
         return input.existingTransaction?.title ?? "";
+      case "asking_price":
+        return input.existingTransaction?.askingPrice ?? "";
+      case "purchased_price":
+        return input.existingTransaction?.purchasedPrice ?? input.existingTransaction?.price ?? "";
       case "price":
-        return input.existingTransaction?.price ?? "";
+        return input.existingTransaction?.purchasedPrice ?? input.existingTransaction?.price ?? "";
       case "buyer_agreement_date":
         return input.existingTransaction?.buyerAgreementDate ?? "";
       case "buyer_expiration_date":
@@ -1274,6 +1303,8 @@ export function prepareTransactionIntakeSubmission(input: {
         return input.existingTransaction?.listingExpirationDate ?? "";
       case "closing_date":
         return input.existingTransaction?.closingDate ?? "";
+      case "move_in_date":
+        return input.existingTransaction?.moveInDate ?? "";
       default:
         return "";
     }
@@ -1328,7 +1359,14 @@ export function prepareTransactionIntakeSubmission(input: {
       case "transaction_name":
         builtInValues.transactionName = nextValue;
         break;
+      case "asking_price":
+        builtInValues.askingPrice = nextValue;
+        break;
+      case "purchased_price":
+        builtInValues.purchasedPrice = nextValue;
+        break;
       case "price":
+        builtInValues.purchasedPrice = nextValue;
         builtInValues.price = nextValue;
         break;
       case "buyer_agreement_date":
@@ -1348,6 +1386,9 @@ export function prepareTransactionIntakeSubmission(input: {
         break;
       case "closing_date":
         builtInValues.closingDate = nextValue;
+        break;
+      case "move_in_date":
+        builtInValues.moveInDate = nextValue;
         break;
       default:
         break;
@@ -1382,7 +1423,15 @@ export function prepareTransactionIntakeSubmission(input: {
       case "transaction_name":
         builtInValues.transactionName = currentValue;
         break;
+      case "asking_price":
+        builtInValues.askingPrice = currentValue;
+        break;
+      case "purchased_price":
+        builtInValues.purchasedPrice = currentValue;
+        builtInValues.price = currentValue;
+        break;
       case "price":
+        builtInValues.purchasedPrice = currentValue;
         builtInValues.price = currentValue;
         break;
       case "buyer_agreement_date":
@@ -1402,6 +1451,9 @@ export function prepareTransactionIntakeSubmission(input: {
         break;
       case "closing_date":
         builtInValues.closingDate = currentValue;
+        break;
+      case "move_in_date":
+        builtInValues.moveInDate = currentValue;
         break;
       default:
         break;
@@ -1455,6 +1507,8 @@ export function prepareTransactionIntakeSubmission(input: {
     state: builtInValues.state,
     zipCode: builtInValues.zipCode,
     transactionName: builtInValues.transactionName,
+    askingPrice: builtInValues.askingPrice,
+    purchasedPrice: builtInValues.purchasedPrice || builtInValues.price,
     price: builtInValues.price,
     buyerAgreementDate: builtInValues.buyerAgreementDate,
     buyerExpirationDate: builtInValues.buyerExpirationDate,
@@ -1462,6 +1516,7 @@ export function prepareTransactionIntakeSubmission(input: {
     listingDate: builtInValues.listingDate,
     listingExpirationDate: builtInValues.listingExpirationDate,
     closingDate: builtInValues.closingDate,
+    moveInDate: builtInValues.moveInDate,
     additionalFields
   };
 }
@@ -1535,6 +1590,8 @@ function mapTransactionRecord(
     city: string;
     state: string;
     zipCode: string;
+    askingPrice: Prisma.Decimal | null;
+    purchasedPrice: Prisma.Decimal | null;
     price: Prisma.Decimal | null;
     importantDate: Date | null;
     status: TransactionStatus;
@@ -1547,17 +1604,22 @@ function mapTransactionRecord(
     } | null;
   }
 ): OfficeTransactionRecord {
+  const askingPrice = getAskingPriceValue(transaction);
+  const purchasedPrice = getPurchasedPriceValue(transaction);
+
   return {
     id: transaction.id,
     address: `${transaction.address}, ${transaction.city}, ${transaction.state} ${transaction.zipCode}`.replace(/,\s+,/g, ", "),
     importantDate: formatImportantDate(transaction.importantDate),
-    price: formatCurrency(transaction.price),
+    askingPrice: formatCurrency(askingPrice),
+    purchasedPrice: formatCurrency(purchasedPrice),
+    price: formatCurrency(purchasedPrice),
     owner: transaction.ownerMembership
       ? `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}`
       : "Unassigned",
     representing: representingLabelMap[transaction.representing],
     status: transactionStatusLabelMap[transaction.status],
-    volume: Number(transaction.price ?? 0),
+    volume: Number(purchasedPrice ?? 0),
     isFlagged: Boolean(transaction.importantDate)
   };
 }
@@ -1573,6 +1635,8 @@ function mapTransactionDetail(
     city: string;
     state: string;
     zipCode: string;
+    askingPrice: Prisma.Decimal | null;
+    purchasedPrice: Prisma.Decimal | null;
     price: Prisma.Decimal | null;
     type: TransactionType;
     status: TransactionStatus;
@@ -1584,6 +1648,7 @@ function mapTransactionDetail(
     listingDate: Date | null;
     listingExpirationDate: Date | null;
     closingDate: Date | null;
+    moveInDate: Date | null;
     companyReferral: boolean;
     companyReferralEmployeeName: string | null;
     clientReferralFormApproved: boolean;
@@ -1620,6 +1685,8 @@ function mapTransactionDetail(
   const ownerName = transaction.ownerMembership
     ? `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}`
     : "Unassigned";
+  const askingPrice = getAskingPriceValue(transaction);
+  const purchasedPrice = getPurchasedPriceValue(transaction);
 
   return {
     id: transaction.id,
@@ -1633,7 +1700,9 @@ function mapTransactionDetail(
     state: transaction.state,
     zipCode: transaction.zipCode,
     typeValue: transaction.type,
-    price: transaction.price ? String(transaction.price) : "",
+    askingPrice: askingPrice ? String(askingPrice) : "",
+    purchasedPrice: purchasedPrice ? String(purchasedPrice) : "",
+    price: purchasedPrice ? String(purchasedPrice) : "",
     type: transactionTypeLabelMap[transaction.type],
     statusValue: transaction.status,
     status: transactionStatusLabelMap[transaction.status],
@@ -1646,6 +1715,7 @@ function mapTransactionDetail(
     listingDate: formatDateValue(transaction.listingDate),
     listingExpirationDate: formatDateValue(transaction.listingExpirationDate),
     closingDate: formatDateValue(transaction.closingDate),
+    moveInDate: formatDateValue(transaction.moveInDate),
     companyReferral: transaction.companyReferral ? "Yes" : "No",
     companyReferralEmployeeName: transaction.companyReferralEmployeeName ?? "",
     ownerName,
@@ -1689,6 +1759,7 @@ function buildTransactionDateFieldWhere(
     | "listingDate"
     | "listingExpirationDate"
     | "closingDate"
+    | "moveInDate"
   >,
   from: string | undefined,
   to: string | undefined
@@ -1793,9 +1864,17 @@ function buildTransactionFieldFilterWhere(
               }
             }
           : null;
+      case "asking_price": {
+        const parsedPrice = parseOptionalDecimal(filter.value);
+        return parsedPrice ? { askingPrice: parsedPrice } : null;
+      }
+      case "purchased_price": {
+        const parsedPrice = parseOptionalDecimal(filter.value);
+        return parsedPrice ? { purchasedPrice: parsedPrice } : null;
+      }
       case "price": {
         const parsedPrice = parseOptionalDecimal(filter.value);
-        return parsedPrice ? { price: parsedPrice } : null;
+        return parsedPrice ? { purchasedPrice: parsedPrice } : null;
       }
       case "buyer_agreement_date":
         return buildTransactionDateFieldWhere("buyerAgreementDate", filter.from, filter.to);
@@ -1809,6 +1888,8 @@ function buildTransactionFieldFilterWhere(
         return buildTransactionDateFieldWhere("listingExpirationDate", filter.from, filter.to);
       case "closing_date":
         return buildTransactionDateFieldWhere("closingDate", filter.from, filter.to);
+      case "move_in_date":
+        return buildTransactionDateFieldWhere("moveInDate", filter.from, filter.to);
       default:
         return null;
     }
@@ -2359,9 +2440,17 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
       ...(input.additionalFields ?? {}),
       agentName: ownerLabel
     };
+    const bridgedClosingOrMoveInDate = (input.moveInDate ?? input.closingDate ?? "").trim();
+
+    if (bridgedClosingOrMoveInDate) {
+      additionalFields.moveInDateClosingDate = bridgedClosingOrMoveInDate;
+    }
+
     const companyReferralValue = (additionalFields.companyReferral ?? "").toString().toLowerCase();
     const companyReferral = companyReferralValue === "yes";
     const companyReferralEmployeeName = (additionalFields.companyReferralEmployeesName ?? additionalFields.companyReferralEmployeeName ?? "").trim();
+    const askingPrice = parseOptionalDecimal(input.askingPrice);
+    const purchasedPrice = parseOptionalDecimal(input.purchasedPrice ?? input.price);
     const grossCommission = parseCreateFinanceDecimal(input.grossCommission, additionalFields.commissionAmount);
     const referralFee = parseCreateFinanceDecimal(input.referralFee, additionalFields.referralFee);
     const officeNet = parseCreateFinanceDecimal(input.officeNet, additionalFields.officeNet);
@@ -2381,14 +2470,17 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
         city: input.city.trim(),
         state: input.state.trim(),
         zipCode: input.zipCode.trim(),
-        price: parseOptionalDecimal(input.price),
-        importantDate: parseOptionalDate(input.buyerExpirationDate) ?? parseOptionalDate(input.closingDate),
+        askingPrice,
+        purchasedPrice,
+        price: purchasedPrice,
+        importantDate: parseOptionalDate(input.buyerExpirationDate) ?? parseOptionalDate(input.moveInDate) ?? parseOptionalDate(input.closingDate),
         buyerAgreementDate: parseOptionalDate(input.buyerAgreementDate),
         buyerExpirationDate: parseOptionalDate(input.buyerExpirationDate),
         acceptanceDate: parseOptionalDate(input.acceptanceDate),
         listingDate: parseOptionalDate(input.listingDate),
         listingExpirationDate: parseOptionalDate(input.listingExpirationDate),
         closingDate: parseOptionalDate(input.closingDate),
+        moveInDate: parseOptionalDate(input.moveInDate),
         companyReferral,
         companyReferralEmployeeName: companyReferralEmployeeName || null,
         grossCommission,
@@ -2860,8 +2952,11 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
       listingDate: true,
       listingExpirationDate: true,
       closingDate: true,
+      moveInDate: true,
       companyReferral: true,
       companyReferralEmployeeName: true,
+      askingPrice: true,
+      purchasedPrice: true,
       grossCommission: true,
       referralFee: true,
       officeNet: true,
@@ -2899,6 +2994,12 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
   if (ownerLabel) {
     mergedAdditionalFields.agentName = ownerLabel;
   }
+  const bridgedClosingOrMoveInDate = (input.moveInDate ?? input.closingDate ?? "").trim();
+
+  if (bridgedClosingOrMoveInDate) {
+    mergedAdditionalFields.moveInDateClosingDate = bridgedClosingOrMoveInDate;
+  }
+
   const companyReferralValue = (mergedAdditionalFields.companyReferral ?? "").toString().trim().toLowerCase();
   const nextCompanyReferral = companyReferralValue ? companyReferralValue === "yes" : existing.companyReferral;
   const nextCompanyReferralEmployeeName = (
@@ -2914,14 +3015,17 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
   const nextCity = input.city.trim();
   const nextState = input.state.trim();
   const nextZipCode = input.zipCode.trim();
-  const nextPrice = parseOptionalDecimal(input.price);
+  const nextAskingPrice = parseOptionalDecimal(input.askingPrice) ?? existing.askingPrice;
+  const nextPurchasedPrice = parseOptionalDecimal(input.purchasedPrice ?? input.price) ?? existing.purchasedPrice ?? existing.price;
   const nextBuyerAgreementDate = parseOptionalDate(input.buyerAgreementDate);
   const nextBuyerExpirationDate = parseOptionalDate(input.buyerExpirationDate);
   const nextAcceptanceDate = parseOptionalDate(input.acceptanceDate);
   const nextListingDate = parseOptionalDate(input.listingDate);
   const nextListingExpirationDate = parseOptionalDate(input.listingExpirationDate);
   const nextClosingDate = parseOptionalDate(input.closingDate);
-  const nextImportantDate = parseOptionalDate(input.buyerExpirationDate) ?? parseOptionalDate(input.closingDate);
+  const nextMoveInDate = parseOptionalDate(input.moveInDate);
+  const nextImportantDate =
+    parseOptionalDate(input.buyerExpirationDate) ?? parseOptionalDate(input.moveInDate) ?? parseOptionalDate(input.closingDate);
   const nextTransactionType = transactionTypeInputDbMap[input.transactionType] ?? existing.type;
   const nextTransactionStatus = transactionStatusInputDbMap[input.transactionStatus] ?? existing.status;
   const nextRepresenting = representingInputDbMap[input.representing] ?? existing.representing;
@@ -2940,7 +3044,9 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
         city: nextCity,
         state: nextState,
         zipCode: nextZipCode,
-        price: nextPrice,
+        askingPrice: nextAskingPrice,
+        purchasedPrice: nextPurchasedPrice,
+        price: nextPurchasedPrice,
         importantDate: nextImportantDate,
         buyerAgreementDate: nextBuyerAgreementDate,
         buyerExpirationDate: nextBuyerExpirationDate,
@@ -2948,6 +3054,7 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
         listingDate: nextListingDate,
         listingExpirationDate: nextListingExpirationDate,
         closingDate: nextClosingDate,
+        moveInDate: nextMoveInDate,
         companyReferral: nextCompanyReferral,
         companyReferralEmployeeName: nextCompanyReferralEmployeeName || null,
         grossCommission: nextGrossCommission,
@@ -2973,13 +3080,19 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
       buildAuditDetail("Type", transactionTypeLabelMap[existing.type], transactionTypeLabelMap[nextTransactionType]),
       buildAuditDetail("Status", transactionStatusLabelMap[existing.status], transactionStatusLabelMap[nextTransactionStatus]),
       buildAuditDetail("Representing", representingLabelMap[existing.representing], representingLabelMap[nextRepresenting]),
-      buildAuditDetail("Price", formatAuditCurrencyValue(existing.price), formatAuditCurrencyValue(nextPrice)),
+      buildAuditDetail("Asking price", formatAuditCurrencyValue(existing.askingPrice), formatAuditCurrencyValue(nextAskingPrice)),
+      buildAuditDetail(
+        "Purchased price",
+        formatAuditCurrencyValue(existing.purchasedPrice ?? existing.price),
+        formatAuditCurrencyValue(nextPurchasedPrice)
+      ),
       buildAuditDetail("Buyer agreement date", formatAuditTextValue(formatDateValue(existing.buyerAgreementDate)), formatAuditTextValue(input.buyerAgreementDate)),
       buildAuditDetail("Buyer expiration date", formatAuditTextValue(formatDateValue(existing.buyerExpirationDate)), formatAuditTextValue(input.buyerExpirationDate)),
       buildAuditDetail("Acceptance date", formatAuditTextValue(formatDateValue(existing.acceptanceDate)), formatAuditTextValue(input.acceptanceDate)),
       buildAuditDetail("Listing date", formatAuditTextValue(formatDateValue(existing.listingDate)), formatAuditTextValue(input.listingDate)),
       buildAuditDetail("Listing expiration date", formatAuditTextValue(formatDateValue(existing.listingExpirationDate)), formatAuditTextValue(input.listingExpirationDate)),
       buildAuditDetail("Closing date", formatAuditTextValue(formatDateValue(existing.closingDate)), formatAuditTextValue(input.closingDate)),
+      buildAuditDetail("Move-In date", formatAuditTextValue(formatDateValue(existing.moveInDate)), formatAuditTextValue(input.moveInDate)),
       ...Object.keys(sanitizedAdditionalFieldsInput).map((fieldKey) =>
         buildAuditDetail(fieldKey, formatAuditTextValue(existingAdditionalFields[fieldKey]), formatAuditTextValue(mergedAdditionalFields[fieldKey]))
       )
@@ -2994,13 +3107,19 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
       buildAuditChange("Type", transactionTypeLabelMap[existing.type], transactionTypeLabelMap[nextTransactionType]),
       buildAuditChange("Status", transactionStatusLabelMap[existing.status], transactionStatusLabelMap[nextTransactionStatus]),
       buildAuditChange("Representing", representingLabelMap[existing.representing], representingLabelMap[nextRepresenting]),
-      buildAuditChange("Price", formatAuditCurrencyValue(existing.price), formatAuditCurrencyValue(nextPrice)),
+      buildAuditChange("Asking price", formatAuditCurrencyValue(existing.askingPrice), formatAuditCurrencyValue(nextAskingPrice)),
+      buildAuditChange(
+        "Purchased price",
+        formatAuditCurrencyValue(existing.purchasedPrice ?? existing.price),
+        formatAuditCurrencyValue(nextPurchasedPrice)
+      ),
       buildAuditChange("Buyer agreement date", formatAuditTextValue(formatDateValue(existing.buyerAgreementDate)), formatAuditTextValue(input.buyerAgreementDate)),
       buildAuditChange("Buyer expiration date", formatAuditTextValue(formatDateValue(existing.buyerExpirationDate)), formatAuditTextValue(input.buyerExpirationDate)),
       buildAuditChange("Acceptance date", formatAuditTextValue(formatDateValue(existing.acceptanceDate)), formatAuditTextValue(input.acceptanceDate)),
       buildAuditChange("Listing date", formatAuditTextValue(formatDateValue(existing.listingDate)), formatAuditTextValue(input.listingDate)),
       buildAuditChange("Listing expiration date", formatAuditTextValue(formatDateValue(existing.listingExpirationDate)), formatAuditTextValue(input.listingExpirationDate)),
       buildAuditChange("Closing date", formatAuditTextValue(formatDateValue(existing.closingDate)), formatAuditTextValue(input.closingDate)),
+      buildAuditChange("Move-In date", formatAuditTextValue(formatDateValue(existing.moveInDate)), formatAuditTextValue(input.moveInDate)),
       ...Object.keys(sanitizedAdditionalFieldsInput).map((fieldKey) =>
         buildAuditChange(fieldKey, formatAuditTextValue(existingAdditionalFields[fieldKey]), formatAuditTextValue(mergedAdditionalFields[fieldKey]))
       )

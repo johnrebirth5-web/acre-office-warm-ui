@@ -304,8 +304,9 @@ Trade-off：
   - `TaskListView` 先按 membership 维度持久化 saved views，不做公司级全局视图编辑器
   - task workflow 先支持最小 review / secondary approval 状态流，再与当前 documents / forms / signatures foundation 做真实联动
   - transaction summary 的 `totalNetIncome` 现在按 `officeNet` 聚合，不再硬编码
-  - reports page 的最小聚合报表已切到 Prisma
-  - reports page 的 CSV 导出当前采用单页专用 route，不引入通用导出框架
+  - reports page 已从多段式 management aggregate 改成 transaction-centric workspace；同一套 predicate 现在同时驱动 filters / rows / summary / CSV export
+  - transaction 金额真源已拆成 `askingPrice + purchasedPrice`，其中 `purchasedPrice` 是 pipeline/report/dashboard/agent volume 的默认成交金额口径，legacy `price` 仅保留兼容桥
+  - reports page 的 CSV 导出继续采用单页专用 route，但现在与页面 table 共用同一份列注册表和权限过滤
   - 其他模块继续保留 mock
 
 ### 4. Auth 先采用内部 invitation + password + signed-cookie 方案

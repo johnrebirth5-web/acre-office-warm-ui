@@ -175,7 +175,9 @@ const transactionIntakeBuiltInFieldCatalog: Array<{
   { key: "state", label: "State", inputName: "state", section: "primary", control: "text", className: "is-compact" },
   { key: "zip_code", label: "Zip", inputName: "zipCode", section: "primary", control: "text", className: "is-compact" },
   { key: "transaction_name", label: "Transaction Name", inputName: "transactionName", section: "primary", control: "text", className: "is-span-4" },
-  { key: "price", label: "Price", inputName: "price", section: "primary", control: "text" },
+  { key: "asking_price", label: "Asking Price", inputName: "askingPrice", section: "primary", control: "text" },
+  { key: "purchased_price", label: "Purchased Price", inputName: "purchasedPrice", section: "primary", control: "text" },
+  { key: "move_in_date", label: "Move-In Date", inputName: "moveInDate", section: "primary", control: "date" },
   { key: "buyer_agreement_date", label: "Buyer Agreement Date", inputName: "buyerAgreementDate", section: "primary", control: "date" },
   { key: "buyer_expiration_date", label: "Buyer Expiration Date", inputName: "buyerExpirationDate", section: "primary", control: "date" },
   { key: "acceptance_date", label: "Acceptance Date", inputName: "acceptanceDate", section: "primary", control: "date" },
@@ -947,7 +949,10 @@ function normalizeTransactionFieldKey(value: string): TransactionFieldKey {
     value === "state" ||
     value === "zip_code" ||
     value === "transaction_name" ||
+    value === "asking_price" ||
+    value === "purchased_price" ||
     value === "price" ||
+    value === "move_in_date" ||
     value === "buyer_agreement_date" ||
     value === "important_date" ||
     value === "closing_date" ||

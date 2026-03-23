@@ -180,6 +180,7 @@ type OfferRecord = Prisma.OfferGetPayload<{
         address: true;
         city: true;
         state: true;
+        purchasedPrice: true;
         price: true;
         closingDate: true;
         acceptanceDate: true;
@@ -313,6 +314,10 @@ function parseOptionalDecimal(value: string | undefined) {
 
   const numeric = Number(trimmed);
   return Number.isFinite(numeric) ? new Prisma.Decimal(numeric) : null;
+}
+
+function getTransactionPurchasedPrice(transaction: { purchasedPrice: Prisma.Decimal | null; price: Prisma.Decimal | null }) {
+  return transaction.purchasedPrice ?? transaction.price;
 }
 
 function buildTransactionObjectLabel(transaction: {
@@ -498,6 +503,7 @@ async function getOfferRecord(organizationId: string, transactionId: string, off
           address: true,
           city: true,
           state: true,
+          purchasedPrice: true,
           price: true,
           closingDate: true,
           acceptanceDate: true
@@ -581,6 +587,7 @@ export async function listTransactionOffersSnapshot(
           address: true,
           city: true,
           state: true,
+          purchasedPrice: true,
           price: true,
           closingDate: true,
           acceptanceDate: true
@@ -751,7 +758,11 @@ export async function updateOffer(input: UpdateOfferInput): Promise<OfficeOfferR
             title: true,
             address: true,
             city: true,
-            state: true
+            state: true,
+            purchasedPrice: true,
+            price: true,
+            closingDate: true,
+            acceptanceDate: true
           }
         }
       }
@@ -885,6 +896,7 @@ export async function transitionOfferStatus(input: TransitionOfferStatusInput): 
             address: true,
             city: true,
             state: true,
+            purchasedPrice: true,
             price: true,
             closingDate: true,
             acceptanceDate: true
@@ -979,8 +991,9 @@ export async function transitionOfferStatus(input: TransitionOfferStatusInput): 
     ].filter((change): change is NonNullable<typeof change> => Boolean(change));
 
     if (input.action === "accept") {
+      const nextPurchasedPrice = saved.price ?? getTransactionPurchasedPrice(existing.transaction);
       const transactionChanges = [
-        buildOfferChange("Transaction price", formatCurrency(existing.transaction.price), formatCurrency(saved.price ?? existing.transaction.price)),
+        buildOfferChange("Transaction price", formatCurrency(getTransactionPurchasedPrice(existing.transaction)), formatCurrency(nextPurchasedPrice)),
         buildOfferChange("Closing date", formatDateValue(existing.transaction.closingDate), formatDateValue(saved.closingDateOffered ?? existing.transaction.closingDate)),
         buildOfferChange("Acceptance date", formatDateValue(existing.transaction.acceptanceDate), formatDateValue(now))
       ].filter((change): change is NonNullable<typeof change> => Boolean(change));
@@ -990,7 +1003,8 @@ export async function transitionOfferStatus(input: TransitionOfferStatusInput): 
           id: existing.transactionId
         },
         data: {
-          price: saved.price ?? existing.transaction.price,
+          purchasedPrice: nextPurchasedPrice,
+          price: nextPurchasedPrice,
           closingDate: saved.closingDateOffered ?? existing.transaction.closingDate,
           acceptanceDate: now
         }
@@ -1080,7 +1094,11 @@ export async function createOfferComment(input: CreateOfferCommentInput): Promis
             title: true,
             address: true,
             city: true,
-            state: true
+            state: true,
+            purchasedPrice: true,
+            price: true,
+            closingDate: true,
+            acceptanceDate: true
           }
         }
       }

@@ -93,6 +93,18 @@ const defaultContactsPage = 1;
 const defaultContactsPageSize = 20;
 const maxContactsPageSize = 100;
 
+function formatTransactionPrice(value: Prisma.Decimal | null) {
+  if (!value) {
+    return "$0";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: Number(value) % 1 === 0 ? 0 : 2
+  }).format(Number(value));
+}
+
 export type SaveContactInput = {
   organizationId: string;
   ownerMembershipId: string;
@@ -602,13 +614,7 @@ export async function getContactById(organizationId: string, contactId: string):
     id: transactionContact.transaction.id,
     label: `${transactionContact.transaction.address}, ${transactionContact.transaction.city}, ${transactionContact.transaction.state} ${transactionContact.transaction.zipCode}`,
     status: transactionContact.transaction.status,
-    price: transactionContact.transaction.price
-      ? new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-          maximumFractionDigits: Number(transactionContact.transaction.price) % 1 === 0 ? 0 : 2
-        }).format(Number(transactionContact.transaction.price))
-      : "$0",
+    price: formatTransactionPrice(transactionContact.transaction.purchasedPrice ?? transactionContact.transaction.price),
     role: formatTransactionContactRole(transactionContact.role),
     isPrimary: transactionContact.isPrimary
   }));

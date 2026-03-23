@@ -1159,6 +1159,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
   agent: [
     "dashboard:view",
     "agents:view",
+    "reports:view:personal",
     "transactions:view",
     "transactions:create",
     "transactions:edit",

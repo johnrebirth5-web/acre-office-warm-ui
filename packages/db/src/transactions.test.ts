@@ -195,6 +195,84 @@ test("updateTransactionIntake preserves finance columns for actors without finan
   }
 });
 
+test("createTransaction and updateTransactionIntake keep asking price, purchased price, legacy price, and move-in date aligned", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const owner = await context.createMembership("agent", "price-bridge-owner");
+    const created = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: owner.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "88 Bridge St",
+      city: "Brooklyn",
+      state: "NY",
+      zipCode: "11201",
+      transactionName: "Bridge Transaction",
+      askingPrice: "810000",
+      price: "775000",
+      moveInDate: "2026-06-20"
+    });
+
+    const storedAfterCreate = await prisma.transaction.findUnique({
+      where: {
+        id: created.id
+      },
+      select: {
+        askingPrice: true,
+        purchasedPrice: true,
+        price: true,
+        moveInDate: true
+      }
+    });
+
+    assert.equal(String(storedAfterCreate?.askingPrice), "810000");
+    assert.equal(String(storedAfterCreate?.purchasedPrice), "775000");
+    assert.equal(String(storedAfterCreate?.price), "775000");
+    assert.equal(storedAfterCreate?.moveInDate?.toISOString().slice(0, 10), "2026-06-20");
+
+    await updateTransactionIntake({
+      organizationId: context.organization.id,
+      transactionId: created.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "88 Bridge St",
+      city: "Brooklyn",
+      state: "NY",
+      zipCode: "11201",
+      transactionName: "Bridge Transaction",
+      askingPrice: "825000",
+      purchasedPrice: "790000",
+      moveInDate: "2026-07-01"
+    });
+
+    const storedAfterUpdate = await prisma.transaction.findUnique({
+      where: {
+        id: created.id
+      },
+      select: {
+        askingPrice: true,
+        purchasedPrice: true,
+        price: true,
+        moveInDate: true
+      }
+    });
+
+    assert.equal(String(storedAfterUpdate?.askingPrice), "825000");
+    assert.equal(String(storedAfterUpdate?.purchasedPrice), "790000");
+    assert.equal(String(storedAfterUpdate?.price), "790000");
+    assert.equal(storedAfterUpdate?.moveInDate?.toISOString().slice(0, 10), "2026-07-01");
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("getOfficeTransactionSearchLayoutSnapshot returns the default layout and legacy filter params", async () => {
   const context = await createTransactionsTestContext();
 

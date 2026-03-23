@@ -1866,6 +1866,9 @@ async function listOperationalAlerts(input: {
         : Promise.resolve([])
     ]);
 
+  const getPurchasedPriceValue = (transaction: { purchasedPrice: Prisma.Decimal | null; price: Prisma.Decimal | null }) =>
+    transaction.purchasedPrice ?? transaction.price;
+
   const alerts: Array<OfficeOperationalAlert & { sortAt: Date }> = [];
 
   for (const offer of offersAwaitingReview) {
@@ -2014,7 +2017,7 @@ async function listOperationalAlerts(input: {
       referenceLabel: buildAlertReferenceLabel("Closing date", transaction.closingDate),
       detailSummary: [
         `Status: ${transaction.status}`,
-        `Price: ${formatCurrency(transaction.price)}`,
+        `Price: ${formatCurrency(getPurchasedPriceValue(transaction))}`,
         `Owner: ${transaction.ownerMembership ? `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}` : "Unassigned"}`
       ],
       sortAt: transaction.closingDate

@@ -207,7 +207,11 @@ export {
   updateContact
 } from "./contacts";
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
-export { getOfficeReportsSnapshot, listOfficeReportTransactionsForExport } from "./reports";
+export {
+  getOfficeTransactionReportsWorkspace,
+  listOfficeTransactionReportExportRows,
+  officeTransactionReportColumns
+} from "./reports";
 export { getOfficeTableLayouts, saveOfficeTableLayout, type OfficeTableLayoutColumn, type OfficeTableLayoutMap } from "./table-layouts";
 export {
   getOfficeFieldSettingsSnapshot,
@@ -587,13 +591,18 @@ export type {
   OfficePipelineWorkspaceSnapshot
 } from "./pipeline";
 export type {
-  GetOfficeReportsSnapshotInput,
+  GetOfficeTransactionReportsWorkspaceInput,
   OfficeReportStatus,
-  OfficeReportOwnerMetric,
-  OfficeReportOwnerOption,
-  OfficeReportTransactionExportRow,
-  OfficeReportsFilters,
-  OfficeReportsSnapshot
+  OfficeTransactionReportColumn,
+  OfficeTransactionReportDateOperator,
+  OfficeTransactionReportNumericOperator,
+  OfficeTransactionReportOption,
+  OfficeTransactionReportRow,
+  OfficeTransactionReportSortBy,
+  OfficeTransactionReportSortDirection,
+  OfficeTransactionReportsFilters,
+  OfficeTransactionReportsSummary,
+  OfficeTransactionReportsWorkspace
 } from "./reports";
 export type {
   CreateIncomingUpdateInput,

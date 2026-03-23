@@ -880,7 +880,7 @@ export function TransactionsClient({
           <DataTableHeader className="office-list-table-header office-list-table-header-transactions">
             <span />
             <span>Transaction</span>
-            <span>Price</span>
+            <span>Asking / Purchased</span>
             <span>Owner</span>
             <span>Representing</span>
             <span>Status</span>
@@ -932,7 +932,10 @@ export function TransactionsClient({
                     </Link>
                   </strong>
                 </div>
-                <span>{transaction.price}</span>
+                <div className="office-list-table-main">
+                  <strong>{transaction.askingPrice || "$0"}</strong>
+                  <p>{transaction.purchasedPrice || "$0"}</p>
+                </div>
                 <span>{transaction.owner}</span>
                 <span>{transaction.representing}</span>
                 <StatusBadge

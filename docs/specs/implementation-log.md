@@ -54,6 +54,12 @@
   - structured create-time finance now keeps untouched fee rows truly empty instead of auto-materializing placeholder `20%` rebate / client referral / company referral records, and clearing a fee in Finance now actually removes its stored rate/amount instead of restoring hidden defaults
   - `New Transaction` create mode now hides the duplicate legacy secondary address block plus retired text-only commission placeholders like `Move-In Date/Closing Date`, `Commission Type`, `Your Commission Rate`, `Commission Breakdown`, and admin-only commission confirmation/status dropdowns so agents only fill the canonical address and structured finance inputs
   - field-structure changes write to `Activity Log`
+- Reports and transaction pricing are now normalized around one transaction truth source:
+  - `/office/reports` has been rebuilt into a transaction-centric workspace where filters, rows, summary cards, and CSV export all reuse the same predicate builder and column registry
+  - transaction pricing is now split into typed `askingPrice + purchasedPrice + moveInDate`, while legacy `price` remains as a compatibility mirror of `purchasedPrice`
+  - `Team Leader` reporting now comes only from current team hierarchy, not a retired transaction custom field
+  - `agent` now has personal reports access, `team_lead` keeps team scope, and admin/review roles keep company scope
+  - pipeline volume, dashboard recent transactions, agent goal volume, contact-linked transaction pricing, accepted-offer writeback, and incoming-update price sync now all use the new purchased-price bridge
 - Shared `@acre/ui` and the Office design system are now the canonical UI layer for Back Office pages, with `/office/transactions` as the list-page composition reference
 - Destructive Back Office actions now use a shared confirmation dialog before delete/remove/unlink-style execution, replacing one-click deletes and ad-hoc `window.confirm` prompts
 - `/office/transactions` and `/office/contacts` now share one canonical Office list-page template, including the same page header, summary/action block, workbench card, table card, and footer/pagination rhythm

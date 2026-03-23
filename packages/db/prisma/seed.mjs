@@ -563,13 +563,15 @@ async function main() {
     { id: "seed-field-state", fieldKey: "state", isRequired: false, isVisible: true },
     { id: "seed-field-zip-code", fieldKey: "zip_code", isRequired: false, isVisible: true },
     { id: "seed-field-transaction-name", fieldKey: "transaction_name", isRequired: false, isVisible: true },
-    { id: "seed-field-price", fieldKey: "price", isRequired: false, isVisible: true },
+    { id: "seed-field-asking-price", fieldKey: "asking_price", isRequired: false, isVisible: true },
+    { id: "seed-field-purchased-price", fieldKey: "purchased_price", isRequired: false, isVisible: true },
     { id: "seed-field-buyer-agreement", fieldKey: "buyer_agreement_date", isRequired: false, isVisible: true },
     { id: "seed-field-buyer-expiration", fieldKey: "buyer_expiration_date", isRequired: false, isVisible: true },
     { id: "seed-field-acceptance-date", fieldKey: "acceptance_date", isRequired: false, isVisible: true },
     { id: "seed-field-listing-date", fieldKey: "listing_date", isRequired: false, isVisible: true },
     { id: "seed-field-listing-expiration", fieldKey: "listing_expiration_date", isRequired: false, isVisible: true },
-    { id: "seed-field-closing-date", fieldKey: "closing_date", isRequired: false, isVisible: true }
+    { id: "seed-field-closing-date", fieldKey: "closing_date", isRequired: false, isVisible: true },
+    { id: "seed-field-move-in-date", fieldKey: "move_in_date", isRequired: false, isVisible: true }
   ];
 
   for (const fieldSetting of seededTransactionFieldSettings) {
@@ -1147,6 +1149,8 @@ async function main() {
         city: transaction.city,
         state: transaction.state,
         zipCode: transaction.zipCode,
+        askingPrice: transaction.price,
+        purchasedPrice: transaction.price,
         price: transaction.price,
         importantDate: transaction.importantDate,
         closingDate: transaction.closingDate ?? null,
@@ -1172,6 +1176,8 @@ async function main() {
         city: transaction.city,
         state: transaction.state,
         zipCode: transaction.zipCode,
+        askingPrice: transaction.price,
+        purchasedPrice: transaction.price,
         price: transaction.price,
         importantDate: transaction.importantDate,
         closingDate: transaction.closingDate ?? null,

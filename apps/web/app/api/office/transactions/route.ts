@@ -172,6 +172,8 @@ export async function POST(request: NextRequest) {
       state: submission.state,
       zipCode: submission.zipCode,
       transactionName: submission.transactionName,
+      askingPrice: submission.askingPrice,
+      purchasedPrice: submission.purchasedPrice,
       price: submission.price,
       buyerAgreementDate: submission.buyerAgreementDate,
       buyerExpirationDate: submission.buyerExpirationDate,
@@ -179,6 +181,7 @@ export async function POST(request: NextRequest) {
       listingDate: submission.listingDate,
       listingExpirationDate: submission.listingExpirationDate,
       closingDate: submission.closingDate,
+      moveInDate: submission.moveInDate,
       grossCommission: typeof body.grossCommission === "string" ? body.grossCommission : undefined,
       financeNotes: typeof body.financeNotes === "string" ? body.financeNotes : undefined,
       fees: Array.isArray(body.fees)

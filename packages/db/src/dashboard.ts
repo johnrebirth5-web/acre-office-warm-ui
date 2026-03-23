@@ -111,6 +111,10 @@ function buildMonthKey(value: Date) {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getPurchasedPriceValue(transaction: { purchasedPrice: Prisma.Decimal | null; price: Prisma.Decimal | null }) {
+  return Number(transaction.purchasedPrice ?? transaction.price ?? 0);
+}
+
 export async function getOfficeDashboardBusinessSnapshot(
   input: GetOfficeDashboardBusinessSnapshotInput
 ): Promise<OfficeDashboardBusinessSnapshot> {
@@ -356,7 +360,7 @@ export async function getOfficeDashboardBusinessSnapshot(
     recentTransactions: recentTransactions.map((transaction) => ({
       id: transaction.id,
       label: `${transaction.address}, ${transaction.city}, ${transaction.state} ${transaction.zipCode}`.replace(/,\s+,/g, ", "),
-      amount: formatCurrency(Number(transaction.price ?? 0)),
+      amount: formatCurrency(getPurchasedPriceValue(transaction)),
       stage: statusFromDb[transaction.status].toLowerCase(),
       owner: transaction.ownerMembership
         ? `${transaction.ownerMembership.user.firstName} ${transaction.ownerMembership.user.lastName}`

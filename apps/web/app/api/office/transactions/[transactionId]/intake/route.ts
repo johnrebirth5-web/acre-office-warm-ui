@@ -63,6 +63,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       state: submission.state,
       zipCode: submission.zipCode,
       transactionName: submission.transactionName,
+      askingPrice: submission.askingPrice,
+      purchasedPrice: submission.purchasedPrice,
       price: submission.price,
       buyerAgreementDate: submission.buyerAgreementDate,
       buyerExpirationDate: submission.buyerExpirationDate,
@@ -70,6 +72,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       listingDate: submission.listingDate,
       listingExpirationDate: submission.listingExpirationDate,
       closingDate: submission.closingDate,
+      moveInDate: submission.moveInDate,
       additionalFields: submission.additionalFields
     });
 

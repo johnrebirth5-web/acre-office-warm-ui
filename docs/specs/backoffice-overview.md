@@ -35,13 +35,22 @@ This file is the high-level product map for the current `Office / Back Office` s
 ### Reports
 
 - What it is for:
-  - management reporting workspace with transaction, agent/team, commission, accounting/payment, and earnest money visibility.
+  - transaction reporting workspace for filtered transaction visibility, live financial rollups, and CSV export.
 - Current maturity:
-  - `MVP / refined`
+  - `strong MVP`
+- Current notable behavior:
+  - `/office/reports` now uses one transaction-centric workspace contract shared by the on-screen table, live summary cards, and CSV export.
+  - filters now come directly from transaction fields and current team hierarchy instead of separate report-only slices.
+  - `Team Leader` is derived from live `TeamMembership` reporting lines, and `Closing / Move-In Date` uses `moveInDate ?? closingDate`.
+  - live summary currently totals `Asking Price / Purchased Price / Gross Commission / Rebate / Referral / Reimbursement` from the exact filtered transaction set.
+  - access is now aligned to role scope:
+    - admin tiers see company scope
+    - team leads see self + downline
+    - agents see only self
 - Follow-up work:
-  - add more controlled period definitions beyond the current native-date-per-module behavior
-  - expand more accounting-side drilldowns only where the underlying data model is explicit
-  - keep reducing transitional gaps between report slices and downstream working queues
+  - add user-facing sort controls on top of the already-supported server-side sort contract
+  - add Excel export when a real workbook requirement exists
+  - keep extending columns/filters only when the source transaction schema is explicit
 
 ### Transactions
 
@@ -52,6 +61,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
   - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now consume one office-scoped schema managed centrally from `Settings > Fields`.
+  - transaction pricing is now split into `Asking Price + Purchased Price`, while legacy `price` remains a compatibility mirror of `purchasedPrice`.
   - the `/office/transactions` search workbench is now office-shared and schema-driven: admins with `fields:manage` can use `Edit fields` to add or remove operational, built-in, and custom filter blocks, while hidden or archived transaction fields are automatically removed from saved search layouts.
   - the built-in `Type / Status / Representing` dropdowns now keep stable system values while allowing office admins to edit which options are available and how each option label is displayed.
   - `New transaction` owner search for `Agent Name` is sourced from office/global sales memberships for company-scope creators, not just the currently visible transaction roster.

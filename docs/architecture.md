@@ -89,24 +89,35 @@
   - `Office gross` 当前来自 transaction finance 上已存储的 `grossCommission`
   - stage / history 选择会直接驱动右侧 working list，并保存在 shareable URL 中
   - 当前 stage / history 选择可清除回保留 top filters 的 `all filtered transactions`
-- 当前 `Reports` 页面已通过 server-side service 读取真实聚合数据，并扩展成 management reporting workspace
-- 当前 `Reports` 页面现在覆盖：
-  - transaction performance
-  - agent performance
-  - team performance（基于当前 owner team memberships）
-  - commission summary
-  - accounting / payment summary
-  - earnest money summary
-- 当前 `Reports` 页面使用 shareable query-param 过滤：
-  - `startDate / endDate`
-  - `officeId`
-  - `ownerMembershipId`
-  - `teamId`
-  - `transactionStatus`
-  - `transactionType`
-  - `commissionPlanId`
-- 当前 `Reports` workspace 的 summary rows 会 drill-down 到真实 `/office/transactions`、`/office/accounting`、`/office/settings/users/:membershipId`
-- 当前 `Reports` 页面也保留 CSV 导出路径，使用当前 session 和过滤条件直接导出真实 transaction 行
+- 当前 `Reports` 页面已收口为 transaction-centric reporting workspace：
+  - 同一套 server-side transaction predicate 同时驱动 filters、rows、summary 和 CSV export
+  - 当前 summary 不再拼接 agent/team/accounting/EMD 多套聚合视图，而是只围绕当前筛选结果的 transaction 集合实时计算
+  - 当前 shareable query-param filter contract 支持：
+    - `ownerMembershipId`
+    - `createdAtOperator / createdAtValue / createdAtFrom / createdAtTo`
+    - `buyerTenant`
+    - `closingMoveInOperator / closingMoveInValue / closingMoveInFrom / closingMoveInTo`
+    - `commissionOperator / commissionValue / commissionMin / commissionMax`
+    - `askingPriceOperator / askingPriceValue / askingPriceMin / askingPriceMax`
+    - `purchasedPriceOperator / purchasedPriceValue / purchasedPriceMin / purchasedPriceMax`
+    - `transactionStatuses[]`
+    - `invoiceNumber`
+    - `departmentIds[]`
+    - `teamLeaderMembershipIds[]`
+    - `transactionTypes[]`
+    - `representingSides[]`
+    - `layouts[]`
+    - `companyReferral`
+  - `Closing / Move-In Date` 的展示与筛选使用 `Transaction.moveInDate ?? Transaction.closingDate`
+  - `Team Leader` 过滤和展示使用当前 `TeamMembership` hierarchy 计算，不依赖 retired transaction custom field
+  - 当前 reports summary 只汇总当前 transaction 集合上的：
+    - `Asking Price`
+    - `Purchased Price`
+    - `Gross Commission`
+    - `Rebate`
+    - `Referral`
+    - `Reimbursement`
+  - 当前 CSV 导出与页面 table 共享同一份列注册表和同一份权限过滤
 - 当前 `Commission Management` 已通过 Prisma service 和 route handlers 落地到：
   - `/office/accounting`
   - transaction detail
@@ -474,7 +485,7 @@
 12. detail 页面通过 transaction task routes 做 create / edit / complete / reopen / request review / approve / reject，并按 linked document / signature / approval truth 决定任务是否真正可 complete
 13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页
 11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`
-12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 reporting workspace snapshot，覆盖 transaction、agent/team、commission、accounting、EMD 聚合
+12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / rows / summary / totalCount / export columns`
 13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、候选 commission rows、saved statement history 和 selected statement detail
 14. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
 15. `/api/office/accounting/transactions` 与 `/api/office/accounting/earnest-money` 负责最小 create / update 写入；posting 成功后同步生成 GL entries 和 `AuditLog`
@@ -484,7 +495,7 @@
 19. auth login / logout 和 follow-up task create 也会写入 `AuditLog`
 20. `/office/activity` 顶部的内部评论也会写入 `AuditLog`，并出现在同一条 stream 里
 21. `/office/activity` 的左侧分类来自真实 action taxonomy，不是静态菜单
-22. `GET /api/office/reports/export` 复用相同过滤条件和 session scope，导出真实 transaction CSV；当前支持 `officeId / ownerMembershipId / teamId / transactionStatus / transactionType / commissionPlanId`
+22. `GET /api/office/reports/export` 复用与 `/office/reports` 相同的 filter contract、column registry 和 session scope，导出与页面 table 一致的真实 transaction CSV
 23. `/office/tasks` 读取 `TransactionTask + TaskListView`，按 built-in view、saved view 和 query-param filters 返回真实任务列表
 24. `/office/tasks` 的 create / edit / complete / reopen / request review / approve / reject 都直接写数据库，并同步写入 `AuditLog`
 25. document-linked tasks 会根据真实 workflow evidence 推导 task status，例如：

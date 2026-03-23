@@ -110,6 +110,7 @@ type PipelineWorkspaceTransaction = {
   city: string;
   state: string;
   zipCode: string;
+  purchasedPrice: Prisma.Decimal | null;
   price: Prisma.Decimal | null;
   grossCommission: Prisma.Decimal | null;
   officeNet: Prisma.Decimal | null;
@@ -303,8 +304,12 @@ function isMyMetricMode(metricMode: OfficePipelineMetricMode) {
   return metricMode === "my_net_income" || metricMode === "my_sales_volume";
 }
 
+function getPurchasedPriceValue(transaction: Pick<PipelineWorkspaceTransaction, "purchasedPrice" | "price">) {
+  return Number(transaction.purchasedPrice ?? transaction.price ?? 0);
+}
+
 function getTransactionMetricValue(
-  transaction: Pick<PipelineWorkspaceTransaction, "price" | "grossCommission" | "officeNet" | "agentNet">,
+  transaction: Pick<PipelineWorkspaceTransaction, "purchasedPrice" | "price" | "grossCommission" | "officeNet" | "agentNet">,
   metricMode: OfficePipelineMetricMode
 ) {
   if (metricMode === "office_net") {
@@ -319,7 +324,7 @@ function getTransactionMetricValue(
     return Number(transaction.agentNet ?? 0);
   }
 
-  return Number(transaction.price ?? 0);
+  return getPurchasedPriceValue(transaction);
 }
 
 function getMonthlyRollupDate(transaction: Pick<PipelineWorkspaceTransaction, "closingDate" | "updatedAt">) {
@@ -347,7 +352,7 @@ function buildMetricModeDescription(metricMode: OfficePipelineMetricMode) {
   }
 
   if (metricMode === "office_sales_volume") {
-    return "Uses transaction price as the office sales volume metric.";
+    return "Uses transaction purchased price as the office sales volume metric.";
   }
 
   if (metricMode === "office_gross") {
@@ -358,7 +363,7 @@ function buildMetricModeDescription(metricMode: OfficePipelineMetricMode) {
     return "Uses stored agent net values for the current personal or branch scope; missing values are treated as zero.";
   }
 
-  return "Uses transaction price for the current personal or branch scope.";
+  return "Uses transaction purchased price for the current personal or branch scope.";
 }
 
 function buildTopLevelWhere(input: GetOfficePipelineWorkspaceInput, representing: OfficePipelineRepresentingFilter, scope: OfficeDataScope): Prisma.TransactionWhereInput {

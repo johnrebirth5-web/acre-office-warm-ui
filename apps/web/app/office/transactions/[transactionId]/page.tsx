@@ -143,8 +143,12 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
             <strong>{transaction.representing}</strong>
           </div>
           <div className="office-detail-field">
-            <span>Price</span>
-            <strong>{transaction.price ? `$${Number(transaction.price).toLocaleString("en-US")}` : "$0"}</strong>
+            <span>Asking Price</span>
+            <strong>{transaction.askingPrice ? `$${Number(transaction.askingPrice).toLocaleString("en-US")}` : "$0"}</strong>
+          </div>
+          <div className="office-detail-field">
+            <span>Purchased Price</span>
+            <strong>{transaction.purchasedPrice ? `$${Number(transaction.purchasedPrice).toLocaleString("en-US")}` : "$0"}</strong>
           </div>
           <div className="office-detail-field">
             <span>Owner</span>
@@ -182,6 +186,10 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
             <span>Closing date</span>
             <strong>{transaction.closingDate || "Not set"}</strong>
           </div>
+          <div className="office-detail-field">
+            <span>Move-In date</span>
+            <strong>{transaction.moveInDate || "Not set"}</strong>
+          </div>
         </div>
       </DetailSection>
 
@@ -213,13 +221,16 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
             state: transaction.state,
             zipCode: transaction.zipCode,
             transactionName: transaction.title,
-            price: transaction.price,
+            askingPrice: transaction.askingPrice,
+            purchasedPrice: transaction.purchasedPrice,
+            price: transaction.purchasedPrice,
             buyerAgreementDate: transaction.buyerAgreementDate,
             buyerExpirationDate: transaction.buyerExpirationDate,
             acceptanceDate: transaction.acceptanceDate,
             listingDate: transaction.listingDate,
             listingExpirationDate: transaction.listingExpirationDate,
             closingDate: transaction.closingDate,
+            moveInDate: transaction.moveInDate,
             ...transaction.additionalFields
           }}
           mode="edit"

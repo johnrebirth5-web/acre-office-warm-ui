@@ -80,7 +80,7 @@
     - `team leader`：自己 + 全部下级
     - `junior team leader`：自己 + 下级 agent
     - 其他角色：默认只看自己
-  - `Office sales volume` 和 `My sales volume` 当前都使用 transaction `price`
+  - `Office sales volume` 和 `My sales volume` 当前都使用 transaction `purchasedPrice`，并在 bridge 期回退 legacy `price`
   - `Office net` 当前使用 transaction finance / commission workflow 已存储的 `officeNet`
   - `Office gross` 当前来自 transaction finance 上的 `grossCommission`；缺失 finance 数据时按 `0` 处理
   - `My net income` 当前使用 transaction 上已存储的 `agentNet`
@@ -103,6 +103,10 @@
   - 支持搜索、状态 / owner / team / type / date window 筛选和服务端分页
   - 顶部 `MY NET INCOME` 现在按真实 `officeNet` 聚合，不再硬编码 `$ 0`
   - `Create Transaction` modal 会真实写入数据库
+  - transaction 金额字段已拆成 `Asking Price + Purchased Price`：
+    - `Purchased Price` 是报表、pipeline volume、dashboard recent transactions、agent goal closed volume 的默认成交金额真源
+    - legacy `price` 仍保留作兼容桥，并与 `purchasedPrice` 同步
+    - transaction detail / list 现在统一显示 `Asking / Purchased` 双字段
   - `Create Transaction` / `/office/transactions/new` 现在把 legacy finance 文本字段折叠成结构化 finance intake：
     - `Gross commission` 直接写 transaction finance
     - `Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee / Reimbursement` 直接创建 fee ledger 当前行
@@ -143,7 +147,7 @@
     - offer comparison
     - internal comments
     - offer-linked documents / forms / signatures
-    - accepted offer 可以显式写回 transaction price / closing date / acceptance context
+    - accepted offer 可以显式写回 transaction `purchasedPrice` / legacy `price` / closing date / acceptance context
   - 当前 offers 是 Back Office internal workflow，不是外部 MLS / email ingestion，也不是 client-facing portal
   - `Documents` 当前支持：
     - upload
@@ -256,25 +260,39 @@
   - 已切到 `TransactionContact` relation，支持一个 transaction 关联多个 contact
   - `Transaction.primaryClientId` 仍临时保留，并与当前 primary linked contact 同步
 - `Reports` 现在也已接入真实数据库：
-  - 现在是一个更强的 management reporting workspace，而不只是 summary + export
-  - 支持按真实数据查看：
-    - transaction performance
-    - agent performance
-    - team performance（基于当前 team membership，可见限制会在页面说明）
-    - commission summary
-    - accounting / payment summary
-    - earnest money summary
-  - 顶部过滤当前支持：
-    - `startDate`
-    - `endDate`
-    - `officeId`
-    - `ownerMembershipId`
-    - `teamId`
-    - `transactionStatus`
-    - `transactionType`
-    - `commissionPlanId`
-  - 页面内 summary rows 可 drill-down 到真实 `/office/transactions`、`/office/accounting`、`/office/agents/:membershipId`
-  - CSV 导出仍保留，并继续复用当前 transaction 过滤上下文导出真实 transaction 行
+  - 页面现在收口成一个 transaction-centric reporting workspace：
+    - 同一套 transaction predicate 同时驱动筛选、列表、summary 和 CSV 导出
+    - 页面和导出不再分别拼接不同数据口径
+  - 当前固定 filters 支持：
+    - `Owner`
+    - `Creation Date`
+    - `Buyer / Tenant`
+    - `Closing / Move-In Date`
+    - `Commission`
+    - `Asking Price`
+    - `Purchased Price`
+    - `Transaction Status`
+    - `Invoice Number`
+    - `Department`
+    - `Team Leader`
+    - `Transaction Type`
+    - `Representing Side`
+    - `Layout`
+    - `Company Referral`
+  - `Closing / Move-In Date` 使用 `moveInDate ?? closingDate`
+  - `Team Leader` 按当前 `TeamMembership` hierarchy 实时推导，不再回读 retired transaction custom field
+  - `Transaction Performance` summary 当前实时汇总：
+    - `Asking Price`
+    - `Purchased Price`
+    - `Gross Commission`
+    - `Rebate`
+    - `Referral`
+    - `Reimbursement`
+  - CSV 导出复用当前 URL filter contract，导出列与页面 table 使用同一份列注册表
+  - Reports scope 当前按权限分层：
+    - `owner / office_admin / accountant / human_resources`：company scope
+    - `team_lead`：自己 + 组员
+    - `agent`：仅自己
 - `Accounting` 现在也已接入真实数据库，但当前产品入口已经收口成 admin-only 的 `Agent Statements` 工作台：
   - 路由：`/office/accounting`
   - 只有 `office_admin` 可见和可访问

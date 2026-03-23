@@ -341,7 +341,10 @@ enum TransactionFieldKey {
   state
   zip_code
   transaction_name
+  asking_price
+  purchased_price
   price
+  move_in_date
   buyer_agreement_date
   important_date
   closing_date
@@ -805,6 +808,8 @@ model Transaction {
   city                           String
   state                          String
   zipCode                        String
+  askingPrice                    Decimal?                        @db.Decimal(12, 2)
+  purchasedPrice                 Decimal?                        @db.Decimal(12, 2)
   price                          Decimal?                        @db.Decimal(12, 2)
   importantDate                  DateTime?
   buyerAgreementDate             DateTime?
@@ -813,6 +818,7 @@ model Transaction {
   listingDate                    DateTime?
   listingExpirationDate          DateTime?
   closingDate                    DateTime?
+  moveInDate                     DateTime?
   companyReferral                Boolean                         @default(false)
   companyReferralEmployeeName    String?
   clientReferralFormApproved     Boolean                         @default(false)
