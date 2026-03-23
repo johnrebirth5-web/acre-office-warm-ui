@@ -44,6 +44,7 @@ import {
   getDescendantTeamIds,
   getTeamDepth,
   isLeaderTeamMembershipRole,
+  isTeamHierarchyAssignableUserRole,
   isValidBranchLeaderRole,
   resolveUserRoleForTeamMembershipRole
 } from "./team-hierarchy";
@@ -117,6 +118,7 @@ export type OfficeAgentRosterRow = {
   email: string;
   officeName: string;
   role: string;
+  roleValue: UserRole;
   title: string;
   teamLabel: string;
   membershipStatus: string;
@@ -275,6 +277,7 @@ export type OfficeAgentProfileSnapshot = {
     email: string;
     officeName: string;
     role: string;
+    roleValue: UserRole;
     membershipStatus: string;
     membershipStatusValue: MembershipStatus;
     title: string;
@@ -330,6 +333,7 @@ export type GetOfficeAgentsRosterInput = {
   viewerMembershipId: string;
   officeId?: string | null;
   officeFilterId?: string;
+  scopeMode?: "agents" | "teams";
   role?: string;
   teamId?: string;
   onboardingStatus?: string;
@@ -710,6 +714,23 @@ function getMembershipLabel(membership: {
   };
 }) {
   return `${membership.user.firstName} ${membership.user.lastName}`;
+}
+
+function assertTeamHierarchyAssignableMembership(
+  membership: {
+    role: UserRole;
+  },
+  action: "team_member" | "team_owner" = "team_member"
+) {
+  if (isTeamHierarchyAssignableUserRole(membership.role)) {
+    return;
+  }
+
+  if (action === "team_owner") {
+    throw new Error("Only Agent / Team Lead accounts can own a Team or Junior Team. Update the account role in Settings > Users first.");
+  }
+
+  throw new Error("Only Agent / Team Lead accounts can be assigned inside Team / Junior Team hierarchy. Update the account role in Settings > Users first.");
 }
 
 function buildLeaderOwnedTeamName(leaderLabel: string) {
@@ -1661,11 +1682,22 @@ async function getBillingSummaryByMembership(
 export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRosterInput): Promise<OfficeAgentsRosterSnapshot> {
   const membershipStatusFilter = normalizeMembershipStatusFilter(input.membershipStatus);
   const scopedOfficeId = input.officeFilterId || input.officeId || undefined;
-  const scope = await resolveOfficeDataScope({
+  const agentScope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.viewerMembershipId,
-    officeId: scopedOfficeId ?? null
+    officeId: scopedOfficeId ?? null,
+    resource: "agents"
   });
+  const scope =
+    input.scopeMode === "teams"
+      ? {
+          ...agentScope,
+          kind: "organization" as const,
+          visibleMembershipIds: null,
+          visibleTeamIds: null,
+          visibleTeamMembershipIds: null
+        }
+      : agentScope;
   const scopedTeams = await prisma.team.findMany({
     where: {
       organizationId: input.organizationId,
@@ -2014,6 +2046,7 @@ export async function getOfficeAgentsRosterSnapshot(input: GetOfficeAgentsRoster
       email: membership.user.email,
       officeName: membership.office?.name ?? "Unassigned",
       role: roleLabelMap[membership.role],
+      roleValue: membership.role,
       title:
         resolveMembershipDisplayTitle({
           role: membership.role,
@@ -2128,7 +2161,8 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
   const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.viewerMembershipId,
-    officeId: input.officeId ?? null
+    officeId: input.officeId ?? null,
+    resource: "agents"
   });
 
   if (!canAccessMembership(scope, input.membershipId)) {
@@ -2202,6 +2236,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     })) ?? membership;
 
   const canViewFinancials = canViewFinancialsForMembership(scope, input.membershipId);
+  const canParticipateInTeamHierarchy = isTeamHierarchyAssignableUserRole(membership.role);
 
   const [
     onboardingItems,
@@ -2505,6 +2540,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       email: membership.user.email,
       officeName: membership.office?.name ?? "Unassigned",
       role: roleLabelMap[membership.role],
+      roleValue: membership.role,
       membershipStatus: membershipStatusLabelMap[membership.status],
       membershipStatusValue: membership.status,
       title: resolveMembershipDisplayTitle({
@@ -2564,17 +2600,19 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         availableTeamHierarchy.hierarchyMap.get(teamMembership.id)?.directManagerLabel ??
         (teamMembership.reportsToTeamMembership ? getMembershipLabel(teamMembership.reportsToTeamMembership.membership) : "No direct manager")
     })),
-    availableTeams: availableTeams.map((team) => {
-      const managerOptions = availableTeamManagerOptionsMap.get(team.id) ?? [];
-      const teamPathLabel = availableTeamPathLabelMap.get(team.id) ?? team.name;
+    availableTeams: canParticipateInTeamHierarchy
+      ? availableTeams.map((team) => {
+          const managerOptions = availableTeamManagerOptionsMap.get(team.id) ?? [];
+          const teamPathLabel = availableTeamPathLabelMap.get(team.id) ?? team.name;
 
-      return {
-        id: team.id,
-        label: formatAssignableTeamLabel(teamPathLabel, managerOptions.map((manager) => manager.label)),
-        managerOptions,
-        defaultReportsToTeamMembershipId: managerOptions.length === 1 ? managerOptions[0]?.teamMembershipId ?? null : null
-      };
-    }),
+          return {
+            id: team.id,
+            label: formatAssignableTeamLabel(teamPathLabel, managerOptions.map((manager) => manager.label)),
+            managerOptions,
+            defaultReportsToTeamMembershipId: managerOptions.length === 1 ? managerOptions[0]?.teamMembershipId ?? null : null
+          };
+        })
+      : [],
     onboarding: {
       totalCount: onboardingItems.length,
       completedCount: completedOnboardingCount,
@@ -2788,6 +2826,7 @@ export async function createAgentTeam(input: CreateAgentTeamInput) {
           })
         : Promise.resolve(null)
     ]);
+    assertTeamHierarchyAssignableMembership(leaderMembership, "team_owner");
     const reusableParentMembership =
       parentTeamId
         ? await tx.teamMembership.findFirst({
@@ -3185,6 +3224,8 @@ export async function assignMembershipToTeamTx(tx: Prisma.TransactionClient, inp
   if (!team) {
     throw new Error("Team was not found.");
   }
+
+  assertTeamHierarchyAssignableMembership(membership);
 
   if (otherTeamMembership) {
     throw new Error(

@@ -21,12 +21,17 @@ type RoleEditorOption = {
 };
 
 type EditableUserShape = Pick<OfficeAdminUserRow, "roleValue" | "statusValue" | "hasCredential"> & {
+  hasActiveTeamAssignments?: boolean;
   hasActiveLeaderAssignments?: boolean;
 };
 type EditableUserDetailShape = Pick<
   OfficeAdminUserDetailSnapshot["profile"],
-  "roleValue" | "statusValue" | "hasCredential" | "hasActiveLeaderAssignments"
+  "roleValue" | "statusValue" | "hasCredential" | "hasActiveTeamAssignments" | "hasActiveLeaderAssignments"
 >;
+
+function isTeamHierarchyAssignableRoleValue(roleValue: string) {
+  return roleValue === "agent" || roleValue === "team_lead";
+}
 
 export function getRoleConfigurationHint(role: string) {
   if (role === "team_lead") {
@@ -104,20 +109,27 @@ export function getRoleEditorOptions(user: EditableUserShape | EditableUserDetai
         ? [{ value: "office_user", label: "Office User (Legacy)" }, ...createRoleOptions]
         : [...createRoleOptions];
   const lockAgentRole = Boolean(user.hasActiveLeaderAssignments) && user.roleValue !== "agent";
+  const lockNonHierarchyRoles = Boolean(user.hasActiveTeamAssignments);
 
-  if (!lockAgentRole) {
-    return baseOptions;
-  }
+  return baseOptions.map((option) => {
+    if (option.value === "agent" && lockAgentRole) {
+      return {
+        ...option,
+        label: "Agent (remove team leadership first)",
+        disabled: true
+      };
+    }
 
-  return baseOptions.map((option) =>
-    option.value === "agent"
-      ? {
-          ...option,
-          label: "Agent (remove team leadership first)",
-          disabled: true
-        }
-      : option
-  );
+    if (lockNonHierarchyRoles && !isTeamHierarchyAssignableRoleValue(option.value) && option.value !== user.roleValue) {
+      return {
+        ...option,
+        label: `${option.label} (remove team assignments first)`,
+        disabled: true
+      };
+    }
+
+    return option;
+  });
 }
 
 export function getStatusEditorOptions(user: EditableUserShape | EditableUserDetailShape) {

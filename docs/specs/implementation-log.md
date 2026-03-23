@@ -153,6 +153,7 @@
 - `Settings > Users > [membership]` now keeps the `Teams` card available for admins with `teams:manage` even when the target member has no current branch visibility through the agent roster yet:
   - assignable team options come from the current office team-management scope instead of the viewer's agent roster visibility
   - members with `officeId = null` can still be assigned to the current office's teams from the user detail page
+- Team / user hierarchy hardening now keeps agent roster/profile reads on `agents:view:*` scope instead of the transaction default, lets `Settings > Teams` honor `teams:view` directly without accidental agent-scope narrowing, and blocks non-`agent / team_lead` accounts from entering team hierarchy through create-user, team-owner, team-membership, or incompatible role-change writes
 
 ## Next recommended work
 

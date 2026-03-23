@@ -7,6 +7,7 @@ import { assignMembershipToTeamTx, materializeImplicitJuniorTeamsForManagementAc
 import { prisma } from "./client";
 import { saveMembershipCommissionSetting } from "./commission-defaults";
 import { getMembershipEffectivePermissionKeys } from "./permissions";
+import { isTeamHierarchyAssignableUserRole } from "./team-hierarchy";
 
 const BOOTSTRAP_ADMIN_EMAIL = "office@acreny.us";
 const BOOTSTRAP_ADMIN_PASSWORD_HASH = "$2b$12$9bAUwJ5kE4bpEEPpOEEMZerc0UTtV9lZrh3EEAQcqu2xxHC.62rmO";
@@ -1076,6 +1077,10 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
 
   if (reportsToTeamMembershipId && !teamId) {
     throw new Error("Choose a team before selecting a direct manager.");
+  }
+
+  if (teamId && !isTeamHierarchyAssignableUserRole(input.role)) {
+    throw new Error("Only Agent / Team Lead accounts can be assigned inside Team / Junior Team hierarchy. Update the account role first.");
   }
 
   return prisma.$transaction(async (tx) => {

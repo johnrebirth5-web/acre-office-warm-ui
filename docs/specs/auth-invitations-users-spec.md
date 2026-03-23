@@ -33,6 +33,7 @@ This spec describes what is implemented now, not the eventual full auth platform
 - `agent` is the self-scoped production role
 - `office_manager` and `office_user` stay compatible internally where needed, but are legacy-only create choices
 - assigning `Team Leader` or `Junior Team Leader` in `Settings > Teams` now auto-upgrades an `agent` account to `team_lead` so branch ownership and manager visibility stay aligned
+- only `agent / team_lead` accounts can be assigned inside `Team / Junior Team` hierarchy; `owner / office_admin / accountant / human_resources` must stay outside team assignment and branch-owner flows
 - runtime authorization no longer reads only `membership.role`
 - each fixed role now has an organization-scoped role template
 - each membership can also carry explicit permission overrides:
@@ -110,6 +111,7 @@ Current routes:
 - update role
 - update membership status
 - update office access
+- block role changes that would leave an active `Team / Junior Team` assignment on a non-hierarchy account
 - issue or reissue invite/setup/reset link
 - revoke active invite link
 - unlock locked account
@@ -117,6 +119,11 @@ Current routes:
 - review a compact permission summary and open the dedicated permission editor
 - review commission summary
 - review recent audit/activity items tied to the user account
+
+`/office/settings/teams` now supports:
+
+- company-wide `teams:view` visibility without piggybacking on transaction visibility scope
+- team detail routes that keep valid team records reachable even when the viewer's `agents:view:*` scope is narrower than `teams:view`
 
 `/office/settings/users/[membershipId]/permissions` now supports:
 

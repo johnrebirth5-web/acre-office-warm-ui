@@ -24,6 +24,8 @@ Provide a practical Back Office admin/settings area for access management, role 
   - activate/deactivate
   - office access within current membership model
   - team assignment / removal from the unified user detail page when the admin has `teams:manage`, including users who have not yet joined their first branch
+  - only `agent / team_lead` accounts can participate in `Team / Junior Team` hierarchy; non-sales roles must stay out of team assignment and branch-owner flows
+  - users with any active `Team / Junior Team` assignment cannot be switched to a non-hierarchy role from `Settings > Users` until those assignments are removed in `Settings > Teams`
   - users who still own an active `Team / Junior Team` cannot be downgraded to the `agent` permission template from `Settings > Users` until that leadership is transferred or removed in `Settings > Teams`
   - per-user permission override editing with `inherit / allow / deny`
   - reset user overrides back to role defaults
@@ -41,6 +43,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - delete empty teams with no remaining commission-plan assignments
   - add/remove members
   - assign `Team Leader / Junior Team Leader / Member`
+  - `Teams` directory visibility follows `teams:view` directly and must not be narrowed by `agents:view:*` or `transactions:view:*` scope math
   - maintain `Team / Junior Team` structure in the current two-level admin product flow while keeping the underlying recursive data model available for future expansion
   - maintain direct reporting lines inside a team
   - show inherited parent-branch managers for branch leaders instead of leaving the direct-manager field visually blank

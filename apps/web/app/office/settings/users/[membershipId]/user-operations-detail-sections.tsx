@@ -123,6 +123,10 @@ function buildEmptyOnboardingDraft(): OnboardingDraft {
   };
 }
 
+function supportsTeamHierarchy(roleValue: string) {
+  return roleValue === "agent" || roleValue === "team_lead";
+}
+
 export function UserOperationsDetailSections({
   snapshot,
   canManageAgents,
@@ -142,6 +146,10 @@ export function UserOperationsDetailSections({
   );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const teamAssignmentLockedReason =
+    canManageTeams && !supportsTeamHierarchy(snapshot.profile.roleValue)
+      ? "Only Agent / Team Lead accounts can be added to Teams / Junior Teams. Update the account role in Settings > Users first."
+      : null;
 
   function setProfileField(field: keyof ProfileState, value: string) {
     setProfileState((current) => ({ ...current, [field]: value }));
@@ -421,6 +429,7 @@ export function UserOperationsDetailSections({
 
       <div className="office-detail-two-column">
         <UserTeamAssignmentsCard
+          assignmentLockedReason={teamAssignmentLockedReason}
           availableTeams={snapshot.availableTeams}
           canManageTeams={canManageTeams}
           memberName={snapshot.profile.displayName}

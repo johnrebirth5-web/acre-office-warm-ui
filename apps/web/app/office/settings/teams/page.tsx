@@ -25,7 +25,8 @@ export default async function OfficeSettingsTeamsPage({ searchParams }: OfficeSe
   const snapshot = await getOfficeAgentsRosterSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
-    officeId: context.currentOffice?.id ?? null
+    officeId: context.currentOffice?.id ?? null,
+    scopeMode: "teams"
   });
   const rootTeams = getRootTeams(snapshot);
   const totalChildBranches = getTotalChildBranchCount(snapshot);

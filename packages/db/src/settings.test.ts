@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
-import { getOfficeAgentsRosterSnapshot } from "./agents.ts";
+import { addAgentToTeam, createAgentTeam, getOfficeAgentsRosterSnapshot } from "./agents.ts";
 import { prisma } from "./client.ts";
 import { updateOfficeAdminUser } from "./settings.ts";
 
@@ -205,6 +205,189 @@ test("getOfficeAgentsRosterSnapshot stays side-effect free for legacy junior lea
     assert.equal(finalAuditCount, initialAuditCount);
     assert.equal(refreshedTeamMembership?.teamId, rootTeam.id);
     assert.equal(refreshedTeamMembership?.role, "junior_team_leader");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("getOfficeAgentsRosterSnapshot honors agent visibility instead of transaction visibility", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const viewer = await context.createMembership("office_admin", "agent-scope-viewer", "Scoped", "Viewer", "Office Admin");
+    const teammate = await context.createMembership("agent", "agent-scope-target", "Visible", "Agent", "Agent");
+
+    await prisma.membershipPermissionOverride.create({
+      data: {
+        organizationId: context.organization.id,
+        membershipId: viewer.membership.id,
+        permissionKey: "transactions:view:company",
+        effect: "deny"
+      }
+    });
+
+    const snapshot = await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: viewer.membership.id,
+      officeId: context.office.id
+    });
+
+    assert.equal(snapshot.rows.some((row) => row.membershipId === teammate.membership.id), true);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("teams scope snapshot stays organization-wide even when agent visibility is narrower", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const viewer = await context.createMembership("office_admin", "team-viewer", "Team", "Viewer", "Office Admin");
+    const teammate = await context.createMembership("agent", "team-target", "Branch", "Agent", "Agent");
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: "Scoped Team",
+        slug: `scoped-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: team.id,
+        membershipId: teammate.membership.id,
+        role: "member"
+      }
+    });
+
+    await prisma.membershipPermissionOverride.createMany({
+      data: [
+        {
+          organizationId: context.organization.id,
+          membershipId: viewer.membership.id,
+          permissionKey: "agents:view:company",
+          effect: "deny"
+        },
+        {
+          organizationId: context.organization.id,
+          membershipId: viewer.membership.id,
+          permissionKey: "transactions:view:company",
+          effect: "deny"
+        }
+      ]
+    });
+
+    const snapshot = await getOfficeAgentsRosterSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: viewer.membership.id,
+      officeId: context.office.id,
+      scopeMode: "teams"
+    });
+
+    const scopedTeam = snapshot.teams.find((item) => item.id === team.id) ?? null;
+
+    assert.ok(scopedTeam);
+    assert.equal(scopedTeam?.members.some((member) => member.membershipId === teammate.membership.id), true);
+    assert.equal(snapshot.rows.some((row) => row.membershipId === teammate.membership.id), true);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("updateOfficeAdminUser blocks changing an actively assigned team member to a non-agent role", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const member = await context.createMembership("agent", "team-member", "Assigned", "Agent", "Agent");
+    await prisma.userCredential.create({
+      data: {
+        userId: member.user.id,
+        passwordHash: "test-password-hash"
+      }
+    });
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: "Assigned Team",
+        slug: `assigned-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: team.id,
+        membershipId: member.membership.id,
+        role: "member"
+      }
+    });
+
+    await assert.rejects(
+      () =>
+        updateOfficeAdminUser({
+          organizationId: context.organization.id,
+          actorMembershipId: context.adminMembership.id,
+          membershipId: member.membership.id,
+          role: "accountant"
+        }),
+      /Remove this user's active Team \/ Junior Team assignments in Settings > Teams before changing the account role to a non-agent role\./
+    );
+
+    const refreshedMembership = await prisma.membership.findUnique({
+      where: {
+        id: member.membership.id
+      }
+    });
+
+    assert.equal(refreshedMembership?.role, "agent");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("team membership writes reject non team-hierarchy account roles", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const accountant = await context.createMembership("accountant", "team-accountant", "Team", "Accountant", "Accountant");
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: "Guarded Team",
+        slug: `guarded-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await assert.rejects(
+      () =>
+        addAgentToTeam({
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          actorMembershipId: context.adminMembership.id,
+          teamId: team.id,
+          membershipId: accountant.membership.id,
+          role: "member"
+        }),
+      /Only Agent \/ Team Lead accounts can be assigned inside Team \/ Junior Team hierarchy\./
+    );
+
+    await assert.rejects(
+      () =>
+        createAgentTeam({
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          actorMembershipId: context.adminMembership.id,
+          name: "Accountant Team",
+          leaderMembershipId: accountant.membership.id
+        }),
+      /Only Agent \/ Team Lead accounts can own a Team or Junior Team\./
+    );
   } finally {
     await context.cleanup();
   }

@@ -55,6 +55,7 @@ export type TeamHierarchyIndex = {
 };
 
 const leaderRoles = new Set<TeamMembershipRole>(["team_leader", "junior_team_leader"]);
+const teamHierarchyAssignableUserRoles = new Set<UserRole>(["agent", "team_lead"]);
 
 function sortTeams(left: TeamHierarchyTeamRecord, right: TeamHierarchyTeamRecord) {
   return left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
@@ -62,6 +63,10 @@ function sortTeams(left: TeamHierarchyTeamRecord, right: TeamHierarchyTeamRecord
 
 export function isLeaderTeamMembershipRole(role: TeamMembershipRole) {
   return leaderRoles.has(role);
+}
+
+export function isTeamHierarchyAssignableUserRole(role: UserRole) {
+  return teamHierarchyAssignableUserRoles.has(role);
 }
 
 export function resolveUserRoleForTeamMembershipRole(currentRole: UserRole, teamRole: TeamMembershipRole): UserRole {

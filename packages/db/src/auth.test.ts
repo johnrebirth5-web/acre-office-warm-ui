@@ -200,6 +200,51 @@ test("invited users accept an invitation, set a password, and become active", as
   }
 });
 
+test("createInvitedUser rejects assigning non team-hierarchy roles into a team", async () => {
+  const context = await createInternalAuthTestContext();
+
+  try {
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: `Invite Guard Team ${randomUUID().slice(0, 8)}`,
+        slug: `invite-guard-${randomUUID().slice(0, 8)}`
+      }
+    });
+    const email = `invite-guard-${randomUUID().slice(0, 8)}@example.com`;
+
+    await assert.rejects(
+      () =>
+        createInvitedUser({
+          organizationId: context.organization.id,
+          actorMembershipId: context.adminMembership.id,
+          email,
+          firstName: "Guarded",
+          lastName: "Accountant",
+          role: "accountant",
+          officeId: context.office.id,
+          title: "Accountant",
+          teamId: team.id
+        }),
+      /Only Agent \/ Team Lead accounts can be assigned inside Team \/ Junior Team hierarchy\./
+    );
+
+    const membership = await prisma.membership.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        user: {
+          email
+        }
+      }
+    });
+
+    assert.equal(membership, null);
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("password login succeeds after invitation setup", async () => {
   const context = await createAcceptedUserAccount("Login123!");
 

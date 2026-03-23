@@ -12,6 +12,10 @@ function isLeaderRoleValue(roleValue: string) {
   return roleValue === "team_leader" || roleValue === "junior_team_leader" || roleValue === "leader_i" || roleValue === "leader_ii";
 }
 
+function isTeamHierarchyAssignableRoleValue(roleValue: string) {
+  return roleValue === "agent" || roleValue === "team_lead";
+}
+
 function getExpectedLeaderRoleValue(team: TeamDirectoryTeam) {
   return team.parentTeamId ? "junior_team_leader" : "team_leader";
 }
@@ -81,6 +85,7 @@ export function getAssignableLeaderOptions(snapshot: TeamDirectorySnapshot, pare
   return snapshot.rows
     .filter(
       (row) =>
+        isTeamHierarchyAssignableRoleValue(row.roleValue) &&
         row.membershipStatusValue === "active" &&
         (!activeMembershipIds.has(row.membershipId) || reusableParentMembershipIds.has(row.membershipId))
     )

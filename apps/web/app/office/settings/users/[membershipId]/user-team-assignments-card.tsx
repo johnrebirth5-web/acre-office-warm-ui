@@ -39,6 +39,7 @@ type UserTeamAssignmentsCardProps = {
   teams: TeamAssignmentTeam[];
   availableTeams: TeamAssignmentAvailableTeam[];
   canManageTeams: boolean;
+  assignmentLockedReason?: string | null;
 };
 
 export function UserTeamAssignmentsCard({
@@ -46,7 +47,8 @@ export function UserTeamAssignmentsCard({
   memberName,
   teams,
   availableTeams,
-  canManageTeams
+  canManageTeams,
+  assignmentLockedReason
 }: UserTeamAssignmentsCardProps) {
   const router = useRouter();
   const initialAssignableTeam = availableTeams[0] ?? null;
@@ -183,7 +185,7 @@ export function UserTeamAssignmentsCard({
           {teams.length === 0 ? <p className="office-form-helper">No team assignments yet.</p> : null}
         </div>
 
-        {canManageTeams && availableTeams.length ? (
+        {canManageTeams && !assignmentLockedReason && availableTeams.length ? (
           <div className="office-inline-form">
             <FormField label="Team">
               <SelectInput onChange={(event) => handleSelectedTeamChange(event.target.value)} value={selectedTeamId}>
@@ -215,7 +217,11 @@ export function UserTeamAssignmentsCard({
           </div>
         ) : null}
 
-        {canManageTeams && availableTeams.length === 0 ? (
+        {canManageTeams && assignmentLockedReason ? (
+          <p className="office-form-helper">{assignmentLockedReason}</p>
+        ) : null}
+
+        {canManageTeams && !assignmentLockedReason && availableTeams.length === 0 ? (
           <p className="office-form-helper">No additional team assignments are available in the current office scope.</p>
         ) : null}
       </SectionCard>
