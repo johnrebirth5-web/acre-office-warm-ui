@@ -7,6 +7,7 @@ import { UserOperationsDetailSections } from "./user-operations-detail-sections"
 type OfficeSettingsUserWorkspaceDetailClientProps = {
   snapshot: OfficeUserDetailWorkspaceSnapshot;
   canManageUsers: boolean;
+  canManageSensitiveUsers: boolean;
   canManageAgents: boolean;
   canManageOnboarding: boolean;
   canManageGoals: boolean;
@@ -16,6 +17,7 @@ type OfficeSettingsUserWorkspaceDetailClientProps = {
 export function OfficeSettingsUserWorkspaceDetailClient({
   snapshot,
   canManageUsers,
+  canManageSensitiveUsers,
   canManageAgents,
   canManageOnboarding,
   canManageGoals,
@@ -27,6 +29,7 @@ export function OfficeSettingsUserWorkspaceDetailClient({
     <div className="office-settings-user-detail-stack">
       {snapshot.access ? (
         <OfficeSettingsUserDetailClient
+          canManageSensitiveUsers={canManageSensitiveUsers}
           canManageTeams={canManageTeams}
           canManageUsers={canManageUsers}
           mode={accessMode}

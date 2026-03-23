@@ -96,6 +96,16 @@ function flattenPermissionTree(nodes: PermissionTreeNode[]): PermissionKey[] {
 
 const permissionCatalogKeys = new Set<PermissionKey>(flattenPermissionTree(getPermissionTree()));
 
+function canManageSensitiveUserAccess(permissionKeys: string[]) {
+  return permissionKeys.includes("settings:manage");
+}
+
+function assertActorCanManagePermissionOverrides(permissionKeys: string[]) {
+  if (!canManageSensitiveUserAccess(permissionKeys)) {
+    throw new Error("Only Owner / Office Admin can manage user permission overrides.");
+  }
+}
+
 function assertPermissionKey(value: string): PermissionKey {
   if (!permissionCatalogKeys.has(value as PermissionKey)) {
     throw new Error(`Unknown permission key: ${value}`);
@@ -506,6 +516,16 @@ export async function saveMembershipPermissionOverrides(input: SaveMembershipPer
   })) satisfies MembershipPermissionOverrideRecord[];
 
   return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId
+      },
+      tx
+    );
+
+    assertActorCanManagePermissionOverrides(actorPermissionKeys);
+
     const membership = await tx.membership.findFirst({
       where: {
         id: input.membershipId,
@@ -610,6 +630,16 @@ export async function saveMembershipPermissionOverrides(input: SaveMembershipPer
 
 export async function resetMembershipPermissionOverrides(input: ResetMembershipPermissionOverridesInput) {
   return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId
+      },
+      tx
+    );
+
+    assertActorCanManagePermissionOverrides(actorPermissionKeys);
+
     const membership = await tx.membership.findFirst({
       where: {
         id: input.membershipId,

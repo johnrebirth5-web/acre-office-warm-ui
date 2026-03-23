@@ -14,13 +14,15 @@ import {
   getOnboardingTone,
   getRoleConfigurationHint,
   getRoleEditorOptions,
-  getStatusEditorOptions
+  getStatusEditorOptions,
+  isPrivilegedRoleValue
 } from "../users-shared";
 import { UserTeamAssignmentsCard } from "./user-team-assignments-card";
 
 type OfficeSettingsUserDetailClientProps = {
   snapshot: OfficeAdminUserDetailSnapshot;
   canManageUsers: boolean;
+  canManageSensitiveUsers: boolean;
   canManageTeams: boolean;
   mode?: "full" | "access-only";
   operationsHref?: string | null;
@@ -47,6 +49,7 @@ type MutationResponse = {
 export function OfficeSettingsUserDetailClient({
   snapshot,
   canManageUsers,
+  canManageSensitiveUsers,
   canManageTeams,
   mode = "full",
   operationsHref
@@ -61,6 +64,8 @@ export function OfficeSettingsUserDetailClient({
   const [submitError, setSubmitError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(null);
+  const canManagePrivilegedAccount = canManageSensitiveUsers || !isPrivilegedRoleValue(snapshot.profile.roleValue);
+  const canManageAccountAccess = canManageUsers && canManagePrivilegedAccount;
 
   useEffect(() => {
     setDraft({
@@ -288,8 +293,8 @@ export function OfficeSettingsUserDetailClient({
           <form className="office-settings-user-access-form" onSubmit={handleSaveUser}>
             <div className="office-form-grid office-form-grid-3 office-settings-user-access-controls">
               <FormField label="Role">
-                <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("role", event.target.value)} value={draft.role}>
-                  {getRoleEditorOptions(snapshot.profile).map((option) => (
+                <SelectInput disabled={!canManageAccountAccess} onChange={(event) => setDraftField("role", event.target.value)} value={draft.role}>
+                  {getRoleEditorOptions(snapshot.profile, canManageSensitiveUsers).map((option) => (
                     <option disabled={option.disabled} key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -298,7 +303,7 @@ export function OfficeSettingsUserDetailClient({
               </FormField>
 
               <FormField label="Membership">
-                <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("status", event.target.value)} value={draft.status}>
+                <SelectInput disabled={!canManageAccountAccess} onChange={(event) => setDraftField("status", event.target.value)} value={draft.status}>
                   {getStatusEditorOptions(snapshot.profile).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -308,7 +313,7 @@ export function OfficeSettingsUserDetailClient({
               </FormField>
 
               <FormField label="Office access">
-                <SelectInput disabled={!canManageUsers} onChange={(event) => setDraftField("officeId", event.target.value)} value={draft.officeId}>
+                <SelectInput disabled={!canManageAccountAccess} onChange={(event) => setDraftField("officeId", event.target.value)} value={draft.officeId}>
                   {snapshot.editors.officeOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
@@ -346,7 +351,7 @@ export function OfficeSettingsUserDetailClient({
             </div>
 
             <div className="office-settings-user-detail-actions office-settings-user-access-actions">
-              {canManageUsers ? (
+              {canManageAccountAccess ? (
                 <>
                   <Button disabled={pendingAction === "save"} type="submit">
                     {pendingAction === "save" ? "Saving..." : "Save access"}
@@ -366,7 +371,9 @@ export function OfficeSettingsUserDetailClient({
                   ) : null}
                 </>
               ) : (
-                <span className="office-table-action-muted">View only</span>
+                <span className="office-table-action-muted">
+                  {canManageUsers && !canManagePrivilegedAccount ? "Only Owner / Office Admin can manage this account." : "View only"}
+                </span>
               )}
             </div>
           </form>
@@ -400,7 +407,7 @@ export function OfficeSettingsUserDetailClient({
 
           <div className="office-settings-user-permissions-cta">
             <div className="office-settings-user-permissions-copy">
-              <strong>{canManageUsers ? "Dedicated manage page" : "Dedicated read-only page"}</strong>
+              <strong>{canManageSensitiveUsers ? "Dedicated manage page" : "Dedicated read-only page"}</strong>
               <p>Review role defaults, inherited permissions, and member-level overrides in a focused editor.</p>
             </div>
             {roleChanged ? (
@@ -409,7 +416,7 @@ export function OfficeSettingsUserDetailClient({
               </Button>
             ) : (
               <Link className="office-button office-button-primary office-button-sm" href={permissionEditorHref}>
-                {canManageUsers ? "Edit permissions" : "View permissions"}
+                {canManageSensitiveUsers ? "Edit permissions" : "View permissions"}
               </Link>
             )}
           </div>

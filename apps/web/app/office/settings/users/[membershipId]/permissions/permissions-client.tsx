@@ -16,7 +16,7 @@ import {
 
 type OfficeSettingsUserPermissionsClientProps = {
   snapshot: OfficeAdminUserDetailSnapshot;
-  canManageUsers: boolean;
+  canManagePermissions: boolean;
 };
 
 type ConfirmDialogState = {
@@ -136,7 +136,7 @@ function PermissionRow(props: {
 
 export function OfficeSettingsUserPermissionsClient({
   snapshot,
-  canManageUsers
+  canManagePermissions
 }: OfficeSettingsUserPermissionsClientProps) {
   const router = useRouter();
   const [permissionOverrides, setPermissionOverrides] = useState(() => buildPermissionOverrideMap(snapshot.permissions.overrides));
@@ -306,7 +306,7 @@ export function OfficeSettingsUserPermissionsClient({
               {isDirty ? <Badge tone="warning">Unsaved changes</Badge> : null}
             </div>
             <p>
-              {canManageUsers
+              {canManagePermissions
                 ? `Changes here override the ${snapshot.permissions.roleLabel} template for this user only. Checked items are the permissions this user can use right now.`
                 : `This page shows the effective permissions currently active for this user under the ${snapshot.permissions.roleLabel} template.`}
             </p>
@@ -314,12 +314,12 @@ export function OfficeSettingsUserPermissionsClient({
         </div>
 
         <div className="office-user-permissions-columns">
-          <PermissionSection disabled={!canManageUsers} nodes={previewColumns[0]} onCheckedChange={togglePermission} />
-          <PermissionSection disabled={!canManageUsers} nodes={previewColumns[1]} onCheckedChange={togglePermission} />
+          <PermissionSection disabled={!canManagePermissions} nodes={previewColumns[0]} onCheckedChange={togglePermission} />
+          <PermissionSection disabled={!canManagePermissions} nodes={previewColumns[1]} onCheckedChange={togglePermission} />
         </div>
 
         <div className="office-user-permissions-footer">
-          {canManageUsers ? (
+          {canManagePermissions ? (
             <>
               <Button disabled={!isDirty || pendingAction === "save"} onClick={handleSavePermissions}>
                 {pendingAction === "save" ? "Saving..." : "Save permissions"}

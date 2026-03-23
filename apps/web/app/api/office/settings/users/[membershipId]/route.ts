@@ -1,4 +1,4 @@
-import { canManageOfficeUsers } from "@acre/auth";
+import { canManageOfficeSettings, canManageOfficeUsers } from "@acre/auth";
 import { updateOfficeAdminUser } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
@@ -30,6 +30,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     | null;
 
   try {
+    if (
+      (body?.role === "owner" || body?.role === "office_admin") &&
+      !canManageOfficeSettings(context.currentMembership)
+    ) {
+      return NextResponse.json({ error: "Only Owner / Office Admin can assign admin-tier roles." }, { status: 403 });
+    }
+
     const membership = await updateOfficeAdminUser({
       organizationId: context.currentOrganization.id,
       actorMembershipId: context.currentMembership.id,

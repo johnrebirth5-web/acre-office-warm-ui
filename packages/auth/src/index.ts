@@ -738,7 +738,6 @@ const permissionCatalog: PermissionDefinition[] = [
     label: "Can view agent billing",
     description: "View agent billing and payment methods.",
     group: "accounting",
-    parentKey: "accounting:view",
     sortOrder: 152,
     scopeBehavior: "company"
   },
@@ -1151,7 +1150,6 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "documents:view",
     "offers:view",
     "tasks:view",
-    "accounting:view",
     "accounting:billing:view",
     "commissions:view",
     "commissions:view:team",
@@ -1171,7 +1169,6 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "documents:view",
     "offers:view",
     "tasks:view",
-    "accounting:view",
     "accounting:billing:view",
     "commissions:view",
     "notifications:view",

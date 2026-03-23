@@ -245,6 +245,53 @@ test("createInvitedUser rejects assigning non team-hierarchy roles into a team",
   }
 });
 
+test("non-admin user managers cannot create office_admin invitations", async () => {
+  const context = await createInternalAuthTestContext();
+
+  try {
+    const accountantUser = await prisma.user.create({
+      data: {
+        email: `accountant-${randomUUID().slice(0, 8)}@example.com`,
+        firstName: "Access",
+        lastName: "Manager",
+        timezone: "America/New_York",
+        locale: "en-US",
+        isActive: true
+      }
+    });
+    context.trackedUserIds.push(accountantUser.id);
+
+    const accountantMembership = await prisma.membership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        userId: accountantUser.id,
+        role: "accountant",
+        status: "active",
+        title: "Accountant",
+        permissions: Prisma.JsonNull
+      }
+    });
+
+    await assert.rejects(
+      () =>
+        createInvitedUser({
+          organizationId: context.organization.id,
+          actorMembershipId: accountantMembership.id,
+          email: `privileged-${randomUUID().slice(0, 8)}@example.com`,
+          firstName: "Privileged",
+          lastName: "Invitee",
+          role: "office_admin",
+          officeId: context.office.id,
+          title: "Office Admin"
+        }),
+      /Only Owner \/ Office Admin can assign Owner or Office Admin roles\./
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("password login succeeds after invitation setup", async () => {
   const context = await createAcceptedUserAccount("Login123!");
 

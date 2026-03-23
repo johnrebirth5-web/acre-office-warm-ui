@@ -7,9 +7,9 @@ import { Badge, Button, DataTable, DataTableBody, DataTableHeader, EmptyState, F
 import type { OfficeAdminUsersSnapshot } from "@acre/db";
 import {
   copyTextToClipboard,
-  createRoleOptions,
   formatInviteExpiry,
   getAuthTone,
+  getCreateRoleOptions,
   getInvitationTone,
   getMembershipTone,
   getOnboardingTone,
@@ -19,6 +19,7 @@ import {
 type OfficeSettingsUsersClientProps = {
   snapshot: OfficeAdminUsersSnapshot;
   canManageUsers: boolean;
+  canManageAdminRoles: boolean;
   canManageTeams: boolean;
 };
 
@@ -125,7 +126,12 @@ function formatCreateTeamOptionLabel(
   return `${team.officeName} · ${team.label}`;
 }
 
-export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageTeams }: OfficeSettingsUsersClientProps) {
+export function OfficeSettingsUsersClient({
+  snapshot,
+  canManageUsers,
+  canManageAdminRoles,
+  canManageTeams
+}: OfficeSettingsUsersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState(snapshot.filters.q);
@@ -139,6 +145,7 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageT
   const [createUserDraft, setCreateUserDraft] = useState<CreateUserDraft>(() => buildCreateUserDraft(snapshot));
   const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(null);
   const canAssignTeamOnCreate = canManageTeams && roleSupportsTeamAssignment(createUserDraft.role);
+  const assignableCreateRoleOptions = getCreateRoleOptions(canManageAdminRoles);
   const createAssignableTeams = getCreateAssignableTeams(snapshot, createUserDraft.officeId);
   const selectedCreateTeam = createAssignableTeams.find((team) => team.id === createUserDraft.teamId) ?? null;
 
@@ -496,7 +503,7 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageT
 
                     <FormField label="Role">
                       <SelectInput onChange={(event) => setCreateField("role", event.target.value)} value={createUserDraft.role}>
-                        {createRoleOptions.map((option) => (
+                        {assignableCreateRoleOptions.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
@@ -519,6 +526,11 @@ export function OfficeSettingsUsersClient({ snapshot, canManageUsers, canManageT
                     </FormField>
 
                     <p className="office-form-grid-span-3 office-settings-users-modal-note">{getRoleConfigurationHint(createUserDraft.role)}</p>
+                    {!canManageAdminRoles ? (
+                      <p className="office-form-grid-span-3 office-form-helper">
+                        Owner and Office Admin assignments are limited to current Owner / Office Admin users.
+                      </p>
+                    ) : null}
                   </div>
                 </section>
 

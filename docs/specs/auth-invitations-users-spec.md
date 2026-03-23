@@ -50,6 +50,11 @@ This spec describes what is implemented now, not the eventual full auth platform
   - `Human Resources`
   - `Team Lead`
   - `Agent`
+- `users:manage` allows lifecycle management for standard Back Office accounts, but it does not allow:
+  - assigning `owner / office_admin`
+  - managing existing `owner / office_admin` accounts
+  - editing per-user permission overrides
+- assigning admin-tier roles and editing user permission overrides require `settings:manage` and are restricted to current `owner / office_admin`
 
 ### Bootstrap admin
 
@@ -128,9 +133,9 @@ Current routes:
 `/office/settings/users/[membershipId]/permissions` now supports:
 
 - review the full effective permission tree on a dedicated full-page editor
-- edit per-user permission overrides with a BoldTrail-style two-column checkbox layout
-- save per-user permission overrides against the current role template
-- reset user overrides back to role defaults
+- `owner / office_admin` can edit per-user permission overrides with a BoldTrail-style two-column checkbox layout
+- `owner / office_admin` can save per-user permission overrides against the current role template
+- `owner / office_admin` can reset user overrides back to role defaults
 
 `/office/settings/roles` now supports:
 

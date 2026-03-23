@@ -154,6 +154,7 @@
   - assignable team options come from the current office team-management scope instead of the viewer's agent roster visibility
   - members with `officeId = null` can still be assigned to the current office's teams from the user detail page
 - Team / user hierarchy hardening now keeps agent roster/profile reads on `agents:view:*` scope instead of the transaction default, lets `Settings > Teams` honor `teams:view` directly without accidental agent-scope narrowing, and blocks non-`agent / team_lead` accounts from entering team hierarchy through create-user, team-owner, team-membership, or incompatible role-change writes
+- User-access and accounting hardening now keeps admin-tier controls behind `owner / office_admin`, limits per-user permission overrides to `settings:manage`, removes sales-role access to `/office/accounting` while preserving `/office/billing`, and prevents transaction intake edits from silently overwriting finance columns without `transactions:finance`
 
 ## Next recommended work
 

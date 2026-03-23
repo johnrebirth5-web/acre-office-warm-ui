@@ -1,6 +1,6 @@
 import type { OfficeAdminUserDetailSnapshot, OfficeAdminUserRow } from "@acre/db";
 
-export const createRoleOptions = [
+const createRoleOptions = [
   { value: "owner", label: "Owner" },
   { value: "office_admin", label: "Office Admin" },
   { value: "accountant", label: "Accountant" },
@@ -8,6 +8,7 @@ export const createRoleOptions = [
   { value: "team_lead", label: "Team Lead" },
   { value: "agent", label: "Agent" }
 ] as const;
+const privilegedRoleValues = new Set(["owner", "office_admin"]);
 
 type UserSecurityShape = Pick<
   OfficeAdminUserRow,
@@ -31,6 +32,18 @@ type EditableUserDetailShape = Pick<
 
 function isTeamHierarchyAssignableRoleValue(roleValue: string) {
   return roleValue === "agent" || roleValue === "team_lead";
+}
+
+export function isPrivilegedRoleValue(roleValue: string) {
+  return privilegedRoleValues.has(roleValue);
+}
+
+export function getCreateRoleOptions(canManagePrivilegedRoles: boolean) {
+  if (canManagePrivilegedRoles) {
+    return createRoleOptions;
+  }
+
+  return createRoleOptions.filter((option) => !isPrivilegedRoleValue(option.value));
 }
 
 export function getRoleConfigurationHint(role: string) {
@@ -101,7 +114,7 @@ export function getInvitationTone(user: UserSecurityShape) {
   return "neutral" as const;
 }
 
-export function getRoleEditorOptions(user: EditableUserShape | EditableUserDetailShape) {
+export function getRoleEditorOptions(user: EditableUserShape | EditableUserDetailShape, canManagePrivilegedRoles: boolean) {
   const baseOptions: RoleEditorOption[] =
     user.roleValue === "office_manager"
       ? [{ value: "office_manager", label: "Office Manager (Legacy)" }, ...createRoleOptions]
@@ -112,6 +125,14 @@ export function getRoleEditorOptions(user: EditableUserShape | EditableUserDetai
   const lockNonHierarchyRoles = Boolean(user.hasActiveTeamAssignments);
 
   return baseOptions.map((option) => {
+    if (isPrivilegedRoleValue(option.value) && !canManagePrivilegedRoles && option.value !== user.roleValue) {
+      return {
+        ...option,
+        label: `${option.label} (Owner / Office Admin only)`,
+        disabled: true
+      };
+    }
+
     if (option.value === "agent" && lockAgentRole) {
       return {
         ...option,

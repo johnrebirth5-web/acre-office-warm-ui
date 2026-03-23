@@ -1,4 +1,4 @@
-import { canManageOfficeTeams, canManageOfficeUsers, canViewOfficeAgents, canViewOfficeUsers } from "@acre/auth";
+import { canManageOfficeSettings, canManageOfficeTeams, canManageOfficeUsers, canViewOfficeAgents, canViewOfficeUsers } from "@acre/auth";
 import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
 import { getOfficeAdminUsersSnapshot, getOfficeAgentsRosterSnapshot, type OfficeUsersWorkspaceSnapshot, type OfficeUsersWorkspaceView } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -113,6 +113,7 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
       <ListPageStack className="office-settings-list-stack">
         <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsUsersWorkspaceClient
+          canManageAdminRoles={canManageOfficeSettings(context.currentMembership)}
           canManageTeams={canManageOfficeTeams(context.currentMembership)}
           canManageUsers={canManageOfficeUsers(context.currentMembership)}
           snapshot={snapshot}

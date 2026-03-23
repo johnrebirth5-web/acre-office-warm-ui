@@ -1,4 +1,4 @@
-import { canManageOfficeUsers } from "@acre/auth";
+import { canManageOfficeSettings } from "@acre/auth";
 import { resetMembershipPermissionOverrides, saveMembershipPermissionOverrides } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
@@ -24,8 +24,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeUsers(context.currentMembership)) {
-    return NextResponse.json({ error: "User management permission required." }, { status: 403 });
+  if (!canManageOfficeSettings(context.currentMembership)) {
+    return NextResponse.json({ error: "Office settings permission required." }, { status: 403 });
   }
 
   const { membershipId } = await params;
@@ -66,8 +66,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (!canManageOfficeUsers(context.currentMembership)) {
-    return NextResponse.json({ error: "User management permission required." }, { status: 403 });
+  if (!canManageOfficeSettings(context.currentMembership)) {
+    return NextResponse.json({ error: "Office settings permission required." }, { status: 403 });
   }
 
   const { membershipId } = await params;

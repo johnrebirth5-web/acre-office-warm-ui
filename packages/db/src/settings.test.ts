@@ -350,6 +350,47 @@ test("updateOfficeAdminUser blocks changing an actively assigned team member to 
   }
 });
 
+test("non-admin user managers cannot promote or manage admin-tier accounts", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const actor = await context.createMembership("accountant", "settings-actor", "Access", "Manager", "Accountant");
+    const targetAgent = await context.createMembership("agent", "settings-target-agent", "Target", "Agent", "Agent");
+    const targetAdmin = await context.createMembership("office_admin", "settings-target-admin", "Target", "Admin", "Office Admin");
+
+    await prisma.userCredential.create({
+      data: {
+        userId: targetAgent.user.id,
+        passwordHash: "test-password-hash"
+      }
+    });
+
+    await assert.rejects(
+      () =>
+        updateOfficeAdminUser({
+          organizationId: context.organization.id,
+          actorMembershipId: actor.membership.id,
+          membershipId: targetAgent.membership.id,
+          role: "office_admin"
+        }),
+      /Only Owner \/ Office Admin can assign Owner or Office Admin roles\./
+    );
+
+    await assert.rejects(
+      () =>
+        updateOfficeAdminUser({
+          organizationId: context.organization.id,
+          actorMembershipId: actor.membership.id,
+          membershipId: targetAdmin.membership.id,
+          status: "disabled"
+        }),
+      /Only Owner \/ Office Admin can manage Owner or Office Admin accounts\./
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("updateOfficeAdminUser still allows non-role updates for legacy non-hierarchy team assignments", async () => {
   const context = await createSettingsTestContext();
 

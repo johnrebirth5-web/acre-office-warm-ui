@@ -1,4 +1,4 @@
-import { canManageOfficeUsers, canViewOfficeUsers } from "@acre/auth";
+import { canManageOfficeSettings, canViewOfficeUsers } from "@acre/auth";
 import { getOfficeAdminUserDetailSnapshot } from "@acre/db";
 import { PageShell } from "@acre/ui";
 import { notFound, redirect } from "next/navigation";
@@ -32,7 +32,7 @@ export default async function OfficeSettingsUserPermissionsPage({ params }: Offi
   return (
     <PageShell className="office-detail-page office-user-permissions-route">
       <OfficeSettingsUserPermissionsClient
-        canManageUsers={canManageOfficeUsers(context.currentMembership)}
+        canManagePermissions={canManageOfficeSettings(context.currentMembership)}
         snapshot={snapshot}
       />
     </PageShell>

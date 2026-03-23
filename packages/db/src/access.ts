@@ -55,7 +55,6 @@ const scopePermissionMap: Record<
 const crossMemberFinancialPermissions = new Set<PermissionKey>([
   "reports:view:company",
   "accounting:view",
-  "accounting:billing:view",
   "commissions:view:company",
   "transactions:finance"
 ]);

@@ -20,6 +20,7 @@ const INVITATION_EXPIRY_MS = 1000 * 60 * 60 * 24 * 7;
 const ACCOUNT_LOCKOUT_WINDOW_MS = 1000 * 60 * 60;
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const MIN_PASSWORD_LENGTH = 8;
+const privilegedBackOfficeRoles = new Set<UserRole>(["owner", "office_admin"]);
 const inviteEligibleRoleCatalog: UserRole[] = [
   "owner",
   "office_admin",
@@ -32,6 +33,36 @@ const inviteEligibleRoleCatalog: UserRole[] = [
 ] as const;
 
 type AuditLogWriter = Prisma.TransactionClient | PrismaClient;
+
+function isPrivilegedBackOfficeRole(role: UserRole) {
+  return privilegedBackOfficeRoles.has(role);
+}
+
+function canManageSensitiveUserAccess(permissionKeys: PermissionKey[]) {
+  return permissionKeys.includes("settings:manage");
+}
+
+function canManageUserLifecycle(permissionKeys: PermissionKey[]) {
+  return permissionKeys.includes("users:manage") || canManageSensitiveUserAccess(permissionKeys);
+}
+
+function assertActorCanManageUsers(permissionKeys: PermissionKey[]) {
+  if (!canManageUserLifecycle(permissionKeys)) {
+    throw new Error("User management permission is required.");
+  }
+}
+
+function assertActorCanAssignPrivilegedRole(permissionKeys: PermissionKey[], role: UserRole) {
+  if (isPrivilegedBackOfficeRole(role) && !canManageSensitiveUserAccess(permissionKeys)) {
+    throw new Error("Only Owner / Office Admin can assign Owner or Office Admin roles.");
+  }
+}
+
+function assertActorCanManagePrivilegedMembership(permissionKeys: PermissionKey[], role: UserRole) {
+  if (isPrivilegedBackOfficeRole(role) && !canManageSensitiveUserAccess(permissionKeys)) {
+    throw new Error("Only Owner / Office Admin can manage Owner or Office Admin accounts.");
+  }
+}
 
 type MembershipSessionRecord = {
   id: string;
@@ -1084,6 +1115,17 @@ export async function createInvitedUser(input: CreateInvitedUserInput) {
   }
 
   return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId
+      },
+      tx
+    );
+
+    assertActorCanManageUsers(actorPermissionKeys);
+    assertActorCanAssignPrivilegedRole(actorPermissionKeys, input.role);
+
     const existingUser = await tx.user.findUnique({
       where: {
         email: normalizedEmail
@@ -1209,6 +1251,16 @@ export async function issueInvitationForMembership(input: {
   membershipId: string;
 }) {
   return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId
+      },
+      tx
+    );
+
+    assertActorCanManageUsers(actorPermissionKeys);
+
     const membership = await tx.membership.findFirst({
       where: {
         id: input.membershipId,
@@ -1228,6 +1280,8 @@ export async function issueInvitationForMembership(input: {
     if (!membership) {
       throw new Error("User membership was not found.");
     }
+
+    assertActorCanManagePrivilegedMembership(actorPermissionKeys, membership.role);
 
     if (membership.status === "disabled") {
       throw new Error("Disabled accounts cannot receive invitation links.");
@@ -1289,6 +1343,16 @@ export async function revokeInvitationForMembership(input: {
   membershipId: string;
 }) {
   return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId
+      },
+      tx
+    );
+
+    assertActorCanManageUsers(actorPermissionKeys);
+
     const membership = await tx.membership.findFirst({
       where: {
         id: input.membershipId,
@@ -1303,6 +1367,8 @@ export async function revokeInvitationForMembership(input: {
     if (!membership) {
       throw new Error("User membership was not found.");
     }
+
+    assertActorCanManagePrivilegedMembership(actorPermissionKeys, membership.role);
 
     const activeInvitations = await tx.invitation.findMany({
       where: {
@@ -1350,6 +1416,16 @@ export async function revokeInvitationForMembership(input: {
 
 export async function unlockInternalAccount(input: UnlockInternalAccountInput) {
   return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId
+      },
+      tx
+    );
+
+    assertActorCanManageUsers(actorPermissionKeys);
+
     const membership = await tx.membership.findFirst({
       where: {
         id: input.membershipId,
@@ -1368,6 +1444,8 @@ export async function unlockInternalAccount(input: UnlockInternalAccountInput) {
     if (!membership || !membership.user.credential) {
       throw new Error("User credential was not found.");
     }
+
+    assertActorCanManagePrivilegedMembership(actorPermissionKeys, membership.role);
 
     await tx.userCredential.update({
       where: {

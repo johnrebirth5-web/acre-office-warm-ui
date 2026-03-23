@@ -54,6 +54,38 @@ const backOfficeUserRoleCatalog: UserRole[] = [
   "office_manager"
 ];
 
+const privilegedBackOfficeRoles = new Set<UserRole>(["owner", "office_admin"]);
+
+function isPrivilegedBackOfficeRole(role: UserRole) {
+  return privilegedBackOfficeRoles.has(role);
+}
+
+function canManageSensitiveUserAccess(permissionKeys: string[]) {
+  return permissionKeys.includes("settings:manage");
+}
+
+function canManageUserLifecycle(permissionKeys: string[]) {
+  return permissionKeys.includes("users:manage") || canManageSensitiveUserAccess(permissionKeys);
+}
+
+function assertActorCanManageUsers(permissionKeys: string[]) {
+  if (!canManageUserLifecycle(permissionKeys)) {
+    throw new Error("User management permission is required.");
+  }
+}
+
+function assertActorCanAssignPrivilegedRole(permissionKeys: string[], role: UserRole) {
+  if (isPrivilegedBackOfficeRole(role) && !canManageSensitiveUserAccess(permissionKeys)) {
+    throw new Error("Only Owner / Office Admin can assign Owner or Office Admin roles.");
+  }
+}
+
+function assertActorCanManagePrivilegedMembership(permissionKeys: string[], role: UserRole) {
+  if (isPrivilegedBackOfficeRole(role) && !canManageSensitiveUserAccess(permissionKeys)) {
+    throw new Error("Only Owner / Office Admin can manage Owner or Office Admin accounts.");
+  }
+}
+
 const membershipStatusLabelMap: Record<MembershipStatus, string> = {
   active: "Active",
   invited: "Invited",
@@ -2038,6 +2070,16 @@ export async function getOfficeAdminUserDetailSnapshot(input: GetOfficeAdminUser
 
 export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
   return prisma.$transaction(async (tx) => {
+    const actorPermissionKeys = await getMembershipEffectivePermissionKeys(
+      {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId
+      },
+      tx
+    );
+
+    assertActorCanManageUsers(actorPermissionKeys);
+
     const membership = await tx.membership.findFirst({
       where: {
         id: input.membershipId,
@@ -2071,9 +2113,13 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       throw new Error("This membership cannot be managed from the Back Office users page.");
     }
 
+    assertActorCanManagePrivilegedMembership(actorPermissionKeys, membership.role);
+
     const nextRole = normalizeUserRole(input.role) ?? membership.role;
     const nextStatus = normalizeMembershipStatus(input.status) ?? membership.status;
     let nextOfficeId = typeof input.officeId === "string" ? input.officeId : input.officeId === null ? null : membership.officeId;
+
+    assertActorCanAssignPrivilegedRole(actorPermissionKeys, nextRole);
 
     if (nextRole === "office_manager" && membership.role !== "office_manager") {
       throw new Error("The legacy Office Manager role cannot be assigned from this page.");

@@ -3,6 +3,7 @@ import {
   canManageOfficeAgents,
   canManageOfficeGoals,
   canManageOfficeOnboarding,
+  canManageOfficeSettings,
   canManageOfficeTeams,
   canManageOfficeUsers,
   canViewOfficeAgents,
@@ -104,6 +105,7 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
           canManageAgents={canManageOfficeAgents(context.currentMembership)}
           canManageGoals={canManageOfficeGoals(context.currentMembership)}
           canManageOnboarding={canManageOfficeOnboarding(context.currentMembership)}
+          canManageSensitiveUsers={canManageOfficeSettings(context.currentMembership)}
           canManageTeams={canManageOfficeTeams(context.currentMembership)}
           canManageUsers={canManageOfficeUsers(context.currentMembership)}
           snapshot={snapshot}

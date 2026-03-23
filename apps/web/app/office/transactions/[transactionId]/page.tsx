@@ -201,6 +201,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         title="Intake fields"
       >
         <TransactionIntakeWorkspace
+          canEditFinanceFields={canManageTransactionFinanceForRole}
           canEditValues={canEditTransactionsForRole}
           chrome="detail"
           initialValues={{

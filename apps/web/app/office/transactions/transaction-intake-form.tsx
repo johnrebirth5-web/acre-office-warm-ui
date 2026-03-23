@@ -20,6 +20,7 @@ type TransactionIntakeWorkspaceProps = {
   chrome: "modal" | "page" | "detail";
   schema: OfficeTransactionIntakeSchema;
   canEditValues: boolean;
+  canEditFinanceFields?: boolean;
   submitEndpoint: string;
   submitMethod: "POST" | "PATCH";
   submitLabel: string;
@@ -67,6 +68,19 @@ const createModeRetiredLegacyFieldKeys = new Set([
   "commissionBreakdown",
   "commissionReceivedStatus",
   "commissionConfirmation"
+]);
+const editModeRestrictedFinanceFieldKeys = new Set([
+  "commissionAmount",
+  "rebate",
+  "reimbursement",
+  "companyReferral",
+  "outsideReferral",
+  "referralFee",
+  "companyReferralEmployeeName",
+  "companyReferralEmployeesName",
+  "note",
+  "officeNet",
+  "agentNet"
 ]);
 
 function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialValues: Record<string, string> | undefined) {
@@ -134,6 +148,7 @@ export function TransactionIntakeWorkspace({
   chrome,
   schema,
   canEditValues,
+  canEditFinanceFields = true,
   submitEndpoint,
   submitMethod,
   submitLabel,
@@ -228,6 +243,7 @@ export function TransactionIntakeWorkspace({
               createModeRetiredLegacyFieldKeys.has(field.fieldKey))
           )
       )
+      .filter((field) => !(mode === "edit" && !canEditFinanceFields && editModeRestrictedFinanceFieldKeys.has(field.fieldKey)))
       .map((field) => ({
         kind: "custom" as const,
         field,

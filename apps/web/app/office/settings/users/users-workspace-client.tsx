@@ -9,6 +9,7 @@ import { OfficeSettingsUsersOperationsView } from "./users-operations-view";
 type OfficeSettingsUsersWorkspaceClientProps = {
   snapshot: OfficeUsersWorkspaceSnapshot;
   canManageUsers: boolean;
+  canManageAdminRoles: boolean;
   canManageTeams: boolean;
 };
 
@@ -31,6 +32,7 @@ function buildViewHref(pathname: string, searchParams: URLSearchParams, nextView
 export function OfficeSettingsUsersWorkspaceClient({
   snapshot,
   canManageUsers,
+  canManageAdminRoles,
   canManageTeams
 }: OfficeSettingsUsersWorkspaceClientProps) {
   const pathname = usePathname();
@@ -62,7 +64,12 @@ export function OfficeSettingsUsersWorkspaceClient({
       ) : null}
 
       {snapshot.activeView === "access" && snapshot.access ? (
-        <OfficeSettingsUsersClient canManageTeams={canManageTeams} canManageUsers={canManageUsers} snapshot={snapshot.access} />
+        <OfficeSettingsUsersClient
+          canManageAdminRoles={canManageAdminRoles}
+          canManageTeams={canManageTeams}
+          canManageUsers={canManageUsers}
+          snapshot={snapshot.access}
+        />
       ) : null}
 
       {snapshot.activeView === "operations" && snapshot.operations ? (

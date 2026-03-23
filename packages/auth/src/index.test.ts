@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   can,
   canAccessAccountActivity,
+  canAccessOfficeAccounting,
   canCommentOfficeActivity,
   canCommentOfficeOffers,
   canCreateOfficeContacts,
@@ -15,6 +16,7 @@ import {
   canManageOfficeTransactionFinance,
   canManageOfficeUsers,
   canSecondaryReviewOfficeTasks,
+  canViewOfficeAgentBilling,
   canViewOfficeCommissionSelfServiceSummary,
   canViewOfficeContacts,
   canViewOfficeCommissions,
@@ -68,6 +70,8 @@ test("team lead keeps scoped pipeline access without admin-only settings", () =>
   assert.equal(canCreateOfficeTransactions("team_lead"), true);
   assert.equal(canEditOfficeTransactions("team_lead"), true);
   assert.equal(canManageOfficeTransactionStatus("team_lead"), false);
+  assert.equal(canAccessOfficeAccounting("team_lead"), false);
+  assert.equal(canViewOfficeAgentBilling("team_lead"), true);
   assert.equal(canViewOfficeContacts("team_lead"), true);
   assert.equal(canViewOfficeReports("team_lead"), true);
   assert.equal(canViewOfficeCommissions("team_lead"), true);
@@ -82,6 +86,8 @@ test("agent role keeps scoped pipeline access without finance or admin-only powe
   assert.equal(canEditOfficeTransactions("agent"), true);
   assert.equal(canManageOfficeTransactionStatus("agent"), false);
   assert.equal(canManageOfficeTransactionFinance("agent"), false);
+  assert.equal(canAccessOfficeAccounting("agent"), false);
+  assert.equal(canViewOfficeAgentBilling("agent"), true);
   assert.equal(canViewOfficeContacts("agent"), true);
   assert.equal(canViewOfficeCommissions("agent"), true);
   assert.equal(canCreateOfficeContacts("agent"), true);

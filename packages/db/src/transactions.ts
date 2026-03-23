@@ -270,6 +270,37 @@ export type PreparedTransactionIntakeSubmission = {
   additionalFields: Record<string, string>;
 };
 
+const restrictedIntakeFinanceFieldKeys = new Set([
+  "commissionAmount",
+  "rebate",
+  "reimbursement",
+  "companyReferral",
+  "outsideReferral",
+  "referralFee",
+  "companyReferralEmployeeName",
+  "companyReferralEmployeesName",
+  "note",
+  "officeNet",
+  "agentNet"
+]);
+
+function sanitizeEditableIntakeAdditionalFields(
+  additionalFields: Record<string, string> | undefined,
+  canManageTransactionFinance: boolean
+) {
+  if (!additionalFields) {
+    return {};
+  }
+
+  if (canManageTransactionFinance) {
+    return { ...additionalFields };
+  }
+
+  return Object.fromEntries(
+    Object.entries(additionalFields).filter(([fieldKey]) => !restrictedIntakeFinanceFieldKeys.has(fieldKey))
+  );
+}
+
 const transactionStatusLabelMap: Record<TransactionStatus, OfficeTransactionStatus> = {
   opportunity: "Opportunity",
   active: "Active",
@@ -1907,6 +1938,7 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
     organizationId: input.organizationId,
     viewerMembershipId: input.actorMembershipId
   });
+  const canManageTransactionFinance = scope.viewerPermissions.includes("transactions:finance");
   const existing = await prisma.transaction.findFirst({
     where: {
       id: input.transactionId,
@@ -1957,9 +1989,10 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
           Object.entries(existing.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
         )
       : {};
+  const sanitizedAdditionalFieldsInput = sanitizeEditableIntakeAdditionalFields(input.additionalFields, canManageTransactionFinance);
   const mergedAdditionalFields = {
     ...existingAdditionalFields,
-    ...(input.additionalFields ?? {})
+    ...sanitizedAdditionalFieldsInput
   };
   const ownerLabel =
     existing.ownerMembership
@@ -2050,7 +2083,7 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
       buildAuditDetail("Listing date", formatAuditTextValue(formatDateValue(existing.listingDate)), formatAuditTextValue(input.listingDate)),
       buildAuditDetail("Listing expiration date", formatAuditTextValue(formatDateValue(existing.listingExpirationDate)), formatAuditTextValue(input.listingExpirationDate)),
       buildAuditDetail("Closing date", formatAuditTextValue(formatDateValue(existing.closingDate)), formatAuditTextValue(input.closingDate)),
-      ...Object.keys(input.additionalFields ?? {}).map((fieldKey) =>
+      ...Object.keys(sanitizedAdditionalFieldsInput).map((fieldKey) =>
         buildAuditDetail(fieldKey, formatAuditTextValue(existingAdditionalFields[fieldKey]), formatAuditTextValue(mergedAdditionalFields[fieldKey]))
       )
     ].filter((detail): detail is string => Boolean(detail));
@@ -2071,7 +2104,7 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
       buildAuditChange("Listing date", formatAuditTextValue(formatDateValue(existing.listingDate)), formatAuditTextValue(input.listingDate)),
       buildAuditChange("Listing expiration date", formatAuditTextValue(formatDateValue(existing.listingExpirationDate)), formatAuditTextValue(input.listingExpirationDate)),
       buildAuditChange("Closing date", formatAuditTextValue(formatDateValue(existing.closingDate)), formatAuditTextValue(input.closingDate)),
-      ...Object.keys(input.additionalFields ?? {}).map((fieldKey) =>
+      ...Object.keys(sanitizedAdditionalFieldsInput).map((fieldKey) =>
         buildAuditChange(fieldKey, formatAuditTextValue(existingAdditionalFields[fieldKey]), formatAuditTextValue(mergedAdditionalFields[fieldKey]))
       )
     ].filter((change): change is NonNullable<typeof change> => Boolean(change));

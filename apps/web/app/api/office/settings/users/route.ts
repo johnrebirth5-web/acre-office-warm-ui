@@ -1,4 +1,4 @@
-import { canManageOfficeTeams, canManageOfficeUsers } from "@acre/auth";
+import { canManageOfficeSettings, canManageOfficeTeams, canManageOfficeUsers } from "@acre/auth";
 import { createInvitedUser } from "@acre/db";
 import type { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
@@ -6,9 +6,14 @@ import { getRequestSessionContext } from "../../../../../lib/auth-session";
 import { getRequestOrigin } from "../../../../../lib/request-origin";
 
 const createableUserRoles = new Set<UserRole>(["owner", "office_admin", "accountant", "human_resources", "team_lead", "agent"]);
+const privilegedCreateableUserRoles = new Set<UserRole>(["owner", "office_admin"]);
 
 function isCreateableUserRole(value: string): value is UserRole {
   return createableUserRoles.has(value as UserRole);
+}
+
+function isPrivilegedCreateableUserRole(value: UserRole) {
+  return privilegedCreateableUserRoles.has(value);
 }
 
 export async function POST(request: NextRequest) {
@@ -41,6 +46,10 @@ export async function POST(request: NextRequest) {
   try {
     if (!body?.role || !isCreateableUserRole(body.role)) {
       throw new Error("A supported Back Office role is required.");
+    }
+
+    if (isPrivilegedCreateableUserRole(body.role) && !canManageOfficeSettings(context.currentMembership)) {
+      return NextResponse.json({ error: "Only Owner / Office Admin can assign admin-tier roles." }, { status: 403 });
     }
 
     if ((body?.teamId?.trim() || body?.reportsToTeamMembershipId?.trim()) && !canManageOfficeTeams(context.currentMembership)) {

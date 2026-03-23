@@ -179,7 +179,8 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `MVP`
 - Current notable behavior:
   - `/office/accounting` remains the admin/operations accounting workspace.
-  - `/office/billing` now provides the current signed-in user's self-service billing view on top of the same accounting and agent-billing records.
+  - `/office/accounting` is no longer exposed through the sales self-service billing permission path.
+  - `/office/billing` provides the current signed-in user's self-service billing view on top of the same accounting and agent-billing records.
 - Follow-up work:
   - stronger reporting
   - deeper posting/reconciliation workflows
@@ -223,6 +224,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `Users` is now the unified member workspace under `Settings`, combining internal account administration with the former agent roster / profile operational views.
   - `Users` now manages internal Back Office accounts with invitation onboarding, password setup state, account lockout visibility, admin unlock / reissue actions, and the member operational roster view.
   - normal create-user choices now expose the Back Office tier catalog: `owner / office_admin / accountant / human_resources / team_lead / agent`
+  - only current `owner / office_admin` can assign or manage `owner / office_admin` accounts, or edit per-user permission overrides
   - legacy `office_manager / office_user` stay compatible internally, but are not the primary create-user flow
   - `Teams` now supports recursive `Team Leader / Junior Team Leader / Member` hierarchy, parent-child branches, and explicit direct-manager assignment
   - shared Office table widths are now organization-scoped settings: `owner / office_admin` can resize current Back Office table columns, and saved widths apply to all users in the same org
