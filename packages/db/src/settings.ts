@@ -2097,7 +2097,11 @@ export async function updateOfficeAdminUser(input: UpdateOfficeAdminUserInput) {
       );
     }
 
-    if (!isTeamHierarchyAssignableUserRole(nextRole) && hasActiveTeamAssignments(membership.teamMemberships)) {
+    if (
+      nextRole !== membership.role &&
+      !isTeamHierarchyAssignableUserRole(nextRole) &&
+      hasActiveTeamAssignments(membership.teamMemberships)
+    ) {
       throw new Error(
         "Remove this user's active Team / Junior Team assignments in Settings > Teams before changing the account role to a non-agent role."
       );

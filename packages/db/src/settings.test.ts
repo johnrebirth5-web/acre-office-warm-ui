@@ -350,6 +350,50 @@ test("updateOfficeAdminUser blocks changing an actively assigned team member to 
   }
 });
 
+test("updateOfficeAdminUser still allows non-role updates for legacy non-hierarchy team assignments", async () => {
+  const context = await createSettingsTestContext();
+
+  try {
+    const member = await context.createMembership("accountant", "legacy-team-accountant", "Legacy", "Accountant", "Accountant");
+    await prisma.userCredential.create({
+      data: {
+        userId: member.user.id,
+        passwordHash: "test-password-hash"
+      }
+    });
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: "Legacy Accountant Team",
+        slug: `legacy-accountant-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+
+    await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: team.id,
+        membershipId: member.membership.id,
+        role: "member"
+      }
+    });
+
+    const updatedMembership = await updateOfficeAdminUser({
+      organizationId: context.organization.id,
+      actorMembershipId: context.adminMembership.id,
+      membershipId: member.membership.id,
+      status: "disabled"
+    });
+
+    assert.equal(updatedMembership.status, "disabled");
+    assert.equal(updatedMembership.role, "accountant");
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("team membership writes reject non team-hierarchy account roles", async () => {
   const context = await createSettingsTestContext();
 
