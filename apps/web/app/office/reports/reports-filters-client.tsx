@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Button,
@@ -60,11 +60,11 @@ function formatChecklistSummary(
     return "Any";
   }
 
-  if (selectedLabels.length <= 2) {
-    return selectedLabels.join(" · ");
+  if (selectedLabels.length === 1) {
+    return selectedLabels[0];
   }
 
-  return `${selectedLabels.slice(0, 2).join(" · ")} +${selectedLabels.length - 2}`;
+  return `${selectedLabels[0]} +${selectedLabels.length - 1}`;
 }
 
 function ReportSearchLayoutModal(props: {
@@ -354,45 +354,98 @@ function ReportSearchNumericField(props: {
   );
 }
 
-function ChecklistMultiSelectField(props: {
+function CompactChecklistMultiSelectField(props: {
   label: string;
   options: OfficeTransactionReportsFilters["ownerOptions"];
   value: string[];
   onChange: (nextValue: string[]) => void;
   className?: string;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const summary = formatChecklistSummary(props.options, props.value);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
   return (
-    <div className={`office-filter-field office-report-search-checklist-field${props.className ? ` ${props.className}` : ""}`}>
+    <div
+      className={`office-filter-field office-report-search-multiselect-field${props.className ? ` ${props.className}` : ""}`}
+      ref={containerRef}
+    >
       <span>{props.label}</span>
-      <p className="office-report-search-checklist-summary">
-        {formatChecklistSummary(props.options, props.value)}
-      </p>
-      <div className="office-report-search-checklist-options">
-        {props.options.map((option) => {
-          const isChecked = props.value.includes(option.id);
+      <button
+        aria-expanded={isOpen}
+        className={`office-report-search-multiselect-trigger${isOpen ? " is-open" : ""}`}
+        onClick={() => setIsOpen((current) => !current)}
+        type="button"
+      >
+        <span className="office-report-search-multiselect-trigger-value" title={summary}>
+          {summary}
+        </span>
+      </button>
 
-          return (
-            <label
-              className={`office-report-search-checklist-option${isChecked ? " is-selected" : ""}`}
-              key={option.id}
-              title={option.label}
-            >
-              <input
-                checked={isChecked}
-                onChange={(event) => {
-                  const nextValue = event.target.checked
-                    ? [...props.value, option.id]
-                    : props.value.filter((value) => value !== option.id);
+      {isOpen ? (
+        <div className="office-report-search-multiselect-popover">
+          <div className="office-report-search-multiselect-popover-head">
+            <strong>{props.value.length ? `${props.value.length} selected` : "No filters applied"}</strong>
+            {props.value.length ? (
+              <button onClick={() => props.onChange([])} type="button">
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <div className="office-report-search-multiselect-options">
+            {props.options.map((option) => {
+              const isChecked = props.value.includes(option.id);
 
-                  props.onChange(nextValue);
-                }}
-                type="checkbox"
-              />
-              <span>{option.label}</span>
-            </label>
-          );
-        })}
-      </div>
+              return (
+                <label
+                  className={`office-report-search-multiselect-option${isChecked ? " is-selected" : ""}`}
+                  key={option.id}
+                  title={option.label}
+                >
+                  <input
+                    checked={isChecked}
+                    onChange={(event) => {
+                      const nextValue = event.target.checked
+                        ? [...props.value, option.id]
+                        : props.value.filter((value) => value !== option.id);
+
+                      props.onChange(nextValue);
+                    }}
+                    type="checkbox"
+                  />
+                  <span>{option.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -663,7 +716,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "transaction_status") {
       return (
-        <ChecklistMultiSelectField
+        <CompactChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -698,7 +751,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "department") {
       return (
-        <ChecklistMultiSelectField
+        <CompactChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -715,7 +768,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "team_leader") {
       return (
-        <ChecklistMultiSelectField
+        <CompactChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -732,7 +785,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "transaction_type") {
       return (
-        <ChecklistMultiSelectField
+        <CompactChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -749,7 +802,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "representing_side") {
       return (
-        <ChecklistMultiSelectField
+        <CompactChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -766,7 +819,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "layout") {
       return (
-        <ChecklistMultiSelectField
+        <CompactChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
