@@ -3,7 +3,12 @@ import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type TransactionFinanceFeeType, type UserRole } from "@prisma/client";
 import { prisma } from "./client.ts";
-import { getOfficeTransactionReportsWorkspace, listOfficeTransactionReportExportRows } from "./reports.ts";
+import {
+  getOfficeTransactionReportSearchLayoutSnapshot,
+  getOfficeTransactionReportsWorkspace,
+  listOfficeTransactionReportExportRows,
+  saveOfficeTransactionReportSearchLayout
+} from "./reports.ts";
 import { createTransaction } from "./transactions.ts";
 
 after(async () => {
@@ -488,6 +493,120 @@ test("reports workspace normalizes legacy price, layout, referral fallbacks, and
     assert.equal(legacyReferralWorkspace.rows[0]?.rebate, "");
     assert.equal(legacyReferralWorkspace.rows[0]?.referral, "");
     assert.equal(legacyReferralWorkspace.rows[0]?.reimbursement, "");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("reports search layout returns the default fields and normalizes query-driven filters", async () => {
+  const context = await createReportsTestContext();
+
+  try {
+    const snapshot = await getOfficeTransactionReportSearchLayoutSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    assert.deepEqual(snapshot.selectedFields.map((field) => field.key), [
+      "owner",
+      "created_at",
+      "closing_move_in",
+      "transaction_status",
+      "department",
+      "team_leader",
+      "transaction_type"
+    ]);
+
+    const workspace = await getOfficeTransactionReportsWorkspace({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      searchParams: {
+        ownerMembershipId: context.agentMembership.id,
+        createdAtOperator: "range",
+        createdAtFrom: "2026-03-01",
+        createdAtTo: "2026-03-31",
+        transactionStatuses: "pending,closed",
+        departmentIds: `${context.office.id},${context.secondaryOffice.id}`,
+        teamLeaderMembershipIds: context.teamLeadMembership.id,
+        transactionTypes: "sales,rental_leasing",
+        sortBy: "gross_commission",
+        sortDirection: "asc"
+      }
+    });
+
+    assert.equal(workspace.filters.ownerMembershipId, context.agentMembership.id);
+    assert.equal(workspace.filters.createdAtOperator, "range");
+    assert.equal(workspace.filters.createdAtFrom, "2026-03-01");
+    assert.equal(workspace.filters.createdAtTo, "2026-03-31");
+    assert.deepEqual(workspace.filters.transactionStatuses, ["pending", "closed"]);
+    assert.deepEqual(workspace.filters.departmentIds, [context.office.id]);
+    assert.deepEqual(workspace.filters.teamLeaderMembershipIds, [context.teamLeadMembership.id]);
+    assert.deepEqual(workspace.filters.transactionTypes, ["sales", "rental_leasing"]);
+    assert.equal(workspace.filters.sortBy, "gross_commission");
+    assert.equal(workspace.filters.sortDirection, "asc");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("reports search layout sanitizes stored fields and keeps hidden field params readable", async () => {
+  const context = await createReportsTestContext();
+
+  try {
+    await saveOfficeTransactionReportSearchLayout({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      actorMembershipId: context.adminMembership.id,
+      fields: ["owner", "buyer_tenant"]
+    });
+
+    const savedLayout = await prisma.transactionReportSearchLayout.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        officeId: context.office.id
+      }
+    });
+
+    assert.ok(savedLayout);
+
+    await prisma.transactionReportSearchLayout.update({
+      where: {
+        id: savedLayout.id
+      },
+      data: {
+        fieldLayout: ["owner", "invalid_field", "owner", 42] as Prisma.InputJsonValue
+      }
+    });
+
+    const snapshot = await getOfficeTransactionReportSearchLayoutSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+    const sanitizedRecord = await prisma.transactionReportSearchLayout.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        officeId: context.office.id
+      }
+    });
+
+    assert.deepEqual(snapshot.savedLayout, ["owner"]);
+    assert.deepEqual(snapshot.selectedFields.map((field) => field.key), ["owner"]);
+    assert.deepEqual(sanitizedRecord?.fieldLayout, ["owner"]);
+
+    const workspace = await getOfficeTransactionReportsWorkspace({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id,
+      searchParams: {
+        buyerTenant: "Still readable"
+      }
+    });
+
+    assert.deepEqual(workspace.searchLayout.selectedFields.map((field) => field.key), ["owner"]);
+    assert.equal(workspace.filters.buyerTenant, "Still readable");
   } finally {
     await context.cleanup();
   }

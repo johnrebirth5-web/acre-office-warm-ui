@@ -44,6 +44,7 @@ export const databaseModules = [
   "checklist_templates",
   "checklist_template_items",
   "transaction_search_layouts",
+  "transaction_report_search_layouts",
   "commission_plans",
   "commission_split_templates",
   "commission_plan_assignments",
@@ -208,9 +209,11 @@ export {
 } from "./contacts";
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
 export {
+  getOfficeTransactionReportSearchLayoutSnapshot,
   getOfficeTransactionReportsWorkspace,
   listOfficeTransactionReportExportRows,
-  officeTransactionReportColumns
+  officeTransactionReportColumns,
+  saveOfficeTransactionReportSearchLayout
 } from "./reports";
 export { getOfficeTableLayouts, saveOfficeTableLayout, type OfficeTableLayoutColumn, type OfficeTableLayoutMap } from "./table-layouts";
 export {
@@ -595,6 +598,9 @@ export type {
   OfficeReportStatus,
   OfficeTransactionReportColumn,
   OfficeTransactionReportDateOperator,
+  OfficeTransactionReportSearchFieldDescriptor,
+  OfficeTransactionReportSearchFieldKey,
+  OfficeTransactionReportSearchLayoutSnapshot,
   OfficeTransactionReportNumericOperator,
   OfficeTransactionReportOption,
   OfficeTransactionReportRow,
@@ -602,7 +608,8 @@ export type {
   OfficeTransactionReportSortDirection,
   OfficeTransactionReportsFilters,
   OfficeTransactionReportsSummary,
-  OfficeTransactionReportsWorkspace
+  OfficeTransactionReportsWorkspace,
+  SaveOfficeTransactionReportSearchLayoutInput
 } from "./reports";
 export type {
   CreateIncomingUpdateInput,

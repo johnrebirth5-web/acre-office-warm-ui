@@ -7,6 +7,7 @@ import {
   TransactionType,
   UserRole
 } from "@prisma/client";
+import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { buildTransactionVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { buildTeamMembershipHierarchyMap, buildTeamPathLabel, formatTeamMembershipRoleLabel, isLeaderTeamMembershipRole } from "./team-hierarchy";
@@ -25,6 +26,44 @@ export type OfficeTransactionReportSortDirection = "asc" | "desc";
 export type OfficeTransactionReportOption = {
   id: string;
   label: string;
+};
+
+export type OfficeTransactionReportSearchFieldKey =
+  | "owner"
+  | "created_at"
+  | "buyer_tenant"
+  | "closing_move_in"
+  | "commission"
+  | "asking_price"
+  | "purchased_price"
+  | "transaction_status"
+  | "invoice_number"
+  | "department"
+  | "team_leader"
+  | "transaction_type"
+  | "representing_side"
+  | "layout"
+  | "company_referral";
+
+export type OfficeTransactionReportSearchFieldDescriptor = {
+  key: OfficeTransactionReportSearchFieldKey;
+  label: string;
+  groupLabel: "Operational" | "Financial" | "Organizational";
+  sortOrder: number;
+  description: string;
+};
+
+export type OfficeTransactionReportSearchLayoutSnapshot = {
+  availableFields: OfficeTransactionReportSearchFieldDescriptor[];
+  selectedFields: OfficeTransactionReportSearchFieldDescriptor[];
+  savedLayout: OfficeTransactionReportSearchFieldKey[];
+};
+
+export type SaveOfficeTransactionReportSearchLayoutInput = {
+  organizationId: string;
+  officeId?: string | null;
+  actorMembershipId: string;
+  fields: OfficeTransactionReportSearchFieldKey[];
 };
 
 export type OfficeTransactionReportColumn = {
@@ -113,6 +152,132 @@ export const officeTransactionReportColumns: OfficeTransactionReportColumn[] = [
   { key: "companyReferralEmployeeName", label: "Company Referral Employee Name" }
 ];
 
+const reportSearchFieldDescriptorsBase = [
+  {
+    key: "owner",
+    label: "Owner",
+    groupLabel: "Organizational",
+    sortOrder: 100,
+    description: "Filter by transaction owner."
+  },
+  {
+    key: "created_at",
+    label: "Creation Date",
+    groupLabel: "Operational",
+    sortOrder: 110,
+    description: "Match transaction creation date with equals, boundary, or range rules."
+  },
+  {
+    key: "closing_move_in",
+    label: "Closing / Move-In",
+    groupLabel: "Operational",
+    sortOrder: 120,
+    description: "Match closing or move-in date with equals, boundary, or range rules."
+  },
+  {
+    key: "transaction_status",
+    label: "Transaction Status",
+    groupLabel: "Operational",
+    sortOrder: 130,
+    description: "Filter by one or more workflow statuses."
+  },
+  {
+    key: "department",
+    label: "Department",
+    groupLabel: "Organizational",
+    sortOrder: 140,
+    description: "Filter by office or department."
+  },
+  {
+    key: "team_leader",
+    label: "Team Leader",
+    groupLabel: "Organizational",
+    sortOrder: 150,
+    description: "Filter by the current hierarchy-derived lead."
+  },
+  {
+    key: "transaction_type",
+    label: "Transaction Type",
+    groupLabel: "Operational",
+    sortOrder: 160,
+    description: "Filter by one or more transaction types."
+  },
+  {
+    key: "buyer_tenant",
+    label: "Buyer / Tenant",
+    groupLabel: "Operational",
+    sortOrder: 170,
+    description: "Partial match against the buyer or tenant field."
+  },
+  {
+    key: "commission",
+    label: "Commission",
+    groupLabel: "Financial",
+    sortOrder: 180,
+    description: "Filter gross commission with equals, comparison, or range rules."
+  },
+  {
+    key: "asking_price",
+    label: "Asking Price",
+    groupLabel: "Financial",
+    sortOrder: 190,
+    description: "Filter asking price with equals, comparison, or range rules."
+  },
+  {
+    key: "purchased_price",
+    label: "Purchased Price",
+    groupLabel: "Financial",
+    sortOrder: 200,
+    description: "Filter purchased price with equals, comparison, or range rules."
+  },
+  {
+    key: "invoice_number",
+    label: "Invoice Number",
+    groupLabel: "Operational",
+    sortOrder: 210,
+    description: "Exact match against the invoice number field."
+  },
+  {
+    key: "representing_side",
+    label: "Representing Side",
+    groupLabel: "Operational",
+    sortOrder: 220,
+    description: "Filter by representing side."
+  },
+  {
+    key: "layout",
+    label: "Layout",
+    groupLabel: "Operational",
+    sortOrder: 230,
+    description: "Filter by the normalized layout bucket."
+  },
+  {
+    key: "company_referral",
+    label: "Company Referral",
+    groupLabel: "Operational",
+    sortOrder: 240,
+    description: "Limit the result set to company referral Yes or No."
+  }
+] satisfies OfficeTransactionReportSearchFieldDescriptor[];
+
+const reportSearchFieldDescriptors: OfficeTransactionReportSearchFieldDescriptor[] = [
+  ...reportSearchFieldDescriptorsBase
+].sort((left, right) => left.sortOrder - right.sortOrder || left.label.localeCompare(right.label));
+
+const reportSearchFieldKeySet = new Set<OfficeTransactionReportSearchFieldKey>(
+  reportSearchFieldDescriptors.map((field) => field.key)
+);
+
+const defaultTransactionReportSearchLayout: OfficeTransactionReportSearchFieldKey[] = [
+  "owner",
+  "created_at",
+  "closing_move_in",
+  "transaction_status",
+  "department",
+  "team_leader",
+  "transaction_type"
+];
+
 export type OfficeTransactionReportsFilters = {
   ownerMembershipId: string;
   createdAtOperator: OfficeTransactionReportDateOperator | "";
@@ -168,6 +333,7 @@ export type OfficeTransactionReportsSummary = {
 
 export type OfficeTransactionReportsWorkspace = {
   filters: OfficeTransactionReportsFilters;
+  searchLayout: OfficeTransactionReportSearchLayoutSnapshot;
   summary: OfficeTransactionReportsSummary;
   columns: OfficeTransactionReportColumn[];
   rows: OfficeTransactionReportRow[];
@@ -178,6 +344,7 @@ export type GetOfficeTransactionReportsWorkspaceInput = {
   organizationId: string;
   viewerMembershipId: string;
   officeId?: string | null;
+  searchParams?: Record<string, string | string[] | undefined>;
   ownerMembershipId?: string;
   createdAtOperator?: string;
   createdAtValue?: string;
@@ -216,6 +383,19 @@ type LoadedTeamLeaderInfo = {
   options: OfficeTransactionReportOption[];
   leaderIdsByMembershipId: Map<string, string[]>;
   leaderLabelByMembershipId: Map<string, string>;
+};
+
+type LoadedReportSearchData = {
+  scope: Awaited<ReturnType<typeof resolveOfficeDataScope>>;
+  visibilityWhere: Prisma.TransactionWhereInput;
+  teamLeaderInfo: LoadedTeamLeaderInfo;
+  ownerOptions: OfficeTransactionReportOption[];
+  departmentOptions: OfficeTransactionReportOption[];
+  availableFields: OfficeTransactionReportSearchFieldDescriptor[];
+  selectedFields: OfficeTransactionReportSearchFieldDescriptor[];
+  savedLayout: OfficeTransactionReportSearchFieldKey[];
+  filters: OfficeTransactionReportsFilters;
+  searchLayout: OfficeTransactionReportSearchLayoutSnapshot;
 };
 
 type TransactionReportRecord = {
@@ -354,6 +534,95 @@ const companyReferralOptions: OfficeTransactionReportOption[] = [
 const selectableOwnerRoles = ["agent", "team_lead"] satisfies UserRole[];
 const selectableMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 const truthyReportFieldValues = new Set(["yes", "true", "1", "y"]);
+
+function readSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : undefined;
+  }
+
+  return value;
+}
+
+function readSearchParamArray(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) =>
+      entry
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    );
+  }
+
+  return typeof value === "string"
+    ? value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+}
+
+function isTransactionReportSearchFieldKey(value: string): value is OfficeTransactionReportSearchFieldKey {
+  return reportSearchFieldKeySet.has(value as OfficeTransactionReportSearchFieldKey);
+}
+
+function normalizeTransactionReportSearchFieldKeys(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value.flatMap((entry) => {
+        if (typeof entry !== "string") {
+          return [];
+        }
+
+        return isTransactionReportSearchFieldKey(entry) ? [entry] : [];
+      })
+    )
+  );
+}
+
+function sanitizeTransactionReportSearchFieldKeys(fields: OfficeTransactionReportSearchFieldKey[]) {
+  return Array.from(
+    new Set(
+      fields.filter((field): field is OfficeTransactionReportSearchFieldKey => isTransactionReportSearchFieldKey(field))
+    )
+  );
+}
+
+function buildTransactionReportSearchLayoutSnapshot(input: {
+  availableFields: OfficeTransactionReportSearchFieldDescriptor[];
+  savedLayout: OfficeTransactionReportSearchFieldKey[];
+}) {
+  const availableFieldMap = new Map(input.availableFields.map((field) => [field.key, field] satisfies [OfficeTransactionReportSearchFieldKey, OfficeTransactionReportSearchFieldDescriptor]));
+  const selectedFields = input.savedLayout.flatMap((field) => {
+    const descriptor = availableFieldMap.get(field);
+    return descriptor ? [descriptor] : [];
+  });
+
+  return {
+    availableFields: input.availableFields,
+    selectedFields,
+    savedLayout: input.savedLayout
+  } satisfies OfficeTransactionReportSearchLayoutSnapshot;
+}
+
+function getRawReportValue(input: GetOfficeTransactionReportsWorkspaceInput, key: keyof NonNullable<GetOfficeTransactionReportsWorkspaceInput["searchParams"]>) {
+  if (input.searchParams) {
+    return readSearchParamValue(input.searchParams[key]);
+  }
+
+  return undefined;
+}
+
+function getRawReportArray(input: GetOfficeTransactionReportsWorkspaceInput, key: keyof NonNullable<GetOfficeTransactionReportsWorkspaceInput["searchParams"]>) {
+  if (input.searchParams) {
+    return readSearchParamArray(input.searchParams[key]);
+  }
+
+  return [];
+}
 
 function buildScopedOfficeOrNullFilter(officeId: string | null | undefined) {
   if (!officeId) {
@@ -1039,56 +1308,185 @@ function buildReportRow(
   };
 }
 
-export async function getOfficeTransactionReportsWorkspace(
+function areTransactionReportSearchFieldKeysEqual(
+  left: OfficeTransactionReportSearchFieldKey[],
+  right: OfficeTransactionReportSearchFieldKey[]
+) {
+  return left.length === right.length && left.every((field, index) => field === right[index]);
+}
+
+function buildTransactionReportFilters(
+  input: GetOfficeTransactionReportsWorkspaceInput,
+  options: {
+    ownerOptions: OfficeTransactionReportOption[];
+    departmentOptions: OfficeTransactionReportOption[];
+    teamLeaderInfo: LoadedTeamLeaderInfo;
+  }
+) {
+  const rawOwnerMembershipId = getRawReportValue(input, "ownerMembershipId") ?? input.ownerMembershipId;
+  const rawCreatedAtOperator = getRawReportValue(input, "createdAtOperator") ?? input.createdAtOperator;
+  const rawCreatedAtValue = getRawReportValue(input, "createdAtValue") ?? input.createdAtValue;
+  const rawCreatedAtFrom = getRawReportValue(input, "createdAtFrom") ?? input.createdAtFrom;
+  const rawCreatedAtTo = getRawReportValue(input, "createdAtTo") ?? input.createdAtTo;
+  const rawBuyerTenant = getRawReportValue(input, "buyerTenant") ?? input.buyerTenant;
+  const rawClosingMoveInOperator =
+    getRawReportValue(input, "closingMoveInOperator") ?? input.closingMoveInOperator;
+  const rawClosingMoveInValue = getRawReportValue(input, "closingMoveInValue") ?? input.closingMoveInValue;
+  const rawClosingMoveInFrom = getRawReportValue(input, "closingMoveInFrom") ?? input.closingMoveInFrom;
+  const rawClosingMoveInTo = getRawReportValue(input, "closingMoveInTo") ?? input.closingMoveInTo;
+  const rawCommissionOperator = getRawReportValue(input, "commissionOperator") ?? input.commissionOperator;
+  const rawCommissionValue = getRawReportValue(input, "commissionValue") ?? input.commissionValue;
+  const rawCommissionMin = getRawReportValue(input, "commissionMin") ?? input.commissionMin;
+  const rawCommissionMax = getRawReportValue(input, "commissionMax") ?? input.commissionMax;
+  const rawAskingPriceOperator = getRawReportValue(input, "askingPriceOperator") ?? input.askingPriceOperator;
+  const rawAskingPriceValue = getRawReportValue(input, "askingPriceValue") ?? input.askingPriceValue;
+  const rawAskingPriceMin = getRawReportValue(input, "askingPriceMin") ?? input.askingPriceMin;
+  const rawAskingPriceMax = getRawReportValue(input, "askingPriceMax") ?? input.askingPriceMax;
+  const rawPurchasedPriceOperator =
+    getRawReportValue(input, "purchasedPriceOperator") ?? input.purchasedPriceOperator;
+  const rawPurchasedPriceValue = getRawReportValue(input, "purchasedPriceValue") ?? input.purchasedPriceValue;
+  const rawPurchasedPriceMin = getRawReportValue(input, "purchasedPriceMin") ?? input.purchasedPriceMin;
+  const rawPurchasedPriceMax = getRawReportValue(input, "purchasedPriceMax") ?? input.purchasedPriceMax;
+  const rawTransactionStatuses = input.searchParams
+    ? getRawReportArray(input, "transactionStatuses")
+    : input.transactionStatuses ?? [];
+  const rawInvoiceNumber = getRawReportValue(input, "invoiceNumber") ?? input.invoiceNumber;
+  const rawDepartmentIds = input.searchParams ? getRawReportArray(input, "departmentIds") : input.departmentIds ?? [];
+  const rawTeamLeaderMembershipIds = input.searchParams
+    ? getRawReportArray(input, "teamLeaderMembershipIds")
+    : input.teamLeaderMembershipIds ?? [];
+  const rawTransactionTypes = input.searchParams
+    ? getRawReportArray(input, "transactionTypes")
+    : input.transactionTypes ?? [];
+  const rawRepresentingSides = input.searchParams
+    ? getRawReportArray(input, "representingSides")
+    : input.representingSides ?? [];
+  const rawLayouts = input.searchParams ? getRawReportArray(input, "layouts") : input.layouts ?? [];
+  const rawCompanyReferral = getRawReportValue(input, "companyReferral") ?? input.companyReferral;
+  const rawSortBy = getRawReportValue(input, "sortBy") ?? input.sortBy;
+  const rawSortDirection = getRawReportValue(input, "sortDirection") ?? input.sortDirection;
+
+  const normalizedStatuses = normalizeStringList(rawTransactionStatuses).filter(
+    (status) => Boolean(reportStatusFilterMap[status])
+  );
+  const normalizedTypes = normalizeStringList(rawTransactionTypes).filter((type) =>
+    Boolean(reportTypeFilterMap[type])
+  );
+  const normalizedRepresentingSides = normalizeStringList(rawRepresentingSides).filter(
+    (side) => representingSideFilterMap[side] !== undefined
+  );
+  const normalizedLayouts = normalizeStringList(rawLayouts).filter((layout) =>
+    layoutOptions.some((option) => option.id === layout)
+  );
+  const normalizedDepartmentIds = normalizeStringList(rawDepartmentIds).filter((id) =>
+    options.departmentOptions.some((option) => option.id === id)
+  );
+  const normalizedTeamLeaderMembershipIds = normalizeStringList(rawTeamLeaderMembershipIds).filter((id) =>
+    options.teamLeaderInfo.options.some((option) => option.id === id)
+  );
+  const createdAtOperator = normalizeDateOperator(rawCreatedAtOperator);
+  const closingMoveInOperator = normalizeDateOperator(rawClosingMoveInOperator);
+  const commissionOperator = normalizeNumericOperator(rawCommissionOperator);
+  const askingPriceOperator = normalizeNumericOperator(rawAskingPriceOperator);
+  const purchasedPriceOperator = normalizeNumericOperator(rawPurchasedPriceOperator);
+  const sortBy = normalizeSortBy(rawSortBy);
+  const sortDirection = normalizeSortDirection(rawSortDirection);
+
+  return {
+    ownerMembershipId: rawOwnerMembershipId?.trim() ?? "",
+    createdAtOperator,
+    createdAtValue: rawCreatedAtValue?.trim() ?? "",
+    createdAtFrom: rawCreatedAtFrom?.trim() ?? "",
+    createdAtTo: rawCreatedAtTo?.trim() ?? "",
+    buyerTenant: rawBuyerTenant?.trim() ?? "",
+    closingMoveInOperator,
+    closingMoveInValue: rawClosingMoveInValue?.trim() ?? "",
+    closingMoveInFrom: rawClosingMoveInFrom?.trim() ?? "",
+    closingMoveInTo: rawClosingMoveInTo?.trim() ?? "",
+    commissionOperator,
+    commissionValue: rawCommissionValue?.trim() ?? "",
+    commissionMin: rawCommissionMin?.trim() ?? "",
+    commissionMax: rawCommissionMax?.trim() ?? "",
+    askingPriceOperator,
+    askingPriceValue: rawAskingPriceValue?.trim() ?? "",
+    askingPriceMin: rawAskingPriceMin?.trim() ?? "",
+    askingPriceMax: rawAskingPriceMax?.trim() ?? "",
+    purchasedPriceOperator,
+    purchasedPriceValue: rawPurchasedPriceValue?.trim() ?? "",
+    purchasedPriceMin: rawPurchasedPriceMin?.trim() ?? "",
+    purchasedPriceMax: rawPurchasedPriceMax?.trim() ?? "",
+    transactionStatuses: normalizedStatuses,
+    invoiceNumber: rawInvoiceNumber?.trim() ?? "",
+    departmentIds: normalizedDepartmentIds,
+    teamLeaderMembershipIds: normalizedTeamLeaderMembershipIds,
+    transactionTypes: normalizedTypes,
+    representingSides: normalizedRepresentingSides,
+    layouts: normalizedLayouts,
+    companyReferral: rawCompanyReferral === "yes" || rawCompanyReferral === "no" ? rawCompanyReferral : "",
+    sortBy,
+    sortDirection,
+    ownerOptions: options.ownerOptions,
+    departmentOptions: options.departmentOptions,
+    teamLeaderOptions: options.teamLeaderInfo.options,
+    statusOptions,
+    transactionTypeOptions,
+    representingOptions,
+    layoutOptions,
+    companyReferralOptions
+  } satisfies OfficeTransactionReportsFilters;
+}
+
+async function loadReportSearchData(
   input: GetOfficeTransactionReportsWorkspaceInput
-): Promise<OfficeTransactionReportsWorkspace> {
+): Promise<LoadedReportSearchData> {
   const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.viewerMembershipId,
     officeId: input.officeId ?? null,
     resource: "reports"
   });
-  const visibleMembershipIds = scope.visibleMembershipIds;
   const visibilityWhere = buildTransactionVisibilityWhere(scope);
-  const teamLeaderInfo = await loadReportTeamLeaderInfo({
-    organizationId: input.organizationId,
-    visibleMembershipIds,
-    visibleTeamIds: scope.visibleTeamIds,
-    officeId: input.officeId ?? null
-  });
+  const visibleMembershipIds = scope.visibleMembershipIds;
   const membershipVisibilityFilter =
     visibleMembershipIds === null
       ? undefined
       : {
           in: visibleMembershipIds.length > 0 ? visibleMembershipIds : ["__no_membership__"]
         };
+  const teamLeaderInfo = await loadReportTeamLeaderInfo({
+    organizationId: input.organizationId,
+    visibleMembershipIds,
+    visibleTeamIds: scope.visibleTeamIds,
+    officeId: input.officeId ?? null
+  });
   const visibleOfficeIds =
     input.officeId
       ? [input.officeId]
       : visibleMembershipIds === null
-      ? null
-      : Array.from(
-          new Set(
-            (
-              await prisma.transaction.findMany({
-                where: {
-                  organizationId: input.organizationId,
-                  officeId: {
-                    not: null
+        ? null
+        : Array.from(
+            new Set(
+              (
+                await prisma.transaction.findMany({
+                  where: {
+                    organizationId: input.organizationId,
+                    officeId: {
+                      not: null
+                    },
+                    ...visibilityWhere
                   },
-                  ...visibilityWhere
-                },
-                select: {
-                  officeId: true
-                },
-                distinct: ["officeId"]
-              })
+                  select: {
+                    officeId: true
+                  },
+                  distinct: ["officeId"]
+                })
+              )
+                .map((transaction) => transaction.officeId)
+                .filter((officeId): officeId is string => Boolean(officeId))
             )
-              .map((transaction) => transaction.officeId)
-              .filter((officeId): officeId is string => Boolean(officeId))
-          )
-        );
-  const [ownerMemberships, departmentOptions] = await Promise.all([
+          );
+
+  const [ownerMemberships, departmentRecords, savedLayoutRecord] = await Promise.all([
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
@@ -1129,80 +1527,157 @@ export async function getOfficeTransactionReportsWorkspace(
         name: true
       },
       orderBy: [{ name: "asc" }]
+    }),
+    prisma.transactionReportSearchLayout.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null
+      }
     })
   ]);
 
-  const normalizedStatuses = normalizeStringList(input.transactionStatuses).filter((status) => Boolean(reportStatusFilterMap[status]));
-  const normalizedTypes = normalizeStringList(input.transactionTypes).filter((type) => Boolean(reportTypeFilterMap[type]));
-  const normalizedRepresentingSides = normalizeStringList(input.representingSides).filter(
-    (side) => representingSideFilterMap[side] !== undefined
-  );
-  const normalizedLayouts = normalizeStringList(input.layouts).filter((layout) => layoutOptions.some((option) => option.id === layout));
-  const normalizedDepartmentIds = normalizeStringList(input.departmentIds).filter((id) =>
-    departmentOptions.some((option) => option.id === id)
-  );
-  const normalizedTeamLeaderMembershipIds = normalizeStringList(input.teamLeaderMembershipIds).filter((id) =>
-    teamLeaderInfo.options.some((option) => option.id === id)
-  );
-  const createdAtOperator = normalizeDateOperator(input.createdAtOperator);
-  const closingMoveInOperator = normalizeDateOperator(input.closingMoveInOperator);
-  const commissionOperator = normalizeNumericOperator(input.commissionOperator);
-  const askingPriceOperator = normalizeNumericOperator(input.askingPriceOperator);
-  const purchasedPriceOperator = normalizeNumericOperator(input.purchasedPriceOperator);
-  const sortBy = normalizeSortBy(input.sortBy);
-  const sortDirection = normalizeSortDirection(input.sortDirection);
-  const filters: OfficeTransactionReportsFilters = {
-    ownerMembershipId: input.ownerMembershipId?.trim() ?? "",
-    createdAtOperator,
-    createdAtValue: input.createdAtValue?.trim() ?? "",
-    createdAtFrom: input.createdAtFrom?.trim() ?? "",
-    createdAtTo: input.createdAtTo?.trim() ?? "",
-    buyerTenant: input.buyerTenant?.trim() ?? "",
-    closingMoveInOperator,
-    closingMoveInValue: input.closingMoveInValue?.trim() ?? "",
-    closingMoveInFrom: input.closingMoveInFrom?.trim() ?? "",
-    closingMoveInTo: input.closingMoveInTo?.trim() ?? "",
-    commissionOperator,
-    commissionValue: input.commissionValue?.trim() ?? "",
-    commissionMin: input.commissionMin?.trim() ?? "",
-    commissionMax: input.commissionMax?.trim() ?? "",
-    askingPriceOperator,
-    askingPriceValue: input.askingPriceValue?.trim() ?? "",
-    askingPriceMin: input.askingPriceMin?.trim() ?? "",
-    askingPriceMax: input.askingPriceMax?.trim() ?? "",
-    purchasedPriceOperator,
-    purchasedPriceValue: input.purchasedPriceValue?.trim() ?? "",
-    purchasedPriceMin: input.purchasedPriceMin?.trim() ?? "",
-    purchasedPriceMax: input.purchasedPriceMax?.trim() ?? "",
-    transactionStatuses: normalizedStatuses,
-    invoiceNumber: input.invoiceNumber?.trim() ?? "",
-    departmentIds: normalizedDepartmentIds,
-    teamLeaderMembershipIds: normalizedTeamLeaderMembershipIds,
-    transactionTypes: normalizedTypes,
-    representingSides: normalizedRepresentingSides,
-    layouts: normalizedLayouts,
-    companyReferral: input.companyReferral === "yes" || input.companyReferral === "no" ? input.companyReferral : "",
-    sortBy,
-    sortDirection,
-    ownerOptions: ownerMemberships.map((membership) => ({
-      id: membership.id,
-      label: `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email
-    })),
-    departmentOptions: departmentOptions.map((office) => ({
-      id: office.id,
-      label: office.name
-    })),
-    teamLeaderOptions: teamLeaderInfo.options,
-    statusOptions,
-    transactionTypeOptions,
-    representingOptions,
-    layoutOptions,
-    companyReferralOptions
+  const ownerOptions = ownerMemberships.map((membership) => ({
+    id: membership.id,
+    label: `${membership.user.firstName} ${membership.user.lastName}`.trim() || membership.user.email
+  }));
+  const departmentOptions = departmentRecords.map((office) => ({
+    id: office.id,
+    label: office.name
+  }));
+  const availableFields = reportSearchFieldDescriptors;
+  const normalizedSavedLayout = normalizeTransactionReportSearchFieldKeys(savedLayoutRecord?.fieldLayout ?? null);
+  const sanitizedSavedLayout = sanitizeTransactionReportSearchFieldKeys(normalizedSavedLayout);
+
+  if (
+    savedLayoutRecord &&
+    JSON.stringify(savedLayoutRecord.fieldLayout) !== JSON.stringify(sanitizedSavedLayout)
+  ) {
+    await prisma.transactionReportSearchLayout.update({
+      where: {
+        id: savedLayoutRecord.id
+      },
+      data: {
+        fieldLayout: sanitizedSavedLayout as Prisma.InputJsonValue
+      }
+    });
+  }
+
+  const savedLayout =
+    savedLayoutRecord?.id !== undefined
+      ? sanitizedSavedLayout
+      : sanitizeTransactionReportSearchFieldKeys(defaultTransactionReportSearchLayout);
+  const searchLayout = buildTransactionReportSearchLayoutSnapshot({
+    availableFields,
+    savedLayout
+  });
+  const filters = buildTransactionReportFilters(input, {
+    ownerOptions,
+    departmentOptions,
+    teamLeaderInfo
+  });
+
+  return {
+    scope,
+    visibilityWhere,
+    teamLeaderInfo,
+    ownerOptions,
+    departmentOptions,
+    availableFields,
+    selectedFields: searchLayout.selectedFields,
+    savedLayout: searchLayout.savedLayout,
+    filters,
+    searchLayout
   };
+}
+
+export async function getOfficeTransactionReportSearchLayoutSnapshot(
+  input: GetOfficeTransactionReportsWorkspaceInput
+): Promise<OfficeTransactionReportSearchLayoutSnapshot> {
+  const searchData = await loadReportSearchData(input);
+  return searchData.searchLayout;
+}
+
+export async function saveOfficeTransactionReportSearchLayout(
+  input: SaveOfficeTransactionReportSearchLayoutInput
+): Promise<OfficeTransactionReportSearchFieldKey[]> {
+  const sanitizedFields = sanitizeTransactionReportSearchFieldKeys(input.fields);
+  const availableFieldMap = new Map(
+    reportSearchFieldDescriptors.map((field) => [field.key, field] satisfies [OfficeTransactionReportSearchFieldKey, OfficeTransactionReportSearchFieldDescriptor])
+  );
+  const previousFieldLabels = (storedValue: Prisma.JsonValue | null | undefined) =>
+    normalizeTransactionReportSearchFieldKeys(storedValue)
+      .flatMap((field) => {
+        const descriptor = availableFieldMap.get(field);
+        return descriptor ? [descriptor.label] : [];
+      })
+      .join(", ");
+  const nextFieldLabels = sanitizedFields
+    .flatMap((field) => {
+      const descriptor = availableFieldMap.get(field);
+      return descriptor ? [descriptor.label] : [];
+    })
+    .join(", ");
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.transactionReportSearchLayout.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null
+      }
+    });
+
+    const saved = existing
+      ? await tx.transactionReportSearchLayout.update({
+          where: {
+            id: existing.id
+          },
+          data: {
+            updatedByMembershipId: input.actorMembershipId,
+            fieldLayout: sanitizedFields as Prisma.InputJsonValue
+          }
+        })
+      : await tx.transactionReportSearchLayout.create({
+          data: {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            updatedByMembershipId: input.actorMembershipId,
+            fieldLayout: sanitizedFields as Prisma.InputJsonValue
+          }
+        });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "transaction_report_search_layout",
+      entityId: saved.id,
+      action: activityLogActions.settingsTransactionReportSearchLayoutUpdated,
+      payload: {
+        objectLabel: "Reports search layout",
+        contextHref: "/office/reports",
+        details: [`Visible search fields: ${nextFieldLabels || "None"}`],
+        changes: [
+          {
+            label: "Visible fields",
+            previousValue: previousFieldLabels(existing?.fieldLayout) || null,
+            nextValue: nextFieldLabels || "None"
+          }
+        ]
+      }
+    });
+
+    return sanitizedFields;
+  });
+}
+
+export async function getOfficeTransactionReportsWorkspace(
+  input: GetOfficeTransactionReportsWorkspaceInput
+): Promise<OfficeTransactionReportsWorkspace> {
+  const searchData = await loadReportSearchData(input);
+  const { filters, teamLeaderInfo, visibilityWhere } = searchData;
 
   const matchingOwnerMembershipIds =
     filters.teamLeaderMembershipIds.length > 0
-      ? ownerMemberships
+      ? searchData.ownerOptions
           .filter((membership) => {
             const leaderIds = teamLeaderInfo.leaderIdsByMembershipId.get(membership.id) ?? [];
             return leaderIds.some((leaderId) => filters.teamLeaderMembershipIds.includes(leaderId));
@@ -1403,7 +1878,11 @@ export async function getOfficeTransactionReportsWorkspace(
       matchesCompanyReferralFilter(companyReferral, filters.companyReferral)
     );
   });
-  const sortedTransactions = sortTransactions(filteredTransactions, sortBy, sortDirection);
+  const sortedTransactions = sortTransactions(
+    filteredTransactions,
+    filters.sortBy,
+    filters.sortDirection
+  );
   const rows = sortedTransactions.map((transaction) => buildReportRow(transaction, teamLeaderInfo));
   const summary = sortedTransactions.reduce(
     (accumulator, transaction) => {
@@ -1432,6 +1911,7 @@ export async function getOfficeTransactionReportsWorkspace(
 
   return {
     filters,
+    searchLayout: searchData.searchLayout,
     summary: {
       totalTransactions: summary.totalTransactions,
       totalAskingPrice: formatCurrencyTotal(summary.askingPrice),

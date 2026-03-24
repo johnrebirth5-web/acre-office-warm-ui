@@ -502,6 +502,7 @@ model Organization {
   checklistTemplateItems            ChecklistTemplateItem[]
   tableLayouts                      OrganizationTableLayout[]
   transactionSearchLayouts          TransactionSearchLayout[]
+  transactionReportSearchLayouts    TransactionReportSearchLayout[]
   roleTemplates                     OrganizationRoleTemplate[]
   roleTemplatePermissions           OrganizationRoleTemplatePermission[]
   membershipPermissionOverrides     MembershipPermissionOverride[]
@@ -568,6 +569,7 @@ model Office {
   checklistTemplates                ChecklistTemplate[]
   checklistTemplateItems            ChecklistTemplateItem[]
   transactionSearchLayouts          TransactionSearchLayout[]
+  transactionReportSearchLayouts    TransactionReportSearchLayout[]
 
   @@unique([organizationId, slug])
 }
@@ -651,6 +653,7 @@ model Membership {
   checklistTemplatesUpdated                ChecklistTemplate[]                @relation("ChecklistTemplateUpdatedBy")
   updatedTableLayouts                      OrganizationTableLayout[]          @relation("OrganizationTableLayoutUpdatedBy")
   updatedTransactionSearchLayouts          TransactionSearchLayout[]          @relation("TransactionSearchLayoutUpdatedBy")
+  updatedTransactionReportSearchLayouts    TransactionReportSearchLayout[]    @relation("TransactionReportSearchLayoutUpdatedBy")
   updatedRoleTemplates                     OrganizationRoleTemplate[]         @relation("OrganizationRoleTemplateUpdatedBy")
   permissionOverrides                      MembershipPermissionOverride[]     @relation("MembershipPermissionOverrideMembership")
   createdPermissionOverrides               MembershipPermissionOverride[]     @relation("MembershipPermissionOverrideCreatedBy")
@@ -734,6 +737,22 @@ model TransactionSearchLayout {
   organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
   updatedByMembership   Membership?  @relation("TransactionSearchLayoutUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, officeId])
+  @@index([organizationId, officeId])
+}
+
+model TransactionReportSearchLayout {
+  id                    String       @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  updatedByMembershipId String?
+  fieldLayout           Json
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  updatedByMembership   Membership?  @relation("TransactionReportSearchLayoutUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, officeId])
   @@index([organizationId, officeId])

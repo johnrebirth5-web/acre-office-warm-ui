@@ -56,6 +56,7 @@
   - field-structure changes write to `Activity Log`
 - Reports and transaction pricing are now normalized around one transaction truth source:
   - `/office/reports` has been rebuilt into a transaction-centric workspace where filters, rows, summary cards, and CSV export all reuse the same predicate builder and column registry
+  - `/office/reports` now also has an office-shared `TransactionReportSearchLayout`: admins with `fields:manage` can add or remove visible report filters via `Edit fields`, while pinned `Sort By / Direction` stay outside the editable layout and old hidden filter params remain readable until the next Apply
   - transaction pricing is now split into typed `askingPrice + purchasedPrice + moveInDate`, while legacy `price` remains as a compatibility mirror of `purchasedPrice`
   - `Team Leader` reporting now comes only from current team hierarchy, not a retired transaction custom field
   - `agent` now has personal reports access, `team_lead` keeps team scope, and admin/review roles keep company scope

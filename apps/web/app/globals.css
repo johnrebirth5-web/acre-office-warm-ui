@@ -6839,6 +6839,36 @@ a {
   min-width: 0;
 }
 
+.office-report-search-layout-filters .office-report-search-layout-field {
+  grid-column: span 2;
+}
+
+.office-report-search-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.office-report-search-inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.office-report-search-inline-field span {
+  color: var(--office-text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.office-report-search-inline-field input,
+.office-report-search-inline-field select {
+  min-width: 0;
+}
+
 .office-transaction-search-layout-filters > .office-filter-actions,
 .office-transaction-search-layout-filters > .office-transaction-search-empty {
   grid-column: 1 / -1;
@@ -6901,6 +6931,10 @@ a {
   .office-transaction-search-layout-filters .office-transaction-search-date-field {
     grid-column: span 2;
   }
+
+  .office-report-search-layout-filters .office-report-search-layout-field {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 1180px) {
@@ -6924,7 +6958,15 @@ a {
     grid-column: auto;
   }
 
+  .office-report-search-layout-filters .office-report-search-layout-field {
+    grid-column: auto;
+  }
+
   .office-transaction-search-date-range {
+    grid-template-columns: 1fr;
+  }
+
+  .office-report-search-layout-grid {
     grid-template-columns: 1fr;
   }
 }

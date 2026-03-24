@@ -41,6 +41,7 @@ export const activityLogActions = {
   settingsUserPermissionsReset: "settings.user_permissions_reset",
   settingsTableLayoutUpdated: "settings.table_layout_updated",
   settingsTransactionSearchLayoutUpdated: "settings.transaction_search_layout_updated",
+  settingsTransactionReportSearchLayoutUpdated: "settings.transaction_report_search_layout_updated",
   settingsRequiredContactRolesChanged: "settings.required_contact_roles_changed",
   settingsTransactionFieldSettingsChanged: "settings.transaction_field_settings_changed",
   settingsContactFieldSettingsChanged: "settings.contact_field_settings_changed",
@@ -148,6 +149,7 @@ export type ActivityLogEntityType =
   | "required_contact_role_setting"
   | "transaction_field_setting"
   | "transaction_search_layout"
+  | "transaction_report_search_layout"
   | "checklist_template"
   | "organization_table_layout"
   | "organization_role_template"
@@ -385,6 +387,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.office_access_changed": "Office access changed",
   "settings.table_layout_updated": "Shared table layout updated",
   "settings.transaction_search_layout_updated": "Transaction search layout updated",
+  "settings.transaction_report_search_layout_updated": "Reports search layout updated",
   "settings.required_contact_roles_changed": "Required contact roles changed",
   "settings.transaction_field_settings_changed": "Transaction field settings changed",
   "settings.contact_field_settings_changed": "Contact field settings changed",
@@ -509,6 +512,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.settingsUserPermissionsReset ||
       action === activityLogActions.settingsTableLayoutUpdated ||
       action === activityLogActions.settingsTransactionSearchLayoutUpdated ||
+      action === activityLogActions.settingsTransactionReportSearchLayoutUpdated ||
       action === activityLogActions.agentOnboardingItemCreated ||
       action === activityLogActions.agentOnboardingItemUpdated ||
       action === activityLogActions.agentOnboardingItemCompleted ||
@@ -537,6 +541,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.settingsRequiredContactRolesChanged ||
       action === activityLogActions.settingsTransactionFieldSettingsChanged ||
       action === activityLogActions.settingsTransactionSearchLayoutUpdated ||
+      action === activityLogActions.settingsTransactionReportSearchLayoutUpdated ||
       action === activityLogActions.offerCreated ||
       action === activityLogActions.offerUpdated ||
       action === activityLogActions.offerSubmitted ||
@@ -784,6 +789,7 @@ function mapEntityTypeToObjectType(entityType: string): Exclude<ActivityLogObjec
     case "required_contact_role_setting":
     case "transaction_field_setting":
     case "transaction_search_layout":
+    case "transaction_report_search_layout":
       return "transaction";
     case "checklist_template":
       return "task";
@@ -922,6 +928,10 @@ function getActivityHref(record: ActivityLogRecord, payload: ParsedActivityPaylo
     record.entityType === "transaction_search_layout"
   ) {
     return payload.contextHref ?? "/office/settings/fields";
+  }
+
+  if (record.entityType === "transaction_report_search_layout") {
+    return payload.contextHref ?? "/office/reports";
   }
 
   if (record.entityType === "checklist_template") {
@@ -1090,6 +1100,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "updated shared table column widths";
     case activityLogActions.settingsTransactionSearchLayoutUpdated:
       return "updated the transaction search layout";
+    case activityLogActions.settingsTransactionReportSearchLayoutUpdated:
+      return "updated the reports search layout";
     case activityLogActions.settingsRequiredContactRolesChanged:
       return "updated required contact roles";
     case activityLogActions.settingsTransactionFieldSettingsChanged:

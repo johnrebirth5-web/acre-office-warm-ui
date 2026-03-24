@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { canViewOfficeReports } from "@acre/auth";
+import { canManageOfficeFields, canViewOfficeReports } from "@acre/auth";
 import {
   EmptyState,
   HorizontalScrollArea,
@@ -26,32 +26,6 @@ import { ReportsFiltersClient } from "./reports-filters-client";
 type ReportsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
-
-function readSearchParamValue(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return typeof value[0] === "string" ? value[0] : "";
-  }
-
-  return typeof value === "string" ? value : "";
-}
-
-function readSearchParamArray(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return value.flatMap((entry) =>
-      entry
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    );
-  }
-
-  return typeof value === "string"
-    ? value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
-}
 
 function getStatusTone(status: OfficeReportStatus) {
   if (status === "Closed") {
@@ -92,6 +66,7 @@ function buildExportHref(searchParams: Record<string, string | string[] | undefi
 
 export default async function OfficeReportsPage(props: ReportsPageProps) {
   const context = await requireOfficeSession();
+  const canManageSearchLayout = canManageOfficeFields(context.currentMembership);
 
   if (!canViewOfficeReports(context.currentMembership)) {
     redirect("/office/dashboard");
@@ -102,38 +77,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
-    ownerMembershipId: readSearchParamValue(searchParams.ownerMembershipId),
-    createdAtOperator: readSearchParamValue(searchParams.createdAtOperator),
-    createdAtValue: readSearchParamValue(searchParams.createdAtValue),
-    createdAtFrom: readSearchParamValue(searchParams.createdAtFrom),
-    createdAtTo: readSearchParamValue(searchParams.createdAtTo),
-    buyerTenant: readSearchParamValue(searchParams.buyerTenant),
-    closingMoveInOperator: readSearchParamValue(searchParams.closingMoveInOperator),
-    closingMoveInValue: readSearchParamValue(searchParams.closingMoveInValue),
-    closingMoveInFrom: readSearchParamValue(searchParams.closingMoveInFrom),
-    closingMoveInTo: readSearchParamValue(searchParams.closingMoveInTo),
-    commissionOperator: readSearchParamValue(searchParams.commissionOperator),
-    commissionValue: readSearchParamValue(searchParams.commissionValue),
-    commissionMin: readSearchParamValue(searchParams.commissionMin),
-    commissionMax: readSearchParamValue(searchParams.commissionMax),
-    askingPriceOperator: readSearchParamValue(searchParams.askingPriceOperator),
-    askingPriceValue: readSearchParamValue(searchParams.askingPriceValue),
-    askingPriceMin: readSearchParamValue(searchParams.askingPriceMin),
-    askingPriceMax: readSearchParamValue(searchParams.askingPriceMax),
-    purchasedPriceOperator: readSearchParamValue(searchParams.purchasedPriceOperator),
-    purchasedPriceValue: readSearchParamValue(searchParams.purchasedPriceValue),
-    purchasedPriceMin: readSearchParamValue(searchParams.purchasedPriceMin),
-    purchasedPriceMax: readSearchParamValue(searchParams.purchasedPriceMax),
-    transactionStatuses: readSearchParamArray(searchParams.transactionStatuses),
-    invoiceNumber: readSearchParamValue(searchParams.invoiceNumber),
-    departmentIds: readSearchParamArray(searchParams.departmentIds),
-    teamLeaderMembershipIds: readSearchParamArray(searchParams.teamLeaderMembershipIds),
-    transactionTypes: readSearchParamArray(searchParams.transactionTypes),
-    representingSides: readSearchParamArray(searchParams.representingSides),
-    layouts: readSearchParamArray(searchParams.layouts),
-    companyReferral: readSearchParamValue(searchParams.companyReferral),
-    sortBy: readSearchParamValue(searchParams.sortBy),
-    sortDirection: readSearchParamValue(searchParams.sortDirection)
+    searchParams
   });
   const exportHref = buildExportHref(searchParams);
 
@@ -156,10 +100,14 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
       />
 
       <ListPageSection
-        subtitle="All filters read directly from transaction data and refresh this page in place."
+        subtitle="All filters read directly from transaction data and update the page, summary, and export together."
         title="Report filters"
       >
-        <ReportsFiltersClient filters={workspace.filters} />
+        <ReportsFiltersClient
+          canManageSearchLayout={canManageSearchLayout}
+          filters={workspace.filters}
+          searchLayout={workspace.searchLayout}
+        />
       </ListPageSection>
 
       <ListPageSection

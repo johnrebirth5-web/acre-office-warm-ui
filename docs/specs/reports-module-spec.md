@@ -25,12 +25,31 @@
 The reports service returns one transaction-centric workspace contract:
 
 - `filters`
+- `searchLayout`
 - `rows`
 - `summary`
 - `totalCount`
 - `columns`
 
 CSV export must reuse the same filter contract, column registry, and permission scope as the page.
+
+## Search layout
+
+- reports search fields are office-shared, not per-user
+- users with field-management permission can add/remove visible filters through `Edit fields`
+- selected field layout is persisted by `organizationId + officeId`
+- hidden filter params in an old URL are still honored on first load for compatibility, but once the user reapplies filters the URL is rebuilt from only the currently visible fields
+- `Sort By` and `Direction` stay pinned in the workbench and are not part of the editable field layout
+
+Default visible report fields:
+
+- `Owner`
+- `Creation Date`
+- `Closing / Move-In`
+- `Transaction Status`
+- `Department`
+- `Team Leader`
+- `Transaction Type`
 
 ## Filters
 
