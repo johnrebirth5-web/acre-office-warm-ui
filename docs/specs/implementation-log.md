@@ -10,6 +10,7 @@
 
 - `Settings > Users > [membership]` Teams assignment card now keeps validation errors inside the card body and uses a wrapped content/action layout so branch labels, status badges, and remove actions stop colliding in narrow side-column widths
 - permission resolution now treats active `Team Leader / Junior Team Leader` assignments as an effective `team_lead` template even when older data still stores the account role as `agent`, so legacy leader accounts keep team transaction/report visibility until the saved role is cleaned up
+- `Settings > Users` and agent profile team-assignment forms no longer auto-select the first available Team / Junior Team; admins now have to make an explicit branch choice before `Add to team`, so the form stops implying the member already belongs to whichever option happens to sort first
 - Working baseline normalized around:
   - local repo `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
   - GitHub remote `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
@@ -85,7 +86,7 @@
   - Docker volumes persist PostgreSQL data, `node_modules`, Next cache, and local document storage
   - local Docker runtime currently uses `colima` on macOS
   - seeing the bottom-left `N` dev tools badge locally is expected while the app runs under `next dev`, even inside Docker
-- `/login` should never prefill demo credentials, but now keeps standard username/password autofill semantics so browsers can save and reuse the real login
+- `/login` should never prefill demo credentials and now stays visually empty until the operator focuses the fields, reducing stale localhost/browser autofill from snapping back to a previously saved account like `office@acreny.us`
 - Default Git remote: `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
 - Default deployment line: `DigitalOcean :3105`
 - Default public entry: `https://acresystem.us/`

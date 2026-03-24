@@ -156,12 +156,9 @@ export function AgentProfileClient({
   canManageTeams
 }: AgentProfileClientProps) {
   const router = useRouter();
-  const initialAssignableTeam = getAssignableTeams(snapshot)[0] ?? null;
   const [profileState, setProfileState] = useState<ProfileState>(buildProfileState(snapshot));
-  const [selectedTeamId, setSelectedTeamId] = useState(initialAssignableTeam?.id ?? "");
-  const [selectedReportsToTeamMembershipId, setSelectedReportsToTeamMembershipId] = useState(
-    initialAssignableTeam?.defaultReportsToTeamMembershipId ?? ""
-  );
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedReportsToTeamMembershipId, setSelectedReportsToTeamMembershipId] = useState("");
   const [newOnboardingItem, setNewOnboardingItem] = useState<OnboardingDraft>(buildEmptyOnboardingDraft);
   const [newGoal, setNewGoal] = useState<GoalDraft>(buildEmptyGoalDraft);
   const [onboardingDrafts, setOnboardingDrafts] = useState<Record<string, OnboardingDraft>>(
@@ -184,6 +181,14 @@ export function AgentProfileClient({
   );
 
   useEffect(() => {
+    const teamStillAvailable = selectedTeamId ? availableTeamOptions.some((team) => team.id === selectedTeamId) : true;
+
+    if (!teamStillAvailable) {
+      setSelectedTeamId("");
+      setSelectedReportsToTeamMembershipId("");
+      return;
+    }
+
     if (!selectedTeamOption) {
       if (selectedReportsToTeamMembershipId) {
         setSelectedReportsToTeamMembershipId("");
@@ -198,7 +203,7 @@ export function AgentProfileClient({
     if (!managerStillAvailable) {
       setSelectedReportsToTeamMembershipId(selectedTeamOption.defaultReportsToTeamMembershipId ?? "");
     }
-  }, [selectedReportsToTeamMembershipId, selectedTeamOption]);
+  }, [availableTeamOptions, selectedReportsToTeamMembershipId, selectedTeamId, selectedTeamOption]);
 
   function setProfileField(field: keyof ProfileState, value: string) {
     setProfileState((current) => ({ ...current, [field]: value }));

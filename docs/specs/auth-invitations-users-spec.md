@@ -80,7 +80,8 @@ This spec describes what is implemented now, not the eventual full auth platform
 - Generic invalid-credential messaging is used
 - Accounts lock for 1 hour after 5 failed password attempts
 - Successful login clears lock state and failed-attempt count
-- the login form now uses standard browser autofill/password-manager semantics (`username` + `current-password`) so Chrome / Google password save prompts can appear normally
+- the login form keeps the email/password fields visually empty on first render and after failed round-trips, while still restoring standard password-manager semantics after the user manually focuses the inputs
+- browser autofill should be resisted on localhost where practical; stale saved accounts must not silently overwrite the email the operator just typed
 - `/change-password` handles:
   - forced first login password change
   - optional self-service change for signed-in users

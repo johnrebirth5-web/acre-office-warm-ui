@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@acre/ui";
 
 type LoginFormProps = {
@@ -7,25 +8,52 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ errorMessage }: LoginFormProps) {
+  const [workEmail, setWorkEmail] = useState("");
+  const [workPassword, setWorkPassword] = useState("");
+  const [manualEntryEnabled, setManualEntryEnabled] = useState(false);
+
+  useEffect(() => {
+    setWorkEmail("");
+    setWorkPassword("");
+    setManualEntryEnabled(false);
+  }, [errorMessage]);
+
+  function enableManualEntry() {
+    if (!manualEntryEnabled) {
+      setManualEntryEnabled(true);
+    }
+  }
+
   return (
-    <form action="/api/auth/login" autoComplete="on" className="auth-form" method="post">
+    <form action="/api/auth/login" autoComplete={manualEntryEnabled ? "on" : "off"} className="auth-form" method="post">
       <label className="auth-field">
         <span>Work email</span>
         <input
           autoCapitalize="none"
-          autoComplete="username"
-          name="email"
+          autoComplete={manualEntryEnabled ? "username" : "off"}
+          inputMode="email"
+          name="workEmail"
+          onChange={(event) => setWorkEmail(event.target.value)}
+          onFocus={enableManualEntry}
+          onPointerDown={enableManualEntry}
+          readOnly={!manualEntryEnabled}
           spellCheck="false"
           type="email"
+          value={workEmail}
         />
       </label>
 
       <label className="auth-field">
         <span>Password</span>
         <input
-          autoComplete="current-password"
-          name="password"
+          autoComplete={manualEntryEnabled ? "current-password" : "off"}
+          name="workPassword"
+          onChange={(event) => setWorkPassword(event.target.value)}
+          onFocus={enableManualEntry}
+          onPointerDown={enableManualEntry}
+          readOnly={!manualEntryEnabled}
           type="password"
+          value={workPassword}
         />
       </label>
 

@@ -51,11 +51,8 @@ export function UserTeamAssignmentsCard({
   assignmentLockedReason
 }: UserTeamAssignmentsCardProps) {
   const router = useRouter();
-  const initialAssignableTeam = availableTeams[0] ?? null;
-  const [selectedTeamId, setSelectedTeamId] = useState(initialAssignableTeam?.id ?? "");
-  const [selectedReportsToTeamMembershipId, setSelectedReportsToTeamMembershipId] = useState(
-    initialAssignableTeam?.defaultReportsToTeamMembershipId ?? ""
-  );
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedReportsToTeamMembershipId, setSelectedReportsToTeamMembershipId] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
@@ -66,12 +63,18 @@ export function UserTeamAssignmentsCard({
   );
 
   useEffect(() => {
-    const nextInitialTeam = availableTeams[0] ?? null;
-    const teamStillAvailable = availableTeams.some((team) => team.id === selectedTeamId);
+    const teamStillAvailable = selectedTeamId ? availableTeams.some((team) => team.id === selectedTeamId) : true;
 
     if (!teamStillAvailable) {
-      setSelectedTeamId(nextInitialTeam?.id ?? "");
-      setSelectedReportsToTeamMembershipId(nextInitialTeam?.defaultReportsToTeamMembershipId ?? "");
+      setSelectedTeamId("");
+      setSelectedReportsToTeamMembershipId("");
+      return;
+    }
+
+    if (!selectedTeamOption) {
+      if (selectedReportsToTeamMembershipId) {
+        setSelectedReportsToTeamMembershipId("");
+      }
       return;
     }
 
