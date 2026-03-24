@@ -33,6 +33,10 @@ type SearchLayoutResponse = {
   error?: string;
 };
 
+function joinClassNames(...classNames: Array<string | undefined | false>) {
+  return classNames.filter(Boolean).join(" ");
+}
+
 function buildLayoutSelectionState(
   availableFields: OfficeTransactionReportSearchLayoutSnapshot["availableFields"],
   selectedFields: OfficeTransactionReportSearchLayoutSnapshot["selectedFields"]
@@ -65,6 +69,126 @@ function formatChecklistSummary(
   }
 
   return `${selectedLabels[0]} +${selectedLabels.length - 1}`;
+}
+
+function normalizeDateStateForOperator(
+  nextOperator: ReportSearchFilterState["createdAtOperator"],
+  current: {
+    value: string;
+    from: string;
+    to: string;
+  }
+): {
+  operator: ReportSearchFilterState["createdAtOperator"];
+  value: string;
+  from: string;
+  to: string;
+} {
+  if (nextOperator === "range") {
+    return {
+      operator: nextOperator,
+      value: "",
+      from: current.from || current.value,
+      to: current.to
+    };
+  }
+
+  if (nextOperator === "eq" || nextOperator === "gte" || nextOperator === "lte") {
+    return {
+      operator: nextOperator,
+      value: current.value || current.from || current.to,
+      from: "",
+      to: ""
+    };
+  }
+
+  return {
+    operator: "",
+    value: "",
+    from: "",
+    to: ""
+  };
+}
+
+function normalizeNumericStateForOperator(
+  nextOperator: ReportSearchFilterState["commissionOperator"],
+  current: {
+    value: string;
+    min: string;
+    max: string;
+  }
+): {
+  operator: ReportSearchFilterState["commissionOperator"];
+  value: string;
+  min: string;
+  max: string;
+} {
+  if (nextOperator === "range") {
+    return {
+      operator: nextOperator,
+      value: "",
+      min: current.min || current.value,
+      max: current.max
+    };
+  }
+
+  if (
+    nextOperator === "eq" ||
+    nextOperator === "gt" ||
+    nextOperator === "gte" ||
+    nextOperator === "lt" ||
+    nextOperator === "lte"
+  ) {
+    return {
+      operator: nextOperator,
+      value: current.value || current.min || current.max,
+      min: "",
+      max: ""
+    };
+  }
+
+  return {
+    operator: "",
+    value: "",
+    min: "",
+    max: ""
+  };
+}
+
+function getReportSearchFieldClassName(fieldKey: string, className?: string) {
+  return joinClassNames("office-report-search-field", `office-report-search-field-${fieldKey}`, className);
+}
+
+const reportSearchFieldOrder: Partial<Record<OfficeTransactionReportSearchFieldKey, number>> = {
+  owner: 10,
+  transaction_status: 20,
+  department: 30,
+  team_leader: 40,
+  transaction_type: 50,
+  buyer_tenant: 60,
+  invoice_number: 70,
+  company_referral: 80,
+  representing_side: 90,
+  layout: 100,
+  created_at: 110,
+  closing_move_in: 120,
+  commission: 130,
+  asking_price: 140,
+  purchased_price: 150
+};
+
+function getReportSearchFieldOrder(fieldKey: OfficeTransactionReportSearchFieldKey) {
+  return reportSearchFieldOrder[fieldKey] ?? 500;
+}
+
+function isWideReportSearchField(fieldKey: OfficeTransactionReportSearchFieldKey) {
+  return (
+    fieldKey === "created_at" ||
+    fieldKey === "closing_move_in" ||
+    fieldKey === "commission" ||
+    fieldKey === "asking_price" ||
+    fieldKey === "purchased_price"
+  );
 }
 
 function ReportSearchLayoutModal(props: {
@@ -180,6 +304,7 @@ function ReportSearchDateField(props: {
   value: string;
   from: string;
   to: string;
+  className?: string;
   onChange: (nextValue: {
     operator: ReportSearchFilterState["createdAtOperator"];
     value: string;
@@ -187,19 +312,34 @@ function ReportSearchDateField(props: {
     to: string;
   }) => void;
 }) {
+  const isRange = props.operatorValue === "range" || (!props.operatorValue && (!!props.from || !!props.to));
+  const showsSingleValue =
+    !isRange &&
+    (props.operatorValue === "eq" ||
+      props.operatorValue === "gte" ||
+      props.operatorValue === "lte" ||
+      (!props.operatorValue && !!props.value));
+
   return (
-    <FilterField className="office-report-search-layout-field" label={props.label}>
-      <div className="office-report-search-layout-grid">
+    <FilterField
+      className={joinClassNames("office-report-search-layout-field", props.className)}
+      label={props.label}
+    >
+      <div className="office-report-search-layout-stack">
         <label className="office-report-search-inline-field">
           <span>Operator</span>
           <SelectInput
             onChange={(event) =>
-              props.onChange({
-                operator: event.target.value as ReportSearchFilterState["createdAtOperator"],
-                value: props.value,
-                from: props.from,
-                to: props.to
-              })
+              props.onChange(
+                normalizeDateStateForOperator(
+                  event.target.value as ReportSearchFilterState["createdAtOperator"],
+                  {
+                    value: props.value,
+                    from: props.from,
+                    to: props.to
+                  }
+                )
+              )
             }
             value={props.operatorValue}
           >
@@ -210,51 +350,59 @@ function ReportSearchDateField(props: {
             <option value="range">Range</option>
           </SelectInput>
         </label>
-        <label className="office-report-search-inline-field">
-          <span>Value</span>
-          <TextInput
-            onChange={(event) =>
-              props.onChange({
-                operator: props.operatorValue,
-                value: event.target.value,
-                from: props.from,
-                to: props.to
-              })
-            }
-            type="date"
-            value={props.value}
-          />
-        </label>
-        <label className="office-report-search-inline-field">
-          <span>From</span>
-          <TextInput
-            onChange={(event) =>
-              props.onChange({
-                operator: props.operatorValue,
-                value: props.value,
-                from: event.target.value,
-                to: props.to
-              })
-            }
-            type="date"
-            value={props.from}
-          />
-        </label>
-        <label className="office-report-search-inline-field">
-          <span>To</span>
-          <TextInput
-            onChange={(event) =>
-              props.onChange({
-                operator: props.operatorValue,
-                value: props.value,
-                from: props.from,
-                to: event.target.value
-              })
-            }
-            type="date"
-            value={props.to}
-          />
-        </label>
+
+        {showsSingleValue ? (
+          <label className="office-report-search-inline-field">
+            <span>Date</span>
+            <TextInput
+              onChange={(event) =>
+                props.onChange({
+                  operator: props.operatorValue,
+                  value: event.target.value,
+                  from: "",
+                  to: ""
+                })
+              }
+              type="date"
+              value={props.value}
+            />
+          </label>
+        ) : null}
+
+        {isRange ? (
+          <div className="office-report-search-layout-grid office-report-search-layout-grid-range">
+            <label className="office-report-search-inline-field">
+              <span>From</span>
+              <TextInput
+                onChange={(event) =>
+                  props.onChange({
+                    operator: "range",
+                    value: "",
+                    from: event.target.value,
+                    to: props.to
+                  })
+                }
+                type="date"
+                value={props.from}
+              />
+            </label>
+            <label className="office-report-search-inline-field">
+              <span>To</span>
+              <TextInput
+                onChange={(event) =>
+                  props.onChange({
+                    operator: "range",
+                    value: "",
+                    from: props.from,
+                    to: event.target.value
+                  })
+                }
+                type="date"
+                value={props.to}
+              />
+            </label>
+          </div>
+        ) : null}
       </div>
     </FilterField>
   );
@@ -266,6 +414,7 @@ function ReportSearchNumericField(props: {
   value: string;
   min: string;
   max: string;
+  className?: string;
   onChange: (nextValue: {
     operator: ReportSearchFilterState["commissionOperator"];
     value: string;
@@ -273,19 +422,36 @@ function ReportSearchNumericField(props: {
     max: string;
   }) => void;
 }) {
+  const isRange = props.operatorValue === "range" || (!props.operatorValue && (!!props.min || !!props.max));
+  const showsSingleValue =
+    !isRange &&
+    (props.operatorValue === "eq" ||
+      props.operatorValue === "gt" ||
+      props.operatorValue === "gte" ||
+      props.operatorValue === "lt" ||
+      props.operatorValue === "lte" ||
+      (!props.operatorValue && !!props.value));
+
   return (
-    <FilterField className="office-report-search-layout-field" label={props.label}>
-      <div className="office-report-search-layout-grid">
+    <FilterField
+      className={joinClassNames("office-report-search-layout-field", props.className)}
+      label={props.label}
+    >
+      <div className="office-report-search-layout-stack">
         <label className="office-report-search-inline-field">
           <span>Operator</span>
           <SelectInput
             onChange={(event) =>
-              props.onChange({
-                operator: event.target.value as ReportSearchFilterState["commissionOperator"],
-                value: props.value,
-                min: props.min,
-                max: props.max
-              })
+              props.onChange(
+                normalizeNumericStateForOperator(
+                  event.target.value as ReportSearchFilterState["commissionOperator"],
+                  {
+                    value: props.value,
+                    min: props.min,
+                    max: props.max
+                  }
+                )
+              )
             }
             value={props.operatorValue}
           >
@@ -298,57 +464,65 @@ function ReportSearchNumericField(props: {
             <option value="range">Range</option>
           </SelectInput>
         </label>
-        <label className="office-report-search-inline-field">
-          <span>Value</span>
-          <TextInput
-            inputMode="decimal"
-            onChange={(event) =>
-              props.onChange({
-                operator: props.operatorValue,
-                value: event.target.value,
-                min: props.min,
-                max: props.max
-              })
-            }
-            placeholder="0.00"
-            type="text"
-            value={props.value}
-          />
-        </label>
-        <label className="office-report-search-inline-field">
-          <span>Min</span>
-          <TextInput
-            inputMode="decimal"
-            onChange={(event) =>
-              props.onChange({
-                operator: props.operatorValue,
-                value: props.value,
-                min: event.target.value,
-                max: props.max
-              })
-            }
-            placeholder="0.00"
-            type="text"
-            value={props.min}
-          />
-        </label>
-        <label className="office-report-search-inline-field">
-          <span>Max</span>
-          <TextInput
-            inputMode="decimal"
-            onChange={(event) =>
-              props.onChange({
-                operator: props.operatorValue,
-                value: props.value,
-                min: props.min,
-                max: event.target.value
-              })
-            }
-            placeholder="0.00"
-            type="text"
-            value={props.max}
-          />
-        </label>
+
+        {showsSingleValue ? (
+          <label className="office-report-search-inline-field">
+            <span>Amount</span>
+            <TextInput
+              inputMode="decimal"
+              onChange={(event) =>
+                props.onChange({
+                  operator: props.operatorValue,
+                  value: event.target.value,
+                  min: "",
+                  max: ""
+                })
+              }
+              placeholder="0.00"
+              type="text"
+              value={props.value}
+            />
+          </label>
+        ) : null}
+
+        {isRange ? (
+          <div className="office-report-search-layout-grid office-report-search-layout-grid-range">
+            <label className="office-report-search-inline-field">
+              <span>Min</span>
+              <TextInput
+                inputMode="decimal"
+                onChange={(event) =>
+                  props.onChange({
+                    operator: "range",
+                    value: "",
+                    min: event.target.value,
+                    max: props.max
+                  })
+                }
+                placeholder="0.00"
+                type="text"
+                value={props.min}
+              />
+            </label>
+            <label className="office-report-search-inline-field">
+              <span>Max</span>
+              <TextInput
+                inputMode="decimal"
+                onChange={(event) =>
+                  props.onChange({
+                    operator: "range",
+                    value: "",
+                    min: props.min,
+                    max: event.target.value
+                  })
+                }
+                placeholder="0.00"
+                type="text"
+                value={props.max}
+              />
+            </label>
+          </div>
+        ) : null}
       </div>
     </FilterField>
   );
@@ -393,7 +567,11 @@ function CompactChecklistMultiSelectField(props: {
 
   return (
     <div
-      className={`office-filter-field office-report-search-multiselect-field${props.className ? ` ${props.className}` : ""}`}
+      className={joinClassNames(
+        "office-filter-field",
+        "office-report-search-multiselect-field",
+        props.className
+      )}
       ref={containerRef}
     >
       <span>{props.label}</span>
@@ -489,6 +667,15 @@ export function ReportsFiltersClient({
   const selectedDraftFields = searchLayout.availableFields.filter(
     (field) => layoutSelection[field.key]
   );
+  const orderedSelectedFields = [...searchLayout.selectedFields].sort(
+    (left, right) => getReportSearchFieldOrder(left.key) - getReportSearchFieldOrder(right.key)
+  );
+  const compactSelectedFields = orderedSelectedFields.filter(
+    (field) => !isWideReportSearchField(field.key)
+  );
+  const wideSelectedFields = orderedSelectedFields.filter((field) =>
+    isWideReportSearchField(field.key)
+  );
 
   function updateFilters(updater: (current: ReportSearchFilterState) => ReportSearchFilterState) {
     setSearchFilters((current) => updater(current));
@@ -565,7 +752,7 @@ export function ReportsFiltersClient({
   function renderSearchField(field: OfficeTransactionReportSearchFieldDescriptor) {
     if (field.key === "owner") {
       return (
-        <FilterField key={field.key} label={field.label}>
+        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
           <SelectInput
             onChange={(event) =>
               updateFilters((current) => ({
@@ -589,6 +776,7 @@ export function ReportsFiltersClient({
     if (field.key === "created_at") {
       return (
         <ReportSearchDateField
+          className={getReportSearchFieldClassName(field.key)}
           from={searchFilters.createdAtFrom}
           key={field.key}
           label={field.label}
@@ -610,7 +798,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "buyer_tenant") {
       return (
-        <FilterField key={field.key} label={field.label}>
+        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
           <TextInput
             onChange={(event) =>
               updateFilters((current) => ({
@@ -629,6 +817,7 @@ export function ReportsFiltersClient({
     if (field.key === "closing_move_in") {
       return (
         <ReportSearchDateField
+          className={getReportSearchFieldClassName(field.key)}
           from={searchFilters.closingMoveInFrom}
           key={field.key}
           label={field.label}
@@ -651,6 +840,7 @@ export function ReportsFiltersClient({
     if (field.key === "commission") {
       return (
         <ReportSearchNumericField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           max={searchFilters.commissionMax}
@@ -673,6 +863,7 @@ export function ReportsFiltersClient({
     if (field.key === "asking_price") {
       return (
         <ReportSearchNumericField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           max={searchFilters.askingPriceMax}
@@ -695,6 +886,7 @@ export function ReportsFiltersClient({
     if (field.key === "purchased_price") {
       return (
         <ReportSearchNumericField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           max={searchFilters.purchasedPriceMax}
@@ -717,6 +909,7 @@ export function ReportsFiltersClient({
     if (field.key === "transaction_status") {
       return (
         <CompactChecklistMultiSelectField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -733,7 +926,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "invoice_number") {
       return (
-        <FilterField key={field.key} label={field.label}>
+        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
           <TextInput
             onChange={(event) =>
               updateFilters((current) => ({
@@ -752,6 +945,7 @@ export function ReportsFiltersClient({
     if (field.key === "department") {
       return (
         <CompactChecklistMultiSelectField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -769,6 +963,7 @@ export function ReportsFiltersClient({
     if (field.key === "team_leader") {
       return (
         <CompactChecklistMultiSelectField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -786,6 +981,7 @@ export function ReportsFiltersClient({
     if (field.key === "transaction_type") {
       return (
         <CompactChecklistMultiSelectField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -803,6 +999,7 @@ export function ReportsFiltersClient({
     if (field.key === "representing_side") {
       return (
         <CompactChecklistMultiSelectField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -820,6 +1017,7 @@ export function ReportsFiltersClient({
     if (field.key === "layout") {
       return (
         <CompactChecklistMultiSelectField
+          className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -836,7 +1034,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "company_referral") {
       return (
-        <FilterField key={field.key} label={field.label}>
+        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
           <SelectInput
             onChange={(event) =>
               updateFilters((current) => ({
@@ -864,11 +1062,23 @@ export function ReportsFiltersClient({
     <>
       <ListPageFilters
         as="form"
-        className="office-transaction-search-layout-filters office-report-search-layout-filters"
+        className="office-report-search-layout-shell"
         onSubmit={handleApplyFilters}
       >
-        {searchLayout.selectedFields.length ? (
-          searchLayout.selectedFields.map((field) => renderSearchField(field))
+        {orderedSelectedFields.length ? (
+          <>
+            {compactSelectedFields.length ? (
+              <div className="office-report-search-grid office-report-search-grid-compact">
+                {compactSelectedFields.map((field) => renderSearchField(field))}
+              </div>
+            ) : null}
+
+            {wideSelectedFields.length ? (
+              <div className="office-report-search-grid office-report-search-grid-wide">
+                {wideSelectedFields.map((field) => renderSearchField(field))}
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="office-transaction-search-empty">
             <strong>No report fields configured</strong>
@@ -880,53 +1090,55 @@ export function ReportsFiltersClient({
           </div>
         )}
 
-        <FilterField label="Sort By">
-          <SelectInput
-            onChange={(event) =>
-              updateFilters((current) => ({
-                ...current,
-                sortBy: event.target.value as ReportSearchFilterState["sortBy"]
-              }))
-            }
-            value={searchFilters.sortBy}
-          >
-            <option value="created_at">Creation Date</option>
-            <option value="asking_price">Asking Price</option>
-            <option value="purchased_price">Purchased Price</option>
-            <option value="gross_commission">Gross Commission</option>
-            <option value="status">Status</option>
-          </SelectInput>
-        </FilterField>
-
-        <FilterField label="Direction">
-          <SelectInput
-            onChange={(event) =>
-              updateFilters((current) => ({
-                ...current,
-                sortDirection: event.target.value as ReportSearchFilterState["sortDirection"]
-              }))
-            }
-            value={searchFilters.sortDirection}
-          >
-            <option value="desc">Desc</option>
-            <option value="asc">Asc</option>
-          </SelectInput>
-        </FilterField>
-
-        <div className="office-filter-actions">
-          {canManageSearchLayout ? (
-            <Button
-              onClick={() => setIsSearchLayoutModalOpen(true)}
-              type="button"
-              variant="secondary"
+        <div className="office-report-search-controls">
+          <FilterField className="office-report-search-field office-report-search-field-sort" label="Sort By">
+            <SelectInput
+              onChange={(event) =>
+                updateFilters((current) => ({
+                  ...current,
+                  sortBy: event.target.value as ReportSearchFilterState["sortBy"]
+                }))
+              }
+              value={searchFilters.sortBy}
             >
-              Edit fields
+              <option value="created_at">Creation Date</option>
+              <option value="asking_price">Asking Price</option>
+              <option value="purchased_price">Purchased Price</option>
+              <option value="gross_commission">Gross Commission</option>
+              <option value="status">Status</option>
+            </SelectInput>
+          </FilterField>
+
+          <FilterField className="office-report-search-field office-report-search-field-direction" label="Direction">
+            <SelectInput
+              onChange={(event) =>
+                updateFilters((current) => ({
+                  ...current,
+                  sortDirection: event.target.value as ReportSearchFilterState["sortDirection"]
+                }))
+              }
+              value={searchFilters.sortDirection}
+            >
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </SelectInput>
+          </FilterField>
+
+          <div className="office-filter-actions office-report-search-field office-report-search-field-actions">
+            {canManageSearchLayout ? (
+              <Button
+                onClick={() => setIsSearchLayoutModalOpen(true)}
+                type="button"
+                variant="secondary"
+              >
+                Edit fields
+              </Button>
+            ) : null}
+            <Button type="submit">Apply filters</Button>
+            <Button onClick={resetFilters} type="button" variant="secondary">
+              Reset
             </Button>
-          ) : null}
-          <Button type="submit">Apply filters</Button>
-          <Button onClick={resetFilters} type="button" variant="secondary">
-            Reset
-          </Button>
+          </div>
         </div>
       </ListPageFilters>
 

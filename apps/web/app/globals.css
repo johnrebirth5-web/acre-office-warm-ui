@@ -6815,11 +6815,6 @@ a {
   align-items: start;
 }
 
-.office-report-search-layout-filters {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-auto-flow: dense;
-}
-
 .office-transaction-search-layout-filters > * {
   min-width: 0;
 }
@@ -6844,20 +6839,56 @@ a {
   min-width: 0;
 }
 
-.office-report-search-layout-filters .office-filter-field,
-.office-report-search-layout-filters .office-transaction-search-empty {
+.office-report-search-layout-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.office-report-search-grid {
+  display: grid;
+  gap: 14px 16px;
+  align-items: start;
+}
+
+.office-report-search-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.office-report-search-grid-wide {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.office-report-search-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.office-report-search-layout-shell .office-filter-field,
+.office-report-search-layout-shell .office-transaction-search-empty,
+.office-report-search-controls > * {
   min-width: 0;
 }
 
-.office-report-search-layout-filters .office-report-search-layout-field {
-  grid-column: span 2;
+.office-report-search-layout-shell .office-filter-field > span {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.7em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.office-report-search-layout-stack {
+  display: grid;
+  gap: 10px;
+  padding-top: 2px;
 }
 
 .office-report-search-layout-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
-  padding-top: 2px;
 }
 
 .office-report-search-multiselect-field {
@@ -7014,11 +7045,18 @@ a {
   min-width: 0;
 }
 
-.office-report-search-layout-filters > .office-filter-actions {
+.office-report-search-controls > .office-filter-field {
+  flex: 1 1 240px;
+  min-width: min(240px, 100%);
+  max-width: 320px;
+}
+
+.office-report-search-controls > .office-filter-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .office-transaction-search-layout-filters > .office-filter-actions,
@@ -7080,25 +7118,13 @@ a {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .office-report-search-layout-filters {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .office-transaction-search-layout-filters .office-transaction-search-date-field {
-    grid-column: span 2;
-  }
-
-  .office-report-search-layout-filters .office-report-search-layout-field {
     grid-column: span 2;
   }
 }
 
 @media (max-width: 1180px) {
   .office-transaction-search-layout-filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .office-report-search-layout-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -7108,10 +7134,9 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .office-report-search-layout-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .office-report-search-grid-wide {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
-
 }
 
 @media (max-width: 640px) {
@@ -7123,16 +7148,31 @@ a {
     grid-column: auto;
   }
 
-  .office-report-search-layout-filters .office-report-search-layout-field {
-    grid-column: auto;
-  }
-
   .office-transaction-search-date-range {
     grid-template-columns: 1fr;
   }
 
   .office-report-search-layout-grid {
     grid-template-columns: 1fr;
+  }
+
+  .office-report-search-grid-compact,
+  .office-report-search-grid-wide {
+    grid-template-columns: 1fr;
+  }
+
+  .office-report-search-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .office-report-search-controls > .office-filter-field {
+    max-width: none;
+  }
+
+  .office-report-search-controls > .office-filter-actions {
+    margin-left: 0;
+    justify-content: flex-start;
   }
 
   .office-report-search-multiselect-popover {
