@@ -1,5 +1,7 @@
 import {
   AgentPayoutStatementPeriodBasis,
+  AgentBankInformationAccountType,
+  AgentBankInformationTaxIdType,
   CommissionCalculationStatus,
   MembershipStatus,
   UserRole,
@@ -19,6 +21,7 @@ type StatementRecordWithRelations = Prisma.AgentPayoutStatementGetPayload<{
     membership: {
       include: {
         user: true;
+        agentBankInformation: true;
       };
     };
     office: true;
@@ -78,12 +81,27 @@ export type OfficeAgentPayoutStatementLineRecord = {
   referralFeeValue: string;
   feesLabel: string;
   feesValue: string;
-  officeNetLabel: string;
-  officeNetValue: string;
   agentNetLabel: string;
   agentNetValue: string;
   statementAmountLabel: string;
   statementAmountValue: string;
+};
+
+export type OfficeAgentPayoutStatementBankInformationRecord = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  address: string;
+  bankName: string;
+  accountNumber: string;
+  routingNumber: string;
+  phoneNumber: string;
+  taxIdType: string;
+  taxIdTypeLabel: string;
+  taxIdValue: string;
+  dateOfBirth: string;
+  accountType: string;
+  accountTypeLabel: string;
 };
 
 export type OfficeAgentPayoutStatementRecord = {
@@ -122,10 +140,9 @@ export type OfficeAgentPayoutStatementDetail = {
   totalStatementAmountValue: string;
   totalGrossCommissionLabel: string;
   totalGrossCommissionValue: string;
-  totalOfficeNetLabel: string;
-  totalOfficeNetValue: string;
   totalAgentNetLabel: string;
   totalAgentNetValue: string;
+  bankInformation: OfficeAgentPayoutStatementBankInformationRecord | null;
   lineItems: OfficeAgentPayoutStatementLineRecord[];
 };
 
@@ -199,6 +216,19 @@ const selectableAgentPayoutCalculationStatuses = [
   "statement_ready"
 ] satisfies CommissionCalculationStatus[];
 
+const agentBankInformationTaxIdTypeLabelMap: Record<AgentBankInformationTaxIdType, string> = {
+  ssn: "SSN",
+  ein: "EIN"
+};
+
+const agentBankInformationAccountTypeLabelMap: Record<AgentBankInformationAccountType, string> = {
+  checking: "Checking",
+  savings: "Savings",
+  business_checking: "Business checking",
+  business_savings: "Business savings",
+  other: "Other"
+};
+
 function buildOfficeOrGlobalMembershipWhere(officeId: string | null | undefined): Prisma.MembershipWhereInput | undefined {
   if (!officeId) {
     return undefined;
@@ -268,6 +298,44 @@ function formatMembershipLabel(membership: {
   };
 }) {
   return `${membership.user.firstName} ${membership.user.lastName}`.trim();
+}
+
+function mapStatementBankInformation(bankInformation: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  address: string | null;
+  bankName: string | null;
+  accountNumber: string | null;
+  routingNumber: string | null;
+  phoneNumber: string | null;
+  taxIdType: AgentBankInformationTaxIdType | null;
+  taxIdValue: string | null;
+  dateOfBirth: Date | null;
+  accountType: AgentBankInformationAccountType | null;
+} | null): OfficeAgentPayoutStatementBankInformationRecord | null {
+  if (!bankInformation) {
+    return null;
+  }
+
+  const normalized = {
+    firstName: bankInformation.firstName?.trim() ?? "",
+    lastName: bankInformation.lastName?.trim() ?? "",
+    email: bankInformation.email?.trim() ?? "",
+    address: bankInformation.address?.trim() ?? "",
+    bankName: bankInformation.bankName?.trim() ?? "",
+    accountNumber: bankInformation.accountNumber?.trim() ?? "",
+    routingNumber: bankInformation.routingNumber?.trim() ?? "",
+    phoneNumber: bankInformation.phoneNumber?.trim() ?? "",
+    taxIdType: bankInformation.taxIdType ?? "",
+    taxIdTypeLabel: bankInformation.taxIdType ? agentBankInformationTaxIdTypeLabelMap[bankInformation.taxIdType] : "",
+    taxIdValue: bankInformation.taxIdValue?.trim() ?? "",
+    dateOfBirth: formatDateValue(bankInformation.dateOfBirth),
+    accountType: bankInformation.accountType ?? "",
+    accountTypeLabel: bankInformation.accountType ? agentBankInformationAccountTypeLabelMap[bankInformation.accountType] : ""
+  } satisfies OfficeAgentPayoutStatementBankInformationRecord;
+
+  return Object.values(normalized).some((value) => value.trim().length > 0) ? normalized : null;
 }
 
 function buildTransactionLabel(transaction: {
@@ -447,10 +515,9 @@ function mapStatementDetail(record: StatementRecordWithRelations): OfficeAgentPa
     totalStatementAmountValue: decimalToString(record.totalStatementAmount),
     totalGrossCommissionLabel: formatCurrency(record.totalGrossCommission),
     totalGrossCommissionValue: decimalToString(record.totalGrossCommission),
-    totalOfficeNetLabel: formatCurrency(record.totalOfficeNet),
-    totalOfficeNetValue: decimalToString(record.totalOfficeNet),
     totalAgentNetLabel: formatCurrency(record.totalAgentNet),
     totalAgentNetValue: decimalToString(record.totalAgentNet),
+    bankInformation: mapStatementBankInformation(record.membership.agentBankInformation),
     lineItems: record.lineItems.map((lineItem) => ({
       id: lineItem.id,
       commissionCalculationId: lineItem.commissionCalculationId,
@@ -468,8 +535,6 @@ function mapStatementDetail(record: StatementRecordWithRelations): OfficeAgentPa
       referralFeeValue: decimalToString(lineItem.referralFee),
       feesLabel: formatCurrency(lineItem.fees),
       feesValue: decimalToString(lineItem.fees),
-      officeNetLabel: formatCurrency(lineItem.officeNet),
-      officeNetValue: decimalToString(lineItem.officeNet),
       agentNetLabel: formatCurrency(lineItem.agentNet),
       agentNetValue: decimalToString(lineItem.agentNet),
       statementAmountLabel: formatCurrency(lineItem.statementAmount),
@@ -490,7 +555,8 @@ export async function getOfficeAgentPayoutStatementDetail(
     include: {
       membership: {
         include: {
-          user: true
+          user: true,
+          agentBankInformation: true
         }
       },
       office: true,
@@ -543,7 +609,8 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
       include: {
         membership: {
           include: {
-            user: true
+            user: true,
+            agentBankInformation: true
           }
         },
         office: true,

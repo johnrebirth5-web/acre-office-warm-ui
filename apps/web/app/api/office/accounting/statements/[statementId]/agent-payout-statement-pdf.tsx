@@ -52,15 +52,44 @@ const styles = StyleSheet.create({
   },
   summaryGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     marginBottom: 16
   },
   summaryCard: {
-    width: "31%",
+    width: "48%",
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderRadius: 6,
     padding: 10
+  },
+  bankSection: {
+    marginBottom: 16
+  },
+  bankTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    marginBottom: 8
+  },
+  bankGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between"
+  },
+  bankCard: {
+    width: "48%",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10
+  },
+  bankCardWide: {
+    width: "100%"
+  },
+  bankValue: {
+    fontSize: 11,
+    fontWeight: 700
   },
   summaryAmount: {
     fontSize: 12,
@@ -135,7 +164,34 @@ type AgentPayoutStatementPdfProps = {
   statement: OfficeAgentPayoutStatementDetail;
 };
 
+function buildStatementBankFields(statement: OfficeAgentPayoutStatementDetail) {
+  const bankInformation = statement.bankInformation;
+
+  if (!bankInformation) {
+    return [];
+  }
+
+  return [
+    { label: "First name", value: bankInformation.firstName },
+    { label: "Last name", value: bankInformation.lastName },
+    { label: "Email", value: bankInformation.email },
+    { label: "Phone number", value: bankInformation.phoneNumber },
+    { label: "Address", value: bankInformation.address, wide: true },
+    { label: "Bank name", value: bankInformation.bankName },
+    { label: "Account number", value: bankInformation.accountNumber },
+    { label: "Routing number", value: bankInformation.routingNumber },
+    {
+      label: "SSN / EIN",
+      value: [bankInformation.taxIdTypeLabel, bankInformation.taxIdValue].filter(Boolean).join(" · ")
+    },
+    { label: "Date of birth", value: bankInformation.dateOfBirth },
+    { label: "Account type", value: bankInformation.accountTypeLabel || bankInformation.accountType }
+  ].filter((field) => field.value.trim().length > 0);
+}
+
 export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatementPdfProps) {
+  const bankFields = buildStatementBankFields(statement);
+
   return (
     <Document title={`${statement.agentLabel} payout statement`}>
       <Page size="A4" style={styles.page}>
@@ -165,14 +221,29 @@ export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatem
           </View>
         </View>
 
+        <View style={styles.bankSection}>
+          <Text style={styles.bankTitle}>Bank information</Text>
+          {bankFields.length > 0 ? (
+            <View style={styles.bankGrid}>
+              {bankFields.map((field) => (
+                <View key={field.label} style={field.wide ? [styles.bankCard, styles.bankCardWide] : styles.bankCard}>
+                  <Text style={styles.metaLabel}>{field.label}</Text>
+                  <Text style={styles.bankValue}>{field.value}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.bankCard}>
+              <Text style={styles.metaLabel}>Status</Text>
+              <Text style={styles.bankValue}>No bank information saved on the member profile.</Text>
+            </View>
+          )}
+        </View>
+
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
             <Text style={styles.metaLabel}>Gross commission</Text>
             <Text style={styles.summaryAmount}>{statement.totalGrossCommissionLabel}</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.metaLabel}>Office net</Text>
-            <Text style={styles.summaryAmount}>{statement.totalOfficeNetLabel}</Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.metaLabel}>Agent net</Text>

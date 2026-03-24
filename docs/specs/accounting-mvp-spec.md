@@ -22,6 +22,8 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - optional candidate preview / uncheck flow before final generation
   - durable statement snapshot
   - PDF download
+  - saved statement detail / PDF now also show the member's current `AgentBankInformation` block between generated metadata and line items
+  - agent-facing statement output no longer surfaces `Office net`
 - agent billing exists:
   - ledger
   - one-time charges

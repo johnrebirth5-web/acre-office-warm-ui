@@ -303,10 +303,12 @@
     - 勾选本期要发的单子
     - 生成 durable payout statement snapshot
     - 下载 PDF
+    - 在已保存 statement detail / PDF 中显示当前 member profile 上保存的 bank information
   - 工资单 snapshot 现在基于：
     - `AgentPayoutStatement`
     - `AgentPayoutStatementLine`
   - 工资单金额来自 `CommissionCalculation` 的 agent rows；生成后会把纳入本期的 row 从 `statement_ready` 推进到 `payable`
+  - statement detail / PDF 当前不再向 agent-facing payout output 暴露 `Office net`
   - 底层 accounting foundation 仍继续存在，基于 `LedgerAccount / AccountingTransaction / AccountingTransactionLineItem / GeneralLedgerEntry / EarnestMoneyRecord`
   - 已有最小 chart of accounts foundation
   - 现在也包含最小 `Commission Management / Commission Automation` foundation：
