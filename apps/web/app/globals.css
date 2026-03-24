@@ -38,7 +38,7 @@ body {
       transparent 26rem
     ),
     linear-gradient(180deg, #f5f7fb 0%, #e8edf4 100%);
-  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
 }
 
 a {
@@ -277,7 +277,7 @@ select {
 }
 
 .brand-mark span {
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
   font-size: 0.78rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -298,7 +298,7 @@ select {
 .list-subtle {
   margin: 0;
   color: var(--muted);
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
 }
 
 .nav-group {
@@ -353,7 +353,7 @@ select {
 .list-row span,
 .metric-strip span {
   display: block;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
   font-size: 0.84rem;
   color: rgba(246, 239, 227, 0.72);
 }
@@ -432,7 +432,7 @@ select {
 .summary-callout p {
   margin: 0;
   color: rgba(247, 240, 230, 0.74);
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
 }
 
 .workspace-grid {
@@ -459,7 +459,7 @@ select {
 
 .panel-copy p {
   margin: 0;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
   color: var(--muted);
   max-width: 60ch;
 }
@@ -489,7 +489,7 @@ select {
 .acre-panel-header p,
 .list-row p {
   margin: 0;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
   color: var(--muted);
 }
 
@@ -511,7 +511,7 @@ select {
 
 .acre-stat-card span {
   display: block;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
   font-size: 0.84rem;
   color: var(--muted);
 }
@@ -525,7 +525,7 @@ select {
   align-items: center;
   padding: 0.36rem 0.7rem;
   border-radius: 999px;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -701,7 +701,7 @@ select {
     border-radius: 16px;
     text-align: center;
     color: #f7f0e6;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: var(--office-font-sans);
     font-size: 0.75rem;
   }
 
@@ -1487,7 +1487,7 @@ select {
 .bm-card-head h2,
 .bm-card-head h3 {
   margin: 0;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--office-font-sans);
   font-weight: 500;
   color: #373737;
   letter-spacing: 0;
@@ -5294,7 +5294,9 @@ select {
 
 :root {
   --office-font-sans:
-    var(--font-office-sans), "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+    var(--font-office-sans), "Inter", "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+    "Source Han Sans SC", "Segoe UI", sans-serif;
   --office-bg: #eef1f5;
   --office-bg-muted: #f6f8fb;
   --office-surface: #ffffff;

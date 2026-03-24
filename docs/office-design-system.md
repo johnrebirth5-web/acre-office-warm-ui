@@ -21,6 +21,8 @@
 
 - 全局主字体通过 [apps/web/app/layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/layout.tsx) 加载 `Inter`
 - 变量名：`--font-office-sans`
+- Office 页面真正消费的共享 token 是 `--office-font-sans`
+- `--office-font-sans` 必须包含明确的 CJK fallback，当前基线包含 `PingFang SC`、`Hiragino Sans GB`、`Microsoft YaHei`、`Noto Sans SC`、`Source Han Sans SC`
 - `Office` 页面不再各自选字体，也不要混用新的主字体
 
 默认层级：
@@ -50,6 +52,7 @@
 - 同一级信息不要再随页使用 1-2px 的随意字号漂移
 - heading 统一高字重、紧字距；meta 统一偏小、偏灰、较宽行高
 - 后台页面不使用 marketing 风格的大字重装饰文本
+- 不要再在页面 CSS 里散落硬编码 `"Helvetica Neue"`、`Arial` 这类局部字体栈；统一走 `var(--office-font-sans)`
 
 ## Tokens
 

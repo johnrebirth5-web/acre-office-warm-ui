@@ -169,6 +169,9 @@
 - reports search-layout refinement now treats people-name filters as search-first pickers instead of raw dropdowns:
   - `Owner` and `Team Leader` use typed search and ranked matching so roster growth does not make filter selection unusable
   - this behavior is now documented as the default rule for future `owner / agent / member / assignee` selectors across Office pages
+- typography baseline cleanup now routes legacy Office surfaces back through the shared `--office-font-sans` token:
+  - body and older sidebar/panel/meta surfaces no longer hardcode `Inter / Helvetica Neue / Arial` locally
+  - the shared font stack now includes explicit Chinese fallbacks to reduce cross-browser drift for mixed English/CJK pages
 
 ## Next recommended work
 
