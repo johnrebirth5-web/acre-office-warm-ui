@@ -326,6 +326,12 @@ export function OfficeSettingsUserDetailClient({
             <div className="office-settings-user-access-callout">
               <strong>Permissions scope</strong>
               <p>{getRoleConfigurationHint(draft.role)}</p>
+              {snapshot.profile.hasActiveLeaderAssignments && snapshot.profile.roleValue === "agent" ? (
+                <p className="office-form-helper">
+                  This member already leads a Team / Junior Team, but the saved account role is still Agent. Team Lead visibility is applied
+                  automatically now, and you can switch the role to Team Lead here whenever you want to persist the matching template.
+                </p>
+              ) : null}
               {snapshot.profile.hasActiveLeaderAssignments && snapshot.profile.roleValue !== "agent" ? (
                 <p className="office-form-helper">
                   Active Team / Junior Team owners cannot be switched to Agent until leadership is transferred or removed in Settings &gt; Teams.

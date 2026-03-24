@@ -12,6 +12,8 @@ import { prisma } from "./client";
 
 type PermissionDbClient = Pick<typeof prisma, "organizationRoleTemplate" | "membershipPermissionOverride" | "membership">;
 
+const leaderTeamRoles = ["team_leader", "junior_team_leader"] as const;
+
 const fixedRoleCatalog: UserRole[] = [
   "owner",
   "office_admin",
@@ -253,6 +255,17 @@ function getTemplatePermissionsOrFallback(templatePermissions: string[], role: U
   });
 }
 
+function resolveEffectiveMembershipRoleForPermissions(membership: {
+  role: UserRole;
+  teamMemberships: Array<{ id: string }>;
+}) {
+  if (membership.role === "agent" && membership.teamMemberships.length > 0) {
+    return "team_lead" satisfies UserRole;
+  }
+
+  return membership.role;
+}
+
 function applyOverrides(
   role: UserRole,
   inheritedPermissions: PermissionKey[],
@@ -298,7 +311,22 @@ export async function getMembershipEffectivePermissionKeys(
       },
       select: {
         id: true,
-        role: true
+        role: true,
+        teamMemberships: {
+          where: {
+            organizationId: input.organizationId,
+            role: {
+              in: [...leaderTeamRoles]
+            },
+            team: {
+              isActive: true
+            }
+          },
+          select: {
+            id: true
+          },
+          take: 1
+        }
       }
     }),
     getRoleTemplatesWithPermissions(input.organizationId, db),
@@ -315,17 +343,18 @@ export async function getMembershipEffectivePermissionKeys(
     throw new Error("Membership was not found.");
   }
 
-  const template = templates.find((entry: { role: UserRole }) => entry.role === membership.role) ?? null;
+  const effectiveRole = resolveEffectiveMembershipRoleForPermissions(membership);
+  const template = templates.find((entry: { role: UserRole }) => entry.role === effectiveRole) ?? null;
   const inheritedPermissions = getTemplatePermissionsOrFallback(
     template?.permissions.map((permission: { permissionKey: string }) => permission.permissionKey) ?? [],
-    membership.role
+    effectiveRole
   );
   const normalizedOverrides = overrides.map((override: { permissionKey: string; effect: PermissionOverrideValue }) => ({
     permissionKey: assertPermissionKey(override.permissionKey),
     effect: override.effect
   })) satisfies MembershipPermissionOverrideRecord[];
 
-  return applyOverrides(membership.role, inheritedPermissions, normalizedOverrides);
+  return applyOverrides(effectiveRole, inheritedPermissions, normalizedOverrides);
 }
 
 export async function getMembershipEffectivePermissions(
@@ -343,7 +372,22 @@ export async function getMembershipEffectivePermissions(
       },
       select: {
         id: true,
-        role: true
+        role: true,
+        teamMemberships: {
+          where: {
+            organizationId: input.organizationId,
+            role: {
+              in: [...leaderTeamRoles]
+            },
+            team: {
+              isActive: true
+            }
+          },
+          select: {
+            id: true
+          },
+          take: 1
+        }
       }
     }),
     getRoleTemplatesWithPermissions(input.organizationId, db),
@@ -360,26 +404,27 @@ export async function getMembershipEffectivePermissions(
     throw new Error("Membership was not found.");
   }
 
-  const template = templates.find((entry: { role: UserRole }) => entry.role === membership.role) ?? null;
+  const effectiveRole = resolveEffectiveMembershipRoleForPermissions(membership);
+  const template = templates.find((entry: { role: UserRole }) => entry.role === effectiveRole) ?? null;
   const inheritedPermissions = getTemplatePermissionsOrFallback(
     template?.permissions.map((permission: { permissionKey: string }) => permission.permissionKey) ?? [],
-    membership.role
+    effectiveRole
   );
   const normalizedOverrides = overrides.map((override: { permissionKey: string; effect: PermissionOverrideValue }) => ({
     permissionKey: assertPermissionKey(override.permissionKey),
     effect: override.effect
   })) satisfies MembershipPermissionOverrideRecord[];
-  const effectivePermissions = applyOverrides(membership.role, inheritedPermissions, normalizedOverrides);
+  const effectivePermissions = applyOverrides(effectiveRole, inheritedPermissions, normalizedOverrides);
   const inheritedSet = new Set(inheritedPermissions);
   const overrideMap = new Map<PermissionKey, PermissionOverrideValue>(
     normalizedOverrides.map((override) => [override.permissionKey, override.effect])
   );
   const effectiveSet = new Set(effectivePermissions);
-  const roleSummary = getRoleSummary(membership.role);
+  const roleSummary = getRoleSummary(effectiveRole);
 
   return {
     membershipId: membership.id,
-    role: membership.role,
+    role: effectiveRole,
     roleLabel: roleSummary.label,
     roleDescription: roleSummary.description,
     inheritedPermissions,

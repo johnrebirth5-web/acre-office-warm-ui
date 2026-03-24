@@ -148,38 +148,40 @@ export function UserTeamAssignmentsCard({
 
   return (
     <>
-      {error ? <p className="office-inline-error">{error}</p> : null}
       <SectionCard subtitle="Team memberships for this member. Add or remove roster assignments here." title="Teams">
+        {error ? <p className="office-inline-error office-user-team-assignments-error">{error}</p> : null}
         <div className="office-agents-profile-team-list">
           {teams.map((team) => (
-            <div className="office-agents-profile-team-row" key={team.id}>
-              <div>
+            <div className="office-agents-profile-team-row office-user-team-assignment-row" key={team.id}>
+              <div className="office-user-team-assignment-copy">
                 <Link href={`/office/settings/users?view=operations&teamId=${team.id}`}>{team.name}</Link>
                 <p>
                   {team.roleLabel}
                   {team.reportsToLabel !== "No direct manager" ? ` · Reports to ${team.reportsToLabel}` : ""}
                 </p>
               </div>
-              <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
-              {canManageTeams ? (
-                <Button
-                  disabled={pendingAction === `remove-team:${team.id}`}
-                  onClick={() =>
-                    setConfirmDialog({
-                      title: `Remove ${memberName} from ${team.name}?`,
-                      description: "This will remove the current assignment to this team.",
-                      confirmLabel: "Remove from team",
-                      onConfirm: () => {
-                        void handleRemoveTeam(team.id);
-                      }
-                    })
-                  }
-                  size="sm"
-                  variant="ghost"
-                >
-                  Remove
-                </Button>
-              ) : null}
+              <div className="office-user-team-assignment-actions">
+                <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
+                {canManageTeams ? (
+                  <Button
+                    disabled={pendingAction === `remove-team:${team.id}`}
+                    onClick={() =>
+                      setConfirmDialog({
+                        title: `Remove ${memberName} from ${team.name}?`,
+                        description: "This will remove the current assignment to this team.",
+                        confirmLabel: "Remove from team",
+                        onConfirm: () => {
+                          void handleRemoveTeam(team.id);
+                        }
+                      })
+                    }
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))}
           {teams.length === 0 ? <p className="office-form-helper">No team assignments yet.</p> : null}

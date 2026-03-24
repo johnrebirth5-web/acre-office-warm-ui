@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
 import { prisma } from "./client.ts";
-import { resetMembershipPermissionOverrides, saveMembershipPermissionOverrides } from "./permissions.ts";
+import { getMembershipEffectivePermissionKeys, resetMembershipPermissionOverrides, saveMembershipPermissionOverrides } from "./permissions.ts";
 
 after(async () => {
   await prisma.$disconnect();
@@ -148,6 +148,53 @@ test("only owner or office admin can reset user permission overrides", async () 
 
     assert.equal(storedOverrides.length, 1);
     assert.equal(storedOverrides[0]?.permissionKey, "notifications:view");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("leader team assignments inherit team lead permissions even before the saved membership role is repaired", async () => {
+  const context = await createPermissionsTestContext();
+
+  try {
+    const leader = await context.createMembership("agent", "permissions-junior-leader");
+    const rootTeam = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: `Permissions Root ${randomUUID().slice(0, 8)}`,
+        slug: `permissions-root-${randomUUID().slice(0, 8)}`
+      }
+    });
+    const childTeam = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: `Permissions Child ${randomUUID().slice(0, 8)}`,
+        slug: `permissions-child-${randomUUID().slice(0, 8)}`,
+        parentTeamId: rootTeam.id
+      }
+    });
+
+    await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: childTeam.id,
+        membershipId: leader.membership.id,
+        role: "junior_team_leader"
+      }
+    });
+
+    const permissionKeys = await getMembershipEffectivePermissionKeys({
+      organizationId: context.organization.id,
+      membershipId: leader.membership.id
+    });
+
+    assert.equal(permissionKeys.includes("transactions:view:team"), true);
+    assert.equal(permissionKeys.includes("reports:view:team"), true);
+    assert.equal(permissionKeys.includes("transactions:view:company"), false);
+    assert.equal(permissionKeys.includes("settings:manage"), false);
   } finally {
     await context.cleanup();
   }

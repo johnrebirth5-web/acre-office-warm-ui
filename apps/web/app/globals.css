@@ -9149,6 +9149,31 @@ a {
   font-size: 0.84rem;
 }
 
+.office-user-team-assignments-error {
+  margin-bottom: 12px;
+}
+
+.office-user-team-assignment-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.office-user-team-assignment-copy {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.office-user-team-assignment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
+}
+
 .office-agents-team-empty {
   color: var(--office-text-muted);
   font-size: 0.88rem;
@@ -9672,6 +9697,14 @@ a {
   .bm-help-button {
     right: 20px;
     bottom: 18px;
+  }
+}
+
+@media (max-width: 720px) {
+  .office-user-team-assignment-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
 }
 

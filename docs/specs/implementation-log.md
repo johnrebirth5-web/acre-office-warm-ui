@@ -8,6 +8,8 @@
 
 ## Recently completed major work
 
+- `Settings > Users > [membership]` Teams assignment card now keeps validation errors inside the card body and uses a wrapped content/action layout so branch labels, status badges, and remove actions stop colliding in narrow side-column widths
+- permission resolution now treats active `Team Leader / Junior Team Leader` assignments as an effective `team_lead` template even when older data still stores the account role as `agent`, so legacy leader accounts keep team transaction/report visibility until the saved role is cleaned up
 - Working baseline normalized around:
   - local repo `/Users/openclaw_john/工作文件夹/Acre_latest_clean`
   - GitHub remote `https://github.com/johnrebirth5-web/acre-office-warm-ui.git`
