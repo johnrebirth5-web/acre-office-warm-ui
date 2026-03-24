@@ -221,7 +221,7 @@ function StatementLineItemRow({ lineItem, isLastRow }: StatementLineItemRowProps
       <Text style={styles.cellInvoice}>{formatStatementCellValue(lineItem.invoiceNumber)}</Text>
       <Text style={styles.cellOwner}>{formatStatementCellValue(lineItem.ownerName)}</Text>
       <View style={styles.cellBuilding}>
-        <Text style={styles.buildingTitle}>{formatStatementCellValue(lineItem.buildingName || lineItem.transactionLabel)}</Text>
+        <Text style={styles.buildingTitle}>{formatStatementCellValue(lineItem.buildingName)}</Text>
         <Text style={styles.buildingAddress}>{formatStatementCellValue(lineItem.propertyAddress)}</Text>
       </View>
       <Text style={styles.cellUnit}>{formatStatementCellValue(lineItem.unitNumber)}</Text>

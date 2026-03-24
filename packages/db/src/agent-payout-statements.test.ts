@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import {
   getAgentPayoutStatementMatchDate,
   normalizeAgentPayoutStatementPeriodBasis,
+  parseStakeholderBreakdownSharePercent,
   summarizeAgentPayoutStatementRows
 } from "./agent-payout-statements.ts";
 
@@ -42,4 +43,42 @@ test("summarizeAgentPayoutStatementRows totals payout snapshot amounts", () => {
   assert.equal(summary.totalOfficeNet.toString(), "3100");
   assert.equal(summary.totalAgentNet.toString(), "3100");
   assert.equal(summary.totalStatementAmount.toString(), "3100");
+});
+
+test("parseStakeholderBreakdownSharePercent returns the finance share for the selected agent", () => {
+  const share = parseStakeholderBreakdownSharePercent(
+    [
+      {
+        key: "agent-1",
+        membershipId: "membership-1",
+        recipientLabel: "Linfen Ruan",
+        recipientRole: "Agent",
+        recipientRoleValue: "agent",
+        recipientType: "agent",
+        sharePercent: "70",
+        baseAmount: "7000",
+        postSplitAdjustment: "0",
+        reimbursementAdjustment: "0",
+        finalAmount: "7000"
+      },
+      {
+        key: "company",
+        membershipId: "",
+        recipientLabel: "Acre",
+        recipientRole: "Brokerage",
+        recipientRoleValue: "brokerage",
+        recipientType: "brokerage",
+        sharePercent: "30",
+        baseAmount: "3000",
+        postSplitAdjustment: "0",
+        reimbursementAdjustment: "0",
+        finalAmount: "3000"
+      }
+    ] satisfies Prisma.JsonArray,
+    "membership-1"
+  );
+
+  assert.equal(share, "70%");
+  assert.equal(parseStakeholderBreakdownSharePercent(undefined, "membership-1"), "");
+  assert.equal(parseStakeholderBreakdownSharePercent([] satisfies Prisma.JsonArray, "missing-membership"), "");
 });

@@ -371,7 +371,7 @@ function normalizeAdditionalFields(value: Prisma.JsonValue | null | undefined) {
   );
 }
 
-function parseStakeholderBreakdownSharePercent(
+export function parseStakeholderBreakdownSharePercent(
   value: Prisma.JsonValue | null | undefined,
   membershipId: string | null | undefined
 ) {
@@ -576,11 +576,10 @@ function buildStatementLineSnapshot(
   calculation: StatementPersistCalculation
 ): Omit<Prisma.AgentPayoutStatementLineCreateManyInput, "statementId"> {
   const additionalFields = normalizeAdditionalFields(calculation.transaction.additionalFields);
-  const commissionRate =
-    parseStakeholderBreakdownSharePercent(
-      calculation.transactionFinanceCalculationVersion?.stakeholderBreakdown,
-      calculation.membershipId
-    ) || additionalFields.yourCommissionRate?.trim() || "";
+  const commissionRate = parseStakeholderBreakdownSharePercent(
+    calculation.transactionFinanceCalculationVersion?.stakeholderBreakdown,
+    calculation.membershipId
+  );
 
   return {
     commissionCalculationId: calculation.id,

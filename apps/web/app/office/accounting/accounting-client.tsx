@@ -794,7 +794,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       <span>{formatStatementCellValue(lineItem.ownerName)}</span>
                       <div className="office-agent-statement-building">
                         <strong>
-                          <Link href={lineItem.transactionHref}>{formatStatementCellValue(lineItem.buildingName || lineItem.transactionLabel)}</Link>
+                          <Link href={lineItem.transactionHref}>{formatStatementCellValue(lineItem.buildingName)}</Link>
                         </strong>
                         <p>{formatStatementCellValue(lineItem.propertyAddress)}</p>
                       </div>
