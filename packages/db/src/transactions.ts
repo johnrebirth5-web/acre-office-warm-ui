@@ -488,11 +488,22 @@ const selectableTransactionOwnerStatuses = ["active", "invited"] satisfies Membe
 const hiddenSearchCustomFieldKeys = new Set(["agentName"]);
 const defaultTransactionSearchLayout: OfficeTransactionSearchFieldReference[] = [
   { kind: "system", key: "search" },
-  { kind: "builtin", key: "transaction_status" },
   { kind: "system", key: "owner" },
   { kind: "system", key: "team" },
+  { kind: "system", key: "created_at" },
   { kind: "builtin", key: "transaction_type" },
-  { kind: "system", key: "created_at" }
+  { kind: "builtin", key: "transaction_status" },
+  { kind: "custom", key: "invoiceNumber" },
+  { kind: "custom", key: "buyerTenant" },
+  { kind: "custom", key: "buildingName" },
+  { kind: "custom", key: "additionalAddress" },
+  { kind: "custom", key: "unitNumber" },
+  { kind: "custom", key: "additionalCity" },
+  { kind: "custom", key: "additionalState" },
+  { kind: "builtin", key: "zip_code" },
+  { kind: "custom", key: "moveInDateClosingDate" },
+  { kind: "custom", key: "commissionType" },
+  { kind: "custom", key: "commissionAmount" }
 ];
 
 type TransactionFilterContext = {

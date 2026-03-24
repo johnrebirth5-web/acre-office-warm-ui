@@ -296,11 +296,22 @@ test("getOfficeTransactionSearchLayoutSnapshot returns the default layout and le
       snapshot.selectedFields.map((field) => `${field.kind}:${field.key}`),
       [
         "system:search",
-        "builtin:transaction_status",
         "system:owner",
         "system:team",
+        "system:created_at",
         "builtin:transaction_type",
-        "system:created_at"
+        "builtin:transaction_status",
+        "custom:invoiceNumber",
+        "custom:buyerTenant",
+        "custom:buildingName",
+        "custom:additionalAddress",
+        "custom:unitNumber",
+        "custom:additionalCity",
+        "custom:additionalState",
+        "builtin:zip_code",
+        "custom:moveInDateClosingDate",
+        "custom:commissionType",
+        "custom:commissionAmount"
       ]
     );
     assert.equal(snapshot.filters.system.q, "Main Street");
