@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { canManageOfficeFields, canViewOfficeReports } from "@acre/auth";
 import {
+  DataTable,
+  DataTableBody,
+  DataTableHeader,
+  DataTableRow,
   EmptyState,
-  HorizontalScrollArea,
   ListPageFooter,
   ListPageSection,
   ListPageStatsGrid,
@@ -16,7 +19,6 @@ import {
 } from "@acre/ui";
 import {
   getOfficeTransactionReportsWorkspace,
-  officeTransactionReportColumns,
   type OfficeReportStatus
 } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -63,6 +65,17 @@ function buildExportHref(searchParams: Record<string, string | string[] | undefi
 
   return `/api/office/reports/export${query.size ? `?${query.toString()}` : ""}`;
 }
+
+const reportListColumnLabels = [
+  "Transaction",
+  "Created",
+  "Owner",
+  "Team leader",
+  "Type",
+  "Status",
+  "Purchased / Gross",
+  "Closing / Move-In"
+] as const;
 
 export default async function OfficeReportsPage(props: ReportsPageProps) {
   const context = await requireOfficeSession();
@@ -128,54 +141,59 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
       <ListPageTableSection
         className="office-list-card"
         footer={<ListPageFooter summary={`${workspace.totalCount} transaction rows`} />}
-        subtitle="The table and CSV export use the same column registry and filter predicate."
+        subtitle="The on-screen table highlights key operating columns, while CSV export keeps the full report schema."
         title="Filtered transactions"
       >
-        <HorizontalScrollArea>
-          <table className="office-table">
-            <thead className="office-table-header">
-              <tr className="office-table-row">
-                {officeTransactionReportColumns.map((column) => (
-                  <th key={column.key}>{column.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {workspace.rows.map((row) => (
-                <tr className="office-table-row" key={row.transactionNumber}>
-                  {officeTransactionReportColumns.map((column) => {
-                    if (column.key === "transactionNumber") {
-                      return (
-                        <td key={column.key}>
-                          <Link className="office-inline-action" href={row.href}>
-                            {row.transactionNumber}
-                          </Link>
-                        </td>
-                      );
-                    }
+        <DataTable className="office-list-table office-list-table-reports">
+          <DataTableHeader className="office-list-table-header office-list-table-header-reports">
+            {reportListColumnLabels.map((label) => (
+              <span key={label}>{label}</span>
+            ))}
+          </DataTableHeader>
 
-                    if (column.key === "status") {
-                      return (
-                        <td key={column.key}>
-                          <StatusBadge tone={getStatusTone(row.status)}>{row.status}</StatusBadge>
-                        </td>
-                      );
-                    }
+          <DataTableBody className="office-list-table-body">
+            {workspace.rows.map((row) => (
+              <DataTableRow
+                className="office-list-table-row office-list-table-row-reports"
+                key={row.transactionNumber}
+              >
+                <div className="office-list-table-main">
+                  <strong>
+                    <Link href={row.href}>{row.transactionNumber}</Link>
+                  </strong>
+                  <p>{row.address || "—"}</p>
+                  <div className="office-list-table-main-meta">
+                    <span>{row.invoiceNumber || "No invoice"}</span>
+                    <span>{row.department || "No department"}</span>
+                    <span>{row.representing || "No side"}</span>
+                  </div>
+                </div>
+                <span>{row.creationDate || "—"}</span>
+                <span className="office-list-table-wrap-cell">{row.owner || "—"}</span>
+                <span className="office-list-table-wrap-cell">{row.teamLeader || "—"}</span>
+                <span>{row.transactionType || "—"}</span>
+                <StatusBadge
+                  className="office-list-table-status"
+                  tone={getStatusTone(row.status)}
+                >
+                  {row.status}
+                </StatusBadge>
+                <div className="office-list-table-cell-stack office-report-table-amounts">
+                  <strong>{row.purchasedPrice || "—"}</strong>
+                  <p>{row.grossCommission || "—"}</p>
+                </div>
+                <span>{row.closingMoveInDate || "—"}</span>
+              </DataTableRow>
+            ))}
 
-                    return <td key={column.key}>{row[column.key] || "—"}</td>;
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </HorizontalScrollArea>
-
-        {workspace.rows.length === 0 ? (
-          <EmptyState
-            description="Try widening the filter set or clearing one of the exact-match fields."
-            title="No transactions matched the current filters"
-          />
-        ) : null}
+            {workspace.rows.length === 0 ? (
+              <EmptyState
+                description="Try widening the filter set or clearing one of the exact-match fields."
+                title="No transactions matched the current filters"
+              />
+            ) : null}
+          </DataTableBody>
+        </DataTable>
       </ListPageTableSection>
     </PageShell>
   );

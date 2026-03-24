@@ -44,8 +44,27 @@ function buildLayoutSelectionState(
   ) as Record<string, boolean>;
 }
 
-function readMultiSelectValues(select: HTMLSelectElement) {
-  return Array.from(select.selectedOptions).map((option) => option.value);
+function formatChecklistSummary(
+  options: OfficeTransactionReportsFilters["ownerOptions"],
+  selectedValues: string[]
+) {
+  if (!selectedValues.length) {
+    return "Any";
+  }
+
+  const selectedLabels = options
+    .filter((option) => selectedValues.includes(option.id))
+    .map((option) => option.label);
+
+  if (!selectedLabels.length) {
+    return "Any";
+  }
+
+  if (selectedLabels.length <= 2) {
+    return selectedLabels.join(" · ");
+  }
+
+  return `${selectedLabels.slice(0, 2).join(" · ")} +${selectedLabels.length - 2}`;
 }
 
 function ReportSearchLayoutModal(props: {
@@ -335,27 +354,46 @@ function ReportSearchNumericField(props: {
   );
 }
 
-function MultiSelectField(props: {
+function ChecklistMultiSelectField(props: {
   label: string;
   options: OfficeTransactionReportsFilters["ownerOptions"];
   value: string[];
   onChange: (nextValue: string[]) => void;
+  className?: string;
 }) {
   return (
-    <FilterField label={props.label}>
-      <SelectInput
-        multiple
-        onChange={(event) => props.onChange(readMultiSelectValues(event.target))}
-        size={Math.min(4, Math.max(props.options.length, 2))}
-        value={props.value}
-      >
-        {props.options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </SelectInput>
-    </FilterField>
+    <div className={`office-filter-field office-report-search-checklist-field${props.className ? ` ${props.className}` : ""}`}>
+      <span>{props.label}</span>
+      <p className="office-report-search-checklist-summary">
+        {formatChecklistSummary(props.options, props.value)}
+      </p>
+      <div className="office-report-search-checklist-options">
+        {props.options.map((option) => {
+          const isChecked = props.value.includes(option.id);
+
+          return (
+            <label
+              className={`office-report-search-checklist-option${isChecked ? " is-selected" : ""}`}
+              key={option.id}
+              title={option.label}
+            >
+              <input
+                checked={isChecked}
+                onChange={(event) => {
+                  const nextValue = event.target.checked
+                    ? [...props.value, option.id]
+                    : props.value.filter((value) => value !== option.id);
+
+                  props.onChange(nextValue);
+                }}
+                type="checkbox"
+              />
+              <span>{option.label}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -625,7 +663,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "transaction_status") {
       return (
-        <MultiSelectField
+        <ChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -660,7 +698,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "department") {
       return (
-        <MultiSelectField
+        <ChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -677,7 +715,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "team_leader") {
       return (
-        <MultiSelectField
+        <ChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -694,7 +732,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "transaction_type") {
       return (
-        <MultiSelectField
+        <ChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -711,7 +749,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "representing_side") {
       return (
-        <MultiSelectField
+        <ChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
@@ -728,7 +766,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "layout") {
       return (
-        <MultiSelectField
+        <ChecklistMultiSelectField
           key={field.key}
           label={field.label}
           onChange={(nextValue) =>
