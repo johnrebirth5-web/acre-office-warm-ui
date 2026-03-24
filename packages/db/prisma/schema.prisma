@@ -307,6 +307,19 @@ enum AgentPaymentMethodStatus {
   removed
 }
 
+enum AgentBankInformationTaxIdType {
+  ssn
+  ein
+}
+
+enum AgentBankInformationAccountType {
+  checking
+  savings
+  business_checking
+  business_savings
+  other
+}
+
 enum AgentOnboardingStatus {
   not_started
   in_progress
@@ -468,6 +481,7 @@ model Organization {
   earnestMoneyRecords               EarnestMoneyRecord[]
   agentRecurringChargeRules         AgentRecurringChargeRule[]
   agentPaymentMethods               AgentPaymentMethod[]
+  agentBankInformationRecords       AgentBankInformation[]
   transactionDocuments              TransactionDocument[]
   formTemplates                     FormTemplate[]
   transactionForms                  TransactionForm[]
@@ -537,6 +551,7 @@ model Office {
   earnestMoneyRecords               EarnestMoneyRecord[]
   agentRecurringChargeRules         AgentRecurringChargeRule[]
   agentPaymentMethods               AgentPaymentMethod[]
+  agentBankInformationRecords       AgentBankInformation[]
   transactionDocuments              TransactionDocument[]
   formTemplates                     FormTemplate[]
   transactionForms                  TransactionForm[]
@@ -628,6 +643,7 @@ model Membership {
   earnestMoneyRecordsCreated               EarnestMoneyRecord[]               @relation("EarnestMoneyCreatedBy")
   agentRecurringChargeRules                AgentRecurringChargeRule[]         @relation("AgentRecurringChargeRuleMembership")
   agentPaymentMethods                      AgentPaymentMethod[]
+  agentBankInformation                     AgentBankInformation?
   createdLibraryFolders                    LibraryFolder[]                    @relation("LibraryFolderCreatedBy")
   uploadedTransactionDocuments             TransactionDocument[]              @relation("TransactionDocumentUploadedBy")
   uploadedLibraryDocuments                 LibraryDocument[]                  @relation("LibraryDocumentUploadedBy")
@@ -1654,6 +1670,33 @@ model AgentPaymentMethod {
 
   @@index([organizationId, officeId])
   @@index([organizationId, membershipId, status])
+}
+
+model AgentBankInformation {
+  id                  String                            @id @default(cuid())
+  organizationId      String
+  officeId            String?
+  membershipId        String                            @unique
+  firstName           String?
+  lastName            String?
+  email               String?
+  address             String?
+  bankName            String?
+  accountNumber       String?
+  routingNumber       String?
+  phoneNumber         String?
+  taxIdType           AgentBankInformationTaxIdType?
+  taxIdValue          String?
+  dateOfBirth         DateTime?
+  accountType         AgentBankInformationAccountType?
+  createdAt           DateTime                          @default(now())
+  updatedAt           DateTime                          @updatedAt
+  organization        Organization                      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office              Office?                           @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership          Membership                        @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, officeId])
+  @@index([organizationId, membershipId])
 }
 
 model AgentProfile {

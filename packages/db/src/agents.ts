@@ -4,6 +4,8 @@ import {
   NotificationSeverity,
   NotificationType,
   Prisma,
+  type AgentBankInformationAccountType,
+  type AgentBankInformationTaxIdType,
   type AgentGoalPeriodType,
   type AgentOnboardingItemStatus,
   type AgentOnboardingStatus,
@@ -22,7 +24,8 @@ import {
   canAccessMembership,
   canViewFinancialsForMembership,
   redactCurrency,
-  resolveOfficeDataScope
+  resolveOfficeDataScope,
+  type OfficeDataScope
 } from "./access";
 import { prisma } from "./client";
 import {
@@ -89,6 +92,19 @@ const goalPeriodLabelMap: Record<AgentGoalPeriodType, string> = {
   monthly: "Monthly",
   quarterly: "Quarterly",
   annual: "Annual"
+};
+
+const agentBankInformationTaxIdTypeLabelMap: Record<AgentBankInformationTaxIdType, string> = {
+  ssn: "SSN",
+  ein: "EIN"
+};
+
+const agentBankInformationAccountTypeLabelMap: Record<AgentBankInformationAccountType, string> = {
+  checking: "Checking",
+  savings: "Savings",
+  business_checking: "Business checking",
+  business_savings: "Business savings",
+  other: "Other"
 };
 
 const defaultOnboardingItems = [
@@ -271,6 +287,24 @@ export type OfficeAgentOperationalAgendaItem = {
   href: string | null;
 };
 
+export type OfficeAgentBankInformationRecord = {
+  canView: boolean;
+  firstName: string;
+  lastName: string;
+  email: string;
+  address: string;
+  bankName: string;
+  accountNumber: string;
+  routingNumber: string;
+  phoneNumber: string;
+  taxIdType: string;
+  taxIdTypeLabel: string;
+  taxIdValue: string;
+  dateOfBirth: string;
+  accountType: string;
+  accountTypeLabel: string;
+};
+
 export type OfficeAgentProfileSnapshot = {
   financialsRestricted: boolean;
   profile: {
@@ -296,6 +330,7 @@ export type OfficeAgentProfileSnapshot = {
     avatarUrl: string;
     internalExtension: string;
   };
+  bankInformation: OfficeAgentBankInformationRecord;
   defaultCommission: OfficeMembershipCommissionEditorSnapshot;
   summary: {
     activeTaskCount: number;
@@ -370,6 +405,18 @@ export type SaveAgentProfileInput = {
   commissionEffectiveTo?: string;
   avatarUrl?: string;
   internalExtension?: string;
+  bankFirstName?: string;
+  bankLastName?: string;
+  bankEmail?: string;
+  bankAddress?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankRoutingNumber?: string;
+  bankPhoneNumber?: string;
+  bankTaxIdType?: string;
+  bankTaxIdValue?: string;
+  bankDateOfBirth?: string;
+  bankAccountType?: string;
 };
 
 export type CreateAgentTeamInput = {
@@ -524,6 +571,103 @@ function parseOptionalDecimal(value: string | undefined) {
   const normalized = value.replaceAll(",", "").replace(/\$/g, "").trim();
   const numeric = Number(normalized);
   return Number.isFinite(numeric) ? new Prisma.Decimal(numeric) : null;
+}
+
+function parseOptionalAgentBankInformationTaxIdType(value: string | undefined): AgentBankInformationTaxIdType | null {
+  return value === "ssn" || value === "ein" ? value : null;
+}
+
+function parseOptionalAgentBankInformationAccountType(value: string | undefined): AgentBankInformationAccountType | null {
+  return value === "checking" ||
+    value === "savings" ||
+    value === "business_checking" ||
+    value === "business_savings" ||
+    value === "other"
+    ? value
+    : null;
+}
+
+function canViewAgentBankInformation(scope: OfficeDataScope) {
+  return scope.viewerPermissions.includes("agents:manage");
+}
+
+type ComparableAgentBankInformationRecord = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  address: string;
+  bankName: string;
+  accountNumber: string;
+  routingNumber: string;
+  phoneNumber: string;
+  taxIdType: string;
+  taxIdValue: string;
+  dateOfBirth: string;
+  accountType: string;
+};
+
+function normalizeComparableAgentBankInformationRecord(record: {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  address?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  routingNumber?: string | null;
+  phoneNumber?: string | null;
+  taxIdType?: AgentBankInformationTaxIdType | null;
+  taxIdValue?: string | null;
+  dateOfBirth?: Date | null;
+  accountType?: AgentBankInformationAccountType | null;
+} | null | undefined): ComparableAgentBankInformationRecord {
+  return {
+    firstName: record?.firstName?.trim() ?? "",
+    lastName: record?.lastName?.trim() ?? "",
+    email: record?.email?.trim() ?? "",
+    address: record?.address?.trim() ?? "",
+    bankName: record?.bankName?.trim() ?? "",
+    accountNumber: record?.accountNumber?.trim() ?? "",
+    routingNumber: record?.routingNumber?.trim() ?? "",
+    phoneNumber: record?.phoneNumber?.trim() ?? "",
+    taxIdType: record?.taxIdType ?? "",
+    taxIdValue: record?.taxIdValue?.trim() ?? "",
+    dateOfBirth: record?.dateOfBirth ? record.dateOfBirth.toISOString().slice(0, 10) : "",
+    accountType: record?.accountType ?? ""
+  };
+}
+
+function buildAgentBankInformationSignature(record: {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  address?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  routingNumber?: string | null;
+  phoneNumber?: string | null;
+  taxIdType?: AgentBankInformationTaxIdType | null;
+  taxIdValue?: string | null;
+  dateOfBirth?: Date | null;
+  accountType?: AgentBankInformationAccountType | null;
+} | null | undefined) {
+  return JSON.stringify(normalizeComparableAgentBankInformationRecord(record));
+}
+
+function hasAnyAgentBankInformationValue(record: ComparableAgentBankInformationRecord) {
+  return Boolean(
+    record.firstName ||
+      record.lastName ||
+      record.email ||
+      record.address ||
+      record.bankName ||
+      record.accountNumber ||
+      record.routingNumber ||
+      record.phoneNumber ||
+      record.taxIdType ||
+      record.taxIdValue ||
+      record.dateOfBirth ||
+      record.accountType
+  );
 }
 
 function slugify(value: string) {
@@ -1301,7 +1445,8 @@ async function ensureMembershipExists(
     include: {
       user: true,
       office: true,
-      agentProfile: true
+      agentProfile: true,
+      agentBankInformation: true
     }
   });
 
@@ -2185,6 +2330,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       user: true,
       office: true,
       agentProfile: true,
+      agentBankInformation: true,
       teamMemberships: {
         where: {
           ...(scope.visibleTeamIds ? { teamId: { in: scope.visibleTeamIds } } : {})
@@ -2220,6 +2366,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
         user: true,
         office: true,
         agentProfile: true,
+        agentBankInformation: true,
         teamMemberships: {
           where: {
             ...(scope.visibleTeamIds ? { teamId: { in: scope.visibleTeamIds } } : {})
@@ -2241,6 +2388,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     })) ?? membership;
 
   const canViewFinancials = canViewFinancialsForMembership(scope, input.membershipId);
+  const canViewBankInformationForProfile = canViewAgentBankInformation(scope);
   const canParticipateInTeamHierarchy = isTeamHierarchyAssignableUserRole(membership.role);
 
   const [
@@ -2535,6 +2683,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     href: `/office/transactions/${task.transactionId}#tasks`
   }));
   const operationalAgenda = [...onboardingAgenda, ...taskAgenda].slice(0, 8);
+  const normalizedBankInformation = normalizeComparableAgentBankInformationRecord(membership.agentBankInformation);
 
   return {
     financialsRestricted: !canViewFinancials,
@@ -2568,6 +2717,29 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
       commissionPlanName: membership.agentProfile?.commissionPlanName ?? "",
       avatarUrl: membership.agentProfile?.avatarUrl ?? "",
       internalExtension: membership.agentProfile?.internalExtension ?? ""
+    },
+    bankInformation: {
+      canView: canViewBankInformationForProfile,
+      firstName: canViewBankInformationForProfile ? normalizedBankInformation.firstName : "",
+      lastName: canViewBankInformationForProfile ? normalizedBankInformation.lastName : "",
+      email: canViewBankInformationForProfile ? normalizedBankInformation.email : "",
+      address: canViewBankInformationForProfile ? normalizedBankInformation.address : "",
+      bankName: canViewBankInformationForProfile ? normalizedBankInformation.bankName : "",
+      accountNumber: canViewBankInformationForProfile ? normalizedBankInformation.accountNumber : "",
+      routingNumber: canViewBankInformationForProfile ? normalizedBankInformation.routingNumber : "",
+      phoneNumber: canViewBankInformationForProfile ? normalizedBankInformation.phoneNumber : "",
+      taxIdType: canViewBankInformationForProfile ? normalizedBankInformation.taxIdType : "",
+      taxIdTypeLabel:
+        canViewBankInformationForProfile && membership.agentBankInformation?.taxIdType
+          ? agentBankInformationTaxIdTypeLabelMap[membership.agentBankInformation.taxIdType]
+          : "",
+      taxIdValue: canViewBankInformationForProfile ? normalizedBankInformation.taxIdValue : "",
+      dateOfBirth: canViewBankInformationForProfile ? normalizedBankInformation.dateOfBirth : "",
+      accountType: canViewBankInformationForProfile ? normalizedBankInformation.accountType : "",
+      accountTypeLabel:
+        canViewBankInformationForProfile && membership.agentBankInformation?.accountType
+          ? agentBankInformationAccountTypeLabelMap[membership.agentBankInformation.accountType]
+          : ""
     },
     defaultCommission,
     summary: {
@@ -2670,6 +2842,11 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
         membershipId: input.membershipId
       }
     });
+    const previousBankInformation = await tx.agentBankInformation.findUnique({
+      where: {
+        membershipId: input.membershipId
+      }
+    });
 
     const previousDisplayName = previousProfile?.displayName?.trim() || `${membership.user.firstName} ${membership.user.lastName}`;
     const previousLicense = previousProfile?.licenseNumber?.trim() || "—";
@@ -2706,6 +2883,84 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
       }
     });
 
+    const shouldSaveBankInformation =
+      input.bankFirstName !== undefined ||
+      input.bankLastName !== undefined ||
+      input.bankEmail !== undefined ||
+      input.bankAddress !== undefined ||
+      input.bankName !== undefined ||
+      input.bankAccountNumber !== undefined ||
+      input.bankRoutingNumber !== undefined ||
+      input.bankPhoneNumber !== undefined ||
+      input.bankTaxIdType !== undefined ||
+      input.bankTaxIdValue !== undefined ||
+      input.bankDateOfBirth !== undefined ||
+      input.bankAccountType !== undefined;
+
+    if (shouldSaveBankInformation) {
+      const nextComparableBankInformation = normalizeComparableAgentBankInformationRecord({
+        firstName: parseOptionalText(input.bankFirstName),
+        lastName: parseOptionalText(input.bankLastName),
+        email: parseOptionalText(input.bankEmail),
+        address: parseOptionalText(input.bankAddress),
+        bankName: parseOptionalText(input.bankName),
+        accountNumber: parseOptionalText(input.bankAccountNumber),
+        routingNumber: parseOptionalText(input.bankRoutingNumber),
+        phoneNumber: parseOptionalText(input.bankPhoneNumber),
+        taxIdType: parseOptionalAgentBankInformationTaxIdType(input.bankTaxIdType),
+        taxIdValue: parseOptionalText(input.bankTaxIdValue),
+        dateOfBirth: parseOptionalDate(input.bankDateOfBirth),
+        accountType: parseOptionalAgentBankInformationAccountType(input.bankAccountType)
+      });
+
+      if (hasAnyAgentBankInformationValue(nextComparableBankInformation)) {
+        await tx.agentBankInformation.upsert({
+          where: {
+            membershipId: input.membershipId
+          },
+          update: {
+            organizationId: input.organizationId,
+            officeId: membership.officeId,
+            firstName: nextComparableBankInformation.firstName || null,
+            lastName: nextComparableBankInformation.lastName || null,
+            email: nextComparableBankInformation.email || null,
+            address: nextComparableBankInformation.address || null,
+            bankName: nextComparableBankInformation.bankName || null,
+            accountNumber: nextComparableBankInformation.accountNumber || null,
+            routingNumber: nextComparableBankInformation.routingNumber || null,
+            phoneNumber: nextComparableBankInformation.phoneNumber || null,
+            taxIdType: parseOptionalAgentBankInformationTaxIdType(nextComparableBankInformation.taxIdType),
+            taxIdValue: nextComparableBankInformation.taxIdValue || null,
+            dateOfBirth: parseOptionalDate(nextComparableBankInformation.dateOfBirth),
+            accountType: parseOptionalAgentBankInformationAccountType(nextComparableBankInformation.accountType)
+          },
+          create: {
+            organizationId: input.organizationId,
+            officeId: membership.officeId,
+            membershipId: input.membershipId,
+            firstName: nextComparableBankInformation.firstName || null,
+            lastName: nextComparableBankInformation.lastName || null,
+            email: nextComparableBankInformation.email || null,
+            address: nextComparableBankInformation.address || null,
+            bankName: nextComparableBankInformation.bankName || null,
+            accountNumber: nextComparableBankInformation.accountNumber || null,
+            routingNumber: nextComparableBankInformation.routingNumber || null,
+            phoneNumber: nextComparableBankInformation.phoneNumber || null,
+            taxIdType: parseOptionalAgentBankInformationTaxIdType(nextComparableBankInformation.taxIdType),
+            taxIdValue: nextComparableBankInformation.taxIdValue || null,
+            dateOfBirth: parseOptionalDate(nextComparableBankInformation.dateOfBirth),
+            accountType: parseOptionalAgentBankInformationAccountType(nextComparableBankInformation.accountType)
+          }
+        });
+      } else if (previousBankInformation) {
+        await tx.agentBankInformation.delete({
+          where: {
+            membershipId: input.membershipId
+          }
+        });
+      }
+    }
+
     const shouldSaveDefaultCommission =
       input.splitTemplateId !== undefined ||
       input.customAgentPercent !== undefined ||
@@ -2737,14 +2992,38 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
         membershipId: input.membershipId
       }
     });
+    const finalBankInformation = await tx.agentBankInformation.findUnique({
+      where: {
+        membershipId: input.membershipId
+      }
+    });
     const nextDisplayName = savedProfile.displayName?.trim() || `${membership.user.firstName} ${membership.user.lastName}`;
     const nextLicense = savedProfile.licenseNumber?.trim() || "—";
     const nextPlan = finalProfile?.commissionPlanName?.trim() || "—";
+    const previousBankInformationSignature = buildAgentBankInformationSignature(previousBankInformation);
+    const nextBankInformationSignature = buildAgentBankInformationSignature(finalBankInformation);
+    const previousBankInformationConfigured = hasAnyAgentBankInformationValue(
+      normalizeComparableAgentBankInformationRecord(previousBankInformation)
+    );
+    const nextBankInformationConfigured = hasAnyAgentBankInformationValue(
+      normalizeComparableAgentBankInformationRecord(finalBankInformation)
+    );
     const changes = [
       buildChange("Display name", previousDisplayName, nextDisplayName),
       buildChange("License number", previousLicense, nextLicense),
       buildChange("Default split", previousPlan, nextPlan)
     ].filter((change): change is ActivityLogChange => Boolean(change));
+    const details = [`Role: ${roleLabelMap[membership.role]}`];
+
+    if (previousBankInformationSignature !== nextBankInformationSignature) {
+      details.push(
+        nextBankInformationConfigured
+          ? previousBankInformationConfigured
+            ? "Bank information updated"
+            : "Bank information added"
+          : "Bank information cleared"
+      );
+    }
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -2756,7 +3035,7 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
         officeId: membership.officeId,
         objectLabel: nextDisplayName,
         contextHref: `/office/agents/${input.membershipId}`,
-        details: [`Role: ${roleLabelMap[membership.role]}`],
+        details,
         changes
       }
     });

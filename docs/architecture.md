@@ -344,6 +344,7 @@
 - `ListingShareLink`
 - `Client`
 - `AgentProfile`
+- `AgentBankInformation`
 - `Team`
 - `TeamMembership`
 - `AgentOnboardingItem`
@@ -527,7 +528,7 @@
    - rejected tasks needing action
    - offers awaiting review
    - offers expiring soon
-37. `/office/settings/users?view=operations` 读取 `AgentProfile / Team / TeamMembership / AgentOnboardingItem / AgentGoal / AgentOnboardingTemplateItem`，并聚合 transactions / tasks / billing / activity 数据形成 operational roster snapshot
+37. `/office/settings/users?view=operations` 读取 `AgentProfile / AgentBankInformation / Team / TeamMembership / AgentOnboardingItem / AgentGoal / AgentOnboardingTemplateItem`，并聚合 transactions / tasks / billing / activity 数据形成 operational roster snapshot
 36. roster snapshot 当前会额外提供：
    - membership status
    - onboarding progress label
@@ -923,12 +924,21 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
   - onboarding status
   - commission plan name
   - bio / notes
+- `AgentBankInformation` 承载 membership 级 payout / tax reporting intake：
+  - first / last name
+  - email / phone
+  - complete address
+  - bank name / account number / routing number
+  - tax reporting ID type + value
+  - date of birth
+  - account type
+  - 当前只在 `agents:manage` 查看者的 operational profile snapshot 中返回，避免把敏感字段下发给普通 profile readers
 - `Team / TeamMembership` 提供最小 team roster foundation
 - `AgentOnboardingItem` 作为独立 onboarding checklist，不和 transaction tasks 混成一套
 - `AgentOnboardingTemplateItem` 作为组织级/office 级默认 onboarding 模板条目，避免每个 agent 从零创建 checklist
 - `AgentGoal` 提供月 / 季 / 年目标，并尽量从 transactions / accounting 派生实际进度
 - `/office/settings/users?view=operations` 作为管理 roster，会集中展示 onboarding progress、goal progress、transaction summary、billing summary、membership status
-- `/office/settings/users/:membershipId` 聚合 profile basics、teams、onboarding、goals、recent transactions、billing summary、recent activity，并额外展示 operational agenda 和 template defaults
+- `/office/settings/users/:membershipId` 聚合 profile basics、bank information、teams、onboarding、goals、recent transactions、billing summary、recent activity，并额外展示 operational agenda 和 template defaults
 
 当前明确没做的部分：
 

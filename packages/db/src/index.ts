@@ -33,6 +33,7 @@ export const databaseModules = [
   "accounting_transaction_applications",
   "agent_recurring_charge_rules",
   "agent_payment_methods",
+  "agent_bank_information",
   "agent_profiles",
   "teams",
   "team_memberships",

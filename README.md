@@ -424,10 +424,11 @@
     - ledger-tracked optional posting
   - accounting 相关动作会写入 `AuditLog`
 - `Agent Management` 现在也已接入真实数据库，作为一个独立的 Office 模块：
-  - 路由：`/office/agents`
-  - 详情页：`/office/agents/[membershipId]`
+  - canonical roster 路由：`/office/settings/users?view=operations`
+  - canonical 详情页：`/office/settings/users/[membershipId]`
+  - legacy `/office/agents` 与 `/office/agents/[membershipId]` 会跳转到 `Users` workspace
   - 以现有 `User / Membership / Office` 为身份基础
-  - 通过 `AgentProfile / Team / TeamMembership / AgentOnboardingItem / AgentGoal` 扩展 agent 管理能力
+  - 通过 `AgentProfile / AgentBankInformation / Team / TeamMembership / AgentOnboardingItem / AgentGoal` 扩展 agent 管理能力
   - roster 页当前支持：
     - office 过滤
     - role 过滤
@@ -438,12 +439,16 @@
     - onboarding progress / goal progress / billing summary / workload 摘要
   - profile 页当前支持：
     - profile basics
+      - `Bank information` tab，用于收集 payout / year-end tax reporting 所需的银行与税务信息
     - team roster 管理
     - onboarding checklist create / edit / complete / reopen
     - apply standard onboarding template
     - goal create / edit
     - recent transactions
     - active tasks / operational agenda / billing summary / recent activity 聚合
+  - bank information 当前是 membership 级受限资料：
+    - 仅在可管理 agent 的 operational profile 详情中返回
+    - 当前会持久化 raw bank / tax reporting fields，和 billing 模块的 masked payment-method reference 不是同一套模型
   - onboarding 当前是 Back Office 可管理 checklist，不是 recruit/candidate pipeline
   - onboarding 现在支持组织级默认模板条目，能按 office 上下文一键应用到 agent
   - goals 当前支持：

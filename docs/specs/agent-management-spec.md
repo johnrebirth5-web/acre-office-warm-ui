@@ -23,6 +23,7 @@ Provide a real Back Office agent management workspace for office operations, cov
   - read-only roster/profile loading must remain side-effect free; legacy team normalization belongs to explicit admin writes or one-off backfills, not page opens
 - the unified user detail page currently acts as the operational profile hub with sections for:
   - profile basics
+    - includes a `Bank information` tab for payout + year-end tax reporting intake
   - default commission
   - office / role
   - teams
@@ -34,12 +35,17 @@ Provide a real Back Office agent management workspace for office operations, cov
   - recent activity items
 - current model foundation includes:
   - `AgentProfile`
+  - `AgentBankInformation`
   - `Team`
   - `TeamMembership`
   - `MembershipCommissionSetting`
   - `AgentOnboardingItem`
   - `AgentOnboardingTemplateItem`
   - `AgentGoal`
+- current bank information behavior:
+  - stores first/last name, contact details, complete address, bank name, account/routing number, tax reporting ID type + value, date of birth, and account type per membership
+  - is only returned on the operational profile snapshot to viewers who can manage agents
+  - writes stay on the same profile save path instead of introducing a second payout-settings surface
 - onboarding currently supports:
   - explicit checklist items
   - due dates

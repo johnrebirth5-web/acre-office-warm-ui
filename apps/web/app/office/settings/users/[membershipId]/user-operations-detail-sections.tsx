@@ -38,7 +38,21 @@ type ProfileState = {
   commissionEffectiveTo: string;
   avatarUrl: string;
   internalExtension: string;
+  bankFirstName: string;
+  bankLastName: string;
+  bankEmail: string;
+  bankAddress: string;
+  bankName: string;
+  bankAccountNumber: string;
+  bankRoutingNumber: string;
+  bankPhoneNumber: string;
+  bankTaxIdType: string;
+  bankTaxIdValue: string;
+  bankDateOfBirth: string;
+  bankAccountType: string;
 };
+
+type ProfileBasicsTab = "profile" | "bank";
 
 type OnboardingDraft = {
   title: string;
@@ -72,7 +86,19 @@ function buildProfileState(snapshot: OfficeAgentProfileSnapshot): ProfileState {
     commissionEffectiveFrom: snapshot.defaultCommission.effectiveFrom || new Date().toISOString().slice(0, 10),
     commissionEffectiveTo: snapshot.defaultCommission.effectiveTo,
     avatarUrl: snapshot.profile.avatarUrl,
-    internalExtension: snapshot.profile.internalExtension
+    internalExtension: snapshot.profile.internalExtension,
+    bankFirstName: snapshot.bankInformation.firstName,
+    bankLastName: snapshot.bankInformation.lastName,
+    bankEmail: snapshot.bankInformation.email,
+    bankAddress: snapshot.bankInformation.address,
+    bankName: snapshot.bankInformation.bankName,
+    bankAccountNumber: snapshot.bankInformation.accountNumber,
+    bankRoutingNumber: snapshot.bankInformation.routingNumber,
+    bankPhoneNumber: snapshot.bankInformation.phoneNumber,
+    bankTaxIdType: snapshot.bankInformation.taxIdType,
+    bankTaxIdValue: snapshot.bankInformation.taxIdValue,
+    bankDateOfBirth: snapshot.bankInformation.dateOfBirth,
+    bankAccountType: snapshot.bankInformation.accountType
   };
 }
 
@@ -127,6 +153,19 @@ function supportsTeamHierarchy(roleValue: string) {
   return roleValue === "agent" || roleValue === "team_lead";
 }
 
+const bankTaxIdTypeOptions = [
+  { value: "ssn", label: "SSN" },
+  { value: "ein", label: "EIN" }
+] as const;
+
+const bankAccountTypeOptions = [
+  { value: "checking", label: "Checking" },
+  { value: "savings", label: "Savings" },
+  { value: "business_checking", label: "Business checking" },
+  { value: "business_savings", label: "Business savings" },
+  { value: "other", label: "Other" }
+] as const;
+
 export function UserOperationsDetailSections({
   snapshot,
   canManageAgents,
@@ -135,7 +174,9 @@ export function UserOperationsDetailSections({
   canManageTeams
 }: UserOperationsDetailSectionsProps) {
   const router = useRouter();
+  const canViewBankInformation = snapshot.bankInformation.canView;
   const [profileState, setProfileState] = useState<ProfileState>(buildProfileState(snapshot));
+  const [activeProfileTab, setActiveProfileTab] = useState<ProfileBasicsTab>("profile");
   const [newOnboardingItem, setNewOnboardingItem] = useState<OnboardingDraft>(buildEmptyOnboardingDraft);
   const [newGoal, setNewGoal] = useState<GoalDraft>(buildEmptyGoalDraft);
   const [onboardingDrafts, setOnboardingDrafts] = useState<Record<string, OnboardingDraft>>(
@@ -347,75 +388,195 @@ export function UserOperationsDetailSections({
 
       <section id="profile">
         <SectionCard subtitle="Back-office profile, licensing, default commission split, and internal operating metadata for this membership." title="Profile basics">
-          <form className="office-detail-grid" onSubmit={handleProfileSave}>
-            <FormField className="office-detail-field" label="Display name">
-              <TextInput onChange={(event) => setProfileField("displayName", event.target.value)} readOnly={!canManageAgents} value={profileState.displayName} />
-            </FormField>
-            <FormField className="office-detail-field" label="License number">
-              <TextInput onChange={(event) => setProfileField("licenseNumber", event.target.value)} readOnly={!canManageAgents} value={profileState.licenseNumber} />
-            </FormField>
-            <FormField className="office-detail-field" label="License state">
-              <TextInput onChange={(event) => setProfileField("licenseState", event.target.value)} readOnly={!canManageAgents} value={profileState.licenseState} />
-            </FormField>
-            <FormField className="office-detail-field" label="Start date">
-              <TextInput onChange={(event) => setProfileField("startDate", event.target.value)} readOnly={!canManageAgents} type="date" value={profileState.startDate} />
-            </FormField>
-            <FormField className="office-detail-field" label="Default split template">
-              <SelectInput
-                disabled={!canManageAgents}
-                onChange={(event) =>
-                  setProfileState((current) => ({
-                    ...current,
-                    splitTemplateId: event.target.value,
-                    customAgentPercent: event.target.value ? "" : current.customAgentPercent
-                  }))
-                }
-                value={profileState.splitTemplateId}
-              >
-                <option value="">Custom split</option>
-                {snapshot.defaultCommission.templateOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label} ({option.agentPercent}/{option.companyPercent})
-                  </option>
-                ))}
-              </SelectInput>
-            </FormField>
-            <FormField className="office-detail-field" label="Custom agent split %">
-              <TextInput
-                onChange={(event) =>
-                  setProfileState((current) => ({
-                    ...current,
-                    customAgentPercent: event.target.value,
-                    splitTemplateId: event.target.value.trim() ? "" : current.splitTemplateId
-                  }))
-                }
-                placeholder="Example: 50"
-                readOnly={!canManageAgents}
-                value={profileState.customAgentPercent}
-              />
-            </FormField>
-            <FormField className="office-detail-field" label="Split effective from">
-              <TextInput
-                onChange={(event) => setProfileField("commissionEffectiveFrom", event.target.value)}
-                readOnly={!canManageAgents}
-                type="date"
-                value={profileState.commissionEffectiveFrom}
-              />
-            </FormField>
-            <FormField className="office-detail-field" label="Internal extension">
-              <TextInput onChange={(event) => setProfileField("internalExtension", event.target.value)} readOnly={!canManageAgents} value={profileState.internalExtension} />
-            </FormField>
-            <div className="office-detail-field">
-              <span>Current default split</span>
-              <strong>{snapshot.defaultCommission.settingLabel || snapshot.profile.commissionPlanName || "Not configured"}</strong>
-              <p>{snapshot.defaultCommission.sourceLabel || "Choose a template or enter a custom split."}</p>
-            </div>
-            <FormField className="office-detail-field office-detail-field-wide" label="Bio">
-              <TextareaInput onChange={(event) => setProfileField("bio", event.target.value)} readOnly={!canManageAgents} value={profileState.bio} />
-            </FormField>
-            <FormField className="office-detail-field office-detail-field-wide" label="Notes">
-              <TextareaInput onChange={(event) => setProfileField("notes", event.target.value)} readOnly={!canManageAgents} value={profileState.notes} />
-            </FormField>
+          <form className="office-profile-basics-form" onSubmit={handleProfileSave}>
+            {canViewBankInformation ? (
+              <div aria-label="Profile basics sections" className="office-profile-basics-tabs" role="tablist">
+                <button
+                  aria-selected={activeProfileTab === "profile"}
+                  className={activeProfileTab === "profile" ? "office-profile-basics-tab is-active" : "office-profile-basics-tab"}
+                  onClick={() => setActiveProfileTab("profile")}
+                  role="tab"
+                  type="button"
+                >
+                  Profile basics
+                </button>
+                <button
+                  aria-selected={activeProfileTab === "bank"}
+                  className={activeProfileTab === "bank" ? "office-profile-basics-tab is-active" : "office-profile-basics-tab"}
+                  onClick={() => setActiveProfileTab("bank")}
+                  role="tab"
+                  type="button"
+                >
+                  Bank information
+                </button>
+              </div>
+            ) : null}
+
+            {activeProfileTab === "profile" ? (
+              <div className="office-detail-grid office-profile-basics-panel" role="tabpanel">
+                <FormField className="office-detail-field" label="Display name">
+                  <TextInput onChange={(event) => setProfileField("displayName", event.target.value)} readOnly={!canManageAgents} value={profileState.displayName} />
+                </FormField>
+                <FormField className="office-detail-field" label="License number">
+                  <TextInput onChange={(event) => setProfileField("licenseNumber", event.target.value)} readOnly={!canManageAgents} value={profileState.licenseNumber} />
+                </FormField>
+                <FormField className="office-detail-field" label="License state">
+                  <TextInput onChange={(event) => setProfileField("licenseState", event.target.value)} readOnly={!canManageAgents} value={profileState.licenseState} />
+                </FormField>
+                <FormField className="office-detail-field" label="Start date">
+                  <TextInput onChange={(event) => setProfileField("startDate", event.target.value)} readOnly={!canManageAgents} type="date" value={profileState.startDate} />
+                </FormField>
+                <FormField className="office-detail-field" label="Default split template">
+                  <SelectInput
+                    disabled={!canManageAgents}
+                    onChange={(event) =>
+                      setProfileState((current) => ({
+                        ...current,
+                        splitTemplateId: event.target.value,
+                        customAgentPercent: event.target.value ? "" : current.customAgentPercent
+                      }))
+                    }
+                    value={profileState.splitTemplateId}
+                  >
+                    <option value="">Custom split</option>
+                    {snapshot.defaultCommission.templateOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label} ({option.agentPercent}/{option.companyPercent})
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+                <FormField className="office-detail-field" label="Custom agent split %">
+                  <TextInput
+                    onChange={(event) =>
+                      setProfileState((current) => ({
+                        ...current,
+                        customAgentPercent: event.target.value,
+                        splitTemplateId: event.target.value.trim() ? "" : current.splitTemplateId
+                      }))
+                    }
+                    placeholder="Example: 50"
+                    readOnly={!canManageAgents}
+                    value={profileState.customAgentPercent}
+                  />
+                </FormField>
+                <FormField className="office-detail-field" label="Split effective from">
+                  <TextInput
+                    onChange={(event) => setProfileField("commissionEffectiveFrom", event.target.value)}
+                    readOnly={!canManageAgents}
+                    type="date"
+                    value={profileState.commissionEffectiveFrom}
+                  />
+                </FormField>
+                <FormField className="office-detail-field" label="Internal extension">
+                  <TextInput onChange={(event) => setProfileField("internalExtension", event.target.value)} readOnly={!canManageAgents} value={profileState.internalExtension} />
+                </FormField>
+                <div className="office-detail-field">
+                  <span>Current default split</span>
+                  <strong>{snapshot.defaultCommission.settingLabel || snapshot.profile.commissionPlanName || "Not configured"}</strong>
+                  <p>{snapshot.defaultCommission.sourceLabel || "Choose a template or enter a custom split."}</p>
+                </div>
+                <FormField className="office-detail-field office-detail-field-wide" label="Bio">
+                  <TextareaInput onChange={(event) => setProfileField("bio", event.target.value)} readOnly={!canManageAgents} value={profileState.bio} />
+                </FormField>
+                <FormField className="office-detail-field office-detail-field-wide" label="Notes">
+                  <TextareaInput onChange={(event) => setProfileField("notes", event.target.value)} readOnly={!canManageAgents} value={profileState.notes} />
+                </FormField>
+              </div>
+            ) : null}
+
+            {canViewBankInformation && activeProfileTab === "bank" ? (
+              <div className="office-detail-grid office-profile-basics-panel" role="tabpanel">
+                <div className="office-detail-field office-detail-field-wide office-profile-basics-callout">
+                  <span>Restricted bank information</span>
+                  <strong>Use this tab to collect payout and year-end tax reporting details for the member.</strong>
+                  <p>These fields are only returned to agent managers in the current Back Office flow.</p>
+                </div>
+                <FormField
+                  className="office-detail-field"
+                  helper="Please enter company name if this is a business account."
+                  label="First Name"
+                >
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankFirstName", event.target.value)} readOnly={!canManageAgents} value={profileState.bankFirstName} />
+                </FormField>
+                <FormField className="office-detail-field" label="Last Name">
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankLastName", event.target.value)} readOnly={!canManageAgents} value={profileState.bankLastName} />
+                </FormField>
+                <FormField className="office-detail-field" label="Email">
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankEmail", event.target.value)} readOnly={!canManageAgents} type="email" value={profileState.bankEmail} />
+                </FormField>
+                <FormField className="office-detail-field" label="Phone Number">
+                  <TextInput autoComplete="off" inputMode="tel" onChange={(event) => setProfileField("bankPhoneNumber", event.target.value)} readOnly={!canManageAgents} type="tel" value={profileState.bankPhoneNumber} />
+                </FormField>
+                <FormField className="office-detail-field office-detail-field-wide" label="Address">
+                  <TextareaInput
+                    autoComplete="off"
+                    onChange={(event) => setProfileField("bankAddress", event.target.value)}
+                    placeholder="Complete address with unit number, city, state, and zip code"
+                    readOnly={!canManageAgents}
+                    rows={3}
+                    value={profileState.bankAddress}
+                  />
+                </FormField>
+                <FormField className="office-detail-field" label="Bank Name">
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankName", event.target.value)} readOnly={!canManageAgents} value={profileState.bankName} />
+                </FormField>
+                <FormField className="office-detail-field" label="Account Number">
+                  <TextInput
+                    autoComplete="off"
+                    inputMode="numeric"
+                    onChange={(event) => setProfileField("bankAccountNumber", event.target.value)}
+                    readOnly={!canManageAgents}
+                    value={profileState.bankAccountNumber}
+                  />
+                </FormField>
+                <FormField className="office-detail-field" label="Routing Number">
+                  <TextInput
+                    autoComplete="off"
+                    inputMode="numeric"
+                    onChange={(event) => setProfileField("bankRoutingNumber", event.target.value)}
+                    readOnly={!canManageAgents}
+                    value={profileState.bankRoutingNumber}
+                  />
+                </FormField>
+                <FormField
+                  className="office-detail-field"
+                  helper="Choose which you used for year-end tax reporting purposes."
+                  label="SSN or EIN"
+                >
+                  <SelectInput disabled={!canManageAgents} onChange={(event) => setProfileField("bankTaxIdType", event.target.value)} value={profileState.bankTaxIdType}>
+                    <option value="">Select tax ID type</option>
+                    {bankTaxIdTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+                <FormField className="office-detail-field" label="SSN or EIN value">
+                  <TextInput
+                    autoComplete="off"
+                    inputMode="numeric"
+                    onChange={(event) => setProfileField("bankTaxIdValue", event.target.value)}
+                    readOnly={!canManageAgents}
+                    value={profileState.bankTaxIdValue}
+                  />
+                </FormField>
+                <FormField className="office-detail-field" label="Date of Birth">
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankDateOfBirth", event.target.value)} readOnly={!canManageAgents} type="date" value={profileState.bankDateOfBirth} />
+                </FormField>
+                <FormField className="office-detail-field" label="Account type">
+                  <SelectInput disabled={!canManageAgents} onChange={(event) => setProfileField("bankAccountType", event.target.value)} value={profileState.bankAccountType}>
+                    <option value="">Select account type</option>
+                    {bankAccountTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+              </div>
+            ) : null}
             {canManageAgents ? (
               <div className="office-form-actions">
                 <Button disabled={pendingAction === "profile"} type="submit">

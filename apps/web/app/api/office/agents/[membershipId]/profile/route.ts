@@ -36,6 +36,18 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         commissionEffectiveTo?: string;
         avatarUrl?: string;
         internalExtension?: string;
+        bankFirstName?: string;
+        bankLastName?: string;
+        bankEmail?: string;
+        bankAddress?: string;
+        bankName?: string;
+        bankAccountNumber?: string;
+        bankRoutingNumber?: string;
+        bankPhoneNumber?: string;
+        bankTaxIdType?: string;
+        bankTaxIdValue?: string;
+        bankDateOfBirth?: string;
+        bankAccountType?: string;
       }
     | null;
 
@@ -57,7 +69,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       commissionEffectiveFrom: body?.commissionEffectiveFrom,
       commissionEffectiveTo: body?.commissionEffectiveTo,
       avatarUrl: body?.avatarUrl,
-      internalExtension: body?.internalExtension
+      internalExtension: body?.internalExtension,
+      bankFirstName: body?.bankFirstName,
+      bankLastName: body?.bankLastName,
+      bankEmail: body?.bankEmail,
+      bankAddress: body?.bankAddress,
+      bankName: body?.bankName,
+      bankAccountNumber: body?.bankAccountNumber,
+      bankRoutingNumber: body?.bankRoutingNumber,
+      bankPhoneNumber: body?.bankPhoneNumber,
+      bankTaxIdType: body?.bankTaxIdType,
+      bankTaxIdValue: body?.bankTaxIdValue,
+      bankDateOfBirth: body?.bankDateOfBirth,
+      bankAccountType: body?.bankAccountType
     });
 
     return NextResponse.json({ profile });
