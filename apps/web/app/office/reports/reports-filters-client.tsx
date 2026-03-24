@@ -33,6 +33,8 @@ type SearchLayoutResponse = {
   error?: string;
 };
 
+type ReportFilterOption = OfficeTransactionReportsFilters["ownerOptions"][number];
+
 function joinClassNames(...classNames: Array<string | undefined | false>) {
   return classNames.filter(Boolean).join(" ");
 }
@@ -157,6 +159,111 @@ function normalizeNumericStateForOperator(
 
 function getReportSearchFieldClassName(fieldKey: string, className?: string) {
   return joinClassNames("office-report-search-field", `office-report-search-field-${fieldKey}`, className);
+}
+
+function normalizeOptionSearchTerm(value: string) {
+  return value.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function scoreOptionMatch(label: string, rawQuery: string) {
+  const query = normalizeOptionSearchTerm(rawQuery);
+
+  if (!query) {
+    return 0;
+  }
+
+  const normalizedLabel = normalizeOptionSearchTerm(label);
+  const compactLabel = normalizedLabel.replace(/\s+/g, "");
+  const compactQuery = query.replace(/\s+/g, "");
+
+  if (normalizedLabel === query) {
+    return 4000;
+  }
+
+  if (normalizedLabel.startsWith(query)) {
+    return 3000 - normalizedLabel.length;
+  }
+
+  const words = normalizedLabel.split(" ");
+  const wordMatchIndex = words.findIndex((word) => word.startsWith(query));
+
+  if (wordMatchIndex !== -1) {
+    return 2000 - wordMatchIndex;
+  }
+
+  const compactMatchIndex = compactLabel.indexOf(compactQuery);
+
+  if (compactMatchIndex !== -1) {
+    return 1500 - compactMatchIndex;
+  }
+
+  const includesIndex = normalizedLabel.indexOf(query);
+
+  if (includesIndex !== -1) {
+    return 1000 - includesIndex;
+  }
+
+  return null;
+}
+
+function getFilteredReportOptions(options: ReportFilterOption[], query: string) {
+  return options
+    .map((option, index) => ({
+      option,
+      index,
+      score: scoreOptionMatch(option.label, query)
+    }))
+    .filter((entry) => entry.score !== null)
+    .sort((left, right) => {
+      if (left.score === right.score) {
+        return left.index - right.index;
+      }
+
+      return (right.score ?? 0) - (left.score ?? 0);
+    })
+    .map((entry) => entry.option);
+}
+
+function useReportSearchPicker(isOpen: boolean, onClose: () => void) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    });
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  return {
+    containerRef,
+    searchInputRef
+  };
 }
 
 const reportSearchFieldOrder: Partial<Record<OfficeTransactionReportSearchFieldKey, number>> = {
@@ -528,42 +635,34 @@ function ReportSearchNumericField(props: {
   );
 }
 
-function CompactChecklistMultiSelectField(props: {
+function SearchablePersonSelectField(props: {
   label: string;
-  options: OfficeTransactionReportsFilters["ownerOptions"];
-  value: string[];
-  onChange: (nextValue: string[]) => void;
+  options: ReportFilterOption[];
+  value: string;
+  emptyLabel: string;
+  searchPlaceholder: string;
+  onChange: (nextValue: string) => void;
   className?: string;
 }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const summary = formatChecklistSummary(props.options, props.value);
+  const [searchValue, setSearchValue] = useState("");
+  const { containerRef, searchInputRef } = useReportSearchPicker(isOpen, () => setIsOpen(false));
+  const selectedOption = props.options.find((option) => option.id === props.value) ?? null;
+  const filteredOptions = getFilteredReportOptions(props.options, searchValue);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
+  function openPicker() {
+    setSearchValue("");
+    setIsOpen(true);
+  }
+
+  function togglePicker() {
+    if (isOpen) {
+      setIsOpen(false);
+      return;
     }
 
-    function handlePointerDown(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
+    openPicker();
+  }
 
   return (
     <div
@@ -578,7 +677,129 @@ function CompactChecklistMultiSelectField(props: {
       <button
         aria-expanded={isOpen}
         className={`office-report-search-multiselect-trigger${isOpen ? " is-open" : ""}`}
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={togglePicker}
+        type="button"
+      >
+        <span
+          className="office-report-search-multiselect-trigger-value"
+          title={selectedOption?.label ?? props.emptyLabel}
+        >
+          {selectedOption?.label ?? props.emptyLabel}
+        </span>
+      </button>
+
+      {isOpen ? (
+        <div className="office-report-search-multiselect-popover">
+          <div className="office-report-search-multiselect-popover-head">
+            <strong>{selectedOption ? "1 selected" : "No selection"}</strong>
+            {props.value ? (
+              <button
+                onClick={() => {
+                  props.onChange("");
+                  setSearchValue("");
+                  setIsOpen(false);
+                }}
+                type="button"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <input
+            autoComplete="off"
+            className="office-input office-report-search-picker-input"
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder={props.searchPlaceholder}
+            ref={searchInputRef}
+            type="search"
+            value={searchValue}
+          />
+          <div className="office-report-search-multiselect-options" role="listbox">
+            <button
+              aria-selected={!props.value}
+              className={joinClassNames(
+                "office-autocomplete-option",
+                !props.value && "is-selected"
+              )}
+              onClick={() => {
+                props.onChange("");
+                setSearchValue("");
+                setIsOpen(false);
+              }}
+              type="button"
+            >
+              <span>{props.emptyLabel}</span>
+              {!props.value ? <strong>Selected</strong> : null}
+            </button>
+
+            {filteredOptions.length ? (
+              filteredOptions.map((option) => (
+                <button
+                  aria-selected={props.value === option.id}
+                  className={joinClassNames(
+                    "office-autocomplete-option",
+                    props.value === option.id && "is-selected"
+                  )}
+                  key={option.id}
+                  onClick={() => {
+                    props.onChange(option.id);
+                    setSearchValue("");
+                    setIsOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span>{option.label}</span>
+                  {props.value === option.id ? <strong>Selected</strong> : null}
+                </button>
+              ))
+            ) : (
+              <div className="office-autocomplete-empty">No matching people.</div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SearchableOptionMultiSelectField(props: {
+  label: string;
+  options: ReportFilterOption[];
+  value: string[];
+  onChange: (nextValue: string[]) => void;
+  searchPlaceholder: string;
+  className?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const summary = formatChecklistSummary(props.options, props.value);
+  const { containerRef, searchInputRef } = useReportSearchPicker(isOpen, () => setIsOpen(false));
+  const filteredOptions = getFilteredReportOptions(props.options, searchValue);
+
+  function togglePicker() {
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+
+    setSearchValue("");
+    setIsOpen(true);
+  }
+
+  return (
+    <div
+      className={joinClassNames(
+        "office-filter-field",
+        "office-report-search-multiselect-field",
+        props.className
+      )}
+      ref={containerRef}
+    >
+      <span>{props.label}</span>
+      <button
+        aria-expanded={isOpen}
+        className={`office-report-search-multiselect-trigger${isOpen ? " is-open" : ""}`}
+        onClick={togglePicker}
         type="button"
       >
         <span className="office-report-search-multiselect-trigger-value" title={summary}>
@@ -591,40 +812,86 @@ function CompactChecklistMultiSelectField(props: {
           <div className="office-report-search-multiselect-popover-head">
             <strong>{props.value.length ? `${props.value.length} selected` : "No filters applied"}</strong>
             {props.value.length ? (
-              <button onClick={() => props.onChange([])} type="button">
+              <button
+                onClick={() => {
+                  props.onChange([]);
+                  setSearchValue("");
+                }}
+                type="button"
+              >
                 Clear
               </button>
             ) : null}
           </div>
+          <input
+            autoComplete="off"
+            className="office-input office-report-search-picker-input"
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder={props.searchPlaceholder}
+            ref={searchInputRef}
+            type="search"
+            value={searchValue}
+          />
           <div className="office-report-search-multiselect-options">
-            {props.options.map((option) => {
-              const isChecked = props.value.includes(option.id);
+            {filteredOptions.length ? (
+              filteredOptions.map((option) => {
+                const isChecked = props.value.includes(option.id);
 
-              return (
-                <label
-                  className={`office-report-search-multiselect-option${isChecked ? " is-selected" : ""}`}
-                  key={option.id}
-                  title={option.label}
-                >
-                  <input
-                    checked={isChecked}
-                    onChange={(event) => {
-                      const nextValue = event.target.checked
-                        ? [...props.value, option.id]
-                        : props.value.filter((value) => value !== option.id);
+                return (
+                  <button
+                    aria-pressed={isChecked}
+                    className={joinClassNames(
+                      "office-autocomplete-option",
+                      isChecked && "is-selected"
+                    )}
+                    key={option.id}
+                    onClick={() => {
+                      const nextValue = isChecked
+                        ? props.value.filter((value) => value !== option.id)
+                        : [...props.value, option.id];
 
                       props.onChange(nextValue);
                     }}
-                    type="checkbox"
-                  />
-                  <span>{option.label}</span>
-                </label>
-              );
-            })}
+                    type="button"
+                  >
+                    <span>{option.label}</span>
+                    {isChecked ? <strong>Selected</strong> : null}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="office-autocomplete-empty">No matching people.</div>
+            )}
           </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+function SearchablePersonMultiSelectField(props: {
+  label: string;
+  options: ReportFilterOption[];
+  value: string[];
+  onChange: (nextValue: string[]) => void;
+  searchPlaceholder: string;
+  className?: string;
+}) {
+  return <SearchableOptionMultiSelectField {...props} />;
+}
+
+function CompactChecklistMultiSelectField(props: {
+  label: string;
+  options: ReportFilterOption[];
+  value: string[];
+  onChange: (nextValue: string[]) => void;
+  className?: string;
+}) {
+  return (
+    <SearchableOptionMultiSelectField
+      {...props}
+      searchPlaceholder={`Search ${props.label.toLowerCase()}`}
+    />
   );
 }
 
@@ -752,24 +1019,21 @@ export function ReportsFiltersClient({
   function renderSearchField(field: OfficeTransactionReportSearchFieldDescriptor) {
     if (field.key === "owner") {
       return (
-        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
-          <SelectInput
-            onChange={(event) =>
-              updateFilters((current) => ({
-                ...current,
-                ownerMembershipId: event.target.value
-              }))
-            }
-            value={searchFilters.ownerMembershipId}
-          >
-            <option value="">All owners</option>
-            {filters.ownerOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </SelectInput>
-        </FilterField>
+        <SearchablePersonSelectField
+          className={getReportSearchFieldClassName(field.key)}
+          emptyLabel="All owners"
+          key={field.key}
+          label={field.label}
+          onChange={(nextValue) =>
+            updateFilters((current) => ({
+              ...current,
+              ownerMembershipId: nextValue
+            }))
+          }
+          options={filters.ownerOptions}
+          searchPlaceholder="Search owner name"
+          value={searchFilters.ownerMembershipId}
+        />
       );
     }
 
@@ -962,7 +1226,7 @@ export function ReportsFiltersClient({
 
     if (field.key === "team_leader") {
       return (
-        <CompactChecklistMultiSelectField
+        <SearchablePersonMultiSelectField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
           label={field.label}
@@ -973,6 +1237,7 @@ export function ReportsFiltersClient({
             }))
           }
           options={filters.teamLeaderOptions}
+          searchPlaceholder="Search team leader"
           value={searchFilters.teamLeaderMembershipIds}
         />
       );

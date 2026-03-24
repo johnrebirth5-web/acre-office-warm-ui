@@ -166,6 +166,9 @@
   - members with `officeId = null` can still be assigned to the current office's teams from the user detail page
 - Team / user hierarchy hardening now keeps agent roster/profile reads on `agents:view:*` scope instead of the transaction default, lets `Settings > Teams` honor `teams:view` directly without accidental agent-scope narrowing, and blocks non-`agent / team_lead` accounts from entering team hierarchy through create-user, team-owner, team-membership, or incompatible role-change writes
 - User-access and accounting hardening now keeps admin-tier controls behind `owner / office_admin`, limits per-user permission overrides to `settings:manage`, removes sales-role access to `/office/accounting` while preserving `/office/billing`, and prevents transaction intake edits from silently overwriting finance columns without `transactions:finance`
+- reports search-layout refinement now treats people-name filters as search-first pickers instead of raw dropdowns:
+  - `Owner` and `Team Leader` use typed search and ranked matching so roster growth does not make filter selection unusable
+  - this behavior is now documented as the default rule for future `owner / agent / member / assignee` selectors across Office pages
 
 ## Next recommended work
 

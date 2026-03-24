@@ -477,6 +477,7 @@ Back Office 当前统一采用两种合法实现，不能再混用第三套页�
 - 过滤条、操作条、页头 action 区统一允许换行
 - 输入控件保持合理最小宽度
 - action buttons 保持 `flex: 0 0 auto`
+- 任何“人名 / 成员 / agent / owner / team leader / assignee”选择器都必须优先使用可搜索的 combobox / picker，不要再用原生长下拉；名单规模按几百人也要能快速定位
 - 复杂表单页继续优先使用共享 class：
   - `office-filter-bar`
   - `office-report-filters`

@@ -40,6 +40,7 @@ CSV export must reuse the same filter contract, column registry, and permission 
 - selected field layout is persisted by `organizationId + officeId`
 - hidden filter params in an old URL are still honored on first load for compatibility, but once the user reapplies filters the URL is rebuilt from only the currently visible fields
 - `Sort By` and `Direction` stay pinned in the workbench and are not part of the editable field layout
+- people-name filters such as `Owner` and `Team Leader` must use search-first pickers instead of raw dropdowns so the workbench still scales when offices have large rosters
 
 Default visible report fields:
 
