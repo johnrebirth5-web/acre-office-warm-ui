@@ -6808,6 +6808,46 @@ a {
   padding: 0;
 }
 
+.office-transaction-search-layout-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: start;
+}
+
+.office-transaction-search-layout-filters > * {
+  min-width: 0;
+}
+
+.office-transaction-search-layout-filters .bm-transactions-search,
+.office-transaction-search-layout-filters .office-filter-field,
+.office-transaction-search-layout-filters .office-transaction-search-date-field,
+.office-transaction-search-layout-filters .office-transaction-search-empty {
+  min-width: 0;
+}
+
+.office-transaction-search-layout-filters .office-filter-field > span {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.7em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.office-transaction-search-layout-filters .office-filter-field input,
+.office-transaction-search-layout-filters .office-filter-field select {
+  min-width: 0;
+}
+
+.office-transaction-search-layout-filters > .office-filter-actions,
+.office-transaction-search-layout-filters > .office-transaction-search-empty {
+  grid-column: 1 / -1;
+}
+
+.office-transaction-search-layout-filters > .office-filter-actions {
+  margin-left: 0;
+}
+
 .office-transaction-search-date-field {
   min-width: min(260px, 100%);
 }
@@ -6851,6 +6891,42 @@ a {
   color: var(--office-text-muted);
   font-size: 0.84rem;
   line-height: 1.45;
+}
+
+@media (max-width: 1600px) {
+  .office-transaction-search-layout-filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .office-transaction-search-layout-filters .office-transaction-search-date-field {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1180px) {
+  .office-transaction-search-layout-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .office-transaction-search-layout-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .office-transaction-search-layout-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .office-transaction-search-layout-filters .office-transaction-search-date-field {
+    grid-column: auto;
+  }
+
+  .office-transaction-search-date-range {
+    grid-template-columns: 1fr;
+  }
 }
 
 .office-data-table,
