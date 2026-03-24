@@ -390,6 +390,7 @@ export type {
   GetOfficeAgentPayoutStatementsWorkspaceInput,
   OfficeAgentPayoutStatementCandidateRow,
   OfficeAgentPayoutStatementDetail,
+  OfficeAgentPayoutStatementInvoiceOption,
   OfficeAgentPayoutStatementLineRecord,
   OfficeAgentPayoutStatementMemberOption,
   OfficeAgentPayoutStatementRecord,

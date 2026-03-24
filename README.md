@@ -298,9 +298,9 @@
   - 只有 `office_admin` 可见和可访问
   - 当前页面只做：
     - 选择某个 agent
-    - 选择任意时间段
-    - 按 `Calculated date / Closing date` 两种口径筛选 statement-ready commission rows
-    - 勾选本期要发的单子
+    - 加载该 agent 当前 eligible commission rows 上已有的 `invoiceNumber` 候选
+    - 按 invoice number 自由多选
+    - 预览这些 invoice 下的 commission rows，并允许取消个别行
     - 生成 durable payout statement snapshot
     - 下载 PDF
     - 在已保存 statement detail / PDF 中显示当前 member profile 上保存的 bank information
@@ -309,6 +309,7 @@
     - `AgentPayoutStatement`
     - `AgentPayoutStatementLine`
   - 工资单金额来自 `CommissionCalculation` 的 agent rows；生成后会把纳入本期的 row 从 `statement_ready` 推进到 `payable`
+  - 当前工资单生成依据是 transaction field 里的 `invoiceNumber`；这版还没有独立的 “invoice 已收款” 数据模型
   - statement detail / PDF 当前不再向 agent-facing payout output 暴露 `Office net`
   - 底层 accounting foundation 仍继续存在，基于 `LedgerAccount / AccountingTransaction / AccountingTransactionLineItem / GeneralLedgerEntry / EarnestMoneyRecord`
   - 已有最小 chart of accounts foundation

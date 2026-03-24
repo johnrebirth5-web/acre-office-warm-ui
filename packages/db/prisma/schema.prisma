@@ -411,6 +411,7 @@ enum CommissionCalculationStatus {
 enum AgentPayoutStatementPeriodBasis {
   calculated_at
   closing_date
+  invoice_number
 }
 
 enum TransactionFinanceFeeType {

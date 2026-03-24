@@ -187,7 +187,8 @@
   - `/office/accounting`
   - 只允许 `office_admin`
   - 基于 `CommissionCalculation` 的 agent rows 生成 durable `AgentPayoutStatement` / `AgentPayoutStatementLine`
-  - 支持按 `calculatedAt` 或 transaction `closingDate` 两种口径筛选
+  - 当前按 transaction `invoiceNumber` 选择 candidate invoices，再预览/微调这些 invoice 下的 eligible agent rows
+  - 新生成的 statement 会把 `periodBasis` 保存为 `invoice_number`，并仅把 `periodStart / periodEnd` 当作兼容展示字段
   - 生成后可直接下载 PDF
   - 当前 payment-method self-service 只允许当前 membership 操作自己的方法记录，不允许跨成员编辑
 - 当前已有最小本地登录 / 登出 / cookie session
@@ -487,7 +488,7 @@
 13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页
 11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`
 12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / rows / summary / totalCount / export columns`
-13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、候选 commission rows、saved statement history 和 selected statement detail；selected statement 的 durable line snapshot 额外固化 transaction creation date、invoice / owner / building / unit 和 payout commission rate
+13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、invoice options、所选 invoice 对应的 candidate commission rows、saved statement history 和 selected statement detail；selected statement 的 durable line snapshot 额外固化 transaction creation date、invoice / owner / building / unit 和 payout commission rate
 14. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
 15. `/api/office/accounting/transactions` 与 `/api/office/accounting/earnest-money` 负责最小 create / update 写入；posting 成功后同步生成 GL entries 和 `AuditLog`
 16. `/api/office/accounting/commissions/*` 与 `/api/office/transactions/:transactionId/commissions/calculate` 负责 commission plan、assignment、calculation、status、statement snapshot 的最小写入，并同步写入 `AuditLog`
@@ -769,9 +770,9 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 当前 `/office/accounting` 页面只负责：
 
 - 选择一个 agent
-- 选择 payout period
-- 按 `Calculated date / Closing date` 带出 `statement_ready` 的 agent commission rows
-- 勾选本期要发的 rows
+- 加载该 agent 当前 eligible rows 上已有的 `invoiceNumber` 候选
+- 按 invoice number 自由多选
+- 预览这些 invoice 下的 agent commission rows，并允许取消个别行
 - 生成 durable payout snapshot
 - 直接导出 PDF
 - 打开已保存 statement detail 时额外读取当前 membership 的 `AgentBankInformation`，在 generated metadata 与 line items 之间展示 payout / tax reporting bank info

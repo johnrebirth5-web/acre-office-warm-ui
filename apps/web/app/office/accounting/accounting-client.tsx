@@ -18,7 +18,6 @@ import {
   ListPageSection,
   ListPageStack,
   ListPageStatsGrid,
-  SelectInput,
   StatCard,
   StatusBadge,
   TextInput
@@ -30,9 +29,7 @@ type OfficeAccountingClientProps = {
 
 type FilterState = {
   membershipId: string;
-  periodStart: string;
-  periodEnd: string;
-  periodBasis: "calculated_at" | "closing_date";
+  invoiceNumbers: string[];
 };
 
 type AgentOption = OfficeAgentPayoutStatementsWorkspaceSnapshot["filters"]["memberOptions"][number];
@@ -55,16 +52,14 @@ function buildAccountingHref(
     searchParams.set("membershipId", filters.membershipId.trim());
   }
 
-  if (filters.periodStart.trim()) {
-    searchParams.set("periodStart", filters.periodStart.trim());
-  }
+  for (const invoiceNumber of filters.invoiceNumbers) {
+    const normalized = invoiceNumber.trim();
 
-  if (filters.periodEnd.trim()) {
-    searchParams.set("periodEnd", filters.periodEnd.trim());
-  }
+    if (!normalized) {
+      continue;
+    }
 
-  if (filters.periodBasis.trim()) {
-    searchParams.set("periodBasis", filters.periodBasis.trim());
+    searchParams.append("invoiceNumber", normalized);
   }
 
   if (filters.statementId?.trim()) {
@@ -179,17 +174,24 @@ function formatStatementCellValue(value: string | null | undefined) {
   return trimmed ? trimmed : "—";
 }
 
+function normalizeInvoiceSelection(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function buildInvoiceSelectionKey(values: string[]) {
+  return [...normalizeInvoiceSelection(values)].sort().join("|");
+}
+
 export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const agentListboxId = useId();
   const agentPickerRef = useRef<HTMLDivElement | null>(null);
   const candidateRowKey = snapshot.candidateRows.map((row) => row.id).join("|");
+  const snapshotInvoiceSelectionKey = buildInvoiceSelectionKey(snapshot.filters.invoiceNumbers);
   const [filterState, setFilterState] = useState<FilterState>({
     membershipId: snapshot.filters.membershipId,
-    periodStart: snapshot.filters.periodStart,
-    periodEnd: snapshot.filters.periodEnd,
-    periodBasis: snapshot.filters.periodBasis
+    invoiceNumbers: snapshot.filters.invoiceNumbers
   });
   const [agentSearchValue, setAgentSearchValue] = useState(
     snapshot.filters.memberOptions.find((option) => option.id === snapshot.filters.membershipId)?.label ?? ""
@@ -226,12 +228,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   useEffect(() => {
     setFilterState({
       membershipId: snapshot.filters.membershipId,
-      periodStart: snapshot.filters.periodStart,
-      periodEnd: snapshot.filters.periodEnd,
-      periodBasis: snapshot.filters.periodBasis
+      invoiceNumbers: snapshot.filters.invoiceNumbers
     });
     setIsPreviewLoading(false);
-  }, [snapshot.filters.membershipId, snapshot.filters.periodBasis, snapshot.filters.periodEnd, snapshot.filters.periodStart]);
+  }, [snapshot.filters.membershipId, snapshotInvoiceSelectionKey]);
 
   useEffect(() => {
     const nextLabel = snapshot.filters.memberOptions.find((option) => option.id === snapshot.filters.membershipId)?.label ?? "";
@@ -273,33 +273,64 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
   const selectedStatement = snapshot.selectedStatement;
   const selectedStatementBankFields = selectedStatement ? buildStatementBankFields(selectedStatement) : [];
-  const selectedSummary = selectedRows.reduce(
-    (summary, row) => ({
-      count: summary.count + 1,
-      gross: summary.gross + toNumber(row.grossCommissionValue),
-      fees: summary.fees + toNumber(row.feesValue),
-      payout: summary.payout + toNumber(row.statementAmountValue)
-    }),
-    {
-      count: 0,
-      gross: 0,
-      fees: 0,
-      payout: 0
-    }
-  );
   const resolvedFilterMembershipId = resolveTypedAgentMembershipId(
     snapshot.filters.memberOptions,
     filterState.membershipId,
     agentSearchValue
   );
+  const selectedInvoiceNumbers = normalizeInvoiceSelection(filterState.invoiceNumbers);
+  const currentInvoiceSelectionKey = buildInvoiceSelectionKey(selectedInvoiceNumbers);
+  const previewMatchesFilter =
+    snapshot.filters.membershipId === resolvedFilterMembershipId && snapshotInvoiceSelectionKey === currentInvoiceSelectionKey;
+  const selectedInvoiceLookup = new Set(selectedInvoiceNumbers);
+  const selectedInvoiceOptions = snapshot.filters.invoiceOptions.filter((option) => selectedInvoiceLookup.has(option.invoiceNumber));
   const hasFilterAgent = resolvedFilterMembershipId.trim().length > 0;
-  const hasFilterDateWindow = filterState.periodStart.trim().length > 0 && filterState.periodEnd.trim().length > 0;
-  const hasFilterDateOrder = !hasFilterDateWindow || filterState.periodStart.trim() <= filterState.periodEnd.trim();
-  const canLoadCandidates = hasFilterAgent && hasFilterDateWindow && hasFilterDateOrder;
-  const hasValidRange = filterState.membershipId.trim() && filterState.periodStart.trim() && filterState.periodEnd.trim();
+  const hasSelectedInvoices = selectedInvoiceNumbers.length > 0;
+  const hasLoadedAgent = snapshot.filters.membershipId.trim().length > 0;
+  const canGenerateStatement = hasFilterAgent && hasSelectedInvoices && (!previewMatchesFilter || selectedCalculationIds.length > 0);
+  const selectedSummary = previewMatchesFilter
+    ? selectedRows.reduce(
+        (summary, row) => ({
+          invoiceCount: selectedInvoiceNumbers.length,
+          rowCount: summary.rowCount + 1,
+          gross: summary.gross + toNumber(row.grossCommissionValue),
+          fees: summary.fees + toNumber(row.feesValue),
+          payout: summary.payout + toNumber(row.statementAmountValue),
+          isPreviewBased: true as const
+        }),
+        {
+          invoiceCount: selectedInvoiceNumbers.length,
+          rowCount: 0,
+          gross: 0,
+          fees: 0,
+          payout: 0,
+          isPreviewBased: true as const
+        }
+      )
+    : selectedInvoiceOptions.reduce(
+        (summary, option) => ({
+          invoiceCount: summary.invoiceCount + 1,
+          rowCount: summary.rowCount + option.rowCount,
+          gross: null,
+          fees: null,
+          payout: summary.payout + toNumber(option.totalStatementAmountValue),
+          isPreviewBased: false as const
+        }),
+        {
+          invoiceCount: 0,
+          rowCount: 0,
+          gross: null as number | null,
+          fees: null as number | null,
+          payout: 0,
+          isPreviewBased: false as const
+        }
+      );
 
   function selectAgentOption(option: AgentOption) {
-    setFilterState((current) => ({ ...current, membershipId: option.id }));
+    setFilterState({
+      membershipId: option.id,
+      invoiceNumbers: []
+    });
     setAgentSearchValue(option.label);
     setIsAgentPickerOpen(false);
     setHighlightedAgentIndex(0);
@@ -313,7 +344,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
       return {
         ...current,
-        membershipId: currentOption && currentOption.label === value ? current.membershipId : ""
+        membershipId: currentOption && currentOption.label === value ? current.membershipId : "",
+        invoiceNumbers: currentOption && currentOption.label === value ? current.invoiceNumbers : []
       };
     });
     setIsAgentPickerOpen(true);
@@ -328,30 +360,21 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     const resolvedMembershipId = resolvedFilterMembershipId;
 
     if (agentSearchValue.trim() && !resolvedMembershipId) {
-      setFilterError("Select an agent from the search results before loading candidates.");
+      setFilterError("Select an agent from the search results before loading invoices.");
       return;
     }
 
-    if (!filterState.periodStart.trim() || !filterState.periodEnd.trim()) {
-      setFilterError("Choose both a period start and period end date before loading candidates.");
-      return;
-    }
-
-    if (filterState.periodStart.trim() > filterState.periodEnd.trim()) {
-      setFilterError("Period start must be on or before period end.");
-      return;
-    }
-
-    setFilterState((current) => ({ ...current, membershipId: resolvedMembershipId }));
+    setFilterState({
+      membershipId: resolvedMembershipId,
+      invoiceNumbers: []
+    });
     setIsPreviewLoading(true);
 
     startTransition(() => {
       router.push(
         buildAccountingHref(pathname, {
           membershipId: resolvedMembershipId,
-          periodStart: filterState.periodStart,
-          periodEnd: filterState.periodEnd,
-          periodBasis: filterState.periodBasis
+          invoiceNumbers: []
         })
       );
       setIsPreviewLoading(false);
@@ -363,9 +386,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     setGenerationError("");
     setFilterState({
       membershipId: "",
-      periodStart: "",
-      periodEnd: "",
-      periodBasis: "calculated_at"
+      invoiceNumbers: []
     });
     setAgentSearchValue("");
     setIsAgentPickerOpen(false);
@@ -390,13 +411,74 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     });
   }
 
+  function toggleInvoiceOption(invoiceNumber: string, checked: boolean) {
+    setFilterState((current) => {
+      const next = new Set(current.invoiceNumbers);
+
+      if (checked) {
+        next.add(invoiceNumber);
+      } else {
+        next.delete(invoiceNumber);
+      }
+
+      return {
+        ...current,
+        invoiceNumbers: [...next]
+      };
+    });
+    setFilterError("");
+  }
+
+  function toggleAllInvoiceOptions(checked: boolean) {
+    setFilterState((current) => ({
+      ...current,
+      invoiceNumbers: checked ? snapshot.filters.invoiceOptions.map((option) => option.invoiceNumber) : []
+    }));
+    setFilterError("");
+  }
+
   function toggleAllCandidates(checked: boolean) {
     setSelectedCalculationIds(checked ? snapshot.candidateRows.map((row) => row.id) : []);
   }
 
+  function handlePreviewSelectedInvoices() {
+    if (!hasFilterAgent) {
+      setFilterError("Choose one agent before previewing invoice rows.");
+      return;
+    }
+
+    if (!hasSelectedInvoices) {
+      setFilterError("Select at least one invoice number before previewing rows.");
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    setFilterError("");
+
+    startTransition(() => {
+      router.push(
+        buildAccountingHref(pathname, {
+          membershipId: resolvedFilterMembershipId,
+          invoiceNumbers: selectedInvoiceNumbers
+        })
+      );
+      setIsPreviewLoading(false);
+    });
+  }
+
   async function handleGenerateStatement() {
-    if (!canLoadCandidates) {
-      setFilterError("Choose one agent and a valid statement date range before generating.");
+    if (!hasFilterAgent) {
+      setFilterError("Choose one agent before generating.");
+      return;
+    }
+
+    if (!hasSelectedInvoices) {
+      setFilterError("Select at least one invoice number before generating.");
+      return;
+    }
+
+    if (previewMatchesFilter && selectedCalculationIds.length === 0) {
+      setFilterError("Select at least one commission row before generating.");
       return;
     }
 
@@ -414,17 +496,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         },
         body: JSON.stringify({
           membershipId: resolvedMembershipId,
-          periodStart: filterState.periodStart,
-          periodEnd: filterState.periodEnd,
-          periodBasis: filterState.periodBasis,
-          commissionCalculationIds:
-            snapshot.filters.membershipId === resolvedMembershipId &&
-            snapshot.filters.periodStart === filterState.periodStart &&
-            snapshot.filters.periodEnd === filterState.periodEnd &&
-            snapshot.filters.periodBasis === filterState.periodBasis &&
-            selectedCalculationIds.length > 0
-              ? selectedCalculationIds
-              : []
+          invoiceNumbers: selectedInvoiceNumbers,
+          commissionCalculationIds: previewMatchesFilter && selectedCalculationIds.length > 0 ? selectedCalculationIds : []
         })
       });
       const body = (await response.json().catch(() => null)) as { error?: string; statementId?: string } | null;
@@ -437,9 +510,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         router.push(
           buildAccountingHref(pathname, {
             membershipId: resolvedMembershipId,
-            periodStart: filterState.periodStart,
-            periodEnd: filterState.periodEnd,
-            periodBasis: filterState.periodBasis,
+            invoiceNumbers: selectedInvoiceNumbers,
             statementId: body.statementId
           })
         );
@@ -455,7 +526,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   return (
     <ListPageStack className="office-accounting-statements-stack">
       <ListPageSection
-        subtitle="Pick an agent and date window, then generate the statement directly. Use preview only if you want to inspect or uncheck rows first."
+        subtitle="Choose an agent first, load the related invoice numbers, then preview or generate the statement from those invoices."
         title="Statement filters"
       >
         <ListPageFilters as="form" className="office-report-filters office-list-filters" onSubmit={handleApplyFilters}>
@@ -536,27 +607,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
             </div>
           </FilterField>
 
-          <FilterField label="Period start">
-            <TextInput onChange={(event) => setFilterState((current) => ({ ...current, periodStart: event.target.value }))} type="date" value={filterState.periodStart} />
-          </FilterField>
-
-          <FilterField label="Period end">
-            <TextInput onChange={(event) => setFilterState((current) => ({ ...current, periodEnd: event.target.value }))} type="date" value={filterState.periodEnd} />
-          </FilterField>
-
-          <FilterField label="Period basis">
-            <SelectInput onChange={(event) => setFilterState((current) => ({ ...current, periodBasis: event.target.value as FilterState["periodBasis"] }))} value={filterState.periodBasis}>
-              <option value="calculated_at">Calculated date</option>
-              <option value="closing_date">Closing date</option>
-            </SelectInput>
-          </FilterField>
-
           <div className="office-filter-actions">
-            <Button disabled={isGenerating || !canLoadCandidates} onClick={handleGenerateStatement} type="button">
-              {isGenerating ? "Generating..." : "Generate statement"}
-            </Button>
-            <Button disabled={isPreviewLoading || !canLoadCandidates} type="submit" variant="secondary">
-              {isPreviewLoading ? "Loading..." : "Preview candidates"}
+            <Button disabled={isPreviewLoading || !hasFilterAgent} type="submit" variant="secondary">
+              {isPreviewLoading ? "Loading..." : "Load invoices"}
             </Button>
             <Button onClick={resetFilters} type="button" variant="secondary">
               Reset
@@ -566,79 +619,57 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
         {filterError ? <p className="office-inline-error">{filterError}</p> : null}
 
-        {!filterError && !canLoadCandidates ? (
+        {!filterError && !hasFilterAgent ? (
           <p className="office-form-helper">
             {!hasFilterAgent && agentSearchValue.trim()
               ? "Pick one agent from the search results to continue."
-              : !hasFilterAgent
-                ? "Choose an agent to continue."
-                : !hasFilterDateWindow
-                  ? "Choose both period dates to load candidates."
-                  : "Period start must be on or before period end."}
-          </p>
-        ) : null}
-
-        {snapshot.filters.periodBasis === "closing_date" && snapshot.skippedMissingClosingDateCount > 0 ? (
-          <p className="office-form-helper">
-            {snapshot.skippedMissingClosingDateCount} eligible row(s) were skipped because the linked transaction does not have a closing date yet.
+              : "Choose an agent to load invoice candidates."}
           </p>
         ) : null}
       </ListPageSection>
 
       <ListPageSection
         actions={
-          snapshot.candidateRows.length > 0 ? (
+          hasLoadedAgent && snapshot.filters.invoiceOptions.length > 0 ? (
             <div className="office-section-actions">
-              <Button onClick={() => toggleAllCandidates(true)} size="sm" type="button" variant="secondary">
+              <Button onClick={() => toggleAllInvoiceOptions(true)} size="sm" type="button" variant="secondary">
                 Select all
               </Button>
-              <Button onClick={() => toggleAllCandidates(false)} size="sm" type="button" variant="ghost">
+              <Button onClick={() => toggleAllInvoiceOptions(false)} size="sm" type="button" variant="ghost">
                 Clear
+              </Button>
+              <Button disabled={isPreviewLoading || !hasSelectedInvoices} onClick={handlePreviewSelectedInvoices} size="sm" type="button" variant="secondary">
+                {isPreviewLoading ? "Loading..." : "Preview invoices"}
               </Button>
             </div>
           ) : null
         }
-        subtitle="Preview the unpaid agent commission rows that would be used for this statement if you want to review them before generating."
-        title="Candidate rows"
+        subtitle="Select one or more invoice numbers for the loaded agent. Each invoice contributes all matching eligible rows unless you later uncheck specific rows in preview."
+        title="Invoice selection"
       >
-        {hasValidRange ? (
-          snapshot.candidateRows.length > 0 ? (
+        {hasLoadedAgent ? (
+          snapshot.filters.invoiceOptions.length > 0 ? (
             <HorizontalScrollArea>
               <DataTable className="office-table">
                 <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
                   <span>Select</span>
-                  <span>Transaction</span>
-                  <span>Closing</span>
-                  <span>Calculated</span>
-                  <span>Gross</span>
-                  <span>Fees</span>
+                  <span>Invoice number</span>
+                  <span>Rows</span>
                   <span>Payout</span>
-                  <span>Status</span>
                 </DataTableHeader>
                 <DataTableBody>
-                  {snapshot.candidateRows.map((row) => (
-                    <DataTableRow className="office-table-row office-table-row-ledger" key={row.id}>
+                  {snapshot.filters.invoiceOptions.map((option) => (
+                    <DataTableRow className="office-table-row office-table-row-ledger" key={option.invoiceNumber}>
                       <CheckboxField label="">
                         <input
-                          checked={selectedIdLookup.has(row.id)}
-                          onChange={(event) => toggleCandidate(row.id, event.target.checked)}
+                          checked={selectedInvoiceLookup.has(option.invoiceNumber)}
+                          onChange={(event) => toggleInvoiceOption(option.invoiceNumber, event.target.checked)}
                           type="checkbox"
                         />
                       </CheckboxField>
-                      <div className="office-table-primary">
-                        <strong>
-                          <Link href={row.transactionHref}>{row.transactionLabel}</Link>
-                        </strong>
-                        <p>{row.propertyAddress}</p>
-                      </div>
-                      <span>{row.closingDate || "Missing"}</span>
-                      <span>{row.calculatedAt}</span>
-                      <span>{row.grossCommissionLabel}</span>
-                      <span>{row.feesLabel}</span>
-                      <span>{row.statementAmountLabel}</span>
-                      <span>
-                        <StatusBadge tone={getStatementStatusTone(row.status)}>{row.status}</StatusBadge>
-                      </span>
+                      <strong>{option.invoiceNumber}</strong>
+                      <span>{option.rowCount}</span>
+                      <span>{option.totalStatementAmountLabel}</span>
                     </DataTableRow>
                   ))}
                 </DataTableBody>
@@ -646,33 +677,132 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
             </HorizontalScrollArea>
           ) : (
             <EmptyState
-              description="No eligible unpaid agent commission rows matched the current agent and period settings."
-              title="No payout candidates"
+              description="This agent does not currently have any eligible commission rows with a saved invoice number."
+              title="No invoice candidates"
             />
           )
         ) : (
-          <EmptyState
-            description="Choose an agent plus a valid start and end date to load payout candidates."
-            title="Set a statement window"
-          />
+          <EmptyState description="Choose an agent and load their invoice candidates first." title="Load agent invoices" />
         )}
       </ListPageSection>
 
       <ListPageSection
         actions={
-          <Button disabled={isGenerating || selectedSummary.count === 0 || !hasValidRange} onClick={handleGenerateStatement} type="button">
+          snapshot.candidateRows.length > 0 && previewMatchesFilter ? (
+            <div className="office-section-actions">
+              <Button onClick={() => toggleAllCandidates(true)} size="sm" type="button" variant="secondary">
+                Select all rows
+              </Button>
+              <Button onClick={() => toggleAllCandidates(false)} size="sm" type="button" variant="ghost">
+                Clear rows
+              </Button>
+            </div>
+          ) : null
+        }
+        subtitle="Preview the commission rows under the currently selected invoice numbers. You can uncheck individual rows before generating."
+        title="Candidate rows"
+      >
+        {hasLoadedAgent ? (
+          hasSelectedInvoices ? (
+            previewMatchesFilter ? (
+              snapshot.candidateRows.length > 0 ? (
+                <HorizontalScrollArea>
+                  <DataTable className="office-table">
+                    <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                      <span>Select</span>
+                      <span>Invoice</span>
+                      <span>Transaction</span>
+                      <span>Closing</span>
+                      <span>Calculated</span>
+                      <span>Gross</span>
+                      <span>Fees</span>
+                      <span>Payout</span>
+                      <span>Status</span>
+                    </DataTableHeader>
+                    <DataTableBody>
+                      {snapshot.candidateRows.map((row) => (
+                        <DataTableRow className="office-table-row office-table-row-ledger" key={row.id}>
+                          <CheckboxField label="">
+                            <input
+                              checked={selectedIdLookup.has(row.id)}
+                              onChange={(event) => toggleCandidate(row.id, event.target.checked)}
+                              type="checkbox"
+                            />
+                          </CheckboxField>
+                          <span>{formatStatementCellValue(row.invoiceNumber)}</span>
+                          <div className="office-table-primary">
+                            <strong>
+                              <Link href={row.transactionHref}>{row.transactionLabel}</Link>
+                            </strong>
+                            <p>{row.propertyAddress}</p>
+                          </div>
+                          <span>{row.closingDate || "Missing"}</span>
+                          <span>{row.calculatedAt}</span>
+                          <span>{row.grossCommissionLabel}</span>
+                          <span>{row.feesLabel}</span>
+                          <span>{row.statementAmountLabel}</span>
+                          <span>
+                            <StatusBadge tone={getStatementStatusTone(row.status)}>{row.status}</StatusBadge>
+                          </span>
+                        </DataTableRow>
+                      ))}
+                    </DataTableBody>
+                  </DataTable>
+                </HorizontalScrollArea>
+              ) : (
+                <EmptyState
+                  description="No eligible rows are currently available under the selected invoice numbers."
+                  title="No payout candidates"
+                />
+              )
+            ) : (
+              <EmptyState
+                description="Preview the selected invoice numbers to load the exact commission rows before making row-level adjustments."
+                title="Preview selected invoices"
+              />
+            )
+          ) : (
+            <EmptyState description="Select one or more invoice numbers to load the matching commission rows." title="Choose invoices" />
+          )
+        ) : (
+          <EmptyState description="Load an agent's invoice candidates before previewing commission rows." title="Load agent invoices" />
+        )}
+      </ListPageSection>
+
+      <ListPageSection
+        actions={
+          <Button disabled={isGenerating || !canGenerateStatement} onClick={handleGenerateStatement} type="button">
             {isGenerating ? "Generating..." : "Generate statement"}
           </Button>
         }
-        subtitle="Selection is reset to all loaded candidates whenever the current filter window changes."
+        subtitle={
+          previewMatchesFilter
+            ? "Row-level changes apply only to the currently previewed invoice selection."
+            : "Direct generation is allowed from the selected invoice numbers even before preview, but row totals below are only final after preview."
+        }
         title="Selected payout summary"
       >
         <ListPageStatsGrid>
-          <StatCard hint="currently selected rows" label="Selected rows" value={selectedSummary.count} />
-          <StatCard hint="sum of selected gross commission" label="Gross commission" value={formatCurrency(selectedSummary.gross)} />
-          <StatCard hint="sum of selected fees" label="Fees" value={formatCurrency(selectedSummary.fees)} />
+          <StatCard hint="currently selected invoice numbers" label="Selected invoices" value={selectedSummary.invoiceCount} />
+          <StatCard hint="rows currently included by the selection" label="Selected rows" value={selectedSummary.rowCount} />
+          <StatCard
+            hint="sum of selected gross commission"
+            label="Gross commission"
+            value={selectedSummary.gross === null ? "Preview required" : formatCurrency(selectedSummary.gross)}
+          />
+          <StatCard
+            hint="sum of selected fees"
+            label="Fees"
+            value={selectedSummary.fees === null ? "Preview required" : formatCurrency(selectedSummary.fees)}
+          />
           <StatCard hint="sum of selected payout rows" label="Net payout" value={formatCurrency(selectedSummary.payout)} />
         </ListPageStatsGrid>
+
+        {!previewMatchesFilter && hasSelectedInvoices ? (
+          <p className="office-form-helper">
+            Preview the selected invoices if you want to inspect or uncheck individual rows before generating. Direct generate will include all eligible rows under those invoices.
+          </p>
+        ) : null}
 
         {generationError ? <p className="office-inline-error">{generationError}</p> : null}
       </ListPageSection>
@@ -706,9 +836,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                             router.push(
                               buildAccountingHref(pathname, {
                                 membershipId: snapshot.filters.membershipId,
-                                periodStart: snapshot.filters.periodStart,
-                                periodEnd: snapshot.filters.periodEnd,
-                                periodBasis: snapshot.filters.periodBasis,
+                                invoiceNumbers: snapshot.filters.invoiceNumbers,
                                 statementId: statement.id
                               })
                             );

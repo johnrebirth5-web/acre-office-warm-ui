@@ -18,8 +18,9 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - general ledger entries exist
 - EMD workflow exists
 - agent payout statements now exist:
-  - direct statement generation from eligible unpaid agent commission rows in the selected period
+  - direct statement generation from selected invoice numbers on eligible unpaid agent commission rows
   - optional candidate preview / uncheck flow before final generation
+  - invoice matching currently comes from the transaction `invoiceNumber` field; there is no separate invoice-receipt truth model yet
   - durable statement snapshot
   - PDF download
   - saved statement detail / PDF now also show the member's current `AgentBankInformation` block between generated metadata and line items

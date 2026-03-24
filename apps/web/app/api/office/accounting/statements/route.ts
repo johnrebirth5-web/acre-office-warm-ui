@@ -17,9 +17,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as
     | {
         membershipId?: string;
-        periodStart?: string;
-        periodEnd?: string;
-        periodBasis?: string;
+        invoiceNumbers?: string[];
         commissionCalculationIds?: string[];
       }
     | null;
@@ -29,9 +27,9 @@ export async function POST(request: NextRequest) {
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null,
       membershipId: typeof body?.membershipId === "string" ? body.membershipId : "",
-      periodStart: typeof body?.periodStart === "string" ? body.periodStart : "",
-      periodEnd: typeof body?.periodEnd === "string" ? body.periodEnd : "",
-      periodBasis: typeof body?.periodBasis === "string" ? body.periodBasis : "",
+      invoiceNumbers: Array.isArray(body?.invoiceNumbers)
+        ? body.invoiceNumbers.filter((value): value is string => typeof value === "string")
+        : [],
       commissionCalculationIds: Array.isArray(body?.commissionCalculationIds)
         ? body.commissionCalculationIds.filter((value): value is string => typeof value === "string")
         : [],

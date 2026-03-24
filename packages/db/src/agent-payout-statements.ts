@@ -57,12 +57,21 @@ export type OfficeAgentPayoutStatementMemberOption = {
   label: string;
 };
 
+export type OfficeAgentPayoutStatementInvoiceOption = {
+  invoiceNumber: string;
+  label: string;
+  rowCount: number;
+  totalStatementAmountLabel: string;
+  totalStatementAmountValue: string;
+};
+
 export type OfficeAgentPayoutStatementCandidateRow = {
   id: string;
   transactionId: string;
   transactionLabel: string;
   transactionHref: string;
   propertyAddress: string;
+  invoiceNumber: string;
   closingDate: string;
   calculatedAt: string;
   status: string;
@@ -177,22 +186,18 @@ export type GetOfficeAgentPayoutStatementsWorkspaceInput = {
   organizationId: string;
   officeId?: string | null;
   membershipId?: string;
-  periodStart?: string;
-  periodEnd?: string;
-  periodBasis?: string;
+  invoiceNumbers?: string[];
   statementId?: string;
 };
 
 export type OfficeAgentPayoutStatementsWorkspaceSnapshot = {
   filters: {
     membershipId: string;
-    periodStart: string;
-    periodEnd: string;
-    periodBasis: AgentPayoutStatementPeriodBasis;
+    invoiceNumbers: string[];
     memberOptions: OfficeAgentPayoutStatementMemberOption[];
+    invoiceOptions: OfficeAgentPayoutStatementInvoiceOption[];
   };
   candidateRows: OfficeAgentPayoutStatementCandidateRow[];
-  skippedMissingClosingDateCount: number;
   history: OfficeAgentPayoutStatementRecord[];
   selectedStatement: OfficeAgentPayoutStatementDetail | null;
 };
@@ -201,9 +206,7 @@ export type CreateAgentPayoutStatementInput = {
   organizationId: string;
   officeId?: string | null;
   membershipId: string;
-  periodStart: string;
-  periodEnd: string;
-  periodBasis: string;
+  invoiceNumbers: string[];
   commissionCalculationIds: string[];
   actorMembershipId: string;
 };
@@ -223,6 +226,12 @@ type StatementSummarySubject = {
   grossCommission: Prisma.Decimal | number | string;
   officeNet: Prisma.Decimal | number | string;
   agentNet: Prisma.Decimal | number | string;
+  statementAmount: Prisma.Decimal | number | string;
+};
+
+type StatementInvoiceOptionSubject = {
+  invoiceNumber: string | null | undefined;
+  calculatedAt: Date;
   statementAmount: Prisma.Decimal | number | string;
 };
 
@@ -330,6 +339,18 @@ function formatPercentLabel(value: Prisma.Decimal | number | string | null | und
 
 function formatPeriodLabel(periodStart: Date, periodEnd: Date) {
   return `${formatDateValue(periodStart)} to ${formatDateValue(periodEnd)}`;
+}
+
+function formatPeriodBasisLabel(periodBasis: AgentPayoutStatementPeriodBasis) {
+  if (periodBasis === "closing_date") {
+    return "Closing date";
+  }
+
+  if (periodBasis === "invoice_number") {
+    return "Invoice number";
+  }
+
+  return "Calculated date";
 }
 
 function formatMembershipLabel(membership: {
@@ -454,30 +475,20 @@ function buildPropertyAddress(transaction: {
     .join(" ");
 }
 
-function startOfDay(value: string | undefined) {
-  if (!value?.trim()) {
-    return null;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function endOfDay(value: string | undefined) {
-  if (!value?.trim()) {
-    return null;
-  }
-
-  const parsed = new Date(`${value}T23:59:59.999Z`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
 function decimalToString(value: Prisma.Decimal | number | string | null | undefined) {
   return new Prisma.Decimal(value ?? 0).toString();
 }
 
 export function normalizeAgentPayoutStatementPeriodBasis(value: string | undefined | null): AgentPayoutStatementPeriodBasis {
-  return value === "closing_date" ? "closing_date" : "calculated_at";
+  if (value === "closing_date") {
+    return "closing_date";
+  }
+
+  if (value === "invoice_number") {
+    return "invoice_number";
+  }
+
+  return "calculated_at";
 }
 
 export function getAgentPayoutStatementMatchDate(
@@ -485,6 +496,16 @@ export function getAgentPayoutStatementMatchDate(
   periodBasis: AgentPayoutStatementPeriodBasis
 ) {
   return periodBasis === "closing_date" ? record.closingDate : record.calculatedAt;
+}
+
+export function normalizeAgentPayoutStatementInvoiceNumber(value: string | null | undefined) {
+  return value?.trim() ?? "";
+}
+
+function normalizeAgentPayoutStatementInvoiceNumbers(values: string[] | undefined | null) {
+  return Array.from(
+    new Set((values ?? []).map((value) => normalizeAgentPayoutStatementInvoiceNumber(value)).filter(Boolean))
+  );
 }
 
 export function summarizeAgentPayoutStatementRows(rows: StatementSummarySubject[]) {
@@ -509,15 +530,92 @@ export function summarizeAgentPayoutStatementRows(rows: StatementSummarySubject[
   };
 }
 
+export function deriveAgentPayoutStatementPeriodRange(rows: Pick<StatementDateSubject, "calculatedAt">[]) {
+  if (!rows.length) {
+    return null;
+  }
+
+  let periodStart = rows[0].calculatedAt;
+  let periodEnd = rows[0].calculatedAt;
+
+  for (const row of rows) {
+    if (row.calculatedAt < periodStart) {
+      periodStart = row.calculatedAt;
+    }
+
+    if (row.calculatedAt > periodEnd) {
+      periodEnd = row.calculatedAt;
+    }
+  }
+
+  return {
+    periodStart,
+    periodEnd
+  };
+}
+
+export function buildAgentPayoutStatementInvoiceOptions(
+  rows: StatementInvoiceOptionSubject[]
+): OfficeAgentPayoutStatementInvoiceOption[] {
+  const invoiceGroups = new Map<
+    string,
+    {
+      invoiceNumber: string;
+      rowCount: number;
+      totalStatementAmount: Prisma.Decimal;
+      latestCalculatedAt: Date;
+    }
+  >();
+
+  for (const row of rows) {
+    const invoiceNumber = normalizeAgentPayoutStatementInvoiceNumber(row.invoiceNumber);
+
+    if (!invoiceNumber) {
+      continue;
+    }
+
+    const existing =
+      invoiceGroups.get(invoiceNumber) ??
+      {
+        invoiceNumber,
+        rowCount: 0,
+        totalStatementAmount: new Prisma.Decimal(0),
+        latestCalculatedAt: row.calculatedAt
+      };
+
+    existing.rowCount += 1;
+    existing.totalStatementAmount = existing.totalStatementAmount.plus(new Prisma.Decimal(row.statementAmount ?? 0));
+
+    if (row.calculatedAt > existing.latestCalculatedAt) {
+      existing.latestCalculatedAt = row.calculatedAt;
+    }
+
+    invoiceGroups.set(invoiceNumber, existing);
+  }
+
+  return Array.from(invoiceGroups.values())
+    .sort((left, right) => {
+      if (left.latestCalculatedAt.getTime() !== right.latestCalculatedAt.getTime()) {
+        return right.latestCalculatedAt.getTime() - left.latestCalculatedAt.getTime();
+      }
+
+      return left.invoiceNumber.localeCompare(right.invoiceNumber);
+    })
+    .map((group) => ({
+      invoiceNumber: group.invoiceNumber,
+      label: `${group.invoiceNumber} · ${group.rowCount} row(s) · ${formatCurrency(group.totalStatementAmount)}`,
+      rowCount: group.rowCount,
+      totalStatementAmountLabel: formatCurrency(group.totalStatementAmount),
+      totalStatementAmountValue: decimalToString(group.totalStatementAmount)
+    }));
+}
+
 function buildAgentPayoutStatementWhere(input: {
   organizationId: string;
   officeId?: string | null;
   membershipId: string;
-  periodStart: Date;
-  periodEnd: Date;
-  periodBasis: AgentPayoutStatementPeriodBasis;
 }) {
-  const baseWhere: Prisma.CommissionCalculationWhereInput = {
+  return {
     organizationId: input.organizationId,
     ...(buildOfficeOrGlobalCommissionWhere(input.officeId) ?? {}),
     membershipId: input.membershipId,
@@ -525,27 +623,49 @@ function buildAgentPayoutStatementWhere(input: {
     status: {
       in: selectableAgentPayoutCalculationStatuses
     }
-  };
+  } satisfies Prisma.CommissionCalculationWhereInput;
+}
 
-  if (input.periodBasis === "closing_date") {
-    return {
-      ...baseWhere,
-      transaction: {
-        closingDate: {
-          gte: input.periodStart,
-          lte: input.periodEnd
-        }
-      }
-    } satisfies Prisma.CommissionCalculationWhereInput;
+function getAgentPayoutStatementInvoiceNumber(calculation: { transaction: { additionalFields: Prisma.JsonValue | null } }) {
+  const additionalFields = normalizeAdditionalFields(calculation.transaction.additionalFields);
+  return normalizeAgentPayoutStatementInvoiceNumber(additionalFields.invoiceNumber);
+}
+
+function filterAgentPayoutStatementCalculationsByInvoiceNumbers<
+  TCalculation extends {
+    transaction: {
+      additionalFields: Prisma.JsonValue | null;
+    };
+  }
+>(calculations: TCalculation[], invoiceNumbers: string[]) {
+  const invoiceNumberSet = new Set(normalizeAgentPayoutStatementInvoiceNumbers(invoiceNumbers));
+
+  if (!invoiceNumberSet.size) {
+    return [] as TCalculation[];
   }
 
-  return {
-    ...baseWhere,
-    calculatedAt: {
-      gte: input.periodStart,
-      lte: input.periodEnd
-    }
-  } satisfies Prisma.CommissionCalculationWhereInput;
+  return calculations.filter((calculation) =>
+    invoiceNumberSet.has(getAgentPayoutStatementInvoiceNumber(calculation))
+  );
+}
+
+function buildAgentPayoutStatementWorkspaceHref(input: {
+  membershipId: string;
+  invoiceNumbers: string[];
+  statementId?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("membershipId", input.membershipId);
+
+  for (const invoiceNumber of input.invoiceNumbers) {
+    searchParams.append("invoiceNumber", invoiceNumber);
+  }
+
+  if (input.statementId?.trim()) {
+    searchParams.set("statementId", input.statementId.trim());
+  }
+
+  return `/office/accounting?${searchParams.toString()}`;
 }
 
 function mapCandidateRow(calculation: StatementCandidateCalculation): OfficeAgentPayoutStatementCandidateRow {
@@ -555,6 +675,7 @@ function mapCandidateRow(calculation: StatementCandidateCalculation): OfficeAgen
     transactionLabel: buildTransactionLabel(calculation.transaction),
     transactionHref: `/office/transactions/${calculation.transactionId}`,
     propertyAddress: buildPropertyAddress(calculation.transaction),
+    invoiceNumber: getAgentPayoutStatementInvoiceNumber(calculation),
     closingDate: formatDateValue(calculation.transaction.closingDate),
     calculatedAt: formatDateValue(calculation.calculatedAt),
     status: commissionCalculationStatusLabelMap[calculation.status],
@@ -613,7 +734,7 @@ function mapStatementRecord(record: StatementRecordWithRelations): OfficeAgentPa
     periodEnd: formatDateValue(record.periodEnd),
     periodLabel: formatPeriodLabel(record.periodStart, record.periodEnd),
     periodBasis: record.periodBasis,
-    periodBasisLabel: record.periodBasis === "closing_date" ? "Closing date" : "Calculated date",
+    periodBasisLabel: formatPeriodBasisLabel(record.periodBasis),
     generatedAt: record.generatedAt.toISOString(),
     generatedAtLabel: formatDateTimeValue(record.generatedAt),
     generatedByLabel: record.generatedByMembership ? formatMembershipLabel(record.generatedByMembership) : "System",
@@ -634,7 +755,7 @@ function mapStatementDetail(record: StatementRecordWithRelations): OfficeAgentPa
     periodEnd: formatDateValue(record.periodEnd),
     periodLabel: formatPeriodLabel(record.periodStart, record.periodEnd),
     periodBasis: record.periodBasis,
-    periodBasisLabel: record.periodBasis === "closing_date" ? "Closing date" : "Calculated date",
+    periodBasisLabel: formatPeriodBasisLabel(record.periodBasis),
     generatedAt: record.generatedAt.toISOString(),
     generatedAtLabel: formatDateTimeValue(record.generatedAt),
     generatedByLabel: record.generatedByMembership ? formatMembershipLabel(record.generatedByMembership) : "System",
@@ -718,12 +839,10 @@ export async function getOfficeAgentPayoutStatementDetail(
 export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
   input: GetOfficeAgentPayoutStatementsWorkspaceInput
 ): Promise<OfficeAgentPayoutStatementsWorkspaceSnapshot> {
-  const periodBasis = normalizeAgentPayoutStatementPeriodBasis(input.periodBasis);
-  const periodStart = startOfDay(input.periodStart);
-  const periodEnd = endOfDay(input.periodEnd);
   const membershipId = input.membershipId?.trim() ?? "";
+  const requestedInvoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(input.invoiceNumbers);
 
-  const [memberOptions, history, selectedStatement, candidateRows, skippedMissingClosingDateCount] = await Promise.all([
+  const [memberOptions, history, selectedStatement, eligibleCalculations] = await Promise.all([
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
@@ -774,54 +893,46 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
           statementId: input.statementId
         })
       : Promise.resolve(null),
-    membershipId && periodStart && periodEnd
+    membershipId
       ? prisma.commissionCalculation.findMany({
           where: buildAgentPayoutStatementWhere({
             organizationId: input.organizationId,
             officeId: input.officeId,
-            membershipId,
-            periodStart,
-            periodEnd,
-            periodBasis
+            membershipId
           }),
           include: {
             transaction: true
           },
-          orderBy: [{ calculatedAt: "desc" }, { transaction: { closingDate: "desc" } }],
-          take: 200
+          orderBy: [{ calculatedAt: "desc" }, { transaction: { closingDate: "desc" } }]
         })
-      : Promise.resolve([]),
-    membershipId && periodBasis === "closing_date"
-      ? prisma.commissionCalculation.count({
-          where: {
-            organizationId: input.organizationId,
-            ...(buildOfficeOrGlobalCommissionWhere(input.officeId) ?? {}),
-            membershipId,
-            recipientType: "agent",
-            status: {
-              in: selectableAgentPayoutCalculationStatuses
-            },
-            transaction: {
-              closingDate: null
-            }
-          }
-        })
-      : Promise.resolve(0)
+      : Promise.resolve([])
   ]);
+
+  const invoiceOptions = buildAgentPayoutStatementInvoiceOptions(
+    eligibleCalculations.map((calculation) => ({
+      invoiceNumber: getAgentPayoutStatementInvoiceNumber(calculation),
+      calculatedAt: calculation.calculatedAt,
+      statementAmount: calculation.statementAmount
+    }))
+  );
+  const availableInvoiceNumberSet = new Set(invoiceOptions.map((option) => option.invoiceNumber));
+  const invoiceNumbers = requestedInvoiceNumbers.filter((invoiceNumber) => availableInvoiceNumberSet.has(invoiceNumber));
+  const candidateRows =
+    membershipId && invoiceNumbers.length > 0
+      ? filterAgentPayoutStatementCalculationsByInvoiceNumbers(eligibleCalculations, invoiceNumbers)
+      : [];
 
   return {
     filters: {
       membershipId,
-      periodStart: input.periodStart?.trim() ?? "",
-      periodEnd: input.periodEnd?.trim() ?? "",
-      periodBasis,
+      invoiceNumbers,
       memberOptions: memberOptions.map((membership) => ({
         id: membership.id,
         label: formatMembershipLabel(membership)
-      }))
+      })),
+      invoiceOptions
     },
     candidateRows: candidateRows.map(mapCandidateRow),
-    skippedMissingClosingDateCount,
     history: history.map(mapStatementRecord),
     selectedStatement
   };
@@ -829,21 +940,15 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
 
 export async function createAgentPayoutStatement(input: CreateAgentPayoutStatementInput) {
   const membershipId = input.membershipId.trim();
+  const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(input.invoiceNumbers);
   const commissionCalculationIds = [...new Set(input.commissionCalculationIds.map((value) => value.trim()).filter(Boolean))];
-  const periodBasis = normalizeAgentPayoutStatementPeriodBasis(input.periodBasis);
-  const periodStart = startOfDay(input.periodStart);
-  const periodEnd = endOfDay(input.periodEnd);
 
   if (!membershipId) {
     throw new Error("Agent is required.");
   }
 
-  if (!periodStart || !periodEnd) {
-    throw new Error("A valid statement date range is required.");
-  }
-
-  if (periodStart > periodEnd) {
-    throw new Error("Statement start date must be on or before the end date.");
+  if (!invoiceNumbers.length) {
+    throw new Error("Select at least one invoice number.");
   }
 
   return prisma.$transaction(async (tx) => {
@@ -868,25 +973,12 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
       throw new Error("Agent not found for statement generation.");
     }
 
-    const eligibleWhere = buildAgentPayoutStatementWhere({
-      organizationId: input.organizationId,
-      officeId: input.officeId,
-      membershipId,
-      periodStart,
-      periodEnd,
-      periodBasis
-    });
-
-    const calculations = await tx.commissionCalculation.findMany({
-      where:
-        commissionCalculationIds.length > 0
-          ? {
-              ...eligibleWhere,
-              id: {
-                in: commissionCalculationIds
-              }
-            }
-          : eligibleWhere,
+    const eligibleCalculations = await tx.commissionCalculation.findMany({
+      where: buildAgentPayoutStatementWhere({
+        organizationId: input.organizationId,
+        officeId: input.officeId,
+        membershipId
+      }),
       include: {
         transaction: {
           include: {
@@ -902,23 +994,50 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
       orderBy: [{ calculatedAt: "desc" }, { transaction: { closingDate: "desc" } }]
     });
 
+    const invoiceScopedCalculations = filterAgentPayoutStatementCalculationsByInvoiceNumbers(
+      eligibleCalculations,
+      invoiceNumbers
+    );
+
+    if (invoiceScopedCalculations.length === 0) {
+      throw new Error("No eligible commission rows were found for the selected invoice numbers.");
+    }
+
+    const calculations =
+      commissionCalculationIds.length > 0
+        ? invoiceScopedCalculations.filter((calculation) => commissionCalculationIds.includes(calculation.id))
+        : invoiceScopedCalculations;
+
     if (commissionCalculationIds.length > 0 && calculations.length !== commissionCalculationIds.length) {
-      throw new Error("Some selected commission rows are no longer eligible for this statement.");
+      throw new Error("Some selected commission rows are no longer eligible for the selected invoices.");
     }
 
     if (calculations.length === 0) {
-      throw new Error("No eligible commission rows were found for this agent and period.");
+      throw new Error("Select at least one commission row for this statement.");
     }
 
+    const periodRange = deriveAgentPayoutStatementPeriodRange(
+      calculations.map((calculation) => ({
+        calculatedAt: calculation.calculatedAt
+      }))
+    );
+
+    if (!periodRange) {
+      throw new Error("No eligible commission rows were found for this statement.");
+    }
+
+    const includedInvoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+      calculations.map((calculation) => getAgentPayoutStatementInvoiceNumber(calculation))
+    );
     const totals = summarizeAgentPayoutStatementRows(calculations);
     const statement = await tx.agentPayoutStatement.create({
       data: {
         organizationId: input.organizationId,
         officeId: input.officeId ?? membership.officeId,
         membershipId: membership.id,
-        periodStart,
-        periodEnd,
-        periodBasis,
+        periodStart: periodRange.periodStart,
+        periodEnd: periodRange.periodEnd,
+        periodBasis: "invoice_number",
         generatedByMembershipId: input.actorMembershipId,
         lineItemCount: totals.lineItemCount,
         totalStatementAmount: totals.totalStatementAmount,
@@ -955,11 +1074,16 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
       payload: {
         officeId: input.officeId ?? membership.officeId ?? null,
         objectLabel: `${formatMembershipLabel(membership)} payout statement`,
-        contextHref: `/office/accounting?membershipId=${membership.id}&periodStart=${formatDateValue(periodStart)}&periodEnd=${formatDateValue(periodEnd)}&periodBasis=${periodBasis}&statementId=${statement.id}`,
+        contextHref: buildAgentPayoutStatementWorkspaceHref({
+          membershipId: membership.id,
+          invoiceNumbers: includedInvoiceNumbers,
+          statementId: statement.id
+        }),
         details: [
           `Agent: ${formatMembershipLabel(membership)}`,
-          `Period: ${formatPeriodLabel(periodStart, periodEnd)}`,
-          `Basis: ${periodBasis === "closing_date" ? "Closing date" : "Calculated date"}`,
+          `Period: ${formatPeriodLabel(periodRange.periodStart, periodRange.periodEnd)}`,
+          "Basis: Invoice number",
+          `Invoices: ${includedInvoiceNumbers.join(", ")}`,
           `Line items: ${totals.lineItemCount}`,
           `Total payout: ${formatCurrency(totals.totalStatementAmount)}`
         ]

@@ -6,14 +6,28 @@ import { requireOfficeSession } from "../../../lib/auth-session";
 import { OfficeAccountingClient } from "./accounting-client";
 
 type OfficeAccountingPageProps = {
-  searchParams?: Promise<{
-    membershipId?: string;
-    periodStart?: string;
-    periodEnd?: string;
-    periodBasis?: string;
-    statementId?: string;
-  }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+function readSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : undefined;
+  }
+
+  return value;
+}
+
+function readSearchParamArray(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return Array.from(new Set(value.flatMap((entry) => entry.split(",")).map((entry) => entry.trim()).filter(Boolean)));
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return Array.from(new Set(value.split(",").map((entry) => entry.trim()).filter(Boolean)));
+}
 
 export default async function OfficeAccountingPage(props: OfficeAccountingPageProps) {
   const context = await requireOfficeSession();
@@ -26,11 +40,9 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
   const snapshot = await getOfficeAgentPayoutStatementsWorkspaceSnapshot({
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
-    membershipId: searchParams.membershipId,
-    periodStart: searchParams.periodStart,
-    periodEnd: searchParams.periodEnd,
-    periodBasis: searchParams.periodBasis,
-    statementId: searchParams.statementId
+    membershipId: readSearchParamValue(searchParams.membershipId),
+    invoiceNumbers: readSearchParamArray(searchParams.invoiceNumber),
+    statementId: readSearchParamValue(searchParams.statementId)
   });
 
   return (
@@ -39,15 +51,12 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
         actions={
           <PageHeaderSummary>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Candidates" tone="accent" value={snapshot.candidateRows.length} />
+            <SummaryChip label="Invoice candidates" tone="accent" value={snapshot.filters.invoiceOptions.length} />
             <SummaryChip label="Saved statements" value={snapshot.history.length} />
-            <SummaryChip
-              label="Current basis"
-              value={snapshot.filters.periodBasis === "closing_date" ? "Closing date" : "Calculated date"}
-            />
+            <SummaryChip label="Current basis" value="Invoice number" />
           </PageHeaderSummary>
         }
-        description="Generate agent payout statements from statement-ready commission rows, save a durable snapshot, and download a PDF."
+        description="Generate agent payout statements from selected invoice numbers, save a durable snapshot, and download a PDF."
         eyebrow="Accounting"
         title="Agent Statements"
       />
