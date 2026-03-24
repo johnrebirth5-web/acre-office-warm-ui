@@ -23,6 +23,8 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - durable statement snapshot
   - PDF download
   - saved statement detail / PDF now also show the member's current `AgentBankInformation` block between generated metadata and line items
+  - saved statement detail / PDF line items now show `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission`
+  - statement PDF uses a landscape table layout so the expanded line-item set remains readable
   - agent-facing statement output no longer surfaces `Office net`
 - agent billing exists:
   - ledger

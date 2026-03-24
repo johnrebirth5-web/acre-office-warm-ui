@@ -16,6 +16,21 @@ type StatementCandidateCalculation = Prisma.CommissionCalculationGetPayload<{
   };
 }>;
 
+type StatementPersistCalculation = Prisma.CommissionCalculationGetPayload<{
+  include: {
+    transaction: {
+      include: {
+        ownerMembership: {
+          include: {
+            user: true;
+          };
+        };
+      };
+    };
+    transactionFinanceCalculationVersion: true;
+  };
+}>;
+
 type StatementRecordWithRelations = Prisma.AgentPayoutStatementGetPayload<{
   include: {
     membership: {
@@ -71,18 +86,30 @@ export type OfficeAgentPayoutStatementLineRecord = {
   transactionLabel: string;
   transactionHref: string;
   propertyAddress: string;
+  creationDate: string;
+  invoiceNumber: string;
+  ownerName: string;
+  buildingName: string;
+  unitNumber: string;
   closingDate: string;
   calculatedAt: string;
+  commissionRate: string;
   statusAtGeneration: string;
   statusAtGenerationValue: CommissionCalculationStatus;
   grossCommissionLabel: string;
   grossCommissionValue: string;
+  preSplitLabel: string;
+  preSplitValue: string;
   referralFeeLabel: string;
   referralFeeValue: string;
+  postSplitLabel: string;
+  postSplitValue: string;
   feesLabel: string;
   feesValue: string;
   agentNetLabel: string;
   agentNetValue: string;
+  netCommissionLabel: string;
+  netCommissionValue: string;
   statementAmountLabel: string;
   statementAmountValue: string;
 };
@@ -287,6 +314,20 @@ function formatDateTimeValue(value: Date | null | undefined) {
     : "—";
 }
 
+function formatPercentLabel(value: Prisma.Decimal | number | string | null | undefined) {
+  const numericValue = Number(value ?? 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0";
+  }
+
+  if (Number.isInteger(numericValue)) {
+    return String(numericValue);
+  }
+
+  return numericValue.toFixed(2).replace(/\.?0+$/, "");
+}
+
 function formatPeriodLabel(periodStart: Date, periodEnd: Date) {
   return `${formatDateValue(periodStart)} to ${formatDateValue(periodEnd)}`;
 }
@@ -298,6 +339,61 @@ function formatMembershipLabel(membership: {
   };
 }) {
   return `${membership.user.firstName} ${membership.user.lastName}`.trim();
+}
+
+function buildOwnerLabel(
+  ownerMembership:
+    | {
+        user: {
+          firstName: string;
+          lastName: string;
+          email: string;
+        };
+      }
+    | null
+    | undefined
+) {
+  if (!ownerMembership) {
+    return "Unassigned";
+  }
+
+  const fullName = `${ownerMembership.user.firstName} ${ownerMembership.user.lastName}`.trim();
+  return fullName || ownerMembership.user.email;
+}
+
+function normalizeAdditionalFields(value: Prisma.JsonValue | null | undefined) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, Prisma.JsonValue>).map(([key, entry]) => [key, String(entry ?? "")])
+  );
+}
+
+function parseStakeholderBreakdownSharePercent(
+  value: Prisma.JsonValue | null | undefined,
+  membershipId: string | null | undefined
+) {
+  if (!membershipId || !Array.isArray(value)) {
+    return "";
+  }
+
+  const matchingRow = value.find((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return false;
+    }
+
+    const row = entry as Record<string, Prisma.JsonValue>;
+    return row.membershipId === membershipId && row.recipientType === "agent" && typeof row.sharePercent === "string";
+  });
+
+  if (!matchingRow || typeof matchingRow !== "object" || Array.isArray(matchingRow)) {
+    return "";
+  }
+
+  const sharePercent = (matchingRow as Record<string, Prisma.JsonValue>).sharePercent;
+  return typeof sharePercent === "string" ? `${formatPercentLabel(sharePercent)}%` : "";
 }
 
 function mapStatementBankInformation(bankInformation: {
@@ -476,6 +572,39 @@ function mapCandidateRow(calculation: StatementCandidateCalculation): OfficeAgen
   };
 }
 
+function buildStatementLineSnapshot(
+  calculation: StatementPersistCalculation
+): Omit<Prisma.AgentPayoutStatementLineCreateManyInput, "statementId"> {
+  const additionalFields = normalizeAdditionalFields(calculation.transaction.additionalFields);
+  const commissionRate =
+    parseStakeholderBreakdownSharePercent(
+      calculation.transactionFinanceCalculationVersion?.stakeholderBreakdown,
+      calculation.membershipId
+    ) || additionalFields.yourCommissionRate?.trim() || "";
+
+  return {
+    commissionCalculationId: calculation.id,
+    transactionId: calculation.transactionId,
+    transactionLabel: buildTransactionLabel(calculation.transaction),
+    propertyAddress: buildPropertyAddress(calculation.transaction),
+    transactionCreatedAt: calculation.transaction.createdAt,
+    invoiceNumber: additionalFields.invoiceNumber?.trim() ?? "",
+    ownerName: buildOwnerLabel(calculation.transaction.ownerMembership),
+    buildingName: additionalFields.buildingName?.trim() ?? "",
+    unitNumber: additionalFields.unitNumber?.trim() ?? "",
+    commissionRate,
+    closingDate: calculation.transaction.closingDate,
+    calculatedAt: calculation.calculatedAt,
+    statusAtGeneration: calculation.status,
+    grossCommission: calculation.grossCommission,
+    referralFee: calculation.referralFee,
+    fees: calculation.fees,
+    officeNet: calculation.officeNet,
+    agentNet: calculation.agentNet,
+    statementAmount: calculation.statementAmount
+  };
+}
+
 function mapStatementRecord(record: StatementRecordWithRelations): OfficeAgentPayoutStatementRecord {
   return {
     id: record.id,
@@ -525,18 +654,30 @@ function mapStatementDetail(record: StatementRecordWithRelations): OfficeAgentPa
       transactionLabel: lineItem.transactionLabel,
       transactionHref: `/office/transactions/${lineItem.transactionId}`,
       propertyAddress: lineItem.propertyAddress,
+      creationDate: formatDateValue(lineItem.transactionCreatedAt),
+      invoiceNumber: lineItem.invoiceNumber,
+      ownerName: lineItem.ownerName,
+      buildingName: lineItem.buildingName,
+      unitNumber: lineItem.unitNumber,
       closingDate: formatDateValue(lineItem.closingDate),
       calculatedAt: formatDateValue(lineItem.calculatedAt),
+      commissionRate: lineItem.commissionRate,
       statusAtGeneration: commissionCalculationStatusLabelMap[lineItem.statusAtGeneration],
       statusAtGenerationValue: lineItem.statusAtGeneration,
       grossCommissionLabel: formatCurrency(lineItem.grossCommission),
       grossCommissionValue: decimalToString(lineItem.grossCommission),
+      preSplitLabel: formatCurrency(lineItem.referralFee),
+      preSplitValue: decimalToString(lineItem.referralFee),
       referralFeeLabel: formatCurrency(lineItem.referralFee),
       referralFeeValue: decimalToString(lineItem.referralFee),
+      postSplitLabel: formatCurrency(lineItem.fees),
+      postSplitValue: decimalToString(lineItem.fees),
       feesLabel: formatCurrency(lineItem.fees),
       feesValue: decimalToString(lineItem.fees),
       agentNetLabel: formatCurrency(lineItem.agentNet),
       agentNetValue: decimalToString(lineItem.agentNet),
+      netCommissionLabel: formatCurrency(lineItem.statementAmount),
+      netCommissionValue: decimalToString(lineItem.statementAmount),
       statementAmountLabel: formatCurrency(lineItem.statementAmount),
       statementAmountValue: decimalToString(lineItem.statementAmount)
     }))
@@ -748,7 +889,16 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
             }
           : eligibleWhere,
       include: {
-        transaction: true
+        transaction: {
+          include: {
+            ownerMembership: {
+              include: {
+                user: true
+              }
+            }
+          }
+        },
+        transactionFinanceCalculationVersion: true
       },
       orderBy: [{ calculatedAt: "desc" }, { transaction: { closingDate: "desc" } }]
     });
@@ -782,19 +932,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
     await tx.agentPayoutStatementLine.createMany({
       data: calculations.map((calculation) => ({
         statementId: statement.id,
-        commissionCalculationId: calculation.id,
-        transactionId: calculation.transactionId,
-        transactionLabel: buildTransactionLabel(calculation.transaction),
-        propertyAddress: buildPropertyAddress(calculation.transaction),
-        closingDate: calculation.transaction.closingDate,
-        calculatedAt: calculation.calculatedAt,
-        statusAtGeneration: calculation.status,
-        grossCommission: calculation.grossCommission,
-        referralFee: calculation.referralFee,
-        fees: calculation.fees,
-        officeNet: calculation.officeNet,
-        agentNet: calculation.agentNet,
-        statementAmount: calculation.statementAmount
+        ...buildStatementLineSnapshot(calculation)
       }))
     });
 

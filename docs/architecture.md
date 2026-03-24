@@ -487,7 +487,7 @@
 13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页
 11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`
 12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / rows / summary / totalCount / export columns`
-13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、候选 commission rows、saved statement history 和 selected statement detail
+13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、候选 commission rows、saved statement history 和 selected statement detail；selected statement 的 durable line snapshot 额外固化 transaction creation date、invoice / owner / building / unit 和 payout commission rate
 14. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
 15. `/api/office/accounting/transactions` 与 `/api/office/accounting/earnest-money` 负责最小 create / update 写入；posting 成功后同步生成 GL entries 和 `AuditLog`
 16. `/api/office/accounting/commissions/*` 与 `/api/office/transactions/:transactionId/commissions/calculate` 负责 commission plan、assignment、calculation、status、statement snapshot 的最小写入，并同步写入 `AuditLog`
@@ -776,6 +776,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - 直接导出 PDF
 - 打开已保存 statement detail 时额外读取当前 membership 的 `AgentBankInformation`，在 generated metadata 与 line items 之间展示 payout / tax reporting bank info
 - statement detail / PDF 当前只保留 gross / agent-facing payout summary，不向 agent statement 输出 `Office net`
+- statement detail / PDF 的 line items 现在按 `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission` 展示；PDF 为适配扩展列改成 landscape table layout
 
 ### 6. Agent Billing 建在现有 Accounting foundation 上，不另建第二套 billing 系统
 

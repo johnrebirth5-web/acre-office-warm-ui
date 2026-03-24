@@ -304,6 +304,7 @@
     - 生成 durable payout statement snapshot
     - 下载 PDF
     - 在已保存 statement detail / PDF 中显示当前 member profile 上保存的 bank information
+    - statement detail / PDF 的明细表现在会按 `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission` 输出，并为更宽的 statement PDF 使用横版布局
   - 工资单 snapshot 现在基于：
     - `AgentPayoutStatement`
     - `AgentPayoutStatementLine`

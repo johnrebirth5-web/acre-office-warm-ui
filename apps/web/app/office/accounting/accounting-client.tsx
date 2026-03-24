@@ -174,6 +174,11 @@ function buildStatementBankFields(statement: SelectedStatementDetail): Statement
   ].filter((field) => field.value.trim().length > 0);
 }
 
+function formatStatementCellValue(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed ? trimmed : "—";
+}
+
 export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -769,32 +774,36 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
             <HorizontalScrollArea>
               <DataTable className="office-table">
-                <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
-                  <span>Transaction</span>
-                  <span>Closing</span>
-                  <span>Calculated</span>
+                <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-detail">
+                  <span>Creation date</span>
+                  <span>Invoice number</span>
+                  <span>Owner</span>
+                  <span>Building name</span>
+                  <span>Unit</span>
                   <span>Gross</span>
-                  <span>Fees</span>
-                  <span>Payout</span>
-                  <span>Status at save</span>
+                  <span>Pre split</span>
+                  <span>Commission rate</span>
+                  <span>Post split</span>
+                  <span>Net commission</span>
                 </DataTableHeader>
                 <DataTableBody>
                   {selectedStatement.lineItems.map((lineItem) => (
-                    <DataTableRow className="office-table-row office-table-row-ledger" key={lineItem.id}>
-                      <div className="office-table-primary">
+                    <DataTableRow className="office-table-row office-table-row-agent-statement-detail" key={lineItem.id}>
+                      <span>{formatStatementCellValue(lineItem.creationDate)}</span>
+                      <span>{formatStatementCellValue(lineItem.invoiceNumber)}</span>
+                      <span>{formatStatementCellValue(lineItem.ownerName)}</span>
+                      <div className="office-agent-statement-building">
                         <strong>
-                          <Link href={lineItem.transactionHref}>{lineItem.transactionLabel}</Link>
+                          <Link href={lineItem.transactionHref}>{formatStatementCellValue(lineItem.buildingName || lineItem.transactionLabel)}</Link>
                         </strong>
-                        <p>{lineItem.propertyAddress}</p>
+                        <p>{formatStatementCellValue(lineItem.propertyAddress)}</p>
                       </div>
-                      <span>{lineItem.closingDate || "Missing"}</span>
-                      <span>{lineItem.calculatedAt}</span>
+                      <span>{formatStatementCellValue(lineItem.unitNumber)}</span>
                       <span>{lineItem.grossCommissionLabel}</span>
-                      <span>{lineItem.feesLabel}</span>
-                      <span>{lineItem.statementAmountLabel}</span>
-                      <span>
-                        <StatusBadge tone={getStatementStatusTone(lineItem.statusAtGeneration)}>{lineItem.statusAtGeneration}</StatusBadge>
-                      </span>
+                      <span>{lineItem.preSplitLabel}</span>
+                      <span>{formatStatementCellValue(lineItem.commissionRate)}</span>
+                      <span>{lineItem.postSplitLabel}</span>
+                      <span>{lineItem.netCommissionLabel}</span>
                     </DataTableRow>
                   ))}
                 </DataTableBody>

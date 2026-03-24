@@ -7464,6 +7464,21 @@ a {
   min-width: 580px;
 }
 
+.office-table-row-agent-statement-detail {
+  min-width: 1500px;
+  grid-template-columns:
+    minmax(108px, 0.72fr)
+    minmax(132px, 0.86fr)
+    minmax(156px, 1fr)
+    minmax(240px, 1.48fr)
+    minmax(84px, 0.54fr)
+    minmax(108px, 0.72fr)
+    minmax(108px, 0.72fr)
+    minmax(120px, 0.78fr)
+    minmax(108px, 0.72fr)
+    minmax(126px, 0.84fr);
+}
+
 .office-table-row-commission-assignments {
   min-width: 640px;
   grid-template-columns: minmax(168px, 1.28fr) minmax(68px, 0.54fr) minmax(
@@ -8046,9 +8061,45 @@ a {
 
 .office-table-row-report-transactions > :nth-child(2),
 .office-table-row-report-commission-recent > :nth-child(2),
-.office-table-row-commission > :nth-child(4) {
+.office-table-row-commission > :nth-child(4),
+.office-table-row-agent-statement-detail > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(8)) {
   justify-self: start;
   text-align: left;
+}
+
+.office-table-row-agent-statement-detail > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)) {
+  justify-self: end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.office-agent-statement-building {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.office-agent-statement-building strong {
+  display: block;
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.office-agent-statement-building a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.office-agent-statement-building a:hover {
+  text-decoration: underline;
+}
+
+.office-agent-statement-building p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .bm-detail-head {

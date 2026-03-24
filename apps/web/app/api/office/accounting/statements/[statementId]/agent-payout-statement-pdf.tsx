@@ -3,26 +3,26 @@ import type { OfficeAgentPayoutStatementDetail } from "@acre/db";
 
 const styles = StyleSheet.create({
   page: {
-    padding: 28,
-    fontSize: 10,
+    padding: 22,
+    fontSize: 9,
     color: "#1f2937",
     fontFamily: "Helvetica"
   },
   header: {
-    marginBottom: 18,
-    paddingBottom: 12,
+    marginBottom: 14,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#d1d5db"
   },
   company: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 700,
     marginBottom: 4
   },
   title: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: 700,
-    marginTop: 8
+    marginTop: 6
   },
   subtitle: {
     color: "#6b7280",
@@ -32,42 +32,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 16
+    marginBottom: 12
   },
   metaCard: {
-    width: "48%",
+    width: "24%",
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderRadius: 6,
-    padding: 10,
-    marginBottom: 12
+    padding: 9,
+    marginBottom: 8
   },
   metaLabel: {
     color: "#6b7280",
     marginBottom: 4
   },
   metaValue: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700
   },
   summaryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 16
+    marginBottom: 12
   },
   summaryCard: {
-    width: "48%",
+    width: "49%",
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderRadius: 6,
-    padding: 10
+    padding: 9
   },
   bankSection: {
-    marginBottom: 16
+    marginBottom: 12
   },
   bankTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
     marginBottom: 8
   },
@@ -77,22 +77,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   bankCard: {
-    width: "48%",
+    width: "32.2%",
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderRadius: 6,
-    padding: 10,
-    marginBottom: 10
+    padding: 8,
+    marginBottom: 8
   },
   bankCardWide: {
     width: "100%"
   },
   bankValue: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700
   },
   summaryAmount: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
     marginTop: 4
   },
@@ -107,45 +107,60 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
     borderBottomWidth: 1,
     borderBottomColor: "#d1d5db",
-    paddingVertical: 8,
-    paddingHorizontal: 8
+    paddingVertical: 7,
+    paddingHorizontal: 6
   },
   row: {
     flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
-    paddingVertical: 8,
-    paddingHorizontal: 8
+    paddingVertical: 7,
+    paddingHorizontal: 6
   },
   lastRow: {
     borderBottomWidth: 0
   },
-  cellTransaction: {
-    width: "34%",
-    paddingRight: 8
+  cellCreation: {
+    width: "9%",
+    paddingRight: 6
   },
-  cellDate: {
+  cellInvoice: {
+    width: "10%",
+    paddingRight: 6
+  },
+  cellOwner: {
     width: "12%",
+    paddingRight: 6
+  },
+  cellBuilding: {
+    width: "20%",
     paddingRight: 8
   },
-  cellAmount: {
-    width: "14%",
-    textAlign: "right"
+  cellUnit: {
+    width: "6%",
+    paddingRight: 6
   },
-  cellStatus: {
-    width: "14%",
-    paddingLeft: 8
+  cellMoney: {
+    width: "9%",
+    textAlign: "right",
+    paddingLeft: 6
   },
-  transactionTitle: {
+  cellRate: {
+    width: "8%",
+    textAlign: "right",
+    paddingLeft: 6
+  },
+  buildingTitle: {
     fontWeight: 700
   },
-  transactionAddress: {
+  buildingAddress: {
     color: "#6b7280",
-    marginTop: 2
+    marginTop: 2,
+    fontSize: 8
   },
   footer: {
-    marginTop: 18,
-    paddingTop: 12,
+    marginTop: 14,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: "#d1d5db",
     alignItems: "flex-end"
@@ -154,7 +169,7 @@ const styles = StyleSheet.create({
     color: "#6b7280"
   },
   footerAmount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 700,
     marginTop: 4
   }
@@ -189,12 +204,17 @@ function buildStatementBankFields(statement: OfficeAgentPayoutStatementDetail) {
   ].filter((field) => field.value.trim().length > 0);
 }
 
+function formatStatementCellValue(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed ? trimmed : "—";
+}
+
 export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatementPdfProps) {
   const bankFields = buildStatementBankFields(statement);
 
   return (
     <Document title={`${statement.agentLabel} payout statement`}>
-      <Page size="A4" style={styles.page}>
+      <Page size={{ width: 842, height: 595 }} style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.company}>{statement.officeLabel}</Text>
           <Text style={styles.subtitle}>{statement.organizationLabel}</Text>
@@ -253,13 +273,16 @@ export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatem
 
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={styles.cellTransaction}>Transaction</Text>
-            <Text style={styles.cellDate}>Closing</Text>
-            <Text style={styles.cellDate}>Calculated</Text>
-            <Text style={styles.cellAmount}>Gross</Text>
-            <Text style={styles.cellAmount}>Fees</Text>
-            <Text style={styles.cellAmount}>Payout</Text>
-            <Text style={styles.cellStatus}>Status</Text>
+            <Text style={styles.cellCreation}>Creation date</Text>
+            <Text style={styles.cellInvoice}>Invoice number</Text>
+            <Text style={styles.cellOwner}>Owner</Text>
+            <Text style={styles.cellBuilding}>Building name</Text>
+            <Text style={styles.cellUnit}>Unit</Text>
+            <Text style={styles.cellMoney}>Gross</Text>
+            <Text style={styles.cellMoney}>Pre split</Text>
+            <Text style={styles.cellRate}>Commission rate</Text>
+            <Text style={styles.cellRate}>Post split</Text>
+            <Text style={styles.cellMoney}>Net commission</Text>
           </View>
 
           {statement.lineItems.map((lineItem, index) => (
@@ -267,16 +290,19 @@ export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatem
               key={lineItem.id}
               style={index === statement.lineItems.length - 1 ? [styles.row, styles.lastRow] : styles.row}
             >
-              <View style={styles.cellTransaction}>
-                <Text style={styles.transactionTitle}>{lineItem.transactionLabel}</Text>
-                <Text style={styles.transactionAddress}>{lineItem.propertyAddress}</Text>
+              <Text style={styles.cellCreation}>{formatStatementCellValue(lineItem.creationDate)}</Text>
+              <Text style={styles.cellInvoice}>{formatStatementCellValue(lineItem.invoiceNumber)}</Text>
+              <Text style={styles.cellOwner}>{formatStatementCellValue(lineItem.ownerName)}</Text>
+              <View style={styles.cellBuilding}>
+                <Text style={styles.buildingTitle}>{formatStatementCellValue(lineItem.buildingName || lineItem.transactionLabel)}</Text>
+                <Text style={styles.buildingAddress}>{formatStatementCellValue(lineItem.propertyAddress)}</Text>
               </View>
-              <Text style={styles.cellDate}>{lineItem.closingDate || "Missing"}</Text>
-              <Text style={styles.cellDate}>{lineItem.calculatedAt}</Text>
-              <Text style={styles.cellAmount}>{lineItem.grossCommissionLabel}</Text>
-              <Text style={styles.cellAmount}>{lineItem.feesLabel}</Text>
-              <Text style={styles.cellAmount}>{lineItem.statementAmountLabel}</Text>
-              <Text style={styles.cellStatus}>{lineItem.statusAtGeneration}</Text>
+              <Text style={styles.cellUnit}>{formatStatementCellValue(lineItem.unitNumber)}</Text>
+              <Text style={styles.cellMoney}>{lineItem.grossCommissionLabel}</Text>
+              <Text style={styles.cellMoney}>{lineItem.preSplitLabel}</Text>
+              <Text style={styles.cellRate}>{formatStatementCellValue(lineItem.commissionRate)}</Text>
+              <Text style={styles.cellRate}>{lineItem.postSplitLabel}</Text>
+              <Text style={styles.cellMoney}>{lineItem.netCommissionLabel}</Text>
             </View>
           ))}
         </View>

@@ -2220,6 +2220,12 @@ model AgentPayoutStatementLine {
   transactionId         String
   transactionLabel      String
   propertyAddress       String
+  transactionCreatedAt  DateTime?
+  invoiceNumber         String                @default("")
+  ownerName             String                @default("")
+  buildingName          String                @default("")
+  unitNumber            String                @default("")
+  commissionRate        String                @default("")
   closingDate           DateTime?
   calculatedAt          DateTime
   statusAtGeneration    CommissionCalculationStatus
