@@ -159,7 +159,7 @@
 - `New Transaction > Agent Name` owner search now sources assignable owners from office/global sales memberships instead of the viewer's current transaction roster visibility, so admins can still find unassigned or not-yet-rostered agents and company-level members with `officeId = null`
 - the transaction create flow now has an inline `Edit fields` modal for office admins in both `/office/transactions` create modal and `/office/transactions/new`:
   - it reuses the shared transaction field settings instead of creating a second page-only schema
-  - admins can toggle which direct intake fields render on the create page and add a new custom field without leaving the flow
+  - admins can now see and manage the same full transaction field families exposed in `Settings > Fields > Transaction`, including direct intake fields, finance-linked fields, and compatibility bridge fields, while still adding a new custom field without leaving the flow
   - schema changes made from that modal now update the live create form without clearing the draft values already typed into still-visible fields
 - Transaction status handling is now tightened around admin control:
   - `Create transaction` only allows `Pending / Closed / Cancelled`

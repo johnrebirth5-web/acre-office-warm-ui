@@ -102,7 +102,7 @@ function buildFieldModuleSnapshotFromSchema(
   return {
     module: "transaction",
     label: "Transaction fields",
-    description: "Transaction intake fields rendered on the create form.",
+    description: "Transaction field schema shared with the create flow.",
     summary: {
       fieldCount: schema.builtInFields.length + schema.customFields.length,
       customFieldCount: schema.customFields.length,
@@ -219,6 +219,18 @@ function getBuiltInFieldHint(field: OfficeFieldModuleSettingsSnapshot["builtInFi
 }
 
 function getCustomFieldHint(field: OfficeFieldModuleSettingsSnapshot["customFields"][number]) {
+  if (isTransactionCreateStructuredFinanceFieldKey(field.fieldKey)) {
+    return "This field is managed through the Finance intake block on create, not as a standalone main-grid input.";
+  }
+
+  if (isTransactionCreateRetiredLegacyFieldKey(field.fieldKey)) {
+    return "Legacy compatibility field. The current create flow bridges this from the newer transaction inputs instead of rendering it directly.";
+  }
+
+  if (isTransactionCreateSystemManagedFieldKey(field.fieldKey)) {
+    return "System-managed field. The current create flow keeps this value aligned automatically.";
+  }
+
   if (field.type === "date") {
     return "Custom date field rendered inside the main intake grid.";
   }
@@ -281,22 +293,33 @@ export function TransactionCreatePageClient({
     () => activeDraftModule.builtInFields.filter((field) => field.section === "primary"),
     [activeDraftModule.builtInFields]
   );
-  const customFormFields = useMemo(
+  const directCustomFields = useMemo(
     () =>
       activeDraftModule.customFields.filter((field) =>
         isTransactionCreateDirectCustomFieldKey(field.fieldKey)
       ),
     [activeDraftModule.customFields]
   );
-  const managedFieldCount = useMemo(
+  const financeCustomFields = useMemo(
     () =>
-      fieldModule.customFields.filter(
-        (field) =>
-          isTransactionCreateStructuredFinanceFieldKey(field.fieldKey) ||
-          isTransactionCreateRetiredLegacyFieldKey(field.fieldKey) ||
-          isTransactionCreateSystemManagedFieldKey(field.fieldKey)
-      ).length,
-    [fieldModule.customFields]
+      activeDraftModule.customFields.filter((field) =>
+        isTransactionCreateStructuredFinanceFieldKey(field.fieldKey)
+      ),
+    [activeDraftModule.customFields]
+  );
+  const compatibilityCustomFields = useMemo(
+    () =>
+      activeDraftModule.customFields.filter((field) =>
+        isTransactionCreateRetiredLegacyFieldKey(field.fieldKey)
+      ),
+    [activeDraftModule.customFields]
+  );
+  const systemManagedCustomFields = useMemo(
+    () =>
+      activeDraftModule.customFields.filter((field) =>
+        isTransactionCreateSystemManagedFieldKey(field.fieldKey)
+      ),
+    [activeDraftModule.customFields]
   );
 
   function openFieldEditor() {
@@ -554,8 +577,8 @@ export function TransactionCreatePageClient({
                   <p>Custom fields that render directly inside this intake form.</p>
                 </div>
                 <div className="office-transaction-search-layout-list">
-                  {customFormFields.length ? (
-                    customFormFields.map((field) => (
+                  {directCustomFields.length ? (
+                    directCustomFields.map((field) => (
                       <div className="office-fields-modal-checkbox office-transaction-search-layout-checkbox" key={field.fieldKey}>
                         <CheckboxField className="office-transaction-search-layout-checkbox-field" label={field.label}>
                           <input
@@ -577,13 +600,79 @@ export function TransactionCreatePageClient({
                 </div>
               </section>
 
+              <section className="office-transaction-search-layout-group">
+                <div className="office-transaction-search-layout-group-head">
+                  <strong>Finance fields</strong>
+                  <p>These are part of the shared transaction field schema and map into the Finance intake block during create.</p>
+                </div>
+                <div className="office-transaction-search-layout-list">
+                  {financeCustomFields.map((field) => (
+                    <div className="office-fields-modal-checkbox office-transaction-search-layout-checkbox" key={field.fieldKey}>
+                      <CheckboxField className="office-transaction-search-layout-checkbox-field" label={field.label}>
+                        <input
+                          checked={field.isVisible}
+                          disabled={isSavingFields}
+                          onChange={() => toggleCustomVisibility(field.fieldKey)}
+                          type="checkbox"
+                        />
+                      </CheckboxField>
+                      <small>{getCustomFieldHint(field)}</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="office-transaction-search-layout-group">
+                <div className="office-transaction-search-layout-group-head">
+                  <strong>Compatibility fields</strong>
+                  <p>Older bridge fields still live in the transaction schema and can be managed here, even though the current create UI derives them from newer inputs.</p>
+                </div>
+                <div className="office-transaction-search-layout-list">
+                  {compatibilityCustomFields.map((field) => (
+                    <div className="office-fields-modal-checkbox office-transaction-search-layout-checkbox" key={field.fieldKey}>
+                      <CheckboxField className="office-transaction-search-layout-checkbox-field" label={field.label}>
+                        <input
+                          checked={field.isVisible}
+                          disabled={isSavingFields}
+                          onChange={() => toggleCustomVisibility(field.fieldKey)}
+                          type="checkbox"
+                        />
+                      </CheckboxField>
+                      <small>{getCustomFieldHint(field)}</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="office-transaction-search-layout-group">
+                <div className="office-transaction-search-layout-group-head">
+                  <strong>System-managed</strong>
+                  <p>System-managed transaction schema fields that are still part of the shared office configuration.</p>
+                </div>
+                <div className="office-transaction-search-layout-list">
+                  {systemManagedCustomFields.map((field) => (
+                    <div className="office-fields-modal-checkbox office-transaction-search-layout-checkbox" key={field.fieldKey}>
+                      <CheckboxField className="office-transaction-search-layout-checkbox-field" label={field.label}>
+                        <input
+                          checked={field.isVisible}
+                          disabled={isSavingFields}
+                          onChange={() => toggleCustomVisibility(field.fieldKey)}
+                          type="checkbox"
+                        />
+                      </CheckboxField>
+                      <small>{getCustomFieldHint(field)}</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
               <section className="office-transaction-intake-fields-note">
-                <strong>Advanced and compatibility fields stay centralized</strong>
+                <strong>All transaction fields are now listed here</strong>
                 <p>
-                  Structured finance fields, system-managed fields, and older compatibility bridge fields are still kept in the shared office schema. This inline editor is intentionally limited to the fields that render directly in the current create form.
+                  This editor now includes the same transaction field families you manage from the full transaction field settings page, so you can audit create-time visibility from one place.
                 </p>
                 <p>
-                  {managedFieldCount} shared field{managedFieldCount === 1 ? "" : "s"} continue to live only in the full field settings workspace.
+                  Some fields still map to specialized create behaviors, such as the Finance intake block or compatibility bridges, so their checkbox controls the shared schema even when the current UI does not render them as a standalone main-grid input.
                 </p>
                 <div className="office-transaction-intake-fields-note-actions">
                   <Link
