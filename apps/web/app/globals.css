@@ -10167,6 +10167,28 @@ a {
   max-height: min(92vh, 900px);
 }
 
+.office-transaction-intake-fields-modal-expanded {
+  width: min(100%, 1160px);
+  max-height: min(94vh, 960px);
+}
+
+.office-transaction-intake-fields-workspace {
+  padding: 0 22px 22px;
+  overflow: auto;
+}
+
+.office-transaction-intake-fields-workspace .office-fields-shell {
+  gap: 0;
+}
+
+.office-transaction-intake-fields-workspace .office-fields-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .office-transaction-intake-fields-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

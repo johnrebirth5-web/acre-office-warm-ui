@@ -10,6 +10,7 @@ import {
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { buildTransactionVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
+import { getOfficeTransactionIntakeSchema, type OfficeTransactionIntakeSchema } from "./field-settings";
 import { buildTeamMembershipHierarchyMap, buildTeamPathLabel, formatTeamMembershipRoleLabel, isLeaderTeamMembershipRole } from "./team-hierarchy";
 
 export type OfficeReportStatus = "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
@@ -143,6 +144,99 @@ export const officeTransactionReportColumns: OfficeTransactionReportColumn[] = [
   { key: "companyReferral", label: "Company Referral" },
   { key: "companyReferralEmployeeName", label: "Company Referral Employee Name" }
 ];
+
+const transactionReportSearchFieldLabelResolvers: Partial<
+  Record<
+    OfficeTransactionReportSearchFieldKey,
+    (schema: OfficeTransactionIntakeSchema) => string | null | undefined
+  >
+> = {
+  transaction_status: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "transaction_status")?.label,
+  transaction_type: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "transaction_type")?.label,
+  representing_side: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "representing")?.label,
+  asking_price: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "asking_price")?.label,
+  purchased_price: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "purchased_price")?.label,
+  buyer_tenant: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "buyerTenant")?.label,
+  invoice_number: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "invoiceNumber")?.label,
+  layout: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "layout")?.label,
+  company_referral: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "companyReferral")?.label
+};
+
+const transactionReportColumnLabelResolvers: Partial<
+  Record<keyof OfficeTransactionReportRow, (schema: OfficeTransactionIntakeSchema) => string | null | undefined>
+> = {
+  invoiceNumber: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "invoiceNumber")?.label,
+  licensedAgentName: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "licensedAgentName")?.label,
+  buyerTenant: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "buyerTenant")?.label,
+  transactionType: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "transaction_type")?.label,
+  status: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "transaction_status")?.label,
+  representing: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "representing")?.label,
+  buildingName: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "buildingName")?.label,
+  address: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "address")?.label,
+  aptSuiteFloor: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "unitNumber")?.label,
+  city: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "city")?.label,
+  state: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "state")?.label,
+  zipCode: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "zip_code")?.label,
+  layout: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "layout")?.label,
+  askingPrice: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "asking_price")?.label,
+  purchasedPrice: (schema) =>
+    schema.builtInFields.find((field) => field.fieldKey === "purchased_price")?.label,
+  invoiceBillTo: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "invoiceBillTo")?.label,
+  leasingContact: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "leasingContact")?.label,
+  coAgentLegalName: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "coAgentLegalName")?.label,
+  externalPartners: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "externalPartners")?.label,
+  companyReferral: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "companyReferral")?.label,
+  companyReferralEmployeeName: (schema) =>
+    schema.customFields.find((field) => field.fieldKey === "companyReferralEmployeeName")?.label
+};
+
+function buildTransactionReportSearchFieldDescriptors(
+  schema: OfficeTransactionIntakeSchema
+): OfficeTransactionReportSearchFieldDescriptor[] {
+  return reportSearchFieldDescriptorsBase
+    .map((field) => ({
+      ...field,
+      label: transactionReportSearchFieldLabelResolvers[field.key]?.(schema)?.trim() || field.label
+    }))
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.label.localeCompare(right.label));
+}
+
+function buildTransactionReportColumns(
+  schema: OfficeTransactionIntakeSchema
+): OfficeTransactionReportColumn[] {
+  return officeTransactionReportColumns.map((column) => ({
+    ...column,
+    label: transactionReportColumnLabelResolvers[column.key]?.(schema)?.trim() || column.label
+  }));
+}
 
 const reportSearchFieldDescriptorsBase = [
   {
@@ -378,6 +472,7 @@ type LoadedTeamLeaderInfo = {
 };
 
 type LoadedReportSearchData = {
+  schema: OfficeTransactionIntakeSchema;
   scope: Awaited<ReturnType<typeof resolveOfficeDataScope>>;
   visibilityWhere: Prisma.TransactionWhereInput;
   teamLeaderInfo: LoadedTeamLeaderInfo;
@@ -496,13 +591,13 @@ const layoutOptions: OfficeTransactionReportOption[] = [
   { id: "Others", label: "Others" }
 ];
 
-const statusOptions: OfficeTransactionReportOption[] = [
+const defaultStatusOptions: OfficeTransactionReportOption[] = [
   { id: "pending", label: "Pending" },
   { id: "closed", label: "Closed" },
   { id: "cancelled", label: "Cancelled" }
 ];
 
-const transactionTypeOptions: OfficeTransactionReportOption[] = [
+const defaultTransactionTypeOptions: OfficeTransactionReportOption[] = [
   { id: "sales", label: "Sales" },
   { id: "sales_listing", label: "Sales Listing" },
   { id: "rental_leasing", label: "Rental" },
@@ -512,7 +607,7 @@ const transactionTypeOptions: OfficeTransactionReportOption[] = [
   { id: "other", label: "Others" }
 ];
 
-const representingOptions: OfficeTransactionReportOption[] = [
+const defaultRepresentingOptions: OfficeTransactionReportOption[] = [
   { id: "buyer_side", label: "Buyer Side" },
   { id: "seller_side", label: "Seller Side" },
   { id: "both", label: "Both" },
@@ -527,6 +622,84 @@ const companyReferralOptions: OfficeTransactionReportOption[] = [
 const selectableOwnerRoles = ["agent", "team_lead"] satisfies UserRole[];
 const selectableMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 const truthyReportFieldValues = new Set(["yes", "true", "1", "y"]);
+
+function ensureReportSideLabel(value: string) {
+  return /\bside$/i.test(value.trim()) ? value.trim() : `${value.trim()} Side`;
+}
+
+function buildReportStatusOptions(schema: OfficeTransactionIntakeSchema): OfficeTransactionReportOption[] {
+  const statusField = schema.builtInFields.find((field) => field.fieldKey === "transaction_status");
+  const enabledOptions = statusField?.selectOptions.filter((option) => option.isEnabled) ?? [];
+
+  if (!enabledOptions.length) {
+    return defaultStatusOptions;
+  }
+
+  return enabledOptions
+    .filter((option) => option.value === "pending" || option.value === "closed" || option.value === "cancelled")
+    .map((option) => ({
+      id: option.value,
+      label: option.label
+    }));
+}
+
+function buildReportTransactionTypeOptions(schema: OfficeTransactionIntakeSchema): OfficeTransactionReportOption[] {
+  const typeField = schema.builtInFields.find((field) => field.fieldKey === "transaction_type");
+  const enabledOptions = typeField?.selectOptions.filter((option) => option.isEnabled) ?? [];
+
+  if (!enabledOptions.length) {
+    return defaultTransactionTypeOptions;
+  }
+
+  return enabledOptions.map((option) => ({
+    id: option.value,
+    label: option.label
+  }));
+}
+
+function buildReportRepresentingOptions(schema: OfficeTransactionIntakeSchema): OfficeTransactionReportOption[] {
+  const representingField = schema.builtInFields.find((field) => field.fieldKey === "representing");
+  const optionLabelByValue = new Map(
+    (representingField?.selectOptions ?? [])
+      .filter((option) => option.isEnabled)
+      .map((option) => [option.value, option.label] as const)
+  );
+
+  if (!optionLabelByValue.size) {
+    return defaultRepresentingOptions;
+  }
+
+  return [
+    {
+      id: "buyer_side",
+      label: optionLabelByValue.has("buyer")
+        ? ensureReportSideLabel(optionLabelByValue.get("buyer") ?? "Buyer")
+        : defaultRepresentingOptions.find((option) => option.id === "buyer_side")?.label ?? "Buyer Side"
+    },
+    {
+      id: "seller_side",
+      label: optionLabelByValue.has("seller")
+        ? ensureReportSideLabel(optionLabelByValue.get("seller") ?? "Seller")
+        : optionLabelByValue.has("landlord")
+          ? ensureReportSideLabel(optionLabelByValue.get("landlord") ?? "Landlord")
+          : defaultRepresentingOptions.find((option) => option.id === "seller_side")?.label ?? "Seller Side"
+    },
+    {
+      id: "both",
+      label:
+        optionLabelByValue.get("both") ??
+        defaultRepresentingOptions.find((option) => option.id === "both")?.label ??
+        "Both"
+    },
+    {
+      id: "tenant",
+      label:
+        optionLabelByValue.get("tenant") ??
+        defaultRepresentingOptions.find((option) => option.id === "tenant")?.label ??
+        "Tenant"
+    }
+  ];
+}
 
 function readSearchParamValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -1297,6 +1470,9 @@ function buildTransactionReportFilters(
     ownerOptions: OfficeTransactionReportOption[];
     departmentOptions: OfficeTransactionReportOption[];
     teamLeaderInfo: LoadedTeamLeaderInfo;
+    statusOptions: OfficeTransactionReportOption[];
+    transactionTypeOptions: OfficeTransactionReportOption[];
+    representingOptions: OfficeTransactionReportOption[];
   }
 ) {
   const rawOwnerMembershipId = getRawReportValue(input, "ownerMembershipId") ?? input.ownerMembershipId;
@@ -1404,9 +1580,9 @@ function buildTransactionReportFilters(
     ownerOptions: options.ownerOptions,
     departmentOptions: options.departmentOptions,
     teamLeaderOptions: options.teamLeaderInfo.options,
-    statusOptions,
-    transactionTypeOptions,
-    representingOptions,
+    statusOptions: options.statusOptions,
+    transactionTypeOptions: options.transactionTypeOptions,
+    representingOptions: options.representingOptions,
     layoutOptions,
     companyReferralOptions
   } satisfies OfficeTransactionReportsFilters;
@@ -1462,7 +1638,11 @@ async function loadReportSearchData(
             )
           );
 
-  const [ownerMemberships, departmentRecords, savedLayoutRecord] = await Promise.all([
+  const [schema, ownerMemberships, departmentRecords, savedLayoutRecord] = await Promise.all([
+    getOfficeTransactionIntakeSchema({
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null
+    }),
     prisma.membership.findMany({
       where: {
         organizationId: input.organizationId,
@@ -1520,7 +1700,10 @@ async function loadReportSearchData(
     id: office.id,
     label: office.name
   }));
-  const availableFields = reportSearchFieldDescriptors;
+  const availableFields = buildTransactionReportSearchFieldDescriptors(schema);
+  const statusOptions = buildReportStatusOptions(schema);
+  const transactionTypeOptions = buildReportTransactionTypeOptions(schema);
+  const representingOptions = buildReportRepresentingOptions(schema);
   const normalizedSavedLayout = normalizeTransactionReportSearchFieldKeys(savedLayoutRecord?.fieldLayout ?? null);
   const sanitizedSavedLayout = sanitizeTransactionReportSearchFieldKeys(normalizedSavedLayout);
 
@@ -1549,10 +1732,14 @@ async function loadReportSearchData(
   const filters = buildTransactionReportFilters(input, {
     ownerOptions,
     departmentOptions,
-    teamLeaderInfo
+    teamLeaderInfo,
+    statusOptions,
+    transactionTypeOptions,
+    representingOptions
   });
 
   return {
+    schema,
     scope,
     visibilityWhere,
     teamLeaderInfo,
@@ -1898,7 +2085,7 @@ export async function getOfficeTransactionReportsWorkspace(
       totalReferral: formatCurrencyTotal(summary.referral),
       totalReimbursement: formatCurrencyTotal(summary.reimbursement)
     },
-    columns: officeTransactionReportColumns,
+    columns: buildTransactionReportColumns(searchData.schema),
     rows,
     totalCount: rows.length
   };

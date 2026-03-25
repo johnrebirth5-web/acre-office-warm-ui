@@ -161,6 +161,10 @@
   - it reuses the shared transaction field settings instead of creating a second page-only schema
   - after retiring the old compatibility / text-only finance bridge fields, the modal now shows the same active transaction schema that really drives create-time rendering and search/report defaults, while still allowing a new custom field to be created in place
   - schema changes made from that modal now update the live create form without clearing the draft values already typed into still-visible fields
+- transaction field management is now fully operable from the create-flow `Edit fields` modal itself:
+  - the embedded workspace reuses the full `Settings > Fields` transaction editor instead of a reduced checkbox-only version
+  - built-in transaction field labels are now overrideable and persisted, so admins can rename display text such as `State` directly from the inline editor or the main settings page
+  - report search fields, report columns, and CSV export headers now read those same shared labels instead of hardcoded report-only copies
 - Transaction status handling is now tightened around admin control:
   - `Create transaction` only allows `Pending / Closed / Cancelled`
   - non-admin creators are forced to `Pending`

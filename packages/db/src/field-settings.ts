@@ -450,6 +450,7 @@ export type SaveOfficeFieldSettingsInput = {
   }>;
   builtInFieldSettings: Array<{
     fieldKey: string;
+    label?: string;
     isRequired: boolean;
     isVisible: boolean;
     sortOrder?: number;
@@ -835,6 +836,7 @@ function slugifyTransactionCustomFieldLabel(label: string) {
 function buildOfficeBuiltInFieldRecord(input: {
   module: OfficeFieldModule;
   fieldKey: string;
+  labelOverride?: string | null;
   isRequired: boolean;
   isVisible: boolean;
   sortOrder: number;
@@ -856,7 +858,7 @@ function buildOfficeBuiltInFieldRecord(input: {
   return {
     fieldKey: catalogEntry.key,
     inputName: catalogEntry.inputName,
-    label: catalogEntry.label,
+    label: parseOptionalText(input.labelOverride ?? undefined) ?? catalogEntry.label,
     section: catalogEntry.section ?? "primary",
     control: catalogEntry.control,
     className: catalogEntry.className ?? "",
@@ -1080,6 +1082,7 @@ export async function getOfficeTransactionIntakeSchema(input: {
     transactionFieldSettings.map((entry) => [
       entry.fieldKey as TransactionFieldKey,
       {
+        labelOverride: entry.labelOverride,
         isRequired: entry.isRequired,
         isVisible: entry.isVisible,
         options: entry.options,
@@ -1094,6 +1097,7 @@ export async function getOfficeTransactionIntakeSchema(input: {
         ...buildOfficeBuiltInFieldRecord({
           module: "transaction",
           fieldKey: entry.key,
+          labelOverride: fieldSettingsMap.get(entry.key as TransactionFieldKey)?.labelOverride,
           isRequired: fieldSettingsMap.get(entry.key as TransactionFieldKey)?.isRequired ?? false,
           isVisible: fieldSettingsMap.get(entry.key as TransactionFieldKey)?.isVisible ?? true,
           sortOrder: fieldSettingsMap.get(entry.key as TransactionFieldKey)?.sortOrder ?? entry.sortOrder,
@@ -1181,6 +1185,7 @@ function buildGenericModuleFieldSchema(
     builtInSettings.map((entry) => [
       entry.fieldKey,
       {
+        labelOverride: entry.labelOverride,
         isRequired: entry.isRequired,
         isVisible: entry.isVisible,
         sortOrder: entry.sortOrder,
@@ -1194,6 +1199,7 @@ function buildGenericModuleFieldSchema(
       buildOfficeBuiltInFieldRecord({
         module,
         fieldKey: entry.key,
+        labelOverride: builtInSettingMap.get(entry.key)?.labelOverride,
         isRequired: builtInSettingMap.get(entry.key)?.isRequired ?? false,
         isVisible: builtInSettingMap.get(entry.key)?.isVisible ?? true,
         sortOrder: builtInSettingMap.get(entry.key)?.sortOrder ?? entry.sortOrder,
@@ -1658,6 +1664,7 @@ async function upsertBuiltInFieldSettingTx(
     organizationId: string;
     officeId?: string | null;
     fieldKey: string;
+    labelOverride?: string | null;
     isRequired: boolean;
     isVisible: boolean;
     sortOrder: number;
@@ -1681,6 +1688,7 @@ async function upsertBuiltInFieldSettingTx(
         return tx.contactFieldSetting.update({
           where: { id: existing.id },
           data: {
+            labelOverride: input.labelOverride ?? null,
             isRequired: input.isRequired,
             isVisible: input.isVisible,
             sortOrder: input.sortOrder,
@@ -1694,6 +1702,7 @@ async function upsertBuiltInFieldSettingTx(
           organizationId: input.organizationId,
           officeId: scopedOfficeId,
           fieldKey: builtInFieldKey,
+          labelOverride: input.labelOverride ?? null,
           isRequired: input.isRequired,
           isVisible: input.isVisible,
           sortOrder: input.sortOrder,
@@ -1714,6 +1723,7 @@ async function upsertBuiltInFieldSettingTx(
         return tx.offerFieldSetting.update({
           where: { id: existing.id },
           data: {
+            labelOverride: input.labelOverride ?? null,
             isRequired: input.isRequired,
             isVisible: input.isVisible,
             sortOrder: input.sortOrder,
@@ -1727,6 +1737,7 @@ async function upsertBuiltInFieldSettingTx(
           organizationId: input.organizationId,
           officeId: scopedOfficeId,
           fieldKey: builtInFieldKey,
+          labelOverride: input.labelOverride ?? null,
           isRequired: input.isRequired,
           isVisible: input.isVisible,
           sortOrder: input.sortOrder,
@@ -1748,6 +1759,7 @@ async function upsertBuiltInFieldSettingTx(
         return tx.transactionFieldSetting.update({
           where: { id: existing.id },
           data: {
+            labelOverride: input.labelOverride ?? null,
             isRequired: input.isRequired,
             isVisible: input.isVisible,
             sortOrder: input.sortOrder,
@@ -1761,6 +1773,7 @@ async function upsertBuiltInFieldSettingTx(
           organizationId: input.organizationId,
           officeId: scopedOfficeId,
           fieldKey: builtInFieldKey as TransactionFieldKey,
+          labelOverride: input.labelOverride ?? null,
           isRequired: input.isRequired,
           isVisible: input.isVisible,
           sortOrder: input.sortOrder,
@@ -2132,6 +2145,10 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
       const fieldKey = normalizeBuiltInFieldKey(module, entry.fieldKey);
       const catalogEntry = getBuiltInCatalogEntry(module, fieldKey);
       const existing = existingBuiltInSettings.find((setting) => setting.fieldKey === fieldKey) ?? null;
+      const defaultLabel = catalogEntry?.label ?? fieldKey;
+      const previousLabel = parseOptionalText(existing?.labelOverride ?? undefined) ?? defaultLabel;
+      const nextLabel = parseOptionalText(entry.label) ?? parseOptionalText(existing?.labelOverride ?? undefined) ?? defaultLabel;
+      const nextLabelOverride = nextLabel === defaultLabel ? null : nextLabel;
       const previousRequired = existing?.isRequired ?? false;
       const previousVisible = existing?.isVisible ?? true;
       const previousSortOrder = existing?.sortOrder ?? catalogEntry?.sortOrder ?? index;
@@ -2150,13 +2167,15 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
         organizationId: input.organizationId,
         officeId: input.officeId,
         fieldKey,
+        labelOverride: nextLabelOverride,
         isRequired: entry.isRequired,
         isVisible: entry.isVisible,
         sortOrder: typeof entry.sortOrder === "number" ? entry.sortOrder : index,
         options: module === "transaction" && catalogEntry?.control === "select" ? normalizedSelectOptions : undefined
       });
 
-      const fieldLabel = catalogEntry?.label ?? fieldKey;
+      const fieldLabel = nextLabel;
+      const labelChange = buildChange(`${fieldKey} label`, previousLabel, nextLabel);
       const requiredChange = buildChange(buildFieldChangeLabel(fieldLabel, "required"), previousRequired ? "Yes" : "No", entry.isRequired ? "Yes" : "No");
       const visibilityChange = buildChange(buildFieldChangeLabel(fieldLabel, "visible"), previousVisible ? "Yes" : "No", entry.isVisible ? "Yes" : "No");
       const sortOrderChange = buildChange(buildFieldChangeLabel(fieldLabel, "order"), String(previousSortOrder), String(typeof entry.sortOrder === "number" ? entry.sortOrder : index));
@@ -2169,7 +2188,7 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
             )
           : null;
 
-      for (const change of [requiredChange, visibilityChange, sortOrderChange, optionsChange]) {
+      for (const change of [labelChange, requiredChange, visibilityChange, sortOrderChange, optionsChange]) {
         if (change) {
           fieldChanges.push(change);
         }
@@ -2540,6 +2559,7 @@ export async function reorderOfficeFields(input: ReorderOfficeFieldsInput) {
           organizationId: input.organizationId,
           officeId: input.officeId,
           fieldKey: item.fieldKey,
+          labelOverride: existing?.labelOverride ?? null,
           isRequired: existing?.isRequired ?? false,
           isVisible: existing?.isVisible ?? true,
           sortOrder: index,

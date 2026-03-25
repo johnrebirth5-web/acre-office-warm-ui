@@ -23,6 +23,10 @@ import type {
 type OfficeSettingsFieldsClientProps = {
   snapshot: OfficeFieldSettingsSnapshot;
   canManageFields: boolean;
+  hideModuleRail?: boolean;
+  panelDescription?: string;
+  panelTitle?: string;
+  onModuleSnapshotChange?: (nextModule: OfficeFieldModuleSettingsSnapshot) => void;
 };
 
 type FieldEntry =
@@ -115,6 +119,7 @@ function buildModulePayload(snapshot: OfficeFieldModuleSettingsSnapshot) {
         : undefined,
     builtInFieldSettings: snapshot.builtInFields.map((field) => ({
       fieldKey: field.fieldKey,
+      label: field.label,
       isRequired: field.isRequired,
       isVisible: field.isVisible,
       sortOrder: field.sortOrder,
@@ -210,7 +215,11 @@ function buildSummaryRecord(snapshot: OfficeFieldModuleSettingsSnapshot) {
 
 export function OfficeSettingsFieldsClient({
   snapshot,
-  canManageFields
+  canManageFields,
+  hideModuleRail = false,
+  panelDescription,
+  panelTitle,
+  onModuleSnapshotChange
 }: OfficeSettingsFieldsClientProps) {
   const pathname = usePathname();
   const [currentModule, setCurrentModule] = useState(snapshot.currentModule);
@@ -239,6 +248,7 @@ export function OfficeSettingsFieldsClient({
         entry.module === nextModule.module ? buildSummaryRecord(nextModule) : entry
       )
     );
+    onModuleSnapshotChange?.(nextModule);
   }
 
   async function persistModuleSnapshot(
@@ -547,6 +557,7 @@ export function OfficeSettingsFieldsClient({
           field.fieldKey === editorState.fieldKey
             ? {
                 ...field,
+                label: editorState.label,
                 isRequired: editorState.isLockedRequired ? field.isRequired : editorState.isRequired,
                 isVisible: editorState.isLockedVisible ? field.isVisible : editorState.isVisible,
                 selectOptions:
@@ -637,36 +648,38 @@ export function OfficeSettingsFieldsClient({
 
   return (
     <div className="office-fields-shell">
-      <aside className="office-fields-module-rail">
-        <div className="office-fields-module-rail-head">
-          <span>Lists & templates</span>
-          <strong>Field modules</strong>
-        </div>
-        <div className="office-fields-module-list">
-          {modules.map((module) => {
-            const isActive = module.module === currentModule.module;
-            return (
-              <Link
-                className={`office-fields-module-link${isActive ? " is-active" : ""}`}
-                href={`${pathname}?module=${module.module}`}
-                key={module.module}
-              >
-                <div>
-                  <strong>{module.label}</strong>
-                  <p>{module.fieldCount} fields</p>
-                </div>
-                <span>{module.hiddenFieldCount} hidden</span>
-              </Link>
-            );
-          })}
-        </div>
-      </aside>
+      {hideModuleRail ? null : (
+        <aside className="office-fields-module-rail">
+          <div className="office-fields-module-rail-head">
+            <span>Lists & templates</span>
+            <strong>Field modules</strong>
+          </div>
+          <div className="office-fields-module-list">
+            {modules.map((module) => {
+              const isActive = module.module === currentModule.module;
+              return (
+                <Link
+                  className={`office-fields-module-link${isActive ? " is-active" : ""}`}
+                  href={`${pathname}?module=${module.module}`}
+                  key={module.module}
+                >
+                  <div>
+                    <strong>{module.label}</strong>
+                    <p>{module.fieldCount} fields</p>
+                  </div>
+                  <span>{module.hiddenFieldCount} hidden</span>
+                </Link>
+              );
+            })}
+          </div>
+        </aside>
+      )}
 
       <section className="office-fields-panel">
         <div className="office-fields-panel-head">
           <div>
-            <h2>{currentModule.label}</h2>
-            <p>{currentModule.description}</p>
+            <h2>{panelTitle ?? currentModule.label}</h2>
+            <p>{panelDescription ?? currentModule.description}</p>
           </div>
           {canManageFields ? (
             <Button onClick={openCreateModal} type="button">
@@ -903,7 +916,6 @@ export function OfficeSettingsFieldsClient({
               <label className="office-fields-modal-field">
                 <span>Field label</span>
                 <TextInput
-                  disabled={editorState.kind === "builtIn"}
                   onChange={(event) => updateEditor({ label: event.target.value })}
                   value={editorState.label}
                 />

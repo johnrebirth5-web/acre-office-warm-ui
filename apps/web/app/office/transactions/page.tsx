@@ -1,4 +1,5 @@
 import {
+  getOfficeFieldSettingsSnapshot,
   getOfficeTransactionOwnerAssignment,
   getOfficeTransactionSearchLayoutSnapshot,
   listTransactions
@@ -46,7 +47,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
     defaultTransactionsPageSize,
     maxTransactionsPageSize
   );
-  const [searchLayout, transactionOwnerAssignment] = await Promise.all([
+  const [searchLayout, transactionOwnerAssignment, fieldSettingsSnapshot] = await Promise.all([
     getOfficeTransactionSearchLayoutSnapshot({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
@@ -57,6 +58,11 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null
+    }),
+    getOfficeFieldSettingsSnapshot({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      selectedModule: "transaction"
     })
   ]);
   const result = await listTransactions({
@@ -84,6 +90,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
       summary={result.summary}
       totalCount={result.totalCount}
       totalPages={result.totalPages}
+      transactionFieldModule={fieldSettingsSnapshot.currentModule}
       transactionOwnerAssignment={transactionOwnerAssignment}
       transactionStatusFieldPolicy={getCreateTransactionStatusFieldPolicy(canManageTransactionStatus)}
       transactions={result.transactions}

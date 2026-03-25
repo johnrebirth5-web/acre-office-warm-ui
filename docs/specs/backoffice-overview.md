@@ -61,11 +61,14 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
   - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now consume one office-scoped schema managed centrally from `Settings > Fields`.
-  - office admins can now open `Edit fields` directly inside both the `/office/transactions` create modal and `/office/transactions/new` to manage the active transaction field schema and add a new custom field without leaving the create flow.
+  - office admins can now open `Edit fields` directly inside both the `/office/transactions` create modal and `/office/transactions/new` to manage the full active transaction field schema without leaving the create flow:
+    - built-in transaction fields can be renamed, re-ordered, hidden, required, and have dropdown option labels adjusted in place
+    - custom fields can be created, renamed, re-typed, hidden, restored, protected from deletion, or deleted when they are not protected and have no persisted values
   - retired transaction compatibility placeholders and old text-only finance bridge fields have been removed from the shared transaction field schema, so `Settings > Fields`, inline `Edit fields`, create-time rendering, and default transaction search/report behavior now point at the same current field model.
   - transaction pricing is now split into `Asking Price + Purchased Price`, while legacy `price` remains a compatibility mirror of `purchasedPrice`.
   - the `/office/transactions` search workbench is now office-shared and schema-driven: admins with `fields:manage` can use `Edit fields` to add or remove operational, built-in, and custom filter blocks, while hidden or archived transaction fields are automatically removed from saved search layouts.
   - the built-in `Type / Status / Representing` dropdowns now keep stable system values while allowing office admins to edit which options are available and how each option label is displayed.
+  - transaction report filters, report columns, and CSV export headers now resolve their labels from the same shared transaction field schema, so built-in label overrides such as renaming `State` stay consistent across create, settings, search, and reporting surfaces.
   - `New transaction` owner search for `Agent Name` is sourced from office/global sales memberships for company-scope creators, not just the currently visible transaction roster.
   - `New transaction` status creation is now limited to `Pending / Closed / Cancelled`, and non-admin users are forced to `Pending` and cannot change transaction status from create or detail-edit flows.
 - Follow-up work:

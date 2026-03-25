@@ -1880,6 +1880,7 @@ model TransactionFieldSetting {
   organizationId String
   officeId       String?
   fieldKey       TransactionFieldKey
+  labelOverride  String?
   isRequired     Boolean             @default(false)
   isVisible      Boolean             @default(true)
   sortOrder      Int                 @default(0)
@@ -1920,6 +1921,7 @@ model ContactFieldSetting {
   organizationId String
   officeId       String?
   fieldKey       String
+  labelOverride  String?
   isRequired     Boolean      @default(false)
   isVisible      Boolean      @default(true)
   sortOrder      Int          @default(0)
@@ -1960,6 +1962,7 @@ model OfferFieldSetting {
   organizationId String
   officeId       String?
   fieldKey       String
+  labelOverride  String?
   isRequired     Boolean      @default(false)
   isVisible      Boolean      @default(true)
   sortOrder      Int          @default(0)

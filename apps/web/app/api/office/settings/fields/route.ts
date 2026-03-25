@@ -23,6 +23,7 @@ export async function PATCH(request: NextRequest) {
         }>;
         builtInFieldSettings?: Array<{
           fieldKey?: string;
+          label?: string;
           isRequired?: boolean;
           isVisible?: boolean;
           sortOrder?: number;
@@ -59,6 +60,7 @@ export async function PATCH(request: NextRequest) {
       builtInFieldSettings:
         body?.builtInFieldSettings?.map((entry) => ({
           fieldKey: entry.fieldKey ?? "",
+          label: typeof entry.label === "string" ? entry.label : undefined,
           isRequired: Boolean(entry.isRequired),
           isVisible: typeof entry.isVisible === "boolean" ? entry.isVisible : true,
           sortOrder: typeof entry.sortOrder === "number" ? entry.sortOrder : undefined,

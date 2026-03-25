@@ -1,6 +1,6 @@
 import { canViewOfficeReports } from "@acre/auth";
 import type { NextRequest } from "next/server";
-import { listOfficeTransactionReportExportRows, officeTransactionReportColumns } from "@acre/db";
+import { getOfficeTransactionReportsWorkspace } from "@acre/db";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
 
 function escapeCsvCell(value: string) {
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 
   const url = new URL(request.url);
-  const rows = await listOfficeTransactionReportExportRows({
+  const workspace = await getOfficeTransactionReportsWorkspace({
     organizationId: sessionContext.currentOrganization.id,
     viewerMembershipId: sessionContext.currentMembership.id,
     officeId: sessionContext.currentOffice?.id ?? null,
@@ -86,12 +86,12 @@ export async function GET(request: NextRequest) {
     sortDirection: readValueParam(url.searchParams, "sortDirection")
   });
 
-  const headers = officeTransactionReportColumns.map((column) => column.label);
+  const headers = workspace.columns.map((column) => column.label);
 
   const csvBody = [
     headers.join(","),
-    ...rows.map((row) =>
-      officeTransactionReportColumns.map((column) => row[column.key] ?? "")
+    ...workspace.rows.map((row) =>
+      workspace.columns.map((column) => row[column.key] ?? "")
         .map((value) => escapeCsvCell(value))
         .join(",")
     )

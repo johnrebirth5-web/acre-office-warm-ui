@@ -58,7 +58,7 @@ Provide a practical Back Office admin/settings area for access management, role 
 - fields admin supports:
   - `Settings > Fields` as the single field-structure admin entry
   - module rail for `transaction / contact / offer`
-  - per-module built-in field `required / visible / sort order`
+  - per-module built-in field `label / required / visible / sort order`
   - per-module custom field create / edit / delete for `text / select / date`
   - custom field create / edit includes a `Protected from deletion` toggle so linked fields can be hidden without being hard-deleted
   - transaction `Agent Name` remains protected from deletion because it is tied to owner assignment behavior
@@ -66,6 +66,7 @@ Provide a practical Back Office admin/settings area for access management, role 
   - transaction-only `Type / Status / Representing` dropdown option enable/disable plus display-label editing
   - transaction-only required contact roles admin in the same `Fields` page
   - one shared schema source consumed by transaction create/detail, contact create/detail, and offer create/edit
+  - transaction create flows now embed the same full field editor inside `Edit fields`, so admins can rename built-in labels, manage custom fields, and adjust transaction-required contact roles without leaving `Create transaction`
   - `office_admin`-only schema editing and audit coverage for field-structure changes
 - checklist template admin supports:
   - create/edit

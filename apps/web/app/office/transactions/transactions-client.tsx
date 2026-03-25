@@ -20,6 +20,7 @@ import {
   TextInput
 } from "@acre/ui";
 import type {
+  OfficeFieldModuleSettingsSnapshot,
   OfficeTransactionRecord,
   OfficeTransactionOwnerAssignment,
   OfficeTransactionSearchFieldDescriptor,
@@ -42,6 +43,7 @@ type TransactionsClientProps = {
   pageSize: number;
   searchLayout: OfficeTransactionSearchLayoutSnapshot;
   canManageSearchLayout: boolean;
+  transactionFieldModule: OfficeFieldModuleSettingsSnapshot;
   transactionOwnerAssignment: OfficeTransactionOwnerAssignment;
   transactionStatusFieldPolicy: TransactionStatusFieldPolicy;
 };
@@ -443,6 +445,7 @@ export function TransactionsClient({
   pageSize,
   searchLayout,
   canManageSearchLayout,
+  transactionFieldModule,
   transactionOwnerAssignment,
   transactionStatusFieldPolicy
 }: TransactionsClientProps) {
@@ -1001,6 +1004,7 @@ export function TransactionsClient({
                   })
                 );
               }}
+              initialFieldModule={transactionFieldModule}
               ownerAssignment={transactionOwnerAssignment}
               initialSchema={searchLayout.schema}
               statusFieldPolicy={transactionStatusFieldPolicy}
