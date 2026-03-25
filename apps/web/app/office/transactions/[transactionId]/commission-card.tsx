@@ -163,7 +163,14 @@ export function TransactionCommissionCard({
   const totalsBalanced = !hasInvalidAmounts && Math.abs(totalDifference) < 0.005;
   const canManageOverride = canManageCommissions || canApproveCommissions;
   const calculateLocked = snapshot.manualParticipantLockActive;
-  const canSubmitOverride = canManageOverride && pendingAction !== "override" && totalsBalanced;
+  const canSubmitOverride = canManageOverride && pendingAction !== "override";
+  const overrideValidationMessage = hasInvalidAmounts
+    ? "Each override amount must be a valid number that is zero or greater."
+    : totalDifference > 0.005
+      ? `Override total exceeds the current payout pool by ${formatCurrency(Math.abs(totalDifference))}. Reduce one or more amounts before applying override.`
+      : totalDifference < -0.005
+        ? `Override total is short by ${formatCurrency(Math.abs(totalDifference))}. Increase one or more amounts before applying override.`
+        : "";
 
   function selectParticipantOption(option: OfficeTransactionCommissionSnapshot["manualParticipantOptions"][number]) {
     setSelectedParticipantId(option.membershipId);
@@ -244,7 +251,7 @@ export function TransactionCommissionCard({
 
     try {
       if (!totalsBalanced) {
-        throw new Error("Override total must stay unchanged and every amount must be zero or greater.");
+        throw new Error(overrideValidationMessage || "Override total must stay unchanged and every amount must be zero or greater.");
       }
 
       const response = await fetch(`/api/office/transactions/${transactionId}/commissions/override`, {
@@ -550,9 +557,7 @@ export function TransactionCommissionCard({
                 <span>Override total: {formatCurrency(overrideTotal)}</span>
                 <span>Difference: {formatCurrency(totalDifference)}</span>
               </div>
-              {!totalsBalanced ? (
-                <p className="office-form-helper">Override total must stay unchanged before saving, and every amount must be zero or greater.</p>
-              ) : null}
+              {overrideValidationMessage ? <p className="office-form-error">{overrideValidationMessage}</p> : null}
 
               <HorizontalScrollArea>
                 <div className="office-table">
@@ -608,6 +613,9 @@ export function TransactionCommissionCard({
                 </div>
               </HorizontalScrollArea>
 
+              {overrideValidationMessage ? (
+                <p className="office-form-error">Apply override is blocked until the override total matches the current payout total.</p>
+              ) : null}
               <div className="office-inline-form-actions">
                 <Button disabled={!canSubmitOverride} type="submit" variant="secondary">
                   {pendingAction === "override" ? "Saving override..." : "Apply override"}
