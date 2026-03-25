@@ -14,6 +14,11 @@ import {
   createTransactionFinanceCreateDraft,
   TransactionFinanceCreateFields
 } from "./transaction-finance-create-fields";
+import {
+  createModeRetiredLegacyFieldKeys,
+  createModeStructuredFinanceFieldKeys,
+  editModeRestrictedFinanceFieldKeys
+} from "./transaction-intake-field-policies";
 import type { TransactionStatusFieldPolicy, TransactionStatusValue } from "./transaction-status-rules";
 
 type TransactionIntakeWorkspaceProps = {
@@ -35,6 +40,7 @@ type TransactionIntakeWorkspaceProps = {
   ownerAssignment?: OfficeTransactionOwnerAssignment;
   statusFieldPolicy?: TransactionStatusFieldPolicy;
   afterSubmit?: "refresh" | "go-detail";
+  preserveDraftStateOnSchemaChange?: boolean;
   onClose?: () => void;
   onSubmitted?: (transactionId: string) => void;
 };
@@ -52,41 +58,6 @@ type BodyFieldRecord =
     };
 
 const maxVisibleOwnerSuggestions = 20;
-const createModeStructuredFinanceFieldKeys = new Set([
-  "commissionAmount",
-  "rebate",
-  "reimbursement",
-  "companyReferral",
-  "outsideReferral",
-  "referralFee",
-  "companyReferralEmployeeName",
-  "note"
-]);
-const createModeRetiredLegacyFieldKeys = new Set([
-  "additionalAddress",
-  "additionalCity",
-  "additionalState",
-  "additionalZipCode",
-  "moveInDateClosingDate",
-  "commissionType",
-  "yourCommissionRate",
-  "commissionBreakdown",
-  "commissionReceivedStatus",
-  "commissionConfirmation"
-]);
-const editModeRestrictedFinanceFieldKeys = new Set([
-  "commissionAmount",
-  "rebate",
-  "reimbursement",
-  "companyReferral",
-  "outsideReferral",
-  "referralFee",
-  "companyReferralEmployeeName",
-  "companyReferralEmployeesName",
-  "note",
-  "officeNet",
-  "agentNet"
-]);
 
 function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialValues: Record<string, string> | undefined) {
   const nextValues: Record<string, string> = {};
@@ -167,6 +138,7 @@ export function TransactionIntakeWorkspace({
   ownerAssignment,
   statusFieldPolicy,
   afterSubmit = "refresh",
+  preserveDraftStateOnSchemaChange = false,
   onClose,
   onSubmitted
 }: TransactionIntakeWorkspaceProps) {
@@ -208,28 +180,56 @@ export function TransactionIntakeWorkspace({
 
   useEffect(() => {
     setLocalSchema(schema);
-    const nextValues = buildInitialFieldValues(schema, initialValues);
     const nextOwnerFieldInputName = schema.customFields.find((field) => field.fieldKey === "agentName")?.inputName ?? "";
+    setFieldValues((current) => {
+      const nextValues = buildInitialFieldValues(schema, initialValues);
 
-    if (ownerAssignment && nextOwnerFieldInputName) {
-      nextValues[nextOwnerFieldInputName] =
-        mode === "create" && ownerAssignment.canSelectDifferentOwner ? "" : ownerAssignment.currentOwnerLabel;
-    }
+      if (preserveDraftStateOnSchemaChange) {
+        for (const field of schema.builtInFields) {
+          if (field.isVisible && typeof current[field.inputName] === "string") {
+            nextValues[field.inputName] = current[field.inputName] ?? "";
+          }
+        }
 
-    setFieldValues(applyTransactionStatusFieldPolicy(schema, nextValues, statusFieldPolicy));
-    setOwnerSearchValue(mode === "create" && ownerAssignment?.canSelectDifferentOwner ? "" : ownerAssignment?.currentOwnerLabel ?? "");
-    setSelectedOwnerMembershipId(
-      mode === "create"
-        ? ownerAssignment?.canSelectDifferentOwner
+        for (const field of schema.customFields) {
+          if (field.isVisible && typeof current[field.inputName] === "string") {
+            nextValues[field.inputName] = current[field.inputName] ?? "";
+          }
+        }
+      }
+
+      if (ownerAssignment && nextOwnerFieldInputName) {
+        nextValues[nextOwnerFieldInputName] =
+          preserveDraftStateOnSchemaChange && typeof current[nextOwnerFieldInputName] === "string"
+            ? current[nextOwnerFieldInputName] ?? ""
+            : mode === "create" && ownerAssignment.canSelectDifferentOwner
+              ? ""
+              : ownerAssignment.currentOwnerLabel;
+      }
+
+      return applyTransactionStatusFieldPolicy(schema, nextValues, statusFieldPolicy);
+    });
+    setOwnerSearchValue((current) =>
+      preserveDraftStateOnSchemaChange
+        ? current
+        : mode === "create" && ownerAssignment?.canSelectDifferentOwner
           ? ""
+          : ownerAssignment?.currentOwnerLabel ?? ""
+    );
+    setSelectedOwnerMembershipId((current) =>
+      preserveDraftStateOnSchemaChange
+        ? current
+        : mode === "create"
+          ? ownerAssignment?.canSelectDifferentOwner
+            ? ""
+            : ownerAssignment?.currentOwnerMembershipId ?? ""
           : ownerAssignment?.currentOwnerMembershipId ?? ""
-        : ownerAssignment?.currentOwnerMembershipId ?? ""
     );
     setOwnerSuggestionsOpen(false);
-    if (mode === "create") {
+    if (mode === "create" && !preserveDraftStateOnSchemaChange) {
       setFinanceDraft(createTransactionFinanceCreateDraft());
     }
-  }, [schema, initialValues, mode, ownerAssignment, statusFieldPolicy]);
+  }, [schema, initialValues, mode, ownerAssignment, preserveDraftStateOnSchemaChange, statusFieldPolicy]);
 
   const visibleTopFields = [...localSchema.builtInFields]
     .filter((field) => field.section === "top" && field.isVisible)

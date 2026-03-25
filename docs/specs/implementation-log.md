@@ -157,6 +157,10 @@
 - `/office/accounting` payee selection now follows office/global sales-membership scope instead of office-local `agent` only, so admins can search `agent / team_lead` memberships in `active` or `invited` state, including company-level records with `officeId = null`
 - `/office/accounting` statement generation now follows the invoice-number workflow: admins load an agent's eligible invoice candidates from the transaction `invoiceNumber` field, preview the rows under the selected invoice numbers if needed, optionally uncheck specific rows, and then generate the payout statement without relying on a date window
 - `New Transaction > Agent Name` owner search now sources assignable owners from office/global sales memberships instead of the viewer's current transaction roster visibility, so admins can still find unassigned or not-yet-rostered agents and company-level members with `officeId = null`
+- `/office/transactions/new` now has an inline `Edit fields` modal for office admins:
+  - it reuses the shared transaction field settings instead of creating a second page-only schema
+  - admins can toggle which direct intake fields render on the create page and add a new custom field without leaving the flow
+  - schema changes made from that modal now update the live create form without clearing the draft values already typed into still-visible fields
 - Transaction status handling is now tightened around admin control:
   - `Create transaction` only allows `Pending / Closed / Cancelled`
   - non-admin creators are forced to `Pending`

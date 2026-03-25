@@ -1,21 +1,30 @@
 import Link from "next/link";
-import { canCreateOfficeTransactions, canManageOfficeTransactionStatus } from "@acre/auth";
-import { getOfficeTransactionIntakeSchema, getOfficeTransactionOwnerAssignment } from "@acre/db";
-import { PageHeader, PageShell, SectionCard } from "@acre/ui";
+import {
+  canCreateOfficeTransactions,
+  canManageOfficeFields,
+  canManageOfficeTransactionStatus
+} from "@acre/auth";
+import {
+  getOfficeFieldSettingsSnapshot,
+  getOfficeTransactionIntakeSchema,
+  getOfficeTransactionOwnerAssignment
+} from "@acre/db";
+import { PageHeader, PageShell } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
-import { TransactionIntakeWorkspace } from "../transaction-intake-form";
 import { getCreateTransactionStatusFieldPolicy } from "../transaction-status-rules";
+import { TransactionCreatePageClient } from "./transaction-create-page-client";
 
 export default async function OfficeTransactionCreatePage() {
   const context = await requireOfficeSession();
+  const canManageFields = canManageOfficeFields(context.currentMembership);
   const canManageTransactionStatus = canManageOfficeTransactionStatus(context.currentMembership);
 
   if (!canCreateOfficeTransactions(context.currentMembership)) {
     redirect("/office/transactions");
   }
 
-  const [schema, ownerAssignment] = await Promise.all([
+  const [schema, ownerAssignment, fieldSettingsSnapshot] = await Promise.all([
     getOfficeTransactionIntakeSchema({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null
@@ -24,6 +33,11 @@ export default async function OfficeTransactionCreatePage() {
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null
+    }),
+    getOfficeFieldSettingsSnapshot({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      selectedModule: "transaction"
     })
   ]);
 
@@ -35,25 +49,17 @@ export default async function OfficeTransactionCreatePage() {
             Back to transactions
           </Link>
         }
-        description="Create a transaction using the current office intake schema. Field structure is managed centrally from Settings > Fields."
+        description="Create a transaction using the current office intake schema. Office admins can now adjust intake fields directly from this page without leaving the form."
         title="New transaction"
       />
 
-      <SectionCard className="bm-new-transaction-card bm-new-transaction-live-card" title="Transaction intake">
-        <TransactionIntakeWorkspace
-          afterSubmit="go-detail"
-          canEditValues={true}
-          chrome="page"
-          mode="create"
-          ownerAssignment={ownerAssignment}
-          schema={schema}
-          statusFieldPolicy={getCreateTransactionStatusFieldPolicy(canManageTransactionStatus)}
-          submitEndpoint="/api/office/transactions"
-          submitLabel="Create transaction"
-          submitMethod="POST"
-          title="Office intake form"
-        />
-      </SectionCard>
+      <TransactionCreatePageClient
+        canManageFields={canManageFields}
+        initialFieldModule={fieldSettingsSnapshot.currentModule}
+        initialSchema={schema}
+        ownerAssignment={ownerAssignment}
+        statusFieldPolicy={getCreateTransactionStatusFieldPolicy(canManageTransactionStatus)}
+      />
     </PageShell>
   );
 }

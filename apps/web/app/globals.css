@@ -10154,6 +10154,73 @@ a {
   max-width: 360px;
 }
 
+.office-transaction-intake-fields-modal {
+  width: min(100%, 980px);
+  max-height: min(92vh, 900px);
+}
+
+.office-transaction-intake-fields-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.office-transaction-intake-fields-empty {
+  grid-column: 1 / -1;
+}
+
+.office-transaction-intake-fields-note,
+.office-transaction-intake-fields-create {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(194, 205, 220, 0.54);
+  border-radius: 20px;
+  background: rgba(247, 249, 252, 0.84);
+}
+
+.office-transaction-intake-fields-note strong {
+  color: var(--office-text);
+}
+
+.office-transaction-intake-fields-note p,
+.office-transaction-intake-fields-footer-copy p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.office-transaction-intake-fields-note-actions,
+.office-transaction-intake-fields-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.office-transaction-intake-fields-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.office-transaction-intake-fields-create-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+  grid-column: 1 / -1;
+}
+
+.office-transaction-intake-fields-footer {
+  justify-content: space-between;
+}
+
+.office-transaction-intake-fields-footer-copy {
+  min-width: 0;
+  max-width: 420px;
+}
+
 .office-confirm-dialog {
   width: min(100%, 480px);
   padding: 24px;
@@ -11958,6 +12025,10 @@ a {
   .office-fields-modal-footer {
     justify-content: flex-start;
   }
+
+  .office-transaction-intake-fields-create-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 780px) {
@@ -11992,6 +12063,15 @@ a {
   .office-fields-modal-option-head,
   .office-fields-modal-option-row {
     grid-template-columns: 1fr;
+  }
+
+  .office-transaction-intake-fields-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .office-transaction-intake-fields-footer-copy {
+    max-width: none;
   }
 }
 
