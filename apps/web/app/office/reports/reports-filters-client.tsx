@@ -332,15 +332,16 @@ function ReportSearchLayoutModal(props: {
             <h3>Edit search fields</h3>
             <p>Choose which report filters stay visible for this office workbench.</p>
           </div>
-          <button
+          <Button
             aria-label="Close report search field editor"
-            className="office-fields-modal-close"
             disabled={props.isSaving}
             onClick={props.onClose}
+            size="sm"
             type="button"
+            variant="ghost"
           >
-            ×
-          </button>
+            Close
+          </Button>
         </header>
 
         <div className="office-fields-modal-body office-transaction-search-layout-body">

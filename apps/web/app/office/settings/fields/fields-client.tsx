@@ -1031,14 +1031,15 @@ export function OfficeSettingsFieldsClient({
                     : "Custom field settings"}
                 </p>
               </div>
-              <button
+              <Button
                 aria-label="Close field editor"
-                className="office-fields-modal-close"
                 onClick={() => setEditorState(null)}
+                size="sm"
                 type="button"
+                variant="ghost"
               >
-                ×
-              </button>
+                Close
+              </Button>
             </header>
 
             <div className="office-fields-modal-body">

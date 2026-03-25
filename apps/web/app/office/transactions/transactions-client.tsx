@@ -364,15 +364,16 @@ function TransactionSearchLayoutModal(props: {
             <h3>Edit search fields</h3>
             <p>Choose which transaction fields appear in the shared office search workbench.</p>
           </div>
-          <button
+          <Button
             aria-label="Close search field editor"
-            className="office-fields-modal-close"
             disabled={props.isSaving}
             onClick={props.onClose}
+            size="sm"
             type="button"
+            variant="ghost"
           >
-            ×
-          </button>
+            Close
+          </Button>
         </header>
 
         <div className="office-fields-modal-body office-transaction-search-layout-body">

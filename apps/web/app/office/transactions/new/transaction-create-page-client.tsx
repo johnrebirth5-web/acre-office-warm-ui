@@ -242,14 +242,15 @@ export function TransactionCreatePageClient({
                   and transaction-required contact roles directly from this create flow.
                 </p>
               </div>
-              <button
+              <Button
                 aria-label="Close transaction field editor"
-                className="office-fields-modal-close"
                 onClick={closeFieldEditor}
+                size="sm"
                 type="button"
+                variant="ghost"
               >
-                ×
-              </button>
+                Close
+              </Button>
             </header>
 
             <div className="office-transaction-intake-fields-workspace">

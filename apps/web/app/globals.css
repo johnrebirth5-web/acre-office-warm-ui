@@ -9918,11 +9918,16 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.office-fields-panel-head > :is(.office-button, .office-button-secondary) {
+.office-fields-panel-head > :is(.office-button, .office-button-secondary),
+.office-fields-modal-head > :is(.office-button, .office-button-secondary) {
   justify-self: end;
   align-self: start;
   width: auto;
   min-width: 0;
+}
+
+.office-fields-modal-head {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .office-fields-hidden-row {
@@ -10085,8 +10090,7 @@ a {
   gap: 8px;
 }
 
-.office-fields-row-action,
-.office-fields-modal-close {
+.office-fields-row-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -10101,13 +10105,11 @@ a {
   font-weight: 600;
 }
 
-.office-fields-row-action.is-danger,
-.office-fields-modal-close {
+.office-fields-row-action.is-danger {
   color: var(--office-danger);
 }
 
-.office-fields-row-action:disabled,
-.office-fields-modal-close:disabled {
+.office-fields-row-action:disabled {
   cursor: not-allowed;
   border-color: rgba(194, 205, 220, 0.7);
   background: rgba(244, 247, 251, 0.92);
@@ -10156,6 +10158,7 @@ a {
   width: min(100%, 720px);
   max-height: min(90vh, 820px);
   overflow: auto;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.995) 0%, #f9fbff 100%);
 }
 
 .office-transaction-search-layout-modal {
