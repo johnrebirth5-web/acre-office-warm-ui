@@ -14,6 +14,8 @@ import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } fr
 import { prisma } from "./client";
 import { retiredTransactionCustomFieldKeys } from "./transaction-retired-custom-fields";
 
+type FieldSettingsReadClient = Prisma.TransactionClient | typeof prisma;
+
 type BuiltInSelectOptionCatalogEntry = {
   value: string;
   label: string;
@@ -957,20 +959,21 @@ function buildLegacyCustomFieldFallbackState(
 
 async function listPersistedBuiltInFieldSettings(
   module: OfficeFieldModule,
-  input: { organizationId: string; officeId?: string | null }
+  input: { organizationId: string; officeId?: string | null; db?: FieldSettingsReadClient }
 ): Promise<PersistedFieldSetting[]> {
   const scopedOfficeId = resolveFieldSettingsOfficeId(module, input.officeId);
+  const db = input.db ?? prisma;
 
   switch (module) {
     case "contact":
-      return prisma.contactFieldSetting.findMany({
+      return db.contactFieldSetting.findMany({
         where: {
           organizationId: input.organizationId,
           officeId: scopedOfficeId
         }
       });
     case "offer":
-      return prisma.offerFieldSetting.findMany({
+      return db.offerFieldSetting.findMany({
         where: {
           organizationId: input.organizationId,
           officeId: scopedOfficeId
@@ -978,7 +981,7 @@ async function listPersistedBuiltInFieldSettings(
       });
     case "transaction":
     default:
-      return prisma.transactionFieldSetting.findMany({
+      return db.transactionFieldSetting.findMany({
         where: {
           organizationId: input.organizationId,
           officeId: scopedOfficeId
@@ -989,13 +992,19 @@ async function listPersistedBuiltInFieldSettings(
 
 async function listPersistedCustomFieldDefinitions(
   module: OfficeFieldModule,
-  input: { organizationId: string; officeId?: string | null; includeArchived?: boolean }
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    includeArchived?: boolean;
+    db?: FieldSettingsReadClient;
+  }
 ): Promise<PersistedCustomFieldDefinition[]> {
   const scopedOfficeId = resolveFieldSettingsOfficeId(module, input.officeId);
+  const db = input.db ?? prisma;
 
   switch (module) {
     case "contact":
-      return prisma.contactCustomFieldDefinition.findMany({
+      return db.contactCustomFieldDefinition.findMany({
         where: {
           organizationId: input.organizationId,
           officeId: scopedOfficeId,
@@ -1004,7 +1013,7 @@ async function listPersistedCustomFieldDefinitions(
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
       });
     case "offer":
-      return prisma.offerCustomFieldDefinition.findMany({
+      return db.offerCustomFieldDefinition.findMany({
         where: {
           organizationId: input.organizationId,
           officeId: scopedOfficeId,
@@ -1014,7 +1023,7 @@ async function listPersistedCustomFieldDefinitions(
       });
     case "transaction":
     default:
-      return prisma.transactionCustomFieldDefinition.findMany({
+      return db.transactionCustomFieldDefinition.findMany({
         where: {
           organizationId: input.organizationId,
           officeId: scopedOfficeId,
@@ -1028,8 +1037,10 @@ async function listPersistedCustomFieldDefinitions(
 async function getRequiredContactRoleRows(input: {
   organizationId: string;
   officeId?: string | null;
+  db?: FieldSettingsReadClient;
 }): Promise<OfficeRequiredContactRoleRecord[]> {
-  const requiredRoleSettings = await prisma.requiredContactRoleSetting.findMany({
+  const db = input.db ?? prisma;
+  const requiredRoleSettings = await db.requiredContactRoleSetting.findMany({
     where: {
       organizationId: input.organizationId,
       officeId: resolveFieldSettingsOfficeId("transaction", input.officeId)
@@ -1072,6 +1083,7 @@ function sortCustomFields<T extends OfficeFieldCustomDefinitionRecord>(fields: T
 export async function getOfficeTransactionIntakeSchema(input: {
   organizationId: string;
   officeId?: string | null;
+  db?: FieldSettingsReadClient;
 }): Promise<OfficeTransactionIntakeSchema> {
   const [transactionFieldSettings, transactionCustomFieldDefinitions] = await Promise.all([
     listPersistedBuiltInFieldSettings("transaction", input),
@@ -1239,6 +1251,7 @@ function buildGenericModuleFieldSchema(
 export async function getOfficeContactFieldSchema(input: {
   organizationId: string;
   officeId?: string | null;
+  db?: FieldSettingsReadClient;
 }): Promise<OfficeContactFieldSchema> {
   const [builtInSettings, customDefinitions] = await Promise.all([
     listPersistedBuiltInFieldSettings("contact", input),
@@ -1251,6 +1264,7 @@ export async function getOfficeContactFieldSchema(input: {
 export async function getOfficeOfferFieldSchema(input: {
   organizationId: string;
   officeId?: string | null;
+  db?: FieldSettingsReadClient;
 }): Promise<OfficeOfferFieldSchema> {
   const [builtInSettings, customDefinitions] = await Promise.all([
     listPersistedBuiltInFieldSettings("offer", input),
@@ -1264,6 +1278,7 @@ async function getOfficeFieldModuleSnapshot(input: {
   organizationId: string;
   officeId?: string | null;
   module: OfficeFieldModule;
+  db?: FieldSettingsReadClient;
 }): Promise<OfficeFieldModuleSettingsSnapshot> {
   const module = normalizeOfficeFieldModule(input.module);
   const catalogEntry = fieldModuleCatalog[module];
@@ -2265,7 +2280,8 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
     return getOfficeFieldModuleSnapshot({
       organizationId: input.organizationId,
       officeId: input.officeId,
-      module
+      module,
+      db: tx
     });
   });
 }
@@ -2301,7 +2317,8 @@ export async function createOfficeCustomFieldDefinition(input: CreateOfficeCusto
     const currentSnapshot = await getOfficeFieldModuleSnapshot({
       organizationId: input.organizationId,
       officeId: input.officeId,
-      module
+      module,
+      db: tx
     });
     const sortOrder = Math.max(-1, ...currentSnapshot.builtInFields.map((entry) => entry.sortOrder), ...currentSnapshot.customFields.map((entry) => entry.sortOrder)) + 1;
     const isDeletionLocked = Boolean(input.isDeletionLocked);
@@ -2342,7 +2359,8 @@ export async function createOfficeCustomFieldDefinition(input: CreateOfficeCusto
     return getOfficeFieldModuleSnapshot({
       organizationId: input.organizationId,
       officeId: input.officeId,
-      module
+      module,
+      db: tx
     });
   });
 }
@@ -2437,7 +2455,8 @@ export async function updateOfficeCustomFieldDefinition(input: UpdateOfficeCusto
     return getOfficeFieldModuleSnapshot({
       organizationId: input.organizationId,
       officeId: input.officeId,
-      module
+      module,
+      db: tx
     });
   });
 }
@@ -2525,7 +2544,8 @@ export async function deleteOfficeCustomFieldDefinition(input: DeleteOfficeCusto
       snapshot: await getOfficeFieldModuleSnapshot({
         organizationId: input.organizationId,
         officeId: input.officeId,
-        module
+        module,
+        db: tx
       })
     };
   });
@@ -2613,7 +2633,8 @@ export async function reorderOfficeFields(input: ReorderOfficeFieldsInput) {
     return getOfficeFieldModuleSnapshot({
       organizationId: input.organizationId,
       officeId: input.officeId,
-      module
+      module,
+      db: tx
     });
   });
 }

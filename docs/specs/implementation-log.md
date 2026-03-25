@@ -165,6 +165,7 @@
   - the embedded workspace reuses the full `Settings > Fields` transaction editor instead of a reduced checkbox-only version
   - built-in transaction field labels are now overrideable and persisted, so admins can rename display text such as `State` directly from the inline editor or the main settings page
   - report search fields, report columns, and CSV export headers now read those same shared labels instead of hardcoded report-only copies
+  - field-setting mutation routes now read their updated transaction/contact/offer field snapshots inside the same Prisma transaction before responding, so inline editors no longer show the old field state on the first save attempt
 - Transaction status handling is now tightened around admin control:
   - `Create transaction` only allows `Pending / Closed / Cancelled`
   - non-admin creators are forced to `Pending`
