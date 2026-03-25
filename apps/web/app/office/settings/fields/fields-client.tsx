@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import {
   Button,
   CheckboxField,
@@ -59,6 +59,11 @@ type ConfirmDialogState = {
   description: string;
   confirmLabel: string;
   onConfirm: () => void;
+};
+
+type DragOverState = {
+  fieldKey: string;
+  position: "before" | "after";
 };
 
 const customFieldTypeOptions = [
@@ -229,6 +234,8 @@ export function OfficeSettingsFieldsClient({
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [editorState, setEditorState] = useState<FieldEditorState | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const [draggingFieldKey, setDraggingFieldKey] = useState<string | null>(null);
+  const [dragOverState, setDragOverState] = useState<DragOverState | null>(null);
 
   useEffect(() => {
     setCurrentModule(snapshot.currentModule);
@@ -248,7 +255,14 @@ export function OfficeSettingsFieldsClient({
         entry.module === nextModule.module ? buildSummaryRecord(nextModule) : entry
       )
     );
+    setDraggingFieldKey(null);
+    setDragOverState(null);
     onModuleSnapshotChange?.(nextModule);
+  }
+
+  function resetDragState() {
+    setDraggingFieldKey(null);
+    setDragOverState(null);
   }
 
   async function persistModuleSnapshot(
@@ -489,24 +503,8 @@ export function OfficeSettingsFieldsClient({
     }
   }
 
-  async function handleMoveField(fieldKey: string, direction: "up" | "down") {
-    const currentIndex = visibleEntries.findIndex((entry) => entry.field.fieldKey === fieldKey);
-
-    if (currentIndex < 0) {
-      return;
-    }
-
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= visibleEntries.length) {
-      return;
-    }
-
-    const nextVisibleEntries = [...visibleEntries];
-    const [movedEntry] = nextVisibleEntries.splice(currentIndex, 1);
-    nextVisibleEntries.splice(targetIndex, 0, movedEntry);
-
-    setPendingAction(`reorder:${fieldKey}`);
+  async function persistVisibleFieldOrder(nextVisibleEntries: FieldEntry[]) {
+    setPendingAction("reorder:visible-fields");
     setSubmitError("");
     setSubmitSuccess("");
 
@@ -540,6 +538,108 @@ export function OfficeSettingsFieldsClient({
     } finally {
       setPendingAction("");
     }
+  }
+
+  function buildNextVisibleEntryOrder(
+    draggedFieldKey: string,
+    targetFieldKey: string,
+    position: "before" | "after"
+  ) {
+    const nextVisibleEntries = [...visibleEntries];
+    const draggedIndex = nextVisibleEntries.findIndex(
+      (entry) => entry.field.fieldKey === draggedFieldKey
+    );
+    const targetIndex = nextVisibleEntries.findIndex(
+      (entry) => entry.field.fieldKey === targetFieldKey
+    );
+
+    if (draggedIndex < 0 || targetIndex < 0 || draggedFieldKey === targetFieldKey) {
+      return null;
+    }
+
+    const [draggedEntry] = nextVisibleEntries.splice(draggedIndex, 1);
+    const nextTargetIndex = nextVisibleEntries.findIndex(
+      (entry) => entry.field.fieldKey === targetFieldKey
+    );
+
+    if (nextTargetIndex < 0) {
+      return null;
+    }
+
+    const insertionIndex = position === "before" ? nextTargetIndex : nextTargetIndex + 1;
+    nextVisibleEntries.splice(insertionIndex, 0, draggedEntry);
+
+    const isSameOrder = nextVisibleEntries.every(
+      (entry, index) => entry.field.fieldKey === visibleEntries[index]?.field.fieldKey
+    );
+
+    return isSameOrder ? null : nextVisibleEntries;
+  }
+
+  function getDragPosition(event: DragEvent<HTMLElement>): "before" | "after" {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
+  }
+
+  function handleFieldDragStart(event: DragEvent<HTMLButtonElement>, fieldKey: string) {
+    if (pendingAction.startsWith("reorder:")) {
+      event.preventDefault();
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", fieldKey);
+    setDraggingFieldKey(fieldKey);
+    setDragOverState(null);
+  }
+
+  function handleFieldDragOver(event: DragEvent<HTMLElement>, targetFieldKey: string) {
+    if (!draggingFieldKey || pendingAction.startsWith("reorder:")) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (draggingFieldKey === targetFieldKey) {
+      if (dragOverState) {
+        setDragOverState(null);
+      }
+      return;
+    }
+
+    const position = getDragPosition(event);
+    event.dataTransfer.dropEffect = "move";
+    setDragOverState((current) =>
+      current?.fieldKey === targetFieldKey && current.position === position
+        ? current
+        : { fieldKey: targetFieldKey, position }
+    );
+  }
+
+  async function handleFieldDrop(event: DragEvent<HTMLElement>, targetFieldKey: string) {
+    if (!draggingFieldKey || pendingAction.startsWith("reorder:")) {
+      resetDragState();
+      return;
+    }
+
+    event.preventDefault();
+    const position =
+      dragOverState?.fieldKey === targetFieldKey
+        ? dragOverState.position
+        : getDragPosition(event);
+    const nextVisibleEntries = buildNextVisibleEntryOrder(
+      draggingFieldKey,
+      targetFieldKey,
+      position
+    );
+
+    resetDragState();
+
+    if (!nextVisibleEntries) {
+      return;
+    }
+
+    await persistVisibleFieldOrder(nextVisibleEntries);
   }
 
   async function handleEditorSave() {
@@ -692,16 +792,48 @@ export function OfficeSettingsFieldsClient({
         {submitSuccess ? <p className="office-inline-success">{submitSuccess}</p> : null}
 
         <div className="office-fields-list">
-          {visibleEntries.map((entry, index) => (
-            <article className="office-fields-row" key={`${entry.kind}:${entry.field.fieldKey}`}>
+          {visibleEntries.map((entry) => (
+            <article
+              className={`office-fields-row${
+                draggingFieldKey === entry.field.fieldKey ? " is-drag-source" : ""
+              }${
+                dragOverState?.fieldKey === entry.field.fieldKey
+                  ? dragOverState.position === "before"
+                    ? " is-drag-over-before"
+                    : " is-drag-over-after"
+                  : ""
+              }`}
+              key={`${entry.kind}:${entry.field.fieldKey}`}
+              onDragOver={(event) => handleFieldDragOver(event, entry.field.fieldKey)}
+              onDrop={(event) => {
+                void handleFieldDrop(event, entry.field.fieldKey);
+              }}
+            >
+              {canManageFields ? (
+                <button
+                  aria-label={`Drag ${entry.field.label} to reorder`}
+                  className="office-fields-row-handle"
+                  disabled={pendingAction.startsWith("reorder:")}
+                  draggable={!pendingAction.startsWith("reorder:")}
+                  onDragEnd={resetDragState}
+                  onDragStart={(event) => handleFieldDragStart(event, entry.field.fieldKey)}
+                  type="button"
+                >
+                  <span aria-hidden="true" className="office-fields-row-grip">
+                    ≡
+                  </span>
+                </button>
+              ) : (
+                <span aria-hidden="true" className="office-fields-row-handle is-static">
+                  <span className="office-fields-row-grip">≡</span>
+                </span>
+              )}
+
               <button
                 className="office-fields-row-main"
                 onClick={() => openEditModal(entry)}
                 type="button"
               >
-                <span aria-hidden="true" className="office-fields-row-grip">
-                  ≡
-                </span>
                 <div className="office-fields-row-copy">
                   <strong>{entry.field.label}</strong>
                   <p>{entry.kind === "custom" ? "Custom field" : "Built-in field"}</p>
@@ -714,26 +846,6 @@ export function OfficeSettingsFieldsClient({
 
               {canManageFields ? (
                 <div className="office-fields-row-actions">
-                  <button
-                    aria-label={`Move ${entry.field.label} up`}
-                    className="office-fields-row-action"
-                    disabled={index === 0 || pendingAction.startsWith("reorder:")}
-                    onClick={() => handleMoveField(entry.field.fieldKey, "up")}
-                    type="button"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    aria-label={`Move ${entry.field.label} down`}
-                    className="office-fields-row-action"
-                    disabled={
-                      index === visibleEntries.length - 1 || pendingAction.startsWith("reorder:")
-                    }
-                    onClick={() => handleMoveField(entry.field.fieldKey, "down")}
-                    type="button"
-                  >
-                    ↓
-                  </button>
                   <button
                     aria-label={`Edit ${entry.field.label}`}
                     className="office-fields-row-action"

@@ -9890,9 +9890,12 @@ a {
 .office-fields-hidden-row,
 .office-fields-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   align-items: center;
+}
+
+.office-fields-hidden-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .office-fields-panel-head h2,
@@ -9908,15 +9911,33 @@ a {
 }
 
 .office-fields-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
   padding: 14px 16px;
   border: 1px solid rgba(194, 205, 220, 0.5);
   border-radius: 18px;
   background: rgba(247, 249, 252, 0.9);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
+.office-fields-row.is-drag-source {
+  opacity: 0.62;
+}
+
+.office-fields-row.is-drag-over-before {
+  box-shadow: inset 0 3px 0 var(--office-primary);
+}
+
+.office-fields-row.is-drag-over-after {
+  box-shadow: inset 0 -3px 0 var(--office-primary);
 }
 
 .office-fields-row-main {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1.4fr) minmax(120px, 0.7fr) minmax(110px, 0.6fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.7fr) minmax(110px, 0.6fr);
   gap: 16px;
   align-items: center;
   text-align: left;
@@ -9924,6 +9945,31 @@ a {
   border: 0;
   padding: 0;
   color: inherit;
+}
+
+.office-fields-row-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 40px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: grab;
+}
+
+.office-fields-row-handle:active {
+  cursor: grabbing;
+}
+
+.office-fields-row-handle.is-static {
+  cursor: default;
+}
+
+.office-fields-row-handle:disabled {
+  cursor: not-allowed;
 }
 
 .office-fields-row-grip {
@@ -12033,6 +12079,10 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .office-fields-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
   .office-table-actions,
   .office-settings-actions {
     justify-content: flex-start;
@@ -12043,7 +12093,7 @@ a {
   }
 
   .office-fields-row-main {
-    grid-template-columns: 24px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .office-fields-row-type,
@@ -12054,6 +12104,10 @@ a {
   .office-fields-row-actions,
   .office-fields-modal-footer {
     justify-content: flex-start;
+  }
+
+  .office-fields-row-actions {
+    grid-column: 1 / -1;
   }
 
   .office-transaction-intake-fields-create-grid {
