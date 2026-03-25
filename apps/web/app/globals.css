@@ -9777,17 +9777,37 @@ a {
 }
 
 .office-inline-error {
-  margin: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid rgba(192, 95, 95, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 244, 244, 0.92);
   color: var(--office-danger);
   font-size: 0.86rem;
   font-weight: 600;
+  line-height: 1.4;
 }
 
 .office-inline-success {
-  margin: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid rgba(95, 154, 117, 0.24);
+  border-radius: 14px;
+  background: rgba(241, 252, 245, 0.92);
   color: var(--office-success-strong);
   font-size: 0.86rem;
   font-weight: 600;
+  line-height: 1.4;
 }
 
 .office-fields-shell {
@@ -9892,6 +9912,17 @@ a {
   display: grid;
   gap: 16px;
   align-items: center;
+}
+
+.office-fields-panel-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.office-fields-panel-head > :is(.office-button, .office-button-secondary) {
+  justify-self: end;
+  align-self: start;
+  width: auto;
+  min-width: 0;
 }
 
 .office-fields-hidden-row {
