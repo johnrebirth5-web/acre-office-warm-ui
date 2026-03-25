@@ -61,11 +61,16 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - current stakeholder breakdown
   - current calculation version summary
   - calculation history
-  - manual override for finance/admin users
-- `/office/dashboard` now includes a self-service commission summary for sales-role memberships (`agent / team_lead`) only:
+  - manual override for final stakeholder payouts
+  - `Owner`-only add/remove of extra active memberships during override
+  - manual participant rows saved as formal `commissionCalculation` agent rows
+  - override total validation that must keep the full payout pool unchanged
+  - manual-participant lock that blocks future `Recalculate`; once a transaction has manual participants it must continue through override only
+- `/office/dashboard` now includes a self-service commission summary when the current membership has direct commission or statement data:
   - total persisted commission
   - current-month commission
   - current month always visible, with older monthly totals tucked into a collapsible history menu
+  - recent saved payout statements with self-only PDF download links
 - `/office/settings/commission-plans` is the primary commission management workspace
 - agent profile shows commission summary
 - strict visibility now applies:
@@ -73,7 +78,8 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - manager sees self + downline rows
   - admin/accountant sees full chain and company rows
 - self-service visibility is separated from commission management:
-  - sales roles can view scoped commission data on dashboard and transaction detail
+  - current memberships with direct self data can view self-only commission data on dashboard
+  - transaction detail commission visibility still stays scoped by the existing commission visibility rules
   - commission plan / statement management stays in admin-review surfaces only
 - internal statuses include:
   - draft
@@ -153,6 +159,18 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - the current version is mirrored into the active `CommissionCalculation` rows for compatibility
 - statement / payslip views read the current version-backed rows only
 - history remains visible for audit/review but is not double-counted in payout summaries
+- manual override versions may include extra active memberships that were not part of the original split chain
+- manual participant rows are marked as manual in the stored stakeholder snapshot:
+  - `Share` shows `Manual`
+  - `Base / Post-Split / Reimbursement` stay `0` or `—`
+  - `Final` reflects the owner-entered override amount
+- manual override validation rules:
+  - `overrideReason` is required
+  - user rows must map to active memberships in the same organization
+  - `company` must remain present exactly once
+  - duplicate memberships are rejected
+  - payout amounts must stay non-negative
+  - total allocated payout must remain identical to the current version total
 
 ## Current gaps
 
@@ -161,7 +179,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - no full enterprise rule engine
 - statement generation is still MVP-level
 - first release keeps one current row per fee type, not multiple rows of the same fee type
-- first release manual override edits final stakeholder payouts only; it does not rewrite the source fee ledger
+- manual override can add/remove extra active memberships for a specific transaction version, but it still does not rewrite the source fee ledger or commission plan defaults
 - legacy fee/status tools still coexist with the new default split-chain path
 
 ## Future direction

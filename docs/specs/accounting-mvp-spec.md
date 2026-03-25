@@ -2,17 +2,16 @@
 
 ## Goal
 
-Provide a durable Back Office accounting foundation focused on transaction-side accounting, EMD, agent billing, and admin-controlled agent payout statements.
+Provide a durable Back Office accounting foundation focused on transaction-side accounting, EMD, agent billing, and admin-controlled agent payout statements, while allowing self-service members to view their own saved payout output.
 
 ## Current implemented foundation
 
 - `/office/accounting` exists and is database-backed
 - `/office/accounting` is now an `office_admin`-only agent statement workspace
-- admin-operated agent selection must treat `invited` agents as operationally usable, not hidden, because many agents never log in and are fully managed by office admins
-- the statement workspace should source selectable payees from office/global sales memberships, not just office-local active agents:
-  - include `agent` and `team_lead`
-  - include `active` and `invited`
-  - include current-office memberships plus company-level memberships with `officeId = null`
+- the statement workspace now sources selectable payees from active memberships that either:
+  - have eligible direct `commissionCalculation` rows
+  - or already have saved payout statements
+- selectable payees are no longer limited to `agent / team_lead`; manual override participants can also appear if they are active memberships with direct payout rows
 - chart of accounts foundation exists
 - accounting transactions and line items exist
 - general ledger entries exist
@@ -27,6 +26,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - saved statement detail / PDF line items now show `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission`
   - statement PDF uses a landscape table layout so the expanded line-item set remains readable
   - agent-facing statement output no longer surfaces `Office net`
+  - manual override participant rows remain formal statement line-item sources because they are saved as direct agent `commissionCalculation` rows
 - agent billing exists:
   - ledger
   - one-time charges
@@ -39,6 +39,11 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - current-membership summary / ledger / statement list
   - masked payment-method reference maintenance
   - no live gateway or ACH execution
+- self-service commission statement access now exists on `/office/dashboard`:
+  - the current membership sees self-only commission totals when direct commission or statement data exists
+  - the current membership sees a `My payout statements` list for saved statements
+  - the current membership can download only their own saved payout statement PDFs
+  - self-service users cannot generate statements; creation stays in admin/accounting workflows
 - commission management primary workspace now lives at `/office/settings/commission-plans`
 
 ## Current gaps
@@ -49,6 +54,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - no ACH payout execution
 - chart editing is still read-first / limited
 - old ledger / agent-billing / EMD UI is no longer exposed through `/office/accounting`
+- self-service statement generation is intentionally not exposed; only saved statements are downloadable by the member
 
 ## Future direction
 

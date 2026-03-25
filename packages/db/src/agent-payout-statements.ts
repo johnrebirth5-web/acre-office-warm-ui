@@ -4,7 +4,6 @@ import {
   AgentBankInformationTaxIdType,
   CommissionCalculationStatus,
   MembershipStatus,
-  UserRole,
   Prisma
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
@@ -244,8 +243,7 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
   paid: "Paid"
 };
 
-const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
-const selectableAgentPayoutMembershipRoles = ["agent", "team_lead"] satisfies UserRole[];
+const selectableAgentMembershipStatuses = ["active"] satisfies MembershipStatus[];
 const selectableAgentPayoutCalculationStatuses = [
   "calculated",
   "reviewed",
@@ -264,16 +262,6 @@ const agentBankInformationAccountTypeLabelMap: Record<AgentBankInformationAccoun
   business_savings: "Business savings",
   other: "Other"
 };
-
-function buildOfficeOrGlobalMembershipWhere(officeId: string | null | undefined): Prisma.MembershipWhereInput | undefined {
-  if (!officeId) {
-    return undefined;
-  }
-
-  return {
-    OR: [{ officeId }, { officeId: null }]
-  };
-}
 
 function buildOfficeOrGlobalStatementWhere(officeId: string | null | undefined): Prisma.AgentPayoutStatementWhereInput | undefined {
   if (!officeId) {
@@ -413,7 +401,13 @@ export function parseStakeholderBreakdownSharePercent(
     return "";
   }
 
-  const sharePercent = (matchingRow as Record<string, Prisma.JsonValue>).sharePercent;
+  const row = matchingRow as Record<string, Prisma.JsonValue>;
+
+  if (row.isManualParticipant === true) {
+    return "Manual";
+  }
+
+  const sharePercent = row.sharePercent;
   return typeof sharePercent === "string" ? `${formatPercentLabel(sharePercent)}%` : "";
 }
 
@@ -804,6 +798,69 @@ function mapStatementDetail(record: StatementRecordWithRelations): OfficeAgentPa
   };
 }
 
+async function listSelectableAgentPayoutMemberships(input: {
+  organizationId: string;
+  officeId?: string | null;
+}) {
+  const [calculationMemberships, statementMemberships] = await Promise.all([
+    prisma.commissionCalculation.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalCommissionWhere(input.officeId) ?? {}),
+        recipientType: "agent",
+        membershipId: {
+          not: null
+        },
+        status: {
+          in: selectableAgentPayoutCalculationStatuses
+        }
+      },
+      select: {
+        membershipId: true
+      },
+      distinct: ["membershipId"]
+    }),
+    prisma.agentPayoutStatement.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      select: {
+        membershipId: true
+      },
+      distinct: ["membershipId"]
+    })
+  ]);
+
+  const selectableMembershipIds = Array.from(
+    new Set(
+      [...calculationMemberships, ...statementMemberships]
+        .map((row) => row.membershipId?.trim() ?? "")
+        .filter(Boolean)
+    )
+  );
+
+  if (selectableMembershipIds.length === 0) {
+    return [];
+  }
+
+  return prisma.membership.findMany({
+    where: {
+      organizationId: input.organizationId,
+      status: {
+        in: selectableAgentMembershipStatuses
+      },
+      id: {
+        in: selectableMembershipIds
+      }
+    },
+    include: {
+      user: true
+    },
+    orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
+  });
+}
+
 export async function getOfficeAgentPayoutStatementDetail(
   input: GetOfficeAgentPayoutStatementDetailInput
 ): Promise<OfficeAgentPayoutStatementDetail | null> {
@@ -843,21 +900,9 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
   const requestedInvoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(input.invoiceNumbers);
 
   const [memberOptions, history, selectedStatement, eligibleCalculations] = await Promise.all([
-    prisma.membership.findMany({
-      where: {
-        organizationId: input.organizationId,
-        status: {
-          in: selectableAgentMembershipStatuses
-        },
-        role: {
-          in: selectableAgentPayoutMembershipRoles
-        },
-        ...(buildOfficeOrGlobalMembershipWhere(input.officeId) ?? {})
-      },
-      include: {
-        user: true
-      },
-      orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
+    listSelectableAgentPayoutMemberships({
+      organizationId: input.organizationId,
+      officeId: input.officeId
     }),
     prisma.agentPayoutStatement.findMany({
       where: {
@@ -944,7 +989,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
   const commissionCalculationIds = [...new Set(input.commissionCalculationIds.map((value) => value.trim()).filter(Boolean))];
 
   if (!membershipId) {
-    throw new Error("Agent is required.");
+    throw new Error("Membership is required.");
   }
 
   if (!invoiceNumbers.length) {
@@ -958,11 +1003,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
         organizationId: input.organizationId,
         status: {
           in: selectableAgentMembershipStatuses
-        },
-        role: {
-          in: selectableAgentPayoutMembershipRoles
-        },
-        ...(buildOfficeOrGlobalMembershipWhere(input.officeId) ?? {})
+        }
       },
       include: {
         user: true
@@ -970,7 +1011,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
     });
 
     if (!membership) {
-      throw new Error("Agent not found for statement generation.");
+      throw new Error("Active membership not found for statement generation.");
     }
 
     const eligibleCalculations = await tx.commissionCalculation.findMany({

@@ -288,6 +288,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
             canApproveCommissions={canApproveCommissionsForRole}
             canCalculateCommissions={canCalculateCommissionsForRole}
             canManageCommissions={canManageCommissionsForRole}
+            isOwner={context.currentMembership.role === "owner"}
             snapshot={commissionSnapshot}
             transactionId={transaction.id}
           />

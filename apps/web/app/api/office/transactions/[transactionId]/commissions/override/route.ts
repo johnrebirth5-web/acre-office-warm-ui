@@ -25,8 +25,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     | {
         overrideReason?: string;
         notes?: string;
-        stakeholderAmounts?: Array<{
+        stakeholderRows?: Array<{
           key?: string;
+          membershipId?: string;
           amount?: string;
         }>;
       }
@@ -39,9 +40,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       transactionId,
       overrideReason: typeof body?.overrideReason === "string" ? body.overrideReason : "",
       notes: typeof body?.notes === "string" ? body.notes : "",
-      stakeholderAmounts:
-        body?.stakeholderAmounts?.map((row) => ({
+      stakeholderRows:
+        body?.stakeholderRows?.map((row) => ({
           key: typeof row?.key === "string" ? row.key : "",
+          membershipId: typeof row?.membershipId === "string" ? row.membershipId : "",
           amount: typeof row?.amount === "string" ? row.amount : ""
         })) ?? [],
       actorMembershipId: context.currentMembership.id

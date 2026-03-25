@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useState, type FormEvent } from "react";
 import type { OfficeTransactionCommissionSnapshot } from "@acre/db";
 import { Button, HorizontalScrollArea, SectionCard, SelectInput, StatCard, StatusBadge, TextInput } from "@acre/ui";
 
@@ -11,6 +11,18 @@ type TransactionCommissionCardProps = {
   canManageCommissions: boolean;
   canCalculateCommissions: boolean;
   canApproveCommissions: boolean;
+  isOwner: boolean;
+};
+
+type OverrideDraftRow = {
+  key: string;
+  membershipId: string;
+  recipientLabel: string;
+  recipientRole: string;
+  currentFinal: string;
+  currentFinalLabel: string;
+  amount: string;
+  isManualParticipant: boolean;
 };
 
 const calculationStatusOptions = [
@@ -38,20 +50,51 @@ function getStatusTone(status: string) {
   return "warning" as const;
 }
 
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: value % 1 === 0 ? 0 : 2
+  }).format(value);
+}
+
+function parseAmount(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return Number.NaN;
+  }
+
+  return Number(trimmed);
+}
+
+function buildOverrideRows(snapshot: OfficeTransactionCommissionSnapshot): OverrideDraftRow[] {
+  return snapshot.stakeholderBreakdown.map((row) => ({
+    key: row.key,
+    membershipId: row.membershipId,
+    recipientLabel: row.recipientLabel,
+    recipientRole: row.recipientRole,
+    currentFinal: row.finalAmount,
+    currentFinalLabel: row.finalAmountLabel,
+    amount: row.finalAmount,
+    isManualParticipant: row.isManualParticipant
+  }));
+}
+
 export function TransactionCommissionCard({
   transactionId,
   snapshot,
   canManageCommissions,
   canCalculateCommissions,
-  canApproveCommissions
+  canApproveCommissions,
+  isOwner
 }: TransactionCommissionCardProps) {
   const router = useRouter();
   const [calculationNote, setCalculationNote] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
   const [overrideNote, setOverrideNote] = useState("");
-  const [overrideDrafts, setOverrideDrafts] = useState<Record<string, string>>(
-    Object.fromEntries(snapshot.stakeholderBreakdown.map((row) => [row.key, row.finalAmount]))
-  );
+  const [overrideRows, setOverrideRows] = useState<OverrideDraftRow[]>(() => buildOverrideRows(snapshot));
+  const [selectedParticipantId, setSelectedParticipantId] = useState("");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>(
     Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue]))
   );
@@ -60,8 +103,35 @@ export function TransactionCommissionCard({
 
   useEffect(() => {
     setStatusDrafts(Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue])));
-    setOverrideDrafts(Object.fromEntries(snapshot.stakeholderBreakdown.map((row) => [row.key, row.finalAmount])));
+    setOverrideRows(buildOverrideRows(snapshot));
   }, [snapshot]);
+
+  const availableManualParticipantOptions = snapshot.manualParticipantOptions.filter(
+    (option) => !overrideRows.some((row) => row.membershipId === option.membershipId)
+  );
+
+  useEffect(() => {
+    if (availableManualParticipantOptions.some((option) => option.membershipId === selectedParticipantId)) {
+      return;
+    }
+
+    setSelectedParticipantId(availableManualParticipantOptions[0]?.membershipId ?? "");
+  }, [availableManualParticipantOptions, selectedParticipantId]);
+
+  const currentTotal = overrideRows.reduce((sum, row) => sum + parseAmount(row.currentFinal), 0);
+  const overrideTotal = overrideRows.reduce((sum, row) => {
+    const amount = parseAmount(row.amount);
+    return Number.isFinite(amount) ? sum + amount : sum;
+  }, 0);
+  const hasInvalidAmounts = overrideRows.some((row) => {
+    const amount = parseAmount(row.amount);
+    return !Number.isFinite(amount) || amount < 0;
+  });
+  const totalDifference = overrideTotal - currentTotal;
+  const totalsBalanced = !hasInvalidAmounts && Math.abs(totalDifference) < 0.005;
+  const canManageOverride = canManageCommissions || canApproveCommissions;
+  const calculateLocked = snapshot.manualParticipantLockActive;
+  const canSubmitOverride = canManageOverride && pendingAction !== "override" && totalsBalanced;
 
   async function handleCalculate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -86,12 +156,44 @@ export function TransactionCommissionCard({
       }
 
       setCalculationNote("");
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (calculateError) {
       setError(calculateError instanceof Error ? calculateError.message : "Failed to calculate commissions.");
     } finally {
       setPendingAction(null);
     }
+  }
+
+  function handleAddParticipant() {
+    if (!selectedParticipantId) {
+      return;
+    }
+
+    const option = snapshot.manualParticipantOptions.find((entry) => entry.membershipId === selectedParticipantId);
+
+    if (!option) {
+      return;
+    }
+
+    setOverrideRows((current) => [
+      ...current,
+      {
+        key: option.membershipId,
+        membershipId: option.membershipId,
+        recipientLabel: option.recipientLabel,
+        recipientRole: option.recipientRole,
+        currentFinal: "0",
+        currentFinalLabel: formatCurrency(0),
+        amount: "0",
+        isManualParticipant: true
+      }
+    ]);
+  }
+
+  function handleRemoveParticipant(key: string) {
+    setOverrideRows((current) => current.filter((row) => row.key !== key));
   }
 
   async function handleOverride(event: FormEvent<HTMLFormElement>) {
@@ -100,6 +202,10 @@ export function TransactionCommissionCard({
     setError("");
 
     try {
+      if (!totalsBalanced) {
+        throw new Error("Override total must stay unchanged and every amount must be zero or greater.");
+      }
+
       const response = await fetch(`/api/office/transactions/${transactionId}/commissions/override`, {
         method: "POST",
         headers: {
@@ -108,9 +214,10 @@ export function TransactionCommissionCard({
         body: JSON.stringify({
           overrideReason,
           notes: overrideNote,
-          stakeholderAmounts: snapshot.stakeholderBreakdown.map((row) => ({
+          stakeholderRows: overrideRows.map((row) => ({
             key: row.key,
-            amount: overrideDrafts[row.key] ?? row.finalAmount
+            membershipId: row.membershipId,
+            amount: row.amount
           }))
         })
       });
@@ -123,7 +230,9 @@ export function TransactionCommissionCard({
 
       setOverrideReason("");
       setOverrideNote("");
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (overrideError) {
       setError(overrideError instanceof Error ? overrideError.message : "Failed to apply override.");
     } finally {
@@ -152,7 +261,9 @@ export function TransactionCommissionCard({
         throw new Error(body?.error ?? "Failed to update commission status.");
       }
 
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : "Failed to update commission status.");
     } finally {
@@ -168,7 +279,7 @@ export function TransactionCommissionCard({
           <StatCard hint="all pre-split fees" label="Pre-Split total" value={snapshot.summary.preSplitTotalLabel} />
           <StatCard hint="all post-split fees" label="Post-Split total" value={snapshot.summary.postSplitTotalLabel} />
           <StatCard hint="gross minus pre-split fees" label="Net commission base" value={snapshot.summary.netCommissionBaseLabel} />
-          <StatCard hint="current owner-agent payout" label="Final agent net" value={snapshot.summary.agentNetLabel} />
+          <StatCard hint="current owner-agent payout" label="Primary agent net" value={snapshot.summary.agentNetLabel} />
           <StatCard hint="current company payout" label="Final office net" value={snapshot.summary.officeNetLabel} />
           <StatCard hint="separate reimbursement adjustment" label="Reimbursement" value={snapshot.summary.reimbursementLabel} />
           <StatCard hint="current effective calculation version" label="Current version" value={snapshot.summary.currentVersionLabel} />
@@ -191,6 +302,11 @@ export function TransactionCommissionCard({
             </div>
           </div>
         ) : null}
+        {calculateLocked ? (
+          <p className="office-form-helper">
+            This transaction already has manual override participants. Recalculate is locked, so keep using Override for further payout changes.
+          </p>
+        ) : null}
         {!canCalculateCommissions ? (
           <p className="office-form-helper">
             Your current role can view commission data here, but only commission managers can run Calculate for this transaction.
@@ -200,10 +316,14 @@ export function TransactionCommissionCard({
         <form className="office-inline-form office-inline-form-wrap" onSubmit={handleCalculate}>
           <label className="office-detail-field office-detail-field-wide">
             <span>Calculation note</span>
-            <TextInput disabled={!canCalculateCommissions || pendingAction === "calculate"} onChange={(event) => setCalculationNote(event.target.value)} value={calculationNote} />
+            <TextInput
+              disabled={!canCalculateCommissions || calculateLocked || pendingAction === "calculate"}
+              onChange={(event) => setCalculationNote(event.target.value)}
+              value={calculationNote}
+            />
           </label>
           <div className="office-inline-form-actions">
-            <Button disabled={!canCalculateCommissions || pendingAction === "calculate"} type="submit">
+            <Button disabled={!canCalculateCommissions || calculateLocked || pendingAction === "calculate"} type="submit">
               {pendingAction === "calculate" ? "Calculating..." : snapshot.versionHistory.length > 0 ? "Recalculate" : "Calculate"}
             </Button>
           </div>
@@ -225,6 +345,7 @@ export function TransactionCommissionCard({
               <div className="office-table-row office-table-row-commission" key={row.key}>
                 <div className="office-table-primary">
                   <strong>{row.recipientLabel}</strong>
+                  {row.isManualParticipant ? <p>Manual override participant</p> : null}
                 </div>
                 <span>{row.recipientRole}</span>
                 <span>{row.sharePercentLabel}</span>
@@ -243,16 +364,15 @@ export function TransactionCommissionCard({
           </div>
         </HorizontalScrollArea>
 
-        {(canManageCommissions || canApproveCommissions) && snapshot.stakeholderBreakdown.length > 0 ? (
+        {canManageOverride && snapshot.stakeholderBreakdown.length > 0 ? (
           <form className="office-section-card" onSubmit={handleOverride}>
             <div className="office-section-body">
               <div className="office-detail-grid">
                 <label className="office-detail-field office-detail-field-wide">
                   <span>Override reason</span>
-                  <input
+                  <TextInput
                     disabled={pendingAction === "override"}
                     onChange={(event) => setOverrideReason(event.target.value)}
-                    type="text"
                     value={overrideReason}
                   />
                 </label>
@@ -265,7 +385,47 @@ export function TransactionCommissionCard({
                     value={overrideNote}
                   />
                 </label>
+                {isOwner ? (
+                  <div className="office-detail-field office-detail-field-wide">
+                    <span>Add participant</span>
+                    <div className="office-inline-form-actions">
+                      <SelectInput
+                        disabled={pendingAction === "override" || availableManualParticipantOptions.length === 0}
+                        onChange={(event) => setSelectedParticipantId(event.target.value)}
+                        value={selectedParticipantId}
+                      >
+                        <option value="">Select an active membership</option>
+                        {availableManualParticipantOptions.map((option) => (
+                          <option key={option.membershipId} value={option.membershipId}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </SelectInput>
+                      <Button
+                        disabled={pendingAction === "override" || !selectedParticipantId}
+                        onClick={handleAddParticipant}
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        Add participant
+                      </Button>
+                    </div>
+                    <p className="office-form-helper">
+                      Only Owner can add or remove extra payout participants. New participants must be active memberships in this organization.
+                    </p>
+                  </div>
+                ) : null}
               </div>
+
+              <div className="office-inline-meta">
+                <span>Current total: {formatCurrency(currentTotal)}</span>
+                <span>Override total: {formatCurrency(overrideTotal)}</span>
+                <span>Difference: {formatCurrency(totalDifference)}</span>
+              </div>
+              {!totalsBalanced ? (
+                <p className="office-form-helper">Override total must stay unchanged before saving, and every amount must be zero or greater.</p>
+              ) : null}
 
               <HorizontalScrollArea>
                 <div className="office-table">
@@ -273,33 +433,56 @@ export function TransactionCommissionCard({
                     <span>Stakeholder</span>
                     <span>Current final</span>
                     <span>Override amount</span>
+                    {isOwner ? <span>Actions</span> : null}
                   </div>
 
-                  {snapshot.stakeholderBreakdown.map((row) => (
+                  {overrideRows.map((row) => (
                     <div className="office-table-row office-table-row-commission" key={`override:${row.key}`}>
                       <div className="office-table-primary">
                         <strong>{row.recipientLabel}</strong>
-                        <p>{row.recipientRole}</p>
+                        <p>{row.isManualParticipant ? `${row.recipientRole} · Manual participant` : row.recipientRole}</p>
                       </div>
-                      <span>{row.finalAmountLabel}</span>
-                      <input
+                      <span>{row.currentFinalLabel}</span>
+                      <TextInput
                         disabled={pendingAction === "override"}
                         onChange={(event) =>
-                          setOverrideDrafts((current) => ({
-                            ...current,
-                            [row.key]: event.target.value
-                          }))
+                          setOverrideRows((current) =>
+                            current.map((candidate) =>
+                              candidate.key === row.key
+                                ? {
+                                    ...candidate,
+                                    amount: event.target.value
+                                  }
+                                : candidate
+                            )
+                          )
                         }
-                        type="text"
-                        value={overrideDrafts[row.key] ?? row.finalAmount}
+                        value={row.amount}
                       />
+                      {isOwner ? (
+                        <div className="bm-accounting-inline-actions">
+                          {row.isManualParticipant ? (
+                            <Button
+                              disabled={pendingAction === "override"}
+                              onClick={() => handleRemoveParticipant(row.key)}
+                              size="sm"
+                              type="button"
+                              variant="secondary"
+                            >
+                              Remove
+                            </Button>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
               </HorizontalScrollArea>
 
               <div className="office-inline-form-actions">
-                <Button disabled={pendingAction === "override"} type="submit" variant="secondary">
+                <Button disabled={!canSubmitOverride} type="submit" variant="secondary">
                   {pendingAction === "override" ? "Saving override..." : "Apply override"}
                 </Button>
               </div>
@@ -372,7 +555,7 @@ export function TransactionCommissionCard({
                 </div>
                 <span>{row.calculatedAt || "—"}</span>
                 <div className="bm-accounting-inline-actions">
-                  {(canManageCommissions || canApproveCommissions) ? (
+                  {canManageOverride ? (
                     <>
                       <SelectInput
                         disabled={pendingAction === `status:${row.id}`}

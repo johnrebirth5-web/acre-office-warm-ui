@@ -57,7 +57,8 @@ export default async function OfficeDashboardPage() {
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id
   });
-  const canViewCommissionSelfServiceSummary = canViewOfficeCommissionSelfServiceSummary(context.currentMembership);
+  const canViewCommissionSelfServiceSummary =
+    canViewOfficeCommissionSelfServiceSummary(context.currentMembership) && snapshot.commission.hasSelfServiceData;
 
   const chartPointLabels = snapshot.chart.points.map((point) => point.label);
   const livePipelineCount = snapshot.transactionCountsByStatus
@@ -219,7 +220,7 @@ export default async function OfficeDashboardPage() {
         {canViewCommissionSelfServiceSummary ? (
           <SectionCard
             className="office-dashboard-commission-card office-list-card"
-            subtitle="Your own persisted commission rows only. Team or company allocations are not rolled into this dashboard card."
+            subtitle="Your own persisted commission rows and saved payout statements only. Team or company allocations are never rolled into this dashboard card."
             title="My commissions"
           >
             <div className="office-kpi-grid office-commission-kpi-grid">
@@ -231,7 +232,7 @@ export default async function OfficeDashboardPage() {
 
             <div className="office-dashboard-commission-meta">
               <span>{snapshot.commission.calculationCount} persisted commission row(s) tied to your membership.</span>
-              <span>Monthly totals reflect your own statement amounts only. Previous months stay tucked into history to save space.</span>
+              <span>Monthly totals reflect your own statement amounts only, even when the underlying transaction belongs to another office.</span>
             </div>
 
             {currentCommissionMonth ? (
@@ -271,6 +272,31 @@ export default async function OfficeDashboardPage() {
                   </details>
                 ) : null}
               </div>
+            ) : null}
+
+            {snapshot.commission.statements.length > 0 ? (
+              <DataTable className="office-dashboard-transactions-table">
+                <DataTableHeader className="office-dashboard-transactions-head">
+                  <span>Statement period</span>
+                  <span>Generated</span>
+                  <span>Total</span>
+                  <span>PDF</span>
+                </DataTableHeader>
+                <DataTableBody>
+                  {snapshot.commission.statements.map((statement) => (
+                    <DataTableRow className="office-dashboard-transactions-row" key={statement.id}>
+                      <div className="office-dashboard-transactions-main">
+                        <strong>{statement.periodLabel}</strong>
+                      </div>
+                      <span>{statement.generatedAtLabel}</span>
+                      <strong className="office-dashboard-transactions-amount">{statement.totalStatementAmountLabel}</strong>
+                      <a className="office-button office-button-sm office-button-secondary" href={statement.pdfHref} rel="noreferrer" target="_blank">
+                        Download PDF
+                      </a>
+                    </DataTableRow>
+                  ))}
+                </DataTableBody>
+              </DataTable>
             ) : null}
           </SectionCard>
         ) : null}

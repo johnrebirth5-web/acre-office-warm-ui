@@ -533,6 +533,7 @@ export type {
   OfficeDashboardBusinessSnapshot,
   OfficeDashboardChartPoint,
   OfficeDashboardCommissionMonth,
+  OfficeDashboardCommissionStatement,
   OfficeDashboardCommissionSnapshot,
   OfficeDashboardRecentTransaction,
   OfficeDashboardStatusMetric
@@ -557,6 +558,7 @@ export type {
   OfficeCommissionTeamOption,
   OfficeCommissionStatementLine,
   OfficeCommissionStatementSnapshot,
+  OfficeTransactionCommissionManualParticipantOption,
   OfficeTransactionCommissionStakeholderRow,
   OfficeTransactionCommissionSnapshot,
   OfficeTransactionFinanceApprovalLabel,

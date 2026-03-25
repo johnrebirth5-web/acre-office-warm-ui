@@ -5,6 +5,7 @@ import {
   CommissionPlanRuleType,
   CommissionRecipientType,
   CommissionRuleFeeType,
+  UserRole,
   Prisma,
   TransactionFinanceApprovalStatus,
   TransactionFinanceCalculationType,
@@ -71,6 +72,7 @@ export type OfficeTransactionCommissionStakeholderRow = {
   membershipId: string;
   recipientLabel: string;
   recipientRole: string;
+  isManualParticipant: boolean;
   sharePercent: string;
   sharePercentLabel: string;
   baseAmount: string;
@@ -130,6 +132,14 @@ export type OfficeCommissionPlanRecord = {
 
 export type OfficeCommissionPlanOption = {
   id: string;
+  label: string;
+};
+
+export type OfficeTransactionCommissionManualParticipantOption = {
+  membershipId: string;
+  recipientLabel: string;
+  recipientRole: string;
+  officeLabel: string;
   label: string;
 };
 
@@ -251,6 +261,8 @@ export type OfficeTransactionCommissionSnapshot = {
   planSourceLabel: string;
   planSourceValue: OfficeCommissionAssignmentSourceType | "manual";
   availablePlans: OfficeCommissionPlanOption[];
+  manualParticipantOptions: OfficeTransactionCommissionManualParticipantOption[];
+  manualParticipantLockActive: boolean;
   feeBreakdown: OfficeTransactionFinanceFeeRecord[];
   stakeholderBreakdown: OfficeTransactionCommissionStakeholderRow[];
   versionHistory: OfficeTransactionFinanceVersionRecord[];
@@ -356,8 +368,9 @@ export type OverrideTransactionCommissionInput = {
   transactionId: string;
   overrideReason: string;
   notes?: string;
-  stakeholderAmounts: Array<{
+  stakeholderRows: Array<{
     key: string;
+    membershipId: string;
     amount: string;
   }>;
   actorMembershipId: string;
@@ -457,6 +470,17 @@ const transactionFinanceVersionSourceLabelMap: Record<TransactionFinanceVersionS
   overridden: "Manual override"
 };
 
+const userRoleLabelMap: Record<UserRole, string> = {
+  owner: "Owner",
+  office_admin: "Office Admin",
+  accountant: "Accountant",
+  human_resources: "Human Resources",
+  team_lead: "Team Lead",
+  agent: "Agent",
+  office_manager: "Office Manager",
+  office_user: "Office User"
+};
+
 type TransactionFinanceFeeDefinition = {
   feeType: TransactionFinanceFeeType;
   label: string;
@@ -553,6 +577,47 @@ function formatPercentLabel(value: Prisma.Decimal | number | string | null | und
 
 function formatDateValue(value: Date | null | undefined) {
   return value ? value.toISOString().slice(0, 10) : "";
+}
+
+function formatFallbackRoleLabel(value: string) {
+  return value
+    .split("_")
+    .map((part) => (part ? `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}` : ""))
+    .join(" ")
+    .trim();
+}
+
+function formatRecipientRoleLabel(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  if (value === "team_leader" || value === "junior_team_leader" || value === "member") {
+    return formatTeamMembershipRoleLabel(value);
+  }
+
+  if (value in userRoleLabelMap) {
+    return userRoleLabelMap[value as UserRole];
+  }
+
+  if (value === "brokerage") {
+    return "Brokerage";
+  }
+
+  return formatFallbackRoleLabel(value);
+}
+
+function formatMembershipParticipantRole(input: {
+  role: UserRole;
+  title?: string | null;
+}) {
+  const title = input.title?.trim();
+
+  if (title) {
+    return title;
+  }
+
+  return formatRecipientRoleLabel(input.role);
 }
 
 function parseOptionalDate(value: string | undefined | null) {
@@ -1044,7 +1109,7 @@ function mapCommissionCalculationRow(calculation: Prisma.CommissionCalculationGe
     recipientType: commissionRecipientLabelMap[calculation.recipientType],
     recipientTypeValue: calculation.recipientType,
     recipientLabel,
-    recipientRole: calculation.recipientRole ?? "",
+    recipientRole: formatRecipientRoleLabel(calculation.recipientRole),
     commissionPlanId: calculation.commissionPlanId ?? "",
     commissionPlanLabel:
       calculation.commissionPlan?.name ??
@@ -1055,7 +1120,7 @@ function mapCommissionCalculationRow(calculation: Prisma.CommissionCalculationGe
         : storedChainMember
           ? buildCommissionSplitLabel(storedChainMember.agentPercent)
           : storedContext
-            ? defaultSplitLabel
+            ? "Manual override participant"
             : "Manual / transaction finance"),
     commissionPlanDetailLabel: effectiveShareLabel,
     status: commissionCalculationStatusLabelMap[calculation.status],
@@ -1277,6 +1342,7 @@ type StoredTransactionFinanceStakeholderBreakdownRow = {
   recipientRole: string;
   recipientRoleValue: string;
   recipientType: CommissionRecipientType;
+  isManualParticipant: boolean;
   sharePercent: string;
   baseAmount: string;
   postSplitAdjustment: string;
@@ -1466,6 +1532,7 @@ function parseStoredTransactionFinanceStakeholderBreakdown(value: Prisma.JsonVal
         recipientRole: row.recipientRole,
         recipientRoleValue: row.recipientRoleValue,
         recipientType: row.recipientType,
+        isManualParticipant: typeof row.isManualParticipant === "boolean" ? row.isManualParticipant : false,
         sharePercent: row.sharePercent,
         baseAmount: row.baseAmount,
         postSplitAdjustment: row.postSplitAdjustment,
@@ -1484,14 +1551,15 @@ function mapStoredTransactionFinanceStakeholderRow(
     membershipId: row.membershipId,
     recipientLabel: row.recipientLabel,
     recipientRole: row.recipientRole,
+    isManualParticipant: row.isManualParticipant,
     sharePercent: row.sharePercent,
-    sharePercentLabel: `${formatPercentLabel(row.sharePercent)}%`,
+    sharePercentLabel: row.isManualParticipant ? "Manual" : `${formatPercentLabel(row.sharePercent)}%`,
     baseAmount: row.baseAmount,
-    baseAmountLabel: formatCurrency(row.baseAmount),
+    baseAmountLabel: row.isManualParticipant ? "—" : formatCurrency(row.baseAmount),
     postSplitAdjustment: row.postSplitAdjustment,
-    postSplitAdjustmentLabel: formatCurrency(row.postSplitAdjustment),
+    postSplitAdjustmentLabel: row.isManualParticipant ? "—" : formatCurrency(row.postSplitAdjustment),
     reimbursementAdjustment: row.reimbursementAdjustment,
-    reimbursementAdjustmentLabel: formatCurrency(row.reimbursementAdjustment),
+    reimbursementAdjustmentLabel: row.isManualParticipant ? "—" : formatCurrency(row.reimbursementAdjustment),
     finalAmount: row.finalAmount,
     finalAmountLabel: formatCurrency(row.finalAmount)
   };
@@ -1724,6 +1792,7 @@ type ComputedTransactionFinanceStakeholderRow = {
   recipientRole: string;
   recipientRoleValue: string;
   recipientType: CommissionRecipientType;
+  isManualParticipant: boolean;
   sharePercent: Prisma.Decimal;
   baseAmount: Prisma.Decimal;
   postSplitAdjustment: Prisma.Decimal;
@@ -1824,6 +1893,7 @@ function buildStoredTransactionFinanceStakeholderBreakdownRows(
     recipientRole: row.recipientRole,
     recipientRoleValue: row.recipientRoleValue,
     recipientType: row.recipientType,
+    isManualParticipant: row.isManualParticipant,
     sharePercent: String(row.sharePercent),
     baseAmount: String(row.baseAmount),
     postSplitAdjustment: String(row.postSplitAdjustment),
@@ -1841,6 +1911,104 @@ function buildCommissionStakeholderKey(input: {
   }
 
   return input.membershipId ?? "";
+}
+
+function normalizeCurrencyDecimal(value: Prisma.Decimal) {
+  return value.toDecimalPlaces(2);
+}
+
+function hasManualParticipantRows(rows: Array<{ isManualParticipant: boolean }>) {
+  return rows.some((row) => row.isManualParticipant);
+}
+
+function sumStakeholderFinalAmounts(rows: Array<{ finalAmount: string }>) {
+  return rows.reduce(
+    (sum, row) => sum.plus(normalizeCurrencyDecimal(parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0))),
+    new Prisma.Decimal(0)
+  );
+}
+
+function findPrimaryAgentStakeholderRow(
+  rows: StoredTransactionFinanceStakeholderBreakdownRow[],
+  ownerMembershipId: string | null | undefined
+) {
+  if (ownerMembershipId) {
+    const ownerRow = rows.find((row) => row.recipientType === "agent" && row.membershipId === ownerMembershipId);
+
+    if (ownerRow) {
+      return ownerRow;
+    }
+  }
+
+  return rows.find((row) => row.recipientType === "agent") ?? null;
+}
+
+function buildPreviousCommissionChangeBaseline(
+  input: {
+    rows: Array<{
+      membershipId: string | null;
+      recipientType: CommissionRecipientType;
+      grossCommission: Prisma.Decimal;
+      referralFee: Prisma.Decimal;
+      statementAmount: Prisma.Decimal;
+    }>;
+    ownerMembershipId: string | null | undefined;
+    fallbackGrossCommission: Prisma.Decimal;
+    fallbackReferralFee: Prisma.Decimal;
+    fallbackOfficeNet: Prisma.Decimal;
+    fallbackAgentNet: Prisma.Decimal;
+  }
+) {
+  const primaryAgentRow =
+    (input.ownerMembershipId
+      ? input.rows.find((row) => row.recipientType === "agent" && row.membershipId === input.ownerMembershipId)
+      : null) ?? input.rows.find((row) => row.recipientType === "agent");
+
+  return {
+    grossCommission: primaryAgentRow?.grossCommission ?? input.rows[0]?.grossCommission ?? input.fallbackGrossCommission,
+    referralFee: primaryAgentRow?.referralFee ?? input.rows[0]?.referralFee ?? input.fallbackReferralFee,
+    officeNet:
+      input.rows.find((row) => row.recipientType === "brokerage")?.statementAmount ?? input.fallbackOfficeNet,
+    agentNet: primaryAgentRow?.statementAmount ?? input.fallbackAgentNet
+  } as const;
+}
+
+function formatMembershipFullName(input: {
+  firstName: string;
+  lastName: string;
+  email?: string | null;
+}) {
+  const fullName = `${input.firstName} ${input.lastName}`.trim();
+  return fullName || input.email?.trim() || "Unnamed member";
+}
+
+function buildManualParticipantOption(input: {
+  membershipId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: UserRole;
+  title?: string | null;
+  officeName?: string | null;
+}) {
+  const recipientLabel = formatMembershipFullName({
+    firstName: input.firstName,
+    lastName: input.lastName,
+    email: input.email
+  });
+  const recipientRole = formatMembershipParticipantRole({
+    role: input.role,
+    title: input.title
+  });
+  const officeLabel = input.officeName?.trim() || "All offices";
+
+  return {
+    membershipId: input.membershipId,
+    recipientLabel,
+    recipientRole,
+    officeLabel,
+    label: `${recipientLabel} · ${recipientRole} · ${officeLabel}`
+  } satisfies OfficeTransactionCommissionManualParticipantOption;
 }
 
 function calculateTransactionFinanceResult(input: {
@@ -1911,6 +2079,7 @@ function calculateTransactionFinanceResult(input: {
     recipientRole: row.recipientRole,
     recipientRoleValue: row.recipientRoleValue,
     recipientType: "agent",
+    isManualParticipant: false,
     sharePercent: row.sharePercent,
     baseAmount: row.statementAmount,
     postSplitAdjustment: index === 0 ? postSplitTotal.neg() : new Prisma.Decimal(0),
@@ -1926,6 +2095,7 @@ function calculateTransactionFinanceResult(input: {
     recipientRole: "Brokerage",
     recipientRoleValue: "brokerage",
     recipientType: "brokerage",
+    isManualParticipant: false,
     sharePercent: baseSplit.companyPercent,
     baseAmount: baseSplit.companyAmount,
     postSplitAdjustment: postSplitTotal,
@@ -2602,6 +2772,22 @@ export async function calculateTransactionCommission(
   const effectiveAt = transaction.createdAt ?? new Date();
 
   await prisma.$transaction(async (tx) => {
+    const currentVersion = await tx.transactionFinanceCalculationVersion.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        transactionId: transaction.id,
+        isCurrent: true
+      },
+      orderBy: [{ versionNumber: "desc" }]
+    });
+
+    if (
+      currentVersion &&
+      hasManualParticipantRows(parseStoredTransactionFinanceStakeholderBreakdown(currentVersion.stakeholderBreakdown))
+    ) {
+      throw new Error("This transaction has manual override participants. Continue using Override instead of Recalculate.");
+    }
+
     const storedContext = parseStoredTransactionCommissionContext(transaction.commissionContext);
     const fees = await ensureTransactionFinanceFees(tx, {
       organizationId: input.organizationId,
@@ -2619,17 +2805,14 @@ export async function calculateTransactionCommission(
       },
       orderBy: [{ createdAt: "asc" }]
     });
-
-    const previousAgentRow =
-      previousRows.find((row) => row.recipientType === "agent") ??
-      ({
-        grossCommission: previousRows[0]?.grossCommission ?? null,
-        referralFee: previousRows[0]?.referralFee ?? null,
-        officeNet: previousRows.find((row) => row.recipientType === "brokerage")?.statementAmount ?? null,
-        agentNet: previousRows
-          .filter((row) => row.recipientType === "agent")
-          .reduce((sum, row) => sum.plus(row.statementAmount), new Prisma.Decimal(0))
-      } as const);
+    const previousAgentRow = buildPreviousCommissionChangeBaseline({
+      rows: previousRows,
+      ownerMembershipId: transaction.ownerMembershipId,
+      fallbackGrossCommission: new Prisma.Decimal(0),
+      fallbackReferralFee: new Prisma.Decimal(0),
+      fallbackOfficeNet: new Prisma.Decimal(0),
+      fallbackAgentNet: new Prisma.Decimal(0)
+    });
     const grossCommission = transaction.grossCommission ?? new Prisma.Decimal(0);
     const note = parseOptionalText(input.notes) ?? parseOptionalText(transaction.financeNotes);
     const chain =
@@ -2823,17 +3006,32 @@ export async function overrideTransactionCommission(
   }
 
   await prisma.$transaction(async (tx) => {
-    const currentVersion = await tx.transactionFinanceCalculationVersion.findFirst({
-      where: {
-        organizationId: input.organizationId,
-        transactionId: transaction.id,
-        isCurrent: true
-      },
-      orderBy: [{ versionNumber: "desc" }]
-    });
+    const [currentVersion, actorMembership] = await Promise.all([
+      tx.transactionFinanceCalculationVersion.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          transactionId: transaction.id,
+          isCurrent: true
+        },
+        orderBy: [{ versionNumber: "desc" }]
+      }),
+      tx.membership.findFirst({
+        where: {
+          id: input.actorMembershipId,
+          organizationId: input.organizationId
+        },
+        select: {
+          role: true
+        }
+      })
+    ]);
 
     if (!currentVersion) {
       throw new Error("Run the finance calculation before applying a manual override.");
+    }
+
+    if (!actorMembership) {
+      throw new Error("Actor membership not found.");
     }
 
     const currentStakeholderRows = parseStoredTransactionFinanceStakeholderBreakdown(currentVersion.stakeholderBreakdown);
@@ -2842,32 +3040,173 @@ export async function overrideTransactionCommission(
       throw new Error("Current calculation does not have stakeholder rows to override.");
     }
 
-    const overrideEntries = input.stakeholderAmounts
+    const overrideEntries = input.stakeholderRows
       .map((entry) => ({
         key: entry.key.trim(),
+        membershipId: entry.membershipId.trim(),
         amount: parseOptionalDecimal(entry.amount)
       }))
-      .filter((entry) => entry.key && entry.amount !== null);
+      .filter((entry) => entry.key || entry.membershipId || entry.amount !== null);
 
     if (overrideEntries.length === 0) {
-      throw new Error("Enter at least one stakeholder override amount.");
+      throw new Error("Enter at least one stakeholder override row.");
     }
 
-    const validKeys = new Set(currentStakeholderRows.map((row) => row.key));
+    const actorIsOwner = actorMembership.role === "owner";
+    const currentRowByKey = new Map(currentStakeholderRows.map((row) => [row.key, row]));
+    const incomingKeys = new Set<string>();
+    const incomingMembershipIds = new Set<string>();
+    let companyRowCount = 0;
 
     for (const entry of overrideEntries) {
-      if (!validKeys.has(entry.key)) {
-        throw new Error("One or more override rows no longer match the current calculation. Refresh and try again.");
+      const isCompanyRow = entry.key === "company";
+
+      if (!entry.key) {
+        throw new Error("Each override row must include a stable key.");
+      }
+
+      if (incomingKeys.has(entry.key)) {
+        throw new Error("Duplicate override rows are not allowed.");
+      }
+
+      incomingKeys.add(entry.key);
+
+      if (entry.amount === null) {
+        throw new Error("Every override row must include a valid amount.");
+      }
+
+      entry.amount = normalizeCurrencyDecimal(entry.amount);
+
+      if (entry.amount.lt(0)) {
+        throw new Error("Override amounts must be zero or greater.");
+      }
+
+      if (isCompanyRow) {
+        companyRowCount += 1;
+        entry.membershipId = "";
+        continue;
+      }
+
+      if (!entry.membershipId) {
+        throw new Error("Every participant row must include a valid membership.");
+      }
+
+      if (entry.key !== entry.membershipId) {
+        throw new Error("Manual participant keys must match the selected membership.");
+      }
+
+      if (incomingMembershipIds.has(entry.membershipId)) {
+        throw new Error("Duplicate participant memberships are not allowed.");
+      }
+
+      incomingMembershipIds.add(entry.membershipId);
+    }
+
+    if (companyRowCount !== 1) {
+      throw new Error("Manual override must include exactly one company row.");
+    }
+
+    const requiredPersistentKeys = currentStakeholderRows
+      .filter((row) => row.recipientType !== "brokerage" && !row.isManualParticipant)
+      .map((row) => row.key);
+
+    for (const key of requiredPersistentKeys) {
+      if (!incomingKeys.has(key)) {
+        throw new Error("Only manually added participants can be removed from an override.");
       }
     }
 
-    const overrideMap = new Map(overrideEntries.map((entry) => [entry.key, entry.amount ?? new Prisma.Decimal(0)]));
-    const nextStakeholderRows = currentStakeholderRows.map((row) => ({
-      ...row,
-      finalAmount: String(overrideMap.get(row.key) ?? parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0))
-    }));
-    const ownerAgentRow = nextStakeholderRows.find((row) => row.recipientType === "agent") ?? null;
-    const companyRow = nextStakeholderRows.find((row) => row.recipientType === "brokerage") ?? null;
+    const participantSetChanged =
+      currentStakeholderRows.length !== overrideEntries.length ||
+      currentStakeholderRows.some((row) => !incomingKeys.has(row.key)) ||
+      overrideEntries.some((entry) => !currentRowByKey.has(entry.key));
+
+    if (participantSetChanged && !actorIsOwner) {
+      throw new Error("Only Owner can add or remove override participants.");
+    }
+
+    const addedMembershipIds = overrideEntries
+      .filter((entry) => entry.key !== "company" && !currentRowByKey.has(entry.key))
+      .map((entry) => entry.membershipId);
+    const addedMemberships =
+      addedMembershipIds.length > 0
+        ? await tx.membership.findMany({
+            where: {
+              organizationId: input.organizationId,
+              id: {
+                in: addedMembershipIds
+              },
+              status: "active"
+            },
+            include: {
+              user: true,
+              office: true
+            }
+          })
+        : [];
+
+    if (addedMemberships.length !== new Set(addedMembershipIds).size) {
+      throw new Error("One or more added participants are no longer active memberships in this organization.");
+    }
+
+    const addedMembershipById = new Map(addedMemberships.map((membership) => [membership.id, membership]));
+    const addedParticipantLabels: string[] = [];
+    const nextStakeholderRows = overrideEntries.map((entry) => {
+      const existingRow = currentRowByKey.get(entry.key) ?? null;
+
+      if (existingRow) {
+        return {
+          ...existingRow,
+          finalAmount: String(entry.amount ?? new Prisma.Decimal(0))
+        };
+      }
+
+      const membership = addedMembershipById.get(entry.membershipId);
+
+      if (!membership) {
+        throw new Error("One or more added participants are no longer available. Refresh and try again.");
+      }
+
+      const recipientLabel = formatMembershipFullName({
+        firstName: membership.user.firstName,
+        lastName: membership.user.lastName,
+        email: membership.user.email
+      });
+      addedParticipantLabels.push(recipientLabel);
+
+      return {
+        key: membership.id,
+        membershipId: membership.id,
+        recipientLabel,
+        recipientRole: formatMembershipParticipantRole({
+          role: membership.role,
+          title: membership.title
+        }),
+        recipientRoleValue: membership.role,
+        recipientType: "agent",
+        isManualParticipant: true,
+        sharePercent: "0",
+        baseAmount: "0",
+        postSplitAdjustment: "0",
+        reimbursementAdjustment: "0",
+        finalAmount: String(entry.amount ?? new Prisma.Decimal(0))
+      } satisfies StoredTransactionFinanceStakeholderBreakdownRow;
+    });
+
+    const currentTotal = normalizeCurrencyDecimal(sumStakeholderFinalAmounts(currentStakeholderRows));
+    const nextTotal = normalizeCurrencyDecimal(sumStakeholderFinalAmounts(nextStakeholderRows));
+
+    if (!currentTotal.eq(nextTotal)) {
+      throw new Error("Override amounts must keep the total allocated payout unchanged.");
+    }
+
+    const ownerAgentRow = findPrimaryAgentStakeholderRow(nextStakeholderRows, transaction.ownerMembershipId);
+    const companyRow = nextStakeholderRows.find((row) => row.recipientType === "brokerage" && row.key === "company") ?? null;
+
+    if (!companyRow) {
+      throw new Error("Manual override must retain the company payout row.");
+    }
+
     const nextFinalAgentNet = ownerAgentRow ? parseOptionalDecimal(ownerAgentRow.finalAmount) ?? new Prisma.Decimal(0) : new Prisma.Decimal(0);
     const nextFinalOfficeNet = companyRow ? parseOptionalDecimal(companyRow.finalAmount) ?? new Prisma.Decimal(0) : new Prisma.Decimal(0);
     const note = parseOptionalText(input.notes) ?? currentVersion.notes;
@@ -2878,14 +3217,17 @@ export async function overrideTransactionCommission(
       },
       orderBy: [{ createdAt: "asc" }]
     });
-    const previousAgentRow =
-      previousRows.find((row) => row.recipientType === "agent") ??
-      ({
-        grossCommission: previousRows[0]?.grossCommission ?? currentVersion.grossCommission,
-        referralFee: previousRows[0]?.referralFee ?? currentVersion.preSplitTotal,
-        officeNet: previousRows.find((row) => row.recipientType === "brokerage")?.statementAmount ?? currentVersion.finalOfficeNet,
-        agentNet: previousRows.find((row) => row.recipientType === "agent")?.statementAmount ?? currentVersion.finalAgentNet
-      } as const);
+    const previousAgentRow = buildPreviousCommissionChangeBaseline({
+      rows: previousRows,
+      ownerMembershipId: transaction.ownerMembershipId,
+      fallbackGrossCommission: currentVersion.grossCommission,
+      fallbackReferralFee: currentVersion.preSplitTotal,
+      fallbackOfficeNet: currentVersion.finalOfficeNet,
+      fallbackAgentNet: currentVersion.finalAgentNet
+    });
+    const removedParticipantLabels = currentStakeholderRows
+      .filter((row) => row.isManualParticipant && !incomingKeys.has(row.key))
+      .map((row) => row.recipientLabel);
     const versionNumber = currentVersion.versionNumber + 1;
 
     await tx.transactionFinanceCalculationVersion.updateMany({
@@ -2989,7 +3331,9 @@ export async function overrideTransactionCommission(
           "Mode: Manual override",
           `Version: ${versionNumber}`,
           `Reason: ${overrideReason}`,
-          `Agent net: ${formatCurrency(nextFinalAgentNet)}`,
+          ...(addedParticipantLabels.length > 0 ? [`Added participants: ${addedParticipantLabels.join(", ")}`] : []),
+          ...(removedParticipantLabels.length > 0 ? [`Removed participants: ${removedParticipantLabels.join(", ")}`] : []),
+          `Primary agent net: ${formatCurrency(nextFinalAgentNet)}`,
           `Office net: ${formatCurrency(nextFinalOfficeNet)}`
         ]
       }
@@ -3687,12 +4031,47 @@ export async function getTransactionCommissionSnapshot(
           recipientRole: row.recipientRole,
           recipientRoleValue: row.recipientRoleValue,
           recipientType: row.recipientType,
+          isManualParticipant: row.isManualParticipant,
           sharePercent: String(row.sharePercent),
           baseAmount: String(row.baseAmount),
           postSplitAdjustment: String(row.postSplitAdjustment),
           reimbursementAdjustment: String(row.reimbursementAdjustment),
           finalAmount: String(row.finalAmount)
         })) ?? [];
+  const manualParticipantLockActive = hasManualParticipantRows(rawStakeholderBreakdown);
+  const existingStakeholderMembershipIds = new Set(
+    rawStakeholderBreakdown
+      .filter((row) => row.recipientType !== "brokerage" && row.membershipId.trim().length > 0)
+      .map((row) => row.membershipId)
+  );
+  const manualParticipantOptions =
+    scope?.viewerRole === "owner"
+      ? (
+          await prisma.membership.findMany({
+            where: {
+              organizationId,
+              status: "active"
+            },
+            include: {
+              user: true,
+              office: true
+            },
+            orderBy: [{ user: { firstName: "asc" } }, { user: { lastName: "asc" } }]
+          })
+        )
+          .filter((membership) => !existingStakeholderMembershipIds.has(membership.id))
+          .map((membership) =>
+            buildManualParticipantOption({
+              membershipId: membership.id,
+              firstName: membership.user.firstName,
+              lastName: membership.user.lastName,
+              email: membership.user.email,
+              role: membership.role,
+              title: membership.title,
+              officeName: membership.office?.name ?? null
+            })
+          )
+      : [];
   const stakeholderVisibility = filterVisibleCommissionRows(
     rawStakeholderBreakdown.map((row) => ({
       membershipId: row.membershipId || null,
@@ -3732,6 +4111,8 @@ export async function getTransactionCommissionSnapshot(
         : assignment?.sourceLabel ?? defaultSplitSourceLabel,
     planSourceValue: latestCalculatedPlan?.commissionPlanId ? "manual" : assignment?.sourceType ?? "manual",
     availablePlans: plans,
+    manualParticipantOptions,
+    manualParticipantLockActive,
     feeBreakdown: financeFees.map((fee) =>
       mapTransactionFinanceFeeRecord(fee, {
         restrictAmounts: restrictedTotals

@@ -28,13 +28,23 @@ export type OfficeDashboardCommissionMonth = {
   isCurrent: boolean;
 };
 
+export type OfficeDashboardCommissionStatement = {
+  id: string;
+  periodLabel: string;
+  generatedAtLabel: string;
+  totalStatementAmountLabel: string;
+  pdfHref: string;
+};
+
 export type OfficeDashboardCommissionSnapshot = {
   totalCommissionLabel: string;
   currentMonthCommissionLabel: string;
   payableLabel: string;
   paidLabel: string;
   calculationCount: number;
+  hasSelfServiceData: boolean;
   monthlyTotals: OfficeDashboardCommissionMonth[];
+  statements: OfficeDashboardCommissionStatement[];
 };
 
 export type OfficeDashboardBusinessSnapshot = {
@@ -84,6 +94,20 @@ function formatCurrency(value: number) {
 
 function formatCompactCount(value: number, noun: string) {
   return `${value} ${noun}${value === 1 ? "" : "s"}`;
+}
+
+function formatDateTime(value: Date) {
+  return value.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function formatDateValue(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
 function getNiceAxisMax(value: number) {
@@ -171,7 +195,8 @@ export async function getOfficeDashboardBusinessSnapshot(
     contactsNeedingFollowUp,
     monthlyTransactions,
     commissionTotalsByStatus,
-    recentCommissionRows
+    recentCommissionRows,
+    recentStatements
   ] =
     await Promise.all([
       prisma.transaction.findMany({
@@ -226,8 +251,7 @@ export async function getOfficeDashboardBusinessSnapshot(
         by: ["status"],
         where: {
           organizationId: input.organizationId,
-          membershipId: scope.viewerMembershipId,
-          ...(input.officeId ? { officeId: input.officeId } : {})
+          membershipId: scope.viewerMembershipId
         },
         _sum: {
           statementAmount: true
@@ -240,7 +264,6 @@ export async function getOfficeDashboardBusinessSnapshot(
         where: {
           organizationId: input.organizationId,
           membershipId: scope.viewerMembershipId,
-          ...(input.officeId ? { officeId: input.officeId } : {}),
           calculatedAt: {
             gte: commissionWindowStart
           }
@@ -250,6 +273,21 @@ export async function getOfficeDashboardBusinessSnapshot(
           statementAmount: true
         },
         orderBy: [{ calculatedAt: "asc" }]
+      }),
+      prisma.agentPayoutStatement.findMany({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: scope.viewerMembershipId
+        },
+        select: {
+          id: true,
+          periodStart: true,
+          periodEnd: true,
+          generatedAt: true,
+          totalStatementAmount: true
+        },
+        orderBy: [{ generatedAt: "desc" }],
+        take: 5
       })
     ]);
 
@@ -331,6 +369,7 @@ export async function getOfficeDashboardBusinessSnapshot(
   const paidCommissionAmount =
     commissionTotalsByStatus.find((entry) => entry.status === "paid")?._sum.statementAmount ?? new Prisma.Decimal(0);
   const commissionCalculationCount = commissionTotalsByStatus.reduce((sum, entry) => sum + entry._count._all, 0);
+  const hasSelfServiceData = commissionCalculationCount > 0 || recentStatements.length > 0;
 
   return {
     goal: {
@@ -355,7 +394,15 @@ export async function getOfficeDashboardBusinessSnapshot(
       payableLabel: formatCurrency(Number(payableCommissionAmount ?? 0)),
       paidLabel: formatCurrency(Number(paidCommissionAmount ?? 0)),
       calculationCount: commissionCalculationCount,
-      monthlyTotals: monthlyCommissionTotals
+      hasSelfServiceData,
+      monthlyTotals: monthlyCommissionTotals,
+      statements: recentStatements.map((statement) => ({
+        id: statement.id,
+        periodLabel: `${formatDateValue(statement.periodStart)} to ${formatDateValue(statement.periodEnd)}`,
+        generatedAtLabel: formatDateTime(statement.generatedAt),
+        totalStatementAmountLabel: formatCurrency(Number(statement.totalStatementAmount ?? 0)),
+        pdfHref: `/api/office/accounting/self-service/statements/${statement.id}/pdf`
+      }))
     },
     recentTransactions: recentTransactions.map((transaction) => ({
       id: transaction.id,

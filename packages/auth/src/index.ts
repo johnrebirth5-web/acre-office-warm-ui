@@ -1595,9 +1595,7 @@ export function canViewOfficeCommissions(subject: PermissionSubject): boolean {
 }
 
 export function canViewOfficeCommissionSelfServiceSummary(subject: PermissionSubject): boolean {
-  const role = getSubjectRole(subject);
-
-  return (role === "agent" || role === "team_lead") && canViewOfficeCommissions(subject);
+  return can(subject, "dashboard:view");
 }
 
 export function canViewOfficeOffers(subject: PermissionSubject): boolean {
