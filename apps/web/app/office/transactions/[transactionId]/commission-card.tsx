@@ -11,7 +11,7 @@ type TransactionCommissionCardProps = {
   canManageCommissions: boolean;
   canCalculateCommissions: boolean;
   canApproveCommissions: boolean;
-  isOwner: boolean;
+  canManageOverrideParticipants: boolean;
 };
 
 type OverrideDraftRow = {
@@ -87,7 +87,7 @@ export function TransactionCommissionCard({
   canManageCommissions,
   canCalculateCommissions,
   canApproveCommissions,
-  isOwner
+  canManageOverrideParticipants
 }: TransactionCommissionCardProps) {
   const router = useRouter();
   const [calculationNote, setCalculationNote] = useState("");
@@ -385,7 +385,7 @@ export function TransactionCommissionCard({
                     value={overrideNote}
                   />
                 </label>
-                {isOwner ? (
+                {canManageOverrideParticipants ? (
                   <div className="office-detail-field office-detail-field-wide">
                     <span>Add participant</span>
                     <div className="office-inline-form-actions">
@@ -412,7 +412,7 @@ export function TransactionCommissionCard({
                       </Button>
                     </div>
                     <p className="office-form-helper">
-                      Only Owner can add or remove extra payout participants. New participants must be active memberships in this organization.
+                      Only Office Admin can add or remove extra payout participants. New participants must be active memberships in this organization.
                     </p>
                   </div>
                 ) : null}
@@ -433,7 +433,7 @@ export function TransactionCommissionCard({
                     <span>Stakeholder</span>
                     <span>Current final</span>
                     <span>Override amount</span>
-                    {isOwner ? <span>Actions</span> : null}
+                    {canManageOverrideParticipants ? <span>Actions</span> : null}
                   </div>
 
                   {overrideRows.map((row) => (
@@ -459,7 +459,7 @@ export function TransactionCommissionCard({
                         }
                         value={row.amount}
                       />
-                      {isOwner ? (
+                      {canManageOverrideParticipants ? (
                         <div className="bm-accounting-inline-actions">
                           {row.isManualParticipant ? (
                             <Button

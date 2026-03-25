@@ -286,7 +286,7 @@ test("explicit finance fee rate still derives amount from gross commission", () 
   assert.equal(normalized.selectedCalculationType, "pre_split");
 });
 
-test("owner can add a manual membership participant and the participant sees self-service income and statements", async () => {
+test("office admin can add a manual membership participant and the participant sees self-service income and statements", async () => {
   const context = await createCommissionOverrideTestContext();
 
   try {
@@ -314,7 +314,7 @@ test("owner can add a manual membership participant and the participant sees sel
           amount: "1000"
         }
       ],
-      actorMembershipId: context.ownerMembership.id
+      actorMembershipId: context.officeAdminMembership.id
     });
 
     assert.ok(snapshot);
@@ -381,7 +381,7 @@ test("owner can add a manual membership participant and the participant sees sel
   }
 });
 
-test("non-owner cannot change the override participant set and calculate stays locked after manual participants exist", async () => {
+test("owner cannot change the override participant set and calculate stays locked after office admin adds manual participants", async () => {
   const context = await createCommissionOverrideTestContext();
 
   try {
@@ -393,7 +393,7 @@ test("non-owner cannot change the override participant set and calculate stays l
           organizationId: context.organization.id,
           officeId: context.primaryOffice.id,
           transactionId: transaction.id,
-          overrideReason: "Office admin should not add participants",
+          overrideReason: "Owner should not add participants",
           stakeholderRows: [
             {
               key: context.primaryAgentMembership.id,
@@ -411,16 +411,16 @@ test("non-owner cannot change the override participant set and calculate stays l
               amount: "1000"
             }
           ],
-          actorMembershipId: context.officeAdminMembership.id
+          actorMembershipId: context.ownerMembership.id
         }),
-      /Only Owner can add or remove override participants\./
+      /Only Office Admin can add or remove override participants\./
     );
 
     await overrideTransactionCommission({
       organizationId: context.organization.id,
       officeId: context.primaryOffice.id,
       transactionId: transaction.id,
-      overrideReason: "Owner adds manual participant",
+      overrideReason: "Office admin adds manual participant",
       stakeholderRows: [
         {
           key: context.primaryAgentMembership.id,
@@ -438,7 +438,7 @@ test("non-owner cannot change the override participant set and calculate stays l
           amount: "1000"
         }
       ],
-      actorMembershipId: context.ownerMembership.id
+      actorMembershipId: context.officeAdminMembership.id
     });
 
     await assert.rejects(
@@ -457,10 +457,20 @@ test("non-owner cannot change the override participant set and calculate stays l
       context.organization.id,
       transaction.id,
       context.primaryOffice.id,
-      context.ownerMembership.id
+      context.officeAdminMembership.id
     );
 
     assert.equal(refreshedSnapshot?.manualParticipantLockActive, true);
+    assert.ok((refreshedSnapshot?.manualParticipantOptions.length ?? 0) > 0);
+
+    const ownerSnapshot = await getTransactionCommissionSnapshot(
+      context.organization.id,
+      transaction.id,
+      context.primaryOffice.id,
+      context.ownerMembership.id
+    );
+
+    assert.equal(ownerSnapshot?.manualParticipantOptions.length, 0);
   } finally {
     await context.cleanup();
   }

@@ -62,7 +62,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - current calculation version summary
   - calculation history
   - manual override for final stakeholder payouts
-  - `Owner`-only add/remove of extra active memberships during override
+  - `Office Admin`-only add/remove of extra active memberships during override
   - manual participant rows saved as formal `commissionCalculation` agent rows
   - override total validation that must keep the full payout pool unchanged
   - manual-participant lock that blocks future `Recalculate`; once a transaction has manual participants it must continue through override only
@@ -163,7 +163,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - manual participant rows are marked as manual in the stored stakeholder snapshot:
   - `Share` shows `Manual`
   - `Base / Post-Split / Reimbursement` stay `0` or `—`
-  - `Final` reflects the owner-entered override amount
+  - `Final` reflects the admin-entered override amount
 - manual override validation rules:
   - `overrideReason` is required
   - user rows must map to active memberships in the same organization

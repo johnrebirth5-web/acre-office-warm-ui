@@ -3052,7 +3052,7 @@ export async function overrideTransactionCommission(
       throw new Error("Enter at least one stakeholder override row.");
     }
 
-    const actorIsOwner = actorMembership.role === "owner";
+    const actorCanManageOverrideParticipants = actorMembership.role === "office_admin";
     const currentRowByKey = new Map(currentStakeholderRows.map((row) => [row.key, row]));
     const incomingKeys = new Set<string>();
     const incomingMembershipIds = new Set<string>();
@@ -3121,8 +3121,8 @@ export async function overrideTransactionCommission(
       currentStakeholderRows.some((row) => !incomingKeys.has(row.key)) ||
       overrideEntries.some((entry) => !currentRowByKey.has(entry.key));
 
-    if (participantSetChanged && !actorIsOwner) {
-      throw new Error("Only Owner can add or remove override participants.");
+    if (participantSetChanged && !actorCanManageOverrideParticipants) {
+      throw new Error("Only Office Admin can add or remove override participants.");
     }
 
     const addedMembershipIds = overrideEntries
@@ -4045,7 +4045,7 @@ export async function getTransactionCommissionSnapshot(
       .map((row) => row.membershipId)
   );
   const manualParticipantOptions =
-    scope?.viewerRole === "owner"
+    scope?.viewerRole === "office_admin"
       ? (
           await prisma.membership.findMany({
             where: {

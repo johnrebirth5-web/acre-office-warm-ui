@@ -12,6 +12,7 @@ import {
   canEditOfficeContacts,
   canEditOfficeTransactions,
   canLinkOfficeContacts,
+  canManageOfficeCommissionOverrideParticipants,
   canManageOfficeSettings,
   canManageOfficeTransactionStatus,
   canManageOfficeTransactionFinance,
@@ -44,6 +45,7 @@ test("office admin retains admin-only powers and secondary review access", () =>
   assert.equal(canManageOfficeUsers("office_admin"), true);
   assert.equal(canManageOfficeSettings("office_admin"), true);
   assert.equal(canManageOfficeTransactionStatus("office_admin"), true);
+  assert.equal(canManageOfficeCommissionOverrideParticipants("office_admin"), true);
   assert.equal(canSecondaryReviewOfficeTasks("office_admin"), true);
   assert.equal(canAccessOfficeAdminAccountingWorkspace("office_admin"), true);
   assert.equal(canCommentOfficeActivity("office_admin"), true);
@@ -55,6 +57,7 @@ test("owner keeps full office-admin level control", () => {
   assert.equal(canManageOfficeSettings("owner"), true);
   assert.equal(canManageOfficeTransactionStatus("owner"), true);
   assert.equal(canManageOfficeTransactionFinance("owner"), true);
+  assert.equal(canManageOfficeCommissionOverrideParticipants("owner"), false);
   assert.equal(canViewOfficeReports("owner"), true);
   assert.equal(canAccessOfficeAdminAccountingWorkspace("owner"), false);
 });

@@ -20,6 +20,7 @@ import {
   canManageOfficeSignatures,
   canCalculateOfficeCommissions,
   canAcceptOfficeOffers,
+  canManageOfficeCommissionOverrideParticipants,
   canReviewOfficeTasks,
   canReviewOfficeOffers,
   canSecondaryReviewOfficeTasks,
@@ -284,14 +285,14 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
           subtitle="Structured fee logic, final stakeholder split, and calculation history for this transaction."
           title="Commission"
         >
-          <TransactionCommissionCard
-            canApproveCommissions={canApproveCommissionsForRole}
-            canCalculateCommissions={canCalculateCommissionsForRole}
-            canManageCommissions={canManageCommissionsForRole}
-            isOwner={context.currentMembership.role === "owner"}
-            snapshot={commissionSnapshot}
-            transactionId={transaction.id}
-          />
+        <TransactionCommissionCard
+          canApproveCommissions={canApproveCommissionsForRole}
+          canCalculateCommissions={canCalculateCommissionsForRole}
+          canManageCommissions={canManageCommissionsForRole}
+          canManageOverrideParticipants={canManageOfficeCommissionOverrideParticipants(context.currentMembership)}
+          snapshot={commissionSnapshot}
+          transactionId={transaction.id}
+        />
         </TransactionDetailCollapsibleSection>
       ) : null}
 

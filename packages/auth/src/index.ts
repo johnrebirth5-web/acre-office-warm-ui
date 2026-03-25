@@ -1630,6 +1630,11 @@ export function canApproveOfficeCommissions(subject: PermissionSubject): boolean
   return can(subject, "commissions:approve");
 }
 
+export function canManageOfficeCommissionOverrideParticipants(subject: PermissionSubject): boolean {
+  const resolved = typeof subject === "string" ? subject : subject.role;
+  return resolved === "office_admin";
+}
+
 export function canAccessOfficeCommissionWorkspace(subject: PermissionSubject): boolean {
   return (
     canAccessOfficeSettings(subject) ||
