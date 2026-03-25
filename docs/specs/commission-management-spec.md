@@ -62,7 +62,8 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - current calculation version summary
   - calculation history
   - manual override for final stakeholder payouts
-  - `Office Admin`-only add/remove of extra active memberships during override
+  - `Office Admin`-only add/remove of extra organization memberships during override
+  - invited memberships stay operationally usable for admin-managed override work; the member does not need to activate/login first
   - manual participant rows saved as formal `commissionCalculation` agent rows
   - override total validation that must keep the full payout pool unchanged
   - manual-participant lock that blocks future `Recalculate`; once a transaction has manual participants it must continue through override only
@@ -159,14 +160,14 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - the current version is mirrored into the active `CommissionCalculation` rows for compatibility
 - statement / payslip views read the current version-backed rows only
 - history remains visible for audit/review but is not double-counted in payout summaries
-- manual override versions may include extra active memberships that were not part of the original split chain
+- manual override versions may include extra `active` or `invited` memberships that were not part of the original split chain
 - manual participant rows are marked as manual in the stored stakeholder snapshot:
   - `Share` shows `Manual`
   - `Base / Post-Split / Reimbursement` stay `0` or `—`
   - `Final` reflects the admin-entered override amount
 - manual override validation rules:
   - `overrideReason` is required
-  - user rows must map to active memberships in the same organization
+  - user rows must map to `active` or `invited` memberships in the same organization
   - `company` must remain present exactly once
   - duplicate memberships are rejected
   - payout amounts must stay non-negative
@@ -179,7 +180,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - no full enterprise rule engine
 - statement generation is still MVP-level
 - first release keeps one current row per fee type, not multiple rows of the same fee type
-- manual override can add/remove extra active memberships for a specific transaction version, but it still does not rewrite the source fee ledger or commission plan defaults
+- manual override can add/remove extra `active` or `invited` memberships for a specific transaction version, but it still does not rewrite the source fee ledger or commission plan defaults
 - legacy fee/status tools still coexist with the new default split-chain path
 
 ## Future direction

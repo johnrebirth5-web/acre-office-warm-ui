@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { OfficeTransactionCommissionSnapshot } from "@acre/db";
 import { Button, HorizontalScrollArea, SectionCard, SelectInput, StatCard, StatusBadge, TextInput } from "@acre/ui";
 
@@ -90,11 +90,16 @@ export function TransactionCommissionCard({
   canManageOverrideParticipants
 }: TransactionCommissionCardProps) {
   const router = useRouter();
+  const participantPickerRef = useRef<HTMLDivElement | null>(null);
+  const participantListboxId = useId();
   const [calculationNote, setCalculationNote] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
   const [overrideNote, setOverrideNote] = useState("");
   const [overrideRows, setOverrideRows] = useState<OverrideDraftRow[]>(() => buildOverrideRows(snapshot));
   const [selectedParticipantId, setSelectedParticipantId] = useState("");
+  const [participantSearchValue, setParticipantSearchValue] = useState("");
+  const [isParticipantPickerOpen, setIsParticipantPickerOpen] = useState(false);
+  const [highlightedParticipantIndex, setHighlightedParticipantIndex] = useState(0);
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>(
     Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue]))
   );
@@ -104,19 +109,46 @@ export function TransactionCommissionCard({
   useEffect(() => {
     setStatusDrafts(Object.fromEntries(snapshot.calculations.map((row) => [row.id, row.statusValue])));
     setOverrideRows(buildOverrideRows(snapshot));
+    setSelectedParticipantId("");
+    setParticipantSearchValue("");
+    setIsParticipantPickerOpen(false);
+    setHighlightedParticipantIndex(0);
   }, [snapshot]);
 
   const availableManualParticipantOptions = snapshot.manualParticipantOptions.filter(
     (option) => !overrideRows.some((row) => row.membershipId === option.membershipId)
   );
+  const normalizedParticipantSearch = participantSearchValue.trim().toLowerCase();
+  const filteredManualParticipantOptions =
+    normalizedParticipantSearch.length > 0
+      ? availableManualParticipantOptions.filter((option) => option.label.toLowerCase().includes(normalizedParticipantSearch))
+      : [];
+  const activeDescendantId =
+    isParticipantPickerOpen && filteredManualParticipantOptions[highlightedParticipantIndex]
+      ? `${participantListboxId}-${filteredManualParticipantOptions[highlightedParticipantIndex]?.membershipId}`
+      : undefined;
 
   useEffect(() => {
-    if (availableManualParticipantOptions.some((option) => option.membershipId === selectedParticipantId)) {
+    if (filteredManualParticipantOptions.length === 0) {
+      setHighlightedParticipantIndex(0);
       return;
     }
 
-    setSelectedParticipantId(availableManualParticipantOptions[0]?.membershipId ?? "");
-  }, [availableManualParticipantOptions, selectedParticipantId]);
+    setHighlightedParticipantIndex((current) => Math.min(current, filteredManualParticipantOptions.length - 1));
+  }, [filteredManualParticipantOptions]);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!participantPickerRef.current?.contains(event.target as Node)) {
+        setIsParticipantPickerOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, []);
 
   const currentTotal = overrideRows.reduce((sum, row) => sum + parseAmount(row.currentFinal), 0);
   const overrideTotal = overrideRows.reduce((sum, row) => {
@@ -132,6 +164,12 @@ export function TransactionCommissionCard({
   const canManageOverride = canManageCommissions || canApproveCommissions;
   const calculateLocked = snapshot.manualParticipantLockActive;
   const canSubmitOverride = canManageOverride && pendingAction !== "override" && totalsBalanced;
+
+  function selectParticipantOption(option: OfficeTransactionCommissionSnapshot["manualParticipantOptions"][number]) {
+    setSelectedParticipantId(option.membershipId);
+    setParticipantSearchValue(option.label);
+    setIsParticipantPickerOpen(false);
+  }
 
   async function handleCalculate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -171,7 +209,7 @@ export function TransactionCommissionCard({
       return;
     }
 
-    const option = snapshot.manualParticipantOptions.find((entry) => entry.membershipId === selectedParticipantId);
+    const option = availableManualParticipantOptions.find((entry) => entry.membershipId === selectedParticipantId);
 
     if (!option) {
       return;
@@ -190,6 +228,9 @@ export function TransactionCommissionCard({
         isManualParticipant: true
       }
     ]);
+    setSelectedParticipantId("");
+    setParticipantSearchValue("");
+    setIsParticipantPickerOpen(false);
   }
 
   function handleRemoveParticipant(key: string) {
@@ -389,18 +430,104 @@ export function TransactionCommissionCard({
                   <div className="office-detail-field office-detail-field-wide">
                     <span>Add participant</span>
                     <div className="office-inline-form-actions">
-                      <SelectInput
-                        disabled={pendingAction === "override" || availableManualParticipantOptions.length === 0}
-                        onChange={(event) => setSelectedParticipantId(event.target.value)}
-                        value={selectedParticipantId}
-                      >
-                        <option value="">Select an active membership</option>
-                        {availableManualParticipantOptions.map((option) => (
-                          <option key={option.membershipId} value={option.membershipId}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </SelectInput>
+                      <div className="office-autocomplete" ref={participantPickerRef}>
+                        <TextInput
+                          aria-activedescendant={activeDescendantId}
+                          aria-autocomplete="list"
+                          aria-controls={participantListboxId}
+                          aria-expanded={isParticipantPickerOpen && normalizedParticipantSearch.length > 0}
+                          autoComplete="off"
+                          disabled={pendingAction === "override" || availableManualParticipantOptions.length === 0}
+                          onChange={(event) => {
+                            setParticipantSearchValue(event.target.value);
+                            setSelectedParticipantId("");
+                            setIsParticipantPickerOpen(true);
+                            setHighlightedParticipantIndex(0);
+                          }}
+                          onFocus={() => {
+                            if (participantSearchValue.trim().length > 0) {
+                              setIsParticipantPickerOpen(true);
+                            }
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "ArrowDown") {
+                              event.preventDefault();
+                              if (normalizedParticipantSearch.length === 0) {
+                                return;
+                              }
+
+                              setIsParticipantPickerOpen(true);
+                              setHighlightedParticipantIndex((current) =>
+                                filteredManualParticipantOptions.length === 0
+                                  ? 0
+                                  : Math.min(current + 1, filteredManualParticipantOptions.length - 1)
+                              );
+                              return;
+                            }
+
+                            if (event.key === "ArrowUp") {
+                              event.preventDefault();
+                              if (normalizedParticipantSearch.length === 0) {
+                                return;
+                              }
+
+                              setIsParticipantPickerOpen(true);
+                              setHighlightedParticipantIndex((current) => Math.max(current - 1, 0));
+                              return;
+                            }
+
+                            if (event.key === "Enter" && isParticipantPickerOpen && filteredManualParticipantOptions[highlightedParticipantIndex]) {
+                              event.preventDefault();
+                              selectParticipantOption(filteredManualParticipantOptions[highlightedParticipantIndex]!);
+                              return;
+                            }
+
+                            if (event.key === "Escape") {
+                              setIsParticipantPickerOpen(false);
+                            }
+                          }}
+                          placeholder={
+                            availableManualParticipantOptions.length > 0
+                              ? "Type at least 1 character to search members"
+                              : "No additional members available"
+                          }
+                          role="combobox"
+                          type="search"
+                          value={participantSearchValue}
+                        />
+
+                        {isParticipantPickerOpen && normalizedParticipantSearch.length > 0 ? (
+                          <div className="office-autocomplete-panel" id={participantListboxId} role="listbox">
+                            {filteredManualParticipantOptions.length > 0 ? (
+                              filteredManualParticipantOptions.map((option, index) => (
+                                <button
+                                  aria-selected={selectedParticipantId === option.membershipId}
+                                  className={[
+                                    "office-autocomplete-option",
+                                    highlightedParticipantIndex === index ? "is-active" : "",
+                                    selectedParticipantId === option.membershipId ? "is-selected" : ""
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" ")}
+                                  id={`${participantListboxId}-${option.membershipId}`}
+                                  key={option.membershipId}
+                                  onMouseDown={(event) => {
+                                    event.preventDefault();
+                                    selectParticipantOption(option);
+                                  }}
+                                  role="option"
+                                  type="button"
+                                >
+                                  <span>{option.label}</span>
+                                  {selectedParticipantId === option.membershipId ? <strong>Selected</strong> : null}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="office-autocomplete-empty">No matching members.</div>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
                       <Button
                         disabled={pendingAction === "override" || !selectedParticipantId}
                         onClick={handleAddParticipant}
@@ -412,7 +539,7 @@ export function TransactionCommissionCard({
                       </Button>
                     </div>
                     <p className="office-form-helper">
-                      Only Office Admin can add or remove extra payout participants. New participants must be active memberships in this organization.
+                      Only Office Admin can add or remove extra payout participants. Type at least 1 character to search organization members, including invited members who have never activated their accounts.
                     </p>
                   </div>
                 ) : null}

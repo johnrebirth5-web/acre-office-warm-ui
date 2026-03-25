@@ -8,10 +8,11 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 
 - `/office/accounting` exists and is database-backed
 - `/office/accounting` is now an `office_admin`-only agent statement workspace
-- the statement workspace now sources selectable payees from active memberships that either:
+- the statement workspace now sources selectable payees from `active` or `invited` memberships that either:
   - have eligible direct `commissionCalculation` rows
   - or already have saved payout statements
-- selectable payees are no longer limited to `agent / team_lead`; manual override participants can also appear if they are active memberships with direct payout rows
+- admin-managed accounting must not require the member to activate/login first; invited memberships remain operationally usable
+- selectable payees are no longer limited to `agent / team_lead`; manual override participants can also appear if they are `active` or `invited` memberships with direct payout rows
 - chart of accounts foundation exists
 - accounting transactions and line items exist
 - general ledger entries exist

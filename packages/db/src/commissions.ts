@@ -5,6 +5,7 @@ import {
   CommissionPlanRuleType,
   CommissionRecipientType,
   CommissionRuleFeeType,
+  MembershipStatus,
   UserRole,
   Prisma,
   TransactionFinanceApprovalStatus,
@@ -139,6 +140,7 @@ export type OfficeTransactionCommissionManualParticipantOption = {
   membershipId: string;
   recipientLabel: string;
   recipientRole: string;
+  statusLabel: string;
   officeLabel: string;
   label: string;
 };
@@ -480,6 +482,14 @@ const userRoleLabelMap: Record<UserRole, string> = {
   office_manager: "Office Manager",
   office_user: "Office User"
 };
+
+const membershipStatusLabelMap: Record<MembershipStatus, string> = {
+  active: "Active",
+  invited: "Invited",
+  disabled: "Inactive"
+};
+
+const selectableOperationalMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 
 type TransactionFinanceFeeDefinition = {
   feeType: TransactionFinanceFeeType;
@@ -1988,6 +1998,7 @@ function buildManualParticipantOption(input: {
   lastName: string;
   email: string;
   role: UserRole;
+  status: MembershipStatus;
   title?: string | null;
   officeName?: string | null;
 }) {
@@ -2000,14 +2011,16 @@ function buildManualParticipantOption(input: {
     role: input.role,
     title: input.title
   });
+  const statusLabel = membershipStatusLabelMap[input.status];
   const officeLabel = input.officeName?.trim() || "All offices";
 
   return {
     membershipId: input.membershipId,
     recipientLabel,
     recipientRole,
+    statusLabel,
     officeLabel,
-    label: `${recipientLabel} · ${recipientRole} · ${officeLabel}`
+    label: `${recipientLabel} · ${recipientRole} · ${statusLabel} · ${officeLabel}`
   } satisfies OfficeTransactionCommissionManualParticipantOption;
 }
 
@@ -3136,7 +3149,9 @@ export async function overrideTransactionCommission(
               id: {
                 in: addedMembershipIds
               },
-              status: "active"
+              status: {
+                in: selectableOperationalMembershipStatuses
+              }
             },
             include: {
               user: true,
@@ -3146,7 +3161,7 @@ export async function overrideTransactionCommission(
         : [];
 
     if (addedMemberships.length !== new Set(addedMembershipIds).size) {
-      throw new Error("One or more added participants are no longer active memberships in this organization.");
+      throw new Error("One or more added participants are not active or invited memberships in this organization.");
     }
 
     const addedMembershipById = new Map(addedMemberships.map((membership) => [membership.id, membership]));
@@ -4050,7 +4065,9 @@ export async function getTransactionCommissionSnapshot(
           await prisma.membership.findMany({
             where: {
               organizationId,
-              status: "active"
+              status: {
+                in: selectableOperationalMembershipStatuses
+              }
             },
             include: {
               user: true,
@@ -4067,6 +4084,7 @@ export async function getTransactionCommissionSnapshot(
               lastName: membership.user.lastName,
               email: membership.user.email,
               role: membership.role,
+              status: membership.status,
               title: membership.title,
               officeName: membership.office?.name ?? null
             })

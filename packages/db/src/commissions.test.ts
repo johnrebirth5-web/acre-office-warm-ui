@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
-import { Prisma, type UserRole } from "@prisma/client";
+import { Prisma, type MembershipStatus, type UserRole } from "@prisma/client";
 import { createAgentPayoutStatement, getOfficeAgentPayoutStatementsWorkspaceSnapshot } from "./agent-payout-statements.ts";
 import { prisma } from "./client.ts";
 import {
@@ -48,7 +48,7 @@ async function createCommissionOverrideTestContext() {
 
   const trackedUserIds: string[] = [];
 
-  async function createMembership(role: UserRole, prefix: string, officeId: string) {
+  async function createMembership(role: UserRole, prefix: string, officeId: string, status: MembershipStatus = "active") {
     const user = await prisma.user.create({
       data: {
         email: `${prefix}-${randomUUID().slice(0, 8)}@example.com`,
@@ -67,7 +67,7 @@ async function createCommissionOverrideTestContext() {
         officeId,
         userId: user.id,
         role,
-        status: "active",
+        status,
         title: role,
         permissions: Prisma.JsonNull
       },
@@ -82,6 +82,7 @@ async function createCommissionOverrideTestContext() {
   const primaryAgentMembership = await createMembership("agent", "override-primary-agent", primaryOffice.id);
   const officeAdminMembership = await createMembership("office_admin", "override-admin", primaryOffice.id);
   const officeUserMembership = await createMembership("office_user", "override-office-user", secondaryOffice.id);
+  const invitedOfficeUserMembership = await createMembership("office_user", "override-invited-office-user", secondaryOffice.id, "invited");
 
   async function createCalculatedTransaction() {
     const transaction = await createTransaction({
@@ -225,6 +226,7 @@ async function createCommissionOverrideTestContext() {
     primaryAgentMembership,
     officeAdminMembership,
     officeUserMembership,
+    invitedOfficeUserMembership,
     createCalculatedTransaction,
     async cleanup() {
       await prisma.organization.delete({
@@ -376,6 +378,94 @@ test("office admin can add a manual membership participant and the participant s
 
     assert.equal(dashboardAfterStatement.commission.statements.length, 1);
     assert.ok(dashboardAfterStatement.commission.statements[0]?.pdfHref.includes(statementResult.statementId));
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("office admin can add invited memberships as manual participants and invited members stay statement-eligible", async () => {
+  const context = await createCommissionOverrideTestContext();
+
+  try {
+    const transaction = await context.createCalculatedTransaction();
+    const initialSnapshot = await getTransactionCommissionSnapshot(
+      context.organization.id,
+      transaction.id,
+      context.primaryOffice.id,
+      context.officeAdminMembership.id
+    );
+
+    const invitedOption =
+      initialSnapshot?.manualParticipantOptions.find((option) => option.membershipId === context.invitedOfficeUserMembership.id) ?? null;
+
+    assert.ok(invitedOption);
+    assert.match(invitedOption?.label ?? "", /Invited/);
+
+    const snapshot = await overrideTransactionCommission({
+      organizationId: context.organization.id,
+      officeId: context.primaryOffice.id,
+      transactionId: transaction.id,
+      overrideReason: "Invited referral member added manually",
+      notes: "Invited members must stay operationally usable",
+      stakeholderRows: [
+        {
+          key: context.primaryAgentMembership.id,
+          membershipId: context.primaryAgentMembership.id,
+          amount: "3000"
+        },
+        {
+          key: context.invitedOfficeUserMembership.id,
+          membershipId: context.invitedOfficeUserMembership.id,
+          amount: "1000"
+        },
+        {
+          key: "company",
+          membershipId: "",
+          amount: "1000"
+        }
+      ],
+      actorMembershipId: context.officeAdminMembership.id
+    });
+
+    const invitedRow =
+      snapshot?.stakeholderBreakdown.find((row) => row.membershipId === context.invitedOfficeUserMembership.id) ?? null;
+
+    assert.ok(invitedRow);
+    assert.equal(invitedRow?.isManualParticipant, true);
+
+    const savedRow =
+      (
+        await prisma.commissionCalculation.findMany({
+          where: {
+            organizationId: context.organization.id,
+            transactionId: transaction.id
+          }
+        })
+      ).find((row) => row.membershipId === context.invitedOfficeUserMembership.id) ?? null;
+
+    assert.ok(savedRow);
+
+    const workspace = await getOfficeAgentPayoutStatementsWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.primaryOffice.id,
+      membershipId: context.invitedOfficeUserMembership.id
+    });
+
+    assert.ok(workspace.filters.memberOptions.some((option) => option.id === context.invitedOfficeUserMembership.id));
+    const invoiceNumber = workspace.filters.invoiceOptions[0]?.invoiceNumber ?? "";
+
+    assert.ok(invoiceNumber);
+
+    const statementResult = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.primaryOffice.id,
+      membershipId: context.invitedOfficeUserMembership.id,
+      invoiceNumbers: [invoiceNumber],
+      commissionCalculationIds: savedRow ? [savedRow.id] : [],
+      actorMembershipId: context.officeAdminMembership.id
+    });
+
+    assert.ok(statementResult.statementId);
   } finally {
     await context.cleanup();
   }

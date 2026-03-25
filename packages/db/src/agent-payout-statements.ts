@@ -243,7 +243,7 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
   paid: "Paid"
 };
 
-const selectableAgentMembershipStatuses = ["active"] satisfies MembershipStatus[];
+const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 const selectableAgentPayoutCalculationStatuses = [
   "calculated",
   "reviewed",
@@ -1011,7 +1011,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
     });
 
     if (!membership) {
-      throw new Error("Active membership not found for statement generation.");
+      throw new Error("Active or invited membership not found for statement generation.");
     }
 
     const eligibleCalculations = await tx.commissionCalculation.findMany({
