@@ -974,9 +974,9 @@ export function TransactionsClient({
       />
 
       {isCreateModalOpen ? (
-        <div className="bm-modal-overlay">
+        <div className="bm-modal-overlay office-create-modal-overlay">
           <section
-            className="bm-transaction-modal"
+            className="bm-transaction-modal office-create-modal office-transaction-create-modal"
             onClick={(event) => event.stopPropagation()}
           >
             <TransactionIntakeWorkspace
@@ -984,6 +984,10 @@ export function TransactionsClient({
               canEditValues={true}
               chrome="modal"
               key={formVersion}
+              modalDescription="Open a new office transaction using the current intake schema, assign the owner, and capture structured finance details from the start."
+              modalEyebrow="Transactions"
+              modalFooterDescription="The record is created with the active office schema so the pipeline, reporting, and finance views all start from the same structure."
+              modalFooterTitle="Create a clean transaction record"
               mode="create"
               onClose={() => setIsCreateModalOpen(false)}
               onSubmitted={() => {
@@ -1001,11 +1005,11 @@ export function TransactionsClient({
               ownerAssignment={transactionOwnerAssignment}
               schema={searchLayout.schema}
               statusFieldPolicy={transactionStatusFieldPolicy}
-              stepLabel="step 1 of 4"
+              stepLabel="Step 1 of 4"
               submitEndpoint="/api/office/transactions"
               submitLabel="Next →"
               submitMethod="POST"
-              title="NEW TRANSACTION"
+              title="Create transaction"
             />
           </section>
         </div>

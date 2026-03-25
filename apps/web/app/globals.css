@@ -6590,7 +6590,8 @@ a {
 .bm-transaction-status-form input:focus-visible,
 .bm-transaction-status-form select:focus-visible,
 .bm-transaction-modal-field input:focus-visible,
-.bm-transaction-modal-field select:focus-visible {
+.bm-transaction-modal-field select:focus-visible,
+.bm-transaction-modal-field textarea:focus-visible {
   outline: 0;
   box-shadow: var(--office-focus-ring);
 }
@@ -6616,6 +6617,7 @@ a {
 .bm-transaction-status-form select,
 .bm-transaction-modal-field input,
 .bm-transaction-modal-field select,
+.bm-transaction-modal-field textarea,
 .bm-modal-inline-select select {
   width: 100%;
   min-height: 40px;
@@ -10293,19 +10295,28 @@ a {
   line-height: 1.45;
 }
 
+.office-create-modal-overlay,
 .office-settings-users-modal-overlay {
   padding: 28px;
 }
 
-.office-settings-users-create-modal {
+.office-create-modal {
   width: min(960px, calc(100vw - 40px));
   max-height: min(92vh, 980px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
+  border: 1px solid rgba(194, 205, 220, 0.62);
+  border-radius: 28px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, #f8fbff 100%);
+  box-shadow: 0 28px 70px rgba(18, 40, 76, 0.18);
 }
 
+.office-settings-users-create-modal {
+  width: min(960px, calc(100vw - 40px));
+}
+
+.office-create-modal-header,
 .office-settings-users-modal-header {
   display: flex;
   align-items: flex-start;
@@ -10315,12 +10326,21 @@ a {
   border-bottom: 1px solid rgba(194, 205, 220, 0.6);
 }
 
+.office-create-modal-title-block,
 .office-settings-users-modal-title-block {
   display: grid;
   gap: 8px;
   min-width: 0;
 }
 
+.office-create-modal-header h3 {
+  color: var(--office-text);
+  font-size: 2.05rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.office-create-modal-kicker,
 .office-settings-users-modal-kicker {
   color: var(--office-accent-strong);
   font-size: 0.76rem;
@@ -10329,6 +10349,9 @@ a {
   text-transform: uppercase;
 }
 
+.office-create-modal-header p,
+.office-create-modal-section-head p,
+.office-create-modal-footer-copy p,
 .office-settings-users-modal-header p,
 .office-settings-users-create-section-head p,
 .office-settings-users-modal-footer-copy p,
@@ -10339,6 +10362,7 @@ a {
   line-height: 1.5;
 }
 
+.office-create-modal-body,
 .office-settings-users-modal-body {
   display: grid;
   align-content: start;
@@ -10352,6 +10376,7 @@ a {
   gap: 18px;
 }
 
+.office-create-modal-section,
 .office-settings-users-create-section,
 .office-settings-users-invite-panel {
   display: grid;
@@ -10362,11 +10387,13 @@ a {
   background: rgba(248, 250, 253, 0.92);
 }
 
+.office-create-modal-section-head,
 .office-settings-users-create-section-head {
   display: grid;
   gap: 6px;
 }
 
+.office-create-modal-section-head h4,
 .office-settings-users-create-section-head h4,
 .office-settings-users-invite-panel-head h4 {
   margin: 0;
@@ -10433,6 +10460,7 @@ a {
   align-items: center;
 }
 
+.office-create-modal-footer,
 .office-settings-users-modal-footer {
   display: flex;
   align-items: center;
@@ -10442,12 +10470,14 @@ a {
   padding-top: 2px;
 }
 
+.office-create-modal-footer-copy,
 .office-settings-users-modal-footer-copy {
   display: grid;
   gap: 4px;
   max-width: 34rem;
 }
 
+.office-create-modal-footer-copy strong,
 .office-settings-users-modal-footer-copy strong,
 .office-settings-generated-invite-copy strong {
   color: var(--office-text);
@@ -10477,6 +10507,75 @@ a {
 
 .office-settings-users-search-field {
   min-width: min(100%, 340px);
+}
+
+.office-transaction-create-modal {
+  width: min(1140px, calc(100vw - 40px));
+}
+
+.office-contact-create-modal {
+  width: min(920px, calc(100vw - 40px));
+}
+
+.office-create-modal .bm-transaction-modal-header > button:not(.office-button) {
+  color: var(--office-text-muted);
+}
+
+.office-create-modal-header .office-button {
+  align-self: start;
+}
+
+.office-create-modal .bm-transaction-modal-body {
+  gap: 18px;
+}
+
+.office-create-modal .bm-transaction-modal-footer {
+  margin-top: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.office-create-modal .bm-transaction-modal-top-selects,
+.office-create-modal .bm-transaction-modal-grid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.office-transaction-create-section .bm-transaction-modal-top-selects {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.office-create-modal .bm-modal-inline-select select {
+  padding-right: 12px;
+  background: #fff;
+  color: var(--office-text);
+}
+
+.office-create-modal .bm-modal-inline-select select.is-empty {
+  color: var(--office-text-muted);
+}
+
+.office-create-modal .bm-modal-inline-select > .bm-transaction-field-head span,
+.office-create-modal .bm-transaction-modal-field span {
+  color: var(--office-text-muted);
+  font-size: 0.79rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.office-contact-create-grid .office-form-grid-span-2 {
+  grid-column: 1 / -1;
+}
+
+.office-contact-create-feedback {
+  margin: 0;
+}
+
+.office-contact-create-actions {
+  justify-content: flex-end;
 }
 
 .office-settings-users-filter-actions {
@@ -10566,30 +10665,38 @@ a {
 }
 
 @media (max-width: 900px) {
+  .office-create-modal-overlay,
   .office-settings-users-modal-overlay {
     padding: 16px;
   }
 
+  .office-create-modal,
   .office-settings-users-create-modal {
     width: min(100%, calc(100vw - 16px));
   }
 
+  .office-create-modal-header,
+  .office-create-modal-body,
   .office-settings-users-modal-header,
   .office-settings-users-modal-body {
     padding-left: 20px;
     padding-right: 20px;
   }
 
+  .office-create-modal-footer,
   .office-settings-users-modal-footer {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .office-transaction-create-section .bm-transaction-modal-top-selects,
+  .office-form-grid,
+  .office-form-grid-3,
   .office-settings-generated-invite-actions {
-    display: grid;
     grid-template-columns: 1fr;
   }
 
+  .office-create-modal-footer .office-button,
   .office-settings-user-create-actions,
   .office-settings-user-create-actions .office-button,
   .office-settings-generated-invite-actions .office-button {

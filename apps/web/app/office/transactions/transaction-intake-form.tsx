@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Button } from "@acre/ui";
 import type {
   OfficeTransactionCustomFieldDefinitionRecord,
   OfficeTransactionIntakeSchema,
@@ -26,6 +27,10 @@ type TransactionIntakeWorkspaceProps = {
   submitLabel: string;
   title?: string;
   stepLabel?: string;
+  modalEyebrow?: string;
+  modalDescription?: string;
+  modalFooterTitle?: string;
+  modalFooterDescription?: string;
   initialValues?: Record<string, string>;
   ownerAssignment?: OfficeTransactionOwnerAssignment;
   statusFieldPolicy?: TransactionStatusFieldPolicy;
@@ -154,6 +159,10 @@ export function TransactionIntakeWorkspace({
   submitLabel,
   title,
   stepLabel,
+  modalEyebrow,
+  modalDescription,
+  modalFooterTitle,
+  modalFooterDescription,
   initialValues,
   ownerAssignment,
   statusFieldPolicy,
@@ -276,6 +285,9 @@ export function TransactionIntakeWorkspace({
       .slice(0, maxVisibleOwnerSuggestions)
       .map((entry) => entry.option);
   }, [ownerAssignment, ownerSearchValue]);
+  const useOfficeCreateModalChrome =
+    chrome === "modal" &&
+    Boolean(modalEyebrow || modalDescription || modalFooterTitle || modalFooterDescription);
 
   function setFieldValue(fieldName: string, value: string) {
     setFieldValues((current) => ({
@@ -518,14 +530,28 @@ export function TransactionIntakeWorkspace({
   return (
     <div className={`bm-transaction-intake-shell bm-transaction-intake-shell-${chrome}`}>
       {chrome === "modal" ? (
-        <header className="bm-transaction-modal-header bm-transaction-modal-header-configurable">
-          <div className="bm-transaction-modal-title-block">
+        <header
+          className={`bm-transaction-modal-header bm-transaction-modal-header-configurable${useOfficeCreateModalChrome ? " office-create-modal-header" : ""}`}
+        >
+          <div
+            className={`bm-transaction-modal-title-block${useOfficeCreateModalChrome ? " office-create-modal-title-block" : ""}`}
+          >
+            {useOfficeCreateModalChrome && modalEyebrow ? (
+              <span className="office-create-modal-kicker">{modalEyebrow}</span>
+            ) : null}
             <h3>{title ?? "NEW TRANSACTION"}</h3>
+            {useOfficeCreateModalChrome && modalDescription ? <p>{modalDescription}</p> : null}
           </div>
           {onClose ? (
-            <button aria-label="Close transaction intake" onClick={requestClose} type="button">
-              ×
-            </button>
+            useOfficeCreateModalChrome ? (
+              <Button aria-label="Close transaction intake" onClick={requestClose} size="sm" type="button" variant="ghost">
+                Close
+              </Button>
+            ) : (
+              <button aria-label="Close transaction intake" onClick={requestClose} type="button">
+                ×
+              </button>
+            )
           ) : null}
         </header>
       ) : title ? (
@@ -534,73 +560,165 @@ export function TransactionIntakeWorkspace({
         </div>
       ) : null}
 
-      <form className="bm-transaction-modal-body bm-transaction-intake-form" onSubmit={handleSubmit}>
-        {visibleTopFields.length ? (
-          <div className="bm-transaction-modal-top-selects">
-            {visibleTopFields.map((field) => (
-              <label className="bm-modal-inline-select" key={field.fieldKey}>
-                <div className="bm-transaction-field-head">
-                  <span>{getFieldValueLabel(field)}:</span>
-                </div>
-                <select
-                  className={fieldValues[field.inputName] ? "" : "is-empty"}
-                  disabled={!canEditValues || (field.fieldKey === "transaction_status" && statusFieldPolicy ? !statusFieldPolicy.canEdit : false)}
-                  name={field.inputName}
-                  onChange={(event) => setFieldValue(field.inputName, event.target.value)}
-                  value={fieldValues[field.inputName] ?? ""}
-                >
-                  <option value="">select</option>
-                  {field.selectOptions
-                    .filter((option) => {
-                      if (field.fieldKey === "transaction_status" && statusFieldPolicy) {
-                        const isAllowedValue = statusFieldPolicy.allowedValues.includes(option.value as TransactionStatusValue);
+      <form
+        className={`bm-transaction-modal-body bm-transaction-intake-form${useOfficeCreateModalChrome ? " office-create-modal-body office-transaction-create-body" : ""}`}
+        onSubmit={handleSubmit}
+      >
+        {useOfficeCreateModalChrome ? (
+          <section className="office-create-modal-section office-transaction-create-section">
+            <div className="office-create-modal-section-head">
+              <h4>Core transaction details</h4>
+              <p>Set the deal type, workflow status, representation, owner, and property basics before saving the record into the pipeline.</p>
+            </div>
 
-                        if (!isAllowedValue) {
-                          return false;
-                        }
+            {visibleTopFields.length ? (
+              <div className="bm-transaction-modal-top-selects">
+                {visibleTopFields.map((field) => (
+                  <label className="bm-modal-inline-select" key={field.fieldKey}>
+                    <div className="bm-transaction-field-head">
+                      <span>{getFieldValueLabel(field)}</span>
+                    </div>
+                    <select
+                      className={fieldValues[field.inputName] ? "" : "is-empty"}
+                      disabled={!canEditValues || (field.fieldKey === "transaction_status" && statusFieldPolicy ? !statusFieldPolicy.canEdit : false)}
+                      name={field.inputName}
+                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+                      value={fieldValues[field.inputName] ?? ""}
+                    >
+                      <option value="">Select...</option>
+                      {field.selectOptions
+                        .filter((option) => {
+                          if (field.fieldKey === "transaction_status" && statusFieldPolicy) {
+                            const isAllowedValue = statusFieldPolicy.allowedValues.includes(option.value as TransactionStatusValue);
 
-                        return mode === "create" ? true : option.isEnabled || fieldValues[field.inputName] === option.value;
-                      }
+                            if (!isAllowedValue) {
+                              return false;
+                            }
 
-                      return option.isEnabled;
-                    })
-                    .map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                </select>
-                {field.fieldKey === "transaction_status" && statusFieldPolicy?.helperText ? (
-                  <small className="office-form-helper">{statusFieldPolicy.helperText}</small>
-                ) : null}
-              </label>
-            ))}
-          </div>
-        ) : null}
+                            return mode === "create" ? true : option.isEnabled || fieldValues[field.inputName] === option.value;
+                          }
 
-        {ownerFieldEntry ? (
-          <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary bm-transaction-modal-grid-owner">
-            {renderBodyField(ownerFieldEntry)}
-          </div>
-        ) : null}
+                          return option.isEnabled;
+                        })
+                        .map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                    </select>
+                    {field.fieldKey === "transaction_status" && statusFieldPolicy?.helperText ? (
+                      <small className="office-form-helper">{statusFieldPolicy.helperText}</small>
+                    ) : null}
+                  </label>
+                ))}
+              </div>
+            ) : null}
 
-        {remainingBodyFields.length ? (
-          <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
-            {remainingBodyFields.map((entry) => renderBodyField(entry))}
-          </div>
-        ) : null}
+            {ownerFieldEntry ? (
+              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary bm-transaction-modal-grid-owner">
+                {renderBodyField(ownerFieldEntry)}
+              </div>
+            ) : null}
+
+            {remainingBodyFields.length ? (
+              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
+                {remainingBodyFields.map((entry) => renderBodyField(entry))}
+              </div>
+            ) : null}
+          </section>
+        ) : (
+          <>
+            {visibleTopFields.length ? (
+              <div className="bm-transaction-modal-top-selects">
+                {visibleTopFields.map((field) => (
+                  <label className="bm-modal-inline-select" key={field.fieldKey}>
+                    <div className="bm-transaction-field-head">
+                      <span>{getFieldValueLabel(field)}:</span>
+                    </div>
+                    <select
+                      className={fieldValues[field.inputName] ? "" : "is-empty"}
+                      disabled={!canEditValues || (field.fieldKey === "transaction_status" && statusFieldPolicy ? !statusFieldPolicy.canEdit : false)}
+                      name={field.inputName}
+                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+                      value={fieldValues[field.inputName] ?? ""}
+                    >
+                      <option value="">select</option>
+                      {field.selectOptions
+                        .filter((option) => {
+                          if (field.fieldKey === "transaction_status" && statusFieldPolicy) {
+                            const isAllowedValue = statusFieldPolicy.allowedValues.includes(option.value as TransactionStatusValue);
+
+                            if (!isAllowedValue) {
+                              return false;
+                            }
+
+                            return mode === "create" ? true : option.isEnabled || fieldValues[field.inputName] === option.value;
+                          }
+
+                          return option.isEnabled;
+                        })
+                        .map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                    </select>
+                    {field.fieldKey === "transaction_status" && statusFieldPolicy?.helperText ? (
+                      <small className="office-form-helper">{statusFieldPolicy.helperText}</small>
+                    ) : null}
+                  </label>
+                ))}
+              </div>
+            ) : null}
+
+            {ownerFieldEntry ? (
+              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary bm-transaction-modal-grid-owner">
+                {renderBodyField(ownerFieldEntry)}
+              </div>
+            ) : null}
+
+            {remainingBodyFields.length ? (
+              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
+                {remainingBodyFields.map((entry) => renderBodyField(entry))}
+              </div>
+            ) : null}
+          </>
+        )}
 
         {mode === "create" ? (
-          <TransactionFinanceCreateFields draft={financeDraft} onChange={setFinanceDraft} />
+          useOfficeCreateModalChrome ? (
+            <section className="office-create-modal-section office-transaction-create-section">
+              <div className="office-create-modal-section-head">
+                <h4>Finance intake</h4>
+                <p>Capture commission and referral details now so the created transaction already has structured finance data attached.</p>
+              </div>
+              <TransactionFinanceCreateFields draft={financeDraft} onChange={setFinanceDraft} />
+            </section>
+          ) : (
+            <TransactionFinanceCreateFields draft={financeDraft} onChange={setFinanceDraft} />
+          )
         ) : null}
 
-        <footer className="bm-transaction-modal-footer">
-          <span>{stepLabel ?? (chrome === "modal" ? "step 1 of 4" : "Schema-driven transaction intake")}</span>
+        <footer className={`bm-transaction-modal-footer${useOfficeCreateModalChrome ? " office-create-modal-footer" : ""}`}>
+          {useOfficeCreateModalChrome ? (
+            <div className="office-create-modal-footer-copy">
+              <strong>{modalFooterTitle ?? "Review the intake before saving"}</strong>
+              <p>{modalFooterDescription ?? "This step creates the transaction using the current office schema and prepares it for the next workflow actions."}</p>
+            </div>
+          ) : (
+            <span>{stepLabel ?? (chrome === "modal" ? "step 1 of 4" : "Schema-driven transaction intake")}</span>
+          )}
           <div className="bm-transaction-modal-actions">
             {submitError ? <p className="bm-transaction-submit-error">{submitError}</p> : null}
-            <button className="bm-transaction-next" disabled={isSubmitting || !canEditValues} type="submit">
-              {isSubmitting ? "Saving..." : submitLabel}
-            </button>
+            {useOfficeCreateModalChrome ? (
+              <Button disabled={isSubmitting || !canEditValues} type="submit">
+                {isSubmitting ? "Saving..." : submitLabel}
+              </Button>
+            ) : (
+              <button className="bm-transaction-next" disabled={isSubmitting || !canEditValues} type="submit">
+                {isSubmitting ? "Saving..." : submitLabel}
+              </button>
+            )}
           </div>
         </footer>
       </form>

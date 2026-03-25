@@ -11,11 +11,13 @@ import {
   DataTableRow,
   EmptyState,
   FilterField,
+  FormField,
   ListPageFilters,
   ListPageFooter,
   SelectInput,
   StatusBadge,
   SummaryChip,
+  TextareaInput,
   TextInput,
 } from "@acre/ui";
 import type { OfficeContactFieldSchema, OfficeContactRecord } from "@acre/db";
@@ -79,8 +81,8 @@ function getContactFieldLabel(label: string, isRequired: boolean) {
 
 function getContactModalFieldClassName(fieldClassName: string) {
   return fieldClassName.includes("is-span-4")
-    ? "bm-transaction-modal-field is-span-4"
-    : "bm-transaction-modal-field";
+    ? "office-form-field office-form-grid-span-2"
+    : "office-form-field";
 }
 
 function getContactStageTone(stage: string) {
@@ -439,98 +441,110 @@ export function ContactsClient({
       </OfficeListPageTemplate>
 
       {isModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsModalOpen(false)}>
+        <div className="bm-modal-overlay office-create-modal-overlay" onClick={() => setIsModalOpen(false)}>
           <section
-            className="bm-transaction-modal bm-contact-modal"
+            className="bm-transaction-modal office-create-modal office-contact-create-modal bm-contact-modal"
             onClick={(event) => event.stopPropagation()}
           >
-            <header className="bm-transaction-modal-header">
-              <h3>NEW CONTACT</h3>
-              <button
+            <header className="bm-transaction-modal-header office-create-modal-header">
+              <div className="bm-transaction-modal-title-block office-create-modal-title-block">
+                <span className="office-create-modal-kicker">Contacts</span>
+                <h3>Create contact</h3>
+                <p>Add a lead or client profile with the current office contact schema so follow-up can start immediately.</p>
+              </div>
+              <Button
                 aria-label="Close create contact modal"
                 onClick={() => setIsModalOpen(false)}
+                size="sm"
                 type="button"
+                variant="ghost"
               >
-                ×
-              </button>
+                Close
+              </Button>
             </header>
 
             <form
-              className="bm-transaction-modal-body"
+              className="bm-transaction-modal-body office-create-modal-body office-contact-create-body"
               onSubmit={handleCreateContact}
             >
-              <div className="bm-contact-form-grid">
-                {visibleFields.map((entry) => {
-                  const field = entry.field;
-                  const fieldType =
-                    entry.kind === "builtIn" ? entry.field.control : entry.field.type;
-                  const fieldClassName =
-                    entry.kind === "builtIn" ? entry.field.className : "";
+              <section className="office-create-modal-section office-contact-create-section">
+                <div className="office-create-modal-section-head">
+                  <h4>Contact details</h4>
+                  <p>Capture the person&apos;s core identity, current stage, and follow-up context using the shared office contact schema.</p>
+                </div>
 
-                  return (
-                    <label
-                      className={getContactModalFieldClassName(fieldClassName)}
-                      key={`${entry.kind}:${field.fieldKey}`}
-                    >
-                      <span>{getContactFieldLabel(field.label, field.isRequired)}</span>
-                      {fieldType === "textarea" ? (
-                        <textarea
-                          name={field.inputName}
-                          onChange={(event) =>
-                            setCreateValue(field.inputName, event.target.value)
-                          }
-                          rows={4}
-                          value={createValues[field.inputName] ?? ""}
-                        />
-                      ) : fieldType === "select" ? (
-                        <select
-                          name={field.inputName}
-                          onChange={(event) =>
-                            setCreateValue(field.inputName, event.target.value)
-                          }
-                          value={createValues[field.inputName] ?? ""}
-                        >
-                          <option value="">Select...</option>
-                          {field.options.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          name={field.inputName}
-                          onChange={(event) =>
-                            setCreateValue(field.inputName, event.target.value)
-                          }
-                          type={
-                            fieldType === "date"
-                              ? "date"
-                              : field.inputName === "email"
-                                ? "email"
-                                : "text"
-                          }
-                          value={createValues[field.inputName] ?? ""}
-                        />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
+                <div className="office-form-grid office-contact-create-grid">
+                  {visibleFields.map((entry) => {
+                    const field = entry.field;
+                    const fieldType =
+                      entry.kind === "builtIn" ? entry.field.control : entry.field.type;
+                    const fieldClassName =
+                      entry.kind === "builtIn" ? entry.field.className : "";
 
-              <footer className="bm-transaction-modal-footer">
-                <span>Contact fields follow the centralized schema in Settings</span>
-                <div className="bm-transaction-modal-actions">
-                  {submitError ? (
-                    <p className="bm-transaction-submit-error">{submitError}</p>
-                  ) : null}
-                  <button
-                    className="bm-transaction-next"
-                    disabled={isSubmitting}
-                    type="submit"
-                  >
-                    {isSubmitting ? "Saving..." : "Save contact"}
-                  </button>
+                    return (
+                      <FormField
+                        className={getContactModalFieldClassName(fieldClassName)}
+                        key={`${entry.kind}:${field.fieldKey}`}
+                        label={getContactFieldLabel(field.label, field.isRequired)}
+                      >
+                        {fieldType === "textarea" ? (
+                          <TextareaInput
+                            name={field.inputName}
+                            onChange={(event) =>
+                              setCreateValue(field.inputName, event.target.value)
+                            }
+                            rows={4}
+                            value={createValues[field.inputName] ?? ""}
+                          />
+                        ) : fieldType === "select" ? (
+                          <SelectInput
+                            name={field.inputName}
+                            onChange={(event) =>
+                              setCreateValue(field.inputName, event.target.value)
+                            }
+                            value={createValues[field.inputName] ?? ""}
+                          >
+                            <option value="">Select...</option>
+                            {field.options.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </SelectInput>
+                        ) : (
+                          <TextInput
+                            name={field.inputName}
+                            onChange={(event) =>
+                              setCreateValue(field.inputName, event.target.value)
+                            }
+                            type={
+                              fieldType === "date"
+                                ? "date"
+                                : field.inputName === "email"
+                                  ? "email"
+                                  : "text"
+                            }
+                            value={createValues[field.inputName] ?? ""}
+                          />
+                        )}
+                      </FormField>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {submitError ? <p className="office-inline-error office-contact-create-feedback">{submitError}</p> : null}
+
+              <footer className="bm-transaction-modal-footer office-create-modal-footer">
+                <div className="office-create-modal-footer-copy">
+                  <strong>Save the profile to start office follow-up</strong>
+                  <p>Contact fields stay aligned with the centralized schema in Settings, so the roster and detail pages remain consistent.</p>
+                </div>
+
+                <div className="bm-transaction-modal-actions office-contact-create-actions">
+                  <Button disabled={isSubmitting} type="submit">
+                    {isSubmitting ? "Saving..." : "Create contact"}
+                  </Button>
                 </div>
               </footer>
             </form>

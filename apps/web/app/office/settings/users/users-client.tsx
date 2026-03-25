@@ -455,17 +455,17 @@ export function OfficeSettingsUsersClient({
       </section>
 
       {isCreateModalOpen ? (
-        <div className="bm-modal-overlay office-settings-users-modal-overlay" onClick={closeCreateModal}>
+        <div className="bm-modal-overlay office-create-modal-overlay office-settings-users-modal-overlay" onClick={closeCreateModal}>
           <section
             aria-labelledby="office-settings-users-create-title"
             aria-modal="true"
-            className="bm-transaction-modal office-settings-users-create-modal"
+            className="bm-transaction-modal office-create-modal office-settings-users-create-modal"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
-            <header className="bm-transaction-modal-header office-settings-users-modal-header">
-              <div className="bm-transaction-modal-title-block office-settings-users-modal-title-block">
-                <span className="office-settings-users-modal-kicker">Internal accounts</span>
+            <header className="bm-transaction-modal-header office-create-modal-header office-settings-users-modal-header">
+              <div className="bm-transaction-modal-title-block office-create-modal-title-block office-settings-users-modal-title-block">
+                <span className="office-create-modal-kicker office-settings-users-modal-kicker">Internal accounts</span>
                 <h3 id="office-settings-users-create-title">Create user</h3>
                 <p>Invite a new internal Back Office account and copy the setup link from this panel.</p>
               </div>
@@ -474,10 +474,10 @@ export function OfficeSettingsUsersClient({
               </Button>
             </header>
 
-            <div className="bm-transaction-modal-body office-settings-users-modal-body">
+            <div className="bm-transaction-modal-body office-create-modal-body office-settings-users-modal-body">
               <form className="office-settings-users-create-form" onSubmit={handleCreateUser}>
-                <section className="office-settings-users-create-section">
-                  <div className="office-settings-users-create-section-head">
+                <section className="office-create-modal-section office-settings-users-create-section">
+                  <div className="office-create-modal-section-head office-settings-users-create-section-head">
                     <h4>Account details</h4>
                     <p>Capture the invited user identity, office assignment, and role before sending the setup link.</p>
                   </div>
@@ -535,8 +535,8 @@ export function OfficeSettingsUsersClient({
                 </section>
 
                 {canAssignTeamOnCreate ? (
-                  <section className="office-settings-users-create-section">
-                    <div className="office-settings-users-create-section-head">
+                  <section className="office-create-modal-section office-settings-users-create-section">
+                    <div className="office-create-modal-section-head office-settings-users-create-section-head">
                       <h4>Placement</h4>
                       <p>Optionally assign a branch and manager so the user lands in the right reporting structure on day one.</p>
                     </div>
@@ -589,8 +589,8 @@ export function OfficeSettingsUsersClient({
                   </section>
                 ) : null}
 
-                <section className="office-settings-users-create-section">
-                  <div className="office-settings-users-create-section-head">
+                <section className="office-create-modal-section office-settings-users-create-section">
+                  <div className="office-create-modal-section-head office-settings-users-create-section-head">
                     <h4>Commission defaults</h4>
                     <p>Pick a split template or enter a custom agent percentage before the invitation is sent.</p>
                   </div>
@@ -648,8 +648,8 @@ export function OfficeSettingsUsersClient({
                 {submitError ? <p className="office-inline-error office-settings-users-modal-feedback">{submitError}</p> : null}
                 {actionNotice ? <p className="office-inline-success office-settings-users-modal-feedback">{actionNotice}</p> : null}
 
-                <footer className="office-settings-users-modal-footer">
-                  <div className="office-settings-users-modal-footer-copy">
+                <footer className="office-create-modal-footer office-settings-users-modal-footer">
+                  <div className="office-create-modal-footer-copy office-settings-users-modal-footer-copy">
                     <strong>Send the invite after review</strong>
                     <p>The newest setup link will appear below immediately after the user record is created.</p>
                   </div>
@@ -662,7 +662,7 @@ export function OfficeSettingsUsersClient({
                 </footer>
               </form>
 
-              <section className="office-settings-users-invite-panel">
+              <section className="office-create-modal-section office-settings-users-invite-panel">
                 <div className="office-settings-users-invite-panel-head">
                   <h4>Invite link</h4>
                   <p>Copy the latest generated link here and send it to the user to finish setup.</p>
