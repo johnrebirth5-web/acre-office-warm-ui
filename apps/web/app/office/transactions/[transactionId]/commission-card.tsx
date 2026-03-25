@@ -94,7 +94,6 @@ export function TransactionCommissionCard({
   const participantListboxId = useId();
   const [calculationNote, setCalculationNote] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
-  const [overrideNote, setOverrideNote] = useState("");
   const [overrideRows, setOverrideRows] = useState<OverrideDraftRow[]>(() => buildOverrideRows(snapshot));
   const [selectedParticipantId, setSelectedParticipantId] = useState("");
   const [participantSearchValue, setParticipantSearchValue] = useState("");
@@ -261,7 +260,6 @@ export function TransactionCommissionCard({
         },
         body: JSON.stringify({
           overrideReason,
-          notes: overrideNote,
           stakeholderRows: overrideRows.map((row) => ({
             key: row.key,
             membershipId: row.membershipId,
@@ -277,7 +275,6 @@ export function TransactionCommissionCard({
       }
 
       setOverrideReason("");
-      setOverrideNote("");
       startTransition(() => {
         router.refresh();
       });
@@ -417,20 +414,14 @@ export function TransactionCommissionCard({
             <div className="office-section-body">
               <div className="office-detail-grid">
                 <label className="office-detail-field office-detail-field-wide">
-                  <span>Override reason</span>
+                  <span>
+                    Override reason <strong>Required</strong>
+                  </span>
                   <TextInput
                     disabled={pendingAction === "override"}
+                    required
                     onChange={(event) => setOverrideReason(event.target.value)}
                     value={overrideReason}
-                  />
-                </label>
-                <label className="office-detail-field office-detail-field-wide">
-                  <span>Override note</span>
-                  <textarea
-                    disabled={pendingAction === "override"}
-                    onChange={(event) => setOverrideNote(event.target.value)}
-                    rows={2}
-                    value={overrideNote}
                   />
                 </label>
                 {canManageOverrideParticipants ? (
