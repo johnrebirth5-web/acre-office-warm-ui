@@ -61,7 +61,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `/office/transactions` is the canonical Office list-page composition source for peer inventory pages.
   - transaction create modal, `/office/transactions/new`, and transaction detail intake editing now consume one office-scoped schema managed centrally from `Settings > Fields`.
-  - office admins can now open `Edit fields` directly inside `/office/transactions/new` to toggle the intake fields that render on that page and add a new custom field without leaving the create flow.
+  - office admins can now open `Edit fields` directly inside both the `/office/transactions` create modal and `/office/transactions/new` to toggle the intake fields that render there and add a new custom field without leaving the create flow.
   - transaction pricing is now split into `Asking Price + Purchased Price`, while legacy `price` remains a compatibility mirror of `purchasedPrice`.
   - the `/office/transactions` search workbench is now office-shared and schema-driven: admins with `fields:manage` can use `Edit fields` to add or remove operational, built-in, and custom filter blocks, while hidden or archived transaction fields are automatically removed from saved search layouts.
   - the built-in `Type / Status / Representing` dropdowns now keep stable system values while allowing office admins to edit which options are available and how each option label is displayed.

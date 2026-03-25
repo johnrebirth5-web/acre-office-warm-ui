@@ -30,7 +30,7 @@ import {
   OfficeListPagePagination,
   OfficeListPageTemplate
 } from "../_components/office-list-page-template";
-import { TransactionIntakeWorkspace } from "./transaction-intake-form";
+import { TransactionCreatePageClient } from "./new/transaction-create-page-client";
 import type { TransactionStatusFieldPolicy } from "./transaction-status-rules";
 
 type TransactionsClientProps = {
@@ -979,16 +979,15 @@ export function TransactionsClient({
             className="bm-transaction-modal office-create-modal office-transaction-create-modal"
             onClick={(event) => event.stopPropagation()}
           >
-            <TransactionIntakeWorkspace
+            <TransactionCreatePageClient
               afterSubmit="refresh"
-              canEditValues={true}
-              chrome="modal"
+              canManageFields={canManageSearchLayout}
               key={formVersion}
+              mode="modal"
               modalDescription="Open a new office transaction using the current intake schema, assign the owner, and capture structured finance details from the start."
               modalEyebrow="Transactions"
               modalFooterDescription="The record is created with the active office schema so the pipeline, reporting, and finance views all start from the same structure."
               modalFooterTitle="Create a clean transaction record"
-              mode="create"
               onClose={() => setIsCreateModalOpen(false)}
               onSubmitted={() => {
                 setIsCreateModalOpen(false);
@@ -1003,12 +1002,9 @@ export function TransactionsClient({
                 );
               }}
               ownerAssignment={transactionOwnerAssignment}
-              schema={searchLayout.schema}
+              initialSchema={searchLayout.schema}
               statusFieldPolicy={transactionStatusFieldPolicy}
-              stepLabel="Step 1 of 4"
-              submitEndpoint="/api/office/transactions"
               submitLabel="Next →"
-              submitMethod="POST"
               title="Create transaction"
             />
           </section>

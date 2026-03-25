@@ -27,11 +27,21 @@ import {
 import type { TransactionStatusFieldPolicy } from "../transaction-status-rules";
 
 type TransactionCreatePageClientProps = {
+  afterSubmit?: "refresh" | "go-detail";
   canManageFields: boolean;
-  initialFieldModule: OfficeFieldModuleSettingsSnapshot;
   initialSchema: OfficeTransactionIntakeSchema;
+  initialFieldModule?: OfficeFieldModuleSettingsSnapshot;
+  mode?: "page" | "modal";
+  modalDescription?: string;
+  modalEyebrow?: string;
+  modalFooterDescription?: string;
+  modalFooterTitle?: string;
+  onClose?: () => void;
+  onSubmitted?: () => void;
   ownerAssignment: OfficeTransactionOwnerAssignment;
   statusFieldPolicy?: TransactionStatusFieldPolicy;
+  submitLabel?: string;
+  title?: string;
 };
 
 type CreateCustomFieldFormState = {
@@ -83,6 +93,39 @@ function buildTransactionSchemaFromModuleSnapshot(snapshot: OfficeFieldModuleSet
     },
     builtInFields,
     customFields
+  };
+}
+
+function buildFieldModuleSnapshotFromSchema(
+  schema: OfficeTransactionIntakeSchema
+): OfficeFieldModuleSettingsSnapshot {
+  return {
+    module: "transaction",
+    label: "Transaction fields",
+    description: "Transaction intake fields rendered on the create form.",
+    summary: {
+      fieldCount: schema.builtInFields.length + schema.customFields.length,
+      customFieldCount: schema.customFields.length,
+      visibleFieldCount:
+        schema.builtInFields.filter((field) => field.isVisible).length +
+        schema.customFields.filter((field) => field.isVisible).length,
+      hiddenFieldCount:
+        schema.builtInFields.filter((field) => !field.isVisible).length +
+        schema.customFields.filter((field) => !field.isVisible).length,
+      requiredFieldCount:
+        schema.builtInFields.filter((field) => field.isRequired).length +
+        schema.customFields.filter((field) => field.isRequired).length
+    },
+    builtInFields: schema.builtInFields.map((field) => ({
+      ...field,
+      options: [...field.options],
+      selectOptions: field.selectOptions.map((option) => ({ ...option }))
+    })),
+    customFields: schema.customFields.map((field) => ({
+      ...field,
+      options: [...field.options]
+    })),
+    requiredContactRoles: []
   };
 }
 
@@ -188,13 +231,25 @@ function getCustomFieldHint(field: OfficeFieldModuleSettingsSnapshot["customFiel
 }
 
 export function TransactionCreatePageClient({
+  afterSubmit = "go-detail",
   canManageFields,
   initialFieldModule,
   initialSchema,
+  mode = "page",
+  modalDescription,
+  modalEyebrow,
+  modalFooterDescription,
+  modalFooterTitle,
+  onClose,
+  onSubmitted,
   ownerAssignment,
-  statusFieldPolicy
+  statusFieldPolicy,
+  submitLabel,
+  title
 }: TransactionCreatePageClientProps) {
-  const [fieldModule, setFieldModule] = useState(() => cloneFieldModuleSnapshot(initialFieldModule));
+  const [fieldModule, setFieldModule] = useState(() =>
+    cloneFieldModuleSnapshot(initialFieldModule ?? buildFieldModuleSnapshotFromSchema(initialSchema))
+  );
   const [schema, setSchema] = useState(initialSchema);
   const [draftModule, setDraftModule] = useState<OfficeFieldModuleSettingsSnapshot | null>(null);
   const [isFieldEditorOpen, setIsFieldEditorOpen] = useState(false);
@@ -373,34 +428,55 @@ export function TransactionCreatePageClient({
     }
   }
 
+  const editFieldsButton = canManageFields ? (
+    <Button onClick={openFieldEditor} size="sm" type="button" variant="secondary">
+      Edit fields
+    </Button>
+  ) : null;
+
+  const workspace = (
+    <TransactionIntakeWorkspace
+      afterSubmit={afterSubmit}
+      canEditValues={true}
+      chrome={mode === "modal" ? "modal" : "page"}
+      headerActions={mode === "modal" ? editFieldsButton : undefined}
+      modalDescription={
+        modalDescription ??
+        "Open a new office transaction using the current intake schema, assign the owner, and capture structured finance details from the start."
+      }
+      modalEyebrow={modalEyebrow ?? "Transactions"}
+      modalFooterDescription={
+        modalFooterDescription ??
+        "The record is created with the active office schema so the pipeline, reporting, and finance views all start from the same structure."
+      }
+      modalFooterTitle={modalFooterTitle ?? "Create a clean transaction record"}
+      mode="create"
+      onClose={onClose}
+      onSubmitted={onSubmitted ? () => onSubmitted() : undefined}
+      ownerAssignment={ownerAssignment}
+      preserveDraftStateOnSchemaChange={true}
+      schema={schema}
+      statusFieldPolicy={statusFieldPolicy}
+      submitEndpoint="/api/office/transactions"
+      submitLabel={submitLabel ?? (mode === "modal" ? "Next →" : "Create transaction")}
+      submitMethod="POST"
+      title={title ?? (mode === "modal" ? "Create transaction" : "Office intake form")}
+    />
+  );
+
   return (
     <>
-      <SectionCard
-        actions={
-          canManageFields ? (
-            <Button onClick={openFieldEditor} type="button" variant="secondary">
-              Edit fields
-            </Button>
-          ) : null
-        }
-        className="bm-new-transaction-card bm-new-transaction-live-card"
-        title="Transaction intake"
-      >
-        <TransactionIntakeWorkspace
-          afterSubmit="go-detail"
-          canEditValues={true}
-          chrome="page"
-          mode="create"
-          ownerAssignment={ownerAssignment}
-          preserveDraftStateOnSchemaChange={true}
-          schema={schema}
-          statusFieldPolicy={statusFieldPolicy}
-          submitEndpoint="/api/office/transactions"
-          submitLabel="Create transaction"
-          submitMethod="POST"
-          title="Office intake form"
-        />
-      </SectionCard>
+      {mode === "page" ? (
+        <SectionCard
+          actions={editFieldsButton}
+          className="bm-new-transaction-card bm-new-transaction-live-card"
+          title="Transaction intake"
+        >
+          {workspace}
+        </SectionCard>
+      ) : (
+        workspace
+      )}
 
       {isFieldEditorOpen ? (
         <div className="bm-modal-overlay" onClick={closeFieldEditor}>

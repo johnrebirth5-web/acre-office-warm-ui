@@ -2268,6 +2268,14 @@ select {
   gap: 8px;
 }
 
+.bm-transaction-modal-header-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .bm-transaction-modal-field.is-span-4 {
   grid-column: span 4;
 }

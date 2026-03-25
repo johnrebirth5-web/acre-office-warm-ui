@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@acre/ui";
 import type {
   OfficeTransactionCustomFieldDefinitionRecord,
@@ -36,6 +36,7 @@ type TransactionIntakeWorkspaceProps = {
   modalDescription?: string;
   modalFooterTitle?: string;
   modalFooterDescription?: string;
+  headerActions?: ReactNode;
   initialValues?: Record<string, string>;
   ownerAssignment?: OfficeTransactionOwnerAssignment;
   statusFieldPolicy?: TransactionStatusFieldPolicy;
@@ -134,6 +135,7 @@ export function TransactionIntakeWorkspace({
   modalDescription,
   modalFooterTitle,
   modalFooterDescription,
+  headerActions,
   initialValues,
   ownerAssignment,
   statusFieldPolicy,
@@ -542,16 +544,21 @@ export function TransactionIntakeWorkspace({
             <h3>{title ?? "NEW TRANSACTION"}</h3>
             {useOfficeCreateModalChrome && modalDescription ? <p>{modalDescription}</p> : null}
           </div>
-          {onClose ? (
-            useOfficeCreateModalChrome ? (
-              <Button aria-label="Close transaction intake" onClick={requestClose} size="sm" type="button" variant="ghost">
-                Close
-              </Button>
-            ) : (
-              <button aria-label="Close transaction intake" onClick={requestClose} type="button">
-                ×
-              </button>
-            )
+          {headerActions || onClose ? (
+            <div className="bm-transaction-modal-header-actions">
+              {headerActions}
+              {onClose ? (
+                useOfficeCreateModalChrome ? (
+                  <Button aria-label="Close transaction intake" onClick={requestClose} size="sm" type="button" variant="ghost">
+                    Close
+                  </Button>
+                ) : (
+                  <button aria-label="Close transaction intake" onClick={requestClose} type="button">
+                    ×
+                  </button>
+                )
+              ) : null}
+            </div>
           ) : null}
         </header>
       ) : title ? (
