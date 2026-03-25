@@ -56,7 +56,7 @@
   - contact and offer custom values now persist in `Client.additionalFields` and `Offer.additionalFields`
   - create-mode intake now routes legacy finance-style fields like `Commission($) / Rebate / Referral Fee / Reimbursement / Note` through a structured finance section so new transactions write real `grossCommission`, fee-ledger rows, and finance notes instead of disconnected text-only values
   - structured create-time finance now keeps untouched fee rows truly empty instead of auto-materializing placeholder `20%` rebate / client referral / company referral records, and clearing a fee in Finance now actually removes its stored rate/amount instead of restoring hidden defaults
-  - `New Transaction` create mode now hides the duplicate legacy secondary address block plus retired text-only commission placeholders like `Move-In Date/Closing Date`, `Commission Type`, `Your Commission Rate`, `Commission Breakdown`, and admin-only commission confirmation/status dropdowns so agents only fill the canonical address and structured finance inputs
+  - transaction legacy compatibility placeholders and text-only finance bridge fields are now retired from the shared schema itself, so they no longer appear in `Settings > Fields`, create-time `Edit fields`, or default transaction search/report layouts
   - field-structure changes write to `Activity Log`
 - Reports and transaction pricing are now normalized around one transaction truth source:
   - `/office/reports` has been rebuilt into a transaction-centric workspace where filters, rows, summary cards, and CSV export all reuse the same predicate builder and column registry
@@ -159,7 +159,7 @@
 - `New Transaction > Agent Name` owner search now sources assignable owners from office/global sales memberships instead of the viewer's current transaction roster visibility, so admins can still find unassigned or not-yet-rostered agents and company-level members with `officeId = null`
 - the transaction create flow now has an inline `Edit fields` modal for office admins in both `/office/transactions` create modal and `/office/transactions/new`:
   - it reuses the shared transaction field settings instead of creating a second page-only schema
-  - admins can now see and manage the same full transaction field families exposed in `Settings > Fields > Transaction`, including direct intake fields, finance-linked fields, and compatibility bridge fields, while still adding a new custom field without leaving the flow
+  - after retiring the old compatibility / text-only finance bridge fields, the modal now shows the same active transaction schema that really drives create-time rendering and search/report defaults, while still allowing a new custom field to be created in place
   - schema changes made from that modal now update the live create form without clearing the draft values already typed into still-visible fields
 - Transaction status handling is now tightened around admin control:
   - `Create transaction` only allows `Pending / Closed / Cancelled`

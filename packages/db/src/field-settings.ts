@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
+import { retiredTransactionCustomFieldKeys } from "./transaction-retired-custom-fields";
 
 type BuiltInSelectOptionCatalogEntry = {
   value: string;
@@ -235,7 +236,6 @@ const defaultTransactionCustomFieldCatalog: OfficeFieldDefaultCustomCatalogEntry
   }
 ];
 
-const retiredTransactionCustomFieldKeys = new Set(["teamLeader"]);
 const systemManagedTransactionCustomFieldConfig: Partial<Record<string, { isVisible?: boolean; options?: string[] }>> = {
   currencyType: {
     isVisible: false,

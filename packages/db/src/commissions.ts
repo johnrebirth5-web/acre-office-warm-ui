@@ -699,14 +699,6 @@ function sortTransactionFinanceFees<T extends { feeType: TransactionFinanceFeeTy
   return [...fees].sort((left, right) => getTransactionFinanceFeeSortOrder(left.feeType) - getTransactionFinanceFeeSortOrder(right.feeType));
 }
 
-function parseLegacyAdditionalFieldDecimal(value: Prisma.JsonValue | null | undefined) {
-  if (typeof value !== "string" && typeof value !== "number") {
-    return null;
-  }
-
-  return parseOptionalDecimal(String(value));
-}
-
 function deriveRateFromAmount(amount: Prisma.Decimal | null | undefined, grossCommission: Prisma.Decimal | null | undefined) {
   if (!amount || !grossCommission || grossCommission.lte(0)) {
     return null;
@@ -789,19 +781,6 @@ function buildInitialTransactionFinanceFeeSeed(input: {
   companyReferral: boolean;
   additionalFields: Prisma.JsonValue | null | undefined;
 }) {
-  const additionalFields =
-    input.additionalFields && typeof input.additionalFields === "object" && !Array.isArray(input.additionalFields)
-      ? (input.additionalFields as Record<string, Prisma.JsonValue>)
-      : {};
-
-  if (input.feeType === "rebate") {
-    return parseLegacyAdditionalFieldDecimal(additionalFields.rebate);
-  }
-
-  if (input.feeType === "reimbursement") {
-    return parseLegacyAdditionalFieldDecimal(additionalFields.reimbursement);
-  }
-
   if (input.referralFee?.gt(0)) {
     if (input.companyReferral && input.feeType === "company_referral") {
       return input.referralFee;

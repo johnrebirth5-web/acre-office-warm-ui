@@ -182,6 +182,9 @@ export async function POST(request: NextRequest) {
       listingExpirationDate: submission.listingExpirationDate,
       closingDate: submission.closingDate,
       moveInDate: submission.moveInDate,
+      companyReferral: typeof body.companyReferral === "string" ? body.companyReferral : undefined,
+      companyReferralEmployeeName:
+        typeof body.companyReferralEmployeeName === "string" ? body.companyReferralEmployeeName : undefined,
       grossCommission: typeof body.grossCommission === "string" ? body.grossCommission : undefined,
       financeNotes: typeof body.financeNotes === "string" ? body.financeNotes : undefined,
       fees: Array.isArray(body.fees)

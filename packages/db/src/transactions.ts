@@ -25,6 +25,7 @@ import {
   type OfficeTransactionFieldSettingRecord
 } from "./field-settings";
 import { buildTeamPathLabel, createTeamHierarchyIndex, expandSelectedTeamIds } from "./team-hierarchy";
+import { retiredTransactionAdditionalFieldKeys } from "./transaction-retired-custom-fields";
 import {
   buildTransactionFinancePrerequisiteSnapshot,
   ensureTransactionFinanceFees,
@@ -280,6 +281,8 @@ export type CreateTransactionInput = {
   listingExpirationDate?: string;
   closingDate?: string;
   moveInDate?: string;
+  companyReferral?: string;
+  companyReferralEmployeeName?: string;
   grossCommission?: string;
   referralFee?: string;
   officeNet?: string;
@@ -372,19 +375,13 @@ export type PreparedTransactionIntakeSubmission = {
   additionalFields: Record<string, string>;
 };
 
-const restrictedIntakeFinanceFieldKeys = new Set([
-  "commissionAmount",
-  "rebate",
-  "reimbursement",
-  "companyReferral",
-  "outsideReferral",
-  "referralFee",
-  "companyReferralEmployeeName",
-  "companyReferralEmployeesName",
-  "note",
-  "officeNet",
-  "agentNet"
-]);
+const restrictedIntakeFinanceFieldKeys = new Set(["officeNet", "agentNet"]);
+
+function stripRetiredTransactionAdditionalFields(additionalFields: Record<string, string>) {
+  return Object.fromEntries(
+    Object.entries(additionalFields).filter(([fieldKey]) => !retiredTransactionAdditionalFieldKeys.has(fieldKey))
+  );
+}
 
 function sanitizeEditableIntakeAdditionalFields(
   additionalFields: Record<string, string> | undefined,
@@ -394,12 +391,14 @@ function sanitizeEditableIntakeAdditionalFields(
     return {};
   }
 
+  const activeAdditionalFields = stripRetiredTransactionAdditionalFields(additionalFields);
+
   if (canManageTransactionFinance) {
-    return { ...additionalFields };
+    return activeAdditionalFields;
   }
 
   return Object.fromEntries(
-    Object.entries(additionalFields).filter(([fieldKey]) => !restrictedIntakeFinanceFieldKeys.has(fieldKey))
+    Object.entries(activeAdditionalFields).filter(([fieldKey]) => !restrictedIntakeFinanceFieldKeys.has(fieldKey))
   );
 }
 
@@ -496,14 +495,12 @@ const defaultTransactionSearchLayout: OfficeTransactionSearchFieldReference[] = 
   { kind: "custom", key: "invoiceNumber" },
   { kind: "custom", key: "buyerTenant" },
   { kind: "custom", key: "buildingName" },
-  { kind: "custom", key: "additionalAddress" },
+  { kind: "builtin", key: "address" },
   { kind: "custom", key: "unitNumber" },
-  { kind: "custom", key: "additionalCity" },
-  { kind: "custom", key: "additionalState" },
+  { kind: "builtin", key: "city" },
+  { kind: "builtin", key: "state" },
   { kind: "builtin", key: "zip_code" },
-  { kind: "custom", key: "moveInDateClosingDate" },
-  { kind: "custom", key: "commissionType" },
-  { kind: "custom", key: "commissionAmount" }
+  { kind: "custom", key: "layout" }
 ];
 
 type TransactionFilterContext = {
@@ -1499,8 +1496,6 @@ export function prepareTransactionIntakeSubmission(input: {
     additionalFields[field.fieldKey] = field.type === "date" ? parseTransactionIntakeDateValue(rawValue) : rawValue;
   }
 
-  additionalFields.currencyType = "USD";
-
   if (!builtInValues.transactionType) {
     builtInValues.transactionType = getTopFieldFallbackValue("transaction_type", true);
   }
@@ -1753,8 +1748,10 @@ function mapTransactionDetail(
     }),
     additionalFields:
       transaction.additionalFields && typeof transaction.additionalFields === "object" && !Array.isArray(transaction.additionalFields)
-        ? Object.fromEntries(
-            Object.entries(transaction.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
+        ? stripRetiredTransactionAdditionalFields(
+            Object.fromEntries(
+              Object.entries(transaction.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
+            )
           )
         : {},
     contacts: transaction.transactionContacts ?? [],
@@ -2455,26 +2452,20 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     }
 
     const ownerLabel = `${ownerMembership.user.firstName} ${ownerMembership.user.lastName}`.trim() || ownerMembership.user.email;
-    const additionalFields: Record<string, string> = {
+    const additionalFields = stripRetiredTransactionAdditionalFields({
       ...(input.additionalFields ?? {}),
       agentName: ownerLabel
-    };
-    const bridgedClosingOrMoveInDate = (input.moveInDate ?? input.closingDate ?? "").trim();
-
-    if (bridgedClosingOrMoveInDate) {
-      additionalFields.moveInDateClosingDate = bridgedClosingOrMoveInDate;
-    }
-
-    const companyReferralValue = (additionalFields.companyReferral ?? "").toString().toLowerCase();
+    });
+    const companyReferralValue = (input.companyReferral ?? "").toString().trim().toLowerCase();
     const companyReferral = companyReferralValue === "yes";
-    const companyReferralEmployeeName = (additionalFields.companyReferralEmployeesName ?? additionalFields.companyReferralEmployeeName ?? "").trim();
+    const companyReferralEmployeeName = parseOptionalText(input.companyReferralEmployeeName) ?? "";
     const askingPrice = parseOptionalDecimal(input.askingPrice);
     const purchasedPrice = parseOptionalDecimal(input.purchasedPrice ?? input.price);
-    const grossCommission = parseCreateFinanceDecimal(input.grossCommission, additionalFields.commissionAmount);
-    const referralFee = parseCreateFinanceDecimal(input.referralFee, additionalFields.referralFee);
-    const officeNet = parseCreateFinanceDecimal(input.officeNet, additionalFields.officeNet);
-    const agentNet = parseCreateFinanceDecimal(input.agentNet, additionalFields.agentNet);
-    const financeNotes = parseOptionalText(input.financeNotes) ?? parseOptionalText(additionalFields.note);
+    const grossCommission = parseCreateFinanceDecimal(input.grossCommission, undefined);
+    const referralFee = parseCreateFinanceDecimal(input.referralFee, undefined);
+    const officeNet = parseCreateFinanceDecimal(input.officeNet, undefined);
+    const agentNet = parseCreateFinanceDecimal(input.agentNet, undefined);
+    const financeNotes = parseOptionalText(input.financeNotes);
 
     const created = await tx.transaction.create({
       data: {
@@ -2996,8 +2987,10 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
 
   const existingAdditionalFields =
     existing.additionalFields && typeof existing.additionalFields === "object" && !Array.isArray(existing.additionalFields)
-      ? Object.fromEntries(
-          Object.entries(existing.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
+      ? stripRetiredTransactionAdditionalFields(
+          Object.fromEntries(
+            Object.entries(existing.additionalFields as Record<string, Prisma.JsonValue>).map(([key, value]) => [key, String(value ?? "")])
+          )
         )
       : {};
   const sanitizedAdditionalFieldsInput = sanitizeEditableIntakeAdditionalFields(input.additionalFields, canManageTransactionFinance);
@@ -3013,22 +3006,6 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
   if (ownerLabel) {
     mergedAdditionalFields.agentName = ownerLabel;
   }
-  const bridgedClosingOrMoveInDate = (input.moveInDate ?? input.closingDate ?? "").trim();
-
-  if (bridgedClosingOrMoveInDate) {
-    mergedAdditionalFields.moveInDateClosingDate = bridgedClosingOrMoveInDate;
-  }
-
-  const companyReferralValue = (mergedAdditionalFields.companyReferral ?? "").toString().trim().toLowerCase();
-  const nextCompanyReferral = companyReferralValue ? companyReferralValue === "yes" : existing.companyReferral;
-  const nextCompanyReferralEmployeeName = (
-    mergedAdditionalFields.companyReferralEmployeesName ?? mergedAdditionalFields.companyReferralEmployeeName ?? ""
-  ).trim() || existing.companyReferralEmployeeName || "";
-  const nextGrossCommission = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.commissionAmount) ?? existing.grossCommission;
-  const nextReferralFee = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.referralFee) ?? existing.referralFee;
-  const nextOfficeNet = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.officeNet) ?? existing.officeNet;
-  const nextAgentNet = parseCreateFinanceDecimal(undefined, mergedAdditionalFields.agentNet) ?? existing.agentNet;
-  const nextFinanceNotes = parseOptionalText(mergedAdditionalFields.note) ?? existing.financeNotes;
   const nextTitle = input.transactionName.trim() || input.address.trim() || existing.title;
   const nextAddress = input.address.trim();
   const nextCity = input.city.trim();
@@ -3074,18 +3051,6 @@ export async function updateTransactionIntake(input: UpdateTransactionIntakeInpu
         listingExpirationDate: nextListingExpirationDate,
         closingDate: nextClosingDate,
         moveInDate: nextMoveInDate,
-        companyReferral: nextCompanyReferral,
-        companyReferralEmployeeName: nextCompanyReferralEmployeeName || null,
-        grossCommission: nextGrossCommission,
-        referralFee: nextReferralFee,
-        officeNet: nextOfficeNet,
-        agentNet: nextAgentNet,
-        financeNotes: nextFinanceNotes,
-        referralContext: nextCompanyReferral
-          ? {
-              companyReferralEmployeeName: nextCompanyReferralEmployeeName
-            }
-          : Prisma.JsonNull,
         additionalFields: mergedAdditionalFields
       }
     });

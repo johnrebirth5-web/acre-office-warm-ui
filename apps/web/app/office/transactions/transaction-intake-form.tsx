@@ -9,16 +9,10 @@ import type {
   OfficeTransactionOwnerAssignment
 } from "@acre/db";
 import {
-  buildLegacyFinanceFieldValuesFromDraft,
   buildStructuredFinancePayloadFromDraft,
   createTransactionFinanceCreateDraft,
   TransactionFinanceCreateFields
 } from "./transaction-finance-create-fields";
-import {
-  createModeRetiredLegacyFieldKeys,
-  createModeStructuredFinanceFieldKeys,
-  editModeRestrictedFinanceFieldKeys
-} from "./transaction-intake-field-policies";
 import type { TransactionStatusFieldPolicy, TransactionStatusValue } from "./transaction-status-rules";
 
 type TransactionIntakeWorkspaceProps = {
@@ -246,15 +240,6 @@ export function TransactionIntakeWorkspace({
       })),
     ...localSchema.customFields
       .filter((field) => field.isVisible)
-      .filter(
-        (field) =>
-          !(
-            mode === "create" &&
-            (createModeStructuredFinanceFieldKeys.has(field.fieldKey) ||
-              createModeRetiredLegacyFieldKeys.has(field.fieldKey))
-          )
-      )
-      .filter((field) => !(mode === "edit" && !canEditFinanceFields && editModeRestrictedFinanceFieldKeys.has(field.fieldKey)))
       .map((field) => ({
         kind: "custom" as const,
         field,
@@ -463,7 +448,6 @@ export function TransactionIntakeWorkspace({
     try {
       const payload: Record<string, unknown> = {
         ...fieldValues,
-        ...(mode === "create" ? buildLegacyFinanceFieldValuesFromDraft(financeDraft) : {}),
         ...(ownerAssignment && ownerFieldInputName
           ? {
               [ownerFieldInputName]:
@@ -478,6 +462,8 @@ export function TransactionIntakeWorkspace({
         payload.ownerMembershipId = canSearchOwners
           ? selectedOwnerMembershipId
           : ownerAssignment.currentOwnerMembershipId;
+        payload.companyReferral = financeDraft.companyReferral;
+        payload.companyReferralEmployeeName = financeDraft.companyReferralEmployeeName;
         payload.grossCommission = financeDraft.grossCommission;
         payload.financeNotes = financeDraft.financeNotes;
         payload.fees = buildStructuredFinancePayloadFromDraft(financeDraft).fees;

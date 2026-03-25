@@ -141,9 +141,6 @@ test("updateTransactionIntake preserves finance columns for actors without finan
       referralFee: "1500",
       financeNotes: "Original note",
       additionalFields: {
-        commissionAmount: "12000",
-        referralFee: "1500",
-        note: "Original note",
         customOpsNote: "Before"
       }
     });
@@ -186,9 +183,9 @@ test("updateTransactionIntake preserves finance columns for actors without finan
     assert.equal(String(storedTransaction?.grossCommission), "12000");
     assert.equal(String(storedTransaction?.referralFee), "1500");
     assert.equal(storedTransaction?.financeNotes, "Original note");
-    assert.equal(storedAdditionalFields.commissionAmount, "12000");
-    assert.equal(storedAdditionalFields.referralFee, "1500");
-    assert.equal(storedAdditionalFields.note, "Original note");
+    assert.equal(storedAdditionalFields.commissionAmount, undefined);
+    assert.equal(storedAdditionalFields.referralFee, undefined);
+    assert.equal(storedAdditionalFields.note, undefined);
     assert.equal(storedAdditionalFields.customOpsNote, "After");
   } finally {
     await context.cleanup();
@@ -304,14 +301,12 @@ test("getOfficeTransactionSearchLayoutSnapshot returns the default layout and le
         "custom:invoiceNumber",
         "custom:buyerTenant",
         "custom:buildingName",
-        "custom:additionalAddress",
+        "builtin:address",
         "custom:unitNumber",
-        "custom:additionalCity",
-        "custom:additionalState",
+        "builtin:city",
+        "builtin:state",
         "builtin:zip_code",
-        "custom:moveInDateClosingDate",
-        "custom:commissionType",
-        "custom:commissionAmount"
+        "custom:layout"
       ]
     );
     assert.equal(snapshot.filters.system.q, "Main Street");

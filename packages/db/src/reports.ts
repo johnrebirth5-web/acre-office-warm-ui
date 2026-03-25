@@ -94,17 +94,13 @@ export type OfficeTransactionReportRow = {
   purchasedPrice: string;
   offerAcceptanceDate: string;
   closingMoveInDate: string;
-  commissionType: string;
   invoiceBillTo: string;
   leasingContact: string;
-  currencyType: string;
   grossCommission: string;
-  commissionRate: string;
   rebate: string;
   referral: string;
   reimbursement: string;
   coAgentLegalName: string;
-  commissionBreakdown: string;
   notes: string;
   externalPartners: string;
   companyReferral: string;
@@ -135,17 +131,13 @@ export const officeTransactionReportColumns: OfficeTransactionReportColumn[] = [
   { key: "purchasedPrice", label: "Purchased Price" },
   { key: "offerAcceptanceDate", label: "Offer Acceptance Date" },
   { key: "closingMoveInDate", label: "Closing / Move-In Date" },
-  { key: "commissionType", label: "Commission Type" },
   { key: "invoiceBillTo", label: "Invoice Bill To" },
   { key: "leasingContact", label: "Leasing Contact" },
-  { key: "currencyType", label: "Currency Type" },
   { key: "grossCommission", label: "Gross Commission" },
-  { key: "commissionRate", label: "Commission Rate" },
   { key: "rebate", label: "Rebate" },
   { key: "referral", label: "Referral" },
   { key: "reimbursement", label: "Reimbursement" },
   { key: "coAgentLegalName", label: "Co-Agent Legal Name" },
-  { key: "commissionBreakdown", label: "Commission Breakdown" },
   { key: "notes", label: "Notes" },
   { key: "externalPartners", label: "External Partners" },
   { key: "companyReferral", label: "Company Referral" },
@@ -414,6 +406,7 @@ type TransactionReportRecord = {
   closingDate: Date | null;
   moveInDate: Date | null;
   grossCommission: Prisma.Decimal | null;
+  financeNotes: string | null;
   status: TransactionStatus;
   type: TransactionType;
   representing: TransactionRepresenting;
@@ -863,22 +856,9 @@ function matchesCompanyReferralFilter(
 }
 
 function getCompanyReferralEmployeeName(
-  companyReferralEmployeeName: string | null,
-  additionalFields: Record<string, string>
+  companyReferralEmployeeName: string | null
 ) {
-  const candidates = [
-    companyReferralEmployeeName,
-    additionalFields.companyReferralEmployeeName,
-    additionalFields.companyReferralEmployeesName
-  ];
-
-  for (const candidate of candidates) {
-    if (candidate?.trim()) {
-      return candidate.trim();
-    }
-  }
-
-  return "";
+  return companyReferralEmployeeName?.trim() ?? "";
 }
 
 function buildDateColumnWhere(
@@ -1289,21 +1269,17 @@ function buildReportRow(
     purchasedPrice: formatCurrencyCell(getPurchasedPriceValue(transaction)),
     offerAcceptanceDate: formatDateValue(transaction.acceptanceDate),
     closingMoveInDate: formatDateValue(transaction.moveInDate ?? transaction.closingDate),
-    commissionType: additionalFields.commissionType ?? "",
     invoiceBillTo: additionalFields.invoiceBillTo ?? "",
     leasingContact: additionalFields.leasingContact ?? "",
-    currencyType: additionalFields.currencyType ?? "USD",
     grossCommission: formatCurrencyCell(transaction.grossCommission),
-    commissionRate: additionalFields.yourCommissionRate ?? "",
     rebate: formatCurrencyCell(hasRebate ? rebateAmount : null),
     referral: formatCurrencyCell(hasReferral ? referralAmount : null),
     reimbursement: formatCurrencyCell(hasReimbursement ? reimbursementAmount : null),
     coAgentLegalName: additionalFields.coAgentLegalName ?? "",
-    commissionBreakdown: additionalFields.commissionBreakdown ?? "",
-    notes: additionalFields.note ?? additionalFields.notes ?? "",
+    notes: transaction.financeNotes ?? "",
     externalPartners: additionalFields.externalPartners ?? "",
     companyReferral: companyReferral ? "Yes" : "No",
-    companyReferralEmployeeName: getCompanyReferralEmployeeName(transaction.companyReferralEmployeeName, additionalFields),
+    companyReferralEmployeeName: getCompanyReferralEmployeeName(transaction.companyReferralEmployeeName),
     href: `/office/transactions/${transaction.id}`
   };
 }
@@ -1836,6 +1812,7 @@ export async function getOfficeTransactionReportsWorkspace(
       closingDate: true,
       moveInDate: true,
       grossCommission: true,
+      financeNotes: true,
       status: true,
       type: true,
       representing: true,

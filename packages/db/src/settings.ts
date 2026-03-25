@@ -31,6 +31,7 @@ import {
   isTeamHierarchyAssignableUserRole,
   isValidBranchLeaderRole
 } from "./team-hierarchy";
+import { retiredTransactionCustomFieldKeys } from "./transaction-retired-custom-fields";
 
 const userRoleLabelMap: Record<UserRole, string> = {
   owner: "Owner",
@@ -232,6 +233,10 @@ const defaultTransactionCustomFieldCatalog: Array<{
   { fieldKey: "commissionReceivedStatus", label: "Status of Commission Received(For Admin)", type: "select", sortOrder: 31, options: ["No", "Yes", "Partial"] },
   { fieldKey: "commissionConfirmation", label: "Commission Confirmation(For Agent, we'll process the payment once you select yes)", type: "select", sortOrder: 32, options: ["Yes", "No"] }
 ];
+
+const activeDefaultTransactionCustomFieldCatalog = defaultTransactionCustomFieldCatalog.filter(
+  (entry) => !retiredTransactionCustomFieldKeys.has(entry.fieldKey)
+);
 
 const contactRoleCatalog: Array<{ role: TransactionContactRole; label: string }> = [
   { role: "buyer", label: contactRoleLabelMap.buyer },
@@ -2339,7 +2344,7 @@ export async function getOfficeTransactionIntakeSchema(input: {
   );
 
   const persistedCustomFieldMap = new Map(transactionCustomFieldDefinitions.map((entry) => [entry.fieldKey, entry]));
-  const customFields = defaultTransactionCustomFieldCatalog
+  const customFields = activeDefaultTransactionCustomFieldCatalog
     .map((entry) => {
       const persisted = persistedCustomFieldMap.get(entry.fieldKey) ?? null;
       const legacyFallback = buildLegacyCustomFieldFallbackState(entry.fieldKey, fieldSettingsMap);
@@ -2358,7 +2363,7 @@ export async function getOfficeTransactionIntakeSchema(input: {
     })
     .concat(
       transactionCustomFieldDefinitions
-        .filter((entry) => !defaultTransactionCustomFieldCatalog.some((defaultEntry) => defaultEntry.fieldKey === entry.fieldKey))
+        .filter((entry) => !activeDefaultTransactionCustomFieldCatalog.some((defaultEntry) => defaultEntry.fieldKey === entry.fieldKey))
         .map((entry) =>
           buildOfficeTransactionCustomFieldRecord({
             id: entry.id,
@@ -2518,7 +2523,7 @@ export async function saveOfficeFieldSettings(input: SaveOfficeFieldSettingsInpu
     for (const entry of input.transactionCustomFieldDefinitions ?? []) {
       const fieldKey = normalizeTransactionCustomFieldKey(entry.fieldKey);
       const existing = existingCustomFieldDefinitions.find((setting) => setting.fieldKey === fieldKey) ?? null;
-      const defaultEntry = defaultTransactionCustomFieldCatalog.find((setting) => setting.fieldKey === fieldKey) ?? null;
+      const defaultEntry = activeDefaultTransactionCustomFieldCatalog.find((setting) => setting.fieldKey === fieldKey) ?? null;
       const label = parseOptionalText(entry.label) ?? existing?.label ?? defaultEntry?.label ?? fieldKey;
       const type = normalizeTransactionCustomFieldType(entry.type ?? existing?.type ?? defaultEntry?.type ?? "text");
       const options = normalizeTransactionCustomFieldOptions(
@@ -2653,7 +2658,7 @@ export async function createOfficeTransactionCustomFieldDefinition(input: Create
     });
 
     const existingFieldKeys = new Set(
-      defaultTransactionCustomFieldCatalog.map((entry) => entry.fieldKey).concat(existingDefinitions.map((entry) => entry.fieldKey))
+      activeDefaultTransactionCustomFieldCatalog.map((entry) => entry.fieldKey).concat(existingDefinitions.map((entry) => entry.fieldKey))
     );
     const baseFieldKey = slugifyTransactionCustomFieldLabel(input.label);
     let fieldKey = baseFieldKey;
@@ -2672,7 +2677,7 @@ export async function createOfficeTransactionCustomFieldDefinition(input: Create
       throw new Error("Field label is required.");
     }
 
-    const sortOrder = Math.max(-1, ...defaultTransactionCustomFieldCatalog.map((entry) => entry.sortOrder), ...existingDefinitions.map((entry) => entry.sortOrder)) + 1;
+    const sortOrder = Math.max(-1, ...activeDefaultTransactionCustomFieldCatalog.map((entry) => entry.sortOrder), ...existingDefinitions.map((entry) => entry.sortOrder)) + 1;
 
     await tx.transactionCustomFieldDefinition.create({
       data: {
@@ -2722,7 +2727,7 @@ export async function updateOfficeTransactionCustomFieldDefinition(input: Update
         fieldKey: input.fieldKey
       }
     });
-    const defaultEntry = defaultTransactionCustomFieldCatalog.find((entry) => entry.fieldKey === input.fieldKey) ?? null;
+    const defaultEntry = activeDefaultTransactionCustomFieldCatalog.find((entry) => entry.fieldKey === input.fieldKey) ?? null;
 
     if (!existing && !defaultEntry) {
       throw new Error("Custom field was not found.");

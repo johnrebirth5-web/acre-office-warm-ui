@@ -160,37 +160,6 @@ function getCalculationTypeLabel(value: TransactionFinanceCalculationTypeValue) 
   return "Reimbursement";
 }
 
-function findFeeAmount(
-  draft: TransactionFinanceCreateDraft,
-  feeTypeValue: TransactionFinanceCreateFeeDraft["feeTypeValue"]
-) {
-  return draft.fees.find((fee) => fee.feeTypeValue === feeTypeValue)?.amount.trim() ?? "";
-}
-
-export function buildLegacyFinanceFieldValuesFromDraft(draft: TransactionFinanceCreateDraft) {
-  const companyReferralAmount = findFeeAmount(draft, "company_referral");
-  const clientReferralAmount = findFeeAmount(draft, "client_referral");
-  const externalReferralAmount = findFeeAmount(draft, "external_referral");
-  const rebateAmount = findFeeAmount(draft, "rebate");
-  const reimbursementAmount = findFeeAmount(draft, "reimbursement");
-  const outsideReferralEnabled = (parseNumber(externalReferralAmount) ?? 0) > 0;
-  const legacyReferralFee =
-    draft.companyReferral === "Yes"
-      ? companyReferralAmount || externalReferralAmount || ""
-      : clientReferralAmount || externalReferralAmount || "";
-
-  return {
-    commissionAmount: draft.grossCommission.trim(),
-    referralFee: legacyReferralFee,
-    rebate: rebateAmount,
-    reimbursement: reimbursementAmount,
-    companyReferral: draft.companyReferral,
-    companyReferralEmployeeName: draft.companyReferralEmployeeName.trim(),
-    outsideReferral: outsideReferralEnabled ? "Yes" : "No",
-    note: draft.financeNotes.trim()
-  } satisfies Record<string, string>;
-}
-
 export function buildStructuredFinancePayloadFromDraft(draft: TransactionFinanceCreateDraft) {
   return {
     grossCommission: draft.grossCommission,
