@@ -112,6 +112,12 @@ function getFieldTypeLabel(entry: FieldEntry) {
   return type;
 }
 
+function getDropIndicatorLabel(entry: FieldEntry, position: "before" | "after") {
+  return position === "before"
+    ? `Drop before ${entry.field.label}`
+    : `Drop after ${entry.field.label}`;
+}
+
 function buildModulePayload(snapshot: OfficeFieldModuleSettingsSnapshot) {
   return {
     module: snapshot.module,
@@ -791,7 +797,7 @@ export function OfficeSettingsFieldsClient({
         {submitError ? <p className="office-inline-error">{submitError}</p> : null}
         {submitSuccess ? <p className="office-inline-success">{submitSuccess}</p> : null}
 
-        <div className="office-fields-list">
+        <div className={`office-fields-list${draggingFieldKey ? " is-dragging" : ""}`}>
           {visibleEntries.map((entry) => (
             <article
               className={`office-fields-row${
@@ -809,10 +815,21 @@ export function OfficeSettingsFieldsClient({
                 void handleFieldDrop(event, entry.field.fieldKey);
               }}
             >
+              {dragOverState?.fieldKey === entry.field.fieldKey ? (
+                <div
+                  aria-hidden="true"
+                  className={`office-fields-drop-indicator office-fields-drop-indicator-${dragOverState.position}`}
+                >
+                  <span>{getDropIndicatorLabel(entry, dragOverState.position)}</span>
+                </div>
+              ) : null}
+
               {canManageFields ? (
                 <button
                   aria-label={`Drag ${entry.field.label} to reorder`}
-                  className="office-fields-row-handle"
+                  className={`office-fields-row-handle${
+                    draggingFieldKey === entry.field.fieldKey ? " is-dragging" : ""
+                  }`}
                   disabled={pendingAction.startsWith("reorder:")}
                   draggable={!pendingAction.startsWith("reorder:")}
                   onDragEnd={resetDragState}
