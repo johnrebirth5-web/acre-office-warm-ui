@@ -175,8 +175,11 @@ export function UserOperationsDetailSections({
 }: UserOperationsDetailSectionsProps) {
   const router = useRouter();
   const canViewBankInformation = snapshot.bankInformation.canView;
+  const canManageBankInformation = snapshot.bankInformation.canManage;
   const [profileState, setProfileState] = useState<ProfileState>(buildProfileState(snapshot));
-  const [activeProfileTab, setActiveProfileTab] = useState<ProfileBasicsTab>("profile");
+  const [activeProfileTab, setActiveProfileTab] = useState<ProfileBasicsTab>(() =>
+    canManageAgents || !canViewBankInformation ? "profile" : "bank"
+  );
   const [newOnboardingItem, setNewOnboardingItem] = useState<OnboardingDraft>(buildEmptyOnboardingDraft);
   const [newGoal, setNewGoal] = useState<GoalDraft>(buildEmptyGoalDraft);
   const [onboardingDrafts, setOnboardingDrafts] = useState<Record<string, OnboardingDraft>>(
@@ -488,45 +491,45 @@ export function UserOperationsDetailSections({
             {canViewBankInformation && activeProfileTab === "bank" ? (
               <div className="office-detail-grid office-profile-basics-panel" role="tabpanel">
                 <div className="office-detail-field office-detail-field-wide office-profile-basics-callout">
-                  <span>Restricted bank information</span>
+                  <span>Sensitive bank information</span>
                   <strong>Use this tab to collect payout and year-end tax reporting details for the member.</strong>
-                  <p>These fields are only returned to agent managers in the current Back Office flow.</p>
+                  <p>These fields are returned to agent managers and to the member when viewing their own profile.</p>
                 </div>
                 <FormField
                   className="office-detail-field"
                   helper="Please enter company name if this is a business account."
                   label="First Name"
                 >
-                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankFirstName", event.target.value)} readOnly={!canManageAgents} value={profileState.bankFirstName} />
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankFirstName", event.target.value)} readOnly={!canManageBankInformation} value={profileState.bankFirstName} />
                 </FormField>
                 <FormField className="office-detail-field" label="Last Name">
-                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankLastName", event.target.value)} readOnly={!canManageAgents} value={profileState.bankLastName} />
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankLastName", event.target.value)} readOnly={!canManageBankInformation} value={profileState.bankLastName} />
                 </FormField>
                 <FormField className="office-detail-field" label="Email">
-                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankEmail", event.target.value)} readOnly={!canManageAgents} type="email" value={profileState.bankEmail} />
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankEmail", event.target.value)} readOnly={!canManageBankInformation} type="email" value={profileState.bankEmail} />
                 </FormField>
                 <FormField className="office-detail-field" label="Phone Number">
-                  <TextInput autoComplete="off" inputMode="tel" onChange={(event) => setProfileField("bankPhoneNumber", event.target.value)} readOnly={!canManageAgents} type="tel" value={profileState.bankPhoneNumber} />
+                  <TextInput autoComplete="off" inputMode="tel" onChange={(event) => setProfileField("bankPhoneNumber", event.target.value)} readOnly={!canManageBankInformation} type="tel" value={profileState.bankPhoneNumber} />
                 </FormField>
                 <FormField className="office-detail-field office-detail-field-wide" label="Address">
                   <TextareaInput
                     autoComplete="off"
                     onChange={(event) => setProfileField("bankAddress", event.target.value)}
                     placeholder="Complete address with unit number, city, state, and zip code"
-                    readOnly={!canManageAgents}
+                    readOnly={!canManageBankInformation}
                     rows={3}
                     value={profileState.bankAddress}
                   />
                 </FormField>
                 <FormField className="office-detail-field" label="Bank Name">
-                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankName", event.target.value)} readOnly={!canManageAgents} value={profileState.bankName} />
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankName", event.target.value)} readOnly={!canManageBankInformation} value={profileState.bankName} />
                 </FormField>
                 <FormField className="office-detail-field" label="Account Number">
                   <TextInput
                     autoComplete="off"
                     inputMode="numeric"
                     onChange={(event) => setProfileField("bankAccountNumber", event.target.value)}
-                    readOnly={!canManageAgents}
+                    readOnly={!canManageBankInformation}
                     value={profileState.bankAccountNumber}
                   />
                 </FormField>
@@ -535,7 +538,7 @@ export function UserOperationsDetailSections({
                     autoComplete="off"
                     inputMode="numeric"
                     onChange={(event) => setProfileField("bankRoutingNumber", event.target.value)}
-                    readOnly={!canManageAgents}
+                    readOnly={!canManageBankInformation}
                     value={profileState.bankRoutingNumber}
                   />
                 </FormField>
@@ -544,7 +547,7 @@ export function UserOperationsDetailSections({
                   helper="Choose which you used for year-end tax reporting purposes."
                   label="SSN or EIN"
                 >
-                  <SelectInput disabled={!canManageAgents} onChange={(event) => setProfileField("bankTaxIdType", event.target.value)} value={profileState.bankTaxIdType}>
+                  <SelectInput disabled={!canManageBankInformation} onChange={(event) => setProfileField("bankTaxIdType", event.target.value)} value={profileState.bankTaxIdType}>
                     <option value="">Select tax ID type</option>
                     {bankTaxIdTypeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -558,15 +561,15 @@ export function UserOperationsDetailSections({
                     autoComplete="off"
                     inputMode="numeric"
                     onChange={(event) => setProfileField("bankTaxIdValue", event.target.value)}
-                    readOnly={!canManageAgents}
+                    readOnly={!canManageBankInformation}
                     value={profileState.bankTaxIdValue}
                   />
                 </FormField>
                 <FormField className="office-detail-field" label="Date of Birth">
-                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankDateOfBirth", event.target.value)} readOnly={!canManageAgents} type="date" value={profileState.bankDateOfBirth} />
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankDateOfBirth", event.target.value)} readOnly={!canManageBankInformation} type="date" value={profileState.bankDateOfBirth} />
                 </FormField>
                 <FormField className="office-detail-field" label="Account type">
-                  <SelectInput disabled={!canManageAgents} onChange={(event) => setProfileField("bankAccountType", event.target.value)} value={profileState.bankAccountType}>
+                  <SelectInput disabled={!canManageBankInformation} onChange={(event) => setProfileField("bankAccountType", event.target.value)} value={profileState.bankAccountType}>
                     <option value="">Select account type</option>
                     {bankAccountTypeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -577,10 +580,10 @@ export function UserOperationsDetailSections({
                 </FormField>
               </div>
             ) : null}
-            {canManageAgents ? (
+            {canManageAgents || (canManageBankInformation && activeProfileTab === "bank") ? (
               <div className="office-form-actions">
                 <Button disabled={pendingAction === "profile"} type="submit">
-                  {pendingAction === "profile" ? "Saving..." : "Save profile"}
+                  {pendingAction === "profile" ? "Saving..." : canManageAgents ? "Save profile" : "Save bank information"}
                 </Button>
               </div>
             ) : null}

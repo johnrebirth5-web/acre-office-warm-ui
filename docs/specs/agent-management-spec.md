@@ -44,7 +44,8 @@ Provide a real Back Office agent management workspace for office operations, cov
   - `AgentGoal`
 - current bank information behavior:
   - stores first/last name, contact details, complete address, bank name, account/routing number, tax reporting ID type + value, date of birth, and account type per membership
-  - is only returned on the operational profile snapshot to viewers who can manage agents
+  - is returned on the operational profile snapshot to viewers who can manage agents and to the member when they open their own profile
+  - the member can self-service add / edit / review only their own bank information; broader profile basics remain manager-managed
   - writes stay on the same profile save path instead of introducing a second payout-settings surface
 - onboarding currently supports:
   - explicit checklist items

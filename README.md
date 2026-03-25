@@ -451,7 +451,8 @@
     - recent transactions
     - active tasks / operational agenda / billing summary / recent activity 聚合
   - bank information 当前是 membership 级受限资料：
-    - 仅在可管理 agent 的 operational profile 详情中返回
+    - 会返回给可管理 agent 的运营详情页查看者，也会返回给 member 本人用于自助维护自己的 payout / tax reporting 信息
+    - member 本人只能查看和修改自己的 bank information，不会借此解锁其它 profile basics 管理字段
     - 当前会持久化 raw bank / tax reporting fields，和 billing 模块的 masked payment-method reference 不是同一套模型
   - onboarding 当前是 Back Office 可管理 checklist，不是 recruit/candidate pipeline
   - onboarding 现在支持组织级默认模板条目，能按 office 上下文一键应用到 agent

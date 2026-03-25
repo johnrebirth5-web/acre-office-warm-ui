@@ -289,6 +289,7 @@ export type OfficeAgentOperationalAgendaItem = {
 
 export type OfficeAgentBankInformationRecord = {
   canView: boolean;
+  canManage: boolean;
   firstName: string;
   lastName: string;
   email: string;
@@ -587,8 +588,8 @@ function parseOptionalAgentBankInformationAccountType(value: string | undefined)
     : null;
 }
 
-function canViewAgentBankInformation(scope: OfficeDataScope) {
-  return scope.viewerPermissions.includes("agents:manage");
+function canManageAgentBankInformation(scope: OfficeDataScope, membershipId: string) {
+  return scope.viewerPermissions.includes("agents:manage") || scope.viewerMembershipId === membershipId;
 }
 
 type ComparableAgentBankInformationRecord = {
@@ -2388,7 +2389,8 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     })) ?? membership;
 
   const canViewFinancials = canViewFinancialsForMembership(scope, input.membershipId);
-  const canViewBankInformationForProfile = canViewAgentBankInformation(scope);
+  const canManageBankInformationForProfile = canManageAgentBankInformation(scope, input.membershipId);
+  const canViewBankInformationForProfile = canManageBankInformationForProfile;
   const canParticipateInTeamHierarchy = isTeamHierarchyAssignableUserRole(membership.role);
 
   const [
@@ -2720,6 +2722,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     },
     bankInformation: {
       canView: canViewBankInformationForProfile,
+      canManage: canManageBankInformationForProfile,
       firstName: canViewBankInformationForProfile ? normalizedBankInformation.firstName : "",
       lastName: canViewBankInformationForProfile ? normalizedBankInformation.lastName : "",
       email: canViewBankInformationForProfile ? normalizedBankInformation.email : "",
@@ -2851,35 +2854,27 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
     const previousDisplayName = previousProfile?.displayName?.trim() || `${membership.user.firstName} ${membership.user.lastName}`;
     const previousLicense = previousProfile?.licenseNumber?.trim() || "—";
     const previousPlan = previousProfile?.commissionPlanName?.trim() || "—";
+    const profileUpsertData = {
+      organizationId: input.organizationId,
+      officeId: membership.officeId,
+      ...(input.displayName !== undefined ? { displayName: parseOptionalText(input.displayName) } : {}),
+      ...(input.bio !== undefined ? { bio: parseOptionalText(input.bio) } : {}),
+      ...(input.notes !== undefined ? { notes: parseOptionalText(input.notes) } : {}),
+      ...(input.licenseNumber !== undefined ? { licenseNumber: parseOptionalText(input.licenseNumber) } : {}),
+      ...(input.licenseState !== undefined ? { licenseState: parseOptionalText(input.licenseState) } : {}),
+      ...(input.startDate !== undefined ? { startDate: parseOptionalDate(input.startDate) } : {}),
+      ...(input.avatarUrl !== undefined ? { avatarUrl: parseOptionalText(input.avatarUrl) } : {}),
+      ...(input.internalExtension !== undefined ? { internalExtension: parseOptionalText(input.internalExtension) } : {})
+    };
 
     const savedProfile = await tx.agentProfile.upsert({
       where: {
         membershipId: input.membershipId
       },
-      update: {
-        organizationId: input.organizationId,
-        officeId: membership.officeId,
-        displayName: parseOptionalText(input.displayName),
-        bio: parseOptionalText(input.bio),
-        notes: parseOptionalText(input.notes),
-        licenseNumber: parseOptionalText(input.licenseNumber),
-        licenseState: parseOptionalText(input.licenseState),
-        startDate: parseOptionalDate(input.startDate),
-        avatarUrl: parseOptionalText(input.avatarUrl),
-        internalExtension: parseOptionalText(input.internalExtension)
-      },
+      update: profileUpsertData,
       create: {
-        organizationId: input.organizationId,
-        officeId: membership.officeId,
         membershipId: input.membershipId,
-        displayName: parseOptionalText(input.displayName),
-        bio: parseOptionalText(input.bio),
-        notes: parseOptionalText(input.notes),
-        licenseNumber: parseOptionalText(input.licenseNumber),
-        licenseState: parseOptionalText(input.licenseState),
-        startDate: parseOptionalDate(input.startDate),
-        avatarUrl: parseOptionalText(input.avatarUrl),
-        internalExtension: parseOptionalText(input.internalExtension)
+        ...profileUpsertData
       }
     });
 

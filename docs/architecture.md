@@ -936,7 +936,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
   - tax reporting ID type + value
   - date of birth
   - account type
-  - 当前只在 `agents:manage` 查看者的 operational profile snapshot 中返回，避免把敏感字段下发给普通 profile readers
+  - 当前在 `agents:manage` 查看者的 operational profile snapshot 中返回，同时也允许 membership 本人查看和维护自己的这组敏感字段；其他普通 profile readers 仍不会拿到这些值
 - `Team / TeamMembership` 提供最小 team roster foundation
 - `AgentOnboardingItem` 作为独立 onboarding checklist，不和 transaction tasks 混成一套
 - `AgentOnboardingTemplateItem` 作为组织级/office 级默认 onboarding 模板条目，避免每个 agent 从零创建 checklist
