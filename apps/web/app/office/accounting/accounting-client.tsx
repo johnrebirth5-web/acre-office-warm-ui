@@ -40,6 +40,14 @@ type StatementBankField = {
   wide?: boolean;
 };
 
+type TransactionEditorState = {
+  transactionId: string;
+  title: string;
+  subtitle: string;
+  fullPageHref: string;
+  embeddedHref: string;
+};
+
 function buildAccountingHref(
   pathname: string,
   filters: FilterState & {
@@ -68,6 +76,10 @@ function buildAccountingHref(
 
   const query = searchParams.toString();
   return query ? `${pathname}?${query}` : pathname;
+}
+
+function buildEmbeddedTransactionHref(transactionId: string) {
+  return `/office-embedded/transactions/${transactionId}`;
 }
 
 function getStatementStatusTone(status: string) {
@@ -200,8 +212,11 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const pathname = usePathname();
   const agentListboxId = useId();
   const agentPickerRef = useRef<HTMLDivElement | null>(null);
+  const previousPreviewContextKeyRef = useRef<string | null>(null);
+  const hasTouchedCandidateSelectionRef = useRef(false);
   const candidateRowKey = snapshot.candidateRows.map((row) => row.id).join("|");
   const snapshotInvoiceSelectionKey = buildInvoiceSelectionKey(snapshot.filters.invoiceNumbers);
+  const previewContextKey = `${snapshot.filters.membershipId}:${snapshotInvoiceSelectionKey}`;
   const [filterState, setFilterState] = useState<FilterState>({
     membershipId: snapshot.filters.membershipId,
     invoiceNumbers: snapshot.filters.invoiceNumbers
@@ -219,6 +234,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
+  const [transactionEditor, setTransactionEditor] = useState<TransactionEditorState | null>(null);
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
     .map((option) => ({
@@ -256,8 +272,27 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }, [snapshot.filters.memberOptions, snapshot.filters.membershipId]);
 
   useEffect(() => {
-    setSelectedCalculationIds(snapshot.candidateRows.filter((row) => row.isGenerateEligible).map((row) => row.id));
-  }, [candidateRowKey, snapshot.candidateRows]);
+    const eligibleIds = snapshot.candidateRows.filter((row) => row.isGenerateEligible).map((row) => row.id);
+    const previewContextChanged = previousPreviewContextKeyRef.current !== previewContextKey;
+
+    if (previewContextChanged) {
+      previousPreviewContextKeyRef.current = previewContextKey;
+      hasTouchedCandidateSelectionRef.current = false;
+    }
+
+    setSelectedCalculationIds((current) => {
+      if (eligibleIds.length === 0) {
+        return [];
+      }
+
+      if (previewContextChanged || !hasTouchedCandidateSelectionRef.current) {
+        return eligibleIds;
+      }
+
+      const currentLookup = new Set(current);
+      return eligibleIds.filter((id) => currentLookup.has(id));
+    });
+  }, [candidateRowKey, previewContextKey, snapshot.candidateRows]);
 
   useEffect(() => {
     if (highlightedAgentIndex < filteredAgentOptions.length) {
@@ -283,6 +318,24 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isAgentPickerOpen]);
+
+  useEffect(() => {
+    if (!transactionEditor) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setTransactionEditor(null);
+        startTransition(() => {
+          router.refresh();
+        });
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [router, transactionEditor]);
 
   const selectedIdLookup = new Set(selectedCalculationIds);
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
@@ -422,6 +475,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       return;
     }
 
+    hasTouchedCandidateSelectionRef.current = true;
     setSelectedCalculationIds((current) => {
       const next = new Set(current);
 
@@ -462,7 +516,25 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }
 
   function toggleAllCandidates(checked: boolean) {
+    hasTouchedCandidateSelectionRef.current = true;
     setSelectedCalculationIds(checked ? snapshot.candidateRows.map((row) => row.id) : []);
+  }
+
+  function openTransactionEditor(row: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]) {
+    setTransactionEditor({
+      transactionId: row.transactionId,
+      title: row.transactionLabel,
+      subtitle: row.propertyAddress,
+      fullPageHref: row.transactionHref,
+      embeddedHref: buildEmbeddedTransactionHref(row.transactionId)
+    });
+  }
+
+  function closeTransactionEditor() {
+    setTransactionEditor(null);
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   function handlePreviewSelectedInvoices() {
@@ -757,7 +829,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                           <span>{formatStatementCellValue(row.invoiceNumber)}</span>
                           <div className="office-table-primary">
                             <strong>
-                              <Link href={row.transactionHref}>{row.transactionLabel}</Link>
+                              <button className="office-inline-link office-accounting-candidate-trigger" onClick={() => openTransactionEditor(row)} type="button">
+                                {row.transactionLabel}
+                              </button>
                             </strong>
                             <p>{row.propertyAddress}</p>
                           </div>
@@ -974,6 +1048,47 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           <EmptyState description="Use the history list to open a saved statement and inspect its locked payout lines." title="No statement selected" />
         )}
       </ListPageSection>
+
+      {transactionEditor ? (
+        <div className="office-modal-overlay" onClick={closeTransactionEditor}>
+          <section
+            aria-label={`Transaction editor for ${transactionEditor.title}`}
+            aria-modal="true"
+            className="office-modal office-library-preview-modal office-accounting-transaction-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <header className="office-modal-header office-accounting-transaction-modal-header">
+              <div className="office-modal-title-block">
+                <span className="office-eyebrow">Accounting review</span>
+                <h3>{transactionEditor.title}</h3>
+                <p>{transactionEditor.subtitle}</p>
+              </div>
+              <div className="office-modal-header-actions">
+                <a className="office-button office-button-secondary" href={transactionEditor.fullPageHref} rel="noreferrer" target="_blank">
+                  Open full page
+                </a>
+                <Button onClick={closeTransactionEditor} type="button" variant="secondary">
+                  Close
+                </Button>
+              </div>
+            </header>
+
+            <div className="office-library-preview-modal-body office-accounting-transaction-modal-body">
+              <p className="office-form-helper office-accounting-transaction-modal-note">
+                Edit the transaction here, then close this window to refresh the current accounting preview without leaving the statement workflow.
+              </p>
+              <div className="office-library-preview-frame-wrap office-library-preview-frame-wrap-modal office-accounting-transaction-frame-wrap">
+                <iframe
+                  className="office-library-preview-frame office-library-preview-frame-modal office-accounting-transaction-frame"
+                  src={transactionEditor.embeddedHref}
+                  title={`Embedded transaction detail for ${transactionEditor.title}`}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </ListPageStack>
   );
 }

@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-03-26: `/office/accounting` candidate rows can now open source transactions inside the same statement workspace instead of forcing a full-page route change:
+  - `Candidate rows` transaction titles now open an embedded transaction-detail modal with the existing intake, finance, commission, task, document, and offer editing surfaces
+  - the embedded modal uses a dedicated no-sidebar transaction route so the full Office shell is not nested inside the accounting overlay
+  - closing the modal refreshes the accounting snapshot while preserving the current statement workflow context, so admins can adjust the source transaction and continue toward `Generate statement`
 - 2026-03-26: transaction finance calculator terminology and active fee set were tightened up for current operations:
   - user-facing `Client Referral` labels are now consistently shown as `Internal Referral` across create, detail finance, blockers, audit copy, and calculation helper text
   - `Channel Development Fee` has been removed from active calculator, calculation, and statement/detail post-split outputs, while the legacy storage enum remains tolerated for backward compatibility

@@ -217,6 +217,8 @@ This file is the high-level product map for the current `Office / Back Office` s
 - Current notable behavior:
   - `/office/accounting` is now an `office_admin`-only `Agent Statements` workspace.
   - the page lets admin select an agent, load that agent's invoice-number candidates, and generate a payout statement from the selected invoice numbers, with an optional preview/uncheck pass before final generation.
+  - `Candidate rows` now support an in-place transaction drilldown modal backed by the live transaction detail workspace, so admins can inspect or edit the source transaction without navigating away from the current statement selection.
+  - closing that modal refreshes the current accounting snapshot while keeping the admin inside the same payout-statement workflow instead of forcing a route change.
   - invited agents remain selectable for admin-operated accounting workflows; `invited` only means the agent has not completed self-login, not that the office should be blocked from creating transactions, calculating commissions, or generating payout statements for them.
   - accounting payee search follows the same office/global sales-member rule as transaction owner search, so admins can select current-office or company-level `agent / team_lead` memberships instead of being limited to office-local `active agent` rows only.
   - old ledger / agent billing / EMD UI is no longer rendered on `/office/accounting`, but the underlying accounting and billing foundation still exists.

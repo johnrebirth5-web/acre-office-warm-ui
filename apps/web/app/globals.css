@@ -8303,6 +8303,69 @@ a {
   text-decoration: underline;
 }
 
+.office-accounting-candidate-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.office-accounting-candidate-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--office-focus-ring);
+  border-radius: 8px;
+}
+
+.office-transaction-detail-embedded {
+  min-height: 100vh;
+  padding: 18px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #f2f5f9 0%, #e9eef4 100%);
+}
+
+.office-accounting-transaction-modal {
+  width: min(calc(100vw - 20px), 1680px);
+  height: min(calc(100vh - 20px), 1180px);
+  max-height: min(calc(100vh - 20px), 1180px);
+}
+
+.office-accounting-transaction-modal-header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.72);
+}
+
+.office-accounting-transaction-modal-header p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: var(--office-text-body-size);
+  line-height: var(--office-line-body);
+}
+
+.office-accounting-transaction-modal-body {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.office-accounting-transaction-modal-note {
+  margin: 0;
+}
+
+.office-accounting-transaction-frame-wrap {
+  min-height: 0;
+  height: 100%;
+}
+
+.office-accounting-transaction-frame {
+  height: 100%;
+  min-height: 720px;
+}
+
 .office-agent-statement-building p {
   margin: 0;
   color: var(--office-text-muted);
