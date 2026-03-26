@@ -1202,7 +1202,7 @@ function transactionFinanceLabel(value: TransactionFinanceFeeType) {
     case "rebate":
       return "Rebate";
     case "client_referral":
-      return "Client Referral";
+      return "Internal Referral";
     case "external_referral":
       return "External Referral";
     case "company_referral":
@@ -2917,7 +2917,7 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
       buildAuditDetail("Agent net", formatAuditCurrencyValue(existing.agentNet), formatAuditCurrencyValue(nextAgentNet)),
       buildAuditDetail("Finance notes", formatAuditTextValue(existing.financeNotes), formatAuditTextValue(nextFinanceNotes)),
       buildAuditDetail(
-        "Client referral form approved",
+        "Internal referral form approved",
         existing.clientReferralFormApproved ? "Yes" : "No",
         nextClientReferralFormApproved ? "Yes" : "No"
       ),
@@ -2935,7 +2935,7 @@ export async function updateTransactionFinance(input: UpdateTransactionFinanceIn
       buildAuditChange("Office net", formatAuditCurrencyValue(existing.officeNet), formatAuditCurrencyValue(nextOfficeNet)),
       buildAuditChange("Agent net", formatAuditCurrencyValue(existing.agentNet), formatAuditCurrencyValue(nextAgentNet)),
       buildAuditChange("Finance notes", formatAuditTextValue(existing.financeNotes), formatAuditTextValue(nextFinanceNotes)),
-      buildAuditChange("Client referral form approved", existing.clientReferralFormApproved ? "Yes" : "No", nextClientReferralFormApproved ? "Yes" : "No"),
+      buildAuditChange("Internal referral form approved", existing.clientReferralFormApproved ? "Yes" : "No", nextClientReferralFormApproved ? "Yes" : "No"),
       buildAuditChange("Rebate agreement signed", existing.rebateAgreementSigned ? "Yes" : "No", nextRebateAgreementSigned ? "Yes" : "No"),
       buildAuditChange(
         "Rebate Google Form submitted",

@@ -109,10 +109,10 @@
     - legacy `price` 仍保留作兼容桥，并与 `purchasedPrice` 同步
     - transaction detail / list 现在统一显示 `Asking / Purchased` 双字段
   - `Create Transaction` / `/office/transactions/new` 现在把 legacy finance 文本字段折叠成结构化 commission calculator：
-    - 创建页只保留一个 calculator 区，按 `Gross commission / Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee / Calculate / Net Commission` 的顺序组织
+    - 创建页只保留一个 calculator 区，按 `Gross commission / Rebate / Internal Referral / External Referral / Company Referral / Calculate / Net Commission` 的顺序组织
     - `Gross commission` 是唯一必填项；其余 fee 留空即按 `0` 处理
     - 每个 fee 现在都保留 `Amount` + `Rate %` 双输入；填写任一项时，另一项会在已有 `Gross commission` 的前提下自动联动
-    - calculator 继续写入真实 transaction finance：`Gross commission` 写 transaction finance，5 个 fee 继续落到现有 fee ledger 当前行，统一 `Note` 继续写 transaction `financeNotes`
+    - calculator 继续写入真实 transaction finance：`Gross commission` 写 transaction finance，4 个 active fee 继续落到现有 fee ledger 当前行，统一 `Note` 继续写 transaction `financeNotes`
     - 创建页默认不会再偷偷提交 `20%` 占位 fee；只有 agent 明确填写的 fee 才会落库
   - 已有 transaction detail 页面
   - transaction detail 现在会渲染真实 linked contacts，并支持 link / unlink / set primary
@@ -121,15 +121,14 @@
     - `Finance` 现在和 create flow 一样，使用同一套 calculator 输入顺序：
       - `Gross commission`
       - `Rebate`
-      - `Client Referral`
+      - `Internal Referral`
       - `External Referral`
       - `Company Referral`
-      - `Channel Development Fee`
       - `Calculate`
       - `Net Commission`
     - 每个 fee 在 detail finance 也同样保留 `Amount` 和 `Rate %` 双输入
     - detail finance 只保留一个统一 `Note`
-    - 财务可确认 `Client Referral` / `Rebate` 前置条件
+    - 财务可确认 `Internal Referral` / `Rebate` 前置条件
     - 页面显示 `Pre-Split Total / Post-Split Total / Net Commission Base / Final Agent Net / Final Office Net`
     - 支持 calculation history、current version、manual override 和操作备注
   - transaction detail 现在有最小真实 `Documents / Forms / eSignature` workflow：
@@ -390,8 +389,8 @@
       - `Pre-Split` 费用会先扣减 `Gross Commission`，再进入 split chain
       - `Post-Split` 费用会在 split 后只从 owner agent 份额扣减，第一版全部加回 `Company`
       - `Reimbursement` 独立于 split base，按 `Final Agent Net` 的 `10%` 上限再取其中 `50%`
-      - `Client Referral` / `Rebate` 需要前置条件确认后才允许进入正式 calculation
-      - `Channel Development Fee` / `Client Referral` / `Rebate` 超默认上限时会进入 approval-required 状态
+      - `Internal Referral` / `Rebate` 需要前置条件确认后才允许进入正式 calculation
+      - `Internal Referral` / `Rebate` 超默认上限时会进入 approval-required 状态
       - 每次 calculate / override 都会生成可追溯的 transaction finance calculation version
     - plan rule types:
       - `base split`

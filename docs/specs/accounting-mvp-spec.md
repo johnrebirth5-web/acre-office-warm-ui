@@ -25,7 +25,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - PDF download
   - saved statement detail / PDF now also show the member's current `AgentBankInformation` block between generated metadata and line items
   - saved statement detail / PDF line items now show `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split detail / Net commission`
-  - `Post split detail` keeps the total and separately lists the saved `External Referral`, `Company Referral`, and `Channel Development Fee` amounts for that line item when the source finance version had named post-split fees
+  - `Post split detail` keeps the total and separately lists the saved `External Referral` and `Company Referral` amounts for that line item when the source finance version had named post-split fees
   - statement PDF uses a landscape table layout so the expanded line-item set remains readable
   - agent-facing statement output no longer surfaces `Office net`
   - manual override participant rows remain formal statement line-item sources because they are saved as direct agent `commissionCalculation` rows

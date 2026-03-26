@@ -2,8 +2,7 @@ export type TransactionFinanceCalculatorFeeTypeValue =
   | "rebate"
   | "client_referral"
   | "external_referral"
-  | "company_referral"
-  | "channel_development_fee";
+  | "company_referral";
 
 export type TransactionFinanceCalculatorCalculationTypeValue = "pre_split" | "post_split";
 
@@ -11,8 +10,7 @@ export type TransactionFinanceCalculatorFieldKey =
   | "rebate"
   | "clientReferral"
   | "externalReferral"
-  | "companyReferral"
-  | "channelDevelopmentFee";
+  | "companyReferral";
 
 export type TransactionFinanceCalculatorFieldDefinition = {
   fieldKey: TransactionFinanceCalculatorFieldKey;
@@ -33,7 +31,7 @@ export const transactionFinanceCalculatorFieldDefinitions: TransactionFinanceCal
   {
     fieldKey: "clientReferral",
     feeTypeValue: "client_referral",
-    feeTypeLabel: "Client Referral",
+    feeTypeLabel: "Internal Referral",
     selectedCalculationTypeValue: "pre_split"
   },
   {
@@ -47,12 +45,6 @@ export const transactionFinanceCalculatorFieldDefinitions: TransactionFinanceCal
     feeTypeValue: "company_referral",
     feeTypeLabel: "Company Referral",
     selectedCalculationTypeValue: "post_split"
-  },
-  {
-    fieldKey: "channelDevelopmentFee",
-    feeTypeValue: "channel_development_fee",
-    feeTypeLabel: "Channel Development Fee",
-    selectedCalculationTypeValue: "post_split"
   }
 ];
 
@@ -61,8 +53,7 @@ export function createEmptyTransactionFinanceCalculatorValues(): TransactionFina
     rebate: "",
     clientReferral: "",
     externalReferral: "",
-    companyReferral: "",
-    channelDevelopmentFee: ""
+    companyReferral: ""
   };
 }
 

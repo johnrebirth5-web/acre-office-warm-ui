@@ -49,10 +49,7 @@ function feeRequiresApproval(feeType: FinanceFeeDraft["feeTypeValue"], rateValue
     return false;
   }
 
-  return (
-    (feeType === "channel_development_fee" || feeType === "client_referral" || feeType === "rebate") &&
-    numericRate > 20
-  );
+  return (feeType === "client_referral" || feeType === "rebate") && numericRate > 20;
 }
 
 function formatApprovalStatus(value: FinanceFeeDraft["approvalStatusValue"]) {
@@ -68,19 +65,21 @@ function formatApprovalStatus(value: FinanceFeeDraft["approvalStatusValue"]) {
 }
 
 function buildInitialFeeDrafts(fees: OfficeTransactionFinanceFeeRecord[]) {
-  return fees.map((fee) => ({
-    id: fee.id,
-    feeTypeValue: fee.feeTypeValue,
-    feeTypeLabel: fee.feeTypeLabel,
-    rate: fee.rate,
-    amount: fee.amount,
-    selectedCalculationTypeValue: fee.selectedCalculationTypeValue,
-    selectedCalculationTypeLabel: fee.selectedCalculationTypeLabel,
-    approvalRequired: fee.approvalRequired,
-    approvalStatusValue: fee.approvalStatusValue,
-    approvalStatus: fee.approvalStatus,
-    notes: fee.notes
-  }));
+  return fees
+    .filter((fee) => fee.feeTypeValue !== "channel_development_fee")
+    .map((fee) => ({
+      id: fee.id,
+      feeTypeValue: fee.feeTypeValue,
+      feeTypeLabel: fee.feeTypeLabel,
+      rate: fee.rate,
+      amount: fee.amount,
+      selectedCalculationTypeValue: fee.selectedCalculationTypeValue,
+      selectedCalculationTypeLabel: fee.selectedCalculationTypeLabel,
+      approvalRequired: fee.approvalRequired,
+      approvalStatusValue: fee.approvalStatusValue,
+      approvalStatus: fee.approvalStatus,
+      notes: fee.notes
+    }));
 }
 
 function updateCalculatorFeeDraftFromAmount(current: FinanceFeeDraft, grossCommissionValue: string, amountValue: string): FinanceFeeDraft {
@@ -255,9 +254,9 @@ export function TransactionFinanceForm({
   const prerequisiteCards = [
     {
       checked: formState.clientReferralFormApproved,
-      description: "Must be signed and approved before Client Referral can be included in the commission run.",
+      description: "Must be signed and approved before Internal Referral can be included in the commission run.",
       field: "clientReferralFormApproved" as const,
-      title: "Client referral form approved"
+      title: "Internal referral form approved"
     },
     {
       checked: formState.rebateAgreementSigned,
@@ -389,7 +388,7 @@ export function TransactionFinanceForm({
         <div className="office-transaction-finance-panel-head">
           <div>
             <h4>Prerequisites</h4>
-            <p>These checks still gate Client Referral and Rebate before finance can finalize the commission.</p>
+            <p>These checks still gate Internal Referral and Rebate before finance can finalize the commission.</p>
           </div>
         </div>
 

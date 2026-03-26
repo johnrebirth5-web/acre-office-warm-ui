@@ -30,11 +30,11 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - transaction `createdAt` as the locking date for default split / hierarchy replay
 - transaction finance ledger now supports one current row per fee type:
   - `rebate`
-  - `client_referral`
+  - `client_referral` (user-facing label: `Internal Referral`)
   - `external_referral`
   - `company_referral`
-  - `channel_development_fee`
   - `reimbursement`
+  - legacy `channel_development_fee` rows may still exist in storage for backward compatibility, but active calculator / calculation / statement flows no longer seed, surface, or use them
 - each transaction finance fee row stores:
   - rate
   - amount
@@ -49,10 +49,9 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - one left-to-right input path for:
     - `Gross Commission`
     - `Rebate`
-    - `Client Referral`
+    - `Internal Referral`
     - `External Referral`
     - `Company Referral`
-    - `Channel Development Fee`
     - `Calculate`
     - `Final Agent Net`
   - each fee keeps both `Amount` and `Rate %` inputs; editing one value auto-fills the paired value when `Gross Commission` is available
@@ -68,10 +67,9 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - the create-time calculator keeps one left-to-right input path:
     - `Gross Commission`
     - `Rebate`
-    - `Client Referral`
+    - `Internal Referral`
     - `External Referral`
     - `Company Referral`
-    - `Channel Development Fee`
     - `Calculate`
     - `Final Agent Net`
   - `Gross Commission` is the only required create-time field; the other fee inputs stay optional and blank values are treated as `0`
@@ -83,7 +81,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - create-time intake no longer shows the retired legacy commission text/select placeholders that were disconnected from the real fee ledger
 - transaction detail commission section now supports:
   - current stakeholder breakdown
-  - explicit post-split fee detail rows for `External Referral`, `Company Referral`, and `Channel Development Fee`, instead of hiding those names behind a single company-only adjustment
+  - explicit post-split fee detail rows for `External Referral` and `Company Referral`, instead of hiding those names behind a single company-only adjustment
   - current calculation version summary
   - calculation history
   - manual override for final stakeholder payouts
@@ -125,7 +123,6 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - `rebate` defaults to `pre_split`
   - `client_referral` defaults to `pre_split`
   - `company_referral` defaults to `post_split`
-  - `channel_development_fee` defaults to `post_split`
   - `external_referral` defaults to `post_split`
   - `reimbursement` uses the standalone reimbursement rule
 - calculation order:
@@ -156,7 +153,6 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 ## Approval and prerequisite rules
 
 - approval-required thresholds:
-  - `channel_development_fee` above `20%`
   - `client_referral` above `20%`
   - `rebate` above `20%`
 - when a fee exceeds the default threshold:
@@ -164,7 +160,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - formal commission calculation is blocked until the fee is marked approved
   - UI shows the approval instruction to email `cathy@acreny.us` and copy `pay@acreny.us`
 - prerequisite checks:
-  - `client_referral` requires `Agent Referral Form` confirmed as signed and approved
+  - `client_referral` (`Internal Referral`) requires `Agent Referral Form` confirmed as signed and approved
   - `rebate` requires both `Rebate Agreement` signed and `Rebate Google Form` submitted
 - first release assumption:
   - prerequisite checks are finance-confirmed booleans on the transaction

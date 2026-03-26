@@ -130,7 +130,7 @@ export type OfficeAgentPayoutStatementLineRecord = {
 };
 
 export type OfficeAgentPayoutStatementPostSplitDetailItem = {
-  feeTypeValue: "external_referral" | "company_referral" | "channel_development_fee";
+  feeTypeValue: "external_referral" | "company_referral";
   feeTypeLabel: string;
   amountLabel: string;
   amountValue: string;
@@ -261,8 +261,7 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
 const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
 const postSplitStatementFeeDefinitions = [
   { feeType: "external_referral", label: "External Referral" },
-  { feeType: "company_referral", label: "Company Referral" },
-  { feeType: "channel_development_fee", label: "Channel Development Fee" }
+  { feeType: "company_referral", label: "Company Referral" }
 ] satisfies Array<{
   feeType: OfficeAgentPayoutStatementPostSplitDetailItem["feeTypeValue"];
   label: string;

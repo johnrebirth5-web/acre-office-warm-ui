@@ -8,16 +8,19 @@
 
 ## Recently completed major work
 
+- 2026-03-26: transaction finance calculator terminology and active fee set were tightened up for current operations:
+  - user-facing `Client Referral` labels are now consistently shown as `Internal Referral` across create, detail finance, blockers, audit copy, and calculation helper text
+  - `Channel Development Fee` has been removed from active calculator, calculation, and statement/detail post-split outputs, while the legacy storage enum remains tolerated for backward compatibility
 - 2026-03-26: `/office/pipeline` personal `my_*` metrics now stay truly self-scoped for team leaders and junior team leaders:
   - `My net income` no longer rolls subordinate commission rows into branch-leader totals
   - selecting a personal pipeline metric now also hides subordinate-only deals where the current viewer has no direct participation
   - this change is limited to pipeline personal metrics; broader team-scope transaction/reporting surfaces keep their existing team visibility rules
-- 2026-03-26: transaction commission detail and saved payout statements now surface named post-split fee detail instead of leaving `External Referral`, `Company Referral`, and `Channel Development Fee` hidden behind one merged company adjustment:
-  - transaction `Commission` now shows a dedicated post-split fee table for those three rows
+- 2026-03-26: transaction commission detail and saved payout statements now surface named post-split fee detail instead of leaving `External Referral` and `Company Referral` hidden behind one merged company adjustment:
+  - transaction `Commission` now shows a dedicated post-split fee table for those rows
   - generated `AgentPayoutStatementLine` snapshots now persist fee-breakdown JSON so saved statement detail / PDF can keep showing the named post-split breakdown even after later recalculation
   - statement detail / PDF now render `Post split detail` as total + named fee lines, while payout ownership still follows the existing company-side default allocation logic
 - 2026-03-26: `Create transaction` commission intake now uses a simplified calculator flow instead of a create-time fee-ledger editor:
-  - the create page now keeps one left-to-right calculator for `Gross Commission / Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee`, with `Gross Commission` as the only required input
+  - the create page now keeps one left-to-right calculator for `Gross Commission / Rebate / Internal Referral / External Referral / Company Referral`, with `Gross Commission` as the only required input
   - the simplified calculator still exposes `Rate %` for each fee in both create and detail finance, so amount/rate entry matches the earlier editor without bringing back the full fee-ledger layout
   - create-time finance now exposes one shared `Note` field instead of multiple fee-level notes or company-referral-only helper fields
   - clicking `Calculate` in create mode now previews `Final Agent Net` using the current split-chain and fee-placement rules before the transaction is saved, while continuing to persist the same structured fee-ledger payload as before

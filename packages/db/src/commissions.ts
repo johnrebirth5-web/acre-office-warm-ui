@@ -509,6 +509,7 @@ type TransactionFinanceFeeDefinition = {
   maxAutoApprovedRate: Prisma.Decimal | null;
   approvalHelperText: string;
   prerequisiteHelperText: string;
+  isActive?: boolean;
 };
 
 const channelDevelopmentApprovalPrompt = "Over 20% requires Cathy approval email and pay@acreny.us cc before it can be calculated.";
@@ -524,7 +525,7 @@ const financeFeeDefinitions: TransactionFinanceFeeDefinition[] = [
   },
   {
     feeType: "client_referral",
-    label: "Client Referral",
+    label: "Internal Referral",
     defaultRate: new Prisma.Decimal(20),
     defaultCalculationType: "pre_split",
     maxAutoApprovedRate: new Prisma.Decimal(20),
@@ -556,7 +557,8 @@ const financeFeeDefinitions: TransactionFinanceFeeDefinition[] = [
     defaultCalculationType: "post_split",
     maxAutoApprovedRate: new Prisma.Decimal(20),
     approvalHelperText: channelDevelopmentApprovalPrompt,
-    prerequisiteHelperText: ""
+    prerequisiteHelperText: "",
+    isActive: false
   },
   {
     feeType: "reimbursement",
@@ -569,7 +571,16 @@ const financeFeeDefinitions: TransactionFinanceFeeDefinition[] = [
   }
 ];
 
+const activeFinanceFeeDefinitions = financeFeeDefinitions.filter((definition) => definition.isActive !== false);
 const financeFeeDefinitionByType = new Map(financeFeeDefinitions.map((definition) => [definition.feeType, definition]));
+
+function isActiveTransactionFinanceFeeType(feeType: TransactionFinanceFeeType) {
+  return financeFeeDefinitionByType.get(feeType)?.isActive !== false;
+}
+
+function filterActiveTransactionFinanceFees<T extends { feeType: TransactionFinanceFeeType }>(fees: T[]) {
+  return fees.filter((fee) => isActiveTransactionFinanceFeeType(fee.feeType));
+}
 
 function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
@@ -856,7 +867,7 @@ export async function ensureTransactionFinanceFees(
   const existingFeeTypes = new Set(existingFees.map((fee) => fee.feeType));
 
   if (existingFees.length < financeFeeDefinitions.length) {
-    const missingDefinitions = financeFeeDefinitions.filter((definition) => !existingFeeTypes.has(definition.feeType));
+    const missingDefinitions = activeFinanceFeeDefinitions.filter((definition) => !existingFeeTypes.has(definition.feeType));
 
     if (missingDefinitions.length > 0) {
       await tx.transactionFinanceFee.createMany({
@@ -902,7 +913,7 @@ export async function ensureTransactionFinanceFees(
     }
   });
 
-  return sortTransactionFinanceFees(fees);
+  return sortTransactionFinanceFees(filterActiveTransactionFinanceFees(fees));
 }
 
 export function mapTransactionFinanceFeeRecord(
@@ -1855,7 +1866,7 @@ function normalizeTransactionFinanceFees(
   }>
 ) {
   return sortTransactionFinanceFees(
-    fees.map((fee) => {
+    filterActiveTransactionFinanceFees(fees).map((fee) => {
       const definition = getTransactionFinanceFeeDefinition(fee.feeType);
 
       return {
@@ -1889,7 +1900,7 @@ function buildTransactionFinanceBlockingIssues(input: {
     }
 
     if (fee.feeType === "client_referral" && !input.prerequisites.clientReferralReady) {
-      blockers.push("Client Referral requires a signed and approved Agent Referral Form before calculation.");
+      blockers.push("Internal Referral requires a signed and approved Agent Referral Form before calculation.");
     }
 
     if (fee.feeType === "rebate" && !input.prerequisites.rebateReady) {
@@ -2478,7 +2489,7 @@ export async function previewCreateTransactionCommissionCalculator(
     .map((fee, index) => {
       const feeType = parseTransactionFinanceFeeType(fee?.feeType);
 
-      if (!feeType) {
+      if (!feeType || !isActiveTransactionFinanceFeeType(feeType)) {
         return null;
       }
 

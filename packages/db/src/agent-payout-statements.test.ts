@@ -526,8 +526,7 @@ test("statement detail exposes post-split fee breakdown by fee name", async () =
       })),
       [
         { feeTypeValue: "external_referral", amountValue: "100" },
-        { feeTypeValue: "company_referral", amountValue: "800" },
-        { feeTypeValue: "channel_development_fee", amountValue: "0" }
+        { feeTypeValue: "company_referral", amountValue: "800" }
       ]
     );
   } finally {
