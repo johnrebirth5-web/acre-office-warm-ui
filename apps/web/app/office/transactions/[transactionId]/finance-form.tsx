@@ -284,7 +284,7 @@ export function TransactionFinanceForm({
         <StatCard hint="current finance input" label="Gross commission" value={summary?.grossCommissionLabel ?? "$0"} />
         <StatCard hint="sum of all pre-split fees" label="Pre-Split total" value={summary?.preSplitTotalLabel ?? "$0"} />
         <StatCard hint="sum of all post-split fees" label="Post-Split total" value={summary?.postSplitTotalLabel ?? "$0"} />
-        <StatCard hint="gross minus pre-split fees" label="Net commission base" value={summary?.netCommissionBaseLabel ?? "$0"} />
+        <StatCard hint="gross minus pre-split fees" label="Net commission" value={summary?.netCommissionBaseLabel ?? "$0"} />
         <StatCard hint="current final payout for the owner agent" label="Final agent net" value={summary?.agentNetLabel ?? "$0"} />
         <StatCard hint="current company payout" label="Final office net" value={summary?.officeNetLabel ?? "$0"} />
         <StatCard hint="latest saved commission version" label="Current version" value={summary?.currentVersionLabel ?? "Not calculated"} />

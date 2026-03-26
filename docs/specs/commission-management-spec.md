@@ -58,7 +58,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - one shared `Note` field instead of multiple fee-level note inputs
   - `Pre-Split Total`
   - `Post-Split Total`
-  - `Net Commission Base`
+  - `Net Commission`
   - `Final Agent Net`
   - `Final Office Net`
   - prerequisite flags for `client referral` / `rebate`
@@ -128,7 +128,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - calculation order:
   1. read `Gross Commission`
   2. sum all current `pre_split` fees
-  3. compute `Net Commission Base`
+  3. compute `Net Commission`
   4. run the split chain on the reduced base
   5. sum all current `post_split` fees
   6. deduct those fees from the owner agent row only
