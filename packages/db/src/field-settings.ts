@@ -367,6 +367,7 @@ export type OfficeFieldCustomDefinitionRecord = {
   type: TransactionCustomFieldType;
   isRequired: boolean;
   isVisible: boolean;
+  hasSavedValues: boolean;
   isDeletionLocked: boolean;
   isLockedDeletion: boolean;
   sortOrder: number;
@@ -881,6 +882,7 @@ function buildOfficeCustomFieldRecord(input: {
   type: TransactionCustomFieldType;
   isRequired: boolean;
   isVisible: boolean;
+  hasSavedValues?: boolean;
   isDeletionLocked: boolean;
   isLockedDeletion?: boolean;
   sortOrder: number;
@@ -896,6 +898,7 @@ function buildOfficeCustomFieldRecord(input: {
     type: input.type,
     isRequired: input.isRequired,
     isVisible: input.isVisible,
+    hasSavedValues: Boolean(input.hasSavedValues),
     isDeletionLocked: input.isDeletionLocked,
     isLockedDeletion: Boolean(input.isLockedDeletion),
     sortOrder: input.sortOrder,
@@ -1034,6 +1037,55 @@ async function listPersistedCustomFieldDefinitions(
   }
 }
 
+async function listCustomFieldKeysWithSavedValues(input: {
+  organizationId: string;
+  officeId?: string | null;
+  module: OfficeFieldModule;
+  db?: FieldSettingsReadClient;
+}): Promise<Set<string>> {
+  const db = input.db ?? prisma;
+  const scopedOfficeId = resolveFieldSettingsOfficeId(input.module, input.officeId);
+
+  if (input.module === "contact") {
+    const rows = await db.$queryRaw<Array<{ fieldKey: string }>>(Prisma.sql`
+      SELECT DISTINCT keys."fieldKey"
+      FROM "Client"
+      CROSS JOIN LATERAL jsonb_object_keys(COALESCE("additionalFields", '{}'::jsonb)) AS keys("fieldKey")
+      WHERE "organizationId" = ${input.organizationId}
+    `);
+
+    return new Set(rows.map((row) => row.fieldKey));
+  }
+
+  if (input.module === "offer") {
+    const officeFilter = scopedOfficeId
+      ? Prisma.sql`AND "officeId" = ${scopedOfficeId}`
+      : Prisma.sql`AND "officeId" IS NULL`;
+    const rows = await db.$queryRaw<Array<{ fieldKey: string }>>(Prisma.sql`
+      SELECT DISTINCT keys."fieldKey"
+      FROM "Offer"
+      CROSS JOIN LATERAL jsonb_object_keys(COALESCE("additionalFields", '{}'::jsonb)) AS keys("fieldKey")
+      WHERE "organizationId" = ${input.organizationId}
+      ${officeFilter}
+    `);
+
+    return new Set(rows.map((row) => row.fieldKey));
+  }
+
+  const officeFilter = scopedOfficeId
+    ? Prisma.sql`AND "officeId" = ${scopedOfficeId}`
+    : Prisma.sql`AND "officeId" IS NULL`;
+  const rows = await db.$queryRaw<Array<{ fieldKey: string }>>(Prisma.sql`
+    SELECT DISTINCT keys."fieldKey"
+    FROM "Transaction"
+    CROSS JOIN LATERAL jsonb_object_keys(COALESCE("additionalFields", '{}'::jsonb)) AS keys("fieldKey")
+    WHERE "organizationId" = ${input.organizationId}
+    ${officeFilter}
+  `);
+
+  return new Set(rows.map((row) => row.fieldKey));
+}
+
 async function getRequiredContactRoleRows(input: {
   organizationId: string;
   officeId?: string | null;
@@ -1085,9 +1137,10 @@ export async function getOfficeTransactionIntakeSchema(input: {
   officeId?: string | null;
   db?: FieldSettingsReadClient;
 }): Promise<OfficeTransactionIntakeSchema> {
-  const [transactionFieldSettings, transactionCustomFieldDefinitions] = await Promise.all([
+  const [transactionFieldSettings, transactionCustomFieldDefinitions, fieldKeysWithSavedValues] = await Promise.all([
     listPersistedBuiltInFieldSettings("transaction", input),
-    listPersistedCustomFieldDefinitions("transaction", { ...input, includeArchived: true })
+    listPersistedCustomFieldDefinitions("transaction", { ...input, includeArchived: true }),
+    listCustomFieldKeysWithSavedValues({ ...input, module: "transaction" })
   ]);
 
   const fieldSettingsMap = new Map(
@@ -1146,6 +1199,7 @@ export async function getOfficeTransactionIntakeSchema(input: {
         type: (persisted?.type ?? entry.type) as TransactionCustomFieldType,
         isRequired: persisted?.isRequired ?? legacyFallback?.isRequired ?? false,
         isVisible: systemManagedConfig?.isVisible ?? persisted?.isVisible ?? legacyFallback?.isVisible ?? true,
+        hasSavedValues: fieldKeysWithSavedValues.has(entry.fieldKey),
         isDeletionLocked,
         isLockedDeletion: isDefaultCustomFieldDeletionLocked(entry),
         sortOrder: persisted?.sortOrder ?? entry.sortOrder,
@@ -1168,6 +1222,7 @@ export async function getOfficeTransactionIntakeSchema(input: {
             type: entry.type,
             isRequired: entry.isRequired,
             isVisible: entry.isVisible,
+            hasSavedValues: fieldKeysWithSavedValues.has(entry.fieldKey),
             isDeletionLocked: entry.isDeletionLocked,
             isLockedDeletion: false,
             sortOrder: entry.sortOrder,
@@ -1191,7 +1246,8 @@ export async function getOfficeTransactionIntakeSchema(input: {
 function buildGenericModuleFieldSchema(
   module: "contact" | "offer",
   builtInSettings: PersistedFieldSetting[],
-  customDefinitions: PersistedCustomFieldDefinition[]
+  customDefinitions: PersistedCustomFieldDefinition[],
+  fieldKeysWithSavedValues: Set<string>
 ): OfficeContactFieldSchema | OfficeOfferFieldSchema {
   const builtInSettingMap = new Map(
     builtInSettings.map((entry) => [
@@ -1231,6 +1287,7 @@ function buildGenericModuleFieldSchema(
           type: entry.type,
           isRequired: entry.isRequired,
           isVisible: entry.isVisible,
+          hasSavedValues: fieldKeysWithSavedValues.has(entry.fieldKey),
           isDeletionLocked: entry.isDeletionLocked,
           isLockedDeletion: false,
           sortOrder: entry.sortOrder,
@@ -1253,12 +1310,18 @@ export async function getOfficeContactFieldSchema(input: {
   officeId?: string | null;
   db?: FieldSettingsReadClient;
 }): Promise<OfficeContactFieldSchema> {
-  const [builtInSettings, customDefinitions] = await Promise.all([
+  const [builtInSettings, customDefinitions, fieldKeysWithSavedValues] = await Promise.all([
     listPersistedBuiltInFieldSettings("contact", input),
-    listPersistedCustomFieldDefinitions("contact", { ...input, includeArchived: false })
+    listPersistedCustomFieldDefinitions("contact", { ...input, includeArchived: false }),
+    listCustomFieldKeysWithSavedValues({ ...input, module: "contact" })
   ]);
 
-  return buildGenericModuleFieldSchema("contact", builtInSettings, customDefinitions) as OfficeContactFieldSchema;
+  return buildGenericModuleFieldSchema(
+    "contact",
+    builtInSettings,
+    customDefinitions,
+    fieldKeysWithSavedValues
+  ) as OfficeContactFieldSchema;
 }
 
 export async function getOfficeOfferFieldSchema(input: {
@@ -1266,12 +1329,18 @@ export async function getOfficeOfferFieldSchema(input: {
   officeId?: string | null;
   db?: FieldSettingsReadClient;
 }): Promise<OfficeOfferFieldSchema> {
-  const [builtInSettings, customDefinitions] = await Promise.all([
+  const [builtInSettings, customDefinitions, fieldKeysWithSavedValues] = await Promise.all([
     listPersistedBuiltInFieldSettings("offer", input),
-    listPersistedCustomFieldDefinitions("offer", { ...input, includeArchived: false })
+    listPersistedCustomFieldDefinitions("offer", { ...input, includeArchived: false }),
+    listCustomFieldKeysWithSavedValues({ ...input, module: "offer" })
   ]);
 
-  return buildGenericModuleFieldSchema("offer", builtInSettings, customDefinitions) as OfficeOfferFieldSchema;
+  return buildGenericModuleFieldSchema(
+    "offer",
+    builtInSettings,
+    customDefinitions,
+    fieldKeysWithSavedValues
+  ) as OfficeOfferFieldSchema;
 }
 
 async function getOfficeFieldModuleSnapshot(input: {

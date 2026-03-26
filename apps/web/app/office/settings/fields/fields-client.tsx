@@ -224,6 +224,18 @@ function buildSummaryRecord(snapshot: OfficeFieldModuleSettingsSnapshot) {
   };
 }
 
+function getCustomFieldDeleteBlockReason(field: OfficeFieldCustomDefinitionRecord) {
+  if (field.isDeletionLocked) {
+    return `${field.label} is protected from deletion.`;
+  }
+
+  if (field.hasSavedValues) {
+    return `${field.label} already has saved values. Hide it instead of deleting it.`;
+  }
+
+  return undefined;
+}
+
 export function OfficeSettingsFieldsClient({
   snapshot,
   canManageFields,
@@ -371,6 +383,12 @@ export function OfficeSettingsFieldsClient({
     }
 
     if (entry.field.isDeletionLocked) {
+      return;
+    }
+
+    if (entry.field.hasSavedValues) {
+      setSubmitError(`${entry.field.label} already has saved values. Hide it instead of deleting it.`);
+      setSubmitSuccess("");
       return;
     }
 
@@ -902,7 +920,7 @@ export function OfficeSettingsFieldsClient({
                     }
                     title={
                       entry.kind === "custom" && entry.field.isDeletionLocked
-                        ? `${entry.field.label} is protected from deletion.`
+                        ? getCustomFieldDeleteBlockReason(entry.field)
                         : undefined
                     }
                     onClick={() =>
@@ -910,13 +928,27 @@ export function OfficeSettingsFieldsClient({
                         title:
                           entry.kind === "builtIn"
                             ? `Hide ${entry.field.label}?`
-                            : `Delete ${entry.field.label}?`,
+                            : entry.field.hasSavedValues
+                              ? `Hide ${entry.field.label} instead?`
+                              : `Delete ${entry.field.label}?`,
                         description:
                           entry.kind === "builtIn"
                             ? "This built-in field will be hidden from the module forms and can still be restored later from Hidden fields."
-                            : "This custom field will be permanently deleted only if no saved records still use it. If you just want to stop showing it, use Hide instead.",
-                        confirmLabel: entry.kind === "builtIn" ? "Hide field" : "Delete field",
+                            : entry.field.hasSavedValues
+                              ? "This custom field already has saved values in existing records, so it cannot be permanently deleted. Hide it from active forms instead and keep the historical data intact."
+                              : "This custom field will be permanently deleted only if no saved records still use it. If you just want to stop showing it, use Hide instead.",
+                        confirmLabel:
+                          entry.kind === "builtIn"
+                            ? "Hide field"
+                            : entry.field.hasSavedValues
+                              ? "Hide field"
+                              : "Delete field",
                         onConfirm: () => {
+                          if (entry.kind === "custom" && entry.field.hasSavedValues) {
+                            void handleHideField(entry);
+                            return;
+                          }
+
                           void handleDeleteField(entry);
                         }
                       })

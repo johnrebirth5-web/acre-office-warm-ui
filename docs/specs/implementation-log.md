@@ -167,6 +167,7 @@
   - built-in transaction field labels are now overrideable and persisted, so admins can rename display text such as `State` directly from the inline editor or the main settings page
   - report search fields, report columns, and CSV export headers now read those same shared labels instead of hardcoded report-only copies
   - field-setting mutation routes now read their updated transaction/contact/offer field snapshots inside the same Prisma transaction before responding, so inline editors no longer show the old field state on the first save attempt
+  - custom fields that already have saved values now surface an explicit `Hide instead` path in the field editor, so admins see why delete is blocked and can remove the field from active forms without losing historical data
 - Transaction status handling is now tightened around admin control:
   - `Create transaction` only allows `Pending / Closed / Cancelled`
   - non-admin creators are forced to `Pending`
