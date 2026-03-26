@@ -15848,7 +15848,22 @@ body,
 }
 
 .office-table-resizable-cell {
-  overflow: visible;
+  overflow: visible !important;
+  padding-right: 14px;
+}
+
+.office-table-resizable-cell::after {
+  content: "";
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  right: -1px;
+  width: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--office-border-strong) 88%, transparent);
+  opacity: 0.72;
+  pointer-events: none;
+  transition: opacity 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .office-table-resize-handle {
@@ -15876,8 +15891,11 @@ body,
   transition: opacity 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
+.office-table-resizable-cell:hover::after,
+.office-table-resizable-cell:focus-within::after,
 .office-table-resize-handle:hover::before,
 .office-table-resize-handle:active::before,
+.office-table-column-resizing .office-table-resizable-cell::after,
 .office-table-column-resizing .office-table-resize-handle::before {
   opacity: 1;
   background: var(--office-accent);
