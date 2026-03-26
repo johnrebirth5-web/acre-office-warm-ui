@@ -52,9 +52,22 @@ export function HorizontalScrollArea(props: HorizontalScrollAreaProps) {
 
     const clientWidth = viewport.clientWidth;
     const scrollWidth = viewport.scrollWidth;
+    const overflowDelta = scrollWidth - clientWidth;
+    const isColumnResizing =
+      typeof document !== "undefined" && document.body.classList.contains("office-table-column-resizing");
 
-    if (clientWidth <= 0 || scrollWidth - clientWidth <= 1) {
-      setMetrics((current) => (current.isOverflowing ? HIDDEN_METRICS : current));
+    if (clientWidth <= 0) {
+      return;
+    }
+
+    if (overflowDelta <= 1) {
+      setMetrics((current) => {
+        if (isColumnResizing && current.isOverflowing) {
+          return current;
+        }
+
+        return current.isOverflowing ? HIDDEN_METRICS : current;
+      });
       return;
     }
 
@@ -105,6 +118,20 @@ export function HorizontalScrollArea(props: HorizontalScrollAreaProps) {
       resizeObserver.disconnect();
     };
   }, [props.children, syncMetrics]);
+
+  useEffect(() => {
+    function handlePointerEnd() {
+      syncMetrics();
+    }
+
+    document.addEventListener("pointerup", handlePointerEnd);
+    document.addEventListener("pointercancel", handlePointerEnd);
+
+    return () => {
+      document.removeEventListener("pointerup", handlePointerEnd);
+      document.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  }, [syncMetrics]);
 
   function handleTrackPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.target !== event.currentTarget) {
