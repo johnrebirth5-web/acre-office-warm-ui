@@ -20,10 +20,10 @@ Evolve `/office/pipeline` into a stronger BoldTrail/Brokermint-style management 
   - my net income
   - my sales volume
 - office-level metrics are visible only to `owner` and `office_admin`
-- personal metrics reuse current office data scope:
-  - `team leader` sees self + branch
-  - `junior team leader` sees self + subordinate agents
-  - other roles stay self-scoped
+- personal `my_*` metrics stay self-scoped even when the viewer has team visibility elsewhere:
+  - `team leader` sees only deals where they are directly involved when a `my_*` metric is selected
+  - `junior team leader` also stays self-scoped for `my_*` metric rows and totals
+  - broader team visibility still exists in transactions/reporting surfaces outside these personal pipeline metrics
 - right-side rows now emphasize address, selected metric value, owner, and key date instead of the older grid table
 
 ## Current gaps

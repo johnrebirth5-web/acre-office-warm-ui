@@ -1,5 +1,5 @@
 import { Prisma, TransactionRepresenting, TransactionStatus, UserRole } from "@prisma/client";
-import { buildTransactionPortfolioVisibilityWhere, getMyScopedMembershipIds, resolveOfficeDataScope, type OfficeDataScope } from "./access";
+import { buildTransactionPortfolioVisibilityWhere, resolveOfficeDataScope, type OfficeDataScope } from "./access";
 import { prisma } from "./client";
 
 export type OfficePipelineStatus = "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
@@ -382,14 +382,14 @@ function buildMetricModeDescription(metricMode: OfficePipelineMetricMode) {
   }
 
   if (metricMode === "my_net_income") {
-    return "Uses stored agent net values for the current personal or branch scope; missing values are treated as zero.";
+    return "Uses stored agent net values attributed to the current viewer only; missing values are treated as zero.";
   }
 
   if (metricMode === "my_gross_commission") {
-    return "Uses stored gross commission values for transactions visible inside the current personal or branch scope; missing values are treated as zero.";
+    return "Uses transaction gross commission for deals where the current viewer is directly involved; missing values are treated as zero.";
   }
 
-  return "Uses transaction purchased price for the current personal or branch scope.";
+  return "Uses transaction purchased price for deals where the current viewer is directly involved.";
 }
 
 function buildTopLevelWhere(input: GetOfficePipelineWorkspaceInput, representing: OfficePipelineRepresentingFilter, scope: OfficeDataScope): Prisma.TransactionWhereInput {
@@ -450,7 +450,7 @@ function buildTopLevelWhere(input: GetOfficePipelineWorkspaceInput, representing
 }
 
 export function getMyPipelineVisibleMembershipIds(scope: OfficeDataScope) {
-  return getMyScopedMembershipIds(scope);
+  return [scope.viewerMembershipId];
 }
 
 function transactionMatchesMembershipScope(transaction: PipelineWorkspaceTransaction, membershipIds: string[]) {

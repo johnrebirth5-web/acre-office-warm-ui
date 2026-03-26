@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-03-26: `/office/pipeline` personal `my_*` metrics now stay truly self-scoped for team leaders and junior team leaders:
+  - `My net income` no longer rolls subordinate commission rows into branch-leader totals
+  - selecting a personal pipeline metric now also hides subordinate-only deals where the current viewer has no direct participation
+  - this change is limited to pipeline personal metrics; broader team-scope transaction/reporting surfaces keep their existing team visibility rules
 - 2026-03-26: transaction commission detail and saved payout statements now surface named post-split fee detail instead of leaving `External Referral`, `Company Referral`, and `Channel Development Fee` hidden behind one merged company adjustment:
   - transaction `Commission` now shows a dedicated post-split fee table for those three rows
   - generated `AgentPayoutStatementLine` snapshots now persist fee-breakdown JSON so saved statement detail / PDF can keep showing the named post-split breakdown even after later recalculation

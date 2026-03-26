@@ -62,7 +62,7 @@ test("legacy metric params normalize into supported office or my modes", () => {
   assert.equal(normalizeOfficePipelineMetricMode("my_gross_commission", false), "my_gross_commission");
 });
 
-test("my metric visibility uses self for org scope and branch scope for team visibility", () => {
+test("my metric visibility always stays self scoped", () => {
   assert.deepEqual(
     getMyPipelineVisibleMembershipIds(
       buildScope({
@@ -79,7 +79,7 @@ test("my metric visibility uses self for org scope and branch scope for team vis
         visibleMembershipIds: ["viewer-membership", "junior-lead", "agent-a", "agent-b"]
       })
     ),
-    ["viewer-membership", "junior-lead", "agent-a", "agent-b"]
+    ["viewer-membership"]
   );
   assert.deepEqual(getMyPipelineVisibleMembershipIds(buildScope({ kind: "self" })), ["viewer-membership"]);
 });

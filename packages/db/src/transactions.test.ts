@@ -969,3 +969,239 @@ test("transactions summary label follows the viewer scope", async () => {
     await context.cleanup();
   }
 });
+
+test("pipeline my net income stays self scoped for team leaders", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const teamLead = await context.createMembership("team_lead", "pipeline-team-lead");
+    const juniorLead = await context.createMembership("team_lead", "pipeline-junior-lead");
+    const agent = await context.createMembership("agent", "pipeline-agent");
+    const rootTeam = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: `Pipeline Root Team ${randomUUID().slice(0, 8)}`,
+        slug: `pipeline-root-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+    const childTeam = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: `Pipeline Child Team ${randomUUID().slice(0, 8)}`,
+        slug: `pipeline-child-team-${randomUUID().slice(0, 8)}`,
+        parentTeamId: rootTeam.id
+      }
+    });
+    const rootLeaderTeamMembership = await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: rootTeam.id,
+        membershipId: teamLead.membership.id,
+        role: "team_leader"
+      }
+    });
+    const juniorLeaderTeamMembership = await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: childTeam.id,
+        membershipId: juniorLead.membership.id,
+        role: "junior_team_leader",
+        reportsToTeamMembershipId: rootLeaderTeamMembership.id
+      }
+    });
+
+    await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: childTeam.id,
+        membershipId: agent.membership.id,
+        role: "member",
+        reportsToTeamMembershipId: juniorLeaderTeamMembership.id
+      }
+    });
+
+    const sharedLeadershipDeal = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: agent.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "78 Leadership Ln",
+      city: "Queens",
+      state: "NY",
+      zipCode: "11101",
+      transactionName: "Leadership Split Deal",
+      price: "100000",
+      grossCommission: "10000",
+      officeNet: "3000",
+      agentNet: "7000"
+    });
+    const agentOnlyDeal = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: agent.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "79 Agent Only Ave",
+      city: "Queens",
+      state: "NY",
+      zipCode: "11102",
+      transactionName: "Agent Only Deal",
+      price: "125000",
+      grossCommission: "7000",
+      officeNet: "2000",
+      agentNet: "5000"
+    });
+
+    await prisma.commissionCalculation.createMany({
+      data: [
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: sharedLeadershipDeal.id,
+          membershipId: teamLead.membership.id,
+          recipientType: "agent",
+          recipientRole: "team_leader",
+          recipientName: "Pipeline Team Lead",
+          grossCommission: new Prisma.Decimal(10000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(3000),
+          statementAmount: new Prisma.Decimal(3000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: sharedLeadershipDeal.id,
+          membershipId: juniorLead.membership.id,
+          recipientType: "agent",
+          recipientRole: "junior_team_leader",
+          recipientName: "Pipeline Junior Lead",
+          grossCommission: new Prisma.Decimal(10000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(2000),
+          statementAmount: new Prisma.Decimal(2000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: sharedLeadershipDeal.id,
+          membershipId: agent.membership.id,
+          recipientType: "agent",
+          recipientRole: "agent",
+          recipientName: "Pipeline Agent",
+          grossCommission: new Prisma.Decimal(10000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(2000),
+          statementAmount: new Prisma.Decimal(2000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: sharedLeadershipDeal.id,
+          membershipId: null,
+          recipientType: "brokerage",
+          recipientRole: "brokerage",
+          recipientName: "Company",
+          grossCommission: new Prisma.Decimal(10000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(3000),
+          agentNet: new Prisma.Decimal(0),
+          statementAmount: new Prisma.Decimal(3000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: agentOnlyDeal.id,
+          membershipId: agent.membership.id,
+          recipientType: "agent",
+          recipientRole: "agent",
+          recipientName: "Pipeline Agent",
+          grossCommission: new Prisma.Decimal(7000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(5000),
+          statementAmount: new Prisma.Decimal(5000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:30:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: agentOnlyDeal.id,
+          membershipId: null,
+          recipientType: "brokerage",
+          recipientRole: "brokerage",
+          recipientName: "Company",
+          grossCommission: new Prisma.Decimal(7000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(2000),
+          agentNet: new Prisma.Decimal(0),
+          statementAmount: new Prisma.Decimal(2000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:30:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        }
+      ]
+    });
+
+    const teamLeadPipeline = await getOfficePipelineWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: teamLead.membership.id,
+      officeId: context.office.id,
+      metricMode: "my_net_income",
+      view: "pending"
+    });
+    const juniorLeadPipeline = await getOfficePipelineWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: juniorLead.membership.id,
+      officeId: context.office.id,
+      metricMode: "my_net_income",
+      view: "pending"
+    });
+
+    assert.equal(teamLeadPipeline.rows.length, 1);
+    assert.equal(teamLeadPipeline.rows[0]?.id, sharedLeadershipDeal.id);
+    assert.equal(teamLeadPipeline.rows[0]?.amountLabel, "$3,000");
+    assert.equal(teamLeadPipeline.summary.totalMetricLabel, "$3,000");
+    assert.equal(teamLeadPipeline.pendingSummary.metricLabel, "$3,000");
+
+    assert.equal(juniorLeadPipeline.rows.length, 1);
+    assert.equal(juniorLeadPipeline.rows[0]?.id, sharedLeadershipDeal.id);
+    assert.equal(juniorLeadPipeline.rows[0]?.amountLabel, "$2,000");
+    assert.equal(juniorLeadPipeline.summary.totalMetricLabel, "$2,000");
+    assert.equal(juniorLeadPipeline.pendingSummary.metricLabel, "$2,000");
+  } finally {
+    await context.cleanup();
+  }
+});
