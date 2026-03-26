@@ -46,11 +46,11 @@ test("only owner and office admin can access office pipeline metrics", () => {
 test("metric option catalog narrows to my metrics for non-admin users", () => {
   assert.deepEqual(
     getOfficePipelineMetricOptions(true).map((option) => option.value),
-    ["office_net", "office_sales_volume", "office_gross", "my_net_income", "my_sales_volume"]
+    ["office_net", "office_sales_volume", "office_gross", "my_net_income", "my_gross_commission", "my_sales_volume"]
   );
   assert.deepEqual(
     getOfficePipelineMetricOptions(false).map((option) => option.value),
-    ["my_net_income", "my_sales_volume"]
+    ["my_net_income", "my_gross_commission", "my_sales_volume"]
   );
 });
 
@@ -59,6 +59,7 @@ test("legacy metric params normalize into supported office or my modes", () => {
   assert.equal(normalizeOfficePipelineMetricMode("transaction_volume", false), "my_sales_volume");
   assert.equal(normalizeOfficePipelineMetricMode("office_net", false), "my_sales_volume");
   assert.equal(normalizeOfficePipelineMetricMode("my_net_income", false), "my_net_income");
+  assert.equal(normalizeOfficePipelineMetricMode("my_gross_commission", false), "my_gross_commission");
 });
 
 test("my metric visibility uses self for org scope and branch scope for team visibility", () => {

@@ -10,6 +10,7 @@ export type OfficePipelineMetricMode =
   | "office_sales_volume"
   | "office_gross"
   | "my_net_income"
+  | "my_gross_commission"
   | "my_sales_volume";
 export type OfficePipelineHistoryStatus = "Closed";
 export type OfficePipelineRepresentingFilter = TransactionRepresenting | "all";
@@ -144,7 +145,7 @@ type NormalizedPipelineSelectionInput = {
 const pipelineHistoryWindowMonths = 6;
 const supportedHistoryStatus: OfficePipelineHistoryStatus = "Closed";
 const officePipelineMetricOrder: OfficePipelineMetricMode[] = ["office_net", "office_sales_volume", "office_gross"];
-const myPipelineMetricOrder: OfficePipelineMetricMode[] = ["my_net_income", "my_sales_volume"];
+const myPipelineMetricOrder: OfficePipelineMetricMode[] = ["my_net_income", "my_gross_commission", "my_sales_volume"];
 
 const pipelineStatusFromDb: Record<TransactionStatus, OfficePipelineStatus> = {
   opportunity: "Opportunity",
@@ -167,6 +168,7 @@ const metricModeLabels: Record<OfficePipelineMetricMode, string> = {
   office_sales_volume: "Office sales volume",
   office_gross: "Office gross",
   my_net_income: "My net income",
+  my_gross_commission: "My gross commission",
   my_sales_volume: "My sales volume"
 };
 
@@ -220,7 +222,7 @@ export function normalizeOfficePipelineMetricMode(value: string | undefined, can
     return canViewOfficeMetrics ? value : getDefaultMetricMode(false);
   }
 
-  if (value === "my_net_income" || value === "my_sales_volume") {
+  if (value === "my_net_income" || value === "my_gross_commission" || value === "my_sales_volume") {
     return value;
   }
 
@@ -305,7 +307,7 @@ function formatMonthLabel(monthKey: string) {
 }
 
 function isMyMetricMode(metricMode: OfficePipelineMetricMode) {
-  return metricMode === "my_net_income" || metricMode === "my_sales_volume";
+  return metricMode === "my_net_income" || metricMode === "my_gross_commission" || metricMode === "my_sales_volume";
 }
 
 function getPurchasedPriceValue(transaction: Pick<PipelineWorkspaceTransaction, "purchasedPrice" | "price">) {
@@ -338,6 +340,10 @@ function getTransactionMetricValue(
     }
 
     return membershipIds.includes(transaction.ownerMembershipId ?? "") ? Number(transaction.agentNet ?? 0) : 0;
+  }
+
+  if (metricMode === "my_gross_commission") {
+    return Number(transaction.grossCommission ?? 0);
   }
 
   return getPurchasedPriceValue(transaction);
@@ -377,6 +383,10 @@ function buildMetricModeDescription(metricMode: OfficePipelineMetricMode) {
 
   if (metricMode === "my_net_income") {
     return "Uses stored agent net values for the current personal or branch scope; missing values are treated as zero.";
+  }
+
+  if (metricMode === "my_gross_commission") {
+    return "Uses stored gross commission values for transactions visible inside the current personal or branch scope; missing values are treated as zero.";
   }
 
   return "Uses transaction purchased price for the current personal or branch scope.";

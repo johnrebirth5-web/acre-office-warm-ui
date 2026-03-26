@@ -288,9 +288,10 @@ Trade-off：
 - 当前这条迁移已经从 `Transactions` 和 `Contacts` 开始落地：
   - dashboard 业务指标 / recent transactions / access summary 已切到 Prisma + session context
   - pipeline 已切到 Prisma，并继续收敛成 `Pending + Closed history` 的双栏 workspace
-  - 当前 metric mode 暴露真实可得的 `Office net`、`Office sales volume`、`Office gross`、`My net income`、`My sales volume`
+  - 当前 metric mode 暴露真实可得的 `Office net`、`Office sales volume`、`Office gross`、`My net income`、`My gross commission`、`My sales volume`
   - office-level metrics 仅对 `owner / office_admin` 可见；my metrics 复用现有 office scope 作为 self / branch 可见范围
   - `Office gross` 当前使用 transaction finance 上已存储的 `grossCommission`，缺失值按 `0` 处理
+  - `My gross commission` 同样使用 transaction finance 上已存储的 `grossCommission`，但只统计当前 self / branch scope 内可见的 transaction
   - pipeline 的月度历史当前只主展示 `Closed`，并优先使用 `closingDate`，没有时回退到 `updatedAt`
   - transaction list/detail/create/status update 已经切到 Prisma
   - transaction finance 先用 `Transaction` 上的 5 个可空字段落地，而不是单独 finance model

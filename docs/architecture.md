@@ -83,10 +83,14 @@
   - `Closed / Cancelled` 月度 rollup
   - query-param 驱动的 search / side / owner / metric mode 过滤
   - 当前 metric mode 支持：
-    - `Transaction volume`
+    - `Office sales volume`
     - `Office net`
     - `Office gross`
+    - `My sales volume`
+    - `My gross commission`
+    - `My net income`
   - `Office gross` 当前来自 transaction finance 上已存储的 `grossCommission`
+  - `My gross commission` 复用同一个 `grossCommission` 字段，但只汇总当前 self / branch scope 可见的 transactions
   - stage / history 选择会直接驱动右侧 working list，并保存在 shareable URL 中
   - 当前 stage / history 选择可清除回保留 top filters 的 `all filtered transactions`
 - 当前 `Reports` 页面已收口为 transaction-centric reporting workspace：

@@ -778,6 +778,13 @@ test("commission participants can see shared transactions and their scoped incom
       metricMode: "my_net_income",
       view: "pending"
     });
+    const taiZiPipelineGross = await getOfficePipelineWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: taiZi.membership.id,
+      officeId: context.office.id,
+      metricMode: "my_gross_commission",
+      view: "pending"
+    });
     const taiZiTransactionDetail = await getTransactionById({
       organizationId: context.organization.id,
       viewerMembershipId: taiZi.membership.id,
@@ -826,6 +833,12 @@ test("commission participants can see shared transactions and their scoped incom
     assert.equal(taiZiPipeline.rows[0]?.id, transaction.id);
     assert.equal(taiZiPipeline.rows[0]?.amountLabel, "$2,000");
     assert.equal(taiZiPipeline.summary.totalMetricLabel, "$2,000");
+
+    assert.equal(taiZiPipelineGross.metricModeLabel, "My gross commission");
+    assert.equal(taiZiPipelineGross.rows.length, 1);
+    assert.equal(taiZiPipelineGross.rows[0]?.id, transaction.id);
+    assert.equal(taiZiPipelineGross.rows[0]?.amountLabel, "$9,000");
+    assert.equal(taiZiPipelineGross.summary.totalMetricLabel, "$9,000");
   } finally {
     await context.cleanup();
   }

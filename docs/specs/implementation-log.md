@@ -8,6 +8,7 @@
 
 ## Recently completed major work
 
+- 2026-03-26: `/office/pipeline` now exposes `My gross commission` alongside the existing self-service metrics so agents and branch-scoped leads can review gross commission totals without unlocking office-wide metrics
 - 2026-03-26: transaction visibility is now split between portfolio-style surfaces and full transaction workspace access:
   - manual/default commission participants can see shared deals and their own scoped income in list-style surfaces such as `Transactions`, `Pipeline`, and dashboard summaries without inheriting the full transaction detail/edit workspace
   - transaction detail, intake edits, finance edits, and other workspace-scoped operations stay limited to owners and non-commission collaborators instead of treating payout participation as a blanket transaction permission
