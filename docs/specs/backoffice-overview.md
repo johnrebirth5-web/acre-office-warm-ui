@@ -216,7 +216,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `MVP`
 - Current notable behavior:
   - `/office/accounting` is now an `office_admin`-only `Agent Statements` workspace.
-  - the page lets admin select an agent, load that agent's invoice-number candidates, and generate a payout statement from the selected invoice numbers, with an optional preview/uncheck pass before final generation.
+  - the page lets admin select an agent, load that agent's invoice-number candidates, and work inside one combined `Statement candidates` card where invoice selection and candidate-row preview stay together before final generation.
   - `Candidate rows` now support an in-place transaction drilldown modal backed by the live transaction detail workspace, so admins can inspect or edit the source transaction without navigating away from the current statement selection.
   - closing that modal refreshes the current accounting snapshot while keeping the admin inside the same payout-statement workflow instead of forcing a route change.
   - invited agents remain selectable for admin-operated accounting workflows; `invited` only means the agent has not completed self-login, not that the office should be blocked from creating transactions, calculating commissions, or generating payout statements for them.

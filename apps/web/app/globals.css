@@ -8323,6 +8323,35 @@ a {
   border-radius: 8px;
 }
 
+.office-accounting-candidate-workspace {
+  display: grid;
+  gap: 20px;
+}
+
+.office-accounting-candidate-block {
+  display: grid;
+  gap: 14px;
+}
+
+.office-accounting-candidate-block + .office-accounting-candidate-block {
+  padding-top: 18px;
+  border-top: 1px solid rgba(203, 213, 225, 0.72);
+}
+
+.office-accounting-candidate-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.office-accounting-candidate-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
 .office-transaction-detail-embedded {
   min-height: 100vh;
   padding: 18px;

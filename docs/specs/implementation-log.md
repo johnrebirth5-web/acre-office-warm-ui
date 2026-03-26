@@ -8,6 +8,9 @@
 
 ## Recently completed major work
 
+- 2026-03-26: `/office/accounting` statement generation UI now uses one combined candidate workspace instead of two stacked selection cards:
+  - `Invoice selection` and `Candidate rows` are now rendered inside one `Statement candidates` card with `Invoices` and `Rows` sub-blocks, reducing duplicate context while keeping invoice-number generation semantics intact
+  - the preview/uncheck flow still exists, but it now stays visually inside the same workspace the admin is already using to assemble the payout statement
 - 2026-03-26: `/office/accounting` candidate rows can now open source transactions inside the same statement workspace instead of forcing a full-page route change:
   - `Candidate rows` transaction titles now open an embedded transaction-detail modal with the existing intake, finance, commission, task, document, and offer editing surfaces
   - the embedded modal uses a dedicated no-sidebar transaction route so the full Office shell is not nested inside the accounting overlay

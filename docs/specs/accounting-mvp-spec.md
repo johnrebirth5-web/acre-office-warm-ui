@@ -19,7 +19,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - EMD workflow exists
 - agent payout statements now exist:
   - direct statement generation from selected invoice numbers on eligible unpaid agent commission rows
-  - optional candidate preview / uncheck flow before final generation
+  - one combined statement-candidates workspace now keeps invoice selection and candidate-row preview in the same card, with an optional preview / uncheck flow before final generation
   - candidate-row transaction drilldown now opens inside the accounting workspace as an embedded transaction detail modal, so admins can review or edit the source transaction/finance data without leaving the current statement selection
   - closing the embedded transaction modal refreshes the current accounting snapshot while keeping the statement workflow context on the same page
   - invoice matching currently comes from the transaction `invoiceNumber` field; there is no separate invoice-receipt truth model yet

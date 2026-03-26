@@ -725,52 +725,157 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       </ListPageSection>
 
       <ListPageSection
-        actions={
-          hasLoadedAgent && snapshot.filters.invoiceOptions.length > 0 ? (
-            <div className="office-section-actions">
-              <Button onClick={() => toggleAllInvoiceOptions(true)} size="sm" type="button" variant="secondary">
-                Select all
-              </Button>
-              <Button onClick={() => toggleAllInvoiceOptions(false)} size="sm" type="button" variant="ghost">
-                Clear
-              </Button>
-              <Button disabled={isPreviewLoading || !hasSelectedInvoices} onClick={handlePreviewSelectedInvoices} size="sm" type="button" variant="secondary">
-                {isPreviewLoading ? "Loading..." : "Preview invoices"}
-              </Button>
-            </div>
-          ) : null
-        }
-        subtitle="Select one or more invoice numbers for the loaded agent. Each invoice contributes all matching eligible rows unless you later uncheck specific rows in preview."
-        title="Invoice selection"
+        subtitle="Select invoice numbers and review the matching commission rows in one workspace before generating the statement."
+        title="Statement candidates"
       >
         {hasLoadedAgent ? (
           snapshot.filters.invoiceOptions.length > 0 ? (
-            <HorizontalScrollArea>
-              <DataTable className="office-table">
-                <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
-                  <span>Select</span>
-                  <span>Invoice number</span>
-                  <span>Rows</span>
-                  <span>Payout</span>
-                </DataTableHeader>
-                <DataTableBody>
-                  {snapshot.filters.invoiceOptions.map((option) => (
-                    <DataTableRow className="office-table-row office-table-row-ledger" key={option.invoiceNumber}>
-                      <CheckboxField label="">
-                        <input
-                          checked={selectedInvoiceLookup.has(option.invoiceNumber)}
-                          onChange={(event) => toggleInvoiceOption(option.invoiceNumber, event.target.checked)}
-                          type="checkbox"
-                        />
-                      </CheckboxField>
-                      <strong>{option.invoiceNumber}</strong>
-                      <span>{option.rowCount}</span>
-                      <span>{option.totalStatementAmountLabel}</span>
-                    </DataTableRow>
-                  ))}
-                </DataTableBody>
-              </DataTable>
-            </HorizontalScrollArea>
+            <div className="office-accounting-candidate-workspace">
+              <div className="office-accounting-candidate-block">
+                <div className="office-accounting-candidate-head">
+                  <div className="office-accounting-candidate-copy">
+                    <span className="office-mini-heading">Invoices</span>
+                    <p className="office-form-helper">
+                      Select one or more invoice numbers for the loaded agent. Each invoice contributes all matching eligible rows unless you later uncheck specific rows below.
+                    </p>
+                  </div>
+                  <div className="office-section-actions">
+                    <Button onClick={() => toggleAllInvoiceOptions(true)} size="sm" type="button" variant="secondary">
+                      Select all
+                    </Button>
+                    <Button onClick={() => toggleAllInvoiceOptions(false)} size="sm" type="button" variant="ghost">
+                      Clear
+                    </Button>
+                    <Button
+                      disabled={isPreviewLoading || !hasSelectedInvoices}
+                      onClick={handlePreviewSelectedInvoices}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {isPreviewLoading ? "Loading..." : "Preview rows"}
+                    </Button>
+                  </div>
+                </div>
+
+                <HorizontalScrollArea>
+                  <DataTable className="office-table">
+                    <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                      <span>Select</span>
+                      <span>Invoice number</span>
+                      <span>Rows</span>
+                      <span>Payout</span>
+                    </DataTableHeader>
+                    <DataTableBody>
+                      {snapshot.filters.invoiceOptions.map((option) => (
+                        <DataTableRow className="office-table-row office-table-row-ledger" key={option.invoiceNumber}>
+                          <CheckboxField label="">
+                            <input
+                              checked={selectedInvoiceLookup.has(option.invoiceNumber)}
+                              onChange={(event) => toggleInvoiceOption(option.invoiceNumber, event.target.checked)}
+                              type="checkbox"
+                            />
+                          </CheckboxField>
+                          <strong>{option.invoiceNumber}</strong>
+                          <span>{option.rowCount}</span>
+                          <span>{option.totalStatementAmountLabel}</span>
+                        </DataTableRow>
+                      ))}
+                    </DataTableBody>
+                  </DataTable>
+                </HorizontalScrollArea>
+              </div>
+
+              <div className="office-accounting-candidate-block">
+                <div className="office-accounting-candidate-head">
+                  <div className="office-accounting-candidate-copy">
+                    <span className="office-mini-heading">Rows</span>
+                    <p className="office-form-helper">
+                      Preview the commission rows under the currently selected invoice numbers. You can uncheck individual rows before generating.
+                    </p>
+                  </div>
+                  {snapshot.candidateRows.length > 0 && previewMatchesFilter ? (
+                    <div className="office-section-actions">
+                      <Button onClick={() => toggleAllCandidates(true)} size="sm" type="button" variant="secondary">
+                        Select all rows
+                      </Button>
+                      <Button onClick={() => toggleAllCandidates(false)} size="sm" type="button" variant="ghost">
+                        Clear rows
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {hasSelectedInvoices ? (
+                  previewMatchesFilter ? (
+                    snapshot.candidateRows.length > 0 ? (
+                      <HorizontalScrollArea>
+                        <DataTable className="office-table">
+                          <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                            <span>Select</span>
+                            <span>Invoice</span>
+                            <span>Transaction</span>
+                            <span>Closing</span>
+                            <span>Calculated</span>
+                            <span>Gross</span>
+                            <span>Fees</span>
+                            <span>Payout</span>
+                            <span>Status</span>
+                          </DataTableHeader>
+                          <DataTableBody>
+                            {snapshot.candidateRows.map((row) => (
+                              <DataTableRow className="office-table-row office-table-row-ledger" key={row.id}>
+                                <CheckboxField label="">
+                                  <input
+                                    checked={selectedIdLookup.has(row.id)}
+                                    disabled={!row.isGenerateEligible}
+                                    onChange={(event) => toggleCandidate(row.id, event.target.checked)}
+                                    type="checkbox"
+                                  />
+                                </CheckboxField>
+                                <span>{formatStatementCellValue(row.invoiceNumber)}</span>
+                                <div className="office-table-primary">
+                                  <strong>
+                                    <button
+                                      className="office-inline-link office-accounting-candidate-trigger"
+                                      onClick={() => openTransactionEditor(row)}
+                                      type="button"
+                                    >
+                                      {row.transactionLabel}
+                                    </button>
+                                  </strong>
+                                  <p>{row.propertyAddress}</p>
+                                </div>
+                                <span>{row.closingDate || "Missing"}</span>
+                                <span>{row.calculatedAt}</span>
+                                <span>{row.grossCommissionLabel}</span>
+                                <span>{row.feesLabel}</span>
+                                <span>{row.statementAmountLabel}</span>
+                                <span>
+                                  <StatusBadge tone={getStatementStatusTone(row.status)}>{row.status}</StatusBadge>
+                                </span>
+                              </DataTableRow>
+                            ))}
+                          </DataTableBody>
+                        </DataTable>
+                      </HorizontalScrollArea>
+                    ) : (
+                      <EmptyState
+                        description="No eligible rows are currently available under the selected invoice numbers."
+                        title="No payout candidates"
+                      />
+                    )
+                  ) : (
+                    <EmptyState
+                      description="Click Preview rows to load the exact commission rows for the currently selected invoice numbers."
+                      title="Preview selected rows"
+                    />
+                  )
+                ) : (
+                  <EmptyState description="Select one or more invoice numbers to load the matching commission rows." title="Choose invoices" />
+                )}
+              </div>
+            </div>
           ) : (
             <EmptyState
               description="This agent does not currently have any eligible commission rows with a saved invoice number."
@@ -779,92 +884,6 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           )
         ) : (
           <EmptyState description="Choose an agent and load their invoice candidates first." title="Load agent invoices" />
-        )}
-      </ListPageSection>
-
-      <ListPageSection
-        actions={
-          snapshot.candidateRows.length > 0 && previewMatchesFilter ? (
-            <div className="office-section-actions">
-              <Button onClick={() => toggleAllCandidates(true)} size="sm" type="button" variant="secondary">
-                Select all rows
-              </Button>
-              <Button onClick={() => toggleAllCandidates(false)} size="sm" type="button" variant="ghost">
-                Clear rows
-              </Button>
-            </div>
-          ) : null
-        }
-        subtitle="Preview the commission rows under the currently selected invoice numbers. You can uncheck individual rows before generating."
-        title="Candidate rows"
-      >
-        {hasLoadedAgent ? (
-          hasSelectedInvoices ? (
-            previewMatchesFilter ? (
-              snapshot.candidateRows.length > 0 ? (
-                <HorizontalScrollArea>
-                  <DataTable className="office-table">
-                    <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
-                      <span>Select</span>
-                      <span>Invoice</span>
-                      <span>Transaction</span>
-                      <span>Closing</span>
-                      <span>Calculated</span>
-                      <span>Gross</span>
-                      <span>Fees</span>
-                      <span>Payout</span>
-                      <span>Status</span>
-                    </DataTableHeader>
-                    <DataTableBody>
-                      {snapshot.candidateRows.map((row) => (
-                        <DataTableRow className="office-table-row office-table-row-ledger" key={row.id}>
-                          <CheckboxField label="">
-                            <input
-                              checked={selectedIdLookup.has(row.id)}
-                              disabled={!row.isGenerateEligible}
-                              onChange={(event) => toggleCandidate(row.id, event.target.checked)}
-                              type="checkbox"
-                            />
-                          </CheckboxField>
-                          <span>{formatStatementCellValue(row.invoiceNumber)}</span>
-                          <div className="office-table-primary">
-                            <strong>
-                              <button className="office-inline-link office-accounting-candidate-trigger" onClick={() => openTransactionEditor(row)} type="button">
-                                {row.transactionLabel}
-                              </button>
-                            </strong>
-                            <p>{row.propertyAddress}</p>
-                          </div>
-                          <span>{row.closingDate || "Missing"}</span>
-                          <span>{row.calculatedAt}</span>
-                          <span>{row.grossCommissionLabel}</span>
-                          <span>{row.feesLabel}</span>
-                          <span>{row.statementAmountLabel}</span>
-                          <span>
-                            <StatusBadge tone={getStatementStatusTone(row.status)}>{row.status}</StatusBadge>
-                          </span>
-                        </DataTableRow>
-                      ))}
-                    </DataTableBody>
-                  </DataTable>
-                </HorizontalScrollArea>
-              ) : (
-                <EmptyState
-                  description="No eligible rows are currently available under the selected invoice numbers."
-                  title="No payout candidates"
-                />
-              )
-            ) : (
-              <EmptyState
-                description="Preview the selected invoice numbers to load the exact commission rows before making row-level adjustments."
-                title="Preview selected invoices"
-              />
-            )
-          ) : (
-            <EmptyState description="Select one or more invoice numbers to load the matching commission rows." title="Choose invoices" />
-          )
-        ) : (
-          <EmptyState description="Load an agent's invoice candidates before previewing commission rows." title="Load agent invoices" />
         )}
       </ListPageSection>
 
