@@ -15871,15 +15871,17 @@ body,
   width: 2px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--office-border-strong) 72%, transparent);
-  opacity: 0;
-  transition: opacity 160ms ease, background 160ms ease;
+  background: color-mix(in srgb, var(--office-border-strong) 84%, transparent);
+  opacity: 0.52;
+  transition: opacity 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .office-table-resize-handle:hover::before,
 .office-table-resize-handle:active::before,
 .office-table-column-resizing .office-table-resize-handle::before {
   opacity: 1;
+  background: var(--office-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--office-accent-soft) 70%, transparent);
 }
 
 .office-table-column-resizing,
