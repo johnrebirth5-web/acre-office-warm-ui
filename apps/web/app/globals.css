@@ -8348,7 +8348,7 @@ a {
   line-height: var(--office-line-body);
 }
 
-.office-accounting-transaction-modal-body {
+.office-accounting-transaction-modal .office-accounting-transaction-modal-body {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
@@ -8356,12 +8356,12 @@ a {
   margin: 0;
 }
 
-.office-accounting-transaction-frame-wrap {
+.office-accounting-transaction-modal .office-accounting-transaction-frame-wrap {
   min-height: 0;
   height: 100%;
 }
 
-.office-accounting-transaction-frame {
+.office-accounting-transaction-modal .office-accounting-transaction-frame {
   height: 100%;
   min-height: 720px;
 }
