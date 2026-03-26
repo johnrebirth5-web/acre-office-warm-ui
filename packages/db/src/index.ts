@@ -72,6 +72,7 @@ export const databaseModules = [
 export { assertDatabaseUrl, getPrismaClient, prisma } from "./client";
 export {
   buildMembershipVisibilityWhere,
+  buildTransactionPortfolioVisibilityWhere,
   buildTransactionMembershipLinkVisibilityWhere,
   buildTransactionVisibilityWhere,
   canAccessMembership,

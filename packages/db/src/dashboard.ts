@@ -1,5 +1,5 @@
 import { Prisma, TransactionStatus } from "@prisma/client";
-import { buildMembershipVisibilityWhere, buildTransactionVisibilityWhere, resolveOfficeDataScope } from "./access";
+import { buildMembershipVisibilityWhere, buildTransactionPortfolioVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 
 export type OfficeDashboardStatusMetric = {
@@ -153,7 +153,7 @@ export async function getOfficeDashboardBusinessSnapshot(
         organizationId: input.organizationId,
         ...(input.officeId ? { officeId: input.officeId } : {})
       },
-      buildTransactionVisibilityWhere(scope)
+      buildTransactionPortfolioVisibilityWhere(scope)
     ]
   };
 

@@ -11,12 +11,14 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import {
+  buildTransactionPortfolioVisibilityWhere,
   buildTransactionVisibilityWhere,
   canViewCrossMemberFinancials,
   canViewFinancialsForMembership,
   getMyScopedMembershipIds,
   redactCurrency,
-  resolveOfficeDataScope
+  resolveOfficeDataScope,
+  type OfficeDataScope
 } from "./access";
 import { prisma } from "./client";
 import {
@@ -63,6 +65,7 @@ export type OfficeTransactionRecord = {
 export type OfficeTransactionSummary = {
   totalCount: number;
   totalNetIncome: string;
+  totalNetIncomeLabel: string;
 };
 
 export type OfficeTransactionSelectOption = {
@@ -1059,6 +1062,18 @@ function formatCurrency(value: Prisma.Decimal | number | string | null | undefin
     currency: "USD",
     maximumFractionDigits: numericValue % 1 === 0 ? 0 : 2
   }).format(numericValue);
+}
+
+function getTotalNetIncomeLabel(scope: OfficeDataScope) {
+  if (canViewCrossMemberFinancials(scope)) {
+    return "Office net income";
+  }
+
+  if (scope.kind === "team") {
+    return "Team net income";
+  }
+
+  return "My net income";
 }
 
 function formatOptionalCurrency(value: Prisma.Decimal | number | string | null | undefined) {
@@ -2101,7 +2116,7 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     {
       organizationId: input.organizationId
     },
-    buildTransactionVisibilityWhere(scope)
+    buildTransactionPortfolioVisibilityWhere(scope)
   ];
   const requestedPage = Number.isFinite(input.page) ? Number(input.page) : defaultTransactionsPage;
   const requestedPageSize = Number.isFinite(input.pageSize) ? Number(input.pageSize) : defaultTransactionsPageSize;
@@ -2279,6 +2294,7 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     transactions: transactions.map(mapTransactionRecord),
     summary: {
       totalCount,
+      totalNetIncomeLabel: getTotalNetIncomeLabel(scope),
       totalNetIncome: canViewCrossMemberFinancials(scope)
         ? formatCurrency(financeAggregate._sum.officeNet)
         : formatCurrency(

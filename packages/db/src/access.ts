@@ -59,6 +59,8 @@ const crossMemberFinancialPermissions = new Set<PermissionKey>([
   "transactions:finance"
 ]);
 
+const managedTransactionParticipantRoles = ["commission_participant", "commission_manual_participant"] as const;
+
 function buildScopedOfficeOrNullFilter(officeId: string | null | undefined) {
   if (!officeId) {
     return undefined;
@@ -224,6 +226,36 @@ export function buildMembershipVisibilityWhere(scope: OfficeDataScope): Prisma.M
 }
 
 export function buildTransactionVisibilityWhere(scope: OfficeDataScope): Prisma.TransactionWhereInput {
+  if (scope.visibleMembershipIds === null) {
+    return {};
+  }
+
+  const visibleMembershipIds = scope.visibleMembershipIds.length > 0 ? scope.visibleMembershipIds : [scope.viewerMembershipId];
+
+  return {
+    OR: [
+      {
+        ownerMembershipId: {
+          in: visibleMembershipIds
+        }
+      },
+      {
+        membershipLinks: {
+          some: {
+            membershipId: {
+              in: visibleMembershipIds
+            },
+            role: {
+              notIn: [...managedTransactionParticipantRoles]
+            }
+          }
+        }
+      }
+    ]
+  };
+}
+
+export function buildTransactionPortfolioVisibilityWhere(scope: OfficeDataScope): Prisma.TransactionWhereInput {
   if (scope.visibleMembershipIds === null) {
     return {};
   }

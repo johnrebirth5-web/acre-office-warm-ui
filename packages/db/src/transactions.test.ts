@@ -653,7 +653,7 @@ test("listTransactions applies dynamic custom field filters", async () => {
   }
 });
 
-test("commission participants can see shared transactions and their scoped income", async () => {
+test("commission participants can see shared transactions and their scoped income without workspace access", async () => {
   const context = await createTransactionsTestContext();
 
   try {
@@ -766,6 +766,11 @@ test("commission participants can see shared transactions and their scoped incom
       viewerMembershipId: longGe.membership.id,
       officeId: context.office.id
     });
+    const adminTransactions = await listTransactions({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
     const taiZiPipeline = await getOfficePipelineWorkspaceSnapshot({
       organizationId: context.organization.id,
       viewerMembershipId: taiZi.membership.id,
@@ -779,20 +784,174 @@ test("commission participants can see shared transactions and their scoped incom
       transactionId: transaction.id,
       officeId: context.office.id
     });
+    const taiZiAttemptedUpdate = await updateTransactionIntake({
+      organizationId: context.organization.id,
+      transactionId: transaction.id,
+      actorMembershipId: taiZi.membership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "99 Unauthorized Ave",
+      city: "Flushing",
+      state: "NY",
+      zipCode: "11354",
+      transactionName: "Shared Commission Deal"
+    });
+    const storedTransaction = await prisma.transaction.findUnique({
+      where: {
+        id: transaction.id
+      },
+      select: {
+        address: true
+      }
+    });
 
     assert.equal(taiZiTransactions.totalCount, 1);
     assert.equal(taiZiTransactions.transactions[0]?.id, transaction.id);
+    assert.equal(taiZiTransactions.summary.totalNetIncomeLabel, "My net income");
     assert.equal(taiZiTransactions.summary.totalNetIncome, "$2,000");
-    assert.equal(taiZiTransactionDetail?.id, transaction.id);
+    assert.equal(taiZiTransactionDetail, null);
+    assert.equal(taiZiAttemptedUpdate, null);
+    assert.equal(storedTransaction?.address, "88 Commission Lane");
 
     assert.equal(longGeTransactions.totalCount, 1);
     assert.equal(longGeTransactions.transactions[0]?.id, transaction.id);
+    assert.equal(longGeTransactions.summary.totalNetIncomeLabel, "My net income");
     assert.equal(longGeTransactions.summary.totalNetIncome, "$1,000");
+
+    assert.equal(adminTransactions.summary.totalNetIncomeLabel, "Office net income");
+    assert.equal(adminTransactions.summary.totalNetIncome, "$3,000");
 
     assert.equal(taiZiPipeline.rows.length, 1);
     assert.equal(taiZiPipeline.rows[0]?.id, transaction.id);
     assert.equal(taiZiPipeline.rows[0]?.amountLabel, "$2,000");
     assert.equal(taiZiPipeline.summary.totalMetricLabel, "$2,000");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("transactions summary label follows the viewer scope", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const teamLead = await context.createMembership("team_lead", "scope-team-lead");
+    const agent = await context.createMembership("agent", "scope-agent");
+    const team = await prisma.team.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        name: `Transactions Team ${randomUUID().slice(0, 8)}`,
+        slug: `transactions-team-${randomUUID().slice(0, 8)}`
+      }
+    });
+    const leaderTeamMembership = await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: team.id,
+        membershipId: teamLead.membership.id,
+        role: "team_leader"
+      }
+    });
+
+    await prisma.teamMembership.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        teamId: team.id,
+        membershipId: agent.membership.id,
+        role: "member",
+        reportsToTeamMembershipId: leaderTeamMembership.id
+      }
+    });
+
+    const transaction = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: agent.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "501 Scope St",
+      city: "Queens",
+      state: "NY",
+      zipCode: "11101",
+      transactionName: "Team Scope Deal",
+      price: "125000",
+      grossCommission: "10000",
+      officeNet: "2500",
+      agentNet: "3500"
+    });
+
+    await prisma.commissionCalculation.createMany({
+      data: [
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: transaction.id,
+          membershipId: agent.membership.id,
+          recipientType: "agent",
+          recipientRole: "agent",
+          recipientName: "Scope Agent",
+          grossCommission: new Prisma.Decimal(10000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(3500),
+          statementAmount: new Prisma.Decimal(3500),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: transaction.id,
+          membershipId: null,
+          recipientType: "brokerage",
+          recipientRole: "brokerage",
+          recipientName: "Company",
+          grossCommission: new Prisma.Decimal(10000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(2500),
+          agentNet: new Prisma.Decimal(0),
+          statementAmount: new Prisma.Decimal(2500),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        }
+      ]
+    });
+
+    const teamLeadTransactions = await listTransactions({
+      organizationId: context.organization.id,
+      viewerMembershipId: teamLead.membership.id,
+      officeId: context.office.id
+    });
+    const agentTransactions = await listTransactions({
+      organizationId: context.organization.id,
+      viewerMembershipId: agent.membership.id,
+      officeId: context.office.id
+    });
+    const adminTransactions = await listTransactions({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    assert.equal(teamLeadTransactions.totalCount, 1);
+    assert.equal(teamLeadTransactions.transactions[0]?.id, transaction.id);
+    assert.equal(teamLeadTransactions.summary.totalNetIncomeLabel, "Team net income");
+    assert.equal(teamLeadTransactions.summary.totalNetIncome, "$3,500");
+
+    assert.equal(agentTransactions.summary.totalNetIncomeLabel, "My net income");
+    assert.equal(agentTransactions.summary.totalNetIncome, "$3,500");
+
+    assert.equal(adminTransactions.summary.totalNetIncomeLabel, "Office net income");
+    assert.equal(adminTransactions.summary.totalNetIncome, "$2,500");
   } finally {
     await context.cleanup();
   }

@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-03-26: transaction visibility is now split between portfolio-style surfaces and full transaction workspace access:
+  - manual/default commission participants can see shared deals and their own scoped income in list-style surfaces such as `Transactions`, `Pipeline`, and dashboard summaries without inheriting the full transaction detail/edit workspace
+  - transaction detail, intake edits, finance edits, and other workspace-scoped operations stay limited to owners and non-commission collaborators instead of treating payout participation as a blanket transaction permission
+  - `/office/transactions` summary now labels scoped income honestly as `My / Team / Office net income` based on the viewer's financial scope instead of always saying `My net income`
 - 2026-03-26: design-system unification pass moved the live page shell / modal / action chrome further onto canonical `office-*` classes:
   - shared confirm dialogs, transaction create/detail shells, transaction intake modal chrome, contact create, users create, billing payment-method modal, library preview/create/upload modals, report/transaction search-layout editors, and agent-billing modals now use `office-modal-*` or `office-create-modal-*` instead of direct `bm-modal-*` page chrome
   - transaction/contact detail save errors and multiple transaction workflow cards now use shared `office-form-error`, `office-inline-error`, `office-button`, `office-toggle-link`, and `office-inline-link` contracts instead of old `bm-*` action/error chrome

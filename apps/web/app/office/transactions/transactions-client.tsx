@@ -860,7 +860,7 @@ export function TransactionsClient({
     <>
       <SummaryChip label="Transactions" value={summary.totalCount} />
       <SummaryChip
-        label="My net income"
+        label={summary.totalNetIncomeLabel}
         tone="accent"
         value={summary.totalNetIncome}
       />

@@ -1,5 +1,5 @@
 import { Prisma, TransactionRepresenting, TransactionStatus, UserRole } from "@prisma/client";
-import { buildTransactionVisibilityWhere, getMyScopedMembershipIds, resolveOfficeDataScope, type OfficeDataScope } from "./access";
+import { buildTransactionPortfolioVisibilityWhere, getMyScopedMembershipIds, resolveOfficeDataScope, type OfficeDataScope } from "./access";
 import { prisma } from "./client";
 
 export type OfficePipelineStatus = "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
@@ -387,7 +387,7 @@ function buildTopLevelWhere(input: GetOfficePipelineWorkspaceInput, representing
     {
       organizationId: input.organizationId
     },
-    buildTransactionVisibilityWhere(scope)
+    buildTransactionPortfolioVisibilityWhere(scope)
   ];
 
   if (input.officeId) {
