@@ -53,7 +53,19 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - `Final Office Net`
   - prerequisite flags for `client referral` / `rebate`
 - transaction creation intake now supports a structured finance seed path:
-  - `New Transaction` create modal and `/office/transactions/new` can capture `gross commission`, `finance notes`, and current fee-ledger values at create time
+  - `New Transaction` create modal and `/office/transactions/new` now present create-time finance as a simplified commission calculator instead of a fee-by-fee ledger editor
+  - the create-time calculator keeps one left-to-right input path:
+    - `Gross Commission`
+    - `Rebate`
+    - `Client Referral`
+    - `External Referral`
+    - `Company Referral`
+    - `Channel Development Fee`
+    - `Calculate`
+    - `Net Commission`
+  - `Gross Commission` is the only required create-time field; the other fee inputs stay optional and blank values are treated as `0`
+  - create-time calculator preview reuses the existing split-chain + fee-placement rules to show a `Net Commission` result before the transaction is saved
+  - the create-time note surface is now one shared `Note` field instead of separate fee-level notes
   - create-time finance input writes the same transaction finance storage used by detail finance instead of leaving those values only inside legacy custom text fields
   - blank create-time fee rows now stay blank in persistence; the system no longer auto-materializes placeholder `20%` rebate/referral/company-referral fees when the user did not explicitly enter them
   - create-time intake no longer shows the retired legacy commission text/select placeholders that were disconnected from the real fee ledger

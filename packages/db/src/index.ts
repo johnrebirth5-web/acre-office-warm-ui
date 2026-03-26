@@ -200,6 +200,7 @@ export {
   mapTransactionFinanceFeeRecord,
   normalizeTransactionFinanceFeeForPersistence,
   overrideTransactionCommission,
+  previewCreateTransactionCommissionCalculator,
   saveCommissionPlan,
   updateCommissionCalculationStatus
 } from "./commissions";
@@ -569,6 +570,7 @@ export type {
   OfficeCommissionTeamOption,
   OfficeCommissionStatementLine,
   OfficeCommissionStatementSnapshot,
+  OfficeCreateTransactionCommissionPreview,
   OfficeTransactionCommissionManualParticipantOption,
   OfficeTransactionCommissionStakeholderRow,
   OfficeTransactionCommissionSnapshot,

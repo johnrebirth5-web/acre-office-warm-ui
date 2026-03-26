@@ -286,6 +286,16 @@ export type OfficeTransactionCommissionSnapshot = {
   };
 };
 
+export type OfficeCreateTransactionCommissionPreview = {
+  grossCommissionLabel: string;
+  preSplitTotalLabel: string;
+  postSplitTotalLabel: string;
+  netCommissionBaseLabel: string;
+  finalAgentNetLabel: string;
+  finalOfficeNetLabel: string;
+  blockingIssues: string[];
+};
+
 export type OfficeAgentCommissionSummary = {
   defaultSettingId: string;
   defaultSplitLabel: string;
@@ -675,6 +685,37 @@ function parseOptionalDecimal(value: string | undefined | null) {
 function parseOptionalText(value: string | undefined | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function parseTransactionFinanceFeeType(value: string | undefined | null): TransactionFinanceFeeType | null {
+  if (
+    value === "rebate" ||
+    value === "client_referral" ||
+    value === "external_referral" ||
+    value === "company_referral" ||
+    value === "channel_development_fee" ||
+    value === "reimbursement"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function parseTransactionFinanceCalculationType(value: string | undefined | null): TransactionFinanceCalculationType | null {
+  if (value === "pre_split" || value === "post_split" || value === "reimbursement") {
+    return value;
+  }
+
+  return null;
+}
+
+function parseTransactionFinanceApprovalStatus(value: string | undefined | null): TransactionFinanceApprovalStatus | null {
+  if (value === "not_required" || value === "pending" || value === "approved") {
+    return value;
+  }
+
+  return null;
 }
 
 function decimalToString(value: Prisma.Decimal | null | undefined) {
@@ -2393,6 +2434,115 @@ function buildTransactionCommissionSummary(
     currentVersionLabel,
     statementReadyLabel: formatCurrency(statementReadyTotal),
     payableLabel: formatCurrency(payableTotal)
+  };
+}
+
+type PreviewCreateTransactionCommissionCalculatorInput = {
+  organizationId: string;
+  officeId?: string | null;
+  ownerMembershipId: string;
+  grossCommission: string;
+  fees?: Array<{
+    feeType?: string;
+    rate?: string;
+    amount?: string;
+    selectedCalculationType?: string;
+    approvalStatus?: string;
+    notes?: string;
+  }>;
+};
+
+export async function previewCreateTransactionCommissionCalculator(
+  input: PreviewCreateTransactionCommissionCalculatorInput
+): Promise<OfficeCreateTransactionCommissionPreview> {
+  const grossCommission = parseOptionalDecimal(input.grossCommission);
+
+  if (!grossCommission || grossCommission.lte(0)) {
+    throw new Error("Gross Commission is required before calculation.");
+  }
+
+  if (!input.ownerMembershipId.trim()) {
+    throw new Error("Select an agent owner before calculating commission.");
+  }
+
+  const effectiveAt = new Date();
+  const chain = await buildDefaultTransactionCommissionChain(prisma, {
+    organizationId: input.organizationId,
+    officeId: input.officeId ?? null,
+    ownerMembershipId: input.ownerMembershipId,
+    effectiveAt,
+    transactionCommissionContext: null
+  });
+
+  const normalizedPreviewFees = (input.fees ?? [])
+    .map((fee, index) => {
+      const feeType = parseTransactionFinanceFeeType(fee?.feeType);
+
+      if (!feeType) {
+        return null;
+      }
+
+      const definition = getTransactionFinanceFeeDefinition(feeType);
+      const normalized = normalizeTransactionFinanceFeeForPersistence({
+        feeType,
+        grossCommission,
+        existingRate: null,
+        existingAmount: null,
+        existingCalculationType: definition.defaultCalculationType,
+        existingApprovalStatus: "not_required",
+        rate: parseOptionalDecimal(fee?.rate),
+        amount: parseOptionalDecimal(fee?.amount),
+        selectedCalculationType:
+          parseTransactionFinanceCalculationType(fee?.selectedCalculationType) ?? definition.defaultCalculationType,
+        requestedApprovalStatus: parseTransactionFinanceApprovalStatus(fee?.approvalStatus),
+        notes: parseOptionalText(fee?.notes)
+      });
+
+      return {
+        id: `preview:${feeType}:${index}:${randomUUID()}`,
+        feeType,
+        rate: normalized.rate,
+        amount: normalized.amount,
+        selectedCalculationType: normalized.selectedCalculationType,
+        approvalRequired: normalized.approvalRequired,
+        approvalStatus: normalized.approvalStatus,
+        notes: normalized.notes
+      };
+    })
+    .filter(
+      (
+        fee
+      ): fee is {
+        id: string;
+        feeType: TransactionFinanceFeeType;
+        rate: Prisma.Decimal | null;
+        amount: Prisma.Decimal | null;
+        selectedCalculationType: TransactionFinanceCalculationType;
+        approvalRequired: boolean;
+        approvalStatus: TransactionFinanceApprovalStatus;
+        notes: string | null;
+      } => Boolean(fee)
+    );
+
+  const calculated = calculateTransactionFinanceResult({
+    grossCommission,
+    fees: normalizedPreviewFees,
+    chain,
+    prerequisites: buildTransactionFinancePrerequisiteSnapshot({
+      clientReferralFormApproved: true,
+      rebateAgreementSigned: true,
+      rebateGoogleFormSubmitted: true
+    })
+  });
+
+  return {
+    grossCommissionLabel: formatCurrency(grossCommission),
+    preSplitTotalLabel: formatCurrency(calculated.preSplitTotal),
+    postSplitTotalLabel: formatCurrency(calculated.postSplitTotal),
+    netCommissionBaseLabel: formatCurrency(calculated.netCommissionBase),
+    finalAgentNetLabel: formatCurrency(calculated.finalAgentNet),
+    finalOfficeNetLabel: formatCurrency(calculated.finalOfficeNet),
+    blockingIssues: calculated.approvalBlockers
   };
 }
 

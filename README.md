@@ -108,11 +108,11 @@
     - `Purchased Price` 是报表、pipeline volume、dashboard recent transactions、agent goal closed volume 的默认成交金额真源
     - legacy `price` 仍保留作兼容桥，并与 `purchasedPrice` 同步
     - transaction detail / list 现在统一显示 `Asking / Purchased` 双字段
-  - `Create Transaction` / `/office/transactions/new` 现在把 legacy finance 文本字段折叠成结构化 finance intake：
-    - `Gross commission` 直接写 transaction finance
-    - `Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee / Reimbursement` 直接创建 fee ledger 当前行
-    - 新建页默认不会再偷偷提交 `20%` 占位 fee；只有 agent 明确填写的 fee 才会落库
-    - `Finance notes` 直接写 transaction `financeNotes`
+  - `Create Transaction` / `/office/transactions/new` 现在把 legacy finance 文本字段折叠成结构化 commission calculator：
+    - 创建页只保留一个 calculator 区，按 `Gross commission / Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee / Calculate / Net Commission` 的顺序组织
+    - `Gross commission` 是唯一必填项；其余 fee 留空即按 `0` 处理
+    - calculator 继续写入真实 transaction finance：`Gross commission` 写 transaction finance，5 个 fee 继续落到现有 fee ledger 当前行，统一 `Note` 继续写 transaction `financeNotes`
+    - 创建页默认不会再偷偷提交 `20%` 占位 fee；只有 agent 明确填写的 fee 才会落库
   - 已有 transaction detail 页面
   - transaction detail 现在会渲染真实 linked contacts，并支持 link / unlink / set primary
   - transaction detail 现在有真实 `Checklist / Tasks` 区块，可创建、编辑并执行 document-linked review workflow

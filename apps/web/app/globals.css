@@ -2826,6 +2826,66 @@ select {
   gap: 12px;
 }
 
+.office-transaction-finance-calculator-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(140px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.office-transaction-finance-calculator-action {
+  display: flex;
+  align-items: end;
+}
+
+.office-transaction-finance-calculator-action .office-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.office-transaction-finance-calculator-result {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px dashed rgba(194, 205, 220, 0.8);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.office-transaction-finance-calculator-result.is-active {
+  border-style: solid;
+  border-color: rgba(32, 74, 149, 0.26);
+  background: linear-gradient(
+    180deg,
+    rgba(241, 246, 255, 0.96),
+    rgba(249, 251, 255, 0.92)
+  );
+  box-shadow: inset 0 0 0 1px rgba(32, 74, 149, 0.06);
+}
+
+.office-transaction-finance-calculator-result span {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-label-size);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.office-transaction-finance-calculator-result strong {
+  color: var(--office-text);
+  font-size: clamp(1.5rem, 1.15rem + 1vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.office-transaction-finance-calculator-result p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  line-height: 1.5;
+}
+
 .office-transaction-finance-prereq-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
@@ -2980,6 +3040,10 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .office-transaction-finance-calculator-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .office-transaction-finance-fee-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2999,6 +3063,7 @@ select {
 }
 
 @media (max-width: 760px) {
+  .office-transaction-finance-calculator-grid,
   .office-transaction-finance-fee-fields {
     grid-template-columns: 1fr;
   }

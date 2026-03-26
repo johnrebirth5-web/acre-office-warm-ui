@@ -1,140 +1,93 @@
 "use client";
 
-import { SelectInput } from "@acre/ui";
+import { useState } from "react";
+import type { OfficeCreateTransactionCommissionPreview } from "@acre/db";
+import { Button } from "@acre/ui";
 
 type TransactionFinanceFeeTypeValue =
   | "rebate"
   | "client_referral"
   | "external_referral"
   | "company_referral"
-  | "channel_development_fee"
-  | "reimbursement";
+  | "channel_development_fee";
 
-type TransactionFinanceCalculationTypeValue = "pre_split" | "post_split" | "reimbursement";
+type TransactionFinanceCalculationTypeValue = "pre_split" | "post_split";
 
-export type TransactionFinanceCreateFeeDraft = {
+type TransactionFinanceCalculatorFieldKey =
+  | "rebate"
+  | "clientReferral"
+  | "externalReferral"
+  | "companyReferral"
+  | "channelDevelopmentFee";
+
+type TransactionFinanceCalculatorFieldDefinition = {
+  fieldKey: TransactionFinanceCalculatorFieldKey;
   feeTypeValue: TransactionFinanceFeeTypeValue;
   feeTypeLabel: string;
-  rate: string;
-  amount: string;
   selectedCalculationTypeValue: TransactionFinanceCalculationTypeValue;
-  notes: string;
-  approvalHelperText: string;
-  prerequisiteHelperText: string;
 };
+
+const calculatorFieldDefinitions: TransactionFinanceCalculatorFieldDefinition[] = [
+  {
+    fieldKey: "rebate",
+    feeTypeValue: "rebate",
+    feeTypeLabel: "Rebate",
+    selectedCalculationTypeValue: "pre_split"
+  },
+  {
+    fieldKey: "clientReferral",
+    feeTypeValue: "client_referral",
+    feeTypeLabel: "Client Referral",
+    selectedCalculationTypeValue: "pre_split"
+  },
+  {
+    fieldKey: "externalReferral",
+    feeTypeValue: "external_referral",
+    feeTypeLabel: "External Referral",
+    selectedCalculationTypeValue: "post_split"
+  },
+  {
+    fieldKey: "companyReferral",
+    feeTypeValue: "company_referral",
+    feeTypeLabel: "Company Referral",
+    selectedCalculationTypeValue: "post_split"
+  },
+  {
+    fieldKey: "channelDevelopmentFee",
+    feeTypeValue: "channel_development_fee",
+    feeTypeLabel: "Channel Development Fee",
+    selectedCalculationTypeValue: "post_split"
+  }
+];
 
 export type TransactionFinanceCreateDraft = {
   grossCommission: string;
   financeNotes: string;
-  companyReferral: "Yes" | "No";
-  companyReferralEmployeeName: string;
-  fees: TransactionFinanceCreateFeeDraft[];
+  calculatorFields: Record<TransactionFinanceCalculatorFieldKey, string>;
 };
 
 type TransactionFinanceCreateFieldsProps = {
   draft: TransactionFinanceCreateDraft;
+  ownerMembershipId?: string;
   readOnly?: boolean;
   onChange: (nextDraft: TransactionFinanceCreateDraft) => void;
 };
 
-const defaultFinanceFeeDrafts: TransactionFinanceCreateFeeDraft[] = [
-  {
-    feeTypeValue: "rebate",
-    feeTypeLabel: "Rebate",
-    rate: "",
-    amount: "",
-    selectedCalculationTypeValue: "pre_split",
-    notes: "",
-    approvalHelperText: "Over 20% requires Cathy approval email and pay@acreny.us cc before it can be calculated.",
-    prerequisiteHelperText: "Requires signed rebate agreement and submitted rebate Google Form."
-  },
-  {
-    feeTypeValue: "client_referral",
-    feeTypeLabel: "Client Referral",
-    rate: "",
-    amount: "",
-    selectedCalculationTypeValue: "pre_split",
-    notes: "",
-    approvalHelperText: "Over 20% requires Cathy approval email and pay@acreny.us cc before it can be calculated.",
-    prerequisiteHelperText: "Requires signed and approved Agent Referral Form."
-  },
-  {
-    feeTypeValue: "external_referral",
-    feeTypeLabel: "External Referral",
-    rate: "",
-    amount: "",
-    selectedCalculationTypeValue: "post_split",
-    notes: "",
-    approvalHelperText: "No automatic approval threshold.",
-    prerequisiteHelperText: ""
-  },
-  {
-    feeTypeValue: "company_referral",
-    feeTypeLabel: "Company Referral",
-    rate: "",
-    amount: "",
-    selectedCalculationTypeValue: "post_split",
-    notes: "",
-    approvalHelperText: "No automatic approval threshold.",
-    prerequisiteHelperText: ""
-  },
-  {
-    feeTypeValue: "channel_development_fee",
-    feeTypeLabel: "Channel Development Fee",
-    rate: "",
-    amount: "",
-    selectedCalculationTypeValue: "post_split",
-    notes: "",
-    approvalHelperText: "Over 20% requires Cathy approval email and pay@acreny.us cc before it can be calculated.",
-    prerequisiteHelperText: ""
-  },
-  {
-    feeTypeValue: "reimbursement",
-    feeTypeLabel: "Reimbursement",
-    rate: "",
-    amount: "",
-    selectedCalculationTypeValue: "reimbursement",
-    notes: "",
-    approvalHelperText: "Calculated separately from split math.",
-    prerequisiteHelperText: "Company reimburses up to 50% of the amount, capped at 10% of final agent net."
-  }
-];
-
-function cloneFeeDraft(fee: TransactionFinanceCreateFeeDraft): TransactionFinanceCreateFeeDraft {
-  return { ...fee };
-}
-
-function clearFeeFinancialValues(fee: TransactionFinanceCreateFeeDraft): TransactionFinanceCreateFeeDraft {
+function createEmptyCalculatorFields(): TransactionFinanceCreateDraft["calculatorFields"] {
   return {
-    ...fee,
-    rate: "",
-    amount: "",
-    notes: ""
+    rebate: "",
+    clientReferral: "",
+    externalReferral: "",
+    companyReferral: "",
+    channelDevelopmentFee: ""
   };
-}
-
-function hasConfiguredFinanceFeeValue(fee: TransactionFinanceCreateFeeDraft) {
-  return [fee.rate, fee.amount, fee.notes].some((value) => value.trim().length > 0);
-}
-
-function shouldPersistFinanceFee(
-  draft: TransactionFinanceCreateDraft,
-  fee: TransactionFinanceCreateFeeDraft
-) {
-  if (fee.feeTypeValue === "company_referral" && draft.companyReferral !== "Yes") {
-    return false;
-  }
-
-  return hasConfiguredFinanceFeeValue(fee);
 }
 
 export function createTransactionFinanceCreateDraft(): TransactionFinanceCreateDraft {
   return {
     grossCommission: "",
     financeNotes: "",
-    companyReferral: "No",
-    companyReferralEmployeeName: "",
-    fees: defaultFinanceFeeDrafts.map((fee) => ({ ...fee }))
+    calculatorFields: createEmptyCalculatorFields()
   };
 }
 
@@ -144,220 +97,187 @@ function parseNumber(value: string) {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
-function formatEditableNumber(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
-}
-
-function getCalculationTypeLabel(value: TransactionFinanceCalculationTypeValue) {
-  if (value === "pre_split") {
-    return "Pre-Split";
+function hasConfiguredAmount(value: string) {
+  if (!value.trim()) {
+    return false;
   }
 
-  if (value === "post_split") {
-    return "Post-Split";
-  }
-
-  return "Reimbursement";
+  const numeric = parseNumber(value);
+  return numeric === null ? true : numeric !== 0;
 }
 
 export function buildStructuredFinancePayloadFromDraft(draft: TransactionFinanceCreateDraft) {
+  const companyReferralAmount = draft.calculatorFields.companyReferral;
+
   return {
     grossCommission: draft.grossCommission,
     financeNotes: draft.financeNotes,
-    fees: draft.fees
-      .filter((fee) => shouldPersistFinanceFee(draft, fee))
-      .map((fee) => ({
-        feeType: fee.feeTypeValue,
-        rate: fee.rate,
-        amount: fee.amount,
-        selectedCalculationType: fee.selectedCalculationTypeValue,
-        notes: fee.notes
+    companyReferral: hasConfiguredAmount(companyReferralAmount) ? "Yes" : "No",
+    companyReferralEmployeeName: "",
+    fees: calculatorFieldDefinitions
+      .filter((field) => hasConfiguredAmount(draft.calculatorFields[field.fieldKey]))
+      .map((field) => ({
+        feeType: field.feeTypeValue,
+        rate: "",
+        amount: draft.calculatorFields[field.fieldKey],
+        selectedCalculationType: field.selectedCalculationTypeValue,
+        notes: ""
       }))
   };
 }
 
 export function TransactionFinanceCreateFields({
   draft,
+  ownerMembershipId,
   readOnly = false,
   onChange
 }: TransactionFinanceCreateFieldsProps) {
-  function setTextField(field: "grossCommission" | "financeNotes" | "companyReferralEmployeeName", value: string) {
-    onChange({
+  const [preview, setPreview] = useState<OfficeCreateTransactionCommissionPreview | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  function updateDraft(nextDraft: TransactionFinanceCreateDraft) {
+    setPreview(null);
+    setPreviewError("");
+    onChange(nextDraft);
+  }
+
+  function setTextField(field: "grossCommission" | "financeNotes", value: string) {
+    updateDraft({
       ...draft,
       [field]: value
     });
   }
 
-  function setCompanyReferral(value: TransactionFinanceCreateDraft["companyReferral"]) {
-    onChange({
+  function setCalculatorField(field: TransactionFinanceCalculatorFieldKey, value: string) {
+    updateDraft({
       ...draft,
-      companyReferral: value,
-      companyReferralEmployeeName: value === "Yes" ? draft.companyReferralEmployeeName : "",
-      fees:
-        value === "Yes"
-          ? draft.fees.map(cloneFeeDraft)
-          : draft.fees.map((fee) => (fee.feeTypeValue === "company_referral" ? clearFeeFinancialValues(fee) : cloneFeeDraft(fee)))
-    });
-  }
-
-  function updateFee(
-    index: number,
-    updater: (current: TransactionFinanceCreateFeeDraft) => TransactionFinanceCreateFeeDraft
-  ) {
-    onChange({
-      ...draft,
-      fees: draft.fees.map((fee, feeIndex) => (feeIndex === index ? updater(fee) : fee))
-    });
-  }
-
-  function syncFeeNumbers(index: number, field: "rate" | "amount", value: string) {
-    const grossValue = parseNumber(draft.grossCommission);
-
-    updateFee(index, (current) => {
-      const nextFee: TransactionFinanceCreateFeeDraft = {
-        ...current,
+      calculatorFields: {
+        ...draft.calculatorFields,
         [field]: value
-      };
+      }
+    });
+  }
 
-      if (current.feeTypeValue !== "reimbursement" && grossValue && grossValue > 0) {
-        if (field === "rate") {
-          const numericRate = parseNumber(value);
-          nextFee.amount = numericRate === null ? "" : formatEditableNumber((grossValue * numericRate) / 100);
-        } else {
-          const numericAmount = parseNumber(value);
-          nextFee.rate = numericAmount === null ? "" : formatEditableNumber((numericAmount / grossValue) * 100);
-        }
+  async function handleCalculate() {
+    setPreview(null);
+
+    if (!draft.grossCommission.trim()) {
+      setPreviewError("Gross Commission is required before calculation.");
+      return;
+    }
+
+    if (!ownerMembershipId?.trim()) {
+      setPreviewError("Select an agent owner before calculating commission.");
+      return;
+    }
+
+    setPreviewError("");
+    setIsCalculating(true);
+
+    try {
+      const financePayload = buildStructuredFinancePayloadFromDraft(draft);
+      const response = await fetch("/api/office/transactions/commission-preview", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ownerMembershipId,
+          grossCommission: financePayload.grossCommission,
+          fees: financePayload.fees
+        })
+      });
+      const body = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            preview?: OfficeCreateTransactionCommissionPreview;
+          }
+        | null;
+
+      if (!response.ok || !body?.preview) {
+        throw new Error(body?.error ?? "Failed to preview commission.");
       }
 
-      return nextFee;
-    });
+      setPreview(body.preview);
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : "Failed to preview commission.");
+    } finally {
+      setIsCalculating(false);
+    }
   }
 
   return (
     <section className="office-transaction-finance-panel bm-transaction-intake-finance-panel">
       <div className="office-transaction-finance-panel-head">
         <div>
-          <h4>Finance intake</h4>
-          <p>These values create real transaction finance records instead of staying as disconnected custom text.</p>
+          <h4>Commission calculator</h4>
+          <p>Enter the applicable deductions from left to right, calculate the net result, and keep one unified note for context.</p>
         </div>
       </div>
 
-      <div className="office-transaction-finance-fields bm-transaction-intake-finance-fields">
+      <div className="office-transaction-finance-calculator-grid">
         <label className="office-detail-field">
-          <span>Gross commission</span>
+          <span>Gross Commission</span>
           <input
             disabled={readOnly}
+            inputMode="decimal"
             onChange={(event) => setTextField("grossCommission", event.target.value)}
+            placeholder="Required"
             type="text"
             value={draft.grossCommission}
           />
         </label>
 
-        <label className="office-detail-field">
-          <span>Company referral</span>
-          <SelectInput
-            disabled={readOnly}
-            onChange={(event) => setCompanyReferral(event.target.value as TransactionFinanceCreateDraft["companyReferral"])}
-            value={draft.companyReferral}
-          >
-            <option value="No">No</option>
-            <option value="Yes">Yes</option>
-          </SelectInput>
-        </label>
-
-        <label className="office-detail-field">
-          <span>Referral employee</span>
-          <input
-            disabled={readOnly || draft.companyReferral !== "Yes"}
-            onChange={(event) => setTextField("companyReferralEmployeeName", event.target.value)}
-            type="text"
-            value={draft.companyReferralEmployeeName}
-          />
-        </label>
-
-        <label className="office-detail-field office-detail-field-wide">
-          <span>Finance notes</span>
-          <textarea
-            disabled={readOnly}
-            onChange={(event) => setTextField("financeNotes", event.target.value)}
-            rows={4}
-            value={draft.financeNotes}
-          />
-        </label>
-      </div>
-
-      <div className="office-transaction-finance-ledger-list">
-        {draft.fees.map((fee, index) => (
-          <article className="office-transaction-finance-fee-card" key={fee.feeTypeValue}>
-            <div className="office-transaction-finance-fee-head">
-              <div className="office-transaction-finance-fee-copy">
-                <strong>{fee.feeTypeLabel}</strong>
-                <p>{fee.approvalHelperText}</p>
-                {fee.prerequisiteHelperText ? <p>{fee.prerequisiteHelperText}</p> : null}
-              </div>
-              <div className="office-transaction-finance-fee-summary">
-                <span>{getCalculationTypeLabel(fee.selectedCalculationTypeValue)}</span>
-                <span>Linked on create</span>
-              </div>
-            </div>
-
-            <div className="office-transaction-finance-fee-fields">
-              <label className="office-detail-field">
-                <span>Calculation</span>
-                <SelectInput
-                  disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                  onChange={(event) =>
-                    updateFee(index, (current) => ({
-                      ...current,
-                      selectedCalculationTypeValue: event.target.value as TransactionFinanceCalculationTypeValue
-                    }))
-                  }
-                  value={fee.selectedCalculationTypeValue}
-                >
-                  <option value="pre_split">Pre-Split</option>
-                  <option value="post_split">Post-Split</option>
-                  <option value="reimbursement">Reimbursement</option>
-                </SelectInput>
-              </label>
-
-              <label className="office-detail-field">
-                <span>Rate %</span>
-                <input
-                  disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                  onChange={(event) => syncFeeNumbers(index, "rate", event.target.value)}
-                  type="text"
-                  value={fee.rate}
-                />
-              </label>
-
-              <label className="office-detail-field">
-                <span>Amount</span>
-                <input
-                  disabled={readOnly}
-                  onChange={(event) => syncFeeNumbers(index, "amount", event.target.value)}
-                  type="text"
-                  value={fee.amount}
-                />
-              </label>
-
-              <label className="office-detail-field office-transaction-finance-fee-notes">
-                <span>Notes</span>
-                <textarea
-                  disabled={readOnly}
-                  onChange={(event) =>
-                    updateFee(index, (current) => ({
-                      ...current,
-                      notes: event.target.value
-                    }))
-                  }
-                  rows={3}
-                  value={fee.notes}
-                />
-              </label>
-            </div>
-          </article>
+        {calculatorFieldDefinitions.map((field) => (
+          <label className="office-detail-field" key={field.fieldKey}>
+            <span>{field.feeTypeLabel}</span>
+            <input
+              disabled={readOnly}
+              inputMode="decimal"
+              onChange={(event) => setCalculatorField(field.fieldKey, event.target.value)}
+              placeholder="0"
+              type="text"
+              value={draft.calculatorFields[field.fieldKey]}
+            />
+          </label>
         ))}
+
+        <div className="office-transaction-finance-calculator-action">
+          <Button disabled={readOnly || isCalculating} onClick={handleCalculate} type="button">
+            {isCalculating ? "Calculating..." : "Calculate"}
+          </Button>
+        </div>
       </div>
+
+      <div className={`office-transaction-finance-calculator-result${preview ? " is-active" : ""}`}>
+        <span>Net Commission</span>
+        <strong>{preview?.finalAgentNetLabel ?? "—"}</strong>
+        <p>
+          {preview
+            ? `Gross ${preview.grossCommissionLabel} · Pre-Split ${preview.preSplitTotalLabel} · Post-Split ${preview.postSplitTotalLabel}`
+            : "Click Calculate to preview the current commission result using the existing fee and split rules."}
+        </p>
+      </div>
+
+      {previewError ? <p className="office-form-error">{previewError}</p> : null}
+      {preview?.blockingIssues.length ? (
+        <ul className="office-transaction-finance-blocker-list">
+          {preview.blockingIssues.map((issue) => (
+            <li key={issue}>{issue}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      <label className="office-detail-field office-detail-field-wide">
+        <span>Note</span>
+        <textarea
+          disabled={readOnly}
+          onChange={(event) => setTextField("financeNotes", event.target.value)}
+          rows={4}
+          value={draft.financeNotes}
+        />
+      </label>
     </section>
   );
 }

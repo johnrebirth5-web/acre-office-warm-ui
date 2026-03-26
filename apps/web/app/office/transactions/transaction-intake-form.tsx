@@ -459,14 +459,15 @@ export function TransactionIntakeWorkspace({
       };
 
       if (mode === "create" && ownerAssignment) {
+        const financePayload = buildStructuredFinancePayloadFromDraft(financeDraft);
         payload.ownerMembershipId = canSearchOwners
           ? selectedOwnerMembershipId
           : ownerAssignment.currentOwnerMembershipId;
-        payload.companyReferral = financeDraft.companyReferral;
-        payload.companyReferralEmployeeName = financeDraft.companyReferralEmployeeName;
-        payload.grossCommission = financeDraft.grossCommission;
-        payload.financeNotes = financeDraft.financeNotes;
-        payload.fees = buildStructuredFinancePayloadFromDraft(financeDraft).fees;
+        payload.companyReferral = financePayload.companyReferral;
+        payload.companyReferralEmployeeName = financePayload.companyReferralEmployeeName;
+        payload.grossCommission = financePayload.grossCommission;
+        payload.financeNotes = financePayload.financeNotes;
+        payload.fees = financePayload.fees;
       }
 
       const response = await fetch(submitEndpoint, {
@@ -682,13 +683,25 @@ export function TransactionIntakeWorkspace({
           useOfficeCreateModalChrome ? (
             <section className="office-create-modal-section office-transaction-create-section">
               <div className="office-create-modal-section-head">
-                <h4>Finance intake</h4>
-                <p>Capture commission and referral details now so the created transaction already has structured finance data attached.</p>
+                <h4>Commission calculator</h4>
+                <p>Capture gross commission, fee deductions, and one shared note so the new transaction starts with structured finance data.</p>
               </div>
-              <TransactionFinanceCreateFields draft={financeDraft} onChange={setFinanceDraft} />
+              <TransactionFinanceCreateFields
+                draft={financeDraft}
+                onChange={setFinanceDraft}
+                ownerMembershipId={
+                  canSearchOwners ? selectedOwnerMembershipId : ownerAssignment?.currentOwnerMembershipId ?? ""
+                }
+              />
             </section>
           ) : (
-            <TransactionFinanceCreateFields draft={financeDraft} onChange={setFinanceDraft} />
+            <TransactionFinanceCreateFields
+              draft={financeDraft}
+              onChange={setFinanceDraft}
+              ownerMembershipId={
+                canSearchOwners ? selectedOwnerMembershipId : ownerAssignment?.currentOwnerMembershipId ?? ""
+              }
+            />
           )
         ) : null}
 
