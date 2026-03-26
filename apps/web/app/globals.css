@@ -15849,7 +15849,7 @@ body,
 
 .office-table-resizable-cell {
   overflow: visible !important;
-  padding-right: 14px;
+  --office-table-resize-hit-width: 18px;
 }
 
 .office-table-resizable-cell::after {
@@ -15857,7 +15857,7 @@ body,
   position: absolute;
   top: 18%;
   bottom: 18%;
-  right: -1px;
+  right: calc(var(--office-table-row-gap, 8px) / -2);
   width: 2px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--office-border-strong) 88%, transparent);
@@ -15869,8 +15869,8 @@ body,
 .office-table-resize-handle {
   position: absolute;
   top: 0;
-  right: -8px;
-  width: 16px;
+  left: calc(100% - (var(--office-table-resize-hit-width) / 2) + (var(--office-table-row-gap, 8px) / 2));
+  width: var(--office-table-resize-hit-width);
   height: 100%;
   cursor: col-resize;
   touch-action: none;

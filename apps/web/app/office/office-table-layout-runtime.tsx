@@ -540,7 +540,16 @@ function OfficeTableLayoutRuntime(props: {
       }
 
       headerCells.forEach((cell, index) => {
-        if (cell.querySelector(":scope > .office-table-resize-handle")) {
+        const existingHandle = cell.querySelector(":scope > .office-table-resize-handle");
+
+        if (index === headerCells.length - 1) {
+          existingHandle?.remove();
+          cell.classList.remove("office-table-resizable-cell");
+          return;
+        }
+
+        if (existingHandle) {
+          cell.classList.add("office-table-resizable-cell");
           return;
         }
 
