@@ -285,7 +285,7 @@ export function TransactionFinanceForm({
         <StatCard hint="sum of all pre-split fees" label="Pre-Split total" value={summary?.preSplitTotalLabel ?? "$0"} />
         <StatCard hint="sum of all post-split fees" label="Post-Split total" value={summary?.postSplitTotalLabel ?? "$0"} />
         <StatCard hint="gross minus pre-split fees" label="Net commission base" value={summary?.netCommissionBaseLabel ?? "$0"} />
-        <StatCard hint="current owner-agent payout" label="Net commission" value={summary?.agentNetLabel ?? "$0"} />
+        <StatCard hint="current final payout for the owner agent" label="Final agent net" value={summary?.agentNetLabel ?? "$0"} />
         <StatCard hint="current company payout" label="Final office net" value={summary?.officeNetLabel ?? "$0"} />
         <StatCard hint="latest saved commission version" label="Current version" value={summary?.currentVersionLabel ?? "Not calculated"} />
       </div>
@@ -294,7 +294,7 @@ export function TransactionFinanceForm({
         <div className="office-transaction-finance-panel-head">
           <div>
             <h4>Commission calculator</h4>
-            <p>Use the same calculator flow as create transaction, then calculate to refresh the saved net result on this record.</p>
+            <p>Use the same calculator flow as create transaction, then calculate to refresh the saved final agent net on this record.</p>
           </div>
         </div>
 
@@ -335,7 +335,7 @@ export function TransactionFinanceForm({
         </div>
 
         <div className="office-transaction-finance-calculator-result is-active">
-          <span>Net Commission</span>
+          <span>Final Agent Net</span>
           <strong>{summary?.agentNetLabel ?? "$0"}</strong>
           <p>
             {summary

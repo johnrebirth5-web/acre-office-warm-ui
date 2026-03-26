@@ -324,7 +324,7 @@ export function TransactionCommissionCard({
           <StatCard hint="all pre-split fees" label="Pre-Split total" value={snapshot.summary.preSplitTotalLabel} />
           <StatCard hint="all post-split fees" label="Post-Split total" value={snapshot.summary.postSplitTotalLabel} />
           <StatCard hint="gross minus pre-split fees" label="Net commission base" value={snapshot.summary.netCommissionBaseLabel} />
-          <StatCard hint="current owner-agent payout" label="Primary agent net" value={snapshot.summary.agentNetLabel} />
+          <StatCard hint="current final payout for the owner agent" label="Final agent net" value={snapshot.summary.agentNetLabel} />
           <StatCard hint="current company payout" label="Final office net" value={snapshot.summary.officeNetLabel} />
           <StatCard hint="separate reimbursement adjustment" label="Reimbursement" value={snapshot.summary.reimbursementLabel} />
           <StatCard hint="current effective calculation version" label="Current version" value={snapshot.summary.currentVersionLabel} />

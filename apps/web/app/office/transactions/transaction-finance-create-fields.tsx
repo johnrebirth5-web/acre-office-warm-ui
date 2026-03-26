@@ -137,7 +137,7 @@ export function TransactionFinanceCreateFields({
       <div className="office-transaction-finance-panel-head">
         <div>
           <h4>Commission calculator</h4>
-          <p>Enter the applicable deductions from left to right, calculate the net result, and keep one unified note for context.</p>
+          <p>Enter the applicable deductions from left to right, calculate the final agent net, and keep one unified note for context.</p>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ export function TransactionFinanceCreateFields({
       </div>
 
       <div className={`office-transaction-finance-calculator-result${preview ? " is-active" : ""}`}>
-        <span>Net Commission</span>
+        <span>Final Agent Net</span>
         <strong>{preview?.finalAgentNetLabel ?? "—"}</strong>
         <p>
           {preview

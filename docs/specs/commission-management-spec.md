@@ -54,7 +54,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
     - `Company Referral`
     - `Channel Development Fee`
     - `Calculate`
-    - `Net Commission`
+    - `Final Agent Net`
   - one shared `Note` field instead of multiple fee-level note inputs
   - `Pre-Split Total`
   - `Post-Split Total`
@@ -72,9 +72,9 @@ Provide a durable commission automation MVP inside Back Office, with a default s
     - `Company Referral`
     - `Channel Development Fee`
     - `Calculate`
-    - `Net Commission`
+    - `Final Agent Net`
   - `Gross Commission` is the only required create-time field; the other fee inputs stay optional and blank values are treated as `0`
-  - create-time calculator preview reuses the existing split-chain + fee-placement rules to show a `Net Commission` result before the transaction is saved
+  - create-time calculator preview reuses the existing split-chain + fee-placement rules to show a `Final Agent Net` result before the transaction is saved
   - the create-time note surface is now one shared `Note` field instead of separate fee-level notes
   - create-time finance input writes the same transaction finance storage used by detail finance instead of leaving those values only inside legacy custom text fields
   - blank create-time fee rows now stay blank in persistence; the system no longer auto-materializes placeholder `20%` rebate/referral/company-referral fees when the user did not explicitly enter them
