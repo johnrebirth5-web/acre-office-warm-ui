@@ -111,6 +111,7 @@
   - `Create Transaction` / `/office/transactions/new` 现在把 legacy finance 文本字段折叠成结构化 commission calculator：
     - 创建页只保留一个 calculator 区，按 `Gross commission / Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee / Calculate / Net Commission` 的顺序组织
     - `Gross commission` 是唯一必填项；其余 fee 留空即按 `0` 处理
+    - 每个 fee 现在都保留 `Amount` + `Rate %` 双输入；填写任一项时，另一项会在已有 `Gross commission` 的前提下自动联动
     - calculator 继续写入真实 transaction finance：`Gross commission` 写 transaction finance，5 个 fee 继续落到现有 fee ledger 当前行，统一 `Note` 继续写 transaction `financeNotes`
     - 创建页默认不会再偷偷提交 `20%` 占位 fee；只有 agent 明确填写的 fee 才会落库
   - 已有 transaction detail 页面
@@ -126,6 +127,7 @@
       - `Channel Development Fee`
       - `Calculate`
       - `Net Commission`
+    - 每个 fee 在 detail finance 也同样保留 `Amount` 和 `Rate %` 双输入
     - detail finance 只保留一个统一 `Note`
     - 财务可确认 `Client Referral` / `Rebate` 前置条件
     - 页面显示 `Pre-Split Total / Post-Split Total / Net Commission Base / Final Agent Net / Final Office Net`

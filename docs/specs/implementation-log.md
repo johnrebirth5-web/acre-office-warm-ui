@@ -10,6 +10,7 @@
 
 - 2026-03-26: `Create transaction` commission intake now uses a simplified calculator flow instead of a create-time fee-ledger editor:
   - the create page now keeps one left-to-right calculator for `Gross Commission / Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee`, with `Gross Commission` as the only required input
+  - the simplified calculator still exposes `Rate %` for each fee in both create and detail finance, so amount/rate entry matches the earlier editor without bringing back the full fee-ledger layout
   - create-time finance now exposes one shared `Note` field instead of multiple fee-level notes or company-referral-only helper fields
   - clicking `Calculate` in create mode now previews `Final Agent Net` using the current split-chain and fee-placement rules before the transaction is saved, while continuing to persist the same structured fee-ledger payload as before
   - transaction detail `Finance` now follows the same calculator layout and field order, so create/edit no longer diverge between a simplified calculator and the older fee-ledger editor

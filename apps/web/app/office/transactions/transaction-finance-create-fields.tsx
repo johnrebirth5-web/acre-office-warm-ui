@@ -5,6 +5,8 @@ import type { OfficeCreateTransactionCommissionPreview } from "@acre/db";
 import { Button } from "@acre/ui";
 import {
   createEmptyTransactionFinanceCalculatorValues,
+  deriveTransactionFinanceCalculatorAmount,
+  deriveTransactionFinanceCalculatorRate,
   isConfiguredTransactionFinanceCalculatorAmount,
   transactionFinanceCalculatorFieldDefinitions as calculatorFieldDefinitions,
   type TransactionFinanceCalculatorFieldKey
@@ -14,6 +16,7 @@ export type TransactionFinanceCreateDraft = {
   grossCommission: string;
   financeNotes: string;
   calculatorFields: Record<TransactionFinanceCalculatorFieldKey, string>;
+  calculatorRates: Record<TransactionFinanceCalculatorFieldKey, string>;
 };
 
 type TransactionFinanceCreateFieldsProps = {
@@ -27,23 +30,29 @@ export function createTransactionFinanceCreateDraft(): TransactionFinanceCreateD
   return {
     grossCommission: "",
     financeNotes: "",
-    calculatorFields: createEmptyTransactionFinanceCalculatorValues()
+    calculatorFields: createEmptyTransactionFinanceCalculatorValues(),
+    calculatorRates: createEmptyTransactionFinanceCalculatorValues()
   };
+}
+
+function hasConfiguredCalculatorEntry(amountValue: string, rateValue: string) {
+  return isConfiguredTransactionFinanceCalculatorAmount(amountValue) || isConfiguredTransactionFinanceCalculatorAmount(rateValue);
 }
 
 export function buildStructuredFinancePayloadFromDraft(draft: TransactionFinanceCreateDraft) {
   const companyReferralAmount = draft.calculatorFields.companyReferral;
+  const companyReferralRate = draft.calculatorRates.companyReferral;
 
   return {
     grossCommission: draft.grossCommission,
     financeNotes: draft.financeNotes,
-    companyReferral: isConfiguredTransactionFinanceCalculatorAmount(companyReferralAmount) ? "Yes" : "No",
+    companyReferral: hasConfiguredCalculatorEntry(companyReferralAmount, companyReferralRate) ? "Yes" : "No",
     companyReferralEmployeeName: "",
     fees: calculatorFieldDefinitions
-      .filter((field) => isConfiguredTransactionFinanceCalculatorAmount(draft.calculatorFields[field.fieldKey]))
+      .filter((field) => hasConfiguredCalculatorEntry(draft.calculatorFields[field.fieldKey], draft.calculatorRates[field.fieldKey]))
       .map((field) => ({
         feeType: field.feeTypeValue,
-        rate: "",
+        rate: draft.calculatorRates[field.fieldKey],
         amount: draft.calculatorFields[field.fieldKey],
         selectedCalculationType: field.selectedCalculationTypeValue,
         notes: ""
@@ -74,11 +83,29 @@ export function TransactionFinanceCreateFields({
     });
   }
 
-  function setCalculatorField(field: TransactionFinanceCalculatorFieldKey, value: string) {
+  function setCalculatorAmountField(field: TransactionFinanceCalculatorFieldKey, value: string) {
     updateDraft({
       ...draft,
       calculatorFields: {
         ...draft.calculatorFields,
+        [field]: value
+      },
+      calculatorRates: {
+        ...draft.calculatorRates,
+        [field]: deriveTransactionFinanceCalculatorRate(draft.grossCommission, value)
+      }
+    });
+  }
+
+  function setCalculatorRateField(field: TransactionFinanceCalculatorFieldKey, value: string) {
+    updateDraft({
+      ...draft,
+      calculatorFields: {
+        ...draft.calculatorFields,
+        [field]: deriveTransactionFinanceCalculatorAmount(draft.grossCommission, value)
+      },
+      calculatorRates: {
+        ...draft.calculatorRates,
         [field]: value
       }
     });
@@ -137,7 +164,7 @@ export function TransactionFinanceCreateFields({
       <div className="office-transaction-finance-panel-head">
         <div>
           <h4>Commission calculator</h4>
-          <p>Enter the applicable deductions from left to right, calculate the final agent net, and keep one unified note for context.</p>
+          <p>Enter each deduction by amount or rate, calculate the final agent net, and keep one unified note for context.</p>
         </div>
       </div>
 
@@ -155,17 +182,33 @@ export function TransactionFinanceCreateFields({
         </label>
 
         {calculatorFieldDefinitions.map((field) => (
-          <label className="office-detail-field" key={field.fieldKey}>
+          <div className="office-detail-field office-transaction-finance-calculator-fee-field" key={field.fieldKey}>
             <span>{field.feeTypeLabel}</span>
-            <input
-              disabled={readOnly}
-              inputMode="decimal"
-              onChange={(event) => setCalculatorField(field.fieldKey, event.target.value)}
-              placeholder="0"
-              type="text"
-              value={draft.calculatorFields[field.fieldKey]}
-            />
-          </label>
+            <div className="office-transaction-finance-calculator-pair">
+              <label className="office-form-field office-transaction-finance-calculator-mini-field">
+                <span>Amount</span>
+                <input
+                  disabled={readOnly}
+                  inputMode="decimal"
+                  onChange={(event) => setCalculatorAmountField(field.fieldKey, event.target.value)}
+                  placeholder="0"
+                  type="text"
+                  value={draft.calculatorFields[field.fieldKey]}
+                />
+              </label>
+              <label className="office-form-field office-transaction-finance-calculator-mini-field">
+                <span>Rate %</span>
+                <input
+                  disabled={readOnly}
+                  inputMode="decimal"
+                  onChange={(event) => setCalculatorRateField(field.fieldKey, event.target.value)}
+                  placeholder="0"
+                  type="text"
+                  value={draft.calculatorRates[field.fieldKey]}
+                />
+              </label>
+            </div>
+          </div>
         ))}
 
         <div className="office-transaction-finance-calculator-action">
@@ -174,6 +217,8 @@ export function TransactionFinanceCreateFields({
           </Button>
         </div>
       </div>
+
+      <p className="office-form-helper">For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.</p>
 
       <div className={`office-transaction-finance-calculator-result${preview ? " is-active" : ""}`}>
         <span>Final Agent Net</span>

@@ -55,6 +55,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
     - `Channel Development Fee`
     - `Calculate`
     - `Final Agent Net`
+  - each fee keeps both `Amount` and `Rate %` inputs; editing one value auto-fills the paired value when `Gross Commission` is available
   - one shared `Note` field instead of multiple fee-level note inputs
   - `Pre-Split Total`
   - `Post-Split Total`
@@ -74,6 +75,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
     - `Calculate`
     - `Final Agent Net`
   - `Gross Commission` is the only required create-time field; the other fee inputs stay optional and blank values are treated as `0`
+  - each fee also keeps an optional `Rate %` input, matching the earlier finance editor while staying inside the simplified calculator layout
   - create-time calculator preview reuses the existing split-chain + fee-placement rules to show a `Final Agent Net` result before the transaction is saved
   - the create-time note surface is now one shared `Note` field instead of separate fee-level notes
   - create-time finance input writes the same transaction finance storage used by detail finance instead of leaving those values only inside legacy custom text fields

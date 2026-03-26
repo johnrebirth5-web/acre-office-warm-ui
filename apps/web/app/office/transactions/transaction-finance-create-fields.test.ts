@@ -35,18 +35,36 @@ test("company referral amount enables the company referral payload automatically
   ]);
 });
 
-test("explicit calculator values are preserved in the structured create payload", () => {
+test("explicit calculator amount and rate values are preserved in the structured create payload", () => {
   const draft = cloneDraft();
   draft.calculatorFields.clientReferral = "500";
+  draft.calculatorRates.clientReferral = "5";
 
   const payload = buildStructuredFinancePayloadFromDraft(draft);
 
   assert.deepEqual(payload.fees, [
     {
       feeType: "client_referral",
-      rate: "",
+      rate: "5",
       amount: "500",
       selectedCalculationType: "pre_split",
+      notes: ""
+    }
+  ]);
+});
+
+test("rate-only calculator entries still persist the selected fee", () => {
+  const draft = cloneDraft();
+  draft.calculatorRates.externalReferral = "12.5";
+
+  const payload = buildStructuredFinancePayloadFromDraft(draft);
+
+  assert.deepEqual(payload.fees, [
+    {
+      feeType: "external_referral",
+      rate: "12.5",
+      amount: "",
+      selectedCalculationType: "post_split",
       notes: ""
     }
   ]);
@@ -55,6 +73,7 @@ test("explicit calculator values are preserved in the structured create payload"
 test("zero-value fee entries are treated like empty optional fields", () => {
   const draft = cloneDraft();
   draft.calculatorFields.rebate = "0";
+  draft.calculatorRates.rebate = "0";
 
   const payload = buildStructuredFinancePayloadFromDraft(draft);
 

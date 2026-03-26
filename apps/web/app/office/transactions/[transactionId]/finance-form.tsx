@@ -9,7 +9,9 @@ import type {
 } from "@acre/db";
 import { Button, StatCard } from "@acre/ui";
 import {
-  buildTransactionFinanceCalculatorValuesFromFees,
+  deriveTransactionFinanceCalculatorAmount,
+  deriveTransactionFinanceCalculatorRate,
+  parseTransactionFinanceCalculatorNumber,
   transactionFinanceCalculatorFieldDefinitions,
   type TransactionFinanceCalculatorFieldKey
 } from "../transaction-finance-calculator-config";
@@ -40,29 +42,8 @@ type TransactionFinanceFormProps = {
   readOnly?: boolean;
 };
 
-function parseNumber(value: string) {
-  const normalized = value.replaceAll(",", "").replace(/\$/g, "").trim();
-  const numeric = Number(normalized);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function formatEditableNumber(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
-}
-
-function deriveRateValue(grossCommissionValue: string, amountValue: string) {
-  const grossValue = parseNumber(grossCommissionValue);
-  const amount = parseNumber(amountValue);
-
-  if (!grossValue || grossValue <= 0 || amount === null) {
-    return "";
-  }
-
-  return formatEditableNumber((amount / grossValue) * 100);
-}
-
 function feeRequiresApproval(feeType: FinanceFeeDraft["feeTypeValue"], rateValue: string) {
-  const numericRate = parseNumber(rateValue);
+  const numericRate = parseTransactionFinanceCalculatorNumber(rateValue);
 
   if (numericRate === null) {
     return false;
@@ -102,8 +83,8 @@ function buildInitialFeeDrafts(fees: OfficeTransactionFinanceFeeRecord[]) {
   }));
 }
 
-function updateCalculatorFeeDraft(current: FinanceFeeDraft, grossCommissionValue: string, amountValue: string): FinanceFeeDraft {
-  const nextRate = deriveRateValue(grossCommissionValue, amountValue);
+function updateCalculatorFeeDraftFromAmount(current: FinanceFeeDraft, grossCommissionValue: string, amountValue: string): FinanceFeeDraft {
+  const nextRate = deriveTransactionFinanceCalculatorRate(grossCommissionValue, amountValue);
   const approvalRequired = feeRequiresApproval(current.feeTypeValue, nextRate);
   const approvalStatusValue = approvalRequired ? "pending" : "not_required";
 
@@ -111,6 +92,20 @@ function updateCalculatorFeeDraft(current: FinanceFeeDraft, grossCommissionValue
     ...current,
     amount: amountValue,
     rate: nextRate,
+    approvalRequired,
+    approvalStatusValue,
+    approvalStatus: formatApprovalStatus(approvalStatusValue)
+  };
+}
+
+function updateCalculatorFeeDraftFromRate(current: FinanceFeeDraft, grossCommissionValue: string, rateValue: string): FinanceFeeDraft {
+  const approvalRequired = feeRequiresApproval(current.feeTypeValue, rateValue);
+  const approvalStatusValue = approvalRequired ? "pending" : "not_required";
+
+  return {
+    ...current,
+    amount: deriveTransactionFinanceCalculatorAmount(grossCommissionValue, rateValue),
+    rate: rateValue,
     approvalRequired,
     approvalStatusValue,
     approvalStatus: formatApprovalStatus(approvalStatusValue)
@@ -140,8 +135,6 @@ export function TransactionFinanceForm({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const calculatorValues = buildTransactionFinanceCalculatorValuesFromFees(formState.fees);
-
   function setPrerequisiteField(field: "clientReferralFormApproved" | "rebateAgreementSigned" | "rebateGoogleFormSubmitted", value: boolean) {
     setFormState((current) => ({
       ...current,
@@ -150,28 +143,13 @@ export function TransactionFinanceForm({
   }
 
   function setTopLevelField(field: "grossCommission" | "financeNotes", value: string) {
-    if (field === "grossCommission") {
-      setFormState((current) => ({
-        ...current,
-        grossCommission: value,
-        fees: current.fees.map((fee) => {
-          if (!transactionFinanceCalculatorFieldDefinitions.some((entry) => entry.feeTypeValue === fee.feeTypeValue)) {
-            return fee;
-          }
-
-          return updateCalculatorFeeDraft(fee, value, fee.amount);
-        })
-      }));
-      return;
-    }
-
     setFormState((current) => ({
       ...current,
       [field]: value
     }));
   }
 
-  function setCalculatorField(fieldKey: TransactionFinanceCalculatorFieldKey, value: string) {
+  function setCalculatorAmountField(fieldKey: TransactionFinanceCalculatorFieldKey, value: string) {
     const definition = transactionFinanceCalculatorFieldDefinitions.find((entry) => entry.fieldKey === fieldKey);
 
     if (!definition) {
@@ -182,7 +160,24 @@ export function TransactionFinanceForm({
       ...current,
       fees: current.fees.map((fee) =>
         fee.feeTypeValue === definition.feeTypeValue
-          ? updateCalculatorFeeDraft(fee, current.grossCommission, value)
+          ? updateCalculatorFeeDraftFromAmount(fee, current.grossCommission, value)
+          : fee
+      )
+    }));
+  }
+
+  function setCalculatorRateField(fieldKey: TransactionFinanceCalculatorFieldKey, value: string) {
+    const definition = transactionFinanceCalculatorFieldDefinitions.find((entry) => entry.fieldKey === fieldKey);
+
+    if (!definition) {
+      return;
+    }
+
+    setFormState((current) => ({
+      ...current,
+      fees: current.fees.map((fee) =>
+        fee.feeTypeValue === definition.feeTypeValue
+          ? updateCalculatorFeeDraftFromRate(fee, current.grossCommission, value)
           : fee
       )
     }));
@@ -284,7 +279,7 @@ export function TransactionFinanceForm({
         <StatCard hint="current finance input" label="Gross commission" value={summary?.grossCommissionLabel ?? "$0"} />
         <StatCard hint="sum of all pre-split fees" label="Pre-Split total" value={summary?.preSplitTotalLabel ?? "$0"} />
         <StatCard hint="sum of all post-split fees" label="Post-Split total" value={summary?.postSplitTotalLabel ?? "$0"} />
-        <StatCard hint="gross minus pre-split fees" label="Net commission" value={summary?.netCommissionBaseLabel ?? "$0"} />
+        <StatCard hint="gross minus pre-split fees" label="Net commission base" value={summary?.netCommissionBaseLabel ?? "$0"} />
         <StatCard hint="current final payout for the owner agent" label="Final agent net" value={summary?.agentNetLabel ?? "$0"} />
         <StatCard hint="current company payout" label="Final office net" value={summary?.officeNetLabel ?? "$0"} />
         <StatCard hint="latest saved commission version" label="Current version" value={summary?.currentVersionLabel ?? "Not calculated"} />
@@ -294,7 +289,7 @@ export function TransactionFinanceForm({
         <div className="office-transaction-finance-panel-head">
           <div>
             <h4>Commission calculator</h4>
-            <p>Use the same calculator flow as create transaction, then calculate to refresh the saved final agent net on this record.</p>
+            <p>Use the same calculator flow as create transaction, including amount or rate inputs for each fee.</p>
           </div>
         </div>
 
@@ -311,19 +306,39 @@ export function TransactionFinanceForm({
             />
           </label>
 
-          {transactionFinanceCalculatorFieldDefinitions.map((field) => (
-            <label className="office-detail-field" key={field.fieldKey}>
-              <span>{field.feeTypeLabel}</span>
-              <input
-                disabled={readOnly}
-                inputMode="decimal"
-                onChange={(event) => setCalculatorField(field.fieldKey, event.target.value)}
-                placeholder="0"
-                type="text"
-                value={calculatorValues[field.fieldKey]}
-              />
-            </label>
-          ))}
+          {transactionFinanceCalculatorFieldDefinitions.map((field) => {
+            const fee = formState.fees.find((entry) => entry.feeTypeValue === field.feeTypeValue);
+
+            return (
+              <div className="office-detail-field office-transaction-finance-calculator-fee-field" key={field.fieldKey}>
+                <span>{field.feeTypeLabel}</span>
+                <div className="office-transaction-finance-calculator-pair">
+                  <label className="office-form-field office-transaction-finance-calculator-mini-field">
+                    <span>Amount</span>
+                    <input
+                      disabled={readOnly}
+                      inputMode="decimal"
+                      onChange={(event) => setCalculatorAmountField(field.fieldKey, event.target.value)}
+                      placeholder="0"
+                      type="text"
+                      value={fee?.amount ?? ""}
+                    />
+                  </label>
+                  <label className="office-form-field office-transaction-finance-calculator-mini-field">
+                    <span>Rate %</span>
+                    <input
+                      disabled={readOnly}
+                      inputMode="decimal"
+                      onChange={(event) => setCalculatorRateField(field.fieldKey, event.target.value)}
+                      placeholder="0"
+                      type="text"
+                      value={fee?.rate ?? ""}
+                    />
+                  </label>
+                </div>
+              </div>
+            );
+          })}
 
           {!readOnly ? (
             <div className="office-transaction-finance-calculator-action">
@@ -333,6 +348,8 @@ export function TransactionFinanceForm({
             </div>
           ) : null}
         </div>
+
+        <p className="office-form-helper">For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.</p>
 
         <div className="office-transaction-finance-calculator-result is-active">
           <span>Final Agent Net</span>

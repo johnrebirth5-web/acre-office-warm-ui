@@ -2828,9 +2828,32 @@ select {
 
 .office-transaction-finance-calculator-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(140px, 1fr)) auto;
+  grid-template-columns: repeat(6, minmax(180px, 1fr)) auto;
   gap: 12px;
   align-items: end;
+}
+
+.office-transaction-finance-calculator-fee-field {
+  align-self: stretch;
+}
+
+.office-transaction-finance-calculator-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(92px, 0.85fr);
+  gap: 8px;
+  align-items: end;
+}
+
+.office-transaction-finance-calculator-mini-field {
+  gap: 6px;
+}
+
+.office-transaction-finance-calculator-mini-field > span {
+  color: var(--office-text-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .office-transaction-finance-calculator-action {

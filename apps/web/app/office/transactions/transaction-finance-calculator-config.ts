@@ -66,10 +66,14 @@ export function createEmptyTransactionFinanceCalculatorValues(): TransactionFina
   };
 }
 
-function parseCalculatorNumber(value: string) {
+export function parseTransactionFinanceCalculatorNumber(value: string) {
   const normalized = value.replaceAll(",", "").replace(/\$/g, "").trim();
   const numeric = Number(normalized);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+export function formatTransactionFinanceCalculatorNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
 }
 
 export function isConfiguredTransactionFinanceCalculatorAmount(value: string) {
@@ -77,8 +81,30 @@ export function isConfiguredTransactionFinanceCalculatorAmount(value: string) {
     return false;
   }
 
-  const numeric = parseCalculatorNumber(value);
+  const numeric = parseTransactionFinanceCalculatorNumber(value);
   return numeric === null ? true : numeric !== 0;
+}
+
+export function deriveTransactionFinanceCalculatorAmount(grossCommissionValue: string, rateValue: string) {
+  const grossValue = parseTransactionFinanceCalculatorNumber(grossCommissionValue);
+  const rate = parseTransactionFinanceCalculatorNumber(rateValue);
+
+  if (!grossValue || grossValue <= 0 || rate === null) {
+    return "";
+  }
+
+  return formatTransactionFinanceCalculatorNumber((grossValue * rate) / 100);
+}
+
+export function deriveTransactionFinanceCalculatorRate(grossCommissionValue: string, amountValue: string) {
+  const grossValue = parseTransactionFinanceCalculatorNumber(grossCommissionValue);
+  const amount = parseTransactionFinanceCalculatorNumber(amountValue);
+
+  if (!grossValue || grossValue <= 0 || amount === null) {
+    return "";
+  }
+
+  return formatTransactionFinanceCalculatorNumber((amount / grossValue) * 100);
 }
 
 export function buildTransactionFinanceCalculatorValuesFromFees<
