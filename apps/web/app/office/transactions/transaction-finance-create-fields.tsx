@@ -169,7 +169,7 @@ export function TransactionFinanceCreateFields({
       </div>
 
       <div className="office-transaction-finance-calculator-grid">
-        <label className="office-detail-field">
+        <label className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-gross-field">
           <span>Gross Commission</span>
           <input
             disabled={readOnly}
@@ -182,7 +182,10 @@ export function TransactionFinanceCreateFields({
         </label>
 
         {calculatorFieldDefinitions.map((field) => (
-          <div className="office-detail-field office-transaction-finance-calculator-fee-field" key={field.fieldKey}>
+          <div
+            className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-fee-field"
+            key={field.fieldKey}
+          >
             <span>{field.feeTypeLabel}</span>
             <div className="office-transaction-finance-calculator-pair">
               <label className="office-form-field office-transaction-finance-calculator-mini-field">
