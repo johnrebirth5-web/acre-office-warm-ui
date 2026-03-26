@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
-type OfficeTableLayoutColumn = {
-  key: string;
-  width: number;
-};
-
-type OfficeTableLayoutMap = Record<string, OfficeTableLayoutColumn[]>;
+import {
+  buildGridTemplate,
+  buildOfficeTableLayoutKey,
+  getOfficeTableLayoutLegacyKeys,
+  minimumColumnWidth,
+  type OfficeTableLayoutColumn,
+  type OfficeTableLayoutMap
+} from "./office-table-layout-shared";
 
 type GridTableGroup = {
   kind: "grid";
   key: string;
+  legacyKeys: string[];
   headerRows: HTMLElement[];
   elements: HTMLElement[];
 };
@@ -19,6 +21,7 @@ type GridTableGroup = {
 type NativeTableGroup = {
   kind: "native";
   key: string;
+  legacyKeys: string[];
   headerRows: HTMLTableRowElement[];
   tables: HTMLTableElement[];
 };
@@ -56,8 +59,6 @@ const GRID_HEADER_SELECTOR = [
   ".office-list-table-header[class*='office-list-table-header-']",
   ".office-table-header[class*='office-table-row-']"
 ].join(", ");
-
-const minimumColumnWidth = 72;
 
 function sanitizeToken(value: string) {
   return value
@@ -171,10 +172,6 @@ function resolveColumnsForHeader(cells: HTMLElement[], persisted: OfficeTableLay
   }));
 }
 
-function buildGridTemplate(columns: OfficeTableLayoutColumn[]) {
-  return columns.map((column) => `${Math.max(Math.round(column.width), minimumColumnWidth)}px`).join(" ");
-}
-
 function applyGridColumns(group: GridTableGroup, columns: OfficeTableLayoutColumn[]) {
   const gridTemplateColumns = buildGridTemplate(columns);
   const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
@@ -230,18 +227,39 @@ function applyNativeColumns(group: NativeTableGroup, columns: OfficeTableLayoutC
 }
 
 function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
-  const groups = new Map<string, TableGroup>();
+  const scopedGridGroups = new Map<string, GridTableGroup & { baseKey: string }>();
+  const scopedNativeGroups = new Map<string, NativeTableGroup & { baseKey: string }>();
+  const containerIds = new WeakMap<object, string>();
+  let nextContainerId = 1;
+
+  function getContainerId(container: object) {
+    const existingId = containerIds.get(container);
+
+    if (existingId) {
+      return existingId;
+    }
+
+    const nextId = String(nextContainerId);
+    nextContainerId += 1;
+    containerIds.set(container, nextId);
+    return nextId;
+  }
+
+  function getGridContainer(element: HTMLElement) {
+    return element.closest(".office-data-table, .office-table, .bm-office-table") ?? element.parentElement ?? element;
+  }
 
   root.querySelectorAll<HTMLElement>(GRID_TABLE_ELEMENT_SELECTOR).forEach((element) => {
-    const key = deriveGridTableKey(element);
+    const baseKey = deriveGridTableKey(element);
 
-    if (!key) {
+    if (!baseKey) {
       return;
     }
 
-    const existing = groups.get(key);
+    const scopeKey = `${baseKey}@@${getContainerId(getGridContainer(element))}`;
+    const existing = scopedGridGroups.get(scopeKey);
 
-    if (existing?.kind === "grid") {
+    if (existing) {
       existing.elements.push(element);
 
       if (isGridHeaderRow(element)) {
@@ -251,35 +269,98 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
       return;
     }
 
-    groups.set(key, {
+    scopedGridGroups.set(scopeKey, {
       kind: "grid",
-      key,
+      baseKey,
+      key: baseKey,
+      legacyKeys: [],
       headerRows: isGridHeaderRow(element) ? [element] : [],
       elements: [element]
     });
   });
 
   root.querySelectorAll<HTMLTableElement>("table[class]").forEach((table) => {
-    const key = deriveNativeTableKey(table);
+    const baseKey = deriveNativeTableKey(table);
     const headerRow = table.tHead?.rows.item(0);
 
-    if (!key || !(headerRow instanceof HTMLTableRowElement)) {
+    if (!baseKey || !(headerRow instanceof HTMLTableRowElement)) {
       return;
     }
 
+    const scopeKey = `${baseKey}@@${getContainerId(table)}`;
+    const existing = scopedNativeGroups.get(scopeKey);
+
+    if (existing) {
+      existing.tables.push(table);
+      existing.headerRows.push(headerRow);
+      return;
+    }
+
+    scopedNativeGroups.set(scopeKey, {
+      kind: "native",
+      baseKey,
+      key: baseKey,
+      legacyKeys: [],
+      headerRows: [headerRow],
+      tables: [table]
+    });
+  });
+
+  const groups = new Map<string, TableGroup>();
+
+  scopedGridGroups.forEach((group) => {
+    const headerRow = group.headerRows[0];
+
+    if (!headerRow) {
+      return;
+    }
+
+    const key = buildOfficeTableLayoutKey(
+      group.baseKey,
+      getGridHeaderCells(headerRow).map((cell, index) => getColumnKey(cell, index))
+    );
+    const existing = groups.get(key);
+
+    if (existing?.kind === "grid") {
+      existing.headerRows.push(...group.headerRows);
+      existing.elements.push(...group.elements);
+      return;
+    }
+
+    groups.set(key, {
+      kind: "grid",
+      key,
+      legacyKeys: getOfficeTableLayoutLegacyKeys(key),
+      headerRows: [...group.headerRows],
+      elements: [...group.elements]
+    });
+  });
+
+  scopedNativeGroups.forEach((group) => {
+    const headerRow = group.headerRows[0];
+
+    if (!headerRow) {
+      return;
+    }
+
+    const key = buildOfficeTableLayoutKey(
+      group.baseKey,
+      getNativeHeaderCells(headerRow).map((cell, index) => getColumnKey(cell, index))
+    );
     const existing = groups.get(key);
 
     if (existing?.kind === "native") {
-      existing.tables.push(table);
-      existing.headerRows.push(headerRow);
+      existing.headerRows.push(...group.headerRows);
+      existing.tables.push(...group.tables);
       return;
     }
 
     groups.set(key, {
       kind: "native",
       key,
-      headerRows: [headerRow],
-      tables: [table]
+      legacyKeys: getOfficeTableLayoutLegacyKeys(key),
+      headerRows: [...group.headerRows],
+      tables: [...group.tables]
     });
   });
 
@@ -288,8 +369,9 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
 
 function OfficeTableLayoutRuntime(props: {
   canManageTableLayouts: boolean;
+  initialLayouts?: OfficeTableLayoutMap;
 }) {
-  const layoutsRef = useRef<OfficeTableLayoutMap>({});
+  const layoutsRef = useRef<OfficeTableLayoutMap>(props.initialLayouts ?? {});
   const groupsRef = useRef<Map<string, TableGroup>>(new Map());
   const scanFrameRef = useRef<number | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
@@ -300,8 +382,13 @@ function OfficeTableLayoutRuntime(props: {
   }, [props.canManageTableLayouts]);
 
   useEffect(() => {
-    let isCancelled = false;
-    const abortController = new AbortController();
+    if (props.initialLayouts) {
+      layoutsRef.current = props.initialLayouts;
+    }
+  }, [props.initialLayouts]);
+
+  useEffect(() => {
+    const rootNode = document.querySelector(".office-dashboard-main") ?? document.body;
 
     function applyLayout(key: string, columns: OfficeTableLayoutColumn[]) {
       const group = groupsRef.current.get(key);
@@ -318,6 +405,20 @@ function OfficeTableLayoutRuntime(props: {
       applyNativeColumns(group, columns);
     }
 
+    function getPersistedColumnsForGroup(group: TableGroup) {
+      const persistedLayoutKeys = [group.key, ...group.legacyKeys];
+
+      for (const persistedLayoutKey of persistedLayoutKeys) {
+        const persisted = layoutsRef.current[persistedLayoutKey];
+
+        if (persisted?.length) {
+          return persisted;
+        }
+      }
+
+      return undefined;
+    }
+
     function getHeaderColumnsForKey(key: string) {
       const group = groupsRef.current.get(key);
 
@@ -325,13 +426,15 @@ function OfficeTableLayoutRuntime(props: {
         return [];
       }
 
+      const persisted = getPersistedColumnsForGroup(group);
+
       if (group.kind === "grid") {
         const headerRow = group.headerRows[0];
-        return headerRow ? resolveColumnsForHeader(getGridHeaderCells(headerRow), layoutsRef.current[key]) : [];
+        return headerRow ? resolveColumnsForHeader(getGridHeaderCells(headerRow), persisted) : [];
       }
 
       const headerRow = group.headerRows[0];
-      return headerRow ? resolveColumnsForHeader(getNativeHeaderCells(headerRow), layoutsRef.current[key]) : [];
+      return headerRow ? resolveColumnsForHeader(getNativeHeaderCells(headerRow), persisted) : [];
     }
 
     async function persistLayout(key: string, columns: OfficeTableLayoutColumn[]) {
@@ -456,7 +559,7 @@ function OfficeTableLayoutRuntime(props: {
 
     function rescanTables() {
       scanFrameRef.current = null;
-      const groups = buildTableGroups(document);
+      const groups = buildTableGroups(rootNode);
       groupsRef.current = groups;
 
       groups.forEach((group, key) => {
@@ -470,7 +573,7 @@ function OfficeTableLayoutRuntime(props: {
           });
         }
 
-        const persisted = layoutsRef.current[key];
+        const persisted = getPersistedColumnsForGroup(group);
 
         if (!persisted?.length) {
           return;
@@ -506,44 +609,13 @@ function OfficeTableLayoutRuntime(props: {
       scheduleRescan();
     });
 
-    observer.observe(document.body, {
+    observer.observe(rootNode, {
       childList: true,
       subtree: true
     });
-
-    void fetch("/api/office/settings/table-layouts", {
-      signal: abortController.signal
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load shared table layouts.");
-        }
-
-        return (await response.json()) as {
-          layouts?: OfficeTableLayoutMap;
-        };
-      })
-      .then((payload) => {
-        if (isCancelled) {
-          return;
-        }
-
-        layoutsRef.current = payload.layouts ?? {};
-        rescanTables();
-      })
-      .catch((error) => {
-        if (!abortController.signal.aborted) {
-          console.error(error);
-        }
-
-        if (!isCancelled) {
-          rescanTables();
-        }
-      });
+    rescanTables();
 
     return () => {
-      isCancelled = true;
-      abortController.abort();
       observer.disconnect();
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerUp);

@@ -233,6 +233,10 @@
 - typography baseline cleanup now routes legacy Office surfaces back through the shared `--office-font-sans` token:
   - body and older sidebar/panel/meta surfaces no longer hardcode `Inter / Helvetica Neue / Arial` locally
   - the shared font stack now includes explicit Chinese fallbacks to reduce cross-browser drift for mixed English/CJK pages
+- office table-layout stability now applies saved column widths before first paint and scopes persisted widths by actual header signature instead of only the shared row class:
+  - refreshes no longer need a client fetch to "snap back" from an incorrect default grid before saved widths apply
+  - different tables that reused the same legacy row class no longer overwrite one another's saved widths when their columns differ
+  - accounting statement candidate tables now use dedicated structural classes so first-time visitors also get a stable default grid before any manual resizing
 
 ## Next recommended work
 

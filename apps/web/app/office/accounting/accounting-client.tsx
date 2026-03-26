@@ -760,7 +760,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
                 <HorizontalScrollArea>
                   <DataTable className="office-table">
-                    <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                    <DataTableHeader className="office-table-header office-table-row office-table-row-accounting-statement-invoices">
                       <span>Select</span>
                       <span>Invoice number</span>
                       <span>Rows</span>
@@ -768,7 +768,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     </DataTableHeader>
                     <DataTableBody>
                       {snapshot.filters.invoiceOptions.map((option) => (
-                        <DataTableRow className="office-table-row office-table-row-ledger" key={option.invoiceNumber}>
+                        <DataTableRow className="office-table-row office-table-row-accounting-statement-invoices" key={option.invoiceNumber}>
                           <CheckboxField label="">
                             <input
                               checked={selectedInvoiceLookup.has(option.invoiceNumber)}
@@ -811,7 +811,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     snapshot.candidateRows.length > 0 ? (
                       <HorizontalScrollArea>
                         <DataTable className="office-table">
-                          <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+                          <DataTableHeader className="office-table-header office-table-row office-table-row-accounting-statement-rows">
                             <span>Select</span>
                             <span>Invoice</span>
                             <span>Transaction</span>
@@ -824,7 +824,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                           </DataTableHeader>
                           <DataTableBody>
                             {snapshot.candidateRows.map((row) => (
-                              <DataTableRow className="office-table-row office-table-row-ledger" key={row.id}>
+                              <DataTableRow className="office-table-row office-table-row-accounting-statement-rows" key={row.id}>
                                 <CheckboxField label="">
                                   <input
                                     checked={selectedIdLookup.has(row.id)}
@@ -935,7 +935,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         {snapshot.history.length > 0 ? (
           <HorizontalScrollArea>
             <DataTable className="office-table">
-              <DataTableHeader className="office-table-header office-table-row office-table-row-ledger">
+              <DataTableHeader className="office-table-header office-table-row office-table-row-accounting-statement-history">
                 <span>Generated</span>
                 <span>Agent</span>
                 <span>Period</span>
@@ -946,7 +946,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               </DataTableHeader>
               <DataTableBody>
                 {snapshot.history.map((statement) => (
-                  <DataTableRow className="office-table-row office-table-row-ledger" key={statement.id}>
+                  <DataTableRow className="office-table-row office-table-row-accounting-statement-history" key={statement.id}>
                     <span>{statement.generatedAtLabel}</span>
                     <strong>{statement.agentLabel}</strong>
                     <span>{statement.periodLabel}</span>

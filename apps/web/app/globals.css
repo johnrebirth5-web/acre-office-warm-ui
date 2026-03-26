@@ -4342,6 +4342,34 @@ select {
     );
 }
 
+.office-table-row-accounting-statement-invoices {
+  grid-template-columns: 78px minmax(184px, 1.18fr) 92px 112px;
+}
+
+.office-table-row-accounting-statement-rows {
+  grid-template-columns:
+    78px
+    112px
+    minmax(320px, 2.1fr)
+    118px
+    118px
+    112px
+    102px
+    112px
+    108px;
+}
+
+.office-table-row-accounting-statement-history {
+  grid-template-columns:
+    128px
+    minmax(188px, 1.12fr)
+    minmax(132px, 0.88fr)
+    minmax(144px, 0.96fr)
+    76px
+    120px
+    152px;
+}
+
 .office-table-row-emd {
   grid-template-columns: minmax(188px, 1.32fr) 92px 92px 92px 102px 118px;
 }
@@ -7627,6 +7655,18 @@ a {
   min-width: 720px;
 }
 
+.office-table-row-accounting-statement-invoices {
+  min-width: 640px;
+}
+
+.office-table-row-accounting-statement-rows {
+  min-width: 1280px;
+}
+
+.office-table-row-accounting-statement-history {
+  min-width: 1040px;
+}
+
 .office-table-row-emd {
   min-width: 760px;
 }
@@ -8162,6 +8202,20 @@ a {
   > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
 .office-table-row-accounting > :nth-child(4),
 .office-table-row-ledger > :is(:nth-child(3), :nth-child(4)),
+.office-table-row-accounting-statement-invoices
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-accounting-statement-rows
+  > :is(
+    :nth-child(2),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7),
+    :nth-child(8),
+    :nth-child(9)
+  ),
+.office-table-row-accounting-statement-history
+  > :is(:nth-child(1), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)),
 .office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
 .office-table-row-agent-billing-ledger
   > :is(:nth-child(5), :nth-child(6), :nth-child(7)),
@@ -8196,6 +8250,9 @@ a {
 .office-table-row-accounting
   > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(7)),
 .office-table-row-ledger > :nth-child(1),
+.office-table-row-accounting-statement-invoices > :nth-child(1),
+.office-table-row-accounting-statement-rows > :nth-child(3),
+.office-table-row-accounting-statement-history > :nth-child(2),
 .office-table-row-emd > :is(:nth-child(5), :nth-child(6)),
 .office-table-row-recurring-rules
   > :is(:nth-child(4), :nth-child(5), :nth-child(6)),
@@ -8254,14 +8311,27 @@ a {
   line-height: 1.3;
 }
 
+.office-table-row-accounting-statement-rows > :nth-child(3),
+.office-table-row-accounting-statement-history > :nth-child(2) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
 .office-table-row-report-transactions > :nth-child(2),
 .office-table-row-report-commission-recent > :nth-child(2),
 .office-table-row-commission > :nth-child(4),
+.office-table-row-accounting-statement-invoices > :is(:nth-child(1), :nth-child(2)),
+.office-table-row-accounting-statement-rows > :is(:nth-child(1), :nth-child(3), :nth-child(9)),
+.office-table-row-accounting-statement-history > :is(:nth-child(1), :nth-child(2), :nth-child(7)),
 .office-table-row-agent-statement-detail > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(8)) {
   justify-self: start;
   text-align: left;
 }
 
+.office-table-row-accounting-statement-invoices > :nth-child(4),
+.office-table-row-accounting-statement-rows > :is(:nth-child(6), :nth-child(7), :nth-child(8)),
+.office-table-row-accounting-statement-history > :is(:nth-child(5), :nth-child(6)),
 .office-table-row-agent-statement-detail > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)) {
   justify-self: end;
   text-align: right;
