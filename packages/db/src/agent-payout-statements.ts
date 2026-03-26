@@ -507,7 +507,7 @@ export function parseStakeholderBreakdownSharePercent(
   }
 
   const parsedRows = parseStakeholderBreakdownRows(value);
-  const rows = applyEffectiveSharePercents(parsedRows);
+  const rows = options?.sourceType === "overridden" ? applyEffectiveSharePercents(parsedRows) : parsedRows;
   const matchingRow = rows.find((row) => row.membershipId === membershipId && row.recipientType === "agent") ?? null;
 
   return matchingRow ? `${formatPercentLabel(matchingRow.sharePercent)}%` : "";

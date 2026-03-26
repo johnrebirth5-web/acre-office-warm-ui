@@ -4338,7 +4338,10 @@ export async function getTransactionCommissionSnapshot(
           reimbursementAdjustment: String(row.reimbursementAdjustment),
           finalAmount: String(row.finalAmount)
         })) ?? [];
-  const displayStakeholderBreakdown = applyEffectiveSharePercentsToStoredStakeholderRows(rawStakeholderBreakdown);
+  const displayStakeholderBreakdown =
+    currentVersion?.sourceType === "overridden"
+      ? applyEffectiveSharePercentsToStoredStakeholderRows(rawStakeholderBreakdown)
+      : rawStakeholderBreakdown;
   const manualParticipantLockActive = hasManualParticipantRows(rawStakeholderBreakdown);
   const existingStakeholderMembershipIds = new Set(
     rawStakeholderBreakdown

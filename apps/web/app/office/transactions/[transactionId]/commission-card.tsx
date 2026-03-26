@@ -25,6 +25,18 @@ type OverrideDraftRow = {
   isManualParticipant: boolean;
 };
 
+type CommissionBreakdownDisplayRow = {
+  key: string;
+  recipientLabel: string;
+  recipientRole: string;
+  helperText: string | null;
+  sharePercentLabel: string;
+  baseAmountLabel: string;
+  postSplitAdjustmentLabel: string;
+  reimbursementAdjustmentLabel: string;
+  finalAmountLabel: string;
+};
+
 const calculationStatusOptions = [
   { value: "draft", label: "Draft" },
   { value: "calculated", label: "Calculated" },
@@ -58,22 +70,8 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatDisplayAmount(value: string) {
-  if (!value.trim()) {
-    return "$0";
-  }
-
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? formatCurrency(numeric) : value;
-}
-
-function formatDisplayRate(value: string) {
-  if (!value.trim()) {
-    return "—";
-  }
-
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? `${value}%` : value;
+function formatDisplayPercent(value: number) {
+  return `${formatNumericString(value, 2)}%`;
 }
 
 function formatNumericString(value: number, digits = 4) {
@@ -107,38 +105,61 @@ function parseAmount(value: string) {
   return Number(trimmed);
 }
 
-function buildCombinedPostSplitFeeRows(snapshot: OfficeTransactionCommissionSnapshot) {
-  const postSplitRows = snapshot.feeBreakdown.filter((row) => row.selectedCalculationTypeValue === "post_split");
+function buildCommissionBreakdownRows(snapshot: OfficeTransactionCommissionSnapshot): CommissionBreakdownDisplayRow[] {
+  const postSplitFeeRows = snapshot.feeBreakdown
+    .filter((row) => row.selectedCalculationTypeValue === "post_split")
+    .map((row) => ({
+      key: `fee:${row.id}`,
+      recipientLabel: row.feeTypeLabel,
+      recipientRole: "Referral",
+      helperText: `Post-Split fee${row.approvalStatus ? ` · ${row.approvalStatus}` : ""}`,
+      baseAmount: 0,
+      postSplitAdjustment: parseOptionalNumber(row.amount) ?? 0,
+      reimbursementAdjustment: 0,
+      finalAmount: parseOptionalNumber(row.amount) ?? 0,
+      isFeeRow: true
+    }));
+  const postSplitFeeTotal = postSplitFeeRows.reduce((sum, row) => sum + row.finalAmount, 0);
+  const stakeholderRows = snapshot.stakeholderBreakdown.map((row) => {
+    const isCompany = row.key === "company";
+    const adjustedPostSplit = (parseOptionalNumber(row.postSplitAdjustment) ?? 0) - (isCompany ? postSplitFeeTotal : 0);
+    const adjustedFinal = (parseOptionalNumber(row.finalAmount) ?? 0) - (isCompany ? postSplitFeeTotal : 0);
+    const baseAmount = parseOptionalNumber(row.baseAmount) ?? 0;
+    const reimbursementAdjustment = parseOptionalNumber(row.reimbursementAdjustment) ?? 0;
 
-  if (postSplitRows.length === 0) {
-    return [];
-  }
+    return {
+      key: row.key,
+      recipientLabel: row.recipientLabel,
+      recipientRole: row.recipientRole,
+      helperText: row.isManualParticipant ? "Manual override participant" : null,
+      baseAmount,
+      postSplitAdjustment: adjustedPostSplit,
+      reimbursementAdjustment,
+      finalAmount: adjustedFinal,
+      isManualParticipant: row.isManualParticipant,
+      isFeeRow: false
+    };
+  });
+  const allRows = [...stakeholderRows, ...postSplitFeeRows];
+  const shareBase = allRows.reduce((sum, row) => sum + row.finalAmount, 0);
 
-  const hasNonNumericRate = postSplitRows.some((row) => row.rate.trim() && parseOptionalNumber(row.rate) === null);
-  const hasNonNumericAmount = postSplitRows.some((row) => row.amount.trim() && parseOptionalNumber(row.amount) === null);
-  const totalRate = hasNonNumericRate
-    ? postSplitRows.map((row) => row.rate).filter(Boolean).join(" + ")
-    : formatNumericString(postSplitRows.reduce((sum, row) => sum + (parseOptionalNumber(row.rate) ?? 0), 0));
-  const totalAmount = hasNonNumericAmount
-    ? postSplitRows.map((row) => row.amount).filter(Boolean).join(" + ")
-    : formatNumericString(postSplitRows.reduce((sum, row) => sum + (parseOptionalNumber(row.amount) ?? 0), 0), 2);
-  const approvalStatus =
-    postSplitRows.some((row) => row.approvalStatusValue === "pending")
-      ? "Pending approval"
-      : postSplitRows.some((row) => row.approvalStatusValue === "approved")
-        ? "Approved"
-        : "Not required";
+  return allRows.map((row) => {
+    const sharePercent = shareBase > 0 ? (row.finalAmount / shareBase) * 100 : 0;
+    const isManualParticipant = "isManualParticipant" in row ? row.isManualParticipant : false;
 
-  return [
-    {
-      id: "combined-post-split-fees",
-      feeTypeLabel: "Combined Post-Split Fees",
-      detailLabel: postSplitRows.map((row) => row.feeTypeLabel).join(" + "),
-      rate: totalRate,
-      amount: totalAmount,
-      approvalStatus
-    }
-  ];
+    return {
+      key: row.key,
+      recipientLabel: row.recipientLabel,
+      recipientRole: row.recipientRole,
+      helperText: row.helperText,
+      sharePercentLabel: formatDisplayPercent(sharePercent),
+      baseAmountLabel: row.isFeeRow || (isManualParticipant && row.recipientRole !== "Referral") ? "—" : formatCurrency(row.baseAmount),
+      postSplitAdjustmentLabel: isManualParticipant && row.recipientRole !== "Referral" ? "—" : formatCurrency(row.postSplitAdjustment),
+      reimbursementAdjustmentLabel:
+        row.isFeeRow || (isManualParticipant && row.recipientRole !== "Referral") ? "—" : formatCurrency(row.reimbursementAdjustment),
+      finalAmountLabel: formatCurrency(row.finalAmount)
+    };
+  });
 }
 
 function buildOverrideRows(snapshot: OfficeTransactionCommissionSnapshot): OverrideDraftRow[] {
@@ -195,7 +216,7 @@ export function TransactionCommissionCard({
     normalizedParticipantSearch.length > 0
       ? availableManualParticipantOptions.filter((option) => option.label.toLowerCase().includes(normalizedParticipantSearch))
       : [];
-  const postSplitFeeRows = buildCombinedPostSplitFeeRows(snapshot);
+  const commissionBreakdownRows = buildCommissionBreakdownRows(snapshot);
   const activeDescendantId =
     isParticipantPickerOpen && filteredManualParticipantOptions[highlightedParticipantIndex]
       ? `${participantListboxId}-${filteredManualParticipantOptions[highlightedParticipantIndex]?.membershipId}`
@@ -451,29 +472,6 @@ export function TransactionCommissionCard({
         <HorizontalScrollArea>
           <div className="office-table">
             <div className="office-table-header office-table-row office-table-row-commission">
-              <span>Post-split fee</span>
-              <span>Rate</span>
-              <span>Amount</span>
-              <span>Approval</span>
-            </div>
-
-            {postSplitFeeRows.map((row) => (
-              <div className="office-table-row office-table-row-commission" key={row.id}>
-                <div className="office-table-primary">
-                  <strong>{row.feeTypeLabel}</strong>
-                  <p>{row.detailLabel}</p>
-                </div>
-                <span>{formatDisplayRate(row.rate)}</span>
-                <strong>{formatDisplayAmount(row.amount)}</strong>
-                <span>{row.approvalStatus}</span>
-              </div>
-            ))}
-          </div>
-        </HorizontalScrollArea>
-
-        <HorizontalScrollArea>
-          <div className="office-table">
-            <div className="office-table-header office-table-row office-table-row-commission">
               <span>Stakeholder</span>
               <span>Role</span>
               <span>Share</span>
@@ -483,11 +481,11 @@ export function TransactionCommissionCard({
               <span>Final</span>
             </div>
 
-            {snapshot.stakeholderBreakdown.map((row) => (
+            {commissionBreakdownRows.map((row) => (
               <div className="office-table-row office-table-row-commission" key={row.key}>
                 <div className="office-table-primary">
                   <strong>{row.recipientLabel}</strong>
-                  {row.isManualParticipant ? <p>Manual override participant</p> : null}
+                  {row.helperText ? <p>{row.helperText}</p> : null}
                 </div>
                 <span>{row.recipientRole}</span>
                 <span>{row.sharePercentLabel}</span>
@@ -498,7 +496,7 @@ export function TransactionCommissionCard({
               </div>
             ))}
 
-            {snapshot.stakeholderBreakdown.length === 0 ? (
+            {commissionBreakdownRows.length === 0 ? (
               <div className="bm-accounting-empty">
                 <p>Run the finance calculation to generate stakeholder breakdown rows.</p>
               </div>

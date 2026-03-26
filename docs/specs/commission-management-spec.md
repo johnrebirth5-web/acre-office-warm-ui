@@ -81,7 +81,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - create-time intake no longer shows the retired legacy commission text/select placeholders that were disconnected from the real fee ledger
 - transaction detail commission section now supports:
   - current stakeholder breakdown
-  - one combined post-split fee summary row in transaction detail `Commission`, rolling up the active `External Referral` and `Company Referral` amounts for quick review
+  - one combined transaction-detail allocation table that appends `External Referral` and `Company Referral` as separate rows beneath the stakeholder rows
   - current calculation version summary
   - calculation history
   - manual override for final stakeholder payouts
@@ -187,7 +187,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - `Share` shows the effective percentage implied by the latest `Final` amounts
   - `Base / Post-Split / Reimbursement` stay `0` or `—`
   - `Final` reflects the admin-entered override amount
-- both transaction stakeholder tables and agent statement detail / PDF views recompute share percentages from the current `Final` allocations instead of preserving the old split-chain percentages after post-split or override adjustments
+- the transaction-detail combined allocation table includes separate `External Referral` / `Company Referral` rows in its displayed `Share` percentages so the visible allocation adds up across stakeholder rows and fee rows together
 - manual override validation rules:
   - `overrideReason` is required
   - user rows must map to `active` or `invited` memberships in the same organization
