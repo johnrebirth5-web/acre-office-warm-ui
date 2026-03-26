@@ -30,6 +30,8 @@ export default async function OfficeContactsPage(props: OfficeContactsPageProps)
   const pageSize = parsePositiveInteger(searchParams.pageSize, officeContactsPageDefaults.pageSize, officeContactsPageLimits.maxPageSize);
   const result = await listContacts({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
     search: q,
     stage,
     page,

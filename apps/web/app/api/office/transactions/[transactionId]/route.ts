@@ -48,8 +48,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { transactionId } = await params;
-  const body = (await request.json()) as { status?: string };
-  const status = body.status;
+  const body = (await request.json().catch(() => null)) as { status?: string } | null;
+  const status = body?.status;
 
   if (!status) {
     return NextResponse.json({ error: "Status is required." }, { status: 400 });

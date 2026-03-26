@@ -4,7 +4,7 @@ import { ensureBootstrapAdminAccount, getSessionMembershipContext, type SessionM
 import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSessionCookieOptions, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config";
+import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config";
 
 const SESSION_COOKIE_NAME = "acre_local_session";
 
@@ -54,6 +54,14 @@ function decodeSession(cookieValue: string | undefined): SessionPayload | null {
       return null;
     }
 
+    if (!Number.isFinite(parsed.issuedAt) || parsed.issuedAt <= 0) {
+      return null;
+    }
+
+    if (Date.now() - parsed.issuedAt > getSessionMaxAgeMs()) {
+      return null;
+    }
+
     return parsed;
   } catch {
     return null;
@@ -65,6 +73,10 @@ export function createSessionCookieValue(membershipId: string) {
     membershipId,
     issuedAt: Date.now()
   });
+}
+
+export function decodeSessionCookieValue(cookieValue: string | undefined) {
+  return decodeSession(cookieValue);
 }
 
 function isPasswordChangeBlocked(context: SessionMembershipContext | null, options?: SessionContextOptions) {

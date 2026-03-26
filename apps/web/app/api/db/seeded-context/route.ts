@@ -1,7 +1,19 @@
+import { canManageOfficeUsers } from "@acre/auth";
 import { getSeededWorkspaceSnapshot } from "@acre/db";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getRequestSessionContext } from "../../../../lib/auth-session";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canManageOfficeUsers(context.currentMembership)) {
+    return NextResponse.json({ error: "User management access required." }, { status: 403 });
+  }
+
   try {
     const snapshot = await getSeededWorkspaceSnapshot();
 

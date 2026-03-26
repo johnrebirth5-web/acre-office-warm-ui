@@ -21,7 +21,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const { contactId } = await params;
-  const body = (await request.json()) as Record<string, unknown>;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+
+  if (!body) {
+    return NextResponse.json({ error: "A valid JSON body is required." }, { status: 400 });
+  }
   const title = String(body.title ?? "").trim();
 
   if (!title) {

@@ -13,7 +13,12 @@ export default async function OfficeContactDetailPage({ params }: ContactDetailP
   const context = await requireOfficeSession();
   const { contactId } = await params;
   const [contact, schema] = await Promise.all([
-    getContactById(context.currentOrganization.id, contactId),
+    getContactById({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      contactId,
+      officeId: context.currentOffice?.id ?? null
+    }),
     getOfficeContactFieldSchema({
       organizationId: context.currentOrganization.id,
       officeId: context.currentOffice?.id ?? null

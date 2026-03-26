@@ -651,16 +651,26 @@ function normalizeBillingStatusFilter(value: string | undefined | null): OfficeA
   return "all";
 }
 
+function clampToTargetMonth(next: Date, targetDay: number) {
+  const lastDayOfTargetMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(targetDay, lastDayOfTargetMonth));
+  return next;
+}
+
 function addMonths(date: Date, months: number) {
   const next = new Date(date);
+  const targetDay = next.getDate();
+  next.setDate(1);
   next.setMonth(next.getMonth() + months);
-  return next;
+  return clampToTargetMonth(next, targetDay);
 }
 
 function addYears(date: Date, years: number) {
   const next = new Date(date);
+  const targetDay = next.getDate();
+  next.setDate(1);
   next.setFullYear(next.getFullYear() + years);
-  return next;
+  return clampToTargetMonth(next, targetDay);
 }
 
 function addDays(date: Date, days: number) {
@@ -669,7 +679,10 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-function getNextRecurringDate(rule: Pick<AgentRecurringRuleRecord, "frequency" | "customIntervalDays"> | Pick<Prisma.AgentRecurringChargeRuleUncheckedCreateInput, "frequency" | "customIntervalDays">, currentDate: Date) {
+export function getNextRecurringDate(
+  rule: Pick<AgentRecurringRuleRecord, "frequency" | "customIntervalDays"> | Pick<Prisma.AgentRecurringChargeRuleUncheckedCreateInput, "frequency" | "customIntervalDays">,
+  currentDate: Date
+) {
   switch (rule.frequency) {
     case "monthly":
       return addMonths(currentDate, 1);

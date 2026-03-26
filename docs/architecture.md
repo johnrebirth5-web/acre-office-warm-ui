@@ -489,8 +489,8 @@
 10. detail 页面通过 `/api/office/transactions/:transactionId/finance` 更新最小 finance 字段
 11. detail 页面通过 transaction contact routes 做 link / unlink / set primary
 12. detail 页面通过 transaction task routes 做 create / edit / complete / reopen / request review / approve / reject，并按 linked document / signature / approval truth 决定任务是否真正可 complete
-13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页
-11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`
+13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页；contacts 读路径现在也复用 office/team/self data scope，而不是默认给整个 organization 同一份列表
+11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`，且 detail 内的 linked/available transaction 选项会按当前 transaction visibility scope 收窄
 12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / rows / summary / totalCount / export columns`
 13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、invoice options、所选 invoice 对应的 candidate commission rows、saved statement history 和 selected statement detail；selected statement 的 durable line snapshot 额外固化 transaction creation date、invoice / owner / building / unit 和 payout commission rate
 14. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot

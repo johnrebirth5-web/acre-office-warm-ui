@@ -7,6 +7,7 @@ import {
   TaskStatus,
   TransactionContactRole
 } from "@prisma/client";
+import { buildTransactionPortfolioVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
 import { createNotificationsForMemberships } from "./notifications";
@@ -84,10 +85,19 @@ export type OfficeContactDetail = {
 
 export type ListContactsInput = {
   organizationId: string;
+  viewerMembershipId: string;
+  officeId?: string | null;
   search?: string;
   stage?: string;
   page?: number;
   pageSize?: number;
+};
+
+export type GetContactByIdInput = {
+  organizationId: string;
+  viewerMembershipId: string;
+  contactId: string;
+  officeId?: string | null;
 };
 
 const defaultContactsPage = 1;
@@ -259,6 +269,54 @@ async function findSupplementalContactSearchIds(organizationId: string, query: s
   return rows.map((row) => row.id);
 }
 
+function buildContactScopeWhere(
+  scope: Awaited<ReturnType<typeof resolveOfficeDataScope>>,
+  officeId: string | null | undefined
+): Prisma.ClientWhereInput[] {
+  const whereConditions: Prisma.ClientWhereInput[] = [];
+
+  if (scope.visibleMembershipIds !== null) {
+    whereConditions.push({
+      ownerMembershipId: {
+        in: scope.visibleMembershipIds.length > 0 ? scope.visibleMembershipIds : [scope.viewerMembershipId]
+      }
+    });
+  }
+
+  if (officeId) {
+    whereConditions.push({
+      ownerMembership: {
+        officeId
+      }
+    });
+  }
+
+  return whereConditions;
+}
+
+function buildScopedTransactionWhere(
+  scope: Awaited<ReturnType<typeof resolveOfficeDataScope>>,
+  organizationId: string,
+  officeId: string | null | undefined
+): Prisma.TransactionWhereInput {
+  const whereConditions: Prisma.TransactionWhereInput[] = [
+    {
+      organizationId
+    },
+    buildTransactionPortfolioVisibilityWhere(scope)
+  ];
+
+  if (officeId) {
+    whereConditions.push({
+      officeId
+    });
+  }
+
+  return {
+    AND: whereConditions
+  };
+}
+
 function mapContactRecord(
   client: {
     id: string;
@@ -300,36 +358,53 @@ function mapContactRecord(
 }
 
 export async function listContacts(input: ListContactsInput): Promise<OfficeContactListResult> {
-  const where: Prisma.ClientWhereInput = {
-    organizationId: input.organizationId
-  };
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null,
+    resource: "contacts"
+  });
+  const whereConditions: Prisma.ClientWhereInput[] = [
+    {
+      organizationId: input.organizationId
+    },
+    ...buildContactScopeWhere(scope, input.officeId ?? null)
+  ];
   const requestedPage = Number.isFinite(input.page) ? Number(input.page) : defaultContactsPage;
   const requestedPageSize = Number.isFinite(input.pageSize) ? Number(input.pageSize) : defaultContactsPageSize;
   const pageSize = Math.min(Math.max(Math.trunc(requestedPageSize) || defaultContactsPageSize, 1), maxContactsPageSize);
 
   if (input.stage && input.stage !== "All") {
-    where.stage = input.stage;
+    whereConditions.push({
+      stage: input.stage
+    });
   }
 
   if (input.search?.trim()) {
     const query = input.search.trim();
     const supplementalIds = await findSupplementalContactSearchIds(input.organizationId, query);
-    where.OR = [
-      { fullName: { contains: query, mode: "insensitive" } },
-      { email: { contains: query, mode: "insensitive" } },
-      { phone: { contains: query, mode: "insensitive" } },
-      { source: { contains: query, mode: "insensitive" } },
-      { intent: { contains: query, mode: "insensitive" } },
-      {
-        ownerMembership: {
-          user: {
-            OR: [{ firstName: { contains: query, mode: "insensitive" } }, { lastName: { contains: query, mode: "insensitive" } }]
+    whereConditions.push({
+      OR: [
+        { fullName: { contains: query, mode: "insensitive" } },
+        { email: { contains: query, mode: "insensitive" } },
+        { phone: { contains: query, mode: "insensitive" } },
+        { source: { contains: query, mode: "insensitive" } },
+        { intent: { contains: query, mode: "insensitive" } },
+        {
+          ownerMembership: {
+            user: {
+              OR: [{ firstName: { contains: query, mode: "insensitive" } }, { lastName: { contains: query, mode: "insensitive" } }]
+            }
           }
-        }
-      },
-      ...(supplementalIds.length > 0 ? [{ id: { in: supplementalIds } }] : [])
-    ];
+        },
+        ...(supplementalIds.length > 0 ? [{ id: { in: supplementalIds } }] : [])
+      ]
+    });
   }
+
+  const where: Prisma.ClientWhereInput = {
+    AND: whereConditions
+  };
 
   const totalCount = await prisma.client.count({
     where
@@ -409,7 +484,12 @@ export async function createContact(input: SaveContactInput): Promise<OfficeCont
     return created;
   });
 
-  return (await getContactById(input.organizationId, client.id)) as OfficeContactDetail;
+  return (await getContactById({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId ?? input.ownerMembershipId,
+    contactId: client.id,
+    officeId: input.actorOfficeId ?? null
+  })) as OfficeContactDetail;
 }
 
 export async function updateContact(contactId: string, input: SaveContactInput): Promise<OfficeContactDetail | null> {
@@ -551,14 +631,39 @@ export async function updateContact(contactId: string, input: SaveContactInput):
     }
   });
 
-  return getContactById(input.organizationId, contactId);
+  return getContactById({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.actorMembershipId ?? input.ownerMembershipId,
+    contactId,
+    officeId: input.actorOfficeId ?? null
+  });
 }
 
-export async function getContactById(organizationId: string, contactId: string): Promise<OfficeContactDetail | null> {
+export async function getContactById(input: GetContactByIdInput): Promise<OfficeContactDetail | null> {
+  const [contactScope, transactionScope] = await Promise.all([
+    resolveOfficeDataScope({
+      organizationId: input.organizationId,
+      viewerMembershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      resource: "contacts"
+    }),
+    resolveOfficeDataScope({
+      organizationId: input.organizationId,
+      viewerMembershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      resource: "transactions"
+    })
+  ]);
+  const visibleTransactionWhere = buildScopedTransactionWhere(transactionScope, input.organizationId, input.officeId ?? null);
   const client = await prisma.client.findFirst({
     where: {
-      id: contactId,
-      organizationId
+      AND: [
+        {
+          id: input.contactId,
+          organizationId: input.organizationId
+        },
+        ...buildContactScopeWhere(contactScope, input.officeId ?? null)
+      ]
     },
     include: {
       ownerMembership: {
@@ -578,7 +683,8 @@ export async function getContactById(organizationId: string, contactId: string):
       },
       transactionContacts: {
         where: {
-          organizationId
+          organizationId: input.organizationId,
+          transaction: visibleTransactionWhere
         },
         include: {
           transaction: true
@@ -594,12 +700,16 @@ export async function getContactById(organizationId: string, contactId: string):
 
   const availableTransactions = await prisma.transaction.findMany({
     where: {
-      organizationId,
-      transactionContacts: {
-        none: {
-          clientId: client.id
+      AND: [
+        visibleTransactionWhere,
+        {
+          transactionContacts: {
+            none: {
+              clientId: client.id
+            }
+          }
         }
-      }
+      ]
     },
     orderBy: [{ updatedAt: "desc" }],
     select: {

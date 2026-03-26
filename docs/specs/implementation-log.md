@@ -8,6 +8,12 @@
 
 ## Recently completed major work
 
+- 2026-03-26: internal session/API hardening pass closed several review findings in one sweep:
+  - server-side session decoding now rejects cookies older than the configured 30-day max age instead of trusting browser expiry alone
+  - legacy/mock feed routes such as `/api/db/seeded-context`, `/api/health`, `/api/agent/dashboard`, `/api/clients`, `/api/events`, `/api/listings`, and `/api/resources` now require an authenticated session, and the seeded workspace snapshot additionally requires office user-management access
+  - `Contacts` list/detail now resolve the same office/team/self scope model as other office surfaces, and contact detail no longer leaks out-of-scope transaction links or available-transaction pickers
+  - the remaining unguarded `request.json()` office routes touched in this pass now return `400` for malformed JSON instead of bubbling a `500`
+  - recurring billing month/year roll-forward now clamps to the target month end, so Jan 31 / leap-day schedules no longer skip into the following month
 - 2026-03-26: `/office/pipeline` now exposes `My gross commission` alongside the existing self-service metrics so agents and branch-scoped leads can review gross commission totals without unlocking office-wide metrics
 - 2026-03-26: transaction visibility is now split between portfolio-style surfaces and full transaction workspace access:
   - manual/default commission participants can see shared deals and their own scoped income in list-style surfaces such as `Transactions`, `Pipeline`, and dashboard summaries without inheriting the full transaction detail/edit workspace

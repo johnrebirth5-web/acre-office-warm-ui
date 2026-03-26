@@ -32,7 +32,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   }
 
   const { contactId } = await params;
-  const contact = await getContactById(context.currentOrganization.id, contactId);
+  const contact = await getContactById({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    contactId,
+    officeId: context.currentOffice?.id ?? null
+  });
 
   if (!contact) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });
@@ -53,8 +58,18 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const { contactId } = await params;
-  const body = (await request.json()) as Record<string, unknown>;
-  const existingContact = await getContactById(context.currentOrganization.id, contactId);
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+
+  if (!body) {
+    return NextResponse.json({ error: "A valid JSON body is required." }, { status: 400 });
+  }
+
+  const existingContact = await getContactById({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    contactId,
+    officeId: context.currentOffice?.id ?? null
+  });
 
   if (!existingContact) {
     return NextResponse.json({ error: "Contact not found." }, { status: 404 });

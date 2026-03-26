@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
 
   const result = await listContacts({
     organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
     search,
     stage,
     page,
@@ -74,7 +76,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Contact create access required." }, { status: 403 });
   }
 
-  const body = (await request.json()) as Record<string, unknown>;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+
+  if (!body) {
+    return NextResponse.json({ error: "A valid JSON body is required." }, { status: 400 });
+  }
   try {
     const schema = await getOfficeContactFieldSchema({
       organizationId: context.currentOrganization.id,
