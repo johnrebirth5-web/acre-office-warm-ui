@@ -180,6 +180,16 @@ export {
 } from "./agent-billing";
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export {
+  getOfficePerformanceWorkspace,
+  listOfficePerformanceExportRows,
+  type GetOfficePerformanceWorkspaceInput,
+  type OfficePerformanceLeaderboard,
+  type OfficePerformanceLeaderboardEntry,
+  type OfficePerformanceSummary,
+  type OfficePerformanceTableRow,
+  type OfficePerformanceWorkspace
+} from "./performance";
+export {
   assignCommissionPlanToMembership,
   calculateTransactionCommission,
   ensureTransactionFinanceFees,

@@ -8,6 +8,12 @@
 
 ## Recently completed major work
 
+- 2026-03-26: `/office/performance` now provides a real role-scoped `Agent Performance` workspace on top of live transaction finance data:
+  - the new page reuses Office report scope and reads directly from `Transaction + TransactionFinanceFee` instead of introducing a second aggregate store
+  - performance is fixed to `Gross Commission - Rebate - Referral Fee - Reimbursement`
+  - natural-period attribution uses `moveInDate ?? closingDate`, and only `Pending / Closed` rows contribute
+  - agents now get self-only numeric visibility plus company Top 10 rank boards with peer amounts hidden, while team/company scope viewers get full numeric tables, rankings, and CSV export
+  - current rollout only exposes the `NY` company bucket, while `Rental / NJ` stay reserved in the contract for future activation
 - 2026-03-26: internal session/API hardening pass closed several review findings in one sweep:
   - server-side session decoding now rejects cookies older than the configured 30-day max age instead of trusting browser expiry alone
   - legacy/mock feed routes such as `/api/db/seeded-context`, `/api/health`, `/api/agent/dashboard`, `/api/clients`, `/api/events`, `/api/listings`, and `/api/resources` now require an authenticated session, and the seeded workspace snapshot additionally requires office user-management access

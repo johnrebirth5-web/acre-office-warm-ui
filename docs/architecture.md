@@ -8,7 +8,7 @@
 
 - 前端已经可运行
 - API 已经存在
-- API 当前以 `@acre/backoffice` 的内存数据为主，但 `Office Dashboard` 的业务指标、`Office Pipeline`、`Office Transactions`、`Office Contacts`、`Office Tasks`、`Office Reports`、`Office Notifications`、`Office Account / My Profile`、`Office Billing / My Billing`、`Office Activity Log`、`Office Library`、`Office Accounting`、`Office Agent Management` 和 `Office Admin / Settings` 已经切到 Prisma
+- API 当前以 `@acre/backoffice` 的内存数据为主，但 `Office Dashboard` 的业务指标、`Office Pipeline`、`Office Transactions`、`Office Contacts`、`Office Tasks`、`Office Reports`、`Office Performance`、`Office Notifications`、`Office Account / My Profile`、`Office Billing / My Billing`、`Office Activity Log`、`Office Library`、`Office Accounting`、`Office Agent Management` 和 `Office Admin / Settings` 已经切到 Prisma
 - 数据库 schema、Prisma client、migration、seed 已接入
 - 数据库现在已经覆盖主要 `Office / Back Office` 模块，但 agent/resource feed 和部分次级路径仍保留 mock 或过渡数据
 - 权限模型存在，且当前已经接入一个最小本地 session
@@ -19,7 +19,7 @@
   - membership-level `allow / deny` overrides
   - team hierarchy 驱动的 `self / team / company` scope resolution
 - 数据级 scope 也开始由显式 view permission 驱动，而不是只靠角色白名单
-- `Office / Back Office` 的页面主线已经开始按 `Brokermint` 的后台结构收敛，其中 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Approve Docs`、`Reports`、`Notifications`、`Account`、`Billing`、`Activity`、`Library` 已经切到真实数据库，其他页面仍主要由静态示例数据驱动
+- `Office / Back Office` 的页面主线已经开始按 `Brokermint` 的后台结构收敛，其中 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Approve Docs`、`Reports`、`Performance`、`Notifications`、`Account`、`Billing`、`Activity`、`Library` 已经切到真实数据库，其他页面仍主要由静态示例数据驱动
 - `Transaction detail` 现在已经进入真实 workflow 阶段，除 overview / status / contacts / finance / tasks 外，还包含：
   - offers
   - documents
@@ -121,6 +121,15 @@
     - `Rebate`
     - `Referral`
     - `Reimbursement`
+- 当前 `Performance` 页面也已切到真实数据库：
+  - route 为 `/office/performance`
+  - 页面直接读取 live `Transaction + TransactionFinanceFee`
+  - 公式固定为 `Gross Commission - Rebate - Referral Fee - Reimbursement`
+  - 周期归属使用 `moveInDate ?? closingDate`
+  - 当前只统计 `Pending / Closed`
+  - Agent 只能看自己的具体数字，但仍能看当前公司 Top 10 名次且隐藏他人的金额
+  - Team Lead 看组内完整数字与组内排名
+  - company-scope viewers 看当前公司完整数字、排名和 CSV 导出
   - 当前 CSV 导出与页面 table 共享同一份列注册表和同一份权限过滤
 - 当前 `Commission Management` 已通过 Prisma service 和 route handlers 落地到：
   - `/office/accounting`

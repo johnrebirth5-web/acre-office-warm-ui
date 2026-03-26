@@ -47,6 +47,7 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
         { label: "Transactions", href: "/office/transactions", isVisible: canViewOfficeTransactions },
         { label: "Contacts", href: "/office/contacts", isVisible: canViewOfficeContacts },
         { label: "Reports", href: "/office/reports", isVisible: canViewOfficeReports },
+        { label: "Performance", href: "/office/performance", isVisible: canViewOfficeReports },
         { label: "Activity", href: "/office/activity", isVisible: canAccessAccountActivity },
         { label: "Library", href: "/office/library", isVisible: canViewOfficeLibrary },
         { label: "Accounting", href: "/office/accounting", isVisible: canAccessOfficeAdminAccountingWorkspace }

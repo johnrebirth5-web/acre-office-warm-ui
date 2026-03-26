@@ -5740,6 +5740,14 @@ a {
   align-items: start;
 }
 
+.office-performance-board-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.office-performance-board-summary {
+  margin-top: 14px;
+}
+
 .office-list-card {
   gap: 16px;
 }
@@ -9484,6 +9492,7 @@ a {
   .office-dashboard-grid-wide,
   .bm-accounting-grid,
   .office-list-page-split,
+  .office-performance-board-grid,
   .office-detail-two-column,
   .office-pipeline-layout,
   .bm-activity-layout {

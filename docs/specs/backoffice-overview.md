@@ -52,6 +52,26 @@ This file is the high-level product map for the current `Office / Back Office` s
   - add Excel export when a real workbook requirement exists
   - keep extending columns/filters only when the source transaction schema is explicit
 
+### Performance
+
+- What it is for:
+  - role-scoped agent performance tracking with summary cards, period tables, and ranking boards.
+- Current maturity:
+  - `MVP`
+- Current notable behavior:
+  - `/office/performance` reads directly from live `Transaction + TransactionFinanceFee` data and reuses Office report scope instead of a second aggregate store.
+  - the performance formula is fixed to `Gross Commission - Rebate - Referral Fee - Reimbursement`.
+  - period attribution uses `moveInDate ?? closingDate`, and only `Pending / Closed` transactions contribute.
+  - current rollout only exposes `NY`, while keeping `Rental / NJ` reserved in the contract for future expansion.
+  - visibility is intentionally different from general transaction finance:
+    - company-scope viewers see current-company full numeric detail
+    - team leads see their visible branch's numeric detail
+    - agents see only their own numeric row, while company Top 10 peer amounts stay hidden
+- Follow-up work:
+  - activate `Rental / NJ` once those company entities are live in the current product line
+  - revisit richer comparison visuals only after the core reporting contract stays stable
+  - add broader export formats only when a real downstream accounting or management workflow needs them
+
 ### Transactions
 
 - What it is for:

@@ -38,6 +38,7 @@
   - `Contacts`
   - `Tasks`
   - `Reports`
+  - `Performance`
   - `Notifications`
   - `Account / My Profile`
   - `Billing / My Billing`
@@ -293,6 +294,21 @@
     - `owner / office_admin / accountant / human_resources`：company scope
     - `team_lead`：自己 + 组员
     - `agent`：仅自己
+- `Performance` 现在也已接入真实数据库：
+  - 路由：`/office/performance`
+  - 页面由同一个 server-side workspace 同时驱动 summary、period table、ranking board 和 CSV export
+  - 当前业绩公式固定为：
+    - `Gross Commission - Rebate - Referral Fee - Reimbursement`
+  - 当前周期归属固定使用：
+    - `moveInDate ?? closingDate`
+  - 当前只统计：
+    - `Pending`
+    - `Closed`
+  - 当前 rollout 只开放 `NY`
+  - 权限行为：
+    - `owner / office_admin / accountant / human_resources`：看当前公司完整数字、排名和导出
+    - `team_lead`：看自己和下属组员完整数字、组内排名和导出
+    - `agent`：只看自己的具体数字；公司 Top 10 只显示姓名和名次，不显示他人金额；不可导出
 - `Accounting` 现在也已接入真实数据库，但当前产品入口已经收口成 admin-only 的 `Agent Statements` 工作台：
   - 路由：`/office/accounting`
   - 只有 `office_admin` 可见和可访问
