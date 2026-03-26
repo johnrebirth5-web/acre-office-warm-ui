@@ -431,6 +431,61 @@ test("override-backed statement rows persist and display recalculated commission
   }
 });
 
+test("calculated statement rows also use effective commission rates after post-split adjustments", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    const calculatedRow = await context.createCommissionRow({
+      invoiceNumber: "INV-CALC-EFFECTIVE",
+      transactionName: "Calculated Statement Rate",
+      address: "72 Effective Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-21T00:00:00.000Z",
+      grossCommission: "5000",
+      statementAmount: "3000",
+      fees: "1000",
+      stakeholderBreakdown: [
+        {
+          membershipId: context.agentMembership.id,
+          recipientType: "agent",
+          sharePercent: "80",
+          finalAmount: "3000"
+        },
+        {
+          membershipId: "",
+          recipientType: "brokerage",
+          sharePercent: "20",
+          finalAmount: "2000"
+        }
+      ] satisfies Prisma.InputJsonValue,
+      versionSourceType: "calculated"
+    });
+
+    const result = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-CALC-EFFECTIVE"],
+      commissionCalculationIds: [calculatedRow.id],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: result.statementId
+      },
+      include: {
+        lineItems: true
+      }
+    });
+
+    assert.ok(savedStatement);
+    assert.equal(savedStatement?.lineItems[0]?.commissionRate, "60%");
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("statement detail exposes post-split fee breakdown by fee name", async () => {
   const context = await createStatementTestContext();
 

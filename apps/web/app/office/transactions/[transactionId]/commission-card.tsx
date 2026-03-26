@@ -76,6 +76,27 @@ function formatDisplayRate(value: string) {
   return Number.isFinite(numeric) ? `${value}%` : value;
 }
 
+function formatNumericString(value: number, digits = 4) {
+  const rounded = Number(value.toFixed(digits));
+
+  if (Number.isInteger(rounded)) {
+    return String(rounded);
+  }
+
+  return rounded.toFixed(digits).replace(/\.?0+$/, "");
+}
+
+function parseOptionalNumber(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const numeric = Number(trimmed);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 function parseAmount(value: string) {
   const trimmed = value.trim();
 
@@ -84,6 +105,40 @@ function parseAmount(value: string) {
   }
 
   return Number(trimmed);
+}
+
+function buildCombinedPostSplitFeeRows(snapshot: OfficeTransactionCommissionSnapshot) {
+  const postSplitRows = snapshot.feeBreakdown.filter((row) => row.selectedCalculationTypeValue === "post_split");
+
+  if (postSplitRows.length === 0) {
+    return [];
+  }
+
+  const hasNonNumericRate = postSplitRows.some((row) => row.rate.trim() && parseOptionalNumber(row.rate) === null);
+  const hasNonNumericAmount = postSplitRows.some((row) => row.amount.trim() && parseOptionalNumber(row.amount) === null);
+  const totalRate = hasNonNumericRate
+    ? postSplitRows.map((row) => row.rate).filter(Boolean).join(" + ")
+    : formatNumericString(postSplitRows.reduce((sum, row) => sum + (parseOptionalNumber(row.rate) ?? 0), 0));
+  const totalAmount = hasNonNumericAmount
+    ? postSplitRows.map((row) => row.amount).filter(Boolean).join(" + ")
+    : formatNumericString(postSplitRows.reduce((sum, row) => sum + (parseOptionalNumber(row.amount) ?? 0), 0), 2);
+  const approvalStatus =
+    postSplitRows.some((row) => row.approvalStatusValue === "pending")
+      ? "Pending approval"
+      : postSplitRows.some((row) => row.approvalStatusValue === "approved")
+        ? "Approved"
+        : "Not required";
+
+  return [
+    {
+      id: "combined-post-split-fees",
+      feeTypeLabel: "Combined Post-Split Fees",
+      detailLabel: postSplitRows.map((row) => row.feeTypeLabel).join(" + "),
+      rate: totalRate,
+      amount: totalAmount,
+      approvalStatus
+    }
+  ];
 }
 
 function buildOverrideRows(snapshot: OfficeTransactionCommissionSnapshot): OverrideDraftRow[] {
@@ -140,7 +195,7 @@ export function TransactionCommissionCard({
     normalizedParticipantSearch.length > 0
       ? availableManualParticipantOptions.filter((option) => option.label.toLowerCase().includes(normalizedParticipantSearch))
       : [];
-  const postSplitFeeRows = snapshot.feeBreakdown.filter((row) => row.selectedCalculationTypeValue === "post_split");
+  const postSplitFeeRows = buildCombinedPostSplitFeeRows(snapshot);
   const activeDescendantId =
     isParticipantPickerOpen && filteredManualParticipantOptions[highlightedParticipantIndex]
       ? `${participantListboxId}-${filteredManualParticipantOptions[highlightedParticipantIndex]?.membershipId}`
@@ -406,7 +461,7 @@ export function TransactionCommissionCard({
               <div className="office-table-row office-table-row-commission" key={row.id}>
                 <div className="office-table-primary">
                   <strong>{row.feeTypeLabel}</strong>
-                  <p>{row.selectedCalculationTypeLabel}</p>
+                  <p>{row.detailLabel}</p>
                 </div>
                 <span>{formatDisplayRate(row.rate)}</span>
                 <strong>{formatDisplayAmount(row.amount)}</strong>

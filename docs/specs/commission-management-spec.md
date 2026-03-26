@@ -81,7 +81,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - create-time intake no longer shows the retired legacy commission text/select placeholders that were disconnected from the real fee ledger
 - transaction detail commission section now supports:
   - current stakeholder breakdown
-  - explicit post-split fee detail rows for `External Referral` and `Company Referral`, instead of hiding those names behind a single company-only adjustment
+  - one combined post-split fee summary row in transaction detail `Commission`, rolling up the active `External Referral` and `Company Referral` amounts for quick review
   - current calculation version summary
   - calculation history
   - manual override for final stakeholder payouts
@@ -180,14 +180,14 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - only one version is marked current
 - the current version is mirrored into the active `CommissionCalculation` rows for compatibility
 - statement / payslip views read the current version-backed rows only
-- transaction detail and statement views keep showing the named post-split fee breakdown from the saved finance version / saved statement line snapshot, even though those fees still flow back into the company-side allocation by default
+- transaction detail and statement views keep showing the saved post-split fee effects from the finance version / statement line snapshot, even though those fees still flow back into the company-side allocation by default
 - history remains visible for audit/review but is not double-counted in payout summaries
 - manual override versions may include extra `active` or `invited` memberships that were not part of the original split chain
 - manual participant rows are marked as manual in the stored stakeholder snapshot:
-  - `Share` shows the effective percentage implied by the latest override `Final` amounts
+  - `Share` shows the effective percentage implied by the latest `Final` amounts
   - `Base / Post-Split / Reimbursement` stay `0` or `—`
   - `Final` reflects the admin-entered override amount
-- when an override redistributes the payout pool, both transaction stakeholder tables and agent statement detail / PDF views must recompute share percentages from the current `Final` allocations instead of preserving the old split-chain percentages
+- both transaction stakeholder tables and agent statement detail / PDF views recompute share percentages from the current `Final` allocations instead of preserving the old split-chain percentages after post-split or override adjustments
 - manual override validation rules:
   - `overrideReason` is required
   - user rows must map to `active` or `invited` memberships in the same organization

@@ -671,3 +671,77 @@ test("owner cannot change the override participant set and calculate stays locke
     await context.cleanup();
   }
 });
+
+test("calculated snapshot displays effective share percents after post-split adjustments", async () => {
+  const context = await createCommissionOverrideTestContext();
+
+  try {
+    const transaction = await context.createCalculatedTransaction();
+    const currentVersion = await prisma.transactionFinanceCalculationVersion.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        transactionId: transaction.id,
+        isCurrent: true
+      }
+    });
+
+    assert.ok(currentVersion);
+
+    await prisma.transactionFinanceCalculationVersion.update({
+      where: {
+        id: currentVersion?.id
+      },
+      data: {
+        postSplitTotal: new Prisma.Decimal(1000),
+        finalAgentNet: new Prisma.Decimal(3000),
+        finalOfficeNet: new Prisma.Decimal(2000),
+        stakeholderBreakdown: [
+          {
+            key: context.primaryAgentMembership.id,
+            membershipId: context.primaryAgentMembership.id,
+            recipientLabel: `${context.primaryAgentMembership.user.firstName} ${context.primaryAgentMembership.user.lastName}`.trim(),
+            recipientRole: "Agent",
+            recipientRoleValue: "agent",
+            recipientType: "agent",
+            isManualParticipant: false,
+            sharePercent: "80",
+            baseAmount: "4000",
+            postSplitAdjustment: "-1000",
+            reimbursementAdjustment: "0",
+            finalAmount: "3000"
+          },
+          {
+            key: "company",
+            membershipId: "",
+            recipientLabel: "Company",
+            recipientRole: "Brokerage",
+            recipientRoleValue: "brokerage",
+            recipientType: "brokerage",
+            isManualParticipant: false,
+            sharePercent: "20",
+            baseAmount: "1000",
+            postSplitAdjustment: "1000",
+            reimbursementAdjustment: "0",
+            finalAmount: "2000"
+          }
+        ] satisfies Prisma.InputJsonValue
+      }
+    });
+
+    const snapshot = await getTransactionCommissionSnapshot(
+      context.organization.id,
+      transaction.id,
+      context.primaryOffice.id,
+      context.officeAdminMembership.id
+    );
+
+    const primaryAgentRow =
+      snapshot?.stakeholderBreakdown.find((row) => row.membershipId === context.primaryAgentMembership.id) ?? null;
+    const companyRow = snapshot?.stakeholderBreakdown.find((row) => row.key === "company") ?? null;
+
+    assert.equal(primaryAgentRow?.sharePercentLabel, "60%");
+    assert.equal(companyRow?.sharePercentLabel, "40%");
+  } finally {
+    await context.cleanup();
+  }
+});

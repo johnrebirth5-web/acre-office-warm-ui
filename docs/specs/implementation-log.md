@@ -16,7 +16,7 @@
   - selecting a personal pipeline metric now also hides subordinate-only deals where the current viewer has no direct participation
   - this change is limited to pipeline personal metrics; broader team-scope transaction/reporting surfaces keep their existing team visibility rules
 - 2026-03-26: transaction commission detail and saved payout statements now surface named post-split fee detail instead of leaving `External Referral` and `Company Referral` hidden behind one merged company adjustment:
-  - transaction `Commission` now shows a dedicated post-split fee table for those rows
+  - transaction `Commission` now shows one combined post-split fee summary row for those active rows, while saved statement detail / PDF still retain named fee lines
   - generated `AgentPayoutStatementLine` snapshots now persist fee-breakdown JSON so saved statement detail / PDF can keep showing the named post-split breakdown even after later recalculation
   - statement detail / PDF now render `Post split detail` as total + named fee lines, while payout ownership still follows the existing company-side default allocation logic
 - 2026-03-26: `Create transaction` commission intake now uses a simplified calculator flow instead of a create-time fee-ledger editor:
