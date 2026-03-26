@@ -245,6 +245,15 @@ export function buildTransactionVisibilityWhere(scope: OfficeDataScope): Prisma.
             }
           }
         }
+      },
+      {
+        commissionCalculations: {
+          some: {
+            membershipId: {
+              in: visibleMembershipIds
+            }
+          }
+        }
       }
     ]
   };
@@ -264,6 +273,14 @@ export function buildTransactionMembershipLinkVisibilityWhere(scope: OfficeDataS
 
 export function getVisibleMembershipIds(scope: OfficeDataScope) {
   return scope.visibleMembershipIds ?? [];
+}
+
+export function getMyScopedMembershipIds(scope: OfficeDataScope) {
+  if (scope.kind === "organization") {
+    return [scope.viewerMembershipId];
+  }
+
+  return scope.visibleMembershipIds && scope.visibleMembershipIds.length > 0 ? scope.visibleMembershipIds : [scope.viewerMembershipId];
 }
 
 export function canAccessMembership(scope: OfficeDataScope, membershipId: string) {

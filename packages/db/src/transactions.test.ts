@@ -11,11 +11,13 @@ import {
 } from "./field-settings.ts";
 import {
   createTransaction,
+  getTransactionById,
   getOfficeTransactionSearchLayoutSnapshot,
   listTransactions,
   saveOfficeTransactionSearchLayout,
   updateTransactionIntake
 } from "./transactions.ts";
+import { getOfficePipelineWorkspaceSnapshot } from "./pipeline.ts";
 
 after(async () => {
   await prisma.$disconnect();
@@ -646,6 +648,151 @@ test("listTransactions applies dynamic custom field filters", async () => {
       [...new Set(dateResult.transactions.map((transaction) => transaction.id))].sort(),
       [portalDeal.id, referralLease.id].sort()
     );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("commission participants can see shared transactions and their scoped income", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const owner = await context.createMembership("agent", "shared-owner");
+    const taiZi = await context.createMembership("agent", "tai-zi");
+    const longGe = await context.createMembership("agent", "long-ge");
+    const transaction = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: owner.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "88 Commission Lane",
+      city: "Flushing",
+      state: "NY",
+      zipCode: "11354",
+      transactionName: "Shared Commission Deal",
+      price: "100000",
+      grossCommission: "9000",
+      officeNet: "3000",
+      agentNet: "3000"
+    });
+
+    await prisma.commissionCalculation.createMany({
+      data: [
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: transaction.id,
+          membershipId: owner.membership.id,
+          recipientType: "agent",
+          recipientRole: "agent",
+          recipientName: "Owner Agent",
+          grossCommission: new Prisma.Decimal(9000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(3000),
+          statementAmount: new Prisma.Decimal(3000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: transaction.id,
+          membershipId: taiZi.membership.id,
+          recipientType: "agent",
+          recipientRole: "junior_team_leader",
+          recipientName: "Tai Zi",
+          grossCommission: new Prisma.Decimal(9000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(2000),
+          statementAmount: new Prisma.Decimal(2000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: transaction.id,
+          membershipId: longGe.membership.id,
+          recipientType: "agent",
+          recipientRole: "agent",
+          recipientName: "Long Ge",
+          grossCommission: new Prisma.Decimal(9000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(0),
+          agentNet: new Prisma.Decimal(1000),
+          statementAmount: new Prisma.Decimal(1000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        },
+        {
+          organizationId: context.organization.id,
+          officeId: context.office.id,
+          transactionId: transaction.id,
+          membershipId: null,
+          recipientType: "brokerage",
+          recipientRole: "brokerage",
+          recipientName: "Company",
+          grossCommission: new Prisma.Decimal(9000),
+          referralFee: new Prisma.Decimal(0),
+          fees: new Prisma.Decimal(0),
+          officeNet: new Prisma.Decimal(3000),
+          agentNet: new Prisma.Decimal(0),
+          statementAmount: new Prisma.Decimal(3000),
+          status: "calculated",
+          calculatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          calculatedByMembershipId: context.adminMembership.id
+        }
+      ]
+    });
+
+    const taiZiTransactions = await listTransactions({
+      organizationId: context.organization.id,
+      viewerMembershipId: taiZi.membership.id,
+      officeId: context.office.id
+    });
+    const longGeTransactions = await listTransactions({
+      organizationId: context.organization.id,
+      viewerMembershipId: longGe.membership.id,
+      officeId: context.office.id
+    });
+    const taiZiPipeline = await getOfficePipelineWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: taiZi.membership.id,
+      officeId: context.office.id,
+      metricMode: "my_net_income",
+      view: "pending"
+    });
+    const taiZiTransactionDetail = await getTransactionById({
+      organizationId: context.organization.id,
+      viewerMembershipId: taiZi.membership.id,
+      transactionId: transaction.id,
+      officeId: context.office.id
+    });
+
+    assert.equal(taiZiTransactions.totalCount, 1);
+    assert.equal(taiZiTransactions.transactions[0]?.id, transaction.id);
+    assert.equal(taiZiTransactions.summary.totalNetIncome, "$2,000");
+    assert.equal(taiZiTransactionDetail?.id, transaction.id);
+
+    assert.equal(longGeTransactions.totalCount, 1);
+    assert.equal(longGeTransactions.transactions[0]?.id, transaction.id);
+    assert.equal(longGeTransactions.summary.totalNetIncome, "$1,000");
+
+    assert.equal(taiZiPipeline.rows.length, 1);
+    assert.equal(taiZiPipeline.rows[0]?.id, transaction.id);
+    assert.equal(taiZiPipeline.rows[0]?.amountLabel, "$2,000");
+    assert.equal(taiZiPipeline.summary.totalMetricLabel, "$2,000");
   } finally {
     await context.cleanup();
   }

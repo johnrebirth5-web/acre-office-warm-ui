@@ -334,10 +334,19 @@ test("office admin can add a manual membership participant and the participant s
       orderBy: [{ recipientName: "asc" }]
     });
     const officeUserRow = savedRows.find((row) => row.membershipId === context.officeUserMembership.id) ?? null;
+    const officeUserLink = await prisma.transactionMembershipLink.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        transactionId: transaction.id,
+        membershipId: context.officeUserMembership.id
+      }
+    });
 
     assert.ok(officeUserRow);
     assert.equal(officeUserRow?.recipientType, "agent");
     assert.equal(officeUserRow?.statementAmount.toString(), "1000");
+    assert.ok(officeUserLink);
+    assert.equal(officeUserLink?.role, "commission_manual_participant");
 
     const dashboardBeforeStatement = await getOfficeDashboardBusinessSnapshot({
       organizationId: context.organization.id,

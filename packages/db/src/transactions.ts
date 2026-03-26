@@ -14,6 +14,7 @@ import {
   buildTransactionVisibilityWhere,
   canViewCrossMemberFinancials,
   canViewFinancialsForMembership,
+  getMyScopedMembershipIds,
   redactCurrency,
   resolveOfficeDataScope
 } from "./access";
@@ -2213,13 +2214,14 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
   }
 
   const where = whereConditions.length === 1 ? whereConditions[0] : { AND: whereConditions };
+  const scopedMembershipIds = getMyScopedMembershipIds(scope);
 
   const totalCount = await prisma.transaction.count({
     where
   });
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const page = Math.min(Math.max(Math.trunc(requestedPage) || defaultTransactionsPage, 1), totalPages);
-  const [transactions, financeAggregate, selfFinancialAggregate] = await Promise.all([
+  const [transactions, financeAggregate, scopedCommissionIncomeAggregate, scopedFallbackIncomeAggregate] = await Promise.all([
     prisma.transaction.findMany({
       where,
       include: {
@@ -2239,10 +2241,33 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
         officeNet: true
       }
     }),
+    prisma.commissionCalculation.aggregate({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: {
+          in: scopedMembershipIds
+        },
+        transaction: {
+          is: where
+        }
+      },
+      _sum: {
+        statementAmount: true
+      }
+    }),
     prisma.transaction.aggregate({
       where: {
         ...where,
-        ownerMembershipId: scope.viewerMembershipId
+        ownerMembershipId: {
+          in: scopedMembershipIds
+        },
+        commissionCalculations: {
+          none: {
+            membershipId: {
+              in: scopedMembershipIds
+            }
+          }
+        }
       },
       _sum: {
         agentNet: true
@@ -2256,7 +2281,9 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
       totalCount,
       totalNetIncome: canViewCrossMemberFinancials(scope)
         ? formatCurrency(financeAggregate._sum.officeNet)
-        : formatCurrency(selfFinancialAggregate._sum.agentNet)
+        : formatCurrency(
+            Number(scopedCommissionIncomeAggregate._sum.statementAmount ?? 0) + Number(scopedFallbackIncomeAggregate._sum.agentNet ?? 0)
+          )
     },
     totalCount,
     totalPages,

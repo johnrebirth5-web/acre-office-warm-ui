@@ -1891,6 +1891,109 @@ function buildStoredTransactionFinanceStakeholderBreakdownRows(
   }));
 }
 
+const managedTransactionMembershipLinkRoles = ["commission_participant", "commission_manual_participant"] as const;
+
+async function syncTransactionParticipantMembershipLinks(
+  tx: ScopedPrismaClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    transactionId: string;
+    stakeholderRows: StoredTransactionFinanceStakeholderBreakdownRow[];
+  }
+) {
+  const participantRows = input.stakeholderRows.filter(
+    (row) => row.recipientType === "agent" && Boolean(row.membershipId?.trim())
+  );
+  const participantRowByMembershipId = new Map(participantRows.map((row) => [row.membershipId.trim(), row]));
+  const participantMembershipIds = [...participantRowByMembershipId.keys()];
+
+  await tx.transactionMembershipLink.deleteMany({
+    where: {
+      organizationId: input.organizationId,
+      transactionId: input.transactionId,
+      role: {
+        in: [...managedTransactionMembershipLinkRoles]
+      },
+      ...(participantMembershipIds.length > 0
+        ? {
+            membershipId: {
+              notIn: participantMembershipIds
+            }
+          }
+        : {})
+    }
+  });
+
+  if (participantMembershipIds.length === 0) {
+    return;
+  }
+
+  const existingLinks = await tx.transactionMembershipLink.findMany({
+    where: {
+      organizationId: input.organizationId,
+      transactionId: input.transactionId,
+      membershipId: {
+        in: participantMembershipIds
+      }
+    },
+    select: {
+      id: true,
+      membershipId: true,
+      role: true,
+      notes: true
+    }
+  });
+  const existingLinkByMembershipId = new Map(existingLinks.map((link) => [link.membershipId, link]));
+
+  for (const membershipId of participantMembershipIds) {
+    const participantRow = participantRowByMembershipId.get(membershipId);
+
+    if (!participantRow) {
+      continue;
+    }
+
+    const role = participantRow.isManualParticipant ? "commission_manual_participant" : "commission_participant";
+    const notes = participantRow.isManualParticipant
+      ? "Managed from transaction commission manual override."
+      : "Managed from transaction commission calculation.";
+    const existingLink = existingLinkByMembershipId.get(membershipId) ?? null;
+
+    if (!existingLink) {
+      await tx.transactionMembershipLink.create({
+        data: {
+          organizationId: input.organizationId,
+          officeId: input.officeId ?? null,
+          transactionId: input.transactionId,
+          membershipId,
+          role,
+          notes
+        }
+      });
+      continue;
+    }
+
+    if (!managedTransactionMembershipLinkRoles.includes(existingLink.role as (typeof managedTransactionMembershipLinkRoles)[number])) {
+      continue;
+    }
+
+    if (existingLink.role === role && existingLink.notes === notes) {
+      continue;
+    }
+
+    await tx.transactionMembershipLink.update({
+      where: {
+        id: existingLink.id
+      },
+      data: {
+        officeId: input.officeId ?? null,
+        role,
+        notes
+      }
+    });
+  }
+}
+
 function buildCommissionStakeholderKey(input: {
   recipientType: CommissionRecipientType;
   membershipId: string | null;
@@ -2936,6 +3039,13 @@ export async function calculateTransactionCommission(
       data: rows
     });
 
+    await syncTransactionParticipantMembershipLinks(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? transaction.officeId ?? null,
+      transactionId: transaction.id,
+      stakeholderRows: buildStoredTransactionFinanceStakeholderBreakdownRows(calculated.stakeholderRows)
+    });
+
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
       membershipId: input.actorMembershipId,
@@ -3300,6 +3410,13 @@ export async function overrideTransactionCommission(
         calculatedAt: new Date(),
         calculatedByMembershipId: input.actorMembershipId
       }))
+    });
+
+    await syncTransactionParticipantMembershipLinks(tx, {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? transaction.officeId ?? null,
+      transactionId: transaction.id,
+      stakeholderRows: nextStakeholderRows
     });
 
     await recordActivityLogEvent(tx, {
