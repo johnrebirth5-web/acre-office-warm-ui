@@ -30,6 +30,10 @@ type OfficePerformancePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
+const performanceBoardGridStyle = {
+  gridTemplateColumns: "88px minmax(180px, 1.5fr) minmax(128px, 0.9fr)"
+};
+
 function readSearchParamValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return typeof value[0] === "string" ? value[0] : undefined;
@@ -63,6 +67,15 @@ function buildRankLabel(leaderboard: OfficePerformanceLeaderboard) {
   return leaderboard.viewerEntry ? `#${leaderboard.viewerEntry.rank}` : "Not ranked";
 }
 
+function buildPerformanceTableGridStyle(columnCount: number) {
+  return {
+    gridTemplateColumns: [
+      "minmax(260px, 2.4fr)",
+      ...Array.from({ length: columnCount }, () => "minmax(112px, 0.85fr)")
+    ].join(" ")
+  };
+}
+
 export default async function OfficePerformancePage(props: OfficePerformancePageProps) {
   const context = await requireOfficeSession();
 
@@ -84,6 +97,7 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
     yearEnd: readSearchParamValue(searchParams.yearEnd)
   });
   const exportHref = buildExportHref(searchParams);
+  const performanceTableGridStyle = buildPerformanceTableGridStyle(workspace.table.columns.length);
 
   return (
     <PageShell className="office-list-page office-performance-page">
@@ -136,18 +150,25 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
         subtitle="Rows respect the current Office role scope, and each cell shows the performance formula already net of rebate, referral fees, and reimbursement."
         title="Performance table"
       >
-        <DataTable className="office-performance-table">
-          <DataTableHeader className="office-performance-table-head">
+        <DataTable className="office-list-table office-performance-table">
+          <DataTableHeader
+            className="office-list-table-header office-list-table-header-performance office-performance-table-head"
+            style={performanceTableGridStyle}
+          >
             <span>Name</span>
             {workspace.table.columns.map((column) => (
               <span key={column.key}>{column.label}</span>
             ))}
           </DataTableHeader>
 
-          <DataTableBody>
+          <DataTableBody className="office-list-table-body">
             {workspace.table.rows.map((row) => (
-              <DataTableRow className="office-performance-table-row" key={row.membershipId}>
-                <div className="office-data-table-row-main">
+              <DataTableRow
+                className="office-list-table-row office-list-table-row-performance office-performance-table-row"
+                key={row.membershipId}
+                style={performanceTableGridStyle}
+              >
+                <div className="office-list-table-main">
                   <strong>{row.name}</strong>
                   <small>
                     {row.secondaryLabel ? `${row.secondaryLabel} · ` : ""}
@@ -182,17 +203,24 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
               subtitle={leaderboard.subtitle}
               title={leaderboard.title}
             >
-              <DataTable className="office-performance-board-table">
-                <DataTableHeader>
+              <DataTable className="office-table office-performance-board-table">
+                <DataTableHeader
+                  className="office-table-header office-table-row office-table-row-performance-board"
+                  style={performanceBoardGridStyle}
+                >
                   <span>Rank</span>
                   <span>Agent</span>
                   <span>Performance</span>
                 </DataTableHeader>
                 <DataTableBody>
                   {leaderboard.entries.map((entry) => (
-                    <DataTableRow key={`${leaderboard.period}-${entry.membershipId}`}>
+                    <DataTableRow
+                      className="office-table-row office-table-row-performance-board"
+                      key={`${leaderboard.period}-${entry.membershipId}`}
+                      style={performanceBoardGridStyle}
+                    >
                       <span>#{entry.rank}</span>
-                      <div className="office-data-table-row-main">
+                      <div className="office-list-table-main">
                         <strong>{entry.name}</strong>
                         <small>{entry.isViewer ? "Current account" : "Top 10 board"}</small>
                       </div>
