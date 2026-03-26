@@ -45,7 +45,17 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - notes
 - transaction detail has a commission section
 - transaction detail finance section now supports:
-  - transaction-level fee ledger editing
+  - the same simplified commission calculator used in create flow, instead of a separate fee-ledger editor
+  - one left-to-right input path for:
+    - `Gross Commission`
+    - `Rebate`
+    - `Client Referral`
+    - `External Referral`
+    - `Company Referral`
+    - `Channel Development Fee`
+    - `Calculate`
+    - `Net Commission`
+  - one shared `Note` field instead of multiple fee-level note inputs
   - `Pre-Split Total`
   - `Post-Split Total`
   - `Net Commission Base`

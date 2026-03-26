@@ -261,7 +261,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
         <TransactionDetailCollapsibleSection
           sectionKey="finance"
           storageScope={transactionDetailSectionStorageScope}
-          subtitle="Manage the fee ledger, prerequisites, and finance inputs used by commission calculations."
+          subtitle="Use the same commission calculator flow here to update fees, notes, prerequisites, and the saved net output."
           title="Finance"
         >
           <TransactionFinanceForm

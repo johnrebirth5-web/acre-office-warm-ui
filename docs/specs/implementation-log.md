@@ -12,6 +12,7 @@
   - the create page now keeps one left-to-right calculator for `Gross Commission / Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee`, with `Gross Commission` as the only required input
   - create-time finance now exposes one shared `Note` field instead of multiple fee-level notes or company-referral-only helper fields
   - clicking `Calculate` in create mode now previews `Net Commission` using the current split-chain and fee-placement rules before the transaction is saved, while continuing to persist the same structured fee-ledger payload as before
+  - transaction detail `Finance` now follows the same calculator layout and field order, so create/edit no longer diverge between a simplified calculator and the older fee-ledger editor
 - 2026-03-26: `/office/performance` now provides a real role-scoped `Agent Performance` workspace on top of live transaction finance data:
   - the new page reuses Office report scope and reads directly from `Transaction + TransactionFinanceFee` instead of introducing a second aggregate store
   - performance is fixed to `Gross Commission - Rebate - Referral Fee - Reimbursement`

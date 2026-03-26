@@ -7,7 +7,12 @@ import type {
   OfficeTransactionFinanceFeeRecord,
   OfficeTransactionFinancePrerequisiteSnapshot
 } from "@acre/db";
-import { Button, SelectInput, StatCard } from "@acre/ui";
+import { Button, StatCard } from "@acre/ui";
+import {
+  buildTransactionFinanceCalculatorValuesFromFees,
+  transactionFinanceCalculatorFieldDefinitions,
+  type TransactionFinanceCalculatorFieldKey
+} from "../transaction-finance-calculator-config";
 
 type FinanceFeeDraft = {
   id: string;
@@ -21,8 +26,6 @@ type FinanceFeeDraft = {
   approvalStatusValue: OfficeTransactionFinanceFeeRecord["approvalStatusValue"];
   approvalStatus: OfficeTransactionFinanceFeeRecord["approvalStatus"];
   notes: string;
-  approvalHelperText: string;
-  prerequisiteHelperText: string;
 };
 
 type TransactionFinanceFormProps = {
@@ -47,6 +50,17 @@ function formatEditableNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
 }
 
+function deriveRateValue(grossCommissionValue: string, amountValue: string) {
+  const grossValue = parseNumber(grossCommissionValue);
+  const amount = parseNumber(amountValue);
+
+  if (!grossValue || grossValue <= 0 || amount === null) {
+    return "";
+  }
+
+  return formatEditableNumber((amount / grossValue) * 100);
+}
+
 function feeRequiresApproval(feeType: FinanceFeeDraft["feeTypeValue"], rateValue: string) {
   const numericRate = parseNumber(rateValue);
 
@@ -58,6 +72,49 @@ function feeRequiresApproval(feeType: FinanceFeeDraft["feeTypeValue"], rateValue
     (feeType === "channel_development_fee" || feeType === "client_referral" || feeType === "rebate") &&
     numericRate > 20
   );
+}
+
+function formatApprovalStatus(value: FinanceFeeDraft["approvalStatusValue"]) {
+  if (value === "approved") {
+    return "Approved";
+  }
+
+  if (value === "pending") {
+    return "Pending approval";
+  }
+
+  return "Not required";
+}
+
+function buildInitialFeeDrafts(fees: OfficeTransactionFinanceFeeRecord[]) {
+  return fees.map((fee) => ({
+    id: fee.id,
+    feeTypeValue: fee.feeTypeValue,
+    feeTypeLabel: fee.feeTypeLabel,
+    rate: fee.rate,
+    amount: fee.amount,
+    selectedCalculationTypeValue: fee.selectedCalculationTypeValue,
+    selectedCalculationTypeLabel: fee.selectedCalculationTypeLabel,
+    approvalRequired: fee.approvalRequired,
+    approvalStatusValue: fee.approvalStatusValue,
+    approvalStatus: fee.approvalStatus,
+    notes: fee.notes
+  }));
+}
+
+function updateCalculatorFeeDraft(current: FinanceFeeDraft, grossCommissionValue: string, amountValue: string): FinanceFeeDraft {
+  const nextRate = deriveRateValue(grossCommissionValue, amountValue);
+  const approvalRequired = feeRequiresApproval(current.feeTypeValue, nextRate);
+  const approvalStatusValue = approvalRequired ? "pending" : "not_required";
+
+  return {
+    ...current,
+    amount: amountValue,
+    rate: nextRate,
+    approvalRequired,
+    approvalStatusValue,
+    approvalStatus: formatApprovalStatus(approvalStatusValue)
+  };
 }
 
 export function TransactionFinanceForm({
@@ -78,24 +135,12 @@ export function TransactionFinanceForm({
     clientReferralFormApproved: prerequisites.clientReferralFormApproved,
     rebateAgreementSigned: prerequisites.rebateAgreementSigned,
     rebateGoogleFormSubmitted: prerequisites.rebateGoogleFormSubmitted,
-    fees: fees.map((fee) => ({
-      id: fee.id,
-      feeTypeValue: fee.feeTypeValue,
-      feeTypeLabel: fee.feeTypeLabel,
-      rate: fee.rate,
-      amount: fee.amount,
-      selectedCalculationTypeValue: fee.selectedCalculationTypeValue,
-      selectedCalculationTypeLabel: fee.selectedCalculationTypeLabel,
-      approvalRequired: fee.approvalRequired,
-      approvalStatusValue: fee.approvalStatusValue,
-      approvalStatus: fee.approvalStatus,
-      notes: fee.notes,
-      approvalHelperText: fee.approvalHelperText,
-      prerequisiteHelperText: fee.prerequisiteHelperText
-    }))
+    fees: buildInitialFeeDrafts(fees)
   }));
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const calculatorValues = buildTransactionFinanceCalculatorValuesFromFees(formState.fees);
 
   function setPrerequisiteField(field: "clientReferralFormApproved" | "rebateAgreementSigned" | "rebateGoogleFormSubmitted", value: boolean) {
     setFormState((current) => ({
@@ -105,46 +150,42 @@ export function TransactionFinanceForm({
   }
 
   function setTopLevelField(field: "grossCommission" | "financeNotes", value: string) {
+    if (field === "grossCommission") {
+      setFormState((current) => ({
+        ...current,
+        grossCommission: value,
+        fees: current.fees.map((fee) => {
+          if (!transactionFinanceCalculatorFieldDefinitions.some((entry) => entry.feeTypeValue === fee.feeTypeValue)) {
+            return fee;
+          }
+
+          return updateCalculatorFeeDraft(fee, value, fee.amount);
+        })
+      }));
+      return;
+    }
+
     setFormState((current) => ({
       ...current,
       [field]: value
     }));
   }
 
-  function updateFee(index: number, updater: (current: FinanceFeeDraft) => FinanceFeeDraft) {
+  function setCalculatorField(fieldKey: TransactionFinanceCalculatorFieldKey, value: string) {
+    const definition = transactionFinanceCalculatorFieldDefinitions.find((entry) => entry.fieldKey === fieldKey);
+
+    if (!definition) {
+      return;
+    }
+
     setFormState((current) => ({
       ...current,
-      fees: current.fees.map((fee, feeIndex) => (feeIndex === index ? updater(fee) : fee))
+      fees: current.fees.map((fee) =>
+        fee.feeTypeValue === definition.feeTypeValue
+          ? updateCalculatorFeeDraft(fee, current.grossCommission, value)
+          : fee
+      )
     }));
-  }
-
-  function syncFeeNumbers(index: number, field: "rate" | "amount", value: string) {
-    updateFee(index, (current) => {
-      const nextFee: FinanceFeeDraft = {
-        ...current,
-        [field]: value
-      };
-      const grossValue = parseNumber(formState.grossCommission);
-
-      if (current.feeTypeValue !== "reimbursement" && grossValue && grossValue > 0) {
-        if (field === "rate") {
-          const numericRate = parseNumber(value);
-          nextFee.amount = numericRate === null ? "" : formatEditableNumber((grossValue * numericRate) / 100);
-        } else {
-          const numericAmount = parseNumber(value);
-          nextFee.rate = numericAmount === null ? "" : formatEditableNumber((numericAmount / grossValue) * 100);
-        }
-      }
-
-      const approvalRequired = feeRequiresApproval(current.feeTypeValue, nextFee.rate);
-
-      return {
-        ...nextFee,
-        approvalRequired,
-        approvalStatusValue: approvalRequired ? "pending" : "not_required",
-        approvalStatus: approvalRequired ? "Pending approval" : "Not required"
-      };
-    });
   }
 
   async function handleSaveFinance() {
@@ -209,6 +250,13 @@ export function TransactionFinanceForm({
   }
 
   const willAutoCalculate = canAutoCalculateCommission && formState.grossCommission.trim().length > 0;
+  const actionLabel = isSaving
+    ? willAutoCalculate
+      ? "Calculating..."
+      : "Saving..."
+    : willAutoCalculate
+      ? "Calculate"
+      : "Save finance";
   const prerequisiteCards = [
     {
       checked: formState.clientReferralFormApproved,
@@ -237,180 +285,111 @@ export function TransactionFinanceForm({
         <StatCard hint="sum of all pre-split fees" label="Pre-Split total" value={summary?.preSplitTotalLabel ?? "$0"} />
         <StatCard hint="sum of all post-split fees" label="Post-Split total" value={summary?.postSplitTotalLabel ?? "$0"} />
         <StatCard hint="gross minus pre-split fees" label="Net commission base" value={summary?.netCommissionBaseLabel ?? "$0"} />
-        <StatCard hint="current owner-agent payout" label="Final agent net" value={summary?.agentNetLabel ?? "$0"} />
+        <StatCard hint="current owner-agent payout" label="Net commission" value={summary?.agentNetLabel ?? "$0"} />
         <StatCard hint="current company payout" label="Final office net" value={summary?.officeNetLabel ?? "$0"} />
-        <StatCard hint="separate reimbursement credit" label="Reimbursement" value={summary?.reimbursementLabel ?? "$0"} />
         <StatCard hint="latest saved commission version" label="Current version" value={summary?.currentVersionLabel ?? "Not calculated"} />
       </div>
 
-      <div className="office-transaction-finance-grid">
-        <section className="office-transaction-finance-panel">
-          <div className="office-transaction-finance-panel-head">
-            <div>
-              <h4>Finance setup</h4>
-              <p>Set the gross commission and keep working notes on this transaction.</p>
-            </div>
+      <section className="office-transaction-finance-panel">
+        <div className="office-transaction-finance-panel-head">
+          <div>
+            <h4>Commission calculator</h4>
+            <p>Use the same calculator flow as create transaction, then calculate to refresh the saved net result on this record.</p>
           </div>
+        </div>
 
-          <div className="office-transaction-finance-fields">
-            <label className="office-detail-field">
-              <span>Gross commission</span>
+        <div className="office-transaction-finance-calculator-grid">
+          <label className="office-detail-field">
+            <span>Gross Commission</span>
+            <input
+              disabled={readOnly}
+              inputMode="decimal"
+              onChange={(event) => setTopLevelField("grossCommission", event.target.value)}
+              placeholder="Required"
+              type="text"
+              value={formState.grossCommission}
+            />
+          </label>
+
+          {transactionFinanceCalculatorFieldDefinitions.map((field) => (
+            <label className="office-detail-field" key={field.fieldKey}>
+              <span>{field.feeTypeLabel}</span>
               <input
                 disabled={readOnly}
-                onChange={(event) => setTopLevelField("grossCommission", event.target.value)}
+                inputMode="decimal"
+                onChange={(event) => setCalculatorField(field.fieldKey, event.target.value)}
+                placeholder="0"
                 type="text"
-                value={formState.grossCommission}
+                value={calculatorValues[field.fieldKey]}
               />
             </label>
+          ))}
 
-            <label className="office-detail-field office-detail-field-wide">
-              <span>Finance notes</span>
-              <textarea
-                disabled={readOnly}
-                onChange={(event) => setTopLevelField("financeNotes", event.target.value)}
-                rows={4}
-                value={formState.financeNotes}
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="office-transaction-finance-panel">
-          <div className="office-transaction-finance-panel-head">
-            <div>
-              <h4>Prerequisites</h4>
-              <p>These checks gate Client Referral and Rebate before finance can finalize the commission.</p>
+          {!readOnly ? (
+            <div className="office-transaction-finance-calculator-action">
+              <Button disabled={isSaving} onClick={handleSaveFinance} type="button">
+                {actionLabel}
+              </Button>
             </div>
-          </div>
+          ) : null}
+        </div>
 
-          <div className="office-transaction-finance-prereq-grid">
-            {prerequisiteCards.map((card) => (
-              <label
-                className={`office-transaction-finance-prereq-card${card.checked ? " is-checked" : ""}${readOnly ? " is-readonly" : ""}`}
-                key={card.field}
-              >
-                <input
-                  checked={card.checked}
-                  disabled={readOnly}
-                  onChange={(event) => setPrerequisiteField(card.field, event.target.checked)}
-                  type="checkbox"
-                />
-                <div className="office-transaction-finance-prereq-copy">
-                  <strong>{card.title}</strong>
-                  <p>{card.description}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <section className="office-transaction-finance-panel office-transaction-finance-ledger-panel">
-        <div className="office-transaction-finance-panel-head office-transaction-finance-panel-head-split">
-          <div>
-            <h4>Fee ledger</h4>
-            <p>Choose how each fee is handled and keep a clean finance trail for review, calculation, and payslip output.</p>
-          </div>
-          <p className="office-transaction-finance-panel-note">
-            Pre-Split reduces the split base. Post-Split deducts from the owner agent after the split.
+        <div className="office-transaction-finance-calculator-result is-active">
+          <span>Net Commission</span>
+          <strong>{summary?.agentNetLabel ?? "$0"}</strong>
+          <p>
+            {summary
+              ? `Gross ${summary.grossCommissionLabel} · Pre-Split ${summary.preSplitTotalLabel} · Post-Split ${summary.postSplitTotalLabel}`
+              : "Save or calculate to refresh the current commission output."}
           </p>
         </div>
 
-        <div className="office-transaction-finance-ledger-list">
-          {formState.fees.map((fee, index) => (
-            <article className="office-transaction-finance-fee-card" key={fee.id}>
-              <div className="office-transaction-finance-fee-head">
-                <div className="office-transaction-finance-fee-copy">
-                  <strong>{fee.feeTypeLabel}</strong>
-                  <p>{fee.approvalHelperText}</p>
-                  {fee.prerequisiteHelperText ? <p>{fee.prerequisiteHelperText}</p> : null}
-                </div>
-                <div className="office-transaction-finance-fee-summary">
-                  <span>{fee.selectedCalculationTypeLabel}</span>
-                  <span>{fee.approvalRequired ? fee.approvalStatus : "No approval needed"}</span>
-                </div>
+        {summary?.reimbursementLabel && summary.reimbursementLabel !== "$0" ? (
+          <p className="office-form-helper">Current reimbursement adjustment: {summary.reimbursementLabel}</p>
+        ) : null}
+
+        <label className="office-detail-field office-detail-field-wide">
+          <span>Note</span>
+          <textarea
+            disabled={readOnly}
+            onChange={(event) => setTopLevelField("financeNotes", event.target.value)}
+            rows={4}
+            value={formState.financeNotes}
+          />
+        </label>
+
+        {!readOnly && canAutoCalculateCommission ? (
+          <p className="office-form-helper">Calculate will save finance changes first, then rerun the current commission rules for this transaction.</p>
+        ) : null}
+        {readOnly ? <p className="office-form-helper">Financial details are read-only for your current access level.</p> : null}
+        {error ? <p className="office-form-error">{error}</p> : null}
+      </section>
+
+      <section className="office-transaction-finance-panel">
+        <div className="office-transaction-finance-panel-head">
+          <div>
+            <h4>Prerequisites</h4>
+            <p>These checks still gate Client Referral and Rebate before finance can finalize the commission.</p>
+          </div>
+        </div>
+
+        <div className="office-transaction-finance-prereq-grid">
+          {prerequisiteCards.map((card) => (
+            <label
+              className={`office-transaction-finance-prereq-card${card.checked ? " is-checked" : ""}${readOnly ? " is-readonly" : ""}`}
+              key={card.field}
+            >
+              <input
+                checked={card.checked}
+                disabled={readOnly}
+                onChange={(event) => setPrerequisiteField(card.field, event.target.checked)}
+                type="checkbox"
+              />
+              <div className="office-transaction-finance-prereq-copy">
+                <strong>{card.title}</strong>
+                <p>{card.description}</p>
               </div>
-
-              <div className="office-transaction-finance-fee-fields">
-                <label className="office-detail-field">
-                  <span>Calculation</span>
-                  <SelectInput
-                    disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                    onChange={(event) =>
-                      updateFee(index, (current) => ({
-                        ...current,
-                        selectedCalculationTypeValue: event.target.value as FinanceFeeDraft["selectedCalculationTypeValue"],
-                        selectedCalculationTypeLabel:
-                          event.target.value === "pre_split"
-                            ? "Pre-Split"
-                            : event.target.value === "post_split"
-                              ? "Post-Split"
-                              : "Reimbursement"
-                      }))
-                    }
-                    value={fee.selectedCalculationTypeValue}
-                  >
-                    <option value="pre_split">Pre-Split</option>
-                    <option value="post_split">Post-Split</option>
-                    <option value="reimbursement">Reimbursement</option>
-                  </SelectInput>
-                </label>
-
-                <label className="office-detail-field">
-                  <span>Rate %</span>
-                  <input
-                    disabled={readOnly || fee.feeTypeValue === "reimbursement"}
-                    onChange={(event) => syncFeeNumbers(index, "rate", event.target.value)}
-                    type="text"
-                    value={fee.rate}
-                  />
-                </label>
-
-                <label className="office-detail-field">
-                  <span>Amount</span>
-                  <input disabled={readOnly} onChange={(event) => syncFeeNumbers(index, "amount", event.target.value)} type="text" value={fee.amount} />
-                </label>
-
-                <label className="office-detail-field">
-                  <span>Approval</span>
-                  <SelectInput
-                    disabled={readOnly || !fee.approvalRequired}
-                    onChange={(event) =>
-                      updateFee(index, (current) => ({
-                        ...current,
-                        approvalStatusValue: event.target.value as FinanceFeeDraft["approvalStatusValue"],
-                        approvalStatus:
-                          event.target.value === "approved"
-                            ? "Approved"
-                            : event.target.value === "pending"
-                              ? "Pending approval"
-                              : "Not required"
-                      }))
-                    }
-                    value={fee.approvalRequired ? fee.approvalStatusValue : "not_required"}
-                  >
-                    <option value="not_required">Not required</option>
-                    <option value="pending">Pending approval</option>
-                    <option value="approved">Approved</option>
-                  </SelectInput>
-                </label>
-
-                <label className="office-detail-field office-transaction-finance-fee-notes">
-                  <span>Notes</span>
-                  <textarea
-                    disabled={readOnly}
-                    onChange={(event) =>
-                      updateFee(index, (current) => ({
-                        ...current,
-                        notes: event.target.value
-                      }))
-                    }
-                    rows={3}
-                    value={fee.notes}
-                  />
-                </label>
-              </div>
-            </article>
+            </label>
           ))}
         </div>
       </section>
@@ -430,19 +409,6 @@ export function TransactionFinanceForm({
             ))}
           </ul>
         </section>
-      ) : null}
-
-      {readOnly ? <p className="office-form-helper">Financial details are read-only for your current access level.</p> : null}
-      {!readOnly ? (
-        <div className="office-form-actions office-transaction-finance-actions">
-          <Button disabled={isSaving} onClick={handleSaveFinance} type="button">
-            {isSaving ? (willAutoCalculate ? "Saving & recalculating..." : "Saving...") : willAutoCalculate ? "Save finance & recalculate" : "Save finance"}
-          </Button>
-          {canAutoCalculateCommission ? (
-            <p className="office-form-helper">Saving finance data will also run the current commission rule engine when gross commission is set.</p>
-          ) : null}
-          {error ? <p className="office-form-error">{error}</p> : null}
-        </div>
       ) : null}
     </div>
   );

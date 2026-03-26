@@ -3,62 +3,12 @@
 import { useState } from "react";
 import type { OfficeCreateTransactionCommissionPreview } from "@acre/db";
 import { Button } from "@acre/ui";
-
-type TransactionFinanceFeeTypeValue =
-  | "rebate"
-  | "client_referral"
-  | "external_referral"
-  | "company_referral"
-  | "channel_development_fee";
-
-type TransactionFinanceCalculationTypeValue = "pre_split" | "post_split";
-
-type TransactionFinanceCalculatorFieldKey =
-  | "rebate"
-  | "clientReferral"
-  | "externalReferral"
-  | "companyReferral"
-  | "channelDevelopmentFee";
-
-type TransactionFinanceCalculatorFieldDefinition = {
-  fieldKey: TransactionFinanceCalculatorFieldKey;
-  feeTypeValue: TransactionFinanceFeeTypeValue;
-  feeTypeLabel: string;
-  selectedCalculationTypeValue: TransactionFinanceCalculationTypeValue;
-};
-
-const calculatorFieldDefinitions: TransactionFinanceCalculatorFieldDefinition[] = [
-  {
-    fieldKey: "rebate",
-    feeTypeValue: "rebate",
-    feeTypeLabel: "Rebate",
-    selectedCalculationTypeValue: "pre_split"
-  },
-  {
-    fieldKey: "clientReferral",
-    feeTypeValue: "client_referral",
-    feeTypeLabel: "Client Referral",
-    selectedCalculationTypeValue: "pre_split"
-  },
-  {
-    fieldKey: "externalReferral",
-    feeTypeValue: "external_referral",
-    feeTypeLabel: "External Referral",
-    selectedCalculationTypeValue: "post_split"
-  },
-  {
-    fieldKey: "companyReferral",
-    feeTypeValue: "company_referral",
-    feeTypeLabel: "Company Referral",
-    selectedCalculationTypeValue: "post_split"
-  },
-  {
-    fieldKey: "channelDevelopmentFee",
-    feeTypeValue: "channel_development_fee",
-    feeTypeLabel: "Channel Development Fee",
-    selectedCalculationTypeValue: "post_split"
-  }
-];
+import {
+  createEmptyTransactionFinanceCalculatorValues,
+  isConfiguredTransactionFinanceCalculatorAmount,
+  transactionFinanceCalculatorFieldDefinitions as calculatorFieldDefinitions,
+  type TransactionFinanceCalculatorFieldKey
+} from "./transaction-finance-calculator-config";
 
 export type TransactionFinanceCreateDraft = {
   grossCommission: string;
@@ -73,37 +23,12 @@ type TransactionFinanceCreateFieldsProps = {
   onChange: (nextDraft: TransactionFinanceCreateDraft) => void;
 };
 
-function createEmptyCalculatorFields(): TransactionFinanceCreateDraft["calculatorFields"] {
-  return {
-    rebate: "",
-    clientReferral: "",
-    externalReferral: "",
-    companyReferral: "",
-    channelDevelopmentFee: ""
-  };
-}
-
 export function createTransactionFinanceCreateDraft(): TransactionFinanceCreateDraft {
   return {
     grossCommission: "",
     financeNotes: "",
-    calculatorFields: createEmptyCalculatorFields()
+    calculatorFields: createEmptyTransactionFinanceCalculatorValues()
   };
-}
-
-function parseNumber(value: string) {
-  const normalized = value.replaceAll(",", "").replace(/\$/g, "").trim();
-  const numeric = Number(normalized);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function hasConfiguredAmount(value: string) {
-  if (!value.trim()) {
-    return false;
-  }
-
-  const numeric = parseNumber(value);
-  return numeric === null ? true : numeric !== 0;
 }
 
 export function buildStructuredFinancePayloadFromDraft(draft: TransactionFinanceCreateDraft) {
@@ -112,10 +37,10 @@ export function buildStructuredFinancePayloadFromDraft(draft: TransactionFinance
   return {
     grossCommission: draft.grossCommission,
     financeNotes: draft.financeNotes,
-    companyReferral: hasConfiguredAmount(companyReferralAmount) ? "Yes" : "No",
+    companyReferral: isConfiguredTransactionFinanceCalculatorAmount(companyReferralAmount) ? "Yes" : "No",
     companyReferralEmployeeName: "",
     fees: calculatorFieldDefinitions
-      .filter((field) => hasConfiguredAmount(draft.calculatorFields[field.fieldKey]))
+      .filter((field) => isConfiguredTransactionFinanceCalculatorAmount(draft.calculatorFields[field.fieldKey]))
       .map((field) => ({
         feeType: field.feeTypeValue,
         rate: "",

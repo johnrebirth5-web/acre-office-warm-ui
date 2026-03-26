@@ -117,15 +117,16 @@
   - transaction detail 现在会渲染真实 linked contacts，并支持 link / unlink / set primary
   - transaction detail 现在有真实 `Checklist / Tasks` 区块，可创建、编辑并执行 document-linked review workflow
   - transaction detail 的 `Finance / Commission` 现在是结构化佣金工作台：
-    - 维护 `Gross commission`
-    - 维护 transaction 级 fee ledger：
+    - `Finance` 现在和 create flow 一样，使用同一套 calculator 输入顺序：
+      - `Gross commission`
       - `Rebate`
       - `Client Referral`
       - `External Referral`
       - `Company Referral`
       - `Channel Development Fee`
-      - `Reimbursement`
-    - 每个费用项可选择 `Pre-Split / Post-Split / Reimbursement`
+      - `Calculate`
+      - `Net Commission`
+    - detail finance 只保留一个统一 `Note`
     - 财务可确认 `Client Referral` / `Rebate` 前置条件
     - 页面显示 `Pre-Split Total / Post-Split Total / Net Commission Base / Final Agent Net / Final Office Net`
     - 支持 calculation history、current version、manual override 和操作备注
