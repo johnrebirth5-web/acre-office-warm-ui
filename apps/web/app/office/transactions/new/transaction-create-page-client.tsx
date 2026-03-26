@@ -25,6 +25,10 @@ type TransactionCreatePageClientProps = {
   modalFooterDescription?: string;
   modalFooterTitle?: string;
   onClose?: () => void;
+  onFieldModuleChange?: (
+    nextModule: OfficeFieldModuleSettingsSnapshot,
+    nextSchema: OfficeTransactionIntakeSchema
+  ) => void;
   onSubmitted?: () => void;
   ownerAssignment: OfficeTransactionOwnerAssignment;
   statusFieldPolicy?: TransactionStatusFieldPolicy;
@@ -32,7 +36,9 @@ type TransactionCreatePageClientProps = {
   title?: string;
 };
 
-function cloneFieldModuleSnapshot(snapshot: OfficeFieldModuleSettingsSnapshot): OfficeFieldModuleSettingsSnapshot {
+export function cloneFieldModuleSnapshot(
+  snapshot: OfficeFieldModuleSettingsSnapshot
+): OfficeFieldModuleSettingsSnapshot {
   return {
     ...snapshot,
     builtInFields: snapshot.builtInFields.map((field) => ({
@@ -48,7 +54,7 @@ function cloneFieldModuleSnapshot(snapshot: OfficeFieldModuleSettingsSnapshot): 
   };
 }
 
-function buildTransactionSchemaFromModuleSnapshot(
+export function buildTransactionSchemaFromModuleSnapshot(
   snapshot: OfficeFieldModuleSettingsSnapshot
 ): OfficeTransactionIntakeSchema {
   const builtInFields = snapshot.builtInFields as OfficeTransactionFieldSettingRecord[];
@@ -131,6 +137,7 @@ export function TransactionCreatePageClient({
   modalFooterDescription,
   modalFooterTitle,
   onClose,
+  onFieldModuleChange,
   onSubmitted,
   ownerAssignment,
   statusFieldPolicy,
@@ -171,8 +178,10 @@ export function TransactionCreatePageClient({
 
   function handleFieldModuleChange(nextModule: OfficeFieldModuleSettingsSnapshot) {
     const clonedSnapshot = cloneFieldModuleSnapshot(nextModule);
+    const nextSchema = buildTransactionSchemaFromModuleSnapshot(clonedSnapshot);
     setFieldModule(clonedSnapshot);
-    setSchema(buildTransactionSchemaFromModuleSnapshot(clonedSnapshot));
+    setSchema(nextSchema);
+    onFieldModuleChange?.(clonedSnapshot, nextSchema);
   }
 
   const editFieldsButton = canManageFields ? (

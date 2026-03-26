@@ -161,6 +161,7 @@
   - it reuses the shared transaction field settings instead of creating a second page-only schema
   - after retiring the old compatibility / text-only finance bridge fields, the modal now shows the same active transaction schema that really drives create-time rendering and search/report defaults, while still allowing a new custom field to be created in place
   - schema changes made from that modal now update the live create form without clearing the draft values already typed into still-visible fields
+  - `/office/transactions` now keeps those inline create-flow field edits in client state for the life of the page session, so closing and reopening `Create transaction` no longer snaps back to the stale schema from the original page load
 - transaction field management is now fully operable from the create-flow `Edit fields` modal itself:
   - the embedded workspace reuses the full `Settings > Fields` transaction editor instead of a reduced checkbox-only version
   - built-in transaction field labels are now overrideable and persisted, so admins can rename display text such as `State` directly from the inline editor or the main settings page

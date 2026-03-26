@@ -22,6 +22,7 @@ import {
 import type {
   OfficeFieldModuleSettingsSnapshot,
   OfficeTransactionRecord,
+  OfficeTransactionIntakeSchema,
   OfficeTransactionOwnerAssignment,
   OfficeTransactionSearchFieldDescriptor,
   OfficeTransactionSearchLayoutSnapshot,
@@ -31,7 +32,11 @@ import {
   OfficeListPagePagination,
   OfficeListPageTemplate
 } from "../_components/office-list-page-template";
-import { TransactionCreatePageClient } from "./new/transaction-create-page-client";
+import {
+  buildTransactionSchemaFromModuleSnapshot,
+  cloneFieldModuleSnapshot,
+  TransactionCreatePageClient
+} from "./new/transaction-create-page-client";
 import type { TransactionStatusFieldPolicy } from "./transaction-status-rules";
 
 type TransactionsClientProps = {
@@ -455,6 +460,9 @@ export function TransactionsClient({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSearchLayoutModalOpen, setIsSearchLayoutModalOpen] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
+  const [createFieldModule, setCreateFieldModule] = useState<OfficeFieldModuleSettingsSnapshot>(
+    () => cloneFieldModuleSnapshot(transactionFieldModule)
+  );
   const [searchFilters, setSearchFilters] = useState<SearchFilterState>(() =>
     cloneFilterState(searchLayout.filters)
   );
@@ -483,8 +491,16 @@ export function TransactionsClient({
     setIsSavingLayout(false);
   }, [searchLayout]);
 
+  useEffect(() => {
+    setCreateFieldModule(cloneFieldModuleSnapshot(transactionFieldModule));
+  }, [transactionFieldModule]);
+
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
+  const createSchema = useMemo<OfficeTransactionIntakeSchema>(
+    () => buildTransactionSchemaFromModuleSnapshot(createFieldModule),
+    [createFieldModule]
+  );
   const selectedDraftFields = useMemo(
     () =>
       searchLayout.availableFields.filter((field) => layoutSelection[buildSearchFieldId(field)]),
@@ -1005,9 +1021,12 @@ export function TransactionsClient({
                   })
                 );
               }}
-              initialFieldModule={transactionFieldModule}
+              initialFieldModule={createFieldModule}
+              initialSchema={createSchema}
+              onFieldModuleChange={(nextModule) => {
+                setCreateFieldModule(cloneFieldModuleSnapshot(nextModule));
+              }}
               ownerAssignment={transactionOwnerAssignment}
-              initialSchema={searchLayout.schema}
               statusFieldPolicy={transactionStatusFieldPolicy}
               submitLabel="Next →"
               title="Create transaction"
