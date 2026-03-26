@@ -405,6 +405,7 @@ export type {
   OfficeAgentPayoutStatementInvoiceOption,
   OfficeAgentPayoutStatementLineRecord,
   OfficeAgentPayoutStatementMemberOption,
+  OfficeAgentPayoutStatementPostSplitDetailItem,
   OfficeAgentPayoutStatementRecord,
   OfficeAgentPayoutStatementsWorkspaceSnapshot
 } from "./agent-payout-statements";

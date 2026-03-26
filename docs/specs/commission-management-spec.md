@@ -83,6 +83,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - create-time intake no longer shows the retired legacy commission text/select placeholders that were disconnected from the real fee ledger
 - transaction detail commission section now supports:
   - current stakeholder breakdown
+  - explicit post-split fee detail rows for `External Referral`, `Company Referral`, and `Channel Development Fee`, instead of hiding those names behind a single company-only adjustment
   - current calculation version summary
   - calculation history
   - manual override for final stakeholder payouts
@@ -183,6 +184,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - only one version is marked current
 - the current version is mirrored into the active `CommissionCalculation` rows for compatibility
 - statement / payslip views read the current version-backed rows only
+- transaction detail and statement views keep showing the named post-split fee breakdown from the saved finance version / saved statement line snapshot, even though those fees still flow back into the company-side allocation by default
 - history remains visible for audit/review but is not double-counted in payout summaries
 - manual override versions may include extra `active` or `invited` memberships that were not part of the original split chain
 - manual participant rows are marked as manual in the stored stakeholder snapshot:

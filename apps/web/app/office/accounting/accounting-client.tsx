@@ -174,6 +174,19 @@ function formatStatementCellValue(value: string | null | undefined) {
   return trimmed ? trimmed : "—";
 }
 
+function StatementPostSplitCell({ lineItem }: { lineItem: SelectedStatementDetail["lineItems"][number] }) {
+  return (
+    <div className="office-agent-statement-post-split">
+      <strong>{lineItem.postSplitLabel}</strong>
+      {lineItem.postSplitBreakdown.map((detail) => (
+        <p key={`${lineItem.id}:${detail.feeTypeValue}`}>
+          {detail.feeTypeLabel}: {detail.amountLabel}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function normalizeInvoiceSelection(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
@@ -930,7 +943,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                   <span>Gross</span>
                   <span>Pre split</span>
                   <span>Commission rate</span>
-                  <span>Post split</span>
+                  <span>Post split detail</span>
                   <span>Net commission</span>
                 </DataTableHeader>
                 <DataTableBody>
@@ -949,7 +962,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       <span>{lineItem.grossCommissionLabel}</span>
                       <span>{lineItem.preSplitLabel}</span>
                       <span>{formatStatementCellValue(lineItem.commissionRate)}</span>
-                      <span>{lineItem.postSplitLabel}</span>
+                      <StatementPostSplitCell lineItem={lineItem} />
                       <span>{lineItem.netCommissionLabel}</span>
                     </DataTableRow>
                   ))}

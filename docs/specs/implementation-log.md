@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-03-26: transaction commission detail and saved payout statements now surface named post-split fee detail instead of leaving `External Referral`, `Company Referral`, and `Channel Development Fee` hidden behind one merged company adjustment:
+  - transaction `Commission` now shows a dedicated post-split fee table for those three rows
+  - generated `AgentPayoutStatementLine` snapshots now persist fee-breakdown JSON so saved statement detail / PDF can keep showing the named post-split breakdown even after later recalculation
+  - statement detail / PDF now render `Post split detail` as total + named fee lines, while payout ownership still follows the existing company-side default allocation logic
 - 2026-03-26: `Create transaction` commission intake now uses a simplified calculator flow instead of a create-time fee-ledger editor:
   - the create page now keeps one left-to-right calculator for `Gross Commission / Rebate / Client Referral / External Referral / Company Referral / Channel Development Fee`, with `Gross Commission` as the only required input
   - the simplified calculator still exposes `Rate %` for each fee in both create and detail finance, so amount/rate entry matches the earlier editor without bringing back the full fee-ledger layout

@@ -121,27 +121,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0
   },
   cellCreation: {
-    width: "9%",
+    width: "8%",
     paddingRight: 6
   },
   cellInvoice: {
-    width: "10%",
+    width: "8%",
     paddingRight: 6
   },
   cellOwner: {
-    width: "12%",
+    width: "10%",
     paddingRight: 6
   },
   cellBuilding: {
-    width: "20%",
+    width: "19%",
     paddingRight: 8
   },
   cellUnit: {
-    width: "6%",
+    width: "5%",
     paddingRight: 6
   },
   cellMoney: {
-    width: "9%",
+    width: "8%",
     textAlign: "right",
     paddingLeft: 6
   },
@@ -149,6 +149,21 @@ const styles = StyleSheet.create({
     width: "8%",
     textAlign: "right",
     paddingLeft: 6
+  },
+  cellPostSplit: {
+    width: "18%",
+    paddingLeft: 6,
+    alignItems: "flex-end"
+  },
+  postSplitTotal: {
+    fontWeight: 700,
+    textAlign: "right"
+  },
+  postSplitDetail: {
+    marginTop: 2,
+    color: "#6b7280",
+    fontSize: 8,
+    textAlign: "right"
   },
   buildingTitle: {
     fontWeight: 700
@@ -228,7 +243,14 @@ function StatementLineItemRow({ lineItem, isLastRow }: StatementLineItemRowProps
       <Text style={styles.cellMoney}>{lineItem.grossCommissionLabel}</Text>
       <Text style={styles.cellMoney}>{lineItem.preSplitLabel}</Text>
       <Text style={styles.cellRate}>{formatStatementCellValue(lineItem.commissionRate)}</Text>
-      <Text style={styles.cellRate}>{lineItem.postSplitLabel}</Text>
+      <View style={styles.cellPostSplit}>
+        <Text style={styles.postSplitTotal}>{lineItem.postSplitLabel}</Text>
+        {lineItem.postSplitBreakdown.map((detail) => (
+          <Text key={`${lineItem.id}:${detail.feeTypeValue}`} style={styles.postSplitDetail}>
+            {detail.feeTypeLabel}: {detail.amountLabel}
+          </Text>
+        ))}
+      </View>
       <Text style={styles.cellMoney}>{lineItem.netCommissionLabel}</Text>
     </View>
   );
@@ -310,7 +332,7 @@ export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatem
             <Text style={styles.cellMoney}>Gross</Text>
             <Text style={styles.cellMoney}>Pre split</Text>
             <Text style={styles.cellRate}>Commission rate</Text>
-            <Text style={styles.cellRate}>Post split</Text>
+            <Text style={styles.cellPostSplit}>Post split detail</Text>
             <Text style={styles.cellMoney}>Net commission</Text>
           </View>
 

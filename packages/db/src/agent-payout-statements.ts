@@ -5,6 +5,9 @@ import {
   CommissionCalculationStatus,
   MembershipStatus,
   Prisma,
+  TransactionFinanceApprovalStatus,
+  TransactionFinanceCalculationType,
+  TransactionFinanceFeeType,
   TransactionFinanceVersionSource
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
@@ -115,6 +118,7 @@ export type OfficeAgentPayoutStatementLineRecord = {
   referralFeeValue: string;
   postSplitLabel: string;
   postSplitValue: string;
+  postSplitBreakdown: OfficeAgentPayoutStatementPostSplitDetailItem[];
   feesLabel: string;
   feesValue: string;
   agentNetLabel: string;
@@ -123,6 +127,13 @@ export type OfficeAgentPayoutStatementLineRecord = {
   netCommissionValue: string;
   statementAmountLabel: string;
   statementAmountValue: string;
+};
+
+export type OfficeAgentPayoutStatementPostSplitDetailItem = {
+  feeTypeValue: "external_referral" | "company_referral" | "channel_development_fee";
+  feeTypeLabel: string;
+  amountLabel: string;
+  amountValue: string;
 };
 
 export type OfficeAgentPayoutStatementBankInformationRecord = {
@@ -248,6 +259,25 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
 };
 
 const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
+const postSplitStatementFeeDefinitions = [
+  { feeType: "external_referral", label: "External Referral" },
+  { feeType: "company_referral", label: "Company Referral" },
+  { feeType: "channel_development_fee", label: "Channel Development Fee" }
+] satisfies Array<{
+  feeType: OfficeAgentPayoutStatementPostSplitDetailItem["feeTypeValue"];
+  label: string;
+}>;
+
+type StoredTransactionFinanceFeeBreakdownRow = {
+  feeType: TransactionFinanceFeeType;
+  label: string;
+  calculationType: TransactionFinanceCalculationType;
+  rate: string;
+  amount: string;
+  approvalRequired: boolean;
+  approvalStatus: TransactionFinanceApprovalStatus;
+  notes: string;
+};
 const generateEligibleAgentPayoutCalculationStatuses: readonly CommissionCalculationStatus[] = [
   "calculated",
   "reviewed",
@@ -546,6 +576,105 @@ function decimalToString(value: Prisma.Decimal | number | string | null | undefi
   return new Prisma.Decimal(value ?? 0).toString();
 }
 
+function parseStoredStatementFeeBreakdown(value: Prisma.JsonValue | null | undefined): StoredTransactionFinanceFeeBreakdownRow[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+
+      const row = entry as Record<string, Prisma.JsonValue>;
+
+      if (
+        typeof row.feeType !== "string" ||
+        typeof row.label !== "string" ||
+        typeof row.calculationType !== "string" ||
+        typeof row.rate !== "string" ||
+        typeof row.amount !== "string" ||
+        typeof row.approvalRequired !== "boolean" ||
+        typeof row.approvalStatus !== "string" ||
+        typeof row.notes !== "string"
+      ) {
+        return null;
+      }
+
+      if (
+        row.feeType !== "rebate" &&
+        row.feeType !== "client_referral" &&
+        row.feeType !== "external_referral" &&
+        row.feeType !== "company_referral" &&
+        row.feeType !== "channel_development_fee" &&
+        row.feeType !== "reimbursement"
+      ) {
+        return null;
+      }
+
+      if (row.calculationType !== "pre_split" && row.calculationType !== "post_split" && row.calculationType !== "reimbursement") {
+        return null;
+      }
+
+      if (row.approvalStatus !== "not_required" && row.approvalStatus !== "pending" && row.approvalStatus !== "approved") {
+        return null;
+      }
+
+      return {
+        feeType: row.feeType,
+        label: row.label,
+        calculationType: row.calculationType,
+        rate: row.rate,
+        amount: row.amount,
+        approvalRequired: row.approvalRequired,
+        approvalStatus: row.approvalStatus,
+        notes: row.notes
+      } satisfies StoredTransactionFinanceFeeBreakdownRow;
+    })
+    .filter((entry): entry is StoredTransactionFinanceFeeBreakdownRow => Boolean(entry));
+}
+
+function buildStatementLineFeeBreakdownSnapshot(value: Prisma.JsonValue | null | undefined) {
+  return parseStoredStatementFeeBreakdown(value).map((row) => ({
+    feeType: row.feeType,
+    label: row.label,
+    calculationType: row.calculationType,
+    rate: row.rate,
+    amount: row.amount,
+    approvalRequired: row.approvalRequired,
+    approvalStatus: row.approvalStatus,
+    notes: row.notes
+  })) satisfies Prisma.InputJsonValue;
+}
+
+function buildPostSplitBreakdownDetails(
+  value: Prisma.JsonValue | null | undefined
+): OfficeAgentPayoutStatementPostSplitDetailItem[] {
+  const parsedRows = parseStoredStatementFeeBreakdown(value).filter(
+    (row) =>
+      row.calculationType === "post_split" &&
+      postSplitStatementFeeDefinitions.some((definition) => definition.feeType === row.feeType)
+  );
+
+  if (parsedRows.length === 0) {
+    return [];
+  }
+
+  const amountByFeeType = new Map(parsedRows.map((row) => [row.feeType, decimalToString(row.amount)]));
+
+  return postSplitStatementFeeDefinitions.map((definition) => {
+    const amountValue = amountByFeeType.get(definition.feeType) ?? "0";
+
+    return {
+      feeTypeValue: definition.feeType,
+      feeTypeLabel: definition.label,
+      amountLabel: formatCurrency(amountValue),
+      amountValue
+    };
+  });
+}
+
 export function normalizeAgentPayoutStatementPeriodBasis(value: string | undefined | null): AgentPayoutStatementPeriodBasis {
   if (value === "closing_date") {
     return "closing_date";
@@ -797,7 +926,8 @@ function buildStatementLineSnapshot(
     fees: calculation.fees,
     officeNet: calculation.officeNet,
     agentNet: calculation.agentNet,
-    statementAmount: calculation.statementAmount
+    statementAmount: calculation.statementAmount,
+    feeBreakdown: buildStatementLineFeeBreakdownSnapshot(calculation.transactionFinanceCalculationVersion?.feeBreakdown)
   };
 }
 
@@ -824,6 +954,7 @@ function mapStatementDetail(
   record: StatementRecordWithRelations,
   options?: {
     liveCommissionRateByCalculationId?: Map<string, string>;
+    livePostSplitBreakdownByCalculationId?: Map<string, OfficeAgentPayoutStatementPostSplitDetailItem[]>;
   }
 ): OfficeAgentPayoutStatementDetail {
   return {
@@ -850,6 +981,9 @@ function mapStatementDetail(
     bankInformation: mapStatementBankInformation(record.membership.agentBankInformation),
     lineItems: record.lineItems.map((lineItem) => {
       const liveCommissionRate = options?.liveCommissionRateByCalculationId?.get(lineItem.commissionCalculationId) ?? "";
+      const postSplitBreakdown =
+        options?.livePostSplitBreakdownByCalculationId?.get(lineItem.commissionCalculationId) ??
+        buildPostSplitBreakdownDetails(lineItem.feeBreakdown);
 
       return {
         id: lineItem.id,
@@ -876,6 +1010,7 @@ function mapStatementDetail(
         referralFeeValue: decimalToString(lineItem.referralFee),
         postSplitLabel: formatCurrency(lineItem.fees),
         postSplitValue: decimalToString(lineItem.fees),
+        postSplitBreakdown,
         feesLabel: formatCurrency(lineItem.fees),
         feesValue: decimalToString(lineItem.fees),
         agentNetLabel: formatCurrency(lineItem.agentNet),
@@ -1012,9 +1147,18 @@ export async function getOfficeAgentPayoutStatementDetail(
       )
     ])
   );
+  const livePostSplitBreakdownByCalculationId = new Map(
+    liveCalculations
+      .map((calculation) => [
+        calculation.id,
+        buildPostSplitBreakdownDetails(calculation.transactionFinanceCalculationVersion?.feeBreakdown)
+      ] as const)
+      .filter(([, breakdown]) => breakdown.length > 0)
+  );
 
   return mapStatementDetail(statement, {
-    liveCommissionRateByCalculationId
+    liveCommissionRateByCalculationId,
+    livePostSplitBreakdownByCalculationId
   });
 }
 

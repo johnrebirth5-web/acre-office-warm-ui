@@ -83,6 +83,7 @@ async function createStatementTestContext() {
     statementAmount: string;
     grossCommission?: string;
     fees?: string;
+    feeBreakdown?: Prisma.InputJsonValue;
     stakeholderBreakdown?: Prisma.InputJsonValue;
     versionSourceType?: "calculated" | "overridden";
   }) {
@@ -127,7 +128,7 @@ async function createStatementTestContext() {
               reimbursementAmount: new Prisma.Decimal(0),
               finalAgentNet: new Prisma.Decimal(input.statementAmount),
               finalOfficeNet: new Prisma.Decimal(0),
-              feeBreakdown: [] satisfies Prisma.InputJsonValue,
+              feeBreakdown: input.feeBreakdown ?? ([] satisfies Prisma.InputJsonValue),
               stakeholderBreakdown: input.stakeholderBreakdown,
               blockingIssues: [] satisfies Prisma.InputJsonValue,
               notes: "Statement test version",
@@ -425,6 +426,110 @@ test("override-backed statement rows persist and display recalculated commission
     });
 
     assert.equal(statementDetail?.lineItems[0]?.commissionRate, "60%");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("statement detail exposes post-split fee breakdown by fee name", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    const feeBreakdown = [
+      {
+        feeType: "external_referral",
+        label: "External Referral",
+        calculationType: "post_split",
+        rate: "2.5",
+        amount: "100",
+        approvalRequired: false,
+        approvalStatus: "not_required",
+        notes: ""
+      },
+      {
+        feeType: "company_referral",
+        label: "Company Referral",
+        calculationType: "post_split",
+        rate: "20",
+        amount: "800",
+        approvalRequired: false,
+        approvalStatus: "not_required",
+        notes: ""
+      },
+      {
+        feeType: "channel_development_fee",
+        label: "Channel Development Fee",
+        calculationType: "post_split",
+        rate: "0",
+        amount: "0",
+        approvalRequired: false,
+        approvalStatus: "not_required",
+        notes: ""
+      }
+    ] satisfies Prisma.InputJsonValue;
+
+    const breakdownRow = await context.createCommissionRow({
+      invoiceNumber: "INV-BREAKDOWN",
+      transactionName: "Breakdown Statement",
+      address: "90 Breakdown Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-23T00:00:00.000Z",
+      statementAmount: "3100",
+      fees: "900",
+      feeBreakdown,
+      stakeholderBreakdown: [
+        {
+          membershipId: context.agentMembership.id,
+          recipientType: "agent",
+          sharePercent: "75",
+          finalAmount: "3100"
+        },
+        {
+          membershipId: "",
+          recipientType: "brokerage",
+          sharePercent: "25",
+          finalAmount: "900"
+        }
+      ] satisfies Prisma.InputJsonValue
+    });
+
+    const result = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-BREAKDOWN"],
+      commissionCalculationIds: [breakdownRow.id],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: result.statementId
+      },
+      include: {
+        lineItems: true
+      }
+    });
+
+    assert.deepEqual(savedStatement?.lineItems[0]?.feeBreakdown, feeBreakdown);
+
+    const statementDetail = await getOfficeAgentPayoutStatementDetail({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: result.statementId
+    });
+
+    assert.deepEqual(
+      statementDetail?.lineItems[0]?.postSplitBreakdown.map((item) => ({
+        feeTypeValue: item.feeTypeValue,
+        amountValue: item.amountValue
+      })),
+      [
+        { feeTypeValue: "external_referral", amountValue: "100" },
+        { feeTypeValue: "company_referral", amountValue: "800" },
+        { feeTypeValue: "channel_development_fee", amountValue: "0" }
+      ]
+    );
   } finally {
     await context.cleanup();
   }

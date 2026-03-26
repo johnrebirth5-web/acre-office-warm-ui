@@ -7604,7 +7604,7 @@ a {
 }
 
 .office-table-row-agent-statement-detail {
-  min-width: 1500px;
+  min-width: 1640px;
   grid-template-columns:
     minmax(108px, 0.72fr)
     minmax(132px, 0.86fr)
@@ -7614,7 +7614,7 @@ a {
     minmax(108px, 0.72fr)
     minmax(108px, 0.72fr)
     minmax(120px, 0.78fr)
-    minmax(108px, 0.72fr)
+    minmax(240px, 1.56fr)
     minmax(126px, 0.84fr);
 }
 
@@ -8216,6 +8216,20 @@ a {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.office-agent-statement-post-split {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+}
+
+.office-agent-statement-post-split p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .office-agent-statement-building strong {

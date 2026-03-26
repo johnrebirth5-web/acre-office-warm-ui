@@ -58,6 +58,24 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatDisplayAmount(value: string) {
+  if (!value.trim()) {
+    return "$0";
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? formatCurrency(numeric) : value;
+}
+
+function formatDisplayRate(value: string) {
+  if (!value.trim()) {
+    return "—";
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `${value}%` : value;
+}
+
 function parseAmount(value: string) {
   const trimmed = value.trim();
 
@@ -122,6 +140,7 @@ export function TransactionCommissionCard({
     normalizedParticipantSearch.length > 0
       ? availableManualParticipantOptions.filter((option) => option.label.toLowerCase().includes(normalizedParticipantSearch))
       : [];
+  const postSplitFeeRows = snapshot.feeBreakdown.filter((row) => row.selectedCalculationTypeValue === "post_split");
   const activeDescendantId =
     isParticipantPickerOpen && filteredManualParticipantOptions[highlightedParticipantIndex]
       ? `${participantListboxId}-${filteredManualParticipantOptions[highlightedParticipantIndex]?.membershipId}`
@@ -373,6 +392,29 @@ export function TransactionCommissionCard({
             </Button>
           </div>
         </form>
+
+        <HorizontalScrollArea>
+          <div className="office-table">
+            <div className="office-table-header office-table-row office-table-row-commission">
+              <span>Post-split fee</span>
+              <span>Rate</span>
+              <span>Amount</span>
+              <span>Approval</span>
+            </div>
+
+            {postSplitFeeRows.map((row) => (
+              <div className="office-table-row office-table-row-commission" key={row.id}>
+                <div className="office-table-primary">
+                  <strong>{row.feeTypeLabel}</strong>
+                  <p>{row.selectedCalculationTypeLabel}</p>
+                </div>
+                <span>{formatDisplayRate(row.rate)}</span>
+                <strong>{formatDisplayAmount(row.amount)}</strong>
+                <span>{row.approvalStatus}</span>
+              </div>
+            ))}
+          </div>
+        </HorizontalScrollArea>
 
         <HorizontalScrollArea>
           <div className="office-table">

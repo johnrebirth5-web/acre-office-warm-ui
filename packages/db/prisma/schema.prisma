@@ -2239,6 +2239,7 @@ model AgentPayoutStatementLine {
   officeNet             Decimal               @default(0) @db.Decimal(12, 2)
   agentNet              Decimal               @default(0) @db.Decimal(12, 2)
   statementAmount       Decimal               @default(0) @db.Decimal(12, 2)
+  feeBreakdown          Json?
   statement             AgentPayoutStatement  @relation(fields: [statementId], references: [id], onDelete: Cascade)
 
   @@index([statementId])

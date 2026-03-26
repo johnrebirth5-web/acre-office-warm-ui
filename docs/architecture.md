@@ -790,7 +790,7 @@ CRM 当前已经开始从 `Office Contacts` 落地最小真实实现，但整体
 - 直接导出 PDF
 - 打开已保存 statement detail 时额外读取当前 membership 的 `AgentBankInformation`，在 generated metadata 与 line items 之间展示 payout / tax reporting bank info
 - statement detail / PDF 当前只保留 gross / agent-facing payout summary，不向 agent statement 输出 `Office net`
-- statement detail / PDF 的 line items 现在按 `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission` 展示；PDF 为适配扩展列改成 landscape table layout
+- statement detail / PDF 的 line items 现在按 `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split detail / Net commission` 展示；`Post split detail` 会保留总额并列出 `External Referral / Company Referral / Channel Development Fee` 的命名明细；PDF 为适配扩展列改成 landscape table layout
 
 ### 6. Agent Billing 建在现有 Accounting foundation 上，不另建第二套 billing 系统
 
