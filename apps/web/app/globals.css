@@ -15853,13 +15853,14 @@ body,
   --office-table-resize-hit-width: 18px;
 }
 
-.office-table-resizable-cell::after {
+.office-table-resizable-cell::before {
   content: "";
   position: absolute;
   top: 18%;
   bottom: 18%;
-  right: calc(var(--office-table-row-gap, 8px) / -2);
+  left: calc(var(--office-table-row-gap, 8px) / -2);
   width: 2px;
+  transform: translateX(-50%);
   border-radius: 999px;
   background: color-mix(in srgb, var(--office-border-strong) 88%, transparent);
   opacity: 0.72;
@@ -15870,34 +15871,18 @@ body,
 .office-table-resize-handle {
   position: absolute;
   top: 0;
-  left: calc(100% - (var(--office-table-resize-hit-width) / 2) + (var(--office-table-row-gap, 8px) / 2));
+  left: calc(var(--office-table-row-gap, 8px) / -2);
   width: var(--office-table-resize-hit-width);
   height: 100%;
+  transform: translateX(-50%);
   cursor: col-resize;
   touch-action: none;
   z-index: 3;
 }
 
-.office-table-resize-handle::before {
-  content: "";
-  position: absolute;
-  top: 20%;
-  bottom: 20%;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--office-border-strong) 84%, transparent);
-  opacity: 0.52;
-  transition: opacity 160ms ease, background 160ms ease, box-shadow 160ms ease;
-}
-
-.office-table-resizable-cell:hover::after,
-.office-table-resizable-cell:focus-within::after,
-.office-table-resize-handle:hover::before,
-.office-table-resize-handle:active::before,
-.office-table-column-resizing .office-table-resizable-cell::after,
-.office-table-column-resizing .office-table-resize-handle::before {
+.office-table-resizable-cell:hover::before,
+.office-table-resizable-cell:focus-within::before,
+.office-table-column-resizing .office-table-resizable-cell::before {
   opacity: 1;
   background: var(--office-accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--office-accent-soft) 70%, transparent);
