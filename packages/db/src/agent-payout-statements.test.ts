@@ -209,28 +209,34 @@ test("buildAgentPayoutStatementInvoiceOptions groups by trimmed invoice number a
     {
       invoiceNumber: " INV-100 ",
       calculatedAt: new Date("2026-03-18T00:00:00.000Z"),
-      statementAmount: new Prisma.Decimal(1200)
+      statementAmount: new Prisma.Decimal(1200),
+      status: "statement_ready"
     },
     {
       invoiceNumber: "INV-100",
       calculatedAt: new Date("2026-03-16T00:00:00.000Z"),
-      statementAmount: new Prisma.Decimal(800)
+      statementAmount: new Prisma.Decimal(800),
+      status: "reviewed"
     },
     {
       invoiceNumber: "",
       calculatedAt: new Date("2026-03-19T00:00:00.000Z"),
-      statementAmount: new Prisma.Decimal(400)
+      statementAmount: new Prisma.Decimal(400),
+      status: "payable"
     },
     {
       invoiceNumber: "INV-200",
       calculatedAt: new Date("2026-03-20T00:00:00.000Z"),
-      statementAmount: new Prisma.Decimal(900)
+      statementAmount: new Prisma.Decimal(900),
+      status: "payable"
     }
   ]);
 
   assert.equal(options.length, 2);
   assert.equal(options[0]?.invoiceNumber, "INV-200");
   assert.equal(options[1]?.invoiceNumber, "INV-100");
+  assert.equal(options[0]?.isGenerateEligible, false);
+  assert.equal(options[1]?.isGenerateEligible, true);
   assert.equal(options[1]?.rowCount, 2);
   assert.equal(options[1]?.totalStatementAmountValue, "2000");
 });
@@ -516,6 +522,22 @@ test("createAgentPayoutStatement includes all selected invoice rows and advances
     assert.equal(statusById.get(invoice200Row.id), "payable");
     assert.equal(statusById.get(blankInvoiceRow.id), "statement_ready");
     assert.equal(statusById.get(otherAgentRow.id), "statement_ready");
+
+    const postGenerationSnapshot = await getOfficeAgentPayoutStatementsWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-100", "INV-200"]
+    });
+
+    assert.deepEqual(
+      new Set(postGenerationSnapshot.filters.invoiceOptions.map((option) => option.invoiceNumber)),
+      new Set(["INV-100", "INV-200"])
+    );
+    assert.ok(postGenerationSnapshot.filters.invoiceOptions.every((option) => option.isGenerateEligible === false));
+    assert.equal(postGenerationSnapshot.candidateRows.length, 3);
+    assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.statusValue === "payable"));
+    assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.isGenerateEligible === false));
   } finally {
     await context.cleanup();
   }

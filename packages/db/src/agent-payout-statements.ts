@@ -63,6 +63,7 @@ export type OfficeAgentPayoutStatementInvoiceOption = {
   rowCount: number;
   totalStatementAmountLabel: string;
   totalStatementAmountValue: string;
+  isGenerateEligible: boolean;
 };
 
 export type OfficeAgentPayoutStatementCandidateRow = {
@@ -86,6 +87,7 @@ export type OfficeAgentPayoutStatementCandidateRow = {
   agentNetValue: string;
   statementAmountLabel: string;
   statementAmountValue: string;
+  isGenerateEligible: boolean;
 };
 
 export type OfficeAgentPayoutStatementLineRecord = {
@@ -233,6 +235,7 @@ type StatementInvoiceOptionSubject = {
   invoiceNumber: string | null | undefined;
   calculatedAt: Date;
   statementAmount: Prisma.Decimal | number | string;
+  status?: CommissionCalculationStatus | null | undefined;
 };
 
 const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, string> = {
@@ -245,11 +248,20 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
 };
 
 const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
-const selectableAgentPayoutCalculationStatuses = [
+const generateEligibleAgentPayoutCalculationStatuses: readonly CommissionCalculationStatus[] = [
   "calculated",
   "reviewed",
   "statement_ready"
+];
+const visibleAgentPayoutCalculationStatuses = [
+  ...generateEligibleAgentPayoutCalculationStatuses,
+  "payable",
+  "paid"
 ] satisfies CommissionCalculationStatus[];
+
+function isGenerateEligibleAgentPayoutCalculationStatus(status: CommissionCalculationStatus) {
+  return status === "calculated" || status === "reviewed" || status === "statement_ready";
+}
 
 const agentBankInformationTaxIdTypeLabelMap: Record<AgentBankInformationTaxIdType, string> = {
   ssn: "SSN",
@@ -619,6 +631,7 @@ export function buildAgentPayoutStatementInvoiceOptions(
       rowCount: number;
       totalStatementAmount: Prisma.Decimal;
       latestCalculatedAt: Date;
+      isGenerateEligible: boolean;
     }
   >();
 
@@ -635,11 +648,13 @@ export function buildAgentPayoutStatementInvoiceOptions(
         invoiceNumber,
         rowCount: 0,
         totalStatementAmount: new Prisma.Decimal(0),
-        latestCalculatedAt: row.calculatedAt
+        latestCalculatedAt: row.calculatedAt,
+        isGenerateEligible: false
       };
 
     existing.rowCount += 1;
     existing.totalStatementAmount = existing.totalStatementAmount.plus(new Prisma.Decimal(row.statementAmount ?? 0));
+    existing.isGenerateEligible ||= row.status ? isGenerateEligibleAgentPayoutCalculationStatus(row.status) : false;
 
     if (row.calculatedAt > existing.latestCalculatedAt) {
       existing.latestCalculatedAt = row.calculatedAt;
@@ -661,7 +676,8 @@ export function buildAgentPayoutStatementInvoiceOptions(
       label: `${group.invoiceNumber} · ${group.rowCount} row(s) · ${formatCurrency(group.totalStatementAmount)}`,
       rowCount: group.rowCount,
       totalStatementAmountLabel: formatCurrency(group.totalStatementAmount),
-      totalStatementAmountValue: decimalToString(group.totalStatementAmount)
+      totalStatementAmountValue: decimalToString(group.totalStatementAmount),
+      isGenerateEligible: group.isGenerateEligible
     }));
 }
 
@@ -669,6 +685,7 @@ function buildAgentPayoutStatementWhere(input: {
   organizationId: string;
   officeId?: string | null;
   membershipId: string;
+  statuses: readonly CommissionCalculationStatus[];
 }) {
   return {
     organizationId: input.organizationId,
@@ -676,7 +693,7 @@ function buildAgentPayoutStatementWhere(input: {
     membershipId: input.membershipId,
     recipientType: "agent",
     status: {
-      in: selectableAgentPayoutCalculationStatuses
+      in: [...input.statuses]
     }
   } satisfies Prisma.CommissionCalculationWhereInput;
 }
@@ -744,7 +761,8 @@ function mapCandidateRow(calculation: StatementCandidateCalculation): OfficeAgen
     agentNetLabel: formatCurrency(calculation.agentNet),
     agentNetValue: decimalToString(calculation.agentNet),
     statementAmountLabel: formatCurrency(calculation.statementAmount),
-    statementAmountValue: decimalToString(calculation.statementAmount)
+    statementAmountValue: decimalToString(calculation.statementAmount),
+    isGenerateEligible: isGenerateEligibleAgentPayoutCalculationStatus(calculation.status)
   };
 }
 
@@ -885,7 +903,7 @@ async function listSelectableAgentPayoutMemberships(input: {
           not: null
         },
         status: {
-          in: selectableAgentPayoutCalculationStatuses
+          in: visibleAgentPayoutCalculationStatuses
         }
       },
       select: {
@@ -1050,21 +1068,23 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
           where: buildAgentPayoutStatementWhere({
             organizationId: input.organizationId,
             officeId: input.officeId,
-            membershipId
+            membershipId,
+            statuses: visibleAgentPayoutCalculationStatuses
           }),
           include: {
             transaction: true
           },
           orderBy: [{ calculatedAt: "desc" }, { transaction: { closingDate: "desc" } }]
         })
-      : Promise.resolve([])
+      : Promise.resolve([] as StatementCandidateCalculation[])
   ]);
 
   const invoiceOptions = buildAgentPayoutStatementInvoiceOptions(
     eligibleCalculations.map((calculation) => ({
       invoiceNumber: getAgentPayoutStatementInvoiceNumber(calculation),
       calculatedAt: calculation.calculatedAt,
-      statementAmount: calculation.statementAmount
+      statementAmount: calculation.statementAmount,
+      status: calculation.status
     }))
   );
   const availableInvoiceNumberSet = new Set(invoiceOptions.map((option) => option.invoiceNumber));
@@ -1125,7 +1145,8 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
       where: buildAgentPayoutStatementWhere({
         organizationId: input.organizationId,
         officeId: input.officeId,
-        membershipId
+        membershipId,
+        statuses: generateEligibleAgentPayoutCalculationStatuses
       }),
       include: {
         transaction: {

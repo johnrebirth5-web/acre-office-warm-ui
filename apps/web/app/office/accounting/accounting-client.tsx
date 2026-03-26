@@ -199,7 +199,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const deferredAgentSearchValue = useDeferredValue(agentSearchValue);
   const [isAgentPickerOpen, setIsAgentPickerOpen] = useState(false);
   const [highlightedAgentIndex, setHighlightedAgentIndex] = useState(0);
-  const [selectedCalculationIds, setSelectedCalculationIds] = useState<string[]>(snapshot.candidateRows.map((row) => row.id));
+  const [selectedCalculationIds, setSelectedCalculationIds] = useState<string[]>(
+    snapshot.candidateRows.filter((row) => row.isGenerateEligible).map((row) => row.id)
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [filterError, setFilterError] = useState("");
@@ -241,7 +243,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }, [snapshot.filters.memberOptions, snapshot.filters.membershipId]);
 
   useEffect(() => {
-    setSelectedCalculationIds(snapshot.candidateRows.map((row) => row.id));
+    setSelectedCalculationIds(snapshot.candidateRows.filter((row) => row.isGenerateEligible).map((row) => row.id));
   }, [candidateRowKey, snapshot.candidateRows]);
 
   useEffect(() => {
@@ -287,7 +289,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const hasFilterAgent = resolvedFilterMembershipId.trim().length > 0;
   const hasSelectedInvoices = selectedInvoiceNumbers.length > 0;
   const hasLoadedAgent = snapshot.filters.membershipId.trim().length > 0;
-  const canGenerateStatement = hasFilterAgent && hasSelectedInvoices && (!previewMatchesFilter || selectedCalculationIds.length > 0);
+  const hasSelectedGenerateEligibleInvoices = selectedInvoiceOptions.some((option) => option.isGenerateEligible);
+  const hasSelectedGenerateEligibleRows = selectedRows.some((row) => row.isGenerateEligible);
+  const canGenerateStatement =
+    hasFilterAgent &&
+    hasSelectedInvoices &&
+    (previewMatchesFilter ? hasSelectedGenerateEligibleRows : hasSelectedGenerateEligibleInvoices);
   const selectedSummary = previewMatchesFilter
     ? selectedRows.reduce(
         (summary, row) => ({
@@ -398,6 +405,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }
 
   function toggleCandidate(calculationId: string, checked: boolean) {
+    if (!snapshot.candidateRows.find((row) => row.id === calculationId)?.isGenerateEligible) {
+      return;
+    }
+
     setSelectedCalculationIds((current) => {
       const next = new Set(current);
 
@@ -725,6 +736,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                           <CheckboxField label="">
                             <input
                               checked={selectedIdLookup.has(row.id)}
+                              disabled={!row.isGenerateEligible}
                               onChange={(event) => toggleCandidate(row.id, event.target.checked)}
                               type="checkbox"
                             />
@@ -804,6 +816,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           </p>
         ) : null}
 
+        {hasSelectedInvoices && !canGenerateStatement ? (
+          <p className="office-form-helper">
+            The current invoice selection is already saved on a payout statement or no longer has live statement-eligible rows, so it can be reviewed here but not generated again.
+          </p>
+        ) : null}
+
         {generationError ? <p className="office-inline-error">{generationError}</p> : null}
       </ListPageSection>
 
@@ -835,8 +853,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                           startTransition(() => {
                             router.push(
                               buildAccountingHref(pathname, {
-                                membershipId: snapshot.filters.membershipId,
-                                invoiceNumbers: snapshot.filters.invoiceNumbers,
+                                membershipId: statement.membershipId,
+                                invoiceNumbers:
+                                  snapshot.filters.membershipId === statement.membershipId ? snapshot.filters.invoiceNumbers : [],
                                 statementId: statement.id
                               })
                             );
