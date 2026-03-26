@@ -4,7 +4,8 @@ import {
   AgentBankInformationTaxIdType,
   CommissionCalculationStatus,
   MembershipStatus,
-  Prisma
+  Prisma,
+  TransactionFinanceVersionSource
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
@@ -325,6 +326,79 @@ function formatPercentLabel(value: Prisma.Decimal | number | string | null | und
   return numericValue.toFixed(2).replace(/\.?0+$/, "");
 }
 
+function normalizeCurrencyDecimal(value: Prisma.Decimal) {
+  return value.toDecimalPlaces(2);
+}
+
+function normalizeSharePercentDecimal(value: Prisma.Decimal) {
+  return value.toDecimalPlaces(4);
+}
+
+type ParsedStakeholderBreakdownRow = {
+  membershipId: string;
+  recipientType: string;
+  sharePercent: string;
+  finalAmount: string;
+};
+
+function parseStakeholderBreakdownRows(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) {
+    return [] as ParsedStakeholderBreakdownRow[];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return null;
+      }
+
+      const row = entry as Record<string, Prisma.JsonValue>;
+
+      if (
+        typeof row.membershipId !== "string" ||
+        typeof row.recipientType !== "string" ||
+        typeof row.sharePercent !== "string" ||
+        typeof row.finalAmount !== "string"
+      ) {
+        return null;
+      }
+
+      return {
+        membershipId: row.membershipId,
+        recipientType: row.recipientType,
+        sharePercent: row.sharePercent,
+        finalAmount: row.finalAmount
+      } satisfies ParsedStakeholderBreakdownRow;
+    })
+    .filter((entry): entry is ParsedStakeholderBreakdownRow => Boolean(entry));
+}
+
+function applyEffectiveSharePercents(rows: ParsedStakeholderBreakdownRow[]) {
+  const totalAllocatedPayout = rows.reduce(
+    (sum, row) => sum.plus(normalizeCurrencyDecimal(new Prisma.Decimal(row.finalAmount || 0))),
+    new Prisma.Decimal(0)
+  );
+
+  if (totalAllocatedPayout.lte(0)) {
+    return rows.map((row) => ({
+      ...row,
+      sharePercent: "0"
+    }));
+  }
+
+  return rows.map((row) => {
+    const finalAmount = normalizeCurrencyDecimal(new Prisma.Decimal(row.finalAmount || 0));
+    const effectiveSharePercent = normalizeSharePercentDecimal(
+      Prisma.Decimal.max(new Prisma.Decimal(0), finalAmount.mul(new Prisma.Decimal(100)).div(totalAllocatedPayout))
+    );
+
+    return {
+      ...row,
+      sharePercent: String(effectiveSharePercent)
+    };
+  });
+}
+
 function formatPeriodLabel(periodStart: Date, periodEnd: Date) {
   return `${formatDateValue(periodStart)} to ${formatDateValue(periodEnd)}`;
 }
@@ -382,33 +456,20 @@ function normalizeAdditionalFields(value: Prisma.JsonValue | null | undefined) {
 
 export function parseStakeholderBreakdownSharePercent(
   value: Prisma.JsonValue | null | undefined,
-  membershipId: string | null | undefined
+  membershipId: string | null | undefined,
+  options?: {
+    sourceType?: TransactionFinanceVersionSource | null;
+  }
 ) {
-  if (!membershipId || !Array.isArray(value)) {
+  if (!membershipId) {
     return "";
   }
 
-  const matchingRow = value.find((entry) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      return false;
-    }
+  const parsedRows = parseStakeholderBreakdownRows(value);
+  const rows = options?.sourceType === "overridden" ? applyEffectiveSharePercents(parsedRows) : parsedRows;
+  const matchingRow = rows.find((row) => row.membershipId === membershipId && row.recipientType === "agent") ?? null;
 
-    const row = entry as Record<string, Prisma.JsonValue>;
-    return row.membershipId === membershipId && row.recipientType === "agent" && typeof row.sharePercent === "string";
-  });
-
-  if (!matchingRow || typeof matchingRow !== "object" || Array.isArray(matchingRow)) {
-    return "";
-  }
-
-  const row = matchingRow as Record<string, Prisma.JsonValue>;
-
-  if (row.isManualParticipant === true) {
-    return "Manual";
-  }
-
-  const sharePercent = row.sharePercent;
-  return typeof sharePercent === "string" ? `${formatPercentLabel(sharePercent)}%` : "";
+  return matchingRow ? `${formatPercentLabel(matchingRow.sharePercent)}%` : "";
 }
 
 function mapStatementBankInformation(bankInformation: {
@@ -693,7 +754,10 @@ function buildStatementLineSnapshot(
   const additionalFields = normalizeAdditionalFields(calculation.transaction.additionalFields);
   const commissionRate = parseStakeholderBreakdownSharePercent(
     calculation.transactionFinanceCalculationVersion?.stakeholderBreakdown,
-    calculation.membershipId
+    calculation.membershipId,
+    {
+      sourceType: calculation.transactionFinanceCalculationVersion?.sourceType ?? null
+    }
   );
 
   return {
@@ -738,7 +802,12 @@ function mapStatementRecord(record: StatementRecordWithRelations): OfficeAgentPa
   };
 }
 
-function mapStatementDetail(record: StatementRecordWithRelations): OfficeAgentPayoutStatementDetail {
+function mapStatementDetail(
+  record: StatementRecordWithRelations,
+  options?: {
+    liveCommissionRateByCalculationId?: Map<string, string>;
+  }
+): OfficeAgentPayoutStatementDetail {
   return {
     id: record.id,
     organizationLabel: record.organization.name,
@@ -761,40 +830,44 @@ function mapStatementDetail(record: StatementRecordWithRelations): OfficeAgentPa
     totalAgentNetLabel: formatCurrency(record.totalAgentNet),
     totalAgentNetValue: decimalToString(record.totalAgentNet),
     bankInformation: mapStatementBankInformation(record.membership.agentBankInformation),
-    lineItems: record.lineItems.map((lineItem) => ({
-      id: lineItem.id,
-      commissionCalculationId: lineItem.commissionCalculationId,
-      transactionId: lineItem.transactionId,
-      transactionLabel: lineItem.transactionLabel,
-      transactionHref: `/office/transactions/${lineItem.transactionId}`,
-      propertyAddress: lineItem.propertyAddress,
-      creationDate: formatDateValue(lineItem.transactionCreatedAt),
-      invoiceNumber: lineItem.invoiceNumber,
-      ownerName: lineItem.ownerName,
-      buildingName: lineItem.buildingName,
-      unitNumber: lineItem.unitNumber,
-      closingDate: formatDateValue(lineItem.closingDate),
-      calculatedAt: formatDateValue(lineItem.calculatedAt),
-      commissionRate: lineItem.commissionRate,
-      statusAtGeneration: commissionCalculationStatusLabelMap[lineItem.statusAtGeneration],
-      statusAtGenerationValue: lineItem.statusAtGeneration,
-      grossCommissionLabel: formatCurrency(lineItem.grossCommission),
-      grossCommissionValue: decimalToString(lineItem.grossCommission),
-      preSplitLabel: formatCurrency(lineItem.referralFee),
-      preSplitValue: decimalToString(lineItem.referralFee),
-      referralFeeLabel: formatCurrency(lineItem.referralFee),
-      referralFeeValue: decimalToString(lineItem.referralFee),
-      postSplitLabel: formatCurrency(lineItem.fees),
-      postSplitValue: decimalToString(lineItem.fees),
-      feesLabel: formatCurrency(lineItem.fees),
-      feesValue: decimalToString(lineItem.fees),
-      agentNetLabel: formatCurrency(lineItem.agentNet),
-      agentNetValue: decimalToString(lineItem.agentNet),
-      netCommissionLabel: formatCurrency(lineItem.statementAmount),
-      netCommissionValue: decimalToString(lineItem.statementAmount),
-      statementAmountLabel: formatCurrency(lineItem.statementAmount),
-      statementAmountValue: decimalToString(lineItem.statementAmount)
-    }))
+    lineItems: record.lineItems.map((lineItem) => {
+      const liveCommissionRate = options?.liveCommissionRateByCalculationId?.get(lineItem.commissionCalculationId) ?? "";
+
+      return {
+        id: lineItem.id,
+        commissionCalculationId: lineItem.commissionCalculationId,
+        transactionId: lineItem.transactionId,
+        transactionLabel: lineItem.transactionLabel,
+        transactionHref: `/office/transactions/${lineItem.transactionId}`,
+        propertyAddress: lineItem.propertyAddress,
+        creationDate: formatDateValue(lineItem.transactionCreatedAt),
+        invoiceNumber: lineItem.invoiceNumber,
+        ownerName: lineItem.ownerName,
+        buildingName: lineItem.buildingName,
+        unitNumber: lineItem.unitNumber,
+        closingDate: formatDateValue(lineItem.closingDate),
+        calculatedAt: formatDateValue(lineItem.calculatedAt),
+        commissionRate: liveCommissionRate.trim().length > 0 ? liveCommissionRate : lineItem.commissionRate,
+        statusAtGeneration: commissionCalculationStatusLabelMap[lineItem.statusAtGeneration],
+        statusAtGenerationValue: lineItem.statusAtGeneration,
+        grossCommissionLabel: formatCurrency(lineItem.grossCommission),
+        grossCommissionValue: decimalToString(lineItem.grossCommission),
+        preSplitLabel: formatCurrency(lineItem.referralFee),
+        preSplitValue: decimalToString(lineItem.referralFee),
+        referralFeeLabel: formatCurrency(lineItem.referralFee),
+        referralFeeValue: decimalToString(lineItem.referralFee),
+        postSplitLabel: formatCurrency(lineItem.fees),
+        postSplitValue: decimalToString(lineItem.fees),
+        feesLabel: formatCurrency(lineItem.fees),
+        feesValue: decimalToString(lineItem.fees),
+        agentNetLabel: formatCurrency(lineItem.agentNet),
+        agentNetValue: decimalToString(lineItem.agentNet),
+        netCommissionLabel: formatCurrency(lineItem.statementAmount),
+        netCommissionValue: decimalToString(lineItem.statementAmount),
+        statementAmountLabel: formatCurrency(lineItem.statementAmount),
+        statementAmountValue: decimalToString(lineItem.statementAmount)
+      };
+    })
   };
 }
 
@@ -890,7 +963,41 @@ export async function getOfficeAgentPayoutStatementDetail(
     }
   });
 
-  return statement ? mapStatementDetail(statement) : null;
+  if (!statement) {
+    return null;
+  }
+
+  const commissionCalculationIds = Array.from(new Set(statement.lineItems.map((lineItem) => lineItem.commissionCalculationId)));
+  const liveCalculations =
+    commissionCalculationIds.length > 0
+      ? await prisma.commissionCalculation.findMany({
+          where: {
+            organizationId: input.organizationId,
+            id: {
+              in: commissionCalculationIds
+            }
+          },
+          include: {
+            transactionFinanceCalculationVersion: true
+          }
+        })
+      : [];
+  const liveCommissionRateByCalculationId = new Map(
+    liveCalculations.map((calculation) => [
+      calculation.id,
+      parseStakeholderBreakdownSharePercent(
+        calculation.transactionFinanceCalculationVersion?.stakeholderBreakdown,
+        calculation.membershipId,
+        {
+          sourceType: calculation.transactionFinanceCalculationVersion?.sourceType ?? null
+        }
+      )
+    ])
+  );
+
+  return mapStatementDetail(statement, {
+    liveCommissionRateByCalculationId
+  });
 }
 
 export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(

@@ -162,9 +162,10 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - history remains visible for audit/review but is not double-counted in payout summaries
 - manual override versions may include extra `active` or `invited` memberships that were not part of the original split chain
 - manual participant rows are marked as manual in the stored stakeholder snapshot:
-  - `Share` shows `Manual`
+  - `Share` shows the effective percentage implied by the latest override `Final` amounts
   - `Base / Post-Split / Reimbursement` stay `0` or `—`
   - `Final` reflects the admin-entered override amount
+- when an override redistributes the payout pool, both transaction stakeholder tables and agent statement detail / PDF views must recompute share percentages from the current `Final` allocations instead of preserving the old split-chain percentages
 - manual override validation rules:
   - `overrideReason` is required
   - user rows must map to `active` or `invited` memberships in the same organization

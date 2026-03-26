@@ -322,9 +322,16 @@ test("office admin can add a manual membership participant and the participant s
     assert.ok(snapshot);
     assert.equal(snapshot?.manualParticipantLockActive, true);
     const manualRow = snapshot?.stakeholderBreakdown.find((row) => row.membershipId === context.officeUserMembership.id) ?? null;
+    const primaryAgentRow =
+      snapshot?.stakeholderBreakdown.find((row) => row.membershipId === context.primaryAgentMembership.id) ?? null;
+    const companyRow = snapshot?.stakeholderBreakdown.find((row) => row.key === "company") ?? null;
     assert.ok(manualRow);
+    assert.ok(primaryAgentRow);
+    assert.ok(companyRow);
     assert.equal(manualRow?.isManualParticipant, true);
-    assert.equal(manualRow?.sharePercentLabel, "Manual");
+    assert.equal(primaryAgentRow?.sharePercentLabel, "60%");
+    assert.equal(companyRow?.sharePercentLabel, "20%");
+    assert.equal(manualRow?.sharePercentLabel, "20%");
 
     const savedRows = await prisma.commissionCalculation.findMany({
       where: {
@@ -475,6 +482,96 @@ test("office admin can add invited memberships as manual participants and invite
     });
 
     assert.ok(statementResult.statementId);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("transaction snapshot recalculates override share labels for legacy overridden stakeholder rows", async () => {
+  const context = await createCommissionOverrideTestContext();
+
+  try {
+    const transaction = await context.createCalculatedTransaction();
+    const currentVersion = await prisma.transactionFinanceCalculationVersion.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        transactionId: transaction.id,
+        isCurrent: true
+      }
+    });
+
+    assert.ok(currentVersion);
+
+    await prisma.transactionFinanceCalculationVersion.update({
+      where: {
+        id: currentVersion?.id
+      },
+      data: {
+        sourceType: "overridden",
+        finalAgentNet: new Prisma.Decimal(3000),
+        finalOfficeNet: new Prisma.Decimal(1000),
+        stakeholderBreakdown: [
+          {
+            key: context.primaryAgentMembership.id,
+            membershipId: context.primaryAgentMembership.id,
+            recipientLabel: `${context.primaryAgentMembership.user.firstName} ${context.primaryAgentMembership.user.lastName}`.trim(),
+            recipientRole: "Agent",
+            recipientRoleValue: "agent",
+            recipientType: "agent",
+            isManualParticipant: false,
+            sharePercent: "80",
+            baseAmount: "4000",
+            postSplitAdjustment: "0",
+            reimbursementAdjustment: "0",
+            finalAmount: "3000"
+          },
+          {
+            key: context.officeUserMembership.id,
+            membershipId: context.officeUserMembership.id,
+            recipientLabel: `${context.officeUserMembership.user.firstName} ${context.officeUserMembership.user.lastName}`.trim(),
+            recipientRole: "Office user",
+            recipientRoleValue: "office_user",
+            recipientType: "agent",
+            isManualParticipant: true,
+            sharePercent: "0",
+            baseAmount: "0",
+            postSplitAdjustment: "0",
+            reimbursementAdjustment: "0",
+            finalAmount: "1000"
+          },
+          {
+            key: "company",
+            membershipId: "",
+            recipientLabel: "Company",
+            recipientRole: "Brokerage",
+            recipientRoleValue: "brokerage",
+            recipientType: "brokerage",
+            isManualParticipant: false,
+            sharePercent: "20",
+            baseAmount: "1000",
+            postSplitAdjustment: "0",
+            reimbursementAdjustment: "0",
+            finalAmount: "1000"
+          }
+        ] satisfies Prisma.InputJsonValue
+      }
+    });
+
+    const snapshot = await getTransactionCommissionSnapshot(
+      context.organization.id,
+      transaction.id,
+      context.primaryOffice.id,
+      context.officeAdminMembership.id
+    );
+
+    const primaryAgentRow =
+      snapshot?.stakeholderBreakdown.find((row) => row.membershipId === context.primaryAgentMembership.id) ?? null;
+    const manualRow = snapshot?.stakeholderBreakdown.find((row) => row.membershipId === context.officeUserMembership.id) ?? null;
+    const companyRow = snapshot?.stakeholderBreakdown.find((row) => row.key === "company") ?? null;
+
+    assert.equal(primaryAgentRow?.sharePercentLabel, "60%");
+    assert.equal(manualRow?.sharePercentLabel, "20%");
+    assert.equal(companyRow?.sharePercentLabel, "20%");
   } finally {
     await context.cleanup();
   }

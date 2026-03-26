@@ -8,6 +8,7 @@ import {
   createAgentPayoutStatement,
   deriveAgentPayoutStatementPeriodRange,
   getAgentPayoutStatementMatchDate,
+  getOfficeAgentPayoutStatementDetail,
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
   normalizeAgentPayoutStatementInvoiceNumber,
   normalizeAgentPayoutStatementPeriodBasis,
@@ -82,6 +83,8 @@ async function createStatementTestContext() {
     statementAmount: string;
     grossCommission?: string;
     fees?: string;
+    stakeholderBreakdown?: Prisma.InputJsonValue;
+    versionSourceType?: "calculated" | "overridden";
   }) {
     const transaction = await createTransaction({
       organizationId: organization.id,
@@ -107,11 +110,38 @@ async function createStatementTestContext() {
       }
     });
 
+    const transactionFinanceCalculationVersion =
+      input.stakeholderBreakdown
+        ? await prisma.transactionFinanceCalculationVersion.create({
+            data: {
+              organizationId: organization.id,
+              officeId: office.id,
+              transactionId: transaction.id,
+              versionNumber: 1,
+              sourceType: input.versionSourceType ?? "calculated",
+              isCurrent: true,
+              grossCommission: new Prisma.Decimal(input.grossCommission ?? "2000"),
+              preSplitTotal: new Prisma.Decimal(100),
+              postSplitTotal: new Prisma.Decimal(input.fees ?? "150"),
+              netCommissionBase: new Prisma.Decimal(input.grossCommission ?? "2000").minus(new Prisma.Decimal(100)),
+              reimbursementAmount: new Prisma.Decimal(0),
+              finalAgentNet: new Prisma.Decimal(input.statementAmount),
+              finalOfficeNet: new Prisma.Decimal(0),
+              feeBreakdown: [] satisfies Prisma.InputJsonValue,
+              stakeholderBreakdown: input.stakeholderBreakdown,
+              blockingIssues: [] satisfies Prisma.InputJsonValue,
+              notes: "Statement test version",
+              createdByMembershipId: adminMembership.id
+            }
+          })
+        : null;
+
     return prisma.commissionCalculation.create({
       data: {
         organizationId: organization.id,
         officeId: office.id,
         transactionId: transaction.id,
+        transactionFinanceCalculationVersionId: transactionFinanceCalculationVersion?.id ?? null,
         membershipId: input.ownerMembershipId ?? agentMembership.id,
         recipientType: "agent",
         grossCommission: new Prisma.Decimal(input.grossCommission ?? "2000"),
@@ -311,6 +341,84 @@ test("workspace snapshot exposes only agent-scoped invoice candidates and trimme
       new Set([firstInvoiceRow.id, secondInvoiceRow.id])
     );
     assert.ok(snapshot.candidateRows.every((row) => row.invoiceNumber === "INV-100"));
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("override-backed statement rows persist and display recalculated commission rates", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    const overrideRow = await context.createCommissionRow({
+      invoiceNumber: "INV-OVERRIDE",
+      transactionName: "Override Statement Rate",
+      address: "70 Override Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-21T00:00:00.000Z",
+      grossCommission: "5000",
+      statementAmount: "3000",
+      fees: "0",
+      stakeholderBreakdown: [
+        {
+          membershipId: context.agentMembership.id,
+          recipientType: "agent",
+          sharePercent: "80",
+          finalAmount: "3000"
+        },
+        {
+          membershipId: context.otherAgentMembership.id,
+          recipientType: "agent",
+          sharePercent: "0",
+          finalAmount: "1000"
+        },
+        {
+          membershipId: "",
+          recipientType: "brokerage",
+          sharePercent: "20",
+          finalAmount: "1000"
+        }
+      ] satisfies Prisma.InputJsonValue,
+      versionSourceType: "overridden"
+    });
+
+    const result = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-OVERRIDE"],
+      commissionCalculationIds: [overrideRow.id],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: result.statementId
+      },
+      include: {
+        lineItems: true
+      }
+    });
+
+    assert.ok(savedStatement);
+    assert.equal(savedStatement?.lineItems[0]?.commissionRate, "60%");
+
+    await prisma.agentPayoutStatementLine.updateMany({
+      where: {
+        statementId: result.statementId
+      },
+      data: {
+        commissionRate: "80%"
+      }
+    });
+
+    const statementDetail = await getOfficeAgentPayoutStatementDetail({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: result.statementId
+    });
+
+    assert.equal(statementDetail?.lineItems[0]?.commissionRate, "60%");
   } finally {
     await context.cleanup();
   }

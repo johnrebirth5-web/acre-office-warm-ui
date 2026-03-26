@@ -160,6 +160,7 @@
 - `Settings > Users` now blocks downgrading an actively assigned `Team Leader / Junior Team Leader` back to `agent`, and roster/profile snapshot reads no longer auto-materialize legacy junior teams or write audit log side effects when someone merely opens the page
 - Child-team members without a same-team leader now temporarily fall back to the parent team leader for hierarchy/commission-chain resolution, so ownerless junior branches do not silently collapse to `member + company` only while the branch leader assignment is being cleaned up
 - Transaction and accounting commission tables now show each row's actual effective share in the `Plan` column detail instead of repeating the owner's default split label for every recipient
+- Manual commission overrides now recompute stakeholder `Share` from the latest overridden `Final` amounts, so adding extra payout participants no longer leaves transaction tables or agent statement detail / PDF views stuck on the original split-chain percentages or `Manual`
 - `New transaction` owner assignment now treats the `Agent Name` field as the real owner control:
   - sales roles can only create transactions for themselves and see a locked self owner label
   - admin/company-scope roles can search active agents or team leads by name and assign ownership before create

@@ -1542,7 +1542,7 @@ function mapStoredTransactionFinanceStakeholderRow(
     recipientRole: row.recipientRole,
     isManualParticipant: row.isManualParticipant,
     sharePercent: row.sharePercent,
-    sharePercentLabel: row.isManualParticipant ? "Manual" : `${formatPercentLabel(row.sharePercent)}%`,
+    sharePercentLabel: `${formatPercentLabel(row.sharePercent)}%`,
     baseAmount: row.baseAmount,
     baseAmountLabel: row.isManualParticipant ? "—" : formatCurrency(row.baseAmount),
     postSplitAdjustment: row.postSplitAdjustment,
@@ -2009,6 +2009,10 @@ function normalizeCurrencyDecimal(value: Prisma.Decimal) {
   return value.toDecimalPlaces(2);
 }
 
+function normalizeSharePercentDecimal(value: Prisma.Decimal) {
+  return value.toDecimalPlaces(4);
+}
+
 function hasManualParticipantRows(rows: Array<{ isManualParticipant: boolean }>) {
   return rows.some((row) => row.isManualParticipant);
 }
@@ -2018,6 +2022,29 @@ function sumStakeholderFinalAmounts(rows: Array<{ finalAmount: string }>) {
     (sum, row) => sum.plus(normalizeCurrencyDecimal(parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0))),
     new Prisma.Decimal(0)
   );
+}
+
+function applyEffectiveSharePercentsToStoredStakeholderRows(rows: StoredTransactionFinanceStakeholderBreakdownRow[]) {
+  const totalAllocatedPayout = normalizeCurrencyDecimal(sumStakeholderFinalAmounts(rows));
+
+  if (totalAllocatedPayout.lte(0)) {
+    return rows.map((row) => ({
+      ...row,
+      sharePercent: "0"
+    }));
+  }
+
+  return rows.map((row) => {
+    const finalAmount = normalizeCurrencyDecimal(parseOptionalDecimal(row.finalAmount) ?? new Prisma.Decimal(0));
+    const effectiveSharePercent = normalizeSharePercentDecimal(
+      Prisma.Decimal.max(new Prisma.Decimal(0), finalAmount.mul(new Prisma.Decimal(100)).div(totalAllocatedPayout))
+    );
+
+    return {
+      ...row,
+      sharePercent: String(effectiveSharePercent)
+    };
+  });
 }
 
 function findPrimaryAgentStakeholderRow(
@@ -3304,8 +3331,9 @@ export async function overrideTransactionCommission(
       throw new Error("Override amounts must keep the total allocated payout unchanged.");
     }
 
-    const ownerAgentRow = findPrimaryAgentStakeholderRow(nextStakeholderRows, transaction.ownerMembershipId);
-    const companyRow = nextStakeholderRows.find((row) => row.recipientType === "brokerage" && row.key === "company") ?? null;
+    const nextStoredStakeholderRows = applyEffectiveSharePercentsToStoredStakeholderRows(nextStakeholderRows);
+    const ownerAgentRow = findPrimaryAgentStakeholderRow(nextStoredStakeholderRows, transaction.ownerMembershipId);
+    const companyRow = nextStoredStakeholderRows.find((row) => row.recipientType === "brokerage" && row.key === "company") ?? null;
 
     if (!companyRow) {
       throw new Error("Manual override must retain the company payout row.");
@@ -3361,7 +3389,7 @@ export async function overrideTransactionCommission(
         finalAgentNet: nextFinalAgentNet,
         finalOfficeNet: nextFinalOfficeNet,
         feeBreakdown: currentVersion.feeBreakdown ?? ([] satisfies Prisma.InputJsonValue),
-        stakeholderBreakdown: nextStakeholderRows satisfies Prisma.InputJsonValue,
+        stakeholderBreakdown: nextStoredStakeholderRows satisfies Prisma.InputJsonValue,
         blockingIssues: currentVersion.blockingIssues ?? ([] satisfies Prisma.InputJsonValue),
         notes: note,
         overrideReason,
@@ -3416,7 +3444,7 @@ export async function overrideTransactionCommission(
       organizationId: input.organizationId,
       officeId: input.officeId ?? transaction.officeId ?? null,
       transactionId: transaction.id,
-      stakeholderRows: nextStakeholderRows
+      stakeholderRows: nextStoredStakeholderRows
     });
 
     await recordActivityLogEvent(tx, {
@@ -4149,6 +4177,10 @@ export async function getTransactionCommissionSnapshot(
           reimbursementAdjustment: String(row.reimbursementAdjustment),
           finalAmount: String(row.finalAmount)
         })) ?? [];
+  const displayStakeholderBreakdown =
+    currentVersion?.sourceType === "overridden"
+      ? applyEffectiveSharePercentsToStoredStakeholderRows(rawStakeholderBreakdown)
+      : rawStakeholderBreakdown;
   const manualParticipantLockActive = hasManualParticipantRows(rawStakeholderBreakdown);
   const existingStakeholderMembershipIds = new Set(
     rawStakeholderBreakdown
@@ -4187,14 +4219,14 @@ export async function getTransactionCommissionSnapshot(
           )
       : [];
   const stakeholderVisibility = filterVisibleCommissionRows(
-    rawStakeholderBreakdown.map((row) => ({
+    displayStakeholderBreakdown.map((row) => ({
       membershipId: row.membershipId || null,
       recipientType: row.recipientType
     })),
     scope
   );
   const stakeholderBreakdown = stakeholderVisibility.visibleRowIndexes.map((index) =>
-    mapStoredTransactionFinanceStakeholderRow(rawStakeholderBreakdown[index]!)
+    mapStoredTransactionFinanceStakeholderRow(displayStakeholderBreakdown[index]!)
   );
   const versionHistory = versions.map((version) => {
     const mapped = mapTransactionFinanceVersionRecord(version);
