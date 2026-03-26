@@ -84,7 +84,7 @@ export function ActivityCommentComposer({ officeId, scopeLabel }: ActivityCommen
               Cancel
             </Button>
           </div>
-          {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+          {error ? <p className="office-form-error">{error}</p> : null}
         </div>
       ) : (
         <Button onClick={() => setIsOpen(true)} type="button">

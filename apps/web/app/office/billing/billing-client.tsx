@@ -595,16 +595,16 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
       </section>
 
       {isPaymentMethodModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsPaymentMethodModalOpen(false)}>
-          <section className="bm-transaction-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsPaymentMethodModalOpen(false)}>
+          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <h3>{paymentMethodFormState.paymentMethodId ? "EDIT PAYMENT METHOD" : "ADD PAYMENT METHOD"}</h3>
               <button aria-label="Close payment method modal" onClick={() => setIsPaymentMethodModalOpen(false)} type="button">
                 ×
               </button>
             </header>
 
-            <form className="bm-transaction-modal-body bm-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
+            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
               <div className="office-form-grid">
                 <FormField label="Type">
                   <SelectInput
@@ -664,7 +664,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
 
               {formError ? <p className="office-form-error">{formError}</p> : null}
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="office-modal-footer">
                 <span>This stores only a masked billing-method reference. No live processor token or raw credential is captured here.</span>
                 <Button disabled={pendingAction === "save-payment-method"} type="submit">
                   {pendingAction === "save-payment-method" ? "Saving..." : paymentMethodFormState.paymentMethodId ? "Save method" : "Add method"}

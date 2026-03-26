@@ -455,16 +455,16 @@ export function OfficeSettingsUsersClient({
       </section>
 
       {isCreateModalOpen ? (
-        <div className="bm-modal-overlay office-create-modal-overlay office-settings-users-modal-overlay" onClick={closeCreateModal}>
+        <div className="office-modal-overlay office-create-modal-overlay office-settings-users-modal-overlay" onClick={closeCreateModal}>
           <section
             aria-labelledby="office-settings-users-create-title"
             aria-modal="true"
-            className="bm-transaction-modal office-create-modal office-settings-users-create-modal"
+            className="office-modal office-create-modal office-settings-users-create-modal"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
-            <header className="bm-transaction-modal-header office-create-modal-header office-settings-users-modal-header">
-              <div className="bm-transaction-modal-title-block office-create-modal-title-block office-settings-users-modal-title-block">
+            <header className="office-modal-header office-create-modal-header office-settings-users-modal-header">
+              <div className="office-modal-title-block office-create-modal-title-block office-settings-users-modal-title-block">
                 <span className="office-create-modal-kicker office-settings-users-modal-kicker">Internal accounts</span>
                 <h3 id="office-settings-users-create-title">Create user</h3>
                 <p>Invite a new internal Back Office account and copy the setup link from this panel.</p>
@@ -474,7 +474,7 @@ export function OfficeSettingsUsersClient({
               </Button>
             </header>
 
-            <div className="bm-transaction-modal-body office-create-modal-body office-settings-users-modal-body">
+            <div className="office-modal-body office-create-modal-body office-settings-users-modal-body">
               <form className="office-settings-users-create-form" onSubmit={handleCreateUser}>
                 <section className="office-create-modal-section office-settings-users-create-section">
                   <div className="office-create-modal-section-head office-settings-users-create-section-head">

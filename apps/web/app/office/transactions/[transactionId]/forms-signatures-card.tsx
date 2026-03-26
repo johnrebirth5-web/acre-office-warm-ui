@@ -329,7 +329,7 @@ export function TransactionFormsSignaturesCard({
 
                   <div className="bm-document-row-actions">
                     {canViewDocuments && form.documentId ? (
-                      <Link className="bm-view-toggle" href={`/api/office/transactions/${transactionId}/documents/${form.documentId}/file`} target="_blank">
+                      <Link className="office-toggle-link" href={`/api/office/transactions/${transactionId}/documents/${form.documentId}/file`} target="_blank">
                         Open document
                       </Link>
                     ) : null}
@@ -579,7 +579,7 @@ export function TransactionFormsSignaturesCard({
         </div>
       ) : null}
 
-      {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+      {error ? <p className="office-form-error">{error}</p> : null}
     </section>
   );
 }

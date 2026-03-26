@@ -356,7 +356,7 @@ function TransactionSearchLayoutModal(props: {
   ];
 
   return (
-    <div className="bm-modal-overlay" onClick={() => !props.isSaving && props.onClose()}>
+    <div className="office-modal-overlay" onClick={() => !props.isSaving && props.onClose()}>
       <section
         aria-label="Edit transaction search fields"
         aria-modal="true"
@@ -429,7 +429,7 @@ function TransactionSearchLayoutModal(props: {
         </div>
 
         <footer className="office-fields-modal-footer office-transaction-search-layout-footer">
-          {props.error ? <p className="bm-inline-error office-transaction-search-layout-error">{props.error}</p> : null}
+          {props.error ? <p className="office-inline-error office-transaction-search-layout-error">{props.error}</p> : null}
           <Button disabled={props.isSaving} onClick={props.onClose} type="button" variant="secondary">
             Cancel
           </Button>
@@ -877,7 +877,7 @@ export function TransactionsClient({
   return (
     <>
       <OfficeListPageTemplate
-        className="bm-transactions-page"
+        className="office-transactions-page"
         description="Operational transaction list with office-shared, configurable search fields and query-driven drill-down."
         eyebrow="Transactions"
         filters={transactionFilters}
@@ -994,9 +994,9 @@ export function TransactionsClient({
       />
 
       {isCreateModalOpen ? (
-        <div className="bm-modal-overlay office-create-modal-overlay">
+        <div className="office-modal-overlay office-create-modal-overlay">
           <section
-            className="bm-transaction-modal office-create-modal office-transaction-create-modal"
+            className="office-modal office-create-modal office-transaction-create-modal"
             onClick={(event) => event.stopPropagation()}
           >
             <TransactionCreatePageClient

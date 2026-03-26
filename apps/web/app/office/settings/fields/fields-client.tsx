@@ -1047,7 +1047,7 @@ export function OfficeSettingsFieldsClient({
       />
 
       {editorState ? (
-        <div className="bm-modal-overlay" onClick={() => setEditorState(null)}>
+        <div className="office-modal-overlay" onClick={() => setEditorState(null)}>
           <section
             className="office-fields-modal"
             onClick={(event) => event.stopPropagation()}

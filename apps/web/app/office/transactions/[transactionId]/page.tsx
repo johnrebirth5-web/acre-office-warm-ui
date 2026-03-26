@@ -117,7 +117,7 @@ export default async function OfficeTransactionDetailPage({ params }: Transactio
   const transactionDetailSectionStorageScope = `${context.currentOrganization.id}:${context.currentMembership.id}`;
 
   return (
-    <PageShell className="bm-transaction-detail-page office-detail-page">
+    <PageShell className="office-transaction-detail-page office-detail-page">
       <PageHeader
         actions={
           <Link className="office-button office-button-secondary" href="/office/transactions">

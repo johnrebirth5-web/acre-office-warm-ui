@@ -689,7 +689,7 @@ export function AgentBillingPanel({
 
           {canManageAgentBilling ? (
             <div className="office-report-filter-actions">
-              <Button className="bm-create-button" onClick={openChargeModal} type="button">
+              <Button className="office-button" onClick={openChargeModal} type="button">
                 New one-time charge
               </Button>
               <Button onClick={() => openRecurringRuleModal()} type="button" variant="secondary">
@@ -716,7 +716,7 @@ export function AgentBillingPanel({
           ) : null}
         </ListPageFilters>
 
-        {formError ? <p className="bm-transaction-submit-error">{formError}</p> : null}
+        {formError ? <p className="office-form-error">{formError}</p> : null}
 
         <div className="office-dashboard-grid-wide bm-accounting-grid">
           <div className="office-side-stack">
@@ -902,15 +902,15 @@ export function AgentBillingPanel({
       </ListPageSection>
 
       {isChargeModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsChargeModalOpen(false)}>
-          <section className="bm-transaction-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsChargeModalOpen(false)}>
+          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <h3>NEW AGENT CHARGE</h3>
               <button aria-label="Close create charge modal" onClick={() => setIsChargeModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="bm-transaction-modal-body bm-accounting-modal-body" onSubmit={handleCreateCharge}>
+            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleCreateCharge}>
               <div className="bm-accounting-form-grid">
                 <label className="bm-detail-field bm-detail-field-wide">
                   <span>Agents</span>
@@ -979,9 +979,9 @@ export function AgentBillingPanel({
                 </label>
               </div>
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="office-modal-footer">
                 <span>One-time charges create real invoice-style accounting transactions in the agent ledger.</span>
-                <button className="bm-create-button" disabled={isSubmitting} type="submit">
+                <button className="office-button" disabled={isSubmitting} type="submit">
                   {isSubmitting ? "Saving..." : "Create charge"}
                 </button>
               </footer>
@@ -991,15 +991,15 @@ export function AgentBillingPanel({
       ) : null}
 
       {isRecurringRuleModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsRecurringRuleModalOpen(false)}>
-          <section className="bm-transaction-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsRecurringRuleModalOpen(false)}>
+          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <h3>{recurringRuleFormState.recurringChargeRuleId ? "EDIT RECURRING RULE" : "NEW RECURRING RULE"}</h3>
               <button aria-label="Close recurring rule modal" onClick={() => setIsRecurringRuleModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="bm-transaction-modal-body bm-accounting-modal-body" onSubmit={handleSaveRecurringRule}>
+            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleSaveRecurringRule}>
               <div className="bm-accounting-form-grid">
                 <label className="bm-detail-field">
                   <span>Agent</span>
@@ -1095,9 +1095,9 @@ export function AgentBillingPanel({
                 </label>
               </div>
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="office-modal-footer">
                 <span>Recurring rules are deterministic. Charges appear only when generated through the due-charge action.</span>
-                <button className="bm-create-button" disabled={isSubmitting} type="submit">
+                <button className="office-button" disabled={isSubmitting} type="submit">
                   {isSubmitting ? "Saving..." : recurringRuleFormState.recurringChargeRuleId ? "Save rule" : "Create rule"}
                 </button>
               </footer>
@@ -1107,15 +1107,15 @@ export function AgentBillingPanel({
       ) : null}
 
       {isPaymentMethodModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsPaymentMethodModalOpen(false)}>
-          <section className="bm-transaction-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsPaymentMethodModalOpen(false)}>
+          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <h3>{paymentMethodFormState.paymentMethodId ? "EDIT PAYMENT METHOD" : "NEW PAYMENT METHOD"}</h3>
               <button aria-label="Close payment method modal" onClick={() => setIsPaymentMethodModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="bm-transaction-modal-body bm-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
+            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
               <div className="bm-accounting-form-grid">
                 <label className="bm-detail-field">
                   <span>Agent</span>
@@ -1191,9 +1191,9 @@ export function AgentBillingPanel({
                 </label>
               </div>
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="office-modal-footer">
                 <span>This MVP stores only a billing-method reference, never raw card or bank credentials.</span>
-                <button className="bm-create-button" disabled={isSubmitting} type="submit">
+                <button className="office-button" disabled={isSubmitting} type="submit">
                   {isSubmitting ? "Saving..." : paymentMethodFormState.paymentMethodId ? "Save payment method" : "Create payment method"}
                 </button>
               </footer>
@@ -1203,15 +1203,15 @@ export function AgentBillingPanel({
       ) : null}
 
       {isPaymentModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsPaymentModalOpen(false)}>
-          <section className="bm-transaction-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsPaymentModalOpen(false)}>
+          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <h3>RECORD AGENT PAYMENT</h3>
               <button aria-label="Close payment modal" onClick={() => setIsPaymentModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="bm-transaction-modal-body bm-accounting-modal-body" onSubmit={handleRecordPayment}>
+            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleRecordPayment}>
               <div className="bm-accounting-form-grid">
                 <label className="bm-detail-field">
                   <span>Agent</span>
@@ -1294,9 +1294,9 @@ export function AgentBillingPanel({
                 </label>
               </div>
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="office-modal-footer">
                 <span>Payments are recorded internally and applied to selected invoices. No external gateway capture is implied.</span>
-                <button className="bm-create-button" disabled={isSubmitting} type="submit">
+                <button className="office-button" disabled={isSubmitting} type="submit">
                   {isSubmitting ? "Saving..." : "Record payment"}
                 </button>
               </footer>
@@ -1306,15 +1306,15 @@ export function AgentBillingPanel({
       ) : null}
 
       {isCreditModalOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsCreditModalOpen(false)}>
-          <section className="bm-transaction-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsCreditModalOpen(false)}>
+          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <h3>APPLY CREDIT MEMO</h3>
               <button aria-label="Close credit application modal" onClick={() => setIsCreditModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="bm-transaction-modal-body bm-accounting-modal-body" onSubmit={handleApplyCredit}>
+            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleApplyCredit}>
               <div className="bm-accounting-form-grid">
                 <label className="bm-detail-field">
                   <span>Agent</span>
@@ -1379,9 +1379,9 @@ export function AgentBillingPanel({
                 </label>
               </div>
 
-              <footer className="bm-transaction-modal-footer">
+              <footer className="office-modal-footer">
                 <span>Credits are applied against open invoices using real accounting applications.</span>
-                <button className="bm-create-button" disabled={isSubmitting} type="submit">
+                <button className="office-button" disabled={isSubmitting} type="submit">
                   {isSubmitting ? "Saving..." : "Apply credit"}
                 </button>
               </footer>

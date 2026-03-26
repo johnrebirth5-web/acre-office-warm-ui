@@ -235,7 +235,7 @@ export function TransactionCreatePageClient({
       )}
 
       {isFieldEditorOpen ? (
-        <div className="bm-modal-overlay" onClick={closeFieldEditor}>
+        <div className="office-modal-overlay" onClick={closeFieldEditor}>
           <section
             aria-label="Edit transaction fields"
             aria-modal="true"

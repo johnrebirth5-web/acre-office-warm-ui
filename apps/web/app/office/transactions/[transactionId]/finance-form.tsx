@@ -441,7 +441,7 @@ export function TransactionFinanceForm({
           {canAutoCalculateCommission ? (
             <p className="office-form-helper">Saving finance data will also run the current commission rule engine when gross commission is set.</p>
           ) : null}
-          {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+          {error ? <p className="office-form-error">{error}</p> : null}
         </div>
       ) : null}
     </div>

@@ -181,7 +181,7 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
   }
 
   return (
-    <PageShell className="bm-transaction-detail-page office-detail-page">
+    <PageShell className="office-transaction-detail-page office-detail-page">
       <PageHeader
         actions={
           <Link className="office-button office-button-secondary" href="/office/contacts">
@@ -251,7 +251,7 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
             <Button disabled={isSaving} type="submit">
               {isSaving ? "Saving..." : "Save contact"}
             </Button>
-            {saveError ? <p className="bm-transaction-submit-error">{saveError}</p> : null}
+            {saveError ? <p className="office-form-error">{saveError}</p> : null}
           </div>
         </form>
       </SectionCard>
@@ -289,7 +289,7 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
           <Button disabled={!selectedTransactionId || isLinking} onClick={handleLinkTransaction} type="button">
             {isLinking ? "Linking..." : "Link transaction"}
           </Button>
-          {linkError ? <p className="bm-transaction-submit-error">{linkError}</p> : null}
+          {linkError ? <p className="office-form-error">{linkError}</p> : null}
         </div>
       </SectionCard>
 
@@ -317,7 +317,7 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
           <Button disabled={isCreatingTask} type="submit">
             {isCreatingTask ? "Saving..." : "Add task"}
           </Button>
-          {taskError ? <p className="bm-transaction-submit-error">{taskError}</p> : null}
+          {taskError ? <p className="office-form-error">{taskError}</p> : null}
         </form>
       </SectionCard>
     </PageShell>

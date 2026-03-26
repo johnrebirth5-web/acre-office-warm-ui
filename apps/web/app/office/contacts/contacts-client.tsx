@@ -441,13 +441,13 @@ export function ContactsClient({
       </OfficeListPageTemplate>
 
       {isModalOpen ? (
-        <div className="bm-modal-overlay office-create-modal-overlay" onClick={() => setIsModalOpen(false)}>
+        <div className="office-modal-overlay office-create-modal-overlay" onClick={() => setIsModalOpen(false)}>
           <section
-            className="bm-transaction-modal office-create-modal office-contact-create-modal bm-contact-modal"
+            className="office-modal office-create-modal office-contact-create-modal bm-contact-modal"
             onClick={(event) => event.stopPropagation()}
           >
-            <header className="bm-transaction-modal-header office-create-modal-header">
-              <div className="bm-transaction-modal-title-block office-create-modal-title-block">
+            <header className="office-modal-header office-create-modal-header">
+              <div className="office-modal-title-block office-create-modal-title-block">
                 <span className="office-create-modal-kicker">Contacts</span>
                 <h3>Create contact</h3>
                 <p>Add a lead or client profile with the current office contact schema so follow-up can start immediately.</p>
@@ -464,7 +464,7 @@ export function ContactsClient({
             </header>
 
             <form
-              className="bm-transaction-modal-body office-create-modal-body office-contact-create-body"
+              className="office-modal-body office-create-modal-body office-contact-create-body"
               onSubmit={handleCreateContact}
             >
               <section className="office-create-modal-section office-contact-create-section">
@@ -535,13 +535,13 @@ export function ContactsClient({
 
               {submitError ? <p className="office-inline-error office-contact-create-feedback">{submitError}</p> : null}
 
-              <footer className="bm-transaction-modal-footer office-create-modal-footer">
+              <footer className="office-modal-footer office-create-modal-footer">
                 <div className="office-create-modal-footer-copy">
                   <strong>Save the profile to start office follow-up</strong>
                   <p>Contact fields stay aligned with the centralized schema in Settings, so the roster and detail pages remain consistent.</p>
                 </div>
 
-                <div className="bm-transaction-modal-actions office-contact-create-actions">
+                <div className="office-modal-actions office-contact-create-actions">
                   <Button disabled={isSubmitting} type="submit">
                     {isSubmitting ? "Saving..." : "Create contact"}
                   </Button>

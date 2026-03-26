@@ -249,7 +249,7 @@ export function TransactionDocumentsCard({
       <div className="bm-document-filter-strip">
         {documentFilterOptions.map((option) => (
           <button
-            className={`bm-view-toggle${filter === option.key ? " is-active" : ""}`}
+            className={`office-toggle-link${filter === option.key ? " is-active" : ""}`}
             key={option.key}
             onClick={() => setFilter(option.key)}
             type="button"
@@ -438,7 +438,7 @@ export function TransactionDocumentsCard({
         </div>
       ) : null}
 
-        {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+        {error ? <p className="office-form-error">{error}</p> : null}
       </section>
 
       <ConfirmActionDialog
@@ -629,7 +629,7 @@ export function TransactionUnsortedDocumentsCard({
         )}
       </div>
 
-        {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+        {error ? <p className="office-form-error">{error}</p> : null}
       </section>
 
       <ConfirmActionDialog

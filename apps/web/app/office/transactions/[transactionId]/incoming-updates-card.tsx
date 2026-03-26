@@ -254,7 +254,7 @@ export function TransactionIncomingUpdatesCard({
         </div>
       ) : null}
 
-      {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+      {error ? <p className="office-form-error">{error}</p> : null}
     </section>
   );
 }

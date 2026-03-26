@@ -323,11 +323,11 @@ export function TransactionIntakeWorkspace({
 
     if (entry.kind === "built-in") {
       const field = entry.field;
-      const className = `bm-transaction-modal-field ${entry.className}`.trim();
+      const className = `office-modal-field ${entry.className}`.trim();
 
       return (
         <label className={className} key={key}>
-          <div className="bm-transaction-field-head">
+          <div className="office-modal-field-head">
             <span>{getFieldValueLabel(field)}</span>
           </div>
           {field.control === "textarea" ? (
@@ -353,11 +353,11 @@ export function TransactionIntakeWorkspace({
 
     const field = entry.field;
     const isAgentOwnerField = field.fieldKey === "agentName" && Boolean(ownerAssignment);
-    const className = `bm-transaction-modal-field ${entry.className} ${isAgentOwnerField ? "bm-transaction-modal-field-owner" : ""}`.trim();
+    const className = `office-modal-field ${entry.className} ${isAgentOwnerField ? "office-modal-field-owner" : ""}`.trim();
 
     return (
       <label className={className} key={key}>
-        <div className="bm-transaction-field-head">
+        <div className="office-modal-field-head">
           <span>{getFieldValueLabel(field)}</span>
         </div>
         {isAgentOwnerField ? (
@@ -519,10 +519,10 @@ export function TransactionIntakeWorkspace({
     <div className={`bm-transaction-intake-shell bm-transaction-intake-shell-${chrome}`}>
       {chrome === "modal" ? (
         <header
-          className={`bm-transaction-modal-header bm-transaction-modal-header-configurable${useOfficeCreateModalChrome ? " office-create-modal-header" : ""}`}
+          className={`office-modal-header office-modal-header-configurable${useOfficeCreateModalChrome ? " office-create-modal-header" : ""}`}
         >
           <div
-            className={`bm-transaction-modal-title-block${useOfficeCreateModalChrome ? " office-create-modal-title-block" : ""}`}
+            className={`office-modal-title-block${useOfficeCreateModalChrome ? " office-create-modal-title-block" : ""}`}
           >
             {useOfficeCreateModalChrome && modalEyebrow ? (
               <span className="office-create-modal-kicker">{modalEyebrow}</span>
@@ -531,7 +531,7 @@ export function TransactionIntakeWorkspace({
             {useOfficeCreateModalChrome && modalDescription ? <p>{modalDescription}</p> : null}
           </div>
           {headerActions || onClose ? (
-            <div className="bm-transaction-modal-header-actions">
+            <div className="office-modal-header-actions">
               {headerActions}
               {onClose ? (
                 useOfficeCreateModalChrome ? (
@@ -554,7 +554,7 @@ export function TransactionIntakeWorkspace({
       ) : null}
 
       <form
-        className={`bm-transaction-modal-body bm-transaction-intake-form${useOfficeCreateModalChrome ? " office-create-modal-body office-transaction-create-body" : ""}`}
+        className={`office-modal-body bm-transaction-intake-form${useOfficeCreateModalChrome ? " office-create-modal-body office-transaction-create-body" : ""}`}
         onSubmit={handleSubmit}
       >
         {useOfficeCreateModalChrome ? (
@@ -565,10 +565,10 @@ export function TransactionIntakeWorkspace({
             </div>
 
             {visibleTopFields.length ? (
-              <div className="bm-transaction-modal-top-selects">
+              <div className="office-modal-top-selects">
                 {visibleTopFields.map((field) => (
-                  <label className="bm-modal-inline-select" key={field.fieldKey}>
-                    <div className="bm-transaction-field-head">
+                  <label className="office-modal-inline-select" key={field.fieldKey}>
+                    <div className="office-modal-field-head">
                       <span>{getFieldValueLabel(field)}</span>
                     </div>
                     <select
@@ -608,13 +608,13 @@ export function TransactionIntakeWorkspace({
             ) : null}
 
             {ownerFieldEntry ? (
-              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary bm-transaction-modal-grid-owner">
+              <div className="office-modal-grid office-modal-grid-primary office-modal-grid-owner">
                 {renderBodyField(ownerFieldEntry)}
               </div>
             ) : null}
 
             {remainingBodyFields.length ? (
-              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
+              <div className="office-modal-grid office-modal-grid-primary">
                 {remainingBodyFields.map((entry) => renderBodyField(entry))}
               </div>
             ) : null}
@@ -622,10 +622,10 @@ export function TransactionIntakeWorkspace({
         ) : (
           <>
             {visibleTopFields.length ? (
-              <div className="bm-transaction-modal-top-selects">
+              <div className="office-modal-top-selects">
                 {visibleTopFields.map((field) => (
-                  <label className="bm-modal-inline-select" key={field.fieldKey}>
-                    <div className="bm-transaction-field-head">
+                  <label className="office-modal-inline-select" key={field.fieldKey}>
+                    <div className="office-modal-field-head">
                       <span>{getFieldValueLabel(field)}:</span>
                     </div>
                     <select
@@ -665,13 +665,13 @@ export function TransactionIntakeWorkspace({
             ) : null}
 
             {ownerFieldEntry ? (
-              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary bm-transaction-modal-grid-owner">
+              <div className="office-modal-grid office-modal-grid-primary office-modal-grid-owner">
                 {renderBodyField(ownerFieldEntry)}
               </div>
             ) : null}
 
             {remainingBodyFields.length ? (
-              <div className="bm-transaction-modal-grid bm-transaction-modal-grid-primary">
+              <div className="office-modal-grid office-modal-grid-primary">
                 {remainingBodyFields.map((entry) => renderBodyField(entry))}
               </div>
             ) : null}
@@ -692,7 +692,7 @@ export function TransactionIntakeWorkspace({
           )
         ) : null}
 
-        <footer className={`bm-transaction-modal-footer${useOfficeCreateModalChrome ? " office-create-modal-footer" : ""}`}>
+        <footer className={`office-modal-footer${useOfficeCreateModalChrome ? " office-create-modal-footer" : ""}`}>
           {useOfficeCreateModalChrome ? (
             <div className="office-create-modal-footer-copy">
               <strong>{modalFooterTitle ?? "Review the intake before saving"}</strong>
@@ -701,8 +701,8 @@ export function TransactionIntakeWorkspace({
           ) : (
             <span>{stepLabel ?? (chrome === "modal" ? "step 1 of 4" : "Schema-driven transaction intake")}</span>
           )}
-          <div className="bm-transaction-modal-actions">
-            {submitError ? <p className="bm-transaction-submit-error">{submitError}</p> : null}
+          <div className="office-modal-actions">
+            {submitError ? <p className="office-form-error">{submitError}</p> : null}
             {useOfficeCreateModalChrome ? (
               <Button disabled={isSubmitting || !canEditValues} type="submit">
                 {isSubmitting ? "Saving..." : submitLabel}

@@ -184,12 +184,12 @@ export function TransactionContactsCard({
           <input checked={makePrimary} onChange={(event) => setMakePrimary(event.target.checked)} type="checkbox" />
           <span>Set as primary</span>
         </label>
-        <button className="bm-create-button" disabled={!selectedContactId || pendingAction === "link"} onClick={handleLinkContact} type="button">
+        <button className="office-button" disabled={!selectedContactId || pendingAction === "link"} onClick={handleLinkContact} type="button">
           {pendingAction === "link" ? "Linking..." : "Link contact"}
         </button>
       </div>
 
-      {actionError ? <p className="bm-transaction-submit-error">{actionError}</p> : null}
+      {actionError ? <p className="office-form-error">{actionError}</p> : null}
 
       <ConfirmActionDialog
         cancelLabel="Keep link"

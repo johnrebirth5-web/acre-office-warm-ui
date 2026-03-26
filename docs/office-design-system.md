@@ -369,6 +369,12 @@ Back Office 当前统一采用两种合法实现，不能再混用第三套页�
 - 新任务里如果碰到 `bm-*` 页面：
   - 优先迁到 shared primitive
   - 或至少把它映射回 canonical `office-*` 视觉层
+- 当前 live 页面优先统一到这些 canonical 家族：
+  - page shell：`office-page-shell`、`office-transactions-page`、`office-transaction-detail-page`
+  - modal：`office-modal-*`、`office-create-modal-*`
+  - actions / errors：`office-button*`、`office-toggle-link`、`office-inline-error`、`office-form-error`
+  - detail / form fields：`office-detail-field`、`office-form-field`、`office-modal-field`
+- 新的 live 页面和对现有 live 页面的修改，不再直接引入 `bm-modal-*`、`bm-create-button`、`bm-view-toggle`、`bm-transaction-detail-page` 这类旧壳层类名
 - 不要在 `office-*` 和 `bm-*` 之外再创造第三套页面私有视觉系统
 
 ## Responsive 规则

@@ -649,7 +649,7 @@ export function TransactionOffersCard({
         </div>
       </div>
 
-      {error ? <div className="bm-inline-error">{error}</div> : null}
+      {error ? <div className="office-inline-error">{error}</div> : null}
 
       {canManageOffers ? (
         <div className="bm-offer-create-grid">
@@ -980,7 +980,7 @@ export function TransactionOffersCard({
                                 </StatusBadge>
                               </div>
                               {form.documentId ? (
-                                <Link className="bm-inline-link" href={`#transaction-forms-signatures`}>
+                                <Link className="office-inline-link" href={`#transaction-forms-signatures`}>
                                   View in forms section
                                 </Link>
                               ) : null}

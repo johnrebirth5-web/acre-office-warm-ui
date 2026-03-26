@@ -319,7 +319,7 @@ function ReportSearchLayoutModal(props: {
   ];
 
   return (
-    <div className="bm-modal-overlay" onClick={() => !props.isSaving && props.onClose()}>
+    <div className="office-modal-overlay" onClick={() => !props.isSaving && props.onClose()}>
       <section
         aria-label="Edit report search fields"
         aria-modal="true"
@@ -392,7 +392,7 @@ function ReportSearchLayoutModal(props: {
 
         <footer className="office-fields-modal-footer office-transaction-search-layout-footer">
           {props.error ? (
-            <p className="bm-inline-error office-transaction-search-layout-error">{props.error}</p>
+            <p className="office-inline-error office-transaction-search-layout-error">{props.error}</p>
           ) : null}
           <Button disabled={props.isSaving} onClick={props.onClose} type="button" variant="secondary">
             Cancel

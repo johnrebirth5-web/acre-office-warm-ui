@@ -2144,6 +2144,7 @@ select {
   font-size: 0.74rem;
 }
 
+.office-modal-overlay,
 .bm-modal-overlay {
   position: fixed;
   inset: 0;
@@ -2154,6 +2155,7 @@ select {
   background: rgba(0, 0, 0, 0.26);
 }
 
+.office-modal,
 .bm-transaction-modal {
   width: min(100%, 770px);
   max-height: calc(100vh - 44px);
@@ -2166,6 +2168,7 @@ select {
   overflow: hidden;
 }
 
+.office-modal-header,
 .bm-transaction-modal-header {
   display: flex;
   align-items: flex-start;
@@ -2174,17 +2177,20 @@ select {
   padding: 20px 26px 10px;
 }
 
+.office-modal-header-configurable,
 .bm-transaction-modal-header-configurable {
   padding-bottom: 14px;
   border-bottom: 1px solid rgba(203, 213, 225, 0.72);
 }
 
+.office-modal-title-block,
 .bm-transaction-modal-title-block {
   display: grid;
   gap: 10px;
   min-width: 0;
 }
 
+.office-modal-header h3,
 .bm-transaction-modal-header h3 {
   margin: 0;
   color: #353535;
@@ -2193,6 +2199,7 @@ select {
   letter-spacing: 0.01em;
 }
 
+.office-modal-header > button:not(.office-button),
 .bm-transaction-modal-header > button:not(.office-button) {
   border: 0;
   padding: 0;
@@ -2202,6 +2209,7 @@ select {
   line-height: 1;
 }
 
+.office-modal-body,
 .bm-transaction-modal-body {
   display: grid;
   align-content: start;
@@ -2209,6 +2217,7 @@ select {
   overflow: auto;
 }
 
+.office-modal-top-selects,
 .bm-transaction-modal-top-selects {
   display: flex;
   flex-wrap: wrap;
@@ -2216,6 +2225,7 @@ select {
   padding: 0 26px;
 }
 
+.office-modal-inline-select,
 .bm-modal-inline-select {
   display: grid;
   gap: 6px;
@@ -2224,6 +2234,7 @@ select {
   min-width: 148px;
 }
 
+.office-modal-inline-select select,
 .bm-modal-inline-select select {
   border: 0;
   padding: 0 18px 0 0;
@@ -2233,10 +2244,12 @@ select {
   outline: 0;
 }
 
+.office-modal-inline-select select.is-empty,
 .bm-modal-inline-select select.is-empty {
   color: #f07c72;
 }
 
+.office-modal-grid,
 .bm-transaction-modal-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2244,23 +2257,28 @@ select {
   padding: 0 26px;
 }
 
+.office-modal-grid-primary,
 .bm-transaction-modal-grid-primary {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.office-modal-grid-primary .office-modal-field,
 .bm-transaction-modal-grid-primary .bm-transaction-modal-field {
   grid-column: span 2;
 }
 
+.office-modal-field,
 .bm-transaction-modal-field {
   display: grid;
   gap: 5px;
 }
 
+.office-modal-field-owner,
 .bm-transaction-modal-field-owner {
   grid-column: 1 / -1;
 }
 
+.office-modal-field-head,
 .bm-transaction-field-head {
   display: flex;
   align-items: flex-start;
@@ -2268,6 +2286,7 @@ select {
   gap: 8px;
 }
 
+.office-modal-header-actions,
 .bm-transaction-modal-header-actions {
   display: flex;
   align-items: flex-start;
@@ -2276,14 +2295,17 @@ select {
   flex-wrap: wrap;
 }
 
+.office-modal-field.is-span-4,
 .bm-transaction-modal-field.is-span-4 {
   grid-column: span 4;
 }
 
+.office-modal-field.is-compact,
 .bm-transaction-modal-field.is-compact {
   grid-column: span 1;
 }
 
+.office-modal-field span,
 .bm-transaction-modal-field span {
   color: #8f8f8f;
   font-size: 0.72rem;
@@ -2312,6 +2334,8 @@ select {
   opacity: 0.56;
 }
 
+.office-modal-field input,
+.office-modal-field select,
 .bm-transaction-modal-field input,
 .bm-transaction-modal-field select {
   width: 100%;
@@ -2392,6 +2416,7 @@ select {
   max-width: 34rem;
 }
 
+.office-modal-additional,
 .bm-transaction-modal-additional {
   display: grid;
   gap: 14px;
@@ -2399,11 +2424,13 @@ select {
   border-top: 1px solid #d7d7d7;
 }
 
+.office-modal-grid-additional,
 .bm-transaction-modal-grid-additional {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px 18px;
 }
 
+.office-modal-footer,
 .bm-transaction-modal-footer {
   display: flex;
   align-items: center;
@@ -2415,12 +2442,14 @@ select {
   border-top: 1px solid rgba(177, 188, 204, 0.42);
 }
 
+.office-modal-footer span,
 .bm-transaction-modal-footer span {
   color: #9a9a9a;
   font-size: 0.72rem;
   font-style: italic;
 }
 
+.office-modal-actions,
 .bm-transaction-modal-actions {
   display: flex;
   align-items: center;
@@ -6586,6 +6615,10 @@ a {
 .office-input:focus-visible,
 .office-select:focus-visible,
 .office-textarea:focus-visible,
+.office-modal-field input:focus-visible,
+.office-modal-field select:focus-visible,
+.office-modal-field textarea:focus-visible,
+.office-modal-inline-select select:focus-visible,
 .bm-transactions-search input:focus-visible,
 .bm-contacts-search:focus-visible,
 .bm-activity-filter-field input:focus-visible,
@@ -8602,6 +8635,7 @@ a {
   text-align: center;
 }
 
+.office-modal-overlay,
 .bm-modal-overlay {
   display: grid;
   place-items: center;
@@ -8610,6 +8644,7 @@ a {
   backdrop-filter: blur(3px);
 }
 
+.office-modal,
 .bm-transaction-modal {
   border: 1px solid var(--office-border);
   border-radius: 18px;
@@ -8620,10 +8655,12 @@ a {
   overflow: auto;
 }
 
+.office-modal-header,
 .bm-transaction-modal-header {
   padding: 24px 24px 0;
 }
 
+.office-modal-header h3,
 .bm-transaction-modal-header h3 {
   margin: 0;
   font-size: 2rem;
@@ -8631,12 +8668,15 @@ a {
   letter-spacing: -0.04em;
 }
 
+.office-modal-body,
+.office-modal-additional,
 .bm-transaction-modal-body,
 .bm-transaction-modal-additional {
   display: grid;
   gap: 18px;
 }
 
+.office-modal-footer,
 .bm-transaction-modal-footer {
   display: flex;
   align-items: center;
@@ -10756,6 +10796,7 @@ a {
   width: min(920px, calc(100vw - 40px));
 }
 
+.office-create-modal .office-modal-header > button:not(.office-button),
 .office-create-modal .bm-transaction-modal-header > button:not(.office-button) {
   color: var(--office-text-muted);
 }
@@ -10764,38 +10805,47 @@ a {
   align-self: start;
 }
 
+.office-create-modal .office-modal-body,
 .office-create-modal .bm-transaction-modal-body {
   gap: 18px;
 }
 
+.office-create-modal .office-modal-footer,
 .office-create-modal .bm-transaction-modal-footer {
   margin-top: 0;
   padding: 0;
   border-top: 0;
 }
 
+.office-create-modal .office-modal-top-selects,
+.office-create-modal .office-modal-grid,
 .office-create-modal .bm-transaction-modal-top-selects,
 .office-create-modal .bm-transaction-modal-grid {
   padding-left: 0;
   padding-right: 0;
 }
 
+.office-transaction-create-section .office-modal-top-selects,
 .office-transaction-create-section .bm-transaction-modal-top-selects {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px 16px;
 }
 
+.office-create-modal .office-modal-inline-select select,
 .office-create-modal .bm-modal-inline-select select {
   padding-right: 12px;
   background: #fff;
   color: var(--office-text);
 }
 
+.office-create-modal .office-modal-inline-select select.is-empty,
 .office-create-modal .bm-modal-inline-select select.is-empty {
   color: var(--office-text-muted);
 }
 
+.office-create-modal .office-modal-inline-select > .office-modal-field-head span,
+.office-create-modal .office-modal-field span,
 .office-create-modal .bm-modal-inline-select > .bm-transaction-field-head span,
 .office-create-modal .bm-transaction-modal-field span {
   color: var(--office-text-muted);
@@ -14513,6 +14563,9 @@ body,
 
 .office-page-shell,
 .office-agent-page,
+.office-transactions-page,
+.office-transaction-detail-page,
+.office-transaction-create-page,
 .bm-page,
 .bm-transactions-page,
 .bm-transaction-detail-page {
@@ -14889,6 +14942,9 @@ body,
 .office-detail-field input:not([type="checkbox"]):not([type="radio"]),
 .office-detail-field select,
 .office-detail-field textarea,
+.office-modal-field input:not([type="checkbox"]):not([type="radio"]),
+.office-modal-field select,
+.office-modal-field textarea,
 .bm-detail-field input:not([type="checkbox"]):not([type="radio"]),
 .bm-detail-field select,
 .bm-detail-field textarea,
@@ -14896,6 +14952,7 @@ body,
 .bm-transaction-status-form select,
 .bm-transaction-modal-field input,
 .bm-transaction-modal-field select,
+.office-modal-inline-select select,
 .bm-modal-inline-select select,
 .auth-field input {
   min-height: 42px;
@@ -14907,6 +14964,7 @@ body,
 
 .office-textarea,
 .office-detail-field textarea,
+.office-modal-field textarea,
 .bm-detail-field textarea {
   min-height: 114px;
   padding-top: 12px;
@@ -14917,6 +14975,8 @@ body,
 .office-report-filter > span,
 .office-activity-filter-field > span,
 .office-detail-field > span,
+.office-modal-field > span,
+.office-modal-inline-select > span,
 .bm-activity-filter-field > span,
 .bm-detail-field > span,
 .bm-transaction-modal-field > span,
@@ -15426,6 +15486,7 @@ body,
 .bm-transaction-header,
 .office-pipeline-table-head,
 .bm-office-table-header,
+.office-modal-overlay,
 .bm-modal-overlay {
   backdrop-filter: none;
 }
@@ -15440,6 +15501,7 @@ body,
   background: #f7f9fc;
 }
 
+.office-modal-overlay,
 .bm-modal-overlay {
   background: rgba(15, 23, 42, 0.42);
 }

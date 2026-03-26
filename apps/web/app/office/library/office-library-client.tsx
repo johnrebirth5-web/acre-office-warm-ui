@@ -489,7 +489,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
         </FilterBar>
       </section>
 
-        {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+        {error ? <p className="office-form-error">{error}</p> : null}
 
       <section className="office-section-card office-library-browser-sheet">
         <div className="office-library-browser-head">
@@ -598,9 +598,9 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
       </section>
 
       {selectedDocument ? (
-        <div className="bm-modal-overlay" onClick={closeDocumentPreview}>
-          <section className="bm-transaction-modal office-library-preview-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={closeDocumentPreview}>
+          <section className="office-modal office-library-preview-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <div>
                 <h3>{selectedDocument.title}</h3>
                 <p>
@@ -758,9 +758,9 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
       ) : null}
 
       {canManageLibrary && isCreateFolderOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsCreateFolderOpen(false)}>
-          <section className="bm-transaction-modal office-library-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsCreateFolderOpen(false)}>
+          <section className="office-modal office-library-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <div>
                 <h3>Add folder</h3>
                 <p>Create a company or office-only library folder.</p>
@@ -770,7 +770,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               </button>
             </header>
 
-            <form className="bm-transaction-modal-body office-library-modal-body" onSubmit={handleCreateFolder}>
+            <form className="office-modal-body office-library-modal-body" onSubmit={handleCreateFolder}>
               <label className="office-form-field">
                 <span>Folder name</span>
                 <TextInput autoFocus name="name" placeholder="User Manual Documents" />
@@ -801,9 +801,9 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                 </SelectInput>
               </label>
 
-              <footer className="bm-transaction-modal-footer office-library-modal-footer">
+              <footer className="office-modal-footer office-library-modal-footer">
                 <span>Deletion is intentionally not included in this MVP.</span>
-                <div className="bm-transaction-modal-actions">
+                <div className="office-modal-actions">
                   <Button onClick={() => setIsCreateFolderOpen(false)} type="button" variant="secondary">
                     Cancel
                   </Button>
@@ -818,9 +818,9 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
       ) : null}
 
       {canManageLibrary && isUploadOpen ? (
-        <div className="bm-modal-overlay" onClick={() => setIsUploadOpen(false)}>
-          <section className="bm-transaction-modal office-library-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="bm-transaction-modal-header">
+        <div className="office-modal-overlay" onClick={() => setIsUploadOpen(false)}>
+          <section className="office-modal office-library-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="office-modal-header">
               <div>
                 <h3>Upload file</h3>
                 <p>PDF-first library upload for company manuals, onboarding packets, and internal references.</p>
@@ -830,7 +830,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               </button>
             </header>
 
-            <form className="bm-transaction-modal-body office-library-modal-body" onSubmit={handleUpload}>
+            <form className="office-modal-body office-library-modal-body" onSubmit={handleUpload}>
               <label className="office-form-field">
                 <span>File</span>
                 <input accept=".pdf,.doc,.docx,.txt,.rtf,.xlsx,.xls,.csv,image/*" name="file" required type="file" />
@@ -876,9 +876,9 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                 <TextareaInput name="summary" rows={4} />
               </label>
 
-              <footer className="bm-transaction-modal-footer office-library-modal-footer">
+              <footer className="office-modal-footer office-library-modal-footer">
                 <span>Inline preview is PDF-first. Other file types remain downloadable.</span>
-                <div className="bm-transaction-modal-actions">
+                <div className="office-modal-actions">
                   <Button onClick={() => setIsUploadOpen(false)} type="button" variant="secondary">
                     Cancel
                   </Button>

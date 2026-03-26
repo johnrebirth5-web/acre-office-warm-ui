@@ -75,7 +75,7 @@ export function TransactionStatusForm({ transactionId, currentStatus, canManageS
       ) : (
         <p className="office-form-helper">Only admins can change transaction status.</p>
       )}
-      {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+      {error ? <p className="office-form-error">{error}</p> : null}
     </div>
   );
 }

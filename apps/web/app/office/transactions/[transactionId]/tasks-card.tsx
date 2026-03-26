@@ -225,7 +225,7 @@ export function TransactionTasksCard({
     <section className="bm-detail-card" id="transaction-tasks">
       <div className="bm-card-head">
         <h3>Checklist / Tasks</h3>
-        <Link className="bm-view-toggle" href={`/office/tasks?transactionId=${transactionId}`}>
+        <Link className="office-toggle-link" href={`/office/tasks?transactionId=${transactionId}`}>
           Open Task List
         </Link>
       </div>
@@ -255,13 +255,13 @@ export function TransactionTasksCard({
                         </div>
                         <div className="bm-transaction-task-actions">
                           {task.requiresDocument || task.requiresDocumentApproval ? (
-                            <Link className="bm-view-toggle" href={`/office/transactions/${transactionId}#transaction-forms-signatures`}>
+                            <Link className="office-toggle-link" href={`/office/transactions/${transactionId}#transaction-forms-signatures`}>
                               Use forms
                             </Link>
                           ) : null}
                           {task.canCompleteDirectly ? (
                             <button
-                              className="bm-view-toggle"
+                              className="office-toggle-link"
                               disabled={pendingAction === `complete:${task.id}`}
                               onClick={() => handleWorkflowAction(task, "complete")}
                               type="button"
@@ -271,7 +271,7 @@ export function TransactionTasksCard({
                           ) : null}
                           {task.canRequestReview ? (
                             <button
-                              className="bm-view-toggle"
+                              className="office-toggle-link"
                               disabled={pendingAction === `request_review:${task.id}`}
                               onClick={() => handleWorkflowAction(task, "request_review")}
                               type="button"
@@ -284,7 +284,7 @@ export function TransactionTasksCard({
                           ((task.awaitingSecondaryApproval && canSecondaryReviewTasks && canCurrentUserSecondApprove) ||
                             (!task.awaitingSecondaryApproval && canReviewTasks)) ? (
                             <button
-                              className="bm-view-toggle"
+                              className="office-toggle-link"
                               disabled={pendingAction === `approve:${task.id}`}
                               onClick={() => handleWorkflowAction(task, "approve")}
                               type="button"
@@ -298,7 +298,7 @@ export function TransactionTasksCard({
                           ) : null}
                           {task.canReject && canReviewTasks && canApproveDocuments ? (
                             <button
-                              className="bm-view-toggle"
+                              className="office-toggle-link"
                               disabled={pendingAction === `reject:${task.id}`}
                               onClick={() => handleWorkflowAction(task, "reject")}
                               type="button"
@@ -308,7 +308,7 @@ export function TransactionTasksCard({
                           ) : null}
                           {task.canReopen ? (
                             <button
-                              className="bm-view-toggle"
+                              className="office-toggle-link"
                               disabled={pendingAction === `reopen:${task.id}`}
                               onClick={() => handleWorkflowAction(task, "reopen")}
                               type="button"
@@ -317,7 +317,7 @@ export function TransactionTasksCard({
                             </button>
                           ) : null}
                           <button
-                            className="bm-create-button"
+                            className="office-button"
                             disabled={pendingAction === `save:${task.id}`}
                             onClick={() => handleSaveTask(task.id)}
                             type="button"
@@ -524,10 +524,10 @@ export function TransactionTasksCard({
           </div>
         </div>
 
-        {error ? <p className="bm-transaction-submit-error">{error}</p> : null}
+        {error ? <p className="office-form-error">{error}</p> : null}
 
         <div className="bm-transaction-task-actions">
-          <button className="bm-create-button" disabled={pendingAction === "create"} onClick={handleCreateTask} type="button">
+          <button className="office-button" disabled={pendingAction === "create"} onClick={handleCreateTask} type="button">
             {pendingAction === "create" ? "Creating..." : "Create task"}
           </button>
         </div>

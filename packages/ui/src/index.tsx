@@ -56,11 +56,11 @@ export function ConfirmActionDialog(props: {
   }
 
   return (
-    <div className="bm-modal-overlay" onClick={props.onCancel}>
+    <div className="office-modal-overlay" onClick={props.onCancel}>
       <section
         aria-label={props.title}
         aria-modal="true"
-        className="bm-transaction-modal office-confirm-dialog"
+        className="office-modal office-confirm-dialog"
         onClick={(event) => event.stopPropagation()}
         role="alertdialog"
       >
