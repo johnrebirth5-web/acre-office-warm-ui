@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 type HorizontalScrollAreaProps = {
   className?: string;
@@ -27,6 +27,12 @@ const HIDDEN_METRICS: ScrollMetrics = {
   thumbWidth: 0,
   thumbOffset: 0
 };
+
+const HorizontalScrollAreaContext = createContext(false);
+
+export function useHorizontalScrollAreaContext() {
+  return useContext(HorizontalScrollAreaContext);
+}
 
 export function HorizontalScrollArea(props: HorizontalScrollAreaProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -164,33 +170,35 @@ export function HorizontalScrollArea(props: HorizontalScrollAreaProps) {
   }
 
   return (
-    <div className={cx("office-horizontal-scroll-area", props.className)}>
-      <div className={cx("office-horizontal-scroll-viewport", props.viewportClassName)} onScroll={syncMetrics} ref={viewportRef}>
-        {props.children}
-      </div>
-
-      {metrics.isOverflowing ? (
-        <div
-          aria-hidden="true"
-          className="office-horizontal-scrollbar"
-          onPointerDown={handleTrackPointerDown}
-          ref={trackRef}
-          role="presentation"
-        >
-          <div
-            className="office-horizontal-scrollbar-thumb"
-            data-dragging={isDragging ? "true" : "false"}
-            onPointerDown={handleThumbPointerDown}
-            onPointerMove={handleThumbPointerMove}
-            onPointerUp={handleThumbPointerEnd}
-            onPointerCancel={handleThumbPointerEnd}
-            style={{
-              transform: `translateX(${metrics.thumbOffset}px)`,
-              width: `${metrics.thumbWidth}px`
-            }}
-          />
+    <HorizontalScrollAreaContext.Provider value={true}>
+      <div className={cx("office-horizontal-scroll-area", props.className)}>
+        <div className={cx("office-horizontal-scroll-viewport", props.viewportClassName)} onScroll={syncMetrics} ref={viewportRef}>
+          {props.children}
         </div>
-      ) : null}
-    </div>
+
+        {metrics.isOverflowing ? (
+          <div
+            aria-hidden="true"
+            className="office-horizontal-scrollbar"
+            onPointerDown={handleTrackPointerDown}
+            ref={trackRef}
+            role="presentation"
+          >
+            <div
+              className="office-horizontal-scrollbar-thumb"
+              data-dragging={isDragging ? "true" : "false"}
+              onPointerDown={handleThumbPointerDown}
+              onPointerMove={handleThumbPointerMove}
+              onPointerUp={handleThumbPointerEnd}
+              onPointerCancel={handleThumbPointerEnd}
+              style={{
+                transform: `translateX(${metrics.thumbOffset}px)`,
+                width: `${metrics.thumbWidth}px`
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+    </HorizontalScrollAreaContext.Provider>
   );
 }

@@ -7447,6 +7447,7 @@ a {
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  overflow-anchor: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
