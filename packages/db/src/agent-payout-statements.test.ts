@@ -236,7 +236,7 @@ test("buildAgentPayoutStatementInvoiceOptions groups by trimmed invoice number a
   assert.equal(options.length, 2);
   assert.equal(options[0]?.invoiceNumber, "INV-200");
   assert.equal(options[1]?.invoiceNumber, "INV-100");
-  assert.equal(options[0]?.isGenerateEligible, false);
+  assert.equal(options[0]?.isGenerateEligible, true);
   assert.equal(options[1]?.isGenerateEligible, true);
   assert.equal(options[1]?.rowCount, 2);
   assert.equal(options[1]?.totalStatementAmountValue, "2000");
@@ -639,10 +639,115 @@ test("createAgentPayoutStatement includes all selected invoice rows and advances
       new Set(postGenerationSnapshot.filters.invoiceOptions.map((option) => option.invoiceNumber)),
       new Set(["INV-100", "INV-200"])
     );
-    assert.ok(postGenerationSnapshot.filters.invoiceOptions.every((option) => option.isGenerateEligible === false));
+    assert.ok(postGenerationSnapshot.filters.invoiceOptions.every((option) => option.isGenerateEligible === true));
     assert.equal(postGenerationSnapshot.candidateRows.length, 3);
     assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.statusValue === "payable"));
-    assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.isGenerateEligible === false));
+    assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.isGenerateEligible === true));
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("createAgentPayoutStatement can regenerate snapshots from payable and paid rows without downgrading paid status", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    const payableRow = await context.createCommissionRow({
+      invoiceNumber: "INV-400",
+      transactionName: "Invoice 400 Payable",
+      address: "70 Invoice Ave",
+      status: "payable",
+      calculatedAt: "2026-03-16T00:00:00.000Z",
+      statementAmount: "1000"
+    });
+
+    const paidRow = await context.createCommissionRow({
+      invoiceNumber: "INV-400",
+      transactionName: "Invoice 400 Paid",
+      address: "71 Invoice Ave",
+      status: "paid",
+      calculatedAt: "2026-03-18T00:00:00.000Z",
+      statementAmount: "500"
+    });
+
+    const reviewedRow = await context.createCommissionRow({
+      invoiceNumber: "INV-500",
+      transactionName: "Invoice 500 Reviewed",
+      address: "72 Invoice Ave",
+      status: "reviewed",
+      calculatedAt: "2026-03-20T00:00:00.000Z",
+      statementAmount: "900"
+    });
+
+    const firstStatement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-400", "INV-500"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const secondStatement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-400", "INV-500"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    assert.notEqual(firstStatement.statementId, secondStatement.statementId);
+
+    const savedStatements = await prisma.agentPayoutStatement.findMany({
+      where: {
+        id: {
+          in: [firstStatement.statementId, secondStatement.statementId]
+        }
+      },
+      include: {
+        lineItems: true
+      },
+      orderBy: {
+        generatedAt: "asc"
+      }
+    });
+
+    assert.equal(savedStatements.length, 2);
+    assert.ok(savedStatements.every((statement) => statement.lineItemCount === 3));
+    assert.ok(
+      savedStatements.every((statement) =>
+        new Set(statement.lineItems.map((lineItem) => lineItem.commissionCalculationId)).size === 3
+      )
+    );
+
+    const refreshedRows = await prisma.commissionCalculation.findMany({
+      where: {
+        id: {
+          in: [payableRow.id, paidRow.id, reviewedRow.id]
+        }
+      }
+    });
+    const statusById = new Map(refreshedRows.map((row) => [row.id, row.status]));
+
+    assert.equal(statusById.get(payableRow.id), "payable");
+    assert.equal(statusById.get(paidRow.id), "paid");
+    assert.equal(statusById.get(reviewedRow.id), "payable");
+
+    const postGenerationSnapshot = await getOfficeAgentPayoutStatementsWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-400", "INV-500"]
+    });
+
+    assert.ok(postGenerationSnapshot.filters.invoiceOptions.every((option) => option.isGenerateEligible === true));
+    assert.equal(postGenerationSnapshot.candidateRows.length, 3);
+    assert.deepEqual(
+      new Set(postGenerationSnapshot.candidateRows.map((row) => row.statusValue)),
+      new Set(["payable", "paid"])
+    );
+    assert.ok(postGenerationSnapshot.candidateRows.every((row) => row.isGenerateEligible === true));
   } finally {
     await context.cleanup();
   }

@@ -574,7 +574,7 @@ Trade-off：
   - giant enterprise commission rule engine
   - 自动外部出款
 - 当前 `statement_ready / payable / paid` 只是内部状态与可见性，不自动代表外部银行资金已打出
-- `AgentPayoutStatement` 生成时会把被纳入该期工资单的 agent rows 从 `statement_ready` 推进到 `payable`，避免重复出单
+- `AgentPayoutStatement` 生成时会把被纳入该期工资单的 `calculated / reviewed / statement_ready` agent rows 推进到 `payable`，但 `payable / paid` rows 仍然允许再次生成新的 durable statement snapshot，且不会把 `paid` 状态降回 `payable`
 
 ## 关键决策 10：Agent Management 建在现有 Membership / Office 身份基础上，而不是另建第二套人员系统
 

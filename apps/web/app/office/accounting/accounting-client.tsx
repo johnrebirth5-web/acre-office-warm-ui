@@ -200,38 +200,16 @@ function getStatementGenerationBlockedMessage(input: {
   hasSelectedInvoices: boolean;
   previewMatchesFilter: boolean;
   selectedRowCount: number;
-  selectedInvoiceCount: number;
-  hasSelectedGenerateEligibleRows: boolean;
-  hasSelectedGenerateEligibleInvoices: boolean;
-  selectedRowStatuses: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]["statusValue"][];
 }) {
   if (!input.hasFilterAgent || !input.hasSelectedInvoices) {
     return "";
   }
 
   if (input.previewMatchesFilter) {
-    if (input.selectedRowCount === 0) {
-      return "Select at least one commission row before generating.";
-    }
-
-    if (input.hasSelectedGenerateEligibleRows) {
-      return "";
-    }
-
-    const allSelectedRowsAlreadyGenerated =
-      input.selectedRowStatuses.length > 0 &&
-      input.selectedRowStatuses.every((status) => status === "payable" || status === "paid");
-
-    return allSelectedRowsAlreadyGenerated
-      ? "All previewed rows are already on a saved payout statement. Their current status is Payable or Paid, so they cannot be generated again."
-      : "The current preview no longer has any live statement-eligible rows. Review it here, then load a different invoice selection to generate a new statement.";
+    return input.selectedRowCount === 0 ? "Select at least one commission row before generating." : "";
   }
 
-  if (input.hasSelectedGenerateEligibleInvoices || input.selectedInvoiceCount === 0) {
-    return "";
-  }
-
-  return "The selected invoices are already saved on a payout statement, or they no longer contain any live statement-eligible rows.";
+  return "";
 }
 
 export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
@@ -373,17 +351,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     hasFilterAgent,
     hasSelectedInvoices,
     previewMatchesFilter,
-    selectedRowCount: selectedRows.length,
-    selectedInvoiceCount: selectedInvoiceOptions.length,
-    hasSelectedGenerateEligibleRows,
-    hasSelectedGenerateEligibleInvoices,
-    selectedRowStatuses: selectedRows.map((row) => row.statusValue)
+    selectedRowCount: selectedRows.length
   });
-  const generateButtonLabel = isGenerating
-    ? "Generating..."
-    : hasSelectedInvoices && !canGenerateStatement
-      ? "No eligible rows"
-      : "Generate statement";
+  const hasSelectedReusableRows = selectedRows.some((row) => row.statusValue === "payable" || row.statusValue === "paid");
+  const generateButtonLabel = isGenerating ? "Generating..." : "Generate statement";
   const selectedSummary = previewMatchesFilter
     ? selectedRows.reduce(
         (summary, row) => ({
@@ -868,7 +839,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       </HorizontalScrollArea>
                     ) : (
                       <EmptyState
-                        description="No eligible rows are currently available under the selected invoice numbers."
+                        description="No commission rows are currently available under the selected invoice numbers."
                         title="No payout candidates"
                       />
                     )
@@ -931,6 +902,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         {!previewMatchesFilter && hasSelectedInvoices && canGenerateStatement ? (
           <p className="office-form-helper">
             Preview the selected invoices if you want to inspect or uncheck individual rows before generating. Direct generate will include all eligible rows under those invoices.
+          </p>
+        ) : null}
+
+        {previewMatchesFilter && hasSelectedReusableRows ? (
+          <p className="office-form-helper">
+            Rows already marked Payable or Paid can still be regenerated into a fresh statement snapshot. Regenerating does not downgrade Paid rows.
           </p>
         ) : null}
 

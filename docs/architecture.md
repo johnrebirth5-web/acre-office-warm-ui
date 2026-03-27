@@ -200,7 +200,7 @@
   - `/office/accounting`
   - 只允许 `office_admin`
   - 基于 `CommissionCalculation` 的 agent rows 生成 durable `AgentPayoutStatement` / `AgentPayoutStatementLine`
-  - 当前按 transaction `invoiceNumber` 选择 candidate invoices，再预览/微调这些 invoice 下的 eligible agent rows
+  - 当前按 transaction `invoiceNumber` 选择 candidate invoices，再预览/微调这些 invoice 下的 agent rows；`payable / paid` rows 也允许重新生成新的 statement snapshot，但不会把 `paid` 状态降级
   - 新生成的 statement 会把 `periodBasis` 保存为 `invoice_number`，并仅把 `periodStart / periodEnd` 当作兼容展示字段
   - 生成后可直接下载 PDF
   - 当前 payment-method self-service 只允许当前 membership 操作自己的方法记录，不允许跨成员编辑

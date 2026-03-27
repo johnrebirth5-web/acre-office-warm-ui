@@ -25,6 +25,10 @@
 - 2026-03-26: `/office/accounting` statement generation UI now uses one combined candidate workspace instead of two stacked selection cards:
   - `Invoice selection` and `Candidate rows` are now rendered inside one `Statement candidates` card with `Invoices` and `Rows` sub-blocks, reducing duplicate context while keeping invoice-number generation semantics intact
   - the preview/uncheck flow still exists, but it now stays visually inside the same workspace the admin is already using to assemble the payout statement
+- 2026-03-26: `/office/accounting` statement generation now supports repeat snapshot generation from the same invoice rows:
+  - `payable / paid` candidate rows remain selectable for fresh statement snapshots instead of being blocked after the first generation
+  - only `calculated / reviewed / statement_ready` rows are advanced to `payable` during generation; existing `paid` rows keep their `paid` status even when included in a regenerated statement
+  - the summary action area now explains this rule directly so admins can tell the difference between a disabled empty selection and a valid repeat-generation flow
 - 2026-03-26: `/office/accounting` candidate rows can now open source transactions inside the same statement workspace instead of forcing a full-page route change:
   - `Candidate rows` transaction titles now open the existing transaction detail workspace in a separate browser tab, leaving the accounting statement workflow untouched in the original tab
   - this avoids local review-modal state churn while still giving admins direct access to the same intake, finance, commission, task, document, and offer editing surfaces

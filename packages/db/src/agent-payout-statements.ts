@@ -277,19 +277,25 @@ type StoredTransactionFinanceFeeBreakdownRow = {
   approvalStatus: TransactionFinanceApprovalStatus;
   notes: string;
 };
-const generateEligibleAgentPayoutCalculationStatuses: readonly CommissionCalculationStatus[] = [
+const advanceToPayableAgentPayoutCalculationStatuses: readonly CommissionCalculationStatus[] = [
   "calculated",
   "reviewed",
   "statement_ready"
 ];
-const visibleAgentPayoutCalculationStatuses = [
-  ...generateEligibleAgentPayoutCalculationStatuses,
+const creatableAgentPayoutCalculationStatuses = [
+  ...advanceToPayableAgentPayoutCalculationStatuses,
   "payable",
   "paid"
 ] satisfies CommissionCalculationStatus[];
 
-function isGenerateEligibleAgentPayoutCalculationStatus(status: CommissionCalculationStatus) {
-  return status === "calculated" || status === "reviewed" || status === "statement_ready";
+function isCreatableAgentPayoutCalculationStatus(status: CommissionCalculationStatus) {
+  return (
+    status === "calculated" ||
+    status === "reviewed" ||
+    status === "statement_ready" ||
+    status === "payable" ||
+    status === "paid"
+  );
 }
 
 const agentBankInformationTaxIdTypeLabelMap: Record<AgentBankInformationTaxIdType, string> = {
@@ -782,7 +788,7 @@ export function buildAgentPayoutStatementInvoiceOptions(
 
     existing.rowCount += 1;
     existing.totalStatementAmount = existing.totalStatementAmount.plus(new Prisma.Decimal(row.statementAmount ?? 0));
-    existing.isGenerateEligible ||= row.status ? isGenerateEligibleAgentPayoutCalculationStatus(row.status) : false;
+    existing.isGenerateEligible ||= row.status ? isCreatableAgentPayoutCalculationStatus(row.status) : false;
 
     if (row.calculatedAt > existing.latestCalculatedAt) {
       existing.latestCalculatedAt = row.calculatedAt;
@@ -890,7 +896,7 @@ function mapCandidateRow(calculation: StatementCandidateCalculation): OfficeAgen
     agentNetValue: decimalToString(calculation.agentNet),
     statementAmountLabel: formatCurrency(calculation.statementAmount),
     statementAmountValue: decimalToString(calculation.statementAmount),
-    isGenerateEligible: isGenerateEligibleAgentPayoutCalculationStatus(calculation.status)
+    isGenerateEligible: isCreatableAgentPayoutCalculationStatus(calculation.status)
   };
 }
 
@@ -1037,7 +1043,7 @@ async function listSelectableAgentPayoutMemberships(input: {
           not: null
         },
         status: {
-          in: visibleAgentPayoutCalculationStatuses
+          in: creatableAgentPayoutCalculationStatuses
         }
       },
       select: {
@@ -1212,7 +1218,7 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
             organizationId: input.organizationId,
             officeId: input.officeId,
             membershipId,
-            statuses: visibleAgentPayoutCalculationStatuses
+            statuses: creatableAgentPayoutCalculationStatuses
           }),
           include: {
             transaction: true
@@ -1289,7 +1295,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
         organizationId: input.organizationId,
         officeId: input.officeId,
         membershipId,
-        statuses: generateEligibleAgentPayoutCalculationStatuses
+        statuses: creatableAgentPayoutCalculationStatuses
       }),
       include: {
         transaction: {
@@ -1312,7 +1318,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
     );
 
     if (invoiceScopedCalculations.length === 0) {
-      throw new Error("No eligible commission rows were found for the selected invoice numbers.");
+      throw new Error("No available commission rows were found for the selected invoice numbers.");
     }
 
     const calculations =
@@ -1321,7 +1327,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
         : invoiceScopedCalculations;
 
     if (commissionCalculationIds.length > 0 && calculations.length !== commissionCalculationIds.length) {
-      throw new Error("Some selected commission rows are no longer eligible for the selected invoices.");
+      throw new Error("Some selected commission rows are no longer available for the selected invoices.");
     }
 
     if (calculations.length === 0) {
@@ -1335,7 +1341,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
     );
 
     if (!periodRange) {
-      throw new Error("No eligible commission rows were found for this statement.");
+      throw new Error("No available commission rows were found for this statement.");
     }
 
     const includedInvoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
@@ -1370,6 +1376,9 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
       where: {
         id: {
           in: calculations.map((calculation) => calculation.id)
+        },
+        status: {
+          in: [...advanceToPayableAgentPayoutCalculationStatuses]
         }
       },
       data: {
