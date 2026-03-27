@@ -44,6 +44,7 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
     invoiceNumbers: readSearchParamArray(searchParams.invoiceNumber),
     statementId: readSearchParamValue(searchParams.statementId)
   });
+  const initialReviewTransactionId = readSearchParamValue(searchParams.reviewTransactionId) ?? null;
 
   return (
     <PageShell className="office-list-page office-accounting-list-page">
@@ -61,7 +62,7 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
         title="Agent Statements"
       />
 
-      <OfficeAccountingClient snapshot={snapshot} />
+      <OfficeAccountingClient initialReviewTransactionId={initialReviewTransactionId} snapshot={snapshot} />
     </PageShell>
   );
 }

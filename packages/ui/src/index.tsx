@@ -1,6 +1,6 @@
 import type { CSSProperties, ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
-import { HorizontalScrollArea, useHorizontalScrollAreaContext } from "./horizontal-scroll-area";
 
+export { DataTable } from "./data-table";
 export { HorizontalScrollArea } from "./horizontal-scroll-area";
 
 type ClassValue = string | false | null | undefined;
@@ -368,26 +368,6 @@ export function ListPageFooter(props: {
       <span>{props.summary}</span>
       {props.controls ? <div className="office-list-footer-controls">{props.controls}</div> : null}
     </footer>
-  );
-}
-
-export function DataTable(props: { className?: string; style?: CSSProperties; children: ReactNode }) {
-  const isInsideHorizontalScrollArea = useHorizontalScrollAreaContext();
-
-  if (isInsideHorizontalScrollArea) {
-    return (
-      <div className={cx("office-data-table", props.className)} role="table" style={props.style}>
-        {props.children}
-      </div>
-    );
-  }
-
-  return (
-    <HorizontalScrollArea>
-      <div className={cx("office-data-table", props.className)} role="table" style={props.style}>
-        {props.children}
-      </div>
-    </HorizontalScrollArea>
   );
 }
 

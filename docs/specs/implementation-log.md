@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-03-26: shared `@acre/ui` `DataTable` and `/office/accounting` review state were hardened so local/dev Office pages stop thrashing during review flows:
+  - `DataTable` now lives behind a client component boundary before it reads `HorizontalScrollArea` context, so server-rendered Office pages no longer crash with `Attempted to call useHorizontalScrollAreaContext() from the server`
+  - this removes the dev-server restart loop that could temporarily make local Back Office routes appear unavailable whenever a server page compiled a shared table surface
+  - `/office/accounting` transaction review modal now persists the open transaction in a real `reviewTransactionId` query param, so a page refresh or short-lived dev recompilation restores the same review target instead of dropping the modal into a close/open flicker cycle
 - 2026-03-26: shared Office table resize behavior now uses one consistent leading-edge divider contract across Office tables:
   - resizable dividers now anchor to the left edge of each column except the first one, so the visual line always stays on the same side as the column label the user is aiming for
   - resize handles still start the gesture on the divider itself, but active drag motion now continues through window-level `pointermove / pointerup` listeners, so column motion keeps updating while the mouse button stays down even if the table rescans or the handle subtree rerenders

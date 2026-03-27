@@ -25,6 +25,7 @@ import {
 
 type OfficeAccountingClientProps = {
   snapshot: OfficeAgentPayoutStatementsWorkspaceSnapshot;
+  initialReviewTransactionId?: string | null;
 };
 
 type FilterState = {
@@ -54,25 +55,7 @@ type PersistedTransactionEditorState = {
 };
 
 const transactionEditorSessionStorageKey = "office-accounting-transaction-editor";
-const transactionEditorHashPrefix = "accounting-review=";
-
-function buildTransactionEditorHash(transactionId: string) {
-  return `#${transactionEditorHashPrefix}${encodeURIComponent(transactionId)}`;
-}
-
-function readTransactionEditorHash() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const hash = window.location.hash.replace(/^#/, "");
-
-  if (!hash.startsWith(transactionEditorHashPrefix)) {
-    return "";
-  }
-
-  return decodeURIComponent(hash.slice(transactionEditorHashPrefix.length));
-}
+const transactionEditorSearchParamKey = "reviewTransactionId";
 
 function buildAccountingHref(
   pathname: string,
@@ -233,7 +216,33 @@ function buildInvoiceSelectionKey(values: string[]) {
   return [...normalizeInvoiceSelection(values)].sort().join("|");
 }
 
-export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
+function buildTransactionEditorState(
+  row: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]
+): TransactionEditorState {
+  return {
+    transactionId: row.transactionId,
+    title: row.transactionLabel,
+    subtitle: row.propertyAddress,
+    fullPageHref: row.transactionHref,
+    embeddedHref: buildEmbeddedTransactionHref(row.transactionId)
+  };
+}
+
+function resolveTransactionEditorFromSnapshot(
+  snapshot: OfficeAgentPayoutStatementsWorkspaceSnapshot,
+  transactionId: string | null | undefined
+) {
+  const normalizedTransactionId = transactionId?.trim() ?? "";
+
+  if (!normalizedTransactionId) {
+    return null;
+  }
+
+  const matchedRow = snapshot.candidateRows.find((row) => row.transactionId === normalizedTransactionId);
+  return matchedRow ? buildTransactionEditorState(matchedRow) : null;
+}
+
+export function OfficeAccountingClient({ snapshot, initialReviewTransactionId }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -263,10 +272,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
-  const [transactionEditor, setTransactionEditor] = useState<TransactionEditorState | null>(null);
-  const [isTransactionFrameLoading, setIsTransactionFrameLoading] = useState(false);
+  const currentReviewTransactionId = searchParams.get(transactionEditorSearchParamKey)?.trim() ?? "";
+  const [transactionEditor, setTransactionEditor] = useState<TransactionEditorState | null>(() =>
+    resolveTransactionEditorFromSnapshot(snapshot, initialReviewTransactionId)
+  );
+  const [isTransactionFrameLoading, setIsTransactionFrameLoading] = useState(() => Boolean(initialReviewTransactionId?.trim()));
   const currentLocationKey = (() => {
-    const query = searchParams.toString();
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete(transactionEditorSearchParamKey);
+    const query = nextSearchParams.toString();
     return query ? `${pathname}?${query}` : pathname;
   })();
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
@@ -367,7 +381,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
         if (typeof window !== "undefined") {
           window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
-          window.history.replaceState(window.history.state, "", currentLocationKey);
+          clearTransactionEditorSearchParam();
         }
         setTransactionEditor(null);
         setIsTransactionFrameLoading(false);
@@ -393,76 +407,51 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   }, []);
 
   useEffect(() => {
+    if (!currentReviewTransactionId) {
+      setTransactionEditor((current) => (current ? null : current));
+      setIsTransactionFrameLoading(false);
+      return;
+    }
+
+    if (transactionEditor?.transactionId === currentReviewTransactionId) {
+      return;
+    }
+
+    const snapshotEditor = resolveTransactionEditorFromSnapshot(snapshot, currentReviewTransactionId);
+
+    if (snapshotEditor) {
+      persistTransactionEditor(snapshotEditor);
+      warmTransactionEditor(snapshotEditor.embeddedHref);
+      setTransactionEditor(snapshotEditor);
+      setIsTransactionFrameLoading(true);
+      return;
+    }
+
     if (typeof window === "undefined") {
       return;
     }
 
-    function resolvePersistedEditor(transactionId: string) {
-      const matchedRow = snapshot.candidateRows.find((row) => row.transactionId === transactionId);
+    const raw = window.sessionStorage.getItem(transactionEditorSessionStorageKey);
 
-      if (matchedRow) {
-        return {
-          transactionId: matchedRow.transactionId,
-          title: matchedRow.transactionLabel,
-          subtitle: matchedRow.propertyAddress,
-          fullPageHref: matchedRow.transactionHref,
-          embeddedHref: buildEmbeddedTransactionHref(matchedRow.transactionId)
-        } satisfies TransactionEditorState;
-      }
+    if (!raw) {
+      return;
+    }
 
-      const raw = window.sessionStorage.getItem(transactionEditorSessionStorageKey);
+    try {
+      const persisted = JSON.parse(raw) as PersistedTransactionEditorState;
 
-      if (!raw) {
-        return null;
-      }
-
-      try {
-        const persisted = JSON.parse(raw) as PersistedTransactionEditorState;
-
-        if (persisted.locationKey !== currentLocationKey) {
-          window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
-          return null;
-        }
-
-        return persisted.editor.transactionId === transactionId ? persisted.editor : null;
-      } catch {
+      if (persisted.locationKey !== currentLocationKey || persisted.editor.transactionId !== currentReviewTransactionId) {
         window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
-        return null;
-      }
-    }
-
-    function syncTransactionEditorFromHash() {
-      const transactionId = readTransactionEditorHash();
-
-      if (!transactionId) {
-        setTransactionEditor((current) => (current ? null : current));
-        setIsTransactionFrameLoading(false);
         return;
       }
 
-      if (transactionEditor?.transactionId === transactionId) {
-        return;
-      }
-
-      const persistedEditor = resolvePersistedEditor(transactionId);
-
-      if (!persistedEditor) {
-        return;
-      }
-
-      persistTransactionEditor(persistedEditor);
-      warmTransactionEditor(persistedEditor.embeddedHref);
-      setTransactionEditor(persistedEditor);
+      warmTransactionEditor(persisted.editor.embeddedHref);
+      setTransactionEditor(persisted.editor);
       setIsTransactionFrameLoading(true);
+    } catch {
+      window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
     }
-
-    syncTransactionEditorFromHash();
-    window.addEventListener("hashchange", syncTransactionEditorFromHash);
-
-    return () => {
-      window.removeEventListener("hashchange", syncTransactionEditorFromHash);
-    };
-  }, [currentLocationKey, snapshot.candidateRows, transactionEditor]);
+  }, [currentLocationKey, currentReviewTransactionId, snapshot, transactionEditor]);
 
   const selectedIdLookup = new Set(selectedCalculationIds);
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
@@ -684,35 +673,34 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
   }
 
-  function persistTransactionEditorHash(transactionId: string) {
+  function persistTransactionEditorSearchParam(transactionId: string) {
     if (typeof window === "undefined") {
       return;
     }
 
-    window.history.replaceState(window.history.state, "", `${currentLocationKey}${buildTransactionEditorHash(transactionId)}`);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set(transactionEditorSearchParamKey, transactionId);
+    nextUrl.hash = "";
+    window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}`);
   }
 
-  function clearTransactionEditorHash() {
+  function clearTransactionEditorSearchParam() {
     if (typeof window === "undefined") {
       return;
     }
 
-    window.history.replaceState(window.history.state, "", currentLocationKey);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete(transactionEditorSearchParamKey);
+    nextUrl.hash = "";
+    window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}`);
   }
 
   function openTransactionEditor(row: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]) {
-    const embeddedHref = buildEmbeddedTransactionHref(row.transactionId);
-    const nextEditorState = {
-      transactionId: row.transactionId,
-      title: row.transactionLabel,
-      subtitle: row.propertyAddress,
-      fullPageHref: row.transactionHref,
-      embeddedHref
-    };
+    const nextEditorState = buildTransactionEditorState(row);
 
-    warmTransactionEditor(embeddedHref);
+    warmTransactionEditor(nextEditorState.embeddedHref);
     persistTransactionEditor(nextEditorState);
-    persistTransactionEditorHash(row.transactionId);
+    persistTransactionEditorSearchParam(row.transactionId);
     setIsTransactionFrameLoading(true);
 
     if (typeof window === "undefined") {
@@ -736,7 +724,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       transactionEditorOpenFrameRef.current = null;
     }
 
-    clearTransactionEditorHash();
+    clearTransactionEditorSearchParam();
     clearPersistedTransactionEditor();
     setTransactionEditor(null);
     setIsTransactionFrameLoading(false);
