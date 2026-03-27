@@ -559,6 +559,7 @@ function OfficeTableLayoutRuntime(props: {
       };
 
       document.body.classList.add("office-table-column-resizing");
+      event.stopPropagation();
       event.preventDefault();
     }
 
@@ -583,6 +584,9 @@ function OfficeTableLayoutRuntime(props: {
         handle.addEventListener("pointerdown", (event) => {
           startDragging(key, index - 1, cell, handle, event);
         });
+        handle.addEventListener("pointermove", handlePointerMove);
+        handle.addEventListener("pointerup", handlePointerUp);
+        handle.addEventListener("pointercancel", handlePointerUp);
         cell.appendChild(handle);
         cell.classList.add("office-table-resizable-cell");
       });
@@ -632,10 +636,6 @@ function OfficeTableLayoutRuntime(props: {
       });
     }
 
-    document.addEventListener("pointermove", handlePointerMove);
-    document.addEventListener("pointerup", handlePointerUp);
-    document.addEventListener("pointercancel", handlePointerUp);
-
     const observer = new MutationObserver(() => {
       scheduleRescan();
     });
@@ -648,9 +648,6 @@ function OfficeTableLayoutRuntime(props: {
 
     return () => {
       observer.disconnect();
-      document.removeEventListener("pointermove", handlePointerMove);
-      document.removeEventListener("pointerup", handlePointerUp);
-      document.removeEventListener("pointercancel", handlePointerUp);
 
       if (scanFrameRef.current !== null) {
         window.cancelAnimationFrame(scanFrameRef.current);
