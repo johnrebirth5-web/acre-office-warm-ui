@@ -11,7 +11,7 @@
 - 2026-03-26: shared Office table resize behavior now uses one consistent leading-edge divider contract across Office tables:
   - resizable dividers now anchor to the left edge of each column except the first one, so the visual line always stays on the same side as the column label the user is aiming for
   - resize handles now capture the active pointer for the full drag gesture, so column motion keeps updating while the mouse button stays down instead of visually waiting until pointer release
-  - mouse-driven resize now also listens on `window.mousemove / mouseup` as a compatibility path, so desktop drag tracking does not depend solely on browser-specific pointer-event behavior
+  - desktop mouse resize now uses its own `mousedown -> window.mousemove / mouseup` path, so drag tracking no longer depends on pointer-event compatibility behavior
   - hover / drag highlighting now stays scoped to the active divider instead of lighting up every divider in the table during resize
   - `/office/accounting` statement candidate tables now keep header and row content left-aligned within that workspace, so the resize boundary no longer competes with right-aligned amount text in the same card
 - 2026-03-26: `/office/accounting` statement generation UI now uses one combined candidate workspace instead of two stacked selection cards:
