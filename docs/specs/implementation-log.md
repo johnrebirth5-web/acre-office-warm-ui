@@ -8,10 +8,10 @@
 
 ## Recently completed major work
 
-- 2026-03-26: shared `@acre/ui` `DataTable` and `/office/accounting` review state were hardened so local/dev Office pages stop thrashing during review flows:
+- 2026-03-26: shared `@acre/ui` `DataTable` was hardened and `/office/accounting` review behavior was simplified so local/dev Office pages stop thrashing during review flows:
   - `DataTable` now lives behind a client component boundary before it reads `HorizontalScrollArea` context, so server-rendered Office pages no longer crash with `Attempted to call useHorizontalScrollAreaContext() from the server`
   - this removes the dev-server restart loop that could temporarily make local Back Office routes appear unavailable whenever a server page compiled a shared table surface
-  - `/office/accounting` transaction review modal now persists the open transaction in a real `reviewTransactionId` query param, so a page refresh or short-lived dev recompilation restores the same review target instead of dropping the modal into a close/open flicker cycle
+  - `/office/accounting` candidate-row transaction links now open the full transaction workspace in a new browser tab instead of trying to hold an embedded review modal inside the statement workspace
 - 2026-03-26: shared Office table resize behavior now uses one consistent leading-edge divider contract across Office tables:
   - resizable dividers now anchor to the left edge of each column except the first one, so the visual line always stays on the same side as the column label the user is aiming for
   - resize handles still start the gesture on the divider itself, but active drag motion now continues through window-level `pointermove / pointerup` listeners, so column motion keeps updating while the mouse button stays down even if the table rescans or the handle subtree rerenders
@@ -26,9 +26,8 @@
   - `Invoice selection` and `Candidate rows` are now rendered inside one `Statement candidates` card with `Invoices` and `Rows` sub-blocks, reducing duplicate context while keeping invoice-number generation semantics intact
   - the preview/uncheck flow still exists, but it now stays visually inside the same workspace the admin is already using to assemble the payout statement
 - 2026-03-26: `/office/accounting` candidate rows can now open source transactions inside the same statement workspace instead of forcing a full-page route change:
-  - `Candidate rows` transaction titles now open an embedded transaction-detail modal with the existing intake, finance, commission, task, document, and offer editing surfaces
-  - the embedded modal uses a dedicated no-sidebar transaction route so the full Office shell is not nested inside the accounting overlay
-  - closing the modal refreshes the accounting snapshot while preserving the current statement workflow context, so admins can adjust the source transaction and continue toward `Generate statement`
+  - `Candidate rows` transaction titles now open the existing transaction detail workspace in a separate browser tab, leaving the accounting statement workflow untouched in the original tab
+  - this avoids local review-modal state churn while still giving admins direct access to the same intake, finance, commission, task, document, and offer editing surfaces
 - 2026-03-26: transaction finance calculator terminology and active fee set were tightened up for current operations:
   - user-facing `Client Referral` labels are now consistently shown as `Internal Referral` across create, detail finance, blockers, audit copy, and calculation helper text
   - `Channel Development Fee` has been removed from active calculator, calculation, and statement/detail post-split outputs, while the legacy storage enum remains tolerated for backward compatibility

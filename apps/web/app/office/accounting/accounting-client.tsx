@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { startTransition, useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { OfficeAgentPayoutStatementsWorkspaceSnapshot } from "@acre/db";
 import {
@@ -25,7 +25,6 @@ import {
 
 type OfficeAccountingClientProps = {
   snapshot: OfficeAgentPayoutStatementsWorkspaceSnapshot;
-  initialReviewTransactionId?: string | null;
 };
 
 type FilterState = {
@@ -40,22 +39,6 @@ type StatementBankField = {
   value: string;
   wide?: boolean;
 };
-
-type TransactionEditorState = {
-  transactionId: string;
-  title: string;
-  subtitle: string;
-  fullPageHref: string;
-  embeddedHref: string;
-};
-
-type PersistedTransactionEditorState = {
-  locationKey: string;
-  editor: TransactionEditorState;
-};
-
-const transactionEditorSessionStorageKey = "office-accounting-transaction-editor";
-const transactionEditorSearchParamKey = "reviewTransactionId";
 
 function buildAccountingHref(
   pathname: string,
@@ -85,10 +68,6 @@ function buildAccountingHref(
 
   const query = searchParams.toString();
   return query ? `${pathname}?${query}` : pathname;
-}
-
-function buildEmbeddedTransactionHref(transactionId: string) {
-  return `/office-embedded/transactions/${transactionId}`;
 }
 
 function getStatementStatusTone(status: string) {
@@ -216,42 +195,13 @@ function buildInvoiceSelectionKey(values: string[]) {
   return [...normalizeInvoiceSelection(values)].sort().join("|");
 }
 
-function buildTransactionEditorState(
-  row: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]
-): TransactionEditorState {
-  return {
-    transactionId: row.transactionId,
-    title: row.transactionLabel,
-    subtitle: row.propertyAddress,
-    fullPageHref: row.transactionHref,
-    embeddedHref: buildEmbeddedTransactionHref(row.transactionId)
-  };
-}
-
-function resolveTransactionEditorFromSnapshot(
-  snapshot: OfficeAgentPayoutStatementsWorkspaceSnapshot,
-  transactionId: string | null | undefined
-) {
-  const normalizedTransactionId = transactionId?.trim() ?? "";
-
-  if (!normalizedTransactionId) {
-    return null;
-  }
-
-  const matchedRow = snapshot.candidateRows.find((row) => row.transactionId === normalizedTransactionId);
-  return matchedRow ? buildTransactionEditorState(matchedRow) : null;
-}
-
-export function OfficeAccountingClient({ snapshot, initialReviewTransactionId }: OfficeAccountingClientProps) {
+export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const agentListboxId = useId();
   const agentPickerRef = useRef<HTMLDivElement | null>(null);
   const previousPreviewContextKeyRef = useRef<string | null>(null);
   const hasTouchedCandidateSelectionRef = useRef(false);
-  const transactionEditorOpenFrameRef = useRef<number | null>(null);
-  const prefetchedTransactionEditorHrefsRef = useRef<Set<string>>(new Set());
   const candidateRowKey = snapshot.candidateRows.map((row) => row.id).join("|");
   const snapshotInvoiceSelectionKey = buildInvoiceSelectionKey(snapshot.filters.invoiceNumbers);
   const previewContextKey = `${snapshot.filters.membershipId}:${snapshotInvoiceSelectionKey}`;
@@ -272,17 +222,6 @@ export function OfficeAccountingClient({ snapshot, initialReviewTransactionId }:
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
-  const currentReviewTransactionId = searchParams.get(transactionEditorSearchParamKey)?.trim() ?? "";
-  const [transactionEditor, setTransactionEditor] = useState<TransactionEditorState | null>(() =>
-    resolveTransactionEditorFromSnapshot(snapshot, initialReviewTransactionId)
-  );
-  const [isTransactionFrameLoading, setIsTransactionFrameLoading] = useState(() => Boolean(initialReviewTransactionId?.trim()));
-  const currentLocationKey = (() => {
-    const nextSearchParams = new URLSearchParams(searchParams.toString());
-    nextSearchParams.delete(transactionEditorSearchParamKey);
-    const query = nextSearchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  })();
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
     .map((option) => ({
@@ -366,92 +305,6 @@ export function OfficeAccountingClient({ snapshot, initialReviewTransactionId }:
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isAgentPickerOpen]);
-
-  useEffect(() => {
-    if (!transactionEditor) {
-      return;
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        if (transactionEditorOpenFrameRef.current !== null && typeof window !== "undefined") {
-          window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
-          transactionEditorOpenFrameRef.current = null;
-        }
-
-        if (typeof window !== "undefined") {
-          window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
-          clearTransactionEditorSearchParam();
-        }
-        setTransactionEditor(null);
-        setIsTransactionFrameLoading(false);
-        startTransition(() => {
-          router.refresh();
-        });
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [router, transactionEditor]);
-
-  useEffect(() => {
-    return () => {
-      if (transactionEditorOpenFrameRef.current === null || typeof window === "undefined") {
-        return;
-      }
-
-      window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
-      transactionEditorOpenFrameRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!currentReviewTransactionId) {
-      setTransactionEditor((current) => (current ? null : current));
-      setIsTransactionFrameLoading(false);
-      return;
-    }
-
-    if (transactionEditor?.transactionId === currentReviewTransactionId) {
-      return;
-    }
-
-    const snapshotEditor = resolveTransactionEditorFromSnapshot(snapshot, currentReviewTransactionId);
-
-    if (snapshotEditor) {
-      persistTransactionEditor(snapshotEditor);
-      warmTransactionEditor(snapshotEditor.embeddedHref);
-      setTransactionEditor(snapshotEditor);
-      setIsTransactionFrameLoading(true);
-      return;
-    }
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const raw = window.sessionStorage.getItem(transactionEditorSessionStorageKey);
-
-    if (!raw) {
-      return;
-    }
-
-    try {
-      const persisted = JSON.parse(raw) as PersistedTransactionEditorState;
-
-      if (persisted.locationKey !== currentLocationKey || persisted.editor.transactionId !== currentReviewTransactionId) {
-        window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
-        return;
-      }
-
-      warmTransactionEditor(persisted.editor.embeddedHref);
-      setTransactionEditor(persisted.editor);
-      setIsTransactionFrameLoading(true);
-    } catch {
-      window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
-    }
-  }, [currentLocationKey, currentReviewTransactionId, snapshot, transactionEditor]);
 
   const selectedIdLookup = new Set(selectedCalculationIds);
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
@@ -634,103 +487,6 @@ export function OfficeAccountingClient({ snapshot, initialReviewTransactionId }:
   function toggleAllCandidates(checked: boolean) {
     hasTouchedCandidateSelectionRef.current = true;
     setSelectedCalculationIds(checked ? snapshot.candidateRows.map((row) => row.id) : []);
-  }
-
-  function warmTransactionEditor(embeddedHref: string) {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    if (prefetchedTransactionEditorHrefsRef.current.has(embeddedHref)) {
-      return;
-    }
-
-    prefetchedTransactionEditorHrefsRef.current.add(embeddedHref);
-    void router.prefetch(embeddedHref);
-    void fetch(embeddedHref, { credentials: "same-origin" }).catch(() => {
-      prefetchedTransactionEditorHrefsRef.current.delete(embeddedHref);
-    });
-  }
-
-  function persistTransactionEditor(editor: TransactionEditorState) {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const payload: PersistedTransactionEditorState = {
-      locationKey: currentLocationKey,
-      editor
-    };
-
-    window.sessionStorage.setItem(transactionEditorSessionStorageKey, JSON.stringify(payload));
-  }
-
-  function clearPersistedTransactionEditor() {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
-  }
-
-  function persistTransactionEditorSearchParam(transactionId: string) {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set(transactionEditorSearchParamKey, transactionId);
-    nextUrl.hash = "";
-    window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}`);
-  }
-
-  function clearTransactionEditorSearchParam() {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.delete(transactionEditorSearchParamKey);
-    nextUrl.hash = "";
-    window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}`);
-  }
-
-  function openTransactionEditor(row: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]) {
-    const nextEditorState = buildTransactionEditorState(row);
-
-    warmTransactionEditor(nextEditorState.embeddedHref);
-    persistTransactionEditor(nextEditorState);
-    persistTransactionEditorSearchParam(row.transactionId);
-    setIsTransactionFrameLoading(true);
-
-    if (typeof window === "undefined") {
-      setTransactionEditor(nextEditorState);
-      return;
-    }
-
-    if (transactionEditorOpenFrameRef.current !== null) {
-      window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
-    }
-
-    transactionEditorOpenFrameRef.current = window.requestAnimationFrame(() => {
-      setTransactionEditor(nextEditorState);
-      transactionEditorOpenFrameRef.current = null;
-    });
-  }
-
-  function closeTransactionEditor() {
-    if (transactionEditorOpenFrameRef.current !== null && typeof window !== "undefined") {
-      window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
-      transactionEditorOpenFrameRef.current = null;
-    }
-
-    clearTransactionEditorSearchParam();
-    clearPersistedTransactionEditor();
-    setTransactionEditor(null);
-    setIsTransactionFrameLoading(false);
-    startTransition(() => {
-      router.refresh();
-    });
   }
 
   function handlePreviewSelectedInvoices() {
@@ -1032,15 +788,14 @@ export function OfficeAccountingClient({ snapshot, initialReviewTransactionId }:
                                 <span>{formatStatementCellValue(row.invoiceNumber)}</span>
                                 <div className="office-table-primary">
                                   <strong>
-                                    <button
+                                    <a
                                       className="office-inline-link office-accounting-candidate-trigger"
-                                      onFocus={() => warmTransactionEditor(buildEmbeddedTransactionHref(row.transactionId))}
-                                      onMouseEnter={() => warmTransactionEditor(buildEmbeddedTransactionHref(row.transactionId))}
-                                      onClick={() => openTransactionEditor(row)}
-                                      type="button"
+                                      href={row.transactionHref}
+                                      rel="noreferrer"
+                                      target="_blank"
                                     >
                                       {row.transactionLabel}
-                                    </button>
+                                    </a>
                                   </strong>
                                   <p>{row.propertyAddress}</p>
                                 </div>
@@ -1265,59 +1020,6 @@ export function OfficeAccountingClient({ snapshot, initialReviewTransactionId }:
           <EmptyState description="Use the history list to open a saved statement and inspect its locked payout lines." title="No statement selected" />
         )}
       </ListPageSection>
-
-      {transactionEditor ? (
-        <div className="office-modal-overlay">
-          <section
-            aria-label={`Transaction editor for ${transactionEditor.title}`}
-            aria-modal="true"
-            className="office-modal office-library-preview-modal office-accounting-transaction-modal"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-          >
-            <header className="office-modal-header office-accounting-transaction-modal-header">
-              <div className="office-modal-title-block">
-                <span className="office-eyebrow">Accounting review</span>
-                <h3>{transactionEditor.title}</h3>
-                <p>{transactionEditor.subtitle}</p>
-              </div>
-              <div className="office-modal-header-actions">
-                <a className="office-button office-button-secondary" href={transactionEditor.fullPageHref} rel="noreferrer" target="_blank">
-                  Open full page
-                </a>
-                <Button onClick={closeTransactionEditor} type="button" variant="secondary">
-                  Close
-                </Button>
-              </div>
-            </header>
-
-            <div className="office-library-preview-modal-body office-accounting-transaction-modal-body">
-              <p className="office-form-helper office-accounting-transaction-modal-note">
-                Edit the transaction here, then close this window to refresh the current accounting preview without leaving the statement workflow.
-              </p>
-              <div
-                aria-busy={isTransactionFrameLoading}
-                className="office-library-preview-frame-wrap office-library-preview-frame-wrap-modal office-accounting-transaction-frame-wrap"
-              >
-                {isTransactionFrameLoading ? (
-                  <div aria-live="polite" className="office-accounting-transaction-frame-loading" role="status">
-                    <span className="office-mini-heading">Loading accounting review</span>
-                    <p className="office-form-helper">
-                      Pulling the latest transaction workspace into this review window. The first open can take a little longer while the page warms up.
-                    </p>
-                  </div>
-                ) : null}
-                <iframe
-                  className="office-library-preview-frame office-library-preview-frame-modal office-accounting-transaction-frame"
-                  onLoad={() => setIsTransactionFrameLoading(false)}
-                  src={transactionEditor.embeddedHref}
-                  title={`Embedded transaction detail for ${transactionEditor.title}`}
-                />
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </ListPageStack>
   );
 }
