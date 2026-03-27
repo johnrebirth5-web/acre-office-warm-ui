@@ -34,6 +34,7 @@ type DragState = {
   columns: OfficeTableLayoutColumn[];
   startX: number;
   startColumnWidth: number;
+  activeCell: HTMLElement | null;
 };
 
 const GRID_TABLE_ELEMENT_SELECTOR = [
@@ -475,6 +476,7 @@ function OfficeTableLayoutRuntime(props: {
     }
 
     function stopDragging() {
+      dragStateRef.current?.activeCell?.classList.remove("office-table-resize-active");
       dragStateRef.current = null;
       document.body.classList.remove("office-table-column-resizing");
     }
@@ -514,7 +516,7 @@ function OfficeTableLayoutRuntime(props: {
       stopDragging();
     }
 
-    function startDragging(key: string, columnIndex: number, event: PointerEvent) {
+    function startDragging(key: string, columnIndex: number, activeCell: HTMLElement, event: PointerEvent) {
       const columns = getHeaderColumnsForKey(key);
       const column = columns[columnIndex];
 
@@ -522,12 +524,16 @@ function OfficeTableLayoutRuntime(props: {
         return;
       }
 
+      stopDragging();
+      activeCell.classList.add("office-table-resize-active");
+
       dragStateRef.current = {
         key,
         columnIndex,
         columns,
         startX: event.clientX,
-        startColumnWidth: column.width
+        startColumnWidth: column.width,
+        activeCell
       };
 
       document.body.classList.add("office-table-column-resizing");
@@ -540,16 +546,10 @@ function OfficeTableLayoutRuntime(props: {
       }
 
       headerCells.forEach((cell, index) => {
-        const existingHandle = cell.querySelector(":scope > .office-table-resize-handle");
+        cell.querySelectorAll(":scope > .office-table-resize-handle").forEach((handle) => handle.remove());
+        cell.classList.remove("office-table-resizable-cell", "office-table-resize-active");
 
-        if (index === 0) {
-          existingHandle?.remove();
-          cell.classList.remove("office-table-resizable-cell");
-          return;
-        }
-
-        if (existingHandle) {
-          cell.classList.add("office-table-resizable-cell");
+        if (index >= headerCells.length - 1) {
           return;
         }
 
@@ -557,9 +557,9 @@ function OfficeTableLayoutRuntime(props: {
         handle.className = "office-table-resize-handle";
         handle.setAttribute("aria-hidden", "true");
         handle.dataset.officeTableResizeKey = key;
-        handle.dataset.officeTableResizeIndex = String(index - 1);
+        handle.dataset.officeTableResizeIndex = String(index);
         handle.addEventListener("pointerdown", (event) => {
-          startDragging(key, index - 1, event);
+          startDragging(key, index, cell, event);
         });
         cell.appendChild(handle);
         cell.classList.add("office-table-resizable-cell");

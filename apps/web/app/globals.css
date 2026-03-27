@@ -8322,20 +8322,29 @@ a {
 .office-table-row-report-transactions > :nth-child(2),
 .office-table-row-report-commission-recent > :nth-child(2),
 .office-table-row-commission > :nth-child(4),
-.office-table-row-accounting-statement-invoices > :is(:nth-child(1), :nth-child(2)),
-.office-table-row-accounting-statement-rows > :is(:nth-child(1), :nth-child(3), :nth-child(9)),
-.office-table-row-accounting-statement-history > :is(:nth-child(1), :nth-child(2), :nth-child(7)),
 .office-table-row-agent-statement-detail > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(8)) {
   justify-self: start;
   text-align: left;
 }
 
-.office-table-row-accounting-statement-invoices > :nth-child(4),
-.office-table-row-accounting-statement-rows > :is(:nth-child(6), :nth-child(7), :nth-child(8)),
-.office-table-row-accounting-statement-history > :is(:nth-child(5), :nth-child(6)),
 .office-table-row-agent-statement-detail > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)) {
   justify-self: end;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.office-table-row-accounting-statement-invoices > *,
+.office-table-row-accounting-statement-rows > *,
+.office-table-row-accounting-statement-history > * {
+  justify-self: start;
+  text-align: left;
+}
+
+.office-table-row-accounting-statement-invoices > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-accounting-statement-rows
+  > :is(:nth-child(2), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)),
+.office-table-row-accounting-statement-history
+  > :is(:nth-child(1), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
   font-variant-numeric: tabular-nums;
 }
 
@@ -15858,9 +15867,9 @@ body,
   position: absolute;
   top: 18%;
   bottom: 18%;
-  left: calc(var(--office-table-row-gap, 8px) / -2);
+  right: calc(var(--office-table-row-gap, 8px) / -2);
   width: 2px;
-  transform: translateX(-50%);
+  transform: translateX(50%);
   border-radius: 999px;
   background: color-mix(in srgb, var(--office-border-strong) 88%, transparent);
   opacity: 0.72;
@@ -15871,10 +15880,10 @@ body,
 .office-table-resize-handle {
   position: absolute;
   top: 0;
-  left: calc(var(--office-table-row-gap, 8px) / -2);
+  right: calc(var(--office-table-row-gap, 8px) / -2);
   width: var(--office-table-resize-hit-width);
   height: 100%;
-  transform: translateX(-50%);
+  transform: translateX(50%);
   cursor: col-resize;
   touch-action: none;
   z-index: 3;
@@ -15882,7 +15891,7 @@ body,
 
 .office-table-resizable-cell:hover::before,
 .office-table-resizable-cell:focus-within::before,
-.office-table-column-resizing .office-table-resizable-cell::before {
+.office-table-resize-active::before {
   opacity: 1;
   background: var(--office-accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--office-accent-soft) 70%, transparent);
