@@ -35,6 +35,8 @@ type DragState = {
   startX: number;
   startColumnWidth: number;
   activeCell: HTMLElement | null;
+  activeHandle: HTMLDivElement | null;
+  pointerId: number;
 };
 
 const GRID_TABLE_ELEMENT_SELECTOR = [
@@ -476,7 +478,14 @@ function OfficeTableLayoutRuntime(props: {
     }
 
     function stopDragging() {
-      dragStateRef.current?.activeCell?.classList.remove("office-table-resize-active");
+      const dragState = dragStateRef.current;
+
+      dragState?.activeCell?.classList.remove("office-table-resize-active");
+
+      if (dragState?.activeHandle && dragState.activeHandle.hasPointerCapture?.(dragState.pointerId)) {
+        dragState.activeHandle.releasePointerCapture(dragState.pointerId);
+      }
+
       dragStateRef.current = null;
       document.body.classList.remove("office-table-column-resizing");
     }
@@ -484,7 +493,7 @@ function OfficeTableLayoutRuntime(props: {
     function handlePointerMove(event: PointerEvent) {
       const dragState = dragStateRef.current;
 
-      if (!dragState) {
+      if (!dragState || dragState.pointerId !== event.pointerId) {
         return;
       }
 
@@ -505,8 +514,12 @@ function OfficeTableLayoutRuntime(props: {
       applyLayout(dragState.key, nextColumns);
     }
 
-    function handlePointerUp() {
+    function handlePointerUp(event: PointerEvent) {
       const dragState = dragStateRef.current;
+
+      if (!dragState || dragState.pointerId !== event.pointerId) {
+        return;
+      }
 
       if (dragState) {
         layoutsRef.current[dragState.key] = dragState.columns;
@@ -516,7 +529,13 @@ function OfficeTableLayoutRuntime(props: {
       stopDragging();
     }
 
-    function startDragging(key: string, columnIndex: number, activeCell: HTMLElement, event: PointerEvent) {
+    function startDragging(
+      key: string,
+      columnIndex: number,
+      activeCell: HTMLElement,
+      activeHandle: HTMLDivElement,
+      event: PointerEvent
+    ) {
       const columns = getHeaderColumnsForKey(key);
       const column = columns[columnIndex];
 
@@ -526,6 +545,7 @@ function OfficeTableLayoutRuntime(props: {
 
       stopDragging();
       activeCell.classList.add("office-table-resize-active");
+      activeHandle.setPointerCapture?.(event.pointerId);
 
       dragStateRef.current = {
         key,
@@ -533,7 +553,9 @@ function OfficeTableLayoutRuntime(props: {
         columns,
         startX: event.clientX,
         startColumnWidth: column.width,
-        activeCell
+        activeCell,
+        activeHandle,
+        pointerId: event.pointerId
       };
 
       document.body.classList.add("office-table-column-resizing");
@@ -559,7 +581,7 @@ function OfficeTableLayoutRuntime(props: {
         handle.dataset.officeTableResizeKey = key;
         handle.dataset.officeTableResizeIndex = String(index - 1);
         handle.addEventListener("pointerdown", (event) => {
-          startDragging(key, index - 1, cell, event);
+          startDragging(key, index - 1, cell, handle, event);
         });
         cell.appendChild(handle);
         cell.classList.add("office-table-resizable-cell");
