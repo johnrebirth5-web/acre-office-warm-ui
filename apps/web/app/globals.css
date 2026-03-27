@@ -4367,7 +4367,7 @@ select {
     minmax(144px, 0.96fr)
     76px
     120px
-    152px;
+    168px;
 }
 
 .office-table-row-emd {
@@ -4441,6 +4441,16 @@ select {
   justify-content: flex-start;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.office-accounting-statement-history-actions {
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.office-accounting-statement-history-actions > :is(.office-button, .office-button-secondary) {
+  flex: 0 0 auto;
 }
 
 .bm-accounting-empty {

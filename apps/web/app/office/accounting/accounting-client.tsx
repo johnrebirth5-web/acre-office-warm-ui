@@ -942,8 +942,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     <span>{statement.periodBasisLabel}</span>
                     <span>{statement.lineItemCount}</span>
                     <span>{statement.totalStatementAmountLabel}</span>
-                    <div className="bm-accounting-inline-actions">
+                    <div className="bm-accounting-inline-actions office-accounting-statement-history-actions">
                       <Button
+                        className="office-inline-action-sm"
                         onClick={() =>
                           startTransition(() => {
                             router.push(
@@ -962,7 +963,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       >
                         Open
                       </Button>
-                      <a className="office-button office-button-sm" href={`/api/office/accounting/statements/${statement.id}/pdf`} rel="noreferrer" target="_blank">
+                      <a
+                        className="office-button office-button-sm office-inline-action-sm"
+                        href={`/api/office/accounting/statements/${statement.id}/pdf`}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
                         PDF
                       </a>
                     </div>
