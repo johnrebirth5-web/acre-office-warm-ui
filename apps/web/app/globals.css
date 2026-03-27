@@ -15867,9 +15867,9 @@ body,
   position: absolute;
   top: 18%;
   bottom: 18%;
-  right: calc(var(--office-table-row-gap, 8px) / -2);
+  left: calc(var(--office-table-row-gap, 8px) / -2);
   width: 2px;
-  transform: translateX(50%);
+  transform: translateX(-50%);
   border-radius: 999px;
   background: color-mix(in srgb, var(--office-border-strong) 88%, transparent);
   opacity: 0.72;
@@ -15880,10 +15880,10 @@ body,
 .office-table-resize-handle {
   position: absolute;
   top: 0;
-  right: calc(var(--office-table-row-gap, 8px) / -2);
+  left: calc(var(--office-table-row-gap, 8px) / -2);
   width: var(--office-table-resize-hit-width);
   height: 100%;
-  transform: translateX(50%);
+  transform: translateX(-50%);
   cursor: col-resize;
   touch-action: none;
   z-index: 3;

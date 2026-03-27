@@ -549,7 +549,7 @@ function OfficeTableLayoutRuntime(props: {
         cell.querySelectorAll(":scope > .office-table-resize-handle").forEach((handle) => handle.remove());
         cell.classList.remove("office-table-resizable-cell", "office-table-resize-active");
 
-        if (index >= headerCells.length - 1) {
+        if (index === 0) {
           return;
         }
 
@@ -557,9 +557,9 @@ function OfficeTableLayoutRuntime(props: {
         handle.className = "office-table-resize-handle";
         handle.setAttribute("aria-hidden", "true");
         handle.dataset.officeTableResizeKey = key;
-        handle.dataset.officeTableResizeIndex = String(index);
+        handle.dataset.officeTableResizeIndex = String(index - 1);
         handle.addEventListener("pointerdown", (event) => {
-          startDragging(key, index, cell, event);
+          startDragging(key, index - 1, cell, event);
         });
         cell.appendChild(handle);
         cell.classList.add("office-table-resizable-cell");

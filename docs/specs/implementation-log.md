@@ -8,8 +8,8 @@
 
 ## Recently completed major work
 
-- 2026-03-26: shared Office table resize behavior now uses one clearer Excel-style boundary contract instead of the earlier ambiguous leading-edge experiment:
-  - resizable dividers now sit on the actual boundary between two columns and only control the column immediately on their left, so the visible handle no longer suggests it belongs to the next column while secretly resizing the previous one
+- 2026-03-26: shared Office table resize behavior now uses one consistent leading-edge divider contract across Office tables:
+  - resizable dividers now anchor to the left edge of each column except the first one, so the visual line always stays on the same side as the column label the user is aiming for
   - hover / drag highlighting now stays scoped to the active divider instead of lighting up every divider in the table during resize
   - `/office/accounting` statement candidate tables now keep header and row content left-aligned within that workspace, so the resize boundary no longer competes with right-aligned amount text in the same card
 - 2026-03-26: `/office/accounting` statement generation UI now uses one combined candidate workspace instead of two stacked selection cards:
