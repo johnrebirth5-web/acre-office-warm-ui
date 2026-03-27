@@ -6723,6 +6723,29 @@ a {
   color: var(--office-accent-strong);
 }
 
+.office-button:disabled,
+.bm-create-button:disabled,
+.bm-transaction-next:disabled {
+  background: #90a7c9;
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.office-button-secondary:disabled,
+.office-toggle-link:disabled,
+.office-list-page-button:disabled,
+.bm-view-toggle:disabled,
+.bm-transactions-page-button:disabled,
+.bm-contacts-page-button:disabled {
+  background: #f4f6f8;
+  border-color: var(--office-border);
+  color: #9aa7b6;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .bm-view-toggle.is-active,
 .office-toggle-link.is-active,
 .office-button.is-active {

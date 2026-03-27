@@ -195,6 +195,45 @@ function buildInvoiceSelectionKey(values: string[]) {
   return [...normalizeInvoiceSelection(values)].sort().join("|");
 }
 
+function getStatementGenerationBlockedMessage(input: {
+  hasFilterAgent: boolean;
+  hasSelectedInvoices: boolean;
+  previewMatchesFilter: boolean;
+  selectedRowCount: number;
+  selectedInvoiceCount: number;
+  hasSelectedGenerateEligibleRows: boolean;
+  hasSelectedGenerateEligibleInvoices: boolean;
+  selectedRowStatuses: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]["statusValue"][];
+}) {
+  if (!input.hasFilterAgent || !input.hasSelectedInvoices) {
+    return "";
+  }
+
+  if (input.previewMatchesFilter) {
+    if (input.selectedRowCount === 0) {
+      return "Select at least one commission row before generating.";
+    }
+
+    if (input.hasSelectedGenerateEligibleRows) {
+      return "";
+    }
+
+    const allSelectedRowsAlreadyGenerated =
+      input.selectedRowStatuses.length > 0 &&
+      input.selectedRowStatuses.every((status) => status === "payable" || status === "paid");
+
+    return allSelectedRowsAlreadyGenerated
+      ? "All previewed rows are already on a saved payout statement. Their current status is Payable or Paid, so they cannot be generated again."
+      : "The current preview no longer has any live statement-eligible rows. Review it here, then load a different invoice selection to generate a new statement.";
+  }
+
+  if (input.hasSelectedGenerateEligibleInvoices || input.selectedInvoiceCount === 0) {
+    return "";
+  }
+
+  return "The selected invoices are already saved on a payout statement, or they no longer contain any live statement-eligible rows.";
+}
+
 export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -330,6 +369,21 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     hasFilterAgent &&
     hasSelectedInvoices &&
     (previewMatchesFilter ? hasSelectedGenerateEligibleRows : hasSelectedGenerateEligibleInvoices);
+  const generationBlockedMessage = getStatementGenerationBlockedMessage({
+    hasFilterAgent,
+    hasSelectedInvoices,
+    previewMatchesFilter,
+    selectedRowCount: selectedRows.length,
+    selectedInvoiceCount: selectedInvoiceOptions.length,
+    hasSelectedGenerateEligibleRows,
+    hasSelectedGenerateEligibleInvoices,
+    selectedRowStatuses: selectedRows.map((row) => row.statusValue)
+  });
+  const generateButtonLabel = isGenerating
+    ? "Generating..."
+    : hasSelectedInvoices && !canGenerateStatement
+      ? "No eligible rows"
+      : "Generate statement";
   const selectedSummary = previewMatchesFilter
     ? selectedRows.reduce(
         (summary, row) => ({
@@ -842,8 +896,13 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
       <ListPageSection
         actions={
-          <Button disabled={isGenerating || !canGenerateStatement} onClick={handleGenerateStatement} type="button">
-            {isGenerating ? "Generating..." : "Generate statement"}
+          <Button
+            aria-describedby={generationBlockedMessage ? "accounting-statement-generate-hint" : undefined}
+            disabled={isGenerating || !canGenerateStatement}
+            onClick={handleGenerateStatement}
+            type="button"
+          >
+            {generateButtonLabel}
           </Button>
         }
         subtitle={
@@ -869,15 +928,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           <StatCard hint="sum of selected payout rows" label="Net payout" value={formatCurrency(selectedSummary.payout)} />
         </ListPageStatsGrid>
 
-        {!previewMatchesFilter && hasSelectedInvoices ? (
+        {!previewMatchesFilter && hasSelectedInvoices && canGenerateStatement ? (
           <p className="office-form-helper">
             Preview the selected invoices if you want to inspect or uncheck individual rows before generating. Direct generate will include all eligible rows under those invoices.
           </p>
         ) : null}
 
-        {hasSelectedInvoices && !canGenerateStatement ? (
-          <p className="office-form-helper">
-            The current invoice selection is already saved on a payout statement or no longer has live statement-eligible rows, so it can be reviewed here but not generated again.
+        {generationBlockedMessage ? (
+          <p className="office-inline-error" id="accounting-statement-generate-hint">
+            {generationBlockedMessage}
           </p>
         ) : null}
 
