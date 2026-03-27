@@ -536,6 +536,28 @@ function OfficeTableLayoutRuntime(props: {
       event.preventDefault();
     }
 
+    function handleResizePointerDown(event: Event) {
+      if (!(event instanceof PointerEvent)) {
+        return;
+      }
+
+      const handle = event.currentTarget;
+
+      if (!(handle instanceof HTMLDivElement)) {
+        return;
+      }
+
+      const activeCell = handle.parentElement;
+      const key = handle.dataset.officeTableResizeKey;
+      const columnIndex = Number(handle.dataset.officeTableResizeIndex);
+
+      if (!(activeCell instanceof HTMLElement) || !key || !Number.isFinite(columnIndex)) {
+        return;
+      }
+
+      startDragging(key, columnIndex, activeCell, handle, event);
+    }
+
     function startDragging(
       key: string,
       columnIndex: number,
@@ -576,25 +598,35 @@ function OfficeTableLayoutRuntime(props: {
       }
 
       headerCells.forEach((cell, index) => {
-        cell.querySelectorAll(":scope > .office-table-resize-handle").forEach((handle) => handle.remove());
-        cell.classList.remove("office-table-resizable-cell", "office-table-resize-active");
+        const existingHandles = cell.querySelectorAll(":scope > .office-table-resize-handle");
 
         if (index === 0) {
+          existingHandles.forEach((handle) => handle.remove());
+          cell.classList.remove("office-table-resizable-cell", "office-table-resize-active");
           return;
         }
 
-        const handle = document.createElement("div");
-        handle.className = "office-table-resize-handle";
-        handle.setAttribute("aria-hidden", "true");
+        existingHandles.forEach((handle, handleIndex) => {
+          if (handleIndex > 0) {
+            handle.remove();
+          }
+        });
+
+        const existingHandle = existingHandles.item(0);
+        let handle: HTMLDivElement;
+
+        if (existingHandle instanceof HTMLDivElement) {
+          handle = existingHandle;
+        } else {
+          handle = document.createElement("div");
+          handle.className = "office-table-resize-handle";
+          handle.setAttribute("aria-hidden", "true");
+          handle.addEventListener("pointerdown", handleResizePointerDown);
+          cell.appendChild(handle);
+        }
+
         handle.dataset.officeTableResizeKey = key;
         handle.dataset.officeTableResizeIndex = String(index - 1);
-        handle.addEventListener("pointerdown", (event) => {
-          startDragging(key, index - 1, cell, handle, event);
-        });
-        handle.addEventListener("pointermove", handlePointerMove);
-        handle.addEventListener("pointerup", handlePointerUp);
-        handle.addEventListener("pointercancel", handlePointerUp);
-        cell.appendChild(handle);
         cell.classList.add("office-table-resizable-cell");
       });
     }
@@ -651,10 +683,20 @@ function OfficeTableLayoutRuntime(props: {
       childList: true,
       subtree: true
     });
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", handlePointerUp, { passive: false });
+    window.addEventListener("pointercancel", handlePointerUp, { passive: false });
+    window.addEventListener("blur", stopDragging);
+
     rescanTables();
 
     return () => {
       observer.disconnect();
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("blur", stopDragging);
 
       if (scanFrameRef.current !== null) {
         window.cancelAnimationFrame(scanFrameRef.current);
