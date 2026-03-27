@@ -36,8 +36,7 @@ type DragState = {
   startColumnWidth: number;
   activeCell: HTMLElement | null;
   activeHandle: HTMLDivElement | null;
-  pointerId: number | null;
-  pointerType: "mouse" | "pointer";
+  pointerId: number;
 };
 
 const GRID_TABLE_ELEMENT_SELECTOR = [
@@ -481,14 +480,14 @@ function OfficeTableLayoutRuntime(props: {
     function stopDragging() {
       const dragState = dragStateRef.current;
 
+      if (!dragState) {
+        document.body.classList.remove("office-table-column-resizing");
+        return;
+      }
+
       dragState?.activeCell?.classList.remove("office-table-resize-active");
 
-      if (
-        dragState?.pointerType === "pointer" &&
-        dragState.activeHandle &&
-        dragState.pointerId !== null &&
-        dragState.activeHandle.hasPointerCapture?.(dragState.pointerId)
-      ) {
+      if (dragState.activeHandle && dragState.activeHandle.hasPointerCapture?.(dragState.pointerId)) {
         dragState.activeHandle.releasePointerCapture(dragState.pointerId);
       }
 
@@ -499,12 +498,7 @@ function OfficeTableLayoutRuntime(props: {
     function handlePointerMove(event: PointerEvent) {
       const dragState = dragStateRef.current;
 
-      if (
-        !dragState ||
-        dragState.pointerType !== "pointer" ||
-        dragState.pointerId === null ||
-        dragState.pointerId !== event.pointerId
-      ) {
+      if (!dragState || dragState.pointerId !== event.pointerId) {
         return;
       }
 
@@ -523,17 +517,13 @@ function OfficeTableLayoutRuntime(props: {
       };
 
       applyLayout(dragState.key, nextColumns);
+      event.preventDefault();
     }
 
     function handlePointerUp(event: PointerEvent) {
       const dragState = dragStateRef.current;
 
-      if (
-        !dragState ||
-        dragState.pointerType !== "pointer" ||
-        dragState.pointerId === null ||
-        dragState.pointerId !== event.pointerId
-      ) {
+      if (!dragState || dragState.pointerId !== event.pointerId) {
         return;
       }
 
@@ -543,42 +533,7 @@ function OfficeTableLayoutRuntime(props: {
       }
 
       stopDragging();
-    }
-
-    function handleMouseMove(event: MouseEvent) {
-      const dragState = dragStateRef.current;
-
-      if (!dragState || dragState.pointerType !== "mouse") {
-        return;
-      }
-
-      const delta = event.clientX - dragState.startX;
-      const nextWidth = Math.max(minimumColumnWidth, dragState.startColumnWidth + delta);
-      const nextColumns = dragState.columns.map((column) => ({ ...column }));
-
-      nextColumns[dragState.columnIndex] = {
-        ...nextColumns[dragState.columnIndex],
-        width: nextWidth
-      };
-
-      dragStateRef.current = {
-        ...dragState,
-        columns: nextColumns
-      };
-
-      applyLayout(dragState.key, nextColumns);
-    }
-
-    function handleMouseUp() {
-      const dragState = dragStateRef.current;
-
-      if (!dragState || dragState.pointerType !== "mouse") {
-        return;
-      }
-
-      layoutsRef.current[dragState.key] = dragState.columns;
-      void persistLayout(dragState.key, dragState.columns);
-      stopDragging();
+      event.preventDefault();
     }
 
     function startDragging(
@@ -586,8 +541,7 @@ function OfficeTableLayoutRuntime(props: {
       columnIndex: number,
       activeCell: HTMLElement,
       activeHandle: HTMLDivElement,
-      event: { clientX: number; preventDefault: () => void; stopPropagation?: () => void },
-      options: { pointerType: "mouse" | "pointer"; pointerId: number | null }
+      event: PointerEvent
     ) {
       const columns = getHeaderColumnsForKey(key);
       const column = columns[columnIndex];
@@ -598,10 +552,7 @@ function OfficeTableLayoutRuntime(props: {
 
       stopDragging();
       activeCell.classList.add("office-table-resize-active");
-
-      if (options.pointerType === "pointer" && options.pointerId !== null) {
-        activeHandle.setPointerCapture?.(options.pointerId);
-      }
+      activeHandle.setPointerCapture?.(event.pointerId);
 
       dragStateRef.current = {
         key,
@@ -611,8 +562,7 @@ function OfficeTableLayoutRuntime(props: {
         startColumnWidth: column.width,
         activeCell,
         activeHandle,
-        pointerId: options.pointerId,
-        pointerType: options.pointerType
+        pointerId: event.pointerId
       };
 
       document.body.classList.add("office-table-column-resizing");
@@ -639,21 +589,11 @@ function OfficeTableLayoutRuntime(props: {
         handle.dataset.officeTableResizeKey = key;
         handle.dataset.officeTableResizeIndex = String(index - 1);
         handle.addEventListener("pointerdown", (event) => {
-          if (event.pointerType === "mouse") {
-            return;
-          }
-
-          startDragging(key, index - 1, cell, handle, event, {
-            pointerType: "pointer",
-            pointerId: event.pointerId
-          });
+          startDragging(key, index - 1, cell, handle, event);
         });
-        handle.addEventListener("mousedown", (event) => {
-          startDragging(key, index - 1, cell, handle, event, {
-            pointerType: "mouse",
-            pointerId: null
-          });
-        });
+        handle.addEventListener("pointermove", handlePointerMove);
+        handle.addEventListener("pointerup", handlePointerUp);
+        handle.addEventListener("pointercancel", handlePointerUp);
         cell.appendChild(handle);
         cell.classList.add("office-table-resizable-cell");
       });
@@ -703,12 +643,6 @@ function OfficeTableLayoutRuntime(props: {
       });
     }
 
-    window.addEventListener("mousemove", handleMouseMove, true);
-    window.addEventListener("mouseup", handleMouseUp, true);
-    window.addEventListener("pointermove", handlePointerMove, true);
-    window.addEventListener("pointerup", handlePointerUp, true);
-    window.addEventListener("pointercancel", handlePointerUp, true);
-
     const observer = new MutationObserver(() => {
       scheduleRescan();
     });
@@ -721,11 +655,6 @@ function OfficeTableLayoutRuntime(props: {
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("mousemove", handleMouseMove, true);
-      window.removeEventListener("mouseup", handleMouseUp, true);
-      window.removeEventListener("pointermove", handlePointerMove, true);
-      window.removeEventListener("pointerup", handlePointerUp, true);
-      window.removeEventListener("pointercancel", handlePointerUp, true);
 
       if (scanFrameRef.current !== null) {
         window.cancelAnimationFrame(scanFrameRef.current);
