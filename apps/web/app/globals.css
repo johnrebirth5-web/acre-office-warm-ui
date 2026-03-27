@@ -8466,6 +8466,7 @@ a {
 }
 
 .office-accounting-transaction-modal .office-accounting-transaction-frame-wrap {
+  position: relative;
   min-height: 0;
   height: 100%;
 }
@@ -8473,6 +8474,69 @@ a {
 .office-accounting-transaction-modal .office-accounting-transaction-frame {
   height: 100%;
   min-height: 720px;
+}
+
+.office-accounting-transaction-frame-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 20px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.97) 0%, rgba(241, 245, 249, 0.98) 100%),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(148, 163, 184, 0.08) 0,
+      rgba(148, 163, 184, 0.08) 14px,
+      rgba(255, 255, 255, 0.16) 14px,
+      rgba(255, 255, 255, 0.16) 28px
+    );
+}
+
+.office-accounting-transaction-frame-loading p {
+  max-width: 52ch;
+  margin: 0;
+}
+
+.office-transaction-detail-embedded-loading {
+  gap: 16px;
+}
+
+.office-transaction-embedded-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.office-transaction-embedded-loading-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.office-transaction-embedded-loading-block {
+  min-height: 92px;
+  border-radius: var(--office-radius-md);
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  background:
+    linear-gradient(90deg, rgba(226, 232, 240, 0.72) 0%, rgba(248, 250, 252, 0.96) 50%, rgba(226, 232, 240, 0.72) 100%);
+  background-size: 220% 100%;
+  animation: office-embedded-loading-pulse 1.35s ease-in-out infinite;
+}
+
+.office-transaction-embedded-loading-block.is-tall {
+  min-height: 220px;
+}
+
+@keyframes office-embedded-loading-pulse {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .office-agent-statement-building p {

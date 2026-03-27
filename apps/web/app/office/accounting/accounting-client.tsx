@@ -214,6 +214,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const agentPickerRef = useRef<HTMLDivElement | null>(null);
   const previousPreviewContextKeyRef = useRef<string | null>(null);
   const hasTouchedCandidateSelectionRef = useRef(false);
+  const transactionEditorOpenFrameRef = useRef<number | null>(null);
+  const prefetchedTransactionEditorHrefsRef = useRef<Set<string>>(new Set());
   const candidateRowKey = snapshot.candidateRows.map((row) => row.id).join("|");
   const snapshotInvoiceSelectionKey = buildInvoiceSelectionKey(snapshot.filters.invoiceNumbers);
   const previewContextKey = `${snapshot.filters.membershipId}:${snapshotInvoiceSelectionKey}`;
@@ -235,6 +237,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
   const [transactionEditor, setTransactionEditor] = useState<TransactionEditorState | null>(null);
+  const [isTransactionFrameLoading, setIsTransactionFrameLoading] = useState(false);
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
     .map((option) => ({
@@ -326,7 +329,13 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        if (transactionEditorOpenFrameRef.current !== null && typeof window !== "undefined") {
+          window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
+          transactionEditorOpenFrameRef.current = null;
+        }
+
         setTransactionEditor(null);
+        setIsTransactionFrameLoading(false);
         startTransition(() => {
           router.refresh();
         });
@@ -336,6 +345,17 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [router, transactionEditor]);
+
+  useEffect(() => {
+    return () => {
+      if (transactionEditorOpenFrameRef.current === null || typeof window === "undefined") {
+        return;
+      }
+
+      window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
+      transactionEditorOpenFrameRef.current = null;
+    };
+  }, []);
 
   const selectedIdLookup = new Set(selectedCalculationIds);
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
@@ -520,18 +540,58 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     setSelectedCalculationIds(checked ? snapshot.candidateRows.map((row) => row.id) : []);
   }
 
+  function warmTransactionEditor(embeddedHref: string) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (prefetchedTransactionEditorHrefsRef.current.has(embeddedHref)) {
+      return;
+    }
+
+    prefetchedTransactionEditorHrefsRef.current.add(embeddedHref);
+    void router.prefetch(embeddedHref);
+    void fetch(embeddedHref, { credentials: "same-origin" }).catch(() => {
+      prefetchedTransactionEditorHrefsRef.current.delete(embeddedHref);
+    });
+  }
+
   function openTransactionEditor(row: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]) {
-    setTransactionEditor({
+    const embeddedHref = buildEmbeddedTransactionHref(row.transactionId);
+    const nextEditorState = {
       transactionId: row.transactionId,
       title: row.transactionLabel,
       subtitle: row.propertyAddress,
       fullPageHref: row.transactionHref,
-      embeddedHref: buildEmbeddedTransactionHref(row.transactionId)
+      embeddedHref
+    };
+
+    warmTransactionEditor(embeddedHref);
+    setIsTransactionFrameLoading(true);
+
+    if (typeof window === "undefined") {
+      setTransactionEditor(nextEditorState);
+      return;
+    }
+
+    if (transactionEditorOpenFrameRef.current !== null) {
+      window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
+    }
+
+    transactionEditorOpenFrameRef.current = window.requestAnimationFrame(() => {
+      setTransactionEditor(nextEditorState);
+      transactionEditorOpenFrameRef.current = null;
     });
   }
 
   function closeTransactionEditor() {
+    if (transactionEditorOpenFrameRef.current !== null && typeof window !== "undefined") {
+      window.cancelAnimationFrame(transactionEditorOpenFrameRef.current);
+      transactionEditorOpenFrameRef.current = null;
+    }
+
     setTransactionEditor(null);
+    setIsTransactionFrameLoading(false);
     startTransition(() => {
       router.refresh();
     });
@@ -838,6 +898,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                                   <strong>
                                     <button
                                       className="office-inline-link office-accounting-candidate-trigger"
+                                      onFocus={() => warmTransactionEditor(buildEmbeddedTransactionHref(row.transactionId))}
+                                      onMouseEnter={() => warmTransactionEditor(buildEmbeddedTransactionHref(row.transactionId))}
                                       onClick={() => openTransactionEditor(row)}
                                       type="button"
                                     >
@@ -1069,7 +1131,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       </ListPageSection>
 
       {transactionEditor ? (
-        <div className="office-modal-overlay" onClick={closeTransactionEditor}>
+        <div className="office-modal-overlay">
           <section
             aria-label={`Transaction editor for ${transactionEditor.title}`}
             aria-modal="true"
@@ -1097,9 +1159,21 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <p className="office-form-helper office-accounting-transaction-modal-note">
                 Edit the transaction here, then close this window to refresh the current accounting preview without leaving the statement workflow.
               </p>
-              <div className="office-library-preview-frame-wrap office-library-preview-frame-wrap-modal office-accounting-transaction-frame-wrap">
+              <div
+                aria-busy={isTransactionFrameLoading}
+                className="office-library-preview-frame-wrap office-library-preview-frame-wrap-modal office-accounting-transaction-frame-wrap"
+              >
+                {isTransactionFrameLoading ? (
+                  <div aria-live="polite" className="office-accounting-transaction-frame-loading" role="status">
+                    <span className="office-mini-heading">Loading accounting review</span>
+                    <p className="office-form-helper">
+                      Pulling the latest transaction workspace into this review window. The first open can take a little longer while the page warms up.
+                    </p>
+                  </div>
+                ) : null}
                 <iframe
                   className="office-library-preview-frame office-library-preview-frame-modal office-accounting-transaction-frame"
+                  onLoad={() => setIsTransactionFrameLoading(false)}
                   src={transactionEditor.embeddedHref}
                   title={`Embedded transaction detail for ${transactionEditor.title}`}
                 />

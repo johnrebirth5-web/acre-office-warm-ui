@@ -63,35 +63,43 @@ export async function TransactionDetailWorkspace({
   transactionId,
   chrome = "page"
 }: TransactionDetailWorkspaceProps) {
-  const transaction = await getTransactionById({
-    organizationId: context.currentOrganization.id,
-    viewerMembershipId: context.currentMembership.id,
+  const organizationId = context.currentOrganization.id;
+  const viewerMembershipId = context.currentMembership.id;
+  const officeId = context.currentOffice?.id ?? null;
+
+  // Start the shared workspace reads together so the embedded accounting review
+  // does not wait on a long serial chain before rendering.
+  const transactionPromise = getTransactionById({
+    organizationId,
+    viewerMembershipId,
     transactionId,
-    officeId: context.currentOffice?.id ?? null
+    officeId
   });
+  const tasksPromise = listTransactionTasks(organizationId, transactionId);
+  const taskAssigneeOptionsPromise = listTransactionTaskAssigneeOptions(organizationId, transactionId);
+  const commissionSnapshotPromise = getTransactionCommissionSnapshot(organizationId, transactionId, officeId, viewerMembershipId);
+  const offersSnapshotPromise = listTransactionOffersSnapshot(organizationId, transactionId);
+  const transactionIntakeSchemaPromise = getOfficeTransactionIntakeSchema({
+    organizationId,
+    officeId
+  });
+  const offerFieldSchemaPromise = getOfficeOfferFieldSchema({
+    organizationId,
+    officeId
+  });
+  const transaction = await transactionPromise;
 
   if (!transaction) {
     notFound();
   }
 
   const [tasks, taskAssigneeOptions, commissionSnapshot, offersSnapshot, transactionIntakeSchema, offerFieldSchema] = await Promise.all([
-    listTransactionTasks(context.currentOrganization.id, transactionId),
-    listTransactionTaskAssigneeOptions(context.currentOrganization.id, transactionId),
-    getTransactionCommissionSnapshot(
-      context.currentOrganization.id,
-      transactionId,
-      context.currentOffice?.id ?? null,
-      context.currentMembership.id
-    ),
-    listTransactionOffersSnapshot(context.currentOrganization.id, transactionId),
-    getOfficeTransactionIntakeSchema({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null
-    }),
-    getOfficeOfferFieldSchema({
-      organizationId: context.currentOrganization.id,
-      officeId: context.currentOffice?.id ?? null
-    })
+    tasksPromise,
+    taskAssigneeOptionsPromise,
+    commissionSnapshotPromise,
+    offersSnapshotPromise,
+    transactionIntakeSchemaPromise,
+    offerFieldSchemaPromise
   ]);
 
   const taskOptions = tasks.map((task) => ({
