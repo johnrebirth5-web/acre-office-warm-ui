@@ -4,6 +4,14 @@
 
 This file is the high-level product map for the current `Office / Back Office` system. Use it to understand what each module is for, how mature it is, and what still needs follow-up work.
 
+## Cross-module UI conventions
+
+- `/office/transactions` remains the canonical list-page composition reference for peer inventory pages.
+- shared Office tables are now the canonical template for future Back Office table work:
+  - new `/office` tables should default to `@acre/ui` `DataTable` plus the shared `office-table-*` / `office-list-table-*` row contracts
+  - semantic native `<table>` is still allowed when it materially helps, but it should stay inside the supported Office table contract so shared column-width persistence and resize behavior still apply
+  - do not introduce a fourth page-local table system when the shared Office contract already fits
+
 ## Module map
 
 ### Dashboard

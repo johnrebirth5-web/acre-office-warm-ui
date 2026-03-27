@@ -10,10 +10,14 @@
 
 - 2026-03-26: shared Office table resize behavior now uses one consistent leading-edge divider contract across Office tables:
   - resizable dividers now anchor to the left edge of each column except the first one, so the visual line always stays on the same side as the column label the user is aiming for
-  - resize handles now capture the active pointer for the full drag gesture, so column motion keeps updating while the mouse button stays down instead of visually waiting until pointer release
-  - resize handles now process `pointermove / pointerup` directly on the captured handle, so the active drag stays on one event path instead of splitting mouse and pointer logic
+  - resize handles still start the gesture on the divider itself, but active drag motion now continues through window-level `pointermove / pointerup` listeners, so column motion keeps updating while the mouse button stays down even if the table rescans or the handle subtree rerenders
+  - resize handles are now reused across rescans instead of being torn down and recreated mid-gesture, so an active drag no longer loses its event target before release
   - hover / drag highlighting now stays scoped to the active divider instead of lighting up every divider in the table during resize
   - `/office/accounting` statement candidate tables now keep header and row content left-aligned within that workspace, so the resize boundary no longer competes with right-aligned amount text in the same card
+- 2026-03-26: shared Office tables are now the canonical template for future Back Office table work:
+  - new `/office` tables should default to `@acre/ui` `DataTable` plus the shared `office-table-*` / `office-list-table-*` row contracts instead of inventing a page-local table shell
+  - semantic native `<table>` remains allowed when it materially helps, but it should still stay inside the supported Office table contract so shared width persistence and resize behavior keep applying
+  - future table changes should be made in the shared contract first whenever possible, so later tables automatically inherit the updated behavior instead of forking logic across routes
 - 2026-03-26: `/office/accounting` statement generation UI now uses one combined candidate workspace instead of two stacked selection cards:
   - `Invoice selection` and `Candidate rows` are now rendered inside one `Statement candidates` card with `Invoices` and `Rows` sub-blocks, reducing duplicate context while keeping invoice-number generation semantics intact
   - the preview/uncheck flow still exists, but it now stays visually inside the same workspace the admin is already using to assemble the payout statement

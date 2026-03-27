@@ -262,6 +262,7 @@ transaction detail 补充规则：
 - 报表和 accounting 的 KPI / stat 区优先使用响应式 `auto-fit` 网格，避免在平板或窄桌面里挤成过窄高卡片
 - `StatCard` 的高度应由内容主导，不要用过大的固定最小高度制造空白
 - 共享业务表格现在支持 organization-level 列宽持久化：只有 `owner / office_admin` 可以拖拽列边界并保存，保存后同组织所有用户看到同一套列宽
+- 以后新的 `/office` 表格默认必须把这套共享 Office table contract 当作模板；不要再为单页新造第四套私有表格系统
 
 ## Responsive rules
 
@@ -304,10 +305,18 @@ transaction detail 补充规则：
 
 ### 共享 table contract
 
-Back Office 当前统一采用两种合法实现，不能再混用第三套页面私有表格：
+Back Office 以后新增表格时，默认模板就是这套共享 Office table system。除非任务明确要求别的语义或不在 `/office` 壳层里，否则新表格先按这套合同实现。
+
+首选落地顺序：
 
 1. `@acre/ui` 的 `DataTable / DataTableHeader / DataTableBody / DataTableRow`
-2. `office-table-*` 这一套共享 grid contract
+2. 对应的共享 row contract：`office-table-header + office-table-row-*` 或 `office-list-table-header-* / office-list-table-row-*`
+3. 保持在 `/office` shell 下，让共享列宽运行时和 organization-level 列宽持久化自动接管
+
+当前允许的合法实现只有两种，不能再混入第三套页面私有表格：
+
+1. `@acre/ui` 的 `DataTable / DataTableHeader / DataTableBody / DataTableRow`
+2. 原生 `<table>`，但仅限语义上确实更合适时使用，并且仍要接入共享 Office table contract
 
 共同要求：
 
@@ -319,6 +328,8 @@ Back Office 当前统一采用两种合法实现，不能再混用第三套页�
 - 可调列的拖拽线统一贴在当前列的左侧边界；第一列不显示拖拽线，其余列都从自己的 leading edge 开始拖拽
 - 列拖拽 hover / active 态只高亮当前正在操作的那一条边界，不要把整表所有边界同时点亮
 - 如果某张表需要把表头和内容都做左对齐，优先在该 row contract 上统一处理，不要为了拖拽观感去全站一刀切改所有数字列/金额列
+- 原生 `<table>` 如果用于 `/office`，类名也必须保持在共享可识别范围内，例如 `office-*table` 或现存兼容层 `bm-*table`，并保留 `thead`，这样共享列宽逻辑才能接管
+- 非 `/office` 路由不会自动获得这套运行时；如果未来要在别的壳层复用，必须明确扩展共享 contract，而不是复制一份页面本地脚本
 
 ## Migration boundary
 
