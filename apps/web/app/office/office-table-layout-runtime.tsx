@@ -586,7 +586,7 @@ function OfficeTableLayoutRuntime(props: {
       columnIndex: number,
       activeCell: HTMLElement,
       activeHandle: HTMLDivElement,
-      event: { clientX: number; preventDefault: () => void },
+      event: { clientX: number; preventDefault: () => void; stopPropagation?: () => void },
       options: { pointerType: "mouse" | "pointer"; pointerId: number | null }
     ) {
       const columns = getHeaderColumnsForKey(key);
@@ -616,6 +616,7 @@ function OfficeTableLayoutRuntime(props: {
       };
 
       document.body.classList.add("office-table-column-resizing");
+      event.stopPropagation?.();
       event.preventDefault();
     }
 
@@ -702,11 +703,11 @@ function OfficeTableLayoutRuntime(props: {
       });
     }
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
+    window.addEventListener("mousemove", handleMouseMove, true);
+    window.addEventListener("mouseup", handleMouseUp, true);
+    window.addEventListener("pointermove", handlePointerMove, true);
+    window.addEventListener("pointerup", handlePointerUp, true);
+    window.addEventListener("pointercancel", handlePointerUp, true);
 
     const observer = new MutationObserver(() => {
       scheduleRescan();
@@ -720,11 +721,11 @@ function OfficeTableLayoutRuntime(props: {
 
     return () => {
       observer.disconnect();
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("mousemove", handleMouseMove, true);
+      window.removeEventListener("mouseup", handleMouseUp, true);
+      window.removeEventListener("pointermove", handlePointerMove, true);
+      window.removeEventListener("pointerup", handlePointerUp, true);
+      window.removeEventListener("pointercancel", handlePointerUp, true);
 
       if (scanFrameRef.current !== null) {
         window.cancelAnimationFrame(scanFrameRef.current);
