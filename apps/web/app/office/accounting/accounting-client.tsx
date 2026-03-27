@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { startTransition, useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { OfficeAgentPayoutStatementsWorkspaceSnapshot } from "@acre/db";
 import {
@@ -47,6 +47,13 @@ type TransactionEditorState = {
   fullPageHref: string;
   embeddedHref: string;
 };
+
+type PersistedTransactionEditorState = {
+  locationKey: string;
+  editor: TransactionEditorState;
+};
+
+const transactionEditorSessionStorageKey = "office-accounting-transaction-editor";
 
 function buildAccountingHref(
   pathname: string,
@@ -210,6 +217,7 @@ function buildInvoiceSelectionKey(values: string[]) {
 export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const agentListboxId = useId();
   const agentPickerRef = useRef<HTMLDivElement | null>(null);
   const previousPreviewContextKeyRef = useRef<string | null>(null);
@@ -238,6 +246,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [generationError, setGenerationError] = useState("");
   const [transactionEditor, setTransactionEditor] = useState<TransactionEditorState | null>(null);
   const [isTransactionFrameLoading, setIsTransactionFrameLoading] = useState(false);
+  const currentLocationKey = (() => {
+    const query = searchParams.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  })();
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
     .map((option) => ({
@@ -334,6 +346,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           transactionEditorOpenFrameRef.current = null;
         }
 
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
+        }
         setTransactionEditor(null);
         setIsTransactionFrameLoading(false);
         startTransition(() => {
@@ -356,6 +371,32 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       transactionEditorOpenFrameRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (transactionEditor || typeof window === "undefined") {
+      return;
+    }
+
+    const raw = window.sessionStorage.getItem(transactionEditorSessionStorageKey);
+
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const persisted = JSON.parse(raw) as PersistedTransactionEditorState;
+
+      if (persisted.locationKey !== currentLocationKey) {
+        window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
+        return;
+      }
+
+      setTransactionEditor(persisted.editor);
+      setIsTransactionFrameLoading(true);
+    } catch {
+      window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
+    }
+  }, [currentLocationKey, transactionEditor]);
 
   const selectedIdLookup = new Set(selectedCalculationIds);
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
@@ -556,6 +597,27 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     });
   }
 
+  function persistTransactionEditor(editor: TransactionEditorState) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const payload: PersistedTransactionEditorState = {
+      locationKey: currentLocationKey,
+      editor
+    };
+
+    window.sessionStorage.setItem(transactionEditorSessionStorageKey, JSON.stringify(payload));
+  }
+
+  function clearPersistedTransactionEditor() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.sessionStorage.removeItem(transactionEditorSessionStorageKey);
+  }
+
   function openTransactionEditor(row: OfficeAgentPayoutStatementsWorkspaceSnapshot["candidateRows"][number]) {
     const embeddedHref = buildEmbeddedTransactionHref(row.transactionId);
     const nextEditorState = {
@@ -567,6 +629,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     };
 
     warmTransactionEditor(embeddedHref);
+    persistTransactionEditor(nextEditorState);
     setIsTransactionFrameLoading(true);
 
     if (typeof window === "undefined") {
@@ -590,6 +653,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       transactionEditorOpenFrameRef.current = null;
     }
 
+    clearPersistedTransactionEditor();
     setTransactionEditor(null);
     setIsTransactionFrameLoading(false);
     startTransition(() => {
