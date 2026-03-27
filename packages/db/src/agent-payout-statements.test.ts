@@ -827,3 +827,55 @@ test("createAgentPayoutStatement honors row-level overrides within selected invo
     await context.cleanup();
   }
 });
+
+test("statement history generatedAtLabel uses organization timezone instead of server timezone", async () => {
+  const context = await createStatementTestContext();
+  const previousTimeZone = process.env.TZ;
+
+  try {
+    await context.createCommissionRow({
+      invoiceNumber: "INV-TZ-100",
+      transactionName: "Timezone History Row",
+      address: "90 Timezone Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-27T16:30:00.000Z",
+      statementAmount: "1000"
+    });
+
+    const statement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-TZ-100"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    await prisma.agentPayoutStatement.update({
+      where: {
+        id: statement.statementId
+      },
+      data: {
+        generatedAt: new Date("2026-03-27T16:59:00.000Z")
+      }
+    });
+
+    process.env.TZ = "UTC";
+
+    const snapshot = await getOfficeAgentPayoutStatementsWorkspaceSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id
+    });
+
+    assert.equal(snapshot.history[0]?.generatedAtLabel, "Mar 27, 2026, 12:59 PM");
+  } finally {
+    if (previousTimeZone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = previousTimeZone;
+    }
+
+    await context.cleanup();
+  }
+});

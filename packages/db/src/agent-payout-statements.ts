@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
+import { formatDateTimeLabel } from "./date-time";
 
 type StatementCandidateCalculation = Prisma.CommissionCalculationGetPayload<{
   include: {
@@ -347,16 +348,10 @@ function formatDateValue(value: Date | null | undefined) {
   return value ? value.toISOString().slice(0, 10) : "";
 }
 
-function formatDateTimeValue(value: Date | null | undefined) {
-  return value
-    ? value.toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit"
-      })
-    : "—";
+function formatDateTimeValue(value: Date | null | undefined, timeZone?: string | null) {
+  return formatDateTimeLabel(value, {
+    timeZone
+  });
 }
 
 function formatPercentLabel(value: Prisma.Decimal | number | string | null | undefined) {
@@ -947,7 +942,7 @@ function mapStatementRecord(record: StatementRecordWithRelations): OfficeAgentPa
     periodBasis: record.periodBasis,
     periodBasisLabel: formatPeriodBasisLabel(record.periodBasis),
     generatedAt: record.generatedAt.toISOString(),
-    generatedAtLabel: formatDateTimeValue(record.generatedAt),
+    generatedAtLabel: formatDateTimeValue(record.generatedAt, record.organization.timezone),
     generatedByLabel: record.generatedByMembership ? formatMembershipLabel(record.generatedByMembership) : "System",
     lineItemCount: record.lineItemCount,
     totalStatementAmountLabel: formatCurrency(record.totalStatementAmount),
@@ -974,7 +969,7 @@ function mapStatementDetail(
     periodBasis: record.periodBasis,
     periodBasisLabel: formatPeriodBasisLabel(record.periodBasis),
     generatedAt: record.generatedAt.toISOString(),
-    generatedAtLabel: formatDateTimeValue(record.generatedAt),
+    generatedAtLabel: formatDateTimeValue(record.generatedAt, record.organization.timezone),
     generatedByLabel: record.generatedByMembership ? formatMembershipLabel(record.generatedByMembership) : "System",
     lineItemCount: record.lineItemCount,
     totalStatementAmountLabel: formatCurrency(record.totalStatementAmount),

@@ -1,6 +1,7 @@
 import { Prisma, TransactionStatus } from "@prisma/client";
 import { buildMembershipVisibilityWhere, buildTransactionPortfolioVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
+import { formatDateTimeLabel } from "./date-time";
 
 export type OfficeDashboardStatusMetric = {
   status: "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
@@ -96,13 +97,9 @@ function formatCompactCount(value: number, noun: string) {
   return `${value} ${noun}${value === 1 ? "" : "s"}`;
 }
 
-function formatDateTime(value: Date) {
-  return value.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
+function formatDateTime(value: Date, timeZone?: string | null) {
+  return formatDateTimeLabel(value, {
+    timeZone
   });
 }
 
@@ -188,6 +185,7 @@ export async function getOfficeDashboardBusinessSnapshot(
   const commissionWindowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
   const [
+    organization,
     recentTransactions,
     groupedStatuses,
     totalTransactions,
@@ -199,6 +197,14 @@ export async function getOfficeDashboardBusinessSnapshot(
     recentStatements
   ] =
     await Promise.all([
+      prisma.organization.findUniqueOrThrow({
+        where: {
+          id: input.organizationId
+        },
+        select: {
+          timezone: true
+        }
+      }),
       prisma.transaction.findMany({
         where: transactionWhere,
         include: {
@@ -399,7 +405,7 @@ export async function getOfficeDashboardBusinessSnapshot(
       statements: recentStatements.map((statement) => ({
         id: statement.id,
         periodLabel: `${formatDateValue(statement.periodStart)} to ${formatDateValue(statement.periodEnd)}`,
-        generatedAtLabel: formatDateTime(statement.generatedAt),
+        generatedAtLabel: formatDateTime(statement.generatedAt, organization.timezone),
         totalStatementAmountLabel: formatCurrency(Number(statement.totalStatementAmount ?? 0)),
         pdfHref: `/api/office/accounting/self-service/statements/${statement.id}/pdf`
       }))
