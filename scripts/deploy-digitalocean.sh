@@ -32,7 +32,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Using temp dir: $TMP_DIR"
-git clone --depth 1 --branch main "$REPO_URL" "$TMP_DIR"
+git clone "$REPO_URL" "$TMP_DIR"
 cd "$TMP_DIR"
 echo "Cloned commit: $(git rev-parse HEAD)"
 git checkout "$TARGET_COMMIT"
