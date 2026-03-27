@@ -32,6 +32,7 @@ export type OfficeDashboardCommissionMonth = {
 export type OfficeDashboardCommissionStatement = {
   id: string;
   periodLabel: string;
+  generatedAt: string;
   generatedAtLabel: string;
   totalStatementAmountLabel: string;
   pdfHref: string;
@@ -405,6 +406,7 @@ export async function getOfficeDashboardBusinessSnapshot(
       statements: recentStatements.map((statement) => ({
         id: statement.id,
         periodLabel: `${formatDateValue(statement.periodStart)} to ${formatDateValue(statement.periodEnd)}`,
+        generatedAt: statement.generatedAt.toISOString(),
         generatedAtLabel: formatDateTime(statement.generatedAt, organization.timezone),
         totalStatementAmountLabel: formatCurrency(Number(statement.totalStatementAmount ?? 0)),
         pdfHref: `/api/office/accounting/self-service/statements/${statement.id}/pdf`

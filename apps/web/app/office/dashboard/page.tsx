@@ -15,6 +15,7 @@ import {
   SummaryChip
 } from "@acre/ui";
 import { getSessionAccess, requireOfficeSession } from "../../../lib/auth-session";
+import { LocalDateTime } from "../_components/local-date-time";
 
 function getChartTick(label: string, index: number, labels: string[]) {
   const [monthLabel = label, yearLabel = ""] = label.split(" ");
@@ -288,7 +289,9 @@ export default async function OfficeDashboardPage() {
                       <div className="office-dashboard-transactions-main">
                         <strong>{statement.periodLabel}</strong>
                       </div>
-                      <span>{statement.generatedAtLabel}</span>
+                      <span>
+                        <LocalDateTime fallbackLabel={statement.generatedAtLabel} value={statement.generatedAt} />
+                      </span>
                       <strong className="office-dashboard-transactions-amount">{statement.totalStatementAmountLabel}</strong>
                       <a className="office-button office-button-sm office-button-secondary" href={statement.pdfHref} rel="noreferrer" target="_blank">
                         Download PDF
