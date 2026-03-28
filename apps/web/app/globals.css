@@ -4389,6 +4389,25 @@ select {
     ) 94px 94px 72px;
 }
 
+.office-table-row-1099-records {
+  grid-template-columns: 148px 132px minmax(320px, 1.7fr) 96px;
+}
+
+.office-table-row-1099-summary {
+  grid-template-columns:
+    minmax(220px, 1.44fr)
+    110px
+    minmax(168px, 1fr)
+    minmax(148px, 0.92fr)
+    minmax(280px, 1.7fr)
+    minmax(220px, 1.34fr)
+    176px;
+}
+
+.office-table-row-1099-preview {
+  grid-template-columns: 156px 126px minmax(320px, 1.6fr);
+}
+
 .office-table-row-accounting select,
 .office-table-row-ledger select,
 .office-table-row-emd select,
@@ -4397,6 +4416,15 @@ select {
 .office-table-row-accounting-lines-manual select,
 .office-table-row-accounting-lines input,
 .office-table-row-accounting-lines-manual input {
+  min-height: 34px;
+  border: 1px solid #d3d3d3;
+  background: #fff;
+  color: #3d3d3d;
+  font: inherit;
+  padding: 0 10px;
+}
+
+.office-table-row-1099-records input {
   min-height: 34px;
   border: 1px solid #d3d3d3;
   background: #fff;
@@ -4451,6 +4479,59 @@ select {
 
 .office-accounting-statement-history-actions > :is(.office-button, .office-button-secondary) {
   flex: 0 0 auto;
+}
+
+.office-1099-warning {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--office-warning) 30%, #ffffff);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--office-warning-soft) 74%, #ffffff);
+}
+
+.office-1099-warning p,
+.office-1099-warning-copy {
+  margin: 0;
+  color: var(--office-warning);
+  font-size: var(--office-text-meta-size);
+  line-height: 1.4;
+}
+
+.office-1099-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.office-1099-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--office-border);
+}
+
+.office-1099-total-row span {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-label-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.office-1099-total-row strong {
+  color: var(--office-text);
+  font-size: var(--office-text-stat-size);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.office-1099-record-actions {
+  margin-top: 12px;
 }
 
 .bm-accounting-empty {
@@ -7717,6 +7798,18 @@ a {
   min-width: 680px;
 }
 
+.office-table-row-1099-records {
+  min-width: 740px;
+}
+
+.office-table-row-1099-summary {
+  min-width: 1440px;
+}
+
+.office-table-row-1099-preview {
+  min-width: 720px;
+}
+
 .office-table-row-agent-billing-ledger {
   min-width: 960px;
 }
@@ -8251,6 +8344,8 @@ a {
 .office-table-row-accounting-statement-history
   > :is(:nth-child(1), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)),
 .office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-1099-summary > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(7)),
+.office-table-row-1099-preview > :is(:nth-child(1), :nth-child(2)),
 .office-table-row-agent-billing-ledger
   > :is(:nth-child(5), :nth-child(6), :nth-child(7)),
 .office-table-row-recurring-rules > :nth-child(3),
@@ -8288,6 +8383,7 @@ a {
 .office-table-row-accounting-statement-rows > :nth-child(3),
 .office-table-row-accounting-statement-history > :nth-child(2),
 .office-table-row-emd > :is(:nth-child(5), :nth-child(6)),
+.office-table-row-1099-records > :is(:nth-child(1), :nth-child(2), :nth-child(4)),
 .office-table-row-recurring-rules
   > :is(:nth-child(4), :nth-child(5), :nth-child(6)),
 .office-table-row-payment-methods
@@ -8346,7 +8442,9 @@ a {
 }
 
 .office-table-row-accounting-statement-rows > :nth-child(3),
-.office-table-row-accounting-statement-history > :nth-child(2) {
+.office-table-row-accounting-statement-history > :nth-child(2),
+.office-table-row-1099-records > :nth-child(3),
+.office-table-row-1099-preview > :nth-child(3) {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.3;
@@ -8355,12 +8453,15 @@ a {
 .office-table-row-report-transactions > :nth-child(2),
 .office-table-row-report-commission-recent > :nth-child(2),
 .office-table-row-commission > :nth-child(4),
+.office-table-row-1099-records > :nth-child(4),
 .office-table-row-agent-statement-detail > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(8)) {
   justify-self: start;
   text-align: left;
 }
 
-.office-table-row-agent-statement-detail > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)) {
+.office-table-row-agent-statement-detail > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)),
+.office-table-row-1099-summary > :nth-child(2),
+.office-table-row-1099-preview > :nth-child(2) {
   justify-self: end;
   text-align: right;
   font-variant-numeric: tabular-nums;

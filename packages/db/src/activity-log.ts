@@ -113,6 +113,9 @@ export const activityLogActions = {
   accountingPaymentMethodUpdated: "accounting.payment_method_updated",
   accountingPaymentMethodRemoved: "accounting.payment_method_removed",
   accountingAgentCreditApplied: "accounting.agent_credit_applied",
+  agent1099PaymentRecordSaved: "agent_1099_payment_record.saved",
+  agent1099PaymentRecordUpdated: "agent_1099_payment_record.updated",
+  agent1099PaymentRecordDeleted: "agent_1099_payment_record.deleted",
   agentPayoutStatementGenerated: "agent_payout_statement.generated",
   agentPayoutStatementAdjusted: "agent_payout_statement.adjusted",
   commissionPlanCreated: "commission.plan_created",
@@ -172,6 +175,7 @@ export type ActivityLogEntityType =
   | "commission_plan"
   | "commission_calculation"
   | "commission_statement"
+  | "agent_1099_payment_record"
   | "agent_payout_statement"
   | "agent_recurring_charge_rule"
   | "agent_payment_method"
@@ -460,6 +464,9 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "accounting.payment_method_updated": "Payment method updated",
   "accounting.payment_method_removed": "Payment method removed",
   "accounting.agent_credit_applied": "Credit applied",
+  "agent_1099_payment_record.saved": "1099 payment records saved",
+  "agent_1099_payment_record.updated": "1099 payment records updated",
+  "agent_1099_payment_record.deleted": "1099 payment records deleted",
   "agent_payout_statement.generated": "Agent payout statement generated",
   "agent_payout_statement.adjusted": "Agent payout statement adjusted",
   "commission.plan_created": "Commission plan created",
@@ -622,6 +629,9 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.accountingPaymentMethodUpdated ||
       action === activityLogActions.accountingPaymentMethodRemoved ||
       action === activityLogActions.accountingAgentCreditApplied ||
+      action === activityLogActions.agent1099PaymentRecordSaved ||
+      action === activityLogActions.agent1099PaymentRecordUpdated ||
+      action === activityLogActions.agent1099PaymentRecordDeleted ||
       action === activityLogActions.agentPayoutStatementGenerated ||
       action === activityLogActions.agentPayoutStatementAdjusted ||
       action === activityLogActions.commissionPlanCreated ||
@@ -819,6 +829,7 @@ function mapEntityTypeToObjectType(entityType: string): Exclude<ActivityLogObjec
     case "commission_plan":
     case "commission_calculation":
     case "commission_statement":
+    case "agent_1099_payment_record":
     case "agent_payout_statement":
     case "agent_recurring_charge_rule":
     case "agent_payment_method":
@@ -883,6 +894,10 @@ function getActivityHref(record: ActivityLogRecord, payload: ParsedActivityPaylo
 
   if (record.entityType === "commission_plan" || record.entityType === "commission_statement") {
     return payload.contextHref ?? "/office/settings/commission-plans";
+  }
+
+  if (record.entityType === "agent_1099_payment_record") {
+    return payload.contextHref ?? "/office/1099-tracker";
   }
 
   if (record.entityType === "agent_payout_statement") {
@@ -1257,6 +1272,12 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "removed a payment method";
     case activityLogActions.accountingAgentCreditApplied:
       return "applied a credit memo to an outstanding balance";
+    case activityLogActions.agent1099PaymentRecordSaved:
+      return "saved 1099 payment records";
+    case activityLogActions.agent1099PaymentRecordUpdated:
+      return "updated 1099 payment records";
+    case activityLogActions.agent1099PaymentRecordDeleted:
+      return "deleted 1099 payment records";
     case activityLogActions.agentPayoutStatementGenerated:
       return "generated an agent payout statement";
     case activityLogActions.agentPayoutStatementAdjusted:

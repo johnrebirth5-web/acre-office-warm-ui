@@ -224,11 +224,13 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `MVP`
 - Current notable behavior:
   - `/office/accounting` is now an `office_admin`-only `Agent Statements` workspace.
+  - `/office/1099-tracker` now sits as a separate sidebar module for `office_admin` users and handles internal year-end payout backup / 1099 support documents.
   - the page lets admin select an agent, load that agent's invoice-number candidates, and work inside one combined `Statement candidates` card where invoice selection and candidate-row preview stay together before final generation.
   - `Candidate rows` now support an in-place transaction drilldown modal backed by the live transaction detail workspace, so admins can inspect or edit the source transaction without navigating away from the current statement selection.
   - closing that modal refreshes the current accounting snapshot while keeping the admin inside the same payout-statement workflow instead of forcing a route change.
   - invited agents remain selectable for admin-operated accounting workflows; `invited` only means the agent has not completed self-login, not that the office should be blocked from creating transactions, calculating commissions, or generating payout statements for them.
   - accounting payee search follows the same office/global sales-member rule as transaction owner search, so admins can select current-office or company-level `agent / team_lead` memberships instead of being limited to office-local `active agent` rows only.
+  - `1099 Tracker` stores actual company-paid agent payouts by tax year, aggregates totals from those saved records only, and exports internal `1099 Summary / Backup Document` PDFs using the current `AgentBankInformation` payee fields.
   - old ledger / agent billing / EMD UI is no longer rendered on `/office/accounting`, but the underlying accounting and billing foundation still exists.
   - `/office/billing` provides the current signed-in user's self-service billing view on top of the same accounting and agent-billing records.
 - Follow-up work:

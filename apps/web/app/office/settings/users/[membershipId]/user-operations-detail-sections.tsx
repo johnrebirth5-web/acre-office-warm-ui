@@ -38,6 +38,7 @@ type ProfileState = {
   commissionEffectiveTo: string;
   avatarUrl: string;
   internalExtension: string;
+  bankPayeeName: string;
   bankFirstName: string;
   bankLastName: string;
   bankEmail: string;
@@ -87,6 +88,7 @@ function buildProfileState(snapshot: OfficeAgentProfileSnapshot): ProfileState {
     commissionEffectiveTo: snapshot.defaultCommission.effectiveTo,
     avatarUrl: snapshot.profile.avatarUrl,
     internalExtension: snapshot.profile.internalExtension,
+    bankPayeeName: snapshot.bankInformation.payeeName,
     bankFirstName: snapshot.bankInformation.firstName,
     bankLastName: snapshot.bankInformation.lastName,
     bankEmail: snapshot.bankInformation.email,
@@ -495,6 +497,13 @@ export function UserOperationsDetailSections({
                   <strong>Use this tab to collect payout and year-end tax reporting details for the member.</strong>
                   <p>These fields are returned to agent managers and to the member when viewing their own profile.</p>
                 </div>
+                <FormField
+                  className="office-detail-field"
+                  helper="Use the exact payee / legal name that should appear on the year-end 1099 summary."
+                  label="Payee Name"
+                >
+                  <TextInput autoComplete="off" onChange={(event) => setProfileField("bankPayeeName", event.target.value)} readOnly={!canManageBankInformation} value={profileState.bankPayeeName} />
+                </FormField>
                 <FormField
                   className="office-detail-field"
                   helper="Please enter company name if this is a business account."

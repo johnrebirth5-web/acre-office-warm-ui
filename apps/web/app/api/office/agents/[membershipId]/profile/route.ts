@@ -23,6 +23,7 @@ type AgentProfilePatchBody = {
   commissionEffectiveTo?: string;
   avatarUrl?: string;
   internalExtension?: string;
+  bankPayeeName?: string;
   bankFirstName?: string;
   bankLastName?: string;
   bankEmail?: string;
@@ -39,6 +40,7 @@ type AgentProfilePatchBody = {
 
 function pickSelfServiceBankInformationInput(body: AgentProfilePatchBody | null): AgentProfilePatchBody {
   return {
+    bankPayeeName: body?.bankPayeeName,
     bankFirstName: body?.bankFirstName,
     bankLastName: body?.bankLastName,
     bankEmail: body?.bankEmail,
@@ -91,6 +93,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       commissionEffectiveTo: input?.commissionEffectiveTo,
       avatarUrl: input?.avatarUrl,
       internalExtension: input?.internalExtension,
+      bankPayeeName: input?.bankPayeeName,
       bankFirstName: input?.bankFirstName,
       bankLastName: input?.bankLastName,
       bankEmail: input?.bankEmail,

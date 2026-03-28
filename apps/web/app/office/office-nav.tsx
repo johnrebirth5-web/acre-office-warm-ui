@@ -9,6 +9,7 @@ import {
   canAccessOfficeAdminAccountingWorkspace,
   canAccessOfficeCommissionWorkspace,
   canAccessOfficeDocumentApprovals,
+  canAccessOffice1099Tracker,
   canAccessOfficeNotifications,
   canAccessOfficeSettings,
   canAccessOfficeTasks,
@@ -50,7 +51,8 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
         { label: "Performance", href: "/office/performance", isVisible: canViewOfficeReports },
         { label: "Activity", href: "/office/activity", isVisible: canAccessAccountActivity },
         { label: "Library", href: "/office/library", isVisible: canViewOfficeLibrary },
-        { label: "Accounting", href: "/office/accounting", isVisible: canAccessOfficeAdminAccountingWorkspace }
+        { label: "Accounting", href: "/office/accounting", isVisible: canAccessOfficeAdminAccountingWorkspace },
+        { label: "1099 Tracker", href: "/office/1099-tracker", isVisible: canAccessOffice1099Tracker }
       ].filter((item) => item.isVisible?.(subject) ?? true)
     },
     {
@@ -248,6 +250,11 @@ export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) 
         {canAccessOfficeTasks(currentAccess) ? (
           <Link className={isMobileSectionActive("/office/tasks") ? "is-active" : ""} href="/office/tasks">
             Tasks
+          </Link>
+        ) : null}
+        {canAccessOffice1099Tracker(currentAccess) ? (
+          <Link className={isMobileSectionActive("/office/1099-tracker") ? "is-active" : ""} href="/office/1099-tracker">
+            1099
           </Link>
         ) : null}
         {canViewOfficeTransactions(currentAccess) ? (

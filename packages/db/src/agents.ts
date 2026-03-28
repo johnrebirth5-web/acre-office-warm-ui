@@ -290,6 +290,7 @@ export type OfficeAgentOperationalAgendaItem = {
 export type OfficeAgentBankInformationRecord = {
   canView: boolean;
   canManage: boolean;
+  payeeName: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -406,6 +407,7 @@ export type SaveAgentProfileInput = {
   commissionEffectiveTo?: string;
   avatarUrl?: string;
   internalExtension?: string;
+  bankPayeeName?: string;
   bankFirstName?: string;
   bankLastName?: string;
   bankEmail?: string;
@@ -593,6 +595,7 @@ function canManageAgentBankInformation(scope: OfficeDataScope, membershipId: str
 }
 
 type ComparableAgentBankInformationRecord = {
+  payeeName: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -608,6 +611,7 @@ type ComparableAgentBankInformationRecord = {
 };
 
 function normalizeComparableAgentBankInformationRecord(record: {
+  payeeName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
@@ -622,6 +626,7 @@ function normalizeComparableAgentBankInformationRecord(record: {
   accountType?: AgentBankInformationAccountType | null;
 } | null | undefined): ComparableAgentBankInformationRecord {
   return {
+    payeeName: record?.payeeName?.trim() ?? "",
     firstName: record?.firstName?.trim() ?? "",
     lastName: record?.lastName?.trim() ?? "",
     email: record?.email?.trim() ?? "",
@@ -638,6 +643,7 @@ function normalizeComparableAgentBankInformationRecord(record: {
 }
 
 function buildAgentBankInformationSignature(record: {
+  payeeName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
@@ -656,7 +662,8 @@ function buildAgentBankInformationSignature(record: {
 
 function hasAnyAgentBankInformationValue(record: ComparableAgentBankInformationRecord) {
   return Boolean(
-    record.firstName ||
+    record.payeeName ||
+      record.firstName ||
       record.lastName ||
       record.email ||
       record.address ||
@@ -2723,6 +2730,7 @@ export async function getOfficeAgentProfileSnapshot(input: GetOfficeAgentProfile
     bankInformation: {
       canView: canViewBankInformationForProfile,
       canManage: canManageBankInformationForProfile,
+      payeeName: canViewBankInformationForProfile ? normalizedBankInformation.payeeName : "",
       firstName: canViewBankInformationForProfile ? normalizedBankInformation.firstName : "",
       lastName: canViewBankInformationForProfile ? normalizedBankInformation.lastName : "",
       email: canViewBankInformationForProfile ? normalizedBankInformation.email : "",
@@ -2879,6 +2887,7 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
     });
 
     const shouldSaveBankInformation =
+      input.bankPayeeName !== undefined ||
       input.bankFirstName !== undefined ||
       input.bankLastName !== undefined ||
       input.bankEmail !== undefined ||
@@ -2894,6 +2903,7 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
 
     if (shouldSaveBankInformation) {
       const nextComparableBankInformation = normalizeComparableAgentBankInformationRecord({
+        payeeName: parseOptionalText(input.bankPayeeName),
         firstName: parseOptionalText(input.bankFirstName),
         lastName: parseOptionalText(input.bankLastName),
         email: parseOptionalText(input.bankEmail),
@@ -2916,6 +2926,7 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
           update: {
             organizationId: input.organizationId,
             officeId: membership.officeId,
+            payeeName: nextComparableBankInformation.payeeName || null,
             firstName: nextComparableBankInformation.firstName || null,
             lastName: nextComparableBankInformation.lastName || null,
             email: nextComparableBankInformation.email || null,
@@ -2933,6 +2944,7 @@ export async function saveAgentProfile(input: SaveAgentProfileInput) {
             organizationId: input.organizationId,
             officeId: membership.officeId,
             membershipId: input.membershipId,
+            payeeName: nextComparableBankInformation.payeeName || null,
             firstName: nextComparableBankInformation.firstName || null,
             lastName: nextComparableBankInformation.lastName || null,
             email: nextComparableBankInformation.email || null,

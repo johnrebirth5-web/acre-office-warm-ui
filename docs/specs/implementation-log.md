@@ -8,6 +8,12 @@
 
 ## Recently completed major work
 
+- 2026-03-28: `/office/1099-tracker` is now a real `office_admin`-only workflow for annual agent payout backup and 1099 prep:
+  - added a durable `Agent1099PaymentRecord` Prisma model plus yearly payment-record save/update/delete flows with audit-log coverage
+  - `Payment Record` now lets admins search `active` or `invited` agents, edit unlimited yearly line items, and save one replaceable annual batch per `Agent + Tax Year`
+  - `1099 Summary / Preview` now aggregates totals by tax year from those saved payment records only, pulls payee identity data from current `AgentBankInformation`, and exposes per-agent preview + PDF export
+  - agent `Bank information` now includes `payeeName`, and that field is reused by the new 1099 summary/export path instead of adding a second profile store
+  - exported PDFs are internal `1099 Summary / Backup Document` files, not IRS-format forms
 - 2026-03-28: local/dev Prisma client refresh is now self-healing across standard Acre dev flows:
   - root `npm run dev` now runs `db:generate` before starting `@acre/web`, so newly added Prisma models/relations stop depending on a manual "restart Next first" memory step
   - the dev wrapper now watches `packages/db/prisma/schema.prisma` and automatically regenerates Prisma Client plus restarts the Next dev child when the schema changes

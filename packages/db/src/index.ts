@@ -34,6 +34,7 @@ export const databaseModules = [
   "agent_recurring_charge_rules",
   "agent_payment_methods",
   "agent_bank_information",
+  "agent_1099_payment_records",
   "agent_profiles",
   "teams",
   "team_memberships",
@@ -160,6 +161,20 @@ export {
   updateAccountingTransaction,
   updateEarnestMoneyRecord
 } from "./accounting";
+export {
+  getOffice1099SummaryDetail,
+  getOffice1099SummaryRows,
+  getOffice1099TrackerWorkspaceSnapshot,
+  listAgent1099PaymentRecords,
+  saveAgent1099PaymentRecords,
+  type Office1099PaymentRecordRow,
+  type Office1099PaymentRecordsEditor,
+  type Office1099SummaryDetail,
+  type Office1099SummaryRow,
+  type Office1099TrackerMemberOption,
+  type Office1099TrackerTab,
+  type Office1099TrackerWorkspaceSnapshot
+} from "./agent-1099-tracker";
 export {
   createAgentPayoutStatement,
   getOfficeAgentPayoutStatementDetail,

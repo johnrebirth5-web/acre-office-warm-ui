@@ -38,6 +38,12 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
   - payment methods foundation
   - collections / payments
   - statement summary
+- 1099 Tracker now exists as a separate `office_admin`-only accounting-adjacent module at `/office/1099-tracker`:
+  - `Payment Record` stores actual company-paid agent payouts by `Agent + Tax Year` with editable free line items
+  - `1099 Summary / Preview` aggregates annual totals per agent from those saved payment records only
+  - the summary uses current `AgentBankInformation` as the payee-profile source, including `payeeName`, tax ID, contact number, address, and email
+  - preview and PDF export remain available even when profile fields are missing; the UI and export simply keep those values blank while warning the admin
+  - exported PDFs are internal `1099 Summary / Backup Document` output, not official IRS 1099 forms
 - self-service billing exists:
   - `/office/billing`
   - current-membership summary / ledger / statement list
@@ -59,6 +65,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - chart editing is still read-first / limited
 - old ledger / agent-billing / EMD UI is no longer exposed through `/office/accounting`
 - self-service statement generation is intentionally not exposed; only saved statements are downloadable by the member
+- there is no batch 1099 PDF export, IRS box mapping, or e-filing integration yet; current 1099 output is strictly internal backup/support documentation
 
 ## Future direction
 

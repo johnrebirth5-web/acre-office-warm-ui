@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
-import { getOfficeAgentProfileSnapshot } from "./agents.ts";
+import { getOfficeAgentProfileSnapshot, saveAgentProfile } from "./agents.ts";
 import { prisma } from "./client.ts";
 
 after(async () => {
@@ -178,6 +178,44 @@ test("team lead cannot view or manage another member's bank information without 
     assert.equal(snapshot?.bankInformation.canManage, false);
     assert.equal(snapshot?.bankInformation.accountNumber, "");
     assert.equal(snapshot?.bankInformation.routingNumber, "");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("saving an agent profile persists payee name through the existing bank information flow", async () => {
+  const context = await createAgentsTestContext();
+
+  try {
+    const admin = await context.createMembership("office_admin", "payee-admin", "Payee", "Admin", "Office Admin");
+    const agent = await context.createMembership("agent", "payee-agent", "Payee", "Agent", "Agent");
+
+    await saveAgentProfile({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: agent.membership.id,
+      actorMembershipId: admin.membership.id,
+      bankPayeeName: "Payee Agent LLC",
+      bankEmail: "payee.agent@example.com",
+      bankAddress: "101 Broadway, New York, NY 10004",
+      bankPhoneNumber: "212-555-0111",
+      bankTaxIdType: "ein",
+      bankTaxIdValue: "98-7654321"
+    });
+
+    const snapshot = await getOfficeAgentProfileSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: admin.membership.id,
+      officeId: context.office.id,
+      membershipId: agent.membership.id
+    });
+
+    assert.ok(snapshot);
+    assert.equal(snapshot?.bankInformation.payeeName, "Payee Agent LLC");
+    assert.equal(snapshot?.bankInformation.email, "payee.agent@example.com");
+    assert.equal(snapshot?.bankInformation.address, "101 Broadway, New York, NY 10004");
+    assert.equal(snapshot?.bankInformation.taxIdType, "ein");
+    assert.equal(snapshot?.bankInformation.taxIdValue, "98-7654321");
   } finally {
     await context.cleanup();
   }

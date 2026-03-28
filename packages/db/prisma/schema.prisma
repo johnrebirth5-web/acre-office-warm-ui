@@ -483,6 +483,7 @@ model Organization {
   agentRecurringChargeRules         AgentRecurringChargeRule[]
   agentPaymentMethods               AgentPaymentMethod[]
   agentBankInformationRecords       AgentBankInformation[]
+  agent1099PaymentRecords           Agent1099PaymentRecord[]
   transactionDocuments              TransactionDocument[]
   formTemplates                     FormTemplate[]
   transactionForms                  TransactionForm[]
@@ -554,6 +555,7 @@ model Office {
   agentRecurringChargeRules         AgentRecurringChargeRule[]
   agentPaymentMethods               AgentPaymentMethod[]
   agentBankInformationRecords       AgentBankInformation[]
+  agent1099PaymentRecords           Agent1099PaymentRecord[]
   transactionDocuments              TransactionDocument[]
   formTemplates                     FormTemplate[]
   transactionForms                  TransactionForm[]
@@ -647,6 +649,7 @@ model Membership {
   agentRecurringChargeRules                AgentRecurringChargeRule[]         @relation("AgentRecurringChargeRuleMembership")
   agentPaymentMethods                      AgentPaymentMethod[]
   agentBankInformation                     AgentBankInformation?
+  agent1099PaymentRecords                  Agent1099PaymentRecord[]           @relation("Agent1099PaymentRecordMembership")
   createdLibraryFolders                    LibraryFolder[]                    @relation("LibraryFolderCreatedBy")
   uploadedTransactionDocuments             TransactionDocument[]              @relation("TransactionDocumentUploadedBy")
   uploadedLibraryDocuments                 LibraryDocument[]                  @relation("LibraryDocumentUploadedBy")
@@ -668,6 +671,7 @@ model Membership {
   generatedAgentPayoutStatements           AgentPayoutStatement[]             @relation("AgentPayoutStatementGeneratedBy")
   agentPayoutStatementManualLineItems        AgentPayoutStatementManualLineItem[] @relation("AgentPayoutStatementManualLineItemMembership")
   createdAgentPayoutStatementManualLineItems AgentPayoutStatementManualLineItem[] @relation("AgentPayoutStatementManualLineItemCreatedBy")
+  createdAgent1099PaymentRecords           Agent1099PaymentRecord[]           @relation("Agent1099PaymentRecordCreatedBy")
   approvedTransactionFinanceFees           TransactionFinanceFee[]            @relation("TransactionFinanceFeeApprovedBy")
   createdTransactionFinanceCalculationVersions TransactionFinanceCalculationVersion[] @relation("TransactionFinanceCalculationVersionCreatedBy")
   checklistTemplatesCreated                ChecklistTemplate[]                @relation("ChecklistTemplateCreatedBy")
@@ -1682,6 +1686,7 @@ model AgentBankInformation {
   organizationId      String
   officeId            String?
   membershipId        String                            @unique
+  payeeName           String?
   firstName           String?
   lastName            String?
   email               String?
@@ -1702,6 +1707,28 @@ model AgentBankInformation {
 
   @@index([organizationId, officeId])
   @@index([organizationId, membershipId])
+}
+
+model Agent1099PaymentRecord {
+  id                  String       @id @default(cuid())
+  organizationId      String
+  officeId            String?
+  membershipId        String
+  taxYear             Int
+  paymentDate         DateTime
+  paymentAmount       Decimal      @db.Decimal(12, 2)
+  memo                String?
+  createdByMembershipId String
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office              Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership          Membership   @relation("Agent1099PaymentRecordMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  createdByMembership Membership   @relation("Agent1099PaymentRecordCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, officeId, membershipId, taxYear])
+  @@index([organizationId, officeId, taxYear])
+  @@index([organizationId, membershipId, taxYear, paymentDate])
 }
 
 model AgentProfile {

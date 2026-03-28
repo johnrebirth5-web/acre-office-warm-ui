@@ -43,10 +43,11 @@ Provide a real Back Office agent management workspace for office operations, cov
   - `AgentOnboardingTemplateItem`
   - `AgentGoal`
 - current bank information behavior:
-  - stores first/last name, contact details, complete address, bank name, account/routing number, tax reporting ID type + value, date of birth, and account type per membership
+  - stores first/last name, `payeeName`, contact details, complete address, bank name, account/routing number, tax reporting ID type + value, date of birth, and account type per membership
   - is returned on the operational profile snapshot to viewers who can manage agents and to the member when they open their own profile
   - the member can self-service add / edit / review only their own bank information; broader profile basics remain manager-managed
   - writes stay on the same profile save path instead of introducing a second payout-settings surface
+  - `payeeName` is now the canonical year-end 1099 payee display field and feeds the `/office/1099-tracker` summary, preview, and PDF export flows
 - onboarding currently supports:
   - explicit checklist items
   - due dates

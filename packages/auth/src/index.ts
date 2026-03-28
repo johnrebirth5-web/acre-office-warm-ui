@@ -1574,6 +1574,10 @@ export function canAccessOfficeAdminAccountingWorkspace(subject: PermissionSubje
   return getSubjectRole(subject) === "office_admin";
 }
 
+export function canAccessOffice1099Tracker(subject: PermissionSubject): boolean {
+  return getSubjectRole(subject) === "office_admin";
+}
+
 export function canManageOfficeAccounting(subject: PermissionSubject): boolean {
   return can(subject, "accounting:manage");
 }
