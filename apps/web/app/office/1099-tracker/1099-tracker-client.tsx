@@ -309,11 +309,6 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
     setFilterError("");
   }
 
-  function handleRoute(nextHref: string) {
-    setIsRoutingPending(true);
-    startTransition(() => router.push(nextHref));
-  }
-
   function handleAddLineItem() {
     setDraftRecords((current) => [...current, createDraftPaymentRecord()]);
   }
@@ -471,6 +466,27 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
     ],
     [pathname, snapshot.filters.membershipId, snapshot.filters.taxYear]
   );
+  const currentSnapshotHref = useMemo(
+    () =>
+      build1099TrackerHref(pathname, {
+        tab: snapshot.tab,
+        taxYear: String(snapshot.filters.taxYear),
+        ...(snapshot.tab === "records" && snapshot.filters.membershipId
+          ? { membershipId: snapshot.filters.membershipId }
+          : {})
+      }),
+    [pathname, snapshot.filters.membershipId, snapshot.filters.taxYear, snapshot.tab]
+  );
+
+  function handleRoute(nextHref: string) {
+    if (nextHref === currentSnapshotHref) {
+      setIsRoutingPending(false);
+      return;
+    }
+
+    setIsRoutingPending(true);
+    startTransition(() => router.push(nextHref));
+  }
 
   return (
     <>
