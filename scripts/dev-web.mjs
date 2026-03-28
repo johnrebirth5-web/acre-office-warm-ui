@@ -1,24 +1,204 @@
 import { spawn } from "node:child_process";
+import { unwatchFile, watchFile } from "node:fs";
+import { resolve } from "node:path";
 
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const port = process.env.PORT?.trim() || "3105";
 const host = process.env.ACRE_DEV_HOST?.trim();
-const args = ["run", "dev", "--workspace=@acre/web", "--", "--port", port];
+const schemaPath = resolve(process.cwd(), "packages/db/prisma/schema.prisma");
+const shouldSkipInitialGenerate = process.env.ACRE_DEV_PRISMA_PREGENERATED === "1";
+const nextArgs = ["run", "dev", "--workspace=@acre/web", "--", "--port", port];
 
 if (host) {
-  args.push("--hostname", host);
+  nextArgs.push("--hostname", host);
 }
 
-const child = spawn("npm", args, {
-  stdio: "inherit",
-  shell: true,
-  env: process.env
-});
+let nextChild = null;
+let isRestarting = false;
+let isShuttingDown = false;
+let queuedRestart = false;
+let schemaChangeTimer = null;
 
-child.on("exit", (code, signal) => {
+function spawnNpm(args) {
+  return spawn(npmCommand, args, {
+    stdio: "inherit",
+    env: process.env
+  });
+}
+
+function runDbGenerate() {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawnNpm(["run", "db:generate"]);
+
+    child.on("error", rejectPromise);
+    child.on("exit", (code, signal) => {
+      if (signal) {
+        rejectPromise(new Error(`db:generate exited with signal ${signal}`));
+        return;
+      }
+
+      if ((code ?? 0) !== 0) {
+        rejectPromise(new Error(`db:generate exited with code ${code ?? 0}`));
+        return;
+      }
+
+      resolvePromise();
+    });
+  });
+}
+
+function stopNextChild() {
+  return new Promise((resolvePromise) => {
+    if (!nextChild) {
+      resolvePromise();
+      return;
+    }
+
+    const child = nextChild;
+
+    if (child.exitCode !== null || child.signalCode !== null) {
+      if (nextChild === child) {
+        nextChild = null;
+      }
+
+      resolvePromise();
+      return;
+    }
+
+    const forceKillTimer = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+      }
+    }, 5000);
+
+    child.once("exit", () => {
+      clearTimeout(forceKillTimer);
+
+      if (nextChild === child) {
+        nextChild = null;
+      }
+
+      resolvePromise();
+    });
+
+    child.kill("SIGTERM");
+  });
+}
+
+function startNextChild() {
+  const child = spawnNpm(nextArgs);
+  nextChild = child;
+
+  child.on("exit", (code, signal) => {
+    if (nextChild === child) {
+      nextChild = null;
+    }
+
+    if (isRestarting || isShuttingDown) {
+      return;
+    }
+
+    if (signal) {
+      process.kill(process.pid, signal);
+      return;
+    }
+
+    process.exit(code ?? 0);
+  });
+}
+
+async function restartForSchemaChange(reason) {
+  if (isShuttingDown) {
+    return;
+  }
+
+  if (isRestarting) {
+    queuedRestart = true;
+    return;
+  }
+
+  isRestarting = true;
+
+  try {
+    console.log(`[dev-web] ${reason}; regenerating Prisma client and restarting Next dev...`);
+    await stopNextChild();
+    await runDbGenerate();
+
+    if (!isShuttingDown) {
+      startNextChild();
+    }
+  } catch (error) {
+    console.error("[dev-web] Failed to refresh Prisma client after schema change.");
+    console.error(error);
+  } finally {
+    isRestarting = false;
+
+    if (queuedRestart && !isShuttingDown) {
+      queuedRestart = false;
+      void restartForSchemaChange("Detected another Prisma schema change");
+    }
+  }
+}
+
+function scheduleSchemaRefresh() {
+  if (schemaChangeTimer) {
+    clearTimeout(schemaChangeTimer);
+  }
+
+  schemaChangeTimer = setTimeout(() => {
+    schemaChangeTimer = null;
+    void restartForSchemaChange("Detected Prisma schema change");
+  }, 150);
+}
+
+async function shutdown(signal) {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+  unwatchFile(schemaPath);
+
+  if (schemaChangeTimer) {
+    clearTimeout(schemaChangeTimer);
+    schemaChangeTimer = null;
+  }
+
+  await stopNextChild();
+
   if (signal) {
     process.kill(process.pid, signal);
     return;
   }
 
-  process.exit(code ?? 0);
+  process.exit(0);
+}
+
+watchFile(schemaPath, { interval: 1000 }, (current, previous) => {
+  if (current.mtimeMs === previous.mtimeMs) {
+    return;
+  }
+
+  scheduleSchemaRefresh();
 });
+
+process.on("SIGINT", () => {
+  void shutdown("SIGINT");
+});
+
+process.on("SIGTERM", () => {
+  void shutdown("SIGTERM");
+});
+
+try {
+  if (!shouldSkipInitialGenerate) {
+    console.log("[dev-web] Generating Prisma client before starting Next dev...");
+    await runDbGenerate();
+  }
+
+  startNextChild();
+} catch (error) {
+  console.error("[dev-web] Failed to start dev server.");
+  console.error(error);
+  process.exit(1);
+}

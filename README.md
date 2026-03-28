@@ -980,13 +980,14 @@ Prisma / auth 开发注意：
 - 如果改了 `packages/db/prisma/schema.prisma`
 - 或者运行了 `npm run db:generate`
 - 或者变更了依赖新 relation / model 的 auth 代码
-- 浏览器验证前必须重启正在运行的 Next dev server
+- 根目录 `npm run dev` 现在会先自动运行 `npm run db:generate`，并在 `packages/db/prisma/schema.prisma` 变化时自动重启 Next dev server
 
 原因：
 
 - Next dev 进程可能继续持有旧的 Prisma Client
 - 页面会出现 `PrismaClientValidationError`
 - 常见现象是代码和 schema 明明已经是新的，但运行中的服务仍按旧 relation 解析查询
+- 如果浏览器里仍然出现 Prisma validation / unknown field 一类错误，优先检查是否还有长时间运行的旧容器或旧 dev 进程没吃到新的 Prisma Client
 
 ## 常用开发命令
 

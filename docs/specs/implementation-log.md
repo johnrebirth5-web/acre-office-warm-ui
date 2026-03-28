@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-03-28: local/dev Prisma client refresh is now self-healing across standard Acre dev flows:
+  - root `npm run dev` now runs `db:generate` before starting `@acre/web`, so newly added Prisma models/relations stop depending on a manual "restart Next first" memory step
+  - the dev wrapper now watches `packages/db/prisma/schema.prisma` and automatically regenerates Prisma Client plus restarts the Next dev child when the schema changes
+  - this specifically hardens local `/office/accounting` and other Prisma-backed Office routes against `PrismaClientValidationError` / `Unknown field ... for include statement` failures caused by a long-running dev process still holding an old generated client
 - 2026-03-26: shared `@acre/ui` `DataTable` was hardened and `/office/accounting` review behavior was simplified so local/dev Office pages stop thrashing during review flows:
   - `DataTable` now lives behind a client component boundary before it reads `HorizontalScrollArea` context, so server-rendered Office pages no longer crash with `Attempted to call useHorizontalScrollAreaContext() from the server`
   - this removes the dev-server restart loop that could temporarily make local Back Office routes appear unavailable whenever a server page compiled a shared table surface

@@ -117,8 +117,8 @@ If Prisma schema changed, also run:
 - `npm run db:generate`
 - `npm run db:migrate -- --name <change_name>` when needed
 - `npm run db:seed` when the task requires seed verification
-- after any Prisma schema/client change, restart the running Next dev server before validating in browser
-- if browser/runtime errors mention Prisma validation after an auth or schema change, first suspect a stale dev server holding an old Prisma Client in memory
+- `npm run dev` now auto-runs `db:generate` before booting the web app and auto-restarts the Next dev server when `packages/db/prisma/schema.prisma` changes
+- if browser/runtime errors still mention Prisma validation after a schema change, first suspect a long-running nonstandard process or container that has not picked up the regenerated Prisma Client yet
 - keep `/login` visually empty on first render: no prefilled demo credentials, no hardcoded default email/password values, and resist localhost browser autofill where practical
 - `/login` is email + password only; do not reintroduce username-oriented copy or sample values like `admin`
 
@@ -126,6 +126,8 @@ If Prisma schema changed, also run:
 
 - For Codex-authored repository changes, finish the task with a local `git commit`.
 - Unless the user explicitly asks not to sync to GitHub in the current task, push the completed commit(s) to `origin`.
+- Unless the user explicitly asks for a separate feature branch or PR, stay on the currently checked out branch and commit/push there directly; do not auto-create a `codex/*` branch for this workspace.
+- If the repo is already on a feature branch from earlier work, call that out before continuing instead of silently stacking new tasks onto it.
 - Keep `origin` pointed at `https://github.com/johnrebirth5-web/acre-office-warm-ui.git` unless the task explicitly requires a different remote.
 - Treat GitHub push and DigitalOcean deployment as separate steps.
 - Even when GitHub push is required, do not deploy or run production commands unless the user explicitly asks for deployment.
