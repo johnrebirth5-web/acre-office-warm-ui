@@ -23,12 +23,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const { transactionId } = await params;
   const body = (await request.json().catch(() => null)) as
     | {
+        signatureRequestId?: string | null;
         formId?: string | null;
         documentId?: string | null;
         offerId?: string | null;
         recipientName?: string;
         recipientEmail?: string;
         recipientRole?: string;
+        emailSubject?: string | null;
+        emailBody?: string | null;
+        expiresAt?: string | null;
+        senderDisplayName?: string | null;
+        senderReplyTo?: string | null;
         signingOrder?: number | null;
       }
     | null;
@@ -43,12 +49,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       officeId: context.currentOffice?.id ?? null,
       transactionId,
       actorMembershipId: context.currentMembership.id,
+      signatureRequestId: body.signatureRequestId?.trim() || null,
       formId: body.formId?.trim() || null,
       documentId: body.documentId?.trim() || null,
       offerId: body.offerId?.trim() || null,
       recipientName: body.recipientName,
       recipientEmail: body.recipientEmail,
       recipientRole: body.recipientRole,
+      emailSubject: body.emailSubject?.trim() || null,
+      emailBody: body.emailBody?.trim() || null,
+      expiresAt: body.expiresAt?.trim() || null,
+      senderDisplayName: body.senderDisplayName?.trim() || null,
+      senderReplyTo: body.senderReplyTo?.trim() || null,
       signingOrder: typeof body.signingOrder === "number" ? body.signingOrder : null
     });
 

@@ -368,6 +368,7 @@ export async function TransactionDetailWorkspace({
       >
         <TransactionDocumentsCard
           canManageDocuments={canManageDocumentsForRole}
+          canManageSignatures={canManageSignaturesForRole}
           canViewDocuments={canViewDocumentsForRole}
           documents={transaction.documents}
           taskOptions={taskOptions}
@@ -402,6 +403,7 @@ export async function TransactionDetailWorkspace({
           canViewDocuments={canViewDocumentsForRole}
           formTemplates={transaction.formTemplates}
           forms={transaction.forms}
+          signatureRequests={transaction.signatureRequests}
           taskOptions={taskOptions}
           transactionId={transaction.id}
         />

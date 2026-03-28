@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getRequestOrigin } from "./request-origin.ts";
+import { getAppBaseUrl, getRequestOrigin } from "./request-origin.ts";
 
 test("request origin prefers reverse-proxy headers when present", () => {
   const request = {
@@ -22,4 +22,26 @@ test("request origin falls back to request url host and protocol", () => {
   };
 
   assert.equal(getRequestOrigin(request), "http://45.55.247.137");
+});
+
+test("app base url prefers configured public base url", () => {
+  const previousBaseUrl = process.env.ACRE_BASE_URL;
+  process.env.ACRE_BASE_URL = "https://acresystem.us/";
+
+  try {
+    const request = {
+      headers: new Headers({
+        host: "127.0.0.1:3000"
+      }),
+      nextUrl: new URL("http://127.0.0.1:3000/login")
+    };
+
+    assert.equal(getAppBaseUrl(request), "https://acresystem.us");
+  } finally {
+    if (previousBaseUrl === undefined) {
+      delete process.env.ACRE_BASE_URL;
+    } else {
+      process.env.ACRE_BASE_URL = previousBaseUrl;
+    }
+  }
 });

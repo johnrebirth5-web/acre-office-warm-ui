@@ -8,6 +8,12 @@
 
 ## Recently completed major work
 
+- 2026-03-28: transaction documents now support an external eSignature MVP inside the existing `Documents / Forms & eSignature` workspace:
+  - `SignatureRequest` now stores recipient email copy, sender metadata, expiry, public token hash, signed/completed timestamps, and signed-output linkage instead of stopping at the old internal status shell
+  - new `SignatureField` and `SignatureAuditEntry` models hold PDF field placement plus signer-facing audit evidence for request create/send/view/submit/finalize/cancel/expire
+  - transaction detail PDF documents now expose `Prepare signature`, a draggable field editor, signer setup, send/resend/cancel actions, and request status visibility inside the existing document/signature cards
+  - public `/sign/:token` and `/api/public/signatures/:token*` routes let recipients review the PDF and sign without logging into CRM, using draw / typed / uploaded signature input modes
+  - submit finalization now generates a signed PDF with `pdf-lib`, archives it back into transaction documents, keeps the original file intact, and preserves audit coverage for both `Activity Log` and signer timeline data
 - 2026-03-28: `/office/1099-tracker` is now a real `office_admin`-only workflow for annual agent payout backup and 1099 prep:
   - added a durable `Agent1099PaymentRecord` Prisma model plus yearly payment-record save/update/delete flows with audit-log coverage
   - `Payment Record` now lets admins search `active` or `invited` agents, edit unlimited yearly line items, and save one replaceable annual batch per `Agent + Tax Year`

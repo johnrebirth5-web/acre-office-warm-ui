@@ -21,3 +21,13 @@ export function getRequestOrigin(request: RequestLike) {
 
   return `${protocol}://${host}`;
 }
+
+export function getAppBaseUrl(request: RequestLike) {
+  const configuredBaseUrl = process.env.ACRE_BASE_URL?.trim();
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  return getRequestOrigin(request);
+}

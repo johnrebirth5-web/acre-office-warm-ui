@@ -375,8 +375,10 @@ const signatureStatusLabelMap: Record<SignatureRequestStatus, string> = {
   sent: "Sent",
   viewed: "Viewed",
   signed: "Signed",
+  completed: "Completed",
   declined: "Declined",
-  canceled: "Canceled"
+  canceled: "Canceled",
+  expired: "Expired"
 };
 
 const defaultTaskSort: OfficeTaskListSort = {

@@ -168,8 +168,18 @@
     - sent
     - viewed
     - signed
+    - completed
     - declined
     - canceled
+    - expired
+    当前 document-based eSignature 还支持：
+    - 仅限 transaction detail 内发起
+    - 仅限 PDF 文档
+    - 单签署人公开链接
+    - 拖拽签区编辑
+    - 真实 SMTP 邮件发送
+    - 公共签署页手写 / 输入生成 / 上传图片三种签名方式
+    - signed PDF 归档回 transaction documents
     当前没有第三方签名 vendor integration
   - `Incoming updates` 当前支持内部 review model：
     - pending_review
@@ -766,6 +776,10 @@
   - `/api/office/transactions/:transactionId/forms/:formId`
   - `/api/office/transactions/:transactionId/signatures`
   - `/api/office/transactions/:transactionId/signatures/:signatureRequestId`
+  - `/api/office/transactions/:transactionId/signatures/:signatureRequestId/fields`
+  - `/api/public/signatures/:token`
+  - `/api/public/signatures/:token/document`
+  - `/api/public/signatures/:token/submit`
   - `/api/office/transactions/:transactionId/incoming-updates`
   - `/api/office/transactions/:transactionId/incoming-updates/:incomingUpdateId`
   - `/api/office/tasks/views`

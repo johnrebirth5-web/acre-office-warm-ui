@@ -42,6 +42,7 @@ import {
   listTransactionDocumentsSnapshot,
   type OfficeFormTemplateOption,
   type OfficeIncomingUpdate,
+  type OfficeSignatureRequest,
   type OfficeTransactionDocument,
   type OfficeTransactionForm
 } from "./transaction-documents";
@@ -233,6 +234,7 @@ export type OfficeTransactionDetail = {
   availableContacts: OfficeTransactionContactOption[];
   documents: OfficeTransactionDocument[];
   forms: OfficeTransactionForm[];
+  signatureRequests: OfficeSignatureRequest[];
   incomingUpdates: OfficeIncomingUpdate[];
   formTemplates: OfficeFormTemplateOption[];
   createdAt: string;
@@ -1706,6 +1708,7 @@ function mapTransactionDetail(
     availableContacts?: OfficeTransactionContactOption[];
     documents?: OfficeTransactionDocument[];
     forms?: OfficeTransactionForm[];
+    signatureRequests?: OfficeSignatureRequest[];
     incomingUpdates?: OfficeIncomingUpdate[];
     formTemplates?: OfficeFormTemplateOption[];
     financeFees?: OfficeTransactionFinanceFeeRecord[];
@@ -1774,6 +1777,7 @@ function mapTransactionDetail(
     availableContacts: transaction.availableContacts ?? [],
     documents: transaction.documents ?? [],
     forms: transaction.forms ?? [],
+    signatureRequests: transaction.signatureRequests ?? [],
     incomingUpdates: transaction.incomingUpdates ?? [],
     formTemplates: transaction.formTemplates ?? [],
     createdAt: transaction.createdAt.toISOString(),
@@ -2464,6 +2468,7 @@ export async function getTransactionById(input: GetTransactionByIdInput): Promis
       ),
       documents: documentsSnapshot.documents,
       forms: documentsSnapshot.forms,
+      signatureRequests: documentsSnapshot.signatureRequests,
       incomingUpdates: documentsSnapshot.incomingUpdates,
       formTemplates: documentsSnapshot.formTemplates
     },

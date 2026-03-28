@@ -14,6 +14,7 @@ type TaskOption = {
 type TransactionFormsSignaturesCardProps = {
   transactionId: string;
   forms: OfficeTransactionForm[];
+  signatureRequests: OfficeSignatureRequest[];
   formTemplates: OfficeFormTemplateOption[];
   taskOptions: TaskOption[];
   canUseForms: boolean;
@@ -84,15 +85,15 @@ function getFormTone(statusKey: OfficeTransactionForm["statusKey"]) {
 }
 
 function getSignatureTone(statusKey: OfficeSignatureRequest["statusKey"]) {
-  if (statusKey === "signed") {
+  if (statusKey === "completed") {
     return "success" as const;
   }
 
-  if (statusKey === "declined" || statusKey === "canceled") {
+  if (statusKey === "declined" || statusKey === "canceled" || statusKey === "expired") {
     return "danger" as const;
   }
 
-  if (statusKey === "sent" || statusKey === "viewed") {
+  if (statusKey === "sent" || statusKey === "viewed" || statusKey === "signed") {
     return "accent" as const;
   }
 
@@ -111,6 +112,7 @@ function formatDateLabel(value: string) {
 export function TransactionFormsSignaturesCard({
   transactionId,
   forms,
+  signatureRequests,
   formTemplates,
   taskOptions,
   canUseForms,
@@ -118,6 +120,7 @@ export function TransactionFormsSignaturesCard({
   canViewDocuments
 }: TransactionFormsSignaturesCardProps) {
   const router = useRouter();
+  const documentSignatureRequests = signatureRequests.filter((request) => !request.formId);
   const [newFormState, setNewFormState] = useState<NewFormState>({
     templateId: formTemplates[0]?.id ?? "",
     linkedTaskId: "",
@@ -267,7 +270,10 @@ export function TransactionFormsSignaturesCard({
     }
   }
 
-  async function handleSignatureAction(signatureRequestId: string, action: "send" | "viewed" | "signed" | "declined" | "canceled") {
+  async function handleSignatureAction(
+    signatureRequestId: string,
+    action: "send" | "resend" | "viewed" | "signed" | "declined" | "canceled" | "expire"
+  ) {
     setPendingAction(`${action}:${signatureRequestId}`);
     setError("");
 
@@ -303,6 +309,67 @@ export function TransactionFormsSignaturesCard({
       </div>
 
       <div className="bm-document-list">
+        {documentSignatureRequests.length > 0 ? (
+          <article className="bm-form-row">
+            <div className="bm-card-head bm-card-head-inline">
+              <h3>Document signature requests</h3>
+            </div>
+
+            <div className="bm-form-signature-list">
+              {documentSignatureRequests.map((request) => (
+                <div className="bm-signature-row" key={request.id}>
+                  <div className="bm-signature-row-copy">
+                    <div className="bm-document-row-head">
+                      <strong>{request.documentTitle || "Signature request"}</strong>
+                      <StatusBadge tone={getSignatureTone(request.statusKey)}>{request.status}</StatusBadge>
+                    </div>
+                    <p>
+                      {request.recipientName} · {request.recipientEmail}
+                    </p>
+                    <p>
+                      {request.sentAt ? `Sent ${formatDateLabel(request.sentAt)}` : "Not sent yet"}
+                      {request.firstViewedAt ? ` · Opened ${formatDateLabel(request.firstViewedAt)}` : ""}
+                      {request.signedAt ? ` · Signed ${formatDateLabel(request.signedAt)}` : ""}
+                      {request.completedAt ? ` · Completed ${formatDateLabel(request.completedAt)}` : ""}
+                    </p>
+                  </div>
+
+                  <div className="bm-signature-row-actions">
+                    <Link className="office-button office-button-secondary office-button-sm office-inline-action-sm" href={`/office/transactions/${transactionId}/signatures/${request.id}`}>
+                      Open request
+                    </Link>
+                    {request.completedDocumentHref && canViewDocuments ? (
+                      <Link className="office-button office-button-secondary office-button-sm office-inline-action-sm" href={request.completedDocumentHref} target="_blank">
+                        Signed PDF
+                      </Link>
+                    ) : null}
+                    {canManageSignatures && (request.statusKey === "sent" || request.statusKey === "viewed" || request.statusKey === "expired" || request.statusKey === "canceled") ? (
+                      <Button
+                        disabled={pendingAction === `resend:${request.id}`}
+                        onClick={() => handleSignatureAction(request.id, "resend")}
+                        size="sm"
+                        variant="secondary"
+                      >
+                        {pendingAction === `resend:${request.id}` ? "Resending..." : "Resend"}
+                      </Button>
+                    ) : null}
+                    {canManageSignatures && (request.statusKey === "draft" || request.statusKey === "sent" || request.statusKey === "viewed") ? (
+                      <Button
+                        disabled={pendingAction === `canceled:${request.id}`}
+                        onClick={() => handleSignatureAction(request.id, "canceled")}
+                        size="sm"
+                        variant="danger"
+                      >
+                        {pendingAction === `canceled:${request.id}` ? "Canceling..." : "Cancel"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
+        ) : null}
+
         {forms.length > 0 ? (
           forms.map((form) => {
             const formState = formStates[form.id] ?? buildFormEditState(form);

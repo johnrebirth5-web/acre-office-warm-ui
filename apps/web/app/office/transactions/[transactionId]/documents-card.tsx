@@ -11,13 +11,19 @@ type TaskOption = {
   title: string;
 };
 
-type TransactionDocumentsCardProps = {
+type TransactionDocumentsCardBaseProps = {
   transactionId: string;
   documents: OfficeTransactionDocument[];
   taskOptions: TaskOption[];
   canViewDocuments: boolean;
   canManageDocuments: boolean;
 };
+
+type TransactionDocumentsCardProps = TransactionDocumentsCardBaseProps & {
+  canManageSignatures: boolean;
+};
+
+type TransactionUnsortedDocumentsCardProps = TransactionDocumentsCardBaseProps;
 
 type DocumentRowState = {
   linkedTaskId: string;
@@ -85,7 +91,8 @@ export function TransactionDocumentsCard({
   documents,
   taskOptions,
   canViewDocuments,
-  canManageDocuments
+  canManageDocuments,
+  canManageSignatures
 }: TransactionDocumentsCardProps) {
   const router = useRouter();
   const structuredDocuments = useMemo(
@@ -292,6 +299,14 @@ export function TransactionDocumentsCard({
                         Open
                       </Link>
                     ) : null}
+                    {canManageSignatures && document.mimeType.toLowerCase() === "application/pdf" ? (
+                      <Link
+                        className="office-button office-button-secondary office-button-sm office-inline-action-sm"
+                        href={`/office/transactions/${transactionId}/signatures/new?documentId=${document.id}`}
+                      >
+                        Prepare signature
+                      </Link>
+                    ) : null}
                     {canManageDocuments ? (
                       <Button
                         className="office-inline-action-sm"
@@ -468,7 +483,7 @@ export function TransactionUnsortedDocumentsCard({
   taskOptions,
   canViewDocuments,
   canManageDocuments
-}: TransactionDocumentsCardProps) {
+}: TransactionUnsortedDocumentsCardProps) {
   const router = useRouter();
   const unsortedDocuments = useMemo(
     () => documents.filter((document) => document.isUnsorted),

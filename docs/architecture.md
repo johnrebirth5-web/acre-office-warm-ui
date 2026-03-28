@@ -266,7 +266,11 @@
 
 - 当前文档文件不是接入 S3 / R2，而是本地文件系统 MVP
 - `Company Library` 也复用同一套本地文件系统存储基础，但按 organization / library scope 单独分目录
-- 当前 eSignature 不是第三方 vendor integration，而是内部状态机 foundation
+- 当前 eSignature 已升级为 transaction detail 内的外部签署 MVP：
+  - 内部准备工作区 + 公共签署页仍由本仓库自托管
+  - 邮件发送通过 SMTP 环境变量配置
+  - 仅支持 PDF、单签署人、无登录公开链接
+  - 还没有第三方 vendor integration
 - 当前 incoming updates 不是 live Folio sync，而是内部 review-ready model；底层 route/service 仍保留，但默认不在 transaction detail 页面暴露
 
 不要把“规划中”当成“已接入”。
@@ -448,6 +452,9 @@
 - `updateTransactionForm`
 - `createSignatureRequest`
 - `updateSignatureRequest`
+- `getSignatureEditorSnapshot`
+- `replaceSignatureRequestFields`
+- `getPublicSignatureRequestSnapshot`
 - `listTransactionOffersSnapshot`
 - `createOffer`
 - `updateOffer`
@@ -527,13 +534,15 @@
 27. 删除 required document、取消提交条件或让签名重新变成未完成时，会触发 task workflow 重新评估并必要时 reopen
 28. `/api/office/tasks/views` 以 membership 维度持久化 saved views
 29. transaction detail 的 documents / forms / signatures，以及隐藏中的 incoming update foundation，统一通过 `packages/db/src/transaction-documents.ts` 读取和写入
-30. 文件本体当前通过 `apps/web/lib/document-storage.ts` 写入本地文件系统；document metadata 仍在 PostgreSQL
-31. document / form / signature / incoming update 的关键动作会写入 `AuditLog`
-32. buyer offers 继续落在 transaction hub 内，不另建第二个 offer app；offer 的 documents / forms / signatures 直接复用现有 foundation，并通过 `offerId` 做 linkage
-33. offer workflow 当前支持显式状态迁移、internal comments、comparison，以及 accepted offer -> transaction field 的可见回写
-34. `/office/transactions/:transactionId` 还会通过 `getTransactionCommissionSnapshot` 读取 assigned plan、persisted calculations 和 transaction-level summary
-35. `/office/settings/users/:membershipId` 的 operations 区块会通过 `getAgentCommissionSummary` 聚合 active plan、recent calculations、statement-ready / payable / paid totals
-36. `Activity Log + Operational Alerts` 现在也会显示：
+30. document signature editor 通过 `/api/office/transactions/:transactionId/signatures`、`/api/office/transactions/:transactionId/signatures/:signatureRequestId` 和 `/api/office/transactions/:transactionId/signatures/:signatureRequestId/fields` 保存 signer metadata、状态和签区布局
+31. 外部签署人通过 `/sign/:token` 和 `/api/public/signatures/:token*` 访问公开签署页面、读取 PDF 预览、提交签字并触发 signed PDF 归档
+32. 文件本体当前通过 `apps/web/lib/document-storage.ts` 写入本地文件系统；document metadata 仍在 PostgreSQL
+33. document / form / signature / incoming update 的关键动作会写入 `AuditLog`，外部签署时间线额外写入 `SignatureAuditEntry`
+34. buyer offers 继续落在 transaction hub 内，不另建第二个 offer app；offer 的 documents / forms / signatures 直接复用现有 foundation，并通过 `offerId` 做 linkage
+35. offer workflow 当前支持显式状态迁移、internal comments、comparison，以及 accepted offer -> transaction field 的可见回写
+36. `/office/transactions/:transactionId` 还会通过 `getTransactionCommissionSnapshot` 读取 assigned plan、persisted calculations 和 transaction-level summary
+37. `/office/settings/users/:membershipId` 的 operations 区块会通过 `getAgentCommissionSummary` 聚合 active plan、recent calculations、statement-ready / payable / paid totals
+38. `Activity Log + Operational Alerts` 现在也会显示：
    - missing required document
    - signature pending
    - incoming update awaiting review
@@ -542,19 +551,19 @@
    - rejected tasks needing action
    - offers awaiting review
    - offers expiring soon
-37. `/office/settings/users?view=operations` 读取 `AgentProfile / AgentBankInformation / Team / TeamMembership / AgentOnboardingItem / AgentGoal / AgentOnboardingTemplateItem`，并聚合 transactions / tasks / billing / activity 数据形成 operational roster snapshot
-36. roster snapshot 当前会额外提供：
+39. `/office/settings/users?view=operations` 读取 `AgentProfile / AgentBankInformation / Team / TeamMembership / AgentOnboardingItem / AgentGoal / AgentOnboardingTemplateItem`，并聚合 transactions / tasks / billing / activity 数据形成 operational roster snapshot
+40. roster snapshot 当前会额外提供：
    - membership status
    - onboarding progress label
    - open / recent closed transaction rollups
    - goal progress summary
    - billing summary label
    - team-level open task / open transaction / onboarding in-progress counts
-37. `/office/settings/users/:membershipId` 组合 access snapshot 和 profile snapshot，展示 basics、teams、onboarding、goals、recent transactions、recent activity，并额外聚合 operational agenda、current goal summary、open/pending charges、commission summary
-38. `/api/office/agents/*` 负责 profile、team、onboarding、goal 的最小 create / update 写入，并同步写入 `AuditLog`
-39. `/api/office/agents/:membershipId/onboarding-template` 会把 office 范围内的默认 onboarding 模板条目实例化到具体 agent
-40. Dashboard 的 weekly updates / useful links / training links 仍使用静态内容
-41. 其他页面仍然直接把静态 DTO 渲染成后台 UI
+41. `/office/settings/users/:membershipId` 组合 access snapshot 和 profile snapshot，展示 basics、teams、onboarding、goals、recent transactions、recent activity，并额外聚合 operational agenda、current goal summary、open/pending charges、commission summary
+42. `/api/office/agents/*` 负责 profile、team、onboarding、goal 的最小 create / update 写入，并同步写入 `AuditLog`
+43. `/api/office/agents/:membershipId/onboarding-template` 会把 office 范围内的默认 onboarding 模板条目实例化到具体 agent
+44. Dashboard 的 weekly updates / useful links / training links 仍使用静态内容
+45. 其他页面仍然直接把静态 DTO 渲染成后台 UI
 
 当前唯一已经走数据库的最小读路径是：
 

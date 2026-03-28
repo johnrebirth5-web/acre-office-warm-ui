@@ -13,6 +13,7 @@
 - `Office Reports` 的 CSV 导出 route 也依赖 `DATABASE_URL`
 - `/api/office/activity/comments` 也依赖 `DATABASE_URL`
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
+- transaction detail 下的外部签署邮件发送额外依赖 SMTP / signature mailer 环境变量
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
 
@@ -126,7 +127,9 @@ ACRE_SESSION_SECRET="replace-with-a-long-random-string"
 用途：
 
 - 为一次性 provisioning / 邀请批量初始化脚本生成完整 invite URL
+- 为 transaction document 外部签署邮件生成 public signing link 的绝对 base URL fallback
 - 当前用于 `scripts/provision-backoffice-initial-accounts.ts`
+- 当前也会在签署邮件 route 中作为 request origin 缺失时的回退值
 
 是否必填：
 
@@ -143,6 +146,147 @@ ACRE_BASE_URL="https://acresystem.us"
 
 - 脚本仍可运行
 - 但 invite URL 会按默认生产域名拼接
+- 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
+
+### `ACRE_SMTP_HOST`
+
+用途：
+
+- transaction document 外部签署请求邮件的 SMTP host
+- 当前由 `apps/web/lib/signature-email.ts` 读取
+
+是否必填：
+
+- 对外部签署邮件发送是必填
+- 不发送签署邮件时不是必填
+
+示例格式：
+
+```env
+ACRE_SMTP_HOST="smtp.mailgun.org"
+```
+
+缺失后的影响：
+
+- `/api/office/transactions/:transactionId/signatures/:signatureRequestId` 的 `send` / `resend` 会失败
+- request 不会伪装成已发送
+
+### `ACRE_SMTP_PORT`
+
+用途：
+
+- transaction document 外部签署邮件 SMTP port
+
+是否必填：
+
+- 不是必填
+- 缺失时默认 `587`
+
+示例格式：
+
+```env
+ACRE_SMTP_PORT="587"
+```
+
+### `ACRE_SMTP_SECURE`
+
+用途：
+
+- 控制 SMTP transport 是否走 secure 模式
+
+是否必填：
+
+- 不是必填
+- 缺失时会按端口推断，`465` 默认为 `true`
+
+示例格式：
+
+```env
+ACRE_SMTP_SECURE="false"
+```
+
+### `ACRE_SMTP_USER`
+
+用途：
+
+- transaction document 外部签署邮件 SMTP 用户名
+
+是否必填：
+
+- 对外部签署邮件发送是必填
+
+示例格式：
+
+```env
+ACRE_SMTP_USER="postmaster@example.com"
+```
+
+### `ACRE_SMTP_PASSWORD`
+
+用途：
+
+- transaction document 外部签署邮件 SMTP 密码
+
+是否必填：
+
+- 对外部签署邮件发送是必填
+
+示例格式：
+
+```env
+ACRE_SMTP_PASSWORD="replace-with-smtp-password"
+```
+
+### `ACRE_SIGNATURE_FROM_EMAIL`
+
+用途：
+
+- transaction document 外部签署邮件的实际发件邮箱
+- 当前首版是单一公共发件邮箱，再通过邮件内容展示 agent 署名
+
+是否必填：
+
+- 对外部签署邮件发送是必填
+
+示例格式：
+
+```env
+ACRE_SIGNATURE_FROM_EMAIL="signatures@acresystem.us"
+```
+
+### `ACRE_SIGNATURE_FROM_NAME`
+
+用途：
+
+- transaction document 外部签署邮件的发件人名称
+
+是否必填：
+
+- 不是必填
+- 缺失时默认 `Acre Signatures`
+
+示例格式：
+
+```env
+ACRE_SIGNATURE_FROM_NAME="Acre Signatures"
+```
+
+### `ACRE_SIGNATURE_REPLY_TO`
+
+用途：
+
+- transaction document 外部签署邮件的默认 reply-to
+- 当前允许 per-request sender reply-to 覆盖它
+
+是否必填：
+
+- 不是必填
+
+示例格式：
+
+```env
+ACRE_SIGNATURE_REPLY_TO="agent@acresystem.us"
+```
 
 ### `ACRE_DOCUMENTS_STORAGE_DIR`
 
