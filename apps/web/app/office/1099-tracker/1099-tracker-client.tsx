@@ -477,6 +477,14 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
       }),
     [pathname, snapshot.filters.membershipId, snapshot.filters.taxYear, snapshot.tab]
   );
+  const paymentRecordHref = useMemo(
+    () =>
+      build1099TrackerHref(pathname, {
+        tab: "records",
+        taxYear: String(snapshot.filters.taxYear)
+      }),
+    [pathname, snapshot.filters.taxYear]
+  );
 
   function handleRoute(nextHref: string) {
     if (nextHref === currentSnapshotHref) {
@@ -760,7 +768,7 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
 
                 <div className="office-filter-actions">
                   <Button disabled={isRoutingPending} type="submit" variant="secondary">
-                    {isRoutingPending ? "Loading..." : "Load summary"}
+                    {isRoutingPending ? "Loading..." : "Apply year filter"}
                   </Button>
                   <Button onClick={handleResetSummaryFilters} type="button" variant="secondary">
                     Reset
@@ -768,6 +776,11 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
                 </div>
               </ListPageFilters>
             </form>
+
+            <p className="office-form-helper">
+              This tab only summarizes agents who already have saved Payment Record entries for the selected tax year. It does not
+              auto-generate payment data.
+            </p>
 
             {snapshot.summaryRows.length > 0 ? (
               <HorizontalScrollArea>
@@ -819,7 +832,12 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
               </HorizontalScrollArea>
             ) : (
               <EmptyState
-                description="No payment records have been saved for the selected tax year yet."
+                action={
+                  <Link className="office-button office-button-secondary" href={paymentRecordHref}>
+                    Go to Payment Record
+                  </Link>
+                }
+                description={`No payment records have been saved for tax year ${snapshot.filters.taxYear} yet. Add payments in Payment Record first, then come back here to preview and export the annual summary.`}
                 title="No 1099 summary rows"
               />
             )}
