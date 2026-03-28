@@ -8465,6 +8465,43 @@ a {
   min-width: 0;
 }
 
+.office-accounting-manual-section {
+  padding-top: 18px;
+  border-top: 1px solid rgba(203, 213, 225, 0.72);
+}
+
+.office-table-row-agent-statement-manual {
+  grid-template-columns: minmax(280px, 1.7fr) minmax(140px, 0.7fr) auto;
+  align-items: center;
+}
+
+.office-table-row-agent-statement-manual > * {
+  min-width: 0;
+}
+
+.office-accounting-manual-amount-input {
+  text-align: right;
+}
+
+.office-accounting-manual-row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.office-accounting-manual-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  color: var(--office-text-muted);
+  font-size: 0.86rem;
+}
+
+.office-accounting-manual-summary strong {
+  color: var(--office-text);
+  font-size: 0.95rem;
+}
+
 .office-transaction-detail-embedded {
   min-height: 100vh;
   padding: 18px;

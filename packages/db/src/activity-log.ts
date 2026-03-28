@@ -114,6 +114,7 @@ export const activityLogActions = {
   accountingPaymentMethodRemoved: "accounting.payment_method_removed",
   accountingAgentCreditApplied: "accounting.agent_credit_applied",
   agentPayoutStatementGenerated: "agent_payout_statement.generated",
+  agentPayoutStatementAdjusted: "agent_payout_statement.adjusted",
   commissionPlanCreated: "commission.plan_created",
   commissionPlanUpdated: "commission.plan_updated",
   commissionPlanAssigned: "commission.plan_assigned",
@@ -460,6 +461,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "accounting.payment_method_removed": "Payment method removed",
   "accounting.agent_credit_applied": "Credit applied",
   "agent_payout_statement.generated": "Agent payout statement generated",
+  "agent_payout_statement.adjusted": "Agent payout statement adjusted",
   "commission.plan_created": "Commission plan created",
   "commission.plan_updated": "Commission plan updated",
   "commission.plan_assigned": "Commission plan assigned",
@@ -621,6 +623,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.accountingPaymentMethodRemoved ||
       action === activityLogActions.accountingAgentCreditApplied ||
       action === activityLogActions.agentPayoutStatementGenerated ||
+      action === activityLogActions.agentPayoutStatementAdjusted ||
       action === activityLogActions.commissionPlanCreated ||
       action === activityLogActions.commissionPlanUpdated ||
       action === activityLogActions.commissionPlanAssigned ||
@@ -1256,6 +1259,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "applied a credit memo to an outstanding balance";
     case activityLogActions.agentPayoutStatementGenerated:
       return "generated an agent payout statement";
+    case activityLogActions.agentPayoutStatementAdjusted:
+      return "updated an agent payout statement";
     case activityLogActions.commissionPlanCreated:
       return "created a commission plan";
     case activityLogActions.commissionPlanUpdated:

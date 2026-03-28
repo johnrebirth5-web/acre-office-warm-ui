@@ -40,6 +40,12 @@ type StatementBankField = {
   value: string;
   wide?: boolean;
 };
+type EditableManualLineItem = {
+  localId: string;
+  id?: string;
+  memo: string;
+  amount: string;
+};
 
 function buildAccountingHref(
   pathname: string,
@@ -90,6 +96,52 @@ function getStatementStatusTone(status: string) {
 function toNumber(value: string) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function createEditableManualLineItem(item?: SelectedStatementDetail["manualLineItems"][number]): EditableManualLineItem {
+  const persistedId = item?.id?.trim();
+
+  return {
+    localId: persistedId || `manual-${Math.random().toString(36).slice(2, 10)}`,
+    ...(persistedId ? { id: persistedId } : {}),
+    memo: item?.memo ?? "",
+    amount: item?.amountValue ?? ""
+  };
+}
+
+function normalizeManualAmountForComparison(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const numeric = Number(trimmed);
+  return Number.isFinite(numeric) ? numeric.toString() : trimmed;
+}
+
+function buildManualLineItemsSignature(items: Array<{ id?: string; memo: string; amount: string }>) {
+  return items
+    .map((item) => `${item.id?.trim() ?? ""}:${item.memo.trim()}:${normalizeManualAmountForComparison(item.amount)}`)
+    .join("|");
+}
+
+function validateManualLineItems(items: EditableManualLineItem[]) {
+  for (const [index, item] of items.entries()) {
+    if (!item.memo.trim()) {
+      return `Manual line item ${index + 1} memo is required.`;
+    }
+
+    if (!item.amount.trim()) {
+      return `Manual line item ${index + 1} amount is required.`;
+    }
+
+    if (!/^[+-]?(?:\d+|\d+\.\d{1,2}|\.\d{1,2})$/.test(item.amount.trim())) {
+      return `Manual line item ${index + 1} amount must be a signed number with up to 2 decimal places.`;
+    }
+  }
+
+  return "";
 }
 
 function formatCurrency(value: number) {
@@ -236,10 +288,13 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [selectedCalculationIds, setSelectedCalculationIds] = useState<string[]>(
     snapshot.candidateRows.filter((row) => row.isGenerateEligible).map((row) => row.id)
   );
+  const [manualLineItems, setManualLineItems] = useState<EditableManualLineItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isSavingManualLineItems, setIsSavingManualLineItems] = useState(false);
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
+  const [manualSaveError, setManualSaveError] = useState("");
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
     .map((option) => ({
@@ -327,6 +382,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const selectedIdLookup = new Set(selectedCalculationIds);
   const selectedRows = snapshot.candidateRows.filter((row) => selectedIdLookup.has(row.id));
   const selectedStatement = snapshot.selectedStatement;
+  const selectedStatementManualSignature = selectedStatement
+    ? buildManualLineItemsSignature(
+        selectedStatement.manualLineItems.map((item) => ({
+          id: item.id,
+          memo: item.memo,
+          amount: item.amountValue
+        }))
+      )
+    : "";
   const selectedStatementBankFields = selectedStatement ? buildStatementBankFields(selectedStatement) : [];
   const resolvedFilterMembershipId = resolveTypedAgentMembershipId(
     snapshot.filters.memberOptions,
@@ -356,6 +420,18 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   });
   const hasSelectedReusableRows = selectedRows.some((row) => row.statusValue === "payable" || row.statusValue === "paid");
   const generateButtonLabel = isGenerating ? "Generating..." : "Generate statement";
+  const manualAdjustmentTotal = manualLineItems.reduce((sum, lineItem) => sum + toNumber(lineItem.amount), 0);
+  const invoicePayoutTotal = selectedStatement ? toNumber(selectedStatement.invoicePayoutTotalValue) : 0;
+  const statementFinalPayout = invoicePayoutTotal + manualAdjustmentTotal;
+  const hasManualLineItemChanges = selectedStatement
+    ? buildManualLineItemsSignature(
+        manualLineItems.map((lineItem) => ({
+          id: lineItem.id,
+          memo: lineItem.memo,
+          amount: lineItem.amount
+        }))
+      ) !== selectedStatementManualSignature
+    : false;
   const selectedSummary = previewMatchesFilter
     ? selectedRows.reduce(
         (summary, row) => ({
@@ -393,6 +469,19 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           isPreviewBased: false as const
         }
       );
+
+  useEffect(() => {
+    if (!selectedStatement) {
+      setManualLineItems([]);
+      setManualSaveError("");
+      setIsSavingManualLineItems(false);
+      return;
+    }
+
+    setManualLineItems(selectedStatement.manualLineItems.map((lineItem) => createEditableManualLineItem(lineItem)));
+    setManualSaveError("");
+    setIsSavingManualLineItems(false);
+  }, [selectedStatement?.id, selectedStatementManualSignature]);
 
   function selectAgentOption(option: AgentOption) {
     setFilterState({
@@ -594,6 +683,77 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       setGenerationError(error instanceof Error ? error.message : "Failed to generate the agent statement.");
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  function handleAddManualLineItem() {
+    setManualLineItems((current) => [...current, createEditableManualLineItem()]);
+    setManualSaveError("");
+  }
+
+  function handleManualLineItemChange(localId: string, field: "memo" | "amount", value: string) {
+    setManualLineItems((current) =>
+      current.map((lineItem) => (lineItem.localId === localId ? { ...lineItem, [field]: value } : lineItem))
+    );
+    setManualSaveError("");
+  }
+
+  function handleRemoveManualLineItem(localId: string) {
+    setManualLineItems((current) => current.filter((lineItem) => lineItem.localId !== localId));
+    setManualSaveError("");
+  }
+
+  function resetManualLineItems() {
+    if (!selectedStatement) {
+      return;
+    }
+
+    setManualLineItems(selectedStatement.manualLineItems.map((lineItem) => createEditableManualLineItem(lineItem)));
+    setManualSaveError("");
+  }
+
+  async function handleSaveManualLineItems() {
+    if (!selectedStatement) {
+      return;
+    }
+
+    const validationError = validateManualLineItems(manualLineItems);
+
+    if (validationError) {
+      setManualSaveError(validationError);
+      return;
+    }
+
+    setIsSavingManualLineItems(true);
+    setManualSaveError("");
+
+    try {
+      const response = await fetch(`/api/office/accounting/statements/${selectedStatement.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          manualLineItems: manualLineItems.map((lineItem) => ({
+            ...(lineItem.id ? { id: lineItem.id } : {}),
+            memo: lineItem.memo.trim(),
+            amount: lineItem.amount.trim()
+          }))
+        })
+      });
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to save statement manual adjustments.");
+      }
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      setManualSaveError(error instanceof Error ? error.message : "Failed to save statement manual adjustments.");
+    } finally {
+      setIsSavingManualLineItems(false);
     }
   }
 
@@ -997,9 +1157,11 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           <>
             <ListPageStatsGrid>
               <StatCard hint="agent on this saved payout statement" label="Agent" value={selectedStatement.agentLabel} />
-              <StatCard hint="saved snapshot row count" label="Rows" value={selectedStatement.lineItemCount} />
+              <StatCard hint="invoice rows plus manual adjustments" label="Rows" value={selectedStatement.lineItemCount} />
               <StatCard hint="snapshot total gross commission" label="Gross commission" value={selectedStatement.totalGrossCommissionLabel} />
-              <StatCard hint="snapshot total payout amount" label="Net payout" value={selectedStatement.totalStatementAmountLabel} />
+              <StatCard hint="invoice-based payout subtotal" label="Invoice payout" value={selectedStatement.invoicePayoutTotalLabel} />
+              <StatCard hint="live manual adjustment total before save" label="Manual adjustments" value={formatCurrency(manualAdjustmentTotal)} />
+              <StatCard hint="live final payout total before save" label="Final payout" value={formatCurrency(statementFinalPayout)} />
             </ListPageStatsGrid>
 
             <div className="office-inline-meta">
@@ -1007,6 +1169,24 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 Generated: <LocalDateTime fallbackLabel={selectedStatement.generatedAtLabel} value={selectedStatement.generatedAt} />
               </span>
               <span>Generated by: {selectedStatement.generatedByLabel}</span>
+              <span>Signed amount: use positive for bonus or reimbursement, negative for deduction.</span>
+              <Button
+                disabled={isSavingManualLineItems || !hasManualLineItemChanges}
+                onClick={handleSaveManualLineItems}
+                size="sm"
+                type="button"
+              >
+                {isSavingManualLineItems ? "Saving..." : "Save adjustments"}
+              </Button>
+              <Button
+                disabled={isSavingManualLineItems || !hasManualLineItemChanges}
+                onClick={resetManualLineItems}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                Reset changes
+              </Button>
               <a className="office-button office-button-sm office-button-secondary" href={`/api/office/accounting/statements/${selectedStatement.id}/pdf`} rel="noreferrer" target="_blank">
                 Download PDF
               </a>
@@ -1025,43 +1205,118 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <p className="office-form-helper">No bank information has been saved on this member profile yet.</p>
             )}
 
-            <HorizontalScrollArea>
-              <DataTable className="office-table">
-                <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-detail">
-                  <span>Creation date</span>
-                  <span>Invoice number</span>
-                  <span>Owner</span>
-                  <span>Building name</span>
-                  <span>Unit</span>
-                  <span>Gross</span>
-                  <span>Pre split</span>
-                  <span>Commission rate</span>
-                  <span>Post split detail</span>
-                  <span>Net commission</span>
-                </DataTableHeader>
-                <DataTableBody>
-                  {selectedStatement.lineItems.map((lineItem) => (
-                    <DataTableRow className="office-table-row office-table-row-agent-statement-detail" key={lineItem.id}>
-                      <span>{formatStatementCellValue(lineItem.creationDate)}</span>
-                      <span>{formatStatementCellValue(lineItem.invoiceNumber)}</span>
-                      <span>{formatStatementCellValue(lineItem.ownerName)}</span>
-                      <div className="office-agent-statement-building">
-                        <strong>
-                          <Link href={lineItem.transactionHref}>{formatStatementCellValue(lineItem.buildingName)}</Link>
-                        </strong>
-                        <p>{formatStatementCellValue(lineItem.propertyAddress)}</p>
-                      </div>
-                      <span>{formatStatementCellValue(lineItem.unitNumber)}</span>
-                      <span>{lineItem.grossCommissionLabel}</span>
-                      <span>{lineItem.preSplitLabel}</span>
-                      <span>{formatStatementCellValue(lineItem.commissionRate)}</span>
-                      <StatementPostSplitCell lineItem={lineItem} />
-                      <span>{lineItem.netCommissionLabel}</span>
-                    </DataTableRow>
-                  ))}
-                </DataTableBody>
-              </DataTable>
-            </HorizontalScrollArea>
+            <div className="office-accounting-candidate-block">
+              <div className="office-accounting-candidate-head">
+                <div className="office-accounting-candidate-copy">
+                  <span className="office-mini-heading">Invoice Items</span>
+                  <p className="office-form-helper">
+                    These rows are the locked invoice-based snapshot that originally generated this payout statement.
+                  </p>
+                </div>
+              </div>
+
+              <HorizontalScrollArea>
+                <DataTable className="office-table">
+                  <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-detail">
+                    <span>Creation date</span>
+                    <span>Invoice number</span>
+                    <span>Owner</span>
+                    <span>Building name</span>
+                    <span>Unit</span>
+                    <span>Gross</span>
+                    <span>Pre split</span>
+                    <span>Commission rate</span>
+                    <span>Post split detail</span>
+                    <span>Net commission</span>
+                  </DataTableHeader>
+                  <DataTableBody>
+                    {selectedStatement.lineItems.map((lineItem) => (
+                      <DataTableRow className="office-table-row office-table-row-agent-statement-detail" key={lineItem.id}>
+                        <span>{formatStatementCellValue(lineItem.creationDate)}</span>
+                        <span>{formatStatementCellValue(lineItem.invoiceNumber)}</span>
+                        <span>{formatStatementCellValue(lineItem.ownerName)}</span>
+                        <div className="office-agent-statement-building">
+                          <strong>
+                            <Link href={lineItem.transactionHref}>{formatStatementCellValue(lineItem.buildingName)}</Link>
+                          </strong>
+                          <p>{formatStatementCellValue(lineItem.propertyAddress)}</p>
+                        </div>
+                        <span>{formatStatementCellValue(lineItem.unitNumber)}</span>
+                        <span>{lineItem.grossCommissionLabel}</span>
+                        <span>{lineItem.preSplitLabel}</span>
+                        <span>{formatStatementCellValue(lineItem.commissionRate)}</span>
+                        <StatementPostSplitCell lineItem={lineItem} />
+                        <span>{lineItem.netCommissionLabel}</span>
+                      </DataTableRow>
+                    ))}
+                  </DataTableBody>
+                </DataTable>
+              </HorizontalScrollArea>
+            </div>
+
+            <div className="office-accounting-candidate-block office-accounting-manual-section">
+              <div className="office-accounting-candidate-head">
+                <div className="office-accounting-candidate-copy">
+                  <span className="office-mini-heading">Manual Adjustment Items</span>
+                  <p className="office-form-helper">
+                    Add signed adjustments to match the actual payout for this period. Positive values increase payout and negative values reduce it.
+                  </p>
+                </div>
+
+                <div className="office-section-actions">
+                  <Button onClick={handleAddManualLineItem} size="sm" type="button" variant="secondary">
+                    Add Line Item
+                  </Button>
+                </div>
+              </div>
+
+              {manualLineItems.length > 0 ? (
+                <HorizontalScrollArea>
+                  <DataTable className="office-table">
+                    <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-manual">
+                      <span>Memo</span>
+                      <span>Amount</span>
+                      <span>Actions</span>
+                    </DataTableHeader>
+                    <DataTableBody>
+                      {manualLineItems.map((lineItem, index) => (
+                        <DataTableRow className="office-table-row office-table-row-agent-statement-manual" key={lineItem.localId}>
+                          <TextInput
+                            aria-label={`Manual line item memo ${index + 1}`}
+                            onChange={(event) => handleManualLineItemChange(lineItem.localId, "memo", event.target.value)}
+                            placeholder="Insurance Deduction"
+                            value={lineItem.memo}
+                          />
+                          <TextInput
+                            aria-label={`Manual line item amount ${index + 1}`}
+                            className="office-accounting-manual-amount-input"
+                            inputMode="decimal"
+                            onChange={(event) => handleManualLineItemChange(lineItem.localId, "amount", event.target.value)}
+                            placeholder="-500"
+                            value={lineItem.amount}
+                          />
+                          <div className="office-accounting-manual-row-actions">
+                            <Button onClick={() => handleRemoveManualLineItem(lineItem.localId)} size="sm" type="button" variant="ghost">
+                              Remove
+                            </Button>
+                          </div>
+                        </DataTableRow>
+                      ))}
+                    </DataTableBody>
+                  </DataTable>
+                </HorizontalScrollArea>
+              ) : (
+                <p className="office-form-helper">No manual adjustments have been added to this statement yet.</p>
+              )}
+
+              <div className="office-accounting-manual-summary">
+                <span>Invoice payout subtotal: {selectedStatement.invoicePayoutTotalLabel}</span>
+                <span>Manual adjustments total: {formatCurrency(manualAdjustmentTotal)}</span>
+                <strong>Final payout: {formatCurrency(statementFinalPayout)}</strong>
+              </div>
+
+              {manualSaveError ? <p className="office-inline-error">{manualSaveError}</p> : null}
+            </div>
           </>
         ) : (
           <EmptyState description="Use the history list to open a saved statement and inspect its locked payout lines." title="No statement selected" />

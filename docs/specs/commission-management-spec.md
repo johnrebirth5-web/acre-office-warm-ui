@@ -181,6 +181,13 @@ Provide a durable commission automation MVP inside Back Office, with a default s
 - the current version is mirrored into the active `CommissionCalculation` rows for compatibility
 - statement / payslip views read the current version-backed rows only
 - transaction detail and statement views keep showing the saved post-split fee effects from the finance version / statement line snapshot, even though those fees still flow back into the company-side allocation by default
+- saved `AgentPayoutStatement` snapshots may now include editable statement-level manual adjustments after generation:
+  - manual adjustments are stored separately from invoice rows
+  - each manual item keeps `Memo + signed Amount`
+  - positive values increase payout and negative values reduce payout
+  - final payout is `invoice payout subtotal + manual adjustment total`
+  - editing manual adjustments updates the saved statement total and PDF output directly on the same statement record
+  - editing manual adjustments does not rewrite the saved invoice snapshot rows and does not change underlying `CommissionCalculation` statuses
 - history remains visible for audit/review but is not double-counted in payout summaries
 - manual override versions may include extra `active` or `invited` memberships that were not part of the original split chain
 - manual participant rows are marked as manual in the stored stakeholder snapshot:

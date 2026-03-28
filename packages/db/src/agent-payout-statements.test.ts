@@ -12,7 +12,8 @@ import {
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
   normalizeAgentPayoutStatementInvoiceNumber,
   normalizeAgentPayoutStatementPeriodBasis,
-  summarizeAgentPayoutStatementRows
+  summarizeAgentPayoutStatementRows,
+  updateAgentPayoutStatementManualLineItems
 } from "./agent-payout-statements.ts";
 import { createTransaction } from "./transactions.ts";
 
@@ -823,6 +824,219 @@ test("createAgentPayoutStatement honors row-level overrides within selected invo
     assert.equal(statusById.get(invoice100RowA.id), "payable");
     assert.equal(statusById.get(invoice200Row.id), "payable");
     assert.equal(statusById.get(invoice100RowB.id), "reviewed");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("updateAgentPayoutStatementManualLineItems persists manual adjustments and detail totals", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    await context.createCommissionRow({
+      invoiceNumber: "INV-MANUAL-100",
+      transactionName: "Manual Adjustment Invoice A",
+      address: "100 Manual Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-16T00:00:00.000Z",
+      statementAmount: "1000"
+    });
+
+    await context.createCommissionRow({
+      invoiceNumber: "INV-MANUAL-200",
+      transactionName: "Manual Adjustment Invoice B",
+      address: "101 Manual Ave",
+      status: "reviewed",
+      calculatedAt: "2026-03-18T00:00:00.000Z",
+      statementAmount: "700"
+    });
+
+    const statement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-MANUAL-100", "INV-MANUAL-200"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const updated = await updateAgentPayoutStatementManualLineItems({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      manualLineItems: [
+        {
+          memo: "Insurance Deduction",
+          amount: "-500"
+        },
+        {
+          memo: "Bonus",
+          amount: "300.25"
+        }
+      ],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    assert.equal(updated?.statementId, statement.statementId);
+
+    const savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: statement.statementId
+      },
+      include: {
+        lineItems: true,
+        manualLineItems: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+        }
+      }
+    });
+
+    assert.ok(savedStatement);
+    assert.equal(savedStatement?.lineItemCount, 4);
+    assert.equal(savedStatement?.totalStatementAmount.toString(), "1500.25");
+    assert.deepEqual(
+      savedStatement?.manualLineItems.map((lineItem) => ({
+        memo: lineItem.memo,
+        amount: lineItem.amount.toString()
+      })),
+      [
+        { memo: "Insurance Deduction", amount: "-500" },
+        { memo: "Bonus", amount: "300.25" }
+      ]
+    );
+
+    const detail = await getOfficeAgentPayoutStatementDetail({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId
+    });
+
+    assert.equal(detail?.manualLineItems.length, 2);
+    assert.equal(detail?.invoicePayoutTotalValue, "1700");
+    assert.equal(detail?.manualAdjustmentTotalValue, "-199.75");
+    assert.equal(detail?.totalStatementAmountValue, "1500.25");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("updateAgentPayoutStatementManualLineItems edits and removes adjustments without changing commission statuses", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    const firstRow = await context.createCommissionRow({
+      invoiceNumber: "INV-MANUAL-300",
+      transactionName: "Manual Update Invoice A",
+      address: "110 Manual Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-19T00:00:00.000Z",
+      statementAmount: "1200"
+    });
+
+    const secondRow = await context.createCommissionRow({
+      invoiceNumber: "INV-MANUAL-400",
+      transactionName: "Manual Update Invoice B",
+      address: "111 Manual Ave",
+      status: "calculated",
+      calculatedAt: "2026-03-20T00:00:00.000Z",
+      statementAmount: "800"
+    });
+
+    const statement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-MANUAL-300", "INV-MANUAL-400"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    await updateAgentPayoutStatementManualLineItems({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      manualLineItems: [
+        {
+          memo: "Initial Deduction",
+          amount: "-100"
+        },
+        {
+          memo: "Initial Bonus",
+          amount: "200"
+        }
+      ],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const firstSavedState = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: statement.statementId
+      },
+      include: {
+        manualLineItems: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+        }
+      }
+    });
+
+    assert.ok(firstSavedState);
+    assert.equal(firstSavedState?.manualLineItems.length, 2);
+
+    await updateAgentPayoutStatementManualLineItems({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      manualLineItems: [
+        {
+          id: firstSavedState?.manualLineItems[1]?.id,
+          memo: "Updated Bonus",
+          amount: "150"
+        },
+        {
+          memo: "Reimbursement Adjustment",
+          amount: "25"
+        }
+      ],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const refreshedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: statement.statementId
+      },
+      include: {
+        manualLineItems: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+        }
+      }
+    });
+
+    assert.ok(refreshedStatement);
+    assert.equal(refreshedStatement?.lineItemCount, 4);
+    assert.equal(refreshedStatement?.manualLineItems.length, 2);
+    assert.equal(refreshedStatement?.totalStatementAmount.toString(), "2175");
+    assert.deepEqual(
+      refreshedStatement?.manualLineItems.map((lineItem) => ({
+        memo: lineItem.memo,
+        amount: lineItem.amount.toString()
+      })),
+      [
+        { memo: "Updated Bonus", amount: "150" },
+        { memo: "Reimbursement Adjustment", amount: "25" }
+      ]
+    );
+
+    const refreshedRows = await prisma.commissionCalculation.findMany({
+      where: {
+        id: {
+          in: [firstRow.id, secondRow.id]
+        }
+      }
+    });
+    const statusById = new Map(refreshedRows.map((row) => [row.id, row.status]));
+
+    assert.equal(statusById.get(firstRow.id), "payable");
+    assert.equal(statusById.get(secondRow.id), "payable");
   } finally {
     await context.cleanup();
   }

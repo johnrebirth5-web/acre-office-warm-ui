@@ -63,6 +63,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 9
   },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    marginBottom: 8
+  },
   bankSection: {
     marginBottom: 12
   },
@@ -100,7 +105,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d1d5db",
     borderRadius: 6,
-    overflow: "hidden"
+    overflow: "hidden",
+    marginBottom: 12
   },
   tableHeader: {
     flexDirection: "row",
@@ -172,6 +178,29 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 2,
     fontSize: 8
+  },
+  manualTableHeader: {
+    flexDirection: "row",
+    backgroundColor: "#f8fafc",
+    borderBottomWidth: 1,
+    borderBottomColor: "#d1d5db",
+    paddingVertical: 7,
+    paddingHorizontal: 8
+  },
+  manualRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    paddingVertical: 7,
+    paddingHorizontal: 8
+  },
+  manualMemoCell: {
+    width: "74%",
+    paddingRight: 8
+  },
+  manualAmountCell: {
+    width: "26%",
+    textAlign: "right"
   },
   footer: {
     marginTop: 14,
@@ -317,11 +346,20 @@ export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatem
             <Text style={styles.summaryAmount}>{statement.totalGrossCommissionLabel}</Text>
           </View>
           <View style={styles.summaryCard} wrap={false}>
+            <Text style={styles.metaLabel}>Invoice payout subtotal</Text>
+            <Text style={styles.summaryAmount}>{statement.invoicePayoutTotalLabel}</Text>
+          </View>
+          <View style={styles.summaryCard} wrap={false}>
+            <Text style={styles.metaLabel}>Manual adjustments</Text>
+            <Text style={styles.summaryAmount}>{statement.manualAdjustmentTotalLabel}</Text>
+          </View>
+          <View style={styles.summaryCard} wrap={false}>
             <Text style={styles.metaLabel}>Agent net</Text>
             <Text style={styles.summaryAmount}>{statement.totalAgentNetLabel}</Text>
           </View>
         </View>
 
+        <Text style={styles.sectionTitle}>Invoice Items</Text>
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={styles.cellCreation}>Creation date</Text>
@@ -343,6 +381,28 @@ export function AgentPayoutStatementPdfDocument({ statement }: AgentPayoutStatem
               lineItem={lineItem}
             />
           ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Manual Adjustment Items</Text>
+        <View style={styles.table}>
+          <View style={styles.manualTableHeader}>
+            <Text style={styles.manualMemoCell}>Memo</Text>
+            <Text style={styles.manualAmountCell}>Amount</Text>
+          </View>
+
+          {statement.manualLineItems.length > 0 ? (
+            statement.manualLineItems.map((lineItem, index) => (
+              <View key={lineItem.id} style={index === statement.manualLineItems.length - 1 ? [styles.manualRow, styles.lastRow] : styles.manualRow} wrap={false}>
+                <Text style={styles.manualMemoCell}>{lineItem.memo}</Text>
+                <Text style={styles.manualAmountCell}>{lineItem.amountLabel}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={[styles.manualRow, styles.lastRow]} wrap={false}>
+              <Text style={styles.manualMemoCell}>No manual adjustments saved on this statement.</Text>
+              <Text style={styles.manualAmountCell}>{statement.manualAdjustmentTotalLabel}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.footer} wrap={false}>

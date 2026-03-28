@@ -504,6 +504,7 @@ model Organization {
   commissionPlanRules               CommissionPlanRule[]
   commissionCalculations            CommissionCalculation[]
   agentPayoutStatements             AgentPayoutStatement[]
+  agentPayoutStatementManualLineItems AgentPayoutStatementManualLineItem[]
   transactionFinanceFees            TransactionFinanceFee[]
   transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
@@ -573,6 +574,7 @@ model Office {
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionCalculations            CommissionCalculation[]
   agentPayoutStatements             AgentPayoutStatement[]
+  agentPayoutStatementManualLineItems AgentPayoutStatementManualLineItem[]
   transactionFinanceFees            TransactionFinanceFee[]
   transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
   requiredContactRoleSettings       RequiredContactRoleSetting[]
@@ -664,6 +666,8 @@ model Membership {
   calculatedCommissionCalculations         CommissionCalculation[]            @relation("CommissionCalculationCalculatedBy")
   agentPayoutStatements                    AgentPayoutStatement[]
   generatedAgentPayoutStatements           AgentPayoutStatement[]             @relation("AgentPayoutStatementGeneratedBy")
+  agentPayoutStatementManualLineItems        AgentPayoutStatementManualLineItem[] @relation("AgentPayoutStatementManualLineItemMembership")
+  createdAgentPayoutStatementManualLineItems AgentPayoutStatementManualLineItem[] @relation("AgentPayoutStatementManualLineItemCreatedBy")
   approvedTransactionFinanceFees           TransactionFinanceFee[]            @relation("TransactionFinanceFeeApprovedBy")
   createdTransactionFinanceCalculationVersions TransactionFinanceCalculationVersion[] @relation("TransactionFinanceCalculationVersionCreatedBy")
   checklistTemplatesCreated                ChecklistTemplate[]                @relation("ChecklistTemplateCreatedBy")
@@ -2211,6 +2215,7 @@ model AgentPayoutStatement {
   membership            Membership                       @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   generatedByMembership Membership?                      @relation("AgentPayoutStatementGeneratedBy", fields: [generatedByMembershipId], references: [id], onDelete: SetNull)
   lineItems             AgentPayoutStatementLine[]
+  manualLineItems       AgentPayoutStatementManualLineItem[]
 
   @@index([organizationId, officeId, generatedAt])
   @@index([organizationId, membershipId, generatedAt])
@@ -2245,6 +2250,28 @@ model AgentPayoutStatementLine {
   @@index([statementId])
   @@index([commissionCalculationId])
   @@index([transactionId])
+}
+
+model AgentPayoutStatementManualLineItem {
+  id                    String               @id @default(cuid())
+  statementId           String
+  organizationId        String
+  officeId              String?
+  membershipId          String
+  memo                  String
+  amount                Decimal              @default(0) @db.Decimal(12, 2)
+  createdByMembershipId String
+  createdAt             DateTime             @default(now())
+  statement             AgentPayoutStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  organization          Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?              @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership            Membership           @relation("AgentPayoutStatementManualLineItemMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership           @relation("AgentPayoutStatementManualLineItemCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+
+  @@index([statementId, createdAt])
+  @@index([organizationId, officeId, createdAt])
+  @@index([membershipId, createdAt])
+  @@index([createdByMembershipId, createdAt])
 }
 
 model TransactionFinanceFee {

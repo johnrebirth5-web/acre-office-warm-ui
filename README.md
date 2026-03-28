@@ -320,14 +320,18 @@
     - 按 invoice number 自由多选
     - 预览这些 invoice 下的 commission rows，并允许取消个别行
     - 生成 durable payout statement snapshot
+    - 在已保存 statement detail 中新增 / 编辑 / 删除 manual adjustment items（`Memo + signed Amount`）
     - 下载 PDF
     - 在已保存 statement detail / PDF 中显示当前 member profile 上保存的 bank information
-    - statement detail / PDF 的明细表现在会按 `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission` 输出，并为更宽的 statement PDF 使用横版布局
+    - statement detail / PDF 的 invoice 明细表现在会按 `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission` 输出，并为更宽的 statement PDF 使用横版布局
+    - statement detail / PDF 现在会额外显示 `Manual Adjustment Items`
   - 工资单 snapshot 现在基于：
     - `AgentPayoutStatement`
     - `AgentPayoutStatementLine`
-  - 工资单金额来自 `CommissionCalculation` 的 agent rows；生成后会把纳入本期的 row 从 `statement_ready` 推进到 `payable`
+    - `AgentPayoutStatementManualLineItem`
+  - 工资单金额来自 `CommissionCalculation` 的 agent rows 加上 statement-level manual adjustments；生成后会把纳入本期的 row 从 `statement_ready` 推进到 `payable`
   - 当前工资单生成依据是 transaction field 里的 `invoiceNumber`；这版还没有独立的 “invoice 已收款” 数据模型
+  - manual adjustment 只允许在已保存 statement detail 中编辑，不会回写 invoice snapshot，也不会改变底层 `CommissionCalculation` status
   - statement detail / PDF 当前不再向 agent-facing payout output 暴露 `Office net`
   - 底层 accounting foundation 仍继续存在，基于 `LedgerAccount / AccountingTransaction / AccountingTransactionLineItem / GeneralLedgerEntry / EarnestMoneyRecord`
   - 已有最小 chart of accounts foundation

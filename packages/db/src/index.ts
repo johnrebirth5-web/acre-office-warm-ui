@@ -53,6 +53,7 @@ export const databaseModules = [
   "commission_calculations",
   "agent_payout_statements",
   "agent_payout_statement_lines",
+  "agent_payout_statement_manual_line_items",
   "transaction_finance_fees",
   "transaction_finance_calculation_versions",
   "membership_commission_settings",
@@ -162,7 +163,8 @@ export {
 export {
   createAgentPayoutStatement,
   getOfficeAgentPayoutStatementDetail,
-  getOfficeAgentPayoutStatementsWorkspaceSnapshot
+  getOfficeAgentPayoutStatementsWorkspaceSnapshot,
+  updateAgentPayoutStatementManualLineItems
 } from "./agent-payout-statements";
 export {
   applyAgentBillingCreditMemo,
@@ -404,10 +406,13 @@ export type {
   OfficeAgentPayoutStatementDetail,
   OfficeAgentPayoutStatementInvoiceOption,
   OfficeAgentPayoutStatementLineRecord,
+  OfficeAgentPayoutStatementManualLineItemRecord,
   OfficeAgentPayoutStatementMemberOption,
   OfficeAgentPayoutStatementPostSplitDetailItem,
   OfficeAgentPayoutStatementRecord,
-  OfficeAgentPayoutStatementsWorkspaceSnapshot
+  OfficeAgentPayoutStatementsWorkspaceSnapshot,
+  UpdateAgentPayoutStatementManualLineItemInput,
+  UpdateAgentPayoutStatementManualLineItemsInput
 } from "./agent-payout-statements";
 export type {
   ApplyAgentBillingCreditMemoInput,

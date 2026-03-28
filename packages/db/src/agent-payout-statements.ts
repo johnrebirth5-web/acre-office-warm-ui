@@ -10,7 +10,7 @@ import {
   TransactionFinanceFeeType,
   TransactionFinanceVersionSource
 } from "@prisma/client";
-import { activityLogActions, recordActivityLogEvent } from "./activity-log";
+import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 
@@ -49,6 +49,9 @@ type StatementRecordWithRelations = Prisma.AgentPayoutStatementGetPayload<{
       include: {
         user: true;
       };
+    };
+    manualLineItems: {
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }];
     };
     lineItems: {
       orderBy: [{ calculatedAt: "desc" }, { transactionLabel: "asc" }];
@@ -137,6 +140,13 @@ export type OfficeAgentPayoutStatementPostSplitDetailItem = {
   amountValue: string;
 };
 
+export type OfficeAgentPayoutStatementManualLineItemRecord = {
+  id: string;
+  memo: string;
+  amountLabel: string;
+  amountValue: string;
+};
+
 export type OfficeAgentPayoutStatementBankInformationRecord = {
   firstName: string;
   lastName: string;
@@ -186,6 +196,10 @@ export type OfficeAgentPayoutStatementDetail = {
   generatedAtLabel: string;
   generatedByLabel: string;
   lineItemCount: number;
+  invoicePayoutTotalLabel: string;
+  invoicePayoutTotalValue: string;
+  manualAdjustmentTotalLabel: string;
+  manualAdjustmentTotalValue: string;
   totalStatementAmountLabel: string;
   totalStatementAmountValue: string;
   totalGrossCommissionLabel: string;
@@ -193,6 +207,7 @@ export type OfficeAgentPayoutStatementDetail = {
   totalAgentNetLabel: string;
   totalAgentNetValue: string;
   bankInformation: OfficeAgentPayoutStatementBankInformationRecord | null;
+  manualLineItems: OfficeAgentPayoutStatementManualLineItemRecord[];
   lineItems: OfficeAgentPayoutStatementLineRecord[];
 };
 
@@ -225,6 +240,20 @@ export type CreateAgentPayoutStatementInput = {
   actorMembershipId: string;
 };
 
+export type UpdateAgentPayoutStatementManualLineItemInput = {
+  id?: string;
+  memo: string;
+  amount: string;
+};
+
+export type UpdateAgentPayoutStatementManualLineItemsInput = {
+  organizationId: string;
+  officeId?: string | null;
+  statementId: string;
+  manualLineItems: UpdateAgentPayoutStatementManualLineItemInput[];
+  actorMembershipId: string;
+};
+
 export type GetOfficeAgentPayoutStatementDetailInput = {
   organizationId: string;
   officeId?: string | null;
@@ -248,6 +277,16 @@ type StatementInvoiceOptionSubject = {
   calculatedAt: Date;
   statementAmount: Prisma.Decimal | number | string;
   status?: CommissionCalculationStatus | null | undefined;
+};
+
+type StatementManualLineItemSubject = {
+  amount: Prisma.Decimal | number | string;
+};
+
+type NormalizedManualLineItemInput = {
+  id?: string;
+  memo: string;
+  amount: Prisma.Decimal;
 };
 
 const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, string> = {
@@ -574,6 +613,77 @@ function buildPropertyAddress(transaction: {
 
 function decimalToString(value: Prisma.Decimal | number | string | null | undefined) {
   return new Prisma.Decimal(value ?? 0).toString();
+}
+
+function buildActivityLogChange(label: string, previousValue: string, nextValue: string): ActivityLogChange | null {
+  return previousValue === nextValue
+    ? null
+    : {
+        label,
+        previousValue,
+        nextValue
+      };
+}
+
+function parseManualLineItemAmount(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new Error("Manual line item amount is required.");
+  }
+
+  if (!/^[+-]?(?:\d+|\d+\.\d{1,2}|\.\d{1,2})$/.test(trimmed)) {
+    throw new Error("Manual line item amounts must be signed numbers with up to 2 decimal places.");
+  }
+
+  return normalizeCurrencyDecimal(new Prisma.Decimal(trimmed));
+}
+
+function normalizeManualLineItemInputs(items: UpdateAgentPayoutStatementManualLineItemInput[]) {
+  const seenIds = new Set<string>();
+
+  return items.map((item, index) => {
+    const id = item.id?.trim();
+    const memo = item.memo.trim();
+
+    if (!memo) {
+      throw new Error(`Manual line item ${index + 1} memo is required.`);
+    }
+
+    if (id) {
+      if (seenIds.has(id)) {
+        throw new Error("Manual line item ids must be unique.");
+      }
+
+      seenIds.add(id);
+    }
+
+    return {
+      ...(id ? { id } : {}),
+      memo,
+      amount: parseManualLineItemAmount(item.amount)
+    } satisfies NormalizedManualLineItemInput;
+  });
+}
+
+function summarizeStatementManualLineItems(rows: StatementManualLineItemSubject[]) {
+  return rows.reduce((sum, row) => sum.plus(new Prisma.Decimal(row.amount ?? 0)), new Prisma.Decimal(0));
+}
+
+function summarizeAgentPayoutStatementSnapshot(input: {
+  invoiceLineItems: StatementSummarySubject[];
+  manualLineItems: StatementManualLineItemSubject[];
+}) {
+  const invoiceSummary = summarizeAgentPayoutStatementRows(input.invoiceLineItems);
+  const manualAdjustmentTotal = summarizeStatementManualLineItems(input.manualLineItems);
+
+  return {
+    ...invoiceSummary,
+    invoicePayoutTotal: invoiceSummary.totalStatementAmount,
+    manualAdjustmentTotal,
+    finalPayoutTotal: invoiceSummary.totalStatementAmount.plus(manualAdjustmentTotal),
+    lineItemCount: invoiceSummary.lineItemCount + input.manualLineItems.length
+  };
 }
 
 function parseStoredStatementFeeBreakdown(value: Prisma.JsonValue | null | undefined): StoredTransactionFinanceFeeBreakdownRow[] {
@@ -957,6 +1067,18 @@ function mapStatementDetail(
     livePostSplitBreakdownByCalculationId?: Map<string, OfficeAgentPayoutStatementPostSplitDetailItem[]>;
   }
 ): OfficeAgentPayoutStatementDetail {
+  const snapshotSummary = summarizeAgentPayoutStatementSnapshot({
+    invoiceLineItems: record.lineItems.map((lineItem) => ({
+      grossCommission: lineItem.grossCommission,
+      officeNet: lineItem.officeNet,
+      agentNet: lineItem.agentNet,
+      statementAmount: lineItem.statementAmount
+    })),
+    manualLineItems: record.manualLineItems.map((lineItem) => ({
+      amount: lineItem.amount
+    }))
+  });
+
   return {
     id: record.id,
     organizationLabel: record.organization.name,
@@ -972,6 +1094,10 @@ function mapStatementDetail(
     generatedAtLabel: formatDateTimeValue(record.generatedAt, record.organization.timezone),
     generatedByLabel: record.generatedByMembership ? formatMembershipLabel(record.generatedByMembership) : "System",
     lineItemCount: record.lineItemCount,
+    invoicePayoutTotalLabel: formatCurrency(snapshotSummary.invoicePayoutTotal),
+    invoicePayoutTotalValue: decimalToString(snapshotSummary.invoicePayoutTotal),
+    manualAdjustmentTotalLabel: formatCurrency(snapshotSummary.manualAdjustmentTotal),
+    manualAdjustmentTotalValue: decimalToString(snapshotSummary.manualAdjustmentTotal),
     totalStatementAmountLabel: formatCurrency(record.totalStatementAmount),
     totalStatementAmountValue: decimalToString(record.totalStatementAmount),
     totalGrossCommissionLabel: formatCurrency(record.totalGrossCommission),
@@ -979,6 +1105,12 @@ function mapStatementDetail(
     totalAgentNetLabel: formatCurrency(record.totalAgentNet),
     totalAgentNetValue: decimalToString(record.totalAgentNet),
     bankInformation: mapStatementBankInformation(record.membership.agentBankInformation),
+    manualLineItems: record.manualLineItems.map((lineItem) => ({
+      id: lineItem.id,
+      memo: lineItem.memo,
+      amountLabel: formatCurrency(lineItem.amount),
+      amountValue: decimalToString(lineItem.amount)
+    })),
     lineItems: record.lineItems.map((lineItem) => {
       const liveCommissionRate = options?.liveCommissionRateByCalculationId?.get(lineItem.commissionCalculationId) ?? "";
       const postSplitBreakdown =
@@ -1110,6 +1242,9 @@ export async function getOfficeAgentPayoutStatementDetail(
           user: true
         }
       },
+      manualLineItems: {
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+      },
       lineItems: {
         orderBy: [{ calculatedAt: "desc" }, { transactionLabel: "asc" }]
       }
@@ -1192,6 +1327,9 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
           include: {
             user: true
           }
+        },
+        manualLineItems: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
         },
         lineItems: {
           orderBy: [{ calculatedAt: "desc" }, { transactionLabel: "asc" }]
@@ -1342,7 +1480,10 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
     const includedInvoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
       calculations.map((calculation) => getAgentPayoutStatementInvoiceNumber(calculation))
     );
-    const totals = summarizeAgentPayoutStatementRows(calculations);
+    const totals = summarizeAgentPayoutStatementSnapshot({
+      invoiceLineItems: calculations,
+      manualLineItems: []
+    });
     const statement = await tx.agentPayoutStatement.create({
       data: {
         organizationId: input.organizationId,
@@ -1353,7 +1494,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
         periodBasis: "invoice_number",
         generatedByMembershipId: input.actorMembershipId,
         lineItemCount: totals.lineItemCount,
-        totalStatementAmount: totals.totalStatementAmount,
+        totalStatementAmount: totals.finalPayoutTotal,
         totalGrossCommission: totals.totalGrossCommission,
         totalOfficeNet: totals.totalOfficeNet,
         totalAgentNet: totals.totalAgentNet
@@ -1401,10 +1542,174 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
           "Basis: Invoice number",
           `Invoices: ${includedInvoiceNumbers.join(", ")}`,
           `Line items: ${totals.lineItemCount}`,
-          `Total payout: ${formatCurrency(totals.totalStatementAmount)}`
+          `Total payout: ${formatCurrency(totals.finalPayoutTotal)}`
         ]
       }
     });
+
+    return {
+      statementId: statement.id
+    };
+  });
+}
+
+export async function updateAgentPayoutStatementManualLineItems(input: UpdateAgentPayoutStatementManualLineItemsInput) {
+  const statementId = input.statementId.trim();
+
+  if (!statementId) {
+    throw new Error("Statement is required.");
+  }
+
+  const normalizedManualLineItems = normalizeManualLineItemInputs(input.manualLineItems);
+
+  return prisma.$transaction(async (tx) => {
+    const statement = await tx.agentPayoutStatement.findFirst({
+      where: {
+        id: statementId,
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      include: {
+        membership: {
+          include: {
+            user: true
+          }
+        },
+        lineItems: {
+          select: {
+            invoiceNumber: true,
+            grossCommission: true,
+            officeNet: true,
+            agentNet: true,
+            statementAmount: true
+          }
+        },
+        manualLineItems: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+        }
+      }
+    });
+
+    if (!statement) {
+      return null;
+    }
+
+    const existingManualLineItemsById = new Map(statement.manualLineItems.map((lineItem) => [lineItem.id, lineItem]));
+
+    for (const lineItem of normalizedManualLineItems) {
+      if (lineItem.id && !existingManualLineItemsById.has(lineItem.id)) {
+        throw new Error("Some manual line items are no longer available on this statement.");
+      }
+    }
+
+    const retainedIds = new Set(normalizedManualLineItems.map((lineItem) => lineItem.id).filter(Boolean));
+    const removedItems = statement.manualLineItems.filter((lineItem) => !retainedIds.has(lineItem.id));
+    const itemsToCreate = normalizedManualLineItems.filter((lineItem) => !lineItem.id);
+    const itemsToUpdate = normalizedManualLineItems.filter((lineItem) => {
+      if (!lineItem.id) {
+        return false;
+      }
+
+      const existing = existingManualLineItemsById.get(lineItem.id);
+      return Boolean(existing) && (existing?.memo !== lineItem.memo || decimalToString(existing?.amount) !== lineItem.amount.toString());
+    });
+
+    if (removedItems.length > 0) {
+      await tx.agentPayoutStatementManualLineItem.deleteMany({
+        where: {
+          statementId: statement.id,
+          id: {
+            in: removedItems.map((lineItem) => lineItem.id)
+          }
+        }
+      });
+    }
+
+    for (const lineItem of itemsToUpdate) {
+      await tx.agentPayoutStatementManualLineItem.update({
+        where: {
+          id: lineItem.id
+        },
+        data: {
+          memo: lineItem.memo,
+          amount: lineItem.amount
+        }
+      });
+    }
+
+    for (const lineItem of itemsToCreate) {
+      await tx.agentPayoutStatementManualLineItem.create({
+        data: {
+          statementId: statement.id,
+          organizationId: statement.organizationId,
+          officeId: statement.officeId,
+          membershipId: statement.membershipId,
+          memo: lineItem.memo,
+          amount: lineItem.amount,
+          createdByMembershipId: input.actorMembershipId
+        }
+      });
+    }
+
+    const previousSummary = summarizeAgentPayoutStatementSnapshot({
+      invoiceLineItems: statement.lineItems,
+      manualLineItems: statement.manualLineItems
+    });
+    const nextSummary = summarizeAgentPayoutStatementSnapshot({
+      invoiceLineItems: statement.lineItems,
+      manualLineItems: normalizedManualLineItems
+    });
+
+    await tx.agentPayoutStatement.update({
+      where: {
+        id: statement.id
+      },
+      data: {
+        lineItemCount: nextSummary.lineItemCount,
+        totalStatementAmount: nextSummary.finalPayoutTotal
+      }
+    });
+
+    const hasChanges = removedItems.length > 0 || itemsToCreate.length > 0 || itemsToUpdate.length > 0;
+
+    if (hasChanges) {
+      const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+        statement.lineItems.map((lineItem) => lineItem.invoiceNumber)
+      );
+      const changes = [
+        buildActivityLogChange(
+          "Manual adjustment total",
+          formatCurrency(previousSummary.manualAdjustmentTotal),
+          formatCurrency(nextSummary.manualAdjustmentTotal)
+        ),
+        buildActivityLogChange("Final payout", formatCurrency(previousSummary.finalPayoutTotal), formatCurrency(nextSummary.finalPayoutTotal))
+      ].filter((change): change is ActivityLogChange => Boolean(change));
+
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+        entityType: "agent_payout_statement",
+        entityId: statement.id,
+        action: activityLogActions.agentPayoutStatementAdjusted,
+        payload: {
+          officeId: statement.officeId,
+          objectLabel: `${formatMembershipLabel(statement.membership)} payout statement`,
+          contextHref: buildAgentPayoutStatementWorkspaceHref({
+            membershipId: statement.membershipId,
+            invoiceNumbers,
+            statementId: statement.id
+          }),
+          details: [
+            `Added manual items: ${itemsToCreate.length}`,
+            `Updated manual items: ${itemsToUpdate.length}`,
+            `Removed manual items: ${removedItems.length}`,
+            `Manual adjustments total: ${formatCurrency(nextSummary.manualAdjustmentTotal)}`,
+            `Final payout: ${formatCurrency(nextSummary.finalPayoutTotal)}`
+          ],
+          changes
+        }
+      });
+    }
 
     return {
       statementId: statement.id
