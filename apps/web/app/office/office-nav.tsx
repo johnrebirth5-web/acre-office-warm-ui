@@ -112,6 +112,7 @@ export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) 
   const pathname = usePathname();
   const [currentHash, setCurrentHash] = useState("");
   const [pendingLocationKey, setPendingLocationKey] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navGroups = getNavGroups(currentAccess);
 
   useLayoutEffect(() => {
@@ -147,6 +148,27 @@ export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) 
     }
   }, [actualLocationKey, pendingLocationKey]);
 
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [actualLocationKey]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
   function hasHashVariant(path: string) {
     return navGroups.some((group) => group.items.some((item) => item.href?.startsWith(`${path}#`)));
   }
@@ -175,6 +197,18 @@ export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) 
 
     return pathname === path || pathname.startsWith(`${path}/`);
   }
+
+  function isMobileMenuItemActive(href: string) {
+    return href.includes("#") ? isSidebarItemActive(href) : isMobileSectionActive(href);
+  }
+
+  const mobileActiveEntry =
+    navGroups
+      .flatMap((group) => group.items.map((item) => ({ group, item })))
+      .find(({ item }) => item.href && isMobileMenuItemActive(item.href)) ?? null;
+  const mobileCurrentLabel = mobileActiveEntry?.item.label ?? "Navigation";
+  const mobileCurrentGroup = mobileActiveEntry?.group.title ?? currentOfficeName;
+  const mobileMenuPanelId = "office-mobile-menu-panel";
 
   return (
     <>
@@ -243,49 +277,85 @@ export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) 
         </div>
       </aside>
 
-      <nav className="mobile-rail office-mobile-rail">
-        <Link className={isMobileSectionActive("/office/dashboard") ? "is-active" : ""} href="/office/dashboard">
-          Dash
-        </Link>
-        {canAccessOfficeTasks(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/tasks") ? "is-active" : ""} href="/office/tasks">
-            Tasks
-          </Link>
-        ) : null}
-        {canAccessOffice1099Tracker(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/1099-tracker") ? "is-active" : ""} href="/office/1099-tracker">
-            1099
-          </Link>
-        ) : null}
-        {canViewOfficeTransactions(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/transactions") ? "is-active" : ""} href="/office/transactions">
-            Trans
-          </Link>
-        ) : null}
-        {canViewOfficeAgents(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/agents") ? "is-active" : ""} href="/office/agents">
-            Agents
-          </Link>
-        ) : null}
-        {canAccessAccountActivity(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/activity") ? "is-active" : ""} href="/office/activity">
-            Activity
-          </Link>
-        ) : null}
-        {canViewOfficeLibrary(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/library") ? "is-active" : ""} href="/office/library">
-            Library
-          </Link>
-        ) : null}
-        {canAccessOfficeAdminAccountingWorkspace(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/accounting") ? "is-active" : ""} href="/office/accounting">
-            Acct
-          </Link>
-        ) : null}
-        {canAccessOfficeSettings(currentAccess) ? (
-          <Link className={isMobileSectionActive("/office/settings") ? "is-active" : ""} href="/office/settings">
-            Admin
-          </Link>
+      <nav className={`mobile-rail office-mobile-rail${isMobileMenuOpen ? " is-open" : ""}`} aria-label="Office navigation">
+        <div className="office-mobile-rail-bar">
+          <div className="office-mobile-rail-current">
+            <span>{mobileCurrentGroup}</span>
+            <strong>{mobileCurrentLabel}</strong>
+          </div>
+
+          <button
+            aria-controls={mobileMenuPanelId}
+            aria-expanded={isMobileMenuOpen}
+            aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            className={`office-mobile-menu-button${isMobileMenuOpen ? " is-open" : ""}`}
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            type="button"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
+
+        {isMobileMenuOpen ? (
+          <>
+            <button
+              aria-label="Close navigation menu"
+              className="office-mobile-menu-backdrop"
+              onClick={() => setIsMobileMenuOpen(false)}
+              type="button"
+            />
+
+            <div className="office-mobile-menu-panel" id={mobileMenuPanelId}>
+              {navGroups.map((group) => (
+                <section className="office-mobile-menu-group" key={group.title}>
+                  <header className="office-mobile-menu-header">
+                    <span>{group.icon}</span>
+                    <strong>{group.title}</strong>
+                  </header>
+
+                  <div className="office-mobile-menu-items">
+                    {group.items.map((item) => {
+                      if (item.href) {
+                        const href = item.href;
+
+                        return (
+                          <Link
+                            key={item.label}
+                            className={`office-mobile-menu-link${isMobileMenuItemActive(href) ? " is-active" : ""}`}
+                            href={href}
+                            onClick={() => {
+                              handleNavIntent(href);
+                              setIsMobileMenuOpen(false);
+                            }}
+                          >
+                            {item.label}
+                          </Link>
+                        );
+                      }
+
+                      if (item.label === "Sign out") {
+                        return (
+                          <form action="/api/auth/logout" className="office-mobile-menu-form" key={item.label} method="post">
+                            <button className="office-mobile-menu-link office-mobile-menu-link-button" type="submit">
+                              {item.label}
+                            </button>
+                          </form>
+                        );
+                      }
+
+                      return (
+                        <span className="office-mobile-menu-link office-mobile-menu-link-muted" key={item.label}>
+                          {item.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </>
         ) : null}
       </nav>
     </>
