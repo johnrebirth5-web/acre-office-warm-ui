@@ -2061,9 +2061,9 @@ select {
 
 .bm-transaction-home-icon-svg {
   display: block;
-  width: 15px;
-  height: 15px;
-  transform: translateY(-0.5px);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .bm-transaction-home-icon.is-flagged {

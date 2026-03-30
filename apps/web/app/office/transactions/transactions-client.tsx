@@ -924,28 +924,28 @@ export function TransactionsClient({
                     aria-hidden="true"
                     className="bm-transaction-home-icon-svg"
                     fill="none"
-                    viewBox="0 0 24 24"
+                    viewBox="0 0 20 20"
                   >
                     <path
-                      d="M5.5 10.25 12 5l6.5 5.25"
+                      d="M4.25 8.5 10 4l5.75 4.5"
                       stroke="currentColor"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="1.8"
+                      strokeWidth="1.9"
                     />
                     <path
-                      d="M7.25 9.75V18a.75.75 0 0 0 .75.75h8a.75.75 0 0 0 .75-.75V9.75"
+                      d="M5.75 7.75v7a.75.75 0 0 0 .75.75h7a.75.75 0 0 0 .75-.75v-7"
                       stroke="currentColor"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="1.8"
+                      strokeWidth="1.9"
                     />
                     <path
-                      d="M10.25 18.75V14.5a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 .75.75v4.25"
+                      d="M8.75 15.5v-3.25a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 .75.75v3.25"
                       stroke="currentColor"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="1.8"
+                      strokeWidth="1.9"
                     />
                   </svg>
                 </span>
