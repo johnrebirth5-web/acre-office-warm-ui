@@ -125,6 +125,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
   const activitySubtitle = totalActivityRecords
     ? `Showing ${activityPageStartLabel}-${activityPageEndLabel} of ${totalActivityRecords} audit records`
     : "Showing 0 audit records";
+  const activityPaginationBaseHref = buildActivityHref(normalizedSearchParams, { page: "" });
   const activitySidebar = (
     <SectionCard
       className="office-activity-sections-card"
@@ -210,9 +211,25 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               <span className="office-list-page-button is-disabled">Previous</span>
             )}
 
-            <span className="office-list-page-indicator">
-              Page {activityPage} / {totalActivityPages}
-            </span>
+            <form action={activityPaginationBaseHref} className="office-activity-page-jump" method="get">
+              <label className="office-activity-page-jump-label" htmlFor="activity-page-jump-input">
+                Page
+              </label>
+              <input
+                aria-label="Jump to page"
+                className="office-input office-activity-page-jump-input"
+                defaultValue={activityPage}
+                id="activity-page-jump-input"
+                max={totalActivityPages}
+                min={1}
+                name="page"
+                type="number"
+              />
+              <span className="office-list-page-indicator">/ {totalActivityPages}</span>
+              <Button size="sm" type="submit" variant="secondary">
+                Go
+              </Button>
+            </form>
 
             {activityPage < totalActivityPages ? (
               <Link

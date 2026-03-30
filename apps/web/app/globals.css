@@ -9230,6 +9230,32 @@ a {
   font-size: var(--office-text-meta-size);
 }
 
+.office-activity-pagination {
+  justify-content: center;
+}
+
+.office-activity-page-jump {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.office-activity-page-jump-label {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+  font-weight: 600;
+}
+
+.office-activity-page-jump-input {
+  width: 72px;
+  min-width: 72px;
+  min-height: 34px;
+  padding: 0 10px;
+  text-align: center;
+}
+
 .bm-transaction-status-badge,
 .bm-contacts-table-row .office-status-badge,
 .office-agents-team-table-row .office-status-badge {
