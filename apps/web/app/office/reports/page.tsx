@@ -194,39 +194,44 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
           </DataTableHeader>
 
           <DataTableBody className="office-list-table-body">
-            {workspace.rows.map((row) => (
-              <DataTableRow
-                className="office-list-table-row office-list-table-row-reports"
-                key={row.transactionNumber}
-              >
-                <div className="office-list-table-main">
-                  <strong>
-                    <Link href={row.href}>{row.transactionNumber}</Link>
-                  </strong>
-                  <p>{row.address || "—"}</p>
-                  <div className="office-list-table-main-meta">
-                    <span>{row.invoiceNumber || "No invoice"}</span>
-                    <span>{row.department || "No department"}</span>
-                    <span>{row.representing || "No side"}</span>
-                  </div>
-                </div>
-                <span>{row.creationDate || "—"}</span>
-                <span className="office-list-table-wrap-cell">{row.owner || "—"}</span>
-                <span className="office-list-table-wrap-cell">{row.teamLeader || "—"}</span>
-                <span>{row.transactionType || "—"}</span>
-                <StatusBadge
-                  className="office-list-table-status"
-                  tone={getStatusTone(row.status)}
+            {workspace.rows.map((row) => {
+              const primaryLabel = row.transactionLabel || row.address || row.transactionNumber;
+              const secondaryLabel = row.address && row.address !== primaryLabel ? row.address : "";
+
+              return (
+                <DataTableRow
+                  className="office-list-table-row office-list-table-row-reports"
+                  key={row.transactionNumber}
                 >
-                  {row.status}
-                </StatusBadge>
-                <div className="office-list-table-cell-stack office-report-table-amounts">
-                  <strong>{row.purchasedPrice || "—"}</strong>
-                  <p>{row.grossCommission || "—"}</p>
-                </div>
-                <span>{row.closingMoveInDate || "—"}</span>
-              </DataTableRow>
-            ))}
+                  <div className="office-list-table-main">
+                    <strong>
+                      <Link href={row.href}>{primaryLabel}</Link>
+                    </strong>
+                    {secondaryLabel ? <p>{secondaryLabel}</p> : null}
+                    <div className="office-list-table-main-meta">
+                      <span>{row.invoiceNumber || "No invoice"}</span>
+                      <span>{row.department || "No department"}</span>
+                      <span>{row.representing || "No side"}</span>
+                    </div>
+                  </div>
+                  <span>{row.creationDate || "—"}</span>
+                  <span className="office-list-table-wrap-cell">{row.owner || "—"}</span>
+                  <span className="office-list-table-wrap-cell">{row.teamLeader || "—"}</span>
+                  <span>{row.transactionType || "—"}</span>
+                  <StatusBadge
+                    className="office-list-table-status"
+                    tone={getStatusTone(row.status)}
+                  >
+                    {row.status}
+                  </StatusBadge>
+                  <div className="office-list-table-cell-stack office-report-table-amounts">
+                    <strong>{row.purchasedPrice || "—"}</strong>
+                    <p>{row.grossCommission || "—"}</p>
+                  </div>
+                  <span>{row.closingMoveInDate || "—"}</span>
+                </DataTableRow>
+              );
+            })}
 
             {workspace.rows.length === 0 ? (
               <EmptyState

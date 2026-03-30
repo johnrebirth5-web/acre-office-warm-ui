@@ -74,6 +74,7 @@ export type OfficeTransactionReportColumn = {
 
 export type OfficeTransactionReportRow = {
   transactionNumber: string;
+  transactionLabel: string;
   invoiceNumber: string;
   creationDate: string;
   owner: string;
@@ -1120,6 +1121,17 @@ function getCompanyReferralEmployeeName(
   return companyReferralEmployeeName?.trim() ?? "";
 }
 
+function getReportTransactionLabel(transaction: Pick<TransactionReportRecord, "id" | "title" | "address">) {
+  const normalizedTitle = transaction.title.trim();
+  const normalizedAddress = transaction.address.trim();
+
+  if (normalizedTitle && normalizedAddress && normalizedTitle.localeCompare(normalizedAddress, undefined, { sensitivity: "accent" }) !== 0) {
+    return normalizedTitle;
+  }
+
+  return normalizedTitle || normalizedAddress || transaction.id;
+}
+
 function buildDateColumnWhere(
   column: keyof Pick<Prisma.TransactionWhereInput, "createdAt" | "closingDate" | "moveInDate">,
   operator: OfficeTransactionReportDateOperator | "",
@@ -1558,6 +1570,7 @@ function buildReportRow(
 
   return {
     transactionNumber: transaction.id,
+    transactionLabel: getReportTransactionLabel(transaction),
     invoiceNumber: additionalFields.invoiceNumber ?? "",
     creationDate: formatDateValue(transaction.createdAt),
     owner: getOwnerLabel(transaction.ownerMembership),
