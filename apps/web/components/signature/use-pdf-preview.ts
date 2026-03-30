@@ -9,13 +9,18 @@ export type PdfPreviewPage = {
   imageUrl: string;
 };
 
-let pdfJsImportPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null = null;
+type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+
+const pdfJsModuleUrl = "/api/pdfjs/pdf.mjs";
+const pdfJsWorkerUrl = "/api/pdfjs/pdf.worker.mjs";
+
+let pdfJsImportPromise: Promise<PdfJsModule> | null = null;
 
 async function loadPdfJs() {
   if (!pdfJsImportPromise) {
-    pdfJsImportPromise = import("pdfjs-dist/legacy/build/pdf.mjs").then((pdfjs) => {
+    pdfJsImportPromise = import(/* webpackIgnore: true */ pdfJsModuleUrl).then((pdfjs: PdfJsModule) => {
       if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.mjs", import.meta.url).toString();
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfJsWorkerUrl;
       }
 
       return pdfjs;
