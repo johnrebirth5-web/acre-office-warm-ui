@@ -1,6 +1,6 @@
 {
   "name": "@acre/db",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
@@ -14,7 +14,7 @@
     "db:validate": "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/acre prisma validate --schema prisma/schema.prisma"
   },
   "dependencies": {
-    "@acre/auth": "0.1.0",
+    "@acre/auth": "1.0.0",
     "@prisma/client": "^6.5.0",
     "bcryptjs": "^3.0.3"
   },

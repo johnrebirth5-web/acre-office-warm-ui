@@ -1,6 +1,6 @@
 {
   "name": "@acre/web",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
@@ -10,10 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@acre/auth": "0.1.0",
-    "@acre/backoffice": "0.1.0",
-    "@acre/db": "0.1.0",
-    "@acre/ui": "0.1.0",
+    "@acre/auth": "1.0.0",
+    "@acre/backoffice": "1.0.0",
+    "@acre/db": "1.0.0",
+    "@acre/ui": "1.0.0",
     "@react-pdf/renderer": "^4.3.2",
     "next": "^16.1.6",
     "nodemailer": "^8.0.4",

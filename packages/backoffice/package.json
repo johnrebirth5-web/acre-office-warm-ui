@@ -1,11 +1,11 @@
 {
   "name": "@acre/backoffice",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
   "dependencies": {
-    "@acre/auth": "0.1.0"
+    "@acre/auth": "1.0.0"
   },
   "scripts": {
     "build": "tsc --noEmit",
