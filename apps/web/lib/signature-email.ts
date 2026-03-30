@@ -1,3 +1,5 @@
+import { resolve4 } from "node:dns/promises";
+import { isIP } from "node:net";
 import nodemailer from "nodemailer";
 import { resolveOrganizationSignatureSmtpConfig } from "@acre/db";
 
@@ -52,6 +54,23 @@ function buildTransportKey(config: SmtpConfig) {
     config.fromName,
     config.defaultReplyTo
   ]);
+}
+
+async function resolvePreferredSmtpHost(host: string) {
+  if (isIP(host)) {
+    return host;
+  }
+
+  try {
+    const addresses = await resolve4(host);
+    if (addresses[0]) {
+      return addresses[0];
+    }
+  } catch (_error) {
+    // Fall back to the configured host when IPv4 lookup is unavailable.
+  }
+
+  return host;
 }
 
 function escapeHtml(value: string) {
@@ -143,21 +162,27 @@ The finalized signed PDF is attached to this email.
 `;
 }
 
-function getSignatureMailer(config: SmtpConfig) {
-  const transportKey = buildTransportKey(config);
+async function getSignatureMailer(config: SmtpConfig) {
+  const resolvedHost = await resolvePreferredSmtpHost(config.host);
+  const transportKey = `${buildTransportKey(config)}:${resolvedHost}`;
 
   if (globalForSignatureMail.__acreSignatureMailer?.key === transportKey) {
     return globalForSignatureMail.__acreSignatureMailer.transport;
   }
 
   const transport = nodemailer.createTransport({
-    host: config.host,
+    host: resolvedHost,
     port: config.port,
     secure: config.secure,
     auth: {
       user: config.user,
       pass: config.password
-    }
+    },
+    tls: isIP(resolvedHost)
+      ? {
+          servername: config.host
+        }
+      : undefined
   });
 
   if (process.env.NODE_ENV !== "production") {
@@ -187,7 +212,7 @@ async function resolveSignatureMailerContext(organizationId: string) {
 
   return {
     config,
-    transport: getSignatureMailer(config)
+    transport: await getSignatureMailer(config)
   };
 }
 
