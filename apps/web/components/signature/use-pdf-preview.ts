@@ -31,8 +31,7 @@ export function usePdfPreview(documentUrl: string) {
         }
 
         const bytes = new Uint8Array(await response.arrayBuffer());
-        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc ||= new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString();
+        const pdfjs = await import("pdfjs-dist/webpack.mjs");
 
         const pdfDocument = await pdfjs.getDocument({
           data: bytes
