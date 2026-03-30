@@ -27,6 +27,7 @@ type OfficeActivityPageProps = {
     objectType?: string;
     startDate?: string;
     endDate?: string;
+    page?: string;
   }>;
 };
 
@@ -38,7 +39,19 @@ type ActivitySearchParams = {
   objectType?: string;
   startDate?: string;
   endDate?: string;
+  page?: string;
 };
+
+const ACTIVITY_PAGE_SIZE = 10;
+
+function normalizePage(value: string | undefined) {
+  if (!value) {
+    return 1;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
 
 function buildActivityHref(currentSearchParams: ActivitySearchParams, nextSearchParams: ActivitySearchParams) {
   const merged = new URLSearchParams();
@@ -50,6 +63,7 @@ function buildActivityHref(currentSearchParams: ActivitySearchParams, nextSearch
     objectType: currentSearchParams.objectType,
     startDate: currentSearchParams.startDate,
     endDate: currentSearchParams.endDate,
+    page: currentSearchParams.page,
     ...nextSearchParams
   };
 
@@ -87,6 +101,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
   });
 
   const selectedView = snapshot.selectedView;
+  const currentPage = normalizePage(searchParams.page);
   const normalizedSearchParams = {
     view: selectedView === "all" ? "" : selectedView,
     activitySection: selectedView === "activity" ? snapshot.activitySelectedSection : "",
@@ -94,8 +109,22 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
     actorMembershipId: snapshot.filters.actorMembershipId,
     objectType: snapshot.filters.objectType === "all" ? "" : snapshot.filters.objectType,
     startDate: snapshot.filters.startDate,
-    endDate: snapshot.filters.endDate
+    endDate: snapshot.filters.endDate,
+    page: ""
   };
+  const totalActivityRecords = snapshot.activityEvents.length;
+  const totalActivityPages = Math.max(Math.ceil(totalActivityRecords / ACTIVITY_PAGE_SIZE), 1);
+  const activityPage = Math.min(currentPage, totalActivityPages);
+  const activityPageStartIndex = totalActivityRecords === 0 ? 0 : (activityPage - 1) * ACTIVITY_PAGE_SIZE;
+  const paginatedActivityEvents = snapshot.activityEvents.slice(
+    activityPageStartIndex,
+    activityPageStartIndex + ACTIVITY_PAGE_SIZE
+  );
+  const activityPageStartLabel = totalActivityRecords === 0 ? 0 : activityPageStartIndex + 1;
+  const activityPageEndLabel = totalActivityRecords === 0 ? 0 : activityPageStartIndex + paginatedActivityEvents.length;
+  const activitySubtitle = totalActivityRecords
+    ? `Showing ${activityPageStartLabel}-${activityPageEndLabel} of ${totalActivityRecords} audit records`
+    : "Showing 0 audit records";
   const activitySidebar = (
     <SectionCard
       className="office-activity-sections-card"
@@ -109,7 +138,8 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             href={buildActivityHref(normalizedSearchParams, {
               view: "activity",
               activitySection: section.key,
-              alertSection: ""
+              alertSection: "",
+              page: ""
             })}
             key={section.key}
           >
@@ -124,12 +154,12 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
     selectedView !== "alerts" ? (
       <SectionCard
         className="office-activity-log-card"
-        subtitle={`Showing ${snapshot.activityEvents.length} audit records`}
+        subtitle={activitySubtitle}
         title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : "Activity log"}
       >
         <div className="bm-activity-records">
-          {snapshot.activityEvents.length ? (
-            snapshot.activityEvents.map((event) => (
+          {paginatedActivityEvents.length ? (
+            paginatedActivityEvents.map((event) => (
               <article className="bm-activity-record" key={event.id}>
                 <div className="bm-activity-record-top">
                   <div className="bm-activity-record-copy">
@@ -165,6 +195,39 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             <EmptyState description="Try a wider date range or a broader view filter." title="No audit events are currently available for this scope." />
           )}
         </div>
+        {totalActivityRecords > ACTIVITY_PAGE_SIZE ? (
+          <div className="office-list-page-pagination office-activity-pagination">
+            {activityPage > 1 ? (
+              <Link
+                className="office-list-page-button"
+                href={buildActivityHref(normalizedSearchParams, {
+                  page: activityPage - 1 > 1 ? String(activityPage - 1) : ""
+                })}
+              >
+                Previous
+              </Link>
+            ) : (
+              <span className="office-list-page-button is-disabled">Previous</span>
+            )}
+
+            <span className="office-list-page-indicator">
+              Page {activityPage} / {totalActivityPages}
+            </span>
+
+            {activityPage < totalActivityPages ? (
+              <Link
+                className="office-list-page-button"
+                href={buildActivityHref(normalizedSearchParams, {
+                  page: String(activityPage + 1)
+                })}
+              >
+                Next
+              </Link>
+            ) : (
+              <span className="office-list-page-button is-disabled">Next</span>
+            )}
+          </div>
+        ) : null}
       </SectionCard>
     ) : null;
 
@@ -194,7 +257,8 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             href={buildActivityHref(normalizedSearchParams, {
               view: "all",
               activitySection: "",
-              alertSection: ""
+              alertSection: "",
+              page: ""
             })}
           >
             All
@@ -203,7 +267,8 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "activity" ? " is-active" : ""}`}
             href={buildActivityHref(normalizedSearchParams, {
               view: "activity",
-              alertSection: ""
+              alertSection: "",
+              page: ""
             })}
           >
             Activity only
@@ -212,7 +277,8 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "alerts" ? " is-active" : ""}`}
             href={buildActivityHref(normalizedSearchParams, {
               view: "alerts",
-              activitySection: ""
+              activitySection: "",
+              page: ""
             })}
           >
             Alerts only

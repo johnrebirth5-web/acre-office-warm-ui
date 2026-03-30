@@ -13,6 +13,7 @@ Provide a real account activity + operational alerts module for Back Office, wit
   - operational alerts
   - left-side grouped sections
   - actor / object type / date range filtering
+  - paginated activity stream with 10 audit records per page
   - internal comments in the same stream
 - major current workflow families already write events:
   - auth
