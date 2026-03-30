@@ -9,6 +9,7 @@ export const databaseModules = [
   "memberships",
   "membership_notification_preferences",
   "organization_table_layouts",
+  "organization_smtp_settings",
   "listings",
   "listing_share_links",
   "clients",
@@ -255,6 +256,12 @@ export {
   saveOfficeTransactionReportSearchLayout
 } from "./reports";
 export { getOfficeTableLayouts, saveOfficeTableLayout, type OfficeTableLayoutColumn, type OfficeTableLayoutMap } from "./table-layouts";
+export {
+  deleteOrganizationSmtpSettings,
+  getOfficeEmailDeliverySettingsSnapshot,
+  resolveOrganizationSignatureSmtpConfig,
+  saveOrganizationSmtpSettings
+} from "./smtp-settings";
 export {
   getOfficeFieldSettingsSnapshot,
   getOfficeTransactionIntakeSchema,
@@ -531,6 +538,12 @@ export type {
   UpdateLibraryDocumentInput,
   UpdateLibraryFolderInput
 } from "./library";
+export type {
+  DeleteOrganizationSmtpSettingsInput,
+  OfficeEmailDeliverySettingsSnapshot,
+  ResolveOrganizationSignatureSmtpConfigResult,
+  SaveOrganizationSmtpSettingsInput
+} from "./smtp-settings";
 export type {
   CreateOfficeCustomFieldDefinitionInput,
   CreateOfficeTransactionCustomFieldDefinitionInput,

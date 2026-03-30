@@ -62,6 +62,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         `${senderDisplayName} sent you a document to review and sign in Acre.`;
 
       await sendSignatureRequestEmail({
+        organizationId: context.currentOrganization.id,
         to: snapshot.signatureRequest.recipientEmail,
         subject,
         message,

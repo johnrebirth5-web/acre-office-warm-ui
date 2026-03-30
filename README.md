@@ -47,6 +47,7 @@
   - `Accounting`
   - `Settings > Company`
   - `Settings > Roles`
+  - `Settings > Email delivery`
   - `Settings > Users`
   - `Settings > Teams`
   - `Settings > Fields`
@@ -178,6 +179,7 @@
     - 单签署人公开链接
     - 拖拽签区编辑
     - 真实 SMTP 邮件发送
+    - 管理员在 `Settings > Email delivery` 中配置组织级 SMTP / 发件信息，未配置时继续回退到 env fallback
     - 公共签署页手写 / 输入生成 / 上传图片三种签名方式
     - signed PDF 归档回 transaction documents
     当前没有第三方签名 vendor integration

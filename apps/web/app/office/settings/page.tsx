@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { canAccessOfficeCommissionWorkspace, canAccessOfficeSettings } from "@acre/auth";
+import { canAccessOfficeCommissionWorkspace, canAccessOfficeSettings, canManageOfficeSettings } from "@acre/auth";
 import { PageHeader, PageHeaderSummary, PageShell, SectionCard, StatCard, SummaryChip } from "@acre/ui";
 import { getOfficeSettingsSummarySnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -60,6 +60,18 @@ export default async function OfficeSettingsPage() {
             Open role templates
           </Link>
         </SectionCard>
+
+        {canManageOfficeSettings(context.currentMembership) ? (
+          <SectionCard subtitle="Administrator-managed SMTP delivery and sender defaults for signature requests." title="Email delivery">
+            <p className="office-settings-copy">
+              Configure the SMTP host, sender identity, and reply-to defaults that power outgoing signature request emails without touching
+              server env files.
+            </p>
+            <Link className="office-settings-link" href="/office/settings/email-delivery">
+              Open email delivery
+            </Link>
+          </SectionCard>
+        ) : null}
 
         <SectionCard subtitle="Operational roster structure." title="Teams">
           <p className="office-settings-copy">

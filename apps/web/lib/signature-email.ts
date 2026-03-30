@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
+import { resolveOrganizationSignatureSmtpConfig } from "@acre/db";
 
 type SignatureEmailInput = {
+  organizationId: string;
   to: string;
   subject: string;
   message: string;
@@ -23,42 +25,23 @@ type SmtpConfig = {
 };
 
 const globalForSignatureMail = globalThis as typeof globalThis & {
-  __acreSignatureMailer?: ReturnType<typeof nodemailer.createTransport>;
+  __acreSignatureMailer?: {
+    key: string;
+    transport: ReturnType<typeof nodemailer.createTransport>;
+  };
 };
 
-function parseBooleanEnv(value: string | undefined, fallback: boolean) {
-  if (!value) {
-    return fallback;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-}
-
-function getSignatureSmtpConfig(): SmtpConfig {
-  const host = process.env.ACRE_SMTP_HOST?.trim();
-  const user = process.env.ACRE_SMTP_USER?.trim();
-  const password = process.env.ACRE_SMTP_PASSWORD?.trim();
-  const fromEmail = process.env.ACRE_SIGNATURE_FROM_EMAIL?.trim();
-
-  if (!host || !user || !password || !fromEmail) {
-    throw new Error(
-      "Signature email delivery is not configured. Set ACRE_SMTP_HOST, ACRE_SMTP_USER, ACRE_SMTP_PASSWORD, and ACRE_SIGNATURE_FROM_EMAIL."
-    );
-  }
-
-  const port = Number(process.env.ACRE_SMTP_PORT?.trim() || "587");
-
-  return {
-    host,
-    port: Number.isFinite(port) ? port : 587,
-    secure: parseBooleanEnv(process.env.ACRE_SMTP_SECURE, port === 465),
-    user,
-    password,
-    fromEmail,
-    fromName: process.env.ACRE_SIGNATURE_FROM_NAME?.trim() || "Acre Signatures",
-    defaultReplyTo: process.env.ACRE_SIGNATURE_REPLY_TO?.trim() || null
-  };
+function buildTransportKey(config: SmtpConfig) {
+  return JSON.stringify([
+    config.host,
+    config.port,
+    config.secure,
+    config.user,
+    config.password,
+    config.fromEmail,
+    config.fromName,
+    config.defaultReplyTo
+  ]);
 }
 
 function escapeHtml(value: string) {
@@ -115,12 +98,13 @@ ${input.signingLink}
 `;
 }
 
-function getSignatureMailer() {
-  if (globalForSignatureMail.__acreSignatureMailer) {
-    return globalForSignatureMail.__acreSignatureMailer;
+function getSignatureMailer(config: SmtpConfig) {
+  const transportKey = buildTransportKey(config);
+
+  if (globalForSignatureMail.__acreSignatureMailer?.key === transportKey) {
+    return globalForSignatureMail.__acreSignatureMailer.transport;
   }
 
-  const config = getSignatureSmtpConfig();
   const transport = nodemailer.createTransport({
     host: config.host,
     port: config.port,
@@ -132,15 +116,30 @@ function getSignatureMailer() {
   });
 
   if (process.env.NODE_ENV !== "production") {
-    globalForSignatureMail.__acreSignatureMailer = transport;
+    globalForSignatureMail.__acreSignatureMailer = {
+      key: transportKey,
+      transport
+    };
   }
 
   return transport;
 }
 
 export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
-  const config = getSignatureSmtpConfig();
-  const transport = getSignatureMailer();
+  const resolved = await resolveOrganizationSignatureSmtpConfig({
+    organizationId: input.organizationId
+  });
+  const config: SmtpConfig = {
+    host: resolved.config.host,
+    port: resolved.config.port,
+    secure: resolved.config.secure,
+    user: resolved.config.user,
+    password: resolved.config.password,
+    fromEmail: resolved.config.fromEmail,
+    fromName: resolved.config.fromName,
+    defaultReplyTo: resolved.config.defaultReplyTo
+  };
+  const transport = getSignatureMailer(config);
 
   await transport.sendMail({
     from: `"${config.fromName}" <${config.fromEmail}>`,

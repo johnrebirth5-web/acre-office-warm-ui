@@ -13,7 +13,7 @@
 - `Office Reports` 的 CSV 导出 route 也依赖 `DATABASE_URL`
 - `/api/office/activity/comments` 也依赖 `DATABASE_URL`
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
-- transaction detail 下的外部签署邮件发送额外依赖 SMTP / signature mailer 环境变量
+- transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` SMTP 配置，或 SMTP / signature mailer 环境变量 fallback
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
 
@@ -148,17 +148,37 @@ ACRE_BASE_URL="https://acresystem.us"
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
 
+### `ACRE_SETTINGS_ENCRYPTION_SECRET`
+
+用途：
+
+- 为系统内保存的 SMTP 密码做加密 / 解密
+- 当前由 `packages/db/src/smtp-settings.ts` 读取
+- 当前会优先使用这个值；未设置时会回退到 `ACRE_SESSION_SECRET`
+
+是否必填：
+
+- 不是强制必填
+- 如果没有配置它，但已经配置了 `ACRE_SESSION_SECRET`，系统内 SMTP 设置仍然可以工作
+- 如果两者都缺失，系统内保存的 SMTP 密码无法写入或解密
+
+示例格式：
+
+```env
+ACRE_SETTINGS_ENCRYPTION_SECRET="replace-with-a-long-random-string"
+```
+
 ### `ACRE_SMTP_HOST`
 
 用途：
 
-- transaction document 外部签署请求邮件的 SMTP host
-- 当前由 `apps/web/lib/signature-email.ts` 读取
+- 作为 transaction document 外部签署请求邮件的 SMTP host fallback
+- 当前仅在 `Settings > Email delivery` 还没有保存组织级 SMTP 配置时才会被读取
 
 是否必填：
 
-- 对外部签署邮件发送是必填
-- 不发送签署邮件时不是必填
+- 只在你继续使用 env fallback，而不是系统内 SMTP 配置时才是必填
+- 如果已经在 `Settings > Email delivery` 保存可用 SMTP 配置，这个值可以不填
 
 示例格式：
 
@@ -168,14 +188,14 @@ ACRE_SMTP_HOST="smtp.mailgun.org"
 
 缺失后的影响：
 
-- `/api/office/transactions/:transactionId/signatures/:signatureRequestId` 的 `send` / `resend` 会失败
+- 当系统内 SMTP 配置也不存在时，`/api/office/transactions/:transactionId/signatures/:signatureRequestId` 的 `send` / `resend` 会失败
 - request 不会伪装成已发送
 
 ### `ACRE_SMTP_PORT`
 
 用途：
 
-- transaction document 外部签署邮件 SMTP port
+- transaction document 外部签署邮件 SMTP port fallback
 
 是否必填：
 
@@ -192,7 +212,7 @@ ACRE_SMTP_PORT="587"
 
 用途：
 
-- 控制 SMTP transport 是否走 secure 模式
+- 控制 fallback SMTP transport 是否走 secure 模式
 
 是否必填：
 
@@ -209,11 +229,11 @@ ACRE_SMTP_SECURE="false"
 
 用途：
 
-- transaction document 外部签署邮件 SMTP 用户名
+- transaction document 外部签署邮件 SMTP 用户名 fallback
 
 是否必填：
 
-- 对外部签署邮件发送是必填
+- 只在继续使用 env fallback 时必填
 
 示例格式：
 
@@ -225,11 +245,11 @@ ACRE_SMTP_USER="postmaster@example.com"
 
 用途：
 
-- transaction document 外部签署邮件 SMTP 密码
+- transaction document 外部签署邮件 SMTP 密码 fallback
 
 是否必填：
 
-- 对外部签署邮件发送是必填
+- 只在继续使用 env fallback 时必填
 
 示例格式：
 
@@ -243,10 +263,11 @@ ACRE_SMTP_PASSWORD="replace-with-smtp-password"
 
 - transaction document 外部签署邮件的实际发件邮箱
 - 当前首版是单一公共发件邮箱，再通过邮件内容展示 agent 署名
+- 当前作为 fallback 发件邮箱，仅在 `Settings > Email delivery` 还没有保存组织级 sender defaults 时才会被读取
 
 是否必填：
 
-- 对外部签署邮件发送是必填
+- 只在继续使用 env fallback 时必填
 
 示例格式：
 
@@ -258,7 +279,7 @@ ACRE_SIGNATURE_FROM_EMAIL="signatures@acresystem.us"
 
 用途：
 
-- transaction document 外部签署邮件的发件人名称
+- transaction document 外部签署邮件的 fallback 发件人名称
 
 是否必填：
 
@@ -275,7 +296,7 @@ ACRE_SIGNATURE_FROM_NAME="Acre Signatures"
 
 用途：
 
-- transaction document 外部签署邮件的默认 reply-to
+- transaction document 外部签署邮件的 fallback 默认 reply-to
 - 当前允许 per-request sender reply-to 覆盖它
 
 是否必填：

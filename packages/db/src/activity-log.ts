@@ -40,6 +40,8 @@ export const activityLogActions = {
   settingsUserPermissionsChanged: "settings.user_permissions_changed",
   settingsUserPermissionsReset: "settings.user_permissions_reset",
   settingsTableLayoutUpdated: "settings.table_layout_updated",
+  settingsSmtpUpdated: "settings.smtp_updated",
+  settingsSmtpDeleted: "settings.smtp_deleted",
   settingsTransactionSearchLayoutUpdated: "settings.transaction_search_layout_updated",
   settingsTransactionReportSearchLayoutUpdated: "settings.transaction_report_search_layout_updated",
   settingsRequiredContactRolesChanged: "settings.required_contact_roles_changed",
@@ -156,6 +158,7 @@ export type ActivityLogEntityType =
   | "transaction_report_search_layout"
   | "checklist_template"
   | "organization_table_layout"
+  | "organization_smtp_setting"
   | "organization_role_template"
   | "membership_permission_override"
   | "transaction"
@@ -407,6 +410,8 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.user_deactivated": "User deactivated",
   "settings.office_access_changed": "Office access changed",
   "settings.table_layout_updated": "Shared table layout updated",
+  "settings.smtp_updated": "Email delivery updated",
+  "settings.smtp_deleted": "Email delivery removed",
   "settings.transaction_search_layout_updated": "Transaction search layout updated",
   "settings.transaction_report_search_layout_updated": "Reports search layout updated",
   "settings.required_contact_roles_changed": "Required contact roles changed",
@@ -536,6 +541,8 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.settingsUserPermissionsChanged ||
       action === activityLogActions.settingsUserPermissionsReset ||
       action === activityLogActions.settingsTableLayoutUpdated ||
+      action === activityLogActions.settingsSmtpUpdated ||
+      action === activityLogActions.settingsSmtpDeleted ||
       action === activityLogActions.settingsTransactionSearchLayoutUpdated ||
       action === activityLogActions.settingsTransactionReportSearchLayoutUpdated ||
       action === activityLogActions.agentOnboardingItemCreated ||
@@ -1132,6 +1139,10 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "changed office access";
     case activityLogActions.settingsTableLayoutUpdated:
       return "updated shared table column widths";
+    case activityLogActions.settingsSmtpUpdated:
+      return "updated email delivery settings";
+    case activityLogActions.settingsSmtpDeleted:
+      return "removed email delivery settings";
     case activityLogActions.settingsTransactionSearchLayoutUpdated:
       return "updated the transaction search layout";
     case activityLogActions.settingsTransactionReportSearchLayoutUpdated:
