@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, CheckboxField, FormField, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
 import type { OfficeSignatureAuditEntry, OfficeSignatureField, OfficeSignatureRequest, OfficeTransactionDocument } from "@acre/db";
@@ -28,12 +28,39 @@ type SignatureDraftState = {
   senderReplyTo: string;
 };
 
+type FieldGestureState =
+  | {
+      mode: "move";
+      fieldId: string;
+      pageNumber: number;
+      pointerOffsetX: number;
+      pointerOffsetY: number;
+    }
+  | {
+      mode: "resize";
+      fieldId: string;
+      pageNumber: number;
+      startPointerX: number;
+      startPointerY: number;
+      startWidth: number;
+      startHeight: number;
+    };
+
 const fieldDefaults: Record<OfficeSignatureField["fieldType"], { label: string; width: number; height: number; fontStyle?: string }> = {
   signature: { label: "Signature", width: 0.26, height: 0.08, fontStyle: "signature" },
   date: { label: "Date", width: 0.18, height: 0.05 },
   name: { label: "Name", width: 0.24, height: 0.05 },
   text: { label: "Text", width: 0.24, height: 0.06 }
 };
+
+const minimumFieldWidth = 0.08;
+const minimumFieldHeight = 0.04;
+const fieldPadding = 0.02;
+const fieldBoundary = 0.98;
+
+function clampFieldMetric(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
 
 function buildDraftState(
   document: OfficeTransactionDocument,
@@ -89,10 +116,12 @@ export function SignatureRequestEditor({
   const [auditEntries] = useState<OfficeSignatureAuditEntry[]>(initialAuditEntries);
   const [selectedTool, setSelectedTool] = useState<OfficeSignatureField["fieldType"]>("signature");
   const [selectedFieldId, setSelectedFieldId] = useState<string>(initialFields[0]?.id ?? "");
-  const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
+  const [activeGesture, setActiveGesture] = useState<FieldGestureState | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const previewCanvasRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const fieldsRef = useRef(fields);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedFieldId) ?? null,
@@ -100,22 +129,64 @@ export function SignatureRequestEditor({
   );
 
   useEffect(() => {
-    if (!draggingFieldId) {
+    fieldsRef.current = fields;
+  }, [fields]);
+
+  useEffect(() => {
+    if (!activeGesture) {
       return;
     }
 
-    function handlePointerUp() {
-      setDraggingFieldId(null);
+    const gesture = activeGesture;
+
+    function handlePointerMove(event: PointerEvent) {
+      const previewCanvas = previewCanvasRefs.current[gesture.pageNumber];
+      const field = fieldsRef.current.find((entry) => entry.id === gesture.fieldId);
+
+      if (!previewCanvas || !field || field.page !== gesture.pageNumber) {
+        return;
+      }
+
+      const bounds = previewCanvas.getBoundingClientRect();
+      const relativeX = (event.clientX - bounds.left) / bounds.width;
+      const relativeY = (event.clientY - bounds.top) / bounds.height;
+
+      if (gesture.mode === "move") {
+        updateField(field.id, {
+          x: clampFieldMetric(relativeX - gesture.pointerOffsetX, fieldPadding, fieldBoundary - field.width),
+          y: clampFieldMetric(relativeY - gesture.pointerOffsetY, fieldPadding, fieldBoundary - field.height)
+        });
+        return;
+      }
+
+      updateField(field.id, {
+        width: clampFieldMetric(
+          gesture.startWidth + (relativeX - gesture.startPointerX),
+          minimumFieldWidth,
+          fieldBoundary - field.x
+        ),
+        height: clampFieldMetric(
+          gesture.startHeight + (relativeY - gesture.startPointerY),
+          minimumFieldHeight,
+          fieldBoundary - field.y
+        )
+      });
     }
 
+    function handlePointerUp() {
+      setActiveGesture(null);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointercancel", handlePointerUp);
 
     return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [draggingFieldId]);
+  }, [activeGesture]);
 
   function updateDraftField(field: keyof SignatureDraftState, value: string) {
     setDraftState((current) => ({
@@ -155,8 +226,8 @@ export function SignatureRequestEditor({
       fieldType: selectedTool,
       label: defaults.label,
       page: pageNumber,
-      x: Math.min(0.92 - defaults.width, Math.max(0.02, relativeX - defaults.width / 2)),
-      y: Math.min(0.94 - defaults.height, Math.max(0.02, relativeY - defaults.height / 2)),
+      x: clampFieldMetric(relativeX - defaults.width / 2, fieldPadding, fieldBoundary - defaults.width),
+      y: clampFieldMetric(relativeY - defaults.height / 2, fieldPadding, fieldBoundary - defaults.height),
       width: defaults.width,
       height: defaults.height,
       required: true,
@@ -170,31 +241,54 @@ export function SignatureRequestEditor({
     setSuccessMessage("");
   }
 
-  function handleFieldPointerDown(fieldId: string, event: React.PointerEvent<HTMLDivElement>) {
+  function handleFieldPointerDown(fieldId: string, pageNumber: number, event: React.PointerEvent<HTMLDivElement>) {
     event.stopPropagation();
-    setDraggingFieldId(fieldId);
     setSelectedFieldId(fieldId);
-  }
+    const previewCanvas = previewCanvasRefs.current[pageNumber];
+    const field = fieldsRef.current.find((entry) => entry.id === fieldId);
 
-  function handleFieldPointerMove(pageNumber: number, event: React.PointerEvent<HTMLDivElement>) {
-    if (!draggingFieldId) {
+    if (!previewCanvas || !field) {
       return;
     }
 
-    const currentTarget = event.currentTarget;
-    const bounds = currentTarget.getBoundingClientRect();
-    const field = fields.find((entry) => entry.id === draggingFieldId);
-
-    if (!field || field.page !== pageNumber) {
-      return;
-    }
-
+    const bounds = previewCanvas.getBoundingClientRect();
     const relativeX = (event.clientX - bounds.left) / bounds.width;
     const relativeY = (event.clientY - bounds.top) / bounds.height;
-    updateField(field.id, {
-      x: Math.min(0.98 - field.width, Math.max(0.02, relativeX - field.width / 2)),
-      y: Math.min(0.98 - field.height, Math.max(0.02, relativeY - field.height / 2))
+
+    setActiveGesture({
+      mode: "move",
+      fieldId,
+      pageNumber,
+      pointerOffsetX: relativeX - field.x,
+      pointerOffsetY: relativeY - field.y
     });
+  }
+
+  function handleResizePointerDown(fieldId: string, pageNumber: number, event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    event.preventDefault();
+    setSelectedFieldId(fieldId);
+    const previewCanvas = previewCanvasRefs.current[pageNumber];
+    const field = fieldsRef.current.find((entry) => entry.id === fieldId);
+
+    if (!previewCanvas || !field) {
+      return;
+    }
+
+    const bounds = previewCanvas.getBoundingClientRect();
+    setActiveGesture({
+      mode: "resize",
+      fieldId,
+      pageNumber,
+      startPointerX: (event.clientX - bounds.left) / bounds.width,
+      startPointerY: (event.clientY - bounds.top) / bounds.height,
+      startWidth: field.width,
+      startHeight: field.height
+    });
+  }
+
+  function setPreviewCanvasRef(pageNumber: number, node: HTMLDivElement | null) {
+    previewCanvasRefs.current[pageNumber] = node;
   }
 
   function removeField(fieldId: string) {
@@ -358,7 +452,7 @@ export function SignatureRequestEditor({
           <div className="bm-card-head">
             <div>
               <h3>PDF signature editor</h3>
-              <span>Select a field type, click the PDF to place it, then drag fields into the final position.</span>
+              <span>Select a field type, click the PDF to place it, then drag or resize fields into the final position.</span>
             </div>
             {initialRequest ? <StatusBadge tone={getRequestTone(requestStatus)}>{requestStatus}</StatusBadge> : null}
           </div>
@@ -386,7 +480,7 @@ export function SignatureRequestEditor({
                 <div
                   className="office-signature-preview-canvas"
                   onClick={(event) => handleAddField(page.pageNumber, event)}
-                  onPointerMove={(event) => handleFieldPointerMove(page.pageNumber, event)}
+                  ref={(node) => setPreviewCanvasRef(page.pageNumber, node)}
                 >
                   <img alt={`Document page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
                   {fields
@@ -396,7 +490,7 @@ export function SignatureRequestEditor({
                         className={`office-signature-field-token${selectedFieldId === field.id ? " is-selected" : ""}`}
                         key={field.id}
                         onClick={(event) => event.stopPropagation()}
-                        onPointerDown={(event) => handleFieldPointerDown(field.id, event)}
+                        onPointerDown={(event) => handleFieldPointerDown(field.id, page.pageNumber, event)}
                         style={{
                           left: `${field.x * 100}%`,
                           top: `${field.y * 100}%`,
@@ -405,6 +499,15 @@ export function SignatureRequestEditor({
                         }}
                       >
                         <span>{field.label}</span>
+                        {selectedFieldId === field.id ? (
+                          <button
+                            aria-label={`Resize ${field.label}`}
+                            className="office-signature-field-resize-handle"
+                            onClick={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => handleResizePointerDown(field.id, page.pageNumber, event)}
+                            type="button"
+                          />
+                        ) : null}
                       </div>
                     ))}
                 </div>
@@ -500,6 +603,9 @@ export function SignatureRequestEditor({
                   type="checkbox"
                 />
               </CheckboxField>
+              <p className="office-signature-helper office-form-grid-span-2">
+                Drag the field to move it. Drag the handle in the bottom-right corner to resize it.
+              </p>
               <div className="bm-document-edit-actions">
                 <Button onClick={() => removeField(selectedField.id)} size="sm" variant="danger">
                   Delete field

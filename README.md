@@ -177,7 +177,7 @@
     - 仅限 transaction detail 内发起
     - 仅限 PDF 文档
     - 单签署人公开链接
-    - 拖拽签区编辑
+    - 拖拽 / 缩放签区编辑
     - 真实邮件发送（优先 `Resend API`，否则回退到 SMTP）
     - 管理员在 `Settings > Email delivery` 中配置组织级发件信息和 SMTP fallback；当系统内未保存配置时继续回退到 env sender / SMTP fallback
     - 公共签署页手写 / 输入生成 / 上传图片三种签名方式

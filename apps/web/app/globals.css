@@ -16277,6 +16277,7 @@ body,
   align-items: center;
   justify-content: center;
   cursor: grab;
+  user-select: none;
   color: #0f172a;
   font-size: 12px;
   font-weight: 700;
@@ -16285,6 +16286,27 @@ body,
 .office-signature-field-token.is-selected {
   border-color: #1d4ed8;
   box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.18);
+}
+
+.office-signature-field-resize-handle {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.94);
+  cursor: nwse-resize;
+}
+
+.office-signature-field-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-right: 1.5px solid rgba(255, 255, 255, 0.92);
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.92);
 }
 
 .office-signature-helper,
