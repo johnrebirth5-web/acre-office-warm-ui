@@ -13,7 +13,7 @@
 - `Office Reports` 的 CSV 导出 route 也依赖 `DATABASE_URL`
 - `/api/office/activity/comments` 也依赖 `DATABASE_URL`
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
-- transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` SMTP 配置，或 SMTP / signature mailer 环境变量 fallback
+- transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` 发件配置；当 `ACRE_RESEND_API_KEY` 存在时优先走 Resend HTTPS API，否则继续走 SMTP / signature mailer fallback
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
 
@@ -168,17 +168,44 @@ ACRE_BASE_URL="https://acresystem.us"
 ACRE_SETTINGS_ENCRYPTION_SECRET="replace-with-a-long-random-string"
 ```
 
+### `ACRE_RESEND_API_KEY`
+
+用途：
+
+- 为 transaction document 外部签署邮件启用 Resend HTTPS API 发送
+- 当前由 `apps/web/lib/signature-email.ts` 读取
+- 一旦配置，签署邀请邮件和签署完成邮件都会优先走 Resend，而不是服务器直接连 SMTP 端口
+
+是否必填：
+
+- 不是必填
+- 但如果你的部署环境阻止出站 `25 / 465 / 587`，这是当前推荐的生产配置
+- 如果不配置它，系统会继续走 SMTP delivery
+
+示例格式：
+
+```env
+ACRE_RESEND_API_KEY="re_xxxxxxxxxxxxxxxxx"
+```
+
+缺失后的影响：
+
+- 不会导致应用报错
+- 但签署邮件会继续尝试走 SMTP transport
+- 在像 DigitalOcean 这类默认封锁出站 SMTP 端口的环境里，外部签署邮件可能无法送达
+
 ### `ACRE_SMTP_HOST`
 
 用途：
 
-- 作为 transaction document 外部签署请求邮件的 SMTP host fallback
-- 当前仅在 `Settings > Email delivery` 还没有保存组织级 SMTP 配置时才会被读取
+- 作为 transaction document 外部签署邮件的 SMTP host fallback
+- 当前只在没有配置 `ACRE_RESEND_API_KEY` 时才会参与真实发送
+- 当系统内还没有保存组织级 SMTP 配置时，才会回退到这个 env 值
 
 是否必填：
 
-- 只在你继续使用 env fallback，而不是系统内 SMTP 配置时才是必填
-- 如果已经在 `Settings > Email delivery` 保存可用 SMTP 配置，这个值可以不填
+- 只在你继续使用 SMTP delivery，而且没有系统内 SMTP 配置时才是必填
+- 如果已经配置 `ACRE_RESEND_API_KEY`，或者已经在 `Settings > Email delivery` 保存可用 SMTP 配置，这个值可以不填
 
 示例格式：
 
@@ -188,7 +215,7 @@ ACRE_SMTP_HOST="smtp.mailgun.org"
 
 缺失后的影响：
 
-- 当系统内 SMTP 配置也不存在时，`/api/office/transactions/:transactionId/signatures/:signatureRequestId` 的 `send` / `resend` 会失败
+- 当系统内 SMTP 配置也不存在、且 `ACRE_RESEND_API_KEY` 也不存在时，`/api/office/transactions/:transactionId/signatures/:signatureRequestId` 的 `send` / `resend` 会失败
 - request 不会伪装成已发送
 
 ### `ACRE_SMTP_PORT`
@@ -196,6 +223,7 @@ ACRE_SMTP_HOST="smtp.mailgun.org"
 用途：
 
 - transaction document 外部签署邮件 SMTP port fallback
+- 只在系统实际走 SMTP delivery 时生效
 
 是否必填：
 
@@ -213,6 +241,7 @@ ACRE_SMTP_PORT="587"
 用途：
 
 - 控制 fallback SMTP transport 是否走 secure 模式
+- 只在系统实际走 SMTP delivery 时生效
 
 是否必填：
 
@@ -230,10 +259,11 @@ ACRE_SMTP_SECURE="false"
 用途：
 
 - transaction document 外部签署邮件 SMTP 用户名 fallback
+- 只在系统实际走 SMTP delivery 时生效
 
 是否必填：
 
-- 只在继续使用 env fallback 时必填
+- 只在继续使用 SMTP env fallback 时必填
 
 示例格式：
 
@@ -246,10 +276,11 @@ ACRE_SMTP_USER="postmaster@example.com"
 用途：
 
 - transaction document 外部签署邮件 SMTP 密码 fallback
+- 只在系统实际走 SMTP delivery 时生效
 
 是否必填：
 
-- 只在继续使用 env fallback 时必填
+- 只在继续使用 SMTP env fallback 时必填
 
 示例格式：
 
@@ -263,11 +294,12 @@ ACRE_SMTP_PASSWORD="replace-with-smtp-password"
 
 - transaction document 外部签署邮件的实际发件邮箱
 - 当前首版是单一公共发件邮箱，再通过邮件内容展示 agent 署名
-- 当前作为 fallback 发件邮箱，仅在 `Settings > Email delivery` 还没有保存组织级 sender defaults 时才会被读取
+- 当前作为 fallback 发件邮箱；无论系统最终通过 Resend 还是 SMTP 发送，只要 `Settings > Email delivery` 还没有保存组织级 sender defaults，就会回退到这里
 
 是否必填：
 
-- 只在继续使用 env fallback 时必填
+- 只在没有系统内 sender defaults 时必填
+- 如果你使用 `ACRE_RESEND_API_KEY` 但没有系统内 sender defaults，这个值也必须配置
 
 示例格式：
 
@@ -280,6 +312,7 @@ ACRE_SIGNATURE_FROM_EMAIL="signatures@acresystem.us"
 用途：
 
 - transaction document 外部签署邮件的 fallback 发件人名称
+- Resend API 和 SMTP fallback 都会读取它
 
 是否必填：
 
@@ -298,6 +331,7 @@ ACRE_SIGNATURE_FROM_NAME="Acre Signatures"
 
 - transaction document 外部签署邮件的 fallback 默认 reply-to
 - 当前允许 per-request sender reply-to 覆盖它
+- Resend API 和 SMTP fallback 都会读取它
 
 是否必填：
 

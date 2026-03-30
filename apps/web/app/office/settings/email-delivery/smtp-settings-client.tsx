@@ -131,7 +131,7 @@ export function OfficeEmailDeliveryClient({ snapshot, canManageSettings }: Offic
   return (
     <>
       <section className="office-settings-card-grid">
-        <SectionCard subtitle="Administrator-managed SMTP settings for outgoing signature requests." title="SMTP configuration">
+        <SectionCard subtitle="Administrator-managed sender defaults with optional SMTP fallback for outgoing signature requests." title="SMTP configuration">
           <form className="office-settings-template-form" onSubmit={handleSave}>
             {submitError ? <p className="office-inline-error">{submitError}</p> : null}
             {submitSuccess ? <p className="office-inline-success">{submitSuccess}</p> : null}
@@ -140,6 +140,10 @@ export function OfficeEmailDeliveryClient({ snapshot, canManageSettings }: Offic
                 Saved SMTP passwords require <code>ACRE_SETTINGS_ENCRYPTION_SECRET</code> or <code>ACRE_SESSION_SECRET</code>.
               </p>
             ) : null}
+            <p className="office-form-helper">
+              If <code>ACRE_RESEND_API_KEY</code> is configured, Acre sends signature emails through the Resend HTTPS API and still uses the
+              sender identity stored here. The SMTP fields below remain available as the fallback delivery path.
+            </p>
 
             <div className="office-form-grid">
               <div className="office-detail-field office-detail-field-wide">
@@ -258,6 +262,7 @@ export function OfficeEmailDeliveryClient({ snapshot, canManageSettings }: Offic
           <div className="office-settings-template-form">
             <div className="office-settings-user-inline-badges">
               <StatusBadge tone={currentSnapshot.summary.sourceTone}>{currentSnapshot.summary.sourceLabel}</StatusBadge>
+              <StatusBadge tone={currentSnapshot.summary.transportTone}>{currentSnapshot.summary.transportLabel}</StatusBadge>
               <StatusBadge tone={currentSnapshot.summary.statusTone}>{currentSnapshot.summary.statusLabel}</StatusBadge>
             </div>
 
@@ -265,6 +270,10 @@ export function OfficeEmailDeliveryClient({ snapshot, canManageSettings }: Offic
               <div className="office-detail-field">
                 <span>Can send now</span>
                 <strong>{currentSnapshot.summary.canSendSignatureEmails ? "Yes" : "No"}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Transport</span>
+                <strong>{currentSnapshot.summary.transportLabel}</strong>
               </div>
               <div className="office-detail-field">
                 <span>Active host</span>
@@ -290,7 +299,8 @@ export function OfficeEmailDeliveryClient({ snapshot, canManageSettings }: Offic
 
             {currentSnapshot.settings.source === "environment" ? (
               <p className="office-form-helper">
-                Acre is currently using environment variables as a fallback. Save this form to move delivery settings into the system database.
+                Acre is currently using environment variables as a fallback. Save this form to move sender defaults and SMTP fallback settings
+                into the system database.
               </p>
             ) : null}
 
@@ -302,7 +312,8 @@ export function OfficeEmailDeliveryClient({ snapshot, canManageSettings }: Offic
 
             {currentSnapshot.settings.source === "none" ? (
               <p className="office-form-helper">
-                No SMTP configuration is available yet. Signature request emails will fail until an administrator saves valid settings here.
+                No sender defaults or SMTP fallback are available yet. Signature request emails will fail until an administrator saves valid
+                settings here or configures environment-based delivery.
               </p>
             ) : null}
           </div>

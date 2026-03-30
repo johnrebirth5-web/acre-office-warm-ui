@@ -62,10 +62,10 @@ export default async function OfficeSettingsPage() {
         </SectionCard>
 
         {canManageOfficeSettings(context.currentMembership) ? (
-          <SectionCard subtitle="Administrator-managed SMTP delivery and sender defaults for signature requests." title="Email delivery">
+          <SectionCard subtitle="Administrator-managed sender defaults plus Resend-ready delivery and SMTP fallback for signature requests." title="Email delivery">
             <p className="office-settings-copy">
-              Configure the SMTP host, sender identity, and reply-to defaults that power outgoing signature request emails without touching
-              server env files.
+              Configure the sender identity, reply-to defaults, and optional SMTP fallback that power outgoing signature request emails
+              while API-based delivery can stay in env.
             </p>
             <Link className="office-settings-link" href="/office/settings/email-delivery">
               Open email delivery

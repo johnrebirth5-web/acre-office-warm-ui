@@ -1,7 +1,8 @@
 import { resolve4 } from "node:dns/promises";
 import { isIP } from "node:net";
 import nodemailer from "nodemailer";
-import { resolveOrganizationSignatureSmtpConfig } from "@acre/db";
+import { getOfficeEmailDeliverySettingsSnapshot, resolveOrganizationSignatureSmtpConfig } from "@acre/db";
+import { Resend } from "resend";
 
 type SignatureEmailInput = {
   organizationId: string;
@@ -36,10 +37,32 @@ type SmtpConfig = {
   defaultReplyTo: string | null;
 };
 
+type SignatureSenderProfile = {
+  fromEmail: string;
+  fromName: string;
+  defaultReplyTo: string | null;
+};
+
+type SignatureMailContext =
+  | {
+      provider: "smtp";
+      config: SmtpConfig;
+      transport: ReturnType<typeof nodemailer.createTransport>;
+    }
+  | {
+      provider: "resend";
+      profile: SignatureSenderProfile;
+      client: Resend;
+    };
+
 const globalForSignatureMail = globalThis as typeof globalThis & {
   __acreSignatureMailer?: {
     key: string;
     transport: ReturnType<typeof nodemailer.createTransport>;
+  };
+  __acreResendClient?: {
+    key: string;
+    client: Resend;
   };
 };
 
@@ -54,6 +77,11 @@ function buildTransportKey(config: SmtpConfig) {
     config.fromName,
     config.defaultReplyTo
   ]);
+}
+
+function formatFromAddress(fromName: string, fromEmail: string) {
+  const safeName = fromName.replace(/"/g, "'");
+  return `"${safeName}" <${fromEmail}>`;
 }
 
 async function resolvePreferredSmtpHost(host: string) {
@@ -71,6 +99,21 @@ async function resolvePreferredSmtpHost(host: string) {
   }
 
   return host;
+}
+
+function getResendClient(apiKey: string) {
+  if (globalForSignatureMail.__acreResendClient?.key === apiKey) {
+    return globalForSignatureMail.__acreResendClient.client;
+  }
+
+  const client = new Resend(apiKey);
+
+  globalForSignatureMail.__acreResendClient = {
+    key: apiKey,
+    client
+  };
+
+  return client;
 }
 
 function escapeHtml(value: string) {
@@ -195,7 +238,41 @@ async function getSignatureMailer(config: SmtpConfig) {
   return transport;
 }
 
-async function resolveSignatureMailerContext(organizationId: string) {
+async function resolveSignatureSenderProfile(organizationId: string): Promise<SignatureSenderProfile> {
+  const snapshot = await getOfficeEmailDeliverySettingsSnapshot({
+    organizationId
+  });
+
+  if (snapshot.settings.source === "database" && !snapshot.settings.isEnabled) {
+    throw new Error("Signature email delivery is disabled in Settings > Email delivery.");
+  }
+
+  const fromEmail = snapshot.settings.fromEmail.trim();
+
+  if (!fromEmail) {
+    throw new Error(
+      "Signature email delivery is not configured. Ask an administrator to configure Settings > Email delivery."
+    );
+  }
+
+  return {
+    fromEmail,
+    fromName: snapshot.settings.fromName.trim() || "Acre Signatures",
+    defaultReplyTo: snapshot.settings.replyTo.trim() || null
+  };
+}
+
+async function resolveSignatureMailerContext(organizationId: string): Promise<SignatureMailContext> {
+  const resendApiKey = process.env.ACRE_RESEND_API_KEY?.trim();
+
+  if (resendApiKey) {
+    return {
+      provider: "resend",
+      profile: await resolveSignatureSenderProfile(organizationId),
+      client: getResendClient(resendApiKey)
+    };
+  }
+
   const resolved = await resolveOrganizationSignatureSmtpConfig({
     organizationId
   });
@@ -211,34 +288,77 @@ async function resolveSignatureMailerContext(organizationId: string) {
   };
 
   return {
+    provider: "smtp",
     config,
     transport: await getSignatureMailer(config)
   };
 }
 
 export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
-  const { config, transport } = await resolveSignatureMailerContext(input.organizationId);
+  const context = await resolveSignatureMailerContext(input.organizationId);
 
-  await transport.sendMail({
-    from: `"${config.fromName}" <${config.fromEmail}>`,
+  if (context.provider === "resend") {
+    const { error } = await context.client.emails.send({
+      from: formatFromAddress(context.profile.fromName, context.profile.fromEmail),
+      to: input.to,
+      subject: input.subject,
+      html: buildSignatureEmailHtml(input),
+      text: buildSignatureEmailText(input),
+      replyTo: input.replyTo?.trim() || context.profile.defaultReplyTo || undefined
+    });
+
+    if (error) {
+      throw new Error(error.message || "Signature request email could not be sent.");
+    }
+
+    return;
+  }
+
+  await context.transport.sendMail({
+    from: formatFromAddress(context.config.fromName, context.config.fromEmail),
     to: input.to,
     subject: input.subject,
     html: buildSignatureEmailHtml(input),
     text: buildSignatureEmailText(input),
-    replyTo: input.replyTo?.trim() || config.defaultReplyTo || undefined
+    replyTo: input.replyTo?.trim() || context.config.defaultReplyTo || undefined
   });
 }
 
 export async function sendSignatureCompletionEmail(input: SignatureCompletionEmailInput) {
-  const { config, transport } = await resolveSignatureMailerContext(input.organizationId);
-  const recipient = input.to?.trim() || config.defaultReplyTo || "";
+  const context = await resolveSignatureMailerContext(input.organizationId);
+  const recipient =
+    input.to?.trim() ||
+    (context.provider === "resend" ? context.profile.defaultReplyTo : context.config.defaultReplyTo) ||
+    "";
 
   if (!recipient) {
     return false;
   }
 
-  await transport.sendMail({
-    from: `"${config.fromName}" <${config.fromEmail}>`,
+  if (context.provider === "resend") {
+    const { error } = await context.client.emails.send({
+      from: formatFromAddress(context.profile.fromName, context.profile.fromEmail),
+      to: recipient,
+      subject: `Signature completed: ${input.documentTitle}`,
+      html: buildSignatureCompletionEmailHtml(input),
+      text: buildSignatureCompletionEmailText(input),
+      attachments: [
+        {
+          filename: input.signedFileName,
+          content: Buffer.from(input.signedPdfBytes)
+        }
+      ]
+    });
+
+    if (error) {
+      throw new Error(error.message || "Signature completion email could not be sent.");
+    }
+
+    return true;
+  }
+
+  await context.transport.sendMail({
+    from: formatFromAddress(context.config.fromName, context.config.fromEmail),
     to: recipient,
     subject: `Signature completed: ${input.documentTitle}`,
     html: buildSignatureCompletionEmailHtml(input),

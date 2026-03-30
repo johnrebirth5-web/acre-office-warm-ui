@@ -27,8 +27,8 @@ Provide a real transaction-centered document workflow with structured documents,
   - draft preparation inside transaction detail
   - draggable signature field placement on PDF page previews
   - signer setup with recipient name/email, email subject/body, optional expiry, and sender display/reply-to metadata
-  - secure public signing links delivered through real SMTP email
-  - admin-managed SMTP / sender configuration under `Settings > Email delivery`, with environment-variable fallback when no in-app config exists yet
+  - secure public signing links delivered through real email transport, preferring Resend HTTPS API and falling back to SMTP when needed
+  - admin-managed sender / reply-to defaults plus SMTP fallback under `Settings > Email delivery`, with environment-variable fallback when no in-app config exists yet
   - no-login public signing page with fixed field overlays
   - signature capture by draw / typed signature / uploaded signature image
   - signed PDF generation and archive back into transaction documents

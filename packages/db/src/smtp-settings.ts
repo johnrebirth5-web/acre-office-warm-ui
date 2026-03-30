@@ -42,6 +42,8 @@ export type OfficeEmailDeliverySettingsSnapshot = {
   summary: {
     sourceLabel: string;
     sourceTone: BadgeTone;
+    transportLabel: string;
+    transportTone: BadgeTone;
     statusLabel: string;
     statusTone: BadgeTone;
     canSendSignatureEmails: boolean;
@@ -323,6 +325,22 @@ function hasUsableDatabaseConfig(setting: OrganizationSmtpSettingRecord) {
   );
 }
 
+function hasUsableDatabaseSenderProfile(setting: OrganizationSmtpSettingRecord) {
+  if (!setting || !setting.isEnabled) {
+    return false;
+  }
+
+  return Boolean(normalizeOptionalString(setting.fromEmail));
+}
+
+function hasUsableEnvironmentSenderProfile(state: EnvironmentSmtpSettingsState) {
+  return Boolean(normalizeOptionalString(state.fromEmail));
+}
+
+function hasResendApiKey() {
+  return Boolean(process.env.ACRE_RESEND_API_KEY?.trim());
+}
+
 function resolveSource(
   setting: OrganizationSmtpSettingRecord,
   environmentState: EnvironmentSmtpSettingsState
@@ -413,6 +431,9 @@ export async function getOfficeEmailDeliverySettingsSnapshot(input: {
   ]);
   const source = resolveSource(setting, environmentState);
   const encryptionReady = hasEncryptionSecret();
+  const resendConfigured = hasResendApiKey();
+  const transportLabel = resendConfigured ? "Resend API" : "SMTP";
+  const transportTone: BadgeTone = resendConfigured ? "accent" : "neutral";
 
   const sourceLabel =
     source === "database" ? "System settings" : source === "environment" ? "Environment fallback" : "Not configured";
@@ -426,6 +447,9 @@ export async function getOfficeEmailDeliverySettingsSnapshot(input: {
     if (!setting?.isEnabled) {
       statusLabel = "Disabled";
       statusTone = "neutral";
+    } else if (resendConfigured) {
+      statusLabel = hasUsableDatabaseSenderProfile(setting) ? "Ready" : "Incomplete";
+      statusTone = hasUsableDatabaseSenderProfile(setting) ? "success" : "warning";
     } else if (!encryptionReady) {
       statusLabel = "Secret unavailable";
       statusTone = "danger";
@@ -440,22 +464,31 @@ export async function getOfficeEmailDeliverySettingsSnapshot(input: {
       statusTone = "warning";
     }
   } else if (source === "environment") {
-    statusLabel = environmentState.isReady ? "Ready" : "Env incomplete";
-    statusTone = environmentState.isReady ? "success" : "warning";
+    const environmentReady = resendConfigured ? hasUsableEnvironmentSenderProfile(environmentState) : environmentState.isReady;
+    statusLabel = environmentReady ? "Ready" : resendConfigured ? "Sender info missing" : "Env incomplete";
+    statusTone = environmentReady ? "success" : "warning";
   }
+
+  const canSendSignatureEmails =
+    source === "database"
+      ? resendConfigured
+        ? hasUsableDatabaseSenderProfile(setting)
+        : hasUsableDatabaseConfig(setting)
+      : source === "environment"
+        ? resendConfigured
+          ? hasUsableEnvironmentSenderProfile(environmentState)
+          : environmentState.isReady
+        : false;
 
   return {
     summary: {
       sourceLabel,
       sourceTone,
+      transportLabel,
+      transportTone,
       statusLabel,
       statusTone,
-      canSendSignatureEmails:
-        source === "database"
-          ? hasUsableDatabaseConfig(setting)
-          : source === "environment"
-            ? environmentState.isReady
-            : false
+      canSendSignatureEmails
     },
     settings: {
       source,

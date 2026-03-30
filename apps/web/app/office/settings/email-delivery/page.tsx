@@ -24,6 +24,11 @@ export default async function OfficeSettingsEmailDeliveryPage() {
           <PageHeaderSummary>
             <SummaryChip label="Organization" value={context.currentOrganization.name} />
             <SummaryChip label="Source" tone="accent" value={snapshot.summary.sourceLabel} />
+            <SummaryChip
+              label="Transport"
+              tone={snapshot.summary.transportTone === "accent" ? "accent" : "default"}
+              value={snapshot.summary.transportLabel}
+            />
             <SummaryChip label="Status" value={snapshot.summary.statusLabel} />
           </PageHeaderSummary>
         }

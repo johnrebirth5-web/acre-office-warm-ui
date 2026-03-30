@@ -164,7 +164,7 @@
   - 核心复用：
     - `Membership` 做用户 role / status / office access
     - `MembershipCommissionSetting` 做 user default commission split 真源
-    - `OrganizationSmtpSetting` 做组织级 SMTP / 发件人配置
+    - `OrganizationSmtpSetting` 做组织级发件人配置和 SMTP fallback
     - `OrganizationRoleTemplate / OrganizationRoleTemplatePermission` 做 organization-scoped role templates
     - `MembershipPermissionOverride` 做 per-user allow / deny overrides
     - `Team / TeamMembership` 做 team admin
@@ -274,7 +274,8 @@
 - `Company Library` 也复用同一套本地文件系统存储基础，但按 organization / library scope 单独分目录
 - 当前 eSignature 已升级为 transaction detail 内的外部签署 MVP：
   - 内部准备工作区 + 公共签署页仍由本仓库自托管
-  - 邮件发送优先读取 `Settings > Email delivery` 的组织级 SMTP 配置；当系统内尚未保存配置时，才会回退到 SMTP 环境变量
+  - 邮件发送当前优先走 `ACRE_RESEND_API_KEY` 对应的 Resend HTTPS API；发件人 / reply-to 仍优先读取 `Settings > Email delivery`，系统内尚未保存时再回退到 signature mailer 环境变量
+  - 当没有 `ACRE_RESEND_API_KEY` 时，邮件发送会继续走 `Settings > Email delivery` 里的 SMTP fallback；系统内未保存 SMTP 时再回退到 SMTP 环境变量
   - 仅支持 PDF、单签署人、无登录公开链接
   - 还没有第三方 vendor integration
 - 当前 incoming updates 不是 live Folio sync，而是内部 review-ready model；底层 route/service 仍保留，但默认不在 transaction detail 页面暴露
