@@ -9,6 +9,22 @@ export type PdfPreviewPage = {
   imageUrl: string;
 };
 
+let pdfJsImportPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null = null;
+
+async function loadPdfJs() {
+  if (!pdfJsImportPromise) {
+    pdfJsImportPromise = import("pdfjs-dist/legacy/build/pdf.mjs").then((pdfjs) => {
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.mjs", import.meta.url).toString();
+      }
+
+      return pdfjs;
+    });
+  }
+
+  return pdfJsImportPromise;
+}
+
 export function usePdfPreview(documentUrl: string) {
   const [pages, setPages] = useState<PdfPreviewPage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +48,7 @@ export function usePdfPreview(documentUrl: string) {
         }
 
         const bytes = new Uint8Array(await response.arrayBuffer());
-        const pdfjs = await import("pdfjs-dist/webpack.mjs");
+        const pdfjs = await loadPdfJs();
 
         const pdfDocument = await pdfjs.getDocument({
           data: bytes
