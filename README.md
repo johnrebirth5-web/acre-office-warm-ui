@@ -1100,6 +1100,7 @@ acre/
 - [packages/db/src/client.ts](./packages/db/src/client.ts) 是可复用 Prisma client 入口
 - [packages/db/src/bootstrap.ts](./packages/db/src/bootstrap.ts) 是当前最小数据库读取 utility
 - [packages/db/src/transactions.ts](./packages/db/src/transactions.ts) 是当前 transaction 持久化 service 入口
+- `/office/transactions` 页面现在会通过一个共享 server snapshot 同时解析 search layout 和 paginated list result，避免同一请求里重复解析 scope / teams / filter options
 - [packages/db/src/contacts.ts](./packages/db/src/contacts.ts) 是当前 contact / follow-up task 持久化 service 入口
 - [packages/db/src/commissions.ts](./packages/db/src/commissions.ts) 是当前 commission plan / calculation / statement service 入口
 - [apps/web/lib/auth-session.ts](./apps/web/lib/auth-session.ts) 是当前本地 session 和 server-side auth context 入口

@@ -341,6 +341,7 @@ export {
   updateTransactionTask
 } from "./transaction-tasks";
 export {
+  getOfficeTransactionsPageSnapshot,
   createTransaction,
   getOfficeTransactionSearchLayoutSnapshot,
   getOfficeTransactionOwnerAssignment,
@@ -738,6 +739,7 @@ export type {
 export type {
   CreateTransactionInput,
   GetOfficeTransactionSearchLayoutSnapshotInput,
+  OfficeTransactionsPageSnapshot,
   OfficeTransactionFieldFilterInput,
   OfficeTransactionDetail,
   OfficeTransactionFilterOptions,

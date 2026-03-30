@@ -1,8 +1,7 @@
 import {
   getOfficeFieldSettingsSnapshot,
   getOfficeTransactionOwnerAssignment,
-  getOfficeTransactionSearchLayoutSnapshot,
-  listTransactions
+  getOfficeTransactionsPageSnapshot
 } from "@acre/db";
 import { canManageOfficeFields, canManageOfficeTransactionStatus } from "@acre/auth";
 import { requireOfficeSession } from "../../../lib/auth-session";
@@ -47,11 +46,13 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
     defaultTransactionsPageSize,
     maxTransactionsPageSize
   );
-  const [searchLayout, transactionOwnerAssignment, fieldSettingsSnapshot] = await Promise.all([
-    getOfficeTransactionSearchLayoutSnapshot({
+  const [transactionsPageSnapshot, transactionOwnerAssignment, fieldSettingsSnapshot] = await Promise.all([
+    getOfficeTransactionsPageSnapshot({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
+      page,
+      pageSize,
       searchParams
     }),
     getOfficeTransactionOwnerAssignment({
@@ -65,21 +66,7 @@ export default async function OfficeTransactionsPage(props: OfficeTransactionsPa
       selectedModule: "transaction"
     })
   ]);
-  const result = await listTransactions({
-    organizationId: context.currentOrganization.id,
-    viewerMembershipId: context.currentMembership.id,
-    officeId: context.currentOffice?.id,
-    search: searchLayout.listFilters.q,
-    status: searchLayout.listFilters.status,
-    ownerMembershipId: searchLayout.listFilters.ownerMembershipId,
-    teamId: searchLayout.listFilters.teamId,
-    type: searchLayout.listFilters.type,
-    startDate: searchLayout.listFilters.startDate,
-    endDate: searchLayout.listFilters.endDate,
-    fieldFilters: searchLayout.listFilters.fieldFilters,
-    page,
-    pageSize
-  });
+  const { searchLayout, listResult: result } = transactionsPageSnapshot;
 
   return (
     <TransactionsClient

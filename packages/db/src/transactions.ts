@@ -103,6 +103,11 @@ export type OfficeTransactionListResult = {
   filterOptions: OfficeTransactionFilterOptions;
 };
 
+export type OfficeTransactionsPageSnapshot = {
+  searchLayout: OfficeTransactionSearchLayoutSnapshot;
+  listResult: OfficeTransactionListResult;
+};
+
 export type OfficeTransactionSearchFieldKind = "system" | "builtin" | "custom";
 export type OfficeTransactionSearchFieldControl = "text" | "select" | "date";
 
@@ -525,6 +530,12 @@ type TransactionFilterContext = {
       lastName: string;
     };
   }>;
+};
+
+type LoadedTransactionSearchLayoutWorkspace = {
+  schema: OfficeTransactionIntakeSchema;
+  filterContext: TransactionFilterContext;
+  searchLayout: OfficeTransactionSearchLayoutSnapshot;
 };
 
 function readSearchParamValue(value: string | string[] | undefined) {
@@ -1957,9 +1968,9 @@ function buildTransactionFieldFilterWhere(
   };
 }
 
-export async function getOfficeTransactionSearchLayoutSnapshot(
+async function loadOfficeTransactionSearchLayoutWorkspace(
   input: GetOfficeTransactionSearchLayoutSnapshotInput
-): Promise<OfficeTransactionSearchLayoutSnapshot> {
+): Promise<LoadedTransactionSearchLayoutWorkspace> {
   const [schema, filterContext, savedLayoutRecord] = await Promise.all([
     getOfficeTransactionIntakeSchema({
       organizationId: input.organizationId,
@@ -2017,104 +2028,41 @@ export async function getOfficeTransactionSearchLayoutSnapshot(
 
   return {
     schema,
-    filterOptions,
-    availableFields,
-    selectedFields,
-    savedLayout,
-    filters: resolvedFilters.filters,
-    listFilters: resolvedFilters.listFilters
+    filterContext,
+    searchLayout: {
+      schema,
+      filterOptions,
+      availableFields,
+      selectedFields,
+      savedLayout,
+      filters: resolvedFilters.filters,
+      listFilters: resolvedFilters.listFilters
+    }
   };
 }
 
-export async function saveOfficeTransactionSearchLayout(
-  input: SaveOfficeTransactionSearchLayoutInput
-): Promise<OfficeTransactionSearchFieldReference[]> {
-  const schema = await getOfficeTransactionIntakeSchema({
-    organizationId: input.organizationId,
-    officeId: input.officeId ?? null
-  });
-  const availableFields = buildAvailableTransactionSearchFields(schema, {
-    ownerOptions: [],
-    teamOptions: []
-  });
-  const sanitizedFields = sanitizeTransactionSearchFieldReferences(input.fields, availableFields);
-  const availableFieldMap = new Map(
-    availableFields.map((field) => [buildSearchFieldDescriptorId(field), field] satisfies [string, OfficeTransactionSearchFieldDescriptor])
-  );
-  const previousFieldLabels = (storedValue: Prisma.JsonValue | null | undefined) =>
-    normalizeTransactionSearchFieldReferences(storedValue)
-      .flatMap((field) => {
-        const descriptor = availableFieldMap.get(buildSearchFieldDescriptorId(field));
-        return descriptor ? [descriptor.label] : [];
-      })
-      .join(", ");
-  const nextFieldLabels = sanitizedFields
-    .flatMap((field) => {
-      const descriptor = availableFieldMap.get(buildSearchFieldDescriptorId(field));
-      return descriptor ? [descriptor.label] : [];
-    })
-    .join(", ");
+export async function getOfficeTransactionSearchLayoutSnapshot(
+  input: GetOfficeTransactionSearchLayoutSnapshotInput
+): Promise<OfficeTransactionSearchLayoutSnapshot> {
+  const workspace = await loadOfficeTransactionSearchLayoutWorkspace(input);
 
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.transactionSearchLayout.findFirst({
-      where: {
-        organizationId: input.organizationId,
-        officeId: input.officeId ?? null
-      }
-    });
-
-    const saved = existing
-      ? await tx.transactionSearchLayout.update({
-          where: {
-            id: existing.id
-          },
-          data: {
-            updatedByMembershipId: input.actorMembershipId,
-            fieldLayout: sanitizedFields as Prisma.InputJsonValue
-          }
-        })
-      : await tx.transactionSearchLayout.create({
-          data: {
-            organizationId: input.organizationId,
-            officeId: input.officeId ?? null,
-            updatedByMembershipId: input.actorMembershipId,
-            fieldLayout: sanitizedFields as Prisma.InputJsonValue
-          }
-        });
-
-    await recordActivityLogEvent(tx, {
-      organizationId: input.organizationId,
-      membershipId: input.actorMembershipId,
-      entityType: "transaction_search_layout",
-      entityId: saved.id,
-      action: activityLogActions.settingsTransactionSearchLayoutUpdated,
-      payload: {
-        objectLabel: "Transaction search layout",
-        contextHref: "/office/transactions",
-        details: [
-          `Visible search fields: ${nextFieldLabels || "None"}`
-        ],
-        changes: [
-          {
-            label: "Visible fields",
-            previousValue: previousFieldLabels(existing?.fieldLayout) || null,
-            nextValue: nextFieldLabels || "None"
-          }
-        ]
-      }
-    });
-
-    return sanitizedFields;
-  });
+  return workspace.searchLayout;
 }
 
-export async function listTransactions(input: ListTransactionsInput): Promise<OfficeTransactionListResult> {
-  const filterContext = await getTransactionFilterContext({
-    organizationId: input.organizationId,
-    viewerMembershipId: input.viewerMembershipId,
-    officeId: input.officeId ?? null
-  });
-  const { scope, scopedTeams, teamHierarchyIndex } = filterContext;
+function buildTransactionListWhere(input: Pick<
+  ListTransactionsInput,
+  | "organizationId"
+  | "officeId"
+  | "search"
+  | "status"
+  | "ownerMembershipId"
+  | "teamId"
+  | "type"
+  | "startDate"
+  | "endDate"
+  | "fieldFilters"
+>, filterContext: TransactionFilterContext) {
+  const { scope, teamHierarchyIndex } = filterContext;
   const selectedTeamIds = input.teamId?.trim() ? expandSelectedTeamIds(teamHierarchyIndex, input.teamId) : [];
   const whereConditions: Prisma.TransactionWhereInput[] = [
     {
@@ -2122,9 +2070,6 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     },
     buildTransactionPortfolioVisibilityWhere(scope)
   ];
-  const requestedPage = Number.isFinite(input.page) ? Number(input.page) : defaultTransactionsPage;
-  const requestedPageSize = Number.isFinite(input.pageSize) ? Number(input.pageSize) : defaultTransactionsPageSize;
-  const pageSize = Math.min(Math.max(Math.trunc(requestedPageSize) || defaultTransactionsPageSize, 1), maxTransactionsPageSize);
   const transactionType = parseTransactionTypeFilter(input.type);
   const startDate = startOfDay(input.startDate);
   const endDate = endOfDay(input.endDate);
@@ -2232,9 +2177,21 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     });
   }
 
-  const where = whereConditions.length === 1 ? whereConditions[0] : { AND: whereConditions };
-  const scopedMembershipIds = getMyScopedMembershipIds(scope);
+  return {
+    scope,
+    where: whereConditions.length === 1 ? whereConditions[0] : { AND: whereConditions }
+  };
+}
 
+async function listTransactionsWithContext(
+  input: ListTransactionsInput,
+  filterContext: TransactionFilterContext
+): Promise<OfficeTransactionListResult> {
+  const { scope, where } = buildTransactionListWhere(input, filterContext);
+  const requestedPage = Number.isFinite(input.page) ? Number(input.page) : defaultTransactionsPage;
+  const requestedPageSize = Number.isFinite(input.pageSize) ? Number(input.pageSize) : defaultTransactionsPageSize;
+  const pageSize = Math.min(Math.max(Math.trunc(requestedPageSize) || defaultTransactionsPageSize, 1), maxTransactionsPageSize);
+  const scopedMembershipIds = getMyScopedMembershipIds(scope);
   const totalCount = await prisma.transaction.count({
     where
   });
@@ -2243,10 +2200,26 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
   const [transactions, financeAggregate, scopedCommissionIncomeAggregate, scopedFallbackIncomeAggregate] = await Promise.all([
     prisma.transaction.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        address: true,
+        city: true,
+        state: true,
+        zipCode: true,
+        askingPrice: true,
+        purchasedPrice: true,
+        price: true,
+        importantDate: true,
+        status: true,
+        representing: true,
         ownerMembership: {
-          include: {
-            user: true
+          select: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
           }
         }
       },
@@ -2311,6 +2284,130 @@ export async function listTransactions(input: ListTransactionsInput): Promise<Of
     pageSize,
     filterOptions: buildTransactionFilterOptions(filterContext)
   };
+}
+
+export async function getOfficeTransactionsPageSnapshot(
+  input: GetOfficeTransactionSearchLayoutSnapshotInput & {
+    page?: number;
+    pageSize?: number;
+  }
+): Promise<OfficeTransactionsPageSnapshot> {
+  const workspace = await loadOfficeTransactionSearchLayoutWorkspace(input);
+  const listResult = await listTransactionsWithContext(
+    {
+      organizationId: input.organizationId,
+      viewerMembershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      search: workspace.searchLayout.listFilters.q,
+      status: workspace.searchLayout.listFilters.status,
+      ownerMembershipId: workspace.searchLayout.listFilters.ownerMembershipId,
+      teamId: workspace.searchLayout.listFilters.teamId,
+      type: workspace.searchLayout.listFilters.type,
+      startDate: workspace.searchLayout.listFilters.startDate,
+      endDate: workspace.searchLayout.listFilters.endDate,
+      fieldFilters: workspace.searchLayout.listFilters.fieldFilters,
+      page: input.page,
+      pageSize: input.pageSize
+    },
+    workspace.filterContext
+  );
+
+  return {
+    searchLayout: workspace.searchLayout,
+    listResult
+  };
+}
+
+export async function listTransactions(input: ListTransactionsInput): Promise<OfficeTransactionListResult> {
+  const filterContext = await getTransactionFilterContext({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null
+  });
+
+  return listTransactionsWithContext(input, filterContext);
+}
+
+export async function saveOfficeTransactionSearchLayout(
+  input: SaveOfficeTransactionSearchLayoutInput
+): Promise<OfficeTransactionSearchFieldReference[]> {
+  const schema = await getOfficeTransactionIntakeSchema({
+    organizationId: input.organizationId,
+    officeId: input.officeId ?? null
+  });
+  const availableFields = buildAvailableTransactionSearchFields(schema, {
+    ownerOptions: [],
+    teamOptions: []
+  });
+  const sanitizedFields = sanitizeTransactionSearchFieldReferences(input.fields, availableFields);
+  const availableFieldMap = new Map(
+    availableFields.map((field) => [buildSearchFieldDescriptorId(field), field] satisfies [string, OfficeTransactionSearchFieldDescriptor])
+  );
+  const previousFieldLabels = (storedValue: Prisma.JsonValue | null | undefined) =>
+    normalizeTransactionSearchFieldReferences(storedValue)
+      .flatMap((field) => {
+        const descriptor = availableFieldMap.get(buildSearchFieldDescriptorId(field));
+        return descriptor ? [descriptor.label] : [];
+      })
+      .join(", ");
+  const nextFieldLabels = sanitizedFields
+    .flatMap((field) => {
+      const descriptor = availableFieldMap.get(buildSearchFieldDescriptorId(field));
+      return descriptor ? [descriptor.label] : [];
+    })
+    .join(", ");
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.transactionSearchLayout.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null
+      }
+    });
+
+    const saved = existing
+      ? await tx.transactionSearchLayout.update({
+          where: {
+            id: existing.id
+          },
+          data: {
+            updatedByMembershipId: input.actorMembershipId,
+            fieldLayout: sanitizedFields as Prisma.InputJsonValue
+          }
+        })
+      : await tx.transactionSearchLayout.create({
+          data: {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            updatedByMembershipId: input.actorMembershipId,
+            fieldLayout: sanitizedFields as Prisma.InputJsonValue
+          }
+        });
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "transaction_search_layout",
+      entityId: saved.id,
+      action: activityLogActions.settingsTransactionSearchLayoutUpdated,
+      payload: {
+        objectLabel: "Transaction search layout",
+        contextHref: "/office/transactions",
+        details: [
+          `Visible search fields: ${nextFieldLabels || "None"}`
+        ],
+        changes: [
+          {
+            label: "Visible fields",
+            previousValue: previousFieldLabels(existing?.fieldLayout) || null,
+            nextValue: nextFieldLabels || "None"
+          }
+        ]
+      }
+    });
+
+    return sanitizedFields;
+  });
 }
 
 export async function getOfficeTransactionOwnerAssignment(input: {
