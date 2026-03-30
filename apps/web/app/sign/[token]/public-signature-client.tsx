@@ -60,12 +60,31 @@ function buildStatusMessage(statusKey: PublicSignatureRequestSnapshot["request"]
   return "";
 }
 
+function resetSignatureCanvas(canvas: HTMLCanvasElement | null) {
+  const context = canvas?.getContext("2d");
+
+  if (!canvas || !context) {
+    return null;
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.lineWidth = 2.4;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.strokeStyle = "#0f172a";
+
+  return context;
+}
+
 export function PublicSignatureClient({ token, snapshot }: PublicSignatureClientProps) {
   const { pages, isLoading, error: previewError } = usePdfPreview(`/api/public/signatures/${token}/document`);
   const [values, setValues] = useState<SignatureValueMap>(() => buildInitialValues(snapshot));
   const [activeSignatureFieldId, setActiveSignatureFieldId] = useState("");
   const [signatureMode, setSignatureMode] = useState<"draw" | "type" | "upload">("draw");
   const [typedSignature, setTypedSignature] = useState(snapshot.request.recipientName);
+  const [uploadInputKey, setUploadInputKey] = useState(0);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [completed, setCompleted] = useState(snapshot.request.statusKey === "completed");
@@ -75,6 +94,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
   const isReadOnly = completed || Boolean(statusMessage && snapshot.request.statusKey !== "viewed" && snapshot.request.statusKey !== "sent");
 
   const activeSignatureValue = activeSignatureFieldId ? values[activeSignatureFieldId] : undefined;
+  const hasActiveSignatureValue = Boolean(activeSignatureValue?.imageDataUrl?.trim() || activeSignatureValue?.textValue?.trim());
 
   useEffect(() => {
     if (!activeSignatureFieldId || !canvasRef.current || signatureMode !== "draw") {
@@ -82,18 +102,10 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
     }
 
     const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-
+    const context = resetSignatureCanvas(canvas);
     if (!context) {
       return;
     }
-
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.lineWidth = 2.4;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    context.strokeStyle = "#0f172a";
 
     if (activeSignatureValue?.imageDataUrl?.trim()) {
       const image = new Image();
@@ -124,6 +136,37 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         ...nextValue
       }
     }));
+  }
+
+  function clearFieldValue(fieldId: string) {
+    setValues((current) => ({
+      ...current,
+      [fieldId]: {}
+    }));
+  }
+
+  function openSignatureModal(field: OfficeSignatureField) {
+    const currentValue = values[field.id];
+
+    setActiveSignatureFieldId(field.id);
+    setSignatureMode(currentValue?.signatureMode ?? "draw");
+    setTypedSignature(currentValue?.signatureMode === "type" && currentValue.textValue?.trim() ? currentValue.textValue : snapshot.request.recipientName);
+  }
+
+  function closeSignatureModal() {
+    setActiveSignatureFieldId("");
+    setIsDrawing(false);
+  }
+
+  function clearActiveSignature() {
+    if (!activeSignatureFieldId) {
+      return;
+    }
+
+    clearFieldValue(activeSignatureFieldId);
+    setIsDrawing(false);
+    resetSignatureCanvas(canvasRef.current);
+    setUploadInputKey((current) => current + 1);
   }
 
   function getCanvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -179,7 +222,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
       textValue: typedSignature,
       imageDataUrl: undefined
     });
-    setActiveSignatureFieldId("");
+    closeSignatureModal();
   }
 
   async function handleUploadSignature(event: React.ChangeEvent<HTMLInputElement>) {
@@ -201,7 +244,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
       imageDataUrl,
       textValue: undefined
     });
-    setActiveSignatureFieldId("");
+    closeSignatureModal();
   }
 
   async function handleSubmit() {
@@ -297,7 +340,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                           <button
                             className="public-signature-sign-button"
                             disabled={isReadOnly}
-                            onClick={() => setActiveSignatureFieldId(field.id)}
+                            onClick={() => openSignatureModal(field)}
                             type="button"
                           >
                             {currentValue?.signatureMode === "type" && currentValue.textValue ? (
@@ -333,11 +376,11 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
       </main>
 
       {activeSignatureFieldId ? (
-        <div className="public-signature-modal" onClick={() => setActiveSignatureFieldId("")}>
+        <div className="public-signature-modal" onClick={closeSignatureModal}>
           <div className="public-signature-modal-card" onClick={(event) => event.stopPropagation()}>
             <div className="public-signature-modal-head">
               <h2>Add signature</h2>
-              <button onClick={() => setActiveSignatureFieldId("")} type="button">
+              <button onClick={closeSignatureModal} type="button">
                 Close
               </button>
             </div>
@@ -368,7 +411,12 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                   width={460}
                 />
                 <div className="public-signature-modal-actions">
-                  <Button onClick={() => setActiveSignatureFieldId("")} variant="secondary">
+                  {hasActiveSignatureValue ? (
+                    <Button onClick={clearActiveSignature} type="button" variant="ghost">
+                      Clear signature
+                    </Button>
+                  ) : null}
+                  <Button onClick={closeSignatureModal} type="button" variant="secondary">
                     Done
                   </Button>
                 </div>
@@ -382,14 +430,28 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                 </FormField>
                 <div className="public-signature-typed-preview public-signature-typed-preview-large">{typedSignature}</div>
                 <div className="public-signature-modal-actions">
-                  <Button onClick={applyTypedSignature}>Use typed signature</Button>
+                  {hasActiveSignatureValue ? (
+                    <Button onClick={clearActiveSignature} type="button" variant="ghost">
+                      Clear signature
+                    </Button>
+                  ) : null}
+                  <Button onClick={applyTypedSignature} type="button">
+                    Use typed signature
+                  </Button>
                 </div>
               </div>
             ) : null}
 
             {signatureMode === "upload" ? (
               <div className="public-signature-upload-panel">
-                <input accept="image/png,image/jpeg,image/jpg" onChange={handleUploadSignature} type="file" />
+                <input accept="image/png,image/jpeg,image/jpg" key={uploadInputKey} onChange={handleUploadSignature} type="file" />
+                <div className="public-signature-modal-actions">
+                  {hasActiveSignatureValue ? (
+                    <Button onClick={clearActiveSignature} type="button" variant="ghost">
+                      Clear signature
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </div>
