@@ -923,29 +923,11 @@ export function TransactionsClient({
                   <svg
                     aria-hidden="true"
                     className="bm-transaction-home-icon-svg"
-                    fill="none"
-                    viewBox="0 0 20 20"
+                    viewBox="0 0 24 24"
                   >
                     <path
-                      d="M4.25 8.5 10 4l5.75 4.5"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.9"
-                    />
-                    <path
-                      d="M5.75 7.75v7a.75.75 0 0 0 .75.75h7a.75.75 0 0 0 .75-.75v-7"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.9"
-                    />
-                    <path
-                      d="M8.75 15.5v-3.25a.75.75 0 0 1 .75-.75h1a.75.75 0 0 1 .75.75v3.25"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.9"
+                      d="M10.552 3.516a1.75 1.75 0 0 1 2.896 0l6.75 9.247a.75.75 0 0 1-.607 1.192H18.5v1.795A2.25 2.25 0 0 1 16.25 18h-1.5v-3.75a.75.75 0 0 0-.75-.75h-4a.75.75 0 0 0-.75.75V18h-1.5A2.25 2.25 0 0 1 5.5 15.75v-1.795H4.409a.75.75 0 0 1-.607-1.192l6.75-9.247Z"
+                      fill="currentColor"
                     />
                   </svg>
                 </span>
