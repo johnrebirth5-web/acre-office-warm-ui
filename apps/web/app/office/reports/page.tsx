@@ -6,7 +6,6 @@ import {
   DataTableHeader,
   DataTableRow,
   EmptyState,
-  ListPageFooter,
   ListPageSection,
   ListPageStatsGrid,
   ListPageTableSection,
@@ -24,10 +23,35 @@ import {
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
 import { ReportsFiltersClient } from "./reports-filters-client";
+import { ReportsTableFooter } from "./reports-table-footer";
+import {
+  defaultReportsPage,
+  defaultReportsPageSize,
+  maxReportsPageSize
+} from "./reports-search-layout";
 
 type ReportsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+function readSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : undefined;
+  }
+
+  return value;
+}
+
+function parsePositiveInteger(value: string | string[] | undefined, fallback: number, max?: number) {
+  const normalized = readSearchParamValue(value);
+  const numeric = Number.parseInt(normalized ?? "", 10);
+
+  if (!Number.isFinite(numeric) || numeric < 1) {
+    return fallback;
+  }
+
+  return max ? Math.min(numeric, max) : numeric;
+}
 
 function getStatusTone(status: OfficeReportStatus) {
   if (status === "Closed") {
@@ -49,6 +73,10 @@ function buildExportHref(searchParams: Record<string, string | string[] | undefi
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(searchParams)) {
+    if (key === "page" || key === "pageSize") {
+      continue;
+    }
+
     if (Array.isArray(value)) {
       for (const item of value) {
         if (item.trim()) {
@@ -86,10 +114,14 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
   }
 
   const searchParams = (await props.searchParams) ?? {};
+  const page = parsePositiveInteger(searchParams.page, defaultReportsPage);
+  const pageSize = parsePositiveInteger(searchParams.pageSize, defaultReportsPageSize, maxReportsPageSize);
   const workspace = await getOfficeTransactionReportsWorkspace({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
+    page,
+    pageSize,
     searchParams
   });
   const exportHref = buildExportHref(searchParams);
@@ -119,6 +151,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
         <ReportsFiltersClient
           canManageSearchLayout={canManageSearchLayout}
           filters={workspace.filters}
+          pageSize={workspace.pageSize}
           searchLayout={workspace.searchLayout}
         />
       </ListPageSection>
@@ -140,7 +173,16 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
 
       <ListPageTableSection
         className="office-list-card"
-        footer={<ListPageFooter summary={`${workspace.totalCount} transaction rows`} />}
+        footer={
+          <ReportsTableFooter
+            filters={workspace.filters}
+            page={workspace.page}
+            pageSize={workspace.pageSize}
+            selectedFieldKeys={workspace.searchLayout.selectedFields.map((field) => field.key)}
+            totalCount={workspace.totalCount}
+            totalPages={workspace.totalPages}
+          />
+        }
         subtitle="The on-screen table highlights key operating columns, while CSV export keeps the full report schema."
         title="Filtered transactions"
       >

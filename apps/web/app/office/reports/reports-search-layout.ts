@@ -3,6 +3,10 @@ import type {
   OfficeTransactionReportsFilters
 } from "@acre/db";
 
+export const defaultReportsPage = 1;
+export const defaultReportsPageSize = 20;
+export const maxReportsPageSize = 100;
+
 export type ReportSearchFilterState = {
   ownerMembershipId: string;
   createdAtOperator: OfficeTransactionReportsFilters["createdAtOperator"];
@@ -104,6 +108,8 @@ export function buildReportsHref(
   input: {
     selectedFieldKeys: OfficeTransactionReportSearchFieldKey[];
     filters: ReportSearchFilterState;
+    page?: number | string;
+    pageSize?: number | string;
   }
 ) {
   const searchParams = new URLSearchParams();
@@ -190,6 +196,19 @@ export function buildReportsHref(
 
   appendValue(searchParams, "sortBy", input.filters.sortBy);
   appendValue(searchParams, "sortDirection", input.filters.sortDirection);
+
+  const normalizedPage =
+    typeof input.page === "number" ? input.page : Number.parseInt(String(input.page ?? ""), 10);
+  const normalizedPageSize =
+    typeof input.pageSize === "number" ? input.pageSize : Number.parseInt(String(input.pageSize ?? ""), 10);
+
+  if (Number.isFinite(normalizedPage) && normalizedPage > defaultReportsPage) {
+    searchParams.set("page", String(normalizedPage));
+  }
+
+  if (Number.isFinite(normalizedPageSize) && normalizedPageSize > 0 && normalizedPageSize !== defaultReportsPageSize) {
+    searchParams.set("pageSize", String(normalizedPageSize));
+  }
 
   const query = searchParams.toString();
   return query ? `${pathname}?${query}` : pathname;

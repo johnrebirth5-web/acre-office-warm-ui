@@ -247,6 +247,7 @@ export {
 } from "./contacts";
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
 export {
+  getOfficeTransactionReportExportPayload,
   getOfficeTransactionReportSearchLayoutSnapshot,
   getOfficeTransactionReportsWorkspace,
   listOfficeTransactionReportExportRows,

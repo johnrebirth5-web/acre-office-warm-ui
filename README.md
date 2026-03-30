@@ -276,6 +276,7 @@
   - 页面现在收口成一个 transaction-centric reporting workspace：
     - 同一套 transaction predicate 同时驱动筛选、列表、summary 和 CSV 导出
     - 页面和导出不再分别拼接不同数据口径
+    - 页面 rows 现在走服务端分页，URL 追加 `page / pageSize`，但 summary 仍然按当前过滤全集计算
   - 当前固定 filters 支持：
     - `Owner`
     - `Creation Date`
@@ -301,7 +302,7 @@
     - `Rebate`
     - `Referral`
     - `Reimbursement`
-  - CSV 导出复用当前 URL filter contract，导出列与页面 table 使用同一份列注册表
+  - CSV 导出复用当前 URL filter contract，导出列与页面 table 使用同一份列注册表，并继续忽略 `page / pageSize` 以导出完整 filtered result set
   - Reports scope 当前按权限分层：
     - `owner / office_admin / accountant / human_resources`：company scope
     - `team_lead`：自己 + 组员

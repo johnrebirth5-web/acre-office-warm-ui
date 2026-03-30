@@ -26,12 +26,21 @@ The reports service returns one transaction-centric workspace contract:
 
 - `filters`
 - `searchLayout`
+- `page`
+- `pageSize`
+- `totalPages`
 - `rows`
 - `summary`
 - `totalCount`
 - `columns`
 
-CSV export must reuse the same filter contract, column registry, and permission scope as the page.
+Behavior rules:
+
+- `rows` always represent the current page only
+- `totalCount` always represents the full filtered result set, not the current page
+- `summary` always represents the full filtered result set, not the current page
+- page query params are `page` and `pageSize`
+- CSV export must reuse the same filter contract, column registry, and permission scope as the page, but ignore `page` and `pageSize` so the export always contains the full filtered result set
 
 ## Search layout
 
@@ -97,7 +106,7 @@ Current live summary totals:
 - `Referral`
 - `Reimbursement`
 
-All totals are recalculated from the currently filtered transaction rows.
+All totals are recalculated from the currently filtered transaction set, not just the current page rows.
 
 ## Permissions
 

@@ -19,6 +19,7 @@ import type {
 import {
   buildReportsHref,
   cloneReportSearchFilterState,
+  defaultReportsPage,
   type ReportSearchFilterState
 } from "./reports-search-layout";
 
@@ -26,6 +27,7 @@ type ReportsFiltersClientProps = {
   canManageSearchLayout: boolean;
   filters: OfficeTransactionReportsFilters;
   searchLayout: OfficeTransactionReportSearchLayoutSnapshot;
+  pageSize: number;
 };
 
 type SearchLayoutResponse = {
@@ -899,6 +901,7 @@ function CompactChecklistMultiSelectField(props: {
 export function ReportsFiltersClient({
   canManageSearchLayout,
   filters,
+  pageSize,
   searchLayout
 }: ReportsFiltersClientProps) {
   const router = useRouter();
@@ -954,14 +957,57 @@ export function ReportsFiltersClient({
     router.push(
       buildReportsHref(pathname, {
         selectedFieldKeys: searchLayout.selectedFields.map((field) => field.key),
-        filters: searchFilters
+        filters: searchFilters,
+        page: defaultReportsPage,
+        pageSize
       })
     );
   }
 
   function resetFilters() {
     setSearchFilters(cloneReportSearchFilterState(filters));
-    router.push(pathname);
+    router.push(
+      buildReportsHref(pathname, {
+        selectedFieldKeys: searchLayout.selectedFields.map((field) => field.key),
+        filters: cloneReportSearchFilterState({
+          ...filters,
+          ownerMembershipId: "",
+          createdAtOperator: "",
+          createdAtValue: "",
+          createdAtFrom: "",
+          createdAtTo: "",
+          buyerTenant: "",
+          closingMoveInOperator: "",
+          closingMoveInValue: "",
+          closingMoveInFrom: "",
+          closingMoveInTo: "",
+          commissionOperator: "",
+          commissionValue: "",
+          commissionMin: "",
+          commissionMax: "",
+          askingPriceOperator: "",
+          askingPriceValue: "",
+          askingPriceMin: "",
+          askingPriceMax: "",
+          purchasedPriceOperator: "",
+          purchasedPriceValue: "",
+          purchasedPriceMin: "",
+          purchasedPriceMax: "",
+          transactionStatuses: [],
+          invoiceNumber: "",
+          departmentIds: [],
+          teamLeaderMembershipIds: [],
+          transactionTypes: [],
+          representingSides: [],
+          layouts: [],
+          companyReferral: "",
+          sortBy: filters.sortBy,
+          sortDirection: filters.sortDirection
+        }),
+        page: defaultReportsPage,
+        pageSize
+      })
+    );
   }
 
   function toggleLayoutField(fieldKey: OfficeTransactionReportSearchFieldKey) {
@@ -996,11 +1042,15 @@ export function ReportsFiltersClient({
 
       const nextHref = buildReportsHref(pathname, {
         selectedFieldKeys: body.snapshot.selectedFields.map((field) => field.key),
-        filters: searchFilters
+        filters: searchFilters,
+        page: defaultReportsPage,
+        pageSize
       });
       const currentHref = buildReportsHref(pathname, {
         selectedFieldKeys: searchLayout.selectedFields.map((field) => field.key),
-        filters: searchFilters
+        filters: searchFilters,
+        page: defaultReportsPage,
+        pageSize
       });
 
       if (nextHref === currentHref) {

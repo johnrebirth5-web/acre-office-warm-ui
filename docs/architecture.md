@@ -96,6 +96,7 @@
   - 当前 stage / history 选择可清除回保留 top filters 的 `all filtered transactions`
 - 当前 `Reports` 页面已收口为 transaction-centric reporting workspace：
   - 同一套 server-side transaction predicate 同时驱动 filters、rows、summary 和 CSV export
+  - 页面 rows 现在是服务端分页结果，summary 和 CSV export 仍然基于当前过滤条件下的全集
   - 当前 summary 不再拼接 agent/team/accounting/EMD 多套聚合视图，而是只围绕当前筛选结果的 transaction 集合实时计算
   - 当前 shareable query-param filter contract 支持：
     - `ownerMembershipId`
@@ -113,6 +114,8 @@
     - `representingSides[]`
     - `layouts[]`
     - `companyReferral`
+    - `page`
+    - `pageSize`
   - `Closing / Move-In Date` 的展示与筛选使用 `Transaction.moveInDate ?? Transaction.closingDate`
   - `Team Leader` 过滤和展示使用当前 `TeamMembership` hierarchy 计算，不依赖 retired transaction custom field
   - 当前 reports summary 只汇总当前 transaction 集合上的：
@@ -509,7 +512,7 @@
 13. detail 页面通过 transaction task routes 做 create / edit / complete / reopen / request review / approve / reject，并按 linked document / signature / approval truth 决定任务是否真正可 complete
 14. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页；contacts 读路径现在也复用 office/team/self data scope，而不是默认给整个 organization 同一份列表
 15. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`，且 detail 内的 linked/available transaction 选项会按当前 transaction visibility scope 收窄
-16. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / rows / summary / totalCount / export columns`
+16. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / paged rows / summary / totalCount / totalPages / export columns`
 17. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、invoice options、所选 invoice 对应的 candidate commission rows、saved statement history 和 selected statement detail；selected statement 的 durable line snapshot 额外固化 transaction creation date、invoice / owner / building / unit 和 payout commission rate
 18. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
 19. `/api/office/accounting/transactions` 与 `/api/office/accounting/earnest-money` 负责最小 create / update 写入；posting 成功后同步生成 GL entries 和 `AuditLog`

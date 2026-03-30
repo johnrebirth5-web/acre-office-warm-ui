@@ -423,13 +423,18 @@ export type OfficeTransactionReportsWorkspace = {
   summary: OfficeTransactionReportsSummary;
   columns: OfficeTransactionReportColumn[];
   rows: OfficeTransactionReportRow[];
+  page: number;
+  pageSize: number;
   totalCount: number;
+  totalPages: number;
 };
 
 export type GetOfficeTransactionReportsWorkspaceInput = {
   organizationId: string;
   viewerMembershipId: string;
   officeId?: string | null;
+  page?: number;
+  pageSize?: number;
   searchParams?: Record<string, string | string[] | undefined>;
   ownerMembershipId?: string;
   createdAtOperator?: string;
@@ -526,6 +531,11 @@ type TransactionReportRecord = {
   }>;
 };
 
+type TransactionReportSortRecord = Pick<
+  TransactionReportRecord,
+  "id" | "createdAt" | "status" | "askingPrice" | "purchasedPrice" | "price" | "grossCommission"
+>;
+
 const reportStatusLabelMap: Record<TransactionStatus, OfficeReportStatus> = {
   opportunity: "Opportunity",
   active: "Active",
@@ -541,6 +551,82 @@ const reportStatusSortOrder: Record<TransactionStatus, number> = {
   closed: 3,
   cancelled: 4
 };
+
+const defaultReportsPage = 1;
+const defaultReportsPageSize = 20;
+const maxReportsPageSize = 100;
+
+const transactionReportRecordSelect = {
+  id: true,
+  createdAt: true,
+  ownerMembershipId: true,
+  title: true,
+  address: true,
+  city: true,
+  state: true,
+  zipCode: true,
+  askingPrice: true,
+  purchasedPrice: true,
+  price: true,
+  acceptanceDate: true,
+  closingDate: true,
+  moveInDate: true,
+  grossCommission: true,
+  financeNotes: true,
+  status: true,
+  type: true,
+  representing: true,
+  companyReferral: true,
+  companyReferralEmployeeName: true,
+  additionalFields: true,
+  office: {
+    select: {
+      id: true,
+      name: true
+    }
+  },
+  ownerMembership: {
+    select: {
+      id: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true
+        }
+      }
+    }
+  },
+  financeFees: {
+    select: {
+      feeType: true,
+      amount: true
+    }
+  }
+} satisfies Prisma.TransactionSelect;
+
+const transactionReportSortSelect = {
+  id: true,
+  createdAt: true,
+  status: true,
+  askingPrice: true,
+  purchasedPrice: true,
+  price: true,
+  grossCommission: true
+} satisfies Prisma.TransactionSelect;
+
+const transactionReportSummarySelect = {
+  askingPrice: true,
+  purchasedPrice: true,
+  price: true,
+  grossCommission: true,
+  financeFees: {
+    select: {
+      feeType: true,
+      amount: true
+    }
+  }
+} satisfies Prisma.TransactionSelect;
 
 const reportStatusFilterMap: Record<string, TransactionStatus> = {
   pending: "pending",
@@ -1358,8 +1444,8 @@ async function loadReportTeamLeaderInfo(input: {
   } satisfies LoadedTeamLeaderInfo;
 }
 
-function sortTransactions(
-  transactions: TransactionReportRecord[],
+function sortTransactions<T extends TransactionReportSortRecord>(
+  transactions: T[],
   sortBy: OfficeTransactionReportSortBy,
   sortDirection: OfficeTransactionReportSortDirection
 ) {
@@ -1387,6 +1473,57 @@ function sortTransactions(
 
     return left.id.localeCompare(right.id);
   });
+}
+
+function isComplexReportSort(sortBy: OfficeTransactionReportSortBy) {
+  return sortBy === "purchased_price" || sortBy === "status";
+}
+
+function buildReportTransactionOrderBy(
+  sortBy: OfficeTransactionReportSortBy,
+  sortDirection: OfficeTransactionReportSortDirection
+): Prisma.TransactionOrderByWithRelationInput[] {
+  if (sortBy === "asking_price") {
+    return [{ askingPrice: sortDirection }, { createdAt: "desc" }, { id: "asc" }];
+  }
+
+  if (sortBy === "gross_commission") {
+    return [{ grossCommission: sortDirection }, { createdAt: "desc" }, { id: "asc" }];
+  }
+
+  return [{ createdAt: sortDirection }, { id: "asc" }];
+}
+
+function parsePositiveInteger(
+  value: number | undefined,
+  fallback: number,
+  max?: number
+) {
+  if (!Number.isFinite(value) || !value || value < 1) {
+    return fallback;
+  }
+
+  return max ? Math.min(value, max) : value;
+}
+
+function appendReportTransactionIdsWhere(
+  where: Prisma.TransactionWhereInput,
+  transactionIds: string[] | null
+): Prisma.TransactionWhereInput {
+  if (transactionIds === null) {
+    return where;
+  }
+
+  return {
+    AND: [
+      where,
+      {
+        id: {
+          in: transactionIds.length > 0 ? transactionIds : ["__no_matching_transaction__"]
+        }
+      }
+    ]
+  };
 }
 
 function getFeeTotals(financeFees: TransactionReportRecord["financeFees"]) {
@@ -1832,12 +1969,11 @@ export async function saveOfficeTransactionReportSearchLayout(
   });
 }
 
-export async function getOfficeTransactionReportsWorkspace(
-  input: GetOfficeTransactionReportsWorkspaceInput
-): Promise<OfficeTransactionReportsWorkspace> {
-  const searchData = await loadReportSearchData(input);
+function buildOfficeTransactionReportsWhere(
+  input: GetOfficeTransactionReportsWorkspaceInput,
+  searchData: LoadedReportSearchData
+) {
   const { filters, teamLeaderInfo, visibilityWhere } = searchData;
-
   const matchingOwnerMembershipIds =
     filters.teamLeaderMembershipIds.length > 0
       ? searchData.ownerOptions
@@ -1980,93 +2116,100 @@ export async function getOfficeTransactionReportsWorkspace(
     whereConditions.push(purchasedPriceWhere);
   }
 
-  const where = whereConditions.length === 1 ? whereConditions[0] : { AND: whereConditions };
-  const transactions = await prisma.transaction.findMany({
+  return whereConditions.length === 1 ? whereConditions[0] : { AND: whereConditions };
+}
+
+async function resolveDerivedReportTransactionIds(
+  where: Prisma.TransactionWhereInput,
+  filters: OfficeTransactionReportsFilters
+) {
+  if (filters.layouts.length === 0 && !filters.companyReferral) {
+    return null;
+  }
+
+  const candidateTransactions = await prisma.transaction.findMany({
     where,
     select: {
       id: true,
-      createdAt: true,
-      ownerMembershipId: true,
-      title: true,
-      address: true,
-      city: true,
-      state: true,
-      zipCode: true,
-      askingPrice: true,
-      purchasedPrice: true,
-      price: true,
-      acceptanceDate: true,
-      closingDate: true,
-      moveInDate: true,
-      grossCommission: true,
-      financeNotes: true,
-      status: true,
-      type: true,
-      representing: true,
-      companyReferral: true,
-      companyReferralEmployeeName: true,
       additionalFields: true,
-      office: {
-        select: {
-          id: true,
-          name: true
-        }
-      },
-      ownerMembership: {
-        select: {
-          id: true,
-          user: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true
-            }
-          }
-        }
-      },
-      financeFees: {
-        select: {
-          feeType: true,
-          amount: true
-        }
-      }
-    },
-    orderBy: [{ createdAt: "desc" }]
+      companyReferral: true
+    }
   });
-  const filteredTransactions = transactions.filter((transaction) => {
+
+  return candidateTransactions.flatMap((transaction) => {
     const additionalFields = normalizeAdditionalFields(transaction.additionalFields);
     const companyReferral = resolveCompanyReferralFlag(transaction.companyReferral, additionalFields);
 
-    return (
-      matchesLayoutFilter(additionalFields.layout ?? "", filters.layouts) &&
+    return matchesLayoutFilter(additionalFields.layout ?? "", filters.layouts) &&
       matchesCompanyReferralFilter(companyReferral, filters.companyReferral)
-    );
+      ? [transaction.id]
+      : [];
   });
-  const sortedTransactions = sortTransactions(
-    filteredTransactions,
-    filters.sortBy,
-    filters.sortDirection
-  );
-  const rows = sortedTransactions.map((transaction) => buildReportRow(transaction, teamLeaderInfo));
-  const summary = sortedTransactions.reduce(
+}
+
+async function prepareOfficeTransactionReportsQuery(input: GetOfficeTransactionReportsWorkspaceInput) {
+  const searchData = await loadReportSearchData(input);
+  const baseWhere = buildOfficeTransactionReportsWhere(input, searchData);
+  const derivedTransactionIds = await resolveDerivedReportTransactionIds(baseWhere, searchData.filters);
+
+  return {
+    searchData,
+    where: appendReportTransactionIdsWhere(baseWhere, derivedTransactionIds)
+  };
+}
+
+async function loadReportTransactionsByIds(transactionIds: string[]) {
+  if (transactionIds.length === 0) {
+    return [] satisfies TransactionReportRecord[];
+  }
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      id: {
+        in: transactionIds
+      }
+    },
+    select: transactionReportRecordSelect
+  });
+  const transactionMap = new Map(transactions.map((transaction) => [transaction.id, transaction]));
+
+  return transactionIds.flatMap((transactionId) => {
+    const transaction = transactionMap.get(transactionId);
+    return transaction ? [transaction] : [];
+  });
+}
+
+async function loadReportSummary(where: Prisma.TransactionWhereInput): Promise<OfficeTransactionReportsSummary> {
+  const [aggregates, summaryTransactions] = await Promise.all([
+    prisma.transaction.aggregate({
+      where,
+      _count: {
+        _all: true
+      },
+      _sum: {
+        askingPrice: true,
+        grossCommission: true
+      }
+    }),
+    prisma.transaction.findMany({
+      where,
+      select: transactionReportSummarySelect
+    })
+  ]);
+
+  const totals = summaryTransactions.reduce(
     (accumulator, transaction) => {
       const { rebateAmount, referralAmount, reimbursementAmount } = getFeeTotals(transaction.financeFees);
 
       return {
-        totalTransactions: accumulator.totalTransactions + 1,
-        askingPrice: accumulator.askingPrice + Number(transaction.askingPrice ?? 0),
         purchasedPrice: accumulator.purchasedPrice + Number(getPurchasedPriceValue(transaction) ?? 0),
-        grossCommission: accumulator.grossCommission + Number(transaction.grossCommission ?? 0),
         rebate: accumulator.rebate + rebateAmount,
         referral: accumulator.referral + referralAmount,
         reimbursement: accumulator.reimbursement + reimbursementAmount
       };
     },
     {
-      totalTransactions: 0,
-      askingPrice: 0,
       purchasedPrice: 0,
-      grossCommission: 0,
       rebate: 0,
       referral: 0,
       reimbursement: 0
@@ -2074,26 +2217,139 @@ export async function getOfficeTransactionReportsWorkspace(
   );
 
   return {
-    filters,
+    totalTransactions: aggregates._count._all,
+    totalAskingPrice: formatCurrencyTotal(Number(aggregates._sum.askingPrice ?? 0)),
+    totalPurchasedPrice: formatCurrencyTotal(totals.purchasedPrice),
+    totalGrossCommission: formatCurrencyTotal(Number(aggregates._sum.grossCommission ?? 0)),
+    totalRebate: formatCurrencyTotal(totals.rebate),
+    totalReferral: formatCurrencyTotal(totals.referral),
+    totalReimbursement: formatCurrencyTotal(totals.reimbursement)
+  };
+}
+
+async function loadPagedReportTransactions(input: {
+  where: Prisma.TransactionWhereInput;
+  filters: OfficeTransactionReportsFilters;
+  page: number;
+  pageSize: number;
+}) {
+  if (isComplexReportSort(input.filters.sortBy)) {
+    const sortRecords = await prisma.transaction.findMany({
+      where: input.where,
+      select: transactionReportSortSelect
+    });
+    const sortedIds = sortTransactions(sortRecords, input.filters.sortBy, input.filters.sortDirection).map(
+      (transaction) => transaction.id
+    );
+    const totalCount = sortedIds.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / input.pageSize));
+    const page = Math.min(input.page, totalPages);
+    const offset = (page - 1) * input.pageSize;
+    const pagedIds = sortedIds.slice(offset, offset + input.pageSize);
+    const transactions = await loadReportTransactionsByIds(pagedIds);
+
+    return {
+      page,
+      transactions,
+      totalCount,
+      totalPages
+    };
+  }
+
+  const totalCount = await prisma.transaction.count({
+    where: input.where
+  });
+  const totalPages = Math.max(1, Math.ceil(totalCount / input.pageSize));
+  const page = Math.min(input.page, totalPages);
+  const transactions = await prisma.transaction.findMany({
+    where: input.where,
+    select: transactionReportRecordSelect,
+    orderBy: buildReportTransactionOrderBy(input.filters.sortBy, input.filters.sortDirection),
+    skip: (page - 1) * input.pageSize,
+    take: input.pageSize
+  });
+
+  return {
+    page,
+    transactions,
+    totalCount,
+    totalPages
+  };
+}
+
+async function loadAllReportTransactions(input: {
+  where: Prisma.TransactionWhereInput;
+  filters: OfficeTransactionReportsFilters;
+}) {
+  if (isComplexReportSort(input.filters.sortBy)) {
+    const sortRecords = await prisma.transaction.findMany({
+      where: input.where,
+      select: transactionReportSortSelect
+    });
+    const sortedIds = sortTransactions(sortRecords, input.filters.sortBy, input.filters.sortDirection).map(
+      (transaction) => transaction.id
+    );
+
+    return loadReportTransactionsByIds(sortedIds);
+  }
+
+  return prisma.transaction.findMany({
+    where: input.where,
+    select: transactionReportRecordSelect,
+    orderBy: buildReportTransactionOrderBy(input.filters.sortBy, input.filters.sortDirection)
+  });
+}
+
+export async function getOfficeTransactionReportsWorkspace(
+  input: GetOfficeTransactionReportsWorkspaceInput
+): Promise<OfficeTransactionReportsWorkspace> {
+  const { searchData, where } = await prepareOfficeTransactionReportsQuery(input);
+  const requestedPage = parsePositiveInteger(input.page, defaultReportsPage);
+  const requestedPageSize = parsePositiveInteger(input.pageSize, defaultReportsPageSize, maxReportsPageSize);
+  const [summary, pagedData] = await Promise.all([
+    loadReportSummary(where),
+    loadPagedReportTransactions({
+      where,
+      filters: searchData.filters,
+      page: requestedPage,
+      pageSize: requestedPageSize
+    })
+  ]);
+
+  return {
+    filters: searchData.filters,
     searchLayout: searchData.searchLayout,
-    summary: {
-      totalTransactions: summary.totalTransactions,
-      totalAskingPrice: formatCurrencyTotal(summary.askingPrice),
-      totalPurchasedPrice: formatCurrencyTotal(summary.purchasedPrice),
-      totalGrossCommission: formatCurrencyTotal(summary.grossCommission),
-      totalRebate: formatCurrencyTotal(summary.rebate),
-      totalReferral: formatCurrencyTotal(summary.referral),
-      totalReimbursement: formatCurrencyTotal(summary.reimbursement)
-    },
+    summary,
     columns: buildTransactionReportColumns(searchData.schema),
-    rows,
-    totalCount: rows.length
+    rows: pagedData.transactions.map((transaction) => buildReportRow(transaction, searchData.teamLeaderInfo)),
+    page: pagedData.page,
+    pageSize: requestedPageSize,
+    totalCount: pagedData.totalCount,
+    totalPages: pagedData.totalPages
+  };
+}
+
+export async function getOfficeTransactionReportExportPayload(
+  input: GetOfficeTransactionReportsWorkspaceInput
+): Promise<{
+  columns: OfficeTransactionReportColumn[];
+  rows: OfficeTransactionReportRow[];
+}> {
+  const { searchData, where } = await prepareOfficeTransactionReportsQuery(input);
+  const transactions = await loadAllReportTransactions({
+    where,
+    filters: searchData.filters
+  });
+
+  return {
+    columns: buildTransactionReportColumns(searchData.schema),
+    rows: transactions.map((transaction) => buildReportRow(transaction, searchData.teamLeaderInfo))
   };
 }
 
 export async function listOfficeTransactionReportExportRows(
   input: GetOfficeTransactionReportsWorkspaceInput
 ): Promise<OfficeTransactionReportRow[]> {
-  const workspace = await getOfficeTransactionReportsWorkspace(input);
-  return workspace.rows;
+  const payload = await getOfficeTransactionReportExportPayload(input);
+  return payload.rows;
 }
