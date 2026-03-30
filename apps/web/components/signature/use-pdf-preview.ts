@@ -27,7 +27,8 @@ export function usePdfPreview(documentUrl: string) {
         });
 
         if (!response.ok) {
-          throw new Error("The PDF preview could not be loaded.");
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error?.trim() || "The PDF preview could not be loaded.");
         }
 
         const bytes = new Uint8Array(await response.arrayBuffer());
