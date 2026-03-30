@@ -922,6 +922,8 @@ model Transaction {
 
   @@index([organizationId, status])
   @@index([organizationId, officeId])
+  @@index([organizationId, officeId, updatedAt])
+  @@index([organizationId, officeId, closingDate])
   @@index([organizationId, ownerMembershipId])
   @@index([organizationId, primaryClientId])
 }
@@ -1012,6 +1014,7 @@ model Client {
 
   @@index([organizationId, stage])
   @@index([organizationId, visibility])
+  @@index([organizationId, nextFollowUpAt])
 }
 
 model TransactionContact {
@@ -1122,6 +1125,7 @@ model FollowUpTask {
   notifications      Notification[]
 
   @@index([organizationId, status])
+  @@index([organizationId, dueAt])
 }
 
 model Notification {
@@ -1301,6 +1305,7 @@ model AuditLog {
   membership     Membership?  @relation(fields: [membershipId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, entityType])
+  @@index([organizationId, createdAt])
 }
 
 model TransactionDocument {

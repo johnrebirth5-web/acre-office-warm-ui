@@ -98,7 +98,13 @@ export {
   isLeaderTeamMembershipRole
 } from "./team-hierarchy";
 export { getOfficeActivitySnapshot } from "./activity";
-export { activityLogActions, addOfficeActivityComment, getOfficeActivityLogSnapshot, recordActivityLogEvent } from "./activity-log";
+export {
+  activityLogActions,
+  addOfficeActivityComment,
+  getOfficeActivityLogSnapshot,
+  getOfficeOperationalAlertsSnapshot,
+  recordActivityLogEvent
+} from "./activity-log";
 export {
   acceptInvitation,
   authenticatePasswordUser,
@@ -498,12 +504,14 @@ export type {
   ActivityLogPayload,
   ActivityLogSectionKey,
   GetOfficeActivityLogInput,
+  GetOfficeOperationalAlertsInput,
   OfficeActivityActorOption,
   OfficeActivityAlertSection,
   OfficeActivityLogEvent,
   OfficeActivityLogSection,
   OfficeActivityLogSnapshot,
   OfficeOperationalAlert,
+  OfficeOperationalAlertsSnapshot,
   OfficeOperationalAlertSeverity
 } from "./activity-log";
 export type {

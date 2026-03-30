@@ -24,6 +24,10 @@ Provide a real account activity + operational alerts module for Back Office, wit
   - settings/admin
 - `Approve Docs` queue actions write the same task approval events, with structured source metadata so queue-driven review actions remain readable in the shared log
 - approval invalidation caused by missing required documents or signature rollback writes the same `transaction_task` reopen event family, with structured workflow-reason metadata for readable audit summaries
+- `/office/activity` now loads in two phases:
+  - server-side `getOfficeActivityLogSnapshot()` renders the audit-backed activity stream, section counts, and actor filter options
+  - client-side `GET /api/office/activity/alerts` fetches live-derived operational alerts after the page loads or when alert filters change
+- operational alerts remain live-derived from current transaction / task / contact / follow-up / accounting state, but they no longer block the initial server render of the page
 
 ## Current gaps
 

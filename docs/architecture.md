@@ -70,12 +70,13 @@
   - `Library`：folder create / rename、document upload / rename / move / delete、inline preview / download
   - `Transaction detail`：finance update、linked contacts 管理、transaction tasks create / update、documents / forms / signatures、commission calculation
   - `Approve Docs`：server-side document review queue snapshot；approve / reject / reopen / complete 继续复用 transaction task workflow route
-  - `Activity`：server-side 同时读取真实 `AuditLog` 和实时派生 alerts，渲染 `Activity Log + Operational Alerts`
+  - `Activity`：server-side 先读取真实 `AuditLog` 渲染 `Activity Log`，再由客户端请求 `/api/office/activity/alerts` 懒加载实时派生 alerts
     - `AuditLog` 是唯一活动事件源
     - 页面支持 `actor / object type / date range` 过滤
     - 事件摘要通过集中 formatter 读取结构化 payload / changes，而不是把文案散在 UI 里
     - 顶部 `Add comment` 会通过 `/api/office/activity/comments` 写入 `AuditLog`，评论和普通事件共用同一条活动流
     - `Approve Docs` 队列动作仍写入同一个 `AuditLog`，并用结构化 `actionSource=approve_docs_queue` 区分来源
+    - `Operational Alerts` 仍然直接来自 transaction / task / contact / follow-up / accounting 等真实状态，但不再阻塞 page SSR
 - 当前 `Pipeline` 页面已通过 server-side service 读取真实 transaction workspace 数据：
   - 顶部 workspace summary，直接汇总当前 filter context、live funnel、recent history 和当前 working list
   - 左侧 funnel summary rail
@@ -495,32 +496,33 @@
 
 1. `/office/dashboard` 先读取当前 office session，再调 `@acre/db` 的 `getOfficeDashboardBusinessSnapshot`
 2. `/office/activity` 先读取当前 office session，再调 `@acre/db` 的 `getOfficeActivityLogSnapshot`
-3. `/office/pipeline` 调 `@acre/db` 的 `getOfficePipelineWorkspaceSnapshot`
-4. `/office/transactions` 调 `@acre/db` 的 transaction service，并按 query-param 驱动的 `q / status / ownerMembershipId / teamId / type / startDate / endDate / page / pageSize` 做服务端过滤和分页
-5. `/office/transactions` modal、`/office/transactions/new` 页面和 transaction detail intake editor 共享同一份 office-scoped transaction intake schema，来自 `getOfficeTransactionIntakeSchema`
-6. `/office/transactions` 内的客户端 modal 调 `/api/office/transactions` 写入数据库；`GET /api/office/transactions` 也接受同一组 list-side query params
-7. `/office/transactions/:transactionId` 调 `getTransactionById`
-8. detail 页面通过 `/api/office/transactions/:transactionId` 更新 status
-9. detail 页面通过 `/api/office/transactions/:transactionId/intake` 更新 built-in/custom intake 字段
-10. detail 页面通过 `/api/office/transactions/:transactionId/finance` 更新最小 finance 字段
-11. detail 页面通过 transaction contact routes 做 link / unlink / set primary
-12. detail 页面通过 transaction task routes 做 create / edit / complete / reopen / request review / approve / reject，并按 linked document / signature / approval truth 决定任务是否真正可 complete
-13. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页；contacts 读路径现在也复用 office/team/self data scope，而不是默认给整个 organization 同一份列表
-11. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`，且 detail 内的 linked/available transaction 选项会按当前 transaction visibility scope 收窄
-12. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / rows / summary / totalCount / export columns`
-13. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、invoice options、所选 invoice 对应的 candidate commission rows、saved statement history 和 selected statement detail；selected statement 的 durable line snapshot 额外固化 transaction creation date、invoice / owner / building / unit 和 payout commission rate
-14. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
-15. `/api/office/accounting/transactions` 与 `/api/office/accounting/earnest-money` 负责最小 create / update 写入；posting 成功后同步生成 GL entries 和 `AuditLog`
-16. `/api/office/accounting/commissions/*` 与 `/api/office/transactions/:transactionId/commissions/calculate` 负责 commission plan、assignment、calculation、status、statement snapshot 的最小写入，并同步写入 `AuditLog`
-17. `/office/activity` 读取 `AuditLog`，并结合 transaction / task / contact / follow-up / accounting / EMD / commission 的实时数据库状态派生 operational alerts
-18. transaction / contact / finance / task / accounting / EMD / commission 的真实写入路径会同步写入 `AuditLog`
-19. auth login / logout 和 follow-up task create 也会写入 `AuditLog`
-20. `/office/activity` 顶部的内部评论也会写入 `AuditLog`，并出现在同一条 stream 里
-21. `/office/activity` 的左侧分类来自真实 action taxonomy，不是静态菜单
-22. `GET /api/office/reports/export` 复用与 `/office/reports` 相同的 filter contract、column registry 和 session scope，导出与页面 table 一致的真实 transaction CSV
-23. `/office/tasks` 读取 `TransactionTask + TaskListView`，按 built-in view、saved view 和 query-param filters 返回真实任务列表
-24. `/office/tasks` 的 create / edit / complete / reopen / request review / approve / reject 都直接写数据库，并同步写入 `AuditLog`
-25. document-linked tasks 会根据真实 workflow evidence 推导 task status，例如：
+3. `/office/activity` 在当前 view 包含 alerts 时，再由客户端调用 `GET /api/office/activity/alerts` 获取 `getOfficeOperationalAlertsSnapshot`
+4. `/office/pipeline` 调 `@acre/db` 的 `getOfficePipelineWorkspaceSnapshot`
+5. `/office/transactions` 调 `@acre/db` 的 transaction service，并按 query-param 驱动的 `q / status / ownerMembershipId / teamId / type / startDate / endDate / page / pageSize` 做服务端过滤和分页
+6. `/office/transactions` modal、`/office/transactions/new` 页面和 transaction detail intake editor 共享同一份 office-scoped transaction intake schema，来自 `getOfficeTransactionIntakeSchema`
+7. `/office/transactions` 内的客户端 modal 调 `/api/office/transactions` 写入数据库；`GET /api/office/transactions` 也接受同一组 list-side query params
+8. `/office/transactions/:transactionId` 调 `getTransactionById`
+9. detail 页面通过 `/api/office/transactions/:transactionId` 更新 status
+10. detail 页面通过 `/api/office/transactions/:transactionId/intake` 更新 built-in/custom intake 字段
+11. detail 页面通过 `/api/office/transactions/:transactionId/finance` 更新最小 finance 字段
+12. detail 页面通过 transaction contact routes 做 link / unlink / set primary
+13. detail 页面通过 transaction task routes 做 create / edit / complete / reopen / request review / approve / reject，并按 linked document / signature / approval truth 决定任务是否真正可 complete
+14. `/office/contacts` 调 `@acre/db` 的 contact service，并按 query-param 驱动的 `q / stage / page / pageSize` 做服务端过滤和分页；contacts 读路径现在也复用 office/team/self data scope，而不是默认给整个 organization 同一份列表
+15. `/office/contacts` 和 `/office/contacts/:contactId` 通过 contacts API 做 create / edit / follow-up task / transaction link；`GET /api/office/contacts` 也接受 `q / stage / page / pageSize`，且 detail 内的 linked/available transaction 选项会按当前 transaction visibility scope 收窄
+16. `/office/reports` 调 `@acre/db` 的 reports service，返回 query-param 驱动的 transaction reporting workspace snapshot，统一输出 `filters / rows / summary / totalCount / export columns`
+17. `/office/accounting` 调 `@acre/db` 的 agent-payout-statement service，返回 agent options、invoice options、所选 invoice 对应的 candidate commission rows、saved statement history 和 selected statement detail；selected statement 的 durable line snapshot 额外固化 transaction creation date、invoice / owner / building / unit 和 payout commission rate
+18. `/office/settings/commission-plans` 调 commission service，返回 plan list、assignment list、commission queue 和 statement snapshot
+19. `/api/office/accounting/transactions` 与 `/api/office/accounting/earnest-money` 负责最小 create / update 写入；posting 成功后同步生成 GL entries 和 `AuditLog`
+20. `/api/office/accounting/commissions/*` 与 `/api/office/transactions/:transactionId/commissions/calculate` 负责 commission plan、assignment、calculation、status、statement snapshot 的最小写入，并同步写入 `AuditLog`
+21. `/office/activity` 的 activity stream 来自 `AuditLog`，alerts 则由 `/api/office/activity/alerts` 在客户端按需读取并结合 transaction / task / contact / follow-up / accounting / EMD / commission 的实时数据库状态派生
+22. transaction / contact / finance / task / accounting / EMD / commission 的真实写入路径会同步写入 `AuditLog`
+23. auth login / logout 和 follow-up task create 也会写入 `AuditLog`
+24. `/office/activity` 顶部的内部评论也会写入 `AuditLog`，并出现在同一条 stream 里
+25. `/office/activity` 的左侧分类来自真实 action taxonomy，不是静态菜单
+26. `GET /api/office/reports/export` 复用与 `/office/reports` 相同的 filter contract、column registry 和 session scope，导出与页面 table 一致的真实 transaction CSV
+27. `/office/tasks` 读取 `TransactionTask + TaskListView`，按 built-in view、saved view 和 query-param filters 返回真实任务列表
+28. `/office/tasks` 的 create / edit / complete / reopen / request review / approve / reject 都直接写数据库，并同步写入 `AuditLog`
+29. document-linked tasks 会根据真实 workflow evidence 推导 task status，例如：
    - pending upload
    - uploaded / not submitted
    - review requested

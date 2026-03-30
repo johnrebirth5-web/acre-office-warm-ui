@@ -305,18 +305,27 @@ export type AddOfficeActivityCommentInput = {
   contextHref?: string | null;
 };
 
+export type GetOfficeOperationalAlertsInput = Pick<
+  GetOfficeActivityLogInput,
+  | "organizationId"
+  | "officeId"
+  | "currentMembershipId"
+  | "canReviewTasks"
+  | "canSecondaryReviewTasks"
+  | "alertSection"
+  | "objectType"
+  | "startDate"
+  | "endDate"
+>;
+
 export type OfficeActivityLogSnapshot = {
   latestWindowLabel: string;
   latestWindowCount: number;
   selectedView: ActivityLogViewMode;
   activitySelectedSection: ActivityLogSectionKey;
   activitySelectedSectionLabel: string;
-  alertSelectedSection: ActivityAlertSectionKey;
-  alertSelectedSectionLabel: string;
   activitySections: OfficeActivityLogSection[];
-  alertSections: OfficeActivityAlertSection[];
   activityEvents: OfficeActivityLogEvent[];
-  alerts: OfficeOperationalAlert[];
   filters: {
     actorMembershipId: string;
     objectType: ActivityLogObjectType;
@@ -324,6 +333,13 @@ export type OfficeActivityLogSnapshot = {
     endDate: string;
     actorOptions: OfficeActivityActorOption[];
   };
+};
+
+export type OfficeOperationalAlertsSnapshot = {
+  alertSelectedSection: ActivityAlertSectionKey;
+  alertSelectedSectionLabel: string;
+  alertSections: OfficeActivityAlertSection[];
+  alerts: OfficeOperationalAlert[];
 };
 
 type AuditLogWriter = Pick<Prisma.TransactionClient, "auditLog">;
@@ -1335,6 +1351,21 @@ function getViewMode(view: string | undefined): ActivityLogViewMode {
   return view === "activity" || view === "alerts" ? view : "all";
 }
 
+function buildAlertSections(alerts: OfficeOperationalAlert[]): OfficeActivityAlertSection[] {
+  return [
+    {
+      key: "all",
+      label: "All alerts",
+      count: alerts.length
+    },
+    ...activityAlertSectionDefinitions.map((section) => ({
+      key: section.key,
+      label: section.label,
+      count: alerts.filter((alert) => section.matches(alert)).length
+    }))
+  ];
+}
+
 function getDetailSummary(payload: ParsedActivityPayload) {
   const actionSourceLabel = getActionSourceLabel(payload.actionSource);
   const detailItems = payload.details;
@@ -2282,11 +2313,37 @@ export async function addOfficeActivityComment(input: AddOfficeActivityCommentIn
   });
 }
 
+export async function getOfficeOperationalAlertsSnapshot(
+  input: GetOfficeOperationalAlertsInput
+): Promise<OfficeOperationalAlertsSnapshot> {
+  const selectedObjectType = normalizeObjectType(input.objectType);
+  const startDate = parseStartDate(input.startDate);
+  const endDate = parseEndDate(input.endDate);
+  const selectedAlertSection = getAlertSectionDefinition(input.alertSection);
+
+  const derivedAlerts = await listOperationalAlerts({
+    organizationId: input.organizationId,
+    officeId: input.officeId,
+    currentMembershipId: input.currentMembershipId,
+    canReviewTasks: input.canReviewTasks,
+    canSecondaryReviewTasks: input.canSecondaryReviewTasks,
+    objectType: selectedObjectType,
+    startDate,
+    endDate
+  });
+
+  return {
+    alertSelectedSection: selectedAlertSection?.key ?? "all",
+    alertSelectedSectionLabel: selectedAlertSection?.label ?? "All alerts",
+    alertSections: buildAlertSections(derivedAlerts),
+    alerts: selectedAlertSection ? derivedAlerts.filter((alert) => selectedAlertSection.matches(alert)) : derivedAlerts
+  };
+}
+
 export async function getOfficeActivityLogSnapshot(input: GetOfficeActivityLogInput): Promise<OfficeActivityLogSnapshot> {
   const limit = input.limit ?? 200;
   const selectedView = getViewMode(input.view);
   const selectedActivitySection = getActivitySectionDefinition(input.activitySection);
-  const selectedAlertSection = getAlertSectionDefinition(input.alertSection);
   const selectedObjectType = normalizeObjectType(input.objectType);
   const startDate = parseStartDate(input.startDate);
   const endDate = parseEndDate(input.endDate);
@@ -2347,49 +2404,14 @@ export async function getOfficeActivityLogSnapshot(input: GetOfficeActivityLogIn
         ? latestActivityWindow
         : latestActivityWindow.filter((event) => selectedActivitySection.matches(event.action));
 
-  const derivedAlerts = await listOperationalAlerts({
-    organizationId: input.organizationId,
-    officeId: input.officeId,
-    currentMembershipId: input.currentMembershipId,
-    canReviewTasks: input.canReviewTasks,
-    canSecondaryReviewTasks: input.canSecondaryReviewTasks,
-    objectType: selectedObjectType,
-    startDate,
-    endDate
-  });
-
-  const alertSections: OfficeActivityAlertSection[] = [
-    {
-      key: "all",
-      label: "All alerts",
-      count: derivedAlerts.length
-    },
-    ...activityAlertSectionDefinitions.map((section) => ({
-      key: section.key,
-      label: section.label,
-      count: derivedAlerts.filter((alert) => section.matches(alert)).length
-    }))
-  ];
-
-  const alerts =
-    selectedView === "activity"
-      ? []
-      : selectedAlertSection
-        ? derivedAlerts.filter((alert) => selectedAlertSection.matches(alert))
-        : derivedAlerts;
-
   return {
     latestWindowLabel: `Latest ${limit} activity records`,
     latestWindowCount: latestActivityWindow.length,
     selectedView,
     activitySelectedSection: selectedActivitySection.key,
     activitySelectedSectionLabel: selectedActivitySection.label,
-    alertSelectedSection: selectedAlertSection?.key ?? "all",
-    alertSelectedSectionLabel: selectedAlertSection?.label ?? "All alerts",
     activitySections,
-    alertSections,
     activityEvents,
-    alerts,
     filters: {
       actorMembershipId: input.actorMembershipId ?? "",
       objectType: selectedObjectType,

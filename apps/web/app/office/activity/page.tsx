@@ -15,6 +15,7 @@ import {
 import { getOfficeActivityLogSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { ActivityAlertsLayout } from "./activity-alerts-layout";
 import { ActivityCommentComposer } from "./activity-comment-composer";
 
 type OfficeActivityPageProps = {
@@ -62,18 +63,6 @@ function buildActivityHref(currentSearchParams: ActivitySearchParams, nextSearch
   return query ? `/office/activity?${query}` : "/office/activity";
 }
 
-function getAlertTone(severity: string) {
-  if (severity === "high") {
-    return "danger" as const;
-  }
-
-  if (severity === "medium") {
-    return "warning" as const;
-  }
-
-  return "accent" as const;
-}
-
 export default async function OfficeActivityPage(props: OfficeActivityPageProps) {
   const context = await requireOfficeSession();
 
@@ -98,6 +87,86 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
   });
 
   const selectedView = snapshot.selectedView;
+  const normalizedSearchParams = {
+    view: selectedView === "all" ? "" : selectedView,
+    activitySection: selectedView === "activity" ? snapshot.activitySelectedSection : "",
+    alertSection: typeof searchParams.alertSection === "string" ? searchParams.alertSection : "",
+    actorMembershipId: snapshot.filters.actorMembershipId,
+    objectType: snapshot.filters.objectType === "all" ? "" : snapshot.filters.objectType,
+    startDate: snapshot.filters.startDate,
+    endDate: snapshot.filters.endDate
+  };
+  const activitySidebar = (
+    <SectionCard
+      className="office-activity-sections-card"
+      subtitle="Counts in the latest 200-record audit window"
+      title="Activity log"
+    >
+      <nav className="bm-activity-section-list">
+        {snapshot.activitySections.map((section) => (
+          <Link
+            className={`bm-activity-section-link${selectedView === "activity" && section.key === snapshot.activitySelectedSection ? " is-active" : ""}`}
+            href={buildActivityHref(normalizedSearchParams, {
+              view: "activity",
+              activitySection: section.key,
+              alertSection: ""
+            })}
+            key={section.key}
+          >
+            <strong>{section.label}</strong>
+            <span>{section.count}</span>
+          </Link>
+        ))}
+      </nav>
+    </SectionCard>
+  );
+  const activityStream =
+    selectedView !== "alerts" ? (
+      <SectionCard
+        className="office-activity-log-card"
+        subtitle={`Showing ${snapshot.activityEvents.length} audit records`}
+        title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : "Activity log"}
+      >
+        <div className="bm-activity-records">
+          {snapshot.activityEvents.length ? (
+            snapshot.activityEvents.map((event) => (
+              <article className="bm-activity-record" key={event.id}>
+                <div className="bm-activity-record-top">
+                  <div className="bm-activity-record-copy">
+                    <div className="bm-activity-record-summary">
+                      <strong>{event.actorDisplayName}</strong>
+                      <span>{event.summary}</span>
+                    </div>
+                    {event.href ? (
+                      <Link className="bm-activity-object-link" href={event.href}>
+                        {event.objectLabel}
+                      </Link>
+                    ) : (
+                      <p className="bm-activity-object-link is-static">{event.objectLabel}</p>
+                    )}
+                  </div>
+
+                  <div className="bm-activity-record-meta">
+                    <StatusBadge tone={event.isComment ? "neutral" : "accent"}>{event.actionLabel}</StatusBadge>
+                    <time>{event.timestampLabel}</time>
+                  </div>
+                </div>
+
+                {event.detailSummary.length ? (
+                  <ul className="bm-activity-detail-list">
+                    {event.detailSummary.map((detail) => (
+                      <li key={detail}>{detail}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </article>
+            ))
+          ) : (
+            <EmptyState description="Try a wider date range or a broader view filter." title="No audit events are currently available for this scope." />
+          )}
+        </div>
+      </SectionCard>
+    ) : null;
 
   return (
     <PageShell className="office-activity-page office-list-page">
@@ -110,7 +179,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             />
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Audit window" tone="accent" value={snapshot.latestWindowCount} />
-            <SummaryChip label="Live alerts" value={snapshot.alerts.length} />
+            <SummaryChip label="Live alerts" value={selectedView === "activity" ? "On demand" : "Loading..."} />
           </PageHeaderSummary>
         }
         description="Audit-backed activity records remain the source of truth. Operational alerts are derived live from current transaction, task, and contact state."
@@ -122,7 +191,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
         <div className="bm-filter-strip office-toggle-strip">
           <Link
             className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "all" ? " is-active" : ""}`}
-            href={buildActivityHref(searchParams, {
+            href={buildActivityHref(normalizedSearchParams, {
               view: "all",
               activitySection: "",
               alertSection: ""
@@ -132,7 +201,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
           </Link>
           <Link
             className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "activity" ? " is-active" : ""}`}
-            href={buildActivityHref(searchParams, {
+            href={buildActivityHref(normalizedSearchParams, {
               view: "activity",
               alertSection: ""
             })}
@@ -141,7 +210,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
           </Link>
           <Link
             className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "alerts" ? " is-active" : ""}`}
-            href={buildActivityHref(searchParams, {
+            href={buildActivityHref(normalizedSearchParams, {
               view: "alerts",
               activitySection: ""
             })}
@@ -190,7 +259,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
               <input name="activitySection" type="hidden" value={snapshot.activitySelectedSection} />
             ) : null}
             {selectedView === "alerts" ? (
-              <input name="alertSection" type="hidden" value={snapshot.alertSelectedSection === "all" ? "" : snapshot.alertSelectedSection} />
+              <input name="alertSection" type="hidden" value={normalizedSearchParams.alertSection} />
             ) : null}
             <Button type="submit" variant="secondary">
               Apply filters
@@ -202,155 +271,12 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
         </div>
       </FilterBar>
 
-      <section className="bm-activity-layout">
-        <aside className="bm-activity-nav-column">
-          <SectionCard
-            className="office-activity-sections-card"
-            subtitle="Counts in the latest 200-record audit window"
-            title="Activity log"
-          >
-            <nav className="bm-activity-section-list">
-              {snapshot.activitySections.map((section) => (
-                <Link
-                  className={`bm-activity-section-link${selectedView === "activity" && section.key === snapshot.activitySelectedSection ? " is-active" : ""}`}
-                  href={buildActivityHref(searchParams, {
-                    view: "activity",
-                    activitySection: section.key,
-                    alertSection: ""
-                  })}
-                  key={section.key}
-                >
-                  <strong>{section.label}</strong>
-                  <span>{section.count}</span>
-                </Link>
-              ))}
-            </nav>
-          </SectionCard>
-
-          <SectionCard
-            className="office-activity-sections-card"
-            subtitle="Live alerts derived from current system state"
-            title="Operational alerts"
-          >
-            <nav className="bm-activity-section-list">
-              {snapshot.alertSections.map((section) => (
-                <Link
-                  className={`bm-activity-section-link${selectedView === "alerts" && section.key === snapshot.alertSelectedSection ? " is-active" : ""}`}
-                  href={buildActivityHref(searchParams, {
-                    view: "alerts",
-                    activitySection: "",
-                    alertSection: section.key === "all" ? "" : section.key
-                  })}
-                  key={section.key}
-                >
-                  <strong>{section.label}</strong>
-                  <span>{section.count}</span>
-                </Link>
-              ))}
-            </nav>
-          </SectionCard>
-        </aside>
-
-        <div className="bm-activity-streams">
-          {selectedView !== "alerts" ? (
-            <SectionCard
-              className="office-activity-log-card"
-              subtitle={`Showing ${snapshot.activityEvents.length} audit records`}
-              title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : "Activity log"}
-            >
-              <div className="bm-activity-records">
-                {snapshot.activityEvents.length ? (
-                  snapshot.activityEvents.map((event) => (
-                    <article className="bm-activity-record" key={event.id}>
-                      <div className="bm-activity-record-top">
-                        <div className="bm-activity-record-copy">
-                          <div className="bm-activity-record-summary">
-                            <strong>{event.actorDisplayName}</strong>
-                            <span>{event.summary}</span>
-                          </div>
-                          {event.href ? (
-                            <Link className="bm-activity-object-link" href={event.href}>
-                              {event.objectLabel}
-                            </Link>
-                          ) : (
-                            <p className="bm-activity-object-link is-static">{event.objectLabel}</p>
-                          )}
-                        </div>
-
-                        <div className="bm-activity-record-meta">
-                          <StatusBadge tone={event.isComment ? "neutral" : "accent"}>{event.actionLabel}</StatusBadge>
-                          <time>{event.timestampLabel}</time>
-                        </div>
-                      </div>
-
-                      {event.detailSummary.length ? (
-                        <ul className="bm-activity-detail-list">
-                          {event.detailSummary.map((detail) => (
-                            <li key={detail}>{detail}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </article>
-                  ))
-                ) : (
-                  <EmptyState description="Try a wider date range or a broader view filter." title="No audit events are currently available for this scope." />
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-
-          {selectedView !== "activity" ? (
-            <SectionCard
-              className="office-activity-log-card office-alerts-card"
-              subtitle={`Showing ${snapshot.alerts.length} current alerts`}
-              title={selectedView === "alerts" ? snapshot.alertSelectedSectionLabel : "Operational alerts"}
-            >
-              <div className="bm-activity-records">
-                {snapshot.alerts.length ? (
-                  snapshot.alerts.map((alert) => (
-                    <article className="bm-activity-record bm-alert-record" key={alert.id}>
-                      <div className="bm-activity-record-top">
-                        <div className="bm-activity-record-copy">
-                          <div className="bm-activity-record-summary">
-                            <strong>{alert.title}</strong>
-                            <span>{alert.summary}</span>
-                          </div>
-                          {alert.href ? (
-                            <Link className="bm-activity-object-link" href={alert.href}>
-                              {alert.objectLabel}
-                            </Link>
-                          ) : (
-                            <p className="bm-activity-object-link is-static">{alert.objectLabel}</p>
-                          )}
-                        </div>
-
-                        <div className="bm-activity-record-meta">
-                          <StatusBadge tone={getAlertTone(alert.severity)}>{alert.severityLabel}</StatusBadge>
-                          <span>{alert.referenceLabel}</span>
-                        </div>
-                      </div>
-
-                      <div className="bm-alert-type-row">
-                        <span className="bm-alert-type-label">{alert.typeLabel}</span>
-                      </div>
-
-                      {alert.detailSummary.length ? (
-                        <ul className="bm-activity-detail-list">
-                          {alert.detailSummary.map((detail) => (
-                            <li key={detail}>{detail}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </article>
-                  ))
-                ) : (
-                  <EmptyState description="This scope is clear based on the current live workflow state." title="No live operational alerts are active for this scope." />
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-        </div>
-      </section>
+      <ActivityAlertsLayout
+        activitySidebar={activitySidebar}
+        activityStream={activityStream}
+        currentSearchParams={normalizedSearchParams}
+        selectedView={selectedView}
+      />
     </PageShell>
   );
 }
