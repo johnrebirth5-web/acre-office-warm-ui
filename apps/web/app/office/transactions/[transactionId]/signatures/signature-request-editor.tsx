@@ -138,6 +138,10 @@ export function SignatureRequestEditor({
   }
 
   function handleAddField(pageNumber: number, event: React.MouseEvent<HTMLDivElement>) {
+    if (event.target instanceof Element && event.target.closest(".office-signature-field-token")) {
+      return;
+    }
+
     const currentTarget = event.currentTarget;
     const bounds = currentTarget.getBoundingClientRect();
     const defaults = fieldDefaults[selectedTool];
@@ -166,7 +170,8 @@ export function SignatureRequestEditor({
     setSuccessMessage("");
   }
 
-  function handleFieldPointerDown(fieldId: string) {
+  function handleFieldPointerDown(fieldId: string, event: React.PointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
     setDraggingFieldId(fieldId);
     setSelectedFieldId(fieldId);
   }
@@ -390,7 +395,8 @@ export function SignatureRequestEditor({
                       <div
                         className={`office-signature-field-token${selectedFieldId === field.id ? " is-selected" : ""}`}
                         key={field.id}
-                        onPointerDown={() => handleFieldPointerDown(field.id)}
+                        onClick={(event) => event.stopPropagation()}
+                        onPointerDown={(event) => handleFieldPointerDown(field.id, event)}
                         style={{
                           left: `${field.x * 100}%`,
                           top: `${field.y * 100}%`,
