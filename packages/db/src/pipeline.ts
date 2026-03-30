@@ -106,6 +106,7 @@ export type GetOfficePipelineWorkspaceInput = {
 
 type PipelineWorkspaceTransaction = {
   id: string;
+  createdAt: Date;
   title: string;
   address: string;
   city: string;
@@ -128,14 +129,26 @@ type PipelineWorkspaceTransaction = {
       lastName: string;
     };
   } | null;
-  membershipLinks: Array<{
-    membershipId: string;
-  }>;
   commissionCalculations: Array<{
     membershipId: string | null;
     statementAmount: Prisma.Decimal;
   }>;
 };
+
+type PipelineMetricTransaction = Pick<
+  PipelineWorkspaceTransaction,
+  | "id"
+  | "createdAt"
+  | "purchasedPrice"
+  | "price"
+  | "grossCommission"
+  | "officeNet"
+  | "agentNet"
+  | "closingDate"
+  | "updatedAt"
+  | "ownerMembershipId"
+  | "commissionCalculations"
+>;
 
 type NormalizedPipelineSelectionInput = {
   view: OfficePipelineView | "";
@@ -171,6 +184,56 @@ const metricModeLabels: Record<OfficePipelineMetricMode, string> = {
   my_gross_commission: "My gross commission",
   my_sales_volume: "My sales volume"
 };
+
+function buildPipelineMetricTransactionSelect(membershipIds: string[]) {
+  return {
+    id: true,
+    createdAt: true,
+    purchasedPrice: true,
+    price: true,
+    grossCommission: true,
+    officeNet: true,
+    agentNet: true,
+    closingDate: true,
+    updatedAt: true,
+    ownerMembershipId: true,
+    commissionCalculations: getCommissionCalculationSelect(membershipIds)
+  } satisfies Prisma.TransactionSelect;
+}
+
+function buildPipelineRowTransactionSelect(membershipIds: string[]) {
+  return {
+    id: true,
+    createdAt: true,
+    title: true,
+    address: true,
+    city: true,
+    state: true,
+    zipCode: true,
+    purchasedPrice: true,
+    price: true,
+    grossCommission: true,
+    officeNet: true,
+    agentNet: true,
+    importantDate: true,
+    closingDate: true,
+    updatedAt: true,
+    status: true,
+    representing: true,
+    ownerMembershipId: true,
+    ownerMembership: {
+      select: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
+    },
+    commissionCalculations: getCommissionCalculationSelect(membershipIds)
+  } satisfies Prisma.TransactionSelect;
+}
 
 function normalizeRepresentingFilter(value: string | undefined): OfficePipelineRepresentingFilter {
   if (!value || value === "all") {
@@ -357,6 +420,102 @@ function getMonthlyRollupKey(transaction: Pick<PipelineWorkspaceTransaction, "cl
   return getMonthlyRollupDate(transaction).toISOString().slice(0, 7);
 }
 
+function getHistoryMonthDateRange(monthKey: string) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+
+  return {
+    start,
+    end
+  };
+}
+
+function buildHistoryWindowWhere(
+  baseWhere: Prisma.TransactionWhereInput,
+  historyMonthKeys: string[],
+  metricScopeWhere: Prisma.TransactionWhereInput | null
+): Prisma.TransactionWhereInput {
+  const oldestMonth = historyMonthKeys[historyMonthKeys.length - 1];
+  const newestMonth = historyMonthKeys[0];
+  const oldestRange = getHistoryMonthDateRange(oldestMonth);
+  const newestRange = getHistoryMonthDateRange(newestMonth);
+
+  return {
+    AND: [
+      baseWhere,
+      {
+        status: "closed"
+      },
+      {
+        OR: [
+          {
+            closingDate: {
+              gte: oldestRange.start,
+              lt: newestRange.end
+            }
+          },
+          {
+            AND: [
+              {
+                closingDate: null
+              },
+              {
+                updatedAt: {
+                  gte: oldestRange.start,
+                  lt: newestRange.end
+                }
+              }
+            ]
+          }
+        ]
+      },
+      ...(metricScopeWhere ? [metricScopeWhere] : [])
+    ]
+  };
+}
+
+function buildPendingWhere(
+  baseWhere: Prisma.TransactionWhereInput,
+  metricScopeWhere: Prisma.TransactionWhereInput | null
+): Prisma.TransactionWhereInput {
+  return {
+    AND: [
+      baseWhere,
+      {
+        status: "pending"
+      },
+      ...(metricScopeWhere ? [metricScopeWhere] : [])
+    ]
+  };
+}
+
+function getCommissionCalculationSelect(membershipIds: string[]) {
+  return membershipIds.length > 0
+    ? {
+        where: {
+          membershipId: {
+            in: membershipIds
+          }
+        },
+        select: {
+          membershipId: true,
+          statementAmount: true
+        }
+      }
+    : {
+        where: {
+          membershipId: {
+            in: ["__no_membership__"]
+          }
+        },
+        select: {
+          membershipId: true,
+          statementAmount: true
+        }
+      };
+}
+
 function buildTransactionAddressLabel(transaction: Pick<PipelineWorkspaceTransaction, "address" | "city" | "state" | "zipCode">) {
   const locality = [transaction.city, transaction.state].filter(Boolean).join(", ");
   return [transaction.address, locality, transaction.zipCode].filter(Boolean).join(" ").replace(/\s+,/g, ",");
@@ -453,29 +612,35 @@ export function getMyPipelineVisibleMembershipIds(scope: OfficeDataScope) {
   return [scope.viewerMembershipId];
 }
 
-function transactionMatchesMembershipScope(transaction: PipelineWorkspaceTransaction, membershipIds: string[]) {
-  if (membershipIds.includes(transaction.ownerMembershipId ?? "")) {
-    return true;
-  }
-
-  if (transaction.commissionCalculations.some((calculation) => calculation.membershipId && membershipIds.includes(calculation.membershipId))) {
-    return true;
-  }
-
-  return transaction.membershipLinks.some((membershipLink) => membershipIds.includes(membershipLink.membershipId));
-}
-
-function filterTransactionsForMetricScope(
-  transactions: PipelineWorkspaceTransaction[],
-  scope: OfficeDataScope,
+function buildPipelineMetricScopeWhere(
+  viewerMembershipId: string,
   metricMode: OfficePipelineMetricMode
-) {
+): Prisma.TransactionWhereInput | null {
   if (!isMyMetricMode(metricMode)) {
-    return transactions;
+    return null;
   }
 
-  const membershipIds = getMyPipelineVisibleMembershipIds(scope);
-  return transactions.filter((transaction) => transactionMatchesMembershipScope(transaction, membershipIds));
+  return {
+    OR: [
+      {
+        ownerMembershipId: viewerMembershipId
+      },
+      {
+        membershipLinks: {
+          some: {
+            membershipId: viewerMembershipId
+          }
+        }
+      },
+      {
+        commissionCalculations: {
+          some: {
+            membershipId: viewerMembershipId
+          }
+        }
+      }
+    ]
+  };
 }
 
 export function resolveDefaultOfficePipelineSelection(historyMonths: OfficePipelineHistoryMonth[]): {
@@ -552,6 +717,65 @@ function mapPipelineRow(
   };
 }
 
+function buildHistoryMonths(
+  transactions: PipelineMetricTransaction[],
+  historyMonthKeys: string[],
+  metricMode: OfficePipelineMetricMode,
+  membershipIds: string[]
+) {
+  return historyMonthKeys.map((monthKey, index) => {
+    const monthTransactions = transactions.filter((transaction) => getMonthlyRollupKey(transaction) === monthKey);
+    const totalMetric = monthTransactions.reduce(
+      (sum, transaction) => sum + getTransactionMetricValue(transaction, metricMode, membershipIds),
+      0
+    );
+
+    return {
+      monthKey,
+      label: formatMonthLabel(monthKey),
+      count: monthTransactions.length,
+      metricLabel: formatCurrency(totalMetric),
+      isCurrentMonth: index === 0
+    } satisfies OfficePipelineHistoryMonth;
+  });
+}
+
+async function loadPipelineMetricTransactions(input: {
+  where: Prisma.TransactionWhereInput;
+  membershipIds: string[];
+  orderBy?: Prisma.TransactionOrderByWithRelationInput[];
+}) {
+  return prisma.transaction.findMany({
+    where: input.where,
+    select: buildPipelineMetricTransactionSelect(input.membershipIds),
+    orderBy: input.orderBy
+  });
+}
+
+async function loadPipelineRowsByIds(input: {
+  transactionIds: string[];
+  membershipIds: string[];
+}) {
+  if (input.transactionIds.length === 0) {
+    return [] satisfies PipelineWorkspaceTransaction[];
+  }
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      id: {
+        in: input.transactionIds
+      }
+    },
+    select: buildPipelineRowTransactionSelect(input.membershipIds)
+  });
+  const transactionMap = new Map(transactions.map((transaction) => [transaction.id, transaction]));
+
+  return input.transactionIds.flatMap((transactionId) => {
+    const transaction = transactionMap.get(transactionId);
+    return transaction ? [transaction] : [];
+  });
+}
+
 export async function getOfficePipelineWorkspaceSnapshot(
   input: GetOfficePipelineWorkspaceInput
 ): Promise<OfficePipelineWorkspaceSnapshot> {
@@ -565,80 +789,53 @@ export async function getOfficePipelineWorkspaceSnapshot(
   const canViewOfficeMetrics = canViewOfficePipelineMetrics(scope.viewerRole);
   const metricMode = normalizeOfficePipelineMetricMode(input.metricMode, canViewOfficeMetrics);
   const metricOptions = getOfficePipelineMetricOptions(canViewOfficeMetrics);
-  const myMetricMembershipIds = getMyPipelineVisibleMembershipIds(scope);
+  const metricMembershipIds = isMyMetricMode(metricMode) ? getMyPipelineVisibleMembershipIds(scope) : [];
+  const metricScopeWhere = buildPipelineMetricScopeWhere(scope.viewerMembershipId, metricMode);
   const requestedSelection = normalizeOfficePipelineSelectionInput({
     view: input.view,
     stage: input.stage,
     historyStatus: input.historyStatus,
     historyMonth: input.historyMonth
   });
-  const where = buildTopLevelWhere(input, representing, scope);
-  const transactions = await prisma.transaction.findMany({
-    where,
-    include: {
-      ownerMembership: {
-        include: {
-          user: true
-        }
-      },
-      membershipLinks: {
-        select: {
-          membershipId: true
-        }
-      },
-      commissionCalculations: {
-        where: {
-          membershipId: {
-            in: myMetricMembershipIds
-          }
-        },
-        select: {
-          membershipId: true,
-          statementAmount: true
-        }
-      }
-    },
-    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
-  });
-
-  const scopedTransactions = filterTransactionsForMetricScope(transactions, scope, metricMode);
-  const pendingTransactions = scopedTransactions.filter((transaction) => pipelineStatusFromDb[transaction.status] === "Pending");
   const historyMonthKeys = buildPipelineHistoryMonthKeys();
-  const historyMonths = historyMonthKeys.map((monthKey, index) => {
-    const monthTransactions = scopedTransactions.filter(
-      (transaction) => pipelineStatusFromDb[transaction.status] === supportedHistoryStatus && getMonthlyRollupKey(transaction) === monthKey
-    );
-    const totalMetric = monthTransactions.reduce(
-      (sum, transaction) => sum + getTransactionMetricValue(transaction, metricMode, myMetricMembershipIds),
-      0
-    );
-
-    return {
-      monthKey,
-      label: formatMonthLabel(monthKey),
-      count: monthTransactions.length,
-      metricLabel: formatCurrency(totalMetric),
-      isCurrentMonth: index === 0
-    };
-  });
+  const baseWhere = buildTopLevelWhere(input, representing, scope);
+  const pendingWhere = buildPendingWhere(baseWhere, metricScopeWhere);
+  const historyWhere = buildHistoryWindowWhere(baseWhere, historyMonthKeys, metricScopeWhere);
+  const [pendingTransactions, closedHistoryTransactions] = await Promise.all([
+    loadPipelineMetricTransactions({
+      where: pendingWhere,
+      membershipIds: metricMembershipIds,
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
+    }),
+    loadPipelineMetricTransactions({
+      where: historyWhere,
+      membershipIds: metricMembershipIds
+    })
+  ]);
+  const historyMonths = buildHistoryMonths(
+    closedHistoryTransactions,
+    historyMonthKeys,
+    metricMode,
+    metricMembershipIds
+  );
   const selectionFilters = resolveSelection(requestedSelection, historyMonths);
-  const selectedTransactions =
+  const selectedMetricTransactions =
     selectionFilters.view === "pending"
-      ? [...pendingTransactions].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
-      : scopedTransactions
-          .filter(
-            (transaction) =>
-              pipelineStatusFromDb[transaction.status] === supportedHistoryStatus &&
-              getMonthlyRollupKey(transaction) === selectionFilters.historyMonth
-          )
+      ? pendingTransactions
+      : closedHistoryTransactions
+          .filter((transaction) => getMonthlyRollupKey(transaction) === selectionFilters.historyMonth)
           .sort((left, right) => getMonthlyRollupDate(right).getTime() - getMonthlyRollupDate(left).getTime());
-
-  const selectedMetricTotal = selectedTransactions.reduce(
-    (sum, transaction) => sum + getTransactionMetricValue(transaction, metricMode, myMetricMembershipIds),
+  const selectedTransactionIds = selectedMetricTransactions.map((transaction) => transaction.id);
+  const selectedTransactions = await loadPipelineRowsByIds({
+    transactionIds: selectedTransactionIds,
+    membershipIds: metricMembershipIds
+  });
+  const pendingMetricTotal = pendingTransactions.reduce(
+    (sum, transaction) => sum + getTransactionMetricValue(transaction, metricMode, metricMembershipIds),
     0
   );
-  const pendingMetricTotal = pendingTransactions.reduce(
-    (sum, transaction) => sum + getTransactionMetricValue(transaction, metricMode, myMetricMembershipIds),
+  const selectedMetricTotal = selectedMetricTransactions.reduce(
+    (sum, transaction) => sum + getTransactionMetricValue(transaction, metricMode, metricMembershipIds),
     0
   );
   const representingFilterLabel = representing === "all" ? "Any side" : `${representingLabelMap[representing]} side`;
@@ -673,7 +870,7 @@ export async function getOfficePipelineWorkspaceSnapshot(
       contextChips
     },
     summary: {
-      totalCount: selectedTransactions.length,
+      totalCount: selectedMetricTransactions.length,
       totalMetricLabel: formatCurrency(selectedMetricTotal)
     },
     pendingSummary: {
@@ -681,6 +878,6 @@ export async function getOfficePipelineWorkspaceSnapshot(
       metricLabel: formatCurrency(pendingMetricTotal)
     },
     historyMonths,
-    rows: selectedTransactions.map((transaction) => mapPipelineRow(transaction, metricMode, myMetricMembershipIds))
+    rows: selectedTransactions.map((transaction) => mapPipelineRow(transaction, metricMode, metricMembershipIds))
   };
 }

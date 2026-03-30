@@ -35,6 +35,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - the left rail now exposes only `Pending` plus fixed `Closed` monthly history, instead of the earlier full-stage funnel.
   - top-right metric switching now separates office metrics from personal metrics and enforces role-based visibility for office-level financials.
   - monthly history selection and right-side working list stay URL-driven and scoped to the current office/org context.
+  - the current snapshot service now reads pending metrics, six-month closed-history metrics, and selected list rows through separate queries instead of loading the whole visible transaction portfolio into memory first.
 - Follow-up work:
   - deeper analytics drilldowns
   - more advanced owner/team slicing

@@ -55,6 +55,10 @@
   - `My net income` no longer rolls subordinate commission rows into branch-leader totals
   - selecting a personal pipeline metric now also hides subordinate-only deals where the current viewer has no direct participation
   - this change is limited to pipeline personal metrics; broader team-scope transaction/reporting surfaces keep their existing team visibility rules
+- 2026-03-30: `/office/pipeline` snapshot loading no longer pulls the full visible transaction portfolio into one in-memory bucket pass:
+  - pending summary, six-month closed history, and selected working-list rows now come from separate query paths
+  - `my_*` metric scope is pushed into relation-aware database predicates instead of post-query membership filtering
+  - page URL semantics and UI layout remain unchanged while the service path is materially lighter for larger datasets
 - 2026-03-26: transaction commission detail and saved payout statements now surface named post-split fee detail instead of leaving `External Referral` and `Company Referral` hidden behind one merged company adjustment:
   - transaction `Commission` now shows one combined allocation table where those active fee rows appear as separate rows beneath the stakeholder rows, while saved statement detail / PDF still retain named fee lines
   - generated `AgentPayoutStatementLine` snapshots now persist fee-breakdown JSON so saved statement detail / PDF can keep showing the named post-split breakdown even after later recalculation

@@ -65,6 +65,7 @@
   - 当前主界面已经收敛成更接近 `Brokermint` 的双栏工作台：
     - 左侧只保留 `Pending` 概览和最近 `6` 个月的 `Closed` 历史
     - 右侧是当前所选 `Pending` 或月份 `Closed` 的真实 transaction list
+    - 当前 service 读路径已经拆成 `pending metrics`、`closed history metrics`、`selected rows` 三段查询，不再把整个可见 transaction 集一次性 materialize 到 Node 内存里切桶
   - 支持 query-param 驱动的顶层过滤：
     - `side / representing`
     - `metric mode`
@@ -77,10 +78,9 @@
     - `My net income`
     - `My sales volume`
   - `Office net` / `Office sales volume` / `Office gross` 只有 `Owner / Office Admin` 可见
-  - `My net income` / `My sales volume` 会按当前用户真实 scope 聚合：
-    - `team leader`：自己 + 全部下级
-    - `junior team leader`：自己 + 下级 agent
-    - 其他角色：默认只看自己
+  - `My net income` / `My gross commission` / `My sales volume` 会按当前用户“直接参与的 deal”真实 scope 聚合：
+    - `team leader` 和 `junior team leader` 在 `my_*` metric 下也只看自己直接参与的 deal
+    - 更广的 team visibility 仍然保留在 `Transactions / Reports` 等其他页面
   - `Office sales volume` 和 `My sales volume` 当前都使用 transaction `purchasedPrice`，并在 bridge 期回退 legacy `price`
   - `Office net` 当前使用 transaction finance / commission workflow 已存储的 `officeNet`
   - `Office gross` 当前来自 transaction finance 上的 `grossCommission`；缺失 finance 数据时按 `0` 处理

@@ -9,6 +9,7 @@ Evolve `/office/pipeline` into a stronger BoldTrail/Brokermint-style management 
 - dual-column pipeline workspace with a `Pending` summary card and fixed six-month `Closed` history rail
 - right-side transaction list driven by the current `Pending` or monthly `Closed` selection
 - default landing selection now prefers the current month's `Closed` bucket, then the most recent month with closed records, then `Pending`
+- the current snapshot service now reads pipeline data through dedicated `pending metrics`, `closed history metrics`, and `selected rows` queries instead of loading the full visible transaction set and slicing it in memory
 - URL-driven filters:
   - side / representing
   - metric mode

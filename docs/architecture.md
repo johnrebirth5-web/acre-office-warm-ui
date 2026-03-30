@@ -500,7 +500,7 @@
 1. `/office/dashboard` 先读取当前 office session，再调 `@acre/db` 的 `getOfficeDashboardBusinessSnapshot`
 2. `/office/activity` 先读取当前 office session，再调 `@acre/db` 的 `getOfficeActivityLogSnapshot`
 3. `/office/activity` 在当前 view 包含 alerts 时，再由客户端调用 `GET /api/office/activity/alerts` 获取 `getOfficeOperationalAlertsSnapshot`
-4. `/office/pipeline` 调 `@acre/db` 的 `getOfficePipelineWorkspaceSnapshot`
+4. `/office/pipeline` 调 `@acre/db` 的 `getOfficePipelineWorkspaceSnapshot`；当前 snapshot 已拆成 `pending metrics`、`closed history metrics` 和 `selected rows` 三段查询，而不是先把整个可见 transaction 集一次性读回应用层
 5. `/office/transactions` 调 `@acre/db` 的 transaction service，并按 query-param 驱动的 `q / status / ownerMembershipId / teamId / type / startDate / endDate / page / pageSize` 做服务端过滤和分页
 6. `/office/transactions` modal、`/office/transactions/new` 页面和 transaction detail intake editor 共享同一份 office-scoped transaction intake schema，来自 `getOfficeTransactionIntakeSchema`
 7. `/office/transactions` 内的客户端 modal 调 `/api/office/transactions` 写入数据库；`GET /api/office/transactions` 也接受同一组 list-side query params
