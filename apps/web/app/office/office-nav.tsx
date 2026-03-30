@@ -284,6 +284,22 @@ export function OfficeNav({ currentOfficeName, currentAccess }: OfficeNavProps) 
             <strong>{mobileCurrentLabel}</strong>
           </div>
 
+          <Link
+            aria-label="Go to dashboard"
+            className="office-mobile-rail-logo"
+            href="/office/dashboard"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <Image
+              alt="Acre New York Realty logo"
+              className="office-mobile-rail-logo-image"
+              height={1404}
+              priority
+              src="/acre-logo-nyr.png"
+              width={1175}
+            />
+          </Link>
+
           <button
             aria-controls={mobileMenuPanelId}
             aria-expanded={isMobileMenuOpen}
