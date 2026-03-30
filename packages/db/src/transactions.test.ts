@@ -653,6 +653,27 @@ test("listTransactions applies dynamic custom field filters", async () => {
   }
 });
 
+test("listTransactions returns an empty summary when no transactions match", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const result = await listTransactions({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    assert.equal(result.totalCount, 0);
+    assert.equal(result.totalPages, 1);
+    assert.equal(result.page, 1);
+    assert.equal(result.transactions.length, 0);
+    assert.equal(result.summary.totalNetIncomeLabel, "Office net income");
+    assert.equal(result.summary.totalNetIncome, "$0");
+  } finally {
+    await context.cleanup();
+  }
+});
+
 test("commission participants can see shared transactions and their scoped income without workspace access", async () => {
   const context = await createTransactionsTestContext();
 

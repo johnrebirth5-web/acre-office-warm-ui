@@ -1101,6 +1101,7 @@ acre/
 - [packages/db/src/bootstrap.ts](./packages/db/src/bootstrap.ts) 是当前最小数据库读取 utility
 - [packages/db/src/transactions.ts](./packages/db/src/transactions.ts) 是当前 transaction 持久化 service 入口
 - `/office/transactions` 页面现在会通过一个共享 server snapshot 同时解析 search layout 和 paginated list result，避免同一请求里重复解析 scope / teams / filter options
+- `/office/transactions` 列表 summary 现在会按 viewer scope 只跑必要的 net-income aggregate，并在空结果时直接短路返回，避免无意义的额外查询
 - [packages/db/src/contacts.ts](./packages/db/src/contacts.ts) 是当前 contact / follow-up task 持久化 service 入口
 - [packages/db/src/commissions.ts](./packages/db/src/commissions.ts) 是当前 commission plan / calculation / statement service 入口
 - [apps/web/lib/auth-session.ts](./apps/web/lib/auth-session.ts) 是当前本地 session 和 server-side auth context 入口

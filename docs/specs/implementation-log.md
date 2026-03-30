@@ -141,6 +141,7 @@
   - transaction legacy compatibility placeholders and text-only finance bridge fields are now retired from the shared schema itself, so they no longer appear in `Settings > Fields`, create-time `Edit fields`, or default transaction search/report layouts
   - field-structure changes write to `Activity Log`
   - `/office/transactions` page load now reuses one shared server snapshot for both search-layout resolution and paginated list data, so the page no longer resolves the same scope/team/filter-option context twice before rendering the table
+  - `/office/transactions` list summary now short-circuits empty result sets and only runs the net-income aggregate path required for the current viewer scope instead of always running office + scoped income aggregates together
 - Reports and transaction pricing are now normalized around one transaction truth source:
   - `/office/reports` has been rebuilt into a transaction-centric workspace where filters, rows, summary cards, and CSV export all reuse the same predicate builder and column registry
   - `/office/reports` rows are now server-paginated via `page / pageSize`, while summary cards still calculate against the full filtered result set and CSV export continues to ignore pagination so it returns the full filtered result set

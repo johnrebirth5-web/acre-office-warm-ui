@@ -2192,91 +2192,124 @@ async function listTransactionsWithContext(
   const requestedPageSize = Number.isFinite(input.pageSize) ? Number(input.pageSize) : defaultTransactionsPageSize;
   const pageSize = Math.min(Math.max(Math.trunc(requestedPageSize) || defaultTransactionsPageSize, 1), maxTransactionsPageSize);
   const scopedMembershipIds = getMyScopedMembershipIds(scope);
+  const canViewOfficeNetIncome = canViewCrossMemberFinancials(scope);
+  const totalNetIncomeLabel = getTotalNetIncomeLabel(scope);
   const totalCount = await prisma.transaction.count({
     where
   });
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const page = Math.min(Math.max(Math.trunc(requestedPage) || defaultTransactionsPage, 1), totalPages);
-  const [transactions, financeAggregate, scopedCommissionIncomeAggregate, scopedFallbackIncomeAggregate] = await Promise.all([
-    prisma.transaction.findMany({
-      where,
-      select: {
-        id: true,
-        address: true,
-        city: true,
-        state: true,
-        zipCode: true,
-        askingPrice: true,
-        purchasedPrice: true,
-        price: true,
-        importantDate: true,
-        status: true,
-        representing: true,
-        ownerMembership: {
-          select: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true
+
+  if (totalCount === 0) {
+    return {
+      transactions: [],
+      summary: {
+        totalCount,
+        totalNetIncomeLabel,
+        totalNetIncome: formatCurrency(0)
+      },
+      totalCount,
+      totalPages,
+      page,
+      pageSize,
+      filterOptions: buildTransactionFilterOptions(filterContext)
+    };
+  }
+
+  const transactionsPromise = prisma.transaction.findMany({
+    where,
+    select: {
+      id: true,
+      address: true,
+      city: true,
+      state: true,
+      zipCode: true,
+      askingPrice: true,
+      purchasedPrice: true,
+      price: true,
+      importantDate: true,
+      status: true,
+      representing: true,
+      ownerMembership: {
+        select: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: [{ createdAt: "desc" }],
+    skip: (page - 1) * pageSize,
+    take: pageSize
+  });
+  let transactions: Awaited<typeof transactionsPromise>;
+  let totalNetIncome = formatCurrency(0);
+
+  if (canViewOfficeNetIncome) {
+    const [transactionRows, financeAggregate] = await Promise.all([
+      transactionsPromise,
+      prisma.transaction.aggregate({
+        where,
+        _sum: {
+          officeNet: true
+        }
+      })
+    ]);
+
+    transactions = transactionRows;
+    totalNetIncome = formatCurrency(financeAggregate._sum.officeNet);
+  } else {
+    const [transactionRows, scopedCommissionIncomeAggregate, scopedFallbackIncomeAggregate] = await Promise.all([
+      transactionsPromise,
+      prisma.commissionCalculation.aggregate({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: {
+            in: scopedMembershipIds
+          },
+          transaction: {
+            is: where
+          }
+        },
+        _sum: {
+          statementAmount: true
+        }
+      }),
+      prisma.transaction.aggregate({
+        where: {
+          ...where,
+          ownerMembershipId: {
+            in: scopedMembershipIds
+          },
+          commissionCalculations: {
+            none: {
+              membershipId: {
+                in: scopedMembershipIds
               }
             }
           }
-        }
-      },
-      orderBy: [{ createdAt: "desc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize
-    }),
-    prisma.transaction.aggregate({
-      where,
-      _sum: {
-        officeNet: true
-      }
-    }),
-    prisma.commissionCalculation.aggregate({
-      where: {
-        organizationId: input.organizationId,
-        membershipId: {
-          in: scopedMembershipIds
         },
-        transaction: {
-          is: where
+        _sum: {
+          agentNet: true
         }
-      },
-      _sum: {
-        statementAmount: true
-      }
-    }),
-    prisma.transaction.aggregate({
-      where: {
-        ...where,
-        ownerMembershipId: {
-          in: scopedMembershipIds
-        },
-        commissionCalculations: {
-          none: {
-            membershipId: {
-              in: scopedMembershipIds
-            }
-          }
-        }
-      },
-      _sum: {
-        agentNet: true
-      }
-    })
-  ]);
+      })
+    ]);
+
+    transactions = transactionRows;
+    totalNetIncome = formatCurrency(
+      Number(scopedCommissionIncomeAggregate._sum.statementAmount ?? 0) + Number(scopedFallbackIncomeAggregate._sum.agentNet ?? 0)
+    );
+  }
 
   return {
     transactions: transactions.map(mapTransactionRecord),
     summary: {
       totalCount,
-      totalNetIncomeLabel: getTotalNetIncomeLabel(scope),
-      totalNetIncome: canViewCrossMemberFinancials(scope)
-        ? formatCurrency(financeAggregate._sum.officeNet)
-        : formatCurrency(
-            Number(scopedCommissionIncomeAggregate._sum.statementAmount ?? 0) + Number(scopedFallbackIncomeAggregate._sum.agentNet ?? 0)
-          )
+      totalNetIncomeLabel,
+      totalNetIncome
     },
     totalCount,
     totalPages,
