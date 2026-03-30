@@ -2,6 +2,7 @@ import { createTransactionDocument, getPublicSignatureDocumentStorageRecord, get
 import { NextRequest, NextResponse } from "next/server";
 import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
 import { buildSignedPdf, type SubmittedSignatureFieldValue } from "../../../../../../lib/signature-pdf";
+import { sendSignatureCompletionEmail } from "../../../../../../lib/signature-email";
 
 type RouteContext = {
   params: Promise<{
@@ -49,12 +50,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       fields: snapshot.fields,
       values: body.values
     });
+    const signedPdfBuffer = new Uint8Array(signedPdfBytes);
+    const signedFileName = buildSignedFileName(documentRecord.fileName);
 
     const signedFile = await saveStoredFile({
       organizationId: documentRecord.organizationId,
       transactionId: documentRecord.transactionId,
-      fileName: buildSignedFileName(documentRecord.fileName),
-      bytes: new Uint8Array(signedPdfBytes)
+      fileName: signedFileName,
+      bytes: signedPdfBuffer
     });
 
     const signedDocument = await createTransactionDocument({
@@ -63,7 +66,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       transactionId: documentRecord.transactionId,
       offerId: documentRecord.offerId,
       title: `${documentRecord.title} · signed`,
-      fileName: buildSignedFileName(documentRecord.fileName),
+      fileName: signedFileName,
       mimeType: "application/pdf",
       fileSizeBytes: signedFile.fileSizeBytes,
       storageKey: signedFile.storageKey,
@@ -86,6 +89,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       action: "completed",
       completedDocumentId: signedDocument.id
     });
+
+    try {
+      await sendSignatureCompletionEmail({
+        organizationId: documentRecord.organizationId,
+        to: snapshot.request.senderReplyTo || null,
+        documentTitle: snapshot.document.title,
+        signerName: snapshot.request.recipientName,
+        signerEmail: snapshot.request.recipientEmail,
+        signedFileName,
+        signedPdfBytes: signedPdfBuffer
+      });
+    } catch (emailError) {
+      console.error("Failed to send signature completion email.", emailError);
+    }
 
     return NextResponse.json({
       signatureRequest: completedRequest,

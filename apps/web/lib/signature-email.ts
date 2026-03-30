@@ -13,6 +13,16 @@ type SignatureEmailInput = {
   replyTo?: string | null;
 };
 
+type SignatureCompletionEmailInput = {
+  organizationId: string;
+  to?: string | null;
+  documentTitle: string;
+  signerName: string;
+  signerEmail: string;
+  signedFileName: string;
+  signedPdfBytes: Uint8Array;
+};
+
 type SmtpConfig = {
   host: string;
   port: number;
@@ -98,6 +108,41 @@ ${input.signingLink}
 `;
 }
 
+function buildSignatureCompletionEmailHtml(input: SignatureCompletionEmailInput) {
+  const safeDocumentTitle = escapeHtml(input.documentTitle);
+  const safeSignerName = escapeHtml(input.signerName);
+  const safeSignerEmail = escapeHtml(input.signerEmail);
+
+  return `
+    <div style="background:#f4f6fb;padding:32px 16px;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #dbe3f0;border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(15,23,42,0.08);">
+        <div style="padding:28px 32px;border-bottom:1px solid #e5edf7;background:linear-gradient(135deg,#f8fafc,#eef4ff);">
+          <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">Acre Signature Completed</p>
+          <h1 style="margin:0;font-size:28px;line-height:1.2;">${safeDocumentTitle}</h1>
+        </div>
+        <div style="padding:28px 32px;display:grid;gap:16px;">
+          <p style="margin:0;font-size:15px;line-height:1.7;">${safeSignerName} completed this signature request.</p>
+          <div style="padding:18px;border-radius:16px;background:#f8fafc;border:1px solid #dbe3f0;">
+            <p style="margin:0 0 10px;font-size:13px;color:#475569;">Signer</p>
+            <p style="margin:0;font-size:15px;font-weight:600;">${safeSignerName}</p>
+            <p style="margin:6px 0 0;font-size:13px;color:#64748b;">${safeSignerEmail}</p>
+          </div>
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#475569;">The finalized signed PDF is attached to this email for your records.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildSignatureCompletionEmailText(input: SignatureCompletionEmailInput) {
+  return `${input.signerName} completed the signature request for ${input.documentTitle}.
+
+Signer email: ${input.signerEmail}
+
+The finalized signed PDF is attached to this email.
+`;
+}
+
 function getSignatureMailer(config: SmtpConfig) {
   const transportKey = buildTransportKey(config);
 
@@ -125,9 +170,9 @@ function getSignatureMailer(config: SmtpConfig) {
   return transport;
 }
 
-export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
+async function resolveSignatureMailerContext(organizationId: string) {
   const resolved = await resolveOrganizationSignatureSmtpConfig({
-    organizationId: input.organizationId
+    organizationId
   });
   const config: SmtpConfig = {
     host: resolved.config.host,
@@ -139,7 +184,15 @@ export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
     fromName: resolved.config.fromName,
     defaultReplyTo: resolved.config.defaultReplyTo
   };
-  const transport = getSignatureMailer(config);
+
+  return {
+    config,
+    transport: getSignatureMailer(config)
+  };
+}
+
+export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
+  const { config, transport } = await resolveSignatureMailerContext(input.organizationId);
 
   await transport.sendMail({
     from: `"${config.fromName}" <${config.fromEmail}>`,
@@ -149,4 +202,30 @@ export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
     text: buildSignatureEmailText(input),
     replyTo: input.replyTo?.trim() || config.defaultReplyTo || undefined
   });
+}
+
+export async function sendSignatureCompletionEmail(input: SignatureCompletionEmailInput) {
+  const { config, transport } = await resolveSignatureMailerContext(input.organizationId);
+  const recipient = input.to?.trim() || config.defaultReplyTo || "";
+
+  if (!recipient) {
+    return false;
+  }
+
+  await transport.sendMail({
+    from: `"${config.fromName}" <${config.fromEmail}>`,
+    to: recipient,
+    subject: `Signature completed: ${input.documentTitle}`,
+    html: buildSignatureCompletionEmailHtml(input),
+    text: buildSignatureCompletionEmailText(input),
+    attachments: [
+      {
+        filename: input.signedFileName,
+        content: Buffer.from(input.signedPdfBytes),
+        contentType: "application/pdf"
+      }
+    ]
+  });
+
+  return true;
 }

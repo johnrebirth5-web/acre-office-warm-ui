@@ -440,7 +440,11 @@ export function SignatureRequestEditor({
             <FormField className="office-form-grid-span-2" label="Sender display name">
               <TextInput onChange={(event) => updateDraftField("senderDisplayName", event.target.value)} value={draftState.senderDisplayName} />
             </FormField>
-            <FormField className="office-form-grid-span-2" label="Reply-to email">
+            <FormField
+              className="office-form-grid-span-2"
+              helper="Replies to the invitation email and the finalized signed PDF notification will go to this address."
+              label="Reply-to email"
+            >
               <TextInput onChange={(event) => updateDraftField("senderReplyTo", event.target.value)} type="email" value={draftState.senderReplyTo} />
             </FormField>
             <FormField className="office-form-grid-span-4" label="Email body">

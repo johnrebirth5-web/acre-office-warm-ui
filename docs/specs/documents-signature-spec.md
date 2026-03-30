@@ -32,6 +32,7 @@ Provide a real transaction-centered document workflow with structured documents,
   - no-login public signing page with fixed field overlays
   - signature capture by draw / typed signature / uploaded signature image
   - signed PDF generation and archive back into transaction documents
+  - completion email delivery to the configured reply-to inbox, including the finalized signed PDF as an attachment
   - signature audit timeline alongside internal `Activity Log`
 - signature requests now support statuses:
   - draft
