@@ -5,17 +5,13 @@ import { getFrontOfficeDashboardSnapshot } from "@acre/db";
 import {
   Badge,
   EmptyState,
-  ListPageSplit,
-  ListPageStack,
-  PageHeader,
-  PageHeaderSummary,
-  PageShell,
   SectionCard,
   StatCard,
   StatusBadge,
   SummaryChip
 } from "@acre/ui";
 import { redirect } from "next/navigation";
+import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { getSessionAccess, requireSessionContext } from "../../../lib/auth-session";
 
 function DashboardLink(props: {
@@ -56,26 +52,13 @@ export default async function AgentDashboardPage() {
   });
 
   return (
-    <PageShell className="office-agent-page front-office-dashboard-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary className="front-office-dashboard-summary">
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Access" value={access.label} />
-            <SummaryChip label="Today actions" tone="accent" value={snapshot.summary.todayActionCount} />
-            <SummaryChip label="Follow-up due" value={snapshot.summary.followUpDueCount} />
-            <SummaryChip label="Today commitments" value={snapshot.summary.todayCommitmentCount} />
-            <SummaryChip label="Needs Back Office" tone="accent" value={snapshot.summary.needsBackOfficeCount} />
-          </PageHeaderSummary>
-        }
-        className="front-office-dashboard-header"
-        description="Daily follow-up, commitments, listing outreach, and the next Back Office handoff in one view."
-        eyebrow="Front Office"
-        title="Front Office dashboard"
-      />
-
-      <ListPageSplit className="front-office-dashboard-layout">
-        <ListPageStack className="front-office-dashboard-main">
+    <FrontOfficePageTemplate
+      description="Daily follow-up, commitments, listing outreach, and the next Back Office handoff in one view."
+      eyebrow="Front Office"
+      headerClassName="front-office-dashboard-header"
+      layoutClassName="front-office-dashboard-layout"
+      main={
+        <>
           <SectionCard
             className="office-list-card"
             subtitle="The queue stays inside Front Office until a client or document needs to become a formal Back Office record."
@@ -285,9 +268,11 @@ export default async function AgentDashboardPage() {
               )}
             </div>
           </SectionCard>
-        </ListPageStack>
-
-        <ListPageStack className="front-office-dashboard-rail">
+        </>
+      }
+      pageClassName="front-office-dashboard-page"
+      rail={
+        <>
           <SectionCard
             className="office-list-card"
             subtitle="Office-level alerts and visibility cues that support daily follow-up."
@@ -382,8 +367,19 @@ export default async function AgentDashboardPage() {
               )}
             </div>
           </SectionCard>
-        </ListPageStack>
-      </ListPageSplit>
-    </PageShell>
+        </>
+      }
+      summary={
+        <>
+          <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
+          <SummaryChip label="Access" value={access.label} />
+          <SummaryChip label="Today actions" tone="accent" value={snapshot.summary.todayActionCount} />
+          <SummaryChip label="Follow-up due" value={snapshot.summary.followUpDueCount} />
+          <SummaryChip label="Today commitments" value={snapshot.summary.todayCommitmentCount} />
+          <SummaryChip label="Needs Back Office" tone="accent" value={snapshot.summary.needsBackOfficeCount} />
+        </>
+      }
+      title="Front Office dashboard"
+    />
   );
 }

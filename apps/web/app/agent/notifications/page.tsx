@@ -1,62 +1,101 @@
 import { listEvents, listNotifications } from "@acre/backoffice";
-import { Badge, ListPageStack, PageHeader, PageHeaderSummary, PageShell, SectionCard, SummaryChip } from "@acre/ui";
+import { Badge, EmptyState, SectionCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentNotificationsPage() {
   const activityCards = listNotifications();
   const upcomingEvents = listEvents();
 
   return (
-    <PageShell className="office-agent-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
-            <SummaryChip label="Actionable items" value={activityCards.length} />
-            <SummaryChip label="Upcoming events" value={upcomingEvents.length} />
-          </PageHeaderSummary>
-        }
-        description="One stream for office notices, RSVP actions, reminders, and activity that matters to the agent."
-        eyebrow="Activity center"
-        title="Events, notices, RSVP, and reminders from one stream."
-      />
-
-      <ListPageStack>
-        <SectionCard title="Current activity model" subtitle="This stream merges system notices with event actions.">
-        <div className="list-column">
-          {activityCards.map((card) => (
-            <article className="list-row" key={card.id}>
-              <div className="list-row-top">
-                <strong>{card.title}</strong>
-                <Badge tone="neutral">Actionable</Badge>
-              </div>
-              <p>{card.body}</p>
-              <div className="list-row-meta">
-                <span>{card.kind}</span>
-                <span>{card.actionLabel}</span>
-              </div>
-            </article>
-          ))}
-        </div>
+    <FrontOfficePageTemplate
+      description="Front Office activity should merge reminders, office notices, and event context into one readable stream."
+      eyebrow="Activity"
+      main={
+        <SectionCard
+          className="office-list-card"
+          subtitle="This stream groups the notices and reminders that actually affect the field workflow."
+          title="Current activity"
+        >
+          <div className="list-column front-office-record-list">
+            {activityCards.length ? (
+              activityCards.map((card) => (
+                <article className="list-row front-office-record" key={card.id}>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{card.title}</strong>
+                      <p>{card.body}</p>
+                    </div>
+                    <Badge tone="accent">Actionable</Badge>
+                  </div>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{card.kind}</span>
+                    <span>{card.actionLabel}</span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description="Activity cards will show up here when Front Office notices and reminders are available."
+                title="No activity items"
+              />
+            )}
+          </div>
         </SectionCard>
+      }
+      rail={
+        <>
+          <SectionCard
+            className="office-list-card"
+            subtitle="Upcoming office commitments should stay close to the same activity stream."
+            title="Upcoming events"
+          >
+            <div className="front-office-rail-list">
+              {upcomingEvents.length ? (
+                upcomingEvents.map((event) => (
+                  <article className="front-office-resource-item" key={event.id}>
+                    <div className="front-office-note-head">
+                      <StatusBadge tone="success">{event.kind}</StatusBadge>
+                      <span>{event.visibility}</span>
+                    </div>
+                    <strong>{event.title}</strong>
+                    <p>{event.location}</p>
+                    <span className="front-office-vendor-contact">
+                      {event.startsAtLabel} · {event.rsvpCount} RSVP
+                    </span>
+                  </article>
+                ))
+              ) : (
+                <EmptyState
+                  className="front-office-inline-empty"
+                  description="Office events will appear here when there are upcoming commitments."
+                  title="No upcoming events"
+                />
+              )}
+            </div>
+          </SectionCard>
 
-        <SectionCard title="Upcoming events" subtitle="Office-created events feed the same activity surface for agents.">
-        <div className="list-column">
-          {upcomingEvents.map((event) => (
-            <article className="list-row" key={event.id}>
-              <div className="list-row-top">
-                <strong>{event.title}</strong>
-                <Badge tone="success">{event.kind}</Badge>
-              </div>
-              <p>{event.location}</p>
-              <div className="list-row-meta">
-                <span>{event.startsAtLabel}</span>
-                <span>{event.rsvpCount} RSVP</span>
-                <span>{event.visibility}</span>
-              </div>
-            </article>
-          ))}
-        </div>
-        </SectionCard>
-      </ListPageStack>
-    </PageShell>
+          <SectionCard
+            className="office-list-card"
+            subtitle="This page should stay operational, not noisy."
+            title="Stream rule"
+          >
+            <div className="front-office-rail-list">
+              <article className="front-office-resource-item">
+                <strong>One stream, not five inboxes</strong>
+                <p>Keep notices, RSVP context, and reminders visible together so the agent does not have to hunt through different modules.</p>
+              </article>
+            </div>
+          </SectionCard>
+        </>
+      }
+      summary={
+        <>
+          <SummaryChip label="Actionable items" value={activityCards.length} />
+          <SummaryChip label="Upcoming events" value={upcomingEvents.length} />
+          <SummaryChip label="Stream" tone="accent" value="Unified" />
+        </>
+      }
+      title="Activity stream"
+    />
   );
 }

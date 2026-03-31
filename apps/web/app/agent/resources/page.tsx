@@ -1,63 +1,85 @@
 import { listResources, listVendors } from "@acre/backoffice";
-import { ListPageSplit, PageHeader, PageHeaderSummary, PageShell, SectionCard, SummaryChip } from "@acre/ui";
+import { EmptyState, SectionCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentResourcesPage() {
   const resourceFeed = listResources();
   const vendorFeed = listVendors();
+  const resourceTypeCount = new Set(resourceFeed.map((resource) => resource.type)).size;
 
   return (
-    <PageShell className="office-agent-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
-            <SummaryChip label="Resources" value={resourceFeed.length} />
-            <SummaryChip label="Vendors" value={vendorFeed.length} />
-          </PageHeaderSummary>
-        }
-        description="Searchable retrieval across training, vendors, documents, templates, and internal operating knowledge."
-        eyebrow="Resource hub"
-        title="Training, vendors, docs, and searchable Acre knowledge."
-      />
-
-      <ListPageSplit className="office-agent-workspace">
-        <SectionCard title="Resource families" subtitle="The PRD is explicit about the structure.">
-          <div className="list-column">
-            {resourceFeed.map((resource) => (
-              <article className="list-row" key={resource.id}>
-                <div className="list-row-top">
-                  <strong>{resource.title}</strong>
-                  <span className="office-status-badge office-status-badge-neutral">{resource.type}</span>
-                </div>
-                <p>{resource.summary}</p>
-                <div className="list-row-meta">
-                  {resource.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-              </article>
-            ))}
+    <FrontOfficePageTemplate
+      description="Training, templates, documents, and vendor lookup should stay one click away from the Front Office workflow."
+      eyebrow="Resources"
+      main={
+        <SectionCard
+          className="office-list-card"
+          subtitle="Published operating materials live here so agents can pull context without leaving the FO shell."
+          title="Published resources"
+        >
+          <div className="list-column front-office-record-list">
+            {resourceFeed.length ? (
+              resourceFeed.map((resource) => (
+                <article className="list-row front-office-record" key={resource.id}>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{resource.title}</strong>
+                      <p>{resource.summary}</p>
+                    </div>
+                    <StatusBadge tone="neutral">{resource.type}</StatusBadge>
+                  </div>
+                  <div className="list-row-meta front-office-record-meta">
+                    {resource.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description="Shared documents and templates will appear here once the Front Office library is populated."
+                title="No published resources"
+              />
+            )}
           </div>
         </SectionCard>
-
-        <SectionCard title="Vendor directory" subtitle="The same resource layer feeds agent lookup and later public utility surfaces.">
-          <div className="list-column">
-            {vendorFeed.map((vendor) => (
-              <article className="list-row" key={vendor.id}>
-                <div className="list-row-top">
+      }
+      rail={
+        <SectionCard
+          className="office-list-card"
+          subtitle="Vendor lookup should feel like part of the same workspace, not a second app."
+          title="Vendor shortcuts"
+        >
+          <div className="front-office-rail-list">
+            {vendorFeed.length ? (
+              vendorFeed.map((vendor) => (
+                <article className="front-office-vendor-item" key={vendor.id}>
+                  <div className="front-office-note-head">
+                    <StatusBadge tone="success">{vendor.category}</StatusBadge>
+                  </div>
                   <strong>{vendor.name}</strong>
-                  <span className="office-status-badge office-status-badge-success">{vendor.category}</span>
-                </div>
-                <p>{vendor.headline}</p>
-                <div className="list-row-meta">
-                  {vendor.neighborhoods.map((neighborhood) => (
-                    <span key={neighborhood}>{neighborhood}</span>
-                  ))}
-                </div>
-              </article>
-            ))}
+                  <p>{vendor.headline}</p>
+                  <span className="front-office-vendor-contact">{vendor.neighborhoods.join(" · ")}</span>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                className="front-office-inline-empty"
+                description="Vendor cards will appear here once the shared vendor layer is populated."
+                title="No vendor shortcuts"
+              />
+            )}
           </div>
         </SectionCard>
-      </ListPageSplit>
-    </PageShell>
+      }
+      summary={
+        <>
+          <SummaryChip label="Resources" value={resourceFeed.length} />
+          <SummaryChip label="Vendors" value={vendorFeed.length} />
+          <SummaryChip label="Types" tone="accent" value={resourceTypeCount} />
+        </>
+      }
+      title="Resource hub"
+    />
   );
 }

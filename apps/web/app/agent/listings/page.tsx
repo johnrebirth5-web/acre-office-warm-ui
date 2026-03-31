@@ -1,61 +1,96 @@
 import { listListings } from "@acre/backoffice";
-import { Badge, ListPageSplit, PageHeader, PageHeaderSummary, PageShell, SectionCard, SummaryChip } from "@acre/ui";
+import { Badge, EmptyState, SectionCard, StatCard, SummaryChip } from "@acre/ui";
+import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentListingsPage() {
   const listingFeed = listListings("agent");
+  const trackedClicks = listingFeed.reduce((total, listing) => total + listing.trackedClicks, 0);
+  const publicListings = listingFeed.filter((listing) => listing.isPublic).length;
 
   return (
-    <PageShell className="office-agent-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
-            <SummaryChip label="Active feed" value={listingFeed.length} />
-            <SummaryChip label="Responsive target" value="Mobile + desktop" />
-          </PageHeaderSummary>
-        }
-        description="Listing search, poster generation, tracked share links, and custom notes in one operating surface."
-        eyebrow="Listings"
-        title="Agent marketing layer"
-      />
-
-      <ListPageSplit className="office-agent-workspace">
-        <SectionCard title="Suggested inventory" subtitle="Seeded from the structured listing model defined in the PRD.">
-          <div className="list-column">
-            {listingFeed.map((listing) => (
-              <article className="list-row" key={listing.id}>
-                <div className="list-row-top">
-                  <strong>{listing.name}</strong>
-                  <Badge tone="success">{listing.status}</Badge>
-                </div>
-                <p>{listing.area}</p>
-                <p>{listing.hook}</p>
-                <div className="list-row-meta">
-                  <span>{listing.price}</span>
-                  <span>Tracked link ready</span>
-                  <span>{listing.trackedClicks} clicks</span>
-                </div>
-              </article>
-              ))}
-            </div>
-        </SectionCard>
-
-        <SectionCard title="Output modes" subtitle="The listings module is more than inventory; it is a marketing terminal.">
-          <div className="action-grid">
-            <article className="action-card">
-              <strong>Tracked WeChat link</strong>
-              <p>Agent-specific share link with click tracking and later gated lead capture.</p>
-            </article>
-            <article className="action-card">
-              <strong>Poster export</strong>
-              <p>Auto-inserts agent identity, compliance fields, and listing highlights.</p>
-            </article>
-            <article className="action-card">
-              <strong>Custom notes</strong>
-              <p>Agent can append local insight or investment framing per target client.</p>
-            </article>
+    <FrontOfficePageTemplate
+      description="Listings in Front Office are about recommendation, outreach, and content output, not back-office inventory administration."
+      eyebrow="Listings"
+      main={
+        <SectionCard
+          className="office-list-card"
+          subtitle="Use this list as the send-ready inventory surface for active client outreach."
+          title="Send-ready inventory"
+        >
+          <div className="list-column front-office-record-list">
+            {listingFeed.length ? (
+              listingFeed.map((listing) => (
+                <article className="list-row front-office-record" key={listing.id}>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{listing.name}</strong>
+                      <p>{listing.area}</p>
+                    </div>
+                    <Badge tone="success">{listing.status}</Badge>
+                  </div>
+                  <p>{listing.hook}</p>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{listing.price}</span>
+                    <span>{listing.city}</span>
+                    <span>{listing.trackedClicks} tracked click(s)</span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description="Listings will appear here once send-ready inventory is available in the Front Office feed."
+                title="No listing inventory in scope"
+              />
+            )}
           </div>
         </SectionCard>
-      </ListPageSplit>
-    </PageShell>
+      }
+      rail={
+        <>
+          <SectionCard
+            className="office-list-card"
+            subtitle="Quick read on the current listing output surface."
+            title="Output signals"
+          >
+            <div className="front-office-stage-grid">
+              <StatCard hint="inventory visible to agents" label="Listings" value={listingFeed.length} />
+              <StatCard hint="currently marked public-ready" label="Public-ready" value={publicListings} />
+              <StatCard hint="sum of tracked clicks in feed" label="Tracked clicks" value={trackedClicks} />
+              <StatCard hint="current view target" label="Surface" tone="accent" value="Send-ready" />
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="This route should feel like an output terminal, not an admin inventory console."
+            title="Output modes"
+          >
+            <div className="front-office-rail-list">
+              <article className="front-office-resource-item">
+                <strong>Tracked share link</strong>
+                <p>Use listing-level links to connect outreach back to click behavior without leaving Front Office.</p>
+              </article>
+              <article className="front-office-resource-item">
+                <strong>Poster export</strong>
+                <p>Generate presentation-ready listing output with agent identity and compliant property framing.</p>
+              </article>
+              <article className="front-office-resource-item">
+                <strong>Custom notes</strong>
+                <p>Add client-specific framing or local insight without turning this route into a full listing-admin workflow.</p>
+              </article>
+            </div>
+          </SectionCard>
+        </>
+      }
+      summary={
+        <>
+          <SummaryChip label="Listings" value={listingFeed.length} />
+          <SummaryChip label="Public-ready" value={publicListings} />
+          <SummaryChip label="Tracked clicks" tone="accent" value={trackedClicks} />
+          <SummaryChip label="Surface" value="Outreach" />
+        </>
+      }
+      title="Listing output"
+    />
   );
 }

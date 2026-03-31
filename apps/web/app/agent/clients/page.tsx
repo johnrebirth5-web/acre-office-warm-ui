@@ -1,55 +1,98 @@
 import { summarizeAccess } from "@acre/auth";
 import { listClients } from "@acre/backoffice";
-import { ListPageSplit, PageHeader, PageHeaderSummary, PageShell, SectionCard, StatCard, SummaryChip } from "@acre/ui";
+import { EmptyState, SectionCard, StatCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentClientsPage() {
   const access = summarizeAccess("agent");
   const clientFeed = listClients();
+  const followUpDueCount = clientFeed.filter((client) => client.nextFollowUpLabel.toLowerCase().includes("today")).length;
+  const activeStageCount = new Set(clientFeed.map((client) => client.stage)).size;
 
   return (
-    <PageShell className="office-agent-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
-            <SummaryChip label="Role access" value={access.label} />
-            <SummaryChip label="Live contacts" value={clientFeed.length} />
-          </PageHeaderSummary>
-        }
-        description="Lean CRM capture, useful reminders, and clear next actions instead of heavy enterprise overhead."
-        eyebrow="Clients CRM"
-        title="Lightweight funnel, not a bloated sales system."
-      />
-
-      <ListPageSplit className="office-agent-workspace">
-        <SectionCard title="CRM design constraints" subtitle="Every feature here should reduce agent typing, not increase it.">
-          <div className="list-column">
-            {clientFeed.map((client) => (
-              <article className="list-row" key={client.id}>
-                <div className="list-row-top">
-                  <strong>{client.fullName}</strong>
-                  <span className="office-status-badge office-status-badge-neutral">{client.stage}</span>
-                </div>
-                <p>{client.intent} · {client.budget}</p>
-                <p>{client.areas.join(", ")}</p>
-                <div className="list-row-meta">
-                  <span>{client.source}</span>
-                  <span>Last contact {client.lastContactLabel}</span>
-                  <span>Next {client.nextFollowUpLabel}</span>
-                </div>
-              </article>
-              ))}
-            </div>
-        </SectionCard>
-
-        <SectionCard title="Planned outputs" subtitle="These blocks correspond to the core CRM workflow.">
-          <div className="stats-grid office-agent-stats-grid">
-            <StatCard label="Role access" value={`${access.permissionCount} perms`} hint="CRM stays lean for field speed." />
-            <StatCard label="OCR extraction" value="Phase 1" hint="Capture name, budget, area, and intent." />
-            <StatCard label="Reminder engine" value="Phase 1" hint="Date-based prompts for client touchpoints." />
-            <StatCard label="Reply generation" value="Phase 2" hint="Context-aware follow-up text generation." />
+    <FrontOfficePageTemplate
+      description="Client work stays lean here: pipeline visibility, follow-up context, and the next conversation to move."
+      eyebrow="Clients"
+      main={
+        <SectionCard
+          className="office-list-card"
+          subtitle="Front Office keeps the active client list readable and action-oriented instead of forcing agents through a heavy CRM workflow."
+          title="Active client pipeline"
+        >
+          <div className="list-column front-office-record-list">
+            {clientFeed.length ? (
+              clientFeed.map((client) => (
+                <article className="list-row front-office-record" key={client.id}>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{client.fullName}</strong>
+                      <p>{client.intent} · {client.budget}</p>
+                    </div>
+                    <StatusBadge tone="accent">{client.stage}</StatusBadge>
+                  </div>
+                  <p>{client.areas.join(", ")}</p>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{client.source}</span>
+                    <span>Last contact {client.lastContactLabel}</span>
+                    <span>Next {client.nextFollowUpLabel}</span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description="When Front Office starts using the shared CRM as the active client queue, records will appear here."
+                title="No live client records"
+              />
+            )}
           </div>
         </SectionCard>
-      </ListPageSplit>
-    </PageShell>
+      }
+      rail={
+        <>
+          <SectionCard
+            className="office-list-card"
+            subtitle="A compact read on how much active client pressure exists in this route."
+            title="Workflow signals"
+          >
+            <div className="front-office-stage-grid">
+              <StatCard hint="records visible in this scope" label="Live contacts" value={clientFeed.length} />
+              <StatCard hint="stages represented in the current list" label="Active stages" value={activeStageCount} />
+              <StatCard hint="same-day follow-up markers in the feed" label="Follow-up due" value={followUpDueCount} />
+              <StatCard hint="current role template in Front Office" label="Access" tone="accent" value={access.label} />
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="These are the operating rules for the page until real FO CRM write flows replace the mock feed."
+            title="Current scope"
+          >
+            <div className="front-office-rail-list">
+              <article className="front-office-resource-item">
+                <strong>Capture stays light</strong>
+                <p>Agents should be able to scan client stage, intent, budget, and next touchpoint without opening a full admin form.</p>
+              </article>
+              <article className="front-office-resource-item">
+                <strong>Follow-up stays visible</strong>
+                <p>The page should highlight who needs a same-day touch and who has gone stale before it turns into a Back Office issue.</p>
+              </article>
+              <article className="front-office-resource-item">
+                <strong>Formal workflow still lives elsewhere</strong>
+                <p>Once a client becomes a formal transaction, the next step should hand off into Back Office instead of duplicating transaction editing here.</p>
+              </article>
+            </div>
+          </SectionCard>
+        </>
+      }
+      summary={
+        <>
+          <SummaryChip label="Access" value={access.label} />
+          <SummaryChip label="Live contacts" value={clientFeed.length} />
+          <SummaryChip label="Follow-up due" tone="accent" value={followUpDueCount} />
+          <SummaryChip label="Stages in view" value={activeStageCount} />
+        </>
+      }
+      title="Client pipeline"
+    />
   );
 }
