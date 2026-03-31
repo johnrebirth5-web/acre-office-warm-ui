@@ -14793,6 +14793,11 @@ body,
   min-height: calc(100vh - 60px);
 }
 
+.agent-backoffice-shell .app-grid,
+.agent-backoffice-shell .acre-app-grid {
+  grid-template-columns: 264px minmax(0, 1fr);
+}
+
 .main-area,
 .acre-main-area {
   display: grid;
@@ -15638,6 +15643,14 @@ body,
   gap: 16px;
 }
 
+.front-office-template-header .office-page-actions,
+.front-office-dashboard-header .office-page-actions {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  justify-self: stretch;
+}
+
 .front-office-template-header .office-page-heading,
 .front-office-dashboard-header .office-page-heading {
   max-width: 82ch;
@@ -15650,7 +15663,7 @@ body,
 .front-office-template-summary,
 .front-office-dashboard-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   width: 100%;
   gap: 12px;
   justify-self: stretch;
@@ -15683,6 +15696,7 @@ body,
 }
 
 .front-office-action-card,
+.front-office-note-item,
 .front-office-resource-item,
 .front-office-vendor-item {
   display: grid;
@@ -15796,7 +15810,6 @@ body,
   background: rgba(246, 249, 252, 0.84);
 }
 
-.front-office-note-item,
 .front-office-resource-item,
 .front-office-vendor-item {
   display: grid;
@@ -15821,6 +15834,15 @@ body,
 .front-office-note-footer {
   display: grid;
   gap: 8px;
+}
+
+.front-office-note-head > span {
+  display: inline-flex;
+  align-items: center;
+  color: var(--office-text-soft);
+  font-size: var(--office-text-meta-size);
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .agent-brand-panel {
@@ -16026,6 +16048,11 @@ body,
     grid-template-columns: 1fr;
   }
 
+  .front-office-template-summary,
+  .front-office-dashboard-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .office-page-header.office-agents-page-header {
     grid-template-columns: 1fr;
   }
@@ -16053,6 +16080,11 @@ body,
   .front-office-template-layout,
   .front-office-dashboard-layout {
     grid-template-columns: 1fr;
+  }
+
+  .front-office-template-summary,
+  .front-office-dashboard-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .office-page-header,
@@ -16099,6 +16131,11 @@ body,
 
   .office-dashboard-main {
     padding: 4px 0 88px;
+  }
+
+  .front-office-template-summary,
+  .front-office-dashboard-summary {
+    grid-template-columns: 1fr;
   }
 
   .office-mobile-rail,

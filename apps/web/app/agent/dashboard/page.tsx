@@ -281,7 +281,7 @@ export default async function AgentDashboardPage() {
             <div className="front-office-rail-list">
               {snapshot.noticeRail.notifications.length ? (
                 snapshot.noticeRail.notifications.map((notification) => (
-                  <article className="office-note-item front-office-note-item" key={notification.id}>
+                  <article className="front-office-note-item" key={notification.id}>
                     <div className="front-office-note-head">
                       <Badge tone="accent">{notification.typeLabel}</Badge>
                       <span>{notification.createdAtLabel}</span>

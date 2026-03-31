@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { agentSections } from "@acre/backoffice";
-import { Badge } from "@acre/ui";
 import { SiteReleaseBadge } from "../site-release-badge";
 
 export function AgentNav() {
@@ -42,12 +41,6 @@ export function AgentNav() {
             ))}
           </div>
         </section>
-
-        <div className="sidebar-note office-sidebar-note agent-sidebar-note">
-          <Badge tone="accent">Shared system</Badge>
-          <strong>Front Office moves fast. Back Office stays formal.</strong>
-          <p>Use this shell for action queues, outreach, and reminders. Open Back Office when a record needs transactions, signatures, or audit-safe follow-through.</p>
-        </div>
       </aside>
 
       <nav className="mobile-rail office-mobile-rail">
