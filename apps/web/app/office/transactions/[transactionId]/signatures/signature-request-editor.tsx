@@ -812,7 +812,7 @@ export function SignatureRequestEditor({
   return (
     <div className="office-signature-editor">
       <div className="office-signature-editor-main">
-        <section className="bm-detail-card">
+        <section className="bm-detail-card office-signature-template-card">
           <div className="bm-card-head">
             <div>
               <h3>PDF signature editor</h3>
@@ -880,7 +880,7 @@ export function SignatureRequestEditor({
           </div>
         </section>
 
-        <section className="bm-detail-card">
+        <section className="bm-detail-card office-signature-delivery-card">
           <div className="bm-card-head">
             <div>
               <h3>Template library</h3>
@@ -933,7 +933,7 @@ export function SignatureRequestEditor({
             </FormField>
           </div>
 
-          <div className="bm-document-edit-actions">
+          <div className="office-signature-section-actions">
             <Button disabled={pendingAction === "save-template"} onClick={handleSaveTemplate} variant="secondary">
               {pendingAction === "save-template" ? "Saving template..." : templateDraft.templateId ? "Update template" : "Save as template"}
             </Button>
@@ -964,7 +964,7 @@ export function SignatureRequestEditor({
             ) : null}
           </div>
 
-          <div className="bm-document-edit-actions">
+          <div className="office-signature-section-actions">
             <Button onClick={() => addRecipient("signer")} size="sm" variant="secondary">
               Add signer
             </Button>
@@ -983,7 +983,7 @@ export function SignatureRequestEditor({
                   <strong>{recipient.roleKey === "approver" ? "Approver" : "Signer"}</strong>
                   <span>Step {recipient.routingStep || "1"}</span>
                 </div>
-                <div className="bm-document-upload-grid">
+                <div className="office-signature-recipient-grid">
                   <FormField label="Role">
                     <SelectInput
                       onChange={(event) =>
@@ -1018,11 +1018,11 @@ export function SignatureRequestEditor({
                       value={recipient.routingStep}
                     />
                   </FormField>
-                  <div className="bm-document-edit-actions">
-                    <Button onClick={() => removeRecipient("recipients", recipient.id)} size="sm" variant="danger">
-                      Remove
-                    </Button>
-                  </div>
+                </div>
+                <div className="office-signature-recipient-actions">
+                  <Button onClick={() => removeRecipient("recipients", recipient.id)} size="sm" variant="danger">
+                    Remove
+                  </Button>
                 </div>
               </article>
             ))}
@@ -1032,7 +1032,7 @@ export function SignatureRequestEditor({
                   <strong>CC</strong>
                   <span>Read-only copy</span>
                 </div>
-                <div className="bm-document-upload-grid">
+                <div className="office-signature-recipient-grid">
                   <FormField label="Name">
                     <TextInput onChange={(event) => updateRecipient("ccRecipients", recipient.id, "name", event.target.value)} value={recipient.name} />
                   </FormField>
@@ -1049,11 +1049,11 @@ export function SignatureRequestEditor({
                       value={recipient.recipientRole}
                     />
                   </FormField>
-                  <div className="bm-document-edit-actions">
-                    <Button onClick={() => removeRecipient("ccRecipients", recipient.id)} size="sm" variant="danger">
-                      Remove
-                    </Button>
-                  </div>
+                </div>
+                <div className="office-signature-recipient-actions">
+                  <Button onClick={() => removeRecipient("ccRecipients", recipient.id)} size="sm" variant="danger">
+                    Remove
+                  </Button>
                 </div>
               </article>
             ))}
@@ -1081,7 +1081,7 @@ export function SignatureRequestEditor({
             </FormField>
           </div>
 
-          <div className="bm-document-edit-actions">
+          <div className="office-signature-section-actions">
             <Button disabled={pendingAction === "save"} onClick={() => saveDraft(false)}>
               {pendingAction === "save" ? "Saving..." : "Save draft"}
             </Button>
@@ -1112,60 +1112,69 @@ export function SignatureRequestEditor({
           </div>
 
           {selectedField ? (
-            <div className="bm-document-upload-grid">
-              <FormField label="Assigned recipient">
-                <SelectInput
-                  onChange={(event) => updateField(selectedField.id, { assignedRecipientId: event.target.value || null })}
-                  value={selectedField.assignedRecipientId ?? ""}
-                >
-                  <option value="">Unassigned</option>
-                  {draftState.recipients.map((recipient) => (
-                    <option key={recipient.id} value={recipient.id}>
-                      {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} · {recipient.name || recipient.email || recipient.recipientRole}
-                    </option>
-                  ))}
-                </SelectInput>
-              </FormField>
-              <FormField label="Label">
-                <TextInput onChange={(event) => updateField(selectedField.id, { label: event.target.value })} value={selectedField.label} />
-              </FormField>
-              <FormField label="Font style">
-                <TextInput onChange={(event) => updateField(selectedField.id, { fontStyle: event.target.value })} value={selectedField.fontStyle} />
-              </FormField>
-              <FormField label="Field key">
-                <TextInput onChange={(event) => updateField(selectedField.id, { fieldKey: event.target.value })} value={selectedField.fieldKey} />
-              </FormField>
-              <FormField className="office-form-grid-span-2" label="Default value">
-                <TextInput onChange={(event) => updateField(selectedField.id, { defaultValue: event.target.value })} value={selectedField.defaultValue} />
-              </FormField>
-              <FormField label="Mirror group">
-                <TextInput onChange={(event) => updateField(selectedField.id, { mirrorGroup: event.target.value })} value={selectedField.mirrorGroup} />
-              </FormField>
-              <CheckboxField className="bm-document-inline-checkbox" label="Required">
-                <input
-                  checked={selectedField.required}
-                  onChange={(event) => updateField(selectedField.id, { required: event.target.checked })}
-                  type="checkbox"
-                />
-              </CheckboxField>
-              <CheckboxField className="bm-document-inline-checkbox" label="Read-only">
-                <input
-                  checked={selectedField.isReadOnly}
-                  onChange={(event) => updateField(selectedField.id, { isReadOnly: event.target.checked })}
-                  type="checkbox"
-                />
-              </CheckboxField>
-              <CheckboxField className="bm-document-inline-checkbox" label="System prefilled">
-                <input
-                  checked={selectedField.isSystemPrefilled}
-                  onChange={(event) => updateField(selectedField.id, { isSystemPrefilled: event.target.checked })}
-                  type="checkbox"
-                />
-              </CheckboxField>
-              <p className="office-signature-helper office-form-grid-span-2">
-                Drag the field to move it. Drag the handle in the bottom-right corner to resize it.
-              </p>
-              <div className="bm-document-edit-actions">
+            <div className="office-signature-field-panel">
+              <div className="office-signature-field-grid">
+                <FormField className="office-signature-field-panel-span-2" label="Assigned recipient">
+                  <SelectInput
+                    onChange={(event) => updateField(selectedField.id, { assignedRecipientId: event.target.value || null })}
+                    value={selectedField.assignedRecipientId ?? ""}
+                  >
+                    <option value="">Unassigned</option>
+                    {draftState.recipients.map((recipient) => (
+                      <option key={recipient.id} value={recipient.id}>
+                        {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} · {recipient.name || recipient.email || recipient.recipientRole}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+                <FormField label="Label">
+                  <TextInput onChange={(event) => updateField(selectedField.id, { label: event.target.value })} value={selectedField.label} />
+                </FormField>
+                <FormField label="Font style">
+                  <TextInput onChange={(event) => updateField(selectedField.id, { fontStyle: event.target.value })} value={selectedField.fontStyle} />
+                </FormField>
+                <FormField label="Field key">
+                  <TextInput onChange={(event) => updateField(selectedField.id, { fieldKey: event.target.value })} value={selectedField.fieldKey} />
+                </FormField>
+                <FormField className="office-signature-field-panel-span-2" label="Default value">
+                  <TextInput onChange={(event) => updateField(selectedField.id, { defaultValue: event.target.value })} value={selectedField.defaultValue} />
+                </FormField>
+                <FormField label="Mirror group">
+                  <TextInput onChange={(event) => updateField(selectedField.id, { mirrorGroup: event.target.value })} value={selectedField.mirrorGroup} />
+                </FormField>
+              </div>
+
+              <div className="office-signature-field-toggle-grid">
+                <CheckboxField className="office-signature-toggle-card" label="Required">
+                  <input
+                    checked={selectedField.required}
+                    onChange={(event) => updateField(selectedField.id, { required: event.target.checked })}
+                    type="checkbox"
+                  />
+                </CheckboxField>
+                <CheckboxField className="office-signature-toggle-card" label="Read-only">
+                  <input
+                    checked={selectedField.isReadOnly}
+                    onChange={(event) => updateField(selectedField.id, { isReadOnly: event.target.checked })}
+                    type="checkbox"
+                  />
+                </CheckboxField>
+                <CheckboxField className="office-signature-toggle-card" label="System prefilled">
+                  <input
+                    checked={selectedField.isSystemPrefilled}
+                    onChange={(event) => updateField(selectedField.id, { isSystemPrefilled: event.target.checked })}
+                    type="checkbox"
+                  />
+                </CheckboxField>
+              </div>
+
+              <div className="office-signature-field-note">
+                <p className="office-signature-helper">
+                  Drag the field to move it. Drag the handle in the bottom-right corner to resize it.
+                </p>
+              </div>
+
+              <div className="office-signature-section-actions office-signature-field-actions">
                 <Button onClick={() => removeField(selectedField.id)} size="sm" variant="danger">
                   Delete field
                 </Button>
