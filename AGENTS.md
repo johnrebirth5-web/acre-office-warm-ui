@@ -17,6 +17,25 @@ Primary scope today:
 - settings / admin
 - agent management / onboarding
 
+## Front Office source of truth
+
+When a task touches `Front Office`, `/agent` routes, FO roadmap, FO priority, or FO/BO handoff behavior, use:
+
+- [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md)
+
+as the canonical product source of truth.
+
+This file is distilled from:
+
+- `/Users/openclaw_john/Desktop/ACRE_Front_Office_PRD_03-30.docx.pdf`
+
+Rules:
+
+- If older repo docs, implementation notes, placeholder copy, or partial route behavior conflict with the current FO spec, follow `frontoffice-overview.md` for `Front Office` product decisions.
+- Treat older FO descriptions in `README.md`, `docs/specs/implementation-log.md`, and current `/agent` placeholder pages as implementation-state references, not final product direction.
+- Keep engineering, deployment, validation, security, and Git workflow rules in this file unchanged unless a task explicitly updates them.
+- Keep the FO -> BO boundary explicit: `Front Office` leads agent execution, while `Back Office` remains the formal home for transactions, accounting, commissions, signatures, and archival workflows.
+
 ## Canonical working baseline
 
 Use this baseline unless the current task explicitly says otherwise:
@@ -62,6 +81,7 @@ Start with these docs before large work:
 - [docs/architecture.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/architecture.md)
 - [docs/decisions.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/decisions.md)
 - [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/office-design-system.md)
+- [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md) for `Front Office` tasks
 - [docs/deployment.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/deployment.md)
 - relevant files under [docs/specs](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs)
 
@@ -76,6 +96,10 @@ Current repo priority is the `Back Office` product line. Favor:
 - alignment with current `BoldTrail / Brokermint` workflows
 
 Do not spend effort on speculative public-site features unless the task explicitly asks for them.
+
+Exception for `Front Office` work:
+
+- if the user is explicitly asking about `Front Office`, `/agent`, FO next steps, FO roadmap, or FO module priority, use [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md) as the priority guide instead of this section
 
 ## Language / Communication
 
@@ -151,9 +175,10 @@ When major features, routes, permissions, schema, environment variables, or Back
 For large or multi-module tasks:
 
 1. Read the relevant `docs/specs/*.md` files first.
-2. Build a brief plan before coding.
-3. Keep the plan aligned to the current repo state, not an imagined future rewrite.
-4. If a prerequisite is missing, stop and report it instead of making partial hidden changes.
+2. If the task is about `Front Office` or `/agent`, read [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md) before relying on older repo descriptions.
+3. Build a brief plan before coding.
+4. Keep the plan aligned to the current repo state, while using the current FO spec as product direction when `Front Office` work is in scope.
+5. If a prerequisite is missing, stop and report it instead of making partial hidden changes.
 
 For deployment or production-sync work:
 
@@ -204,6 +229,7 @@ Do not say a feature is complete unless:
 
 Future Codex tasks should rely on these stable project files instead of chat history:
 
+- [docs/specs/frontoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/frontoffice-overview.md)
 - [docs/specs/backoffice-overview.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/backoffice-overview.md)
 - [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/implementation-log.md)
 - module specs in [docs/specs](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs)
