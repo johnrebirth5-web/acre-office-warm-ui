@@ -2,15 +2,15 @@
 
 ## 概览
 
-当前项目是一个 `monorepo`，目标是承载 `Acre Agent OS`。它目前是一个“前端可运行、后端骨架已落、数据库 runtime 已经初始化，但主页面和主 API 仍以 mock 数据为主”的阶段。
+当前项目是一个 `monorepo`，目标是承载 `Acre Agent OS`。它目前是一个“前端可运行、后端骨架已落、数据库 runtime 已经初始化，主线 `Office / Front Office` 页面已大幅切到真实 Prisma 数据，但仍保留少量 legacy demo helper”的阶段。
 
 更准确地说：
 
 - 前端已经可运行
 - API 已经存在
-- API 当前以 `@acre/backoffice` 的内存数据为主，但 `Office Dashboard` 的业务指标、`Office Pipeline`、`Office Transactions`、`Office Contacts`、`Office Tasks`、`Office Reports`、`Office Performance`、`Office Notifications`、`Office Account / My Profile`、`Office Billing / My Billing`、`Office Activity Log`、`Office Library`、`Office Accounting`、`Office Agent Management` 和 `Office Admin / Settings` 已经切到 Prisma
+- 主线 API 和页面已不再以 `@acre/backoffice` 的内存数据为主；`Office Dashboard` 的业务指标、`Office Pipeline`、`Office Transactions`、`Office Contacts`、`Office Tasks`、`Office Reports`、`Office Performance`、`Office Notifications`、`Office Account / My Profile`、`Office Billing / My Billing`、`Office Activity Log`、`Office Library`、`Office Accounting`、`Office Agent Management`、`Office Admin / Settings`，以及 active `Front Office` `/agent` 页面和对应 FO feed API 都已经切到 Prisma
 - 数据库 schema、Prisma client、migration、seed 已接入
-- 数据库现在已经覆盖主要 `Office / Back Office` 模块，但 agent/resource feed 和部分次级路径仍保留 mock 或过渡数据
+- 数据库现在已经覆盖主要 `Office / Back Office` 模块和 active `Front Office` feed；仍保留 mock 或过渡数据的主要是少量 legacy helper、历史 demo snapshot，以及尚未重构的非主线路径
 - 权限模型存在，且当前已经接入一个最小本地 session
 - 当前授权已不再是单纯 `membership.role -> fixed permissionMap`
 - 当前真实模型是：

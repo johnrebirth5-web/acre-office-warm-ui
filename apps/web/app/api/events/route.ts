@@ -1,5 +1,5 @@
 import { can } from "@acre/auth";
-import { listEvents } from "@acre/backoffice";
+import { getFrontOfficeActivitySnapshot } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../lib/auth-session";
 
@@ -14,7 +14,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Event access required." }, { status: 403 });
   }
 
+  const snapshot = await getFrontOfficeActivitySnapshot({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
+    timeZone: context.currentUser.timezone
+  });
+
   return NextResponse.json({
-    events: listEvents()
+    events: snapshot.events,
+    summary: snapshot.summary
   });
 }

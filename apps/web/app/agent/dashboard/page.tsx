@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { can, getDefaultAppPath } from "@acre/auth";
 import { getFrontOfficeDashboardSnapshot } from "@acre/db";
@@ -12,31 +11,10 @@ import {
   SummaryChip
 } from "@acre/ui";
 import { redirect } from "next/navigation";
+import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { getSessionAccess, requireSessionContext } from "../../../lib/auth-session";
-
-function DashboardLink(props: {
-  href: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  const isExternal = props.href.startsWith("http://") || props.href.startsWith("https://") || props.href.startsWith("mailto:") || props.href.startsWith("tel:");
-
-  if (isExternal) {
-    return (
-      <a className={props.className} href={props.href} rel="noreferrer" target="_blank">
-        {props.children}
-      </a>
-    );
-  }
-
-  return (
-    <Link className={props.className} href={props.href}>
-      {props.children}
-    </Link>
-  );
-}
 
 export default async function AgentDashboardPage() {
   const context = await requireSessionContext();
@@ -80,9 +58,9 @@ export default async function AgentDashboardPage() {
                     <span>{item.count} item(s)</span>
                     <span>{item.helper}</span>
                   </div>
-                  <DashboardLink className="office-inline-link front-office-inline-link" href={item.href}>
+                  <FrontOfficeLink className="office-inline-link front-office-inline-link" href={item.href}>
                     {item.actionLabel}
-                  </DashboardLink>
+                  </FrontOfficeLink>
                 </article>
               ))}
             </div>
@@ -129,9 +107,9 @@ export default async function AgentDashboardPage() {
                       <span>{client.nextTouchLabel}</span>
                       <span>{client.lastTouchLabel}</span>
                     </div>
-                    <DashboardLink className="office-inline-link front-office-inline-link" href={client.href}>
+                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={client.href}>
                       Open client workspace
-                    </DashboardLink>
+                    </FrontOfficeLink>
                   </article>
                 ))
               ) : (
@@ -145,15 +123,15 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Shared office commitments are visible now. Dedicated Front Office appointment scheduling remains a planned module."
+            subtitle="Shared office commitments are visible now. Dedicated Front Office appointment scheduling is on the active roadmap but is not live yet."
             title="Calendar & commitments"
           >
             <ListPageStatsGrid>
               <StatCard hint="visible today or upcoming in scope" label="Upcoming commitments" value={snapshot.commitments.items.length} />
               <StatCard
-                hint={snapshot.commitments.appointmentModuleReady ? "agent scheduling is live" : "still planned, not yet shipped"}
+                hint={snapshot.commitments.appointmentModuleReady ? "agent scheduling is live" : "not live yet"}
                 label="Appointment module"
-                value={snapshot.commitments.appointmentModuleReady ? "Live" : "Planned"}
+                value={snapshot.commitments.appointmentModuleReady ? "Live" : "In progress"}
               />
             </ListPageStatsGrid>
 
@@ -177,9 +155,9 @@ export default async function AgentDashboardPage() {
                       <span>{commitment.locationLabel}</span>
                       <span>{commitment.rsvpLabel}</span>
                     </div>
-                    <DashboardLink className="office-inline-link front-office-inline-link" href={commitment.href}>
+                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={commitment.href}>
                       Open notices & events
-                    </DashboardLink>
+                    </FrontOfficeLink>
                   </article>
                 ))
               ) : (
@@ -224,9 +202,9 @@ export default async function AgentDashboardPage() {
                       <span>{listing.trackedLinkCount} tracked link(s)</span>
                       <span>{listing.trackedClickCount} click(s)</span>
                     </div>
-                    <DashboardLink className="office-inline-link front-office-inline-link" href={listing.href}>
+                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={listing.href}>
                       Open listings
-                    </DashboardLink>
+                    </FrontOfficeLink>
                   </article>
                 ))
               ) : (
@@ -254,9 +232,9 @@ export default async function AgentDashboardPage() {
                       </div>
                       <StatusBadge tone={item.tone}>{item.contextLabel}</StatusBadge>
                     </div>
-                    <DashboardLink className="office-inline-link front-office-inline-link" href={item.href}>
+                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={item.href}>
                       {item.actionLabel}
-                    </DashboardLink>
+                    </FrontOfficeLink>
                   </article>
                 ))
               ) : (
@@ -287,9 +265,9 @@ export default async function AgentDashboardPage() {
                 snapshot.noticeRail.notifications.map((notification) => (
                   <FrontOfficeRailItem
                     action={
-                      <DashboardLink className="office-inline-link front-office-inline-link" href={notification.href}>
+                      <FrontOfficeLink className="office-inline-link front-office-inline-link" href={notification.href}>
                         Open notice
-                      </DashboardLink>
+                      </FrontOfficeLink>
                     }
                     badgeLabel={notification.typeLabel}
                     badgeTone="accent"
@@ -323,9 +301,9 @@ export default async function AgentDashboardPage() {
                 snapshot.noticeRail.resources.map((resource) => (
                   <FrontOfficeRailItem
                     action={
-                      <DashboardLink className="office-inline-link front-office-inline-link" href={resource.href}>
+                      <FrontOfficeLink className="office-inline-link front-office-inline-link" href={resource.href}>
                         Open resource
-                      </DashboardLink>
+                      </FrontOfficeLink>
                     }
                     badgeLabel={resource.typeLabel}
                     description={resource.summary}
@@ -354,9 +332,9 @@ export default async function AgentDashboardPage() {
                   <FrontOfficeRailItem
                     action={
                       vendor.href ? (
-                        <DashboardLink className="office-inline-link front-office-inline-link" href={vendor.href}>
+                        <FrontOfficeLink className="office-inline-link front-office-inline-link" href={vendor.href}>
                           Contact vendor
-                        </DashboardLink>
+                        </FrontOfficeLink>
                       ) : null
                     }
                     badgeLabel={vendor.category}

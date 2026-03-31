@@ -1,5 +1,5 @@
 import { can } from "@acre/auth";
-import { listListings } from "@acre/backoffice";
+import { getFrontOfficeListingsSnapshot } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../lib/auth-session";
 
@@ -14,10 +14,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Listing access required." }, { status: 403 });
   }
 
-  const audience = request.nextUrl.searchParams.get("audience") === "office" ? "office" : "agent";
-
   return NextResponse.json({
-    audience,
-    listings: listListings(audience)
+    audience: request.nextUrl.searchParams.get("audience") === "office" ? "office" : "agent",
+    snapshot: await getFrontOfficeListingsSnapshot({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone
+    })
   });
 }

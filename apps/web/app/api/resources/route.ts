@@ -1,5 +1,5 @@
 import { can } from "@acre/auth";
-import { listResources, listVendors } from "@acre/backoffice";
+import { getFrontOfficeResourcesSnapshot } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../lib/auth-session";
 
@@ -14,8 +14,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Resource access required." }, { status: 403 });
   }
 
+  const snapshot = await getFrontOfficeResourcesSnapshot({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
+    timeZone: context.currentUser.timezone
+  });
+
   return NextResponse.json({
-    resources: listResources(),
-    vendors: listVendors()
+    resources: snapshot.resources,
+    vendors: snapshot.vendors,
+    summary: snapshot.summary
   });
 }

@@ -210,6 +210,24 @@ export {
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
+  getFrontOfficeActivitySnapshot,
+  getFrontOfficeClientsSnapshot,
+  getFrontOfficeListingsSnapshot,
+  getFrontOfficeResourcesSnapshot,
+  type FrontOfficeActivityEventRecord,
+  type FrontOfficeActivityNotificationRecord,
+  type FrontOfficeActivitySnapshot,
+  type FrontOfficeClientRecord,
+  type FrontOfficeClientsSnapshot,
+  type FrontOfficeListingRecord,
+  type FrontOfficeListingsSnapshot,
+  type FrontOfficeResourceRecord,
+  type FrontOfficeResourcesSnapshot,
+  type FrontOfficeTone,
+  type FrontOfficeVendorRecord,
+  type FrontOfficeWorkspaceInput
+} from "./front-office-workspaces";
+export {
   getOfficePerformanceWorkspace,
   listOfficePerformanceExportRows,
   type GetOfficePerformanceWorkspaceInput,
@@ -528,6 +546,7 @@ export type {
   OfficeNotificationGroup,
   OfficeNotificationItem,
   OfficeNotificationPermissionGroup,
+  OfficePayoutReviewReminder,
   OfficeNotificationsSnapshot,
   OfficeNotificationSummary
 } from "./notifications";
@@ -648,6 +667,7 @@ export type {
   OfficeDashboardCommissionMonth,
   OfficeDashboardCommissionStatement,
   OfficeDashboardCommissionSnapshot,
+  OfficeDashboardPayoutReviewQueue,
   OfficeDashboardRecentTransaction,
   OfficeDashboardStatusMetric
 } from "./dashboard";

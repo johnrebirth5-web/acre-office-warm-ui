@@ -1,11 +1,25 @@
-import { listEvents, listNotifications } from "@acre/backoffice";
+import { getDefaultAppPath, hasAnyPermission } from "@acre/auth";
+import { getFrontOfficeActivitySnapshot } from "@acre/db";
 import { Badge, EmptyState, SectionCard, SummaryChip } from "@acre/ui";
+import { redirect } from "next/navigation";
+import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { requireSessionContext } from "../../../lib/auth-session";
 
-export default function AgentNotificationsPage() {
-  const activityCards = listNotifications();
-  const upcomingEvents = listEvents();
+export default async function AgentNotificationsPage() {
+  const context = await requireSessionContext();
+
+  if (!hasAnyPermission(context.currentMembership, ["notifications:view", "events:view"])) {
+    redirect(getDefaultAppPath(context.currentMembership));
+  }
+
+  const snapshot = await getFrontOfficeActivitySnapshot({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
+    timeZone: context.currentUser.timezone
+  });
 
   return (
     <FrontOfficePageTemplate
@@ -18,22 +32,25 @@ export default function AgentNotificationsPage() {
           title="Current activity"
         >
           <div className="list-column front-office-record-list">
-            {activityCards.length ? (
-              activityCards.map((card) => (
+            {snapshot.notifications.length ? (
+              snapshot.notifications.map((card) => (
                 <article className="list-row front-office-record" key={card.id}>
                   <div className="list-row-top front-office-record-head">
                     <div>
                       <strong>{card.title}</strong>
                       <p>{card.body}</p>
                     </div>
-                    <Badge className="front-office-activity-badge" tone="accent">
-                      Actionable
+                    <Badge className="front-office-activity-badge" tone={card.isUnread ? "accent" : "neutral"}>
+                      {card.isUnread ? "Unread" : "In view"}
                     </Badge>
                   </div>
                   <div className="list-row-meta front-office-record-meta">
-                    <span>{card.kind}</span>
+                    <span>{card.typeLabel}</span>
                     <span>{card.actionLabel}</span>
                   </div>
+                  <FrontOfficeLink className="office-inline-link front-office-inline-link" href={card.href}>
+                    Open notice
+                  </FrontOfficeLink>
                 </article>
               ))
             ) : (
@@ -53,19 +70,24 @@ export default function AgentNotificationsPage() {
             title="Upcoming events"
           >
             <div className="office-queue-list">
-              {upcomingEvents.length ? (
-                upcomingEvents.map((event) => (
+              {snapshot.events.length ? (
+                snapshot.events.map((event) => (
                   <FrontOfficeRailItem
-                    badgeLabel={event.kind}
+                    action={
+                      <FrontOfficeLink className="office-inline-link front-office-inline-link" href={event.href}>
+                        Open event
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={event.typeLabel}
                     badgeTone="accent"
-                    context={event.visibility}
-                    description={event.location}
+                    context={event.visibilityLabel}
+                    description={event.locationLabel}
                     key={event.id}
                     meta={
                       <>
                         <span>{event.startsAtLabel}</span>
-                        <span>{event.rsvpCount} RSVP</span>
-                        <span>{event.visibility}</span>
+                        <span>{event.rsvpLabel}</span>
+                        <span>{event.visibilityLabel}</span>
                       </>
                     }
                     title={event.title}
@@ -98,8 +120,9 @@ export default function AgentNotificationsPage() {
       }
       summary={
         <>
-          <SummaryChip label="Actionable items" value={activityCards.length} />
-          <SummaryChip label="Upcoming events" value={upcomingEvents.length} />
+          <SummaryChip label="Actionable items" value={snapshot.summary.actionableItemCount} />
+          <SummaryChip label="Unread notices" value={snapshot.summary.unreadNoticeCount} />
+          <SummaryChip label="Upcoming events" value={snapshot.summary.upcomingEventCount} />
           <SummaryChip label="Stream" tone="accent" value="Unified" />
         </>
       }

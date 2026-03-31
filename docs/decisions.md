@@ -54,7 +54,7 @@ Trade-off：
 影响：
 
 - API 目前都在 [apps/web/app/api](../apps/web/app/api)
-- 页面和 API 共用 `@acre/backoffice`
+- 页面和 API 最初共用 `@acre/backoffice`；当前主线已逐步切到 `@acre/db`，只剩少量 legacy helper 仍保留在 `@acre/backoffice`
 
 Trade-off：
 
@@ -71,7 +71,7 @@ Trade-off：
 - 项目需求还在快速收敛
 - 过早把数据库写入页面和 API，后续很容易高成本返工
 
-所以现在采用了一个过渡方案：
+所以项目最初采用了一个过渡方案：
 
 - `packages/db` 里先定义 Prisma schema
 - `packages/backoffice` 里先提供稳定的 mock 数据和 DTO
@@ -79,7 +79,7 @@ Trade-off：
 
 Trade-off：
 
-- 这让项目当前“能跑但不持久化”
+- 这让项目在早期阶段“能跑但不持久化”
 - 这是刻意的，不是漏做
 
 后续重构点：
@@ -237,13 +237,13 @@ Trade-off：
 这些限制是当前真实存在的，不应忽略：
 
 - 只有最小本地 auth/session，没有第三方 provider，也还没有自定义角色创建
-- 主页面和主 API 还没有切到真实数据库读写
+- 主线页面和主 API 已大幅切到真实数据库读写，但仍有少量 legacy helper 和非主线路径保留过渡数据
 - 写 API 当前只覆盖 `Transactions` 和 `Contacts` 的最小闭环
 - 没有测试
 - 没有异常监控
 - 已有真实 `DigitalOcean :3105` 线路，但整体生产能力仍处于过渡阶段
 - `@acre/backoffice` 目前同时承担“领域模型”和“临时数据源”两种职责
-- 当前 `Back Office` 页面虽然已经开始贴近 `Brokermint`，但仍有一些边角流程、agent/resource feed 和非核心路径保留静态示例数据或简化交互，不应误判为已完全复刻完成
+- 当前 `Back Office` 页面虽然已经开始贴近 `Brokermint`，active `Front Office` feed 也已切到真实数据，但仍有一些边角流程、legacy helper 和非核心路径保留静态示例数据或简化交互，不应误判为已完全复刻完成
 - 文档文件当前采用本地文件系统 MVP，而不是对象存储；这适合开发和本地验证，不应误判为生产可用存储层
 - `Forms / eSignature / Incoming updates` 当前是内部 workflow foundation，不是外部 vendor integration
 
@@ -710,7 +710,7 @@ Trade-off：
 如果你只读这一段，也要先理解下面四点：
 
 1. 当前系统不是“全栈已完成”，而是“前端 + API + schema + 最小 Prisma runtime + 最小本地 auth + 部分模块数据库落地”已完成
-2. 当前主 API 和页面的数据仍有一部分来自 `@acre/backoffice` 的内存数据，但 `Dashboard`、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Reports`、`Activity`、`Library`、`Accounting`、`Agent Management`、`Settings` 已不再是 mock 页面
+2. 当前主 API 和页面只有少量 legacy helper 还来自 `@acre/backoffice` 的内存数据；`Dashboard`、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Reports`、`Activity`、`Library`、`Accounting`、`Agent Management`、`Settings`，以及 active `Front Office` `/agent` 页面都已不再是 mock 页面
 3. `packages/db` 现在已经能 generate / migrate / seed / query，但这不代表所有页面都已经完成数据库迁移
 4. 当前 auth 只是本地开发方案，不应误判为生产 auth 设计
 5. 后续功能开发应优先保持模块边界，不要把 auth、db、页面逻辑重新混在一起

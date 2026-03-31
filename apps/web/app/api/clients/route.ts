@@ -1,5 +1,5 @@
 import { can } from "@acre/auth";
-import { listClients } from "@acre/backoffice";
+import { getFrontOfficeClientsSnapshot } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../lib/auth-session";
 
@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    clients: listClients()
+    snapshot: await getFrontOfficeClientsSnapshot({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone
+    })
   });
 }

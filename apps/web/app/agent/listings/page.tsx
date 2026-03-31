@@ -1,12 +1,31 @@
-import { listListings } from "@acre/backoffice";
-import { Badge, EmptyState, ListPageStatsGrid, SectionCard, StatCard, SummaryChip } from "@acre/ui";
+import { can, getDefaultAppPath } from "@acre/auth";
+import { getFrontOfficeListingsSnapshot } from "@acre/db";
+import {
+  Badge,
+  EmptyState,
+  ListPageStatsGrid,
+  SectionCard,
+  StatCard,
+  SummaryChip
+} from "@acre/ui";
+import { redirect } from "next/navigation";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { requireSessionContext } from "../../../lib/auth-session";
 
-export default function AgentListingsPage() {
-  const listingFeed = listListings("agent");
-  const trackedClicks = listingFeed.reduce((total, listing) => total + listing.trackedClicks, 0);
-  const publicListings = listingFeed.filter((listing) => listing.isPublic).length;
+export default async function AgentListingsPage() {
+  const context = await requireSessionContext();
+
+  if (!can(context.currentMembership, "listings:view")) {
+    redirect(getDefaultAppPath(context.currentMembership));
+  }
+
+  const snapshot = await getFrontOfficeListingsSnapshot({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
+    timeZone: context.currentUser.timezone
+  });
 
   return (
     <FrontOfficePageTemplate
@@ -19,21 +38,24 @@ export default function AgentListingsPage() {
           title="Send-ready inventory"
         >
           <div className="list-column front-office-record-list">
-            {listingFeed.length ? (
-              listingFeed.map((listing) => (
+            {snapshot.listings.length ? (
+              snapshot.listings.map((listing) => (
                 <article className="list-row front-office-record" key={listing.id}>
                   <div className="list-row-top front-office-record-head">
                     <div>
-                      <strong>{listing.name}</strong>
-                      <p>{listing.area}</p>
+                      <strong>{listing.title}</strong>
+                      <p>{listing.areaLabel}</p>
                     </div>
-                    <Badge tone="success">{listing.status}</Badge>
+                    <Badge tone={listing.statusTone === "danger" ? "danger" : listing.statusTone === "warning" ? "warning" : "success"}>
+                      {listing.statusLabel}
+                    </Badge>
                   </div>
-                  <p>{listing.hook}</p>
+                  <p>{listing.summaryLabel}</p>
                   <div className="list-row-meta front-office-record-meta">
-                    <span>{listing.price}</span>
-                    <span>{listing.city}</span>
-                    <span>{listing.trackedClicks} tracked click(s)</span>
+                    <span>{listing.priceLabel}</span>
+                    <span>{listing.cityLabel}</span>
+                    <span>{listing.trackedClickCount} tracked click(s)</span>
+                    <span>{listing.trackedLinkCount} tracked link(s)</span>
                   </div>
                 </article>
               ))
@@ -54,9 +76,10 @@ export default function AgentListingsPage() {
             title="Output signals"
           >
             <ListPageStatsGrid>
-              <StatCard hint="inventory visible to agents" label="Listings" value={listingFeed.length} />
-              <StatCard hint="currently marked public-ready" label="Public-ready" value={publicListings} />
-              <StatCard hint="sum of tracked clicks in feed" label="Tracked clicks" value={trackedClicks} />
+              <StatCard hint="inventory visible to agents" label="Listings" value={snapshot.summary.listingCount} />
+              <StatCard hint="currently marked public-ready" label="Public-ready" value={snapshot.summary.publicReadyCount} />
+              <StatCard hint="sum of tracked links already created by you" label="Tracked links" value={snapshot.summary.trackedLinks} />
+              <StatCard hint="sum of tracked clicks in your feed" label="Tracked clicks" value={snapshot.summary.trackedClicks} />
               <StatCard hint="current view target" label="Surface" tone="accent" value="Send-ready" />
             </ListPageStatsGrid>
           </SectionCard>
@@ -88,9 +111,10 @@ export default function AgentListingsPage() {
       }
       summary={
         <>
-          <SummaryChip label="Listings" value={listingFeed.length} />
-          <SummaryChip label="Public-ready" value={publicListings} />
-          <SummaryChip label="Tracked clicks" tone="accent" value={trackedClicks} />
+          <SummaryChip label="Listings" value={snapshot.summary.listingCount} />
+          <SummaryChip label="Public-ready" value={snapshot.summary.publicReadyCount} />
+          <SummaryChip label="Tracked links" value={snapshot.summary.trackedLinks} />
+          <SummaryChip label="Tracked clicks" tone="accent" value={snapshot.summary.trackedClicks} />
           <SummaryChip label="Surface" value="Outreach" />
         </>
       }

@@ -1,12 +1,25 @@
-import { listResources, listVendors } from "@acre/backoffice";
+import { can, getDefaultAppPath } from "@acre/auth";
+import { getFrontOfficeResourcesSnapshot } from "@acre/db";
 import { EmptyState, SectionCard, SummaryChip, StatusBadge } from "@acre/ui";
+import { redirect } from "next/navigation";
+import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { requireSessionContext } from "../../../lib/auth-session";
 
-export default function AgentResourcesPage() {
-  const resourceFeed = listResources();
-  const vendorFeed = listVendors();
-  const resourceTypeCount = new Set(resourceFeed.map((resource) => resource.type)).size;
+export default async function AgentResourcesPage() {
+  const context = await requireSessionContext();
+
+  if (!can(context.currentMembership, "resources:view")) {
+    redirect(getDefaultAppPath(context.currentMembership));
+  }
+
+  const snapshot = await getFrontOfficeResourcesSnapshot({
+    organizationId: context.currentOrganization.id,
+    viewerMembershipId: context.currentMembership.id,
+    officeId: context.currentOffice?.id ?? null,
+    timeZone: context.currentUser.timezone
+  });
 
   return (
     <FrontOfficePageTemplate
@@ -19,21 +32,24 @@ export default function AgentResourcesPage() {
           title="Published resources"
         >
           <div className="list-column front-office-record-list">
-            {resourceFeed.length ? (
-              resourceFeed.map((resource) => (
+            {snapshot.resources.length ? (
+              snapshot.resources.map((resource) => (
                 <article className="list-row front-office-record" key={resource.id}>
                   <div className="list-row-top front-office-record-head">
                     <div>
                       <strong>{resource.title}</strong>
                       <p>{resource.summary}</p>
                     </div>
-                    <StatusBadge tone="neutral">{resource.type}</StatusBadge>
+                    <StatusBadge tone="neutral">{resource.typeLabel}</StatusBadge>
                   </div>
                   <div className="list-row-meta front-office-record-meta">
                     {resource.tags.map((tag) => (
                       <span key={tag}>{tag}</span>
                     ))}
                   </div>
+                  <FrontOfficeLink className="office-inline-link front-office-inline-link" href={resource.href}>
+                    Open resource
+                  </FrontOfficeLink>
                 </article>
               ))
             ) : (
@@ -52,16 +68,24 @@ export default function AgentResourcesPage() {
           title="Vendor shortcuts"
         >
           <div className="office-queue-list">
-            {vendorFeed.length ? (
-              vendorFeed.map((vendor) => (
+            {snapshot.vendors.length ? (
+              snapshot.vendors.map((vendor) => (
                 <FrontOfficeRailItem
+                  action={
+                    vendor.href ? (
+                      <FrontOfficeLink className="office-inline-link front-office-inline-link" href={vendor.href}>
+                        Contact vendor
+                      </FrontOfficeLink>
+                    ) : null
+                  }
                   badgeLabel={vendor.category}
                   badgeTone="neutral"
                   description={vendor.headline}
                   key={vendor.id}
                   meta={
                     <>
-                      <span>{vendor.neighborhoods.join(" · ")}</span>
+                      <span>{vendor.neighborhoodsLabel}</span>
+                      <span>{vendor.contactLabel}</span>
                     </>
                   }
                   title={vendor.name}
@@ -79,9 +103,9 @@ export default function AgentResourcesPage() {
       }
       summary={
         <>
-          <SummaryChip label="Resources" value={resourceFeed.length} />
-          <SummaryChip label="Vendors" value={vendorFeed.length} />
-          <SummaryChip label="Types" tone="accent" value={resourceTypeCount} />
+          <SummaryChip label="Resources" value={snapshot.summary.resourceCount} />
+          <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
+          <SummaryChip label="Types" tone="accent" value={snapshot.summary.resourceTypeCount} />
         </>
       }
       title="Resource hub"

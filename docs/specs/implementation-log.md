@@ -8,6 +8,11 @@
 
 ## Recently completed major work
 
+- 2026-03-31: active `Front Office` pages and legacy FO feed APIs were rebuilt off real `@acre/db` services instead of `@acre/backoffice` mock feeds:
+  - `/agent/clients`, `/agent/listings`, `/agent/resources`, and `/agent/notifications` now read organization/membership-scoped Prisma data through new FO workspace snapshot services
+  - the legacy `GET /api/clients`, `GET /api/listings`, `GET /api/events`, and `GET /api/resources` endpoints now return real FO snapshot data instead of in-memory feed arrays
+  - `/agent` navigation no longer imports `agentSections` from `@acre/backoffice`; the live FO shell now owns its own route map instead of borrowing legacy mock section config
+  - this removes the last active `/agent` route dependency on `@acre/backoffice` feed helpers, leaving that package as legacy/demo compatibility only
 - 2026-03-31: accounting payout statements now complete the agent review loop entirely inside Back Office instead of relying on email / WeChat follow-up:
   - `AgentPayoutStatement` now keeps a review lifecycle of `draft -> awaiting_agent -> revision_requested -> confirmed` plus a durable internal message timeline
   - `/office/accounting` now lets finance/admin send or resend a statement to the agent with an internal note and see the full review timeline on the saved statement detail

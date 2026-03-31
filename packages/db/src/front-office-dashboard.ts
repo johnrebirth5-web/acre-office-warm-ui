@@ -743,7 +743,7 @@ export async function getFrontOfficeDashboardSnapshot(
       })),
       appointmentModuleReady: false,
       appointmentMessage:
-        "Agent appointment scheduling is still a planned module. This section currently shows shared office commitments so the dashboard stays honest."
+        "Agent appointment scheduling is on the active Front Office roadmap but is not live yet. This section currently shows shared office commitments so the dashboard stays honest."
     },
     listingOutput: {
       activeListingCount,

@@ -3,12 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { agentSections } from "@acre/backoffice";
 import { SiteReleaseBadge } from "../site-release-badge";
+
+const frontOfficeNavItems = [
+  { href: "/agent/dashboard", label: "Dashboard", shortLabel: "Home" },
+  { href: "/agent/clients", label: "Clients", shortLabel: "Clients" },
+  { href: "/agent/listings", label: "Listings", shortLabel: "Listings" },
+  { href: "/agent/notifications", label: "Activity", shortLabel: "Alerts" },
+  { href: "/agent/resources", label: "Resources", shortLabel: "Resources" }
+] as const;
 
 export function AgentNav() {
   const pathname = usePathname();
-  const items = agentSections[0].items;
+  const items = frontOfficeNavItems;
 
   return (
     <>
