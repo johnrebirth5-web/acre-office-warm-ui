@@ -15739,6 +15739,196 @@ body,
   line-height: var(--office-line-body);
 }
 
+.front-office-dashboard-page {
+  gap: 24px;
+}
+
+.front-office-dashboard-layout {
+  grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.92fr);
+  gap: 20px;
+}
+
+.front-office-dashboard-main,
+.front-office-dashboard-rail {
+  gap: 18px;
+}
+
+.front-office-action-grid,
+.front-office-stage-grid,
+.front-office-commitment-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+}
+
+.front-office-action-card,
+.front-office-resource-item,
+.front-office-vendor-item {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(194, 205, 220, 0.56);
+  border-radius: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(250, 252, 255, 0.96),
+    rgba(242, 246, 251, 0.92)
+  );
+}
+
+.front-office-action-card.tone-warning,
+.front-office-record.tone-warning {
+  border-color: rgba(224, 164, 31, 0.36);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 249, 238, 0.98),
+    rgba(251, 244, 231, 0.94)
+  );
+}
+
+.front-office-action-card.tone-success,
+.front-office-record.tone-success {
+  border-color: rgba(43, 122, 85, 0.24);
+  background: linear-gradient(
+    180deg,
+    rgba(242, 251, 247, 0.98),
+    rgba(235, 247, 241, 0.94)
+  );
+}
+
+.front-office-action-card-head,
+.front-office-note-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.front-office-action-card-label {
+  display: block;
+  color: var(--office-text-soft);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.front-office-action-card strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--office-text);
+  font-size: 1.92rem;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.front-office-action-card p,
+.front-office-record-head p,
+.front-office-placeholder-note p,
+.front-office-note-item p,
+.front-office-resource-item p,
+.front-office-vendor-item p {
+  margin: 0;
+  color: var(--office-text-muted);
+  line-height: var(--office-line-body);
+}
+
+.front-office-action-card-helper,
+.front-office-vendor-contact {
+  color: var(--office-text-soft);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.front-office-record-list,
+.front-office-rail-list {
+  display: grid;
+  gap: 12px;
+}
+
+.front-office-record {
+  gap: 12px;
+}
+
+.front-office-record-head {
+  gap: 12px;
+}
+
+.front-office-record-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.front-office-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.front-office-placeholder-note {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px dashed rgba(194, 205, 220, 0.72);
+  border-radius: 18px;
+  background: rgba(246, 249, 252, 0.84);
+}
+
+.front-office-note-item,
+.front-office-resource-item,
+.front-office-vendor-item {
+  gap: 10px;
+}
+
+.front-office-note-item strong,
+.front-office-resource-item strong,
+.front-office-vendor-item strong {
+  color: var(--office-text);
+}
+
+.front-office-inline-link {
+  justify-self: start;
+}
+
+.front-office-inline-empty {
+  min-height: 112px;
+}
+
+.agent-brand-panel {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(241, 246, 254, 0.92)
+  );
+}
+
+.agent-brand-mark strong {
+  letter-spacing: -0.06em;
+}
+
+.agent-nav-header span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid rgba(194, 205, 220, 0.62);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--office-accent-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.agent-sidebar-note {
+  background: linear-gradient(
+    180deg,
+    rgba(244, 248, 255, 0.96),
+    rgba(238, 244, 252, 0.92)
+  );
+}
+
 .auth-shell {
   min-height: 100vh;
   padding: 24px 18px;
@@ -15901,7 +16091,8 @@ body,
 
 @media (max-width: 1360px) {
   .office-dashboard-grid-wide,
-  .bm-activity-layout {
+  .bm-activity-layout,
+  .front-office-dashboard-layout {
     grid-template-columns: 1fr;
   }
 
@@ -15928,7 +16119,8 @@ body,
   .auth-layout,
   .office-list-page-split,
   .office-agent-workspace,
-  .bm-new-transaction-grid {
+  .bm-new-transaction-grid,
+  .front-office-dashboard-layout {
     grid-template-columns: 1fr;
   }
 

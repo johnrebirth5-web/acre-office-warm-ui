@@ -1,5 +1,5 @@
 import { can, summarizeAccess } from "@acre/auth";
-import { getAgentDashboardSnapshot } from "@acre/backoffice";
+import { getFrontOfficeDashboardSnapshot } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
 
@@ -14,10 +14,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Dashboard access required." }, { status: 403 });
   }
 
-  const userId = request.nextUrl.searchParams.get("userId") ?? undefined;
-
   return NextResponse.json({
     access: summarizeAccess(context.currentMembership),
-    snapshot: getAgentDashboardSnapshot(userId)
+    snapshot: await getFrontOfficeDashboardSnapshot({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone
+    })
   });
 }

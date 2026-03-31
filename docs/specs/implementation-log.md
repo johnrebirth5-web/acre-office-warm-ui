@@ -8,6 +8,12 @@
 
 ## Recently completed major work
 
+- 2026-03-31: `/agent/dashboard` was rebuilt from the old `Agent OS` mock landing page into a real `Front Office` action homepage:
+  - the route now reads from new `@acre/db` `getFrontOfficeDashboardSnapshot(...)` service instead of `@acre/backoffice` demo snapshot data
+  - the new snapshot aggregates real `Client`, `FollowUpTask`, `Listing`, `ListingShareLink`, `Event`, `Notification`, `Resource`, `Vendor`, `Transaction`, and `SignatureRequest` data into one action-first FO surface
+  - the page structure now follows the same shared design system as Back Office using `PageHeader`, `PageHeaderSummary`, `SectionCard`, `StatCard`, `SummaryChip`, `ListPageSplit`, and `ListPageStack`
+  - the homepage explicitly separates `Front Office` work from `Back Office` formal workflow by keeping outreach / follow-up / commitments in the main queue and pushing transaction/signature follow-through into a `Needs Back Office` handoff section
+  - the `/agent` shell copy and navigation were normalized away from the older standalone `Agent OS` voice so `Front Office` and `Back Office` now present as one product family instead of parallel brands
 - 2026-03-31: eSignature moved from a transaction-only single-signer MVP toward a platform-level signature center MVP:
   - added new Prisma models and enums for `SignatureRecipient`, `SignatureTemplate`, `SignatureTemplateRecipient`, `SignatureTemplateField`, `SignatureArtifact`, `OrganizationSignatureDriveSetting`, richer request statuses, recipient roles, template categories, context types, and Drive sync state
   - `SignatureField` now stores `assignedRecipientId`, `fieldKey`, `isReadOnly`, `isSystemPrefilled`, `visibilityRule`, `mirrorGroup`, and `fieldOptions`, so each signing location can be bound to a specific signer and reused across mirrored fields

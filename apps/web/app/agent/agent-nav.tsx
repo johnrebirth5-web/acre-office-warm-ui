@@ -16,8 +16,8 @@ export function AgentNav() {
         <div className="office-logo-panel agent-brand-panel">
           <div className="brand-mark agent-brand-mark">
             <span>Acre</span>
-            <strong>Agent OS</strong>
-            <p>Field-ready workspace for listings, CRM follow-up, events, and knowledge tools.</p>
+            <strong>Front Office</strong>
+            <p>Daily client execution, listing outreach, and the next clear handoff into formal Back Office workflow.</p>
           </div>
         </div>
 
@@ -25,7 +25,7 @@ export function AgentNav() {
 
         <section className="nav-group agent-nav-group">
           <header className="office-nav-header agent-nav-header">
-            <span>◫</span>
+            <span>FO</span>
             <strong>{agentSections[0].title}</strong>
           </header>
           <p>{agentSections[0].summary}</p>
@@ -44,9 +44,9 @@ export function AgentNav() {
         </section>
 
         <div className="sidebar-note office-sidebar-note agent-sidebar-note">
-          <Badge tone="accent">Mobile-safe</Badge>
-          <strong>Same workflows, reduced chrome.</strong>
-          <p>The mobile view keeps primary actions one tap away using a compact bottom rail.</p>
+          <Badge tone="accent">Shared system</Badge>
+          <strong>Front Office moves fast. Back Office stays formal.</strong>
+          <p>Use this shell for action queues, outreach, and reminders. Open Back Office when a record needs transactions, signatures, or audit-safe follow-through.</p>
         </div>
       </aside>
 

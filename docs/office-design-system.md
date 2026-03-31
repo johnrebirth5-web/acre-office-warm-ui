@@ -250,6 +250,8 @@ transaction detail 补充规则：
 
 - `Office` shell、`Agent` shell、`Login` 页面共用一套字体、色板、边框、圆角、阴影和按钮层级
 - 允许 `Agent` 信息密度略低于 `Office`，但不能回到独立的 marketing UI 视觉
+- `/agent/dashboard` 现在按 `Front Office` 行动首页处理：页头仍用 `PageHeader + PageHeaderSummary`，内容仍用 `SectionCard / StatCard / SummaryChip / ListPageSplit / ListPageStack` 组织
+- `Front Office` 页面可以比 `Back Office` 更偏行动队列和对客输出，但不能复制正式 transaction / signature / accounting 工作流，也不能长出第二套 design language
 - `Login` 允许更强的品牌氛围和更大的标题，但表单字段、按钮、badge 仍需复用共享输入/动作语法
 
 ## 表格 / 列表规则
@@ -524,6 +526,7 @@ Back Office 以后新增表格时，默认模板就是这套共享 Office table 
 ### 已重点加固的页面
 
 - `/office/dashboard`
+- `/agent/dashboard`
 - `/office/transactions`
 - `/office/contacts`
 - `/office/tasks`

@@ -279,38 +279,38 @@ export const members: AcreMember[] = [
 export const agentSections: WorkspaceSection[] = [
   {
     id: "overview",
-    title: "Agent Workspace",
-    summary: "Daily execution for listings, client follow-up, activity, and knowledge access.",
+    title: "Front Office",
+    summary: "Daily follow-up, outreach, commitments, and the next handoff into formal Back Office workflows.",
     items: [
       {
         href: "/agent/dashboard",
         label: "Dashboard",
         shortLabel: "Home",
-        description: "Today follow-ups, latest listings, activity cards, and quick actions."
-      },
-      {
-        href: "/agent/listings",
-        label: "Listings",
-        shortLabel: "Listings",
-        description: "Search listings, create posters, and generate tracked marketing links."
+        description: "Today action queue, client pressure, commitments, and Back Office handoff."
       },
       {
         href: "/agent/clients",
         label: "Clients",
         shortLabel: "Clients",
-        description: "Lightweight CRM with OCR capture, reminders, and next-step guidance."
+        description: "Pipeline, reminders, and the next action set for active client work."
+      },
+      {
+        href: "/agent/listings",
+        label: "Listings",
+        shortLabel: "Listings",
+        description: "Recommend inventory, prepare content, and track listing outreach."
       },
       {
         href: "/agent/notifications",
         label: "Activity",
         shortLabel: "Alerts",
-        description: "Events, notices, RSVP status, and reminder queue."
+        description: "Commitments, office notices, and reminder-driven follow-through."
       },
       {
         href: "/agent/resources",
         label: "Resources",
         shortLabel: "Resources",
-        description: "Training videos, vendors, templates, and searchable internal knowledge."
+        description: "Training, documents, templates, and vendor shortcuts for field execution."
       }
     ]
   }
@@ -997,6 +997,7 @@ export function getPipelineBuckets(): PipelineBucket[] {
   });
 }
 
+// Legacy demo-only snapshot kept for older agent mock routes and historical references.
 export function getAgentDashboardSnapshot(userId = "member-jane"): AgentDashboardSnapshot {
   const user = members.find((member) => member.id === userId) ?? members[0];
 

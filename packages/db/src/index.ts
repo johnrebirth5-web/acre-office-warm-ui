@@ -206,6 +206,7 @@ export {
   updateAgentRecurringChargeRule
 } from "./agent-billing";
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
+export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
   getOfficePerformanceWorkspace,
   listOfficePerformanceExportRows,
@@ -645,6 +646,20 @@ export type {
   OfficeDashboardRecentTransaction,
   OfficeDashboardStatusMetric
 } from "./dashboard";
+export type {
+  FrontOfficeDashboardActionQueueItem,
+  FrontOfficeDashboardBackOfficeItem,
+  FrontOfficeDashboardClientItem,
+  FrontOfficeDashboardCommitmentItem,
+  FrontOfficeDashboardListingItem,
+  FrontOfficeDashboardNoticeItem,
+  FrontOfficeDashboardResourceItem,
+  FrontOfficeDashboardSnapshot,
+  FrontOfficeDashboardStageMetric,
+  FrontOfficeDashboardSummary,
+  FrontOfficeDashboardTone,
+  FrontOfficeDashboardVendorItem
+} from "./front-office-dashboard";
 export type {
   CalculateTransactionCommissionInput,
   OfficeCommissionAssignmentSourceType,
