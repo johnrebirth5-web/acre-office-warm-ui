@@ -350,12 +350,18 @@ select {
 .nav-card span,
 .sidebar-note span,
 .mini-kpi span,
-.list-row span,
 .metric-strip span {
   display: block;
   font-family: var(--office-font-sans);
   font-size: 0.84rem;
   color: rgba(246, 239, 227, 0.72);
+}
+
+.list-row span {
+  display: block;
+  font-family: var(--office-font-sans);
+  font-size: 0.84rem;
+  color: var(--office-text-soft);
 }
 
 .sidebar-note {
@@ -15761,13 +15767,13 @@ body,
 .front-office-resource-item p,
 .front-office-vendor-item p {
   margin: 0;
-  color: var(--office-text-muted);
+  color: #556a83;
   line-height: var(--office-line-body);
 }
 
 .front-office-action-card-helper,
 .front-office-vendor-contact {
-  color: var(--office-text-soft);
+  color: #667c93;
   font-size: 0.8rem;
   line-height: 1.45;
 }
@@ -15795,16 +15801,23 @@ body,
   display: flex;
   flex-wrap: wrap;
   gap: 10px 14px;
+  color: #667c93;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.front-office-record-meta span {
+  color: inherit;
 }
 
 .front-office-activity-record p,
 .front-office-activity-event p {
-  color: #5f738f;
+  color: #556a83;
 }
 
 .front-office-activity-meta,
 .front-office-activity-event-meta {
-  color: #60728c;
+  color: #667c93;
   font-weight: 700;
 }
 
@@ -15843,6 +15856,47 @@ body,
   color: var(--office-text);
 }
 
+.front-office-record :is(.office-badge, .office-status-badge),
+.front-office-resource-item :is(.office-badge, .office-status-badge),
+.front-office-vendor-item :is(.office-badge, .office-status-badge),
+.front-office-activity-event :is(.office-badge, .office-status-badge) {
+  opacity: 1;
+  font-weight: 800;
+  -webkit-text-fill-color: currentColor;
+}
+
+.front-office-record :is(.office-badge-neutral, .office-status-badge-neutral),
+.front-office-resource-item :is(.office-badge-neutral, .office-status-badge-neutral),
+.front-office-vendor-item :is(.office-badge-neutral, .office-status-badge-neutral),
+.front-office-activity-event :is(.office-badge-neutral, .office-status-badge-neutral) {
+  background: #e9eef4;
+  color: #42556c;
+}
+
+.front-office-record :is(.office-badge-accent, .office-status-badge-accent),
+.front-office-resource-item :is(.office-badge-accent, .office-status-badge-accent),
+.front-office-vendor-item :is(.office-badge-accent, .office-status-badge-accent),
+.front-office-activity-event :is(.office-badge-accent, .office-status-badge-accent) {
+  background: #dfeaff;
+  color: #173f86;
+}
+
+.front-office-record :is(.office-badge-success, .office-status-badge-success),
+.front-office-resource-item :is(.office-badge-success, .office-status-badge-success),
+.front-office-vendor-item :is(.office-badge-success, .office-status-badge-success),
+.front-office-activity-event :is(.office-badge-success, .office-status-badge-success) {
+  background: rgba(47, 109, 79, 0.16);
+  color: #2b6548;
+}
+
+.front-office-record :is(.office-badge-warning, .office-status-badge-warning),
+.front-office-resource-item :is(.office-badge-warning, .office-status-badge-warning),
+.front-office-vendor-item :is(.office-badge-warning, .office-status-badge-warning),
+.front-office-activity-event :is(.office-badge-warning, .office-status-badge-warning) {
+  background: rgba(248, 214, 110, 0.28);
+  color: #7c5b00;
+}
+
 .front-office-inline-link {
   justify-self: start;
 }
@@ -15860,7 +15914,7 @@ body,
 .front-office-note-head > span {
   display: inline-flex;
   align-items: center;
-  color: var(--office-text-soft);
+  color: #667c93;
   font-size: var(--office-text-meta-size);
   font-weight: 700;
   line-height: 1.35;
