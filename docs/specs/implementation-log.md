@@ -285,6 +285,9 @@
 - reports search-layout refinement now treats people-name filters as search-first pickers instead of raw dropdowns:
   - `Owner` and `Team Leader` use typed search and ranked matching so roster growth does not make filter selection unusable
   - this behavior is now documented as the default rule for future `owner / agent / member / assignee` selectors across Office pages
+- existing role templates now receive a one-time signature-permission backfill migration so older organizations do not silently lose `Prepare signature` and signature-center access after the new e-signature permission tree shipped:
+  - legacy templates that only carried `signatures:manage` now also receive the required `signatures:view` parent key plus the matching template/report keys for roles that should have them
+  - this closes the upgrade gap where the new signature UI code could be deployed successfully while persisted organization role templates still hid the entry points
 - typography baseline cleanup now routes legacy Office surfaces back through the shared `--office-font-sans` token:
   - body and older sidebar/panel/meta surfaces no longer hardcode `Inter / Helvetica Neue / Arial` locally
   - the shared font stack now includes explicit Chinese fallbacks to reduce cross-browser drift for mixed English/CJK pages
