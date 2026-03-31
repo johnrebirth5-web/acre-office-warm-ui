@@ -110,6 +110,26 @@ function getReviewStatusTone(status: string) {
   return "neutral" as const;
 }
 
+function getSendButtonLabel(reviewStatus: SelectedStatementDetail["reviewStatus"], isSending: boolean) {
+  if (isSending) {
+    return "Sending...";
+  }
+
+  if (reviewStatus === "awaiting_agent") {
+    return "Resend";
+  }
+
+  if (reviewStatus === "revision_requested") {
+    return "Send update";
+  }
+
+  if (reviewStatus === "confirmed") {
+    return "Send revision";
+  }
+
+  return "Send";
+}
+
 function toNumber(value: string) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
@@ -310,10 +330,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isSavingManualLineItems, setIsSavingManualLineItems] = useState(false);
   const [isSendingStatement, setIsSendingStatement] = useState(false);
+  const [quickSendingStatementId, setQuickSendingStatementId] = useState("");
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
   const [manualSaveError, setManualSaveError] = useState("");
   const [sendError, setSendError] = useState("");
+  const [historySendError, setHistorySendError] = useState("");
   const [sendMessage, setSendMessage] = useState("");
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
@@ -412,17 +434,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       )
     : "";
   const selectedStatementBankFields = selectedStatement ? buildStatementBankFields(selectedStatement) : [];
-  const sendButtonLabel = !selectedStatement
-    ? "Send to agent"
-    : isSendingStatement
-      ? "Sending..."
-      : selectedStatement.reviewStatus === "awaiting_agent"
-        ? "Resend to agent"
-        : selectedStatement.reviewStatus === "revision_requested"
-          ? "Send updated statement"
-          : selectedStatement.reviewStatus === "confirmed"
-            ? "Send revised statement"
-            : "Send to agent";
+  const sendButtonLabel = selectedStatement ? getSendButtonLabel(selectedStatement.reviewStatus, isSendingStatement) : "Send";
   const resolvedFilterMembershipId = resolveTypedAgentMembershipId(
     snapshot.filters.memberOptions,
     filterState.membershipId,
@@ -509,6 +521,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       setSendMessage("");
       setSendError("");
       setIsSendingStatement(false);
+      setQuickSendingStatementId("");
+      setHistorySendError("");
       return;
     }
 
@@ -518,6 +532,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     setSendMessage("");
     setSendError("");
     setIsSendingStatement(false);
+    setQuickSendingStatementId("");
+    setHistorySendError("");
   }, [selectedStatement?.id, selectedStatementManualSignature]);
 
   function selectAgentOption(option: AgentOption) {
@@ -806,6 +822,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
 
     setIsSendingStatement(true);
     setSendError("");
+    setHistorySendError("");
 
     try {
       const response = await fetch(`/api/office/accounting/statements/${selectedStatement.id}/send`, {
@@ -830,6 +847,43 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       setSendError(error instanceof Error ? error.message : "Failed to send the payout statement to the agent.");
     } finally {
       setIsSendingStatement(false);
+    }
+  }
+
+  async function handleQuickSendStatement(statement: OfficeAgentPayoutStatementsWorkspaceSnapshot["history"][number]) {
+    const hasUnsavedSelectedChanges = selectedStatement?.id === statement.id && hasManualLineItemChanges;
+
+    if (hasUnsavedSelectedChanges) {
+      setHistorySendError("Save the current manual adjustment changes before sending this statement to the agent.");
+      return;
+    }
+
+    setQuickSendingStatementId(statement.id);
+    setHistorySendError("");
+
+    try {
+      const response = await fetch(`/api/office/accounting/statements/${statement.id}/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: ""
+        })
+      });
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to send the payout statement to the agent.");
+      }
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      setHistorySendError(error instanceof Error ? error.message : "Failed to send the payout statement to the agent.");
+    } finally {
+      setQuickSendingStatementId("");
     }
   }
 
@@ -1157,7 +1211,11 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         {generationError ? <p className="office-inline-error">{generationError}</p> : null}
       </ListPageSection>
 
-      <ListPageSection subtitle="Saved payout statements stay durable, so PDF downloads always rebuild from the same saved snapshot." title="Statement history">
+      <ListPageSection
+        subtitle="Saved payout statements stay durable, so PDF downloads always rebuild from the same saved snapshot. Use Send here for quick internal delivery, or Open for notes and the full timeline."
+        title="Statement history"
+      >
+        {historySendError ? <p className="office-inline-error">{historySendError}</p> : null}
         {snapshot.history.length > 0 ? (
           <HorizontalScrollArea>
             <DataTable className="office-table">
@@ -1186,6 +1244,15 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     <span>{statement.lineItemCount}</span>
                     <span>{statement.totalStatementAmountLabel}</span>
                     <div className="bm-accounting-inline-actions office-accounting-statement-history-actions">
+                      <Button
+                        className="office-inline-action-sm"
+                        disabled={quickSendingStatementId.length > 0 || (selectedStatement?.id === statement.id && hasManualLineItemChanges)}
+                        onClick={() => void handleQuickSendStatement(statement)}
+                        size="sm"
+                        type="button"
+                      >
+                        {getSendButtonLabel(statement.reviewStatus, quickSendingStatementId === statement.id)}
+                      </Button>
                       <Button
                         className="office-inline-action-sm"
                         onClick={() =>
@@ -1316,7 +1383,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     size="sm"
                     type="button"
                   >
-                    {sendButtonLabel}
+                    {sendButtonLabel} to agent
                   </Button>
                 </div>
               </div>
