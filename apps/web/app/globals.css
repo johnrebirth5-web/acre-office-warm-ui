@@ -15818,9 +15818,12 @@ body,
 }
 
 .front-office-activity-badge {
-  border-color: rgba(101, 136, 205, 0.34);
-  background: #e5eeff;
-  color: #234e96;
+  border-color: rgba(74, 111, 189, 0.38) !important;
+  background: #dfeaff !important;
+  color: #173f86 !important;
+  -webkit-text-fill-color: #173f86;
+  font-weight: 800;
+  opacity: 1;
 }
 
 .front-office-placeholder-note {
