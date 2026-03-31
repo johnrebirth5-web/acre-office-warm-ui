@@ -15801,6 +15801,28 @@ body,
   gap: 10px 14px;
 }
 
+.front-office-activity-record p,
+.front-office-activity-event p {
+  color: #5f738f;
+}
+
+.front-office-activity-meta,
+.front-office-activity-event-meta {
+  color: #60728c;
+  font-weight: 700;
+}
+
+.front-office-activity-meta span,
+.front-office-activity-event-meta {
+  color: inherit;
+}
+
+.front-office-activity-badge {
+  border-color: rgba(101, 136, 205, 0.34);
+  background: #e5eeff;
+  color: #234e96;
+}
+
 .front-office-placeholder-note {
   display: grid;
   gap: 10px;

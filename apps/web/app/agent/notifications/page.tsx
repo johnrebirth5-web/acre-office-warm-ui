@@ -19,15 +19,17 @@ export default function AgentNotificationsPage() {
           <div className="list-column front-office-record-list">
             {activityCards.length ? (
               activityCards.map((card) => (
-                <article className="list-row front-office-record" key={card.id}>
+                <article className="list-row front-office-record front-office-activity-record" key={card.id}>
                   <div className="list-row-top front-office-record-head">
                     <div>
                       <strong>{card.title}</strong>
                       <p>{card.body}</p>
                     </div>
-                    <Badge tone="accent">Actionable</Badge>
+                    <Badge className="front-office-activity-badge" tone="accent">
+                      Actionable
+                    </Badge>
                   </div>
-                  <div className="list-row-meta front-office-record-meta">
+                  <div className="list-row-meta front-office-record-meta front-office-activity-meta">
                     <span>{card.kind}</span>
                     <span>{card.actionLabel}</span>
                   </div>
@@ -52,14 +54,14 @@ export default function AgentNotificationsPage() {
             <div className="front-office-rail-list">
               {upcomingEvents.length ? (
                 upcomingEvents.map((event) => (
-                  <article className="front-office-resource-item" key={event.id}>
+                  <article className="front-office-resource-item front-office-activity-event" key={event.id}>
                     <div className="front-office-note-head">
                       <StatusBadge tone="success">{event.kind}</StatusBadge>
                       <span>{event.visibility}</span>
                     </div>
                     <strong>{event.title}</strong>
                     <p>{event.location}</p>
-                    <span className="front-office-vendor-contact">
+                    <span className="front-office-vendor-contact front-office-activity-event-meta">
                       {event.startsAtLabel} · {event.rsvpCount} RSVP
                     </span>
                   </article>
