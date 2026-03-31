@@ -1,6 +1,6 @@
 import { summarizeAccess } from "@acre/auth";
 import { listClients } from "@acre/backoffice";
-import { EmptyState, SectionCard, StatCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { EmptyState, ListPageStatsGrid, SectionCard, StatCard, StatusBadge, SummaryChip } from "@acre/ui";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentClientsPage() {
@@ -54,12 +54,12 @@ export default function AgentClientsPage() {
             subtitle="A compact read on how much active client pressure exists in this route."
             title="Workflow signals"
           >
-            <div className="front-office-stage-grid">
+            <ListPageStatsGrid>
               <StatCard hint="records visible in this scope" label="Live contacts" value={clientFeed.length} />
               <StatCard hint="stages represented in the current list" label="Active stages" value={activeStageCount} />
               <StatCard hint="same-day follow-up markers in the feed" label="Follow-up due" value={followUpDueCount} />
               <StatCard hint="current role template in Front Office" label="Access" tone="accent" value={access.label} />
-            </div>
+            </ListPageStatsGrid>
           </SectionCard>
 
           <SectionCard
@@ -67,18 +67,27 @@ export default function AgentClientsPage() {
             subtitle="These are the operating rules for the page until real FO CRM write flows replace the mock feed."
             title="Current scope"
           >
-            <div className="front-office-rail-list">
-              <article className="front-office-resource-item">
-                <strong>Capture stays light</strong>
-                <p>Agents should be able to scan client stage, intent, budget, and next touchpoint without opening a full admin form.</p>
+            <div className="office-note-list">
+              <article className="office-note-item">
+                <span>CRM</span>
+                <div className="front-office-note-copy">
+                  <strong>Capture stays light</strong>
+                  <p>Agents should be able to scan client stage, intent, budget, and next touchpoint without opening a full admin form.</p>
+                </div>
               </article>
-              <article className="front-office-resource-item">
-                <strong>Follow-up stays visible</strong>
-                <p>The page should highlight who needs a same-day touch and who has gone stale before it turns into a Back Office issue.</p>
+              <article className="office-note-item">
+                <span>Today</span>
+                <div className="front-office-note-copy">
+                  <strong>Follow-up stays visible</strong>
+                  <p>The page should highlight who needs a same-day touch and who has gone stale before it turns into a Back Office issue.</p>
+                </div>
               </article>
-              <article className="front-office-resource-item">
-                <strong>Formal workflow still lives elsewhere</strong>
-                <p>Once a client becomes a formal transaction, the next step should hand off into Back Office instead of duplicating transaction editing here.</p>
+              <article className="office-note-item">
+                <span>BO</span>
+                <div className="front-office-note-copy">
+                  <strong>Formal workflow still lives elsewhere</strong>
+                  <p>Once a client becomes a formal transaction, the next step should hand off into Back Office instead of duplicating transaction editing here.</p>
+                </div>
               </article>
             </div>
           </SectionCard>

@@ -1,5 +1,5 @@
 import { listEvents, listNotifications } from "@acre/backoffice";
-import { Badge, EmptyState, SectionCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { Badge, EmptyState, SectionCard, SummaryChip } from "@acre/ui";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentNotificationsPage() {
@@ -16,22 +16,28 @@ export default function AgentNotificationsPage() {
           subtitle="This stream groups the notices and reminders that actually affect the field workflow."
           title="Current activity"
         >
-          <div className="list-column front-office-record-list">
+          <div className="office-notification-list">
             {activityCards.length ? (
               activityCards.map((card) => (
-                <article className="list-row front-office-record front-office-activity-record" key={card.id}>
-                  <div className="list-row-top front-office-record-head">
-                    <div>
-                      <strong>{card.title}</strong>
-                      <p>{card.body}</p>
+                <article className="office-notification-row" key={card.id}>
+                  <div className="office-notification-row-copy">
+                    <div className="office-notification-row-head">
+                      <div className="office-notification-row-title">
+                        <strong>{card.title}</strong>
+                      </div>
+
+                      <div className="office-notification-row-meta">
+                        <Badge className="front-office-activity-badge" tone="accent">
+                          Actionable
+                        </Badge>
+                        <Badge tone="neutral">{card.kind}</Badge>
+                        <span>{card.actionLabel}</span>
+                      </div>
                     </div>
-                    <Badge className="front-office-activity-badge" tone="accent">
-                      Actionable
-                    </Badge>
+                    <p>{card.body}</p>
                   </div>
-                  <div className="list-row-meta front-office-record-meta front-office-activity-meta">
-                    <span>{card.kind}</span>
-                    <span>{card.actionLabel}</span>
+                  <div className="office-notification-row-actions">
+                    <span className="office-inline-link">Open item</span>
                   </div>
                 </article>
               ))
@@ -51,19 +57,16 @@ export default function AgentNotificationsPage() {
             subtitle="Upcoming office commitments should stay close to the same activity stream."
             title="Upcoming events"
           >
-            <div className="front-office-rail-list">
+            <div className="office-note-list">
               {upcomingEvents.length ? (
                 upcomingEvents.map((event) => (
-                  <article className="front-office-resource-item front-office-activity-event" key={event.id}>
-                    <div className="front-office-note-head">
-                      <StatusBadge tone="success">{event.kind}</StatusBadge>
-                      <span>{event.visibility}</span>
+                  <article className="office-note-item" key={event.id}>
+                    <span>{event.kind}</span>
+                    <div className="front-office-note-copy">
+                      <strong>{event.title}</strong>
+                      <p>{event.location}</p>
+                      <p>{event.startsAtLabel} · {event.rsvpCount} RSVP · {event.visibility}</p>
                     </div>
-                    <strong>{event.title}</strong>
-                    <p>{event.location}</p>
-                    <span className="front-office-vendor-contact front-office-activity-event-meta">
-                      {event.startsAtLabel} · {event.rsvpCount} RSVP
-                    </span>
                   </article>
                 ))
               ) : (
@@ -81,10 +84,13 @@ export default function AgentNotificationsPage() {
             subtitle="This page should stay operational, not noisy."
             title="Stream rule"
           >
-            <div className="front-office-rail-list">
-              <article className="front-office-resource-item">
-                <strong>One stream, not five inboxes</strong>
-                <p>Keep notices, RSVP context, and reminders visible together so the agent does not have to hunt through different modules.</p>
+            <div className="office-note-list">
+              <article className="office-note-item">
+                <span>Rule</span>
+                <div className="front-office-note-copy">
+                  <strong>One stream, not five inboxes</strong>
+                  <p>Keep notices, RSVP context, and reminders visible together so the agent does not have to hunt through different modules.</p>
+                </div>
               </article>
             </div>
           </SectionCard>

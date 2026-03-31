@@ -5,6 +5,7 @@ import { getFrontOfficeDashboardSnapshot } from "@acre/db";
 import {
   Badge,
   EmptyState,
+  ListPageStatsGrid,
   SectionCard,
   StatCard,
   StatusBadge,
@@ -89,7 +90,7 @@ export default async function AgentDashboardPage() {
             subtitle="Light pipeline visibility for the agent workday. Formal transaction reporting still belongs in Back Office."
             title="Client pipeline snapshot"
           >
-            <div className="front-office-stage-grid">
+            <ListPageStatsGrid>
               {snapshot.pipeline.stageMetrics.length ? (
                 snapshot.pipeline.stageMetrics.map((metric) => (
                   <StatCard
@@ -108,7 +109,7 @@ export default async function AgentDashboardPage() {
                   title="No client stages yet"
                 />
               )}
-            </div>
+            </ListPageStatsGrid>
 
             <div className="list-column front-office-record-list">
               {snapshot.pipeline.recentClients.length ? (
@@ -144,14 +145,14 @@ export default async function AgentDashboardPage() {
             subtitle="Shared office commitments are visible now. Dedicated Front Office appointment scheduling remains a planned module."
             title="Calendar & commitments"
           >
-            <div className="front-office-commitment-strip">
+            <ListPageStatsGrid>
               <StatCard hint="visible today or upcoming in scope" label="Upcoming commitments" value={snapshot.commitments.items.length} />
               <StatCard
                 hint={snapshot.commitments.appointmentModuleReady ? "agent scheduling is live" : "still planned, not yet shipped"}
                 label="Appointment module"
                 value={snapshot.commitments.appointmentModuleReady ? "Live" : "Planned"}
               />
-            </div>
+            </ListPageStatsGrid>
 
             <div className="front-office-placeholder-note">
               <Badge tone="neutral">Honest state</Badge>
@@ -192,7 +193,7 @@ export default async function AgentDashboardPage() {
             subtitle="Use listing inventory and tracked links to drive outreach without switching into formal Back Office workflows."
             title="Listing & content output"
           >
-            <div className="front-office-stage-grid">
+            <ListPageStatsGrid>
               <StatCard hint="active or hot listings in scope" label="Send-ready listings" value={snapshot.listingOutput.activeListingCount} />
               <StatCard hint="tracked links already created by you" label="Tracked links" value={snapshot.listingOutput.trackedLinkCount} />
               <StatCard hint="clicks recorded on your tracked links" label="Tracked clicks" value={snapshot.listingOutput.trackedClickCount} />
@@ -202,7 +203,7 @@ export default async function AgentDashboardPage() {
                 value={snapshot.listingOutput.trackedSendingReady ? "Active" : "Ready"}
                 tone="accent"
               />
-            </div>
+            </ListPageStatsGrid>
 
             <div className="list-column front-office-record-list">
               {snapshot.listingOutput.recentListings.length ? (
@@ -278,19 +279,17 @@ export default async function AgentDashboardPage() {
             subtitle="Office-level alerts and visibility cues that support daily follow-up."
             title="Resource & notice rail"
           >
-            <div className="front-office-rail-list">
+            <div className="office-note-list">
               {snapshot.noticeRail.notifications.length ? (
                 snapshot.noticeRail.notifications.map((notification) => (
-                  <article className="front-office-note-item" key={notification.id}>
-                    <div className="front-office-note-head">
-                      <Badge tone="accent">{notification.typeLabel}</Badge>
-                      <span>{notification.createdAtLabel}</span>
-                    </div>
+                  <article className="office-note-item" key={notification.id}>
+                    <span>{notification.typeLabel}</span>
                     <div className="front-office-note-copy">
                       <strong>{notification.title}</strong>
                       <p>{notification.body}</p>
-                    </div>
-                    <div className="front-office-note-footer">
+                      <div className="front-office-note-footer">
+                        <p>{notification.createdAtLabel}</p>
+                      </div>
                       <DashboardLink className="office-inline-link front-office-inline-link" href={notification.href}>
                         Open notice
                       </DashboardLink>
@@ -312,18 +311,18 @@ export default async function AgentDashboardPage() {
             subtitle="Published documents, templates, and playbooks stay discoverable from the Front Office rail."
             title="Training & documents"
           >
-            <div className="front-office-rail-list">
+            <div className="office-note-list">
               {snapshot.noticeRail.resources.length ? (
                 snapshot.noticeRail.resources.map((resource) => (
-                  <article className="front-office-resource-item" key={resource.id}>
-                    <div className="front-office-note-head">
-                      <Badge tone="neutral">{resource.typeLabel}</Badge>
+                  <article className="office-note-item" key={resource.id}>
+                    <span>{resource.typeLabel}</span>
+                    <div className="front-office-note-copy">
+                      <strong>{resource.title}</strong>
+                      <p>{resource.summary}</p>
+                      <DashboardLink className="office-inline-link front-office-inline-link" href={resource.href}>
+                        Open resource
+                      </DashboardLink>
                     </div>
-                    <strong>{resource.title}</strong>
-                    <p>{resource.summary}</p>
-                    <DashboardLink className="office-inline-link front-office-inline-link" href={resource.href}>
-                      Open resource
-                    </DashboardLink>
                   </article>
                 ))
               ) : (
@@ -341,21 +340,21 @@ export default async function AgentDashboardPage() {
             subtitle="Operational shortcuts for vendors that agents need during client execution."
             title="Vendor shortcuts"
           >
-            <div className="front-office-rail-list">
+            <div className="office-note-list">
               {snapshot.noticeRail.vendors.length ? (
                 snapshot.noticeRail.vendors.map((vendor) => (
-                  <article className="front-office-vendor-item" key={vendor.id}>
-                    <div className="front-office-note-head">
-                      <Badge tone="success">{vendor.category}</Badge>
+                  <article className="office-note-item" key={vendor.id}>
+                    <span>{vendor.category}</span>
+                    <div className="front-office-note-copy">
+                      <strong>{vendor.name}</strong>
+                      <p>{vendor.headline}</p>
+                      <p>{vendor.contactLabel}</p>
+                      {vendor.href ? (
+                        <DashboardLink className="office-inline-link front-office-inline-link" href={vendor.href}>
+                          Contact vendor
+                        </DashboardLink>
+                      ) : null}
                     </div>
-                    <strong>{vendor.name}</strong>
-                    <p>{vendor.headline}</p>
-                    <span className="front-office-vendor-contact">{vendor.contactLabel}</span>
-                    {vendor.href ? (
-                      <DashboardLink className="office-inline-link front-office-inline-link" href={vendor.href}>
-                        Contact vendor
-                      </DashboardLink>
-                    ) : null}
                   </article>
                 ))
               ) : (

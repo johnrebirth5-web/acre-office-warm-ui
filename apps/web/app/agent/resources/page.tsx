@@ -1,5 +1,5 @@
 import { listResources, listVendors } from "@acre/backoffice";
-import { EmptyState, SectionCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { EmptyState, SectionCard, SummaryChip } from "@acre/ui";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentResourcesPage() {
@@ -17,21 +17,15 @@ export default function AgentResourcesPage() {
           subtitle="Published operating materials live here so agents can pull context without leaving the FO shell."
           title="Published resources"
         >
-          <div className="list-column front-office-record-list">
+          <div className="office-note-list">
             {resourceFeed.length ? (
               resourceFeed.map((resource) => (
-                <article className="list-row front-office-record" key={resource.id}>
-                  <div className="list-row-top front-office-record-head">
-                    <div>
-                      <strong>{resource.title}</strong>
-                      <p>{resource.summary}</p>
-                    </div>
-                    <StatusBadge tone="neutral">{resource.type}</StatusBadge>
-                  </div>
-                  <div className="list-row-meta front-office-record-meta">
-                    {resource.tags.map((tag) => (
-                      <span key={tag}>{tag}</span>
-                    ))}
+                <article className="office-note-item" key={resource.id}>
+                  <span>{resource.type}</span>
+                  <div className="front-office-note-copy">
+                    <strong>{resource.title}</strong>
+                    <p>{resource.summary}</p>
+                    <p>{resource.tags.join(" · ")}</p>
                   </div>
                 </article>
               ))
@@ -50,16 +44,16 @@ export default function AgentResourcesPage() {
           subtitle="Vendor lookup should feel like part of the same workspace, not a second app."
           title="Vendor shortcuts"
         >
-          <div className="front-office-rail-list">
+          <div className="office-note-list">
             {vendorFeed.length ? (
               vendorFeed.map((vendor) => (
-                <article className="front-office-vendor-item" key={vendor.id}>
-                  <div className="front-office-note-head">
-                    <StatusBadge tone="success">{vendor.category}</StatusBadge>
+                <article className="office-note-item" key={vendor.id}>
+                  <span>{vendor.category}</span>
+                  <div className="front-office-note-copy">
+                    <strong>{vendor.name}</strong>
+                    <p>{vendor.headline}</p>
+                    <p>{vendor.neighborhoods.join(" · ")}</p>
                   </div>
-                  <strong>{vendor.name}</strong>
-                  <p>{vendor.headline}</p>
-                  <span className="front-office-vendor-contact">{vendor.neighborhoods.join(" · ")}</span>
                 </article>
               ))
             ) : (
