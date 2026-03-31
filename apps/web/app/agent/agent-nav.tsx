@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { agentSections } from "@acre/backoffice";
@@ -13,30 +14,36 @@ export function AgentNav() {
     <>
       <aside className="sidebar office-dashboard-sidebar agent-sidebar">
         <div className="office-logo-panel agent-brand-panel">
-          <div className="brand-mark agent-brand-mark">
-            <span>Acre</span>
-            <strong>Front Office</strong>
-            <p>Daily client execution, listing outreach, and the next clear handoff into formal Back Office workflow.</p>
-          </div>
+          <Image
+            alt="Acre New York Realty logo"
+            className="office-logo-image"
+            height={1404}
+            priority
+            src="/acre-logo-nyr.png"
+            width={1175}
+          />
         </div>
 
         <SiteReleaseBadge className="site-release-badge-office site-release-badge-agent-panel" />
 
+        <div className="office-company-switcher agent-company-switcher">
+          <strong>FRONT OFFICE</strong>
+          <span>▾</span>
+        </div>
+
         <section className="nav-group agent-nav-group">
           <header className="office-nav-header agent-nav-header">
-            <span>FO</span>
-            <strong>{agentSections[0].title}</strong>
+            <span>◫</span>
+            <strong>Overview</strong>
           </header>
-          <p>{agentSections[0].summary}</p>
           <div className="nav-items agent-nav-links">
             {items.map((item) => (
               <Link
                 key={item.href}
-                className={`office-nav-card agent-nav-card${pathname === item.href ? " is-active" : ""}`}
+                className={`office-nav-link agent-nav-link${pathname === item.href ? " is-active" : ""}`}
                 href={item.href}
               >
-                <strong>{item.label}</strong>
-                <span>{item.description}</span>
+                {item.label}
               </Link>
             ))}
           </div>

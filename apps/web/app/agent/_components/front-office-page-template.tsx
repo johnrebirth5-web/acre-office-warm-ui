@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import {
   ListPageSplit,
   ListPageStack,
+  OfficeListPageSummary,
   PageHeader,
-  PageHeaderSummary,
   PageShell
 } from "@acre/ui";
 
@@ -24,10 +24,10 @@ export function FrontOfficePageTemplate(props: {
   layoutClassName?: string;
 }) {
   return (
-    <PageShell className={cx("office-agent-page front-office-template-page", props.pageClassName)}>
+    <PageShell className={cx("office-list-page", "office-canonical-list-page", "office-agent-page", "front-office-template-page", props.pageClassName)}>
       <PageHeader
-        actions={<PageHeaderSummary className={cx("front-office-template-summary", props.summaryClassName)}>{props.summary}</PageHeaderSummary>}
-        className={cx("front-office-template-header", props.headerClassName)}
+        actions={<OfficeListPageSummary className={cx("office-canonical-list-page-summary", "front-office-template-summary", props.summaryClassName)}>{props.summary}</OfficeListPageSummary>}
+        className={cx("office-canonical-list-page-header", "front-office-template-header", props.headerClassName)}
         description={props.description}
         eyebrow={props.eyebrow}
         title={props.title}

@@ -14795,7 +14795,7 @@ body,
 
 .agent-backoffice-shell .app-grid,
 .agent-backoffice-shell .acre-app-grid {
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: 296px minmax(0, 1fr);
 }
 
 .main-area,
@@ -15634,26 +15634,24 @@ body,
 
 .front-office-template-page,
 .front-office-dashboard-page {
-  gap: 24px;
+  gap: 22px;
 }
 
 .front-office-template-header,
 .front-office-dashboard-header {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: 18px 24px;
 }
 
 .front-office-template-header .office-page-actions,
 .front-office-dashboard-header .office-page-actions {
-  width: 100%;
-  max-width: none;
-  margin-left: 0;
-  justify-self: stretch;
+  width: auto;
+  max-width: 100%;
+  justify-self: end;
 }
 
 .front-office-template-header .office-page-heading,
 .front-office-dashboard-header .office-page-heading {
-  max-width: 82ch;
+  max-width: min(100%, 72ch);
 }
 
 .front-office-dashboard-header .office-page-heading h2 {
@@ -15662,22 +15660,20 @@ body,
 
 .front-office-template-summary,
 .front-office-dashboard-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: 100%;
+  width: auto;
   gap: 12px;
-  justify-self: stretch;
+  justify-self: end;
 }
 
 .front-office-template-summary .office-summary-chip,
 .front-office-dashboard-summary .office-summary-chip {
-  min-width: 0;
+  min-width: min(156px, 100%);
 }
 
 .front-office-template-layout,
 .front-office-dashboard-layout {
-  grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.92fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
+  gap: 18px;
 }
 
 .front-office-template-main,
@@ -16073,11 +16069,6 @@ body,
     grid-template-columns: 1fr;
   }
 
-  .front-office-template-summary,
-  .front-office-dashboard-summary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .office-page-header.office-agents-page-header {
     grid-template-columns: 1fr;
   }
@@ -16105,11 +16096,6 @@ body,
   .front-office-template-layout,
   .front-office-dashboard-layout {
     grid-template-columns: 1fr;
-  }
-
-  .front-office-template-summary,
-  .front-office-dashboard-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .office-page-header,
@@ -16160,7 +16146,8 @@ body,
 
   .front-office-template-summary,
   .front-office-dashboard-summary {
-    grid-template-columns: 1fr;
+    width: 100%;
+    justify-self: stretch;
   }
 
   .office-mobile-rail,
