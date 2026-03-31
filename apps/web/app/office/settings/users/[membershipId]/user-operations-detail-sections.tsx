@@ -6,7 +6,9 @@ import { useState, type FormEvent } from "react";
 import {
   Badge,
   Button,
+  EmptyState,
   FormField,
+  QueueItem,
   SectionCard,
   SelectInput,
   StatCard,
@@ -149,6 +151,18 @@ function buildEmptyOnboardingDraft(): OnboardingDraft {
     dueAt: "",
     status: "pending"
   };
+}
+
+function getCommissionStatusTone(status: string) {
+  if (status === "Paid" || status === "Payable") {
+    return "success" as const;
+  }
+
+  if (status === "Statement ready" || status === "Reviewed") {
+    return "accent" as const;
+  }
+
+  return "neutral" as const;
 }
 
 function supportsTeamHierarchy(roleValue: string) {
@@ -690,24 +704,25 @@ export function UserOperationsDetailSections({
           <p className="office-form-helper">Default split source: {snapshot.commissions.defaultSplitSourceLabel}</p>
         ) : null}
 
-        <div className="office-note-list">
-          {snapshot.commissions.recentCalculations.map((calculation) => (
-            <article className="office-note-item" key={calculation.id}>
-              <span>{calculation.status}</span>
-              <div>
-                <strong>
-                  <Link href={calculation.transactionHref}>{calculation.transactionLabel}</Link>
-                </strong>
-                <p>
-                  {calculation.recipientLabel} · {calculation.statementAmountLabel}
-                </p>
-              </div>
-            </article>
-          ))}
-          {snapshot.commissions.recentCalculations.length === 0 ? (
-            <p className="office-form-helper">No commission calculations have been recorded for this member yet.</p>
-          ) : null}
-        </div>
+        {snapshot.commissions.recentCalculations.length ? (
+          <div className="office-queue-list">
+            {snapshot.commissions.recentCalculations.map((calculation) => (
+              <QueueItem
+                badge={<StatusBadge tone={getCommissionStatusTone(calculation.status)}>{calculation.status}</StatusBadge>}
+                description={calculation.recipientLabel}
+                key={calculation.id}
+                meta={
+                  <>
+                    <span>{calculation.statementAmountLabel}</span>
+                  </>
+                }
+                title={<Link href={calculation.transactionHref}>{calculation.transactionLabel}</Link>}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No commission calculations yet" description="No commission calculations have been recorded for this member yet." />
+        )}
       </SectionCard>
 
       <section id="onboarding">
@@ -972,35 +987,41 @@ export function UserOperationsDetailSections({
 
       <div className="office-detail-two-column">
         <SectionCard subtitle="Most recent transaction work currently owned by this member." title="Recent transactions">
-          <div className="office-note-list">
-            {snapshot.recentTransactions.map((transaction) => (
-              <article className="office-note-item" key={transaction.id}>
-                <span>{transaction.status}</span>
-                <div>
-                  <strong>
-                    <Link href={transaction.href}>{transaction.label}</Link>
-                  </strong>
-                  <p>{transaction.priceLabel}</p>
-                </div>
-              </article>
-            ))}
-            {snapshot.recentTransactions.length === 0 ? <p className="office-form-helper">No recent transactions yet.</p> : null}
-          </div>
+          {snapshot.recentTransactions.length ? (
+            <div className="office-queue-list">
+              {snapshot.recentTransactions.map((transaction) => (
+                <QueueItem
+                  badgeLabel={transaction.status}
+                  description={transaction.priceLabel}
+                  key={transaction.id}
+                  title={<Link href={transaction.href}>{transaction.label}</Link>}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No recent transactions yet" />
+          )}
         </SectionCard>
 
         <SectionCard subtitle="Latest audit log items tied to this membership." title="Recent activity">
-          <div className="office-note-list">
-            {snapshot.recentActivity.map((item) => (
-              <article className="office-note-item" key={item.id}>
-                <span>{item.timestampLabel}</span>
-                <div>
-                  <strong>{item.actionLabel}</strong>
-                  <p>{item.objectLabel}</p>
-                </div>
-              </article>
-            ))}
-            {snapshot.recentActivity.length === 0 ? <p className="office-form-helper">No recent activity yet.</p> : null}
-          </div>
+          {snapshot.recentActivity.length ? (
+            <div className="office-queue-list">
+              {snapshot.recentActivity.map((item) => (
+                <QueueItem
+                  description={item.objectLabel}
+                  key={item.id}
+                  meta={
+                    <>
+                      <span>{item.timestampLabel}</span>
+                    </>
+                  }
+                  title={item.actionLabel}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No recent activity yet" />
+          )}
         </SectionCard>
       </div>
 

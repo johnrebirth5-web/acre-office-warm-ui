@@ -4,7 +4,7 @@ import type { OfficeAdminUserDetailSnapshot } from "@acre/db";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useState, type FormEvent } from "react";
-import { Badge, Button, FormField, SectionCard, SelectInput, StatusBadge, TextInput } from "@acre/ui";
+import { Badge, Button, EmptyState, FormField, QueueItem, SectionCard, SelectInput, StatusBadge, TextInput } from "@acre/ui";
 import {
   copyTextToClipboard,
   formatInviteExpiry,
@@ -66,6 +66,18 @@ export function OfficeSettingsUserDetailClient({
   const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(null);
   const canManagePrivilegedAccount = canManageSensitiveUsers || !isPrivilegedRoleValue(snapshot.profile.roleValue);
   const canManageAccountAccess = canManageUsers && canManagePrivilegedAccount;
+
+  function getCommissionStatusTone(status: string) {
+    if (status === "Paid" || status === "Payable") {
+      return "success" as const;
+    }
+
+    if (status === "Statement ready" || status === "Reviewed") {
+      return "accent" as const;
+    }
+
+    return "neutral" as const;
+  }
 
   useEffect(() => {
     setDraft({
@@ -561,22 +573,25 @@ export function OfficeSettingsUserDetailClient({
               </div>
             </div>
 
-            <div className="office-note-list">
-              {snapshot.commission.recentCalculations.map((calculation) => (
-                <article className="office-note-item" key={calculation.id}>
-                  <span>{calculation.status}</span>
-                  <div>
-                    <strong>{calculation.transactionHref ? <Link href={calculation.transactionHref}>{calculation.transactionLabel}</Link> : calculation.transactionLabel}</strong>
-                    <p>
-                      {calculation.recipientLabel} · {calculation.statementAmountLabel}
-                    </p>
-                  </div>
-                </article>
-              ))}
-              {snapshot.commission.recentCalculations.length === 0 ? (
-                <p className="office-form-helper">No commission calculations have been recorded for this user yet.</p>
-              ) : null}
-            </div>
+            {snapshot.commission.recentCalculations.length ? (
+              <div className="office-queue-list">
+                {snapshot.commission.recentCalculations.map((calculation) => (
+                  <QueueItem
+                    badge={<StatusBadge tone={getCommissionStatusTone(calculation.status)}>{calculation.status}</StatusBadge>}
+                    description={calculation.recipientLabel}
+                    key={calculation.id}
+                    meta={
+                      <>
+                        <span>{calculation.statementAmountLabel}</span>
+                      </>
+                    }
+                    title={calculation.transactionHref ? <Link href={calculation.transactionHref}>{calculation.transactionLabel}</Link> : calculation.transactionLabel}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No commission calculations yet" description="No commission calculations have been recorded for this user yet." />
+            )}
           </SectionCard>
 
           <SectionCard subtitle="Latest audit trail items tied to this user account, invitations, and credential events." title="Recent activity">

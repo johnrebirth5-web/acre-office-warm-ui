@@ -175,6 +175,9 @@ For deployment or production-sync work:
 - Treat `/office/transactions` as the canonical list-page composition reference for peer Office list pages. Reuse its page-header, summary, filter-card, table-card, and footer rhythm instead of inventing page-local list shells.
 - Treat `@acre/ui` + `office-*` styles as the canonical Office system. When touching older `bm-*` surfaces, migrate or normalize them toward that system instead of extending `bm-*` as a parallel visual language.
 - Prefer shared heading, button, card, badge, table, and detail-field patterns over page-local styling. If a visual pattern appears twice, it should usually move toward a shared primitive or canonical class.
+- `QueueItem` is now the canonical compact operational list row for small Back Office / Front Office side lists. Do not introduce new `office-note-item` usage for live pages.
+- `office-note-item` is deprecated as a live-page pattern. If a task touches a page that still uses it, migrate the touched list block to `office-queue-list + QueueItem` unless a documented blocker prevents it.
+- `bm-*` classes are legacy-only compatibility hooks. Do not introduce new `bm-*` markup, and when touching existing `bm-*` surfaces, prefer migrating the touched shell or list block toward `office-*` / `@acre/ui` primitives in the same task.
 - For responsive behavior:
   - prefer horizontal table overflow over squeezed columns
   - make filter/action bars wrap instead of compressing

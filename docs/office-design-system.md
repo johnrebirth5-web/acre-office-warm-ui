@@ -202,6 +202,7 @@ Office 路由级 canonical 组合层：
 - 现在优先使用 `ListPageTableSection` 把 `filters -> table/list -> footer` 固定成一套顺序，避免每页各自排列 inventory section
 - 当一个页面需要多个 peer list modules 时，优先使用 `ListPageStack` 和 `ListPageSplit` 组织主列表与次级列表/明细区，而不是重新回到 `dashboard` 式 page-local grid
 - 对于 settings / accounting / agent detail 里的“小型运营清单”，优先使用 `office-queue-list + QueueItem`，不要继续使用带大左侧标签栏的旧 `office-note-item`
+- `office-note-item` 只保留兼容，不再作为 live page 的默认结构；一旦任务触到对应 section，应把该 section 迁到 `QueueItem`
 - 如果页面还需要一层二级 summary，只能用 `ListPageSection + ListPageStatsGrid + StatCard`，不能再额外长出第二套 floating KPI strip
 - settings admin 页也按 list page 看待：先 inventory/list，再 editor/admin block；不要直接从页头跳进大表单
 - accounting / reports 允许保留多 section，但每个 section 也必须看起来像同一家族的 list-page card，而不是旧 `bm-card-head` 模块
@@ -339,6 +340,7 @@ Back Office 以后新增表格时，默认模板就是这套共享 Office table 
 
 - `bm-*` 仍是过渡兼容层，不应再扩张
 - 新的 UI 工作优先改共享 token、共享 primitives、canonical page composition
+- 新任务不得新增 `bm-*` markup；如果页面里仍有 `bm-*`，优先把触达的 shell、列表、card 或 action 区迁回 `office-*` / `@acre/ui`
 - 如果必须继续使用 `bm-*` markup，至少要让它的颜色、边框、按钮、表单、badge 和 spacing 输出与 `office-*` 完全一致
 
 ## Card / Module Surface 规则

@@ -304,6 +304,10 @@
   - refreshes no longer need a client fetch to "snap back" from an incorrect default grid before saved widths apply
   - different tables that reused the same legacy row class no longer overwrite one another's saved widths when their columns differ
   - accounting statement candidate tables now use dedicated structural classes so first-time visitors also get a stable default grid before any manual resizing
+- compact operational list cleanup now treats `QueueItem` as the shared replacement for old `office-note-item` rows on live pages:
+  - `Front Office` rails now use the same compact operational row language instead of page-local left-tag cards
+  - `Settings > Commission plans` and multiple agent/user detail sections now render compact queue-style rows for member defaults, split templates, recent calculations, recent transactions, and recent activity
+  - `AGENTS.md` and the design-system rules now explicitly prohibit new `office-note-item` or `bm-*` expansion in touched UI surfaces
 
 ## Next recommended work
 
