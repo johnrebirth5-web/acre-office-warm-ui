@@ -15743,6 +15743,31 @@ body,
   gap: 24px;
 }
 
+.front-office-dashboard-header {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.front-office-dashboard-header .office-page-heading {
+  max-width: 82ch;
+}
+
+.front-office-dashboard-header .office-page-heading h2 {
+  max-width: 14ch;
+}
+
+.front-office-dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
+  width: 100%;
+  gap: 12px;
+  justify-self: stretch;
+}
+
+.front-office-dashboard-summary .office-summary-chip {
+  min-width: 0;
+}
+
 .front-office-dashboard-layout {
   grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.92fr);
   gap: 20px;
@@ -15878,6 +15903,7 @@ body,
 .front-office-note-item,
 .front-office-resource-item,
 .front-office-vendor-item {
+  display: grid;
   gap: 10px;
 }
 
@@ -15893,6 +15919,12 @@ body,
 
 .front-office-inline-empty {
   min-height: 112px;
+}
+
+.front-office-note-copy,
+.front-office-note-footer {
+  display: grid;
+  gap: 8px;
 }
 
 .agent-brand-panel {
@@ -15922,6 +15954,7 @@ body,
 }
 
 .agent-sidebar-note {
+  margin: 0 14px 14px;
   background: linear-gradient(
     180deg,
     rgba(244, 248, 255, 0.96),

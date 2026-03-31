@@ -59,7 +59,7 @@ export default async function AgentDashboardPage() {
     <PageShell className="office-agent-page front-office-dashboard-page">
       <PageHeader
         actions={
-          <PageHeaderSummary>
+          <PageHeaderSummary className="front-office-dashboard-summary">
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Access" value={access.label} />
             <SummaryChip label="Today actions" tone="accent" value={snapshot.summary.todayActionCount} />
@@ -68,9 +68,10 @@ export default async function AgentDashboardPage() {
             <SummaryChip label="Needs Back Office" tone="accent" value={snapshot.summary.needsBackOfficeCount} />
           </PageHeaderSummary>
         }
-        description="Front Office keeps daily follow-up, commitments, listing outreach, and the next formal handoff in one action-first dashboard."
+        className="front-office-dashboard-header"
+        description="Daily follow-up, commitments, listing outreach, and the next Back Office handoff in one view."
         eyebrow="Front Office"
-        title="Action queue for today"
+        title="Front Office dashboard"
       />
 
       <ListPageSplit className="front-office-dashboard-layout">
@@ -300,11 +301,15 @@ export default async function AgentDashboardPage() {
                       <Badge tone="accent">{notification.typeLabel}</Badge>
                       <span>{notification.createdAtLabel}</span>
                     </div>
-                    <strong>{notification.title}</strong>
-                    <p>{notification.body}</p>
-                    <DashboardLink className="office-inline-link front-office-inline-link" href={notification.href}>
-                      Open notice
-                    </DashboardLink>
+                    <div className="front-office-note-copy">
+                      <strong>{notification.title}</strong>
+                      <p>{notification.body}</p>
+                    </div>
+                    <div className="front-office-note-footer">
+                      <DashboardLink className="office-inline-link front-office-inline-link" href={notification.href}>
+                        Open notice
+                      </DashboardLink>
+                    </div>
                   </article>
                 ))
               ) : (
