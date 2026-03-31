@@ -16454,11 +16454,104 @@ body,
   overflow: hidden;
 }
 
+.office-signature-stepper-card {
+  display: grid;
+  gap: 18px;
+}
+
+.office-signature-stepper {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.office-signature-step {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f7faff 100%);
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.office-signature-step:hover:not(:disabled) {
+  border-color: rgba(29, 78, 216, 0.28);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.office-signature-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.78;
+}
+
+.office-signature-step.is-active {
+  border-color: rgba(29, 78, 216, 0.42);
+  background: linear-gradient(180deg, #f4f8ff 0%, #eef4ff 100%);
+  box-shadow: 0 0 0 1px rgba(29, 78, 216, 0.14);
+}
+
+.office-signature-step.is-complete:not(.is-active) {
+  border-color: rgba(14, 116, 144, 0.24);
+}
+
+.office-signature-step.is-locked {
+  background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+}
+
+.office-signature-step strong {
+  color: var(--office-text);
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+.office-signature-step span:last-child {
+  color: var(--office-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.office-signature-step-index {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--office-text-muted);
+}
+
 .office-signature-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 18px;
+}
+
+.office-signature-step-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 18px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f7faff 100%);
+}
+
+.office-signature-step-banner p {
+  flex: 1 1 320px;
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .office-signature-preview-stack {
@@ -17143,6 +17236,7 @@ body,
 }
 
 @media (max-width: 960px) {
+  .office-signature-stepper,
   .office-signature-editor-main .bm-document-upload-grid,
   .office-signature-recipient-grid,
   .office-signature-field-grid,

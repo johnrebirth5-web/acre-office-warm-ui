@@ -52,6 +52,8 @@ type TemplateDraftState = {
   category: "transaction" | "hr" | "finance" | "admin";
 };
 
+type SignatureEditorStep = "recipients" | "fields";
+
 type FieldGestureState =
   | {
       mode: "move";
@@ -83,7 +85,18 @@ const fieldDefaults: Record<OfficeSignatureField["fieldType"], { label: string; 
   dropdown: { label: "Dropdown", width: 0.24, height: 0.05 }
 };
 
-const placementFieldTools: OfficeSignatureField["fieldType"][] = ["signature", "initials", "date", "name", "text", "email", "title", "company", "checkbox", "dropdown"];
+const placementFieldTools: OfficeSignatureField["fieldType"][] = [
+  "signature",
+  "initials",
+  "date",
+  "name",
+  "text",
+  "email",
+  "title",
+  "company",
+  "checkbox",
+  "dropdown"
+];
 
 const minimumFieldWidth = 0.08;
 const minimumFieldHeight = 0.04;
@@ -126,8 +139,7 @@ function buildDraftState(
         routingStep: String(recipient.routingStep),
         sortOrder: recipient.sortOrder
       })
-    ) ??
-    [];
+    ) ?? [];
   const ccRecipients =
     request?.ccRecipients.map((recipient) =>
       createRecipientDraft("cc", {
@@ -234,6 +246,10 @@ function getRequestTone(statusKey: OfficeSignatureRequest["statusKey"]) {
   return "neutral" as const;
 }
 
+function isRecipientRowComplete(recipient: SignatureRecipientDraft) {
+  return Boolean(recipient.name.trim() && recipient.email.trim() && recipient.recipientRole.trim());
+}
+
 export function SignatureRequestEditor({
   transactionId,
   document,
@@ -260,6 +276,7 @@ export function SignatureRequestEditor({
   const [selectedTool, setSelectedTool] = useState<OfficeSignatureField["fieldType"]>("signature");
   const [selectedFieldId, setSelectedFieldId] = useState<string>(initialFields[0]?.id ?? "");
   const [activeGesture, setActiveGesture] = useState<FieldGestureState | null>(null);
+  const [activeStep, setActiveStep] = useState<SignatureEditorStep>(initialRequest ? "fields" : "recipients");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -271,9 +288,20 @@ export function SignatureRequestEditor({
     [fields, selectedFieldId]
   );
 
+  const actionableRecipients = draftState.recipients;
+  const canAccessFieldStep = Boolean(requestId);
+  const isRecipientsStep = activeStep === "recipients";
+  const isFieldsStep = activeStep === "fields";
+
   useEffect(() => {
     fieldsRef.current = fields;
   }, [fields]);
+
+  useEffect(() => {
+    if (!requestId && activeStep !== "recipients") {
+      setActiveStep("recipients");
+    }
+  }, [activeStep, requestId]);
 
   useEffect(() => {
     if (!activeGesture) {
@@ -295,14 +323,14 @@ export function SignatureRequestEditor({
       const relativeY = (event.clientY - bounds.top) / bounds.height;
 
       if (gesture.mode === "move") {
-        updateField(field.id, {
+        updateField(gesture.fieldId, {
           x: clampFieldMetric(relativeX - gesture.pointerOffsetX, fieldPadding, fieldBoundary - field.width),
           y: clampFieldMetric(relativeY - gesture.pointerOffsetY, fieldPadding, fieldBoundary - field.height)
         });
         return;
       }
 
-      updateField(field.id, {
+      updateField(gesture.fieldId, {
         width: clampFieldMetric(
           gesture.startWidth + (relativeX - gesture.startPointerX),
           minimumFieldWidth,
@@ -331,7 +359,15 @@ export function SignatureRequestEditor({
     };
   }, [activeGesture]);
 
-  const actionableRecipients = draftState.recipients;
+  function openStep(step: SignatureEditorStep) {
+    if (step === "fields" && !canAccessFieldStep) {
+      return;
+    }
+
+    setActiveStep(step);
+    setError("");
+    setSuccessMessage("");
+  }
 
   function updateDraftField(field: Exclude<keyof SignatureDraftState, "recipients" | "ccRecipients">, value: string) {
     setDraftState((current) => ({
@@ -505,27 +541,84 @@ export function SignatureRequestEditor({
     setSelectedFieldId((current) => (current === fieldId ? "" : current));
   }
 
-  async function saveDraft(sendAfterSave: boolean) {
-    const validRecipients = draftState.recipients.filter(
-      (recipient) => recipient.name.trim() && recipient.email.trim() && recipient.recipientRole.trim()
-    );
+  function validateRecipients() {
+    const incompleteRecipient = draftState.recipients.find((recipient) => !isRecipientRowComplete(recipient));
+
+    if (incompleteRecipient) {
+      throw new Error("Complete every signer or approver row before continuing.");
+    }
+
+    const invalidRoutingStepRecipient = draftState.recipients.find((recipient) => {
+      const routingStep = Number(recipient.routingStep || "0");
+      return !Number.isFinite(routingStep) || routingStep < 1;
+    });
+
+    if (invalidRoutingStepRecipient) {
+      throw new Error("Each signer or approver needs a routing step of 1 or greater.");
+    }
+
+    const incompleteCcRecipient = draftState.ccRecipients.find((recipient) => !recipient.name.trim() || !recipient.email.trim());
+
+    if (incompleteCcRecipient) {
+      throw new Error("Complete every CC recipient row before saving.");
+    }
+
+    const validRecipients = draftState.recipients.filter(isRecipientRowComplete);
 
     if (!validRecipients.length) {
-      setError("At least one signer or approver is required.");
+      throw new Error("At least one signer or approver is required.");
+    }
+
+    return validRecipients;
+  }
+
+  function buildRecipientIdMap(previousRecipientDrafts: SignatureRecipientDraft[], nextRequest: OfficeSignatureRequest) {
+    const recipientIdMap = new Map<string, string>();
+
+    for (const draftRecipient of previousRecipientDrafts) {
+      const matchedRecipient = [...nextRequest.recipients, ...nextRequest.ccRecipients].find(
+        (recipient) =>
+          recipient.sortOrder === draftRecipient.sortOrder &&
+          recipient.roleKey === draftRecipient.roleKey &&
+          recipient.email.trim().toLowerCase() === draftRecipient.email.trim().toLowerCase()
+      );
+
+      if (matchedRecipient) {
+        recipientIdMap.set(draftRecipient.id, matchedRecipient.id);
+      }
+    }
+
+    return recipientIdMap;
+  }
+
+  async function persistSignatureRequest(options: {
+    action: "save-recipients" | "save-fields" | "send";
+    requireFields: boolean;
+    continueToFieldStep?: boolean;
+    successMessage: string;
+  }) {
+    let validRecipients: SignatureRecipientDraft[];
+
+    try {
+      validRecipients = validateRecipients();
+    } catch (validationError) {
+      setError(validationError instanceof Error ? validationError.message : "Signature request could not be saved.");
       return;
     }
 
-    if (!fields.length) {
-      setError("Add at least one signature field before saving.");
+    if (options.requireFields && !fields.length) {
+      setError("Add at least one signature field before saving this step.");
       return;
     }
 
-    if (validRecipients.length > 1 && fields.some((field) => !field.assignedRecipientId)) {
+    if (options.requireFields && validRecipients.length > 1 && fields.some((field) => !field.assignedRecipientId)) {
       setError("Assign every field to a specific signer or approver before saving a multi-recipient request.");
       return;
     }
 
-    setPendingAction(sendAfterSave ? "send" : "save");
+    const shouldSend = options.action === "send";
+
+    setPendingAction(options.action);
     setError("");
     setSuccessMessage("");
 
@@ -579,52 +672,41 @@ export function SignatureRequestEditor({
 
       const nextRequest = requestPayload.signatureRequest;
       const nextRequestId = nextRequest.id;
-      const recipientIdMap = new Map<string, string>();
-
-      for (const draftRecipient of previousRecipientDrafts) {
-        const matchedRecipient = [...nextRequest.recipients, ...nextRequest.ccRecipients].find(
-          (recipient) =>
-            recipient.sortOrder === draftRecipient.sortOrder &&
-            recipient.email.trim().toLowerCase() === draftRecipient.email.trim().toLowerCase()
-        );
-
-        if (matchedRecipient) {
-          recipientIdMap.set(draftRecipient.id, matchedRecipient.id);
-        }
-      }
+      const recipientIdMap = buildRecipientIdMap(previousRecipientDrafts, nextRequest);
 
       setRequestId(nextRequestId);
       setRequestStatus(nextRequest.statusKey);
       setDraftState(buildDraftState(document, nextRequest, initialTemplate, defaultSenderDisplayName, defaultReplyTo));
 
-      const fieldsResponse = await fetch(`/api/office/transactions/${transactionId}/signatures/${nextRequestId}/fields`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          fields: fields.map((field, index) => ({
-            ...field,
-            assignedRecipientId: field.assignedRecipientId ? recipientIdMap.get(field.assignedRecipientId) ?? field.assignedRecipientId : null,
-            sortOrder: index
-          }))
-        })
-      });
+      if (fields.length > 0) {
+        const fieldsResponse = await fetch(`/api/office/transactions/${transactionId}/signatures/${nextRequestId}/fields`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            fields: fields.map((field, index) => ({
+              ...field,
+              assignedRecipientId: field.assignedRecipientId
+                ? recipientIdMap.get(field.assignedRecipientId) ?? field.assignedRecipientId
+                : null,
+              sortOrder: index
+            }))
+          })
+        });
 
-      const fieldsPayload = (await fieldsResponse.json().catch(() => null)) as
-        | { error?: string; fields?: OfficeSignatureField[] }
-        | null;
+        const fieldsPayload = (await fieldsResponse.json().catch(() => null)) as
+          | { error?: string; fields?: OfficeSignatureField[] }
+          | null;
 
-      if (!fieldsResponse.ok || !fieldsPayload?.fields) {
-        throw new Error(fieldsPayload?.error ?? "Signature fields could not be saved.");
+        if (!fieldsResponse.ok || !fieldsPayload?.fields) {
+          throw new Error(fieldsPayload?.error ?? "Signature fields could not be saved.");
+        }
+
+        setFields(fieldsPayload.fields);
       }
 
-      setFields(fieldsPayload.fields);
-      if (!requestId) {
-        router.replace(`/office/transactions/${transactionId}/signatures/${nextRequestId}`);
-      }
-
-      if (sendAfterSave) {
+      if (shouldSend) {
         const sendResponse = await fetch(`/api/office/transactions/${transactionId}/signatures/${nextRequestId}`, {
           method: "PATCH",
           headers: {
@@ -652,17 +734,29 @@ export function SignatureRequestEditor({
         }
 
         setRequestStatus(sendPayload.signatureRequest.statusKey);
-        setSuccessMessage("Signature request email sent.");
-      } else {
-        setSuccessMessage("Signature draft saved.");
       }
 
+      if (!requestId) {
+        router.replace(`/office/transactions/${transactionId}/signatures/${nextRequestId}`);
+      } else if (options.continueToFieldStep) {
+        setActiveStep("fields");
+      }
+
+      setSuccessMessage(options.successMessage);
       router.refresh();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Signature draft could not be saved.");
     } finally {
       setPendingAction(null);
     }
+  }
+
+  async function saveDraft(sendAfterSave: boolean) {
+    await persistSignatureRequest({
+      action: sendAfterSave ? "send" : "save-fields",
+      requireFields: true,
+      successMessage: sendAfterSave ? "Signature request email sent." : "Signature field layout saved."
+    });
   }
 
   async function handleRequestAction(action: "canceled" | "expire" | "resend") {
@@ -812,378 +906,462 @@ export function SignatureRequestEditor({
   return (
     <div className="office-signature-editor">
       <div className="office-signature-editor-main">
-        <section className="bm-detail-card office-signature-template-card">
+        <section className="bm-detail-card office-signature-stepper-card">
           <div className="bm-card-head">
             <div>
-              <h3>PDF signature editor</h3>
-              <span>Select a field type, click the PDF to place it, then drag or resize fields into the final position.</span>
+              <h3>Signature request workflow</h3>
+              <span>Save the recipients first, then place each signature field on the PDF and bind it to the correct signer.</span>
             </div>
-            {initialRequest ? <StatusBadge tone={getRequestTone(requestStatus)}>{requestStatus}</StatusBadge> : null}
+            {requestId ? <StatusBadge tone={getRequestTone(requestStatus)}>{requestStatus}</StatusBadge> : null}
           </div>
 
-          <div className="office-signature-toolbar">
-            {placementFieldTools.map((fieldType) => (
-              <button
-                className={`office-toggle-link${selectedTool === fieldType ? " is-active" : ""}`}
-                key={fieldType}
-                onClick={() => setSelectedTool(fieldType)}
-                type="button"
-              >
-                {fieldDefaults[fieldType].label}
-              </button>
-            ))}
+          <div className="office-signature-stepper">
+            <button
+              className={`office-signature-step${isRecipientsStep ? " is-active" : ""}${requestId ? " is-complete" : ""}`}
+              onClick={() => openStep("recipients")}
+              type="button"
+            >
+              <span className="office-signature-step-index">Step 1</span>
+              <strong>Recipients and delivery</strong>
+              <span>Choose signers, approvers, CC recipients, routing steps, and invitation copy.</span>
+            </button>
+
+            <button
+              className={`office-signature-step${isFieldsStep ? " is-active" : ""}${canAccessFieldStep ? "" : " is-locked"}`}
+              disabled={!canAccessFieldStep}
+              onClick={() => openStep("fields")}
+              type="button"
+            >
+              <span className="office-signature-step-index">Step 2</span>
+              <strong>PDF field placement</strong>
+              <span>Place the fields on the PDF and assign every field to one signer or approver.</span>
+            </button>
           </div>
 
-          {isLoading ? <p className="office-signature-helper">Loading PDF preview…</p> : null}
-          {previewError ? <p className="office-form-error">{previewError}</p> : null}
+          {!canAccessFieldStep ? (
+            <p className="office-signature-helper">
+              Save Step 1 first. Once the request exists, Step 2 unlocks and every signature field can be assigned to the right signer.
+            </p>
+          ) : null}
+        </section>
 
-          <div className="office-signature-preview-stack">
-            {pages.map((page) => (
-              <div className="office-signature-preview-page" key={page.pageNumber}>
-                <div className="office-signature-preview-label">Page {page.pageNumber}</div>
-                <div
-                  className="office-signature-preview-canvas"
-                  onClick={(event) => handleAddField(page.pageNumber, event)}
-                  ref={(node) => setPreviewCanvasRef(page.pageNumber, node)}
-                >
-                  <img alt={`Document page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
-                  {fields
-                    .filter((field) => field.page === page.pageNumber)
-                    .map((field) => (
-                      <div
-                        className={`office-signature-field-token${selectedFieldId === field.id ? " is-selected" : ""}`}
-                        key={field.id}
-                        onClick={(event) => event.stopPropagation()}
-                        onPointerDown={(event) => handleFieldPointerDown(field.id, page.pageNumber, event)}
-                        style={{
-                          left: `${field.x * 100}%`,
-                          top: `${field.y * 100}%`,
-                          width: `${field.width * 100}%`,
-                          height: `${field.height * 100}%`
-                        }}
-                      >
-                        <span>{field.label}</span>
-                        {selectedFieldId === field.id ? (
-                          <button
-                            aria-label={`Resize ${field.label}`}
-                            className="office-signature-field-resize-handle"
-                            onClick={(event) => event.stopPropagation()}
-                            onPointerDown={(event) => handleResizePointerDown(field.id, page.pageNumber, event)}
-                            type="button"
-                          />
-                        ) : null}
-                      </div>
-                    ))}
+        {isRecipientsStep ? (
+          <>
+            <section className="bm-detail-card office-signature-delivery-card">
+              <div className="bm-card-head">
+                <div>
+                  <h3>Template library</h3>
+                  <span>Load a saved template into this document or save the current recipient and field map as a reusable template.</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
 
-        <section className="bm-detail-card office-signature-delivery-card">
-          <div className="bm-card-head">
-            <div>
-              <h3>Template library</h3>
-              <span>Load a saved template into this document or save the current recipient and field map as a reusable template.</span>
-            </div>
-          </div>
-
-          <div className="bm-document-upload-grid">
-            <FormField label="Apply template">
-              <SelectInput
-                onChange={(event) => handleTemplateSelection(event.target.value)}
-                value={initialTemplate?.id ?? ""}
-              >
-                <option value="">No template</option>
-                {availableTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} · {template.categoryLabel}
-                  </option>
-                ))}
-              </SelectInput>
-            </FormField>
-            <FormField label="Template name">
-              <TextInput
-                onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))}
-                value={templateDraft.name}
-              />
-            </FormField>
-            <FormField label="Template category">
-              <SelectInput
-                onChange={(event) =>
-                  setTemplateDraft((current) => ({
-                    ...current,
-                    category: event.target.value as TemplateDraftState["category"]
-                  }))
-                }
-                value={templateDraft.category}
-              >
-                <option value="transaction">Transaction</option>
-                <option value="hr">HR</option>
-                <option value="finance">Finance</option>
-                <option value="admin">Admin</option>
-              </SelectInput>
-            </FormField>
-            <FormField className="office-form-grid-span-4" label="Template description">
-              <TextareaInput
-                onChange={(event) => setTemplateDraft((current) => ({ ...current, description: event.target.value }))}
-                rows={3}
-                value={templateDraft.description}
-              />
-            </FormField>
-          </div>
-
-          <div className="office-signature-section-actions">
-            <Button disabled={pendingAction === "save-template"} onClick={handleSaveTemplate} variant="secondary">
-              {pendingAction === "save-template" ? "Saving template..." : templateDraft.templateId ? "Update template" : "Save as template"}
-            </Button>
-          </div>
-        </section>
-
-        <section className="bm-detail-card">
-          <div className="bm-card-head">
-            <div>
-              <h3>Recipients and delivery</h3>
-              <span>Configure signers, approvers, CC recipients, routing steps, and invitation copy before sending.</span>
-            </div>
-          </div>
-
-          <div className="office-signature-summary-list">
-            <p>
-              <strong>Actionable recipients</strong>
-            </p>
-            {draftState.recipients.map((recipient) => (
-              <p key={recipient.id}>
-                {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} · {recipient.name || "New recipient"}
-              </p>
-            ))}
-            {draftState.ccRecipients.length > 0 ? (
-              <p>
-                <strong>CC recipients</strong> · {draftState.ccRecipients.length}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="office-signature-section-actions office-signature-add-actions">
-            <Button onClick={() => addRecipient("signer")} variant="secondary">
-              Add signer
-            </Button>
-            <Button onClick={() => addRecipient("approver")} variant="secondary">
-              Add approver
-            </Button>
-            <Button onClick={() => addRecipient("cc")} variant="secondary">
-              Add CC
-            </Button>
-          </div>
-
-          <div className="office-signature-audit-list">
-            {draftState.recipients.map((recipient) => (
-              <article className="office-signature-audit-row" key={recipient.id}>
-                <div className="office-signature-audit-head">
-                  <strong>{recipient.roleKey === "approver" ? "Approver" : "Signer"}</strong>
-                  <span>Step {recipient.routingStep || "1"}</span>
-                </div>
-                <div className="office-signature-recipient-grid">
-                  <FormField label="Role">
-                    <SelectInput
-                      onChange={(event) =>
-                        updateRecipient("recipients", recipient.id, "roleKey", event.target.value as SignatureRecipientDraft["roleKey"])
-                      }
-                      value={recipient.roleKey}
-                    >
-                      <option value="signer">Signer</option>
-                      <option value="approver">Approver</option>
-                    </SelectInput>
-                  </FormField>
-                  <FormField label="Name">
-                    <TextInput onChange={(event) => updateRecipient("recipients", recipient.id, "name", event.target.value)} value={recipient.name} />
-                  </FormField>
-                  <FormField label="Email">
-                    <TextInput
-                      onChange={(event) => updateRecipient("recipients", recipient.id, "email", event.target.value)}
-                      type="email"
-                      value={recipient.email}
-                    />
-                  </FormField>
-                  <FormField label="Recipient role">
-                    <TextInput
-                      onChange={(event) => updateRecipient("recipients", recipient.id, "recipientRole", event.target.value)}
-                      value={recipient.recipientRole}
-                    />
-                  </FormField>
-                  <FormField label="Routing step">
-                    <TextInput
-                      inputMode="numeric"
-                      onChange={(event) => updateRecipient("recipients", recipient.id, "routingStep", event.target.value)}
-                      value={recipient.routingStep}
-                    />
-                  </FormField>
-                </div>
-                <div className="office-signature-recipient-actions">
-                  <Button onClick={() => removeRecipient("recipients", recipient.id)} size="sm" variant="danger">
-                    Remove
-                  </Button>
-                </div>
-              </article>
-            ))}
-            {draftState.ccRecipients.map((recipient) => (
-              <article className="office-signature-audit-row" key={recipient.id}>
-                <div className="office-signature-audit-head">
-                  <strong>CC</strong>
-                  <span>Read-only copy</span>
-                </div>
-                <div className="office-signature-recipient-grid">
-                  <FormField label="Name">
-                    <TextInput onChange={(event) => updateRecipient("ccRecipients", recipient.id, "name", event.target.value)} value={recipient.name} />
-                  </FormField>
-                  <FormField label="Email">
-                    <TextInput
-                      onChange={(event) => updateRecipient("ccRecipients", recipient.id, "email", event.target.value)}
-                      type="email"
-                      value={recipient.email}
-                    />
-                  </FormField>
-                  <FormField label="Recipient role">
-                    <TextInput
-                      onChange={(event) => updateRecipient("ccRecipients", recipient.id, "recipientRole", event.target.value)}
-                      value={recipient.recipientRole}
-                    />
-                  </FormField>
-                </div>
-                <div className="office-signature-recipient-actions">
-                  <Button onClick={() => removeRecipient("ccRecipients", recipient.id)} size="sm" variant="danger">
-                    Remove
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="bm-document-upload-grid">
-            <FormField label="Expires on">
-              <TextInput onChange={(event) => updateDraftField("expiresAt", event.target.value)} type="date" value={draftState.expiresAt} />
-            </FormField>
-            <FormField className="office-form-grid-span-2" label="Email subject">
-              <TextInput onChange={(event) => updateDraftField("emailSubject", event.target.value)} value={draftState.emailSubject} />
-            </FormField>
-            <FormField className="office-form-grid-span-2" label="Sender display name">
-              <TextInput onChange={(event) => updateDraftField("senderDisplayName", event.target.value)} value={draftState.senderDisplayName} />
-            </FormField>
-            <FormField
-              className="office-form-grid-span-2"
-              helper="Replies to the invitation email and the finalized signed PDF notification will go to this address."
-              label="Reply-to email"
-            >
-              <TextInput onChange={(event) => updateDraftField("senderReplyTo", event.target.value)} type="email" value={draftState.senderReplyTo} />
-            </FormField>
-            <FormField className="office-form-grid-span-4" label="Email body">
-              <TextareaInput onChange={(event) => updateDraftField("emailBody", event.target.value)} rows={5} value={draftState.emailBody} />
-            </FormField>
-          </div>
-
-          <div className="office-signature-section-actions">
-            <Button disabled={pendingAction === "save"} onClick={() => saveDraft(false)}>
-              {pendingAction === "save" ? "Saving..." : "Save draft"}
-            </Button>
-            <Button disabled={pendingAction === "send"} onClick={() => saveDraft(true)}>
-              {pendingAction === "send" ? "Sending..." : requestStatus === "sent" || requestStatus === "viewed" ? "Save & resend" : "Save & send"}
-            </Button>
-            {requestId ? (
-              <>
-                <Button disabled={pendingAction === "resend"} onClick={() => handleRequestAction("resend")} variant="secondary">
-                  {pendingAction === "resend" ? "Resending..." : "Resend"}
-                </Button>
-                <Button disabled={pendingAction === "canceled"} onClick={() => handleRequestAction("canceled")} variant="danger">
-                  {pendingAction === "canceled" ? "Canceling..." : "Cancel"}
-                </Button>
-              </>
-            ) : null}
-          </div>
-        </section>
-      </div>
-
-      <aside className="office-signature-editor-side">
-        <section className="bm-detail-card">
-          <div className="bm-card-head">
-            <div>
-              <h3>Selected field</h3>
-              <span>Update the field label, default value, and required state.</span>
-            </div>
-          </div>
-
-          {selectedField ? (
-            <div className="office-signature-field-panel">
-              <div className="office-signature-field-grid">
-                <FormField className="office-signature-field-panel-span-2" label="Assigned recipient">
-                  <SelectInput
-                    onChange={(event) => updateField(selectedField.id, { assignedRecipientId: event.target.value || null })}
-                    value={selectedField.assignedRecipientId ?? ""}
-                  >
-                    <option value="">Unassigned</option>
-                    {draftState.recipients.map((recipient) => (
-                      <option key={recipient.id} value={recipient.id}>
-                        {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} · {recipient.name || recipient.email || recipient.recipientRole}
+              <div className="bm-document-upload-grid">
+                <FormField label="Apply template">
+                  <SelectInput onChange={(event) => handleTemplateSelection(event.target.value)} value={initialTemplate?.id ?? ""}>
+                    <option value="">No template</option>
+                    {availableTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} · {template.categoryLabel}
                       </option>
                     ))}
                   </SelectInput>
                 </FormField>
-                <FormField label="Label">
-                  <TextInput onChange={(event) => updateField(selectedField.id, { label: event.target.value })} value={selectedField.label} />
+                <FormField label="Template name">
+                  <TextInput
+                    onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))}
+                    value={templateDraft.name}
+                  />
                 </FormField>
-                <FormField label="Font style">
-                  <TextInput onChange={(event) => updateField(selectedField.id, { fontStyle: event.target.value })} value={selectedField.fontStyle} />
+                <FormField label="Template category">
+                  <SelectInput
+                    onChange={(event) =>
+                      setTemplateDraft((current) => ({
+                        ...current,
+                        category: event.target.value as TemplateDraftState["category"]
+                      }))
+                    }
+                    value={templateDraft.category}
+                  >
+                    <option value="transaction">Transaction</option>
+                    <option value="hr">HR</option>
+                    <option value="finance">Finance</option>
+                    <option value="admin">Admin</option>
+                  </SelectInput>
                 </FormField>
-                <FormField label="Field key">
-                  <TextInput onChange={(event) => updateField(selectedField.id, { fieldKey: event.target.value })} value={selectedField.fieldKey} />
-                </FormField>
-                <FormField className="office-signature-field-panel-span-2" label="Default value">
-                  <TextInput onChange={(event) => updateField(selectedField.id, { defaultValue: event.target.value })} value={selectedField.defaultValue} />
-                </FormField>
-                <FormField label="Mirror group">
-                  <TextInput onChange={(event) => updateField(selectedField.id, { mirrorGroup: event.target.value })} value={selectedField.mirrorGroup} />
+                <FormField className="office-form-grid-span-4" label="Template description">
+                  <TextareaInput
+                    onChange={(event) => setTemplateDraft((current) => ({ ...current, description: event.target.value }))}
+                    rows={3}
+                    value={templateDraft.description}
+                  />
                 </FormField>
               </div>
 
-              <div className="office-signature-field-toggle-grid">
-                <CheckboxField className="office-signature-toggle-card" label="Required">
-                  <input
-                    checked={selectedField.required}
-                    onChange={(event) => updateField(selectedField.id, { required: event.target.checked })}
-                    type="checkbox"
-                  />
-                </CheckboxField>
-                <CheckboxField className="office-signature-toggle-card" label="Read-only">
-                  <input
-                    checked={selectedField.isReadOnly}
-                    onChange={(event) => updateField(selectedField.id, { isReadOnly: event.target.checked })}
-                    type="checkbox"
-                  />
-                </CheckboxField>
-                <CheckboxField className="office-signature-toggle-card" label="System prefilled">
-                  <input
-                    checked={selectedField.isSystemPrefilled}
-                    onChange={(event) => updateField(selectedField.id, { isSystemPrefilled: event.target.checked })}
-                    type="checkbox"
-                  />
-                </CheckboxField>
-              </div>
-
-              <div className="office-signature-field-note">
-                <p className="office-signature-helper">
-                  Drag the field to move it. Drag the handle in the bottom-right corner to resize it.
-                </p>
-              </div>
-
-              <div className="office-signature-section-actions office-signature-field-actions">
-                <Button onClick={() => removeField(selectedField.id)} size="sm" variant="danger">
-                  Delete field
+              <div className="office-signature-section-actions">
+                <Button disabled={pendingAction === "save-template"} onClick={handleSaveTemplate} variant="secondary">
+                  {pendingAction === "save-template" ? "Saving template..." : templateDraft.templateId ? "Update template" : "Save as template"}
                 </Button>
               </div>
+            </section>
+
+            <section className="bm-detail-card">
+              <div className="bm-card-head">
+                <div>
+                  <h3>Step 1 · Recipients and delivery</h3>
+                  <span>Configure the participants first. After saving this step, the PDF field placement stage unlocks.</span>
+                </div>
+              </div>
+
+              <div className="office-signature-summary-list">
+                <p>
+                  <strong>Actionable recipients</strong>
+                </p>
+                {draftState.recipients.map((recipient) => (
+                  <p key={recipient.id}>
+                    {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} · {recipient.name || "New recipient"}
+                  </p>
+                ))}
+                {draftState.ccRecipients.length > 0 ? (
+                  <p>
+                    <strong>CC recipients</strong> · {draftState.ccRecipients.length}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="office-signature-section-actions office-signature-add-actions">
+                <Button onClick={() => addRecipient("signer")} variant="secondary">
+                  Add signer
+                </Button>
+                <Button onClick={() => addRecipient("approver")} variant="secondary">
+                  Add approver
+                </Button>
+                <Button onClick={() => addRecipient("cc")} variant="secondary">
+                  Add CC
+                </Button>
+              </div>
+
+              <div className="office-signature-audit-list">
+                {draftState.recipients.map((recipient) => (
+                  <article className="office-signature-audit-row" key={recipient.id}>
+                    <div className="office-signature-audit-head">
+                      <strong>{recipient.roleKey === "approver" ? "Approver" : "Signer"}</strong>
+                      <span>Step {recipient.routingStep || "1"}</span>
+                    </div>
+                    <div className="office-signature-recipient-grid">
+                      <FormField label="Role">
+                        <SelectInput
+                          onChange={(event) =>
+                            updateRecipient("recipients", recipient.id, "roleKey", event.target.value as SignatureRecipientDraft["roleKey"])
+                          }
+                          value={recipient.roleKey}
+                        >
+                          <option value="signer">Signer</option>
+                          <option value="approver">Approver</option>
+                        </SelectInput>
+                      </FormField>
+                      <FormField label="Name">
+                        <TextInput onChange={(event) => updateRecipient("recipients", recipient.id, "name", event.target.value)} value={recipient.name} />
+                      </FormField>
+                      <FormField label="Email">
+                        <TextInput
+                          onChange={(event) => updateRecipient("recipients", recipient.id, "email", event.target.value)}
+                          type="email"
+                          value={recipient.email}
+                        />
+                      </FormField>
+                      <FormField label="Recipient role">
+                        <TextInput
+                          onChange={(event) => updateRecipient("recipients", recipient.id, "recipientRole", event.target.value)}
+                          value={recipient.recipientRole}
+                        />
+                      </FormField>
+                      <FormField label="Routing step">
+                        <TextInput
+                          inputMode="numeric"
+                          onChange={(event) => updateRecipient("recipients", recipient.id, "routingStep", event.target.value)}
+                          value={recipient.routingStep}
+                        />
+                      </FormField>
+                    </div>
+                    <div className="office-signature-recipient-actions">
+                      <Button onClick={() => removeRecipient("recipients", recipient.id)} size="sm" variant="danger">
+                        Remove
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+
+                {draftState.ccRecipients.map((recipient) => (
+                  <article className="office-signature-audit-row" key={recipient.id}>
+                    <div className="office-signature-audit-head">
+                      <strong>CC</strong>
+                      <span>Read-only copy</span>
+                    </div>
+                    <div className="office-signature-recipient-grid">
+                      <FormField label="Name">
+                        <TextInput onChange={(event) => updateRecipient("ccRecipients", recipient.id, "name", event.target.value)} value={recipient.name} />
+                      </FormField>
+                      <FormField label="Email">
+                        <TextInput
+                          onChange={(event) => updateRecipient("ccRecipients", recipient.id, "email", event.target.value)}
+                          type="email"
+                          value={recipient.email}
+                        />
+                      </FormField>
+                      <FormField label="Recipient role">
+                        <TextInput
+                          onChange={(event) => updateRecipient("ccRecipients", recipient.id, "recipientRole", event.target.value)}
+                          value={recipient.recipientRole}
+                        />
+                      </FormField>
+                    </div>
+                    <div className="office-signature-recipient-actions">
+                      <Button onClick={() => removeRecipient("ccRecipients", recipient.id)} size="sm" variant="danger">
+                        Remove
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="bm-document-upload-grid">
+                <FormField label="Expires on">
+                  <TextInput onChange={(event) => updateDraftField("expiresAt", event.target.value)} type="date" value={draftState.expiresAt} />
+                </FormField>
+                <FormField className="office-form-grid-span-2" label="Email subject">
+                  <TextInput onChange={(event) => updateDraftField("emailSubject", event.target.value)} value={draftState.emailSubject} />
+                </FormField>
+                <FormField className="office-form-grid-span-2" label="Sender display name">
+                  <TextInput onChange={(event) => updateDraftField("senderDisplayName", event.target.value)} value={draftState.senderDisplayName} />
+                </FormField>
+                <FormField
+                  className="office-form-grid-span-2"
+                  helper="Replies to the invitation email and the finalized signed PDF notification will go to this address."
+                  label="Reply-to email"
+                >
+                  <TextInput onChange={(event) => updateDraftField("senderReplyTo", event.target.value)} type="email" value={draftState.senderReplyTo} />
+                </FormField>
+                <FormField className="office-form-grid-span-4" label="Email body">
+                  <TextareaInput onChange={(event) => updateDraftField("emailBody", event.target.value)} rows={5} value={draftState.emailBody} />
+                </FormField>
+              </div>
+
+              <div className="office-signature-section-actions">
+                <Button
+                  disabled={pendingAction === "save-recipients"}
+                  onClick={() =>
+                    persistSignatureRequest({
+                      action: "save-recipients",
+                      requireFields: false,
+                      continueToFieldStep: true,
+                      successMessage: "Recipients saved. Continue to PDF field placement."
+                    })
+                  }
+                >
+                  {pendingAction === "save-recipients" ? "Saving..." : "Save recipients & continue"}
+                </Button>
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="bm-detail-card office-signature-template-card">
+            <div className="bm-card-head">
+              <div>
+                <h3>Step 2 · PDF field placement</h3>
+                <span>Select a field type, place it on the PDF, then assign that field to the signer or approver who should complete it.</span>
+              </div>
+              <StatusBadge tone={getRequestTone(requestStatus)}>{requestStatus}</StatusBadge>
             </div>
-          ) : (
-            <p className="office-signature-helper">Select a field on the PDF to edit its settings.</p>
-          )}
-        </section>
+
+            <div className="office-signature-step-banner">
+              <p>
+                Every signature position must be bound to a specific signer. Other recipients cannot sign or type into a field that is assigned to
+                someone else.
+              </p>
+              <Button onClick={() => openStep("recipients")} variant="secondary">
+                Back to Step 1
+              </Button>
+            </div>
+
+            <div className="office-signature-toolbar">
+              {placementFieldTools.map((fieldType) => (
+                <button
+                  className={`office-toggle-link${selectedTool === fieldType ? " is-active" : ""}`}
+                  key={fieldType}
+                  onClick={() => setSelectedTool(fieldType)}
+                  type="button"
+                >
+                  {fieldDefaults[fieldType].label}
+                </button>
+              ))}
+            </div>
+
+            {isLoading ? <p className="office-signature-helper">Loading PDF preview…</p> : null}
+            {previewError ? <p className="office-form-error">{previewError}</p> : null}
+
+            <div className="office-signature-preview-stack">
+              {pages.map((page) => (
+                <div className="office-signature-preview-page" key={page.pageNumber}>
+                  <div className="office-signature-preview-label">Page {page.pageNumber}</div>
+                  <div
+                    className="office-signature-preview-canvas"
+                    onClick={(event) => handleAddField(page.pageNumber, event)}
+                    ref={(node) => setPreviewCanvasRef(page.pageNumber, node)}
+                  >
+                    <img alt={`Document page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
+                    {fields
+                      .filter((field) => field.page === page.pageNumber)
+                      .map((field) => (
+                        <div
+                          className={`office-signature-field-token${selectedFieldId === field.id ? " is-selected" : ""}`}
+                          key={field.id}
+                          onClick={(event) => event.stopPropagation()}
+                          onPointerDown={(event) => handleFieldPointerDown(field.id, page.pageNumber, event)}
+                          style={{
+                            left: `${field.x * 100}%`,
+                            top: `${field.y * 100}%`,
+                            width: `${field.width * 100}%`,
+                            height: `${field.height * 100}%`
+                          }}
+                        >
+                          <span>{field.label}</span>
+                          {selectedFieldId === field.id ? (
+                            <button
+                              aria-label={`Resize ${field.label}`}
+                              className="office-signature-field-resize-handle"
+                              onClick={(event) => event.stopPropagation()}
+                              onPointerDown={(event) => handleResizePointerDown(field.id, page.pageNumber, event)}
+                              type="button"
+                            />
+                          ) : null}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="office-signature-section-actions">
+              <Button disabled={pendingAction === "save-fields"} onClick={() => saveDraft(false)}>
+                {pendingAction === "save-fields" ? "Saving..." : "Save field layout"}
+              </Button>
+              <Button disabled={pendingAction === "send"} onClick={() => saveDraft(true)}>
+                {pendingAction === "send" ? "Sending..." : requestStatus === "sent" || requestStatus === "viewed" ? "Save & resend" : "Save & send"}
+              </Button>
+              {requestId ? (
+                <>
+                  <Button disabled={pendingAction === "resend"} onClick={() => handleRequestAction("resend")} variant="secondary">
+                    {pendingAction === "resend" ? "Resending..." : "Resend"}
+                  </Button>
+                  <Button disabled={pendingAction === "canceled"} onClick={() => handleRequestAction("canceled")} variant="danger">
+                    {pendingAction === "canceled" ? "Canceling..." : "Cancel"}
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          </section>
+        )}
+      </div>
+
+      <aside className="office-signature-editor-side">
+        {isFieldsStep ? (
+          <section className="bm-detail-card">
+            <div className="bm-card-head">
+              <div>
+                <h3>Selected field</h3>
+                <span>Bind this field to one signer, then refine the label, default value, and validation.</span>
+              </div>
+            </div>
+
+            {selectedField ? (
+              <div className="office-signature-field-panel">
+                <div className="office-signature-field-grid">
+                  <FormField className="office-signature-field-panel-span-2" label="Assigned recipient">
+                    <SelectInput
+                      onChange={(event) => updateField(selectedField.id, { assignedRecipientId: event.target.value || null })}
+                      value={selectedField.assignedRecipientId ?? ""}
+                    >
+                      <option value="">Unassigned</option>
+                      {draftState.recipients.map((recipient) => (
+                        <option key={recipient.id} value={recipient.id}>
+                          {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} ·{" "}
+                          {recipient.name || recipient.email || recipient.recipientRole}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  </FormField>
+                  <FormField label="Label">
+                    <TextInput onChange={(event) => updateField(selectedField.id, { label: event.target.value })} value={selectedField.label} />
+                  </FormField>
+                  <FormField label="Font style">
+                    <TextInput onChange={(event) => updateField(selectedField.id, { fontStyle: event.target.value })} value={selectedField.fontStyle} />
+                  </FormField>
+                  <FormField label="Field key">
+                    <TextInput onChange={(event) => updateField(selectedField.id, { fieldKey: event.target.value })} value={selectedField.fieldKey} />
+                  </FormField>
+                  <FormField className="office-signature-field-panel-span-2" label="Default value">
+                    <TextInput onChange={(event) => updateField(selectedField.id, { defaultValue: event.target.value })} value={selectedField.defaultValue} />
+                  </FormField>
+                  <FormField label="Mirror group">
+                    <TextInput onChange={(event) => updateField(selectedField.id, { mirrorGroup: event.target.value })} value={selectedField.mirrorGroup} />
+                  </FormField>
+                </div>
+
+                <div className="office-signature-field-toggle-grid">
+                  <CheckboxField className="office-signature-toggle-card" label="Required">
+                    <input
+                      checked={selectedField.required}
+                      onChange={(event) => updateField(selectedField.id, { required: event.target.checked })}
+                      type="checkbox"
+                    />
+                  </CheckboxField>
+                  <CheckboxField className="office-signature-toggle-card" label="Read-only">
+                    <input
+                      checked={selectedField.isReadOnly}
+                      onChange={(event) => updateField(selectedField.id, { isReadOnly: event.target.checked })}
+                      type="checkbox"
+                    />
+                  </CheckboxField>
+                  <CheckboxField className="office-signature-toggle-card" label="System prefilled">
+                    <input
+                      checked={selectedField.isSystemPrefilled}
+                      onChange={(event) => updateField(selectedField.id, { isSystemPrefilled: event.target.checked })}
+                      type="checkbox"
+                    />
+                  </CheckboxField>
+                </div>
+
+                <div className="office-signature-field-note">
+                  <p className="office-signature-helper">
+                    Drag the field to move it. Drag the handle in the bottom-right corner to resize it. Other signers cannot complete a field that is not
+                    assigned to them.
+                  </p>
+                </div>
+
+                <div className="office-signature-section-actions office-signature-field-actions">
+                  <Button onClick={() => removeField(selectedField.id)} size="sm" variant="danger">
+                    Delete field
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="office-signature-helper">Select a field on the PDF to edit its recipient binding and settings.</p>
+            )}
+          </section>
+        ) : (
+          <section className="bm-detail-card">
+            <div className="bm-card-head">
+              <div>
+                <h3>Step 2 preview</h3>
+                <span>Once Step 1 is saved, you will place signature fields here and assign each one to a specific signer.</span>
+              </div>
+            </div>
+            <p className="office-signature-helper">
+              Multi-signer requests stay safe because each field is bound to one signer only. Unassigned signers will be blocked from someone else&apos;s
+              signature position automatically.
+            </p>
+          </section>
+        )}
 
         <section className="bm-detail-card">
           <div className="bm-card-head">

@@ -37,7 +37,7 @@ export default async function SignatureRequestPage({ params }: SignatureRequestP
   return (
     <PageShell className="office-signature-page">
       <PageHeader
-        description="Adjust fields, resend the request if needed, and monitor the signing audit trail."
+        description="Update recipients or field placement, keep every field assigned to the right signer, and resend when the request is ready."
         eyebrow="Transaction signatures"
         title={`Edit signature request · ${snapshot.document.title}`}
       />

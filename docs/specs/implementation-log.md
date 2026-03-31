@@ -288,6 +288,9 @@
 - existing role templates now receive a one-time signature-permission backfill migration so older organizations do not silently lose `Prepare signature` and signature-center access after the new e-signature permission tree shipped:
   - legacy templates that only carried `signatures:manage` now also receive the required `signatures:view` parent key plus the matching template/report keys for roles that should have them
   - this closes the upgrade gap where the new signature UI code could be deployed successfully while persisted organization role templates still hid the entry points
+- transaction signature authoring is now a true two-step workflow instead of one mixed editor:
+  - Step 1 saves `Recipients and delivery` first, including signers / approvers / CC recipients, routing steps, and invitation copy
+  - Step 2 unlocks only after that save and focuses on PDF field placement, with each field explicitly bound to one signer or approver before send
 - typography baseline cleanup now routes legacy Office surfaces back through the shared `--office-font-sans` token:
   - body and older sidebar/panel/meta surfaces no longer hardcode `Inter / Helvetica Neue / Arial` locally
   - the shared font stack now includes explicit Chinese fallbacks to reduce cross-browser drift for mixed English/CJK pages

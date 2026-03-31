@@ -65,7 +65,7 @@ export default async function NewSignatureRequestPage({ params, searchParams }: 
   return (
     <PageShell className="office-signature-page">
       <PageHeader
-        description="Place signature fields on the PDF, configure the signer, and send the request when it is ready."
+        description="Step 1 configures recipients and delivery. Step 2 places the PDF fields and binds each field to the right signer."
         eyebrow="Transaction signatures"
         title={`Prepare signature · ${document.title}`}
       />

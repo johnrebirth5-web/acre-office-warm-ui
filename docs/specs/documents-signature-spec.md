@@ -28,6 +28,7 @@ Provide a real document workflow with structured documents, unsorted docs, inter
   - `/office/signatures/templates` template library for reusable recipient / field blueprints and default mail copy
   - `Settings > Signature Drive` organization-level Google Drive service-account configuration and folder mapping
   - transaction detail editor as the first-phase request authoring surface
+  - a two-step transaction authoring flow: save `Recipients and delivery` first, then enter the PDF field-placement step
   - draggable and resizable field placement on PDF page previews
   - one or more signers, approvers, and CC recipients
   - serial, parallel, and mixed routing via `routingStep`
@@ -73,6 +74,7 @@ Provide a real document workflow with structured documents, unsorted docs, inter
   - transaction-first authoring only
   - PDF documents only
   - synchronous request-time email send, PDF finalization, and Drive sync
+  - Step 1 can save a request before any fields exist, but send still requires at least one PDF field and clear signer assignment for multi-recipient requests
 - there is still no third-party eSignature vendor integration
 - no live Folio/external sync
 - no email ingestion workflow
