@@ -112,6 +112,7 @@
 - `Badge`
 - `StatusBadge`
 - `EmptyState`
+- `QueueItem`
 - `SecondaryMetaList`
 
 Office 路由级 canonical 组合层：
@@ -200,6 +201,7 @@ Office 路由级 canonical 组合层：
 - transactions 和 contacts 现在共用 [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx) 作为 canonical route-level list template；后续 peer list page 应优先向这套 header/workbench/table/footer 骨架靠拢
 - 现在优先使用 `ListPageTableSection` 把 `filters -> table/list -> footer` 固定成一套顺序，避免每页各自排列 inventory section
 - 当一个页面需要多个 peer list modules 时，优先使用 `ListPageStack` 和 `ListPageSplit` 组织主列表与次级列表/明细区，而不是重新回到 `dashboard` 式 page-local grid
+- 对于 settings / accounting / agent detail 里的“小型运营清单”，优先使用 `office-queue-list + QueueItem`，不要继续使用带大左侧标签栏的旧 `office-note-item`
 - 如果页面还需要一层二级 summary，只能用 `ListPageSection + ListPageStatsGrid + StatCard`，不能再额外长出第二套 floating KPI strip
 - settings admin 页也按 list page 看待：先 inventory/list，再 editor/admin block；不要直接从页头跳进大表单
 - accounting / reports 允许保留多 section，但每个 section 也必须看起来像同一家族的 list-page card，而不是旧 `bm-card-head` 模块

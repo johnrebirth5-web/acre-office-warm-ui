@@ -3,7 +3,21 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { OfficeCommissionManagementSnapshot } from "@acre/db";
-import { Button, FormField, HorizontalScrollArea, ListPageFilters, ListPageSection, ListPageStatsGrid, SelectInput, StatCard, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
+import {
+  Button,
+  EmptyState,
+  FormField,
+  HorizontalScrollArea,
+  ListPageFilters,
+  ListPageSection,
+  ListPageStatsGrid,
+  QueueItem,
+  SelectInput,
+  StatCard,
+  StatusBadge,
+  TextInput,
+  TextareaInput
+} from "@acre/ui";
 
 type CommissionManagementPanelProps = {
   snapshot: OfficeCommissionManagementSnapshot | null;
@@ -89,6 +103,10 @@ function getStatusTone(status: string) {
   }
 
   return "warning" as const;
+}
+
+function getBooleanStatusTone(value: boolean) {
+  return value ? ("success" as const) : ("neutral" as const);
 }
 
 function buildFilterHref(pathname: string, filters: CommissionFilterState) {
@@ -686,68 +704,64 @@ export function CommissionManagementPanel({
                 ) : null}
               </form>
 
-              <div className="office-note-list">
-                {snapshot.splitTemplates.map((template) => (
-                  <article className="office-note-item" key={template.id}>
-                    <span>{template.isActive ? "Active" : "Inactive"}</span>
-                    <div>
-                      <strong>{template.name}</strong>
-                      <p>
-                        {template.label} · {template.usageCount} member defaults
-                      </p>
-                    </div>
-                  </article>
-                ))}
-                {snapshot.splitTemplates.length === 0 ? (
-                  <article className="office-note-item">
-                    <span>Empty</span>
-                    <div>
-                      <strong>No split templates yet</strong>
-                      <p>Create reusable split ratios here for user onboarding and profile editing.</p>
-                    </div>
-                  </article>
-                ) : null}
-              </div>
+              {snapshot.splitTemplates.length ? (
+                <div className="office-queue-list">
+                  {snapshot.splitTemplates.map((template) => (
+                    <QueueItem
+                      badge={<StatusBadge tone={getBooleanStatusTone(template.isActive)}>{template.isActive ? "Active" : "Inactive"}</StatusBadge>}
+                      description={template.label}
+                      key={template.id}
+                      meta={
+                        <>
+                          <span>{template.usageCount} member defaults</span>
+                        </>
+                      }
+                      title={template.name}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  description="Create reusable split ratios here for user onboarding and profile editing."
+                  title="No split templates yet"
+                />
+              )}
             </ListPageSection>
           </div>
 
           <div className="office-side-stack">
             <ListPageSection subtitle="Current member-level default split source, ratio, and effective date." title="Member defaults">
-              <div className="office-note-list">
-                {snapshot.memberDefaults.map((setting) => (
-                  <article className="office-note-item" key={setting.id}>
-                    <span>{setting.sourceType === "template" ? "Template" : "Custom"}</span>
-                    <div>
-                      <strong>{setting.membershipLabel}</strong>
-                      <p>
-                        {setting.settingLabel} · {setting.sourceLabel} · Effective {setting.effectiveFrom}
-                      </p>
-                    </div>
-                  </article>
-                ))}
-                {snapshot.memberDefaults.length === 0 ? (
-                  <article className="office-note-item">
-                    <span>Empty</span>
-                    <div>
-                      <strong>No member defaults in scope</strong>
-                      <p>Assign default splits from user creation or the user profile page.</p>
-                    </div>
-                  </article>
-                ) : null}
-              </div>
+              {snapshot.memberDefaults.length ? (
+                <div className="office-queue-list">
+                  {snapshot.memberDefaults.map((setting) => (
+                    <QueueItem
+                      badgeLabel={setting.sourceType === "template" ? "Template" : "Custom"}
+                      badgeTone={setting.sourceType === "template" ? "accent" : "neutral"}
+                      description={setting.settingLabel}
+                      key={setting.id}
+                      meta={
+                        <>
+                          <span>{setting.sourceLabel}</span>
+                          <span>Effective {setting.effectiveFrom}</span>
+                        </>
+                      }
+                      title={setting.membershipLabel}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  description="Assign default splits from user creation or the user profile page."
+                  title="No member defaults in scope"
+                />
+              )}
             </ListPageSection>
 
             {snapshot.advancedReviewItems.length ? (
               <ListPageSection subtitle="Legacy plan or assignment items that still need manual review." title="Advanced review">
-                <div className="office-note-list">
+                <div className="office-queue-list">
                   {snapshot.advancedReviewItems.map((item) => (
-                    <article className="office-note-item" key={item}>
-                      <span>Review</span>
-                      <div>
-                        <strong>Legacy commission item</strong>
-                        <p>{item}</p>
-                      </div>
-                    </article>
+                    <QueueItem badgeLabel="Review" badgeTone="warning" description={item} key={item} title="Legacy commission item" />
                   ))}
                 </div>
               </ListPageSection>
@@ -980,17 +994,19 @@ export function CommissionManagementPanel({
                 ) : null}
               </form>
 
-              <div className="office-note-list">
+              <div className="office-queue-list">
                 {snapshot.plans.map((plan) => (
-                  <article className="office-note-item" key={plan.id}>
-                    <span>{plan.assignmentCount} assignments</span>
-                    <div>
-                      <strong>{plan.name}</strong>
-                      <p>
-                        {plan.calculationMode} · {plan.rules.length} rules
-                      </p>
-                    </div>
-                  </article>
+                  <QueueItem
+                    badgeLabel={`${plan.assignmentCount} assignments`}
+                    description={plan.calculationMode}
+                    key={plan.id}
+                    meta={
+                      <>
+                        <span>{plan.rules.length} rules</span>
+                      </>
+                    }
+                    title={plan.name}
+                  />
                 ))}
               </div>
             </ListPageSection>
@@ -1189,15 +1205,14 @@ export function CommissionManagementPanel({
                     <StatCard hint="rows marked paid" label="Paid" value={snapshot.statement.paidLabel} />
                     <StatCard hint="sum of agent share rows in this snapshot" label="Agent net total" value={snapshot.statement.totalAgentNetLabel} />
                   </ListPageStatsGrid>
-                  <div className="office-note-list">
+                  <div className="office-queue-list">
                     {snapshot.statement.lineItems.map((item) => (
-                      <article className="office-note-item" key={item.id}>
-                        <span>{item.status}</span>
-                        <div>
-                          <strong>{item.transactionLabel}</strong>
-                          <p>{item.statementAmountLabel}</p>
-                        </div>
-                      </article>
+                      <QueueItem
+                        badge={<StatusBadge tone={getStatusTone(item.status)}>{item.status}</StatusBadge>}
+                        description={item.statementAmountLabel}
+                        key={item.id}
+                        title={item.transactionLabel}
+                      />
                     ))}
                   </div>
                 </>

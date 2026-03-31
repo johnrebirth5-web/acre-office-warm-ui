@@ -462,6 +462,35 @@ export function EmptyState(props: {
   );
 }
 
+export function QueueItem(props: {
+  badge?: ReactNode;
+  badgeLabel?: ReactNode;
+  badgeTone?: BadgeTone;
+  context?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  meta?: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  const badge = props.badge ?? (props.badgeLabel ? <Badge tone={props.badgeTone}>{props.badgeLabel}</Badge> : null);
+
+  return (
+    <article className={cx("office-queue-item", props.className)}>
+      {badge || props.context ? (
+        <div className="office-queue-item-top">
+          {badge ?? <span />}
+          {props.context ? <span>{props.context}</span> : null}
+        </div>
+      ) : null}
+      <strong>{props.title}</strong>
+      {props.description ? <p>{props.description}</p> : null}
+      {props.meta ? <div className="office-queue-meta">{props.meta}</div> : null}
+      {props.action ? <div className="office-queue-meta">{props.action}</div> : null}
+    </article>
+  );
+}
+
 export function SecondaryMetaList(props: {
   items: Array<{ label: string; value: ReactNode }>;
   className?: string;
