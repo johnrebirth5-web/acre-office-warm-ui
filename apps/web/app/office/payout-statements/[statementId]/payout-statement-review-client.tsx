@@ -260,8 +260,8 @@ export function PayoutStatementReviewClient({ statement }: PayoutStatementReview
 
         <SectionCard subtitle="These line items are the locked snapshot finance sent to you for this review." title="Invoice items">
           <HorizontalScrollArea>
-            <DataTable className="office-table">
-              <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-detail">
+            <DataTable className="office-table office-table-no-resize">
+              <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-snapshot">
                 <span>Creation date</span>
                 <span>Invoice number</span>
                 <span>Owner</span>
@@ -275,7 +275,7 @@ export function PayoutStatementReviewClient({ statement }: PayoutStatementReview
               </DataTableHeader>
               <DataTableBody>
                 {statement.lineItems.map((lineItem) => (
-                  <DataTableRow className="office-table-row office-table-row-agent-statement-detail" key={lineItem.id}>
+                  <DataTableRow className="office-table-row office-table-row-agent-statement-snapshot" key={lineItem.id}>
                     <span>{formatStatementCellValue(lineItem.creationDate)}</span>
                     <span>{formatStatementCellValue(lineItem.invoiceNumber)}</span>
                     <span>{formatStatementCellValue(lineItem.ownerName)}</span>

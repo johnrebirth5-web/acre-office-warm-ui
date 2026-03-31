@@ -7731,19 +7731,19 @@ a {
   min-width: 580px;
 }
 
-.office-table-row-agent-statement-detail {
-  min-width: 1640px;
+.office-table-row-agent-statement-snapshot {
+  min-width: 1520px;
   grid-template-columns:
-    minmax(108px, 0.72fr)
-    minmax(132px, 0.86fr)
-    minmax(156px, 1fr)
-    minmax(240px, 1.48fr)
-    minmax(84px, 0.54fr)
-    minmax(108px, 0.72fr)
-    minmax(108px, 0.72fr)
-    minmax(120px, 0.78fr)
-    minmax(240px, 1.56fr)
-    minmax(126px, 0.84fr);
+    minmax(96px, 0.7fr)
+    minmax(112px, 0.78fr)
+    minmax(132px, 0.94fr)
+    minmax(220px, 1.42fr)
+    minmax(76px, 0.5fr)
+    minmax(96px, 0.68fr)
+    minmax(96px, 0.68fr)
+    minmax(104px, 0.74fr)
+    minmax(220px, 1.42fr)
+    minmax(112px, 0.76fr);
 }
 
 .office-table-row-commission-assignments {
@@ -8359,12 +8359,12 @@ a {
 .office-table-row-report-commission-recent > :nth-child(2),
 .office-table-row-commission > :nth-child(4),
 .office-table-row-1099-records > :nth-child(4),
-.office-table-row-agent-statement-detail > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(8)) {
+.office-table-row-agent-statement-snapshot > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(8)) {
   justify-self: start;
   text-align: left;
 }
 
-.office-table-row-agent-statement-detail > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)),
+.office-table-row-agent-statement-snapshot > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)),
 .office-table-row-1099-summary > :nth-child(2),
 .office-table-row-1099-preview > :nth-child(2) {
   justify-self: end;

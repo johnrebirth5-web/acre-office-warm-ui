@@ -593,7 +593,14 @@ function OfficeTableLayoutRuntime(props: {
     }
 
     function ensureResizeHandles(key: string, headerCells: HTMLElement[]) {
-      if (!canManageRef.current || headerCells.length === 0) {
+      const resizeDisabled = headerCells.some((cell) => cell.closest(".office-table-no-resize, .office-list-table-no-resize"));
+
+      if (!canManageRef.current || headerCells.length === 0 || resizeDisabled) {
+        headerCells.forEach((cell) => {
+          const existingHandles = cell.querySelectorAll(":scope > .office-table-resize-handle");
+          existingHandles.forEach((handle) => handle.remove());
+          cell.classList.remove("office-table-resizable-cell", "office-table-resize-active");
+        });
         return;
       }
 

@@ -1445,8 +1445,8 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               </div>
 
               <HorizontalScrollArea>
-                <DataTable className="office-table">
-                  <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-detail">
+                <DataTable className="office-table office-table-no-resize">
+                  <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-snapshot">
                     <span>Creation date</span>
                     <span>Invoice number</span>
                     <span>Owner</span>
@@ -1460,7 +1460,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                   </DataTableHeader>
                   <DataTableBody>
                     {selectedStatement.lineItems.map((lineItem) => (
-                      <DataTableRow className="office-table-row office-table-row-agent-statement-detail" key={lineItem.id}>
+                      <DataTableRow className="office-table-row office-table-row-agent-statement-snapshot" key={lineItem.id}>
                         <span>{formatStatementCellValue(lineItem.creationDate)}</span>
                         <span>{formatStatementCellValue(lineItem.invoiceNumber)}</span>
                         <span>{formatStatementCellValue(lineItem.ownerName)}</span>
