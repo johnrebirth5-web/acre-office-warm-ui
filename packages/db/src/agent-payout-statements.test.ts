@@ -12,6 +12,8 @@ import {
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
   normalizeAgentPayoutStatementInvoiceNumber,
   normalizeAgentPayoutStatementPeriodBasis,
+  respondToAgentPayoutStatement,
+  sendAgentPayoutStatementToAgent,
   summarizeAgentPayoutStatementRows,
   updateAgentPayoutStatementManualLineItems
 } from "./agent-payout-statements.ts";
@@ -1090,6 +1092,201 @@ test("statement history generatedAtLabel uses organization timezone instead of s
       process.env.TZ = previousTimeZone;
     }
 
+    await context.cleanup();
+  }
+});
+
+test("agent payout statements move through internal send, revision, resend, and confirm states", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    await context.createCommissionRow({
+      invoiceNumber: "INV-REVIEW-100",
+      transactionName: "Review Flow Invoice",
+      address: "120 Review Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-28T00:00:00.000Z",
+      statementAmount: "1400"
+    });
+
+    const statement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-REVIEW-100"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    await sendAgentPayoutStatementToAgent({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      actorMembershipId: context.adminMembership.id,
+      message: "Please review this payout statement in Acre."
+    });
+
+    await respondToAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      actorMembershipId: context.agentMembership.id,
+      response: "request_revision",
+      message: "Please double-check the deduction line."
+    });
+
+    await sendAgentPayoutStatementToAgent({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      actorMembershipId: context.adminMembership.id,
+      message: "Updated and resent after your request."
+    });
+
+    await respondToAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      actorMembershipId: context.agentMembership.id,
+      response: "confirm",
+      message: "Looks good now."
+    });
+
+    const savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: statement.statementId
+      },
+      include: {
+        messages: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+        }
+      }
+    });
+
+    assert.ok(savedStatement);
+    assert.equal(savedStatement?.reviewStatus, "confirmed");
+    assert.ok(savedStatement?.lastSharedAt);
+    assert.ok(savedStatement?.agentRespondedAt);
+    assert.ok(savedStatement?.confirmedAt);
+    assert.deepEqual(
+      savedStatement?.messages.map((message) => ({
+        type: message.messageType,
+        body: message.body
+      })),
+      [
+        { type: "sent_to_agent", body: "Please review this payout statement in Acre." },
+        { type: "agent_revision_requested", body: "Please double-check the deduction line." },
+        { type: "finance_response", body: "Updated and resent after your request." },
+        { type: "agent_confirmed", body: "Looks good now." }
+      ]
+    );
+
+    const detail = await getOfficeAgentPayoutStatementDetail({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId
+    });
+
+    assert.equal(detail?.reviewStatus, "confirmed");
+    assert.equal(detail?.timeline.length, 4);
+    assert.equal(detail?.timeline[1]?.messageType, "agent_revision_requested");
+    assert.equal(detail?.timeline[3]?.messageType, "agent_confirmed");
+
+    const notifications = await prisma.notification.findMany({
+      where: {
+        organizationId: context.organization.id
+      },
+      orderBy: [{ createdAt: "asc" }]
+    });
+
+    assert.deepEqual(
+      notifications.map((notification) => ({
+        membershipId: notification.membershipId,
+        type: notification.type,
+        actionUrl: notification.actionUrl
+      })),
+      [
+        {
+          membershipId: context.agentMembership.id,
+          type: "payout_statement_ready",
+          actionUrl: `/office/payout-statements/${statement.statementId}`
+        },
+        {
+          membershipId: context.adminMembership.id,
+          type: "payout_statement_revision_requested",
+          actionUrl: `/office/accounting?membershipId=${context.agentMembership.id}&invoiceNumber=INV-REVIEW-100&statementId=${statement.statementId}`
+        },
+        {
+          membershipId: context.agentMembership.id,
+          type: "payout_statement_ready",
+          actionUrl: `/office/payout-statements/${statement.statementId}`
+        },
+        {
+          membershipId: context.adminMembership.id,
+          type: "payout_statement_confirmed",
+          actionUrl: `/office/accounting?membershipId=${context.agentMembership.id}&invoiceNumber=INV-REVIEW-100&statementId=${statement.statementId}`
+        }
+      ]
+    );
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("editing sent payout statement adjustments moves it back to draft until finance resends it", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    await context.createCommissionRow({
+      invoiceNumber: "INV-REVIEW-200",
+      transactionName: "Draft Reset Invoice",
+      address: "121 Review Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-29T00:00:00.000Z",
+      statementAmount: "1800"
+    });
+
+    const statement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-REVIEW-200"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    await sendAgentPayoutStatementToAgent({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      actorMembershipId: context.adminMembership.id,
+      message: "Initial send"
+    });
+
+    await updateAgentPayoutStatementManualLineItems({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      manualLineItems: [
+        {
+          memo: "Correction",
+          amount: "-50"
+        }
+      ],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    const savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: statement.statementId
+      }
+    });
+
+    assert.ok(savedStatement);
+    assert.equal(savedStatement?.reviewStatus, "draft");
+    assert.equal(savedStatement?.confirmedAt, null);
+    assert.equal(savedStatement?.totalStatementAmount.toString(), "1750");
+  } finally {
     await context.cleanup();
   }
 });

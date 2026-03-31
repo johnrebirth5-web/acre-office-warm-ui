@@ -39,6 +39,10 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "You can only download your own payout statements." }, { status: 403 });
   }
 
+  if (statement.reviewStatus === "draft") {
+    return NextResponse.json({ error: "This payout statement has not been sent to you yet." }, { status: 403 });
+  }
+
   const document = createElement(AgentPayoutStatementPdfDocument, { statement }) as ReactElement<DocumentProps>;
   const pdfBuffer = await renderToBuffer(document);
 

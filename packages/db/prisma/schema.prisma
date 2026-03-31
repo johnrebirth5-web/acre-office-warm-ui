@@ -58,6 +58,9 @@ enum NotificationType {
   follow_up_overdue
   onboarding_assigned
   onboarding_due_soon
+  payout_statement_ready
+  payout_statement_revision_requested
+  payout_statement_confirmed
 }
 
 enum NotificationCategory {
@@ -487,6 +490,20 @@ enum AgentPayoutStatementPeriodBasis {
   invoice_number
 }
 
+enum AgentPayoutStatementReviewStatus {
+  draft
+  awaiting_agent
+  revision_requested
+  confirmed
+}
+
+enum AgentPayoutStatementMessageType {
+  sent_to_agent
+  finance_response
+  agent_revision_requested
+  agent_confirmed
+}
+
 enum TransactionFinanceFeeType {
   rebate
   client_referral
@@ -583,6 +600,7 @@ model Organization {
   commissionPlanRules               CommissionPlanRule[]
   commissionCalculations            CommissionCalculation[]
   agentPayoutStatements             AgentPayoutStatement[]
+  agentPayoutStatementMessages      AgentPayoutStatementMessage[]
   agentPayoutStatementManualLineItems AgentPayoutStatementManualLineItem[]
   transactionFinanceFees            TransactionFinanceFee[]
   transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
@@ -661,6 +679,7 @@ model Office {
   commissionPlanAssignments         CommissionPlanAssignment[]
   commissionCalculations            CommissionCalculation[]
   agentPayoutStatements             AgentPayoutStatement[]
+  agentPayoutStatementMessages      AgentPayoutStatementMessage[]
   agentPayoutStatementManualLineItems AgentPayoutStatementManualLineItem[]
   transactionFinanceFees            TransactionFinanceFee[]
   transactionFinanceCalculationVersions TransactionFinanceCalculationVersion[]
@@ -760,6 +779,8 @@ model Membership {
   calculatedCommissionCalculations         CommissionCalculation[]            @relation("CommissionCalculationCalculatedBy")
   agentPayoutStatements                    AgentPayoutStatement[]
   generatedAgentPayoutStatements           AgentPayoutStatement[]             @relation("AgentPayoutStatementGeneratedBy")
+  sharedAgentPayoutStatements              AgentPayoutStatement[]             @relation("AgentPayoutStatementLastSharedBy")
+  agentPayoutStatementMessages             AgentPayoutStatementMessage[]      @relation("AgentPayoutStatementMessageMembership")
   agentPayoutStatementManualLineItems        AgentPayoutStatementManualLineItem[] @relation("AgentPayoutStatementManualLineItemMembership")
   createdAgentPayoutStatementManualLineItems AgentPayoutStatementManualLineItem[] @relation("AgentPayoutStatementManualLineItemCreatedBy")
   createdAgent1099PaymentRecords           Agent1099PaymentRecord[]           @relation("Agent1099PaymentRecordCreatedBy")
@@ -2596,29 +2617,37 @@ model CommissionCalculation {
 }
 
 model AgentPayoutStatement {
-  id                    String                           @id @default(cuid())
-  organizationId        String
-  officeId              String?
-  membershipId          String
-  periodStart           DateTime
-  periodEnd             DateTime
-  periodBasis           AgentPayoutStatementPeriodBasis
-  generatedAt           DateTime                         @default(now())
+  id                     String                         @id @default(cuid())
+  organizationId         String
+  officeId               String?
+  membershipId           String
+  periodStart            DateTime
+  periodEnd              DateTime
+  periodBasis            AgentPayoutStatementPeriodBasis
+  reviewStatus           AgentPayoutStatementReviewStatus @default(draft)
+  generatedAt            DateTime                       @default(now())
   generatedByMembershipId String?
-  lineItemCount         Int                              @default(0)
-  totalStatementAmount  Decimal                          @default(0) @db.Decimal(12, 2)
-  totalGrossCommission  Decimal                          @default(0) @db.Decimal(12, 2)
-  totalOfficeNet        Decimal                          @default(0) @db.Decimal(12, 2)
-  totalAgentNet         Decimal                          @default(0) @db.Decimal(12, 2)
-  organization          Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  office                Office?                          @relation(fields: [officeId], references: [id], onDelete: SetNull)
-  membership            Membership                       @relation(fields: [membershipId], references: [id], onDelete: Cascade)
-  generatedByMembership Membership?                      @relation("AgentPayoutStatementGeneratedBy", fields: [generatedByMembershipId], references: [id], onDelete: SetNull)
-  lineItems             AgentPayoutStatementLine[]
-  manualLineItems       AgentPayoutStatementManualLineItem[]
+  lastSharedAt           DateTime?
+  lastSharedByMembershipId String?
+  agentRespondedAt       DateTime?
+  confirmedAt            DateTime?
+  lineItemCount          Int                            @default(0)
+  totalStatementAmount   Decimal                        @default(0) @db.Decimal(12, 2)
+  totalGrossCommission   Decimal                        @default(0) @db.Decimal(12, 2)
+  totalOfficeNet         Decimal                        @default(0) @db.Decimal(12, 2)
+  totalAgentNet          Decimal                        @default(0) @db.Decimal(12, 2)
+  organization           Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                 Office?                        @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership             Membership                     @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  generatedByMembership  Membership?                    @relation("AgentPayoutStatementGeneratedBy", fields: [generatedByMembershipId], references: [id], onDelete: SetNull)
+  lastSharedByMembership Membership?                    @relation("AgentPayoutStatementLastSharedBy", fields: [lastSharedByMembershipId], references: [id], onDelete: SetNull)
+  lineItems              AgentPayoutStatementLine[]
+  messages               AgentPayoutStatementMessage[]
+  manualLineItems        AgentPayoutStatementManualLineItem[]
 
   @@index([organizationId, officeId, generatedAt])
   @@index([organizationId, membershipId, generatedAt])
+  @@index([organizationId, reviewStatus, generatedAt])
   @@index([organizationId, periodStart, periodEnd])
 }
 
@@ -2672,6 +2701,25 @@ model AgentPayoutStatementManualLineItem {
   @@index([organizationId, officeId, createdAt])
   @@index([membershipId, createdAt])
   @@index([createdByMembershipId, createdAt])
+}
+
+model AgentPayoutStatementMessage {
+  id           String                        @id @default(cuid())
+  statementId  String
+  organizationId String
+  officeId     String?
+  membershipId String
+  messageType  AgentPayoutStatementMessageType
+  body         String                        @default("")
+  createdAt    DateTime                      @default(now())
+  statement    AgentPayoutStatement          @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  organization Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office       Office?                       @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership   Membership                    @relation("AgentPayoutStatementMessageMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([statementId, createdAt])
+  @@index([organizationId, officeId, createdAt])
+  @@index([membershipId, createdAt])
 }
 
 model TransactionFinanceFee {

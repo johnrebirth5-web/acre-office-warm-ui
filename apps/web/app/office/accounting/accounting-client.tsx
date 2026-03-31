@@ -20,7 +20,8 @@ import {
   ListPageStatsGrid,
   StatCard,
   StatusBadge,
-  TextInput
+  TextInput,
+  TextareaInput
 } from "@acre/ui";
 import { LocalDateTime } from "../_components/local-date-time";
 
@@ -91,6 +92,22 @@ function getStatementStatusTone(status: string) {
   }
 
   return "warning" as const;
+}
+
+function getReviewStatusTone(status: string) {
+  if (status === "Confirmed") {
+    return "success" as const;
+  }
+
+  if (status === "Awaiting agent") {
+    return "accent" as const;
+  }
+
+  if (status === "Revision requested") {
+    return "warning" as const;
+  }
+
+  return "neutral" as const;
 }
 
 function toNumber(value: string) {
@@ -292,9 +309,12 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isSavingManualLineItems, setIsSavingManualLineItems] = useState(false);
+  const [isSendingStatement, setIsSendingStatement] = useState(false);
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
   const [manualSaveError, setManualSaveError] = useState("");
+  const [sendError, setSendError] = useState("");
+  const [sendMessage, setSendMessage] = useState("");
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
     .map((option) => ({
@@ -392,6 +412,17 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       )
     : "";
   const selectedStatementBankFields = selectedStatement ? buildStatementBankFields(selectedStatement) : [];
+  const sendButtonLabel = !selectedStatement
+    ? "Send to agent"
+    : isSendingStatement
+      ? "Sending..."
+      : selectedStatement.reviewStatus === "awaiting_agent"
+        ? "Resend to agent"
+        : selectedStatement.reviewStatus === "revision_requested"
+          ? "Send updated statement"
+          : selectedStatement.reviewStatus === "confirmed"
+            ? "Send revised statement"
+            : "Send to agent";
   const resolvedFilterMembershipId = resolveTypedAgentMembershipId(
     snapshot.filters.memberOptions,
     filterState.membershipId,
@@ -475,12 +506,18 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       setManualLineItems([]);
       setManualSaveError("");
       setIsSavingManualLineItems(false);
+      setSendMessage("");
+      setSendError("");
+      setIsSendingStatement(false);
       return;
     }
 
     setManualLineItems(selectedStatement.manualLineItems.map((lineItem) => createEditableManualLineItem(lineItem)));
     setManualSaveError("");
     setIsSavingManualLineItems(false);
+    setSendMessage("");
+    setSendError("");
+    setIsSendingStatement(false);
   }, [selectedStatement?.id, selectedStatementManualSignature]);
 
   function selectAgentOption(option: AgentOption) {
@@ -754,6 +791,45 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
       setManualSaveError(error instanceof Error ? error.message : "Failed to save statement manual adjustments.");
     } finally {
       setIsSavingManualLineItems(false);
+    }
+  }
+
+  async function handleSendStatementToAgent() {
+    if (!selectedStatement) {
+      return;
+    }
+
+    if (hasManualLineItemChanges) {
+      setSendError("Save the current manual adjustment changes before sending the statement to the agent.");
+      return;
+    }
+
+    setIsSendingStatement(true);
+    setSendError("");
+
+    try {
+      const response = await fetch(`/api/office/accounting/statements/${selectedStatement.id}/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: sendMessage
+        })
+      });
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to send the payout statement to the agent.");
+      }
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : "Failed to send the payout statement to the agent.");
+    } finally {
+      setIsSendingStatement(false);
     }
   }
 
@@ -1088,6 +1164,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <DataTableHeader className="office-table-header office-table-row office-table-row-accounting-statement-history">
                 <span>Generated</span>
                 <span>Agent</span>
+                <span>Status</span>
                 <span>Period</span>
                 <span>Basis</span>
                 <span>Rows</span>
@@ -1101,6 +1178,9 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                       <LocalDateTime fallbackLabel={statement.generatedAtLabel} value={statement.generatedAt} />
                     </span>
                     <strong>{statement.agentLabel}</strong>
+                    <span>
+                      <StatusBadge tone={getReviewStatusTone(statement.reviewStatusLabel)}>{statement.reviewStatusLabel}</StatusBadge>
+                    </span>
                     <span>{statement.periodLabel}</span>
                     <span>{statement.periodBasisLabel}</span>
                     <span>{statement.lineItemCount}</span>
@@ -1157,6 +1237,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
           <>
             <ListPageStatsGrid>
               <StatCard hint="agent on this saved payout statement" label="Agent" value={selectedStatement.agentLabel} />
+              <StatCard hint="current internal confirmation state" label="Review status" value={selectedStatement.reviewStatusLabel} />
               <StatCard hint="invoice rows plus manual adjustments" label="Rows" value={selectedStatement.lineItemCount} />
               <StatCard hint="snapshot total gross commission" label="Gross commission" value={selectedStatement.totalGrossCommissionLabel} />
               <StatCard hint="invoice-based payout subtotal" label="Invoice payout" value={selectedStatement.invoicePayoutTotalLabel} />
@@ -1169,6 +1250,20 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 Generated: <LocalDateTime fallbackLabel={selectedStatement.generatedAtLabel} value={selectedStatement.generatedAt} />
               </span>
               <span>Generated by: {selectedStatement.generatedByLabel}</span>
+              <span>
+                Status: <StatusBadge tone={getReviewStatusTone(selectedStatement.reviewStatusLabel)}>{selectedStatement.reviewStatusLabel}</StatusBadge>
+              </span>
+              {selectedStatement.lastSharedAtLabel ? (
+                <span>
+                  Last sent: <LocalDateTime fallbackLabel={selectedStatement.lastSharedAtLabel} value={selectedStatement.lastSharedAt} />
+                </span>
+              ) : null}
+              {selectedStatement.agentRespondedAtLabel ? (
+                <span>
+                  Agent responded:{" "}
+                  <LocalDateTime fallbackLabel={selectedStatement.agentRespondedAtLabel} value={selectedStatement.agentRespondedAt} />
+                </span>
+              ) : null}
               <span>Signed amount: use positive for bonus or reimbursement, negative for deduction.</span>
               <Button
                 disabled={isSavingManualLineItems || !hasManualLineItemChanges}
@@ -1204,6 +1299,73 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
             ) : (
               <p className="office-form-helper">No bank information has been saved on this member profile yet.</p>
             )}
+
+            <div className="office-accounting-candidate-block">
+              <div className="office-accounting-candidate-head">
+                <div className="office-accounting-candidate-copy">
+                  <span className="office-mini-heading">Agent Delivery</span>
+                  <p className="office-form-helper">
+                    Send this payout statement to the agent inside Acre so they can confirm it or request revisions without email or WeChat.
+                  </p>
+                </div>
+
+                <div className="office-section-actions">
+                  <Button
+                    disabled={isSendingStatement || isSavingManualLineItems || hasManualLineItemChanges}
+                    onClick={handleSendStatementToAgent}
+                    size="sm"
+                    type="button"
+                  >
+                    {sendButtonLabel}
+                  </Button>
+                </div>
+              </div>
+
+              <TextareaInput
+                onChange={(event) => setSendMessage(event.target.value)}
+                placeholder={
+                  selectedStatement.reviewStatus === "revision_requested"
+                    ? "Reply to the agent here before you resend the updated statement."
+                    : "Optional note shown to the agent in the system timeline."
+                }
+                rows={3}
+                value={sendMessage}
+              />
+              <p className="office-form-helper">
+                {hasManualLineItemChanges
+                  ? "Save manual adjustment changes first. Saving will move this statement back to Draft until you send it again."
+                  : "Each send or resend is logged in-system and not delivered by email."}
+              </p>
+              {sendError ? <p className="office-inline-error">{sendError}</p> : null}
+            </div>
+
+            <div className="office-accounting-candidate-block">
+              <div className="office-accounting-candidate-head">
+                <div className="office-accounting-candidate-copy">
+                  <span className="office-mini-heading">System Timeline</span>
+                  <p className="office-form-helper">
+                    Agent feedback and finance replies stay on the statement record so payout communication is kept inside Back Office.
+                  </p>
+                </div>
+              </div>
+
+              {selectedStatement.timeline.length > 0 ? (
+                <div className="office-payout-statement-timeline">
+                  {selectedStatement.timeline.map((item) => (
+                    <article className="office-payout-statement-timeline-item" key={item.id}>
+                      <div className="office-payout-statement-timeline-head">
+                        <strong>{item.messageTypeLabel}</strong>
+                        <span>{item.authorLabel}</span>
+                        <span>{item.createdAtLabel}</span>
+                      </div>
+                      {item.body ? <p>{item.body}</p> : <p className="office-form-helper">No note added for this step.</p>}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="office-form-helper">No agent-facing timeline entries have been recorded on this statement yet.</p>
+              )}
+            </div>
 
             <div className="office-accounting-candidate-block">
               <div className="office-accounting-candidate-head">

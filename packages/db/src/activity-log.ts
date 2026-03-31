@@ -123,6 +123,9 @@ export const activityLogActions = {
   agent1099PaymentRecordUpdated: "agent_1099_payment_record.updated",
   agent1099PaymentRecordDeleted: "agent_1099_payment_record.deleted",
   agentPayoutStatementGenerated: "agent_payout_statement.generated",
+  agentPayoutStatementSentToAgent: "agent_payout_statement.sent_to_agent",
+  agentPayoutStatementRevisionRequested: "agent_payout_statement.revision_requested",
+  agentPayoutStatementConfirmed: "agent_payout_statement.confirmed",
   agentPayoutStatementAdjusted: "agent_payout_statement.adjusted",
   commissionPlanCreated: "commission.plan_created",
   commissionPlanUpdated: "commission.plan_updated",
@@ -499,6 +502,9 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "agent_1099_payment_record.updated": "1099 payment records updated",
   "agent_1099_payment_record.deleted": "1099 payment records deleted",
   "agent_payout_statement.generated": "Agent payout statement generated",
+  "agent_payout_statement.sent_to_agent": "Agent payout statement sent to agent",
+  "agent_payout_statement.revision_requested": "Agent payout statement revision requested",
+  "agent_payout_statement.confirmed": "Agent payout statement confirmed",
   "agent_payout_statement.adjusted": "Agent payout statement adjusted",
   "commission.plan_created": "Commission plan created",
   "commission.plan_updated": "Commission plan updated",
@@ -666,6 +672,9 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.agent1099PaymentRecordUpdated ||
       action === activityLogActions.agent1099PaymentRecordDeleted ||
       action === activityLogActions.agentPayoutStatementGenerated ||
+      action === activityLogActions.agentPayoutStatementSentToAgent ||
+      action === activityLogActions.agentPayoutStatementRevisionRequested ||
+      action === activityLogActions.agentPayoutStatementConfirmed ||
       action === activityLogActions.agentPayoutStatementAdjusted ||
       action === activityLogActions.commissionPlanCreated ||
       action === activityLogActions.commissionPlanUpdated ||
@@ -1317,6 +1326,12 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "deleted 1099 payment records";
     case activityLogActions.agentPayoutStatementGenerated:
       return "generated an agent payout statement";
+    case activityLogActions.agentPayoutStatementSentToAgent:
+      return "sent an agent payout statement to the agent";
+    case activityLogActions.agentPayoutStatementRevisionRequested:
+      return "requested a payout statement revision";
+    case activityLogActions.agentPayoutStatementConfirmed:
+      return "confirmed an agent payout statement";
     case activityLogActions.agentPayoutStatementAdjusted:
       return "updated an agent payout statement";
     case activityLogActions.commissionPlanCreated:

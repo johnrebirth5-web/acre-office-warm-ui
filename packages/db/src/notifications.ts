@@ -119,7 +119,10 @@ export const officeNotificationInboxTypes: NotificationType[] = [
   NotificationType.follow_up_assigned,
   NotificationType.follow_up_overdue,
   NotificationType.onboarding_assigned,
-  NotificationType.onboarding_due_soon
+  NotificationType.onboarding_due_soon,
+  NotificationType.payout_statement_ready,
+  NotificationType.payout_statement_revision_requested,
+  NotificationType.payout_statement_confirmed
 ];
 
 const notificationTypeLabelMap: Record<NotificationType, string> = {
@@ -139,7 +142,10 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
   follow_up_assigned: "Follow-up assigned",
   follow_up_overdue: "Follow-up overdue",
   onboarding_assigned: "Onboarding assigned",
-  onboarding_due_soon: "Onboarding due soon"
+  onboarding_due_soon: "Onboarding due soon",
+  payout_statement_ready: "Payout statement ready",
+  payout_statement_revision_requested: "Payout statement revision requested",
+  payout_statement_confirmed: "Payout statement confirmed"
 };
 
 const notificationCategoryLabelMap: Record<NotificationCategory, string> = {
@@ -169,6 +175,9 @@ const typeFilterOrder: NotificationType[] = [
   NotificationType.offer_expiring_soon,
   NotificationType.signature_pending,
   NotificationType.signature_completed,
+  NotificationType.payout_statement_ready,
+  NotificationType.payout_statement_revision_requested,
+  NotificationType.payout_statement_confirmed,
   NotificationType.follow_up_assigned,
   NotificationType.follow_up_overdue,
   NotificationType.onboarding_assigned,
@@ -193,7 +202,10 @@ function getNotificationPreferenceField(type: NotificationType): NotificationPre
     type === NotificationType.task_rejected ||
     type === NotificationType.signature_pending ||
     type === NotificationType.signature_completed ||
-    type === NotificationType.incoming_update_pending_review
+    type === NotificationType.incoming_update_pending_review ||
+    type === NotificationType.payout_statement_ready ||
+    type === NotificationType.payout_statement_revision_requested ||
+    type === NotificationType.payout_statement_confirmed
   ) {
     return "approvalAlertsEnabled";
   }

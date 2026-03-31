@@ -189,6 +189,8 @@ export {
   createAgentPayoutStatement,
   getOfficeAgentPayoutStatementDetail,
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
+  respondToAgentPayoutStatement,
+  sendAgentPayoutStatementToAgent,
   updateAgentPayoutStatementManualLineItems
 } from "./agent-payout-statements";
 export {
@@ -469,7 +471,10 @@ export type {
   OfficeAgentPayoutStatementMemberOption,
   OfficeAgentPayoutStatementPostSplitDetailItem,
   OfficeAgentPayoutStatementRecord,
+  OfficeAgentPayoutStatementTimelineItem,
   OfficeAgentPayoutStatementsWorkspaceSnapshot,
+  RespondToAgentPayoutStatementInput,
+  SendAgentPayoutStatementToAgentInput,
   UpdateAgentPayoutStatementManualLineItemInput,
   UpdateAgentPayoutStatementManualLineItemsInput
 } from "./agent-payout-statements";

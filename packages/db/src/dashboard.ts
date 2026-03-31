@@ -1,4 +1,4 @@
-import { Prisma, TransactionStatus } from "@prisma/client";
+import { AgentPayoutStatementReviewStatus, Prisma, TransactionStatus } from "@prisma/client";
 import { buildMembershipVisibilityWhere, buildTransactionPortfolioVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
@@ -34,7 +34,10 @@ export type OfficeDashboardCommissionStatement = {
   periodLabel: string;
   generatedAt: string;
   generatedAtLabel: string;
+  reviewStatus: AgentPayoutStatementReviewStatus;
+  reviewStatusLabel: string;
   totalStatementAmountLabel: string;
+  openHref: string;
   pdfHref: string;
 };
 
@@ -106,6 +109,22 @@ function formatDateTime(value: Date, timeZone?: string | null) {
 
 function formatDateValue(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function formatStatementReviewStatusLabel(value: AgentPayoutStatementReviewStatus) {
+  if (value === "awaiting_agent") {
+    return "Awaiting agent";
+  }
+
+  if (value === "revision_requested") {
+    return "Revision requested";
+  }
+
+  if (value === "confirmed") {
+    return "Confirmed";
+  }
+
+  return "Draft";
 }
 
 function getNiceAxisMax(value: number) {
@@ -284,13 +303,17 @@ export async function getOfficeDashboardBusinessSnapshot(
       prisma.agentPayoutStatement.findMany({
         where: {
           organizationId: input.organizationId,
-          membershipId: scope.viewerMembershipId
+          membershipId: scope.viewerMembershipId,
+          reviewStatus: {
+            in: ["awaiting_agent", "revision_requested", "confirmed"]
+          }
         },
         select: {
           id: true,
           periodStart: true,
           periodEnd: true,
           generatedAt: true,
+          reviewStatus: true,
           totalStatementAmount: true
         },
         orderBy: [{ generatedAt: "desc" }],
@@ -408,7 +431,10 @@ export async function getOfficeDashboardBusinessSnapshot(
         periodLabel: `${formatDateValue(statement.periodStart)} to ${formatDateValue(statement.periodEnd)}`,
         generatedAt: statement.generatedAt.toISOString(),
         generatedAtLabel: formatDateTime(statement.generatedAt, organization.timezone),
+        reviewStatus: statement.reviewStatus,
+        reviewStatusLabel: formatStatementReviewStatusLabel(statement.reviewStatus),
         totalStatementAmountLabel: formatCurrency(Number(statement.totalStatementAmount ?? 0)),
+        openHref: `/office/payout-statements/${statement.id}`,
         pdfHref: `/api/office/accounting/self-service/statements/${statement.id}/pdf`
       }))
     },

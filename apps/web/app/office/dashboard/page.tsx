@@ -280,8 +280,9 @@ export default async function OfficeDashboardPage() {
                 <DataTableHeader className="office-dashboard-transactions-head">
                   <span>Statement period</span>
                   <span>Generated</span>
+                  <span>Status</span>
                   <span>Total</span>
-                  <span>PDF</span>
+                  <span>Actions</span>
                 </DataTableHeader>
                 <DataTableBody>
                   {snapshot.commission.statements.map((statement) => (
@@ -292,10 +293,26 @@ export default async function OfficeDashboardPage() {
                       <span>
                         <LocalDateTime fallbackLabel={statement.generatedAtLabel} value={statement.generatedAt} />
                       </span>
+                      <StatusBadge
+                        tone={
+                          statement.reviewStatus === "confirmed"
+                            ? "success"
+                            : statement.reviewStatus === "revision_requested"
+                              ? "warning"
+                              : "accent"
+                        }
+                      >
+                        {statement.reviewStatusLabel}
+                      </StatusBadge>
                       <strong className="office-dashboard-transactions-amount">{statement.totalStatementAmountLabel}</strong>
-                      <a className="office-button-secondary office-button-sm" href={statement.pdfHref} rel="noreferrer" target="_blank">
-                        Download PDF
-                      </a>
+                      <div className="bm-accounting-inline-actions office-accounting-statement-history-actions">
+                        <Link className="office-button-secondary office-button-sm" href={statement.openHref}>
+                          Open
+                        </Link>
+                        <a className="office-button-secondary office-button-sm" href={statement.pdfHref} rel="noreferrer" target="_blank">
+                          PDF
+                        </a>
+                      </div>
                     </DataTableRow>
                   ))}
                 </DataTableBody>

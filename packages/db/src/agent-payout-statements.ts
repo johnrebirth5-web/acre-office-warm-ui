@@ -1,9 +1,14 @@
 import {
   AgentPayoutStatementPeriodBasis,
+  AgentPayoutStatementMessageType,
+  AgentPayoutStatementReviewStatus,
   AgentBankInformationAccountType,
   AgentBankInformationTaxIdType,
   CommissionCalculationStatus,
   MembershipStatus,
+  NotificationCategory,
+  NotificationSeverity,
+  NotificationType,
   Prisma,
   TransactionFinanceApprovalStatus,
   TransactionFinanceCalculationType,
@@ -13,6 +18,7 @@ import {
 import { activityLogActions, recordActivityLogEvent, type ActivityLogChange } from "./activity-log";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import { createNotificationsForMemberships } from "./notifications";
 
 type StatementCandidateCalculation = Prisma.CommissionCalculationGetPayload<{
   include: {
@@ -49,6 +55,21 @@ type StatementRecordWithRelations = Prisma.AgentPayoutStatementGetPayload<{
       include: {
         user: true;
       };
+    };
+    lastSharedByMembership: {
+      include: {
+        user: true;
+      };
+    };
+    messages: {
+      include: {
+        membership: {
+          include: {
+            user: true;
+          };
+        };
+      };
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }];
     };
     manualLineItems: {
       orderBy: [{ createdAt: "asc" }, { id: "asc" }];
@@ -147,6 +168,16 @@ export type OfficeAgentPayoutStatementManualLineItemRecord = {
   amountValue: string;
 };
 
+export type OfficeAgentPayoutStatementTimelineItem = {
+  id: string;
+  messageType: AgentPayoutStatementMessageType;
+  messageTypeLabel: string;
+  authorLabel: string;
+  body: string;
+  createdAt: string;
+  createdAtLabel: string;
+};
+
 export type OfficeAgentPayoutStatementBankInformationRecord = {
   firstName: string;
   lastName: string;
@@ -176,6 +207,12 @@ export type OfficeAgentPayoutStatementRecord = {
   generatedAt: string;
   generatedAtLabel: string;
   generatedByLabel: string;
+  reviewStatus: AgentPayoutStatementReviewStatus;
+  reviewStatusLabel: string;
+  lastSharedAt: string;
+  lastSharedAtLabel: string;
+  confirmedAt: string;
+  confirmedAtLabel: string;
   lineItemCount: number;
   totalStatementAmountLabel: string;
   totalStatementAmountValue: string;
@@ -195,6 +232,15 @@ export type OfficeAgentPayoutStatementDetail = {
   generatedAt: string;
   generatedAtLabel: string;
   generatedByLabel: string;
+  reviewStatus: AgentPayoutStatementReviewStatus;
+  reviewStatusLabel: string;
+  lastSharedAt: string;
+  lastSharedAtLabel: string;
+  lastSharedByLabel: string;
+  agentRespondedAt: string;
+  agentRespondedAtLabel: string;
+  confirmedAt: string;
+  confirmedAtLabel: string;
   lineItemCount: number;
   invoicePayoutTotalLabel: string;
   invoicePayoutTotalValue: string;
@@ -207,6 +253,7 @@ export type OfficeAgentPayoutStatementDetail = {
   totalAgentNetLabel: string;
   totalAgentNetValue: string;
   bankInformation: OfficeAgentPayoutStatementBankInformationRecord | null;
+  timeline: OfficeAgentPayoutStatementTimelineItem[];
   manualLineItems: OfficeAgentPayoutStatementManualLineItemRecord[];
   lineItems: OfficeAgentPayoutStatementLineRecord[];
 };
@@ -254,6 +301,23 @@ export type UpdateAgentPayoutStatementManualLineItemsInput = {
   actorMembershipId: string;
 };
 
+export type SendAgentPayoutStatementToAgentInput = {
+  organizationId: string;
+  officeId?: string | null;
+  statementId: string;
+  actorMembershipId: string;
+  message?: string;
+};
+
+export type RespondToAgentPayoutStatementInput = {
+  organizationId: string;
+  officeId?: string | null;
+  statementId: string;
+  actorMembershipId: string;
+  response: "confirm" | "request_revision";
+  message?: string;
+};
+
 export type GetOfficeAgentPayoutStatementDetailInput = {
   organizationId: string;
   officeId?: string | null;
@@ -296,6 +360,20 @@ const commissionCalculationStatusLabelMap: Record<CommissionCalculationStatus, s
   statement_ready: "Statement ready",
   payable: "Payable",
   paid: "Paid"
+};
+
+const statementReviewStatusLabelMap: Record<AgentPayoutStatementReviewStatus, string> = {
+  draft: "Draft",
+  awaiting_agent: "Awaiting agent",
+  revision_requested: "Revision requested",
+  confirmed: "Confirmed"
+};
+
+const statementMessageTypeLabelMap: Record<AgentPayoutStatementMessageType, string> = {
+  sent_to_agent: "Sent to agent",
+  finance_response: "Finance response",
+  agent_revision_requested: "Revision requested",
+  agent_confirmed: "Agent confirmed"
 };
 
 const selectableAgentMembershipStatuses = ["active", "invited"] satisfies MembershipStatus[];
@@ -623,6 +701,17 @@ function buildActivityLogChange(label: string, previousValue: string, nextValue:
         previousValue,
         nextValue
       };
+}
+
+function buildTimelineAuthorLabel(membership: {
+  user: {
+    firstName: string;
+    lastName: string;
+    email?: string | null;
+  };
+}) {
+  const fullName = `${membership.user.firstName} ${membership.user.lastName}`.trim();
+  return fullName || membership.user.email?.trim() || "Unknown member";
 }
 
 function parseManualLineItemAmount(value: string) {
@@ -979,6 +1068,30 @@ function buildAgentPayoutStatementWorkspaceHref(input: {
   return `/office/accounting?${searchParams.toString()}`;
 }
 
+function buildAgentPayoutStatementSelfServiceHref(statementId: string) {
+  return `/office/payout-statements/${statementId}`;
+}
+
+function normalizeStatementMessage(value: string | null | undefined) {
+  return value?.trim() ?? "";
+}
+
+function resolveStatementAdminNotificationMembershipIds(input: {
+  lastSharedByMembershipId?: string | null;
+  generatedByMembershipId?: string | null;
+  fallbackMembershipId: string;
+}) {
+  return Array.from(
+    new Set(
+      [
+        input.lastSharedByMembershipId?.trim() || "",
+        input.generatedByMembershipId?.trim() || "",
+        input.fallbackMembershipId.trim()
+      ].filter(Boolean)
+    )
+  );
+}
+
 function mapCandidateRow(calculation: StatementCandidateCalculation): OfficeAgentPayoutStatementCandidateRow {
   return {
     id: calculation.id,
@@ -1054,6 +1167,12 @@ function mapStatementRecord(record: StatementRecordWithRelations): OfficeAgentPa
     generatedAt: record.generatedAt.toISOString(),
     generatedAtLabel: formatDateTimeValue(record.generatedAt, record.organization.timezone),
     generatedByLabel: record.generatedByMembership ? formatMembershipLabel(record.generatedByMembership) : "System",
+    reviewStatus: record.reviewStatus,
+    reviewStatusLabel: statementReviewStatusLabelMap[record.reviewStatus],
+    lastSharedAt: record.lastSharedAt?.toISOString() ?? "",
+    lastSharedAtLabel: formatDateTimeValue(record.lastSharedAt, record.organization.timezone),
+    confirmedAt: record.confirmedAt?.toISOString() ?? "",
+    confirmedAtLabel: formatDateTimeValue(record.confirmedAt, record.organization.timezone),
     lineItemCount: record.lineItemCount,
     totalStatementAmountLabel: formatCurrency(record.totalStatementAmount),
     totalStatementAmountValue: decimalToString(record.totalStatementAmount)
@@ -1093,6 +1212,15 @@ function mapStatementDetail(
     generatedAt: record.generatedAt.toISOString(),
     generatedAtLabel: formatDateTimeValue(record.generatedAt, record.organization.timezone),
     generatedByLabel: record.generatedByMembership ? formatMembershipLabel(record.generatedByMembership) : "System",
+    reviewStatus: record.reviewStatus,
+    reviewStatusLabel: statementReviewStatusLabelMap[record.reviewStatus],
+    lastSharedAt: record.lastSharedAt?.toISOString() ?? "",
+    lastSharedAtLabel: formatDateTimeValue(record.lastSharedAt, record.organization.timezone),
+    lastSharedByLabel: record.lastSharedByMembership ? formatMembershipLabel(record.lastSharedByMembership) : "",
+    agentRespondedAt: record.agentRespondedAt?.toISOString() ?? "",
+    agentRespondedAtLabel: formatDateTimeValue(record.agentRespondedAt, record.organization.timezone),
+    confirmedAt: record.confirmedAt?.toISOString() ?? "",
+    confirmedAtLabel: formatDateTimeValue(record.confirmedAt, record.organization.timezone),
     lineItemCount: record.lineItemCount,
     invoicePayoutTotalLabel: formatCurrency(snapshotSummary.invoicePayoutTotal),
     invoicePayoutTotalValue: decimalToString(snapshotSummary.invoicePayoutTotal),
@@ -1105,6 +1233,15 @@ function mapStatementDetail(
     totalAgentNetLabel: formatCurrency(record.totalAgentNet),
     totalAgentNetValue: decimalToString(record.totalAgentNet),
     bankInformation: mapStatementBankInformation(record.membership.agentBankInformation),
+    timeline: record.messages.map((message) => ({
+      id: message.id,
+      messageType: message.messageType,
+      messageTypeLabel: statementMessageTypeLabelMap[message.messageType],
+      authorLabel: buildTimelineAuthorLabel(message.membership),
+      body: message.body.trim(),
+      createdAt: message.createdAt.toISOString(),
+      createdAtLabel: formatDateTimeValue(message.createdAt, record.organization.timezone)
+    })),
     manualLineItems: record.manualLineItems.map((lineItem) => ({
       id: lineItem.id,
       memo: lineItem.memo,
@@ -1242,6 +1379,21 @@ export async function getOfficeAgentPayoutStatementDetail(
           user: true
         }
       },
+      lastSharedByMembership: {
+        include: {
+          user: true
+        }
+      },
+      messages: {
+        include: {
+          membership: {
+            include: {
+              user: true
+            }
+          }
+        },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+      },
       manualLineItems: {
         orderBy: [{ createdAt: "asc" }, { id: "asc" }]
       },
@@ -1327,6 +1479,21 @@ export async function getOfficeAgentPayoutStatementsWorkspaceSnapshot(
           include: {
             user: true
           }
+        },
+        lastSharedByMembership: {
+          include: {
+            user: true
+          }
+        },
+        messages: {
+          include: {
+            membership: {
+              include: {
+                user: true
+              }
+            }
+          },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }]
         },
         manualLineItems: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }]
@@ -1492,6 +1659,7 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
         periodStart: periodRange.periodStart,
         periodEnd: periodRange.periodEnd,
         periodBasis: "invoice_number",
+        reviewStatus: "draft",
         generatedByMembershipId: input.actorMembershipId,
         lineItemCount: totals.lineItemCount,
         totalStatementAmount: totals.finalPayoutTotal,
@@ -1544,6 +1712,261 @@ export async function createAgentPayoutStatement(input: CreateAgentPayoutStateme
           `Line items: ${totals.lineItemCount}`,
           `Total payout: ${formatCurrency(totals.finalPayoutTotal)}`
         ]
+      }
+    });
+
+    return {
+      statementId: statement.id
+    };
+  });
+}
+
+export async function sendAgentPayoutStatementToAgent(input: SendAgentPayoutStatementToAgentInput) {
+  const statementId = input.statementId.trim();
+  const message = normalizeStatementMessage(input.message);
+
+  if (!statementId) {
+    throw new Error("Statement is required.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const statement = await tx.agentPayoutStatement.findFirst({
+      where: {
+        id: statementId,
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      include: {
+        membership: {
+          include: {
+            user: true
+          }
+        },
+        lineItems: {
+          select: {
+            invoiceNumber: true
+          }
+        }
+      }
+    });
+
+    if (!statement) {
+      return null;
+    }
+
+    const previousStatus = statement.reviewStatus;
+    const nextStatus: AgentPayoutStatementReviewStatus = "awaiting_agent";
+    const now = new Date();
+    const messageType: AgentPayoutStatementMessageType =
+      previousStatus === "revision_requested" || Boolean(statement.lastSharedAt) ? "finance_response" : "sent_to_agent";
+    const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+      statement.lineItems.map((lineItem) => lineItem.invoiceNumber)
+    );
+
+    await tx.agentPayoutStatement.update({
+      where: {
+        id: statement.id
+      },
+      data: {
+        reviewStatus: nextStatus,
+        lastSharedAt: now,
+        lastSharedByMembershipId: input.actorMembershipId,
+        confirmedAt: null
+      }
+    });
+
+    await tx.agentPayoutStatementMessage.create({
+      data: {
+        statementId: statement.id,
+        organizationId: statement.organizationId,
+        officeId: statement.officeId,
+        membershipId: input.actorMembershipId,
+        messageType,
+        body: message
+      }
+    });
+
+    await createNotificationsForMemberships(tx, {
+      organizationId: input.organizationId,
+      officeId: statement.officeId,
+      membershipIds: [statement.membershipId],
+      type: NotificationType.payout_statement_ready,
+      category: NotificationCategory.system,
+      severity: previousStatus === "revision_requested" ? NotificationSeverity.warning : NotificationSeverity.info,
+      title: previousStatus === "revision_requested" ? "Updated payout statement ready to review" : "Payout statement ready to review",
+      body:
+        previousStatus === "revision_requested"
+          ? "Finance updated your payout statement. Review it and confirm or request another revision in the system."
+          : "A payout statement is ready for your review and confirmation in the system.",
+      actionUrl: buildAgentPayoutStatementSelfServiceHref(statement.id)
+    });
+
+    const changes = [
+      buildActivityLogChange("Review status", statementReviewStatusLabelMap[previousStatus], statementReviewStatusLabelMap[nextStatus])
+    ].filter((change): change is ActivityLogChange => Boolean(change));
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "agent_payout_statement",
+      entityId: statement.id,
+      action: activityLogActions.agentPayoutStatementSentToAgent,
+      payload: {
+        officeId: statement.officeId,
+        objectLabel: `${formatMembershipLabel(statement.membership)} payout statement`,
+        contextHref: buildAgentPayoutStatementWorkspaceHref({
+          membershipId: statement.membershipId,
+          invoiceNumbers,
+          statementId: statement.id
+        }),
+        details: [
+          `Agent: ${formatMembershipLabel(statement.membership)}`,
+          `Review status: ${statementReviewStatusLabelMap[nextStatus]}`,
+          `Invoices: ${invoiceNumbers.join(", ") || "—"}`,
+          ...(message ? [`Message: ${message}`] : [])
+        ],
+        changes
+      }
+    });
+
+    return {
+      statementId: statement.id
+    };
+  });
+}
+
+export async function respondToAgentPayoutStatement(input: RespondToAgentPayoutStatementInput) {
+  const statementId = input.statementId.trim();
+  const message = normalizeStatementMessage(input.message);
+
+  if (!statementId) {
+    throw new Error("Statement is required.");
+  }
+
+  if (input.response === "request_revision" && !message) {
+    throw new Error("Explain what should change before requesting a revision.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const statement = await tx.agentPayoutStatement.findFirst({
+      where: {
+        id: statementId,
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      include: {
+        membership: {
+          include: {
+            user: true
+          }
+        },
+        lineItems: {
+          select: {
+            invoiceNumber: true
+          }
+        }
+      }
+    });
+
+    if (!statement) {
+      return null;
+    }
+
+    if (statement.membershipId !== input.actorMembershipId) {
+      throw new Error("You can only review your own payout statement.");
+    }
+
+    if (statement.reviewStatus !== "awaiting_agent") {
+      throw new Error("This payout statement is not currently awaiting your review.");
+    }
+
+    const now = new Date();
+    const nextStatus: AgentPayoutStatementReviewStatus =
+      input.response === "confirm" ? "confirmed" : "revision_requested";
+    const messageType: AgentPayoutStatementMessageType =
+      input.response === "confirm" ? "agent_confirmed" : "agent_revision_requested";
+    const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+      statement.lineItems.map((lineItem) => lineItem.invoiceNumber)
+    );
+
+    await tx.agentPayoutStatement.update({
+      where: {
+        id: statement.id
+      },
+      data: {
+        reviewStatus: nextStatus,
+        agentRespondedAt: now,
+        confirmedAt: input.response === "confirm" ? now : null
+      }
+    });
+
+    await tx.agentPayoutStatementMessage.create({
+      data: {
+        statementId: statement.id,
+        organizationId: statement.organizationId,
+        officeId: statement.officeId,
+        membershipId: input.actorMembershipId,
+        messageType,
+        body: message
+      }
+    });
+
+    const adminNotificationRecipients = resolveStatementAdminNotificationMembershipIds({
+      lastSharedByMembershipId: statement.lastSharedByMembershipId,
+      generatedByMembershipId: statement.generatedByMembershipId,
+      fallbackMembershipId: input.actorMembershipId
+    }).filter((membershipId) => membershipId !== input.actorMembershipId);
+
+    if (adminNotificationRecipients.length > 0) {
+      await createNotificationsForMemberships(tx, {
+        organizationId: input.organizationId,
+        officeId: statement.officeId,
+        membershipIds: adminNotificationRecipients,
+        type:
+          input.response === "confirm"
+            ? NotificationType.payout_statement_confirmed
+            : NotificationType.payout_statement_revision_requested,
+        category: NotificationCategory.system,
+        severity: input.response === "confirm" ? NotificationSeverity.info : NotificationSeverity.warning,
+        title:
+          input.response === "confirm"
+            ? `${formatMembershipLabel(statement.membership)} confirmed the payout statement`
+            : `${formatMembershipLabel(statement.membership)} requested payout statement changes`,
+        body:
+          input.response === "confirm"
+            ? "The agent confirmed this payout statement inside the system."
+            : "The agent requested statement changes inside the system. Open the statement to review the request.",
+        actionUrl: buildAgentPayoutStatementWorkspaceHref({
+          membershipId: statement.membershipId,
+          invoiceNumbers,
+          statementId: statement.id
+        })
+      });
+    }
+
+    const changes = [
+      buildActivityLogChange("Review status", statementReviewStatusLabelMap[statement.reviewStatus], statementReviewStatusLabelMap[nextStatus])
+    ].filter((change): change is ActivityLogChange => Boolean(change));
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "agent_payout_statement",
+      entityId: statement.id,
+      action:
+        input.response === "confirm"
+          ? activityLogActions.agentPayoutStatementConfirmed
+          : activityLogActions.agentPayoutStatementRevisionRequested,
+      payload: {
+        officeId: statement.officeId,
+        objectLabel: `${formatMembershipLabel(statement.membership)} payout statement`,
+        contextHref: buildAgentPayoutStatementSelfServiceHref(statement.id),
+        details: [
+          `Agent: ${formatMembershipLabel(statement.membership)}`,
+          `Review status: ${statementReviewStatusLabelMap[nextStatus]}`,
+          ...(message ? [`Message: ${message}`] : [])
+        ],
+        changes
       }
     });
 
@@ -1659,6 +2082,9 @@ export async function updateAgentPayoutStatementManualLineItems(input: UpdateAge
       invoiceLineItems: statement.lineItems,
       manualLineItems: normalizedManualLineItems
     });
+    const hasChanges = removedItems.length > 0 || itemsToCreate.length > 0 || itemsToUpdate.length > 0;
+    const nextReviewStatus =
+      hasChanges && statement.reviewStatus !== "draft" ? ("draft" satisfies AgentPayoutStatementReviewStatus) : statement.reviewStatus;
 
     await tx.agentPayoutStatement.update({
       where: {
@@ -1666,11 +2092,11 @@ export async function updateAgentPayoutStatementManualLineItems(input: UpdateAge
       },
       data: {
         lineItemCount: nextSummary.lineItemCount,
-        totalStatementAmount: nextSummary.finalPayoutTotal
+        totalStatementAmount: nextSummary.finalPayoutTotal,
+        reviewStatus: nextReviewStatus,
+        confirmedAt: nextReviewStatus === "confirmed" ? statement.confirmedAt : null
       }
     });
-
-    const hasChanges = removedItems.length > 0 || itemsToCreate.length > 0 || itemsToUpdate.length > 0;
 
     if (hasChanges) {
       const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
@@ -1682,7 +2108,8 @@ export async function updateAgentPayoutStatementManualLineItems(input: UpdateAge
           formatCurrency(previousSummary.manualAdjustmentTotal),
           formatCurrency(nextSummary.manualAdjustmentTotal)
         ),
-        buildActivityLogChange("Final payout", formatCurrency(previousSummary.finalPayoutTotal), formatCurrency(nextSummary.finalPayoutTotal))
+        buildActivityLogChange("Final payout", formatCurrency(previousSummary.finalPayoutTotal), formatCurrency(nextSummary.finalPayoutTotal)),
+        buildActivityLogChange("Review status", statementReviewStatusLabelMap[statement.reviewStatus], statementReviewStatusLabelMap[nextReviewStatus])
       ].filter((change): change is ActivityLogChange => Boolean(change));
 
       await recordActivityLogEvent(tx, {
@@ -1704,7 +2131,8 @@ export async function updateAgentPayoutStatementManualLineItems(input: UpdateAge
             `Updated manual items: ${itemsToUpdate.length}`,
             `Removed manual items: ${removedItems.length}`,
             `Manual adjustments total: ${formatCurrency(nextSummary.manualAdjustmentTotal)}`,
-            `Final payout: ${formatCurrency(nextSummary.finalPayoutTotal)}`
+            `Final payout: ${formatCurrency(nextSummary.finalPayoutTotal)}`,
+            `Review status: ${statementReviewStatusLabelMap[nextReviewStatus]}`
           ],
           changes
         }

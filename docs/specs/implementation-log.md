@@ -8,6 +8,12 @@
 
 ## Recently completed major work
 
+- 2026-03-31: accounting payout statements now complete the agent review loop entirely inside Back Office instead of relying on email / WeChat follow-up:
+  - `AgentPayoutStatement` now keeps a review lifecycle of `draft -> awaiting_agent -> revision_requested -> confirmed` plus a durable internal message timeline
+  - `/office/accounting` now lets finance/admin send or resend a statement to the agent with an internal note and see the full review timeline on the saved statement detail
+  - `/office/dashboard` now exposes only sent payout statements to the owning membership, and each row links into a dedicated `/office/payout-statements/[statementId]` self-service review page
+  - agents can now confirm a statement or submit a revision request with a required message inside the system, and both actions emit in-app notifications plus accounting activity-log entries
+  - editing statement-level manual adjustments after a send now resets the statement back to `draft`, forcing finance to resend the updated statement before the agent can review it again
 - 2026-03-31: `/agent/dashboard` was rebuilt from the old `Agent OS` mock landing page into a real `Front Office` action homepage:
   - the route now reads from new `@acre/db` `getFrontOfficeDashboardSnapshot(...)` service instead of `@acre/backoffice` demo snapshot data
   - the new snapshot aggregates real `Client`, `FollowUpTask`, `Listing`, `ListingShareLink`, `Event`, `Notification`, `Resource`, `Vendor`, `Transaction`, and `SignatureRequest` data into one action-first FO surface

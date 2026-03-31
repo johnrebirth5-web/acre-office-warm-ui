@@ -188,6 +188,12 @@ Provide a durable commission automation MVP inside Back Office, with a default s
   - final payout is `invoice payout subtotal + manual adjustment total`
   - editing manual adjustments updates the saved statement total and PDF output directly on the same statement record
   - editing manual adjustments does not rewrite the saved invoice snapshot rows and does not change underlying `CommissionCalculation` statuses
+  - payout statements now also keep an internal review lifecycle for agent acknowledgment:
+    - new statements begin as `draft`
+    - finance/admin must explicitly send a statement to the agent before it becomes self-service visible
+    - the agent can respond only inside the BO system by either `confirming` or `requesting revision`
+    - finance/admin can resend with an internal response note, and the statement timeline preserves all send/reply events for audit
+    - if finance edits statement-level manual adjustments after a statement was already sent or confirmed, the review lifecycle is reset back to `draft` until finance resends it
 - history remains visible for audit/review but is not double-counted in payout summaries
 - manual override versions may include extra `active` or `invited` memberships that were not part of the original split chain
 - manual participant rows are marked as manual in the stored stakeholder snapshot:

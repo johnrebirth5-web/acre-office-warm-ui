@@ -4338,6 +4338,7 @@ select {
   grid-template-columns:
     128px
     minmax(188px, 1.12fr)
+    132px
     minmax(132px, 0.88fr)
     minmax(144px, 0.96fr)
     76px
@@ -7683,7 +7684,7 @@ a {
 }
 
 .office-table-row-accounting-statement-history {
-  min-width: 1040px;
+  min-width: 1160px;
 }
 
 .office-table-row-emd {
@@ -8246,7 +8247,7 @@ a {
     :nth-child(9)
   ),
 .office-table-row-accounting-statement-history
-  > :is(:nth-child(1), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)),
+  > :is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)),
 .office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
 .office-table-row-1099-summary > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(7)),
 .office-table-row-1099-preview > :is(:nth-child(1), :nth-child(2)),
@@ -8382,7 +8383,7 @@ a {
 .office-table-row-accounting-statement-rows
   > :is(:nth-child(2), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)),
 .office-table-row-accounting-statement-history
-  > :is(:nth-child(1), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+  > :is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)) {
   font-variant-numeric: tabular-nums;
 }
 
@@ -8505,6 +8506,40 @@ a {
 .office-accounting-manual-summary strong {
   color: var(--office-text);
   font-size: 0.95rem;
+}
+
+.office-payout-statement-page .office-dashboard-primary-stack,
+.office-payout-statement-timeline {
+  display: grid;
+  gap: 14px;
+}
+
+.office-payout-statement-timeline-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(203, 213, 225, 0.84);
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.office-payout-statement-timeline-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  color: var(--office-text-muted);
+  font-size: 0.82rem;
+}
+
+.office-payout-statement-timeline-head strong {
+  color: var(--office-text);
+  font-size: 0.92rem;
+}
+
+.office-payout-statement-timeline-item p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .office-transaction-detail-embedded {

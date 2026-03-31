@@ -52,7 +52,17 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - self-service commission statement access now exists on `/office/dashboard`:
   - the current membership sees self-only commission totals when direct commission or statement data exists
   - the current membership sees a `My payout statements` list for saved statements
-  - the current membership can download only their own saved payout statement PDFs
+  - payout statements now follow an internal-only review lifecycle:
+    - `draft`
+    - `awaiting_agent`
+    - `revision_requested`
+    - `confirmed`
+  - admins must explicitly `Send to agent` from `/office/accounting` before a saved statement becomes visible for agent review
+  - the current membership can open only their own non-`draft` statement at `/office/payout-statements/[statementId]`
+  - the current membership can download only their own sent/saved payout statement PDFs
+  - the current membership can confirm the statement in-system or submit an in-system revision request with a required message
+  - finance/admin can resend the statement with an internal note, and the full conversation stays on the statement timeline inside the BO system
+  - no payout-statement delivery, confirmation, or revision handling should depend on email / WeChat; this workflow is intentionally system-internal only
   - self-service users cannot generate statements; creation stays in admin/accounting workflows
 - commission management primary workspace now lives at `/office/settings/commission-plans`
 
@@ -64,7 +74,7 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
 - no ACH payout execution
 - chart editing is still read-first / limited
 - old ledger / agent-billing / EMD UI is no longer exposed through `/office/accounting`
-- self-service statement generation is intentionally not exposed; only saved statements are downloadable by the member
+- self-service statement generation is intentionally not exposed; agent self-service stays limited to reviewing, confirming, requesting revision, and downloading statements that finance has already sent internally
 - there is no batch 1099 PDF export, IRS box mapping, or e-filing integration yet; current 1099 output is strictly internal backup/support documentation
 
 ## Future direction
