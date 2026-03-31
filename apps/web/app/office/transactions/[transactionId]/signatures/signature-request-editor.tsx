@@ -964,14 +964,14 @@ export function SignatureRequestEditor({
             ) : null}
           </div>
 
-          <div className="office-signature-section-actions">
-            <Button onClick={() => addRecipient("signer")} size="sm" variant="secondary">
+          <div className="office-signature-section-actions office-signature-add-actions">
+            <Button onClick={() => addRecipient("signer")} variant="secondary">
               Add signer
             </Button>
-            <Button onClick={() => addRecipient("approver")} size="sm" variant="secondary">
+            <Button onClick={() => addRecipient("approver")} variant="secondary">
               Add approver
             </Button>
-            <Button onClick={() => addRecipient("cc")} size="sm" variant="ghost">
+            <Button onClick={() => addRecipient("cc")} variant="secondary">
               Add CC
             </Button>
           </div>
