@@ -947,63 +947,6 @@ export function SignatureRequestEditor({
 
         {isRecipientsStep ? (
           <>
-            <section className="bm-detail-card office-signature-delivery-card">
-              <div className="bm-card-head">
-                <div>
-                  <h3>Template library</h3>
-                  <span>Load a saved template into this document or save the current recipient and field map as a reusable template.</span>
-                </div>
-              </div>
-
-              <div className="bm-document-upload-grid">
-                <FormField label="Apply template">
-                  <SelectInput onChange={(event) => handleTemplateSelection(event.target.value)} value={initialTemplate?.id ?? ""}>
-                    <option value="">No template</option>
-                    {availableTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name} · {template.categoryLabel}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </FormField>
-                <FormField label="Template name">
-                  <TextInput
-                    onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))}
-                    value={templateDraft.name}
-                  />
-                </FormField>
-                <FormField label="Template category">
-                  <SelectInput
-                    onChange={(event) =>
-                      setTemplateDraft((current) => ({
-                        ...current,
-                        category: event.target.value as TemplateDraftState["category"]
-                      }))
-                    }
-                    value={templateDraft.category}
-                  >
-                    <option value="transaction">Transaction</option>
-                    <option value="hr">HR</option>
-                    <option value="finance">Finance</option>
-                    <option value="admin">Admin</option>
-                  </SelectInput>
-                </FormField>
-                <FormField className="office-form-grid-span-4" label="Template description">
-                  <TextareaInput
-                    onChange={(event) => setTemplateDraft((current) => ({ ...current, description: event.target.value }))}
-                    rows={3}
-                    value={templateDraft.description}
-                  />
-                </FormField>
-              </div>
-
-              <div className="office-signature-section-actions">
-                <Button disabled={pendingAction === "save-template"} onClick={handleSaveTemplate} variant="secondary">
-                  {pendingAction === "save-template" ? "Saving template..." : templateDraft.templateId ? "Update template" : "Save as template"}
-                </Button>
-              </div>
-            </section>
-
             <section className="bm-detail-card">
               <div className="bm-card-head">
                 <div>
@@ -1159,6 +1102,63 @@ export function SignatureRequestEditor({
                   }
                 >
                   {pendingAction === "save-recipients" ? "Saving..." : "Save recipients & continue"}
+                </Button>
+              </div>
+            </section>
+
+            <section className="bm-detail-card office-signature-delivery-card">
+              <div className="bm-card-head">
+                <div>
+                  <h3>Template library</h3>
+                  <span>Load a saved template into this document or save the current recipient and field map as a reusable template.</span>
+                </div>
+              </div>
+
+              <div className="bm-document-upload-grid">
+                <FormField label="Apply template">
+                  <SelectInput onChange={(event) => handleTemplateSelection(event.target.value)} value={initialTemplate?.id ?? ""}>
+                    <option value="">No template</option>
+                    {availableTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} · {template.categoryLabel}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </FormField>
+                <FormField label="Template name">
+                  <TextInput
+                    onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))}
+                    value={templateDraft.name}
+                  />
+                </FormField>
+                <FormField label="Template category">
+                  <SelectInput
+                    onChange={(event) =>
+                      setTemplateDraft((current) => ({
+                        ...current,
+                        category: event.target.value as TemplateDraftState["category"]
+                      }))
+                    }
+                    value={templateDraft.category}
+                  >
+                    <option value="transaction">Transaction</option>
+                    <option value="hr">HR</option>
+                    <option value="finance">Finance</option>
+                    <option value="admin">Admin</option>
+                  </SelectInput>
+                </FormField>
+                <FormField className="office-form-grid-span-4" label="Template description">
+                  <TextareaInput
+                    onChange={(event) => setTemplateDraft((current) => ({ ...current, description: event.target.value }))}
+                    rows={3}
+                    value={templateDraft.description}
+                  />
+                </FormField>
+              </div>
+
+              <div className="office-signature-section-actions">
+                <Button disabled={pendingAction === "save-template"} onClick={handleSaveTemplate} variant="secondary">
+                  {pendingAction === "save-template" ? "Saving template..." : templateDraft.templateId ? "Update template" : "Save as template"}
                 </Button>
               </div>
             </section>
