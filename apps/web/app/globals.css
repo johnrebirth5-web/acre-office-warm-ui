@@ -8358,17 +8358,19 @@ a {
 .office-table-row-report-transactions > :nth-child(2),
 .office-table-row-report-commission-recent > :nth-child(2),
 .office-table-row-commission > :nth-child(4),
-.office-table-row-1099-records > :nth-child(4),
-.office-table-row-agent-statement-snapshot > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(8)) {
+.office-table-row-1099-records > :nth-child(4) {
   justify-self: start;
   text-align: left;
 }
 
-.office-table-row-agent-statement-snapshot > :is(:nth-child(6), :nth-child(7), :nth-child(9), :nth-child(10)),
+.office-table-row-agent-statement-snapshot > * {
+  justify-self: start;
+  text-align: left;
+}
+
+.office-table-row-agent-statement-snapshot > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8), :nth-child(10)),
 .office-table-row-1099-summary > :nth-child(2),
 .office-table-row-1099-preview > :nth-child(2) {
-  justify-self: end;
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
@@ -8396,8 +8398,8 @@ a {
 .office-agent-statement-post-split {
   display: grid;
   gap: 4px;
-  justify-items: end;
-  text-align: right;
+  justify-items: start;
+  text-align: left;
 }
 
 .office-agent-statement-post-split p {
@@ -8540,6 +8542,46 @@ a {
 .office-payout-statement-timeline-item p {
   margin: 0;
   line-height: 1.5;
+}
+
+.office-payout-statement-total-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 18px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--office-border);
+}
+
+.office-payout-statement-total-copy {
+  display: grid;
+  gap: 4px;
+  max-width: 46ch;
+}
+
+.office-payout-statement-total-copy span {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-label-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.office-payout-statement-total-copy p {
+  margin: 0;
+  color: var(--office-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.office-payout-statement-total-row strong {
+  color: var(--office-text);
+  font-size: var(--office-text-stat-size);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
 }
 
 .office-transaction-detail-embedded {

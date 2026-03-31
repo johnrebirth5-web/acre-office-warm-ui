@@ -98,6 +98,7 @@ export function PayoutStatementReviewClient({ statement }: PayoutStatementReview
   const [pendingAction, setPendingAction] = useState<"confirm" | "request_revision" | "">("");
   const bankFields = useMemo(() => buildStatementBankFields(statement), [statement]);
   const canReview = statement.reviewStatus === "awaiting_agent";
+  const hasManualAdjustments = Number(statement.manualAdjustmentTotalValue) !== 0;
 
   async function handleReview(response: "confirm" | "request_revision") {
     if (response === "request_revision" && !message.trim()) {
@@ -260,7 +261,7 @@ export function PayoutStatementReviewClient({ statement }: PayoutStatementReview
 
         <SectionCard subtitle="These line items are the locked snapshot finance sent to you for this review." title="Invoice items">
           <HorizontalScrollArea>
-            <DataTable className="office-table office-table-no-resize">
+            <DataTable className="office-table">
               <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-snapshot">
                 <span>Creation date</span>
                 <span>Invoice number</span>
@@ -296,6 +297,18 @@ export function PayoutStatementReviewClient({ statement }: PayoutStatementReview
               </DataTableBody>
             </DataTable>
           </HorizontalScrollArea>
+
+          <div className="office-payout-statement-total-row">
+            <div className="office-payout-statement-total-copy">
+              <span>Final payout total</span>
+              <p>
+                {hasManualAdjustments
+                  ? `Invoice payout subtotal ${statement.invoicePayoutTotalLabel}; manual adjustments ${statement.manualAdjustmentTotalLabel}.`
+                  : `Matches the invoice payout subtotal ${statement.invoicePayoutTotalLabel}.`}
+              </p>
+            </div>
+            <strong>{statement.totalStatementAmountLabel}</strong>
+          </div>
         </SectionCard>
       </div>
     </PageShell>

@@ -1445,7 +1445,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               </div>
 
               <HorizontalScrollArea>
-                <DataTable className="office-table office-table-no-resize">
+                <DataTable className="office-table">
                   <DataTableHeader className="office-table-header office-table-row office-table-row-agent-statement-snapshot">
                     <span>Creation date</span>
                     <span>Invoice number</span>
