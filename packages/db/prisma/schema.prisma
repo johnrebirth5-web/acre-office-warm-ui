@@ -215,12 +215,14 @@ enum TransactionFormStatus {
 
 enum SignatureRequestStatus {
   draft
+  pending_send
   sent
   viewed
   signed
   completed
   declined
   canceled
+  voided
   expired
 }
 
@@ -228,7 +230,57 @@ enum SignatureFieldType {
   signature
   date
   name
+  initials
   text
+  email
+  title
+  company
+  checkbox
+  dropdown
+}
+
+enum SignatureRecipientRole {
+  signer
+  approver
+  cc
+}
+
+enum SignatureRecipientStatus {
+  draft
+  pending
+  sent
+  viewed
+  acted
+  declined
+  voided
+  expired
+}
+
+enum SignatureTemplateCategory {
+  hr
+  finance
+  admin
+  transaction
+}
+
+enum SignatureContextType {
+  transaction
+  membership
+  finance_request
+  admin_request
+  generic
+}
+
+enum SignatureArtifactKind {
+  original
+  signed_copy
+}
+
+enum SignatureDriveSyncStatus {
+  not_configured
+  pending
+  synced
+  failed
 }
 
 enum SignatureAuditEventType {
@@ -509,6 +561,11 @@ model Organization {
   formTemplates                     FormTemplate[]
   transactionForms                  TransactionForm[]
   signatureRequests                 SignatureRequest[]
+  signatureTemplates                SignatureTemplate[]
+  signatureTemplateRecipients       SignatureTemplateRecipient[]
+  signatureTemplateFields           SignatureTemplateField[]
+  signatureRecipients               SignatureRecipient[]
+  signatureArtifacts                SignatureArtifact[]
   incomingUpdates                   IncomingUpdate[]
   offers                            Offer[]
   offerComments                     OfferComment[]
@@ -540,6 +597,7 @@ model Organization {
   checklistTemplateItems            ChecklistTemplateItem[]
   tableLayouts                      OrganizationTableLayout[]
   smtpSetting                       OrganizationSmtpSetting?
+  signatureDriveSetting             OrganizationSignatureDriveSetting?
   transactionSearchLayouts          TransactionSearchLayout[]
   transactionReportSearchLayouts    TransactionReportSearchLayout[]
   roleTemplates                     OrganizationRoleTemplate[]
@@ -582,6 +640,11 @@ model Office {
   formTemplates                     FormTemplate[]
   transactionForms                  TransactionForm[]
   signatureRequests                 SignatureRequest[]
+  signatureTemplates                SignatureTemplate[]
+  signatureTemplateRecipients       SignatureTemplateRecipient[]
+  signatureTemplateFields           SignatureTemplateField[]
+  signatureRecipients               SignatureRecipient[]
+  signatureArtifacts                SignatureArtifact[]
   incomingUpdates                   IncomingUpdate[]
   offers                            Offer[]
   offerComments                     OfferComment[]
@@ -677,6 +740,11 @@ model Membership {
   uploadedLibraryDocuments                 LibraryDocument[]                  @relation("LibraryDocumentUploadedBy")
   createdTransactionForms                  TransactionForm[]                  @relation("TransactionFormCreatedBy")
   requestedSignatureRequests               SignatureRequest[]                 @relation("SignatureRequestRequestedBy")
+  subjectMembershipSignatureRequests       SignatureRequest[]                 @relation("SignatureRequestSubjectMembership")
+  createdSignatureTemplates                SignatureTemplate[]                @relation("SignatureTemplateCreatedBy")
+  updatedSignatureDriveSettings            OrganizationSignatureDriveSetting[] @relation("OrganizationSignatureDriveSettingUpdatedBy")
+  signatureRecipients                      SignatureRecipient[]               @relation("SignatureRecipientMembership")
+  subjectMembershipSignatureArtifacts      SignatureArtifact[]                @relation("SignatureArtifactSubjectMembership")
   signatureAuditEntries                    SignatureAuditEntry[]
   reviewedIncomingUpdates                  IncomingUpdate[]                   @relation("IncomingUpdateReviewedBy")
   createdOffers                            Offer[]                            @relation("OfferCreatedBy")
@@ -792,6 +860,27 @@ model OrganizationSmtpSetting {
   updatedAt             DateTime     @updatedAt
   organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   updatedByMembership   Membership?  @relation("OrganizationSmtpSettingUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, isEnabled])
+}
+
+model OrganizationSignatureDriveSetting {
+  id                    String                  @id @default(cuid())
+  organizationId        String                  @unique
+  updatedByMembershipId String?
+  isEnabled             Boolean                 @default(false)
+  projectId             String?
+  clientEmail           String?
+  clientId              String?
+  privateKeyId          String?
+  encryptedPrivateKey   String?
+  sharedDriveId         String?
+  rootFolderId          String?
+  folderMappings        Json?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  organization          Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedByMembership   Membership?             @relation("OrganizationSignatureDriveSettingUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, isEnabled])
 }
@@ -936,6 +1025,8 @@ model Transaction {
   documents                      TransactionDocument[]
   forms                          TransactionForm[]
   signatureRequests              SignatureRequest[]
+  signatureRecipients            SignatureRecipient[]
+  signatureArtifacts             SignatureArtifact[]
   incomingUpdates                IncomingUpdate[]
   offers                         Offer[]
   commissionCalculations         CommissionCalculation[]
@@ -1363,6 +1454,7 @@ model TransactionDocument {
   forms                  TransactionForm[]         @relation("TransactionFormDocument")
   signatureRequests      SignatureRequest[]        @relation("SignatureRequestDocument")
   completedByRequests    SignatureRequest[]        @relation("SignatureRequestCompletedDocument")
+  signatureArtifacts     SignatureArtifact[]
 
   @@index([organizationId, transactionId, status])
   @@index([organizationId, transactionId, isUnsorted])
@@ -1422,16 +1514,101 @@ model TransactionForm {
   @@index([organizationId, offerId])
 }
 
+model SignatureTemplate {
+  id                    String                    @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  category              SignatureTemplateCategory
+  name                  String
+  description           String?
+  version               Int                       @default(1)
+  isActive              Boolean                   @default(true)
+  emailSubject          String?
+  emailBody             String?
+  senderDisplayName     String?
+  senderReplyTo         String?
+  createdByMembershipId String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  organization          Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                   @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  createdByMembership   Membership?               @relation("SignatureTemplateCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+  recipients            SignatureTemplateRecipient[]
+  fields                SignatureTemplateField[]
+  signatureRequests     SignatureRequest[]
+
+  @@index([organizationId, officeId, category, isActive])
+}
+
+model SignatureTemplateRecipient {
+  id                    String                @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  templateId            String
+  role                  SignatureRecipientRole
+  recipientRole         String
+  defaultNameSource     String?
+  defaultEmailSource    String?
+  routingStep           Int                   @default(1)
+  sortOrder             Int                   @default(0)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  organization          Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?               @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  template              SignatureTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  fields                SignatureTemplateField[]
+
+  @@index([organizationId, templateId, sortOrder])
+}
+
+model SignatureTemplateField {
+  id                          String                 @id @default(cuid())
+  organizationId              String
+  officeId                    String?
+  templateId                  String
+  assignedTemplateRecipientId String?
+  fieldType                   SignatureFieldType
+  label                       String
+  page                        Int
+  x                           Float
+  y                           Float
+  width                       Float
+  height                      Float
+  required                    Boolean                @default(true)
+  defaultValue                String?
+  fontStyle                   String?
+  fieldKey                    String?
+  isReadOnly                  Boolean                @default(false)
+  isSystemPrefilled           Boolean                @default(false)
+  visibilityRule              Json?
+  mirrorGroup                 String?
+  fieldOptions                Json?
+  sortOrder                   Int                    @default(0)
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
+  organization                Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                      Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  template                    SignatureTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  assignedTemplateRecipient   SignatureTemplateRecipient? @relation(fields: [assignedTemplateRecipientId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, templateId, sortOrder])
+}
+
 model SignatureRequest {
   id                      String                 @id @default(cuid())
   organizationId          String
   officeId                String?
   transactionId           String
+  subjectMembershipId     String?
   offerId                 String?
   formId                  String?
   documentId              String?
   completedDocumentId     String?
+  templateId              String?
   requestedByMembershipId String
+  contextType             SignatureContextType   @default(transaction)
+  contextId               String?
+  contextLabel            String?
   recipientName           String
   recipientEmail          String
   recipientRole           String
@@ -1442,6 +1619,11 @@ model SignatureRequest {
   senderDisplayName       String?
   senderReplyTo           String?
   publicTokenHash         String?                @unique
+  driveSyncStatus         SignatureDriveSyncStatus @default(not_configured)
+  driveSyncError          String?
+  driveSyncedAt           DateTime?
+  driveFolderId           String?
+  driveFileId             String?
   expiresAt               DateTime?
   sentAt                  DateTime?
   firstViewedAt           DateTime?
@@ -1456,26 +1638,70 @@ model SignatureRequest {
   organization            Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   office                  Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
   transaction             Transaction            @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  subjectMembership       Membership?            @relation("SignatureRequestSubjectMembership", fields: [subjectMembershipId], references: [id], onDelete: SetNull)
   offer                   Offer?                 @relation(fields: [offerId], references: [id], onDelete: SetNull)
   form                    TransactionForm?       @relation("SignatureRequestForm", fields: [formId], references: [id], onDelete: SetNull)
   document                TransactionDocument?   @relation("SignatureRequestDocument", fields: [documentId], references: [id], onDelete: SetNull)
   completedDocument       TransactionDocument?   @relation("SignatureRequestCompletedDocument", fields: [completedDocumentId], references: [id], onDelete: SetNull)
+  template                SignatureTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
   requestedByMembership   Membership             @relation("SignatureRequestRequestedBy", fields: [requestedByMembershipId], references: [id], onDelete: Cascade)
+  recipients              SignatureRecipient[]
+  artifacts               SignatureArtifact[]
   fields                  SignatureField[]
   auditEntries            SignatureAuditEntry[]
 
   @@index([organizationId, transactionId, status])
   @@index([organizationId, officeId])
+  @@index([organizationId, subjectMembershipId])
   @@index([organizationId, formId])
   @@index([organizationId, documentId])
   @@index([organizationId, completedDocumentId])
+  @@index([organizationId, templateId])
   @@index([organizationId, offerId])
   @@index([organizationId, expiresAt])
+}
+
+model SignatureRecipient {
+  id                    String                  @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  transactionId         String
+  signatureRequestId    String
+  membershipId          String?
+  role                  SignatureRecipientRole
+  name                  String
+  email                 String
+  recipientRole         String
+  routingStep           Int                     @default(1)
+  sortOrder             Int                     @default(0)
+  status                SignatureRecipientStatus @default(draft)
+  tokenHash             String?                 @unique
+  submittedValues       Json?
+  sentAt                DateTime?
+  firstViewedAt         DateTime?
+  viewedAt              DateTime?
+  actedAt               DateTime?
+  declinedAt            DateTime?
+  voidedAt              DateTime?
+  expiredAt             DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  organization          Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                 @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  transaction           Transaction             @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  membership            Membership?             @relation("SignatureRecipientMembership", fields: [membershipId], references: [id], onDelete: SetNull)
+  signatureRequest      SignatureRequest        @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+  assignedFields        SignatureField[]        @relation("SignatureFieldAssignedRecipient")
+
+  @@index([organizationId, transactionId, signatureRequestId, sortOrder])
+  @@index([organizationId, email])
+  @@index([organizationId, membershipId])
 }
 
 model SignatureField {
   id                 String             @id @default(cuid())
   signatureRequestId String
+  assignedRecipientId String?
   fieldType          SignatureFieldType
   label              String
   page               Int
@@ -1486,12 +1712,55 @@ model SignatureField {
   required           Boolean            @default(true)
   defaultValue       String?
   fontStyle          String?
+  fieldKey           String?
+  isReadOnly         Boolean            @default(false)
+  isSystemPrefilled  Boolean            @default(false)
+  visibilityRule     Json?
+  mirrorGroup        String?
+  fieldOptions       Json?
   sortOrder          Int                @default(0)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   signatureRequest   SignatureRequest   @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+  assignedRecipient  SignatureRecipient? @relation("SignatureFieldAssignedRecipient", fields: [assignedRecipientId], references: [id], onDelete: SetNull)
 
   @@index([signatureRequestId, sortOrder])
+}
+
+model SignatureArtifact {
+  id                  String                  @id @default(cuid())
+  organizationId      String
+  officeId            String?
+  transactionId       String?
+  subjectMembershipId String?
+  offerId             String?
+  signatureRequestId  String
+  transactionDocumentId String?
+  kind                SignatureArtifactKind
+  title               String
+  fileName            String
+  mimeType            String
+  fileSizeBytes       Int
+  storageKey          String
+  storageUrl          String?
+  driveSyncStatus     SignatureDriveSyncStatus @default(not_configured)
+  driveSyncError      String?
+  driveSyncedAt       DateTime?
+  driveFolderId       String?
+  driveFileId         String?
+  driveWebViewLink    String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office              Office?                 @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  transaction         Transaction?            @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  subjectMembership   Membership?             @relation("SignatureArtifactSubjectMembership", fields: [subjectMembershipId], references: [id], onDelete: SetNull)
+  offer               Offer?                  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  signatureRequest    SignatureRequest        @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+  transactionDocument TransactionDocument?    @relation(fields: [transactionDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, signatureRequestId, kind])
+  @@index([organizationId, driveSyncStatus])
 }
 
 model SignatureAuditEntry {
@@ -1568,6 +1837,7 @@ model Offer {
   documents             TransactionDocument[]
   forms                 TransactionForm[]
   signatureRequests     SignatureRequest[]
+  signatureArtifacts    SignatureArtifact[]
   comments              OfferComment[]
 
   @@index([organizationId, transactionId, status])

@@ -10,6 +10,7 @@ export const databaseModules = [
   "membership_notification_preferences",
   "organization_table_layouts",
   "organization_smtp_settings",
+  "organization_signature_drive_settings",
   "listings",
   "listing_share_links",
   "clients",
@@ -262,6 +263,27 @@ export {
   resolveOrganizationSignatureSmtpConfig,
   saveOrganizationSmtpSettings
 } from "./smtp-settings";
+export {
+  deleteOrganizationSignatureDriveSettings,
+  getOfficeSignatureDriveSettingsSnapshot,
+  resolveOrganizationSignatureDriveConfig,
+  saveOrganizationSignatureDriveSettings
+} from "./signature-drive-settings";
+export {
+  getOfficeSignatureTemplate,
+  getOfficeSignatureTemplateLibrarySnapshot,
+  saveSignatureTemplate
+} from "./signature-templates";
+export {
+  ensureSignatureDriveArtifacts,
+  getSignatureDriveSyncJob,
+  markSignatureDriveSyncPending,
+  saveSignatureDriveSyncResult
+} from "./signature-drive-sync";
+export {
+  getOfficeSignatureExportPayload,
+  getOfficeSignaturesWorkspace
+} from "./signature-workspace";
 export {
   getOfficeFieldSettingsSnapshot,
   getOfficeTransactionIntakeSchema,
@@ -544,6 +566,29 @@ export type {
   ResolveOrganizationSignatureSmtpConfigResult,
   SaveOrganizationSmtpSettingsInput
 } from "./smtp-settings";
+export type {
+  DeleteOrganizationSignatureDriveSettingsInput,
+  OfficeSignatureDriveSettingsSnapshot,
+  ResolveOrganizationSignatureDriveConfigResult,
+  SaveOrganizationSignatureDriveSettingsInput
+} from "./signature-drive-settings";
+export type {
+  OfficeSignatureTemplate,
+  OfficeSignatureTemplateField,
+  OfficeSignatureTemplateLibrarySnapshot,
+  OfficeSignatureTemplateRecipient,
+  SaveSignatureTemplateInput
+} from "./signature-templates";
+export type {
+  SignatureDriveSyncArtifactJob,
+  SignatureDriveSyncJob
+} from "./signature-drive-sync";
+export type {
+  ListOfficeSignaturesInput,
+  OfficeSignatureExportPayload,
+  OfficeSignatureWorkspaceRow,
+  OfficeSignatureWorkspaceSnapshot
+} from "./signature-workspace";
 export type {
   CreateOfficeCustomFieldDefinitionInput,
   CreateOfficeTransactionCustomFieldDefinitionInput,

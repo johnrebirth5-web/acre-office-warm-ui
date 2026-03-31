@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   canAccessOfficeCommissionWorkspace,
   canAccessOfficeSettings,
+  canManageOfficeSignatureTemplates,
   canViewOfficeAgents,
   canViewOfficeChecklists,
   canViewOfficeFields,
@@ -23,6 +24,7 @@ function getSettingsLinks(currentAccess: PermissionSubject) {
     { href: "/office/settings/teams", label: "Teams", isVisible: canViewOfficeTeams(currentAccess) },
     { href: "/office/settings/fields", label: "Fields", isVisible: canViewOfficeFields(currentAccess) },
     { href: "/office/settings/checklists", label: "Checklists", isVisible: canViewOfficeChecklists(currentAccess) },
+    { href: "/office/settings/signature-drive", label: "Signature Drive", isVisible: canManageOfficeSignatureTemplates(currentAccess) || canManageOfficeSettings(currentAccess) },
     { href: "/office/settings/commission-plans", label: "Commission plans", isVisible: canAccessOfficeCommissionWorkspace(currentAccess) }
   ].filter((link) => link.isVisible);
 }

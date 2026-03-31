@@ -10,7 +10,7 @@ type RouteContext = {
   }>;
 };
 
-const allowedFieldTypes = new Set(["signature", "date", "name", "text"]);
+const allowedFieldTypes = new Set(["signature", "date", "name", "text", "initials", "email", "title", "company", "checkbox", "dropdown"]);
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
@@ -59,6 +59,13 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
           required?: boolean;
           defaultValue?: string | null;
           fontStyle?: string | null;
+          assignedRecipientId?: string | null;
+          fieldKey?: string | null;
+          isReadOnly?: boolean;
+          isSystemPrefilled?: boolean;
+          visibilityRule?: unknown;
+          mirrorGroup?: string | null;
+          fieldOptions?: unknown;
           sortOrder?: number;
         }>;
       }
@@ -81,7 +88,8 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       actorMembershipId: context.currentMembership.id,
       fields: body.fields.map((field, index) => ({
         id: field.id,
-        fieldType: field.fieldType as "signature" | "date" | "name" | "text",
+        assignedRecipientId: field.assignedRecipientId?.trim() || null,
+        fieldType: field.fieldType as "signature" | "date" | "name" | "text" | "initials" | "email" | "title" | "company" | "checkbox" | "dropdown",
         label: field.label?.trim() || "",
         page: typeof field.page === "number" ? field.page : 1,
         x: typeof field.x === "number" ? field.x : 0.1,
@@ -91,6 +99,12 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
         required: field.required ?? true,
         defaultValue: field.defaultValue ?? null,
         fontStyle: field.fontStyle ?? null,
+        fieldKey: field.fieldKey ?? null,
+        isReadOnly: field.isReadOnly ?? false,
+        isSystemPrefilled: field.isSystemPrefilled ?? false,
+        visibilityRule: (field.visibilityRule ?? null) as never,
+        mirrorGroup: field.mirrorGroup ?? null,
+        fieldOptions: (field.fieldOptions ?? null) as never,
         sortOrder: typeof field.sortOrder === "number" ? field.sortOrder : index
       }))
     });

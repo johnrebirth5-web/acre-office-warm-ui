@@ -272,12 +272,15 @@
 
 - 当前文档文件不是接入 S3 / R2，而是本地文件系统 MVP
 - `Company Library` 也复用同一套本地文件系统存储基础，但按 organization / library scope 单独分目录
-- 当前 eSignature 已升级为 transaction detail 内的外部签署 MVP：
+- 当前 eSignature 已升级为平台级电子签署中心 MVP：
   - 内部准备工作区 + 公共签署页仍由本仓库自托管
+  - 平台中心页是 `/office/signatures`，模板库是 `/office/signatures/templates`
+  - 发送与编辑入口首发仍以 transaction detail editor 为主，但 envelope 本身已经可绑定 template / subject membership / context metadata
+  - 当前支持多 signer / approver / CC、routing step、字段 owner 绑定、recipient token 公开签署链接，以及完成后的 signed-PDF 归档
   - 邮件发送当前优先走 `ACRE_RESEND_API_KEY` 对应的 Resend HTTPS API；发件人 / reply-to 仍优先读取 `Settings > Email delivery`，系统内尚未保存时再回退到 signature mailer 环境变量
   - 当没有 `ACRE_RESEND_API_KEY` 时，邮件发送会继续走 `Settings > Email delivery` 里的 SMTP fallback；系统内未保存 SMTP 时再回退到 SMTP 环境变量
-  - 仅支持 PDF、单签署人、无登录公开链接
-  - 还没有第三方 vendor integration
+  - 已完成请求会尝试按组织级 `Signature Drive` 设置同步原件 / signed copy 到 Google Drive shared drive 或指定 folder；当前没有 worker，失败后由中心页手动 retry
+  - 当前仍只支持 PDF 自托管签署，没有第三方 vendor integration
 - 当前 incoming updates 不是 live Folio sync，而是内部 review-ready model；底层 route/service 仍保留，但默认不在 transaction detail 页面暴露
 
 不要把“规划中”当成“已接入”。
@@ -541,11 +544,11 @@
 26. secondary approval 当前已实现，并要求 second approver 与 first approver 必须是不同 membership
 27. 删除 required document、取消提交条件或让签名重新变成未完成时，会触发 task workflow 重新评估并必要时 reopen
 28. `/api/office/tasks/views` 以 membership 维度持久化 saved views
-29. transaction detail 的 documents / forms / signatures，以及隐藏中的 incoming update foundation，统一通过 `packages/db/src/transaction-documents.ts` 读取和写入
-30. document signature editor 通过 `/api/office/transactions/:transactionId/signatures`、`/api/office/transactions/:transactionId/signatures/:signatureRequestId` 和 `/api/office/transactions/:transactionId/signatures/:signatureRequestId/fields` 保存 signer metadata、状态和签区布局
-31. 外部签署人通过 `/sign/:token` 和 `/api/public/signatures/:token*` 访问公开签署页面、读取 PDF 预览、提交签字并触发 signed PDF 归档
+29. transaction detail 的 documents / forms / signatures，以及隐藏中的 incoming update foundation，统一通过 `packages/db/src/transaction-documents.ts` 读取和写入；平台级签署中心、模板库、报表导出和 Drive 重试分别由 `packages/db/src/signature-workspace.ts`、`signature-templates.ts`、`signature-drive-settings.ts`、`signature-drive-sync.ts` 补充
+30. document signature editor 通过 `/api/office/transactions/:transactionId/signatures`、`/api/office/transactions/:transactionId/signatures/:signatureRequestId` 和 `/api/office/transactions/:transactionId/signatures/:signatureRequestId/fields` 保存 recipient metadata、routing step、字段 owner 和签区布局
+31. 外部签署人通过 `/sign/:token` 和 `/api/public/signatures/:token*` 访问公开签署页面、读取 PDF 预览、提交本人字段并触发 routing advance、signed PDF 归档与 Drive sync 尝试
 32. 文件本体当前通过 `apps/web/lib/document-storage.ts` 写入本地文件系统；document metadata 仍在 PostgreSQL
-33. document / form / signature / incoming update 的关键动作会写入 `AuditLog`，外部签署时间线额外写入 `SignatureAuditEntry`
+33. document / form / signature / incoming update 的关键动作会写入 `AuditLog`，外部签署时间线额外写入 `SignatureAuditEntry`；模板更新、Drive 设置保存 / 删除也会进入 activity
 34. buyer offers 继续落在 transaction hub 内，不另建第二个 offer app；offer 的 documents / forms / signatures 直接复用现有 foundation，并通过 `offerId` 做 linkage
 35. offer workflow 当前支持显式状态迁移、internal comments、comparison，以及 accepted offer -> transaction field 的可见回写
 36. `/office/transactions/:transactionId` 还会通过 `getTransactionCommissionSnapshot` 读取 assigned plan、persisted calculations 和 transaction-level summary

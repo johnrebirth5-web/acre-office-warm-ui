@@ -89,15 +89,38 @@ function getSignatureTone(statusKey: OfficeSignatureRequest["statusKey"]) {
     return "success" as const;
   }
 
-  if (statusKey === "declined" || statusKey === "canceled" || statusKey === "expired") {
+  if (statusKey === "declined" || statusKey === "canceled" || statusKey === "voided" || statusKey === "expired") {
     return "danger" as const;
   }
 
-  if (statusKey === "sent" || statusKey === "viewed" || statusKey === "signed") {
+  if (statusKey === "pending_send" || statusKey === "sent" || statusKey === "viewed" || statusKey === "signed") {
     return "accent" as const;
   }
 
   return "neutral" as const;
+}
+
+function buildRecipientSummary(request: OfficeSignatureRequest) {
+  if (request.recipients.length === 0) {
+    return {
+      label: `${request.recipientName} · ${request.recipientEmail}`,
+      detail: request.signingOrder ? `Order ${request.signingOrder}` : ""
+    };
+  }
+
+  const signerCount = request.recipients.filter((recipient) => recipient.roleKey === "signer").length;
+  const approverCount = request.recipients.filter((recipient) => recipient.roleKey === "approver").length;
+  const ccCount = request.ccRecipients.length;
+  const actionableLabels = request.recipients
+    .filter((recipient) => recipient.roleKey !== "cc")
+    .map((recipient) => recipient.name || recipient.email)
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    label: actionableLabels || `${signerCount} recipient(s)`,
+    detail: `${signerCount} signer · ${approverCount} approver${ccCount ? ` · ${ccCount} CC` : ""}`
+  };
 }
 
 function formatDateLabel(value: string) {
@@ -316,16 +339,18 @@ export function TransactionFormsSignaturesCard({
             </div>
 
             <div className="bm-form-signature-list">
-              {documentSignatureRequests.map((request) => (
+              {documentSignatureRequests.map((request) => {
+                const recipientSummary = buildRecipientSummary(request);
+
+                return (
                 <div className="bm-signature-row" key={request.id}>
                   <div className="bm-signature-row-copy">
                     <div className="bm-document-row-head">
                       <strong>{request.documentTitle || "Signature request"}</strong>
                       <StatusBadge tone={getSignatureTone(request.statusKey)}>{request.status}</StatusBadge>
                     </div>
-                    <p>
-                      {request.recipientName} · {request.recipientEmail}
-                    </p>
+                    <p>{recipientSummary.label}</p>
+                    {recipientSummary.detail ? <p>{recipientSummary.detail}</p> : null}
                     <p>
                       {request.sentAt ? `Sent ${formatDateLabel(request.sentAt)}` : "Not sent yet"}
                       {request.firstViewedAt ? ` · Opened ${formatDateLabel(request.firstViewedAt)}` : ""}
@@ -343,7 +368,7 @@ export function TransactionFormsSignaturesCard({
                         Signed PDF
                       </Link>
                     ) : null}
-                    {canManageSignatures && (request.statusKey === "sent" || request.statusKey === "viewed" || request.statusKey === "expired" || request.statusKey === "canceled") ? (
+                    {canManageSignatures && (request.statusKey === "pending_send" || request.statusKey === "sent" || request.statusKey === "viewed" || request.statusKey === "expired" || request.statusKey === "canceled" || request.statusKey === "voided") ? (
                       <Button
                         disabled={pendingAction === `resend:${request.id}`}
                         onClick={() => handleSignatureAction(request.id, "resend")}
@@ -353,7 +378,7 @@ export function TransactionFormsSignaturesCard({
                         {pendingAction === `resend:${request.id}` ? "Resending..." : "Resend"}
                       </Button>
                     ) : null}
-                    {canManageSignatures && (request.statusKey === "draft" || request.statusKey === "sent" || request.statusKey === "viewed") ? (
+                    {canManageSignatures && (request.statusKey === "draft" || request.statusKey === "pending_send" || request.statusKey === "sent" || request.statusKey === "viewed") ? (
                       <Button
                         disabled={pendingAction === `canceled:${request.id}`}
                         onClick={() => handleSignatureAction(request.id, "canceled")}
@@ -365,7 +390,8 @@ export function TransactionFormsSignaturesCard({
                     ) : null}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </article>
         ) : null}
@@ -463,17 +489,18 @@ export function TransactionFormsSignaturesCard({
                   </div>
 
                   {form.signatureRequests.length > 0 ? (
-                    form.signatureRequests.map((request) => (
+                    form.signatureRequests.map((request) => {
+                      const recipientSummary = buildRecipientSummary(request);
+
+                      return (
                       <div className="bm-signature-row" key={request.id}>
                         <div className="bm-signature-row-copy">
                           <div className="bm-document-row-head">
-                            <strong>{request.recipientName}</strong>
+                            <strong>{request.documentTitle || form.name}</strong>
                             <StatusBadge tone={getSignatureTone(request.statusKey)}>{request.status}</StatusBadge>
                           </div>
-                          <p>
-                            {request.recipientRole} · {request.recipientEmail}
-                            {request.signingOrder ? ` · Order ${request.signingOrder}` : ""}
-                          </p>
+                          <p>{recipientSummary.label}</p>
+                          {recipientSummary.detail ? <p>{recipientSummary.detail}</p> : null}
                           <p>
                             {request.sentAt ? `Sent ${formatDateLabel(request.sentAt)}` : "Not sent yet"}
                             {request.completedAt ? ` · Signed ${formatDateLabel(request.completedAt)}` : ""}
@@ -483,7 +510,7 @@ export function TransactionFormsSignaturesCard({
 
                         {canManageSignatures ? (
                           <div className="bm-signature-row-actions">
-                            {request.statusKey === "draft" ? (
+                            {request.statusKey === "draft" || request.statusKey === "pending_send" ? (
                               <Button
                                 disabled={pendingAction === `send:${request.id}`}
                                 onClick={() => handleSignatureAction(request.id, "send")}
@@ -521,7 +548,7 @@ export function TransactionFormsSignaturesCard({
                                 </Button>
                               </>
                             ) : null}
-                            {(request.statusKey === "draft" || request.statusKey === "sent" || request.statusKey === "viewed") ? (
+                            {(request.statusKey === "draft" || request.statusKey === "pending_send" || request.statusKey === "sent" || request.statusKey === "viewed") ? (
                               <Button
                                 disabled={pendingAction === `canceled:${request.id}`}
                                 onClick={() => handleSignatureAction(request.id, "canceled")}
@@ -534,7 +561,8 @@ export function TransactionFormsSignaturesCard({
                           </div>
                         ) : null}
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <EmptyState title="No signature requests yet." />
                   )}

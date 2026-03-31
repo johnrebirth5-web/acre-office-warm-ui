@@ -60,7 +60,11 @@ export type PermissionKey =
   | "documents:submit:transaction"
   | "documents:submit:individual"
   | "forms:use"
+  | "signatures:view"
   | "signatures:manage"
+  | "signatures:template_manage"
+  | "signatures:report_view"
+  | "signatures:report_export"
   | "incoming_updates:review"
   | "library:view"
   | "library:manage"
@@ -673,13 +677,49 @@ const permissionCatalog: PermissionDefinition[] = [
     scopeBehavior: "self"
   },
   {
-    key: "signatures:manage",
-    label: "Can manage signatures",
-    description: "Create and manage signature requests.",
+    key: "signatures:view",
+    label: "Can view signatures",
+    description: "Open the signature center and view signature requests that are in scope.",
     group: "documents",
     parentKey: "documents:view",
     sortOrder: 137,
     scopeBehavior: "self"
+  },
+  {
+    key: "signatures:manage",
+    label: "Can manage signatures",
+    description: "Create, send, resend, and update signature requests.",
+    group: "documents",
+    parentKey: "signatures:view",
+    sortOrder: 138,
+    scopeBehavior: "self"
+  },
+  {
+    key: "signatures:template_manage",
+    label: "Can manage signature templates",
+    description: "Create, edit, activate, and deactivate reusable signature templates.",
+    group: "documents",
+    parentKey: "signatures:view",
+    sortOrder: 139,
+    scopeBehavior: "company"
+  },
+  {
+    key: "signatures:report_view",
+    label: "Can view signature reports",
+    description: "View signature center reporting and status summaries.",
+    group: "documents",
+    parentKey: "signatures:view",
+    sortOrder: 140,
+    scopeBehavior: "company"
+  },
+  {
+    key: "signatures:report_export",
+    label: "Can export signature reports",
+    description: "Export signature center reports to CSV.",
+    group: "documents",
+    parentKey: "signatures:report_view",
+    sortOrder: 141,
+    scopeBehavior: "company"
   },
   {
     key: "incoming_updates:review",
@@ -687,7 +727,7 @@ const permissionCatalog: PermissionDefinition[] = [
     description: "Review incoming updates and synced content.",
     group: "documents",
     parentKey: "documents:view",
-    sortOrder: 138,
+    sortOrder: 142,
     scopeBehavior: "company"
   },
   {
@@ -1088,6 +1128,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:view",
     "contacts:view:company",
     "documents:view",
+    "signatures:view",
+    "signatures:manage",
+    "signatures:report_view",
+    "signatures:report_export",
     "library:view",
     "accounting:view",
     "accounting:manage",
@@ -1121,6 +1165,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:view",
     "contacts:view:company",
     "documents:view",
+    "signatures:view",
+    "signatures:manage",
+    "signatures:report_view",
+    "signatures:report_export",
     "library:view",
     "accounting:view",
     "accounting:billing:view",
@@ -1148,6 +1196,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:edit",
     "contacts:link",
     "documents:view",
+    "signatures:view",
     "offers:view",
     "tasks:view",
     "accounting:billing:view",
@@ -1168,6 +1217,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:edit",
     "contacts:link",
     "documents:view",
+    "signatures:view",
     "offers:view",
     "tasks:view",
     "accounting:billing:view",
@@ -1206,7 +1256,11 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "documents:manage",
     "documents:approve",
     "forms:use",
+    "signatures:view",
     "signatures:manage",
+    "signatures:template_manage",
+    "signatures:report_view",
+    "signatures:report_export",
     "incoming_updates:review",
     "accounting:view",
     "accounting:manage",
@@ -1255,6 +1309,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "contacts:view",
     "contacts:view:company",
     "documents:view",
+    "signatures:view",
     "offers:view",
     "offers:view:company",
     "tasks:view",
@@ -1558,8 +1613,24 @@ export function canUseOfficeForms(subject: PermissionSubject): boolean {
   return can(subject, "forms:use");
 }
 
+export function canViewOfficeSignatures(subject: PermissionSubject): boolean {
+  return can(subject, "signatures:view") || can(subject, "signatures:manage");
+}
+
 export function canManageOfficeSignatures(subject: PermissionSubject): boolean {
   return can(subject, "signatures:manage");
+}
+
+export function canManageOfficeSignatureTemplates(subject: PermissionSubject): boolean {
+  return can(subject, "signatures:template_manage");
+}
+
+export function canViewOfficeSignatureReports(subject: PermissionSubject): boolean {
+  return can(subject, "signatures:report_view") || canManageOfficeSignatures(subject);
+}
+
+export function canExportOfficeSignatureReports(subject: PermissionSubject): boolean {
+  return can(subject, "signatures:report_export");
 }
 
 export function canReviewOfficeIncomingUpdates(subject: PermissionSubject): boolean {

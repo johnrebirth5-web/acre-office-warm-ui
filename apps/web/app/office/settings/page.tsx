@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { canAccessOfficeCommissionWorkspace, canAccessOfficeSettings, canManageOfficeSettings } from "@acre/auth";
+import {
+  canAccessOfficeCommissionWorkspace,
+  canAccessOfficeSettings,
+  canManageOfficeSettings,
+  canManageOfficeSignatureTemplates
+} from "@acre/auth";
 import { PageHeader, PageHeaderSummary, PageShell, SectionCard, StatCard, SummaryChip } from "@acre/ui";
 import { getOfficeSettingsSummarySnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
@@ -99,6 +104,17 @@ export default async function OfficeSettingsPage() {
             Open checklist templates
           </Link>
         </SectionCard>
+
+        {canManageOfficeSignatureTemplates(context.currentMembership) || canManageOfficeSettings(context.currentMembership) ? (
+          <SectionCard subtitle="Service-account based Google Drive archival targets for completed signature envelopes." title="Signature Drive">
+            <p className="office-settings-copy">
+              Save the shared drive credentials, root folder, and category-specific folder IDs that Acre uses when completed signed files are archived.
+            </p>
+            <Link className="office-settings-link" href="/office/settings/signature-drive">
+              Open signature drive settings
+            </Link>
+          </SectionCard>
+        ) : null}
 
         {canAccessOfficeCommissionWorkspace(context.currentMembership) ? (
           <SectionCard subtitle="Default split templates, member-level defaults, and advanced legacy commission tools." title="Commission plans">

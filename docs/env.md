@@ -11,9 +11,11 @@
 - 但 `Office Pipeline workspace`、`Office Transactions`、`Office Contacts`、`Office Tasks`、`Office Accounting`、transaction finance、密码登录 / 邀请接受 / 用户管理、`/office/activity` 和数据库 probe 已经依赖 `DATABASE_URL`
 - transaction detail 下的 checklist/tasks 也已经依赖 `DATABASE_URL`
 - `Office Reports` 的 CSV 导出 route 也依赖 `DATABASE_URL`
+- `/office/signatures` 中心和模板库也依赖 `DATABASE_URL`
 - `/api/office/activity/comments` 也依赖 `DATABASE_URL`
 - transaction detail 下的 documents / forms / signatures / incoming updates 也已经依赖 `DATABASE_URL`
 - transaction detail 下的外部签署邮件发送额外依赖系统内 `Settings > Email delivery` 发件配置；当 `ACRE_RESEND_API_KEY` 存在时优先走 Resend HTTPS API，否则继续走 SMTP / signature mailer fallback
+- `Settings > Signature Drive` 保存的 Google Drive service account 私钥也会使用系统设置加密 secret 做加密 / 解密；当前没有单独的 `GOOGLE_*` env 变量要求
 - 一旦执行 Prisma 相关命令，或访问这些数据库路径，`DATABASE_URL` 就变成必需项
 - 当前本地 auth/session 可以使用默认开发 secret，但建议显式配置 `ACRE_SESSION_SECRET`
 
@@ -39,11 +41,13 @@
 - 对 `/office/pipeline`、`/office/transactions`、`/office/contacts`、`/office/activity`、`/login`、`/invite/[token]`、`/change-password`、`/office/settings/users`、数据库 probe 是必填
 - 对 `/office/tasks` 也是必填
 - 对 `/office/accounting` 也是必填
+- 对 `/office/signatures` 和 `/office/signatures/templates` 也是必填
 - 对 transaction detail 下的 checklist/tasks 读写也是必填
 - 对 `/api/office/reports/export` 也是必填
 - 对 transaction detail 下的 finance 读写也是必填
 - 对 `/api/office/activity/comments` 也是必填
 - 对 `/api/office/accounting/transactions*` 和 `/api/office/accounting/earnest-money*` 也是必填
+- 对 `/api/office/signatures/export`、`/api/office/signatures/templates`、`/api/office/signatures/:signatureRequestId/drive-sync` 和 `/api/office/settings/signature-drive` 也是必填
 - 对 `/api/office/transactions/:transactionId/documents*` / `forms*` / `signatures*` / `incoming-updates*` 也是必填
 
 示例格式：
@@ -73,6 +77,8 @@ Docker 本地开发补充：
 - `/office/activity` 会失败
 - `/office/tasks` 会失败
 - `/office/accounting` 会失败
+- `/office/signatures` 会失败
+- `/office/signatures/templates` 会失败
 - `/login`、`/invite/[token]`、`/change-password` 和需要 session context 的 server-side 查询会失败
 - `/office/settings/users` 以及其邀请 / 解锁写接口会失败
 - transaction detail 下的 checklist/tasks route 会失败
@@ -80,6 +86,10 @@ Docker 本地开发补充：
 - `/api/office/activity/comments` 会失败
 - `/api/office/accounting/transactions*` 会失败
 - `/api/office/accounting/earnest-money*` 会失败
+- `/api/office/signatures/export` 会失败
+- `/api/office/signatures/templates` 会失败
+- `/api/office/signatures/:signatureRequestId/drive-sync` 会失败
+- `/api/office/settings/signature-drive` 会失败
 - `/api/office/transactions/:transactionId/documents*` 会失败
 - `/api/office/transactions/:transactionId/forms*` 会失败
 - `/api/office/transactions/:transactionId/signatures*` 会失败
@@ -153,14 +163,17 @@ ACRE_BASE_URL="https://acresystem.us"
 用途：
 
 - 为系统内保存的 SMTP 密码做加密 / 解密
+- 为系统内保存的 `Signature Drive` service account 私钥做加密 / 解密
 - 当前由 `packages/db/src/smtp-settings.ts` 读取
+- 当前也由 `packages/db/src/signature-drive-settings.ts` 读取
 - 当前会优先使用这个值；未设置时会回退到 `ACRE_SESSION_SECRET`
 
 是否必填：
 
 - 不是强制必填
 - 如果没有配置它，但已经配置了 `ACRE_SESSION_SECRET`，系统内 SMTP 设置仍然可以工作
-- 如果两者都缺失，系统内保存的 SMTP 密码无法写入或解密
+- 如果没有配置它，但已经配置了 `ACRE_SESSION_SECRET`，系统内 `Signature Drive` 设置仍然可以工作
+- 如果两者都缺失，系统内保存的 SMTP 密码和 Google Drive 私钥都无法写入或解密
 
 示例格式：
 

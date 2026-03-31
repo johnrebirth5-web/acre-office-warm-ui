@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, CheckboxField, FormField, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
-import type { OfficeSignatureAuditEntry, OfficeSignatureField, OfficeSignatureRequest, OfficeTransactionDocument } from "@acre/db";
+import { Button, CheckboxField, FormField, SelectInput, StatusBadge, TextInput, TextareaInput } from "@acre/ui";
+import type {
+  OfficeSignatureAuditEntry,
+  OfficeSignatureField,
+  OfficeSignatureRequest,
+  OfficeSignatureTemplate,
+  OfficeTransactionDocument
+} from "@acre/db";
 import { usePdfPreview } from "../../../../../components/signature/use-pdf-preview";
 
 type SignatureRequestEditorProps = {
@@ -15,17 +21,35 @@ type SignatureRequestEditorProps = {
   initialAuditEntries: OfficeSignatureAuditEntry[];
   defaultSenderDisplayName: string;
   defaultReplyTo: string;
+  availableTemplates?: OfficeSignatureTemplate[];
+  initialTemplate?: OfficeSignatureTemplate | null;
 };
 
 type SignatureDraftState = {
-  recipientName: string;
-  recipientEmail: string;
-  recipientRole: string;
+  recipients: SignatureRecipientDraft[];
+  ccRecipients: SignatureRecipientDraft[];
   emailSubject: string;
   emailBody: string;
   expiresAt: string;
   senderDisplayName: string;
   senderReplyTo: string;
+};
+
+type SignatureRecipientDraft = {
+  id: string;
+  roleKey: "signer" | "approver" | "cc";
+  name: string;
+  email: string;
+  recipientRole: string;
+  routingStep: string;
+  sortOrder: number;
+};
+
+type TemplateDraftState = {
+  templateId: string;
+  name: string;
+  description: string;
+  category: "transaction" | "hr" | "finance" | "admin";
 };
 
 type FieldGestureState =
@@ -49,9 +73,17 @@ type FieldGestureState =
 const fieldDefaults: Record<OfficeSignatureField["fieldType"], { label: string; width: number; height: number; fontStyle?: string }> = {
   signature: { label: "Signature", width: 0.26, height: 0.08, fontStyle: "signature" },
   date: { label: "Date", width: 0.18, height: 0.05 },
-  name: { label: "Name", width: 0.24, height: 0.05 },
-  text: { label: "Text", width: 0.24, height: 0.06 }
+  initials: { label: "Initials", width: 0.16, height: 0.05 },
+  name: { label: "Full Name", width: 0.24, height: 0.05 },
+  text: { label: "Text", width: 0.24, height: 0.06 },
+  email: { label: "Email", width: 0.26, height: 0.05 },
+  title: { label: "Title", width: 0.22, height: 0.05 },
+  company: { label: "Company", width: 0.28, height: 0.05 },
+  checkbox: { label: "Checkbox", width: 0.06, height: 0.04 },
+  dropdown: { label: "Dropdown", width: 0.24, height: 0.05 }
 };
+
+const placementFieldTools: OfficeSignatureField["fieldType"][] = ["signature", "initials", "date", "name", "text", "email", "title", "company", "checkbox", "dropdown"];
 
 const minimumFieldWidth = 0.08;
 const minimumFieldHeight = 0.04;
@@ -62,21 +94,127 @@ function clampFieldMetric(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+function createRecipientDraft(
+  roleKey: SignatureRecipientDraft["roleKey"],
+  overrides: Partial<SignatureRecipientDraft> = {}
+): SignatureRecipientDraft {
+  return {
+    id: overrides.id ?? `draft-recipient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    roleKey,
+    name: overrides.name ?? "",
+    email: overrides.email ?? "",
+    recipientRole: overrides.recipientRole ?? (roleKey === "approver" ? "Approver" : roleKey === "cc" ? "CC" : "Signer"),
+    routingStep: overrides.routingStep ?? (roleKey === "cc" ? "" : "1"),
+    sortOrder: overrides.sortOrder ?? 0
+  };
+}
+
 function buildDraftState(
   document: OfficeTransactionDocument,
   request: OfficeSignatureRequest | null,
+  template: OfficeSignatureTemplate | null,
   defaultSenderDisplayName: string,
   defaultReplyTo: string
 ): SignatureDraftState {
+  const recipients =
+    request?.recipients.filter((recipient) => recipient.roleKey !== "cc").map((recipient) =>
+      createRecipientDraft(recipient.roleKey === "approver" ? "approver" : "signer", {
+        id: recipient.id,
+        name: recipient.name,
+        email: recipient.email,
+        recipientRole: recipient.recipientRole,
+        routingStep: String(recipient.routingStep),
+        sortOrder: recipient.sortOrder
+      })
+    ) ??
+    [];
+  const ccRecipients =
+    request?.ccRecipients.map((recipient) =>
+      createRecipientDraft("cc", {
+        id: recipient.id,
+        name: recipient.name,
+        email: recipient.email,
+        recipientRole: recipient.recipientRole,
+        routingStep: "",
+        sortOrder: recipient.sortOrder
+      })
+    ) ?? [];
+  const fallbackRecipient =
+    recipients[0] ??
+    createRecipientDraft("signer", {
+      name: request?.recipientName ?? "",
+      email: request?.recipientEmail ?? "",
+      recipientRole: request?.recipientRole ?? "Signer",
+      routingStep: request?.signingOrder ? String(request.signingOrder) : "1",
+      sortOrder: 0
+    });
+
+  const templateRecipients =
+    template?.recipients.filter((recipient) => recipient.roleKey !== "cc").map((recipient) =>
+      createRecipientDraft(recipient.roleKey === "approver" ? "approver" : "signer", {
+        id: recipient.id,
+        name: "",
+        email: "",
+        recipientRole: recipient.recipientRole,
+        routingStep: String(recipient.routingStep),
+        sortOrder: recipient.sortOrder
+      })
+    ) ?? [];
+  const templateCcRecipients =
+    template?.recipients.filter((recipient) => recipient.roleKey === "cc").map((recipient) =>
+      createRecipientDraft("cc", {
+        id: recipient.id,
+        name: "",
+        email: "",
+        recipientRole: recipient.recipientRole,
+        routingStep: "",
+        sortOrder: recipient.sortOrder
+      })
+    ) ?? [];
+
   return {
-    recipientName: request?.recipientName ?? "",
-    recipientEmail: request?.recipientEmail ?? "",
-    recipientRole: request?.recipientRole ?? "Signer",
-    emailSubject: request?.emailSubject ?? `Signature requested: ${document.title}`,
-    emailBody: request?.emailBody ?? `${defaultSenderDisplayName} sent you a document to review and sign in Acre.`,
+    recipients: recipients.length > 0 ? recipients : templateRecipients.length > 0 ? templateRecipients : [fallbackRecipient],
+    ccRecipients: ccRecipients.length > 0 ? ccRecipients : templateCcRecipients,
+    emailSubject: request?.emailSubject ?? template?.emailSubject ?? `Signature requested: ${document.title}`,
+    emailBody:
+      request?.emailBody ?? template?.emailBody ?? `${defaultSenderDisplayName} sent you a document to review and sign in Acre.`,
     expiresAt: request?.expiresAt ? request.expiresAt.slice(0, 10) : "",
-    senderDisplayName: request?.senderDisplayName || defaultSenderDisplayName,
-    senderReplyTo: request?.senderReplyTo || defaultReplyTo
+    senderDisplayName: request?.senderDisplayName || template?.senderDisplayName || defaultSenderDisplayName,
+    senderReplyTo: request?.senderReplyTo || template?.senderReplyTo || defaultReplyTo
+  };
+}
+
+function buildTemplateDraftState(template: OfficeSignatureTemplate | null): TemplateDraftState {
+  return {
+    templateId: template?.id ?? "",
+    name: template?.name ?? "",
+    description: template?.description ?? "",
+    category: template?.category ?? "transaction"
+  };
+}
+
+function mapTemplateFieldToSignatureField(templateField: OfficeSignatureTemplate["fields"][number]): OfficeSignatureField {
+  return {
+    id: `template-field-${templateField.id}`,
+    signatureRequestId: "",
+    assignedRecipientId: templateField.assignedTemplateRecipientId || null,
+    fieldType: templateField.fieldType,
+    label: templateField.label,
+    page: templateField.page,
+    x: templateField.x,
+    y: templateField.y,
+    width: templateField.width,
+    height: templateField.height,
+    required: templateField.required,
+    defaultValue: templateField.defaultValue,
+    fontStyle: templateField.fontStyle,
+    fieldKey: templateField.fieldKey,
+    isReadOnly: templateField.isReadOnly,
+    isSystemPrefilled: templateField.isSystemPrefilled,
+    visibilityRule: templateField.visibilityRule,
+    mirrorGroup: templateField.mirrorGroup,
+    fieldOptions: templateField.fieldOptions,
+    sortOrder: templateField.sortOrder
   };
 }
 
@@ -85,11 +223,11 @@ function getRequestTone(statusKey: OfficeSignatureRequest["statusKey"]) {
     return "success" as const;
   }
 
-  if (statusKey === "canceled" || statusKey === "declined" || statusKey === "expired") {
+  if (statusKey === "canceled" || statusKey === "declined" || statusKey === "expired" || statusKey === "voided") {
     return "danger" as const;
   }
 
-  if (statusKey === "sent" || statusKey === "viewed" || statusKey === "signed") {
+  if (statusKey === "pending_send" || statusKey === "sent" || statusKey === "viewed" || statusKey === "signed") {
     return "accent" as const;
   }
 
@@ -103,17 +241,22 @@ export function SignatureRequestEditor({
   initialFields,
   initialAuditEntries,
   defaultSenderDisplayName,
-  defaultReplyTo
+  defaultReplyTo,
+  availableTemplates = [],
+  initialTemplate = null
 }: SignatureRequestEditorProps) {
   const router = useRouter();
   const { pages, isLoading, error: previewError } = usePdfPreview(document.storageUrl);
   const [requestId, setRequestId] = useState(initialRequest?.id ?? "");
   const [requestStatus, setRequestStatus] = useState<OfficeSignatureRequest["statusKey"]>(initialRequest?.statusKey ?? "draft");
   const [draftState, setDraftState] = useState<SignatureDraftState>(
-    buildDraftState(document, initialRequest, defaultSenderDisplayName, defaultReplyTo)
+    buildDraftState(document, initialRequest, initialTemplate, defaultSenderDisplayName, defaultReplyTo)
   );
-  const [fields, setFields] = useState<OfficeSignatureField[]>(initialFields);
+  const [fields, setFields] = useState<OfficeSignatureField[]>(
+    initialFields.length > 0 ? initialFields : initialTemplate?.fields.map(mapTemplateFieldToSignatureField) ?? []
+  );
   const [auditEntries] = useState<OfficeSignatureAuditEntry[]>(initialAuditEntries);
+  const [templateDraft, setTemplateDraft] = useState<TemplateDraftState>(() => buildTemplateDraftState(initialTemplate));
   const [selectedTool, setSelectedTool] = useState<OfficeSignatureField["fieldType"]>("signature");
   const [selectedFieldId, setSelectedFieldId] = useState<string>(initialFields[0]?.id ?? "");
   const [activeGesture, setActiveGesture] = useState<FieldGestureState | null>(null);
@@ -188,11 +331,70 @@ export function SignatureRequestEditor({
     };
   }, [activeGesture]);
 
-  function updateDraftField(field: keyof SignatureDraftState, value: string) {
+  const actionableRecipients = draftState.recipients;
+
+  function updateDraftField(field: Exclude<keyof SignatureDraftState, "recipients" | "ccRecipients">, value: string) {
     setDraftState((current) => ({
       ...current,
       [field]: value
     }));
+  }
+
+  function updateRecipient(
+    collection: "recipients" | "ccRecipients",
+    recipientId: string,
+    field: keyof SignatureRecipientDraft,
+    value: string
+  ) {
+    setDraftState((current) => ({
+      ...current,
+      [collection]: current[collection].map((recipient) =>
+        recipient.id === recipientId
+          ? {
+              ...recipient,
+              [field]: value
+            }
+          : recipient
+      )
+    }));
+  }
+
+  function addRecipient(roleKey: SignatureRecipientDraft["roleKey"]) {
+    setDraftState((current) => {
+      const collection = roleKey === "cc" ? "ccRecipients" : "recipients";
+      const nextRecipient = createRecipientDraft(roleKey, {
+        sortOrder: current.recipients.length + current.ccRecipients.length,
+        routingStep: roleKey === "cc" ? "" : String(Math.max(1, current.recipients.length + 1))
+      });
+
+      return {
+        ...current,
+        [collection]: [...current[collection], nextRecipient]
+      };
+    });
+  }
+
+  function removeRecipient(collection: "recipients" | "ccRecipients", recipientId: string) {
+    setDraftState((current) => {
+      const nextRecipients = current[collection].filter((recipient) => recipient.id !== recipientId);
+      const fallbackOwnerId = (collection === "recipients" ? nextRecipients : current.recipients)[0]?.id ?? null;
+
+      setFields((existingFields) =>
+        existingFields.map((field) =>
+          field.assignedRecipientId === recipientId
+            ? {
+                ...field,
+                assignedRecipientId: fallbackOwnerId
+              }
+            : field
+        )
+      );
+
+      return {
+        ...current,
+        [collection]: collection === "recipients" && nextRecipients.length === 0 ? [createRecipientDraft("signer")] : nextRecipients
+      };
+    });
   }
 
   function updateField(fieldId: string, changes: Partial<OfficeSignatureField>) {
@@ -223,6 +425,7 @@ export function SignatureRequestEditor({
     const nextField: OfficeSignatureField = {
       id,
       signatureRequestId: requestId,
+      assignedRecipientId: actionableRecipients[0]?.id ?? null,
       fieldType: selectedTool,
       label: defaults.label,
       page: pageNumber,
@@ -233,6 +436,12 @@ export function SignatureRequestEditor({
       required: true,
       defaultValue: selectedTool === "date" ? new Date().toISOString().slice(0, 10) : "",
       fontStyle: defaults.fontStyle ?? "",
+      fieldKey: "",
+      isReadOnly: false,
+      isSystemPrefilled: false,
+      visibilityRule: {},
+      mirrorGroup: "",
+      fieldOptions: {},
       sortOrder: fields.length
     };
 
@@ -297,8 +506,12 @@ export function SignatureRequestEditor({
   }
 
   async function saveDraft(sendAfterSave: boolean) {
-    if (!draftState.recipientName.trim() || !draftState.recipientEmail.trim()) {
-      setError("Recipient name and email are required.");
+    const validRecipients = draftState.recipients.filter(
+      (recipient) => recipient.name.trim() && recipient.email.trim() && recipient.recipientRole.trim()
+    );
+
+    if (!validRecipients.length) {
+      setError("At least one signer or approver is required.");
       return;
     }
 
@@ -307,11 +520,18 @@ export function SignatureRequestEditor({
       return;
     }
 
+    if (validRecipients.length > 1 && fields.some((field) => !field.assignedRecipientId)) {
+      setError("Assign every field to a specific signer or approver before saving a multi-recipient request.");
+      return;
+    }
+
     setPendingAction(sendAfterSave ? "send" : "save");
     setError("");
     setSuccessMessage("");
 
     try {
+      const previousRecipientDrafts = [...draftState.recipients, ...draftState.ccRecipients];
+      const primaryRecipient = validRecipients[0]!;
       const requestResponse = await fetch(`/api/office/transactions/${transactionId}/signatures`, {
         method: "POST",
         headers: {
@@ -320,9 +540,27 @@ export function SignatureRequestEditor({
         body: JSON.stringify({
           signatureRequestId: requestId || null,
           documentId: document.id,
-          recipientName: draftState.recipientName,
-          recipientEmail: draftState.recipientEmail,
-          recipientRole: draftState.recipientRole,
+          recipientName: primaryRecipient.name,
+          recipientEmail: primaryRecipient.email,
+          recipientRole: primaryRecipient.recipientRole,
+          recipients: draftState.recipients.map((recipient, index) => ({
+            id: recipient.id,
+            role: recipient.roleKey,
+            name: recipient.name,
+            email: recipient.email,
+            recipientRole: recipient.recipientRole,
+            routingStep: recipient.roleKey === "cc" ? null : Number(recipient.routingStep || "1"),
+            sortOrder: index
+          })),
+          ccRecipients: draftState.ccRecipients.map((recipient, index) => ({
+            id: recipient.id,
+            role: "cc",
+            name: recipient.name,
+            email: recipient.email,
+            recipientRole: recipient.recipientRole,
+            routingStep: null,
+            sortOrder: draftState.recipients.length + index
+          })),
           emailSubject: draftState.emailSubject,
           emailBody: draftState.emailBody,
           expiresAt: draftState.expiresAt || null,
@@ -341,8 +579,23 @@ export function SignatureRequestEditor({
 
       const nextRequest = requestPayload.signatureRequest;
       const nextRequestId = nextRequest.id;
+      const recipientIdMap = new Map<string, string>();
+
+      for (const draftRecipient of previousRecipientDrafts) {
+        const matchedRecipient = [...nextRequest.recipients, ...nextRequest.ccRecipients].find(
+          (recipient) =>
+            recipient.sortOrder === draftRecipient.sortOrder &&
+            recipient.email.trim().toLowerCase() === draftRecipient.email.trim().toLowerCase()
+        );
+
+        if (matchedRecipient) {
+          recipientIdMap.set(draftRecipient.id, matchedRecipient.id);
+        }
+      }
+
       setRequestId(nextRequestId);
       setRequestStatus(nextRequest.statusKey);
+      setDraftState(buildDraftState(document, nextRequest, initialTemplate, defaultSenderDisplayName, defaultReplyTo));
 
       const fieldsResponse = await fetch(`/api/office/transactions/${transactionId}/signatures/${nextRequestId}/fields`, {
         method: "PUT",
@@ -352,6 +605,7 @@ export function SignatureRequestEditor({
         body: JSON.stringify({
           fields: fields.map((field, index) => ({
             ...field,
+            assignedRecipientId: field.assignedRecipientId ? recipientIdMap.get(field.assignedRecipientId) ?? field.assignedRecipientId : null,
             sortOrder: index
           }))
         })
@@ -377,7 +631,15 @@ export function SignatureRequestEditor({
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            action: requestStatus === "sent" || requestStatus === "viewed" || requestStatus === "expired" ? "resend" : "send"
+            action:
+              requestStatus === "sent" ||
+              requestStatus === "viewed" ||
+              requestStatus === "expired" ||
+              requestStatus === "voided" ||
+              requestStatus === "canceled" ||
+              requestStatus === "signed"
+                ? "resend"
+                : "send"
           })
         });
 
@@ -445,6 +707,108 @@ export function SignatureRequestEditor({
     }
   }
 
+  async function handleSaveTemplate() {
+    if (!templateDraft.name.trim()) {
+      setError("Template name is required before saving.");
+      return;
+    }
+
+    if (draftState.recipients.length === 0 || fields.length === 0) {
+      setError("Add recipients and fields before saving this request as a template.");
+      return;
+    }
+
+    setPendingAction("save-template");
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch("/api/office/signatures/templates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          templateId: templateDraft.templateId || null,
+          name: templateDraft.name,
+          description: templateDraft.description,
+          category: templateDraft.category,
+          isActive: true,
+          emailSubject: draftState.emailSubject,
+          emailBody: draftState.emailBody,
+          senderDisplayName: draftState.senderDisplayName,
+          senderReplyTo: draftState.senderReplyTo,
+          recipients: [
+            ...draftState.recipients.map((recipient, index) => ({
+              id: recipient.id,
+              role: recipient.roleKey,
+              recipientRole: recipient.recipientRole,
+              routingStep: Number(recipient.routingStep || "1"),
+              sortOrder: index
+            })),
+            ...draftState.ccRecipients.map((recipient, index) => ({
+              id: recipient.id,
+              role: "cc",
+              recipientRole: recipient.recipientRole,
+              routingStep: 0,
+              sortOrder: draftState.recipients.length + index
+            }))
+          ],
+          fields: fields.map((field, index) => ({
+            assignedTemplateRecipientId: field.assignedRecipientId,
+            fieldType: field.fieldType,
+            label: field.label,
+            page: field.page,
+            x: field.x,
+            y: field.y,
+            width: field.width,
+            height: field.height,
+            required: field.required,
+            defaultValue: field.defaultValue,
+            fontStyle: field.fontStyle,
+            fieldKey: field.fieldKey,
+            isReadOnly: field.isReadOnly,
+            isSystemPrefilled: field.isSystemPrefilled,
+            visibilityRule: field.visibilityRule,
+            mirrorGroup: field.mirrorGroup,
+            fieldOptions: field.fieldOptions,
+            sortOrder: index
+          }))
+        })
+      });
+
+      const payload = (await response.json().catch(() => null)) as { template?: OfficeSignatureTemplate; error?: string } | null;
+
+      if (!response.ok || !payload?.template) {
+        throw new Error(payload?.error ?? "Signature template could not be saved.");
+      }
+
+      setTemplateDraft({
+        templateId: payload.template.id,
+        name: payload.template.name,
+        description: payload.template.description,
+        category: payload.template.category
+      });
+      setSuccessMessage("Signature template saved.");
+    } catch (templateError) {
+      setError(templateError instanceof Error ? templateError.message : "Signature template could not be saved.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  function handleTemplateSelection(templateId: string) {
+    const query = new URLSearchParams({
+      documentId: document.id
+    });
+
+    if (templateId) {
+      query.set("templateId", templateId);
+    }
+
+    router.push(`/office/transactions/${transactionId}/signatures/new?${query.toString()}`);
+  }
+
   return (
     <div className="office-signature-editor">
       <div className="office-signature-editor-main">
@@ -458,7 +822,7 @@ export function SignatureRequestEditor({
           </div>
 
           <div className="office-signature-toolbar">
-            {(["signature", "date", "name", "text"] as const).map((fieldType) => (
+            {placementFieldTools.map((fieldType) => (
               <button
                 className={`office-toggle-link${selectedTool === fieldType ? " is-active" : ""}`}
                 key={fieldType}
@@ -519,21 +883,183 @@ export function SignatureRequestEditor({
         <section className="bm-detail-card">
           <div className="bm-card-head">
             <div>
-              <h3>Signer and email</h3>
-              <span>Configure the recipient, email copy, and optional expiration date before sending.</span>
+              <h3>Template library</h3>
+              <span>Load a saved template into this document or save the current recipient and field map as a reusable template.</span>
             </div>
           </div>
 
           <div className="bm-document-upload-grid">
-            <FormField label="Recipient name">
-              <TextInput onChange={(event) => updateDraftField("recipientName", event.target.value)} value={draftState.recipientName} />
+            <FormField label="Apply template">
+              <SelectInput
+                onChange={(event) => handleTemplateSelection(event.target.value)}
+                value={initialTemplate?.id ?? ""}
+              >
+                <option value="">No template</option>
+                {availableTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} · {template.categoryLabel}
+                  </option>
+                ))}
+              </SelectInput>
             </FormField>
-            <FormField label="Recipient email">
-              <TextInput onChange={(event) => updateDraftField("recipientEmail", event.target.value)} type="email" value={draftState.recipientEmail} />
+            <FormField label="Template name">
+              <TextInput
+                onChange={(event) => setTemplateDraft((current) => ({ ...current, name: event.target.value }))}
+                value={templateDraft.name}
+              />
             </FormField>
-            <FormField label="Recipient role">
-              <TextInput onChange={(event) => updateDraftField("recipientRole", event.target.value)} value={draftState.recipientRole} />
+            <FormField label="Template category">
+              <SelectInput
+                onChange={(event) =>
+                  setTemplateDraft((current) => ({
+                    ...current,
+                    category: event.target.value as TemplateDraftState["category"]
+                  }))
+                }
+                value={templateDraft.category}
+              >
+                <option value="transaction">Transaction</option>
+                <option value="hr">HR</option>
+                <option value="finance">Finance</option>
+                <option value="admin">Admin</option>
+              </SelectInput>
             </FormField>
+            <FormField className="office-form-grid-span-4" label="Template description">
+              <TextareaInput
+                onChange={(event) => setTemplateDraft((current) => ({ ...current, description: event.target.value }))}
+                rows={3}
+                value={templateDraft.description}
+              />
+            </FormField>
+          </div>
+
+          <div className="bm-document-edit-actions">
+            <Button disabled={pendingAction === "save-template"} onClick={handleSaveTemplate} variant="secondary">
+              {pendingAction === "save-template" ? "Saving template..." : templateDraft.templateId ? "Update template" : "Save as template"}
+            </Button>
+          </div>
+        </section>
+
+        <section className="bm-detail-card">
+          <div className="bm-card-head">
+            <div>
+              <h3>Recipients and delivery</h3>
+              <span>Configure signers, approvers, CC recipients, routing steps, and invitation copy before sending.</span>
+            </div>
+          </div>
+
+          <div className="office-signature-summary-list">
+            <p>
+              <strong>Actionable recipients</strong>
+            </p>
+            {draftState.recipients.map((recipient) => (
+              <p key={recipient.id}>
+                {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} · {recipient.name || "New recipient"}
+              </p>
+            ))}
+            {draftState.ccRecipients.length > 0 ? (
+              <p>
+                <strong>CC recipients</strong> · {draftState.ccRecipients.length}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="bm-document-edit-actions">
+            <Button onClick={() => addRecipient("signer")} size="sm" variant="secondary">
+              Add signer
+            </Button>
+            <Button onClick={() => addRecipient("approver")} size="sm" variant="secondary">
+              Add approver
+            </Button>
+            <Button onClick={() => addRecipient("cc")} size="sm" variant="ghost">
+              Add CC
+            </Button>
+          </div>
+
+          <div className="office-signature-audit-list">
+            {draftState.recipients.map((recipient) => (
+              <article className="office-signature-audit-row" key={recipient.id}>
+                <div className="office-signature-audit-head">
+                  <strong>{recipient.roleKey === "approver" ? "Approver" : "Signer"}</strong>
+                  <span>Step {recipient.routingStep || "1"}</span>
+                </div>
+                <div className="bm-document-upload-grid">
+                  <FormField label="Role">
+                    <SelectInput
+                      onChange={(event) =>
+                        updateRecipient("recipients", recipient.id, "roleKey", event.target.value as SignatureRecipientDraft["roleKey"])
+                      }
+                      value={recipient.roleKey}
+                    >
+                      <option value="signer">Signer</option>
+                      <option value="approver">Approver</option>
+                    </SelectInput>
+                  </FormField>
+                  <FormField label="Name">
+                    <TextInput onChange={(event) => updateRecipient("recipients", recipient.id, "name", event.target.value)} value={recipient.name} />
+                  </FormField>
+                  <FormField label="Email">
+                    <TextInput
+                      onChange={(event) => updateRecipient("recipients", recipient.id, "email", event.target.value)}
+                      type="email"
+                      value={recipient.email}
+                    />
+                  </FormField>
+                  <FormField label="Recipient role">
+                    <TextInput
+                      onChange={(event) => updateRecipient("recipients", recipient.id, "recipientRole", event.target.value)}
+                      value={recipient.recipientRole}
+                    />
+                  </FormField>
+                  <FormField label="Routing step">
+                    <TextInput
+                      inputMode="numeric"
+                      onChange={(event) => updateRecipient("recipients", recipient.id, "routingStep", event.target.value)}
+                      value={recipient.routingStep}
+                    />
+                  </FormField>
+                  <div className="bm-document-edit-actions">
+                    <Button onClick={() => removeRecipient("recipients", recipient.id)} size="sm" variant="danger">
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            ))}
+            {draftState.ccRecipients.map((recipient) => (
+              <article className="office-signature-audit-row" key={recipient.id}>
+                <div className="office-signature-audit-head">
+                  <strong>CC</strong>
+                  <span>Read-only copy</span>
+                </div>
+                <div className="bm-document-upload-grid">
+                  <FormField label="Name">
+                    <TextInput onChange={(event) => updateRecipient("ccRecipients", recipient.id, "name", event.target.value)} value={recipient.name} />
+                  </FormField>
+                  <FormField label="Email">
+                    <TextInput
+                      onChange={(event) => updateRecipient("ccRecipients", recipient.id, "email", event.target.value)}
+                      type="email"
+                      value={recipient.email}
+                    />
+                  </FormField>
+                  <FormField label="Recipient role">
+                    <TextInput
+                      onChange={(event) => updateRecipient("ccRecipients", recipient.id, "recipientRole", event.target.value)}
+                      value={recipient.recipientRole}
+                    />
+                  </FormField>
+                  <div className="bm-document-edit-actions">
+                    <Button onClick={() => removeRecipient("ccRecipients", recipient.id)} size="sm" variant="danger">
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="bm-document-upload-grid">
             <FormField label="Expires on">
               <TextInput onChange={(event) => updateDraftField("expiresAt", event.target.value)} type="date" value={draftState.expiresAt} />
             </FormField>
@@ -587,19 +1113,52 @@ export function SignatureRequestEditor({
 
           {selectedField ? (
             <div className="bm-document-upload-grid">
+              <FormField label="Assigned recipient">
+                <SelectInput
+                  onChange={(event) => updateField(selectedField.id, { assignedRecipientId: event.target.value || null })}
+                  value={selectedField.assignedRecipientId ?? ""}
+                >
+                  <option value="">Unassigned</option>
+                  {draftState.recipients.map((recipient) => (
+                    <option key={recipient.id} value={recipient.id}>
+                      {recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step {recipient.routingStep || "1"} · {recipient.name || recipient.email || recipient.recipientRole}
+                    </option>
+                  ))}
+                </SelectInput>
+              </FormField>
               <FormField label="Label">
                 <TextInput onChange={(event) => updateField(selectedField.id, { label: event.target.value })} value={selectedField.label} />
               </FormField>
               <FormField label="Font style">
                 <TextInput onChange={(event) => updateField(selectedField.id, { fontStyle: event.target.value })} value={selectedField.fontStyle} />
               </FormField>
+              <FormField label="Field key">
+                <TextInput onChange={(event) => updateField(selectedField.id, { fieldKey: event.target.value })} value={selectedField.fieldKey} />
+              </FormField>
               <FormField className="office-form-grid-span-2" label="Default value">
                 <TextInput onChange={(event) => updateField(selectedField.id, { defaultValue: event.target.value })} value={selectedField.defaultValue} />
+              </FormField>
+              <FormField label="Mirror group">
+                <TextInput onChange={(event) => updateField(selectedField.id, { mirrorGroup: event.target.value })} value={selectedField.mirrorGroup} />
               </FormField>
               <CheckboxField className="bm-document-inline-checkbox" label="Required">
                 <input
                   checked={selectedField.required}
                   onChange={(event) => updateField(selectedField.id, { required: event.target.checked })}
+                  type="checkbox"
+                />
+              </CheckboxField>
+              <CheckboxField className="bm-document-inline-checkbox" label="Read-only">
+                <input
+                  checked={selectedField.isReadOnly}
+                  onChange={(event) => updateField(selectedField.id, { isReadOnly: event.target.checked })}
+                  type="checkbox"
+                />
+              </CheckboxField>
+              <CheckboxField className="bm-document-inline-checkbox" label="System prefilled">
+                <input
+                  checked={selectedField.isSystemPrefilled}
+                  onChange={(event) => updateField(selectedField.id, { isSystemPrefilled: event.target.checked })}
                   type="checkbox"
                 />
               </CheckboxField>

@@ -7,8 +7,12 @@ import {
   NotificationType,
   Prisma,
   SignatureAuditEventType,
+  SignatureDriveSyncStatus,
   SignatureFieldType,
+  SignatureRecipientRole,
+  SignatureRecipientStatus,
   SignatureRequestStatus,
+  SignatureTemplateCategory,
   TransactionDocumentSource,
   TransactionDocumentStatus,
   TransactionFormStatus,
@@ -59,6 +63,7 @@ export type OfficeFormTemplateOption = {
 
 export type OfficeSignatureRequest = {
   id: string;
+  templateId: string | null;
   formId: string | null;
   documentId: string | null;
   documentTitle: string;
@@ -76,6 +81,15 @@ export type OfficeSignatureRequest = {
   senderReplyTo: string;
   statusKey: SignatureRequestStatus;
   status: string;
+  contextType: string;
+  contextId: string;
+  contextLabel: string;
+  driveSyncStatus: SignatureDriveSyncStatus;
+  driveSyncStatusLabel: string;
+  driveSyncError: string;
+  driveSyncedAt: string;
+  driveFolderId: string;
+  driveFileId: string;
   expiresAt: string;
   sentAt: string;
   firstViewedAt: string;
@@ -87,11 +101,25 @@ export type OfficeSignatureRequest = {
   expiredAt: string;
   createdAt: string;
   updatedAt: string;
+  recipients: OfficeSignatureRecipient[];
+  ccRecipients: OfficeSignatureRecipient[];
+  artifacts: OfficeSignatureArtifact[];
+  templateSummary: {
+    id: string;
+    name: string;
+    category: SignatureTemplateCategory | "";
+  } | null;
+  contextSummary: {
+    type: string;
+    id: string;
+    label: string;
+  };
 };
 
 export type OfficeSignatureField = {
   id: string;
   signatureRequestId: string;
+  assignedRecipientId: string | null;
   fieldType: SignatureFieldType;
   label: string;
   page: number;
@@ -102,7 +130,59 @@ export type OfficeSignatureField = {
   required: boolean;
   defaultValue: string;
   fontStyle: string;
+  fieldKey: string;
+  isReadOnly: boolean;
+  isSystemPrefilled: boolean;
+  visibilityRule: Record<string, string>;
+  mirrorGroup: string;
+  fieldOptions: Record<string, string>;
   sortOrder: number;
+};
+
+export type OfficeSignatureRecipient = {
+  id: string;
+  roleKey: SignatureRecipientRole;
+  role: string;
+  name: string;
+  email: string;
+  recipientRole: string;
+  routingStep: number;
+  sortOrder: number;
+  statusKey: SignatureRecipientStatus;
+  status: string;
+  sentAt: string;
+  firstViewedAt: string;
+  viewedAt: string;
+  actedAt: string;
+  declinedAt: string;
+  tokenIssued: boolean;
+};
+
+export type OfficeSignatureArtifact = {
+  id: string;
+  kind: string;
+  title: string;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  storageKey: string;
+  storageUrl: string;
+  driveSyncStatus: SignatureDriveSyncStatus;
+  driveSyncStatusLabel: string;
+  driveSyncError: string;
+  driveSyncedAt: string;
+  driveFolderId: string;
+  driveFileId: string;
+  driveWebViewLink: string;
+};
+
+export type OfficeSignatureFieldValue = {
+  fieldId: string;
+  recipientId: string;
+  fieldType: SignatureFieldType;
+  textValue: string;
+  signatureMode: "draw" | "type" | "upload" | "";
+  imageDataUrl: string;
 };
 
 export type OfficeSignatureAuditEntry = {
@@ -123,7 +203,9 @@ export type OfficeSignatureEditorSnapshot = {
 
 export type PublicSignatureRequestSnapshot = {
   request: OfficeSignatureRequest;
+  currentRecipient: OfficeSignatureRecipient;
   fields: OfficeSignatureField[];
+  submittedValues: OfficeSignatureFieldValue[];
   auditEntries: OfficeSignatureAuditEntry[];
   document: {
     id: string;
@@ -281,6 +363,27 @@ export type CreateSignatureRequestInput = {
   senderDisplayName?: string | null;
   senderReplyTo?: string | null;
   signingOrder?: number | null;
+  templateId?: string | null;
+  contextType?: "transaction" | "membership" | "finance_request" | "admin_request" | "generic";
+  contextId?: string | null;
+  contextLabel?: string | null;
+  subjectMembershipId?: string | null;
+  recipients?: Array<{
+    id?: string | null;
+    role?: SignatureRecipientRole;
+    name: string;
+    email: string;
+    recipientRole: string;
+    routingStep?: number | null;
+    sortOrder?: number | null;
+  }>;
+  ccRecipients?: Array<{
+    id?: string | null;
+    name: string;
+    email: string;
+    recipientRole: string;
+    sortOrder?: number | null;
+  }>;
 };
 
 export type UpdateSignatureRequestInput = {
@@ -288,8 +391,14 @@ export type UpdateSignatureRequestInput = {
   transactionId: string;
   signatureRequestId: string;
   actorMembershipId?: string;
-  action: "send" | "resend" | "viewed" | "signed" | "completed" | "declined" | "canceled" | "expire";
+  action: "send" | "resend" | "advance" | "viewed" | "signed" | "completed" | "declined" | "canceled" | "expire";
   tokenHash?: string | null;
+  recipientId?: string | null;
+  recipientTokens?: Array<{
+    recipientId: string;
+    tokenHash: string;
+  }>;
+  submittedValues?: Prisma.JsonValue | null;
   completedDocumentId?: string | null;
 };
 
@@ -300,6 +409,7 @@ export type ReplaceSignatureFieldsInput = {
   actorMembershipId: string;
   fields: Array<{
     id?: string;
+    assignedRecipientId?: string | null;
     fieldType: SignatureFieldType;
     label: string;
     page: number;
@@ -310,6 +420,12 @@ export type ReplaceSignatureFieldsInput = {
     required?: boolean;
     defaultValue?: string | null;
     fontStyle?: string | null;
+    fieldKey?: string | null;
+    isReadOnly?: boolean;
+    isSystemPrefilled?: boolean;
+    visibilityRule?: Prisma.JsonValue;
+    mirrorGroup?: string | null;
+    fieldOptions?: Prisma.JsonValue;
     sortOrder?: number;
   }>;
 };
@@ -342,6 +458,13 @@ type TransactionDocumentRecord = Prisma.TransactionDocumentGetPayload<{
       };
     };
     signatureRequests: {
+      include: {
+        recipients: {
+          orderBy: {
+            sortOrder: "asc";
+          };
+        };
+      };
       orderBy: {
         createdAt: "desc";
       };
@@ -371,6 +494,13 @@ type TransactionFormRecord = Prisma.TransactionFormGetPayload<{
     };
     signatureRequests: {
       include: {
+        template: {
+          select: {
+            id: true;
+            name: true;
+            category: true;
+          };
+        };
         document: {
           select: {
             id: true;
@@ -378,6 +508,12 @@ type TransactionFormRecord = Prisma.TransactionFormGetPayload<{
             transactionId: true;
           };
         };
+        recipients: {
+          orderBy: {
+            sortOrder: "asc";
+          };
+        };
+        artifacts: true;
         completedDocument: {
           select: {
             id: true;
@@ -395,6 +531,13 @@ type TransactionFormRecord = Prisma.TransactionFormGetPayload<{
 
 type SignatureRequestRecord = Prisma.SignatureRequestGetPayload<{
   include: {
+    template: {
+      select: {
+        id: true;
+        name: true;
+        category: true;
+      };
+    };
     form: {
       select: {
         id: true;
@@ -421,6 +564,12 @@ type SignatureRequestRecord = Prisma.SignatureRequestGetPayload<{
         sortOrder: "asc";
       };
     };
+    recipients: {
+      orderBy: {
+        sortOrder: "asc";
+      };
+    };
+    artifacts: true;
     auditEntries: {
       orderBy: {
         createdAt: "desc";
@@ -503,13 +652,39 @@ const formStatusLabelMap: Record<TransactionFormStatus, string> = {
 
 const signatureStatusLabelMap: Record<SignatureRequestStatus, string> = {
   draft: "Draft",
+  pending_send: "Pending send",
   sent: "Sent",
   viewed: "Viewed",
   signed: "Signed",
   completed: "Completed",
   declined: "Declined",
-  canceled: "Canceled",
+  canceled: "Void / Cancelled",
+  voided: "Void / Cancelled",
   expired: "Expired"
+};
+
+const signatureRecipientRoleLabelMap: Record<SignatureRecipientRole, string> = {
+  signer: "Signer",
+  approver: "Approver",
+  cc: "CC"
+};
+
+const signatureRecipientStatusLabelMap: Record<SignatureRecipientStatus, string> = {
+  draft: "Draft",
+  pending: "Pending",
+  sent: "Sent",
+  viewed: "Viewed",
+  acted: "Signed / Approved",
+  declined: "Declined",
+  voided: "Void / Cancelled",
+  expired: "Expired"
+};
+
+const signatureDriveStatusLabelMap: Record<SignatureDriveSyncStatus, string> = {
+  not_configured: "Not configured",
+  pending: "Pending",
+  synced: "Synced",
+  failed: "Failed"
 };
 
 const signatureAuditEventLabelMap: Record<SignatureAuditEventType, string> = {
@@ -614,6 +789,62 @@ function normalizeJsonRecord(value: Prisma.JsonValue | null | undefined): Record
   return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, String(entry ?? "")]));
 }
 
+function normalizeSubmittedFieldValues(
+  value: Prisma.JsonValue | null | undefined,
+  fallbackRecipientId = ""
+): OfficeSignatureFieldValue[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return [];
+    }
+
+    const fieldId = typeof entry.fieldId === "string" ? entry.fieldId.trim() : "";
+    const fieldType = typeof entry.fieldType === "string" ? (entry.fieldType as SignatureFieldType) : null;
+
+    if (!fieldId || !fieldType) {
+      return [];
+    }
+
+    return [
+      {
+        fieldId,
+        recipientId:
+          typeof entry.recipientId === "string" && entry.recipientId.trim()
+            ? entry.recipientId.trim()
+            : fallbackRecipientId,
+        fieldType,
+        textValue: typeof entry.textValue === "string" ? entry.textValue : "",
+        signatureMode:
+          entry.signatureMode === "draw" || entry.signatureMode === "type" || entry.signatureMode === "upload"
+            ? entry.signatureMode
+            : "",
+        imageDataUrl: typeof entry.imageDataUrl === "string" ? entry.imageDataUrl : ""
+      }
+    ];
+  });
+}
+
+function collectSubmittedFieldValues(
+  recipients: Array<{
+    id: string;
+    submittedValues?: Prisma.JsonValue | null;
+  }>
+) {
+  const valuesByFieldId = new Map<string, OfficeSignatureFieldValue>();
+
+  for (const recipient of recipients) {
+    for (const value of normalizeSubmittedFieldValues(recipient.submittedValues, recipient.id)) {
+      valuesByFieldId.set(value.fieldId, value);
+    }
+  }
+
+  return [...valuesByFieldId.values()];
+}
+
 function buildDocumentHref(transactionId: string, documentId: string) {
   return `/api/office/transactions/${transactionId}/documents/${documentId}/file`;
 }
@@ -637,6 +868,7 @@ function resolveSignatureStatus(request: {
     request.expiresAt.getTime() <= Date.now() &&
     request.status !== SignatureRequestStatus.completed &&
     request.status !== SignatureRequestStatus.canceled &&
+    request.status !== SignatureRequestStatus.voided &&
     request.status !== SignatureRequestStatus.declined &&
     request.status !== SignatureRequestStatus.expired
   ) {
@@ -649,6 +881,7 @@ function resolveSignatureStatus(request: {
 function mapSignatureField(field: {
   id: string;
   signatureRequestId: string;
+  assignedRecipientId?: string | null;
   fieldType: SignatureFieldType;
   label: string;
   page: number;
@@ -659,11 +892,18 @@ function mapSignatureField(field: {
   required: boolean;
   defaultValue: string | null;
   fontStyle: string | null;
+  fieldKey?: string | null;
+  isReadOnly?: boolean;
+  isSystemPrefilled?: boolean;
+  visibilityRule?: Prisma.JsonValue | null;
+  mirrorGroup?: string | null;
+  fieldOptions?: Prisma.JsonValue | null;
   sortOrder: number;
 }): OfficeSignatureField {
   return {
     id: field.id,
     signatureRequestId: field.signatureRequestId,
+    assignedRecipientId: field.assignedRecipientId ?? null,
     fieldType: field.fieldType,
     label: field.label,
     page: field.page,
@@ -674,7 +914,84 @@ function mapSignatureField(field: {
     required: field.required,
     defaultValue: field.defaultValue ?? "",
     fontStyle: field.fontStyle ?? "",
+    fieldKey: field.fieldKey ?? "",
+    isReadOnly: field.isReadOnly ?? false,
+    isSystemPrefilled: field.isSystemPrefilled ?? false,
+    visibilityRule: normalizeJsonRecord(field.visibilityRule),
+    mirrorGroup: field.mirrorGroup ?? "",
+    fieldOptions: normalizeJsonRecord(field.fieldOptions),
     sortOrder: field.sortOrder
+  };
+}
+
+function mapSignatureRecipient(recipient: {
+  id: string;
+  role: SignatureRecipientRole;
+  name: string;
+  email: string;
+  recipientRole: string;
+  routingStep: number;
+  sortOrder: number;
+  status: SignatureRecipientStatus;
+  sentAt?: Date | null;
+  firstViewedAt?: Date | null;
+  viewedAt?: Date | null;
+  actedAt?: Date | null;
+  declinedAt?: Date | null;
+  tokenHash?: string | null;
+}): OfficeSignatureRecipient {
+  return {
+    id: recipient.id,
+    roleKey: recipient.role,
+    role: signatureRecipientRoleLabelMap[recipient.role],
+    name: recipient.name,
+    email: recipient.email,
+    recipientRole: recipient.recipientRole,
+    routingStep: recipient.routingStep,
+    sortOrder: recipient.sortOrder,
+    statusKey: recipient.status,
+    status: signatureRecipientStatusLabelMap[recipient.status],
+    sentAt: formatDateTimeValue(recipient.sentAt ?? null),
+    firstViewedAt: formatDateTimeValue(recipient.firstViewedAt ?? null),
+    viewedAt: formatDateTimeValue(recipient.viewedAt ?? null),
+    actedAt: formatDateTimeValue(recipient.actedAt ?? null),
+    declinedAt: formatDateTimeValue(recipient.declinedAt ?? null),
+    tokenIssued: Boolean(recipient.tokenHash?.trim())
+  };
+}
+
+function mapSignatureArtifact(artifact: {
+  id: string;
+  kind: string;
+  title: string;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  storageKey: string;
+  storageUrl?: string | null;
+  driveSyncStatus: SignatureDriveSyncStatus;
+  driveSyncError?: string | null;
+  driveSyncedAt?: Date | null;
+  driveFolderId?: string | null;
+  driveFileId?: string | null;
+  driveWebViewLink?: string | null;
+}): OfficeSignatureArtifact {
+  return {
+    id: artifact.id,
+    kind: artifact.kind,
+    title: artifact.title,
+    fileName: artifact.fileName,
+    mimeType: artifact.mimeType,
+    fileSizeBytes: artifact.fileSizeBytes,
+    storageKey: artifact.storageKey,
+    storageUrl: artifact.storageUrl?.trim() || "",
+    driveSyncStatus: artifact.driveSyncStatus,
+    driveSyncStatusLabel: signatureDriveStatusLabelMap[artifact.driveSyncStatus],
+    driveSyncError: artifact.driveSyncError?.trim() || "",
+    driveSyncedAt: formatDateTimeValue(artifact.driveSyncedAt ?? null),
+    driveFolderId: artifact.driveFolderId?.trim() || "",
+    driveFileId: artifact.driveFileId?.trim() || "",
+    driveWebViewLink: artifact.driveWebViewLink?.trim() || ""
   };
 }
 
@@ -694,9 +1011,13 @@ function mapSignatureAuditEntry(entry: SignatureAuditEntryRecord): OfficeSignatu
 function mapSignatureRequest(request: {
   id: string;
   transactionId: string;
+  templateId?: string | null;
   formId: string | null;
   documentId: string | null;
   completedDocumentId?: string | null;
+  contextType?: string | null;
+  contextId?: string | null;
+  contextLabel?: string | null;
   recipientName: string;
   recipientEmail: string;
   recipientRole: string;
@@ -706,6 +1027,11 @@ function mapSignatureRequest(request: {
   senderDisplayName?: string | null;
   senderReplyTo?: string | null;
   status: SignatureRequestStatus;
+  driveSyncStatus?: SignatureDriveSyncStatus;
+  driveSyncError?: string | null;
+  driveSyncedAt?: Date | null;
+  driveFolderId?: string | null;
+  driveFileId?: string | null;
   expiresAt?: Date | null;
   sentAt: Date | null;
   firstViewedAt?: Date | null;
@@ -727,11 +1053,51 @@ function mapSignatureRequest(request: {
     title: string;
     transactionId: string;
   } | null;
+  template?: {
+    id: string;
+    name: string;
+    category: SignatureTemplateCategory;
+  } | null;
+  recipients?: Array<{
+    id: string;
+    role: SignatureRecipientRole;
+    name: string;
+    email: string;
+    recipientRole: string;
+    routingStep: number;
+    sortOrder: number;
+    status: SignatureRecipientStatus;
+    sentAt?: Date | null;
+    firstViewedAt?: Date | null;
+    viewedAt?: Date | null;
+    actedAt?: Date | null;
+    declinedAt?: Date | null;
+    tokenHash?: string | null;
+  }>;
+  artifacts?: Array<{
+    id: string;
+    kind: string;
+    title: string;
+    fileName: string;
+    mimeType: string;
+    fileSizeBytes: number;
+    storageKey: string;
+    storageUrl?: string | null;
+    driveSyncStatus: SignatureDriveSyncStatus;
+    driveSyncError?: string | null;
+    driveSyncedAt?: Date | null;
+    driveFolderId?: string | null;
+    driveFileId?: string | null;
+    driveWebViewLink?: string | null;
+  }>;
 }): OfficeSignatureRequest {
   const resolvedStatus = resolveSignatureStatus(request);
+  const recipients = (request.recipients ?? []).map(mapSignatureRecipient);
+  const ccRecipients = recipients.filter((recipient) => recipient.roleKey === "cc");
 
   return {
     id: request.id,
+    templateId: request.templateId ?? request.template?.id ?? null,
     formId: request.formId,
     documentId: request.documentId,
     documentTitle: request.document?.title ?? "",
@@ -749,6 +1115,15 @@ function mapSignatureRequest(request: {
     senderReplyTo: request.senderReplyTo?.trim() || "",
     statusKey: resolvedStatus,
     status: signatureStatusLabelMap[resolvedStatus],
+    contextType: request.contextType?.trim() || "transaction",
+    contextId: request.contextId?.trim() || "",
+    contextLabel: request.contextLabel?.trim() || "",
+    driveSyncStatus: request.driveSyncStatus ?? SignatureDriveSyncStatus.not_configured,
+    driveSyncStatusLabel: signatureDriveStatusLabelMap[request.driveSyncStatus ?? SignatureDriveSyncStatus.not_configured],
+    driveSyncError: request.driveSyncError?.trim() || "",
+    driveSyncedAt: formatDateTimeValue(request.driveSyncedAt ?? null),
+    driveFolderId: request.driveFolderId?.trim() || "",
+    driveFileId: request.driveFileId?.trim() || "",
     expiresAt: formatDateTimeValue(request.expiresAt ?? null),
     sentAt: formatDateTimeValue(request.sentAt),
     firstViewedAt: formatDateTimeValue(request.firstViewedAt ?? null),
@@ -759,7 +1134,22 @@ function mapSignatureRequest(request: {
     canceledAt: formatDateTimeValue(request.canceledAt ?? null),
     expiredAt: formatDateTimeValue(request.expiredAt ?? null),
     createdAt: formatDateTimeValue(request.createdAt),
-    updatedAt: formatDateTimeValue(request.updatedAt)
+    updatedAt: formatDateTimeValue(request.updatedAt),
+    recipients,
+    ccRecipients,
+    artifacts: (request.artifacts ?? []).map(mapSignatureArtifact),
+    templateSummary: request.template
+      ? {
+          id: request.template.id,
+          name: request.template.name,
+          category: request.template.category
+        }
+      : null,
+    contextSummary: {
+      type: request.contextType?.trim() || "transaction",
+      id: request.contextId?.trim() || "",
+      label: request.contextLabel?.trim() || ""
+    }
   };
 }
 
@@ -770,6 +1160,7 @@ function mapTransactionDocument(record: TransactionDocumentRecord): OfficeTransa
 
     return (
       resolvedStatus === SignatureRequestStatus.draft ||
+      resolvedStatus === SignatureRequestStatus.pending_send ||
       resolvedStatus === SignatureRequestStatus.sent ||
       resolvedStatus === SignatureRequestStatus.viewed ||
       resolvedStatus === SignatureRequestStatus.signed
@@ -822,6 +1213,79 @@ function mapTransactionForm(record: TransactionFormRecord): OfficeTransactionFor
     updatedAt: formatDateTimeValue(record.updatedAt),
     signatureRequests: record.signatureRequests.map(mapSignatureRequest)
   };
+}
+
+function isRecipientTerminalStatus(status: SignatureRecipientStatus) {
+  return (
+    status === SignatureRecipientStatus.acted ||
+    status === SignatureRecipientStatus.declined ||
+    status === SignatureRecipientStatus.voided ||
+    status === SignatureRecipientStatus.expired
+  );
+}
+
+function getActiveRoutingStepRecipients<
+  T extends {
+    role: SignatureRecipientRole;
+    routingStep: number;
+    status: SignatureRecipientStatus;
+  }
+>(recipients: T[]) {
+  const actionable = recipients.filter((recipient) => recipient.role !== SignatureRecipientRole.cc && !isRecipientTerminalStatus(recipient.status));
+  if (actionable.length === 0) {
+    return [];
+  }
+
+  const nextStep = actionable.reduce((minimum, recipient) => Math.min(minimum, recipient.routingStep), actionable[0]!.routingStep);
+  return actionable.filter((recipient) => recipient.routingStep === nextStep);
+}
+
+function deriveEnvelopeStatusFromRecipients(
+  currentStatus: SignatureRequestStatus,
+  recipients: Array<{
+    role: SignatureRecipientRole;
+    status: SignatureRecipientStatus;
+  }>
+) {
+  const actionable = recipients.filter((recipient) => recipient.role !== SignatureRecipientRole.cc);
+
+  if (actionable.length === 0) {
+    return currentStatus;
+  }
+
+  if (actionable.some((recipient) => recipient.status === SignatureRecipientStatus.declined)) {
+    return SignatureRequestStatus.declined;
+  }
+
+  if (actionable.every((recipient) => recipient.status === SignatureRecipientStatus.voided)) {
+    return SignatureRequestStatus.voided;
+  }
+
+  if (actionable.every((recipient) => recipient.status === SignatureRecipientStatus.expired)) {
+    return SignatureRequestStatus.expired;
+  }
+
+  if (actionable.every((recipient) => recipient.status === SignatureRecipientStatus.acted)) {
+    return SignatureRequestStatus.completed;
+  }
+
+  if (actionable.some((recipient) => recipient.status === SignatureRecipientStatus.acted)) {
+    return SignatureRequestStatus.signed;
+  }
+
+  if (actionable.some((recipient) => recipient.status === SignatureRecipientStatus.viewed)) {
+    return SignatureRequestStatus.viewed;
+  }
+
+  if (actionable.some((recipient) => recipient.status === SignatureRecipientStatus.sent)) {
+    return SignatureRequestStatus.sent;
+  }
+
+  if (actionable.some((recipient) => recipient.status === SignatureRecipientStatus.pending)) {
+    return SignatureRequestStatus.pending_send;
+  }
+
+  return SignatureRequestStatus.draft;
 }
 
 function mapIncomingUpdate(record: IncomingUpdateRecord): OfficeIncomingUpdate {
@@ -1154,6 +1618,13 @@ async function getSignatureRequestRecord(organizationId: string, transactionId: 
       transactionId
     },
     include: {
+      template: {
+        select: {
+          id: true,
+          name: true,
+          category: true
+        }
+      },
       form: {
         select: {
           id: true,
@@ -1188,6 +1659,11 @@ async function getSignatureRequestRecord(organizationId: string, transactionId: 
             }
           },
           signatureRequests: {
+            include: {
+              recipients: {
+                orderBy: [{ sortOrder: "asc" }]
+              }
+            },
             orderBy: [{ createdAt: "desc" }]
           }
         }
@@ -1202,6 +1678,10 @@ async function getSignatureRequestRecord(organizationId: string, transactionId: 
       fields: {
         orderBy: [{ sortOrder: "asc" }]
       },
+      recipients: {
+        orderBy: [{ sortOrder: "asc" }]
+      },
+      artifacts: true,
       auditEntries: {
         orderBy: [{ createdAt: "desc" }]
       }
@@ -1235,11 +1715,104 @@ function hashSignatureToken(token: string) {
 async function getPublicSignatureRequestRecord(token: string) {
   const hashedToken = hashSignatureToken(token);
 
-  return prisma.signatureRequest.findFirst({
+  const recipientMatch = await prisma.signatureRecipient.findFirst({
+    where: {
+      tokenHash: hashedToken
+    },
+    include: {
+      signatureRequest: {
+        include: {
+          template: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          },
+          form: {
+            select: {
+              id: true,
+              name: true,
+              linkedTaskId: true
+            }
+          },
+          document: {
+            select: {
+              id: true,
+              title: true,
+              transactionId: true,
+              fileName: true,
+              mimeType: true,
+              fileSizeBytes: true,
+              storageKey: true,
+              storageUrl: true,
+              documentType: true,
+              status: true,
+              source: true,
+              isRequired: true,
+              isSigned: true,
+              isUnsorted: true,
+              signedAt: true,
+              linkedTaskId: true,
+              createdAt: true,
+              updatedAt: true,
+              linkedTask: {
+                select: {
+                  id: true,
+                  title: true
+                }
+              },
+              signatureRequests: {
+                include: {
+                  recipients: {
+                    orderBy: [{ sortOrder: "asc" }]
+                  }
+                },
+                orderBy: [{ createdAt: "desc" }]
+              }
+            }
+          },
+          completedDocument: {
+            select: {
+              id: true,
+              title: true,
+              transactionId: true
+            }
+          },
+          fields: {
+            orderBy: [{ sortOrder: "asc" }]
+          },
+          recipients: {
+            orderBy: [{ sortOrder: "asc" }]
+          },
+          artifacts: true,
+          auditEntries: {
+            orderBy: [{ createdAt: "desc" }]
+          }
+        }
+      }
+    }
+  });
+
+  if (recipientMatch?.signatureRequest) {
+    return {
+      request: recipientMatch.signatureRequest,
+      currentRecipientId: recipientMatch.id
+    };
+  }
+
+  const request = await prisma.signatureRequest.findFirst({
     where: {
       publicTokenHash: hashedToken
     },
     include: {
+      template: {
+        select: {
+          id: true,
+          name: true,
+          category: true
+        }
+      },
       form: {
         select: {
           id: true,
@@ -1274,6 +1847,11 @@ async function getPublicSignatureRequestRecord(token: string) {
             }
           },
           signatureRequests: {
+            include: {
+              recipients: {
+                orderBy: [{ sortOrder: "asc" }]
+              }
+            },
             orderBy: [{ createdAt: "desc" }]
           }
         }
@@ -1288,15 +1866,62 @@ async function getPublicSignatureRequestRecord(token: string) {
       fields: {
         orderBy: [{ sortOrder: "asc" }]
       },
+      recipients: {
+        orderBy: [{ sortOrder: "asc" }]
+      },
+      artifacts: true,
       auditEntries: {
         orderBy: [{ createdAt: "desc" }]
       }
     }
   });
+
+  return {
+    request,
+    currentRecipientId: null
+  };
+}
+
+function buildLegacyPublicRecipient(request: OfficeSignatureRequest): OfficeSignatureRecipient {
+  let statusKey: SignatureRecipientStatus = SignatureRecipientStatus.draft;
+
+  if (request.statusKey === SignatureRequestStatus.sent || request.statusKey === SignatureRequestStatus.pending_send) {
+    statusKey = SignatureRecipientStatus.sent;
+  } else if (request.statusKey === SignatureRequestStatus.viewed) {
+    statusKey = SignatureRecipientStatus.viewed;
+  } else if (request.statusKey === SignatureRequestStatus.signed || request.statusKey === SignatureRequestStatus.completed) {
+    statusKey = SignatureRecipientStatus.acted;
+  } else if (request.statusKey === SignatureRequestStatus.declined) {
+    statusKey = SignatureRecipientStatus.declined;
+  } else if (request.statusKey === SignatureRequestStatus.expired) {
+    statusKey = SignatureRecipientStatus.expired;
+  } else if (request.statusKey === SignatureRequestStatus.canceled || request.statusKey === SignatureRequestStatus.voided) {
+    statusKey = SignatureRecipientStatus.voided;
+  }
+
+  return {
+    id: `legacy-${request.id}`,
+    roleKey: SignatureRecipientRole.signer,
+    role: signatureRecipientRoleLabelMap[SignatureRecipientRole.signer],
+    name: request.recipientName,
+    email: request.recipientEmail,
+    recipientRole: request.recipientRole,
+    routingStep: request.signingOrder ?? 1,
+    sortOrder: 0,
+    statusKey,
+    status: signatureRecipientStatusLabelMap[statusKey],
+    sentAt: request.sentAt,
+    firstViewedAt: request.firstViewedAt,
+    viewedAt: request.viewedAt,
+    actedAt: request.signedAt || request.completedAt,
+    declinedAt: request.declinedAt,
+    tokenIssued: true
+  };
 }
 
 export async function getPublicSignatureRequestSnapshot(token: string): Promise<PublicSignatureRequestSnapshot | null> {
-  let request = await getPublicSignatureRequestRecord(token);
+  let access = await getPublicSignatureRequestRecord(token);
+  let request = access?.request ?? null;
 
   if (!request?.document) {
     return null;
@@ -1311,24 +1936,38 @@ export async function getPublicSignatureRequestSnapshot(token: string): Promise<
       signatureRequestId: request.id,
       action: "expire"
     });
-    request = await getPublicSignatureRequestRecord(token);
-  } else if (request.status === SignatureRequestStatus.sent) {
-    await updateSignatureRequest({
-      organizationId: request.organizationId,
-      transactionId: request.transactionId,
-      signatureRequestId: request.id,
-      action: "viewed"
-    });
-    request = await getPublicSignatureRequestRecord(token);
+    access = await getPublicSignatureRequestRecord(token);
+    request = access?.request ?? null;
+  } else {
+    const currentRecipient =
+      access?.currentRecipientId ? request.recipients.find((recipient) => recipient.id === access.currentRecipientId) ?? null : null;
+
+    if (request.status === SignatureRequestStatus.sent || currentRecipient?.status === SignatureRecipientStatus.sent) {
+      await updateSignatureRequest({
+        organizationId: request.organizationId,
+        transactionId: request.transactionId,
+        signatureRequestId: request.id,
+        action: "viewed",
+        recipientId: currentRecipient?.id ?? null
+      });
+      access = await getPublicSignatureRequestRecord(token);
+      request = access?.request ?? null;
+    }
   }
 
   if (!request?.document) {
     return null;
   }
 
+  const mappedRequest = mapSignatureRequest(request);
+  const currentRecipient =
+    access?.currentRecipientId ? request.recipients.find((recipient) => recipient.id === access.currentRecipientId) ?? null : null;
+
   return {
-    request: mapSignatureRequest(request),
+    request: mappedRequest,
+    currentRecipient: currentRecipient ? mapSignatureRecipient(currentRecipient) : buildLegacyPublicRecipient(mappedRequest),
     fields: request.fields.map(mapSignatureField),
+    submittedValues: collectSubmittedFieldValues(request.recipients),
     auditEntries: request.auditEntries.map(mapSignatureAuditEntry),
     document: {
       id: request.document.id,
@@ -1340,7 +1979,8 @@ export async function getPublicSignatureRequestSnapshot(token: string): Promise<
 }
 
 export async function getPublicSignatureDocumentStorageRecord(token: string) {
-  const request = await getPublicSignatureRequestRecord(token);
+  const access = await getPublicSignatureRequestRecord(token);
+  const request = access?.request ?? null;
 
   if (!request?.document) {
     return null;
@@ -1348,6 +1988,7 @@ export async function getPublicSignatureDocumentStorageRecord(token: string) {
 
   return {
     signatureRequestId: request.id,
+    currentRecipientId: access?.currentRecipientId ?? null,
     organizationId: request.organizationId,
     officeId: request.officeId,
     transactionId: request.transactionId,
@@ -1358,7 +1999,9 @@ export async function getPublicSignatureDocumentStorageRecord(token: string) {
     storageKey: request.document.storageKey,
     documentType: request.document.documentType,
     linkedTaskId: request.document.linkedTaskId,
-    offerId: request.offerId
+    offerId: request.offerId,
+    fields: request.fields.map(mapSignatureField),
+    submittedValues: collectSubmittedFieldValues(request.recipients)
   };
 }
 
@@ -1372,13 +2015,19 @@ export async function replaceSignatureRequestFields(input: ReplaceSignatureField
       },
       select: {
         id: true,
-        recipientName: true
+        recipients: {
+          orderBy: [{ sortOrder: "asc" }]
+        }
       }
     });
 
     if (!existing) {
       return null;
     }
+
+    const validRecipientIds = new Set(
+      existing.recipients.filter((recipient) => recipient.role !== SignatureRecipientRole.cc).map((recipient) => recipient.id)
+    );
 
     await tx.signatureField.deleteMany({
       where: {
@@ -1387,9 +2036,16 @@ export async function replaceSignatureRequestFields(input: ReplaceSignatureField
     });
 
     for (const [index, field] of input.fields.entries()) {
+      const assignedRecipientId = field.assignedRecipientId?.trim() || null;
+
+      if (assignedRecipientId && !validRecipientIds.has(assignedRecipientId)) {
+        throw new Error("Signature fields can only be assigned to active signer or approver recipients.");
+      }
+
       await tx.signatureField.create({
         data: {
           signatureRequestId: existing.id,
+          assignedRecipientId,
           fieldType: field.fieldType,
           label: field.label.trim() || `${field.fieldType} ${index + 1}`,
           page: Math.max(1, Math.trunc(field.page)),
@@ -1400,6 +2056,12 @@ export async function replaceSignatureRequestFields(input: ReplaceSignatureField
           required: field.required ?? true,
           defaultValue: field.defaultValue?.trim() || null,
           fontStyle: field.fontStyle?.trim() || null,
+          fieldKey: field.fieldKey?.trim() || null,
+          isReadOnly: field.isReadOnly ?? false,
+          isSystemPrefilled: field.isSystemPrefilled ?? false,
+          visibilityRule: field.visibilityRule ? toInputJsonValue(field.visibilityRule) : Prisma.JsonNull,
+          mirrorGroup: field.mirrorGroup?.trim() || null,
+          fieldOptions: field.fieldOptions ? toInputJsonValue(field.fieldOptions) : Prisma.JsonNull,
           sortOrder: field.sortOrder ?? index
         }
       });
@@ -1444,6 +2106,11 @@ export async function listTransactionDocumentsSnapshot(
           }
         },
         signatureRequests: {
+          include: {
+            recipients: {
+              orderBy: [{ sortOrder: "asc" }]
+            }
+          },
           orderBy: [{ createdAt: "desc" }]
         }
       },
@@ -1475,6 +2142,13 @@ export async function listTransactionDocumentsSnapshot(
         },
         signatureRequests: {
           include: {
+            template: {
+              select: {
+                id: true,
+                name: true,
+                category: true
+              }
+            },
             document: {
               select: {
                 id: true,
@@ -1482,6 +2156,10 @@ export async function listTransactionDocumentsSnapshot(
                 transactionId: true
               }
             },
+            recipients: {
+              orderBy: [{ sortOrder: "asc" }]
+            },
+            artifacts: true,
             completedDocument: {
               select: {
                 id: true,
@@ -1501,6 +2179,13 @@ export async function listTransactionDocumentsSnapshot(
         transactionId
       },
       include: {
+        template: {
+          select: {
+            id: true,
+            name: true,
+            category: true
+          }
+        },
         form: {
           select: {
             id: true,
@@ -1525,6 +2210,10 @@ export async function listTransactionDocumentsSnapshot(
         fields: {
           orderBy: [{ sortOrder: "asc" }]
         },
+        recipients: {
+          orderBy: [{ sortOrder: "asc" }]
+        },
+        artifacts: true,
         auditEntries: {
           orderBy: [{ createdAt: "desc" }]
         }
@@ -2344,6 +3033,60 @@ export async function updateTransactionForm(input: UpdateTransactionFormInput): 
   return snapshot.forms.find((form) => form.id === formId) ?? null;
 }
 
+function normalizeSignatureRecipients(input: CreateSignatureRequestInput) {
+  const signerRecipients =
+    input.recipients && input.recipients.length > 0
+      ? input.recipients
+      : [
+          {
+            role: SignatureRecipientRole.signer,
+            name: input.recipientName,
+            email: input.recipientEmail,
+            recipientRole: input.recipientRole,
+            routingStep: input.signingOrder ?? 1,
+            sortOrder: 0
+          }
+        ];
+
+  const normalizedSigners = signerRecipients.map((recipient, index) => ({
+    role: recipient.role ?? SignatureRecipientRole.signer,
+    name: recipient.name.trim(),
+    email: recipient.email.trim(),
+    recipientRole: recipient.recipientRole.trim(),
+    routingStep: Math.max(1, recipient.routingStep ?? input.signingOrder ?? index + 1),
+    sortOrder: recipient.sortOrder ?? index
+  }));
+
+  const normalizedCcRecipients = (input.ccRecipients ?? []).map((recipient, index) => ({
+    role: SignatureRecipientRole.cc,
+    name: recipient.name.trim(),
+    email: recipient.email.trim(),
+    recipientRole: recipient.recipientRole.trim(),
+    routingStep: 9999,
+    sortOrder: recipient.sortOrder ?? normalizedSigners.length + index
+  }));
+
+  const recipients = [...normalizedSigners, ...normalizedCcRecipients].filter(
+    (recipient) => recipient.name && recipient.email && recipient.recipientRole
+  );
+
+  const primarySigner =
+    recipients.find((recipient) => recipient.role !== SignatureRecipientRole.cc) ??
+    recipients[0] ?? {
+      role: SignatureRecipientRole.signer,
+      name: input.recipientName.trim(),
+      email: input.recipientEmail.trim(),
+      recipientRole: input.recipientRole.trim(),
+      routingStep: input.signingOrder ?? 1,
+      sortOrder: 0
+    };
+
+  return {
+    recipients,
+    primarySigner
+  };
+}
+
 export async function createSignatureRequest(input: CreateSignatureRequestInput): Promise<OfficeSignatureRequest | null> {
   const signatureRequestId = await prisma.$transaction(async (tx) => {
     const [transaction, form, document, linkedOffer, existingRequest] = await Promise.all([
@@ -2405,18 +3148,29 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
       return null;
     }
 
+    const { recipients, primarySigner } = normalizeSignatureRecipients(input);
+
+    if (!primarySigner.name || !primarySigner.email || !primarySigner.recipientRole) {
+      throw new Error("At least one signer is required.");
+    }
+
     const expiresAt = parseOptionalDate(input.expiresAt ?? undefined);
     const payload = {
       officeId: input.officeId ?? transaction.officeId ?? null,
       offerId: effectiveOfferId,
       formId: form?.id ?? null,
       documentId: document?.id ?? form?.documentId ?? null,
-      recipientName: input.recipientName.trim(),
-      recipientEmail: input.recipientEmail.trim(),
-      recipientRole: input.recipientRole.trim(),
+      subjectMembershipId: input.subjectMembershipId?.trim() || null,
+      templateId: input.templateId?.trim() || null,
+      contextType: input.contextType ?? "transaction",
+      contextId: input.contextId?.trim() || null,
+      contextLabel: input.contextLabel?.trim() || null,
+      recipientName: primarySigner.name,
+      recipientEmail: primarySigner.email,
+      recipientRole: primarySigner.recipientRole,
       emailSubject: input.emailSubject?.trim() || null,
       emailBody: input.emailBody?.trim() || null,
-      signingOrder: input.signingOrder ?? null,
+      signingOrder: primarySigner.routingStep ?? input.signingOrder ?? null,
       senderDisplayName: input.senderDisplayName?.trim() || null,
       senderReplyTo: input.senderReplyTo?.trim() || null,
       expiresAt,
@@ -2436,6 +3190,11 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
         data: {
           ...payload,
           completedDocumentId: null,
+          driveSyncStatus: SignatureDriveSyncStatus.not_configured,
+          driveSyncError: null,
+          driveSyncedAt: null,
+          driveFolderId: null,
+          driveFileId: null,
           publicTokenHash: existingRequest.publicTokenHash,
           firstViewedAt: existingRequest.firstViewedAt,
           viewedAt: existingRequest.viewedAt,
@@ -2445,6 +3204,30 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
           expiredAt: existingRequest.expiredAt
         }
       });
+
+      await tx.signatureRecipient.deleteMany({
+        where: {
+          signatureRequestId: existingRequest.id
+        }
+      });
+
+      if (recipients.length > 0) {
+        await tx.signatureRecipient.createMany({
+          data: recipients.map((recipient, index) => ({
+            organizationId: input.organizationId,
+            officeId: payload.officeId,
+            transactionId: input.transactionId,
+            signatureRequestId: existingRequest.id,
+            role: recipient.role,
+            name: recipient.name,
+            email: recipient.email,
+            recipientRole: recipient.recipientRole,
+            routingStep: recipient.routingStep,
+            sortOrder: recipient.sortOrder ?? index,
+            status: SignatureRecipientStatus.draft
+          }))
+        });
+      }
 
       return existingRequest.id;
     }
@@ -2457,6 +3240,11 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
         offerId: payload.offerId,
         formId: payload.formId,
         documentId: payload.documentId,
+        subjectMembershipId: payload.subjectMembershipId,
+        templateId: payload.templateId,
+        contextType: payload.contextType,
+        contextId: payload.contextId,
+        contextLabel: payload.contextLabel,
         requestedByMembershipId: input.actorMembershipId,
         recipientName: payload.recipientName,
         recipientEmail: payload.recipientEmail,
@@ -2471,6 +3259,24 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
       }
     });
 
+    if (recipients.length > 0) {
+      await tx.signatureRecipient.createMany({
+        data: recipients.map((recipient, index) => ({
+          organizationId: input.organizationId,
+          officeId: payload.officeId,
+          transactionId: input.transactionId,
+          signatureRequestId: created.id,
+          role: recipient.role,
+          name: recipient.name,
+          email: recipient.email,
+          recipientRole: recipient.recipientRole,
+          routingStep: recipient.routingStep,
+          sortOrder: recipient.sortOrder ?? index,
+          status: SignatureRecipientStatus.draft
+        }))
+      });
+    }
+
     await recordSignatureAuditEntry(tx, {
       signatureRequestId: created.id,
       eventType: SignatureAuditEventType.request_created,
@@ -2478,6 +3284,7 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
       actorLabel: "Internal team member",
       details: {
         recipient: created.recipientEmail,
+        recipients: String(recipients.length),
         document: document?.title ?? form?.name ?? "Signature request"
       }
     });
@@ -2492,6 +3299,33 @@ export async function createSignatureRequest(input: CreateSignatureRequestInput)
   const request = await prisma.signatureRequest.findUnique({
     where: {
       id: signatureRequestId
+    },
+    include: {
+      template: {
+        select: {
+          id: true,
+          name: true,
+          category: true
+        }
+      },
+      document: {
+        select: {
+          id: true,
+          title: true,
+          transactionId: true
+        }
+      },
+      completedDocument: {
+        select: {
+          id: true,
+          title: true,
+          transactionId: true
+        }
+      },
+      recipients: {
+        orderBy: [{ sortOrder: "asc" }]
+      },
+      artifacts: true
     }
   });
 
@@ -2538,6 +3372,9 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
             title: true,
             transactionId: true
           }
+        },
+        recipients: {
+          orderBy: [{ sortOrder: "asc" }]
         }
       }
     });
@@ -2549,7 +3386,7 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
     const now = new Date();
     const effectiveStatus = resolveSignatureStatus(existing);
 
-    if ((input.action === "send" || input.action === "resend") && !input.tokenHash?.trim()) {
+    if ((input.action === "send" || input.action === "resend") && existing.recipients.length === 0 && !input.tokenHash?.trim()) {
       throw new Error("A public signing token is required before sending the signature email.");
     }
 
@@ -2557,11 +3394,15 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
       throw new Error("A completed signed PDF document is required before marking the request completed.");
     }
 
-    if (effectiveStatus === SignatureRequestStatus.completed) {
+    if (effectiveStatus === SignatureRequestStatus.completed && input.action !== "completed") {
       throw new Error("This signature request is already in a terminal state.");
     }
 
-    if (effectiveStatus === SignatureRequestStatus.canceled && input.action !== "resend") {
+    if (
+      (effectiveStatus === SignatureRequestStatus.canceled || effectiveStatus === SignatureRequestStatus.voided) &&
+      input.action !== "resend" &&
+      input.action !== "advance"
+    ) {
       throw new Error("This signature request is already in a terminal state.");
     }
 
@@ -2571,41 +3412,163 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
       effectiveStatus !== SignatureRequestStatus.sent &&
       effectiveStatus !== SignatureRequestStatus.viewed &&
       effectiveStatus !== SignatureRequestStatus.expired &&
-      effectiveStatus !== SignatureRequestStatus.canceled
+      effectiveStatus !== SignatureRequestStatus.canceled &&
+      effectiveStatus !== SignatureRequestStatus.voided
     ) {
       throw new Error("Only pending or expired signature requests can be resent.");
     }
 
     let nextStatus: SignatureRequestStatus = effectiveStatus;
     const updateData: Prisma.SignatureRequestUpdateInput = {};
+    let nextRecipientDetails = existing.recipients.map((recipient) => ({ ...recipient }));
 
     switch (input.action) {
       case "send":
       case "resend":
+      case "advance":
         nextStatus = SignatureRequestStatus.sent;
         updateData.status = nextStatus;
-        updateData.publicTokenHash = input.tokenHash?.trim() || null;
-        updateData.sentAt = now;
-        updateData.firstViewedAt = null;
-        updateData.viewedAt = null;
-        updateData.signedAt = null;
-        updateData.completedAt = null;
-        updateData.canceledAt = null;
-        updateData.expiredAt = null;
-        updateData.declinedAt = null;
-        updateData.completedDocument = {
-          disconnect: true
-        };
+        if (input.action !== "advance") {
+          updateData.publicTokenHash = existing.recipients.length > 0 ? null : input.tokenHash?.trim() || null;
+          updateData.sentAt = now;
+          updateData.firstViewedAt = null;
+          updateData.viewedAt = null;
+          updateData.signedAt = null;
+          updateData.completedAt = null;
+          updateData.canceledAt = null;
+          updateData.expiredAt = null;
+          updateData.declinedAt = null;
+          updateData.completedDocument = {
+            disconnect: true
+          };
+        } else {
+          updateData.sentAt = existing.sentAt ?? now;
+        }
+        if (existing.recipients.length > 0) {
+          const activeRecipients = getActiveRoutingStepRecipients(existing.recipients);
+          const providedTokens = new Map((input.recipientTokens ?? []).map((entry) => [entry.recipientId, entry.tokenHash.trim()]));
+
+          if (activeRecipients.length === 0) {
+            throw new Error("There are no actionable recipients left to send.");
+          }
+
+          if (providedTokens.size < activeRecipients.length) {
+            throw new Error("Recipient tokens are required for the current routing step.");
+          }
+
+          for (const recipient of existing.recipients) {
+            if (recipient.role === SignatureRecipientRole.cc) {
+              await tx.signatureRecipient.update({
+                where: { id: recipient.id },
+                data: {
+                  status: SignatureRecipientStatus.sent,
+                  sentAt: now
+                }
+              });
+              continue;
+            }
+
+            if (activeRecipients.some((activeRecipient) => activeRecipient.id === recipient.id)) {
+              const tokenHash = providedTokens.get(recipient.id);
+
+              await tx.signatureRecipient.update({
+                where: { id: recipient.id },
+                data: {
+                  status: SignatureRecipientStatus.sent,
+                  tokenHash,
+                  sentAt: now,
+                  firstViewedAt: input.action === "advance" ? recipient.firstViewedAt : null,
+                  viewedAt: input.action === "advance" ? recipient.viewedAt : null,
+                  actedAt: input.action === "advance" ? recipient.actedAt : null,
+                  declinedAt: input.action === "advance" ? recipient.declinedAt : null,
+                  voidedAt: input.action === "advance" ? recipient.voidedAt : null,
+                  expiredAt: input.action === "advance" ? recipient.expiredAt : null
+                }
+              });
+              continue;
+            }
+
+            if (!isRecipientTerminalStatus(recipient.status)) {
+              await tx.signatureRecipient.update({
+                where: { id: recipient.id },
+                data: {
+                  status: SignatureRecipientStatus.pending
+                }
+              });
+            }
+          }
+
+          nextRecipientDetails = await tx.signatureRecipient.findMany({
+            where: {
+              signatureRequestId: existing.id
+            },
+            orderBy: [{ sortOrder: "asc" }]
+          });
+          nextStatus = deriveEnvelopeStatusFromRecipients(nextStatus, nextRecipientDetails);
+          updateData.status = nextStatus;
+        }
         break;
       case "viewed":
-        nextStatus = SignatureRequestStatus.viewed;
-        updateData.status = nextStatus;
+        if (existing.recipients.length > 0) {
+          const targetRecipient =
+            existing.recipients.find((recipient) => recipient.id === input.recipientId) ??
+            getActiveRoutingStepRecipients(existing.recipients)[0] ??
+            existing.recipients[0];
+
+          if (!targetRecipient) {
+            throw new Error("Recipient not found.");
+          }
+
+          await tx.signatureRecipient.update({
+            where: { id: targetRecipient.id },
+            data: {
+              status: SignatureRecipientStatus.viewed,
+              firstViewedAt: targetRecipient.firstViewedAt ?? now,
+              viewedAt: now
+            }
+          });
+          nextRecipientDetails = await tx.signatureRecipient.findMany({
+            where: { signatureRequestId: existing.id },
+            orderBy: [{ sortOrder: "asc" }]
+          });
+          nextStatus = deriveEnvelopeStatusFromRecipients(nextStatus, nextRecipientDetails);
+          updateData.status = nextStatus;
+        } else {
+          nextStatus = SignatureRequestStatus.viewed;
+          updateData.status = nextStatus;
+        }
         updateData.firstViewedAt = existing.firstViewedAt ?? now;
         updateData.viewedAt = now;
         break;
       case "signed":
-        nextStatus = SignatureRequestStatus.signed;
-        updateData.status = nextStatus;
+        if (existing.recipients.length > 0) {
+          const targetRecipient =
+            existing.recipients.find((recipient) => recipient.id === input.recipientId) ??
+            getActiveRoutingStepRecipients(existing.recipients)[0] ??
+            existing.recipients[0];
+
+          if (!targetRecipient) {
+            throw new Error("Recipient not found.");
+          }
+
+          await tx.signatureRecipient.update({
+            where: { id: targetRecipient.id },
+            data: {
+              status: SignatureRecipientStatus.acted,
+              submittedValues: input.submittedValues ? toInputJsonValue(input.submittedValues) : Prisma.JsonNull,
+              actedAt: now
+            }
+          });
+          nextRecipientDetails = await tx.signatureRecipient.findMany({
+            where: { signatureRequestId: existing.id },
+            orderBy: [{ sortOrder: "asc" }]
+          });
+          nextStatus = deriveEnvelopeStatusFromRecipients(nextStatus, nextRecipientDetails);
+          updateData.status = nextStatus;
+        } else {
+          nextStatus = SignatureRequestStatus.signed;
+          updateData.status = nextStatus;
+        }
         updateData.signedAt = now;
         break;
       case "completed":
@@ -2619,19 +3582,80 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
         };
         break;
       case "declined":
-        nextStatus = SignatureRequestStatus.declined;
-        updateData.status = nextStatus;
+        if (existing.recipients.length > 0) {
+          const targetRecipient =
+            existing.recipients.find((recipient) => recipient.id === input.recipientId) ??
+            getActiveRoutingStepRecipients(existing.recipients)[0] ??
+            existing.recipients[0];
+
+          if (!targetRecipient) {
+            throw new Error("Recipient not found.");
+          }
+
+          await tx.signatureRecipient.update({
+            where: { id: targetRecipient.id },
+            data: {
+              status: SignatureRecipientStatus.declined,
+              declinedAt: now
+            }
+          });
+          nextRecipientDetails = await tx.signatureRecipient.findMany({
+            where: { signatureRequestId: existing.id },
+            orderBy: [{ sortOrder: "asc" }]
+          });
+          nextStatus = deriveEnvelopeStatusFromRecipients(nextStatus, nextRecipientDetails);
+          updateData.status = nextStatus;
+        } else {
+          nextStatus = SignatureRequestStatus.declined;
+          updateData.status = nextStatus;
+        }
         updateData.declinedAt = now;
         break;
       case "canceled":
-        nextStatus = SignatureRequestStatus.canceled;
+        nextStatus = SignatureRequestStatus.voided;
         updateData.status = nextStatus;
         updateData.canceledAt = now;
+        if (existing.recipients.length > 0) {
+          await tx.signatureRecipient.updateMany({
+            where: {
+              signatureRequestId: existing.id,
+              status: {
+                notIn: [SignatureRecipientStatus.acted, SignatureRecipientStatus.declined]
+              }
+            },
+            data: {
+              status: SignatureRecipientStatus.voided,
+              voidedAt: now
+            }
+          });
+          nextRecipientDetails = await tx.signatureRecipient.findMany({
+            where: { signatureRequestId: existing.id },
+            orderBy: [{ sortOrder: "asc" }]
+          });
+        }
         break;
       case "expire":
         nextStatus = SignatureRequestStatus.expired;
         updateData.status = nextStatus;
         updateData.expiredAt = now;
+        if (existing.recipients.length > 0) {
+          await tx.signatureRecipient.updateMany({
+            where: {
+              signatureRequestId: existing.id,
+              status: {
+                notIn: [SignatureRecipientStatus.acted, SignatureRecipientStatus.declined, SignatureRecipientStatus.voided]
+              }
+            },
+            data: {
+              status: SignatureRecipientStatus.expired,
+              expiredAt: now
+            }
+          });
+          nextRecipientDetails = await tx.signatureRecipient.findMany({
+            where: { signatureRequestId: existing.id },
+            orderBy: [{ sortOrder: "asc" }]
+          });
+        }
         break;
     }
 
@@ -2648,7 +3672,7 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
     });
 
     const action =
-      input.action === "send" || input.action === "resend"
+      input.action === "send" || input.action === "resend" || input.action === "advance"
         ? activityLogActions.signatureRequestSent
         : input.action === "completed"
           ? activityLogActions.signatureCompleted
@@ -2677,15 +3701,17 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
       }
     });
 
-    if (input.action === "send" || input.action === "resend" || input.action === "completed") {
+    if (input.action === "send" || input.action === "resend" || input.action === "advance" || input.action === "completed") {
       const notificationType =
-        input.action === "send" || input.action === "resend" ? NotificationType.signature_pending : NotificationType.signature_completed;
+        input.action === "send" || input.action === "resend" || input.action === "advance"
+          ? NotificationType.signature_pending
+          : NotificationType.signature_completed;
       const notificationTitle =
-        input.action === "send" || input.action === "resend"
+        input.action === "send" || input.action === "resend" || input.action === "advance"
           ? `Signature pending: ${existing.document?.title ?? existing.form?.name ?? existing.transaction.title}`
           : `Signature completed: ${existing.document?.title ?? existing.form?.name ?? existing.transaction.title}`;
       const notificationBody =
-        input.action === "send" || input.action === "resend"
+        input.action === "send" || input.action === "resend" || input.action === "advance"
           ? `${saved.recipientName} still needs to complete this signature request.`
           : `${saved.recipientName} completed this signature request.`;
 
@@ -2696,7 +3722,7 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
         restrictToOfficeRoles: true,
         type: notificationType,
         category: NotificationCategory.signature,
-        severity: input.action === "send" ? NotificationSeverity.warning : NotificationSeverity.info,
+        severity: input.action === "send" || input.action === "advance" ? NotificationSeverity.warning : NotificationSeverity.info,
         entityType: NotificationEntityType.signature_request,
         entityId: saved.id,
         title: notificationTitle,
@@ -2705,7 +3731,7 @@ export async function updateSignatureRequest(input: UpdateSignatureRequestInput)
       });
     }
 
-    if (input.action === "send" || input.action === "resend") {
+    if (input.action === "send" || input.action === "resend" || input.action === "advance") {
       await recordSignatureAuditEntry(tx, {
         signatureRequestId: saved.id,
         eventType: SignatureAuditEventType.email_sent,

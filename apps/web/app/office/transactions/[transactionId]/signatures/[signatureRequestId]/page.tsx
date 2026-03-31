@@ -1,5 +1,5 @@
-import { canManageOfficeSignatures } from "@acre/auth";
-import { getSignatureEditorSnapshot } from "@acre/db";
+import { canManageOfficeSignatures, canManageOfficeSignatureTemplates } from "@acre/auth";
+import { getOfficeSignatureTemplateLibrarySnapshot, getSignatureEditorSnapshot } from "@acre/db";
 import { PageHeader, PageShell } from "@acre/ui";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../../lib/auth-session";
@@ -20,7 +20,15 @@ export default async function SignatureRequestPage({ params }: SignatureRequestP
   }
 
   const { transactionId, signatureRequestId } = await params;
-  const snapshot = await getSignatureEditorSnapshot(context.currentOrganization.id, transactionId, signatureRequestId);
+  const [snapshot, templateLibrary] = await Promise.all([
+    getSignatureEditorSnapshot(context.currentOrganization.id, transactionId, signatureRequestId),
+    canManageOfficeSignatureTemplates(context.currentMembership)
+      ? getOfficeSignatureTemplateLibrarySnapshot({
+          organizationId: context.currentOrganization.id,
+          officeId: context.currentOffice?.id ?? null
+        })
+      : Promise.resolve(null)
+  ]);
 
   if (!snapshot) {
     notFound();
@@ -37,10 +45,12 @@ export default async function SignatureRequestPage({ params }: SignatureRequestP
       <SignatureRequestEditor
         defaultReplyTo={context.currentUser.email}
         defaultSenderDisplayName={`${context.currentUser.firstName} ${context.currentUser.lastName}`.trim() || context.currentUser.email}
+        availableTemplates={templateLibrary?.templates ?? []}
         document={snapshot.document}
         initialAuditEntries={snapshot.auditEntries}
         initialFields={snapshot.fields}
         initialRequest={snapshot.signatureRequest}
+        initialTemplate={null}
         transactionId={transactionId}
       />
     </PageShell>

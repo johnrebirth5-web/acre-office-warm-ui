@@ -14,6 +14,7 @@ import {
   canAccessOfficeSettings,
   canAccessOfficeTasks,
   canManageOfficeSettings,
+  canViewOfficeSignatures,
   canViewOfficeAgents,
   canViewOfficeChecklists,
   canViewOfficeContacts,
@@ -51,6 +52,7 @@ function getNavGroups(subject: PermissionSubject): NavGroup[] {
         { label: "Performance", href: "/office/performance", isVisible: canViewOfficeReports },
         { label: "Activity", href: "/office/activity", isVisible: canAccessAccountActivity },
         { label: "Library", href: "/office/library", isVisible: canViewOfficeLibrary },
+        { label: "Signatures", href: "/office/signatures", isVisible: canViewOfficeSignatures },
         { label: "Accounting", href: "/office/accounting", isVisible: canAccessOfficeAdminAccountingWorkspace },
         { label: "1099 Tracker", href: "/office/1099-tracker", isVisible: canAccessOffice1099Tracker }
       ].filter((item) => item.isVisible?.(subject) ?? true)

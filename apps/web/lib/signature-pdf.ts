@@ -32,6 +32,7 @@ export async function buildSignedPdf(input: {
   originalPdfBytes: Uint8Array;
   fields: OfficeSignatureField[];
   values: SubmittedSignatureFieldValue[];
+  allowIncomplete?: boolean;
 }) {
   const pdf = await PDFDocument.load(input.originalPdfBytes);
   const helvetica = await pdf.embedFont(StandardFonts.Helvetica);
@@ -48,7 +49,7 @@ export async function buildSignedPdf(input: {
     }
 
     const value = valuesByFieldId.get(field.id);
-    if (!value && field.required) {
+    if (!value && field.required && !input.allowIncomplete) {
       throw new Error(`Field ${field.label} is required.`);
     }
 
@@ -97,9 +98,20 @@ export async function buildSignedPdf(input: {
 
     const textValue = value.textValue?.trim() || field.defaultValue.trim();
     if (!textValue) {
-      if (field.required) {
+      if (field.required && !input.allowIncomplete) {
         throw new Error(`Field ${field.label} is required.`);
       }
+      continue;
+    }
+
+    if (field.fieldType === "checkbox") {
+      page.drawText(textValue.toLowerCase() === "true" || textValue === "1" || textValue.toLowerCase() === "yes" ? "X" : "", {
+        x: x + 6,
+        y: y + Math.max(6, height * 0.2),
+        font: helvetica,
+        size: fitFontSize("X", width, height),
+        color: rgb(0.05, 0.09, 0.16)
+      });
       continue;
     }
 

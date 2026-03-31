@@ -1,0 +1,441 @@
+import { SignatureFieldType, SignatureRecipientRole, SignatureTemplateCategory } from "@prisma/client";
+import { activityLogActions, recordActivityLogEvent } from "./activity-log";
+import { prisma } from "./client";
+import { formatDateTimeLabel } from "./date-time";
+
+export type OfficeSignatureTemplateRecipient = {
+  id: string;
+  roleKey: SignatureRecipientRole;
+  role: string;
+  recipientRole: string;
+  routingStep: number;
+  sortOrder: number;
+};
+
+export type OfficeSignatureTemplateField = {
+  id: string;
+  assignedTemplateRecipientId: string;
+  fieldType: SignatureFieldType;
+  label: string;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  defaultValue: string;
+  fontStyle: string;
+  fieldKey: string;
+  isReadOnly: boolean;
+  isSystemPrefilled: boolean;
+  visibilityRule: Record<string, string>;
+  mirrorGroup: string;
+  fieldOptions: Record<string, string>;
+  sortOrder: number;
+};
+
+export type OfficeSignatureTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  category: SignatureTemplateCategory;
+  categoryLabel: string;
+  version: number;
+  isActive: boolean;
+  emailSubject: string;
+  emailBody: string;
+  senderDisplayName: string;
+  senderReplyTo: string;
+  createdByLabel: string;
+  updatedAt: string;
+  recipients: OfficeSignatureTemplateRecipient[];
+  fields: OfficeSignatureTemplateField[];
+};
+
+export type OfficeSignatureTemplateLibrarySnapshot = {
+  summary: {
+    totalCount: number;
+    activeCount: number;
+  };
+  templates: OfficeSignatureTemplate[];
+};
+
+export type SaveSignatureTemplateInput = {
+  organizationId: string;
+  officeId?: string | null;
+  actorMembershipId: string;
+  templateId?: string | null;
+  name: string;
+  description?: string | null;
+  category: SignatureTemplateCategory;
+  isActive?: boolean;
+  emailSubject?: string | null;
+  emailBody?: string | null;
+  senderDisplayName?: string | null;
+  senderReplyTo?: string | null;
+  recipients: Array<{
+    id?: string | null;
+    role: SignatureRecipientRole;
+    recipientRole: string;
+    routingStep?: number | null;
+    sortOrder?: number | null;
+  }>;
+  fields: Array<{
+    assignedTemplateRecipientId?: string | null;
+    fieldType: SignatureFieldType;
+    label: string;
+    page: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    required?: boolean;
+    defaultValue?: string | null;
+    fontStyle?: string | null;
+    fieldKey?: string | null;
+    isReadOnly?: boolean;
+    isSystemPrefilled?: boolean;
+    visibilityRule?: Record<string, string>;
+    mirrorGroup?: string | null;
+    fieldOptions?: Record<string, string>;
+    sortOrder?: number | null;
+  }>;
+};
+
+const recipientRoleLabelMap: Record<SignatureRecipientRole, string> = {
+  signer: "Signer",
+  approver: "Approver",
+  cc: "CC"
+};
+
+const categoryLabelMap: Record<SignatureTemplateCategory, string> = {
+  hr: "HR",
+  finance: "Finance",
+  admin: "Admin",
+  transaction: "Transaction"
+};
+
+function normalizeOptionalString(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function formatMembershipLabel(
+  membership:
+    | {
+        user?: {
+          firstName: string | null;
+          lastName: string | null;
+          email: string;
+        } | null;
+      }
+    | null
+    | undefined
+) {
+  const firstName = membership?.user?.firstName?.trim() ?? "";
+  const lastName = membership?.user?.lastName?.trim() ?? "";
+  const name = `${firstName} ${lastName}`.trim();
+
+  return name || membership?.user?.email || "—";
+}
+
+function mapTemplate(
+  template: Awaited<ReturnType<typeof listSignatureTemplatesInternal>>[number]
+): OfficeSignatureTemplate {
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description ?? "",
+    category: template.category,
+    categoryLabel: categoryLabelMap[template.category],
+    version: template.version,
+    isActive: template.isActive,
+    emailSubject: template.emailSubject ?? "",
+    emailBody: template.emailBody ?? "",
+    senderDisplayName: template.senderDisplayName ?? "",
+    senderReplyTo: template.senderReplyTo ?? "",
+    createdByLabel: formatMembershipLabel(template.createdByMembership),
+    updatedAt: formatDateTimeLabel(template.updatedAt) || "",
+    recipients: template.recipients.map((recipient) => ({
+      id: recipient.id,
+      roleKey: recipient.role,
+      role: recipientRoleLabelMap[recipient.role],
+      recipientRole: recipient.recipientRole,
+      routingStep: recipient.routingStep,
+      sortOrder: recipient.sortOrder
+    })),
+    fields: template.fields.map((field) => ({
+      id: field.id,
+      assignedTemplateRecipientId: field.assignedTemplateRecipientId ?? "",
+      fieldType: field.fieldType,
+      label: field.label,
+      page: field.page,
+      x: field.x,
+      y: field.y,
+      width: field.width,
+      height: field.height,
+      required: field.required,
+      defaultValue: field.defaultValue ?? "",
+      fontStyle: field.fontStyle ?? "",
+      fieldKey: field.fieldKey ?? "",
+      isReadOnly: field.isReadOnly,
+      isSystemPrefilled: field.isSystemPrefilled,
+      visibilityRule:
+        field.visibilityRule && typeof field.visibilityRule === "object" && !Array.isArray(field.visibilityRule)
+          ? (field.visibilityRule as Record<string, string>)
+          : {},
+      mirrorGroup: field.mirrorGroup ?? "",
+      fieldOptions:
+        field.fieldOptions && typeof field.fieldOptions === "object" && !Array.isArray(field.fieldOptions)
+          ? (field.fieldOptions as Record<string, string>)
+          : {},
+      sortOrder: field.sortOrder
+    }))
+  };
+}
+
+async function listSignatureTemplatesInternal(input: {
+  organizationId: string;
+  officeId?: string | null;
+}) {
+  return prisma.signatureTemplate.findMany({
+    where: {
+      organizationId: input.organizationId,
+      ...(input.officeId ? { officeId: input.officeId } : {})
+    },
+    include: {
+      createdByMembership: {
+        select: {
+          id: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      },
+      recipients: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      },
+      fields: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      }
+    },
+    orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }]
+  });
+}
+
+export async function getOfficeSignatureTemplateLibrarySnapshot(input: {
+  organizationId: string;
+  officeId?: string | null;
+}): Promise<OfficeSignatureTemplateLibrarySnapshot> {
+  const templates = await listSignatureTemplatesInternal(input);
+
+  return {
+    summary: {
+      totalCount: templates.length,
+      activeCount: templates.filter((template) => template.isActive).length
+    },
+    templates: templates.map(mapTemplate)
+  };
+}
+
+export async function getOfficeSignatureTemplate(input: {
+  organizationId: string;
+  templateId: string;
+}) {
+  const template = await prisma.signatureTemplate.findFirst({
+    where: {
+      id: input.templateId,
+      organizationId: input.organizationId
+    },
+    include: {
+      createdByMembership: {
+        select: {
+          id: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      },
+      recipients: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      },
+      fields: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      }
+    }
+  });
+
+  return template ? mapTemplate(template) : null;
+}
+
+export async function saveSignatureTemplate(input: SaveSignatureTemplateInput) {
+  const name = normalizeOptionalString(input.name);
+
+  if (!name) {
+    throw new Error("Template name is required.");
+  }
+
+  const normalizedRecipients = input.recipients
+    .filter((recipient) => recipient.recipientRole.trim())
+    .map((recipient, index) => ({
+      id: recipient.id?.trim() || null,
+      role: recipient.role,
+      recipientRole: recipient.recipientRole.trim(),
+      routingStep: recipient.role === "cc" ? 0 : Math.max(1, Number(recipient.routingStep ?? 1)),
+      sortOrder: typeof recipient.sortOrder === "number" ? recipient.sortOrder : index
+    }));
+
+  if (normalizedRecipients.length === 0) {
+    throw new Error("At least one template recipient is required.");
+  }
+
+  const actionableRecipients = normalizedRecipients.filter((recipient) => recipient.role !== "cc");
+
+  if (actionableRecipients.length === 0) {
+    throw new Error("At least one signer or approver is required.");
+  }
+
+  const savedTemplateId = await prisma.$transaction(async (tx) => {
+    const existing = input.templateId
+      ? await tx.signatureTemplate.findFirst({
+          where: {
+            id: input.templateId,
+            organizationId: input.organizationId
+          }
+        })
+      : null;
+
+    const template = existing
+      ? await tx.signatureTemplate.update({
+          where: {
+            id: existing.id
+          },
+          data: {
+            category: input.category,
+            name,
+            description: normalizeOptionalString(input.description),
+            isActive: input.isActive ?? true,
+            emailSubject: normalizeOptionalString(input.emailSubject),
+            emailBody: normalizeOptionalString(input.emailBody),
+            senderDisplayName: normalizeOptionalString(input.senderDisplayName),
+            senderReplyTo: normalizeOptionalString(input.senderReplyTo),
+            version: existing.version + 1
+          }
+        })
+      : await tx.signatureTemplate.create({
+          data: {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            category: input.category,
+            name,
+            description: normalizeOptionalString(input.description),
+            isActive: input.isActive ?? true,
+            emailSubject: normalizeOptionalString(input.emailSubject),
+            emailBody: normalizeOptionalString(input.emailBody),
+            senderDisplayName: normalizeOptionalString(input.senderDisplayName),
+            senderReplyTo: normalizeOptionalString(input.senderReplyTo),
+            createdByMembershipId: input.actorMembershipId
+          }
+        });
+
+    await tx.signatureTemplateRecipient.deleteMany({
+      where: {
+        templateId: template.id
+      }
+    });
+    await tx.signatureTemplateField.deleteMany({
+      where: {
+        templateId: template.id
+      }
+    });
+
+    const createdRecipients = await Promise.all(
+      normalizedRecipients.map((recipient) =>
+        tx.signatureTemplateRecipient.create({
+          data: {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            templateId: template.id,
+            role: recipient.role,
+            recipientRole: recipient.recipientRole,
+            routingStep: recipient.routingStep,
+            sortOrder: recipient.sortOrder
+          }
+        })
+      )
+    );
+    const fallbackRecipientId = createdRecipients.find((recipient) => recipient.role !== "cc")?.id ?? null;
+    const recipientIdMap = new Map<string, string>();
+
+    createdRecipients.forEach((recipient, index) => {
+      const sourceId = normalizedRecipients[index]?.id;
+      if (sourceId) {
+        recipientIdMap.set(sourceId, recipient.id);
+      }
+    });
+
+    await Promise.all(
+      input.fields.map((field, index) =>
+        tx.signatureTemplateField.create({
+          data: {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            templateId: template.id,
+            assignedTemplateRecipientId:
+              (field.assignedTemplateRecipientId
+                ? recipientIdMap.get(field.assignedTemplateRecipientId)
+                : null) ?? fallbackRecipientId,
+            fieldType: field.fieldType,
+            label: field.label,
+            page: field.page,
+            x: field.x,
+            y: field.y,
+            width: field.width,
+            height: field.height,
+            required: field.required ?? true,
+            defaultValue: normalizeOptionalString(field.defaultValue),
+            fontStyle: normalizeOptionalString(field.fontStyle),
+            fieldKey: normalizeOptionalString(field.fieldKey),
+            isReadOnly: Boolean(field.isReadOnly),
+            isSystemPrefilled: Boolean(field.isSystemPrefilled),
+            visibilityRule: field.visibilityRule ?? {},
+            mirrorGroup: normalizeOptionalString(field.mirrorGroup),
+            fieldOptions: field.fieldOptions ?? {},
+            sortOrder: typeof field.sortOrder === "number" ? field.sortOrder : index
+          }
+        })
+      )
+    );
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "signature_template",
+      entityId: template.id,
+      action: existing ? activityLogActions.settingsSignatureTemplateUpdated : activityLogActions.settingsSignatureTemplateCreated,
+      payload: {
+        objectLabel: name,
+        details: [
+          `${categoryLabelMap[input.category]} template`,
+          `${actionableRecipients.length} signer/approver role${actionableRecipients.length === 1 ? "" : "s"}`,
+          `${input.fields.length} field${input.fields.length === 1 ? "" : "s"}`
+        ]
+      }
+    });
+
+    return template.id;
+  });
+
+  return getOfficeSignatureTemplate({
+    organizationId: input.organizationId,
+    templateId: savedTemplateId
+  });
+}

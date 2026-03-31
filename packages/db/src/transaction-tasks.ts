@@ -372,12 +372,14 @@ const formStatusLabelMap: Record<TransactionFormStatus, string> = {
 
 const signatureStatusLabelMap: Record<SignatureRequestStatus, string> = {
   draft: "Draft",
+  pending_send: "Pending send",
   sent: "Sent",
   viewed: "Viewed",
   signed: "Signed",
   completed: "Completed",
   declined: "Declined",
   canceled: "Canceled",
+  voided: "Void / Cancelled",
   expired: "Expired"
 };
 

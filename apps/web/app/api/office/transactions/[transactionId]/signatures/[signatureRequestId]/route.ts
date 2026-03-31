@@ -13,6 +13,29 @@ type RouteContext = {
   }>;
 };
 
+function isRecipientTerminalStatus(statusKey: string) {
+  return statusKey === "acted" || statusKey === "declined" || statusKey === "voided" || statusKey === "expired";
+}
+
+function getActiveRecipients(
+  recipients: Array<{
+    id: string;
+    email: string;
+    roleKey: string;
+    routingStep: number;
+    statusKey: string;
+  }>
+) {
+  const actionable = recipients.filter((recipient) => recipient.roleKey !== "cc" && !isRecipientTerminalStatus(recipient.statusKey));
+
+  if (actionable.length === 0) {
+    return [];
+  }
+
+  const routingStep = actionable.reduce((minimum, recipient) => Math.min(minimum, recipient.routingStep), actionable[0]!.routingStep);
+  return actionable.filter((recipient) => recipient.routingStep === routingStep);
+}
+
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
 
@@ -46,10 +69,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       if (!snapshot.fields.length) {
         return NextResponse.json({ error: "Add at least one signature field before sending." }, { status: 400 });
       }
-
-      const { rawToken, tokenHash } = createSignatureToken();
       const baseUrl = getAppBaseUrl(request);
-      const signingLink = `${baseUrl}/sign/${encodeURIComponent(rawToken)}`;
       const senderDisplayName =
         snapshot.signatureRequest.senderDisplayName ||
         `${context.currentUser.firstName} ${context.currentUser.lastName}`.trim() ||
@@ -60,27 +80,80 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       const message =
         snapshot.signatureRequest.emailBody ||
         `${senderDisplayName} sent you a document to review and sign in Acre.`;
+      const actionableRecipients = snapshot.signatureRequest.recipients.filter((recipient) => recipient.roleKey !== "cc");
 
-      await sendSignatureRequestEmail({
-        organizationId: context.currentOrganization.id,
-        to: snapshot.signatureRequest.recipientEmail,
-        subject,
-        message,
-        signingLink,
-        documentTitle: snapshot.document.title,
-        expiresAt: snapshot.signatureRequest.expiresAt || null,
-        senderDisplayName,
-        replyTo: snapshot.signatureRequest.senderReplyTo || context.currentUser.email
-      });
+      if (actionableRecipients.length > 1) {
+        const recipientIds = new Set(actionableRecipients.map((recipient) => recipient.id));
+        const unassignedField = snapshot.fields.find((field) => !field.assignedRecipientId || !recipientIds.has(field.assignedRecipientId));
 
-      signatureRequest = await updateSignatureRequest({
-        organizationId: context.currentOrganization.id,
-        transactionId,
-        signatureRequestId,
-        actorMembershipId: context.currentMembership.id,
-        action: action as "send" | "resend",
-        tokenHash
-      });
+        if (unassignedField) {
+          return NextResponse.json(
+            { error: "Assign every field to a specific signer or approver before sending multi-recipient requests." },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (snapshot.signatureRequest.recipients.length > 0) {
+        const activeRecipients = getActiveRecipients(snapshot.signatureRequest.recipients);
+        const recipientTokens = activeRecipients.map((recipient) => {
+          const { rawToken, tokenHash } = createSignatureToken();
+          return {
+            recipient,
+            rawToken,
+            tokenHash
+          };
+        });
+
+        for (const entry of recipientTokens) {
+          await sendSignatureRequestEmail({
+            organizationId: context.currentOrganization.id,
+            to: entry.recipient.email,
+            subject,
+            message,
+            signingLink: `${baseUrl}/sign/${encodeURIComponent(entry.rawToken)}`,
+            documentTitle: snapshot.document.title,
+            expiresAt: snapshot.signatureRequest.expiresAt || null,
+            senderDisplayName,
+            replyTo: snapshot.signatureRequest.senderReplyTo || context.currentUser.email
+          });
+        }
+
+        signatureRequest = await updateSignatureRequest({
+          organizationId: context.currentOrganization.id,
+          transactionId,
+          signatureRequestId,
+          actorMembershipId: context.currentMembership.id,
+          action: action as "send" | "resend",
+          recipientTokens: recipientTokens.map((entry) => ({
+            recipientId: entry.recipient.id,
+            tokenHash: entry.tokenHash
+          }))
+        });
+      } else {
+        const { rawToken, tokenHash } = createSignatureToken();
+
+        await sendSignatureRequestEmail({
+          organizationId: context.currentOrganization.id,
+          to: snapshot.signatureRequest.recipientEmail,
+          subject,
+          message,
+          signingLink: `${baseUrl}/sign/${encodeURIComponent(rawToken)}`,
+          documentTitle: snapshot.document.title,
+          expiresAt: snapshot.signatureRequest.expiresAt || null,
+          senderDisplayName,
+          replyTo: snapshot.signatureRequest.senderReplyTo || context.currentUser.email
+        });
+
+        signatureRequest = await updateSignatureRequest({
+          organizationId: context.currentOrganization.id,
+          transactionId,
+          signatureRequestId,
+          actorMembershipId: context.currentMembership.id,
+          action: action as "send" | "resend",
+          tokenHash
+        });
+      }
     } else {
       signatureRequest = await updateSignatureRequest({
         organizationId: context.currentOrganization.id,

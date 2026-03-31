@@ -9,6 +9,16 @@ type RouteContext = {
   }>;
 };
 
+type RecipientRequestBody = {
+  id?: string | null;
+  role?: "signer" | "approver" | "cc";
+  name?: string;
+  email?: string;
+  recipientRole?: string;
+  routingStep?: number | null;
+  sortOrder?: number | null;
+};
+
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
 
@@ -27,9 +37,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         formId?: string | null;
         documentId?: string | null;
         offerId?: string | null;
+        templateId?: string | null;
+        subjectMembershipId?: string | null;
+        contextType?: "transaction" | "membership" | "finance_request" | "admin_request" | "generic";
+        contextId?: string | null;
+        contextLabel?: string | null;
         recipientName?: string;
         recipientEmail?: string;
         recipientRole?: string;
+        recipients?: RecipientRequestBody[];
+        ccRecipients?: RecipientRequestBody[];
         emailSubject?: string | null;
         emailBody?: string | null;
         expiresAt?: string | null;
@@ -38,9 +55,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         signingOrder?: number | null;
       }
     | null;
+  const safeBody = body ?? {};
 
-  if (!body?.recipientName?.trim() || !body.recipientEmail?.trim() || !body.recipientRole?.trim()) {
-    return NextResponse.json({ error: "Recipient name, email, and role are required." }, { status: 400 });
+  const recipients =
+    safeBody.recipients?.filter(
+      (recipient) =>
+        recipient.role !== "cc" &&
+        recipient.name?.trim() &&
+        recipient.email?.trim() &&
+        recipient.recipientRole?.trim()
+    ) ?? [];
+  const primaryRecipient = recipients[0];
+  const legacyRecipientName = safeBody.recipientName?.trim() || primaryRecipient?.name?.trim() || "";
+  const legacyRecipientEmail = safeBody.recipientEmail?.trim() || primaryRecipient?.email?.trim() || "";
+  const legacyRecipientRole = safeBody.recipientRole?.trim() || primaryRecipient?.recipientRole?.trim() || "";
+
+  if (!recipients.length && (!legacyRecipientName || !legacyRecipientEmail || !legacyRecipientRole)) {
+    return NextResponse.json({ error: "At least one signer or approver recipient is required." }, { status: 400 });
   }
 
   try {
@@ -49,19 +80,43 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       officeId: context.currentOffice?.id ?? null,
       transactionId,
       actorMembershipId: context.currentMembership.id,
-      signatureRequestId: body.signatureRequestId?.trim() || null,
-      formId: body.formId?.trim() || null,
-      documentId: body.documentId?.trim() || null,
-      offerId: body.offerId?.trim() || null,
-      recipientName: body.recipientName,
-      recipientEmail: body.recipientEmail,
-      recipientRole: body.recipientRole,
-      emailSubject: body.emailSubject?.trim() || null,
-      emailBody: body.emailBody?.trim() || null,
-      expiresAt: body.expiresAt?.trim() || null,
-      senderDisplayName: body.senderDisplayName?.trim() || null,
-      senderReplyTo: body.senderReplyTo?.trim() || null,
-      signingOrder: typeof body.signingOrder === "number" ? body.signingOrder : null
+      signatureRequestId: safeBody.signatureRequestId?.trim() || null,
+      formId: safeBody.formId?.trim() || null,
+      documentId: safeBody.documentId?.trim() || null,
+      offerId: safeBody.offerId?.trim() || null,
+      templateId: safeBody.templateId?.trim() || null,
+      subjectMembershipId: safeBody.subjectMembershipId?.trim() || null,
+      contextType: safeBody.contextType,
+      contextId: safeBody.contextId?.trim() || null,
+      contextLabel: safeBody.contextLabel?.trim() || null,
+      recipientName: legacyRecipientName,
+      recipientEmail: legacyRecipientEmail,
+      recipientRole: legacyRecipientRole,
+      recipients: recipients.map((recipient, index) => ({
+        id: recipient.id?.trim() || null,
+        role: recipient.role === "approver" ? "approver" : "signer",
+        name: recipient.name!.trim(),
+        email: recipient.email!.trim(),
+        recipientRole: recipient.recipientRole!.trim(),
+        routingStep: typeof recipient.routingStep === "number" ? recipient.routingStep : null,
+        sortOrder: typeof recipient.sortOrder === "number" ? recipient.sortOrder : index
+      })),
+      ccRecipients:
+        safeBody.ccRecipients
+          ?.filter((recipient) => recipient.name?.trim() && recipient.email?.trim())
+          .map((recipient, index) => ({
+            id: recipient.id?.trim() || null,
+            name: recipient.name!.trim(),
+            email: recipient.email!.trim(),
+            recipientRole: recipient.recipientRole?.trim() || "CC",
+            sortOrder: typeof recipient.sortOrder === "number" ? recipient.sortOrder : recipients.length + index
+          })) ?? [],
+      emailSubject: safeBody.emailSubject?.trim() || null,
+      emailBody: safeBody.emailBody?.trim() || null,
+      expiresAt: safeBody.expiresAt?.trim() || null,
+      senderDisplayName: safeBody.senderDisplayName?.trim() || null,
+      senderReplyTo: safeBody.senderReplyTo?.trim() || null,
+      signingOrder: typeof safeBody.signingOrder === "number" ? safeBody.signingOrder : null
     });
 
     if (!signatureRequest) {

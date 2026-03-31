@@ -37,6 +37,7 @@
   - `Transactions`
   - `Contacts`
   - `Tasks`
+  - `Signatures`
   - `Reports`
   - `Performance`
   - `Notifications`
@@ -48,6 +49,7 @@
   - `Settings > Company`
   - `Settings > Roles`
   - `Settings > Email delivery`
+  - `Settings > Signature Drive`
   - `Settings > Users`
   - `Settings > Teams`
   - `Settings > Fields`
@@ -164,25 +166,36 @@
     - 按 transaction 数据做确定性 merge
     - 保存 draft
     - 生成关联 document 记录
-  - `eSignature` 当前支持内部状态机：
-    - draft
-    - sent
-    - viewed
-    - signed
-    - completed
-    - declined
-    - canceled
-    - expired
-    当前 document-based eSignature 还支持：
-    - 仅限 transaction detail 内发起
-    - 仅限 PDF 文档
-    - 单签署人公开链接
-    - 拖拽 / 缩放签区编辑
-    - 真实邮件发送（优先 `Resend API`，否则回退到 SMTP）
-    - 管理员在 `Settings > Email delivery` 中配置组织级发件信息和 SMTP fallback；当系统内未保存配置时继续回退到 env sender / SMTP fallback
-    - 公共签署页手写 / 输入生成 / 上传图片三种签名方式
-    - signed PDF 归档回 transaction documents
-    当前没有第三方签名 vendor integration
+  - `eSignature` 已升级成平台级电子签署中心 MVP：
+    - 平台中心页：`/office/signatures`
+    - 模板库：`/office/signatures/templates`
+    - Drive 设置：`Settings > Signature Drive`
+    - 当前支持内部状态机：
+      - draft
+      - pending_send
+      - sent
+      - viewed
+      - signed
+      - completed
+      - declined
+      - voided
+      - expired
+      - 历史 `canceled` 状态继续可读，用于兼容旧记录
+    - 当前 document-based eSignature 还支持：
+      - 仍以 transaction detail 编辑器作为首发创建入口，但 envelope 已可绑定 template / subject membership / context metadata
+      - 多 signer / approver / CC
+      - 串行、并行和混合 routing step
+      - 字段 owner 绑定、同名字段联动、预填 / 只读 / 系统字段
+      - recipient token 驱动的公开签署链接，未到当前步骤的 recipient 不能签，且不能占用他人签区
+      - 拖拽 / 缩放签区编辑
+      - 真实邮件发送（优先 `Resend API`，否则回退到 SMTP）
+      - 管理员在 `Settings > Email delivery` 中配置组织级发件信息和 SMTP fallback；当系统内未保存配置时继续回退到 env sender / SMTP fallback
+      - 公共签署页手写 / 输入生成 / 上传图片三种签名方式
+      - 已签 PDF 归档回 transaction documents，并在完成后尝试同步到 Google Drive service account 目标文件夹；失败不会回滚签署，但可在中心页重试
+      - `/office/signatures` 支持状态筛选、发送人 / 签署人筛选、Drive 状态查看和 CSV 导出
+      - 模板库当前通过“先配置一个签署请求，再保存为模板”的方式维护；还没有独立的零上下文模板设计器
+    - 当前没有第三方签名 vendor integration
+    - 当前真正的新建请求仍偏 transaction-first，平台中心更多承担统一追踪、模板管理、报表和归档职责
   - `Incoming updates` 当前支持内部 review model：
     - pending_review
     - accepted
@@ -780,6 +793,10 @@
   - `/api/office/transactions/:transactionId/signatures`
   - `/api/office/transactions/:transactionId/signatures/:signatureRequestId`
   - `/api/office/transactions/:transactionId/signatures/:signatureRequestId/fields`
+  - `/api/office/signatures/export`
+  - `/api/office/signatures/templates`
+  - `/api/office/signatures/:signatureRequestId/drive-sync`
+  - `/api/office/settings/signature-drive`
   - `/api/public/signatures/:token`
   - `/api/public/signatures/:token/document`
   - `/api/public/signatures/:token/submit`

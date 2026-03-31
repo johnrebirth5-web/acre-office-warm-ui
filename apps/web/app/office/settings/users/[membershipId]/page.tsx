@@ -4,6 +4,7 @@ import {
   canManageOfficeGoals,
   canManageOfficeOnboarding,
   canManageOfficeSettings,
+  canViewOfficeSignatures,
   canManageOfficeTeams,
   canManageOfficeUsers,
   canViewOfficeAgents,
@@ -78,6 +79,14 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
             <Link className="office-button office-button-secondary office-button-sm" href="/office/settings/users">
               Back to users
             </Link>
+            {canViewOfficeSignatures(context.currentMembership) ? (
+              <Link
+                className="office-button office-button-secondary office-button-sm"
+                href={`/office/signatures?category=hr&subjectMembershipId=${encodeURIComponent(membershipId)}`}
+              >
+                HR signatures
+              </Link>
+            ) : null}
             <SummaryChip label={accessSnapshot ? "Office access" : "Office"} value={officeLabel} />
             <SummaryChip label="Role" value={roleLabel} />
             {accessSnapshot ? (

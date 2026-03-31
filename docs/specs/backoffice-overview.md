@@ -243,16 +243,21 @@ This file is the high-level product map for the current `Office / Back Office` s
 ### Documents / Forms / eSignature
 
 - What it is for:
-  - transaction documents, unsorted docs, internal forms, transaction-scoped external eSignature workflow, and incoming update review.
+  - transaction documents, unsorted docs, internal forms, platform-level eSignature center, and incoming update review.
 - Current maturity:
   - `MVP`
 - Current notable behavior:
   - `Incoming updates` foundation still exists in the data/API layer, but the transaction detail page no longer shows that section by default.
   - nested transaction child routes now need to respect the parent transaction scope instead of resolving by child id alone.
   - current single-Droplet deployment intentionally keeps local filesystem document storage, with production storage expected under `/var/lib/acre/documents`.
-  - transaction documents can now launch external signature requests from the detail workspace with PDF-only signer field placement, drag/resize field editing, Resend-or-SMTP email delivery, public signing links, and signed-PDF archive output.
+  - `/office/signatures` now provides one cross-module signature center with status filtering, sender/recipient filtering, Drive sync visibility, and CSV export.
+  - transaction documents can now launch external signature requests from the detail workspace with PDF-only field placement, drag/resize editing, multi-recipient routing, assigned signer ownership, Resend-or-SMTP email delivery, public recipient-token signing links, and signed-PDF archive output.
+  - `/office/signatures/templates` stores reusable signature templates, but the current authoring flow still starts from a configured signature request instead of a standalone blank-canvas designer.
+  - `Settings > Signature Drive` stores one organization-level Google Drive service account configuration and folder mapping; completed requests synchronously attempt to upload original and signed copies, and failed sync can be retried from the center page.
+  - first-phase creation is still transaction-first under the hood even when the request is tagged as `HR / Finance / Admin / Generic`, so the center currently acts more as a unified operations / template / archive workspace than a fully generic create-anywhere entry point.
 - Follow-up work:
   - object storage replacement for local file storage
+  - a truly generic non-transaction create flow
   - richer template management
   - queue-backed retries / stronger signer verification
   - future vendor integrations

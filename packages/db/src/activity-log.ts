@@ -42,6 +42,10 @@ export const activityLogActions = {
   settingsTableLayoutUpdated: "settings.table_layout_updated",
   settingsSmtpUpdated: "settings.smtp_updated",
   settingsSmtpDeleted: "settings.smtp_deleted",
+  settingsSignatureDriveUpdated: "settings.signature_drive_updated",
+  settingsSignatureDriveDeleted: "settings.signature_drive_deleted",
+  settingsSignatureTemplateCreated: "settings.signature_template_created",
+  settingsSignatureTemplateUpdated: "settings.signature_template_updated",
   settingsTransactionSearchLayoutUpdated: "settings.transaction_search_layout_updated",
   settingsTransactionReportSearchLayoutUpdated: "settings.transaction_report_search_layout_updated",
   settingsRequiredContactRolesChanged: "settings.required_contact_roles_changed",
@@ -159,6 +163,8 @@ export type ActivityLogEntityType =
   | "checklist_template"
   | "organization_table_layout"
   | "organization_smtp_setting"
+  | "organization_signature_drive_setting"
+  | "signature_template"
   | "organization_role_template"
   | "membership_permission_override"
   | "transaction"
@@ -412,6 +418,10 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.table_layout_updated": "Shared table layout updated",
   "settings.smtp_updated": "Email delivery updated",
   "settings.smtp_deleted": "Email delivery removed",
+  "settings.signature_drive_updated": "Signature Drive updated",
+  "settings.signature_drive_deleted": "Signature Drive removed",
+  "settings.signature_template_created": "Signature template created",
+  "settings.signature_template_updated": "Signature template updated",
   "settings.transaction_search_layout_updated": "Transaction search layout updated",
   "settings.transaction_report_search_layout_updated": "Reports search layout updated",
   "settings.required_contact_roles_changed": "Required contact roles changed",

@@ -1,5 +1,5 @@
-import { canManageOfficeSignatures } from "@acre/auth";
-import { getTransactionById } from "@acre/db";
+import { canManageOfficeSignatures, canManageOfficeSignatureTemplates } from "@acre/auth";
+import { getOfficeSignatureTemplate, getOfficeSignatureTemplateLibrarySnapshot, getTransactionById } from "@acre/db";
 import { PageHeader, PageShell } from "@acre/ui";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../../lib/auth-session";
@@ -11,6 +11,7 @@ type NewSignatureRequestPageProps = {
   }>;
   searchParams: Promise<{
     documentId?: string;
+    templateId?: string;
   }>;
 };
 
@@ -24,17 +25,32 @@ export default async function NewSignatureRequestPage({ params, searchParams }: 
   const { transactionId } = await params;
   const resolvedSearchParams = (await searchParams) ?? {};
   const documentId = resolvedSearchParams.documentId?.trim();
+  const templateId = resolvedSearchParams.templateId?.trim();
 
   if (!documentId) {
     redirect(`/office/transactions/${transactionId}#transaction-documents`);
   }
 
-  const transaction = await getTransactionById({
-    organizationId: context.currentOrganization.id,
-    viewerMembershipId: context.currentMembership.id,
-    transactionId,
-    officeId: context.currentOffice?.id ?? null
-  });
+  const [transaction, templateLibrary, initialTemplate] = await Promise.all([
+    getTransactionById({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      transactionId,
+      officeId: context.currentOffice?.id ?? null
+    }),
+    canManageOfficeSignatureTemplates(context.currentMembership)
+      ? getOfficeSignatureTemplateLibrarySnapshot({
+          organizationId: context.currentOrganization.id,
+          officeId: context.currentOffice?.id ?? null
+        })
+      : Promise.resolve(null),
+    templateId && canManageOfficeSignatureTemplates(context.currentMembership)
+      ? getOfficeSignatureTemplate({
+          organizationId: context.currentOrganization.id,
+          templateId
+        })
+      : Promise.resolve(null)
+  ]);
 
   if (!transaction) {
     notFound();
@@ -57,10 +73,12 @@ export default async function NewSignatureRequestPage({ params, searchParams }: 
       <SignatureRequestEditor
         defaultReplyTo={context.currentUser.email}
         defaultSenderDisplayName={`${context.currentUser.firstName} ${context.currentUser.lastName}`.trim() || context.currentUser.email}
+        availableTemplates={templateLibrary?.templates ?? []}
         document={document}
         initialAuditEntries={[]}
         initialFields={[]}
         initialRequest={null}
+        initialTemplate={initialTemplate}
         transactionId={transactionId}
       />
     </PageShell>

@@ -8,6 +8,15 @@
 
 ## Recently completed major work
 
+- 2026-03-31: eSignature moved from a transaction-only single-signer MVP toward a platform-level signature center MVP:
+  - added new Prisma models and enums for `SignatureRecipient`, `SignatureTemplate`, `SignatureTemplateRecipient`, `SignatureTemplateField`, `SignatureArtifact`, `OrganizationSignatureDriveSetting`, richer request statuses, recipient roles, template categories, context types, and Drive sync state
+  - `SignatureField` now stores `assignedRecipientId`, `fieldKey`, `isReadOnly`, `isSystemPrefilled`, `visibilityRule`, `mirrorGroup`, and `fieldOptions`, so each signing location can be bound to a specific signer and reused across mirrored fields
+  - transaction signature request authoring now supports multiple signers / approvers / CC recipients, routing-step based serial/parallel/hybrid flows, template/category/context metadata, and recipient-token public signing instead of one shared envelope token
+  - public `/sign/:token` and `/api/public/signatures/:token*` now enforce recipient-specific field ownership, overlay previously submitted values into the PDF preview, advance routing step by step, and keep backward compatibility for older single-recipient links
+  - completed requests now create normalized signature artifacts for original + signed copy and synchronously attempt Google Drive archival using one organization-level service account + folder mapping stored under `Settings > Signature Drive`; failures stay visible and can be retried from the center page
+  - `/office/signatures` now provides a unified signature operations workspace with filtering, recipient/requester visibility, Drive status, and CSV export, while `/office/signatures/templates` provides the reusable template library
+  - role permissions now explicitly distinguish `signatures:view`, `signatures:manage`, `signatures:template_manage`, `signatures:report_view`, and `signatures:report_export`, with self-related visibility preserved for `agent / team_lead` users
+  - current first-phase create flow is still transaction-first even though requests can already be tagged as `HR / Finance / Admin / Generic`; template management, subject membership linkage, and center-level tracking are live, but a fully generic non-transaction authoring surface remains follow-up work
 - 2026-03-28: transaction documents now support an external eSignature MVP inside the existing `Documents / Forms & eSignature` workspace:
   - `SignatureRequest` now stores recipient email copy, sender metadata, expiry, public token hash, signed/completed timestamps, and signed-output linkage instead of stopping at the old internal status shell
   - new `SignatureField` and `SignatureAuditEntry` models hold PDF field placement plus signer-facing audit evidence for request create/send/view/submit/finalize/cancel/expire

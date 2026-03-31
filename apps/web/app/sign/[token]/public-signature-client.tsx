@@ -19,41 +19,79 @@ type SignatureValueMap = Record<
   }
 >;
 
+function canCurrentRecipientEditField(snapshot: PublicSignatureRequestSnapshot, field: OfficeSignatureField) {
+  const actionableRecipients = snapshot.request.recipients.filter((recipient) => recipient.roleKey !== "cc");
+  const allowUnassignedField = actionableRecipients.length <= 1;
+
+  if (!field.assignedRecipientId) {
+    return allowUnassignedField;
+  }
+
+  return field.assignedRecipientId === snapshot.currentRecipient.id;
+}
+
 function buildInitialValues(snapshot: PublicSignatureRequestSnapshot): SignatureValueMap {
   const today = new Date().toISOString().slice(0, 10);
+  const submittedValuesByFieldId = new Map(
+    snapshot.submittedValues.map((value) => [
+      value.fieldId,
+      {
+        textValue: value.textValue || undefined,
+        signatureMode: value.signatureMode || undefined,
+        imageDataUrl: value.imageDataUrl || undefined
+      }
+    ])
+  );
 
   return Object.fromEntries(
     snapshot.fields.map((field) => [
       field.id,
-      field.fieldType === "name"
-        ? { textValue: field.defaultValue || snapshot.request.recipientName }
-        : field.fieldType === "date"
-          ? { textValue: field.defaultValue || today }
-          : field.fieldType === "text"
-            ? { textValue: field.defaultValue }
-            : {}
+      submittedValuesByFieldId.get(field.id) ??
+        (field.fieldType === "name"
+          ? { textValue: field.defaultValue || snapshot.currentRecipient.name }
+          : field.fieldType === "date"
+            ? { textValue: field.defaultValue || today }
+            : field.fieldType === "text" || field.fieldType === "initials" || field.fieldType === "email" || field.fieldType === "title" || field.fieldType === "company" || field.fieldType === "dropdown"
+              ? { textValue: field.defaultValue }
+              : {})
     ])
   );
 }
 
-function buildStatusMessage(statusKey: PublicSignatureRequestSnapshot["request"]["statusKey"]) {
-  if (statusKey === "completed") {
+function buildStatusMessage(snapshot: PublicSignatureRequestSnapshot) {
+  if (snapshot.request.statusKey === "completed") {
     return "This document has already been signed and completed.";
   }
 
-  if (statusKey === "canceled") {
+  if (snapshot.request.statusKey === "canceled" || snapshot.request.statusKey === "voided") {
     return "This signature request was canceled.";
   }
 
-  if (statusKey === "expired") {
+  if (snapshot.request.statusKey === "expired") {
     return "This signing link has expired.";
   }
 
-  if (statusKey === "declined") {
+  if (snapshot.request.statusKey === "declined") {
     return "This signature request was declined.";
   }
 
-  if (statusKey === "draft") {
+  if (snapshot.currentRecipient.statusKey === "acted") {
+    return "You already completed your signing step.";
+  }
+
+  if (snapshot.currentRecipient.statusKey === "declined") {
+    return "You already declined this signature request.";
+  }
+
+  if (snapshot.currentRecipient.statusKey === "voided" || snapshot.currentRecipient.statusKey === "expired") {
+    return "This signing step is no longer active.";
+  }
+
+  if (snapshot.currentRecipient.statusKey === "draft" || snapshot.currentRecipient.statusKey === "pending") {
+    return "This signing step is not active yet.";
+  }
+
+  if (snapshot.request.statusKey === "draft" || snapshot.request.statusKey === "pending_send") {
     return "This signature request is not ready yet.";
   }
 
@@ -83,15 +121,19 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
   const [values, setValues] = useState<SignatureValueMap>(() => buildInitialValues(snapshot));
   const [activeSignatureFieldId, setActiveSignatureFieldId] = useState("");
   const [signatureMode, setSignatureMode] = useState<"draw" | "type" | "upload">("draw");
-  const [typedSignature, setTypedSignature] = useState(snapshot.request.recipientName);
+  const [typedSignature, setTypedSignature] = useState(snapshot.currentRecipient.name);
   const [uploadInputKey, setUploadInputKey] = useState(0);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [completed, setCompleted] = useState(snapshot.request.statusKey === "completed");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const statusMessage = buildStatusMessage(snapshot.request.statusKey);
-  const isReadOnly = completed || Boolean(statusMessage && snapshot.request.statusKey !== "viewed" && snapshot.request.statusKey !== "sent");
+  const statusMessage = buildStatusMessage(snapshot);
+  const editableFieldCount = snapshot.fields.filter((field) => canCurrentRecipientEditField(snapshot, field)).length;
+  const isReadOnly =
+    completed ||
+    ["completed", "declined", "canceled", "voided", "expired"].includes(snapshot.request.statusKey) ||
+    ["acted", "declined", "voided", "expired", "pending", "draft"].includes(snapshot.currentRecipient.statusKey);
 
   const activeSignatureValue = activeSignatureFieldId ? values[activeSignatureFieldId] : undefined;
   const hasActiveSignatureValue = Boolean(activeSignatureValue?.imageDataUrl?.trim() || activeSignatureValue?.textValue?.trim());
@@ -150,7 +192,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
     setActiveSignatureFieldId(field.id);
     setSignatureMode(currentValue?.signatureMode ?? "draw");
-    setTypedSignature(currentValue?.signatureMode === "type" && currentValue.textValue?.trim() ? currentValue.textValue : snapshot.request.recipientName);
+    setTypedSignature(currentValue?.signatureMode === "type" && currentValue.textValue?.trim() ? currentValue.textValue : snapshot.currentRecipient.name);
   }
 
   function closeSignatureModal() {
@@ -285,11 +327,15 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         <div className="public-signature-meta">
           <p>
             <strong>Recipient</strong>
-            <span>{snapshot.request.recipientName}</span>
+            <span>{snapshot.currentRecipient.name}</span>
           </p>
           <p>
             <strong>Email</strong>
-            <span>{snapshot.request.recipientEmail}</span>
+            <span>{snapshot.currentRecipient.email}</span>
+          </p>
+          <p>
+            <strong>Role</strong>
+            <span>{snapshot.currentRecipient.recipientRole || snapshot.currentRecipient.role}</span>
           </p>
           {snapshot.request.expiresAt ? (
             <p>
@@ -305,7 +351,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
         {!isReadOnly && !completed ? (
           <Button disabled={pendingSubmit} onClick={handleSubmit}>
-            {pendingSubmit ? "Submitting..." : "Submit signature"}
+            {pendingSubmit ? "Submitting..." : snapshot.currentRecipient.roleKey === "approver" && editableFieldCount === 0 ? "Approve step" : "Submit signature"}
           </Button>
         ) : null}
       </aside>
@@ -324,6 +370,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                   .filter((field) => field.page === page.pageNumber)
                   .map((field) => {
                     const currentValue = values[field.id];
+                    const isEditable = canCurrentRecipientEditField(snapshot, field) && !isReadOnly;
 
                     return (
                       <div
@@ -339,7 +386,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                         {field.fieldType === "signature" ? (
                           <button
                             className="public-signature-sign-button"
-                            disabled={isReadOnly}
+                            disabled={!isEditable}
                             onClick={() => openSignatureModal(field)}
                             type="button"
                           >
@@ -354,14 +401,14 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                         ) : field.fieldType === "text" ? (
                           <textarea
                             className="public-signature-textarea"
-                            disabled={isReadOnly}
+                            disabled={!isEditable}
                             onChange={(event) => updateFieldValue(field.id, { textValue: event.target.value })}
                             value={currentValue?.textValue ?? ""}
                           />
                         ) : (
                           <input
                             className="public-signature-input"
-                            disabled={isReadOnly}
+                            disabled={!isEditable}
                             onChange={(event) => updateFieldValue(field.id, { textValue: event.target.value })}
                             value={currentValue?.textValue ?? ""}
                           />
