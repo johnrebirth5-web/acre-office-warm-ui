@@ -65,18 +65,20 @@ export default async function AgentDashboardPage() {
             subtitle="The queue stays inside Front Office until a client or document needs to become a formal Back Office record."
             title="Today action queue"
           >
-            <div className="front-office-action-grid">
+            <div className="list-column front-office-record-list">
               {snapshot.actionQueue.map((item) => (
-                <article className={`front-office-action-card tone-${item.tone}`} key={item.id}>
-                  <div className="front-office-action-card-head">
+                <article className={`list-row front-office-record tone-${item.tone}`} key={item.id}>
+                  <div className="list-row-top front-office-record-head">
                     <div>
-                      <span className="front-office-action-card-label">{item.label}</span>
-                      <strong>{item.count}</strong>
+                      <strong>{item.label}</strong>
+                      <p>{item.description}</p>
                     </div>
                     <StatusBadge tone={item.tone}>{item.tone === "neutral" ? "In view" : "Active"}</StatusBadge>
                   </div>
-                  <p>{item.description}</p>
-                  <span className="front-office-action-card-helper">{item.helper}</span>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{item.count} item(s)</span>
+                    <span>{item.helper}</span>
+                  </div>
                   <DashboardLink className="office-inline-link front-office-inline-link" href={item.href}>
                     {item.actionLabel}
                   </DashboardLink>

@@ -16,28 +16,22 @@ export default function AgentNotificationsPage() {
           subtitle="This stream groups the notices and reminders that actually affect the field workflow."
           title="Current activity"
         >
-          <div className="office-notification-list">
+          <div className="list-column front-office-record-list">
             {activityCards.length ? (
               activityCards.map((card) => (
-                <article className="office-notification-row" key={card.id}>
-                  <div className="office-notification-row-copy">
-                    <div className="office-notification-row-head">
-                      <div className="office-notification-row-title">
-                        <strong>{card.title}</strong>
-                      </div>
-
-                      <div className="office-notification-row-meta">
-                        <Badge className="front-office-activity-badge" tone="accent">
-                          Actionable
-                        </Badge>
-                        <Badge tone="neutral">{card.kind}</Badge>
-                        <span>{card.actionLabel}</span>
-                      </div>
+                <article className="list-row front-office-record" key={card.id}>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{card.title}</strong>
+                      <p>{card.body}</p>
                     </div>
-                    <p>{card.body}</p>
+                    <Badge className="front-office-activity-badge" tone="accent">
+                      Actionable
+                    </Badge>
                   </div>
-                  <div className="office-notification-row-actions">
-                    <span className="office-inline-link">Open item</span>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{card.kind}</span>
+                    <span>{card.actionLabel}</span>
                   </div>
                 </article>
               ))

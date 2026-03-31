@@ -1,5 +1,5 @@
 import { listResources, listVendors } from "@acre/backoffice";
-import { EmptyState, SectionCard, SummaryChip } from "@acre/ui";
+import { EmptyState, SectionCard, SummaryChip, StatusBadge } from "@acre/ui";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentResourcesPage() {
@@ -17,15 +17,21 @@ export default function AgentResourcesPage() {
           subtitle="Published operating materials live here so agents can pull context without leaving the FO shell."
           title="Published resources"
         >
-          <div className="office-note-list">
+          <div className="list-column front-office-record-list">
             {resourceFeed.length ? (
               resourceFeed.map((resource) => (
-                <article className="office-note-item" key={resource.id}>
-                  <span>{resource.type}</span>
-                  <div className="front-office-note-copy">
-                    <strong>{resource.title}</strong>
-                    <p>{resource.summary}</p>
-                    <p>{resource.tags.join(" · ")}</p>
+                <article className="list-row front-office-record" key={resource.id}>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{resource.title}</strong>
+                      <p>{resource.summary}</p>
+                    </div>
+                    <StatusBadge tone="neutral">{resource.type}</StatusBadge>
+                  </div>
+                  <div className="list-row-meta front-office-record-meta">
+                    {resource.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
                   </div>
                 </article>
               ))

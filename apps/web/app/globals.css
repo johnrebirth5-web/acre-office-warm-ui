@@ -15660,10 +15660,6 @@ body,
   max-width: min(100%, 72ch);
 }
 
-.front-office-dashboard-header .office-page-heading h2 {
-  max-width: 14ch;
-}
-
 .front-office-template-summary,
 .front-office-dashboard-summary {
   width: auto;
