@@ -42,9 +42,10 @@ export default async function OfficeNotificationsPage(props: OfficeNotifications
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Unread" tone="accent" value={snapshot.summary.unreadCount} />
             <SummaryChip label="Review queue" value={snapshot.summary.reviewCount} />
+            <SummaryChip label="Payout review" tone="accent" value={snapshot.summary.payoutReviewCount} />
           </PageHeaderSummary>
         }
-        description="Personal inbox for review work, follow-ups, offer changes, signatures, and incoming updates. Activity log remains the audited system-wide record."
+        description="Personal inbox for payout review, review work, follow-ups, offer changes, signatures, and incoming updates. Activity log remains the audited system-wide record."
         eyebrow="Notifications"
         title="Notifications"
       />

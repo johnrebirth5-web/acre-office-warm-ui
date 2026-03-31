@@ -1372,7 +1372,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 <div className="office-accounting-candidate-copy">
                   <span className="office-mini-heading">Agent Delivery</span>
                   <p className="office-form-helper">
-                    Send this payout statement to the agent inside Acre so they can confirm it or request revisions without email or WeChat.
+                    Send this payout statement inside Acre so it becomes a high-priority review task on the agent dashboard and notifications page.
                   </p>
                 </div>
 
@@ -1401,7 +1401,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               <p className="office-form-helper">
                 {hasManualLineItemChanges
                   ? "Save manual adjustment changes first. Saving will move this statement back to Draft until you send it again."
-                  : "Each send or resend is logged in-system and not delivered by email."}
+                  : "Each send or resend is logged in-system and stays visible in Acre until the agent confirms it or requests another revision."}
               </p>
               {sendError ? <p className="office-inline-error">{sendError}</p> : null}
             </div>

@@ -41,6 +41,11 @@ export type OfficeDashboardCommissionStatement = {
   pdfHref: string;
 };
 
+export type OfficeDashboardPayoutReviewQueue = {
+  count: number;
+  statements: OfficeDashboardCommissionStatement[];
+};
+
 export type OfficeDashboardCommissionSnapshot = {
   totalCommissionLabel: string;
   currentMonthCommissionLabel: string;
@@ -50,6 +55,7 @@ export type OfficeDashboardCommissionSnapshot = {
   hasSelfServiceData: boolean;
   monthlyTotals: OfficeDashboardCommissionMonth[];
   statements: OfficeDashboardCommissionStatement[];
+  payoutReviewQueue: OfficeDashboardPayoutReviewQueue;
 };
 
 export type OfficeDashboardBusinessSnapshot = {
@@ -125,6 +131,34 @@ function formatStatementReviewStatusLabel(value: AgentPayoutStatementReviewStatu
   }
 
   return "Draft";
+}
+
+function formatStatementPeriodLabel(periodStart: Date, periodEnd: Date) {
+  return `${formatDateValue(periodStart)} to ${formatDateValue(periodEnd)}`;
+}
+
+function mapDashboardCommissionStatement(
+  statement: {
+    id: string;
+    periodStart: Date;
+    periodEnd: Date;
+    generatedAt: Date;
+    reviewStatus: AgentPayoutStatementReviewStatus;
+    totalStatementAmount: Prisma.Decimal;
+  },
+  timeZone?: string | null
+): OfficeDashboardCommissionStatement {
+  return {
+    id: statement.id,
+    periodLabel: formatStatementPeriodLabel(statement.periodStart, statement.periodEnd),
+    generatedAt: statement.generatedAt.toISOString(),
+    generatedAtLabel: formatDateTime(statement.generatedAt, timeZone),
+    reviewStatus: statement.reviewStatus,
+    reviewStatusLabel: formatStatementReviewStatusLabel(statement.reviewStatus),
+    totalStatementAmountLabel: formatCurrency(Number(statement.totalStatementAmount ?? 0)),
+    openHref: `/office/payout-statements/${statement.id}`,
+    pdfHref: `/api/office/accounting/self-service/statements/${statement.id}/pdf`
+  };
 }
 
 function getNiceAxisMax(value: number) {
@@ -214,7 +248,9 @@ export async function getOfficeDashboardBusinessSnapshot(
     monthlyTransactions,
     commissionTotalsByStatus,
     recentCommissionRows,
-    recentStatements
+    recentStatements,
+    payoutReviewCount,
+    payoutReviewStatements
   ] =
     await Promise.all([
       prisma.organization.findUniqueOrThrow({
@@ -318,6 +354,30 @@ export async function getOfficeDashboardBusinessSnapshot(
         },
         orderBy: [{ generatedAt: "desc" }],
         take: 5
+      }),
+      prisma.agentPayoutStatement.count({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: scope.viewerMembershipId,
+          reviewStatus: "awaiting_agent"
+        }
+      }),
+      prisma.agentPayoutStatement.findMany({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: scope.viewerMembershipId,
+          reviewStatus: "awaiting_agent"
+        },
+        select: {
+          id: true,
+          periodStart: true,
+          periodEnd: true,
+          generatedAt: true,
+          reviewStatus: true,
+          totalStatementAmount: true
+        },
+        orderBy: [{ generatedAt: "desc" }],
+        take: 3
       })
     ]);
 
@@ -426,17 +486,13 @@ export async function getOfficeDashboardBusinessSnapshot(
       calculationCount: commissionCalculationCount,
       hasSelfServiceData,
       monthlyTotals: monthlyCommissionTotals,
-      statements: recentStatements.map((statement) => ({
-        id: statement.id,
-        periodLabel: `${formatDateValue(statement.periodStart)} to ${formatDateValue(statement.periodEnd)}`,
-        generatedAt: statement.generatedAt.toISOString(),
-        generatedAtLabel: formatDateTime(statement.generatedAt, organization.timezone),
-        reviewStatus: statement.reviewStatus,
-        reviewStatusLabel: formatStatementReviewStatusLabel(statement.reviewStatus),
-        totalStatementAmountLabel: formatCurrency(Number(statement.totalStatementAmount ?? 0)),
-        openHref: `/office/payout-statements/${statement.id}`,
-        pdfHref: `/api/office/accounting/self-service/statements/${statement.id}/pdf`
-      }))
+      statements: recentStatements.map((statement) => mapDashboardCommissionStatement(statement, organization.timezone)),
+      payoutReviewQueue: {
+        count: payoutReviewCount,
+        statements: payoutReviewStatements.map((statement) =>
+          mapDashboardCommissionStatement(statement, organization.timezone)
+        )
+      }
     },
     recentTransactions: recentTransactions.map((transaction) => ({
       id: transaction.id,

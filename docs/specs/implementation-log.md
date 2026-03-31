@@ -8,6 +8,11 @@
 
 ## Recently completed major work
 
+- 2026-03-31: agent payout review reminders are now treated as persistent high-priority in-product work instead of one easy-to-miss inbox row:
+  - `sendAgentPayoutStatementToAgent(...)` now writes `payout_statement_ready` notifications with action-required copy and `critical` severity for the agent-facing send / resend flow
+  - `/office/notifications` now derives a live `Needs your payout review` queue from current `AgentPayoutStatement.reviewStatus === awaiting_agent`, so statement review stays visible even if the user already opened or marked the original inbox item as read
+  - `/office/dashboard` `My commissions` now shows an urgent payout reminder block whenever the current membership still has one or more `awaiting_agent` statements
+  - the accounting send helper text now explicitly tells finance that agents will see the statement as a high-priority Acre task on both dashboard and notifications until they respond
 - 2026-03-31: active `Front Office` pages and legacy FO feed APIs were rebuilt off real `@acre/db` services instead of `@acre/backoffice` mock feeds:
   - `/agent/clients`, `/agent/listings`, `/agent/resources`, and `/agent/notifications` now read organization/membership-scoped Prisma data through new FO workspace snapshot services
   - the legacy `GET /api/clients`, `GET /api/listings`, `GET /api/events`, and `GET /api/resources` endpoints now return real FO snapshot data instead of in-memory feed arrays

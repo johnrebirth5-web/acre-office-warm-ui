@@ -20,6 +20,8 @@ This file is the high-level product map for the current `Office / Back Office` s
   - Office landing page for current operational pressure, status counts, recent transactions, and reference links.
 - Current maturity:
   - `MVP`
+- Current notable behavior:
+  - agent self-service commission area now surfaces a high-priority payout review reminder whenever a saved payout statement is still in `awaiting_agent`, so the latest statement stays visible from dashboard until the agent confirms it or requests a revision.
 - Follow-up work:
   - stronger manager KPIs
   - better cross-module drilldowns
@@ -143,6 +145,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `/office/notifications` is now a real user-scoped inbox route.
   - notification records are persisted separately from `AuditLog`.
   - inbox supports read/unread state, mark-all-read, category/type filtering, and deep links into the nearest real workflow page.
+  - the page also shows a live high-priority payout review queue derived from current `AgentPayoutStatement.reviewStatus === awaiting_agent`, so payout review remains visible even if the original inbox item has already been marked read.
   - current coverage is intentionally limited to real signals:
     - task review / second review / rejection
     - offer created / received / expiring soon
@@ -150,6 +153,7 @@ This file is the high-level product map for the current `Office / Back Office` s
     - incoming update pending review
     - follow-up assigned / overdue
     - onboarding assigned / due soon
+    - payout statement ready / revision requested / confirmed
 - Follow-up work:
   - add scheduler-driven reminder delivery when a real job runner exists
   - add archive/dismiss behavior if the inbox grows beyond read state

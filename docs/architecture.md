@@ -191,6 +191,9 @@
     - `AgentProfile` 做 avatar / license / extension / onboarding context
     - `MembershipNotificationPreference` 做当前 membership 的 inbox preference state
   - 当前 security section 只反映真实内部账号现状，不伪造 forgot-password、email delivery 或 2-step flows
+- 当前 `Office Notifications` 现在除了持久化 inbox rows 以外，还会在页面上派生一个 live payout review queue：
+  - 当 `AgentPayoutStatement.reviewStatus === awaiting_agent` 时，agent 会在 `/office/notifications` 和 `/office/dashboard` 持续看到高优先级 review reminder
+  - 该 queue 的真源是 statement 当前状态，不依赖 notification unread / read 状态
 - 当前 `Office Billing / My Billing` 也已通过 Prisma service 和 route handlers 落地到：
   - `/office/billing`
   - `/api/office/billing/payment-methods`

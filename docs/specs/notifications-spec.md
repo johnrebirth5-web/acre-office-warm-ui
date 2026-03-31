@@ -40,6 +40,7 @@ This inbox is intentionally different from `Activity Log`:
   - mark read
   - mark unread
   - mark all in view as read
+- notifications page also surfaces a live payout-review queue for `awaiting_agent` payout statements, so statement review stays visible even after the inbox row is marked read
 - opening a notification uses a scoped redirect route that marks it as read first
 
 ## Notification model
@@ -73,6 +74,7 @@ Current preference model for the inbox is also explicit:
     - activity / approval alerts
     - task reminder alerts
     - offer alerts
+  - payout statement live review queue is derived from statement status and is intentionally not hidden by inbox read state
 
 ## Current notification families
 
@@ -91,6 +93,9 @@ Current user-facing inbox coverage is limited to real implemented workflow signa
 - follow-up overdue
 - onboarding assigned
 - onboarding due soon
+- payout statement ready for agent review
+- payout statement revision requested
+- payout statement confirmed
 
 ## Current write paths
 
@@ -105,6 +110,8 @@ Notifications are currently written from real workflow services:
 - `createIncomingUpdate`
 - `createFollowUpTask`
 - `createAgentOnboardingItem`
+- `sendAgentPayoutStatementToAgent`
+- `respondToAgentPayoutStatement`
 
 Time-based reminders without a scheduler are currently reconciled when the inbox is loaded:
 
@@ -134,6 +141,8 @@ Notifications currently link to the nearest real actionable page:
   - contact detail
 - onboarding:
   - agent onboarding anchor
+- payout statements:
+  - `/office/payout-statements/[statementId]`
 
 If the product does not yet have a more precise queue or sub-route, the notification links to the closest practical page instead of faking a nonexistent destination.
 
@@ -144,7 +153,7 @@ If the product does not yet have a more precise queue or sub-route, the notifica
 - no background scheduler; time-based reminders are created during inbox reconciliation
 - reviewer targeting still follows current permission-based queues, not explicit reviewer assignment models
 - onboarding notifications are most useful for office-role recipients because the current inbox route is office-only
-- preferences only control the in-app inbox and do not create email / SMS / push channels
+- preferences only control the in-app inbox and do not create email / SMS / push channels; the live payout review queue remains visible while a statement is still awaiting agent action
 - changing preferences does not rewrite or delete already-created notification rows
 
 ## Future direction

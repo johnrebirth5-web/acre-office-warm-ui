@@ -72,6 +72,8 @@ export default async function OfficeDashboardPage() {
   const historicalCommissionMonths = currentCommissionMonth
     ? snapshot.commission.monthlyTotals.filter((month) => month.monthKey !== currentCommissionMonth.monthKey)
     : snapshot.commission.monthlyTotals;
+  const payoutReviewQueue = snapshot.commission.payoutReviewQueue;
+  const latestPayoutReviewStatement = payoutReviewQueue.statements[0] ?? null;
 
   return (
     <PageShell className="office-dashboard-page office-list-page">
@@ -224,6 +226,34 @@ export default async function OfficeDashboardPage() {
             subtitle="Your own persisted commission rows and saved payout statements only. Team or company allocations are never rolled into this dashboard card."
             title="My commissions"
           >
+            {payoutReviewQueue.count > 0 && latestPayoutReviewStatement ? (
+              <div className="office-dashboard-payout-reminder">
+                <div className="office-dashboard-payout-reminder-copy">
+                  <span className="office-dashboard-payout-reminder-eyebrow">Needs your review</span>
+                  <strong>
+                    {payoutReviewQueue.count === 1
+                      ? "1 payout statement is awaiting your review in Acre."
+                      : `${payoutReviewQueue.count} payout statements are awaiting your review in Acre.`}
+                  </strong>
+                  <p>
+                    Latest statement: {latestPayoutReviewStatement.periodLabel} · Generated{" "}
+                    <LocalDateTime
+                      fallbackLabel={latestPayoutReviewStatement.generatedAtLabel}
+                      value={latestPayoutReviewStatement.generatedAt}
+                    />{" "}
+                    · Final payout {latestPayoutReviewStatement.totalStatementAmountLabel}
+                  </p>
+                </div>
+
+                <div className="office-section-actions">
+                  <StatusBadge tone="danger">{payoutReviewQueue.count} awaiting review</StatusBadge>
+                  <Link className="office-button" href={latestPayoutReviewStatement.openHref}>
+                    Review statement
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+
             <div className="office-kpi-grid office-commission-kpi-grid">
               <StatCard hint="all persisted rows tied to your membership" label="Total commission" value={snapshot.commission.totalCommissionLabel} />
               <StatCard hint="rows calculated in the current calendar month" label="This month" value={snapshot.commission.currentMonthCommissionLabel} />
@@ -299,7 +329,7 @@ export default async function OfficeDashboardPage() {
                             ? "success"
                             : statement.reviewStatus === "revision_requested"
                               ? "warning"
-                              : "accent"
+                              : "danger"
                         }
                       >
                         {statement.reviewStatusLabel}

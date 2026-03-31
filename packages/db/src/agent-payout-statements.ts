@@ -1792,12 +1792,15 @@ export async function sendAgentPayoutStatementToAgent(input: SendAgentPayoutStat
       membershipIds: [statement.membershipId],
       type: NotificationType.payout_statement_ready,
       category: NotificationCategory.system,
-      severity: previousStatus === "revision_requested" ? NotificationSeverity.warning : NotificationSeverity.info,
-      title: previousStatus === "revision_requested" ? "Updated payout statement ready to review" : "Payout statement ready to review",
+      severity: NotificationSeverity.critical,
+      title:
+        previousStatus === "revision_requested"
+          ? "Action required: review your updated payout statement"
+          : "Action required: review your payout statement",
       body:
         previousStatus === "revision_requested"
-          ? "Finance updated your payout statement. Review it and confirm or request another revision in the system."
-          : "A payout statement is ready for your review and confirmation in the system.",
+          ? "Finance updated your payout statement. Open it in Acre to confirm it or request another revision."
+          : "Finance sent you a payout statement that needs your review in Acre. Confirm it or request a revision.",
       actionUrl: buildAgentPayoutStatementSelfServiceHref(statement.id)
     });
 

@@ -17,6 +17,8 @@ import {
   summarizeAgentPayoutStatementRows,
   updateAgentPayoutStatementManualLineItems
 } from "./agent-payout-statements.ts";
+import { getOfficeDashboardBusinessSnapshot } from "./dashboard.ts";
+import { listOfficeNotifications, markOfficeNotificationRead } from "./notifications.ts";
 import { createTransaction } from "./transactions.ts";
 
 after(async () => {
@@ -1126,6 +1128,57 @@ test("agent payout statements move through internal send, revision, resend, and 
       message: "Please review this payout statement in Acre."
     });
 
+    const sentNotifications = await prisma.notification.findMany({
+      where: {
+        organizationId: context.organization.id
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+    });
+
+    assert.equal(sentNotifications.length, 1);
+    assert.equal(sentNotifications[0]?.severity, "critical");
+    assert.equal(sentNotifications[0]?.title, "Action required: review your payout statement");
+    assert.equal(
+      sentNotifications[0]?.body,
+      "Finance sent you a payout statement that needs your review in Acre. Confirm it or request a revision."
+    );
+
+    const initialInbox = await listOfficeNotifications({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id
+    });
+
+    assert.equal(initialInbox.summary.payoutReviewCount, 1);
+    assert.equal(initialInbox.payoutReviewQueue.length, 1);
+    assert.equal(initialInbox.payoutReviewQueue[0]?.statementId, statement.statementId);
+
+    const initialDashboard = await getOfficeDashboardBusinessSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      viewerMembershipId: context.agentMembership.id
+    });
+
+    assert.equal(initialDashboard.commission.payoutReviewQueue.count, 1);
+    assert.equal(initialDashboard.commission.payoutReviewQueue.statements[0]?.id, statement.statementId);
+
+    await markOfficeNotificationRead({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      notificationId: sentNotifications[0]!.id
+    });
+
+    const readInbox = await listOfficeNotifications({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id
+    });
+
+    assert.equal(readInbox.unreadCount, 0);
+    assert.equal(readInbox.summary.payoutReviewCount, 1);
+    assert.equal(readInbox.payoutReviewQueue.length, 1);
+
     await respondToAgentPayoutStatement({
       organizationId: context.organization.id,
       officeId: context.office.id,
@@ -1135,6 +1188,23 @@ test("agent payout statements move through internal send, revision, resend, and 
       message: "Please double-check the deduction line."
     });
 
+    const revisionInbox = await listOfficeNotifications({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id
+    });
+
+    assert.equal(revisionInbox.summary.payoutReviewCount, 0);
+    assert.equal(revisionInbox.payoutReviewQueue.length, 0);
+
+    const revisionDashboard = await getOfficeDashboardBusinessSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      viewerMembershipId: context.agentMembership.id
+    });
+
+    assert.equal(revisionDashboard.commission.payoutReviewQueue.count, 0);
+
     await sendAgentPayoutStatementToAgent({
       organizationId: context.organization.id,
       officeId: context.office.id,
@@ -1142,6 +1212,16 @@ test("agent payout statements move through internal send, revision, resend, and 
       actorMembershipId: context.adminMembership.id,
       message: "Updated and resent after your request."
     });
+
+    const resentInbox = await listOfficeNotifications({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id
+    });
+
+    assert.equal(resentInbox.unreadCount, 1);
+    assert.equal(resentInbox.summary.payoutReviewCount, 1);
+    assert.equal(resentInbox.payoutReviewQueue.length, 1);
 
     await respondToAgentPayoutStatement({
       organizationId: context.organization.id,
@@ -1196,8 +1276,15 @@ test("agent payout statements move through internal send, revision, resend, and 
       where: {
         organizationId: context.organization.id
       },
-      orderBy: [{ createdAt: "asc" }]
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }]
     });
+
+    assert.equal(notifications[2]?.severity, "critical");
+    assert.equal(notifications[2]?.title, "Action required: review your updated payout statement");
+    assert.equal(
+      notifications[2]?.body,
+      "Finance updated your payout statement. Open it in Acre to confirm it or request another revision."
+    );
 
     assert.deepEqual(
       notifications.map((notification) => ({
@@ -1228,6 +1315,23 @@ test("agent payout statements move through internal send, revision, resend, and 
         }
       ]
     );
+
+    const confirmedInbox = await listOfficeNotifications({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id
+    });
+
+    assert.equal(confirmedInbox.summary.payoutReviewCount, 0);
+    assert.equal(confirmedInbox.payoutReviewQueue.length, 0);
+
+    const confirmedDashboard = await getOfficeDashboardBusinessSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      viewerMembershipId: context.agentMembership.id
+    });
+
+    assert.equal(confirmedDashboard.commission.payoutReviewQueue.count, 0);
   } finally {
     await context.cleanup();
   }

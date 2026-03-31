@@ -36,6 +36,7 @@ export type OfficeNotificationSummary = {
   unreadCount: number;
   reviewCount: number;
   timeSensitiveCount: number;
+  payoutReviewCount: number;
 };
 
 export type OfficeNotificationFilterState = {
@@ -73,11 +74,21 @@ export type OfficeNotificationGroup = {
   notifications: OfficeNotificationItem[];
 };
 
+export type OfficePayoutReviewReminder = {
+  statementId: string;
+  periodLabel: string;
+  generatedAt: string;
+  generatedAtLabel: string;
+  totalStatementAmountLabel: string;
+  openHref: string;
+};
+
 export type OfficeNotificationsSnapshot = {
   filters: OfficeNotificationFilterState;
   summary: OfficeNotificationSummary;
   totalCount: number;
   unreadCount: number;
+  payoutReviewQueue: OfficePayoutReviewReminder[];
   groups: OfficeNotificationGroup[];
   typeOptions: OfficeNotificationFilterOption[];
   categoryOptions: OfficeNotificationFilterOption[];
@@ -319,6 +330,10 @@ function formatDateTimeLabel(date: Date) {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function formatPeriodLabel(periodStart: Date, periodEnd: Date) {
+  return `${formatDateLabel(periodStart)} to ${formatDateLabel(periodEnd)}`;
 }
 
 function getRelativeUrl(value: string | null | undefined) {
@@ -752,7 +767,18 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
     readState
   });
 
-  const [allNotifications, filteredNotifications] = await Promise.all([
+  const payoutStatementWhere: Prisma.AgentPayoutStatementWhereInput = {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    reviewStatus: "awaiting_agent",
+    ...(input.officeId
+      ? {
+          OR: [{ officeId: input.officeId }, { officeId: null }]
+        }
+      : {})
+  };
+
+  const [allNotifications, filteredNotifications, payoutReviewCount, payoutReviewStatements] = await Promise.all([
     prisma.notification.findMany({
       where: baseWhere,
       select: {
@@ -777,6 +803,21 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
         readAt: true,
         createdAt: true
       }
+    }),
+    prisma.agentPayoutStatement.count({
+      where: payoutStatementWhere
+    }),
+    prisma.agentPayoutStatement.findMany({
+      where: payoutStatementWhere,
+      select: {
+        id: true,
+        periodStart: true,
+        periodEnd: true,
+        generatedAt: true,
+        totalStatementAmount: true
+      },
+      orderBy: [{ generatedAt: "desc" }],
+      take: 5
     })
   ]);
 
@@ -836,6 +877,18 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
       count: categoryCounts.get(category) ?? 0
     }))
     .filter((option) => option.count > 0 || option.value === selectedCategory);
+  const payoutReviewQueue = payoutReviewStatements.map((statement) => ({
+    statementId: statement.id,
+    periodLabel: formatPeriodLabel(statement.periodStart, statement.periodEnd),
+    generatedAt: statement.generatedAt.toISOString(),
+    generatedAtLabel: formatDateTimeLabel(statement.generatedAt),
+    totalStatementAmountLabel: new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: Number(statement.totalStatementAmount ?? 0) % 1 === 0 ? 0 : 2
+    }).format(Number(statement.totalStatementAmount ?? 0)),
+    openHref: `/office/payout-statements/${statement.id}`
+  }));
 
   return {
     filters: {
@@ -855,10 +908,12 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
         notification.type === NotificationType.offer_expiring_soon ||
         notification.type === NotificationType.follow_up_overdue ||
         notification.type === NotificationType.onboarding_due_soon
-      ).length
+      ).length,
+      payoutReviewCount
     },
     totalCount: filteredNotifications.length,
     unreadCount: filteredNotifications.filter((notification) => !notification.readAt).length,
+    payoutReviewQueue,
     groups: Array.from(groupsByDate.values()),
     typeOptions,
     categoryOptions
