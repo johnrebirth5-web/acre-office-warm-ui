@@ -184,7 +184,7 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
     <PageShell className="office-transaction-detail-page office-detail-page">
       <PageHeader
         actions={
-          <Link className="office-button office-button-secondary" href="/office/contacts">
+          <Link className="office-button-secondary" href="/office/contacts">
             Back to contacts
           </Link>
         }

@@ -240,7 +240,7 @@ export function OfficeSettingsUserDetailClient({
               </div>
 
               {profileLinkHref ? (
-                <Link className="office-button office-button-secondary office-button-sm" href={profileLinkHref}>
+                <Link className="office-button-secondary office-button-sm" href={profileLinkHref}>
                   {operationsHref ? "Jump to operations" : "Open agent profile"}
                 </Link>
               ) : null}
@@ -591,7 +591,7 @@ export function OfficeSettingsUserDetailClient({
                     </small>
                   </div>
                   {item.href ? (
-                    <Link className="office-button office-button-secondary office-button-sm" href={item.href}>
+                    <Link className="office-button-secondary office-button-sm" href={item.href}>
                       Open
                     </Link>
                   ) : null}

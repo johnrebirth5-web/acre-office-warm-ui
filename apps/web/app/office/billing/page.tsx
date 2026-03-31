@@ -28,7 +28,7 @@ export default async function OfficeBillingPage() {
       <PageHeader
         actions={
           <PageHeaderSummary>
-            <Link className="office-button office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
+            <Link className="office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
               Open billing activity
             </Link>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />

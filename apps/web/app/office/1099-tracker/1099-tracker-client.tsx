@@ -811,13 +811,13 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
                         <span className="office-list-table-wrap-cell">{row.email}</span>
                         <div className="office-1099-summary-actions">
                           <Link
-                            className="office-button office-button-sm office-button-secondary"
+                            className="office-button-secondary office-button-sm"
                             href={`/office/1099-tracker/preview/${row.membershipId}?taxYear=${snapshot.filters.taxYear}`}
                           >
                             Preview
                           </Link>
                           <a
-                            className="office-button office-button-sm office-button-secondary"
+                            className="office-button-secondary office-button-sm"
                             href={`/api/office/1099-tracker/summary/${row.membershipId}/pdf?taxYear=${snapshot.filters.taxYear}`}
                             rel="noreferrer"
                             target="_blank"
@@ -833,7 +833,7 @@ export function Office1099TrackerClient({ snapshot }: Office1099TrackerClientPro
             ) : (
               <EmptyState
                 action={
-                  <Link className="office-button office-button-secondary" href={paymentRecordHref}>
+                  <Link className="office-button-secondary" href={paymentRecordHref}>
                     Go to Payment Record
                   </Link>
                 }

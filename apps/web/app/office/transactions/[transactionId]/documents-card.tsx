@@ -295,13 +295,13 @@ export function TransactionDocumentsCard({
 
                   <div className="bm-document-row-actions">
                     {canViewDocuments ? (
-                      <Link className="office-button office-button-secondary office-button-sm office-inline-action-sm" href={document.storageUrl} target="_blank">
+                      <Link className="office-button-secondary office-inline-action-sm" href={document.storageUrl} target="_blank">
                         Open
                       </Link>
                     ) : null}
                     {canManageSignatures && document.mimeType.toLowerCase() === "application/pdf" ? (
                       <Link
-                        className="office-button office-button-secondary office-button-sm office-inline-action-sm"
+                        className="office-button-secondary office-inline-action-sm"
                         href={`/office/transactions/${transactionId}/signatures/new?documentId=${document.id}`}
                       >
                         Prepare signature
@@ -575,7 +575,7 @@ export function TransactionUnsortedDocumentsCard({
 
                 <div className="bm-document-row-actions">
                   {canViewDocuments ? (
-                    <Link className="office-button office-button-secondary office-button-sm office-inline-action-sm" href={document.storageUrl} target="_blank">
+                    <Link className="office-button-secondary office-inline-action-sm" href={document.storageUrl} target="_blank">
                       Open
                     </Link>
                   ) : null}

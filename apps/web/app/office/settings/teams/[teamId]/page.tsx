@@ -47,7 +47,7 @@ export default async function OfficeSettingsTeamDetailPage({ params }: OfficeSet
       <PageHeader
         actions={
           <PageHeaderSummary>
-            <Link className="office-button office-button-secondary office-button-sm" href="/office/settings/teams">
+            <Link className="office-button-secondary office-button-sm" href="/office/settings/teams">
               Back to teams
             </Link>
             <SummaryChip label="Type" value={getBranchTypeLabel(team)} />

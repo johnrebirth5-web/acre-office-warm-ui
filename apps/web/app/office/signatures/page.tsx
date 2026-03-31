@@ -81,17 +81,17 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
             <SummaryChip label="Drive failures" value={workspace.summary.failedDriveCount} />
             {canManageTemplateLibrary ? <SummaryChip label="Templates" value={workspace.summary.templateCount} /> : null}
             {canExportReports ? (
-              <Link className="office-button office-button-secondary" href={exportHref}>
+              <Link className="office-button-secondary" href={exportHref}>
                 Export CSV
               </Link>
             ) : null}
             {canManageTemplateLibrary ? (
-              <Link className="office-button office-button-secondary" href="/office/signatures/templates">
+              <Link className="office-button-secondary" href="/office/signatures/templates">
                 Templates
               </Link>
             ) : null}
             {canManageDriveSettings ? (
-              <Link className="office-button office-button-secondary" href="/office/settings/signature-drive">
+              <Link className="office-button-secondary" href="/office/settings/signature-drive">
                 Drive settings
               </Link>
             ) : null}

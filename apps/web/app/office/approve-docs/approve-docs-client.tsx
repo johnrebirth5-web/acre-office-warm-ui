@@ -275,7 +275,7 @@ export function OfficeApproveDocsClient({
 
           <div className="office-approval-filter-actions">
             <Button type="submit">Apply filters</Button>
-            <Link className="office-button office-button-secondary" href="/office/approve-docs">
+            <Link className="office-button-secondary" href="/office/approve-docs">
               Reset
             </Link>
           </div>
@@ -369,14 +369,14 @@ export function OfficeApproveDocsClient({
                         <div className="office-approval-action-stack">
                           <div className="office-approval-action-row office-approval-action-row-links">
                             <Link
-                              className="office-button office-button-secondary office-button-sm office-inline-action-sm"
+                              className="office-button-secondary office-inline-action-sm"
                               href={item.task.transactionHref}
                             >
                               Open transaction
                             </Link>
                             {item.openDocumentHref ? (
                               <Link
-                                className="office-button office-button-secondary office-button-sm office-inline-action-sm"
+                                className="office-button-secondary office-inline-action-sm"
                                 href={item.openDocumentHref}
                                 target="_blank"
                               >

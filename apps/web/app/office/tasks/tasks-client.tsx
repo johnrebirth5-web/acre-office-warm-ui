@@ -439,7 +439,7 @@ export function OfficeTasksClient({
             <Button type="submit">
               Apply filters
             </Button>
-            <Link className="office-button office-button-secondary" href="/office/tasks">
+            <Link className="office-button-secondary" href="/office/tasks">
               Reset
             </Link>
           </div>
@@ -791,7 +791,7 @@ export function OfficeTasksClient({
                               >
                                 {pendingAction === `save:${task.id}` ? "Saving..." : "Save task"}
                               </Button>
-                              <Link className="office-button office-button-secondary office-button-sm" href={task.transactionHref}>
+                              <Link className="office-button-secondary office-button-sm" href={task.transactionHref}>
                                 Open transaction
                               </Link>
                             </div>

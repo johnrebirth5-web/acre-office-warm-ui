@@ -242,7 +242,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
         <div className="office-billing-main-column">
           <SectionCard
             actions={
-              <Link className="office-button office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
+              <Link className="office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
                 Open accounting activity
               </Link>
             }
@@ -551,7 +551,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
 
           <SectionCard
             actions={
-              <Link className="office-button office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
+              <Link className="office-button-secondary office-button-sm" href="/office/activity?objectType=accounting">
                 Open activity
               </Link>
             }

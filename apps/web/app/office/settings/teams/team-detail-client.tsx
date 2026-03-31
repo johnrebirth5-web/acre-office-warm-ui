@@ -122,7 +122,7 @@ export function OfficeSettingsTeamDetailClient({
       <ListPageSection
         actions={
           canManageTeams ? (
-            <Link className="office-button office-button-secondary office-button-sm" href="/office/settings/teams?view=manage">
+            <Link className="office-button-secondary office-button-sm" href="/office/settings/teams?view=manage">
               Advanced manage view
             </Link>
           ) : null
@@ -202,7 +202,7 @@ export function OfficeSettingsTeamDetailClient({
 
                   <div className="office-settings-team-directory-card-actions">
                     <Badge tone="neutral">{getBranchTypeLabel(childTeam)}</Badge>
-                    <Link className="office-button office-button-secondary office-button-sm" href={`/office/settings/teams/${childTeam.id}`}>
+                    <Link className="office-button-secondary office-button-sm" href={`/office/settings/teams/${childTeam.id}`}>
                       View members
                     </Link>
                   </div>

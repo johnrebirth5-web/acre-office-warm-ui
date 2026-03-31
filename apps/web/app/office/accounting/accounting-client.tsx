@@ -1127,7 +1127,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                         Open
                       </Button>
                       <a
-                        className="office-button office-button-sm office-inline-action-sm"
+                        className="office-inline-action-sm"
                         href={`/api/office/accounting/statements/${statement.id}/pdf`}
                         rel="noreferrer"
                         target="_blank"
@@ -1187,7 +1187,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               >
                 Reset changes
               </Button>
-              <a className="office-button office-button-sm office-button-secondary" href={`/api/office/accounting/statements/${selectedStatement.id}/pdf`} rel="noreferrer" target="_blank">
+              <a className="office-button-secondary office-button-sm" href={`/api/office/accounting/statements/${selectedStatement.id}/pdf`} rel="noreferrer" target="_blank">
                 Download PDF
               </a>
             </div>

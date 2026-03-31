@@ -71,11 +71,11 @@ export default async function Office1099PreviewPage(props: Office1099PreviewPage
       <SectionCard
         actions={
           <div className="office-section-actions office-1099-summary-actions">
-            <Link className="office-button office-button-secondary" href={`/office/1099-tracker?tab=summary&taxYear=${detail.taxYear}`}>
+            <Link className="office-button-secondary" href={`/office/1099-tracker?tab=summary&taxYear=${detail.taxYear}`}>
               Back to summary
             </Link>
             <a
-              className="office-button office-button-secondary"
+              className="office-button-secondary"
               href={`/api/office/1099-tracker/summary/${detail.membershipId}/pdf?taxYear=${detail.taxYear}`}
               rel="noreferrer"
               target="_blank"

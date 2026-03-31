@@ -132,7 +132,7 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
             <Button type="submit">
               Apply filters
             </Button>
-            <Link className="office-button office-button-secondary" href="/office/notifications">
+            <Link className="office-button-secondary" href="/office/notifications">
               Reset
             </Link>
             <Button
@@ -187,7 +187,7 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
 
                       <div className="office-notification-row-actions">
                         {notification.actionUrl ? (
-                          <Link className="office-button office-button-secondary office-button-sm" href={notification.openHref}>
+                          <Link className="office-button-secondary office-button-sm" href={notification.openHref}>
                             Open record
                           </Link>
                         ) : null}

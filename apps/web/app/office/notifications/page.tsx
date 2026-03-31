@@ -36,7 +36,7 @@ export default async function OfficeNotificationsPage(props: OfficeNotifications
       <PageHeader
         actions={
           <PageHeaderSummary>
-            <Link className="office-button office-button-secondary" href="/office/activity">
+            <Link className="office-button-secondary" href="/office/activity">
               Open activity log
             </Link>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />

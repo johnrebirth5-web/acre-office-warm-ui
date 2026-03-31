@@ -76,12 +76,12 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
       <PageHeader
         actions={
           <PageHeaderSummary>
-            <Link className="office-button office-button-secondary office-button-sm" href="/office/settings/users">
+            <Link className="office-button-secondary office-button-sm" href="/office/settings/users">
               Back to users
             </Link>
             {canViewOfficeSignatures(context.currentMembership) ? (
               <Link
-                className="office-button office-button-secondary office-button-sm"
+                className="office-button-secondary office-button-sm"
                 href={`/office/signatures?category=hr&subjectMembershipId=${encodeURIComponent(membershipId)}`}
               >
                 HR signatures

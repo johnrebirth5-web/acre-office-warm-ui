@@ -206,7 +206,7 @@ export function OfficeAgentsClient({
       </FilterField>
       <div className="office-filter-actions office-agents-filter-actions">
         <Button type="submit">Apply filters</Button>
-        <Link className="office-button office-button-secondary" href="/office/agents">
+        <Link className="office-button-secondary" href="/office/agents">
           Reset
         </Link>
       </div>

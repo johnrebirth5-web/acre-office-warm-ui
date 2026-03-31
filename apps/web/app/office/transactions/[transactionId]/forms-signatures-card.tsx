@@ -360,11 +360,11 @@ export function TransactionFormsSignaturesCard({
                   </div>
 
                   <div className="bm-signature-row-actions">
-                    <Link className="office-button office-button-secondary office-button-sm office-inline-action-sm" href={`/office/transactions/${transactionId}/signatures/${request.id}`}>
+                    <Link className="office-button-secondary office-inline-action-sm" href={`/office/transactions/${transactionId}/signatures/${request.id}`}>
                       Open request
                     </Link>
                     {request.completedDocumentHref && canViewDocuments ? (
-                      <Link className="office-button office-button-secondary office-button-sm office-inline-action-sm" href={request.completedDocumentHref} target="_blank">
+                      <Link className="office-button-secondary office-inline-action-sm" href={request.completedDocumentHref} target="_blank">
                         Signed PDF
                       </Link>
                     ) : null}

@@ -45,7 +45,7 @@ export default async function OfficeTransactionCreatePage() {
     <PageShell className="office-transaction-create-page">
       <PageHeader
         actions={
-          <Link className="office-button office-button-secondary" href="/office/transactions">
+          <Link className="office-button-secondary" href="/office/transactions">
             Back to transactions
           </Link>
         }

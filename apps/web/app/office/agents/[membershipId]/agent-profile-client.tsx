@@ -458,7 +458,7 @@ export function AgentProfileClient({
             <StatusBadge tone={snapshot.profile.onboardingStatusValue === "complete" ? "success" : snapshot.profile.onboardingStatusValue === "in_progress" ? "accent" : "warning"}>
               {snapshot.profile.onboardingStatus}
             </StatusBadge>
-            <Link className="office-button office-button-secondary" href="/office/agents">
+            <Link className="office-button-secondary" href="/office/agents">
               Back to agents
             </Link>
           </>

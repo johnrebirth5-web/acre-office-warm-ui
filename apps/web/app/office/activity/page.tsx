@@ -270,7 +270,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
       <FilterBar as="form" className="office-activity-filter-bar office-activity-toolbar-card" method="get">
         <div className="bm-filter-strip office-toggle-strip">
           <Link
-            className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "all" ? " is-active" : ""}`}
+            className={`office-toggle-link office-button-sm${selectedView === "all" ? " is-active" : ""}`}
             href={buildActivityHref(normalizedSearchParams, {
               view: "all",
               activitySection: "",
@@ -281,7 +281,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             All
           </Link>
           <Link
-            className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "activity" ? " is-active" : ""}`}
+            className={`office-toggle-link office-button-sm${selectedView === "activity" ? " is-active" : ""}`}
             href={buildActivityHref(normalizedSearchParams, {
               view: "activity",
               alertSection: "",
@@ -291,7 +291,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             Activity only
           </Link>
           <Link
-            className={`office-button office-button-secondary office-button-sm office-toggle-link${selectedView === "alerts" ? " is-active" : ""}`}
+            className={`office-toggle-link office-button-sm${selectedView === "alerts" ? " is-active" : ""}`}
             href={buildActivityHref(normalizedSearchParams, {
               view: "alerts",
               activitySection: "",
@@ -347,7 +347,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             <Button type="submit" variant="secondary">
               Apply filters
             </Button>
-            <Link className="office-button office-button-secondary" href="/office/activity">
+            <Link className="office-button-secondary" href="/office/activity">
               Reset
             </Link>
           </div>

@@ -23,7 +23,7 @@ export default async function OfficeAccountPage() {
       <PageHeader
         actions={
           <PageHeaderSummary>
-            <Link className="office-button office-button-secondary office-button-sm" href="/office/notifications">
+            <Link className="office-button-secondary office-button-sm" href="/office/notifications">
               Open notifications
             </Link>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />

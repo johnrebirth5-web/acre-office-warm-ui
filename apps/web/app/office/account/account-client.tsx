@@ -447,7 +447,7 @@ export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
 
           <SectionCard
             actions={
-              <Link className="office-button office-button-secondary office-button-sm" href="/office/activity?objectType=auth">
+              <Link className="office-button-secondary office-button-sm" href="/office/activity?objectType=auth">
                 Open auth activity
               </Link>
             }
@@ -489,11 +489,11 @@ export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
             </div>
 
             <div className="office-account-security-actions">
-              <Link className="office-button office-button-secondary office-button-sm" href="/change-password">
+              <Link className="office-button-secondary office-button-sm" href="/change-password">
                 Change password
               </Link>
               <form action="/api/auth/logout" method="post">
-                <button className="office-button office-button-secondary office-button-sm" type="submit">
+                <button className="office-button-secondary office-button-sm" type="submit">
                   Sign out and switch user
                 </button>
               </form>

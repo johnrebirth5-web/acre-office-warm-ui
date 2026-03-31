@@ -203,12 +203,12 @@ export function OfficeSignaturesClient({
               Clear
             </Button>
             {canManageTemplateLibrary ? (
-              <Link className="office-button office-button-secondary" href="/office/signatures/templates">
+              <Link className="office-button-secondary" href="/office/signatures/templates">
                 Open template library
               </Link>
             ) : null}
             {canManageDriveSettings ? (
-              <Link className="office-button office-button-secondary" href="/office/settings/signature-drive">
+              <Link className="office-button-secondary" href="/office/settings/signature-drive">
                 Open Drive settings
               </Link>
             ) : null}
@@ -262,7 +262,7 @@ export function OfficeSignaturesClient({
                   <StatusBadge tone={getDriveTone(row.driveSyncStatus)}>{row.driveSyncStatusLabel}</StatusBadge>
                   {row.completedDocumentHref ? (
                     <div className="office-settings-actions">
-                      <Link className="office-button office-button-secondary office-button-sm" href={row.completedDocumentHref} target="_blank">
+                      <Link className="office-button-secondary office-button-sm" href={row.completedDocumentHref} target="_blank">
                         Signed PDF
                       </Link>
                       {canManageSignatures ? (

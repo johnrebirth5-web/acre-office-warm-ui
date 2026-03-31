@@ -25,7 +25,7 @@ export default async function OfficeSignatureTemplatesPage() {
           <PageHeaderSummary>
             <SummaryChip label="Templates" tone="accent" value={snapshot.summary.totalCount} />
             <SummaryChip label="Active" value={snapshot.summary.activeCount} />
-            <Link className="office-button office-button-secondary" href="/office/signatures">
+            <Link className="office-button-secondary" href="/office/signatures">
               Back to signatures
             </Link>
           </PageHeaderSummary>

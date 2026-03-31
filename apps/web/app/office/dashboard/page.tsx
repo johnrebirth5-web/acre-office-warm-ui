@@ -293,7 +293,7 @@ export default async function OfficeDashboardPage() {
                         <LocalDateTime fallbackLabel={statement.generatedAtLabel} value={statement.generatedAt} />
                       </span>
                       <strong className="office-dashboard-transactions-amount">{statement.totalStatementAmountLabel}</strong>
-                      <a className="office-button office-button-sm office-button-secondary" href={statement.pdfHref} rel="noreferrer" target="_blank">
+                      <a className="office-button-secondary office-button-sm" href={statement.pdfHref} rel="noreferrer" target="_blank">
                         Download PDF
                       </a>
                     </DataTableRow>

@@ -482,7 +482,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
             <Button type="submit" variant="secondary">
               Apply filters
             </Button>
-            <Link className="office-button office-button-secondary" href="/office/library">
+            <Link className="office-button-secondary" href="/office/library">
               Reset
             </Link>
           </div>
@@ -609,11 +609,11 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               </div>
 
               <div className="office-library-preview-actions">
-                <Link className="office-button office-button-secondary office-inline-action" href={selectedDocument.openUrl} target="_blank">
+                <Link className="office-button-secondary office-inline-action" href={selectedDocument.openUrl} target="_blank">
                   Open
                 </Link>
                 <Link
-                  className="office-button office-button-secondary office-inline-action"
+                  className="office-button-secondary office-inline-action"
                   href={selectedDocument.downloadUrl}
                   target="_blank"
                 >

@@ -74,7 +74,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
       <ListPageSection
         actions={
           canManageTeams ? (
-            <Link className="office-button office-button-secondary office-button-sm" href="/office/settings/teams?view=manage">
+            <Link className="office-button-secondary office-button-sm" href="/office/settings/teams?view=manage">
               Advanced manage view
             </Link>
           ) : null
@@ -155,7 +155,7 @@ export function OfficeSettingsTeamsClient({ snapshot, canManageTeams }: OfficeSe
 
                   <div className="office-settings-team-directory-card-actions">
                     <Badge tone="neutral">Team</Badge>
-                    <Link className="office-button office-button-secondary office-button-sm" href={`/office/settings/teams/${team.id}`}>
+                    <Link className="office-button-secondary office-button-sm" href={`/office/settings/teams/${team.id}`}>
                       View team
                     </Link>
                   </div>

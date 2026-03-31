@@ -84,7 +84,7 @@ export default async function ChangePasswordPage({ searchParams }: ChangePasswor
 
           {!forced ? (
             <form action="/api/auth/logout" method="post">
-              <button className="office-button office-button-secondary office-button-sm" type="submit">
+              <button className="office-button-secondary office-button-sm" type="submit">
                 Sign out
               </button>
             </form>

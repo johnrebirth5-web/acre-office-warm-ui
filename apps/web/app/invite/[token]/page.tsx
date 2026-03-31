@@ -95,7 +95,7 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
                       : "This invitation link is invalid."}
               </p>
               <div className="auth-actions">
-                <Link className="office-button office-button-secondary office-button-sm" href="/login">
+                <Link className="office-button-secondary office-button-sm" href="/login">
                   Go to login
                 </Link>
               </div>

@@ -140,7 +140,7 @@ export async function TransactionDetailWorkspace({
       {!isEmbedded ? (
         <PageHeader
           actions={
-            <Link className="office-button office-button-secondary" href="/office/transactions">
+            <Link className="office-button-secondary" href="/office/transactions">
               Back to transactions
             </Link>
           }

@@ -292,7 +292,7 @@ export function OfficeSettingsUserPermissionsClient({
             <p className="office-user-permissions-for">For {snapshot.profile.name}</p>
           </div>
 
-          <Link className="office-button office-button-secondary office-button-sm" href={detailHref}>
+          <Link className="office-button-secondary office-button-sm" href={detailHref}>
             Close
           </Link>
         </div>
@@ -324,7 +324,7 @@ export function OfficeSettingsUserPermissionsClient({
               <Button disabled={!isDirty || pendingAction === "save"} onClick={handleSavePermissions}>
                 {pendingAction === "save" ? "Saving..." : "Save permissions"}
               </Button>
-              <Link className="office-button office-button-secondary" href={detailHref}>
+              <Link className="office-button-secondary" href={detailHref}>
                 Cancel
               </Link>
               <Button
@@ -346,7 +346,7 @@ export function OfficeSettingsUserPermissionsClient({
               </Button>
             </>
           ) : (
-            <Link className="office-button office-button-secondary" href={detailHref}>
+            <Link className="office-button-secondary" href={detailHref}>
               Back to user
             </Link>
           )}

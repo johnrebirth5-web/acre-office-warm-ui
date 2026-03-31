@@ -125,7 +125,7 @@ export function OfficeSettingsUsersOperationsView({ snapshot }: OfficeSettingsUs
 
           <div className="office-filter-actions office-agents-filter-actions">
             <Button type="submit">Apply filters</Button>
-            <Link className="office-button office-button-secondary" href="/office/settings/users?view=operations">
+            <Link className="office-button-secondary" href="/office/settings/users?view=operations">
               Reset
             </Link>
           </div>

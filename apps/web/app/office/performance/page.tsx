@@ -108,7 +108,7 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
             <SummaryChip label="Scope" value={workspace.filters.scopeLabel} />
             <SummaryChip label="View" tone="accent" value={workspace.selectedRangeLabel} />
             {workspace.filters.canExport ? (
-              <Link className="office-button office-button-secondary" href={exportHref}>
+              <Link className="office-button-secondary" href={exportHref}>
                 Export CSV
               </Link>
             ) : null}
