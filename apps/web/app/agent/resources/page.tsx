@@ -1,5 +1,6 @@
 import { listResources, listVendors } from "@acre/backoffice";
 import { EmptyState, SectionCard, SummaryChip, StatusBadge } from "@acre/ui";
+import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentResourcesPage() {
@@ -50,17 +51,21 @@ export default function AgentResourcesPage() {
           subtitle="Vendor lookup should feel like part of the same workspace, not a second app."
           title="Vendor shortcuts"
         >
-          <div className="office-note-list">
+          <div className="office-queue-list">
             {vendorFeed.length ? (
               vendorFeed.map((vendor) => (
-                <article className="office-note-item" key={vendor.id}>
-                  <span>{vendor.category}</span>
-                  <div className="front-office-note-copy">
-                    <strong>{vendor.name}</strong>
-                    <p>{vendor.headline}</p>
-                    <p>{vendor.neighborhoods.join(" · ")}</p>
-                  </div>
-                </article>
+                <FrontOfficeRailItem
+                  badgeLabel={vendor.category}
+                  badgeTone="neutral"
+                  description={vendor.headline}
+                  key={vendor.id}
+                  meta={
+                    <>
+                      <span>{vendor.neighborhoods.join(" · ")}</span>
+                    </>
+                  }
+                  title={vendor.name}
+                />
               ))
             ) : (
               <EmptyState

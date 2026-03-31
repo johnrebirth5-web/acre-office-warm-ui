@@ -12,6 +12,7 @@ import {
   SummaryChip
 } from "@acre/ui";
 import { redirect } from "next/navigation";
+import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { getSessionAccess, requireSessionContext } from "../../../lib/auth-session";
 
@@ -281,22 +282,26 @@ export default async function AgentDashboardPage() {
             subtitle="Office-level alerts and visibility cues that support daily follow-up."
             title="Resource & notice rail"
           >
-            <div className="office-note-list">
+            <div className="office-queue-list">
               {snapshot.noticeRail.notifications.length ? (
                 snapshot.noticeRail.notifications.map((notification) => (
-                  <article className="office-note-item" key={notification.id}>
-                    <span>{notification.typeLabel}</span>
-                    <div className="front-office-note-copy">
-                      <strong>{notification.title}</strong>
-                      <p>{notification.body}</p>
-                      <div className="front-office-note-footer">
-                        <p>{notification.createdAtLabel}</p>
-                      </div>
+                  <FrontOfficeRailItem
+                    action={
                       <DashboardLink className="office-inline-link front-office-inline-link" href={notification.href}>
                         Open notice
                       </DashboardLink>
-                    </div>
-                  </article>
+                    }
+                    badgeLabel={notification.typeLabel}
+                    badgeTone="accent"
+                    description={notification.body}
+                    key={notification.id}
+                    meta={
+                      <>
+                        <span>{notification.createdAtLabel}</span>
+                      </>
+                    }
+                    title={notification.title}
+                  />
                 ))
               ) : (
                 <EmptyState
@@ -313,19 +318,20 @@ export default async function AgentDashboardPage() {
             subtitle="Published documents, templates, and playbooks stay discoverable from the Front Office rail."
             title="Training & documents"
           >
-            <div className="office-note-list">
+            <div className="office-queue-list">
               {snapshot.noticeRail.resources.length ? (
                 snapshot.noticeRail.resources.map((resource) => (
-                  <article className="office-note-item" key={resource.id}>
-                    <span>{resource.typeLabel}</span>
-                    <div className="front-office-note-copy">
-                      <strong>{resource.title}</strong>
-                      <p>{resource.summary}</p>
+                  <FrontOfficeRailItem
+                    action={
                       <DashboardLink className="office-inline-link front-office-inline-link" href={resource.href}>
                         Open resource
                       </DashboardLink>
-                    </div>
-                  </article>
+                    }
+                    badgeLabel={resource.typeLabel}
+                    description={resource.summary}
+                    key={resource.id}
+                    title={resource.title}
+                  />
                 ))
               ) : (
                 <EmptyState
@@ -342,22 +348,28 @@ export default async function AgentDashboardPage() {
             subtitle="Operational shortcuts for vendors that agents need during client execution."
             title="Vendor shortcuts"
           >
-            <div className="office-note-list">
+            <div className="office-queue-list">
               {snapshot.noticeRail.vendors.length ? (
                 snapshot.noticeRail.vendors.map((vendor) => (
-                  <article className="office-note-item" key={vendor.id}>
-                    <span>{vendor.category}</span>
-                    <div className="front-office-note-copy">
-                      <strong>{vendor.name}</strong>
-                      <p>{vendor.headline}</p>
-                      <p>{vendor.contactLabel}</p>
-                      {vendor.href ? (
+                  <FrontOfficeRailItem
+                    action={
+                      vendor.href ? (
                         <DashboardLink className="office-inline-link front-office-inline-link" href={vendor.href}>
                           Contact vendor
                         </DashboardLink>
-                      ) : null}
-                    </div>
-                  </article>
+                      ) : null
+                    }
+                    badgeLabel={vendor.category}
+                    badgeTone="success"
+                    description={vendor.headline}
+                    key={vendor.id}
+                    meta={
+                      <>
+                        <span>{vendor.contactLabel}</span>
+                      </>
+                    }
+                    title={vendor.name}
+                  />
                 ))
               ) : (
                 <EmptyState

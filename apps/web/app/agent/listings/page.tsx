@@ -1,5 +1,6 @@
 import { listListings } from "@acre/backoffice";
 import { Badge, EmptyState, ListPageStatsGrid, SectionCard, StatCard, SummaryChip } from "@acre/ui";
+import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentListingsPage() {
@@ -65,28 +66,22 @@ export default function AgentListingsPage() {
             subtitle="This route should feel like an output terminal, not an admin inventory console."
             title="Output modes"
           >
-            <div className="office-note-list">
-              <article className="office-note-item">
-                <span>Links</span>
-                <div className="front-office-note-copy">
-                  <strong>Tracked share link</strong>
-                  <p>Use listing-level links to connect outreach back to click behavior without leaving Front Office.</p>
-                </div>
-              </article>
-              <article className="office-note-item">
-                <span>Media</span>
-                <div className="front-office-note-copy">
-                  <strong>Poster export</strong>
-                  <p>Generate presentation-ready listing output with agent identity and compliant property framing.</p>
-                </div>
-              </article>
-              <article className="office-note-item">
-                <span>Notes</span>
-                <div className="front-office-note-copy">
-                  <strong>Custom notes</strong>
-                  <p>Add client-specific framing or local insight without turning this route into a full listing-admin workflow.</p>
-                </div>
-              </article>
+            <div className="office-queue-list">
+              <FrontOfficeRailItem
+                badgeLabel="Links"
+                description="Use listing-level links to connect outreach back to click behavior without leaving Front Office."
+                title="Tracked share link"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="Media"
+                description="Generate presentation-ready listing output with agent identity and compliant property framing."
+                title="Poster export"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="Notes"
+                description="Add client-specific framing or local insight without turning this route into a full listing-admin workflow."
+                title="Custom notes"
+              />
             </div>
           </SectionCard>
         </>

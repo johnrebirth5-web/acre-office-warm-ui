@@ -1,5 +1,6 @@
 import { listEvents, listNotifications } from "@acre/backoffice";
 import { Badge, EmptyState, SectionCard, SummaryChip } from "@acre/ui";
+import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentNotificationsPage() {
@@ -51,17 +52,24 @@ export default function AgentNotificationsPage() {
             subtitle="Upcoming office commitments should stay close to the same activity stream."
             title="Upcoming events"
           >
-            <div className="office-note-list">
+            <div className="office-queue-list">
               {upcomingEvents.length ? (
                 upcomingEvents.map((event) => (
-                  <article className="office-note-item" key={event.id}>
-                    <span>{event.kind}</span>
-                    <div className="front-office-note-copy">
-                      <strong>{event.title}</strong>
-                      <p>{event.location}</p>
-                      <p>{event.startsAtLabel} · {event.rsvpCount} RSVP · {event.visibility}</p>
-                    </div>
-                  </article>
+                  <FrontOfficeRailItem
+                    badgeLabel={event.kind}
+                    badgeTone="accent"
+                    context={event.visibility}
+                    description={event.location}
+                    key={event.id}
+                    meta={
+                      <>
+                        <span>{event.startsAtLabel}</span>
+                        <span>{event.rsvpCount} RSVP</span>
+                        <span>{event.visibility}</span>
+                      </>
+                    }
+                    title={event.title}
+                  />
                 ))
               ) : (
                 <EmptyState
@@ -78,14 +86,12 @@ export default function AgentNotificationsPage() {
             subtitle="This page should stay operational, not noisy."
             title="Stream rule"
           >
-            <div className="office-note-list">
-              <article className="office-note-item">
-                <span>Rule</span>
-                <div className="front-office-note-copy">
-                  <strong>One stream, not five inboxes</strong>
-                  <p>Keep notices, RSVP context, and reminders visible together so the agent does not have to hunt through different modules.</p>
-                </div>
-              </article>
+            <div className="office-queue-list">
+              <FrontOfficeRailItem
+                badgeLabel="Rule"
+                description="Keep notices, RSVP context, and reminders visible together so the agent does not have to hunt through different modules."
+                title="One stream, not five inboxes"
+              />
             </div>
           </SectionCard>
         </>

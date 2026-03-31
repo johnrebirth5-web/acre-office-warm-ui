@@ -1,6 +1,7 @@
 import { summarizeAccess } from "@acre/auth";
 import { listClients } from "@acre/backoffice";
 import { EmptyState, ListPageStatsGrid, SectionCard, StatCard, StatusBadge, SummaryChip } from "@acre/ui";
+import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 
 export default function AgentClientsPage() {
@@ -67,28 +68,22 @@ export default function AgentClientsPage() {
             subtitle="These are the operating rules for the page until real FO CRM write flows replace the mock feed."
             title="Current scope"
           >
-            <div className="office-note-list">
-              <article className="office-note-item">
-                <span>CRM</span>
-                <div className="front-office-note-copy">
-                  <strong>Capture stays light</strong>
-                  <p>Agents should be able to scan client stage, intent, budget, and next touchpoint without opening a full admin form.</p>
-                </div>
-              </article>
-              <article className="office-note-item">
-                <span>Today</span>
-                <div className="front-office-note-copy">
-                  <strong>Follow-up stays visible</strong>
-                  <p>The page should highlight who needs a same-day touch and who has gone stale before it turns into a Back Office issue.</p>
-                </div>
-              </article>
-              <article className="office-note-item">
-                <span>BO</span>
-                <div className="front-office-note-copy">
-                  <strong>Formal workflow still lives elsewhere</strong>
-                  <p>Once a client becomes a formal transaction, the next step should hand off into Back Office instead of duplicating transaction editing here.</p>
-                </div>
-              </article>
+            <div className="office-queue-list">
+              <FrontOfficeRailItem
+                badgeLabel="CRM"
+                description="Agents should be able to scan client stage, intent, budget, and next touchpoint without opening a full admin form."
+                title="Capture stays light"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="Today"
+                description="The page should highlight who needs a same-day touch and who has gone stale before it turns into a Back Office issue."
+                title="Follow-up stays visible"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="BO"
+                description="Once a client becomes a formal transaction, the next step should hand off into Back Office instead of duplicating transaction editing here."
+                title="Formal workflow still lives elsewhere"
+              />
             </div>
           </SectionCard>
         </>
