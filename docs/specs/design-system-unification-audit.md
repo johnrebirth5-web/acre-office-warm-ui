@@ -26,6 +26,13 @@ Current canonical sources of truth:
 
 As of `2026-04-01`, FO and BO route-level templates already share one common route-template skeleton through [canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx). The remaining unification work is now about expanding adoption and removing legacy page-local chrome, not about inventing the shared skeleton for the first time.
 
+As of `2026-04-01` later in the same cleanup pass, the `office/activity` workspace has also completed its first live migration batch:
+
+- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
+- [apps/web/app/office/activity/activity-alerts-layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/activity-alerts-layout.tsx)
+
+These files no longer emit `bm-*` activity shell/list markup. Their workspace chrome now routes through `office-activity-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), which makes `activity` the first high-visibility BO workbench migrated off `bm-*` shell language without changing its data flow.
+
 ## Audit method
 
 The current audit reviewed:
@@ -97,8 +104,6 @@ The repo still contains a large amount of active `bm-*` markup, not just compati
 High-impact live files still using `bm-*` heavily:
 
 - [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
-- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
-- [apps/web/app/office/activity/activity-alerts-layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/activity-alerts-layout.tsx)
 - [apps/web/app/office/accounting/agent-billing-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/agent-billing-panel.tsx)
 - [apps/web/app/office/accounting/accounting-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/accounting-client.tsx)
 - [apps/web/app/office/accounting/commission-management-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/commission-management-panel.tsx)
@@ -192,6 +197,7 @@ Finding:
 - settings index pages
 - dashboard-like pages
 - workbench list pages such as accounting, reports, notifications, tasks, library, and pipeline
+- `activity` still hand-assembles its route shell, but its inner workspace chrome has already moved to `office-activity-*`, so the remaining work there is template adoption rather than another visual-language migration
 
 ### Highest migration debt
 
@@ -227,13 +233,16 @@ First candidates:
 
 - dashboard
 - accounting
-- activity
 - pipeline
 - library
 - notifications
 - tasks
 - reports
 - settings index pages
+
+Completed first batch:
+
+- `activity` shell/list chrome moved off `bm-*`; follow-up work there is now limited to routing the page through the canonical route-template family when the surrounding filter/header composition is ready
 
 ### P2. Migrate transaction detail off `bm-*`
 

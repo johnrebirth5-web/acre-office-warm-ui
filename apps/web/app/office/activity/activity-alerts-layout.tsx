@@ -180,8 +180,8 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
   const alerts = snapshot?.alerts ?? [];
 
   return (
-    <section className="bm-activity-layout">
-      <aside className="bm-activity-nav-column">
+    <section className="office-activity-layout">
+      <aside className="office-activity-nav-column">
         {props.activitySidebar}
 
         <SectionCard
@@ -202,10 +202,10 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
                 </Button>
               </div>
             ) : (
-              <nav className="bm-activity-section-list">
+              <nav className="office-activity-section-list">
                 {alertSections.map((section) => (
                   <Link
-                    className={`bm-activity-section-link${props.selectedView === "alerts" && section.key === selectedAlertSection ? " is-active" : ""}`}
+                    className={`office-activity-section-link${props.selectedView === "alerts" && section.key === selectedAlertSection ? " is-active" : ""}`}
                     href={buildActivityHref(props.currentSearchParams, {
                       view: "alerts",
                       activitySection: "",
@@ -227,7 +227,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
         </SectionCard>
       </aside>
 
-      <div className="bm-activity-streams">
+      <div className="office-activity-streams">
         {props.activityStream}
 
         {props.selectedView !== "activity" ? (
@@ -238,7 +238,7 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
             }
             title={props.selectedView === "alerts" ? selectedAlertSectionLabel : "Operational alerts"}
           >
-            <div className="bm-activity-records">
+            <div className="office-activity-records">
               {isLoading ? (
                 <AlertsLoadingState copy="Loading current operational alerts..." />
               ) : error ? (
@@ -253,34 +253,34 @@ export function ActivityAlertsLayout(props: ActivityAlertsLayoutProps) {
                 />
               ) : alerts.length ? (
                 alerts.map((alert) => (
-                  <article className="bm-activity-record bm-alert-record" key={alert.id}>
-                    <div className="bm-activity-record-top">
-                      <div className="bm-activity-record-copy">
-                        <div className="bm-activity-record-summary">
+                  <article className="office-activity-record office-alert-record" key={alert.id}>
+                    <div className="office-activity-record-top">
+                      <div className="office-activity-record-copy">
+                        <div className="office-activity-record-summary">
                           <strong>{alert.title}</strong>
                           <span>{alert.summary}</span>
                         </div>
                         {alert.href ? (
-                          <Link className="bm-activity-object-link" href={alert.href}>
+                          <Link className="office-activity-object-link" href={alert.href}>
                             {alert.objectLabel}
                           </Link>
                         ) : (
-                          <p className="bm-activity-object-link is-static">{alert.objectLabel}</p>
+                          <p className="office-activity-object-link is-static">{alert.objectLabel}</p>
                         )}
                       </div>
 
-                      <div className="bm-activity-record-meta">
+                      <div className="office-activity-record-meta">
                         <StatusBadge tone={getAlertTone(alert.severity)}>{alert.severityLabel}</StatusBadge>
                         <span>{alert.referenceLabel}</span>
                       </div>
                     </div>
 
-                    <div className="bm-alert-type-row">
-                      <span className="bm-alert-type-label">{alert.typeLabel}</span>
+                    <div className="office-alert-type-row">
+                      <span className="office-alert-type-label">{alert.typeLabel}</span>
                     </div>
 
                     {alert.detailSummary.length ? (
-                      <ul className="bm-activity-detail-list">
+                      <ul className="office-activity-detail-list">
                         {alert.detailSummary.map((detail) => (
                           <li key={detail}>{detail}</li>
                         ))}

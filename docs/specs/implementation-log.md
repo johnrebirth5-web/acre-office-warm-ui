@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-04-01: `/office/activity` completed the first live `bm-*` to canonical `office-*` migration batch inside a high-visibility BO workspace:
+  - [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx) and [apps/web/app/office/activity/activity-alerts-layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/activity-alerts-layout.tsx) no longer emit `bm-*` activity shell/list markup for section rails, records, alert cards, or activity-specific filter layout
+  - new `office-activity-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now act as the canonical styling layer for the activity workspace, so the page sits inside the same visual language as the rest of the Office system instead of extending legacy `bm-*` chrome
+  - this keeps the existing audit/event data flow and live-alert loading model intact while reducing one of the largest remaining visible BO design-language forks
 - 2026-04-01: FO / BO route-level page templates now share one canonical list-page skeleton instead of maintaining separate shell logic:
   - added shared [apps/web/app/_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx) as the common route-template foundation for `PageShell`, canonical header summary, and canonical list-card composition
   - [apps/web/app/agent/_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx) now composes that shared canonical skeleton instead of hand-assembling its own shell/header stack

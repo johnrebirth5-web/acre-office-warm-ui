@@ -16519,6 +16519,225 @@ body,
   backdrop-filter: none;
 }
 
+.office-activity-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.74fr) minmax(0, 1.26fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.office-activity-nav-column,
+.office-activity-streams {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.office-activity-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.office-activity-filter-grid > * {
+  min-width: 0;
+}
+
+.office-activity-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.office-activity-section-list,
+.office-activity-records {
+  display: grid;
+  gap: 12px;
+}
+
+.office-activity-section-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(194, 205, 220, 0.56);
+  border-radius: 18px;
+  background: rgba(247, 249, 252, 0.9);
+  color: var(--office-text);
+  text-decoration: none;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.office-activity-section-link:hover,
+.office-activity-section-link:focus-visible {
+  background: var(--office-bg-muted);
+  transform: translateY(-1px);
+}
+
+.office-activity-section-link strong {
+  color: var(--office-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.office-activity-section-link span {
+  color: var(--office-text-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.office-activity-section-link.is-active {
+  border-color: rgba(129, 160, 222, 0.52);
+  background: linear-gradient(180deg, rgba(241, 246, 255, 0.96), rgba(232, 239, 252, 0.92));
+}
+
+.office-activity-section-link.is-active strong,
+.office-activity-section-link.is-active span {
+  color: var(--office-accent-strong);
+}
+
+.office-activity-record,
+.office-alert-record {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid rgba(194, 205, 220, 0.56);
+  border-radius: 18px;
+  background: rgba(247, 249, 252, 0.9);
+}
+
+.office-alert-record {
+  background: linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(255, 247, 235, 0.92));
+}
+
+.office-activity-record-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.office-activity-record-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.office-activity-record-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--office-text-muted);
+  font-size: 0.76rem;
+}
+
+.office-activity-record-summary strong {
+  color: var(--office-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.office-activity-object-link {
+  color: var(--office-accent-strong);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.office-activity-object-link:hover,
+.office-activity-object-link:focus-visible {
+  text-decoration: underline;
+}
+
+.office-activity-object-link.is-static {
+  margin: 0;
+  color: var(--office-text-muted);
+  text-decoration: none;
+}
+
+.office-activity-record-meta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  color: var(--office-text-soft);
+  font-size: 0.69rem;
+  text-align: right;
+}
+
+.office-activity-detail-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--office-text-muted);
+  font-size: 0.71rem;
+}
+
+.office-activity-detail-list li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.office-activity-detail-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(129, 160, 222, 0.78);
+}
+
+.office-alert-type-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.office-alert-type-label {
+  color: #805b27;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1360px) {
+  .office-activity-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .office-activity-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .office-activity-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .office-activity-record-top {
+    display: grid;
+  }
+
+  .office-activity-record-meta {
+    justify-items: start;
+    text-align: left;
+  }
+}
+
 .auth-card {
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: none;

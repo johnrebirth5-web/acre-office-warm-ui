@@ -132,10 +132,10 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
       subtitle="Counts in the latest 200-record audit window"
       title="Activity log"
     >
-      <nav className="bm-activity-section-list">
+      <nav className="office-activity-section-list">
         {snapshot.activitySections.map((section) => (
           <Link
-            className={`bm-activity-section-link${selectedView === "activity" && section.key === snapshot.activitySelectedSection ? " is-active" : ""}`}
+            className={`office-activity-section-link${selectedView === "activity" && section.key === snapshot.activitySelectedSection ? " is-active" : ""}`}
             href={buildActivityHref(normalizedSearchParams, {
               view: "activity",
               activitySection: section.key,
@@ -158,33 +158,33 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
         subtitle={activitySubtitle}
         title={selectedView === "activity" ? snapshot.activitySelectedSectionLabel : "Activity log"}
       >
-        <div className="bm-activity-records">
+        <div className="office-activity-records">
           {paginatedActivityEvents.length ? (
             paginatedActivityEvents.map((event) => (
-              <article className="bm-activity-record" key={event.id}>
-                <div className="bm-activity-record-top">
-                  <div className="bm-activity-record-copy">
-                    <div className="bm-activity-record-summary">
+              <article className="office-activity-record" key={event.id}>
+                <div className="office-activity-record-top">
+                  <div className="office-activity-record-copy">
+                    <div className="office-activity-record-summary">
                       <strong>{event.actorDisplayName}</strong>
                       <span>{event.summary}</span>
                     </div>
                     {event.href ? (
-                      <Link className="bm-activity-object-link" href={event.href}>
+                      <Link className="office-activity-object-link" href={event.href}>
                         {event.objectLabel}
                       </Link>
                     ) : (
-                      <p className="bm-activity-object-link is-static">{event.objectLabel}</p>
+                      <p className="office-activity-object-link is-static">{event.objectLabel}</p>
                     )}
                   </div>
 
-                  <div className="bm-activity-record-meta">
+                  <div className="office-activity-record-meta">
                     <StatusBadge tone={event.isComment ? "neutral" : "accent"}>{event.actionLabel}</StatusBadge>
                     <time>{event.timestampLabel}</time>
                   </div>
                 </div>
 
                 {event.detailSummary.length ? (
-                  <ul className="bm-activity-detail-list">
+                  <ul className="office-activity-detail-list">
                     {event.detailSummary.map((detail) => (
                       <li key={detail}>{detail}</li>
                     ))}
@@ -302,7 +302,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
           </Link>
         </div>
 
-        <div className="bm-activity-filter-grid">
+        <div className="office-activity-filter-grid">
           <FilterField className="office-activity-filter-field" label="Actor (activity only)">
             <select defaultValue={snapshot.filters.actorMembershipId} disabled={selectedView === "alerts"} name="actorMembershipId">
               <option value="">All actors</option>
@@ -336,7 +336,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             <input defaultValue={snapshot.filters.endDate} name="endDate" type="date" />
           </FilterField>
 
-          <div className="bm-activity-filter-actions">
+          <div className="office-activity-filter-actions">
             <input name="view" type="hidden" value={selectedView} />
             {selectedView === "activity" ? (
               <input name="activitySection" type="hidden" value={snapshot.activitySelectedSection} />
