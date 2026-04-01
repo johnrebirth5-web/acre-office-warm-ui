@@ -8,6 +8,7 @@ import {
   createTransaction,
   getOfficeTransactionIntakeSchema,
   getOfficeTransactionOwnerAssignment,
+  linkContactToTransaction,
   listTransactions,
   prepareTransactionIntakeSubmission,
   type OfficeTransactionStatus,
@@ -297,6 +298,22 @@ export async function POST(request: NextRequest) {
 
     const handoffDraftId =
       typeof body.handoffDraftId === "string" ? body.handoffDraftId.trim() : "";
+    const frontOfficeClientId =
+      typeof body.frontOfficeClientId === "string"
+        ? body.frontOfficeClientId.trim()
+        : "";
+
+    if (frontOfficeClientId) {
+      await linkContactToTransaction(
+        context.currentOrganization.id,
+        frontOfficeClientId,
+        transaction.id,
+        {
+          actorMembershipId: context.currentMembership.id,
+          isPrimary: true,
+        },
+      );
+    }
 
     if (handoffDraftId) {
       await commitFrontOfficeHandoffDraft({

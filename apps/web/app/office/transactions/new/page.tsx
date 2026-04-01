@@ -136,6 +136,7 @@ export default async function OfficeTransactionCreatePage(
         submissionExtras={
           handoffPrefill
             ? {
+                frontOfficeClientId: handoffPrefill.clientId,
                 handoffDraftId: handoffPrefill.handoffDraftId,
               }
             : undefined
