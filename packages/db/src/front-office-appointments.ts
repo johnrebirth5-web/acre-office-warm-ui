@@ -25,6 +25,7 @@ export type FrontOfficeAppointmentOption = {
 export type FrontOfficeAppointmentRecord = {
   id: string;
   title: string;
+  clientId: string | null;
   typeLabel: string;
   typeTone: FrontOfficeAppointmentTone;
   statusLabel: string;
@@ -36,6 +37,7 @@ export type FrontOfficeAppointmentRecord = {
   clientLabel: string;
   listingLabel: string;
   notesLabel: string;
+  listingOutputHref: string | null;
 };
 
 export type FrontOfficeAppointmentHandoffItem = {
@@ -334,6 +336,7 @@ function mapAppointmentRecord(
   return {
     id: appointment.id,
     title: appointment.title,
+    clientId: appointment.client?.id ?? null,
     typeLabel:
       findAppointmentTypeDefinition(appointment.type)?.label ?? "Appointment",
     typeTone: mapAppointmentTypeTone(appointment.type),
@@ -347,6 +350,9 @@ function mapAppointmentRecord(
     clientLabel,
     listingLabel,
     notesLabel,
+    listingOutputHref: appointment.client?.id
+      ? `/agent/listings?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
+      : null,
   };
 }
 

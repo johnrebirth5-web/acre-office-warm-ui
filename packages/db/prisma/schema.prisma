@@ -1177,9 +1177,13 @@ model FrontOfficeSendRecord {
   senderMembershipId String
   clientId           String
   listingId          String?
+  appointmentId      String?
   shareLinkId        String?                     @unique
   channel            FrontOfficeSendChannel
   materialType       FrontOfficeSendMaterialType @default(listing_share)
+  clientStageLabel   String?
+  appointmentTitle   String?
+  appointmentStartsAt DateTime?
   sentAt             DateTime                    @default(now())
   firstOpenedAt      DateTime?
   lastOpenedAt       DateTime?
@@ -1191,11 +1195,14 @@ model FrontOfficeSendRecord {
   senderMembership   Membership                  @relation(fields: [senderMembershipId], references: [id], onDelete: Cascade)
   client             Client                      @relation(fields: [clientId], references: [id], onDelete: Cascade)
   listing            Listing?                    @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  appointment        Appointment?                @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   shareLink          ListingShareLink?           @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, senderMembershipId, sentAt])
   @@index([organizationId, officeId, sentAt])
   @@index([organizationId, clientId, sentAt])
+  @@index([organizationId, appointmentId, sentAt])
+  @@index([organizationId, clientStageLabel, sentAt])
   @@index([organizationId, lastOpenedAt])
 }
 
@@ -1263,6 +1270,7 @@ model Appointment {
   ownerMembership   Membership?       @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
   client            Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
   listing           Listing?          @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  frontOfficeSendRecords FrontOfficeSendRecord[]
 
   @@index([organizationId, ownerMembershipId, startsAt])
   @@index([organizationId, officeId, startsAt])

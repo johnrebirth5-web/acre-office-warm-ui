@@ -184,9 +184,9 @@ export default async function AgentClientDetailPage(
                       action={
                         <FrontOfficeLink
                           className="office-inline-link"
-                          href={`/agent/calendar?clientId=${snapshot.id}`}
+                          href={appointment.listingOutputHref}
                         >
-                          Schedule another appointment
+                          Open listing output
                         </FrontOfficeLink>
                       }
                       badgeLabel={appointment.typeLabel}
@@ -269,8 +269,10 @@ export default async function AgentClientDetailPage(
                     }
                     badgeLabel={record.engagementLabel}
                     badgeTone={record.engagementTone}
-                    context={record.channelLabel}
-                    description={`Sent ${record.sentAtLabel}`}
+                    context={`${record.channelLabel} · ${record.stageLabel}`}
+                    description={[`Sent ${record.sentAtLabel}`, record.appointmentLabel]
+                      .filter(Boolean)
+                      .join(" · ")}
                     key={record.id}
                     meta={<span>{record.lastActivityLabel}</span>}
                     title={record.title}

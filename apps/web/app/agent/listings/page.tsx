@@ -34,12 +34,16 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
   const searchParams = (await props.searchParams) ?? {};
   const targetClientId = readSearchParamValue(searchParams.clientId)?.trim();
+  const targetAppointmentId = readSearchParamValue(
+    searchParams.appointmentId,
+  )?.trim();
   const snapshot = await getFrontOfficeListingsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
     targetClientId,
+    targetAppointmentId,
   });
 
   return (
@@ -104,8 +108,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 }
                 description={
                   snapshot.targetClient
-                    ? `${snapshot.targetClient.nextTouchLabel}. Sends from this page will now be attributed back to this dossier.`
-                    : "Open listing output from a client dossier to record who the send was for, which channel was used, and whether they opened it."
+                    ? `${snapshot.targetClient.nextTouchLabel}. Sends from this page will now be attributed back to this dossier${snapshot.targetAppointment ? " and to the selected appointment context." : "."}`
+                    : "Open listing output from a client dossier or appointment context to record who the send was for, which channel was used, and whether they opened it."
                 }
                 title={
                   snapshot.targetClient
@@ -113,6 +117,15 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     : "Generic tracked-link mode"
                 }
               />
+              {snapshot.targetAppointment ? (
+                <FrontOfficeRailItem
+                  action={null}
+                  badgeLabel={snapshot.targetAppointment.statusLabel}
+                  badgeTone={snapshot.targetAppointment.statusTone}
+                  description={`${snapshot.targetAppointment.typeLabel} · ${snapshot.targetAppointment.locationLabel}`}
+                  title={`${snapshot.targetAppointment.title} · ${snapshot.targetAppointment.startsAtLabel}`}
+                />
+              ) : null}
             </div>
           </SectionCard>
 
@@ -170,6 +183,12 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               label="Recipient"
               tone="accent"
               value={snapshot.targetClient.fullName}
+            />
+          ) : null}
+          {snapshot.targetAppointment ? (
+            <SummaryChip
+              label="Appointment"
+              value={snapshot.targetAppointment.typeLabel}
             />
           ) : null}
           <SummaryChip label="Surface" value="Outreach" />

@@ -1,4 +1,6 @@
 import {
+  AppointmentStatus,
+  AppointmentType,
   ListingStatus,
   NotificationType,
   Prisma,
@@ -16,6 +18,7 @@ export type FrontOfficeWorkspaceInput = {
   officeId?: string | null;
   timeZone?: string | null;
   targetClientId?: string | null;
+  targetAppointmentId?: string | null;
 };
 
 export type FrontOfficeTone =
@@ -103,6 +106,17 @@ export type FrontOfficeListingsTargetClient = {
   href: string;
 };
 
+export type FrontOfficeListingsTargetAppointment = {
+  id: string;
+  title: string;
+  typeLabel: string;
+  statusLabel: string;
+  statusTone: FrontOfficeTone;
+  startsAtLabel: string;
+  locationLabel: string;
+  href: string;
+};
+
 export type FrontOfficeListingsSnapshot = {
   summary: {
     listingCount: number;
@@ -111,6 +125,7 @@ export type FrontOfficeListingsSnapshot = {
     trackedLinks: number;
   };
   targetClient: FrontOfficeListingsTargetClient | null;
+  targetAppointment: FrontOfficeListingsTargetAppointment | null;
   agentMaterial: FrontOfficeAgentMaterialSnapshot;
   listings: FrontOfficeListingRecord[];
 };
@@ -399,6 +414,36 @@ function formatListingStatus(status: ListingStatus) {
     .join(" ");
 }
 
+function formatAppointmentTypeLabel(type: AppointmentType) {
+  return type
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function formatAppointmentStatusLabel(status: AppointmentStatus) {
+  return status
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function mapAppointmentStatusTone(status: AppointmentStatus): FrontOfficeTone {
+  if (status === AppointmentStatus.completed) {
+    return "success";
+  }
+
+  if (status === AppointmentStatus.canceled) {
+    return "danger";
+  }
+
+  if (status === AppointmentStatus.no_show) {
+    return "warning";
+  }
+
+  return "accent";
+}
+
 function formatNotificationType(type: NotificationType) {
   return type
     .split("_")
@@ -604,7 +649,8 @@ export async function getFrontOfficeListingsSnapshot(
     listingCount,
     publicReadyCount,
     shareAggregate,
-    targetClient,
+    explicitTargetClient,
+    targetAppointment,
     membership,
     recentClosedTransactions,
     recentClosedCount,
@@ -663,6 +709,33 @@ export async function getFrontOfficeListingsSnapshot(
             stage: true,
             nextFollowUpAt: true,
             leaseReminderAt: true,
+          },
+        })
+      : Promise.resolve(null),
+    input.targetAppointmentId?.trim()
+      ? prisma.appointment.findFirst({
+          where: {
+            id: input.targetAppointmentId.trim(),
+            organizationId: input.organizationId,
+            ownerMembershipId: input.viewerMembershipId,
+          },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            status: true,
+            startsAt: true,
+            location: true,
+            meetingUrl: true,
+            client: {
+              select: {
+                id: true,
+                fullName: true,
+                stage: true,
+                nextFollowUpAt: true,
+                leaseReminderAt: true,
+              },
+            },
           },
         })
       : Promise.resolve(null),
@@ -757,6 +830,23 @@ export async function getFrontOfficeListingsSnapshot(
     ]),
   );
 
+  const targetClient =
+    explicitTargetClient ??
+    (targetAppointment?.client
+      ? {
+          id: targetAppointment.client.id,
+          fullName: targetAppointment.client.fullName,
+          stage: targetAppointment.client.stage,
+          nextFollowUpAt: targetAppointment.client.nextFollowUpAt,
+          leaseReminderAt: targetAppointment.client.leaseReminderAt,
+        }
+      : null);
+  const resolvedTargetAppointment =
+    targetAppointment &&
+    (!targetClient || targetAppointment.client?.id === targetClient.id)
+      ? targetAppointment
+      : null;
+
   const displayName =
     membership?.agentProfile?.displayName?.trim() ||
     `${membership?.user.firstName ?? ""} ${membership?.user.lastName ?? ""}`.trim() ||
@@ -813,6 +903,32 @@ export async function getFrontOfficeListingsSnapshot(
             timeZone: input.timeZone,
           }),
           href: `/agent/clients/${targetClient.id}`,
+        }
+      : null,
+    targetAppointment: resolvedTargetAppointment
+      ? {
+          id: resolvedTargetAppointment.id,
+          title: resolvedTargetAppointment.title,
+          typeLabel: formatAppointmentTypeLabel(
+            resolvedTargetAppointment.type,
+          ),
+          statusLabel: formatAppointmentStatusLabel(
+            resolvedTargetAppointment.status,
+          ),
+          statusTone: mapAppointmentStatusTone(
+            resolvedTargetAppointment.status,
+          ),
+          startsAtLabel: formatDateTimeLabel(
+            resolvedTargetAppointment.startsAt,
+            {
+              timeZone: input.timeZone ?? null,
+            },
+          ),
+          locationLabel:
+            resolvedTargetAppointment.location?.trim() ||
+            resolvedTargetAppointment.meetingUrl?.trim() ||
+            "Location pending",
+          href: `/agent/calendar?appointmentId=${resolvedTargetAppointment.id}`,
         }
       : null,
     agentMaterial: {

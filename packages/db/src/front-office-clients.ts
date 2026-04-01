@@ -41,6 +41,7 @@ export type FrontOfficeClientDetailAppointmentItem = {
   startsAtLabel: string;
   locationLabel: string;
   contextLabel: string;
+  listingOutputHref: string;
 };
 
 export type FrontOfficeClientDetailTaskItem = {
@@ -58,6 +59,8 @@ export type FrontOfficeClientDetailSendRecordItem = {
   id: string;
   title: string;
   channelLabel: string;
+  stageLabel: string;
+  appointmentLabel: string;
   sentAtLabel: string;
   engagementLabel: string;
   engagementTone: FrontOfficeClientDetailTone;
@@ -555,6 +558,34 @@ function buildFrontOfficeSendEngagementLabel(openCount: number) {
   }
 
   return `Revisited ${openCount} times`;
+}
+
+function formatSendRecordStageLabel(value: string | null | undefined) {
+  return value?.trim() || "Stage not captured";
+}
+
+function buildSendRecordAppointmentLabel(input: {
+  title: string | null | undefined;
+  startsAt: Date | null | undefined;
+  timeZone?: string | null;
+}) {
+  if (!input.title?.trim() && !input.startsAt) {
+    return "";
+  }
+
+  if (!input.startsAt) {
+    return input.title?.trim() || "Appointment context";
+  }
+
+  if (!input.title?.trim()) {
+    return `Appointment · ${formatDateTimeLabel(input.startsAt, {
+      timeZone: input.timeZone ?? null,
+    })}`;
+  }
+
+  return `${input.title.trim()} · ${formatDateTimeLabel(input.startsAt, {
+    timeZone: input.timeZone ?? null,
+  })}`;
 }
 
 function getClientFirstName(fullName: string) {
@@ -1503,6 +1534,10 @@ export async function getFrontOfficeClientDetail(
           id: true,
           channel: true,
           materialType: true,
+          clientStageLabel: true,
+          appointmentId: true,
+          appointmentTitle: true,
+          appointmentStartsAt: true,
           sentAt: true,
           firstOpenedAt: true,
           lastOpenedAt: true,
@@ -1810,6 +1845,7 @@ export async function getFrontOfficeClientDetail(
       contextLabel: appointment.listing
         ? `${appointment.listing.title} · ${appointment.listing.neighborhood}, ${appointment.listing.city}`
         : appointment.contactLabel?.trim() || "Front Office appointment",
+      listingOutputHref: `/agent/listings?clientId=${client.id}&appointmentId=${appointment.id}`,
     })),
     followUpTasks: client.followUpTasks.map((task) => ({
       id: task.id,
@@ -1832,6 +1868,12 @@ export async function getFrontOfficeClientDetail(
           ? "Listing share"
           : "Front Office material"),
       channelLabel: formatFrontOfficeSendChannelLabel(record.channel),
+      stageLabel: formatSendRecordStageLabel(record.clientStageLabel),
+      appointmentLabel: buildSendRecordAppointmentLabel({
+        title: record.appointmentTitle,
+        startsAt: record.appointmentStartsAt,
+        timeZone: input.timeZone,
+      }),
       sentAtLabel: formatDateTimeLabel(record.sentAt, {
         timeZone: input.timeZone ?? null,
       }),
@@ -1843,7 +1885,9 @@ export async function getFrontOfficeClientDetail(
               timeZone: input.timeZone ?? null,
             })}`
           : "No open recorded yet",
-      href: `/agent/listings?clientId=${client.id}`,
+      href: record.appointmentId
+        ? `/agent/listings?clientId=${client.id}&appointmentId=${record.appointmentId}`
+        : `/agent/listings?clientId=${client.id}`,
     })),
     handoffs: client.handoffDrafts.map((draft) => ({
       id: draft.id,

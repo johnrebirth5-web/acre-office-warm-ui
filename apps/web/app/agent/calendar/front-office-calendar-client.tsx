@@ -18,6 +18,7 @@ import {
   TextareaInput,
 } from "@acre/ui";
 import { useRouter } from "next/navigation";
+import { FrontOfficeLink } from "../_components/front-office-link";
 
 type FrontOfficeCalendarClientProps = {
   initialClientId?: string;
@@ -393,6 +394,14 @@ export function FrontOfficeCalendarClient(
 
                 {appointment.statusLabel === "Scheduled" ? (
                   <div className="front-office-calendar-actions">
+                    {appointment.listingOutputHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={appointment.listingOutputHref}
+                      >
+                        Open listing output
+                      </FrontOfficeLink>
+                    ) : null}
                     <button
                       className="office-button-secondary office-inline-action-sm"
                       disabled={isBusy}

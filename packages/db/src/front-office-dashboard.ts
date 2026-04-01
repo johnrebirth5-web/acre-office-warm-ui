@@ -96,6 +96,8 @@ export type FrontOfficeDashboardEngagementItem = {
   clientName: string;
   listingTitle: string;
   channelLabel: string;
+  stageLabel: string;
+  appointmentLabel: string;
   sentAtLabel: string;
   engagementLabel: string;
   engagementTone: FrontOfficeDashboardTone;
@@ -488,6 +490,34 @@ function buildFrontOfficeSendEngagementLabel(openCount: number) {
   }
 
   return `Revisited ${openCount} times`;
+}
+
+function formatSendRecordStageLabel(value: string | null | undefined) {
+  return value?.trim() || "Stage not captured";
+}
+
+function buildSendRecordAppointmentLabel(input: {
+  title: string | null | undefined;
+  startsAt: Date | null | undefined;
+  timeZone?: string | null;
+}) {
+  if (!input.title?.trim() && !input.startsAt) {
+    return "";
+  }
+
+  if (!input.startsAt) {
+    return input.title?.trim() || "Appointment context";
+  }
+
+  if (!input.title?.trim()) {
+    return `Appointment · ${formatDateTimeLabel(input.startsAt, {
+      timeZone: input.timeZone ?? null,
+    })}`;
+  }
+
+  return `${input.title.trim()} · ${formatDateTimeLabel(input.startsAt, {
+    timeZone: input.timeZone ?? null,
+  })}`;
 }
 
 function formatNotificationType(type: NotificationType) {
@@ -1016,6 +1046,9 @@ export async function getFrontOfficeDashboardSnapshot(
       select: {
         id: true,
         channel: true,
+        clientStageLabel: true,
+        appointmentTitle: true,
+        appointmentStartsAt: true,
         sentAt: true,
         lastOpenedAt: true,
         openCount: true,
@@ -1718,6 +1751,12 @@ export async function getFrontOfficeDashboardSnapshot(
         listingTitle:
           record.listing?.title?.trim() || "Front Office material send",
         channelLabel: formatFrontOfficeSendChannelLabel(record.channel),
+        stageLabel: formatSendRecordStageLabel(record.clientStageLabel),
+        appointmentLabel: buildSendRecordAppointmentLabel({
+          title: record.appointmentTitle,
+          startsAt: record.appointmentStartsAt,
+          timeZone: input.timeZone,
+        }),
         sentAtLabel: formatDateTimeLabel(record.sentAt, {
           timeZone: input.timeZone ?? null,
         }),

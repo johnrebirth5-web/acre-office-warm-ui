@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context` foundation, the recommended next implementation target is:
 
-- `deeper send records tied to appointments and client stage`
+- `leadership/team-level overdue engagement views on top of the same send trail`
 
 That means:
 
-- FO send records should capture more execution context than just `client + listing + channel`
-- the send trail should be able to explain whether the material was sent before a showing, after a consultation, or because the client moved into a new stage
-- appointment and client-stage context should stay attached to the same FO execution record instead of drifting into notes
-- leadership and later analytics views should be able to segment send effectiveness by stage and meeting context without inventing a parallel tracking store
+- team leads and office admins should be able to spot clients or agents whose send trail has gone quiet even when tracked links already exist
+- leadership visibility should build on the same `FrontOfficeSendRecord` context instead of inventing a second engagement scoring store
+- stage and appointment context already captured on sends should now become grouping / filtering signals for management review
+- the goal is to turn the current execution trail into actionable oversight before building heavier analytics modules
 
 ## First real FO workflow models
 
@@ -136,6 +136,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - the shared notification contract now includes a formal `appointment_due_soon` reminder type keyed to the appointment record
   - loading `/agent/dashboard` or `/agent/notifications` now reconciles near-term scheduled appointments into the same activity stream as other FO reminders
   - `/agent/calendar` now shows a reminder badge on each appointment row so agents can see `today / within 2h / passed` pressure directly in the scheduling queue
+- send records now keep richer execution context instead of only `client + listing + channel`:
+  - `FrontOfficeSendRecord` now also snapshots `clientStageLabel`, optional `appointmentId`, `appointmentTitle`, and `appointmentStartsAt`
+  - `/agent/listings` now accepts appointment context in addition to client context, so sends can be recorded straight from a scheduled consultation/showing path
+  - `/agent/clients/[clientId]`, `/agent/calendar`, and `/agent/dashboard` now surface that stage/appointment context directly in the send trail instead of forcing agents to reconstruct why a send happened
 
 ## Non-goals in this phase
 
@@ -146,5 +150,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- deeper send records tied to appointments and client stage
 - leadership/team-level overdue engagement views on top of the same send trail

@@ -340,6 +340,10 @@ export default async function AgentDashboardPage() {
                     <div className="list-row-meta front-office-record-meta">
                       <span>{record.channelLabel}</span>
                       <span>{record.sentAtLabel}</span>
+                      <span>{record.stageLabel}</span>
+                      {record.appointmentLabel ? (
+                        <span>{record.appointmentLabel}</span>
+                      ) : null}
                       <span>{record.detailLabel}</span>
                     </div>
                     <FrontOfficeLink

@@ -61,6 +61,33 @@ function buildEmailTemplate(input: {
   return `Subject: Listing match: ${input.title}\n\n${greeting}\n\nI found a listing that may fit what we discussed.\n\nListing: ${input.title}\nArea: ${input.areaLabel}\nPrice: ${input.priceLabel}\nWhy it stands out: ${input.summaryLabel}\n\nPrivate share link: ${input.shareUrl}\n\nReply with your reaction and I can line up the next options or a showing.\n`;
 }
 
+function buildRecordedContextMessage(
+  snapshot: FrontOfficeListingsSnapshot,
+  listingTitle: string,
+  variant: "text" | "email" | "link",
+) {
+  const baseLabel =
+    variant === "text"
+      ? `Tracked text template copied for ${listingTitle}`
+      : variant === "email"
+        ? `Tracked email template copied for ${listingTitle}`
+        : `Private tracked link copied for ${listingTitle}`;
+
+  if (snapshot.targetClient && snapshot.targetAppointment) {
+    return `${baseLabel}, and the send was recorded for ${snapshot.targetClient.fullName} in the selected appointment context.`;
+  }
+
+  if (snapshot.targetClient) {
+    return `${baseLabel}, and the send was recorded for ${snapshot.targetClient.fullName}.`;
+  }
+
+  if (snapshot.targetAppointment) {
+    return `${baseLabel}, and the send was recorded in the selected appointment context.`;
+  }
+
+  return `${baseLabel}.`;
+}
+
 export function FrontOfficeListingsOutputClient(
   props: FrontOfficeListingsOutputClientProps,
 ) {
@@ -92,6 +119,7 @@ export function FrontOfficeListingsOutputClient(
           body: JSON.stringify({
             channel: action,
             clientId: props.snapshot.targetClient?.id ?? null,
+            appointmentId: props.snapshot.targetAppointment?.id ?? null,
           }),
         },
       );
@@ -133,18 +161,11 @@ export function FrontOfficeListingsOutputClient(
       await copyTextToClipboard(copiedValue);
       setFeedback({
         tone: "success",
-        message:
-          action === "sms"
-            ? props.snapshot.targetClient
-              ? `Tracked text template copied for ${listing.title}, and the send was recorded for ${props.snapshot.targetClient.fullName}.`
-              : `Tracked text template copied for ${listing.title}.`
-            : action === "email"
-              ? props.snapshot.targetClient
-                ? `Tracked email template copied for ${listing.title}, and the send was recorded for ${props.snapshot.targetClient.fullName}.`
-                : `Tracked email template copied for ${listing.title}.`
-              : props.snapshot.targetClient
-                ? `Private tracked link copied for ${listing.title}, and the send was recorded for ${props.snapshot.targetClient.fullName}.`
-                : `Private tracked link copied for ${listing.title}.`,
+        message: buildRecordedContextMessage(
+          props.snapshot,
+          listing.title,
+          action === "sms" ? "text" : action === "email" ? "email" : "link",
+        ),
       });
       startTransition(() => {
         router.refresh();
@@ -194,9 +215,17 @@ export function FrontOfficeListingsOutputClient(
           </strong>
           <p>
             {props.snapshot.targetClient
-              ? "Every copy action on this page now creates a client-linked send record, so opens and revisits show up back in the dossier and dashboard."
-              : "This page can always create tracked links. Open it from a client dossier when you want the send itself attributed back to one specific client."}
+              ? props.snapshot.targetAppointment
+                ? "Every copy action on this page now creates a client-linked send record that also snapshots the selected appointment and the client's stage at send time."
+                : "Every copy action on this page now creates a client-linked send record, so opens and revisits show up back in the dossier and dashboard."
+              : "This page can always create tracked links. Open it from a client dossier or appointment context when you want the send itself attributed back to one specific client."}
           </p>
+          {props.snapshot.targetAppointment ? (
+            <p>
+              Appointment context: {props.snapshot.targetAppointment.title} ·{" "}
+              {props.snapshot.targetAppointment.startsAtLabel}
+            </p>
+          ) : null}
           {props.snapshot.targetClient ? (
             <FrontOfficeLink
               className="office-inline-link"
@@ -288,8 +317,8 @@ export function FrontOfficeListingsOutputClient(
           Each copy action creates a private tracked link, copies the outreach
           content to the clipboard, and refreshes the tracked link / click
           counts on this page. In client-linked mode, the same action also
-          writes a Front Office send record that can later show opens and
-          revisits.
+          writes a Front Office send record that can later show opens,
+          revisits, stage context, and appointment context when applicable.
         </p>
         <div className="front-office-playbook-actions">
           <FrontOfficeLink

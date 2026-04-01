@@ -265,6 +265,7 @@ export {
   type FrontOfficeClientsSnapshot,
   type FrontOfficeListingRecord,
   type FrontOfficeListingsSnapshot,
+  type FrontOfficeListingsTargetAppointment,
   type FrontOfficeListingsTargetClient,
   type FrontOfficeResourceRecord,
   type FrontOfficeResourcesSnapshot,

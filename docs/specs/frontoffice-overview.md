@@ -110,8 +110,9 @@ Current implementation priority note:
 
 - `lease-date reminders` are now live on the client record, dossier, and dashboard
 - `appointment reminders / notification delivery` are now also live on top of the FO calendar, so near-term appointments enter the same activity stream as other execution reminders
-- the next recommended build target is `deeper send records tied to appointments and client stage`
-- prefer this before `Offer / Inspection / PDF` and before AI, because it keeps strengthening the daily execution loop before pushing agents into formal Back Office workflow too early
+- `send records` now also snapshot client stage and optional appointment context, so outreach can be read as part of the live execution trail instead of generic clipboard history
+- the next recommended build target is `leadership/team-level overdue engagement views on top of the same send trail`
+- prefer this before `Offer / Inspection / PDF` and before AI, because it turns the existing FO execution trail into management visibility before pushing agents into formal Back Office workflow too early
 
 ### Phase 2
 

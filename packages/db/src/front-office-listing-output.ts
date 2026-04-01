@@ -76,6 +76,7 @@ export type CreateFrontOfficeListingShareLinkInput = {
   listingId: string;
   channel: string;
   clientId?: string | null;
+  appointmentId?: string | null;
 };
 
 export type FrontOfficeListingShareLinkResult = {
@@ -106,7 +107,7 @@ export async function createFrontOfficeListingShareLink(
 ): Promise<FrontOfficeListingShareLinkResult> {
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const normalizedChannel = normalizeFrontOfficeSendChannel(input.channel);
-  const [listing, client] = await Promise.all([
+  const [listing, explicitClient, appointment] = await Promise.all([
     prisma.listing.findFirst({
       where: {
         id: input.listingId,
@@ -130,6 +131,29 @@ export async function createFrontOfficeListingShareLink(
           },
           select: {
             id: true,
+            fullName: true,
+            stage: true,
+          },
+        })
+      : Promise.resolve(null),
+    input.appointmentId?.trim()
+      ? prisma.appointment.findFirst({
+          where: {
+            id: input.appointmentId.trim(),
+            organizationId: input.organizationId,
+            ownerMembershipId: input.viewerMembershipId,
+          },
+          select: {
+            id: true,
+            title: true,
+            startsAt: true,
+            client: {
+              select: {
+                id: true,
+                fullName: true,
+                stage: true,
+              },
+            },
           },
         })
       : Promise.resolve(null),
@@ -139,9 +163,33 @@ export async function createFrontOfficeListingShareLink(
     throw new Error("Listing not found in the current Front Office scope.");
   }
 
-  if (input.clientId?.trim() && !client) {
+  if (input.clientId?.trim() && !explicitClient) {
     throw new Error("Client not found in the current Front Office scope.");
   }
+
+  if (input.appointmentId?.trim() && !appointment) {
+    throw new Error(
+      "Appointment not found in the current Front Office scope.",
+    );
+  }
+
+  if (appointment && !appointment.client?.id) {
+    throw new Error(
+      "Only client-linked appointments can be used as send context.",
+    );
+  }
+
+  if (
+    explicitClient &&
+    appointment?.client?.id &&
+    appointment.client.id !== explicitClient.id
+  ) {
+    throw new Error(
+      "Appointment context does not match the selected client.",
+    );
+  }
+
+  const client = explicitClient ?? appointment?.client ?? null;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = buildShareCode();
@@ -171,9 +219,13 @@ export async function createFrontOfficeListingShareLink(
               senderMembershipId: input.viewerMembershipId,
               clientId: client.id,
               listingId: listing.id,
+              appointmentId: appointment?.id ?? null,
               shareLinkId: createdShareLink.id,
               channel: normalizedChannel,
               materialType: FrontOfficeSendMaterialType.listing_share,
+              clientStageLabel: client.stage?.trim() || null,
+              appointmentTitle: appointment?.title?.trim() || null,
+              appointmentStartsAt: appointment?.startsAt ?? null,
               sentAt,
             },
           });
