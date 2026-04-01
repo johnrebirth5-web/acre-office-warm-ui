@@ -202,6 +202,81 @@ export default async function AgentClientDetailPage(
           </SectionCard>
 
           <SectionCard
+            actions={
+              <FrontOfficeLink
+                className="office-button-secondary"
+                href={`/agent/listings?clientId=${snapshot.id}`}
+              >
+                Open listing output
+              </FrontOfficeLink>
+            }
+            className="office-list-card"
+            subtitle="Send records turn listing output into a real execution trail, not just clipboard activity."
+            title="Send record & engagement"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="client-linked sends recorded from Front Office"
+                label="Sends"
+                value={snapshot.engagement.sendCount}
+              />
+              <StatCard
+                hint="send records with at least one open"
+                label="Opened sends"
+                value={snapshot.engagement.openedSendCount}
+              />
+              <StatCard
+                hint="extra opens after the first one"
+                label="Revisits"
+                value={snapshot.engagement.revisitCount}
+              />
+              <StatCard
+                hint="most recent tracked engagement"
+                label="Latest engagement"
+                tone="accent"
+                value={snapshot.engagement.lastEngagementLabel}
+              />
+            </ListPageStatsGrid>
+
+            <div className="office-queue-list">
+              {snapshot.sendRecords.length ? (
+                snapshot.sendRecords.map((record) => (
+                  <QueueItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={record.href}
+                      >
+                        Send another listing
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={record.engagementLabel}
+                    badgeTone={record.engagementTone}
+                    context={record.channelLabel}
+                    description={`Sent ${record.sentAtLabel}`}
+                    key={record.id}
+                    meta={<span>{record.lastActivityLabel}</span>}
+                    title={record.title}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    <FrontOfficeLink
+                      className="office-button-secondary"
+                      href={`/agent/listings?clientId=${snapshot.id}`}
+                    >
+                      Send first listing
+                    </FrontOfficeLink>
+                  }
+                  description="Client-linked listing sends will appear here once you open listing output in this client's context."
+                  title="No send record yet"
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
             className="office-list-card"
             subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
             title="Chat List & phone strategy"

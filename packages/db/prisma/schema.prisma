@@ -125,6 +125,16 @@ enum FrontOfficeHandoffStatus {
   canceled
 }
 
+enum FrontOfficeSendChannel {
+  sms
+  email
+  direct
+}
+
+enum FrontOfficeSendMaterialType {
+  listing_share
+}
+
 enum ResourceType {
   training_video
   vendor_card
@@ -574,6 +584,7 @@ model Organization {
   invitations                           Invitation[]
   membershipNotificationPreferences     MembershipNotificationPreference[]
   listings                              Listing[]
+  frontOfficeSendRecords                FrontOfficeSendRecord[]
   clients                               Client[]
   appointments                          Appointment[]
   clientStageHistories                  ClientStageHistory[]
@@ -663,6 +674,7 @@ model Office {
   membershipNotificationPreferences     MembershipNotificationPreference[]
   notifications                         Notification[]
   listings                              Listing[]
+  frontOfficeSendRecords                FrontOfficeSendRecord[]
   appointments                          Appointment[]
   clientStageHistories                  ClientStageHistory[]
   frontOfficeHandoffDrafts              FrontOfficeHandoffDraft[]
@@ -760,6 +772,7 @@ model Membership {
   sentInvitations                              Invitation[]                           @relation("InvitationInvitedByMembership")
   notificationPreference                       MembershipNotificationPreference?
   listingsOwned                                Listing[]
+  frontOfficeSendRecordsSent                   FrontOfficeSendRecord[]
   clientsOwned                                 Client[]
   appointmentsOwned                            Appointment[]
   clientStageHistoryEntries                    ClientStageHistory[]
@@ -1123,6 +1136,7 @@ model Listing {
   assets            ListingAsset[]
   appointments      Appointment[]
   shareLinks        ListingShareLink[]
+  frontOfficeSendRecords FrontOfficeSendRecord[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -1151,6 +1165,36 @@ model ListingShareLink {
   qrAssetUrl   String?
   createdAt    DateTime @default(now())
   listing      Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sendRecord   FrontOfficeSendRecord?
+}
+
+model FrontOfficeSendRecord {
+  id                 String                      @id @default(cuid())
+  organizationId     String
+  officeId           String?
+  senderMembershipId String
+  clientId           String
+  listingId          String?
+  shareLinkId        String?                     @unique
+  channel            FrontOfficeSendChannel
+  materialType       FrontOfficeSendMaterialType @default(listing_share)
+  sentAt             DateTime                    @default(now())
+  firstOpenedAt      DateTime?
+  lastOpenedAt       DateTime?
+  openCount          Int                         @default(0)
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  organization       Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office             Office?                     @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  senderMembership   Membership                  @relation(fields: [senderMembershipId], references: [id], onDelete: Cascade)
+  client             Client                      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  listing            Listing?                    @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  shareLink          ListingShareLink?           @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, senderMembershipId, sentAt])
+  @@index([organizationId, officeId, sentAt])
+  @@index([organizationId, clientId, sentAt])
+  @@index([organizationId, lastOpenedAt])
 }
 
 model Client {
@@ -1178,6 +1222,7 @@ model Client {
   organization        Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   ownerMembership     Membership?               @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
   appointments        Appointment[]
+  frontOfficeSendRecords FrontOfficeSendRecord[]
   stageHistory        ClientStageHistory[]
   handoffDrafts       FrontOfficeHandoffDraft[]
   followUpTasks       FollowUpTask[]

@@ -245,6 +245,21 @@ export default async function AgentDashboardPage() {
                 value={snapshot.listingOutput.trackedClickCount}
               />
               <StatCard
+                hint="client-linked sends recorded from Front Office"
+                label="Client sends"
+                value={snapshot.listingOutput.sendRecordCount}
+              />
+              <StatCard
+                hint="send records that have at least one open"
+                label="Opened sends"
+                value={snapshot.listingOutput.openedSendCount}
+              />
+              <StatCard
+                hint="unique clients who opened at least one send"
+                label="Engaged clients"
+                value={snapshot.listingOutput.engagedClientCount}
+              />
+              <StatCard
                 hint={
                   snapshot.listingOutput.trackedSendingReady
                     ? "existing share links are already producing engagement"
@@ -293,6 +308,52 @@ export default async function AgentDashboardPage() {
                 <EmptyState
                   description="Active listings will appear here once inventory is available in the shared listing model."
                   title="No listing inventory in scope"
+                />
+              )}
+            </div>
+
+            <div className="front-office-placeholder-note">
+              <strong>Recent client engagement</strong>
+              <p>
+                Client-linked sends now turn tracked links into real execution
+                history, so you can see who was sent what and whether they
+                opened it.
+              </p>
+            </div>
+
+            <div className="list-column front-office-record-list">
+              {snapshot.listingOutput.recentEngagement.length ? (
+                snapshot.listingOutput.recentEngagement.map((record) => (
+                  <article
+                    className="list-row front-office-record"
+                    key={record.id}
+                  >
+                    <div className="list-row-top front-office-record-head">
+                      <div>
+                        <strong>{record.clientName}</strong>
+                        <p>{record.listingTitle}</p>
+                      </div>
+                      <StatusBadge tone={record.engagementTone}>
+                        {record.engagementLabel}
+                      </StatusBadge>
+                    </div>
+                    <div className="list-row-meta front-office-record-meta">
+                      <span>{record.channelLabel}</span>
+                      <span>{record.sentAtLabel}</span>
+                      <span>{record.detailLabel}</span>
+                    </div>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={record.href}
+                    >
+                      Open client dossier
+                    </FrontOfficeLink>
+                  </article>
+                ))
+              ) : (
+                <EmptyState
+                  description="Open listing output from a client dossier to create client-linked send records and show engagement here."
+                  title="No client-linked sends yet"
                 />
               )}
             </div>

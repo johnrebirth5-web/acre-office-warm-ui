@@ -13,18 +13,33 @@ import { FrontOfficeAgentMaterialWindow } from "./front-office-agent-material-wi
 import { FrontOfficeListingsOutputClient } from "./front-office-listings-output-client";
 import { requireSessionContext } from "../../../lib/auth-session";
 
-export default async function AgentListingsPage() {
+type AgentListingsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function readSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : undefined;
+  }
+
+  return value;
+}
+
+export default async function AgentListingsPage(props: AgentListingsPageProps) {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "listings:view")) {
     redirect(getDefaultAppPath(context.currentMembership));
   }
 
+  const searchParams = (await props.searchParams) ?? {};
+  const targetClientId = readSearchParamValue(searchParams.clientId)?.trim();
   const snapshot = await getFrontOfficeListingsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
+    targetClientId,
   });
 
   return (
@@ -79,6 +94,30 @@ export default async function AgentListingsPage() {
 
           <SectionCard
             className="office-list-card"
+            subtitle="Client-linked sends are the current Front Office priority because they close the execution loop."
+            title="Send context"
+          >
+            <div className="office-queue-list">
+              <FrontOfficeRailItem
+                badgeLabel={
+                  snapshot.targetClient ? snapshot.targetClient.stage : "Mode"
+                }
+                description={
+                  snapshot.targetClient
+                    ? `${snapshot.targetClient.nextTouchLabel}. Sends from this page will now be attributed back to this dossier.`
+                    : "Open listing output from a client dossier to record who the send was for, which channel was used, and whether they opened it."
+                }
+                title={
+                  snapshot.targetClient
+                    ? snapshot.targetClient.fullName
+                    : "Generic tracked-link mode"
+                }
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
             subtitle="Business card, profile assets, recent closings, and send-ready intro copy should stay beside listing output."
             title="Agent material window"
           >
@@ -126,6 +165,13 @@ export default async function AgentListingsPage() {
             tone="accent"
             value={snapshot.summary.trackedClicks}
           />
+          {snapshot.targetClient ? (
+            <SummaryChip
+              label="Recipient"
+              tone="accent"
+              value={snapshot.targetClient.fullName}
+            />
+          ) : null}
           <SummaryChip label="Surface" value="Outreach" />
         </>
       }

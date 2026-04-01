@@ -13,6 +13,7 @@ export type FrontOfficeWorkspaceInput = {
   viewerMembershipId: string;
   officeId?: string | null;
   timeZone?: string | null;
+  targetClientId?: string | null;
 };
 
 export type FrontOfficeTone =
@@ -91,6 +92,15 @@ export type FrontOfficeAgentMaterialSnapshot = {
   featuredCases: FrontOfficeAgentMaterialFeaturedCase[];
 };
 
+export type FrontOfficeListingsTargetClient = {
+  id: string;
+  fullName: string;
+  stage: string;
+  stageTone: FrontOfficeTone;
+  nextTouchLabel: string;
+  href: string;
+};
+
 export type FrontOfficeListingsSnapshot = {
   summary: {
     listingCount: number;
@@ -98,6 +108,7 @@ export type FrontOfficeListingsSnapshot = {
     trackedClicks: number;
     trackedLinks: number;
   };
+  targetClient: FrontOfficeListingsTargetClient | null;
   agentMaterial: FrontOfficeAgentMaterialSnapshot;
   listings: FrontOfficeListingRecord[];
 };
@@ -532,6 +543,7 @@ export async function getFrontOfficeClientsSnapshot(
 export async function getFrontOfficeListingsSnapshot(
   input: FrontOfficeWorkspaceInput,
 ): Promise<FrontOfficeListingsSnapshot> {
+  const now = new Date();
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const listingWhere: Prisma.ListingWhereInput = {
     organizationId: input.organizationId,
@@ -546,6 +558,7 @@ export async function getFrontOfficeListingsSnapshot(
     listingCount,
     publicReadyCount,
     shareAggregate,
+    targetClient,
     membership,
     recentClosedTransactions,
     recentClosedCount,
@@ -591,6 +604,21 @@ export async function getFrontOfficeListingsSnapshot(
         clickCount: true,
       },
     }),
+    input.targetClientId?.trim()
+      ? prisma.client.findFirst({
+          where: {
+            id: input.targetClientId.trim(),
+            organizationId: input.organizationId,
+            ownerMembershipId: input.viewerMembershipId,
+          },
+          select: {
+            id: true,
+            fullName: true,
+            stage: true,
+            nextFollowUpAt: true,
+          },
+        })
+      : Promise.resolve(null),
     prisma.membership.findFirst({
       where: {
         id: input.viewerMembershipId,
@@ -725,6 +753,20 @@ export async function getFrontOfficeListingsSnapshot(
       trackedClicks: shareAggregate._sum.clickCount ?? 0,
       trackedLinks: shareAggregate._count._all,
     },
+    targetClient: targetClient
+      ? {
+          id: targetClient.id,
+          fullName: targetClient.fullName,
+          stage: targetClient.stage,
+          stageTone: mapClientStageTone(targetClient.stage),
+          nextTouchLabel: formatRelativeDueLabel(
+            targetClient.nextFollowUpAt,
+            now,
+            input.timeZone,
+          ),
+          href: `/agent/clients/${targetClient.id}`,
+        }
+      : null,
     agentMaterial: {
       displayName,
       titleLabel,

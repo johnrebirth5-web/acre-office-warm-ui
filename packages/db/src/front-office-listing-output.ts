@@ -1,5 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { ListingStatus, Prisma } from "@prisma/client";
+import {
+  FrontOfficeSendChannel,
+  FrontOfficeSendMaterialType,
+  ListingStatus,
+  Prisma,
+} from "@prisma/client";
 import { prisma } from "./client";
 
 const activeListingStatuses: ListingStatus[] = [
@@ -47,6 +52,19 @@ function buildShareCode() {
   return randomBytes(9).toString("base64url");
 }
 
+function normalizeFrontOfficeSendChannel(
+  channel: string,
+): FrontOfficeSendChannel {
+  switch (channel.trim().toLowerCase()) {
+    case "sms":
+      return FrontOfficeSendChannel.sms;
+    case "email":
+      return FrontOfficeSendChannel.email;
+    default:
+      return FrontOfficeSendChannel.direct;
+  }
+}
+
 export function buildFrontOfficeListingSharePath(code: string) {
   return `/share/listings/${code}`;
 }
@@ -57,6 +75,7 @@ export type CreateFrontOfficeListingShareLinkInput = {
   officeId?: string | null;
   listingId: string;
   channel: string;
+  clientId?: string | null;
 };
 
 export type FrontOfficeListingShareLinkResult = {
@@ -86,48 +105,88 @@ export async function createFrontOfficeListingShareLink(
   input: CreateFrontOfficeListingShareLinkInput,
 ): Promise<FrontOfficeListingShareLinkResult> {
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
-  const listing = await prisma.listing.findFirst({
-    where: {
-      id: input.listingId,
-      organizationId: input.organizationId,
-      status: {
-        in: activeListingStatuses,
+  const normalizedChannel = normalizeFrontOfficeSendChannel(input.channel);
+  const [listing, client] = await Promise.all([
+    prisma.listing.findFirst({
+      where: {
+        id: input.listingId,
+        organizationId: input.organizationId,
+        status: {
+          in: activeListingStatuses,
+        },
+        ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
       },
-      ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
-    },
-    select: {
-      id: true,
-      title: true,
-    },
-  });
+      select: {
+        id: true,
+        title: true,
+      },
+    }),
+    input.clientId?.trim()
+      ? prisma.client.findFirst({
+          where: {
+            id: input.clientId.trim(),
+            organizationId: input.organizationId,
+            ownerMembershipId: input.viewerMembershipId,
+          },
+          select: {
+            id: true,
+          },
+        })
+      : Promise.resolve(null),
+  ]);
 
   if (!listing) {
     throw new Error("Listing not found in the current Front Office scope.");
   }
 
+  if (input.clientId?.trim() && !client) {
+    throw new Error("Client not found in the current Front Office scope.");
+  }
+
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = buildShareCode();
     const sharePath = buildFrontOfficeListingSharePath(code);
+    const sentAt = new Date();
 
     try {
-      const shareLink = await prisma.listingShareLink.create({
-        data: {
-          listingId: listing.id,
-          membershipId: input.viewerMembershipId,
-          channel: input.channel,
-          code,
-          targetUrl: sharePath,
-        },
-        select: {
-          id: true,
-        },
+      const shareLink = await prisma.$transaction(async (transaction) => {
+        const createdShareLink = await transaction.listingShareLink.create({
+          data: {
+            listingId: listing.id,
+            membershipId: input.viewerMembershipId,
+            channel: input.channel,
+            code,
+            targetUrl: sharePath,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (client) {
+          await transaction.frontOfficeSendRecord.create({
+            data: {
+              organizationId: input.organizationId,
+              officeId: input.officeId ?? null,
+              senderMembershipId: input.viewerMembershipId,
+              clientId: client.id,
+              listingId: listing.id,
+              shareLinkId: createdShareLink.id,
+              channel: normalizedChannel,
+              materialType: FrontOfficeSendMaterialType.listing_share,
+              sentAt,
+            },
+          });
+        }
+
+        return createdShareLink;
       });
 
       return {
         id: shareLink.id,
         listingId: listing.id,
         listingTitle: listing.title,
-        channel: input.channel,
+        channel: normalizedChannel,
         sharePath,
       };
     } catch (error) {
@@ -153,6 +212,12 @@ export async function getFrontOfficeListingSharePageSnapshot(
     select: {
       code: true,
       membershipId: true,
+      sendRecord: {
+        select: {
+          id: true,
+          firstOpenedAt: true,
+        },
+      },
       listing: {
         select: {
           title: true,
@@ -178,14 +243,33 @@ export async function getFrontOfficeListingSharePageSnapshot(
     return null;
   }
 
-  await prisma.listingShareLink.update({
-    where: { code },
-    data: {
-      clickCount: {
-        increment: 1,
+  const openedAt = new Date();
+  await prisma.$transaction([
+    prisma.listingShareLink.update({
+      where: { code },
+      data: {
+        clickCount: {
+          increment: 1,
+        },
       },
-    },
-  });
+    }),
+    ...(shareLink.sendRecord
+      ? [
+          prisma.frontOfficeSendRecord.update({
+            where: { id: shareLink.sendRecord.id },
+            data: {
+              openCount: {
+                increment: 1,
+              },
+              lastOpenedAt: openedAt,
+              ...(shareLink.sendRecord.firstOpenedAt
+                ? {}
+                : { firstOpenedAt: openedAt }),
+            },
+          }),
+        ]
+      : []),
+  ]);
 
   const membership = shareLink.membershipId
     ? await prisma.membership.findUnique({

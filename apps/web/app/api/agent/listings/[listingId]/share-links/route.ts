@@ -27,15 +27,16 @@ export async function POST(
 
   const { listingId } = await props.params;
 
-  let body: { channel?: string } | null = null;
+  let body: { channel?: string; clientId?: string } | null = null;
 
   try {
-    body = (await request.json()) as { channel?: string };
+    body = (await request.json()) as { channel?: string; clientId?: string };
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
   const channel = body?.channel?.trim().toLowerCase() || "direct";
+  const clientId = body?.clientId?.trim() || null;
 
   if (!allowedChannels.has(channel)) {
     return NextResponse.json(
@@ -51,6 +52,7 @@ export async function POST(
       officeId: context.currentOffice?.id ?? null,
       listingId,
       channel,
+      clientId,
     });
 
     return NextResponse.json({

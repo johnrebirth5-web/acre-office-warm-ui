@@ -88,6 +88,18 @@ export type FrontOfficeDashboardListingItem = {
   href: string;
 };
 
+export type FrontOfficeDashboardEngagementItem = {
+  id: string;
+  clientName: string;
+  listingTitle: string;
+  channelLabel: string;
+  sentAtLabel: string;
+  engagementLabel: string;
+  engagementTone: FrontOfficeDashboardTone;
+  detailLabel: string;
+  href: string;
+};
+
 export type FrontOfficeDashboardNoticeItem = {
   id: string;
   title: string;
@@ -150,7 +162,11 @@ export type FrontOfficeDashboardSnapshot = {
     activeListingCount: number;
     trackedLinkCount: number;
     trackedClickCount: number;
+    sendRecordCount: number;
+    openedSendCount: number;
+    engagedClientCount: number;
     recentListings: FrontOfficeDashboardListingItem[];
+    recentEngagement: FrontOfficeDashboardEngagementItem[];
     trackedSendingReady: boolean;
   };
   noticeRail: {
@@ -310,6 +326,43 @@ function formatListingStatus(status: ListingStatus) {
     .split("_")
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
+}
+
+function formatFrontOfficeSendChannelLabel(channel: string) {
+  switch (channel.trim().toLowerCase()) {
+    case "sms":
+      return "SMS";
+    case "email":
+      return "Email";
+    default:
+      return "Direct link";
+  }
+}
+
+function mapFrontOfficeSendEngagementTone(
+  openCount: number,
+): FrontOfficeDashboardTone {
+  if (openCount <= 0) {
+    return "neutral";
+  }
+
+  if (openCount === 1) {
+    return "success";
+  }
+
+  return "accent";
+}
+
+function buildFrontOfficeSendEngagementLabel(openCount: number) {
+  if (openCount <= 0) {
+    return "Not opened";
+  }
+
+  if (openCount === 1) {
+    return "Opened";
+  }
+
+  return `Revisited ${openCount} times`;
 }
 
 function formatNotificationType(type: NotificationType) {
@@ -554,6 +607,16 @@ export async function getFrontOfficeDashboardSnapshot(
     ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
+  const sendRecordWhere: Prisma.FrontOfficeSendRecordWhereInput = {
+    organizationId: input.organizationId,
+    senderMembershipId: input.viewerMembershipId,
+    ...(input.officeId
+      ? {
+          officeId: input.officeId,
+        }
+      : {}),
+  };
+
   const resourceWhere: Prisma.ResourceWhereInput = {
     organizationId: input.organizationId,
     isPublished: true,
@@ -622,6 +685,10 @@ export async function getFrontOfficeDashboardSnapshot(
     activeListingCount,
     recentListings,
     shareAggregate,
+    sendRecordCount,
+    openedSendCount,
+    engagedClientRows,
+    recentSendRecords,
     upcomingEvents,
     upcomingAppointments,
     notifications,
@@ -748,6 +815,52 @@ export async function getFrontOfficeDashboardSnapshot(
       },
       _sum: {
         clickCount: true,
+      },
+    }),
+    prisma.frontOfficeSendRecord.count({
+      where: sendRecordWhere,
+    }),
+    prisma.frontOfficeSendRecord.count({
+      where: {
+        ...sendRecordWhere,
+        openCount: {
+          gt: 0,
+        },
+      },
+    }),
+    prisma.frontOfficeSendRecord.groupBy({
+      by: ["clientId"],
+      where: {
+        ...sendRecordWhere,
+        openCount: {
+          gt: 0,
+        },
+      },
+      _count: {
+        _all: true,
+      },
+    }),
+    prisma.frontOfficeSendRecord.findMany({
+      where: sendRecordWhere,
+      orderBy: [{ sentAt: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        channel: true,
+        sentAt: true,
+        lastOpenedAt: true,
+        openCount: true,
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        listing: {
+          select: {
+            title: true,
+          },
+        },
       },
     }),
     prisma.event.findMany({
@@ -1348,6 +1461,9 @@ export async function getFrontOfficeDashboardSnapshot(
       activeListingCount,
       trackedLinkCount: shareAggregate._count._all,
       trackedClickCount: shareAggregate._sum.clickCount ?? 0,
+      sendRecordCount,
+      openedSendCount,
+      engagedClientCount: engagedClientRows.length,
       trackedSendingReady: shareAggregate._count._all > 0,
       recentListings: recentListings.map((listing) => {
         const shareMetrics = listingShareMap.get(listing.id);
@@ -1364,6 +1480,25 @@ export async function getFrontOfficeDashboardSnapshot(
           href: "/agent/listings",
         };
       }),
+      recentEngagement: recentSendRecords.map((record) => ({
+        id: record.id,
+        clientName: record.client.fullName,
+        listingTitle:
+          record.listing?.title?.trim() || "Front Office material send",
+        channelLabel: formatFrontOfficeSendChannelLabel(record.channel),
+        sentAtLabel: formatDateTimeLabel(record.sentAt, {
+          timeZone: input.timeZone ?? null,
+        }),
+        engagementLabel: buildFrontOfficeSendEngagementLabel(record.openCount),
+        engagementTone: mapFrontOfficeSendEngagementTone(record.openCount),
+        detailLabel:
+          record.lastOpenedAt && record.openCount > 0
+            ? `Last opened · ${formatDateTimeLabel(record.lastOpenedAt, {
+                timeZone: input.timeZone ?? null,
+              })}`
+            : "No open recorded yet",
+        href: `/agent/clients/${record.client.id}`,
+      })),
     },
     noticeRail: {
       notifications: notifications.map((notification) => ({

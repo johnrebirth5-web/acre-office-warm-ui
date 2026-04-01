@@ -122,6 +122,12 @@ This keeps the handoff visible without pretending formal transaction creation al
 - marking an appointment `completed` updates `Client.lastContactAt` so FO CRM freshness reflects real meetings
 - `/agent/listings` now creates private tracked listing links through the shared `ListingShareLink` store, and those links resolve to a lightweight public Acre share page that increments `clickCount` on open instead of pretending a public listing site already exists
 - that same `/agent/listings` snapshot now also carries an `agentMaterial` block for the current membership, so business-card copy, profile portrait/bio, recent closing history, and one-click intro send actions can live beside listing outreach without querying a second profile system
+- `FrontOfficeSendRecord` is now the formal FO outreach record for client-linked listing sends:
+  - `/agent/listings?clientId=...` puts listing output into an explicit client-send mode instead of leaving it as a generic copy terminal
+  - creating a tracked listing link from that client-linked mode now also writes a send record with `client`, `listing`, `channel`, `sender`, and `sentAt`
+  - opening the public listing-share page now increments both the shared-link click counter and the matching send record's `openCount`, `firstOpenedAt`, and `lastOpenedAt`
+  - `/agent/clients/[clientId]` now shows send counts, opened sends, revisits, last engagement time, and recent send history directly in the dossier
+  - `/agent/dashboard` now shows client-send and engagement summary stats plus a recent engagement list, so FO management visibility starts from the same send trail instead of informal notes
 
 ## Non-goals in this phase
 
@@ -133,4 +139,5 @@ This keeps the handoff visible without pretending formal transaction creation al
 ## Expected next extensions
 
 - richer appointment reminders / notification delivery
-- tracked send records tied to appointments and client stage
+- deeper send records tied to appointments and client stage
+- leadership/team-level overdue engagement views on top of the same send trail

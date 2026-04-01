@@ -50,6 +50,17 @@ export type FrontOfficeClientDetailTaskItem = {
   assigneeLabel: string;
 };
 
+export type FrontOfficeClientDetailSendRecordItem = {
+  id: string;
+  title: string;
+  channelLabel: string;
+  sentAtLabel: string;
+  engagementLabel: string;
+  engagementTone: FrontOfficeClientDetailTone;
+  lastActivityLabel: string;
+  href: string;
+};
+
 export type FrontOfficeClientDetailHandoffItem = {
   id: string;
   stageLabel: string;
@@ -129,11 +140,18 @@ export type FrontOfficeClientDetailSnapshot = {
     stageHistoryCount: number;
     openHandoffCount: number;
   };
+  engagement: {
+    sendCount: number;
+    openedSendCount: number;
+    revisitCount: number;
+    lastEngagementLabel: string;
+  };
   workflow: FrontOfficeClientDetailWorkflowSignal;
   playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
   appointments: FrontOfficeClientDetailAppointmentItem[];
   followUpTasks: FrontOfficeClientDetailTaskItem[];
+  sendRecords: FrontOfficeClientDetailSendRecordItem[];
   handoffs: FrontOfficeClientDetailHandoffItem[];
   linkedTransactions: FrontOfficeClientDetailTransactionItem[];
 };
@@ -380,6 +398,43 @@ function formatTaskDueLabel(
   }
 
   return `Due ${formatDateLabel(dueAt, timeZone)}`;
+}
+
+function formatFrontOfficeSendChannelLabel(channel: string) {
+  switch (channel.trim().toLowerCase()) {
+    case "sms":
+      return "SMS";
+    case "email":
+      return "Email";
+    default:
+      return "Direct link";
+  }
+}
+
+function mapFrontOfficeSendEngagementTone(
+  openCount: number,
+): FrontOfficeClientDetailTone {
+  if (openCount <= 0) {
+    return "neutral";
+  }
+
+  if (openCount === 1) {
+    return "success";
+  }
+
+  return "accent";
+}
+
+function buildFrontOfficeSendEngagementLabel(openCount: number) {
+  if (openCount <= 0) {
+    return "Not opened";
+  }
+
+  if (openCount === 1) {
+    return "Opened";
+  }
+
+  return `Revisited ${openCount} times`;
 }
 
 function getClientFirstName(fullName: string) {
@@ -1286,6 +1341,26 @@ export async function getFrontOfficeClientDetail(
           },
         },
       },
+      frontOfficeSendRecords: {
+        orderBy: [{ sentAt: "desc" }],
+        take: 8,
+        select: {
+          id: true,
+          channel: true,
+          materialType: true,
+          sentAt: true,
+          firstOpenedAt: true,
+          lastOpenedAt: true,
+          openCount: true,
+          listing: {
+            select: {
+              title: true,
+              neighborhood: true,
+              city: true,
+            },
+          },
+        },
+      },
       appointments: {
         where: {
           startsAt: {
@@ -1376,6 +1451,39 @@ export async function getFrontOfficeClientDetail(
     return null;
   }
 
+  const [sendCount, openedSendCount, sendAggregate] = await Promise.all([
+    prisma.frontOfficeSendRecord.count({
+      where: {
+        organizationId: input.organizationId,
+        senderMembershipId: input.viewerMembershipId,
+        clientId: client.id,
+      },
+    }),
+    prisma.frontOfficeSendRecord.count({
+      where: {
+        organizationId: input.organizationId,
+        senderMembershipId: input.viewerMembershipId,
+        clientId: client.id,
+        openCount: {
+          gt: 0,
+        },
+      },
+    }),
+    prisma.frontOfficeSendRecord.aggregate({
+      where: {
+        organizationId: input.organizationId,
+        senderMembershipId: input.viewerMembershipId,
+        clientId: client.id,
+      },
+      _sum: {
+        openCount: true,
+      },
+      _max: {
+        lastOpenedAt: true,
+      },
+    }),
+  ]);
+
   const openTaskCount = client.followUpTasks.filter(
     (task) => task.status !== TaskStatus.completed,
   ).length;
@@ -1438,6 +1546,8 @@ export async function getFrontOfficeClientDetail(
   const preferredAreasLabel = client.preferredAreas.length
     ? client.preferredAreas.join(", ")
     : "Areas not captured";
+  const totalOpenCount = sendAggregate._sum.openCount ?? 0;
+  const revisitCount = Math.max(totalOpenCount - openedSendCount, 0);
 
   return {
     id: client.id,
@@ -1461,6 +1571,16 @@ export async function getFrontOfficeClientDetail(
       upcomingAppointmentCount,
       stageHistoryCount: client.stageHistory.length,
       openHandoffCount,
+    },
+    engagement: {
+      sendCount,
+      openedSendCount,
+      revisitCount,
+      lastEngagementLabel: sendAggregate._max.lastOpenedAt
+        ? `Last opened · ${formatDateTimeLabel(sendAggregate._max.lastOpenedAt, {
+            timeZone: input.timeZone ?? null,
+          })}`
+        : "No client engagement yet",
     },
     workflow: buildWorkflowSignal({
       clientId: client.id,
@@ -1538,6 +1658,27 @@ export async function getFrontOfficeClientDetail(
         `${task.assigneeMembership?.user.firstName ?? ""} ${task.assigneeMembership?.user.lastName ?? ""}`.trim() ||
         task.assigneeMembership?.user.email ||
         "Unassigned",
+    })),
+    sendRecords: client.frontOfficeSendRecords.map((record) => ({
+      id: record.id,
+      title:
+        record.listing?.title?.trim() ||
+        (record.materialType === "listing_share"
+          ? "Listing share"
+          : "Front Office material"),
+      channelLabel: formatFrontOfficeSendChannelLabel(record.channel),
+      sentAtLabel: formatDateTimeLabel(record.sentAt, {
+        timeZone: input.timeZone ?? null,
+      }),
+      engagementLabel: buildFrontOfficeSendEngagementLabel(record.openCount),
+      engagementTone: mapFrontOfficeSendEngagementTone(record.openCount),
+      lastActivityLabel:
+        record.lastOpenedAt && record.openCount > 0
+          ? `Last opened · ${formatDateTimeLabel(record.lastOpenedAt, {
+              timeZone: input.timeZone ?? null,
+            })}`
+          : "No open recorded yet",
+      href: `/agent/listings?clientId=${client.id}`,
     })),
     handoffs: client.handoffDrafts.map((draft) => ({
       id: draft.id,
