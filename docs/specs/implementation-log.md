@@ -5,9 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- Current recommended FO next target after the live PDF export bridge is `closing / deal-win suggestions`, so future threads can build post-close guidance on top of the now-visible FO -> BO execution trail before jumping into heavier AI work
+- Current recommended FO next target after the live closing / deal-win suggestion bridge is `Automation / AI next-touch suggestions`, so future threads can build grounded AI on top of the now-visible FO -> BO execution trail instead of prompting against partial workflow context
 
 ## Recently completed major work
+
+- 2026-04-01: `closing / deal-win suggestions` are now live inside the FO client dossier instead of remaining only the next roadmap line:
+  - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now bridges the live dossier into shared BO transaction outcome signals, so each client can be read as `Pre-win prep`, `Ready for deal wrap`, `Formal deal in flight`, `Closing soon`, `Fresh win`, or `Post-close nurture` without inventing a second “closed wins” store
+  - that same FO snapshot now turns formal BO status plus acceptance / closing / move-in dates into actionable FO suggestions such as confirming the close date, placing the first post-close touch, downloading the recap PDF, asking for referrals / testimonials while the win is fresh, or routing the agent back to respectful nurture when a file is cancelled
+  - [apps/web/app/agent/clients/[clientId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/page.tsx) now renders a `Closing & win suggestions` section with dossier-native CTA routing, so agents can act on close-stage guidance directly from the same FO record that already carries follow-up, send history, negotiation, inspection, and PDF export context
 
 - 2026-04-01: `PDF export / client-facing report delivery` is now live off the FO client dossier instead of remaining only the next roadmap line:
   - added [front-office-client-summary-pdf.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/clients/[clientId]/pdf/front-office-client-summary-pdf.tsx) plus [route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/clients/[clientId]/pdf/route.ts), so `/api/agent/clients/[clientId]/pdf` now renders a client-ready summary PDF from the live FO dossier snapshot with upcoming schedule, shared materials, negotiation status, and contract-support summary

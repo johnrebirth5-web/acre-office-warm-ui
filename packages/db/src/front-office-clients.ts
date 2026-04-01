@@ -5,6 +5,7 @@ import {
   IncomingUpdateStatus,
   SignatureRequestStatus,
   TaskStatus,
+  TransactionStatus,
   TransactionTaskStatus,
 } from "@prisma/client";
 import { prisma } from "./client";
@@ -149,6 +150,36 @@ export type FrontOfficeClientDetailInspection = {
   items: FrontOfficeClientDetailInspectionItem[];
 };
 
+export type FrontOfficeClientDetailClosingItem = {
+  id: string;
+  title: string;
+  statusLabel: string;
+  statusTone: FrontOfficeClientDetailTone;
+  contextLabel: string;
+  description: string;
+  metaLabel: string;
+  actionLabel: string;
+  href: string;
+  opensInNewTab: boolean;
+};
+
+export type FrontOfficeClientDetailClosing = {
+  boundaryLabel: string;
+  boundaryTone: FrontOfficeClientDetailTone;
+  boundaryTitle: string;
+  boundaryDescription: string;
+  boundaryMetaLabel: string;
+  transactionStatusLabel: string;
+  keyDateLabel: string;
+  nextTouchLabel: string;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  primaryActionOpensInNewTab: boolean;
+  emptyStateTitle: string;
+  emptyStateDescription: string;
+  suggestions: FrontOfficeClientDetailClosingItem[];
+};
+
 export type FrontOfficeClientDetailWorkflowSignal = {
   pressureLabel: string;
   pressureTone: FrontOfficeClientDetailTone;
@@ -231,6 +262,7 @@ export type FrontOfficeClientDetailSnapshot = {
   leaseReminder: FrontOfficeClientDetailLeaseReminder;
   negotiation: FrontOfficeClientDetailNegotiation;
   inspection: FrontOfficeClientDetailInspection;
+  closing: FrontOfficeClientDetailClosing;
   workflow: FrontOfficeClientDetailWorkflowSignal;
   playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
@@ -1315,6 +1347,10 @@ function buildTransactionWorkspaceHref(transactionId: string, anchor?: string) {
     : `/office/transactions/${transactionId}`;
 }
 
+function buildClientPdfHref(clientId: string) {
+  return `/api/agent/clients/${clientId}/pdf`;
+}
+
 function mapOfferStatusTone(status: string): FrontOfficeClientDetailTone {
   switch (status) {
     case "accepted":
@@ -1439,6 +1475,7 @@ function buildTransactionContextMetaLabel(input: {
   state: string | null | undefined;
   acceptanceDate: Date | null | undefined;
   closingDate: Date | null | undefined;
+  moveInDate?: Date | null | undefined;
   timeZone?: string | null;
 }) {
   const timingLabels = [
@@ -1447,6 +1484,9 @@ function buildTransactionContextMetaLabel(input: {
       : "",
     input.closingDate
       ? `Closing ${formatDateLabel(input.closingDate, input.timeZone)}`
+      : "",
+    input.moveInDate
+      ? `Move-in ${formatDateLabel(input.moveInDate, input.timeZone)}`
       : "",
   ].filter(Boolean);
 
@@ -1457,6 +1497,21 @@ function buildTransactionContextMetaLabel(input: {
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function getDayDifferenceFromToday(value: Date, now: Date) {
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const startOfTarget = new Date(
+    value.getFullYear(),
+    value.getMonth(),
+    value.getDate(),
+  ).getTime();
+
+  return Math.round((startOfTarget - startOfToday) / 86_400_000);
 }
 
 function buildWorkflowSignal(input: {
@@ -1473,6 +1528,9 @@ function buildWorkflowSignal(input: {
     href: string;
     committedTransactionId: string | null;
   } | null;
+  linkedTransactionStatus?: TransactionStatus | null;
+  linkedTransactionClosingDate?: Date | null;
+  linkedTransactionMoveInDate?: Date | null;
   linkedTransactionHref: string | null;
   timeZone?: string | null;
   now: Date;
@@ -1530,6 +1588,24 @@ function buildWorkflowSignal(input: {
     pressureTone = "warning";
     pressureDescription =
       "This client is active but no future follow-up is on the books yet. Add a reminder before the dossier goes stale.";
+  }
+
+  if (input.linkedTransactionStatus === TransactionStatus.closed) {
+    const closingReferenceDate =
+      input.linkedTransactionMoveInDate ?? input.linkedTransactionClosingDate;
+
+    return {
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepTitle: "Place the post-close follow-up",
+      nextStepTone: "success",
+      nextStepDescription: closingReferenceDate
+        ? `The formal deal already closed around ${formatDateLabel(closingReferenceDate, input.timeZone)}. Use Front Office to keep the referral, testimonial, or retention touch visible while the win is still fresh.`
+        : "The formal deal is already closed. Use Front Office to keep the referral, testimonial, or retention touch visible while the win is still fresh.",
+      actionLabel: "Create follow-up",
+      actionHref: "#front-office-follow-up-form",
+    };
   }
 
   if (isFrontOfficeStageReadyForBackOffice(input.stage)) {
@@ -2004,6 +2080,7 @@ export async function getFrontOfficeClientDetail(
             status: true,
             acceptanceDate: true,
             closingDate: true,
+            moveInDate: true,
           },
         })
       : Promise.resolve(null),
@@ -2158,6 +2235,9 @@ export async function getFrontOfficeClientDetail(
     openTaskCount,
     activeHandoff,
     linkedTransactionHref,
+    linkedTransactionStatus: inspectionTransactionRecord?.status ?? null,
+    linkedTransactionClosingDate: inspectionTransactionRecord?.closingDate ?? null,
+    linkedTransactionMoveInDate: inspectionTransactionRecord?.moveInDate ?? null,
     timeZone: input.timeZone,
     now,
   });
@@ -2206,6 +2286,7 @@ export async function getFrontOfficeClientDetail(
           state: inspectionTransactionRecord.state,
           acceptanceDate: inspectionTransactionRecord.acceptanceDate,
           closingDate: inspectionTransactionRecord.closingDate,
+          moveInDate: inspectionTransactionRecord.moveInDate,
           timeZone: input.timeZone,
         })
       : "Linked transaction ready"
@@ -2264,6 +2345,7 @@ export async function getFrontOfficeClientDetail(
           state: inspectionTransactionRecord.state,
           acceptanceDate: inspectionTransactionRecord.acceptanceDate,
           closingDate: inspectionTransactionRecord.closingDate,
+          moveInDate: inspectionTransactionRecord.moveInDate,
           timeZone: input.timeZone,
         })
       : "Back Office transaction ready"
@@ -2397,6 +2479,302 @@ export async function getFrontOfficeClientDetail(
         })),
       ]
     : [];
+  const closingReferenceDate =
+    inspectionTransactionRecord?.moveInDate ??
+    inspectionTransactionRecord?.closingDate ??
+    inspectionTransactionRecord?.acceptanceDate ??
+    null;
+  const closingDayOffset = closingReferenceDate
+    ? getDayDifferenceFromToday(closingReferenceDate, now)
+    : null;
+  const hasClosedTransaction =
+    inspectionTransactionRecord?.status === TransactionStatus.closed;
+  const hasCancelledTransaction =
+    inspectionTransactionRecord?.status === TransactionStatus.cancelled;
+  const isFreshWin =
+    hasClosedTransaction &&
+    closingDayOffset !== null &&
+    closingDayOffset >= -21 &&
+    closingDayOffset <= 7;
+  const isClosingSoon =
+    !hasClosedTransaction &&
+    !hasCancelledTransaction &&
+    closingDayOffset !== null &&
+    closingDayOffset >= 0 &&
+    closingDayOffset <= 14;
+  const closingBoundaryLabel = hasCancelledTransaction
+    ? "No active win path"
+    : isFreshWin
+      ? "Fresh win"
+      : hasClosedTransaction
+        ? "Post-close nurture"
+        : isClosingSoon
+          ? "Closing soon"
+          : negotiationTransactionId
+            ? "Formal deal in flight"
+            : isFrontOfficeStageReadyForBackOffice(client.stage)
+              ? "Ready for deal wrap"
+              : "Pre-win prep";
+  const closingBoundaryTone: FrontOfficeClientDetailTone = hasCancelledTransaction
+    ? "danger"
+    : hasClosedTransaction
+      ? "success"
+      : isClosingSoon
+        ? "warning"
+        : negotiationTransactionId
+          ? "accent"
+          : isFrontOfficeStageReadyForBackOffice(client.stage)
+            ? "warning"
+            : "neutral";
+  const closingBoundaryTitle = hasCancelledTransaction
+    ? "This file did not turn into a closed win"
+    : isFreshWin
+      ? "The deal just closed and the follow-up window is open"
+      : hasClosedTransaction
+        ? "The deal is closed and now needs post-close follow-through"
+        : isClosingSoon
+          ? "The deal is approaching its closing or move-in window"
+          : negotiationTransactionId
+            ? "Formal deal execution is active, but the wrap-up is not here yet"
+            : isFrontOfficeStageReadyForBackOffice(client.stage)
+              ? "The file is ready for formal deal-wrap execution"
+              : "Closing guidance starts after the formal deal exists";
+  const closingBoundaryDescription = hasCancelledTransaction
+    ? "The formal transaction no longer points to a live close. Use Front Office for respectful re-entry, alternate options, or a future nurture touch instead of pretending a win exists."
+    : isFreshWin
+      ? "The shared transaction record now proves the win. Front Office should turn that into a same-week check-in, recap, referral ask, or move-in support plan before the momentum cools."
+      : hasClosedTransaction
+        ? "The formal record is already closed. Front Office should keep the client relationship alive through post-close follow-up, referral timing, and future move planning."
+        : isClosingSoon
+          ? "The formal file already has a near-term closing or move-in milestone. Front Office should make the wrap-up visible now instead of waiting until the date has already passed."
+          : negotiationTransactionId
+            ? "The formal file is active, but the best next move is still to tighten transaction milestones and place the first post-close touch before the close happens."
+            : isFrontOfficeStageReadyForBackOffice(client.stage)
+              ? "The client is BO-ready, but the formal deal-wrap record has not been opened yet. Start there before relying on win-stage guidance."
+              : "This client is not yet in a deal-wrap phase, so closing guidance should stay dormant while follow-up, showing, and negotiation prep continue.";
+  const closingBoundaryMetaLabel = negotiationTransactionId
+    ? inspectionTransactionRecord
+      ? buildTransactionContextMetaLabel({
+          title: inspectionTransactionRecord.title,
+          address: inspectionTransactionRecord.address,
+          city: inspectionTransactionRecord.city,
+          state: inspectionTransactionRecord.state,
+          acceptanceDate: inspectionTransactionRecord.acceptanceDate,
+          closingDate: inspectionTransactionRecord.closingDate,
+          moveInDate: inspectionTransactionRecord.moveInDate,
+          timeZone: input.timeZone,
+        })
+      : "Linked transaction ready"
+    : activeHandoffDraft
+      ? activeHandoffDraft.summary?.trim() ||
+        buildFrontOfficeHandoffSummary(
+          activeHandoffDraft.stageLabel,
+          client.fullName,
+        )
+      : `Current stage · ${client.stage}`;
+  const closingTransactionStatusLabel = inspectionTransactionRecord
+    ? formatTransactionStatusLabel(inspectionTransactionRecord.status)
+    : "No linked transaction";
+  const closingKeyDateLabel = inspectionTransactionRecord?.moveInDate
+    ? `Move-in ${formatDateLabel(
+        inspectionTransactionRecord.moveInDate,
+        input.timeZone,
+      )}`
+    : inspectionTransactionRecord?.closingDate
+      ? `Closing ${formatDateLabel(
+          inspectionTransactionRecord.closingDate,
+          input.timeZone,
+        )}`
+      : inspectionTransactionRecord?.acceptanceDate
+        ? `Accepted ${formatDateLabel(
+            inspectionTransactionRecord.acceptanceDate,
+            input.timeZone,
+          )}`
+        : "No milestone date captured";
+  const closingPrimaryActionLabel = hasClosedTransaction
+    ? "Create follow-up"
+    : negotiationTransactionId
+      ? "Open transaction"
+      : isFrontOfficeStageReadyForBackOffice(client.stage)
+        ? "Open Back Office create flow"
+        : workflow.actionLabel;
+  const closingPrimaryActionHref = hasClosedTransaction
+    ? "#front-office-follow-up-form"
+    : negotiationTransactionId
+      ? buildTransactionWorkspaceHref(negotiationTransactionId)
+      : isFrontOfficeStageReadyForBackOffice(client.stage)
+        ? activeHandoff?.href ?? "/office/transactions"
+        : workflow.actionHref;
+  const closingPrimaryActionOpensInNewTab = false;
+  const closingEmptyStateTitle = hasCancelledTransaction
+    ? "No closing guidance is active"
+    : hasClosedTransaction
+      ? "Post-close suggestions are ready"
+      : negotiationTransactionId
+        ? "Deal wrap guidance will fill in as the file settles"
+        : isFrontOfficeStageReadyForBackOffice(client.stage)
+          ? "The formal deal-wrap file has not started yet"
+          : "Too early for closing guidance";
+  const closingEmptyStateDescription = hasCancelledTransaction
+    ? "Use Front Office follow-up, alternate options, or future nurture steps instead of a closeout workflow."
+    : hasClosedTransaction
+      ? "The formal win is already recorded, and the next recommendations should keep the relationship active after close."
+      : negotiationTransactionId
+        ? "As closing dates, move-in timing, or transaction outcomes settle, the dossier will turn those signals into wrap-up guidance."
+        : isFrontOfficeStageReadyForBackOffice(client.stage)
+          ? "Open the formal Back Office deal first. Closing suggestions are intentionally downstream of that shared transaction record."
+          : "Closing and win suggestions stay dormant until the client reaches a formal deal stage.";
+  const closingSuggestions: FrontOfficeClientDetailClosingItem[] =
+    hasCancelledTransaction
+    ? [
+        {
+          id: "future-nurture",
+          title: "Place a respectful future check-in",
+          statusLabel: nextTouchAt ? "Touch on books" : "Suggested",
+          statusTone: nextTouchAt ? "success" : "warning",
+          contextLabel: "Nurture",
+          description: nextTouchAt
+            ? `The next touch is already visible: ${formatRelativeDueLabel(
+                nextTouchAt,
+                now,
+                input.timeZone,
+              )}.`
+            : "The formal deal did not close, so the next best move is a clean future touch instead of silence.",
+          metaLabel: closingBoundaryMetaLabel,
+          actionLabel: "Create follow-up",
+          href: "#front-office-follow-up-form",
+          opensInNewTab: false,
+        },
+        {
+          id: "alternate-options",
+          title: "Keep alternative options ready if timing reopens",
+          statusLabel: "Standby",
+          statusTone: "neutral",
+          contextLabel: "Re-entry plan",
+          description:
+            "If the client restarts, the fastest recovery path is to reopen listing output from this same dossier instead of rebuilding context from scratch.",
+          metaLabel: `${sendCount} tracked send(s) already attached to this client`,
+          actionLabel: "Open listing output",
+          href: `/agent/listings?clientId=${client.id}`,
+          opensInNewTab: false,
+        },
+      ]
+    : hasClosedTransaction
+      ? [
+          {
+            id: "post-close-touch",
+            title: nextTouchAt
+              ? "Keep the post-close touch on the calendar"
+              : "Book a post-close touch while the win is fresh",
+            statusLabel: nextTouchAt ? "Scheduled" : "Suggested",
+            statusTone: nextTouchAt ? "success" : "warning",
+            contextLabel: "Retention",
+            description: nextTouchAt
+              ? formatRelativeDueLabel(nextTouchAt, now, input.timeZone)
+              : "No future touch is scheduled even though the formal deal is already closed.",
+            metaLabel: closingKeyDateLabel,
+            actionLabel: "Create follow-up",
+            href: "#front-office-follow-up-form",
+            opensInNewTab: false,
+          },
+          {
+            id: "client-recap-pdf",
+            title: "Use the client summary PDF as the win recap packet",
+            statusLabel: "Ready now",
+            statusTone: "accent",
+            contextLabel: "Client-facing recap",
+            description:
+              "The current dossier can already generate a clean client summary PDF for move-in, milestone, or thank-you communication.",
+            metaLabel: `${sendCount} tracked send(s) already live on this dossier`,
+            actionLabel: "Download client PDF",
+            href: buildClientPdfHref(client.id),
+            opensInNewTab: true,
+          },
+          {
+            id: "referral-window",
+            title: "Ask for a referral or testimonial before momentum cools",
+            statusLabel:
+              isFreshWin || (closingDayOffset !== null && closingDayOffset >= -45)
+                ? "Fresh window"
+                : "Keep warm",
+            statusTone:
+              isFreshWin || (closingDayOffset !== null && closingDayOffset >= -45)
+                ? "accent"
+                : "neutral",
+            contextLabel: "Win capture",
+            description:
+              isFreshWin || (closingDayOffset !== null && closingDayOffset >= -45)
+                ? "The outcome is recent enough that a referral, testimonial, or celebration touch will still feel natural."
+                : "The win is older now, so frame the next touch as support and relationship maintenance rather than a hard ask.",
+            metaLabel: closingBoundaryMetaLabel,
+            actionLabel: "Create follow-up",
+            href: "#front-office-follow-up-form",
+            opensInNewTab: false,
+          },
+        ]
+      : negotiationTransactionId
+        ? [
+            {
+              id: "confirm-close-date",
+              title: "Confirm the closing or move-in date in the shared file",
+              statusLabel: closingReferenceDate ? "Date on file" : "Missing date",
+              statusTone: closingReferenceDate ? "accent" : "warning",
+              contextLabel: "Deal wrap",
+              description: closingReferenceDate
+                ? closingKeyDateLabel
+                : "A formal transaction exists, but no closing or move-in milestone is captured yet.",
+              metaLabel: closingBoundaryMetaLabel,
+              actionLabel: "Open transaction",
+              href: buildTransactionWorkspaceHref(negotiationTransactionId),
+              opensInNewTab: false,
+            },
+            {
+              id: "post-close-plan",
+              title: nextTouchAt
+                ? "Keep the first post-close touch visible now"
+                : "Place the first post-close touch before the close happens",
+              statusLabel: nextTouchAt ? "Scheduled" : "Suggested",
+              statusTone: nextTouchAt ? "success" : "warning",
+              contextLabel: "Retention prep",
+              description: nextTouchAt
+                ? formatRelativeDueLabel(nextTouchAt, now, input.timeZone)
+                : "Do not wait until after close to think about the next client relationship touch.",
+              metaLabel: `${openTaskCount} FO follow-up task(s) still open`,
+              actionLabel: "Create follow-up",
+              href: "#front-office-follow-up-form",
+              opensInNewTab: false,
+            },
+            {
+              id: "prepare-pdf",
+              title: "Prepare the client recap PDF before the closing call",
+              statusLabel: "Ready now",
+              statusTone: "accent",
+              contextLabel: "Client-facing recap",
+              description:
+                "The dossier can already export a clean client summary PDF, so wrap-up communication does not need a separate manual document.",
+              metaLabel: closingBoundaryMetaLabel,
+              actionLabel: "Download client PDF",
+              href: buildClientPdfHref(client.id),
+              opensInNewTab: true,
+            },
+          ]
+        : isFrontOfficeStageReadyForBackOffice(client.stage)
+          ? [
+              {
+                id: "open-formal-file",
+                title: "Open the formal Back Office file before planning the close",
+                statusLabel: "Required first",
+                statusTone: "warning",
+                contextLabel: "BO boundary",
+                description:
+                  "Closing and win guidance depend on the shared transaction record, so the first move is still to open the formal Back Office file.",
+                metaLabel: closingBoundaryMetaLabel,
+                actionLabel: "Open Back Office create flow",
+                href: activeHandoff?.href ?? "/office/transactions",
+                opensInNewTab: false,
+              },
+            ]
+          : [];
 
   return {
     id: client.id,
@@ -2490,6 +2868,22 @@ export async function getFrontOfficeClientDetail(
       emptyStateTitle: inspectionEmptyStateTitle,
       emptyStateDescription: inspectionEmptyStateDescription,
       items: inspectionItems,
+    },
+    closing: {
+      boundaryLabel: closingBoundaryLabel,
+      boundaryTone: closingBoundaryTone,
+      boundaryTitle: closingBoundaryTitle,
+      boundaryDescription: closingBoundaryDescription,
+      boundaryMetaLabel: closingBoundaryMetaLabel,
+      transactionStatusLabel: closingTransactionStatusLabel,
+      keyDateLabel: closingKeyDateLabel,
+      nextTouchLabel: formatRelativeDueLabel(nextTouchAt, now, input.timeZone),
+      primaryActionLabel: closingPrimaryActionLabel,
+      primaryActionHref: closingPrimaryActionHref,
+      primaryActionOpensInNewTab: closingPrimaryActionOpensInNewTab,
+      emptyStateTitle: closingEmptyStateTitle,
+      emptyStateDescription: closingEmptyStateDescription,
+      suggestions: closingSuggestions,
     },
     workflow,
     playbook: buildFrontOfficePlaybook({

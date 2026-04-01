@@ -494,6 +494,148 @@ export default async function AgentClientDetailPage(
           </SectionCard>
 
           <SectionCard
+            actions={
+              snapshot.closing.primaryActionOpensInNewTab ? (
+                <a
+                  className="office-button-secondary"
+                  href={snapshot.closing.primaryActionHref}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {snapshot.closing.primaryActionLabel}
+                </a>
+              ) : (
+                <FrontOfficeLink
+                  className="office-button-secondary"
+                  href={snapshot.closing.primaryActionHref}
+                >
+                  {snapshot.closing.primaryActionLabel}
+                </FrontOfficeLink>
+              )
+            }
+            className="office-list-card"
+            subtitle="Once the formal deal is active or closed, Front Office should turn that shared BO outcome into smart wrap-up and post-close guidance instead of stopping at status visibility."
+            title="Closing & win suggestions"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="where this client currently sits across pre-close planning, fresh win follow-through, and post-close nurture"
+                label="Close stage"
+                tone={
+                  snapshot.closing.boundaryTone === "neutral"
+                    ? "default"
+                    : "accent"
+                }
+                value={snapshot.closing.boundaryLabel}
+              />
+              <StatCard
+                hint="formal shared transaction state currently attached to this dossier"
+                label="Deal status"
+                value={snapshot.closing.transactionStatusLabel}
+              />
+              <StatCard
+                hint="next shared milestone date captured from the linked transaction"
+                label="Key date"
+                value={snapshot.closing.keyDateLabel}
+              />
+              <StatCard
+                hint="latest client-facing follow-up timing already visible in Front Office"
+                label="Next touch"
+                tone="accent"
+                value={snapshot.closing.nextTouchLabel}
+              />
+            </ListPageStatsGrid>
+
+            <div className="office-queue-list">
+              <QueueItem
+                action={
+                  snapshot.closing.primaryActionOpensInNewTab ? (
+                    <a
+                      className="office-inline-link"
+                      href={snapshot.closing.primaryActionHref}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {snapshot.closing.primaryActionLabel}
+                    </a>
+                  ) : (
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={snapshot.closing.primaryActionHref}
+                    >
+                      {snapshot.closing.primaryActionLabel}
+                    </FrontOfficeLink>
+                  )
+                }
+                badgeLabel={snapshot.closing.boundaryLabel}
+                badgeTone={snapshot.closing.boundaryTone}
+                description={snapshot.closing.boundaryDescription}
+                meta={<span>{snapshot.closing.boundaryMetaLabel}</span>}
+                title={snapshot.closing.boundaryTitle}
+              />
+            </div>
+
+            <div className="office-queue-list">
+              {snapshot.closing.suggestions.length ? (
+                snapshot.closing.suggestions.map((item) => (
+                  <QueueItem
+                    action={
+                      item.opensInNewTab ? (
+                        <a
+                          className="office-inline-link"
+                          href={item.href}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {item.actionLabel}
+                        </a>
+                      ) : (
+                        <FrontOfficeLink
+                          className="office-inline-link"
+                          href={item.href}
+                        >
+                          {item.actionLabel}
+                        </FrontOfficeLink>
+                      )
+                    }
+                    badgeLabel={item.statusLabel}
+                    badgeTone={item.statusTone}
+                    context={item.contextLabel}
+                    description={item.description}
+                    key={item.id}
+                    meta={<span>{item.metaLabel}</span>}
+                    title={item.title}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    snapshot.closing.primaryActionOpensInNewTab ? (
+                      <a
+                        className="office-button-secondary"
+                        href={snapshot.closing.primaryActionHref}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {snapshot.closing.primaryActionLabel}
+                      </a>
+                    ) : (
+                      <FrontOfficeLink
+                        className="office-button-secondary"
+                        href={snapshot.closing.primaryActionHref}
+                      >
+                        {snapshot.closing.primaryActionLabel}
+                      </FrontOfficeLink>
+                    )
+                  }
+                  description={snapshot.closing.emptyStateDescription}
+                  title={snapshot.closing.emptyStateTitle}
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
             className="office-list-card"
             subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
             title="Chat List & phone strategy"
@@ -680,6 +822,11 @@ export default async function AgentClientDetailPage(
             label="Contract support"
             tone="accent"
             value={snapshot.inspection.boundaryLabel}
+          />
+          <SummaryChip
+            label="Closing"
+            tone="accent"
+            value={snapshot.closing.boundaryLabel}
           />
         </>
       }

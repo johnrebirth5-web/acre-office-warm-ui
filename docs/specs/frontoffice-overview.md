@@ -115,8 +115,9 @@ Current implementation priority note:
 - the `Offer / negotiation bridge` is now live on the client dossier, so agents can see whether work is still in FO prep, ready for BO handoff, or already tracked in the shared BO offer workspace
 - the `inspection / contract-support bridge` is now also live on the client dossier, so the same FO record can point directly into BO tasks, signatures, and incoming-update review once a formal transaction file exists
 - `PDF export` is now also live off the same dossier, so agents can download a client-ready summary PDF without creating a second reporting module or exporting raw BO state directly
-- the next recommended build target is `closing / deal-win suggestions`
-- prefer this next before AI, because the FO core execution trail now covers follow-up through contract support and can now start turning live outcome signals into smart wrap-up and post-close guidance
+- `closing / deal-win suggestions` are now also live on the client dossier, so the same FO record can turn shared BO outcome signals into post-close touches, referral timing, recap PDF suggestions, and respectful re-entry guidance without inventing a second “win board”
+- the next recommended build target is `Automation / AI next-touch suggestions`
+- prefer this next because the FO core execution trail now covers follow-up through post-close wrap-up, which means AI can finally ground its recommendations in live dossier, send, appointment, handoff, and transaction outcome signals instead of generic prompt scaffolding
 
 ### Phase 2
 
