@@ -16,6 +16,7 @@ import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
 import { resolveLeaseReminderDates } from "./lease-reminders";
+import { reconcileOfficeNotificationReminders } from "./notifications";
 import {
   buildTeamMembershipHierarchyMap,
   isLeaderTeamMembershipRole,
@@ -689,6 +690,12 @@ async function getLeadershipScopeMembershipIds(input: {
 export async function getFrontOfficeDashboardSnapshot(
   input: GetFrontOfficeDashboardSnapshotInput,
 ): Promise<FrontOfficeDashboardSnapshot> {
+  await reconcileOfficeNotificationReminders({
+    organizationId: input.organizationId,
+    officeId: input.officeId ?? null,
+    membershipId: input.viewerMembershipId,
+  });
+
   const now = new Date();
   const startOfToday = new Date(
     now.getFullYear(),

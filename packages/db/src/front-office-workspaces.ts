@@ -8,6 +8,7 @@ import {
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import { resolveLeaseReminderDates } from "./lease-reminders";
+import { reconcileOfficeNotificationReminders } from "./notifications";
 
 export type FrontOfficeWorkspaceInput = {
   organizationId: string;
@@ -968,6 +969,12 @@ export async function getFrontOfficeResourcesSnapshot(
 export async function getFrontOfficeActivitySnapshot(
   input: FrontOfficeWorkspaceInput,
 ): Promise<FrontOfficeActivitySnapshot> {
+  await reconcileOfficeNotificationReminders({
+    organizationId: input.organizationId,
+    officeId: input.officeId ?? null,
+    membershipId: input.viewerMembershipId,
+  });
+
   const now = new Date();
   const startOfToday = new Date(
     now.getFullYear(),

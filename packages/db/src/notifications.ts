@@ -118,6 +118,7 @@ export type EnsureNotificationForMembershipsInput = Omit<CreateNotificationsForM
 };
 
 export const officeNotificationInboxTypes: NotificationType[] = [
+  NotificationType.appointment_due_soon,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
   NotificationType.task_rejected,
@@ -141,6 +142,7 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
   listing: "Listing",
   follow_up: "Follow-up",
   event: "Event",
+  appointment_due_soon: "Appointment due soon",
   task_review_requested: "Awaiting my review",
   task_second_review_requested: "Awaiting second review",
   task_rejected: "Rejected task",
@@ -177,6 +179,7 @@ const notificationSeverityLabelMap: Record<NotificationSeverity, string> = {
 };
 
 const typeFilterOrder: NotificationType[] = [
+  NotificationType.appointment_due_soon,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
   NotificationType.task_rejected,
@@ -196,6 +199,7 @@ const typeFilterOrder: NotificationType[] = [
 ];
 
 const categoryFilterOrder: NotificationCategory[] = [
+  NotificationCategory.event,
   NotificationCategory.task,
   NotificationCategory.offer,
   NotificationCategory.signature,
@@ -222,6 +226,7 @@ function getNotificationPreferenceField(type: NotificationType): NotificationPre
   }
 
   if (
+    type === NotificationType.appointment_due_soon ||
     type === NotificationType.follow_up_assigned ||
     type === NotificationType.follow_up_overdue ||
     type === NotificationType.onboarding_assigned ||
@@ -602,7 +607,36 @@ export async function ensureNotificationForMemberships(db: NotificationDbClient,
   return createdCount;
 }
 
-async function reconcileOfficeNotificationReminders(input: {
+function buildAppointmentReminderTitle(startsAt: Date, title: string, now: Date) {
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1
+  );
+
+  if (startsAt < startOfTomorrow) {
+    return `Appointment today: ${title}`;
+  }
+
+  return `Appointment coming up: ${title}`;
+}
+
+function buildAppointmentReminderBody(input: {
+  startsAt: Date;
+  locationLabel: string;
+  clientName?: string | null;
+  listingTitle?: string | null;
+}) {
+  const context = input.clientName?.trim()
+    ? `Client ${input.clientName.trim()}`
+    : input.listingTitle?.trim()
+      ? `Listing ${input.listingTitle.trim()}`
+      : "Front Office appointment";
+
+  return `${context} starts on ${formatDateTimeLabel(input.startsAt)}. ${input.locationLabel}.`;
+}
+
+export async function reconcileOfficeNotificationReminders(input: {
   organizationId: string;
   officeId?: string | null;
   membershipId: string;
@@ -610,11 +644,52 @@ async function reconcileOfficeNotificationReminders(input: {
   const now = new Date();
   const soon = new Date(now);
   soon.setDate(soon.getDate() + 7);
+  const appointmentCutoff = new Date(now);
+  appointmentCutoff.setHours(appointmentCutoff.getHours() + 24);
   const offerCutoff = new Date(now);
   offerCutoff.setHours(offerCutoff.getHours() + 72);
 
   await prisma.$transaction(async (tx) => {
-    const [expiringOffers, overdueFollowUpTasks, dueSoonOnboardingItems] = await Promise.all([
+    const [
+      dueSoonAppointments,
+      expiringOffers,
+      overdueFollowUpTasks,
+      dueSoonOnboardingItems
+    ] = await Promise.all([
+      tx.appointment.findMany({
+        where: {
+          organizationId: input.organizationId,
+          ownerMembershipId: input.membershipId,
+          status: "scheduled",
+          startsAt: {
+            gte: now,
+            lte: appointmentCutoff
+          },
+          ...(input.officeId
+            ? {
+                OR: [{ officeId: input.officeId }, { officeId: null }]
+              }
+            : {})
+        },
+        select: {
+          id: true,
+          title: true,
+          officeId: true,
+          startsAt: true,
+          location: true,
+          meetingUrl: true,
+          client: {
+            select: {
+              fullName: true
+            }
+          },
+          listing: {
+            select: {
+              title: true
+            }
+          }
+        }
+      }),
       tx.offer.findMany({
         where: {
           organizationId: input.organizationId,
@@ -688,6 +763,37 @@ async function reconcileOfficeNotificationReminders(input: {
         }
       })
     ]);
+
+    for (const appointment of dueSoonAppointments) {
+      await ensureNotificationForMemberships(tx, {
+        organizationId: input.organizationId,
+        officeId: appointment.officeId ?? input.officeId ?? null,
+        membershipIds: [input.membershipId],
+        type: NotificationType.appointment_due_soon,
+        category: NotificationCategory.event,
+        severity:
+          appointment.startsAt.getTime() <= now.getTime() + 2 * 60 * 60 * 1000
+            ? NotificationSeverity.warning
+            : NotificationSeverity.info,
+        entityType: NotificationEntityType.appointment,
+        entityId: appointment.id,
+        title: buildAppointmentReminderTitle(
+          appointment.startsAt,
+          appointment.title,
+          now
+        ),
+        body: buildAppointmentReminderBody({
+          startsAt: appointment.startsAt,
+          locationLabel:
+            appointment.location?.trim() ||
+            appointment.meetingUrl?.trim() ||
+            "Location pending",
+          clientName: appointment.client?.fullName,
+          listingTitle: appointment.listing?.title
+        }),
+        actionUrl: "/agent/calendar"
+      });
+    }
 
     for (const offer of expiringOffers) {
       await ensureNotificationForMemberships(tx, {
@@ -905,6 +1011,7 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
         notification.type === NotificationType.incoming_update_pending_review
       ).length,
       timeSensitiveCount: unreadNotifications.filter((notification) =>
+        notification.type === NotificationType.appointment_due_soon ||
         notification.type === NotificationType.offer_expiring_soon ||
         notification.type === NotificationType.follow_up_overdue ||
         notification.type === NotificationType.onboarding_due_soon

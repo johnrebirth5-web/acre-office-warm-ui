@@ -28,7 +28,7 @@ export default async function AgentNotificationsPage() {
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="This stream groups the notices and reminders that actually affect the field workflow."
+          subtitle="This stream groups the notices and reminders that actually affect the field workflow, including appointment reminders as meetings get close."
           title="Current activity"
         >
           <div className="list-column front-office-record-list">

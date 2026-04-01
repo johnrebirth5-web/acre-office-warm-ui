@@ -45,6 +45,7 @@ enum NotificationType {
   listing
   follow_up
   event
+  appointment_due_soon
   task_review_requested
   task_second_review_requested
   task_rejected
@@ -88,6 +89,7 @@ enum NotificationEntityType {
   incoming_update
   agent_onboarding_item
   event
+  appointment
 }
 
 enum EventVisibility {

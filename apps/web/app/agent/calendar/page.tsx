@@ -156,7 +156,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             <div className="office-queue-list">
               <FrontOfficeRailItem
                 badgeLabel="FO"
-                description="Appointments stay light and execution-first here: showings, meetings, links, addresses, and notes."
+                description="Appointments stay light and execution-first here: showings, meetings, links, addresses, notes, and reminder signals that also feed the activity stream."
                 title="Daily scheduling lives here"
               />
               <FrontOfficeRailItem

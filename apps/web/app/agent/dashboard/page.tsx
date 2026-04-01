@@ -147,7 +147,7 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Your own Front Office appointments now sit next to shared office commitments so the workday stays in one place."
+            subtitle="Your own Front Office appointments now sit next to shared office commitments so the workday stays in one place, and near-term appointments feed the same activity stream as other reminders."
             title="Calendar & commitments"
           >
             <ListPageStatsGrid>

@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder` foundation, the recommended next implementation target is:
 
-- `lease-date reminders`
+- `deeper send records tied to appointments and client stage`
 
 That means:
 
-- the shared `Client` record should carry explicit lease timing, not hide it in notes
-- Front Office should surface renewal / remarketing timing from that one client record instead of relying on side spreadsheets
-- the FO dossier and dashboard should show when lease follow-up is overdue, due today, or due soon
-- Office / admin views can later expand from the same client-level reminder fields instead of inventing a second reminder store
+- FO send records should capture more execution context than just `client + listing + channel`
+- the send trail should be able to explain whether the material was sent before a showing, after a consultation, or because the client moved into a new stage
+- appointment and client-stage context should stay attached to the same FO execution record instead of drifting into notes
+- leadership and later analytics views should be able to segment send effectiveness by stage and meeting context without inventing a parallel tracking store
 
 ## First real FO workflow models
 
@@ -132,6 +132,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - shared contact save flows persist `leaseEndDate` and `leaseReminderAt` directly on the client record
   - `/agent/clients/[clientId]` now exposes a `Lease-date reminder` card where agents can set or adjust those dates without leaving the dossier
   - `/agent/dashboard` now shows a lease reminder queue so renewal / remarketing windows sit beside follow-up and appointment pressure instead of hiding in notes
+- appointment reminders now reuse the shared notifications channel instead of inventing a second FO-only inbox:
+  - the shared notification contract now includes a formal `appointment_due_soon` reminder type keyed to the appointment record
+  - loading `/agent/dashboard` or `/agent/notifications` now reconciles near-term scheduled appointments into the same activity stream as other FO reminders
+  - `/agent/calendar` now shows a reminder badge on each appointment row so agents can see `today / within 2h / passed` pressure directly in the scheduling queue
 
 ## Non-goals in this phase
 
@@ -142,6 +146,5 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- richer appointment reminders / notification delivery
 - deeper send records tied to appointments and client stage
 - leadership/team-level overdue engagement views on top of the same send trail

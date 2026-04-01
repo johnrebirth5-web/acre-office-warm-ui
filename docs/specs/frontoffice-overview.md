@@ -108,10 +108,10 @@ Intent:
 
 Current implementation priority note:
 
-- `send records + client engagement` is now live on top of tracked links
-- the next recommended build target is `lease-date reminders`
-- this means capturing lease end / reminder timing on the client record, surfacing renewal or remarketing windows directly in the FO dossier and dashboard, and keeping those reminders visible before the client goes quiet
-- prefer this before `Offer / Inspection / PDF` and before AI, because it closes another daily execution gap without pushing agents into formal Back Office workflow too early
+- `lease-date reminders` are now live on the client record, dossier, and dashboard
+- `appointment reminders / notification delivery` are now also live on top of the FO calendar, so near-term appointments enter the same activity stream as other execution reminders
+- the next recommended build target is `deeper send records tied to appointments and client stage`
+- prefer this before `Offer / Inspection / PDF` and before AI, because it keeps strengthening the daily execution loop before pushing agents into formal Back Office workflow too early
 
 ### Phase 2
 

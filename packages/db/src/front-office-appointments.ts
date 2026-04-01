@@ -29,6 +29,8 @@ export type FrontOfficeAppointmentRecord = {
   typeTone: FrontOfficeAppointmentTone;
   statusLabel: string;
   statusTone: FrontOfficeAppointmentTone;
+  reminderLabel: string;
+  reminderTone: FrontOfficeAppointmentTone;
   startsAtLabel: string;
   locationLabel: string;
   clientLabel: string;
@@ -199,6 +201,64 @@ function mapAppointmentStatusTone(
   }
 }
 
+function buildAppointmentReminderState(input: {
+  startsAt: Date;
+  status: AppointmentStatus;
+  now: Date;
+}) {
+  if (input.status !== AppointmentStatus.scheduled) {
+    return {
+      label: "Reminder cleared",
+      tone: "neutral" as const,
+    };
+  }
+
+  const twoHoursFromNow = new Date(input.now.getTime() + 2 * 60 * 60 * 1000);
+  const startOfTomorrow = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate() + 1,
+  );
+  const startOfDayAfterTomorrow = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate() + 2,
+  );
+
+  if (input.startsAt.getTime() < input.now.getTime()) {
+    return {
+      label: "Start time passed",
+      tone: "danger" as const,
+    };
+  }
+
+  if (input.startsAt.getTime() <= twoHoursFromNow.getTime()) {
+    return {
+      label: "Starts within 2h",
+      tone: "warning" as const,
+    };
+  }
+
+  if (input.startsAt.getTime() < startOfTomorrow.getTime()) {
+    return {
+      label: "Today",
+      tone: "accent" as const,
+    };
+  }
+
+  if (input.startsAt.getTime() < startOfDayAfterTomorrow.getTime()) {
+    return {
+      label: "Tomorrow",
+      tone: "success" as const,
+    };
+  }
+
+  return {
+    label: "Upcoming",
+    tone: "neutral" as const,
+  };
+}
+
 function isAppointmentType(
   value: string | null | undefined,
 ): value is AppointmentType {
@@ -251,6 +311,7 @@ function mapAppointmentRecord(
   appointment: Prisma.AppointmentGetPayload<{
     select: typeof appointmentSelect;
   }>,
+  now: Date,
   timeZone?: string | null,
 ): FrontOfficeAppointmentRecord {
   const meetingOrLocation =
@@ -264,6 +325,11 @@ function mapAppointmentRecord(
     appointment.client?.fullName ??
     (appointment.contactLabel?.trim() || "No client linked");
   const notesLabel = appointment.notes?.trim() || "No internal note yet";
+  const reminder = buildAppointmentReminderState({
+    startsAt: appointment.startsAt,
+    status: appointment.status,
+    now,
+  });
 
   return {
     id: appointment.id,
@@ -274,6 +340,8 @@ function mapAppointmentRecord(
     statusLabel:
       findAppointmentStatusDefinition(appointment.status)?.label ?? "Scheduled",
     statusTone: mapAppointmentStatusTone(appointment.status),
+    reminderLabel: reminder.label,
+    reminderTone: reminder.tone,
     startsAtLabel: formatDateTimeLabel(appointment.startsAt, { timeZone }),
     locationLabel: meetingOrLocation,
     clientLabel,
@@ -474,7 +542,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
       label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
     })),
     appointments: appointments.map((appointment) =>
-      mapAppointmentRecord(appointment, input.timeZone),
+      mapAppointmentRecord(appointment, now, input.timeZone),
     ),
     handoffs: handoffs.map((draft) => ({
       id: draft.id,
@@ -601,7 +669,7 @@ export async function createFrontOfficeAppointment(
     return created;
   });
 
-  return mapAppointmentRecord(appointment, null);
+  return mapAppointmentRecord(appointment, new Date(), null);
 }
 
 export async function updateFrontOfficeAppointmentStatus(
@@ -627,7 +695,7 @@ export async function updateFrontOfficeAppointmentStatus(
   }
 
   if (existing.status === nextStatus) {
-    return mapAppointmentRecord(existing, null);
+    return mapAppointmentRecord(existing, new Date(), null);
   }
 
   const now = new Date();
@@ -689,5 +757,5 @@ export async function updateFrontOfficeAppointmentStatus(
     return saved;
   });
 
-  return mapAppointmentRecord(updated, null);
+  return mapAppointmentRecord(updated, new Date(), null);
 }

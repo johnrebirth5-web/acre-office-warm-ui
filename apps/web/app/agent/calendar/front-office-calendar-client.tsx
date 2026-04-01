@@ -355,7 +355,7 @@ export function FrontOfficeCalendarClient(
 
       <SectionCard
         className="office-list-card"
-        subtitle="Upcoming items stay compact here so you can confirm, cancel, or close them without leaving the queue."
+        subtitle="Upcoming items stay compact here so you can confirm, cancel, or close them without leaving the queue, while the reminder badge shows which appointments need near-term attention."
         title="Upcoming appointments"
       >
         <div className="list-column front-office-record-list">
@@ -377,6 +377,9 @@ export function FrontOfficeCalendarClient(
                     <StatusBadge tone={appointment.statusTone}>
                       {appointment.statusLabel}
                     </StatusBadge>
+                    <Badge tone={appointment.reminderTone}>
+                      {appointment.reminderLabel}
+                    </Badge>
                   </div>
                 </div>
 
