@@ -100,9 +100,9 @@ export default async function OfficeDashboardPage() {
             subtitle="Goal tracking, access visibility, and live pipeline pressure for the current office scope."
             title="Goal tracking"
           >
-            <div className="bm-goal-main">
-              <div className="bm-dashboard-summary">
-                <div className="bm-dashboard-access">
+            <div className="office-dashboard-goal-main">
+              <div className="office-dashboard-goal-summary">
+                <div className="office-dashboard-access">
                   <strong>
                     {context.currentUser.firstName} {context.currentUser.lastName}
                   </strong>
@@ -111,10 +111,10 @@ export default async function OfficeDashboardPage() {
                   </span>
                 </div>
 
-                <div className="bm-dashboard-status-strip">
+                <div className="office-dashboard-status-strip">
                   {snapshot.transactionCountsByStatus.map((metric) => (
                     <StatCard
-                      className="bm-dashboard-status-chip"
+                      className="office-dashboard-status-chip"
                       hint="transactions"
                       key={metric.status}
                       label={metric.status}
@@ -124,24 +124,24 @@ export default async function OfficeDashboardPage() {
                 </div>
               </div>
 
-              <div className="bm-goal-chart">
-                <div className="bm-chart-grid">
-                  <div className="bm-chart-axis">
+              <div className="office-dashboard-goal-chart">
+                <div className="office-dashboard-chart-grid">
+                  <div className="office-dashboard-chart-axis">
                     {snapshot.chart.axisLabels.map((label) => (
                       <span key={label}>{label}</span>
                     ))}
                   </div>
-                  <div className="bm-chart-line-shell">
-                    <div className="bm-chart-canvas">
-                      <div aria-hidden="true" className="bm-chart-bars">
+                  <div className="office-dashboard-chart-line-shell">
+                    <div className="office-dashboard-chart-canvas">
+                      <div aria-hidden="true" className="office-dashboard-chart-bars">
                         {snapshot.chart.points.map((point) => {
                           const heightPercent = snapshot.chart.maxValue > 0 ? (point.value / snapshot.chart.maxValue) * 100 : 0;
                           const barHeight = point.value > 0 ? `${Math.max(heightPercent, 2)}%` : "0%";
 
                           return (
-                            <span className="bm-chart-bar-slot" key={point.label}>
+                            <span className="office-dashboard-chart-bar-slot" key={point.label}>
                               <span
-                                className={`bm-chart-bar${point.value === 0 ? " is-empty" : ""}`}
+                                className={`office-dashboard-chart-bar${point.value === 0 ? " is-empty" : ""}`}
                                 style={{ height: barHeight }}
                                 title={`${point.label}: ${point.value}`}
                               />
@@ -150,14 +150,14 @@ export default async function OfficeDashboardPage() {
                         })}
                       </div>
 
-                      <div className="bm-chart-months">
+                      <div className="office-dashboard-chart-months">
                         {snapshot.chart.points.map((point, index) => {
                           const tick = getChartTick(point.label, index, chartPointLabels);
 
                           return (
                             <span key={point.label} title={point.label}>
-                              <span className="bm-chart-month-label">{tick.monthLabel}</span>
-                              {tick.showYear ? <span className="bm-chart-year-label">{tick.yearLabel}</span> : <span aria-hidden="true" className="bm-chart-year-label is-placeholder">0000</span>}
+                              <span className="office-dashboard-chart-month-label">{tick.monthLabel}</span>
+                              {tick.showYear ? <span className="office-dashboard-chart-year-label">{tick.yearLabel}</span> : <span aria-hidden="true" className="office-dashboard-chart-year-label is-placeholder">0000</span>}
                             </span>
                           );
                         })}
@@ -166,25 +166,25 @@ export default async function OfficeDashboardPage() {
                   </div>
                 </div>
 
-                <aside className="bm-goal-side">
-                  <div className="bm-goal-ring">
-                    <div className="bm-goal-ring-inner">
+                <aside className="office-dashboard-goal-side">
+                  <div className="office-dashboard-goal-ring">
+                    <div className="office-dashboard-goal-ring-inner">
                       <strong>{snapshot.goal.progressPercent}%</strong>
                       <span>{snapshot.goal.currentValueLabel}</span>
                     </div>
                   </div>
-                  <div className="bm-goal-foot">
+                  <div className="office-dashboard-goal-foot">
                     <span>{snapshot.goal.targetLabel}:</span>
                     <strong>{snapshot.goal.target}</strong>
                   </div>
-                  <div className="bm-time-left">
+                  <div className="office-dashboard-time-left">
                     <span>{snapshot.goal.secondaryLabel}:</span>
                     <strong>{snapshot.goal.secondaryValue}</strong>
                   </div>
-                  <div className="bm-time-bar">
-                    <div className="bm-time-bar-fill" style={{ width: `${snapshot.goal.progressPercent}%` }} />
+                  <div className="office-dashboard-time-bar">
+                    <div className="office-dashboard-time-bar-fill" style={{ width: `${snapshot.goal.progressPercent}%` }} />
                   </div>
-                  <p className="bm-goal-caption">{snapshot.goal.currentValue}</p>
+                  <p className="office-dashboard-goal-caption">{snapshot.goal.currentValue}</p>
                 </aside>
               </div>
             </div>
@@ -335,7 +335,7 @@ export default async function OfficeDashboardPage() {
                         {statement.reviewStatusLabel}
                       </StatusBadge>
                       <strong className="office-dashboard-transactions-amount">{statement.totalStatementAmountLabel}</strong>
-                      <div className="bm-accounting-inline-actions office-accounting-statement-history-actions">
+                      <div className="office-section-actions office-accounting-statement-history-actions">
                         <Link className="office-button-secondary office-button-sm" href={statement.openHref}>
                           Open
                         </Link>

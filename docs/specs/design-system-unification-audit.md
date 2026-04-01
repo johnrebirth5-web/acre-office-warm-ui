@@ -33,6 +33,12 @@ As of `2026-04-01` later in the same cleanup pass, the `office/activity` workspa
 
 These files no longer emit `bm-*` activity shell/list markup. Their workspace chrome now routes through `office-activity-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), which makes `activity` the first high-visibility BO workbench migrated off `bm-*` shell language without changing its data flow.
 
+As of `2026-04-01` in the next migration batch, the `office/dashboard` goal / KPI workspace has also moved onto canonical Office naming:
+
+- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
+
+The dashboard no longer emits `bm-*` classes for its goal tracking, KPI strip, chart, or payout-statement action row. Those surfaces now use `office-dashboard-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), which removes another major BO visual-language fork while keeping the same data and dashboard composition.
+
 ## Audit method
 
 The current audit reviewed:
@@ -103,7 +109,6 @@ The repo still contains a large amount of active `bm-*` markup, not just compati
 
 High-impact live files still using `bm-*` heavily:
 
-- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
 - [apps/web/app/office/accounting/agent-billing-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/agent-billing-panel.tsx)
 - [apps/web/app/office/accounting/accounting-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/accounting-client.tsx)
 - [apps/web/app/office/accounting/commission-management-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/commission-management-panel.tsx)
@@ -198,6 +203,7 @@ Finding:
 - dashboard-like pages
 - workbench list pages such as accounting, reports, notifications, tasks, library, and pipeline
 - `activity` still hand-assembles its route shell, but its inner workspace chrome has already moved to `office-activity-*`, so the remaining work there is template adoption rather than another visual-language migration
+- `dashboard` still hand-assembles its route shell, but its KPI / goal / chart chrome has already moved to `office-dashboard-*`, so the remaining work there is template adoption rather than another visual-language migration
 
 ### Highest migration debt
 
@@ -231,7 +237,6 @@ Recommended approach:
 
 First candidates:
 
-- dashboard
 - accounting
 - pipeline
 - library
@@ -243,6 +248,7 @@ First candidates:
 Completed first batch:
 
 - `activity` shell/list chrome moved off `bm-*`; follow-up work there is now limited to routing the page through the canonical route-template family when the surrounding filter/header composition is ready
+- `dashboard` goal-tracking and KPI/chart chrome moved off `bm-*`; follow-up work there is now limited to route-template adoption and any deeper legacy card cleanup outside the main dashboard page
 
 ### P2. Migrate transaction detail off `bm-*`
 

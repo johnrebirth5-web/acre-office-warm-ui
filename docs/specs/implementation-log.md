@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-04-01: `/office/dashboard` completed the next `bm-*` to canonical `office-*` migration batch for one of the highest-visibility BO pages:
+  - [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx) no longer emits `bm-*` markup for goal tracking, KPI strip, chart bars/month ticks, progress ring, or payout-statement row actions
+  - new `office-dashboard-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now define the canonical dashboard chrome for those surfaces, so the page aligns with the shared Office design language instead of depending on legacy `bm-*` dashboard vocabulary
+  - this keeps the current dashboard data, role visibility, commission self-service card, and transaction table behavior intact while removing another major BO design-language fork
 - 2026-04-01: `/office/activity` completed the first live `bm-*` to canonical `office-*` migration batch inside a high-visibility BO workspace:
   - [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx) and [apps/web/app/office/activity/activity-alerts-layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/activity-alerts-layout.tsx) no longer emit `bm-*` activity shell/list markup for section rails, records, alert cards, or activity-specific filter layout
   - new `office-activity-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now act as the canonical styling layer for the activity workspace, so the page sits inside the same visual language as the rest of the Office system instead of extending legacy `bm-*` chrome
