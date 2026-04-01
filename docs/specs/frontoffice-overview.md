@@ -106,6 +106,12 @@ Intent:
 
 - make the system produce management value, not just agent-side utility
 
+Current implementation priority note:
+
+- once the current FO foundations are in place, the recommended next build target is `send records + client engagement`
+- this means recording who each FO listing/material send was sent to, through which channel, when it was sent, and whether the client opened or revisited it
+- prefer this before `Offer / Inspection / PDF` and before AI, because it closes the agent execution loop and gives team leads real management visibility
+
 ### Phase 2
 
 Enhance in-flight deal execution:

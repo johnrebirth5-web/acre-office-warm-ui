@@ -17,6 +17,19 @@ This file is the implementation-facing contract for the first real `Front Office
   - signatures
   - archival document workflow
 
+## Current recommended next target
+
+After the current `appointment + dossier + tracked listing output + agent material window` foundation, the recommended next implementation target is:
+
+- `send record + client engagement`
+
+That means:
+
+- each FO send action should be attributable to a `Client`, optional `Listing`, and optional material type
+- the system should record `channel`, `sender`, and `sentAt`
+- the client dossier and FO dashboard should show whether the client has opened, clicked, or revisited the material
+- team-lead visibility should come from this shared engagement trail instead of informal status notes
+
 ## First real FO workflow models
 
 ### `Appointment`
@@ -108,6 +121,7 @@ This keeps the handoff visible without pretending formal transaction creation al
 - FO follow-up updates now also stay on that same shared task store: Front Office can complete or push a follow-up forward without inventing a second reminder model, and the client-level `nextFollowUpAt` stays synchronized when the updated task was driving the next-touch signal
 - marking an appointment `completed` updates `Client.lastContactAt` so FO CRM freshness reflects real meetings
 - `/agent/listings` now creates private tracked listing links through the shared `ListingShareLink` store, and those links resolve to a lightweight public Acre share page that increments `clickCount` on open instead of pretending a public listing site already exists
+- that same `/agent/listings` snapshot now also carries an `agentMaterial` block for the current membership, so business-card copy, profile portrait/bio, recent closing history, and one-click intro send actions can live beside listing outreach without querying a second profile system
 
 ## Non-goals in this phase
 

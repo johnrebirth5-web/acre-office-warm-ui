@@ -257,6 +257,8 @@ export {
   type FrontOfficeActivityEventRecord,
   type FrontOfficeActivityNotificationRecord,
   type FrontOfficeActivitySnapshot,
+  type FrontOfficeAgentMaterialFeaturedCase,
+  type FrontOfficeAgentMaterialSnapshot,
   type FrontOfficeClientRecord,
   type FrontOfficeClientsSnapshot,
   type FrontOfficeListingRecord,

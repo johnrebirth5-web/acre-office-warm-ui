@@ -5,6 +5,7 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
+- Current recommended FO next target after the latest listings/output work is `send record + client engagement`, so future threads converge on the same next-step recommendation instead of jumping straight to `Offer`, `Inspection`, or AI
 
 ## Recently completed major work
 
@@ -18,6 +19,10 @@
   - added [apps/web/app/api/agent/listings/[listingId]/share-links/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/listings/[listingId]/share-links/route.ts) for authenticated FO share-link creation by `sms / email / direct` channel
   - added [apps/web/app/agent/listings/front-office-listings-output-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/listings/front-office-listings-output-client.tsx), and [apps/web/app/agent/listings/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/listings/page.tsx) now uses it so agents can copy tracked SMS templates, email templates, or raw links directly from the send-ready inventory surface
   - added [apps/web/app/share/listings/[code]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/share/listings/[code]/page.tsx) as the lightweight private public-facing landing page for those tracked links, with listing context and direct agent contact actions
+- 2026-04-01: `Agent material window` now sits beside listing output instead of remaining a future-only FO spec bullet:
+  - [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) now enriches the listings snapshot with a current-agent material block built from the shared membership, `AgentProfile`, and recent closed transactions, so FO can reuse the existing profile/transaction truth instead of inventing a parallel profile store
+  - added [apps/web/app/agent/listings/front-office-agent-material-window.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/listings/front-office-agent-material-window.tsx) so agents can copy a business card, intro email, or intro text from the live FO listings rail while also surfacing portrait readiness, license info, and featured recent wins
+  - [apps/web/app/agent/listings/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/listings/page.tsx) now renders that `Agent material window` in the rail next to output signals and send modes, keeping agent identity material in the same execution context as tracked listing outreach
 - 2026-04-01: the first real `Front Office` execution-to-handoff contract is now live instead of placeholder-only:
   - added new Prisma models and enums in [packages/db/prisma/schema.prisma](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/prisma/schema.prisma) for `Appointment`, `ClientStageHistory`, and `FrontOfficeHandoffDraft`, establishing the first formal FO execution-state layer that does not duplicate `Transaction`
   - [packages/db/src/contacts.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/contacts.ts) now writes initial and changed `ClientStageHistory` rows and synchronizes BO-ready `FrontOfficeHandoffDraft` records whenever a client moves into or out of negotiation / offer / application / contract-style stages

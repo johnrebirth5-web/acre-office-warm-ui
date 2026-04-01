@@ -3,6 +3,7 @@ import {
   NotificationType,
   Prisma,
   ResourceType,
+  UserRole,
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
@@ -63,6 +64,33 @@ export type FrontOfficeListingRecord = {
   trackedLinkCount: number;
 };
 
+export type FrontOfficeAgentMaterialFeaturedCase = {
+  id: string;
+  label: string;
+  closingLabel: string;
+  priceLabel: string;
+  href: string;
+};
+
+export type FrontOfficeAgentMaterialSnapshot = {
+  displayName: string;
+  titleLabel: string;
+  officeLabel: string;
+  bioLabel: string;
+  avatarUrl: string;
+  avatarFallback: string;
+  email: string;
+  phone: string;
+  licenseLabel: string;
+  recentClosedCount: number;
+  featuredCaseCount: number;
+  portraitReady: boolean;
+  businessCardText: string;
+  introEmailText: string;
+  introTextMessage: string;
+  featuredCases: FrontOfficeAgentMaterialFeaturedCase[];
+};
+
 export type FrontOfficeListingsSnapshot = {
   summary: {
     listingCount: number;
@@ -70,6 +98,7 @@ export type FrontOfficeListingsSnapshot = {
     trackedClicks: number;
     trackedLinks: number;
   };
+  agentMaterial: FrontOfficeAgentMaterialSnapshot;
   listings: FrontOfficeListingRecord[];
 };
 
@@ -277,6 +306,37 @@ function mapListingStatusTone(status: ListingStatus): FrontOfficeTone {
   return "neutral";
 }
 
+function formatUserRoleLabel(role: UserRole) {
+  switch (role) {
+    case "owner":
+      return "Owner";
+    case "office_admin":
+      return "Office Admin";
+    case "accountant":
+      return "Accountant";
+    case "human_resources":
+      return "Human Resources";
+    case "team_lead":
+      return "Team Lead";
+    case "office_manager":
+      return "Office Manager";
+    case "office_user":
+      return "Office User";
+    default:
+      return "Agent";
+  }
+}
+
+function buildInitials(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+) {
+  return (
+    `${firstName?.trim().charAt(0) ?? ""}${lastName?.trim().charAt(0) ?? ""}`.toUpperCase() ||
+    "AC"
+  );
+}
+
 function formatListingStatus(status: ListingStatus) {
   return status
     .split("_")
@@ -481,50 +541,117 @@ export async function getFrontOfficeListingsSnapshot(
     ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
-  const [listings, listingCount, publicReadyCount, shareAggregate] =
-    await Promise.all([
-      prisma.listing.findMany({
-        where: listingWhere,
-        orderBy: [{ updatedAt: "desc" }],
-        take: 24,
-        select: {
-          id: true,
-          title: true,
-          neighborhood: true,
-          city: true,
-          price: true,
-          status: true,
-          isPublic: true,
-          aiSummary: true,
-          bedrooms: true,
-          bathrooms: true,
+  const [
+    listings,
+    listingCount,
+    publicReadyCount,
+    shareAggregate,
+    membership,
+    recentClosedTransactions,
+    recentClosedCount,
+  ] = await Promise.all([
+    prisma.listing.findMany({
+      where: listingWhere,
+      orderBy: [{ updatedAt: "desc" }],
+      take: 24,
+      select: {
+        id: true,
+        title: true,
+        neighborhood: true,
+        city: true,
+        price: true,
+        status: true,
+        isPublic: true,
+        aiSummary: true,
+        bedrooms: true,
+        bathrooms: true,
+      },
+    }),
+    prisma.listing.count({
+      where: listingWhere,
+    }),
+    prisma.listing.count({
+      where: {
+        ...listingWhere,
+        isPublic: true,
+      },
+    }),
+    prisma.listingShareLink.aggregate({
+      where: {
+        membershipId: input.viewerMembershipId,
+        listing: {
+          organizationId: input.organizationId,
+          ...(officeScopeFilter ? officeScopeFilter : {}),
         },
-      }),
-      prisma.listing.count({
-        where: listingWhere,
-      }),
-      prisma.listing.count({
-        where: {
-          ...listingWhere,
-          isPublic: true,
-        },
-      }),
-      prisma.listingShareLink.aggregate({
-        where: {
-          membershipId: input.viewerMembershipId,
-          listing: {
-            organizationId: input.organizationId,
-            ...(officeScopeFilter ? officeScopeFilter : {}),
+      },
+      _count: {
+        _all: true,
+      },
+      _sum: {
+        clickCount: true,
+      },
+    }),
+    prisma.membership.findFirst({
+      where: {
+        id: input.viewerMembershipId,
+        organizationId: input.organizationId,
+      },
+      select: {
+        role: true,
+        title: true,
+        office: {
+          select: {
+            name: true,
           },
         },
-        _count: {
-          _all: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
         },
-        _sum: {
-          clickCount: true,
+        agentProfile: {
+          select: {
+            displayName: true,
+            bio: true,
+            avatarUrl: true,
+            licenseNumber: true,
+            licenseState: true,
+          },
         },
-      }),
-    ]);
+      },
+    }),
+    prisma.transaction.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.viewerMembershipId,
+        status: "closed",
+        ...(input.officeId ? { officeId: input.officeId } : {}),
+      },
+      orderBy: [{ closingDate: "desc" }, { updatedAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        address: true,
+        city: true,
+        state: true,
+        closingDate: true,
+        purchasedPrice: true,
+        price: true,
+      },
+    }),
+    prisma.transaction.count({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.viewerMembershipId,
+        status: "closed",
+        ...(input.officeId ? { officeId: input.officeId } : {}),
+      },
+    }),
+  ]);
 
   const listingShareRows =
     listings.length > 0
@@ -555,12 +682,76 @@ export async function getFrontOfficeListingsSnapshot(
     ]),
   );
 
+  const displayName =
+    membership?.agentProfile?.displayName?.trim() ||
+    `${membership?.user.firstName ?? ""} ${membership?.user.lastName ?? ""}`.trim() ||
+    membership?.user.email ||
+    "Acre agent";
+  const titleLabel =
+    membership?.title?.trim() ||
+    (membership ? formatUserRoleLabel(membership.role) : "Agent");
+  const officeLabel = membership?.office?.name?.trim() || "Acre";
+  const bioLabel =
+    membership?.agentProfile?.bio?.trim() ||
+    "Share your business card, profile, and recent closings without leaving the Front Office output terminal.";
+  const licenseLabel =
+    membership?.agentProfile?.licenseNumber?.trim() &&
+    membership?.agentProfile?.licenseState?.trim()
+      ? `${membership.agentProfile.licenseState.trim()} · ${membership.agentProfile.licenseNumber.trim()}`
+      : membership?.agentProfile?.licenseNumber?.trim() ||
+        membership?.agentProfile?.licenseState?.trim() ||
+        "License info not published";
+  const avatarFallback = buildInitials(
+    membership?.user.firstName,
+    membership?.user.lastName,
+  );
+  const businessCardText = [
+    displayName,
+    titleLabel,
+    officeLabel,
+    membership?.user.phone?.trim() || "",
+    membership?.user.email?.trim() || "",
+    licenseLabel !== "License info not published" ? licenseLabel : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const introEmailText = `Subject: Introduction from ${displayName}\n\nHi,\n\nI am ${displayName}, ${titleLabel} at ${officeLabel}. I help clients move from first conversation through shortlist, showings, and the formal Back Office handoff once the process becomes transaction-ready.\n\nIf you want a quick intro call, reply here and I can send a few focused next steps.\n\nBest,\n${displayName}\n${membership?.user.phone?.trim() || ""}\n${membership?.user.email?.trim() || ""}`;
+  const introTextMessage = `Hi, this is ${displayName} from ${officeLabel}. I help clients move from search setup into showings and formal next steps. If you want a quick intro call, reply here and I can line up the best next options.`;
+
   return {
     summary: {
       listingCount,
       publicReadyCount,
       trackedClicks: shareAggregate._sum.clickCount ?? 0,
       trackedLinks: shareAggregate._count._all,
+    },
+    agentMaterial: {
+      displayName,
+      titleLabel,
+      officeLabel,
+      bioLabel,
+      avatarUrl: membership?.agentProfile?.avatarUrl?.trim() || "",
+      avatarFallback,
+      email: membership?.user.email?.trim() || "",
+      phone: membership?.user.phone?.trim() || "",
+      licenseLabel,
+      recentClosedCount,
+      featuredCaseCount: recentClosedTransactions.length,
+      portraitReady: Boolean(membership?.agentProfile?.avatarUrl?.trim()),
+      businessCardText,
+      introEmailText,
+      introTextMessage,
+      featuredCases: recentClosedTransactions.map((transaction) => ({
+        id: transaction.id,
+        label: `${transaction.title} · ${transaction.address}, ${transaction.city}, ${transaction.state}`,
+        closingLabel: transaction.closingDate
+          ? `Closed ${formatDateLabel(transaction.closingDate, input.timeZone)}`
+          : "Closed deal",
+        priceLabel: formatCurrency(
+          transaction.purchasedPrice ?? transaction.price,
+        ),
+        href: `/office/transactions/${transaction.id}`,
+      })),
     },
     listings: listings.map((listing) => {
       const shareMetrics = listingShareMap.get(listing.id);

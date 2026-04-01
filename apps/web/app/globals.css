@@ -13839,6 +13839,88 @@ body,
   gap: 8px;
 }
 
+.front-office-agent-material-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(194, 205, 220, 0.72);
+  border-radius: 22px;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(119, 173, 255, 0.16),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.96),
+      rgba(245, 249, 253, 0.94)
+    );
+}
+
+.front-office-agent-material-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.front-office-agent-material-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  object-fit: cover;
+  border: 1px solid rgba(205, 214, 226, 0.8);
+  background: #eef4fb;
+}
+
+.front-office-agent-material-avatar-fallback {
+  display: grid;
+  place-items: center;
+  color: #173f86;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.front-office-agent-material-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.front-office-agent-material-copy span,
+.front-office-agent-material-meta span {
+  color: #667c93;
+  font-size: var(--office-text-meta-size);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.front-office-agent-material-card p {
+  margin: 0;
+  color: #42556c;
+  line-height: 1.65;
+}
+
+.front-office-agent-material-meta,
+.front-office-agent-material-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.front-office-agent-material-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(233, 238, 244, 0.92);
+}
+
+.front-office-agent-featured-cases {
+  display: grid;
+  gap: 10px;
+}
+
 .listing-share-shell {
   min-height: 100vh;
   padding: 48px 20px;

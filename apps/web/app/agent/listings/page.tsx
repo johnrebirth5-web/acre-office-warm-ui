@@ -9,6 +9,7 @@ import {
 import { redirect } from "next/navigation";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { FrontOfficeAgentMaterialWindow } from "./front-office-agent-material-window";
 import { FrontOfficeListingsOutputClient } from "./front-office-listings-output-client";
 import { requireSessionContext } from "../../../lib/auth-session";
 
@@ -74,6 +75,14 @@ export default async function AgentListingsPage() {
                 value="Send-ready"
               />
             </ListPageStatsGrid>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="Business card, profile assets, recent closings, and send-ready intro copy should stay beside listing output."
+            title="Agent material window"
+          >
+            <FrontOfficeAgentMaterialWindow material={snapshot.agentMaterial} />
           </SectionCard>
 
           <SectionCard
