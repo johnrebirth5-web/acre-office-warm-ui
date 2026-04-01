@@ -107,6 +107,7 @@ This keeps the handoff visible without pretending formal transaction creation al
 - FO follow-up creation reuses the shared `FollowUpTask` store and now keeps `Client.nextFollowUpAt` aligned when a dated follow-up is created, so FO/BO reminders stay on one clock
 - FO follow-up updates now also stay on that same shared task store: Front Office can complete or push a follow-up forward without inventing a second reminder model, and the client-level `nextFollowUpAt` stays synchronized when the updated task was driving the next-touch signal
 - marking an appointment `completed` updates `Client.lastContactAt` so FO CRM freshness reflects real meetings
+- `/agent/listings` now creates private tracked listing links through the shared `ListingShareLink` store, and those links resolve to a lightweight public Acre share page that increments `clickCount` on open instead of pretending a public listing site already exists
 
 ## Non-goals in this phase
 

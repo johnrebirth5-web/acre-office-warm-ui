@@ -13833,6 +13833,140 @@ body,
   line-height: 1.55;
 }
 
+.front-office-listing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.listing-share-shell {
+  min-height: 100vh;
+  padding: 48px 20px;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(118, 173, 255, 0.2),
+      transparent 28%
+    ),
+    linear-gradient(180deg, #eef4fb 0%, #f7fafc 100%);
+}
+
+.listing-share-card {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+  padding: 30px;
+  border: 1px solid rgba(194, 205, 220, 0.66);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 28px 60px rgba(30, 51, 90, 0.08);
+}
+
+.listing-share-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.listing-share-eyebrow,
+.listing-share-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.listing-share-eyebrow {
+  background: rgba(223, 234, 255, 0.92);
+  color: #173f86;
+}
+
+.listing-share-status {
+  background: rgba(244, 248, 252, 0.96);
+  color: #42556c;
+}
+
+.listing-share-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.listing-share-copy h1 {
+  margin: 0;
+  color: #10263f;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+}
+
+.listing-share-copy p,
+.listing-share-footer p {
+  margin: 0;
+  color: #4d6279;
+  line-height: 1.65;
+}
+
+.listing-share-metrics {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.listing-share-metrics article {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(205, 214, 226, 0.74);
+  background: rgba(248, 251, 255, 0.9);
+}
+
+.listing-share-metrics span {
+  color: #667c93;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.listing-share-metrics strong,
+.listing-share-footer strong {
+  color: #10263f;
+}
+
+.listing-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.listing-share-footer {
+  display: grid;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(220, 228, 237, 0.86);
+}
+
+@media (max-width: 640px) {
+  .listing-share-shell {
+    padding: 22px 14px;
+  }
+
+  .listing-share-card {
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
+}
+
 .front-office-calendar-badges {
   justify-content: flex-end;
   align-items: flex-start;
