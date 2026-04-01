@@ -5,10 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- Current recommended FO next target after the live inspection bridge is `PDF export`, so future threads can build client-facing delivery on top of the now-visible FO -> BO execution trail before jumping into heavier AI work
+- Current recommended FO next target after the live PDF export bridge is `closing / deal-win suggestions`, so future threads can build post-close guidance on top of the now-visible FO -> BO execution trail before jumping into heavier AI work
 
 ## Recently completed major work
 
+- 2026-04-01: `PDF export / client-facing report delivery` is now live off the FO client dossier instead of remaining only the next roadmap line:
+  - added [front-office-client-summary-pdf.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/clients/[clientId]/pdf/front-office-client-summary-pdf.tsx) plus [route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/clients/[clientId]/pdf/route.ts), so `/api/agent/clients/[clientId]/pdf` now renders a client-ready summary PDF from the live FO dossier snapshot with upcoming schedule, shared materials, negotiation status, and contract-support summary
+  - the export deliberately wraps the same live FO/BO execution trail instead of inventing a second reporting model, and it omits internal-only note content while keeping formal transaction, signature, and archival truth in the shared BO workflow
+  - [page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/page.tsx) now exposes a `Download client PDF` action in the dossier overview so agents can package the current state directly from the client record
 - 2026-04-01: `inspection / contract-support bridge` is now live inside the FO client dossier instead of remaining only the next roadmap line:
   - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now bridges the live dossier into existing BO transaction foundations, so each client can be read as `Front Office prep`, `Ready for contract file`, `Contract file live`, or `Inspection-era live` without inventing a second inspection store
   - that same FO snapshot now reads the shared BO transaction task, signature-request, and incoming-update queues directly when a linked transaction exists, surfacing open-task pressure, pending signature work, review queue counts, and direct links back into `/office/transactions/[transactionId]#transaction-tasks`, `#transaction-forms-signatures`, and `#transaction-incoming-updates`

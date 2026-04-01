@@ -57,6 +57,16 @@ export default async function AgentClientDetailPage(
       main={
         <>
           <SectionCard
+            actions={
+              <a
+                className="office-button-secondary"
+                href={`/api/agent/clients/${snapshot.id}/pdf`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Download client PDF
+              </a>
+            }
             className="office-list-card"
             subtitle="Core FO context stays readable here so the next call, showing, or handoff does not require opening a full admin form."
             title="Overview"

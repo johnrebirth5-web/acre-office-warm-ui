@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export` foundation, the recommended next implementation target is:
 
-- `PDF export / client-facing report delivery rooted in the same dossier and BO boundary`
+- `closing / deal-win suggestions rooted in the same dossier and shared transaction outcome signals`
 
 That means:
 
-- Front Office should be able to package client-facing summaries or exports off the same live execution trail without pretending the PDF itself becomes the new source of truth
-- export-era workflow should reuse the current dossier, appointments, send trail, negotiation bridge, and inspection / contract-support bridge instead of introducing a disconnected reporting module
-- the module should keep the FO -> BO boundary explicit by treating tasks, signatures, and incoming updates as shared BO truth while FO owns the communication-ready wrapper around them
-- the goal is to add presentation / export value on top of the now-visible execution trail instead of creating a parallel inspection record system
+- Front Office should be able to turn live execution outcomes into the next smart recommendation after a file settles, instead of stopping at status visibility
+- post-close workflow should reuse the current dossier, negotiation bridge, inspection / contract-support bridge, and shared transaction outcomes instead of introducing a disconnected “win board”
+- the module should keep the FO -> BO boundary explicit by reading formal transaction completion signals from Back Office while FO owns the client-facing follow-up, referral, renewal, or celebration prompts that come after
+- the goal is to extend the now-exportable execution trail into actionable deal-wrap guidance instead of jumping straight into AI abstraction
 
 ## First real FO workflow models
 
@@ -152,6 +152,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/clients/[clientId]` now exposes an `Inspection & contract support` section that makes the boundary explicit across `Front Office prep`, `Ready for contract file`, `Contract file live`, and `Inspection-era live`
   - when a linked transaction already exists, the dossier now reads the shared BO transaction task, signature-request, and incoming-update foundations directly and surfaces open task counts, pending signatures, review-queue counts, and direct links into the relevant BO anchors
   - when no formal transaction exists yet, the same section points back to the BO create flow or stays inside FO follow-up, so post-offer support remains visible without pretending a second contract / inspection store already exists
+- PDF export / client-facing report delivery now also lives on top of that same dossier instead of becoming a separate report builder:
+  - `/api/agent/clients/[clientId]/pdf` now renders a client-ready summary PDF from the live FO dossier snapshot using the same appointments, send trail, negotiation bridge, and inspection / contract-support bridge already shown in the web UI
+  - `/agent/clients/[clientId]` now exposes a direct `Download client PDF` action so agents can package the current execution story without copying raw dashboard notes into an external document
+  - the PDF intentionally omits internal-only note fields and does not try to replace formal BO records; it wraps the live FO/BO execution state into a presentation layer while keeping the source-of-truth boundary intact
 
 ## Non-goals in this phase
 
@@ -162,4 +166,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- PDF export / client-facing report delivery rooted in the same dossier and BO boundary
+- closing / deal-win suggestions rooted in the same dossier and shared transaction outcome signals

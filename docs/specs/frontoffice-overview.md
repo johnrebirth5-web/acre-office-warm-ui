@@ -114,8 +114,9 @@ Current implementation priority note:
 - `leadership/team-level overdue engagement views` are now live on top of the same send trail, so team leads and office admins can spot quiet tracked sends alongside overdue tasks and 15+ day stale clients
 - the `Offer / negotiation bridge` is now live on the client dossier, so agents can see whether work is still in FO prep, ready for BO handoff, or already tracked in the shared BO offer workspace
 - the `inspection / contract-support bridge` is now also live on the client dossier, so the same FO record can point directly into BO tasks, signatures, and incoming-update review once a formal transaction file exists
-- the next recommended build target is `PDF export`
-- prefer this next before AI, because the FO core execution trail now reaches the inspection-era BO boundary clearly and can add client-facing export / report layers without inventing parallel operational records
+- `PDF export` is now also live off the same dossier, so agents can download a client-ready summary PDF without creating a second reporting module or exporting raw BO state directly
+- the next recommended build target is `closing / deal-win suggestions`
+- prefer this next before AI, because the FO core execution trail now covers follow-up through contract support and can now start turning live outcome signals into smart wrap-up and post-close guidance
 
 ### Phase 2
 
