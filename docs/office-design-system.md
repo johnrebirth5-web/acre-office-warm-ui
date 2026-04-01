@@ -1,5 +1,38 @@
 # Office Design System
 
+## 单一系统原则
+
+`Acre` 全站只能存在一套设计系统。
+
+这条规则覆盖：
+
+- `Front Office`
+- `Back Office`
+- `Login`
+- shared app shell
+- mobile rails
+- detail/list/workspace templates
+
+允许存在的差异：
+
+- 信息密度不同
+- 导航结构不同
+- 工作优先级和模块顺序不同
+
+不允许存在的差异：
+
+- 第二套视觉品牌
+- 第二套路由级页面模板
+- 第二套按钮 / 卡片 / 表格 / 表单语言
+- 第二套 class 命名体系长期并行存在
+
+执行要求：
+
+- `@acre/ui` + `office-*` 是唯一 canonical UI foundation
+- `Front Office` 只能作为同一系统里的前台工作区，不是另一套产品视觉
+- 发现 live 页面仍依赖 `bm-*` 或其他 page-local 视觉体系时，应视为迁移债务并逐步收敛
+- 新功能禁止继续扩张第二套设计语言
+
 ## 目标
 
 `Office / Back Office` 现在使用统一的视觉系统，目标是贴近 `BoldTrail / Brokermint` 的后台产品气质：
@@ -117,7 +150,7 @@
 
 Office 路由级 canonical 组合层：
 
-- [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
 
 使用原则：
 
@@ -198,7 +231,7 @@ Office 路由级 canonical 组合层：
 
 - transactions 的 `PageHeader + SummaryChip + list card + filter bar + dense table + footer` 是 peer list pages 的直接参考，不要再为 contacts / agents / reports / accounting / settings 各自发明另一套 page composition
 - `OfficeListPage` 是 transactions 提炼出来的 canonical page shell；当 contacts 之类的 peer list page 需要页头 + summary + table card 时，优先直接复用这个组合层，而不是每页重新手写 `PageShell + PageHeader + ListPageTableSection`
-- transactions 和 contacts 现在共用 [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx) 作为 canonical route-level list template；后续 peer list page 应优先向这套 header/workbench/table/footer 骨架靠拢
+- transactions 和 contacts 现在共用 [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx) 作为 canonical route-level list template；后续 peer list page 应优先向这套 header/workbench/table/footer 骨架靠拢
 - 现在优先使用 `ListPageTableSection` 把 `filters -> table/list -> footer` 固定成一套顺序，避免每页各自排列 inventory section
 - 当一个页面需要多个 peer list modules 时，优先使用 `ListPageStack` 和 `ListPageSplit` 组织主列表与次级列表/明细区，而不是重新回到 `dashboard` 式 page-local grid
 - 对于 settings / accounting / agent detail 里的“小型运营清单”，优先使用 `office-queue-list + QueueItem`，不要继续使用带大左侧标签栏的旧 `office-note-item`
