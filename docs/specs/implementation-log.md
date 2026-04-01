@@ -8,6 +8,11 @@
 
 ## Recently completed major work
 
+- 2026-04-01: `Chat List / phone strategy` is now embedded inside the FO client dossier instead of living as a future-only note:
+  - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now builds a stage-aware playbook alongside the dossier snapshot, including intro scripts, call checklists, qualification / showing / BO-ready prompts, objection handling, and copy-ready message templates derived from the current client context
+  - added [apps/web/app/agent/clients/[clientId]/front-office-client-chat-list-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/front-office-client-chat-list-client.tsx) so agents can copy intro scripts and message templates directly from the live dossier while calling, texting, or emailing the client
+  - [apps/web/app/agent/clients/[clientId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/page.tsx) now renders that playbook as its own `Chat List & phone strategy` section, keeping the scripts in the same execution context as appointments, follow-ups, and BO handoff state
+  - [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now includes the canonical FO playbook cards/template styles needed for this stage-aware outreach surface
 - 2026-04-01: the first real `Front Office` execution-to-handoff contract is now live instead of placeholder-only:
   - added new Prisma models and enums in [packages/db/prisma/schema.prisma](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/prisma/schema.prisma) for `Appointment`, `ClientStageHistory`, and `FrontOfficeHandoffDraft`, establishing the first formal FO execution-state layer that does not duplicate `Transaction`
   - [packages/db/src/contacts.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/contacts.ts) now writes initial and changed `ClientStageHistory` rows and synchronizes BO-ready `FrontOfficeHandoffDraft` records whenever a client moves into or out of negotiation / offer / application / contract-style stages

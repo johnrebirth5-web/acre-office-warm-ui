@@ -13742,6 +13742,97 @@ body,
   gap: 8px;
 }
 
+.front-office-playbook-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.front-office-playbook-surface {
+  gap: 12px;
+}
+
+.front-office-playbook-header {
+  display: grid;
+  gap: 8px;
+}
+
+.front-office-playbook-header p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.front-office-playbook-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.front-office-playbook-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(194, 205, 220, 0.68);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.front-office-playbook-card-head {
+  display: grid;
+  gap: 4px;
+}
+
+.front-office-playbook-card-head span,
+.front-office-playbook-template-head span {
+  color: #667c93;
+  font-size: var(--office-text-meta-size);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.front-office-playbook-template-list {
+  display: grid;
+  gap: 12px;
+}
+
+.front-office-playbook-template {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(205, 214, 226, 0.72);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(249, 251, 254, 0.96),
+    rgba(244, 248, 252, 0.9)
+  );
+}
+
+.front-office-playbook-template-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.front-office-playbook-template-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.front-office-playbook-template-body {
+  margin: 0;
+  color: #243447;
+  white-space: pre-wrap;
+  font-family:
+    "Iosevka Aile", "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+    monospace;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
 .front-office-calendar-badges {
   justify-content: flex-end;
   align-items: flex-start;

@@ -79,6 +79,35 @@ export type FrontOfficeClientDetailWorkflowSignal = {
   actionHref: string;
 };
 
+export type FrontOfficeClientDetailPlaybookItem = {
+  id: string;
+  title: string;
+  description: string;
+};
+
+export type FrontOfficeClientDetailPlaybookTemplate = {
+  id: string;
+  label: string;
+  channelLabel: string;
+  body: string;
+};
+
+export type FrontOfficeClientDetailPlaybookObjection = {
+  id: string;
+  objection: string;
+  response: string;
+};
+
+export type FrontOfficeClientDetailPlaybook = {
+  focusLabel: string;
+  focusDescription: string;
+  introScript: string;
+  callChecklist: FrontOfficeClientDetailPlaybookItem[];
+  conversationPrompts: FrontOfficeClientDetailPlaybookItem[];
+  objectionHandling: FrontOfficeClientDetailPlaybookObjection[];
+  messageTemplates: FrontOfficeClientDetailPlaybookTemplate[];
+};
+
 export type FrontOfficeClientDetailSnapshot = {
   id: string;
   fullName: string;
@@ -101,6 +130,7 @@ export type FrontOfficeClientDetailSnapshot = {
     openHandoffCount: number;
   };
   workflow: FrontOfficeClientDetailWorkflowSignal;
+  playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
   appointments: FrontOfficeClientDetailAppointmentItem[];
   followUpTasks: FrontOfficeClientDetailTaskItem[];
@@ -350,6 +380,636 @@ function formatTaskDueLabel(
   }
 
   return `Due ${formatDateLabel(dueAt, timeZone)}`;
+}
+
+function getClientFirstName(fullName: string) {
+  const [firstName] = fullName.trim().split(/\s+/);
+  return firstName?.trim() || "there";
+}
+
+function hasMeaningfulBudgetLabel(label: string) {
+  return label.trim() !== "Budget not captured";
+}
+
+function hasMeaningfulAreasLabel(label: string) {
+  return label.trim() !== "Areas not captured";
+}
+
+function hasMeaningfulIntentLabel(label: string) {
+  return label.trim() !== "Intent not captured";
+}
+
+function buildPlaybookItem(
+  id: string,
+  title: string,
+  description: string,
+): FrontOfficeClientDetailPlaybookItem {
+  return { id, title, description };
+}
+
+function buildPlaybookTemplate(
+  id: string,
+  label: string,
+  channelLabel: string,
+  body: string,
+): FrontOfficeClientDetailPlaybookTemplate {
+  return { id, label, channelLabel, body };
+}
+
+function buildPlaybookObjection(
+  id: string,
+  objection: string,
+  response: string,
+): FrontOfficeClientDetailPlaybookObjection {
+  return { id, objection, response };
+}
+
+function buildFrontOfficePlaybook(input: {
+  fullName: string;
+  ownerLabel: string;
+  stage: string;
+  intentLabel: string;
+  budgetLabel: string;
+  preferredAreasLabel: string;
+  upcomingAppointmentCount: number;
+}): FrontOfficeClientDetailPlaybook {
+  const normalizedStage = input.stage.trim().toLowerCase();
+  const firstName = getClientFirstName(input.fullName);
+  const agentLabel =
+    input.ownerLabel.trim() && input.ownerLabel !== "Unassigned"
+      ? input.ownerLabel
+      : "Acre";
+  const budgetContext = hasMeaningfulBudgetLabel(input.budgetLabel)
+    ? input.budgetLabel
+    : "the right budget";
+  const areaContext = hasMeaningfulAreasLabel(input.preferredAreasLabel)
+    ? input.preferredAreasLabel
+    : "the right neighborhoods";
+  const intentContext = hasMeaningfulIntentLabel(input.intentLabel)
+    ? input.intentLabel
+    : "this move";
+  const appointmentContext = input.upcomingAppointmentCount
+    ? "There is already an appointment on the calendar, so this call should tighten the plan instead of reopening discovery."
+    : "No appointment is booked yet, so the next touch should either narrow the search or book the next showing.";
+
+  if (isFrontOfficeStageReadyForBackOffice(input.stage)) {
+    return {
+      focusLabel: "Offer / application coordination",
+      focusDescription:
+        "Use this conversation to lock the client-facing terms, document readiness, and deadlines before the formal Back Office file does the heavy lifting.",
+      introScript: `Hi ${firstName}, this is ${agentLabel} from Acre. Before we push this fully into the formal Back Office workflow, I want to lock the exact terms, timeline, and supporting documents so nothing slows us down.`,
+      callChecklist: [
+        buildPlaybookItem(
+          "confirm-property",
+          "Confirm the exact property and target terms",
+          "Repeat the address or listing, confirm the target price or rent range, and make sure both sides are talking about the same unit and timing.",
+        ),
+        buildPlaybookItem(
+          "confirm-documents",
+          "Check document readiness",
+          "Confirm IDs, proof of funds, pre-approval, landlord package items, or any supporting paperwork that must be in hand today.",
+        ),
+        buildPlaybookItem(
+          "confirm-decision-makers",
+          "Lock the sign-off path",
+          "Ask who needs to review or sign, and when each decision-maker will be available so the BO handoff is not blocked by missing approvals.",
+        ),
+      ],
+      conversationPrompts: [
+        buildPlaybookItem(
+          "terms-flexibility",
+          "Price / term flexibility",
+          "Ask where the client has room to move on price, closing, contingencies, lease length, or concessions.",
+        ),
+        buildPlaybookItem(
+          "deadline-risk",
+          "Deadline pressure",
+          "Clarify what happens if a response or signature slips, and which deadlines are truly hard stops.",
+        ),
+        buildPlaybookItem(
+          "bo-handoff-brief",
+          "BO handoff brief",
+          "Summarize what the Back Office team needs to know on day one: timeline, terms, blockers, and any personality or communication preferences.",
+        ),
+      ],
+      objectionHandling: [
+        buildPlaybookObjection(
+          "wait-before-submit",
+          "I want to wait a little longer before we submit.",
+          "Acknowledge the hesitation, then clarify what new information would materially change the decision so the team can either get that answer fast or agree on a deadline to decide.",
+        ),
+        buildPlaybookObjection(
+          "nervous-about-paperwork",
+          "The paperwork feels overwhelming.",
+          "Break the process into the next two concrete actions only, tell them which documents matter first, and explain that the BO file will keep the formal checklist organized once this handoff is opened.",
+        ),
+      ],
+      messageTemplates: [
+        buildPlaybookTemplate(
+          "docs-request-email",
+          "Document request",
+          "Email",
+          `Subject: Next items for ${intentContext}\n\nHi ${firstName},\n\nTo keep this moving, please send the remaining documents for ${intentContext}. Right now I want to confirm the target terms, your availability to sign, and anything still outstanding on the paperwork side.\n\nOnce those items are in, I will push the formal file forward and keep you updated on the next deadline.\n\nThanks,\n${agentLabel}`,
+        ),
+        buildPlaybookTemplate(
+          "offer-recap-text",
+          "Offer / application recap",
+          "Text",
+          `Hi ${firstName}, quick recap from our call: we are aligned on the target terms, the remaining documents, and the timing to move this into the formal process. Send anything outstanding when you can, and I will keep the next steps tight from there.\n\n- ${agentLabel}`,
+        ),
+      ],
+    };
+  }
+
+  if (
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("scheduled")
+  ) {
+    return {
+      focusLabel: "Showing confirmation",
+      focusDescription:
+        "Confirm logistics and decision criteria before the tour, so the showing is about decision-making instead of basic coordination.",
+      introScript: `Hi ${firstName}, this is ${agentLabel}. I am confirming the showing details and want to make sure we focus on the right features while you are there so the appointment gives us a real next step.`,
+      callChecklist: [
+        buildPlaybookItem(
+          "confirm-logistics",
+          "Confirm time, address, and access",
+          "Repeat the appointment window, exact location, access instructions, and any building entry notes so nobody arrives uncertain.",
+        ),
+        buildPlaybookItem(
+          "confirm-attendees",
+          "Confirm who is attending",
+          "Ask who will join the showing and whether any decision-maker still needs a separate walkthrough or recap afterward.",
+        ),
+        buildPlaybookItem(
+          "confirm-day-of-plan",
+          "Set the day-of communication plan",
+          "Confirm the best number for day-of updates, parking or transit questions, and what to do if timing shifts.",
+        ),
+      ],
+      conversationPrompts: [
+        buildPlaybookItem(
+          "must-see-features",
+          "Top 3 must-see features",
+          "Ask what absolutely needs to feel right during the showing so you can steer the walkthrough around those priorities.",
+        ),
+        buildPlaybookItem(
+          "deal-breakers",
+          "Immediate pass triggers",
+          "Ask what would make them rule the listing out on the spot so you can qualify the fit faster.",
+        ),
+        buildPlaybookItem(
+          "backup-plan",
+          "Backup options",
+          "Confirm whether they want one or two fallback listings lined up if this showing misses.",
+        ),
+      ],
+      objectionHandling: [
+        buildPlaybookObjection(
+          "need-reschedule",
+          "I may need to reschedule.",
+          "Confirm whether timing or motivation changed. If the interest is still real, move the appointment before ending the call so the momentum stays intact.",
+        ),
+        buildPlaybookObjection(
+          "want-more-options-first",
+          "Can you just send a few more options first?",
+          "Agree to send backups, but keep the current showing unless there is a real mismatch. The appointment gives cleaner feedback than another round of blind browsing.",
+        ),
+      ],
+      messageTemplates: [
+        buildPlaybookTemplate(
+          "showing-confirmation-text",
+          "Showing confirmation",
+          "Text",
+          `Hi ${firstName}, confirming our showing. I will send the final address and access notes before we meet. If anything changes on timing, text me here so I can adjust quickly.\n\n- ${agentLabel}`,
+        ),
+        buildPlaybookTemplate(
+          "day-of-reminder-text",
+          "Day-of reminder",
+          "Text",
+          `Hi ${firstName}, quick reminder for today's showing. I have the timing and access notes ready, and I will keep the walkthrough focused on the features that matter most to you.\n\n- ${agentLabel}`,
+        ),
+      ],
+    };
+  }
+
+  if (
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("completed")
+  ) {
+    return {
+      focusLabel: "Feedback capture",
+      focusDescription:
+        "Memory is freshest right after the visit. Use this call to separate polite reactions from real intent and decide whether the next move is a second showing, shortlist, or BO-ready handoff.",
+      introScript: `Hi ${firstName}, thanks again for seeing the property. I want to grab your reaction while it is still fresh so I can either narrow the shortlist or move quickly on the next step.`,
+      callChecklist: [
+        buildPlaybookItem(
+          "likes-dislikes",
+          "Capture what matched and what missed",
+          "Ask for one thing they liked, one thing that felt off, and whether that issue is a deal-breaker or only a trade-off.",
+        ),
+        buildPlaybookItem(
+          "price-readiness",
+          "Test price or rent resistance",
+          "Clarify whether hesitation is about price, condition, layout, timing, or another listing still in the mix.",
+        ),
+        buildPlaybookItem(
+          "next-decision",
+          "Leave the call with a concrete next action",
+          "Do not end with 'let me know.' Set the next showing, recap list, or offer/application prep step before you hang up.",
+        ),
+      ],
+      conversationPrompts: [
+        buildPlaybookItem(
+          "compare-to-shortlist",
+          "Compare against current shortlist",
+          "Ask where this property ranks against everything else they have seen so far and why.",
+        ),
+        buildPlaybookItem(
+          "decision-gap",
+          "Name the gap to decision",
+          "Ask what still needs to be true before they would seriously consider moving forward.",
+        ),
+        buildPlaybookItem(
+          "timing-after-showing",
+          "Lock the follow-up window",
+          "Agree on when they will decide between this listing and the backups so the dossier does not drift after the tour.",
+        ),
+      ],
+      objectionHandling: [
+        buildPlaybookObjection(
+          "need-to-think",
+          "We need to think about it.",
+          "Acknowledge that, then ask what exactly needs review and when they will know. Convert a vague pause into a specific follow-up date or decision milestone.",
+        ),
+        buildPlaybookObjection(
+          "price-too-high",
+          "It feels too expensive.",
+          "Ask whether the issue is the absolute price, the value compared with alternatives, or the monthly payment. That tells you whether to negotiate, replace, or nurture.",
+        ),
+      ],
+      messageTemplates: [
+        buildPlaybookTemplate(
+          "feedback-follow-up-text",
+          "Feedback follow-up",
+          "Text",
+          `Hi ${firstName}, thanks again for the showing today. Send me the top one or two things that felt strongest and the biggest hesitation, and I will line up the smartest next step from there.\n\n- ${agentLabel}`,
+        ),
+        buildPlaybookTemplate(
+          "shortlist-recap-email",
+          "Shortlist recap",
+          "Email",
+          `Subject: Today's showing recap\n\nHi ${firstName},\n\nThanks again for taking the time to tour the property. I want to keep the next move simple: reply with what felt strongest, what felt weakest, and whether you want to compare this against backup options before making a decision.\n\nOnce I have that, I will tighten the shortlist and set the right follow-up.\n\nThanks,\n${agentLabel}`,
+        ),
+      ],
+    };
+  }
+
+  if (normalizedStage.includes("lost")) {
+    return {
+      focusLabel: "Nurture re-entry",
+      focusDescription:
+        "A lost stage should still end with a respectful future touchpoint instead of silence. Keep the relationship warm without pretending the urgency still exists.",
+      introScript: `Hi ${firstName}, this is ${agentLabel}. I know the timing may not be right today, but I wanted to keep a light touchpoint open in case the plan changes and you want to restart quickly.`,
+      callChecklist: [
+        buildPlaybookItem(
+          "why-paused",
+          "Clarify why the search paused",
+          "Capture the real reason the opportunity cooled off so future follow-up can be relevant instead of generic.",
+        ),
+        buildPlaybookItem(
+          "future-window",
+          "Ask for the next realistic window",
+          "Get a month, season, or trigger event you can anchor the next reminder to.",
+        ),
+        buildPlaybookItem(
+          "permission-to-return",
+          "Keep the door open",
+          "Ask how they want to be contacted if something especially relevant appears before the nurture reminder fires.",
+        ),
+      ],
+      conversationPrompts: [
+        buildPlaybookItem(
+          "what-changed",
+          "What changed most?",
+          "Ask whether budget, timeline, financing, family decision-making, or competition changed the plan.",
+        ),
+        buildPlaybookItem(
+          "restart-trigger",
+          "What would bring them back?",
+          "Name the condition that would make them restart: a date, a price point, a neighborhood, or a new approval.",
+        ),
+        buildPlaybookItem(
+          "future-channel",
+          "Best future contact channel",
+          "Confirm whether the next nurture touch should be text, email, or phone so the later reminder lands well.",
+        ),
+      ],
+      objectionHandling: [
+        buildPlaybookObjection(
+          "stop-for-now",
+          "We are stopping for now.",
+          "Respect that clearly, then ask for the best future moment to check back so the dossier has a real nurture date instead of a vague open loop.",
+        ),
+        buildPlaybookObjection(
+          "working-with-someone-else",
+          "We are working with someone else now.",
+          "Stay professional and ask whether they want to keep your contact for backup help later. The goal is a clean relationship, not a hard sell.",
+        ),
+      ],
+      messageTemplates: [
+        buildPlaybookTemplate(
+          "soft-check-in-text",
+          "Soft nurture text",
+          "Text",
+          `Hi ${firstName}, just keeping a light touchpoint open in case your plans change. If timing opens back up or you want a quick market read, I am happy to help.\n\n- ${agentLabel}`,
+        ),
+        buildPlaybookTemplate(
+          "future-reopen-email",
+          "Future reopen email",
+          "Email",
+          `Subject: Keeping the door open\n\nHi ${firstName},\n\nI know the timing may not be right right now, so there is no pressure. I just wanted to keep the line open in case your plans change and you want to restart quickly.\n\nIf that happens, send me the latest timing, target budget, and areas you want to revisit, and I will pick it up from there.\n\nBest,\n${agentLabel}`,
+        ),
+      ],
+    };
+  }
+
+  if (normalizedStage.includes("won")) {
+    return {
+      focusLabel: "Post-handoff client update",
+      focusDescription:
+        "Front Office should keep the client calm and informed while the formal record and deadlines now live in Back Office.",
+      introScript: `Hi ${firstName}, this is ${agentLabel}. The formal file is now moving forward, and I want to make sure you know what the next milestone is and how I will keep you posted.`,
+      callChecklist: [
+        buildPlaybookItem(
+          "confirm-milestone",
+          "Name the immediate next milestone",
+          "Tell the client exactly what is happening next, whether that is paperwork, inspection, approval, deposit, or another BO milestone.",
+        ),
+        buildPlaybookItem(
+          "confirm-update-channel",
+          "Confirm update cadence",
+          "Ask how often they want updates and which channel they trust most for process communication.",
+        ),
+        buildPlaybookItem(
+          "capture-anxiety",
+          "Surface hidden concerns",
+          "Invite the client to say what feels uncertain now so the next update can address that directly instead of only repeating status.",
+        ),
+      ],
+      conversationPrompts: [
+        buildPlaybookItem(
+          "what-happens-next",
+          "Explain the process in plain English",
+          "Translate the formal BO step into a client-friendly explanation and confirm they understand what is expected from them.",
+        ),
+        buildPlaybookItem(
+          "decision-timing",
+          "Clarify when they need to act next",
+          "Make sure they know the next date that requires a response, payment, signature, or scheduling choice.",
+        ),
+        buildPlaybookItem(
+          "handoff-boundary",
+          "Explain who handles what",
+          "Reassure them that the formal record is active while you stay aligned on communication, support, and escalation.",
+        ),
+      ],
+      objectionHandling: [
+        buildPlaybookObjection(
+          "dont-understand-next-steps",
+          "I do not really understand what happens now.",
+          "Slow down, explain only the immediate milestone, and tell them what they do not need to worry about yet. The goal is clarity, not a full training session.",
+        ),
+        buildPlaybookObjection(
+          "worried-about-delay",
+          "I am worried this is taking too long.",
+          "Acknowledge the delay, restate the current blocker or milestone, and give the next expected update window so the client is not left guessing.",
+        ),
+      ],
+      messageTemplates: [
+        buildPlaybookTemplate(
+          "milestone-update-text",
+          "Milestone update",
+          "Text",
+          `Hi ${firstName}, quick update: the formal file is moving and I will keep you posted on the next milestone as soon as I have it. If any question comes up in the meantime, send it here and I will keep it aligned.\n\n- ${agentLabel}`,
+        ),
+        buildPlaybookTemplate(
+          "process-welcome-email",
+          "Welcome to process email",
+          "Email",
+          `Subject: What happens next\n\nHi ${firstName},\n\nThe formal process is now underway. I will keep the communication simple: I will tell you what the next milestone is, what you need to do for that step, and when you can expect the following update.\n\nIf anything feels unclear, reply here and I will help translate it into the next action.\n\nThanks,\n${agentLabel}`,
+        ),
+      ],
+    };
+  }
+
+  if (normalizedStage.includes("pending")) {
+    return {
+      focusLabel: "Unblock the file",
+      focusDescription:
+        "Pending should still feel active. Use the call to name the blocker, the owner, and the next date instead of letting the dossier sit quietly.",
+      introScript: `Hi ${firstName}, this is ${agentLabel}. I wanted to check what is still blocking the next step so we can either move it now or set a clear date to revisit it.`,
+      callChecklist: [
+        buildPlaybookItem(
+          "name-blocker",
+          "Name the actual blocker",
+          "Do not accept 'still pending' as the answer. Pin down whether the delay is timing, documentation, another person, or missing inventory.",
+        ),
+        buildPlaybookItem(
+          "assign-owner",
+          "Assign the owner",
+          "Confirm who owns the next move: the client, a decision-maker, the agent, or the BO workflow.",
+        ),
+        buildPlaybookItem(
+          "set-date",
+          "Leave with a real date",
+          "If the blocker cannot be cleared immediately, agree on the next follow-up date before ending the conversation.",
+        ),
+      ],
+      conversationPrompts: [
+        buildPlaybookItem(
+          "what-can-move-now",
+          "What can still move today?",
+          "Even if the main blocker remains, ask whether a document, shortlist, or decision step can still advance now.",
+        ),
+        buildPlaybookItem(
+          "hidden-objection",
+          "Is there an unspoken hesitation?",
+          "Pending often hides uncertainty. Ask what feels unresolved so you do not manage the wrong problem.",
+        ),
+        buildPlaybookItem(
+          "deadline-cost",
+          "What happens if this slips another week?",
+          "This surfaces urgency without sounding pushy and helps the client decide whether the blocker really matters.",
+        ),
+      ],
+      objectionHandling: [
+        buildPlaybookObjection(
+          "waiting-on-someone",
+          "We are waiting on someone else.",
+          "Ask what that person needs in order to respond and whether you can package the ask more clearly. Turn passive waiting into a defined follow-up plan.",
+        ),
+        buildPlaybookObjection(
+          "not-urgent-right-now",
+          "It is not urgent right now.",
+          "Acknowledge that, then ask what date would make it urgent again so the dossier gets a concrete next-touch instead of a vague pause.",
+        ),
+      ],
+      messageTemplates: [
+        buildPlaybookTemplate(
+          "blocker-checkin-text",
+          "Blocker check-in",
+          "Text",
+          `Hi ${firstName}, quick check-in so I can keep this moving cleanly: what is still blocking the next step, and what date should I anchor the follow-up to if it does not clear today?\n\n- ${agentLabel}`,
+        ),
+        buildPlaybookTemplate(
+          "status-check-email",
+          "Status check email",
+          "Email",
+          `Subject: Quick status check\n\nHi ${firstName},\n\nI wanted to keep this from drifting. What is the current blocker, who owns the next move, and what date should we use for the next check-in if it is still unresolved?\n\nOnce I have that, I can keep the follow-up clean instead of guessing.\n\nThanks,\n${agentLabel}`,
+        ),
+      ],
+    };
+  }
+
+  if (
+    normalizedStage.includes("contacted") ||
+    normalizedStage.includes("warm") ||
+    normalizedStage.includes("qualified")
+  ) {
+    return {
+      focusLabel: "Qualification follow-up",
+      focusDescription:
+        "Move the record from general interest into a defined shortlist by tightening intent, budget, area, and timing on this call.",
+      introScript: `Hi ${firstName}, this is ${agentLabel}. I wanted to tighten the search before I send another round of options so everything I send is actually aligned with your timing, budget, and preferred areas.`,
+      callChecklist: [
+        buildPlaybookItem(
+          "restate-brief",
+          "Restate the brief back to them",
+          `Repeat the current working picture for ${intentContext}, ${budgetContext}, and ${areaContext}, then ask what needs to be corrected.`,
+        ),
+        buildPlaybookItem(
+          "narrow-search",
+          "Reduce the search shape",
+          "Try to leave the call with fewer neighborhoods, a firmer budget guardrail, or a clearer property type preference than you had before.",
+        ),
+        buildPlaybookItem(
+          "set-tour-readiness",
+          "Test tour readiness",
+          "Ask what would need to be true for them to book a showing this week instead of staying in passive browsing mode.",
+        ),
+      ],
+      conversationPrompts: [
+        buildPlaybookItem(
+          "must-have-vs-nice-to-have",
+          "Must-have vs. nice-to-have",
+          "Ask which features are true decision filters and which ones are only preferences.",
+        ),
+        buildPlaybookItem(
+          "timing-trigger",
+          "Timing trigger",
+          "Ask what date or life event is driving the move so urgency is grounded in reality.",
+        ),
+        buildPlaybookItem(
+          "decision-circle",
+          "Who else is part of the decision?",
+          "Clarify whether a partner, parent, roommate, or employer still needs to weigh in before a showing or application can happen.",
+        ),
+      ],
+      objectionHandling: [
+        buildPlaybookObjection(
+          "still-browsing",
+          "We are still browsing.",
+          "That is fine, but ask what would make the browsing feel actionable. The goal is to turn vague browsing into criteria you can actually work with.",
+        ),
+        buildPlaybookObjection(
+          "send-more-options",
+          "Can you just send more options first?",
+          "Agree to send more only after you tighten one variable. Otherwise the next batch just creates more noise and no progress.",
+        ),
+      ],
+      messageTemplates: [
+        buildPlaybookTemplate(
+          "shortlist-text",
+          "Shortlist follow-up",
+          "Text",
+          `Hi ${firstName}, I am tightening the shortlist around ${areaContext} and ${budgetContext}. Send me the top feature you care about most right now, and I will make the next batch more precise.\n\n- ${agentLabel}`,
+        ),
+        buildPlaybookTemplate(
+          "qualification-email",
+          "Qualification recap",
+          "Email",
+          `Subject: Tightening the shortlist\n\nHi ${firstName},\n\nBefore I send the next round of options, I want to make sure I am aiming at the right search. Right now I am working from ${intentContext}, ${budgetContext}, and ${areaContext}.\n\nReply with anything that should change, especially around timing, top must-haves, and the neighborhoods that matter most.\n\nThanks,\n${agentLabel}`,
+        ),
+      ],
+    };
+  }
+
+  return {
+    focusLabel: "First call",
+    focusDescription: `Use the first conversation to qualify ${intentContext}, timing, budget, and areas quickly so the next move is intentional instead of generic. ${appointmentContext}`,
+    introScript: `Hi ${firstName}, this is ${agentLabel} from Acre. I wanted to make sure I understand what you are looking for before I send a random batch of options. Do you have two or three minutes to go over timing, budget, and the areas that matter most?`,
+    callChecklist: [
+      buildPlaybookItem(
+        "timing",
+        "Confirm the move timeline",
+        "Ask what is driving the timing and whether they are making a move this month, this season, or only exploring for later.",
+      ),
+      buildPlaybookItem(
+        "budget",
+        "Confirm the working budget",
+        `Use ${budgetContext} as the starting point and tighten whether that number is hard, flexible, or still unknown.`,
+      ),
+      buildPlaybookItem(
+        "areas",
+        "Confirm the priority areas",
+        `Use ${areaContext} as the starting map and reduce it to the neighborhoods they would actually tour first.`,
+      ),
+    ],
+    conversationPrompts: [
+      buildPlaybookItem(
+        "goal",
+        "What problem are they solving?",
+        "Ask why this move matters now. The answer usually reveals the real urgency and filters out nice-to-have conversations.",
+      ),
+      buildPlaybookItem(
+        "readiness",
+        "How ready are they to act?",
+        "Ask what still needs to happen before they would book a showing, apply, or seriously narrow choices.",
+      ),
+      buildPlaybookItem(
+        "decision-makers",
+        "Who else is involved?",
+        "Clarify who will help decide so follow-up can include the right people early instead of stalling later.",
+      ),
+    ],
+    objectionHandling: [
+      buildPlaybookObjection(
+        "just-looking",
+        "We are just looking right now.",
+        "Take the pressure off, then ask what would make the search feel worth taking seriously. That gives you a real threshold for the next touch.",
+      ),
+      buildPlaybookObjection(
+        "too-early-for-call",
+        "Can you just text or email me instead?",
+        "Respect that, but still ask for one key variable now, such as timing or budget, so your next message feels tailored instead of automated.",
+      ),
+    ],
+    messageTemplates: [
+      buildPlaybookTemplate(
+        "intro-text",
+        "Intro text",
+        "Text",
+        `Hi ${firstName}, this is ${agentLabel} from Acre. I am pulling together options around ${areaContext}, and I want to make sure I have the right timing and budget before I send them. What is the ideal move timeline for you right now?`,
+      ),
+      buildPlaybookTemplate(
+        "first-call-email",
+        "First-call recap",
+        "Email",
+        `Subject: Quick search setup\n\nHi ${firstName},\n\nThanks again. Before I send options, I want to make sure I understand the search correctly. Right now I am working from ${intentContext}, ${budgetContext}, and ${areaContext}.\n\nReply with the timing that matters most and anything I should adjust before I build the shortlist.\n\nThanks,\n${agentLabel}`,
+      ),
+    ],
+  };
 }
 
 function mapHandoffTone(
@@ -767,6 +1427,17 @@ export async function getFrontOfficeClientDetail(
       draft.status === FrontOfficeHandoffStatus.draft ||
       draft.status === FrontOfficeHandoffStatus.ready,
   ).length;
+  const ownerLabel =
+    `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
+    client.ownerMembership?.user.email ||
+    "Unassigned";
+  const budgetLabel = formatBudgetRange(
+    client.budgetMin ? Number(client.budgetMin) : null,
+    client.budgetMax ? Number(client.budgetMax) : null,
+  );
+  const preferredAreasLabel = client.preferredAreas.length
+    ? client.preferredAreas.join(", ")
+    : "Areas not captured";
 
   return {
     id: client.id,
@@ -777,18 +1448,10 @@ export async function getFrontOfficeClientDetail(
     stageTone: mapClientStageTone(client.stage),
     sourceLabel: client.source?.trim() || "Source not captured",
     intentLabel: client.intent?.trim() || "Intent not captured",
-    budgetLabel: formatBudgetRange(
-      client.budgetMin ? Number(client.budgetMin) : null,
-      client.budgetMax ? Number(client.budgetMax) : null,
-    ),
-    preferredAreasLabel: client.preferredAreas.length
-      ? client.preferredAreas.join(", ")
-      : "Areas not captured",
+    budgetLabel,
+    preferredAreasLabel,
     notesLabel: client.notes?.trim() || "No internal notes yet",
-    ownerLabel:
-      `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
-      client.ownerMembership?.user.email ||
-      "Unassigned",
+    ownerLabel,
     lastTouchLabel: client.lastContactAt
       ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
       : "No contact logged yet",
@@ -814,6 +1477,15 @@ export async function getFrontOfficeClientDetail(
       linkedTransactionHref,
       timeZone: input.timeZone,
       now,
+    }),
+    playbook: buildFrontOfficePlaybook({
+      fullName: client.fullName,
+      ownerLabel,
+      stage: client.stage,
+      intentLabel: client.intent?.trim() || "Intent not captured",
+      budgetLabel,
+      preferredAreasLabel,
+      upcomingAppointmentCount,
     }),
     stageHistory: client.stageHistory.map((entry) => {
       const actorLabel =

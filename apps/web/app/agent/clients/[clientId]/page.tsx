@@ -12,6 +12,7 @@ import {
 import { notFound, redirect } from "next/navigation";
 import { FrontOfficeLink } from "../../_components/front-office-link";
 import { FrontOfficePageTemplate } from "../../_components/front-office-page-template";
+import { FrontOfficeClientChatListClient } from "./front-office-client-chat-list-client";
 import { FrontOfficeClientDossierClient } from "./front-office-client-dossier-client";
 import {
   getSessionAccess,
@@ -198,6 +199,14 @@ export default async function AgentClientDetailPage(
             </div>
 
             <FrontOfficeClientDossierClient snapshot={snapshot} />
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
+            title="Chat List & phone strategy"
+          >
+            <FrontOfficeClientChatListClient snapshot={snapshot} />
           </SectionCard>
         </>
       }
