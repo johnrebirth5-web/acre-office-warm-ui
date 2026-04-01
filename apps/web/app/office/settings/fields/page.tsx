@@ -1,8 +1,9 @@
 import { canManageOfficeFields, canViewOfficeFields } from "@acre/auth";
-import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { ListPageStack, SummaryChip } from "@acre/ui";
 import { getOfficeFieldSettingsSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 import { OfficeSettingsFieldsClient } from "./fields-client";
 
@@ -29,10 +30,11 @@ export default async function OfficeSettingsFieldsPage({ searchParams }: OfficeS
   const currentModule = snapshot.currentModule;
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip
               label="Editing"
               tone="accent"
@@ -49,9 +51,8 @@ export default async function OfficeSettingsFieldsPage({ searchParams }: OfficeS
             <SummaryChip label="Visible fields" value={currentModule.summary.visibleFieldCount} />
             <SummaryChip label="Hidden fields" value={currentModule.summary.hiddenFieldCount} />
             <SummaryChip label="Custom fields" value={currentModule.summary.customFieldCount} />
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title="Fields"
       />
 
@@ -59,6 +60,6 @@ export default async function OfficeSettingsFieldsPage({ searchParams }: OfficeS
         <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsFieldsClient canManageFields={canManageFields} snapshot={snapshot} />
       </ListPageStack>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

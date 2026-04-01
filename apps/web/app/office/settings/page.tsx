@@ -5,10 +5,11 @@ import {
   canManageOfficeSettings,
   canManageOfficeSignatureTemplates
 } from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SectionCard, StatCard, SummaryChip } from "@acre/ui";
+import { SectionCard, StatCard, SummaryChip } from "@acre/ui";
 import { getOfficeSettingsSummarySnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeSettingsNav } from "./settings-nav";
 
 export default async function OfficeSettingsPage() {
@@ -24,16 +25,16 @@ export default async function OfficeSettingsPage() {
   });
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Active users" tone="accent" value={snapshot.summary.activeUsersCount} />
             <SummaryChip label="Teams" value={snapshot.summary.teamsCount} />
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title="Settings"
       />
 
@@ -127,6 +128,6 @@ export default async function OfficeSettingsPage() {
           </SectionCard>
         ) : null}
       </section>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

@@ -1,8 +1,9 @@
 import { canManageOfficeSettings, canManageOfficeTeams, canManageOfficeUsers, canViewOfficeAgents, canViewOfficeUsers } from "@acre/auth";
-import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { ListPageStack, SummaryChip } from "@acre/ui";
 import { getOfficeAdminUsersSnapshot, getOfficeAgentsRosterSnapshot, type OfficeUsersWorkspaceSnapshot, type OfficeUsersWorkspaceView } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 import { OfficeSettingsUsersWorkspaceClient } from "./users-workspace-client";
 
@@ -83,10 +84,11 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
   }
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             {snapshot.access ? (
               <>
@@ -104,9 +106,8 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
                 <SummaryChip label="Inactive members" value={snapshot.operations.summary.inactiveMemberCount} />
               </>
             ) : null}
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title="Users"
       />
 
@@ -119,6 +120,6 @@ export default async function OfficeSettingsUsersPage(props: OfficeSettingsUsers
           snapshot={snapshot}
         />
       </ListPageStack>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

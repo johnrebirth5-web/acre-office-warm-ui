@@ -1,8 +1,9 @@
 import { canManageOfficeTeams, canViewOfficeTeams } from "@acre/auth";
-import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { ListPageStack, SummaryChip } from "@acre/ui";
 import { getOfficeAgentsRosterSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 import { getRootTeams, getTotalChildBranchCount, getUnassignedBranchCount } from "./team-directory-shared";
 import { OfficeSettingsTeamsClient } from "./teams-client";
@@ -34,18 +35,18 @@ export default async function OfficeSettingsTeamsPage({ searchParams }: OfficeSe
   const isManageView = resolvedSearchParams.view === "manage";
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Teams" tone="accent" value={rootTeams.length} />
             <SummaryChip label="Junior Teams" value={totalChildBranches} />
             <SummaryChip label="Rostered members" value={snapshot.summary.totalMembers} />
             <SummaryChip label="Needs owner" value={unassignedBranches} />
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title={isManageView ? "Teams · Advanced Manage View" : "Teams"}
       />
 
@@ -57,6 +58,6 @@ export default async function OfficeSettingsTeamsPage({ searchParams }: OfficeSe
           <OfficeSettingsTeamsClient canManageTeams={canManageOfficeTeams(context.currentMembership)} snapshot={snapshot} />
         )}
       </ListPageStack>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

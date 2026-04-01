@@ -1,8 +1,9 @@
 import { canManageOfficeSettings } from "@acre/auth";
 import { getOfficeEmailDeliverySettingsSnapshot } from "@acre/db";
-import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { ListPageStack, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 import { OfficeEmailDeliveryClient } from "./smtp-settings-client";
 
@@ -18,10 +19,11 @@ export default async function OfficeSettingsEmailDeliveryPage() {
   });
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip label="Organization" value={context.currentOrganization.name} />
             <SummaryChip label="Source" tone="accent" value={snapshot.summary.sourceLabel} />
             <SummaryChip
@@ -30,9 +32,8 @@ export default async function OfficeSettingsEmailDeliveryPage() {
               value={snapshot.summary.transportLabel}
             />
             <SummaryChip label="Status" value={snapshot.summary.statusLabel} />
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title="Email delivery"
       />
 
@@ -40,6 +41,6 @@ export default async function OfficeSettingsEmailDeliveryPage() {
         <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeEmailDeliveryClient canManageSettings={canManageOfficeSettings(context.currentMembership)} snapshot={snapshot} />
       </ListPageStack>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

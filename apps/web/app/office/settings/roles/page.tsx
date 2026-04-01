@@ -1,8 +1,9 @@
 import { canManageOfficeSettings } from "@acre/auth";
 import { getOrganizationRoleTemplatesSnapshot } from "@acre/db";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 import { OfficeSettingsRolesClient } from "./roles-client";
 
@@ -17,16 +18,16 @@ export default async function OfficeSettingsRolesPage() {
   const totalMembers = snapshot.roles.reduce((sum, roleTemplate) => sum + roleTemplate.memberCount, 0);
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip label="Organization" value={context.currentOrganization.name} />
             <SummaryChip label="Role templates" tone="accent" value={snapshot.roles.length} />
             <SummaryChip label="Assigned members" value={totalMembers} />
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title="Roles"
       />
 
@@ -34,6 +35,6 @@ export default async function OfficeSettingsRolesPage() {
         <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSettingsRolesClient canManageSettings={canManageOfficeSettings(context.currentMembership)} snapshot={snapshot} />
       </div>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

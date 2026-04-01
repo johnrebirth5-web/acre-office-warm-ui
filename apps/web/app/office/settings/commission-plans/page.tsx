@@ -7,9 +7,10 @@ import {
   canViewOfficeCommissions
 } from "@acre/auth";
 import { getOfficeCommissionManagementSnapshot } from "@acre/db";
-import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { ListPageStack, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { CommissionManagementPanel } from "../../accounting/commission-management-panel";
 import { OfficeSettingsNav } from "../settings-nav";
 
@@ -48,17 +49,17 @@ export default async function OfficeSettingsCommissionPlansPage(props: OfficeSet
   });
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Split templates" tone="accent" value={snapshot.overview.activeSplitTemplatesCount} />
             <SummaryChip label="Member defaults" value={snapshot.overview.membersWithDefaultSplitCount} />
             <SummaryChip label="Calculated rows" value={snapshot.overview.calculatedRowsCount} />
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title="Commission plans"
       />
 
@@ -72,6 +73,6 @@ export default async function OfficeSettingsCommissionPlansPage(props: OfficeSet
           snapshot={snapshot}
         />
       </ListPageStack>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

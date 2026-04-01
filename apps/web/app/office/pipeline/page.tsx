@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { canViewOfficeTransactions } from "@acre/auth";
 import { getOfficePipelineWorkspaceSnapshot } from "@acre/db";
-import { PageHeader, PageHeaderSummary, PageShell, StatusBadge, SummaryChip } from "@acre/ui";
+import { StatusBadge, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 
 type PipelinePageSearchParams = {
   search?: string;
@@ -141,17 +142,17 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
   const currentMonthClosed = snapshot.historyMonths.find((month) => month.isCurrentMonth) ?? snapshot.historyMonths[0] ?? null;
 
   return (
-    <PageShell className="office-list-page office-pipeline-page office-pipeline-v2-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-pipeline-page office-pipeline-v2-page">
+      <OfficeListPageHeader
+        description="A calm workbench for reviewing pending deals, monthly closed activity, and the transactions visible inside your current scope."
+        eyebrow="Pipeline"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Visible metric" tone="accent" value={snapshot.metricModeLabel} />
             <SummaryChip label="Selection" value={snapshot.selection.label} />
-          </PageHeaderSummary>
+          </>
         }
-        description="A calm workbench for reviewing pending deals, monthly closed activity, and the transactions visible inside your current scope."
-        eyebrow="Pipeline"
         title="Pipeline"
       />
 
@@ -378,6 +379,6 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
           </div>
         </section>
       </section>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

@@ -11,9 +11,6 @@ import {
   ListPageSplit,
   ListPageStatsGrid,
   ListPageTableSection,
-  PageHeader,
-  PageHeaderSummary,
-  PageShell,
   SectionCard,
   StatCard,
   SummaryChip
@@ -24,6 +21,7 @@ import {
 } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { PerformanceFiltersClient } from "./performance-filters-client";
 
 type OfficePerformancePageProps = {
@@ -100,10 +98,12 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
   const performanceTableGridStyle = buildPerformanceTableGridStyle(workspace.table.columns.length);
 
   return (
-    <PageShell className="office-list-page office-performance-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-performance-page">
+      <OfficeListPageHeader
+        description="Track agent performance, compare visible contributors across natural month, quarter, and year windows, and review current rankings without leaving the CRM."
+        eyebrow="Performance"
+        summary={
+          <>
             <SummaryChip label="Company" value={workspace.filters.companyLabel} />
             <SummaryChip label="Scope" value={workspace.filters.scopeLabel} />
             <SummaryChip label="View" tone="accent" value={workspace.selectedRangeLabel} />
@@ -112,10 +112,8 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
                 Export CSV
               </Link>
             ) : null}
-          </PageHeaderSummary>
+          </>
         }
-        description="Track agent performance, compare visible contributors across natural month, quarter, and year windows, and review current rankings without leaving the CRM."
-        eyebrow="Performance"
         title="Agent Performance"
       />
 
@@ -247,6 +245,6 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
           ))}
         </ListPageSplit>
       </ListPageSection>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

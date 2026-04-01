@@ -9,9 +9,6 @@ import {
   ListPageSection,
   ListPageStatsGrid,
   ListPageTableSection,
-  PageHeader,
-  PageHeaderSummary,
-  PageShell,
   StatCard,
   StatusBadge,
   SummaryChip
@@ -22,6 +19,7 @@ import {
 } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { ReportsFiltersClient } from "./reports-filters-client";
 import { ReportsTableFooter } from "./reports-table-footer";
 import {
@@ -127,20 +125,20 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
   const exportHref = buildExportHref(searchParams);
 
   return (
-    <PageShell className="office-list-page office-reports-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-reports-list-page">
+      <OfficeListPageHeader
+        description="Unified transaction reporting, summary, and CSV export from the live transaction data source."
+        eyebrow="Reports"
+        summary={
+          <>
             <SummaryChip label="Matching transactions" tone="accent" value={workspace.totalCount} />
             <SummaryChip label="Purchased volume" value={workspace.summary.totalPurchasedPrice} />
             <SummaryChip label="Gross commission" value={workspace.summary.totalGrossCommission} />
             <Link className="office-button-secondary" href={exportHref}>
               Export CSV
             </Link>
-          </PageHeaderSummary>
+          </>
         }
-        description="Unified transaction reporting, summary, and CSV export from the live transaction data source."
-        eyebrow="Reports"
         title="Reports"
       />
 
@@ -242,6 +240,6 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
           </DataTableBody>
         </DataTable>
       </ListPageTableSection>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

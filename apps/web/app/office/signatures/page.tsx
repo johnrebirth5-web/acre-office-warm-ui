@@ -7,9 +7,10 @@ import {
   canViewOfficeSignatures
 } from "@acre/auth";
 import { getOfficeSignaturesWorkspace } from "@acre/db";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeSignaturesClient } from "./signatures-client";
 
 type OfficeSignaturesPageProps = {
@@ -72,10 +73,12 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
   const canManageSignatures = canManageOfficeSignatures(context.currentMembership);
 
   return (
-    <PageShell className="office-list-page office-signatures-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-signatures-page">
+      <OfficeListPageHeader
+        description="Unified envelope tracking, signer visibility, Drive sync state, and template entry points from a single Back Office workspace."
+        eyebrow="Documents"
+        summary={
+          <>
             <SummaryChip label="Requests" tone="accent" value={workspace.summary.totalCount} />
             <SummaryChip label="Pending" value={workspace.summary.pendingCount} />
             <SummaryChip label="Drive failures" value={workspace.summary.failedDriveCount} />
@@ -95,10 +98,8 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
                 Drive settings
               </Link>
             ) : null}
-          </PageHeaderSummary>
+          </>
         }
-        description="Unified envelope tracking, signer visibility, Drive sync state, and template entry points from a single Back Office workspace."
-        eyebrow="Documents"
         title="Signatures"
       />
 
@@ -108,6 +109,6 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
         canManageTemplateLibrary={canManageTemplateLibrary}
         workspace={workspace}
       />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

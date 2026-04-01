@@ -1,8 +1,9 @@
 import { canManageOfficeSettings, canManageOfficeSignatureTemplates } from "@acre/auth";
 import { getOfficeSignatureDriveSettingsSnapshot } from "@acre/db";
-import { ListPageStack, PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { ListPageStack, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { OfficeSettingsNav } from "../settings-nav";
 import { OfficeSignatureDriveSettingsClient } from "./signature-drive-settings-client";
 
@@ -19,16 +20,16 @@ export default async function OfficeSettingsSignatureDrivePage() {
   });
 
   return (
-    <PageShell className="office-list-page office-settings-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-settings-list-page">
+      <OfficeListPageHeader
+        eyebrow="Office admin"
+        summary={
+          <>
             <SummaryChip label="Organization" value={context.currentOrganization.name} />
             <SummaryChip label="Status" tone={snapshot.summary.statusTone === "success" ? "accent" : "default"} value={snapshot.summary.statusLabel} />
             <SummaryChip label="Folder targets" tone="accent" value={snapshot.summary.configuredFolderCount} />
-          </PageHeaderSummary>
+          </>
         }
-        eyebrow="Office admin"
         title="Signature Drive"
       />
 
@@ -36,6 +37,6 @@ export default async function OfficeSettingsSignatureDrivePage() {
         <OfficeSettingsNav currentAccess={context.currentMembership} />
         <OfficeSignatureDriveSettingsClient canManageSettings={canManage} snapshot={snapshot} />
       </ListPageStack>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

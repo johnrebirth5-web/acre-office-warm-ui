@@ -4,10 +4,11 @@ import {
   canReviewOfficeTasks,
   canSecondaryReviewOfficeTasks
 } from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { listOfficeDocumentApprovalQueue } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeApproveDocsClient } from "./approve-docs-client";
 
 type OfficeApproveDocsPageProps = {
@@ -39,17 +40,17 @@ export default async function OfficeApproveDocsPage(props: OfficeApproveDocsPage
   });
 
   return (
-    <PageShell className="office-list-page office-approve-docs-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-approve-docs-page">
+      <OfficeListPageHeader
+        description="Focused document review workbench for first approval, second approval, rejection follow-up, signature blockers, and missing required files."
+        eyebrow="Approve docs"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Queue" tone="accent" value={snapshot.selectedQueueLabel} />
             <SummaryChip label="Records in view" value={snapshot.itemCount} />
-          </PageHeaderSummary>
+          </>
         }
-        description="Focused document review workbench for first approval, second approval, rejection follow-up, signature blockers, and missing required files."
-        eyebrow="Approve docs"
         title="Approve docs"
       />
 
@@ -60,6 +61,6 @@ export default async function OfficeApproveDocsPage(props: OfficeApproveDocsPage
         currentMembershipId={context.currentMembership.id}
         snapshot={snapshot}
       />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

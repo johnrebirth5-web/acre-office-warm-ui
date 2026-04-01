@@ -1,8 +1,9 @@
 import { canManageOfficeLibrary, canViewOfficeLibrary } from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { getOfficeLibrarySnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeLibraryClient } from "./office-library-client";
 
 type OfficeLibraryPageProps = {
@@ -36,17 +37,17 @@ export default async function OfficeLibraryPage(props: OfficeLibraryPageProps) {
   });
 
   return (
-    <PageShell className="office-list-page office-library-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-library-page">
+      <OfficeListPageHeader
+        description="Internal company library for manuals, onboarding packets, legal PDFs, financial references, and office playbooks. PDF preview is inline when practical; all files remain downloadable."
+        eyebrow="Company library"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Active files" tone="accent" value={snapshot.summary.totalDocuments} />
             <SummaryChip label="Folders" value={snapshot.summary.totalFolders} />
-          </PageHeaderSummary>
+          </>
         }
-        description="Internal company library for manuals, onboarding packets, legal PDFs, financial references, and office playbooks. PDF preview is inline when practical; all files remain downloadable."
-        eyebrow="Company library"
         title="Company library"
       />
 
@@ -54,6 +55,6 @@ export default async function OfficeLibraryPage(props: OfficeLibraryPageProps) {
         canManageLibrary={canManageOfficeLibrary(context.currentMembership)}
         snapshot={snapshot}
       />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

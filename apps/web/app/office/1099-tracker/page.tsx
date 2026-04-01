@@ -1,8 +1,9 @@
 import { canAccessOffice1099Tracker } from "@acre/auth";
 import { getOffice1099TrackerWorkspaceSnapshot } from "@acre/db";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { Office1099TrackerClient } from "./1099-tracker-client";
 
 type Office1099TrackerPageProps = {
@@ -34,24 +35,24 @@ export default async function Office1099TrackerPage(props: Office1099TrackerPage
   });
 
   return (
-    <PageShell className="office-list-page office-1099-tracker-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-1099-tracker-page">
+      <OfficeListPageHeader
+        description="Track actual payments made to agents by tax year, review the internal 1099 summary, and export a backup PDF per agent."
+        eyebrow="Accounting"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Tax year" tone="accent" value={snapshot.filters.taxYear} />
             <SummaryChip
               label={snapshot.tab === "summary" ? "Summary rows" : "Selectable agents"}
               value={snapshot.tab === "summary" ? snapshot.summaryRows.length : snapshot.filters.memberOptions.length}
             />
-          </PageHeaderSummary>
+          </>
         }
-        description="Track actual payments made to agents by tax year, review the internal 1099 summary, and export a backup PDF per agent."
-        eyebrow="Accounting"
         title="1099 Tracker"
       />
 
       <Office1099TrackerClient snapshot={snapshot} />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }
