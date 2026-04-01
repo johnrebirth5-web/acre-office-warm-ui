@@ -2,7 +2,7 @@ import {
   ListingStatus,
   NotificationType,
   Prisma,
-  ResourceType
+  ResourceType,
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
@@ -14,7 +14,12 @@ export type FrontOfficeWorkspaceInput = {
   timeZone?: string | null;
 };
 
-export type FrontOfficeTone = "neutral" | "accent" | "success" | "warning" | "danger";
+export type FrontOfficeTone =
+  | "neutral"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger";
 
 export type FrontOfficeClientRecord = {
   id: string;
@@ -129,7 +134,10 @@ export type FrontOfficeActivitySnapshot = {
 };
 
 const openFollowUpStatuses = ["queued", "in_progress"] as const;
-const activeListingStatuses: ListingStatus[] = [ListingStatus.active, ListingStatus.hot];
+const activeListingStatuses: ListingStatus[] = [
+  ListingStatus.active,
+  ListingStatus.hot,
+];
 
 function formatCurrency(value: Prisma.Decimal | number | null | undefined) {
   const numeric = Number(value ?? 0);
@@ -141,11 +149,14 @@ function formatCurrency(value: Prisma.Decimal | number | null | undefined) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: numeric % 1 === 0 ? 0 : 2
+    maximumFractionDigits: numeric % 1 === 0 ? 0 : 2,
   }).format(numeric);
 }
 
-function formatBudgetRange(min: Prisma.Decimal | number | null | undefined, max: Prisma.Decimal | number | null | undefined) {
+function formatBudgetRange(
+  min: Prisma.Decimal | number | null | undefined,
+  max: Prisma.Decimal | number | null | undefined,
+) {
   const minValue = Number(min ?? 0);
   const maxValue = Number(max ?? 0);
 
@@ -164,7 +175,10 @@ function formatBudgetRange(min: Prisma.Decimal | number | null | undefined, max:
   return "Budget not captured";
 }
 
-function formatDateLabel(value: Date | null | undefined, timeZone?: string | null) {
+function formatDateLabel(
+  value: Date | null | undefined,
+  timeZone?: string | null,
+) {
   if (!value) {
     return "—";
   }
@@ -172,18 +186,30 @@ function formatDateLabel(value: Date | null | undefined, timeZone?: string | nul
   return value.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    timeZone: timeZone ?? undefined
+    timeZone: timeZone ?? undefined,
   });
 }
 
-function formatRelativeDueLabel(value: Date | null | undefined, now: Date, timeZone?: string | null) {
+function formatRelativeDueLabel(
+  value: Date | null | undefined,
+  now: Date,
+  timeZone?: string | null,
+) {
   if (!value) {
     return "No follow-up scheduled";
   }
 
   const dueTime = value.getTime();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  ).getTime();
 
   if (dueTime < startOfToday) {
     return `Overdue since ${formatDateLabel(value, timeZone)}`;
@@ -211,11 +237,20 @@ function mapClientStageTone(stage: string): FrontOfficeTone {
     return "danger";
   }
 
-  if (normalized.includes("negotiation") || normalized.includes("offer") || normalized.includes("application")) {
+  if (
+    normalized.includes("negotiation") ||
+    normalized.includes("offer") ||
+    normalized.includes("application")
+  ) {
     return "warning";
   }
 
-  if (normalized.includes("tour") || normalized.includes("viewing") || normalized.includes("contacted") || normalized.includes("warm")) {
+  if (
+    normalized.includes("tour") ||
+    normalized.includes("viewing") ||
+    normalized.includes("contacted") ||
+    normalized.includes("warm")
+  ) {
     return "accent";
   }
 
@@ -263,7 +298,9 @@ function formatResourceType(type: ResourceType) {
     .join(" ");
 }
 
-function formatEventVisibilityLabel(value: "all_agents" | "office_only" | "invite_only") {
+function formatEventVisibilityLabel(
+  value: "all_agents" | "office_only" | "invite_only",
+) {
   if (value === "all_agents") {
     return "All agents";
   }
@@ -281,117 +318,132 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
   }
 
   return {
-    OR: [{ officeId }, { officeId: null }]
+    OR: [{ officeId }, { officeId: null }],
   };
 }
 
-function buildVisibleEventWhere(input: FrontOfficeWorkspaceInput, startOfToday: Date, sevenDaysFromNow: Date): Prisma.EventWhereInput {
+function buildVisibleEventWhere(
+  input: FrontOfficeWorkspaceInput,
+  startOfToday: Date,
+  sevenDaysFromNow: Date,
+): Prisma.EventWhereInput {
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
 
   return {
     organizationId: input.organizationId,
     startsAt: {
       gte: startOfToday,
-      lte: sevenDaysFromNow
+      lte: sevenDaysFromNow,
     },
     AND: [
       officeScopeFilter ?? {},
       {
         OR: [
           {
-            visibility: "all_agents"
+            visibility: "all_agents",
           },
           ...(input.officeId
             ? [
                 {
                   visibility: "office_only" as const,
-                  officeId: input.officeId
-                }
+                  officeId: input.officeId,
+                },
               ]
             : []),
           {
             visibility: "invite_only",
             rsvps: {
               some: {
-                membershipId: input.viewerMembershipId
-              }
-            }
-          }
-        ]
-      }
-    ]
+                membershipId: input.viewerMembershipId,
+              },
+            },
+          },
+        ],
+      },
+    ],
   };
 }
 
-export async function getFrontOfficeClientsSnapshot(input: FrontOfficeWorkspaceInput): Promise<FrontOfficeClientsSnapshot> {
+export async function getFrontOfficeClientsSnapshot(
+  input: FrontOfficeWorkspaceInput,
+): Promise<FrontOfficeClientsSnapshot> {
   const now = new Date();
-  const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
   const clientWhere: Prisma.ClientWhereInput = {
     organizationId: input.organizationId,
-    ownerMembershipId: input.viewerMembershipId
+    ownerMembershipId: input.viewerMembershipId,
   };
 
-  const [clients, stageGroups, followUpDueCount, overdueTaskCount] = await Promise.all([
-    prisma.client.findMany({
-      where: clientWhere,
-      orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
-      take: 24,
-      select: {
-        id: true,
-        fullName: true,
-        source: true,
-        stage: true,
-        intent: true,
-        budgetMin: true,
-        budgetMax: true,
-        preferredAreas: true,
-        lastContactAt: true,
-        nextFollowUpAt: true
-      }
-    }),
-    prisma.client.groupBy({
-      by: ["stage"],
-      where: clientWhere,
-      _count: {
-        _all: true
-      }
-    }),
-    prisma.client.count({
-      where: {
-        ...clientWhere,
-        nextFollowUpAt: {
-          lt: startOfTomorrow
-        }
-      }
-    }),
-    prisma.followUpTask.count({
-      where: {
-        organizationId: input.organizationId,
-        assigneeMemberId: input.viewerMembershipId,
-        status: {
-          in: [...openFollowUpStatuses]
+  const [clients, stageGroups, followUpDueCount, overdueTaskCount] =
+    await Promise.all([
+      prisma.client.findMany({
+        where: clientWhere,
+        orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
+        take: 24,
+        select: {
+          id: true,
+          fullName: true,
+          source: true,
+          stage: true,
+          intent: true,
+          budgetMin: true,
+          budgetMax: true,
+          preferredAreas: true,
+          lastContactAt: true,
+          nextFollowUpAt: true,
         },
-        dueAt: {
-          lt: now
-        }
-      }
-    })
-  ]);
+      }),
+      prisma.client.groupBy({
+        by: ["stage"],
+        where: clientWhere,
+        _count: {
+          _all: true,
+        },
+      }),
+      prisma.client.count({
+        where: {
+          ...clientWhere,
+          nextFollowUpAt: {
+            lt: startOfTomorrow,
+          },
+        },
+      }),
+      prisma.followUpTask.count({
+        where: {
+          organizationId: input.organizationId,
+          assigneeMemberId: input.viewerMembershipId,
+          status: {
+            in: [...openFollowUpStatuses],
+          },
+          dueAt: {
+            lt: now,
+          },
+        },
+      }),
+    ]);
 
   return {
     summary: {
       liveContacts: clients.length,
       activeStages: stageGroups.length,
       followUpDueCount,
-      overdueTaskCount
+      overdueTaskCount,
     },
     stageMetrics: stageGroups
-      .sort((left, right) => right._count._all - left._count._all || left.stage.localeCompare(right.stage))
+      .sort(
+        (left, right) =>
+          right._count._all - left._count._all ||
+          left.stage.localeCompare(right.stage),
+      )
       .slice(0, 6)
       .map((group) => ({
         label: group.stage,
         count: group._count._all,
-        tone: mapClientStageTone(group.stage)
+        tone: mapClientStageTone(group.stage),
       })),
     clients: clients.map((client) => ({
       id: client.id,
@@ -400,68 +452,79 @@ export async function getFrontOfficeClientsSnapshot(input: FrontOfficeWorkspaceI
       stageTone: mapClientStageTone(client.stage),
       intentLabel: client.intent?.trim() || "Intent not captured",
       budgetLabel: formatBudgetRange(client.budgetMin, client.budgetMax),
-      areasLabel: client.preferredAreas.length ? client.preferredAreas.join(", ") : "Areas not captured",
+      areasLabel: client.preferredAreas.length
+        ? client.preferredAreas.join(", ")
+        : "Areas not captured",
       sourceLabel: client.source?.trim() || "Source not captured",
-      lastTouchLabel: client.lastContactAt ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}` : "No contact logged yet",
-      nextTouchLabel: formatRelativeDueLabel(client.nextFollowUpAt, now, input.timeZone),
-      href: "/agent/clients"
-    }))
+      lastTouchLabel: client.lastContactAt
+        ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
+        : "No contact logged yet",
+      nextTouchLabel: formatRelativeDueLabel(
+        client.nextFollowUpAt,
+        now,
+        input.timeZone,
+      ),
+      href: `/agent/clients/${client.id}`,
+    })),
   };
 }
 
-export async function getFrontOfficeListingsSnapshot(input: FrontOfficeWorkspaceInput): Promise<FrontOfficeListingsSnapshot> {
+export async function getFrontOfficeListingsSnapshot(
+  input: FrontOfficeWorkspaceInput,
+): Promise<FrontOfficeListingsSnapshot> {
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const listingWhere: Prisma.ListingWhereInput = {
     organizationId: input.organizationId,
     status: {
-      in: activeListingStatuses
+      in: activeListingStatuses,
     },
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {})
+    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
-  const [listings, listingCount, publicReadyCount, shareAggregate] = await Promise.all([
-    prisma.listing.findMany({
-      where: listingWhere,
-      orderBy: [{ updatedAt: "desc" }],
-      take: 24,
-      select: {
-        id: true,
-        title: true,
-        neighborhood: true,
-        city: true,
-        price: true,
-        status: true,
-        isPublic: true,
-        aiSummary: true,
-        bedrooms: true,
-        bathrooms: true
-      }
-    }),
-    prisma.listing.count({
-      where: listingWhere
-    }),
-    prisma.listing.count({
-      where: {
-        ...listingWhere,
-        isPublic: true
-      }
-    }),
-    prisma.listingShareLink.aggregate({
-      where: {
-        membershipId: input.viewerMembershipId,
-        listing: {
-          organizationId: input.organizationId,
-          ...(officeScopeFilter ? officeScopeFilter : {})
-        }
-      },
-      _count: {
-        _all: true
-      },
-      _sum: {
-        clickCount: true
-      }
-    })
-  ]);
+  const [listings, listingCount, publicReadyCount, shareAggregate] =
+    await Promise.all([
+      prisma.listing.findMany({
+        where: listingWhere,
+        orderBy: [{ updatedAt: "desc" }],
+        take: 24,
+        select: {
+          id: true,
+          title: true,
+          neighborhood: true,
+          city: true,
+          price: true,
+          status: true,
+          isPublic: true,
+          aiSummary: true,
+          bedrooms: true,
+          bathrooms: true,
+        },
+      }),
+      prisma.listing.count({
+        where: listingWhere,
+      }),
+      prisma.listing.count({
+        where: {
+          ...listingWhere,
+          isPublic: true,
+        },
+      }),
+      prisma.listingShareLink.aggregate({
+        where: {
+          membershipId: input.viewerMembershipId,
+          listing: {
+            organizationId: input.organizationId,
+            ...(officeScopeFilter ? officeScopeFilter : {}),
+          },
+        },
+        _count: {
+          _all: true,
+        },
+        _sum: {
+          clickCount: true,
+        },
+      }),
+    ]);
 
   const listingShareRows =
     listings.length > 0
@@ -470,15 +533,15 @@ export async function getFrontOfficeListingsSnapshot(input: FrontOfficeWorkspace
           where: {
             membershipId: input.viewerMembershipId,
             listingId: {
-              in: listings.map((listing) => listing.id)
-            }
+              in: listings.map((listing) => listing.id),
+            },
           },
           _count: {
-            _all: true
+            _all: true,
           },
           _sum: {
-            clickCount: true
-          }
+            clickCount: true,
+          },
         })
       : [];
 
@@ -487,9 +550,9 @@ export async function getFrontOfficeListingsSnapshot(input: FrontOfficeWorkspace
       row.listingId,
       {
         count: row._count._all,
-        clicks: row._sum.clickCount ?? 0
-      }
-    ])
+        clicks: row._sum.clickCount ?? 0,
+      },
+    ]),
   );
 
   return {
@@ -497,88 +560,98 @@ export async function getFrontOfficeListingsSnapshot(input: FrontOfficeWorkspace
       listingCount,
       publicReadyCount,
       trackedClicks: shareAggregate._sum.clickCount ?? 0,
-      trackedLinks: shareAggregate._count._all
+      trackedLinks: shareAggregate._count._all,
     },
     listings: listings.map((listing) => {
       const shareMetrics = listingShareMap.get(listing.id);
       const bedroomLabel = listing.bedrooms ? `${listing.bedrooms} bd` : null;
-      const bathroomLabel = listing.bathrooms ? `${Number(listing.bathrooms)} ba` : null;
-      const layoutLabel = [bedroomLabel, bathroomLabel].filter(Boolean).join(" · ");
+      const bathroomLabel = listing.bathrooms
+        ? `${Number(listing.bathrooms)} ba`
+        : null;
+      const layoutLabel = [bedroomLabel, bathroomLabel]
+        .filter(Boolean)
+        .join(" · ");
 
       return {
         id: listing.id,
         title: listing.title,
         areaLabel: `${listing.neighborhood}, ${listing.city}`,
-        summaryLabel: listing.aiSummary?.trim() || layoutLabel || "Send-ready listing in the current office scope.",
+        summaryLabel:
+          listing.aiSummary?.trim() ||
+          layoutLabel ||
+          "Send-ready listing in the current office scope.",
         priceLabel: formatCurrency(listing.price),
         cityLabel: listing.city,
         statusLabel: formatListingStatus(listing.status),
         statusTone: mapListingStatusTone(listing.status),
         trackedClickCount: shareMetrics?.clicks ?? 0,
-        trackedLinkCount: shareMetrics?.count ?? 0
+        trackedLinkCount: shareMetrics?.count ?? 0,
       };
-    })
+    }),
   };
 }
 
-export async function getFrontOfficeResourcesSnapshot(input: FrontOfficeWorkspaceInput): Promise<FrontOfficeResourcesSnapshot> {
+export async function getFrontOfficeResourcesSnapshot(
+  input: FrontOfficeWorkspaceInput,
+): Promise<FrontOfficeResourcesSnapshot> {
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const resourceWhere: Prisma.ResourceWhereInput = {
     organizationId: input.organizationId,
     isPublished: true,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {})
+    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
   const vendorWhere: Prisma.VendorWhereInput = {
     organizationId: input.organizationId,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {})
+    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
-  const [resources, vendors, resourceCount, vendorCount, resourceTypes] = await Promise.all([
-    prisma.resource.findMany({
-      where: resourceWhere,
-      orderBy: [{ updatedAt: "desc" }],
-      take: 24,
-      select: {
-        id: true,
-        title: true,
-        summary: true,
-        type: true,
-        tags: true,
-        url: true
-      }
-    }),
-    prisma.vendor.findMany({
-      where: vendorWhere,
-      orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
-      take: 24,
-      select: {
-        id: true,
-        category: true,
-        name: true,
-        headline: true,
-        phone: true,
-        email: true,
-        website: true,
-        neighborhoods: true
-      }
-    }),
-    prisma.resource.count({
-      where: resourceWhere
-    }),
-    prisma.vendor.count({
-      where: vendorWhere
-    }),
-    prisma.resource.groupBy({
-      by: ["type"],
-      where: resourceWhere
-    })
-  ]);
+  const [resources, vendors, resourceCount, vendorCount, resourceTypes] =
+    await Promise.all([
+      prisma.resource.findMany({
+        where: resourceWhere,
+        orderBy: [{ updatedAt: "desc" }],
+        take: 24,
+        select: {
+          id: true,
+          title: true,
+          summary: true,
+          type: true,
+          tags: true,
+          url: true,
+        },
+      }),
+      prisma.vendor.findMany({
+        where: vendorWhere,
+        orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
+        take: 24,
+        select: {
+          id: true,
+          category: true,
+          name: true,
+          headline: true,
+          phone: true,
+          email: true,
+          website: true,
+          neighborhoods: true,
+        },
+      }),
+      prisma.resource.count({
+        where: resourceWhere,
+      }),
+      prisma.vendor.count({
+        where: vendorWhere,
+      }),
+      prisma.resource.groupBy({
+        by: ["type"],
+        where: resourceWhere,
+      }),
+    ]);
 
   return {
     summary: {
       resourceCount,
       vendorCount,
-      resourceTypeCount: resourceTypes.length
+      resourceTypeCount: resourceTypes.length,
     },
     resources: resources.map((resource) => ({
       id: resource.id,
@@ -586,33 +659,58 @@ export async function getFrontOfficeResourcesSnapshot(input: FrontOfficeWorkspac
       summary: resource.summary,
       typeLabel: formatResourceType(resource.type),
       tags: resource.tags,
-      href: resource.url
+      href: resource.url,
     })),
     vendors: vendors.map((vendor) => ({
       id: vendor.id,
       name: vendor.name,
       category: vendor.category,
       headline: vendor.headline,
-      neighborhoodsLabel: vendor.neighborhoods.length ? vendor.neighborhoods.join(" · ") : "Office-wide vendor",
-      contactLabel: vendor.phone?.trim() || vendor.website?.trim() || vendor.email?.trim() || "Open vendor profile",
-      href: vendor.website?.trim() || (vendor.phone?.trim() ? `tel:${vendor.phone.trim()}` : vendor.email?.trim() ? `mailto:${vendor.email.trim()}` : null)
-    }))
+      neighborhoodsLabel: vendor.neighborhoods.length
+        ? vendor.neighborhoods.join(" · ")
+        : "Office-wide vendor",
+      contactLabel:
+        vendor.phone?.trim() ||
+        vendor.website?.trim() ||
+        vendor.email?.trim() ||
+        "Open vendor profile",
+      href:
+        vendor.website?.trim() ||
+        (vendor.phone?.trim()
+          ? `tel:${vendor.phone.trim()}`
+          : vendor.email?.trim()
+            ? `mailto:${vendor.email.trim()}`
+            : null),
+    })),
   };
 }
 
-export async function getFrontOfficeActivitySnapshot(input: FrontOfficeWorkspaceInput): Promise<FrontOfficeActivitySnapshot> {
+export async function getFrontOfficeActivitySnapshot(
+  input: FrontOfficeWorkspaceInput,
+): Promise<FrontOfficeActivitySnapshot> {
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const sevenDaysFromNow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const sevenDaysFromNow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 7,
+  );
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const notificationWhere: Prisma.NotificationWhereInput = {
     organizationId: input.organizationId,
     AND: [
       officeScopeFilter ?? {},
       {
-        OR: [{ membershipId: input.viewerMembershipId }, { membershipId: null }]
-      }
-    ]
+        OR: [
+          { membershipId: input.viewerMembershipId },
+          { membershipId: null },
+        ],
+      },
+    ],
   };
 
   const [notifications, unreadNoticeCount, events] = await Promise.all([
@@ -626,14 +724,14 @@ export async function getFrontOfficeActivitySnapshot(input: FrontOfficeWorkspace
         title: true,
         body: true,
         actionUrl: true,
-        readAt: true
-      }
+        readAt: true,
+      },
     }),
     prisma.notification.count({
       where: {
         ...notificationWhere,
-        readAt: null
-      }
+        readAt: null,
+      },
     }),
     prisma.event.findMany({
       where: buildVisibleEventWhere(input, startOfToday, sevenDaysFromNow),
@@ -648,44 +746,51 @@ export async function getFrontOfficeActivitySnapshot(input: FrontOfficeWorkspace
         meetingUrl: true,
         rsvps: {
           where: {
-            membershipId: input.viewerMembershipId
+            membershipId: input.viewerMembershipId,
           },
           select: {
-            status: true
+            status: true,
           },
-          take: 1
+          take: 1,
         },
         _count: {
           select: {
-            rsvps: true
-          }
-        }
-      }
-    })
+            rsvps: true,
+          },
+        },
+      },
+    }),
   ]);
 
   return {
     summary: {
       actionableItemCount: notifications.length,
       upcomingEventCount: events.length,
-      unreadNoticeCount
+      unreadNoticeCount,
     },
     notifications: notifications.map((notification) => ({
       id: notification.id,
       title: notification.title,
       body: notification.body,
       typeLabel: formatNotificationType(notification.type),
-      actionLabel: notification.actionUrl?.trim() ? "Open notice" : formatNotificationType(notification.type),
+      actionLabel: notification.actionUrl?.trim()
+        ? "Open notice"
+        : formatNotificationType(notification.type),
       href: notification.actionUrl?.trim() || "/agent/notifications",
-      isUnread: notification.readAt == null
+      isUnread: notification.readAt == null,
     })),
     events: events.map((event) => ({
       id: event.id,
       title: event.title,
       typeLabel: event.meetingUrl?.trim() ? "Meeting" : "Event",
       visibilityLabel: formatEventVisibilityLabel(event.visibility),
-      locationLabel: event.location?.trim() || event.meetingUrl?.trim() || "Location pending",
-      startsAtLabel: formatDateTimeLabel(event.startsAt, { timeZone: input.timeZone ?? null }),
+      locationLabel:
+        event.location?.trim() ||
+        event.meetingUrl?.trim() ||
+        "Location pending",
+      startsAtLabel: formatDateTimeLabel(event.startsAt, {
+        timeZone: input.timeZone ?? null,
+      }),
       rsvpLabel:
         event.rsvps[0]?.status === "going"
           ? "You RSVP'd going"
@@ -694,7 +799,7 @@ export async function getFrontOfficeActivitySnapshot(input: FrontOfficeWorkspace
             : event.rsvps[0]?.status === "declined"
               ? "You declined"
               : `${event._count.rsvps} RSVP(s)`,
-      href: event.meetingUrl?.trim() || "/agent/notifications"
-    }))
+      href: event.meetingUrl?.trim() || "/agent/notifications",
+    })),
   };
 }

@@ -18,7 +18,19 @@ import {
 } from "../../../lib/auth-session";
 import { FrontOfficeCalendarClient } from "./front-office-calendar-client";
 
-export default async function AgentCalendarPage() {
+type AgentCalendarPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function readSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : undefined;
+  }
+
+  return value;
+}
+
+export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "dashboard:view")) {
@@ -26,18 +38,30 @@ export default async function AgentCalendarPage() {
   }
 
   const access = getSessionAccess(context);
+  const searchParams = (await props.searchParams) ?? {};
   const snapshot = await getFrontOfficeAppointmentsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
   });
+  const requestedClientId = readSearchParamValue(searchParams.clientId)?.trim();
+  const initialClientId = snapshot.clientOptions.some(
+    (option) => option.value === requestedClientId,
+  )
+    ? requestedClientId
+    : undefined;
 
   return (
     <FrontOfficePageTemplate
       description="Schedule showings, consultations, and client meetings inside Front Office, while keeping the next Back Office handoff visible on the same page."
       eyebrow="Calendar"
-      main={<FrontOfficeCalendarClient snapshot={snapshot} />}
+      main={
+        <FrontOfficeCalendarClient
+          initialClientId={initialClientId}
+          snapshot={snapshot}
+        />
+      }
       rail={
         <>
           <SectionCard

@@ -11,6 +11,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
 
 export type FrontOfficeDashboardTone =
   | "neutral"
@@ -774,7 +775,7 @@ export async function getFrontOfficeDashboardSnapshot(
       contextLabel: "Create transaction",
       tone: "warning" as const,
       actionLabel: "Open Back Office create flow",
-      href: `/office/transactions/new`,
+      href: buildFrontOfficeHandoffCreateHref(draft.id),
     })),
     ...signatureTransactions.map((transaction) => ({
       id: `handoff-signature-${transaction.id}`,
@@ -881,7 +882,7 @@ export async function getFrontOfficeDashboardSnapshot(
         lastTouchLabel: client.lastContactAt
           ? `Last contact · ${formatDateLabel(client.lastContactAt)}`
           : "No contact logged yet",
-        href: "/agent/clients",
+        href: `/agent/clients/${client.id}`,
       })),
     },
     commitments: {

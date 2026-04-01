@@ -20,6 +20,7 @@ import {
 import { useRouter } from "next/navigation";
 
 type FrontOfficeCalendarClientProps = {
+  initialClientId?: string;
   snapshot: FrontOfficeAppointmentsSnapshot;
 };
 
@@ -52,11 +53,11 @@ function buildDefaultStartValue() {
     .slice(0, 16);
 }
 
-function buildEmptyFormState(): AppointmentFormState {
+function buildEmptyFormState(initialClientId?: string): AppointmentFormState {
   return {
     title: "",
     type: "showing",
-    clientId: "",
+    clientId: initialClientId ?? "",
     listingId: "",
     startsAt: buildDefaultStartValue(),
     endsAt: "",
@@ -81,7 +82,7 @@ export function FrontOfficeCalendarClient(
 ) {
   const router = useRouter();
   const [formState, setFormState] = useState<AppointmentFormState>(() =>
-    buildEmptyFormState(),
+    buildEmptyFormState(props.initialClientId),
   );
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -135,7 +136,7 @@ export function FrontOfficeCalendarClient(
         message:
           "Appointment scheduled. Your dashboard and calendar will refresh now.",
       });
-      setFormState(buildEmptyFormState());
+      setFormState(buildEmptyFormState(props.initialClientId));
       startTransition(() => {
         router.refresh();
         setIsSaving(false);
@@ -342,7 +343,7 @@ export function FrontOfficeCalendarClient(
               disabled={isBusy}
               onClick={() => {
                 setFeedback(null);
-                setFormState(buildEmptyFormState());
+                setFormState(buildEmptyFormState(props.initialClientId));
               }}
               type="button"
             >

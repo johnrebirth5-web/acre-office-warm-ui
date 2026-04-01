@@ -88,6 +88,7 @@ Current rule:
 - instead, Front Office creates or updates a `FrontOfficeHandoffDraft`
 - dashboard and calendar rails read this explicit draft queue
 - the user still opens Back Office create flow to establish the formal `Transaction`
+- when that BO create flow is opened from a handoff draft, the intake form is now prefilled from the FO client context and the draft is marked `committed` after a successful transaction create
 
 This keeps the handoff visible without pretending formal transaction creation already happened.
 
@@ -98,6 +99,8 @@ This keeps the handoff visible without pretending formal transaction creation al
 - contact create/update also synchronizes `FrontOfficeHandoffDraft`
 - `/agent/dashboard` `Needs Back Office` now reads formal handoff drafts instead of stage-text heuristics
 - `/agent/calendar` now reads and writes real `Appointment` records
+- `/office/transactions/new?handoffId=...` now reads a formal FO handoff draft, pre-fills the current BO intake form, and marks that draft `committed` after the transaction is created
+- `/agent/clients/[clientId]` now acts as the first real FO dossier page by surfacing stage history, appointments, follow-up tasks, and BO handoff state in one place
 - marking an appointment `completed` updates `Client.lastContactAt` so FO CRM freshness reflects real meetings
 
 ## Non-goals in this phase
@@ -109,7 +112,5 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- prefilled Back Office create flow from `FrontOfficeHandoffDraft`
 - richer appointment reminders / notification delivery
-- client dossier page with visible stage-history timeline
 - tracked send records tied to appointments and client stage

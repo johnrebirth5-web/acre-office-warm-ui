@@ -8,6 +8,7 @@ import {
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
 
 export type FrontOfficeAppointmentTone =
   | "neutral"
@@ -482,7 +483,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
       summary:
         draft.summary?.trim() ||
         `${draft.client.fullName} is ready for formal transaction workflow.`,
-      href: "/office/transactions/new",
+      href: buildFrontOfficeHandoffCreateHref(draft.id),
     })),
   };
 }

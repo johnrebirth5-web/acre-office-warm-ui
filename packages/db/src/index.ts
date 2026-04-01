@@ -212,6 +212,16 @@ export {
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
+  getFrontOfficeClientDetail,
+  type FrontOfficeClientDetailAppointmentItem,
+  type FrontOfficeClientDetailHandoffItem,
+  type FrontOfficeClientDetailSnapshot,
+  type FrontOfficeClientDetailStageHistoryItem,
+  type FrontOfficeClientDetailTaskItem,
+  type FrontOfficeClientDetailTone,
+  type FrontOfficeClientDetailTransactionItem,
+} from "./front-office-clients";
+export {
   createFrontOfficeAppointment,
   getFrontOfficeAppointmentsSnapshot,
   updateFrontOfficeAppointmentStatus,
@@ -221,6 +231,12 @@ export {
   type FrontOfficeAppointmentsSnapshot,
   type FrontOfficeAppointmentTone,
 } from "./front-office-appointments";
+export {
+  buildFrontOfficeHandoffCreateHref,
+  commitFrontOfficeHandoffDraft,
+  getFrontOfficeHandoffPrefill,
+  type FrontOfficeHandoffPrefillSnapshot,
+} from "./front-office-contracts";
 export {
   getFrontOfficeActivitySnapshot,
   getFrontOfficeClientsSnapshot,

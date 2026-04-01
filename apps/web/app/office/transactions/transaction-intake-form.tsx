@@ -1,19 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  startTransition,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "@acre/ui";
 import type {
   OfficeTransactionCustomFieldDefinitionRecord,
   OfficeTransactionIntakeSchema,
-  OfficeTransactionOwnerAssignment
+  OfficeTransactionOwnerAssignment,
 } from "@acre/db";
 import {
   buildStructuredFinancePayloadFromDraft,
   createTransactionFinanceCreateDraft,
-  TransactionFinanceCreateFields
+  TransactionFinanceCreateFields,
 } from "./transaction-finance-create-fields";
-import type { TransactionStatusFieldPolicy, TransactionStatusValue } from "./transaction-status-rules";
+import type {
+  TransactionStatusFieldPolicy,
+  TransactionStatusValue,
+} from "./transaction-status-rules";
 
 type TransactionIntakeWorkspaceProps = {
   mode: "create" | "edit";
@@ -31,9 +41,11 @@ type TransactionIntakeWorkspaceProps = {
   modalFooterTitle?: string;
   modalFooterDescription?: string;
   headerActions?: ReactNode;
+  initialOwnerMembershipId?: string;
   initialValues?: Record<string, string>;
   ownerAssignment?: OfficeTransactionOwnerAssignment;
   statusFieldPolicy?: TransactionStatusFieldPolicy;
+  submissionExtras?: Record<string, unknown>;
   afterSubmit?: "refresh" | "go-detail";
   preserveDraftStateOnSchemaChange?: boolean;
   onClose?: () => void;
@@ -54,7 +66,10 @@ type BodyFieldRecord =
 
 const maxVisibleOwnerSuggestions = 20;
 
-function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialValues: Record<string, string> | undefined) {
+function buildInitialFieldValues(
+  schema: OfficeTransactionIntakeSchema,
+  initialValues: Record<string, string> | undefined,
+) {
   const nextValues: Record<string, string> = {};
 
   for (const field of schema.builtInFields) {
@@ -69,13 +84,17 @@ function buildInitialFieldValues(schema: OfficeTransactionIntakeSchema, initialV
 }
 
 function getTransactionStatusInputName(schema: OfficeTransactionIntakeSchema) {
-  return schema.builtInFields.find((field) => field.fieldKey === "transaction_status")?.inputName ?? "";
+  return (
+    schema.builtInFields.find(
+      (field) => field.fieldKey === "transaction_status",
+    )?.inputName ?? ""
+  );
 }
 
 function applyTransactionStatusFieldPolicy(
   schema: OfficeTransactionIntakeSchema,
   fieldValues: Record<string, string>,
-  statusFieldPolicy: TransactionStatusFieldPolicy | undefined
+  statusFieldPolicy: TransactionStatusFieldPolicy | undefined,
 ) {
   if (!statusFieldPolicy?.enforcedValue) {
     return fieldValues;
@@ -89,11 +108,17 @@ function applyTransactionStatusFieldPolicy(
 
   return {
     ...fieldValues,
-    [statusFieldInputName]: statusFieldPolicy.enforcedValue
+    [statusFieldInputName]: statusFieldPolicy.enforcedValue,
   };
 }
 
-function getFieldValueLabel(field: Pick<OfficeTransactionIntakeSchema["builtInFields"][number] | OfficeTransactionCustomFieldDefinitionRecord, "label" | "isRequired">) {
+function getFieldValueLabel(
+  field: Pick<
+    | OfficeTransactionIntakeSchema["builtInFields"][number]
+    | OfficeTransactionCustomFieldDefinitionRecord,
+    "label" | "isRequired"
+  >,
+) {
   return field.isRequired ? `${field.label} *` : field.label;
 }
 
@@ -110,8 +135,35 @@ function buildOwnerSearchScore(label: string, query: string) {
     return directIndex;
   }
 
-  const compactIndex = normalizedLabel.replace(/\s+/g, "").indexOf(normalizedQuery.replace(/\s+/g, ""));
+  const compactIndex = normalizedLabel
+    .replace(/\s+/g, "")
+    .indexOf(normalizedQuery.replace(/\s+/g, ""));
   return compactIndex >= 0 ? compactIndex + 100 : -1;
+}
+
+function resolveInitialOwnerOption(
+  ownerAssignment: OfficeTransactionOwnerAssignment | undefined,
+  mode: "create" | "edit",
+  initialOwnerMembershipId: string | undefined,
+) {
+  if (!ownerAssignment) {
+    return null;
+  }
+
+  const requestedOwnerMembershipId =
+    mode === "create" && ownerAssignment.canSelectDifferentOwner
+      ? initialOwnerMembershipId?.trim() || ""
+      : ownerAssignment.currentOwnerMembershipId;
+
+  if (!requestedOwnerMembershipId) {
+    return null;
+  }
+
+  return (
+    ownerAssignment.options.find(
+      (option) => option.id === requestedOwnerMembershipId,
+    ) ?? null
+  );
 }
 
 export function TransactionIntakeWorkspace({
@@ -130,53 +182,100 @@ export function TransactionIntakeWorkspace({
   modalFooterTitle,
   modalFooterDescription,
   headerActions,
+  initialOwnerMembershipId,
   initialValues,
   ownerAssignment,
   statusFieldPolicy,
+  submissionExtras,
   afterSubmit = "refresh",
   preserveDraftStateOnSchemaChange = false,
   onClose,
-  onSubmitted
+  onSubmitted,
 }: TransactionIntakeWorkspaceProps) {
   const router = useRouter();
+  const initialOwnerOption = resolveInitialOwnerOption(
+    ownerAssignment,
+    mode,
+    initialOwnerMembershipId,
+  );
   const [localSchema, setLocalSchema] = useState(schema);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() =>
-    applyTransactionStatusFieldPolicy(schema, buildInitialFieldValues(schema, initialValues), statusFieldPolicy)
+    applyTransactionStatusFieldPolicy(
+      schema,
+      buildInitialFieldValues(schema, initialValues),
+      statusFieldPolicy,
+    ),
   );
-  const [ownerSearchValue, setOwnerSearchValue] = useState("");
-  const [selectedOwnerMembershipId, setSelectedOwnerMembershipId] = useState("");
+  const [ownerSearchValue, setOwnerSearchValue] = useState(() =>
+    mode === "create" && ownerAssignment?.canSelectDifferentOwner
+      ? (initialOwnerOption?.label ?? "")
+      : (ownerAssignment?.currentOwnerLabel ?? ""),
+  );
+  const [selectedOwnerMembershipId, setSelectedOwnerMembershipId] = useState(
+    () =>
+      mode === "create" && ownerAssignment?.canSelectDifferentOwner
+        ? (initialOwnerOption?.id ?? "")
+        : (ownerAssignment?.currentOwnerMembershipId ?? ""),
+  );
   const [ownerSuggestionsOpen, setOwnerSuggestionsOpen] = useState(false);
-  const [financeDraft, setFinanceDraft] = useState(() => createTransactionFinanceCreateDraft());
+  const [financeDraft, setFinanceDraft] = useState(() =>
+    createTransactionFinanceCreateDraft(),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const ownerFieldInputName = useMemo(
-    () => localSchema.customFields.find((field) => field.fieldKey === "agentName")?.inputName ?? "",
-    [localSchema.customFields]
+    () =>
+      localSchema.customFields.find((field) => field.fieldKey === "agentName")
+        ?.inputName ?? "",
+    [localSchema.customFields],
   );
-  const canSearchOwners = mode === "create" && ownerAssignment?.canSelectDifferentOwner;
+  const canSearchOwners =
+    mode === "create" && ownerAssignment?.canSelectDifferentOwner;
   const ownerHelperText = canSearchOwners
     ? "Search and select the transaction owner before saving."
     : "This transaction will be assigned to your account.";
-  const pristineFinanceDraft = useMemo(() => createTransactionFinanceCreateDraft(), []);
+  const pristineFinanceDraft = useMemo(
+    () => createTransactionFinanceCreateDraft(),
+    [],
+  );
   const pristineFieldValues = useMemo(() => {
     const nextValues = buildInitialFieldValues(localSchema, initialValues);
 
     if (ownerAssignment && ownerFieldInputName) {
       nextValues[ownerFieldInputName] =
-        mode === "create" && ownerAssignment.canSelectDifferentOwner ? "" : ownerAssignment.currentOwnerLabel;
+        mode === "create" && ownerAssignment.canSelectDifferentOwner
+          ? (initialOwnerOption?.label ?? "")
+          : ownerAssignment.currentOwnerLabel;
     }
 
-    return applyTransactionStatusFieldPolicy(localSchema, nextValues, statusFieldPolicy);
-  }, [initialValues, localSchema, mode, ownerAssignment, ownerFieldInputName, statusFieldPolicy]);
+    return applyTransactionStatusFieldPolicy(
+      localSchema,
+      nextValues,
+      statusFieldPolicy,
+    );
+  }, [
+    initialOwnerOption?.label,
+    initialValues,
+    localSchema,
+    mode,
+    ownerAssignment,
+    ownerFieldInputName,
+    statusFieldPolicy,
+  ]);
   const hasUnsavedFieldChanges = Object.keys(pristineFieldValues).some(
-    (fieldName) => (fieldValues[fieldName] ?? "") !== (pristineFieldValues[fieldName] ?? "")
+    (fieldName) =>
+      (fieldValues[fieldName] ?? "") !== (pristineFieldValues[fieldName] ?? ""),
   );
-  const hasUnsavedFinanceChanges = mode === "create" && JSON.stringify(financeDraft) !== JSON.stringify(pristineFinanceDraft);
+  const hasUnsavedFinanceChanges =
+    mode === "create" &&
+    JSON.stringify(financeDraft) !== JSON.stringify(pristineFinanceDraft);
   const hasUnsavedChanges = hasUnsavedFieldChanges || hasUnsavedFinanceChanges;
 
   useEffect(() => {
     setLocalSchema(schema);
-    const nextOwnerFieldInputName = schema.customFields.find((field) => field.fieldKey === "agentName")?.inputName ?? "";
+    const nextOwnerFieldInputName =
+      schema.customFields.find((field) => field.fieldKey === "agentName")
+        ?.inputName ?? "";
     setFieldValues((current) => {
       const nextValues = buildInitialFieldValues(schema, initialValues);
 
@@ -196,36 +295,50 @@ export function TransactionIntakeWorkspace({
 
       if (ownerAssignment && nextOwnerFieldInputName) {
         nextValues[nextOwnerFieldInputName] =
-          preserveDraftStateOnSchemaChange && typeof current[nextOwnerFieldInputName] === "string"
-            ? current[nextOwnerFieldInputName] ?? ""
+          preserveDraftStateOnSchemaChange &&
+          typeof current[nextOwnerFieldInputName] === "string"
+            ? (current[nextOwnerFieldInputName] ?? "")
             : mode === "create" && ownerAssignment.canSelectDifferentOwner
-              ? ""
+              ? (initialOwnerOption?.label ?? "")
               : ownerAssignment.currentOwnerLabel;
       }
 
-      return applyTransactionStatusFieldPolicy(schema, nextValues, statusFieldPolicy);
+      return applyTransactionStatusFieldPolicy(
+        schema,
+        nextValues,
+        statusFieldPolicy,
+      );
     });
     setOwnerSearchValue((current) =>
       preserveDraftStateOnSchemaChange
         ? current
         : mode === "create" && ownerAssignment?.canSelectDifferentOwner
-          ? ""
-          : ownerAssignment?.currentOwnerLabel ?? ""
+          ? (initialOwnerOption?.label ?? "")
+          : (ownerAssignment?.currentOwnerLabel ?? ""),
     );
     setSelectedOwnerMembershipId((current) =>
       preserveDraftStateOnSchemaChange
         ? current
         : mode === "create"
           ? ownerAssignment?.canSelectDifferentOwner
-            ? ""
-            : ownerAssignment?.currentOwnerMembershipId ?? ""
-          : ownerAssignment?.currentOwnerMembershipId ?? ""
+            ? (initialOwnerOption?.id ?? "")
+            : (ownerAssignment?.currentOwnerMembershipId ?? "")
+          : (ownerAssignment?.currentOwnerMembershipId ?? ""),
     );
     setOwnerSuggestionsOpen(false);
     if (mode === "create" && !preserveDraftStateOnSchemaChange) {
       setFinanceDraft(createTransactionFinanceCreateDraft());
     }
-  }, [schema, initialValues, mode, ownerAssignment, preserveDraftStateOnSchemaChange, statusFieldPolicy]);
+  }, [
+    initialOwnerOption?.id,
+    initialOwnerOption?.label,
+    initialValues,
+    mode,
+    ownerAssignment,
+    preserveDraftStateOnSchemaChange,
+    schema,
+    statusFieldPolicy,
+  ]);
 
   const visibleTopFields = [...localSchema.builtInFields]
     .filter((field) => field.section === "top" && field.isVisible)
@@ -236,24 +349,31 @@ export function TransactionIntakeWorkspace({
       .map((field) => ({
         kind: "built-in" as const,
         field,
-        className: field.className
+        className: field.className,
       })),
     ...localSchema.customFields
       .filter((field) => field.isVisible)
       .map((field) => ({
         kind: "custom" as const,
         field,
-        className: ""
-      }))
+        className: "",
+      })),
   ].sort((left, right) => left.field.sortOrder - right.field.sortOrder);
-  const ownerFieldEntry =
-    ownerAssignment
-      ? visibleBodyFields.find((entry) => entry.kind === "custom" && entry.field.fieldKey === "agentName") ?? null
-      : null;
-  const remainingBodyFields = ownerFieldEntry ? visibleBodyFields.filter((entry) => entry !== ownerFieldEntry) : visibleBodyFields;
+  const ownerFieldEntry = ownerAssignment
+    ? (visibleBodyFields.find(
+        (entry) =>
+          entry.kind === "custom" && entry.field.fieldKey === "agentName",
+      ) ?? null)
+    : null;
+  const remainingBodyFields = ownerFieldEntry
+    ? visibleBodyFields.filter((entry) => entry !== ownerFieldEntry)
+    : visibleBodyFields;
   const selectedOwnerOption = useMemo(
-    () => ownerAssignment?.options.find((option) => option.id === selectedOwnerMembershipId) ?? null,
-    [ownerAssignment?.options, selectedOwnerMembershipId]
+    () =>
+      ownerAssignment?.options.find(
+        (option) => option.id === selectedOwnerMembershipId,
+      ) ?? null,
+    [ownerAssignment?.options, selectedOwnerMembershipId],
   );
   const filteredOwnerOptions = useMemo(() => {
     if (!ownerAssignment?.canSelectDifferentOwner) {
@@ -265,21 +385,30 @@ export function TransactionIntakeWorkspace({
     return ownerAssignment.options
       .map((option) => ({
         option,
-        score: buildOwnerSearchScore(option.label, normalizedQuery)
+        score: buildOwnerSearchScore(option.label, normalizedQuery),
       }))
       .filter((entry) => !normalizedQuery || entry.score >= 0)
-      .sort((left, right) => left.score - right.score || left.option.label.localeCompare(right.option.label))
+      .sort(
+        (left, right) =>
+          left.score - right.score ||
+          left.option.label.localeCompare(right.option.label),
+      )
       .slice(0, maxVisibleOwnerSuggestions)
       .map((entry) => entry.option);
   }, [ownerAssignment, ownerSearchValue]);
   const useOfficeCreateModalChrome =
     chrome === "modal" &&
-    Boolean(modalEyebrow || modalDescription || modalFooterTitle || modalFooterDescription);
+    Boolean(
+      modalEyebrow ||
+      modalDescription ||
+      modalFooterTitle ||
+      modalFooterDescription,
+    );
 
   function setFieldValue(fieldName: string, value: string) {
     setFieldValues((current) => ({
       ...current,
-      [fieldName]: value
+      [fieldName]: value,
     }));
   }
 
@@ -293,7 +422,9 @@ export function TransactionIntakeWorkspace({
     }
   }
 
-  function handleOwnerSelect(option: OfficeTransactionOwnerAssignment["options"][number]) {
+  function handleOwnerSelect(
+    option: OfficeTransactionOwnerAssignment["options"][number],
+  ) {
     setOwnerSearchValue(option.label);
     setSelectedOwnerMembershipId(option.id);
     setOwnerSuggestionsOpen(false);
@@ -313,7 +444,10 @@ export function TransactionIntakeWorkspace({
       return;
     }
 
-    if (typeof window !== "undefined" && window.confirm("Discard unsaved transaction changes?")) {
+    if (
+      typeof window !== "undefined" &&
+      window.confirm("Discard unsaved transaction changes?")
+    ) {
       onClose();
     }
   }
@@ -334,7 +468,9 @@ export function TransactionIntakeWorkspace({
             <textarea
               disabled={!canEditValues}
               name={field.inputName}
-              onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+              onChange={(event) =>
+                setFieldValue(field.inputName, event.target.value)
+              }
               rows={4}
               value={fieldValues[field.inputName] ?? ""}
             />
@@ -342,7 +478,9 @@ export function TransactionIntakeWorkspace({
             <input
               disabled={!canEditValues}
               name={field.inputName}
-              onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+              onChange={(event) =>
+                setFieldValue(field.inputName, event.target.value)
+              }
               type={field.control === "date" ? "date" : "text"}
               value={fieldValues[field.inputName] ?? ""}
             />
@@ -352,8 +490,10 @@ export function TransactionIntakeWorkspace({
     }
 
     const field = entry.field;
-    const isAgentOwnerField = field.fieldKey === "agentName" && Boolean(ownerAssignment);
-    const className = `office-modal-field ${entry.className} ${isAgentOwnerField ? "office-modal-field-owner" : ""}`.trim();
+    const isAgentOwnerField =
+      field.fieldKey === "agentName" && Boolean(ownerAssignment);
+    const className =
+      `office-modal-field ${entry.className} ${isAgentOwnerField ? "office-modal-field-owner" : ""}`.trim();
 
     return (
       <label className={className} key={key}>
@@ -379,13 +519,24 @@ export function TransactionIntakeWorkspace({
                   setOwnerSuggestionsOpen(true);
                 }
               }}
-              placeholder={canSearchOwners ? "Search an agent or team lead..." : ownerAssignment?.currentOwnerLabel || "Assigned owner"}
+              placeholder={
+                canSearchOwners
+                  ? "Search an agent or team lead..."
+                  : ownerAssignment?.currentOwnerLabel || "Assigned owner"
+              }
               readOnly={!canSearchOwners}
               type="text"
-              value={canSearchOwners ? ownerSearchValue : ownerAssignment?.currentOwnerLabel ?? ""}
+              value={
+                canSearchOwners
+                  ? ownerSearchValue
+                  : (ownerAssignment?.currentOwnerLabel ?? "")
+              }
             />
             {canSearchOwners && ownerSuggestionsOpen ? (
-              <div className="office-transaction-owner-suggestions" role="listbox">
+              <div
+                className="office-transaction-owner-suggestions"
+                role="listbox"
+              >
                 {filteredOwnerOptions.length ? (
                   filteredOwnerOptions.map((option) => (
                     <button
@@ -402,17 +553,23 @@ export function TransactionIntakeWorkspace({
                     </button>
                   ))
                 ) : (
-                  <div className="office-transaction-owner-empty">No matching sales members.</div>
+                  <div className="office-transaction-owner-empty">
+                    No matching sales members.
+                  </div>
                 )}
               </div>
             ) : null}
-            <small className="office-form-helper office-transaction-owner-helper">{ownerHelperText}</small>
+            <small className="office-form-helper office-transaction-owner-helper">
+              {ownerHelperText}
+            </small>
           </div>
         ) : field.type === "select" ? (
           <select
             disabled={!canEditValues}
             name={field.inputName}
-            onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+            onChange={(event) =>
+              setFieldValue(field.inputName, event.target.value)
+            }
             value={fieldValues[field.inputName] ?? ""}
           >
             <option value="">Select...</option>
@@ -427,7 +584,9 @@ export function TransactionIntakeWorkspace({
             disabled={!canEditValues}
             maxLength={field.type === "text" ? 50 : undefined}
             name={field.inputName}
-            onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+            onChange={(event) =>
+              setFieldValue(field.inputName, event.target.value)
+            }
             type={field.type === "date" ? "date" : "text"}
             value={fieldValues[field.inputName] ?? ""}
           />
@@ -448,23 +607,25 @@ export function TransactionIntakeWorkspace({
     try {
       const payload: Record<string, unknown> = {
         ...fieldValues,
+        ...(submissionExtras ?? {}),
         ...(ownerAssignment && ownerFieldInputName
           ? {
-              [ownerFieldInputName]:
-                canSearchOwners
-                  ? selectedOwnerOption?.label ?? ownerSearchValue.trim()
-                  : ownerAssignment.currentOwnerLabel
+              [ownerFieldInputName]: canSearchOwners
+                ? (selectedOwnerOption?.label ?? ownerSearchValue.trim())
+                : ownerAssignment.currentOwnerLabel,
             }
-          : {})
+          : {}),
       };
 
       if (mode === "create" && ownerAssignment) {
-        const financePayload = buildStructuredFinancePayloadFromDraft(financeDraft);
+        const financePayload =
+          buildStructuredFinancePayloadFromDraft(financeDraft);
         payload.ownerMembershipId = canSearchOwners
           ? selectedOwnerMembershipId
           : ownerAssignment.currentOwnerMembershipId;
         payload.companyReferral = financePayload.companyReferral;
-        payload.companyReferralEmployeeName = financePayload.companyReferralEmployeeName;
+        payload.companyReferralEmployeeName =
+          financePayload.companyReferralEmployeeName;
         payload.grossCommission = financePayload.grossCommission;
         payload.financeNotes = financePayload.financeNotes;
         payload.fees = financePayload.fees;
@@ -473,13 +634,15 @@ export function TransactionIntakeWorkspace({
       const response = await fetch(submitEndpoint, {
         method: submitMethod,
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to save transaction intake.");
       }
 
@@ -500,24 +663,46 @@ export function TransactionIntakeWorkspace({
         const resetValues = buildInitialFieldValues(localSchema, {});
 
         if (ownerAssignment && ownerFieldInputName) {
-          resetValues[ownerFieldInputName] = canSearchOwners ? "" : ownerAssignment.currentOwnerLabel;
+          resetValues[ownerFieldInputName] = canSearchOwners
+            ? (initialOwnerOption?.label ?? "")
+            : ownerAssignment.currentOwnerLabel;
         }
 
-        setFieldValues(applyTransactionStatusFieldPolicy(localSchema, resetValues, statusFieldPolicy));
-        setOwnerSearchValue(canSearchOwners ? "" : ownerAssignment?.currentOwnerLabel ?? "");
-        setSelectedOwnerMembershipId(canSearchOwners ? "" : ownerAssignment?.currentOwnerMembershipId ?? "");
+        setFieldValues(
+          applyTransactionStatusFieldPolicy(
+            localSchema,
+            resetValues,
+            statusFieldPolicy,
+          ),
+        );
+        setOwnerSearchValue(
+          canSearchOwners
+            ? (initialOwnerOption?.label ?? "")
+            : (ownerAssignment?.currentOwnerLabel ?? ""),
+        );
+        setSelectedOwnerMembershipId(
+          canSearchOwners
+            ? (initialOwnerOption?.id ?? "")
+            : (ownerAssignment?.currentOwnerMembershipId ?? ""),
+        );
         setOwnerSuggestionsOpen(false);
         setFinanceDraft(createTransactionFinanceCreateDraft());
       }
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to save transaction intake.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save transaction intake.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className={`office-transaction-intake-shell office-transaction-intake-shell-${chrome}`}>
+    <div
+      className={`office-transaction-intake-shell office-transaction-intake-shell-${chrome}`}
+    >
       {chrome === "modal" ? (
         <header
           className={`office-modal-header office-modal-header-configurable${useOfficeCreateModalChrome ? " office-create-modal-header" : ""}`}
@@ -529,18 +714,30 @@ export function TransactionIntakeWorkspace({
               <span className="office-create-modal-kicker">{modalEyebrow}</span>
             ) : null}
             <h3>{title ?? "NEW TRANSACTION"}</h3>
-            {useOfficeCreateModalChrome && modalDescription ? <p>{modalDescription}</p> : null}
+            {useOfficeCreateModalChrome && modalDescription ? (
+              <p>{modalDescription}</p>
+            ) : null}
           </div>
           {headerActions || onClose ? (
             <div className="office-modal-header-actions">
               {headerActions}
               {onClose ? (
                 useOfficeCreateModalChrome ? (
-                  <Button aria-label="Close transaction intake" onClick={requestClose} size="sm" type="button" variant="ghost">
+                  <Button
+                    aria-label="Close transaction intake"
+                    onClick={requestClose}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
                     Close
                   </Button>
                 ) : (
-                  <button aria-label="Close transaction intake" onClick={requestClose} type="button">
+                  <button
+                    aria-label="Close transaction intake"
+                    onClick={requestClose}
+                    type="button"
+                  >
                     ×
                   </button>
                 )
@@ -562,34 +759,57 @@ export function TransactionIntakeWorkspace({
           <section className="office-create-modal-section office-transaction-create-section">
             <div className="office-create-modal-section-head">
               <h4>Core transaction details</h4>
-              <p>Set the deal type, workflow status, representation, owner, and property basics before saving the record into the pipeline.</p>
+              <p>
+                Set the deal type, workflow status, representation, owner, and
+                property basics before saving the record into the pipeline.
+              </p>
             </div>
 
             {visibleTopFields.length ? (
               <div className="office-modal-top-selects">
                 {visibleTopFields.map((field) => (
-                  <label className="office-modal-inline-select" key={field.fieldKey}>
+                  <label
+                    className="office-modal-inline-select"
+                    key={field.fieldKey}
+                  >
                     <div className="office-modal-field-head">
                       <span>{getFieldValueLabel(field)}</span>
                     </div>
                     <select
                       className={fieldValues[field.inputName] ? "" : "is-empty"}
-                      disabled={!canEditValues || (field.fieldKey === "transaction_status" && statusFieldPolicy ? !statusFieldPolicy.canEdit : false)}
+                      disabled={
+                        !canEditValues ||
+                        (field.fieldKey === "transaction_status" &&
+                        statusFieldPolicy
+                          ? !statusFieldPolicy.canEdit
+                          : false)
+                      }
                       name={field.inputName}
-                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+                      onChange={(event) =>
+                        setFieldValue(field.inputName, event.target.value)
+                      }
                       value={fieldValues[field.inputName] ?? ""}
                     >
                       <option value="">Select...</option>
                       {field.selectOptions
                         .filter((option) => {
-                          if (field.fieldKey === "transaction_status" && statusFieldPolicy) {
-                            const isAllowedValue = statusFieldPolicy.allowedValues.includes(option.value as TransactionStatusValue);
+                          if (
+                            field.fieldKey === "transaction_status" &&
+                            statusFieldPolicy
+                          ) {
+                            const isAllowedValue =
+                              statusFieldPolicy.allowedValues.includes(
+                                option.value as TransactionStatusValue,
+                              );
 
                             if (!isAllowedValue) {
                               return false;
                             }
 
-                            return mode === "create" ? true : option.isEnabled || fieldValues[field.inputName] === option.value;
+                            return mode === "create"
+                              ? true
+                              : option.isEnabled ||
+                                  fieldValues[field.inputName] === option.value;
                           }
 
                           return option.isEnabled;
@@ -600,8 +820,11 @@ export function TransactionIntakeWorkspace({
                           </option>
                         ))}
                     </select>
-                    {field.fieldKey === "transaction_status" && statusFieldPolicy?.helperText ? (
-                      <small className="office-form-helper">{statusFieldPolicy.helperText}</small>
+                    {field.fieldKey === "transaction_status" &&
+                    statusFieldPolicy?.helperText ? (
+                      <small className="office-form-helper">
+                        {statusFieldPolicy.helperText}
+                      </small>
                     ) : null}
                   </label>
                 ))}
@@ -625,28 +848,48 @@ export function TransactionIntakeWorkspace({
             {visibleTopFields.length ? (
               <div className="office-modal-top-selects">
                 {visibleTopFields.map((field) => (
-                  <label className="office-modal-inline-select" key={field.fieldKey}>
+                  <label
+                    className="office-modal-inline-select"
+                    key={field.fieldKey}
+                  >
                     <div className="office-modal-field-head">
                       <span>{getFieldValueLabel(field)}:</span>
                     </div>
                     <select
                       className={fieldValues[field.inputName] ? "" : "is-empty"}
-                      disabled={!canEditValues || (field.fieldKey === "transaction_status" && statusFieldPolicy ? !statusFieldPolicy.canEdit : false)}
+                      disabled={
+                        !canEditValues ||
+                        (field.fieldKey === "transaction_status" &&
+                        statusFieldPolicy
+                          ? !statusFieldPolicy.canEdit
+                          : false)
+                      }
                       name={field.inputName}
-                      onChange={(event) => setFieldValue(field.inputName, event.target.value)}
+                      onChange={(event) =>
+                        setFieldValue(field.inputName, event.target.value)
+                      }
                       value={fieldValues[field.inputName] ?? ""}
                     >
                       <option value="">select</option>
                       {field.selectOptions
                         .filter((option) => {
-                          if (field.fieldKey === "transaction_status" && statusFieldPolicy) {
-                            const isAllowedValue = statusFieldPolicy.allowedValues.includes(option.value as TransactionStatusValue);
+                          if (
+                            field.fieldKey === "transaction_status" &&
+                            statusFieldPolicy
+                          ) {
+                            const isAllowedValue =
+                              statusFieldPolicy.allowedValues.includes(
+                                option.value as TransactionStatusValue,
+                              );
 
                             if (!isAllowedValue) {
                               return false;
                             }
 
-                            return mode === "create" ? true : option.isEnabled || fieldValues[field.inputName] === option.value;
+                            return mode === "create"
+                              ? true
+                              : option.isEnabled ||
+                                  fieldValues[field.inputName] === option.value;
                           }
 
                           return option.isEnabled;
@@ -657,8 +900,11 @@ export function TransactionIntakeWorkspace({
                           </option>
                         ))}
                     </select>
-                    {field.fieldKey === "transaction_status" && statusFieldPolicy?.helperText ? (
-                      <small className="office-form-helper">{statusFieldPolicy.helperText}</small>
+                    {field.fieldKey === "transaction_status" &&
+                    statusFieldPolicy?.helperText ? (
+                      <small className="office-form-helper">
+                        {statusFieldPolicy.helperText}
+                      </small>
                     ) : null}
                   </label>
                 ))}
@@ -684,13 +930,18 @@ export function TransactionIntakeWorkspace({
             <section className="office-create-modal-section office-transaction-create-section">
               <div className="office-create-modal-section-head">
                 <h4>Commission calculator</h4>
-                <p>Capture gross commission, fee deductions, and one shared note so the new transaction starts with structured finance data.</p>
+                <p>
+                  Capture gross commission, fee deductions, and one shared note
+                  so the new transaction starts with structured finance data.
+                </p>
               </div>
               <TransactionFinanceCreateFields
                 draft={financeDraft}
                 onChange={setFinanceDraft}
                 ownerMembershipId={
-                  canSearchOwners ? selectedOwnerMembershipId : ownerAssignment?.currentOwnerMembershipId ?? ""
+                  canSearchOwners
+                    ? selectedOwnerMembershipId
+                    : (ownerAssignment?.currentOwnerMembershipId ?? "")
                 }
               />
             </section>
@@ -699,29 +950,49 @@ export function TransactionIntakeWorkspace({
               draft={financeDraft}
               onChange={setFinanceDraft}
               ownerMembershipId={
-                canSearchOwners ? selectedOwnerMembershipId : ownerAssignment?.currentOwnerMembershipId ?? ""
+                canSearchOwners
+                  ? selectedOwnerMembershipId
+                  : (ownerAssignment?.currentOwnerMembershipId ?? "")
               }
             />
           )
         ) : null}
 
-        <footer className={`office-modal-footer${useOfficeCreateModalChrome ? " office-create-modal-footer" : ""}`}>
+        <footer
+          className={`office-modal-footer${useOfficeCreateModalChrome ? " office-create-modal-footer" : ""}`}
+        >
           {useOfficeCreateModalChrome ? (
             <div className="office-create-modal-footer-copy">
-              <strong>{modalFooterTitle ?? "Review the intake before saving"}</strong>
-              <p>{modalFooterDescription ?? "This step creates the transaction using the current office schema and prepares it for the next workflow actions."}</p>
+              <strong>
+                {modalFooterTitle ?? "Review the intake before saving"}
+              </strong>
+              <p>
+                {modalFooterDescription ??
+                  "This step creates the transaction using the current office schema and prepares it for the next workflow actions."}
+              </p>
             </div>
           ) : (
-            <span>{stepLabel ?? (chrome === "modal" ? "step 1 of 4" : "Schema-driven transaction intake")}</span>
+            <span>
+              {stepLabel ??
+                (chrome === "modal"
+                  ? "step 1 of 4"
+                  : "Schema-driven transaction intake")}
+            </span>
           )}
           <div className="office-modal-actions">
-            {submitError ? <p className="office-form-error">{submitError}</p> : null}
+            {submitError ? (
+              <p className="office-form-error">{submitError}</p>
+            ) : null}
             {useOfficeCreateModalChrome ? (
               <Button disabled={isSubmitting || !canEditValues} type="submit">
                 {isSubmitting ? "Saving..." : submitLabel}
               </Button>
             ) : (
-              <button className="office-transaction-next" disabled={isSubmitting || !canEditValues} type="submit">
+              <button
+                className="office-transaction-next"
+                disabled={isSubmitting || !canEditValues}
+                type="submit"
+              >
                 {isSubmitting ? "Saving..." : submitLabel}
               </button>
             )}

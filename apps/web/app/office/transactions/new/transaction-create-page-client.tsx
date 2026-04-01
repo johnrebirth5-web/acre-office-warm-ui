@@ -8,7 +8,7 @@ import type {
   OfficeTransactionCustomFieldDefinitionRecord,
   OfficeTransactionFieldSettingRecord,
   OfficeTransactionIntakeSchema,
-  OfficeTransactionOwnerAssignment
+  OfficeTransactionOwnerAssignment,
 } from "@acre/db";
 import { OfficeSettingsFieldsClient } from "../../settings/fields/fields-client";
 import { TransactionIntakeWorkspace } from "../transaction-intake-form";
@@ -19,6 +19,8 @@ type TransactionCreatePageClientProps = {
   canManageFields: boolean;
   initialSchema: OfficeTransactionIntakeSchema;
   initialFieldModule?: OfficeFieldModuleSettingsSnapshot;
+  initialOwnerMembershipId?: string;
+  initialValues?: Record<string, string>;
   mode?: "page" | "modal";
   modalDescription?: string;
   modalEyebrow?: string;
@@ -27,55 +29,65 @@ type TransactionCreatePageClientProps = {
   onClose?: () => void;
   onFieldModuleChange?: (
     nextModule: OfficeFieldModuleSettingsSnapshot,
-    nextSchema: OfficeTransactionIntakeSchema
+    nextSchema: OfficeTransactionIntakeSchema,
   ) => void;
   onSubmitted?: () => void;
   ownerAssignment: OfficeTransactionOwnerAssignment;
   statusFieldPolicy?: TransactionStatusFieldPolicy;
+  submissionExtras?: Record<string, unknown>;
   submitLabel?: string;
   title?: string;
 };
 
 export function cloneFieldModuleSnapshot(
-  snapshot: OfficeFieldModuleSettingsSnapshot
+  snapshot: OfficeFieldModuleSettingsSnapshot,
 ): OfficeFieldModuleSettingsSnapshot {
   return {
     ...snapshot,
     builtInFields: snapshot.builtInFields.map((field) => ({
       ...field,
       options: [...field.options],
-      selectOptions: field.selectOptions.map((option) => ({ ...option }))
+      selectOptions: field.selectOptions.map((option) => ({ ...option })),
     })),
     customFields: snapshot.customFields.map((field) => ({
       ...field,
-      options: [...field.options]
+      options: [...field.options],
     })),
-    requiredContactRoles: snapshot.requiredContactRoles.map((role) => ({ ...role }))
+    requiredContactRoles: snapshot.requiredContactRoles.map((role) => ({
+      ...role,
+    })),
   };
 }
 
 export function buildTransactionSchemaFromModuleSnapshot(
-  snapshot: OfficeFieldModuleSettingsSnapshot
+  snapshot: OfficeFieldModuleSettingsSnapshot,
 ): OfficeTransactionIntakeSchema {
-  const builtInFields = snapshot.builtInFields as OfficeTransactionFieldSettingRecord[];
-  const customFields = snapshot.customFields as OfficeTransactionCustomFieldDefinitionRecord[];
+  const builtInFields =
+    snapshot.builtInFields as OfficeTransactionFieldSettingRecord[];
+  const customFields =
+    snapshot.customFields as OfficeTransactionCustomFieldDefinitionRecord[];
 
   return {
     summary: {
       builtInFieldCount: builtInFields.length,
-      visibleBuiltInFieldCount: builtInFields.filter((field) => field.isVisible).length,
-      requiredBuiltInFieldCount: builtInFields.filter((field) => field.isRequired).length,
+      visibleBuiltInFieldCount: builtInFields.filter((field) => field.isVisible)
+        .length,
+      requiredBuiltInFieldCount: builtInFields.filter(
+        (field) => field.isRequired,
+      ).length,
       customFieldCount: customFields.length,
-      visibleCustomFieldCount: customFields.filter((field) => field.isVisible).length,
-      requiredCustomFieldCount: customFields.filter((field) => field.isRequired).length
+      visibleCustomFieldCount: customFields.filter((field) => field.isVisible)
+        .length,
+      requiredCustomFieldCount: customFields.filter((field) => field.isRequired)
+        .length,
     },
     builtInFields,
-    customFields
+    customFields,
   };
 }
 
 function buildFieldModuleSnapshotFromSchema(
-  schema: OfficeTransactionIntakeSchema
+  schema: OfficeTransactionIntakeSchema,
 ): OfficeFieldModuleSettingsSnapshot {
   return {
     module: "transaction",
@@ -92,23 +104,23 @@ function buildFieldModuleSnapshotFromSchema(
         schema.customFields.filter((field) => !field.isVisible).length,
       requiredFieldCount:
         schema.builtInFields.filter((field) => field.isRequired).length +
-        schema.customFields.filter((field) => field.isRequired).length
+        schema.customFields.filter((field) => field.isRequired).length,
     },
     builtInFields: schema.builtInFields.map((field) => ({
       ...field,
       options: [...field.options],
-      selectOptions: field.selectOptions.map((option) => ({ ...option }))
+      selectOptions: field.selectOptions.map((option) => ({ ...option })),
     })),
     customFields: schema.customFields.map((field) => ({
       ...field,
-      options: [...field.options]
+      options: [...field.options],
     })),
-    requiredContactRoles: []
+    requiredContactRoles: [],
   };
 }
 
 function buildEmbeddedFieldSettingsSnapshot(
-  fieldModule: OfficeFieldModuleSettingsSnapshot
+  fieldModule: OfficeFieldModuleSettingsSnapshot,
 ): OfficeFieldSettingsSnapshot {
   return {
     selectedModule: "transaction",
@@ -119,10 +131,10 @@ function buildEmbeddedFieldSettingsSnapshot(
         description: fieldModule.description,
         fieldCount: fieldModule.summary.fieldCount,
         customFieldCount: fieldModule.summary.customFieldCount,
-        hiddenFieldCount: fieldModule.summary.hiddenFieldCount
-      }
+        hiddenFieldCount: fieldModule.summary.hiddenFieldCount,
+      },
     ],
-    currentModule: fieldModule
+    currentModule: fieldModule,
   };
 }
 
@@ -130,7 +142,9 @@ export function TransactionCreatePageClient({
   afterSubmit = "go-detail",
   canManageFields,
   initialFieldModule,
+  initialOwnerMembershipId,
   initialSchema,
+  initialValues,
   mode = "page",
   modalDescription,
   modalEyebrow,
@@ -141,11 +155,14 @@ export function TransactionCreatePageClient({
   onSubmitted,
   ownerAssignment,
   statusFieldPolicy,
+  submissionExtras,
   submitLabel,
-  title
+  title,
 }: TransactionCreatePageClientProps) {
   const [fieldModule, setFieldModule] = useState(() =>
-    cloneFieldModuleSnapshot(initialFieldModule ?? buildFieldModuleSnapshotFromSchema(initialSchema))
+    cloneFieldModuleSnapshot(
+      initialFieldModule ?? buildFieldModuleSnapshotFromSchema(initialSchema),
+    ),
   );
   const [schema, setSchema] = useState(initialSchema);
   const [isFieldEditorOpen, setIsFieldEditorOpen] = useState(false);
@@ -165,7 +182,7 @@ export function TransactionCreatePageClient({
 
   const embeddedFieldSettingsSnapshot = useMemo(
     () => buildEmbeddedFieldSettingsSnapshot(fieldModule),
-    [fieldModule]
+    [fieldModule],
   );
 
   function openFieldEditor() {
@@ -176,7 +193,9 @@ export function TransactionCreatePageClient({
     setIsFieldEditorOpen(false);
   }
 
-  function handleFieldModuleChange(nextModule: OfficeFieldModuleSettingsSnapshot) {
+  function handleFieldModuleChange(
+    nextModule: OfficeFieldModuleSettingsSnapshot,
+  ) {
     const clonedSnapshot = cloneFieldModuleSnapshot(nextModule);
     const nextSchema = buildTransactionSchemaFromModuleSnapshot(clonedSnapshot);
     setFieldModule(clonedSnapshot);
@@ -185,7 +204,12 @@ export function TransactionCreatePageClient({
   }
 
   const editFieldsButton = canManageFields ? (
-    <Button onClick={openFieldEditor} size="sm" type="button" variant="secondary">
+    <Button
+      onClick={openFieldEditor}
+      size="sm"
+      type="button"
+      variant="secondary"
+    >
       Edit fields
     </Button>
   ) : null;
@@ -214,9 +238,17 @@ export function TransactionCreatePageClient({
       schema={schema}
       statusFieldPolicy={statusFieldPolicy}
       submitEndpoint="/api/office/transactions"
-      submitLabel={submitLabel ?? (mode === "modal" ? "Next →" : "Create transaction")}
+      submitLabel={
+        submitLabel ?? (mode === "modal" ? "Next →" : "Create transaction")
+      }
       submitMethod="POST"
-      title={title ?? (mode === "modal" ? "Create transaction" : "Office intake form")}
+      title={
+        title ??
+        (mode === "modal" ? "Create transaction" : "Office intake form")
+      }
+      initialOwnerMembershipId={initialOwnerMembershipId}
+      initialValues={initialValues}
+      submissionExtras={submissionExtras}
     />
   );
 
@@ -247,8 +279,9 @@ export function TransactionCreatePageClient({
               <div>
                 <h3>Edit fields</h3>
                 <p>
-                  Manage field names, visibility, order, dropdown options, custom-field lifecycle,
-                  and transaction-required contact roles directly from this create flow.
+                  Manage field names, visibility, order, dropdown options,
+                  custom-field lifecycle, and transaction-required contact roles
+                  directly from this create flow.
                 </p>
               </div>
               <Button
