@@ -1075,6 +1075,7 @@ export async function createFollowUpTask(
       fullName: true,
       email: true,
       phone: true,
+      nextFollowUpAt: true,
     },
   });
 
@@ -1101,6 +1102,22 @@ export async function createFollowUpTask(
         },
       },
     });
+
+    if (created.dueAt) {
+      await tx.client.update({
+        where: {
+          id: client.id,
+        },
+        data: {
+          nextFollowUpAt:
+            !client.nextFollowUpAt ||
+            client.nextFollowUpAt.getTime() <= new Date().getTime() ||
+            created.dueAt.getTime() < client.nextFollowUpAt.getTime()
+              ? created.dueAt
+              : client.nextFollowUpAt,
+        },
+      });
+    }
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,

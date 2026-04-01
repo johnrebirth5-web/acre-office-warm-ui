@@ -370,6 +370,10 @@
   - `Front Office` rails now use the same compact operational row language instead of page-local left-tag cards
   - `Settings > Commission plans` and multiple agent/user detail sections now render compact queue-style rows for member defaults, split templates, recent calculations, recent transactions, and recent activity
   - `AGENTS.md` and the design-system rules now explicitly prohibit new `office-note-item` or `bm-*` expansion in touched UI surfaces
+- FO dossier execution now starts to behave like a real CRM workbench instead of a read-only snapshot:
+  - `/agent/clients/[clientId]` surfaces a workflow pressure signal plus a stage-derived suggested next step
+  - agents can create shared follow-up tasks directly from the dossier through `/api/agent/clients/[clientId]/follow-up-tasks`
+  - the task write reuses the existing `FollowUpTask` service and keeps `Client.nextFollowUpAt` synchronized when the new follow-up has a due date, so FO/BO reminder surfaces stay aligned
 
 ## Next recommended work
 

@@ -8,6 +8,7 @@ import { prisma } from "./client";
 import {
   buildFrontOfficeHandoffCreateHref,
   buildFrontOfficeHandoffSummary,
+  isFrontOfficeStageReadyForBackOffice,
 } from "./front-office-contracts";
 import { formatDateTimeLabel } from "./date-time";
 
@@ -65,6 +66,17 @@ export type FrontOfficeClientDetailTransactionItem = {
   href: string;
 };
 
+export type FrontOfficeClientDetailWorkflowSignal = {
+  pressureLabel: string;
+  pressureTone: FrontOfficeClientDetailTone;
+  pressureDescription: string;
+  nextStepTitle: string;
+  nextStepTone: FrontOfficeClientDetailTone;
+  nextStepDescription: string;
+  actionLabel: string;
+  actionHref: string;
+};
+
 export type FrontOfficeClientDetailSnapshot = {
   id: string;
   fullName: string;
@@ -86,6 +98,7 @@ export type FrontOfficeClientDetailSnapshot = {
     stageHistoryCount: number;
     openHandoffCount: number;
   };
+  workflow: FrontOfficeClientDetailWorkflowSignal;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
   appointments: FrontOfficeClientDetailAppointmentItem[];
   followUpTasks: FrontOfficeClientDetailTaskItem[];
@@ -150,6 +163,20 @@ function formatDateLabel(
     year: "numeric",
     timeZone: timeZone ?? undefined,
   });
+}
+
+function pickEarliestDate(...values: Array<Date | null | undefined>) {
+  return values.reduce<Date | null>((earliest, value) => {
+    if (!value) {
+      return earliest;
+    }
+
+    if (!earliest || value.getTime() < earliest.getTime()) {
+      return value;
+    }
+
+    return earliest;
+  }, null);
 }
 
 function formatRelativeDueLabel(
@@ -349,6 +376,187 @@ function formatTransactionStatusLabel(status: string) {
     .join(" ");
 }
 
+function buildWorkflowSignal(input: {
+  clientId: string;
+  stage: string;
+  lastContactAt: Date | null;
+  nextTouchAt: Date | null;
+  hasOverdueTask: boolean;
+  openTaskCount: number;
+  activeHandoff: {
+    status: FrontOfficeHandoffStatus;
+    href: string;
+    committedTransactionId: string | null;
+  } | null;
+  linkedTransactionHref: string | null;
+  timeZone?: string | null;
+  now: Date;
+}): FrontOfficeClientDetailWorkflowSignal {
+  const normalizedStage = input.stage.trim().toLowerCase();
+  const isClosedStage =
+    normalizedStage.includes("won") || normalizedStage.includes("lost");
+  const isActiveOpportunity = Boolean(normalizedStage) && !isClosedStage;
+  const daysSinceLastTouch = input.lastContactAt
+    ? Math.floor(
+        (input.now.getTime() - input.lastContactAt.getTime()) / 86_400_000,
+      )
+    : null;
+  const hasOverdueNextTouch = Boolean(
+    input.nextTouchAt && input.nextTouchAt.getTime() < input.now.getTime(),
+  );
+
+  let pressureLabel = "Workflow healthy";
+  let pressureTone: FrontOfficeClientDetailTone = "success";
+  let pressureDescription =
+    input.nextTouchAt || input.openTaskCount
+      ? "This dossier already has an upcoming touch or task attached, so the workflow is still moving."
+      : "Recent activity is still fresh, but the next touch should be scheduled before the client goes quiet.";
+
+  if (input.hasOverdueTask) {
+    pressureLabel = "Overdue follow-up";
+    pressureTone = "danger";
+    pressureDescription =
+      "At least one follow-up task is already past due. Close the loop or reschedule it today so the client does not slip.";
+  } else if (
+    isActiveOpportunity &&
+    daysSinceLastTouch !== null &&
+    daysSinceLastTouch >= 15
+  ) {
+    pressureLabel = "15+ day pressure";
+    pressureTone = "warning";
+    pressureDescription = `No contact has been logged for ${daysSinceLastTouch} days while this opportunity is still active. The system should push the next action now.`;
+  } else if (hasOverdueNextTouch) {
+    pressureLabel = "Next touch overdue";
+    pressureTone = "warning";
+    pressureDescription = `The scheduled next touch slipped past ${formatDateLabel(input.nextTouchAt, input.timeZone)}. Move it forward or create a new follow-up.`;
+  } else if (
+    isActiveOpportunity &&
+    !input.nextTouchAt &&
+    input.openTaskCount === 0
+  ) {
+    pressureLabel = "No next touch scheduled";
+    pressureTone = "warning";
+    pressureDescription =
+      "This client is active but no future follow-up is on the books yet. Add a reminder before the dossier goes stale.";
+  }
+
+  if (isFrontOfficeStageReadyForBackOffice(input.stage)) {
+    return {
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepTitle:
+        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
+          ? "Work from the Back Office record"
+          : "Move this client into Back Office",
+      nextStepTone:
+        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
+          ? "success"
+          : "warning",
+      nextStepDescription:
+        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
+          ? "Formal transaction workflow has already started. Keep execution aligned from the linked Back Office record."
+          : "Negotiation, application, or offer work is now formal enough that the shared Back Office workflow should take over.",
+      actionLabel:
+        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
+          ? "Open Back Office record"
+          : "Open Back Office create flow",
+      actionHref:
+        input.activeHandoff?.href ??
+        input.linkedTransactionHref ??
+        "/office/transactions",
+    };
+  }
+
+  if (
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("scheduled")
+  ) {
+    return {
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepTitle: "Confirm the showing logistics",
+      nextStepTone: "accent",
+      nextStepDescription:
+        "Use the calendar to confirm the address, access notes, contact, and reminder timing before the appointment happens.",
+      actionLabel: "Open calendar",
+      actionHref: `/agent/calendar?clientId=${input.clientId}`,
+    };
+  }
+
+  if (
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("completed")
+  ) {
+    return {
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepTitle: "Capture feedback and set the next follow-up",
+      nextStepTone: "accent",
+      nextStepDescription:
+        "Log the client reaction, narrow the shortlist, and place the next call or message on the calendar now.",
+      actionLabel: "Create follow-up",
+      actionHref: "#front-office-follow-up-form",
+    };
+  }
+
+  if (normalizedStage.includes("lost")) {
+    return {
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepTitle: "Place a nurture reminder",
+      nextStepTone: "neutral",
+      nextStepDescription:
+        "This opportunity is marked lost, but the dossier should still carry a future check-in instead of disappearing.",
+      actionLabel: "Create follow-up",
+      actionHref: "#front-office-follow-up-form",
+    };
+  }
+
+  if (normalizedStage.includes("won") && input.linkedTransactionHref) {
+    return {
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepTitle: "Track progress from the shared transaction record",
+      nextStepTone: "success",
+      nextStepDescription:
+        "The client is already won. Keep milestone updates aligned from the linked Back Office transaction instead of duplicating workflow here.",
+      actionLabel: "Open transaction",
+      actionHref: input.linkedTransactionHref,
+    };
+  }
+
+  if (normalizedStage.includes("pending")) {
+    return {
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepTitle: "Clarify the blocker and owner",
+      nextStepTone: "warning",
+      nextStepDescription:
+        "Pending stages should still have an explicit owner, due date, and unblock plan so the record does not sit quietly.",
+      actionLabel: "Create follow-up",
+      actionHref: "#front-office-follow-up-form",
+    };
+  }
+
+  return {
+    pressureLabel,
+    pressureTone,
+    pressureDescription,
+    nextStepTitle: "Set the next call, text, or showing",
+    nextStepTone: "accent",
+    nextStepDescription:
+      "Front Office should keep the next touch visible by default. Create a follow-up or book the next appointment before leaving this dossier.",
+    actionLabel: "Create follow-up",
+    actionHref: "#front-office-follow-up-form",
+  };
+}
+
 export async function getFrontOfficeClientDetail(
   input: GetFrontOfficeClientDetailInput,
 ): Promise<FrontOfficeClientDetailSnapshot | null> {
@@ -509,6 +717,44 @@ export async function getFrontOfficeClientDetail(
   const openTaskCount = client.followUpTasks.filter(
     (task) => task.status !== TaskStatus.completed,
   ).length;
+  const earliestOpenTaskDueAt = client.followUpTasks.reduce<Date | null>(
+    (earliest, task) => {
+      if (task.status === TaskStatus.completed || !task.dueAt) {
+        return earliest;
+      }
+
+      return pickEarliestDate(earliest, task.dueAt);
+    },
+    null,
+  );
+  const nextTouchAt = pickEarliestDate(
+    earliestOpenTaskDueAt,
+    client.nextFollowUpAt,
+  );
+  const activeHandoffDraft =
+    client.handoffDrafts.find(
+      (draft) =>
+        draft.status === FrontOfficeHandoffStatus.ready ||
+        draft.status === FrontOfficeHandoffStatus.draft,
+    ) ??
+    client.handoffDrafts.find(
+      (draft) => draft.status === FrontOfficeHandoffStatus.committed,
+    ) ??
+    null;
+  const activeHandoff = activeHandoffDraft
+    ? {
+        status: activeHandoffDraft.status,
+        href:
+          activeHandoffDraft.status === FrontOfficeHandoffStatus.committed &&
+          activeHandoffDraft.committedTransactionId
+            ? `/office/transactions/${activeHandoffDraft.committedTransactionId}`
+            : buildFrontOfficeHandoffCreateHref(activeHandoffDraft.id),
+        committedTransactionId: activeHandoffDraft.committedTransactionId,
+      }
+    : null;
+  const linkedTransactionHref = client.transactionContacts[0]
+    ? `/office/transactions/${client.transactionContacts[0].transaction.id}`
+    : null;
   const upcomingAppointmentCount = client.appointments.filter(
     (appointment) =>
       appointment.status === AppointmentStatus.scheduled &&
@@ -544,17 +790,29 @@ export async function getFrontOfficeClientDetail(
     lastTouchLabel: client.lastContactAt
       ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
       : "No contact logged yet",
-    nextTouchLabel: formatRelativeDueLabel(
-      client.nextFollowUpAt,
-      now,
-      input.timeZone,
-    ),
+    nextTouchLabel: formatRelativeDueLabel(nextTouchAt, now, input.timeZone),
     summary: {
       openTaskCount,
       upcomingAppointmentCount,
       stageHistoryCount: client.stageHistory.length,
       openHandoffCount,
     },
+    workflow: buildWorkflowSignal({
+      clientId: client.id,
+      stage: client.stage,
+      lastContactAt: client.lastContactAt,
+      nextTouchAt,
+      hasOverdueTask: client.followUpTasks.some(
+        (task) =>
+          task.status !== TaskStatus.completed &&
+          Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
+      ),
+      openTaskCount,
+      activeHandoff,
+      linkedTransactionHref,
+      timeZone: input.timeZone,
+      now,
+    }),
     stageHistory: client.stageHistory.map((entry) => {
       const actorLabel =
         `${entry.membership?.user.firstName ?? ""} ${entry.membership?.user.lastName ?? ""}`.trim() ||

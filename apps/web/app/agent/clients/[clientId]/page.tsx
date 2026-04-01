@@ -12,6 +12,7 @@ import {
 import { notFound, redirect } from "next/navigation";
 import { FrontOfficeLink } from "../../_components/front-office-link";
 import { FrontOfficePageTemplate } from "../../_components/front-office-page-template";
+import { FrontOfficeClientDossierClient } from "./front-office-client-dossier-client";
 import {
   getSessionAccess,
   requireSessionContext,
@@ -194,27 +195,9 @@ export default async function AgentClientDetailPage(
                   />
                 )}
               </div>
-
-              <div className="office-queue-list">
-                {snapshot.followUpTasks.length ? (
-                  snapshot.followUpTasks.map((task) => (
-                    <QueueItem
-                      badgeLabel={task.statusLabel}
-                      badgeTone={task.tone}
-                      description={task.dueLabel}
-                      key={task.id}
-                      meta={<span>{task.assigneeLabel}</span>}
-                      title={task.title}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
-                    description="Follow-up tasks created from Back Office or shared CRM flows will appear here."
-                    title="No follow-up tasks yet"
-                  />
-                )}
-              </div>
             </div>
+
+            <FrontOfficeClientDossierClient snapshot={snapshot} />
           </SectionCard>
         </>
       }
@@ -230,15 +213,15 @@ export default async function AgentClientDetailPage(
                 action={
                   <FrontOfficeLink
                     className="office-inline-link"
-                    href={`/agent/calendar?clientId=${snapshot.id}`}
+                    href={snapshot.workflow.actionHref}
                   >
-                    Open calendar
+                    {snapshot.workflow.actionLabel}
                   </FrontOfficeLink>
                 }
-                badgeLabel="Calendar"
-                badgeTone="accent"
-                description="Schedule the next showing, consultation, or meeting while keeping this client attached to the appointment."
-                title="Book the next touchpoint"
+                badgeLabel={snapshot.workflow.pressureLabel}
+                badgeTone={snapshot.workflow.pressureTone}
+                description={snapshot.workflow.nextStepDescription}
+                title={snapshot.workflow.nextStepTitle}
               />
               <QueueItem
                 action={
@@ -365,6 +348,10 @@ export default async function AgentClientDetailPage(
         <>
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip label="Stage" tone="accent" value={snapshot.stage} />
+          <SummaryChip
+            label="Workflow"
+            value={snapshot.workflow.pressureLabel}
+          />
           <SummaryChip
             label="Open follow-up"
             value={snapshot.summary.openTaskCount}

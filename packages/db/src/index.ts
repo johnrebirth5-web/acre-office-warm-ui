@@ -220,6 +220,7 @@ export {
   type FrontOfficeClientDetailTaskItem,
   type FrontOfficeClientDetailTone,
   type FrontOfficeClientDetailTransactionItem,
+  type FrontOfficeClientDetailWorkflowSignal,
 } from "./front-office-clients";
 export {
   createFrontOfficeAppointment,
