@@ -296,6 +296,7 @@ export {
   officeContactsPageDefaults,
   officeContactsPageLimits,
   updateContact,
+  updateFollowUpTask,
 } from "./contacts";
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
 export {
@@ -770,6 +771,7 @@ export type {
   OfficeContactTask,
   OfficeTransactionLinkOption,
   SaveContactInput,
+  UpdateFollowUpTaskInput,
 } from "./contacts";
 export type {
   GetOfficePipelineWorkspaceInput,

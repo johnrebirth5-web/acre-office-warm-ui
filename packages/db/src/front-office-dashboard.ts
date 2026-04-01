@@ -3,15 +3,22 @@ import {
   AppointmentType,
   FrontOfficeHandoffStatus,
   ListingStatus,
+  MembershipStatus,
   NotificationType,
   Prisma,
   ResourceType,
   SignatureRequestStatus,
+  TaskStatus,
   TransactionStatus,
+  UserRole,
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
+import {
+  buildTeamMembershipHierarchyMap,
+  isLeaderTeamMembershipRole,
+} from "./team-hierarchy";
 
 export type FrontOfficeDashboardTone =
   | "neutral"
@@ -23,8 +30,11 @@ export type FrontOfficeDashboardTone =
 export type FrontOfficeDashboardSummary = {
   todayActionCount: number;
   followUpDueCount: number;
+  overdueTaskCount: number;
+  staleClientCount: number;
   todayCommitmentCount: number;
   needsBackOfficeCount: number;
+  leadershipPressureCount: number;
 };
 
 export type FrontOfficeDashboardActionQueueItem = {
@@ -114,6 +124,16 @@ export type FrontOfficeDashboardBackOfficeItem = {
   href: string;
 };
 
+export type FrontOfficeDashboardLeadershipItem = {
+  id: string;
+  title: string;
+  description: string;
+  contextLabel: string;
+  tone: FrontOfficeDashboardTone;
+  actionLabel: string;
+  href: string;
+};
+
 export type FrontOfficeDashboardSnapshot = {
   summary: FrontOfficeDashboardSummary;
   actionQueue: FrontOfficeDashboardActionQueueItem[];
@@ -141,16 +161,27 @@ export type FrontOfficeDashboardSnapshot = {
   backOffice: {
     items: FrontOfficeDashboardBackOfficeItem[];
   };
+  leadershipQueue: {
+    visible: boolean;
+    scopeLabel: string;
+    overdueTaskCount: number;
+    staleClientCount: number;
+    items: FrontOfficeDashboardLeadershipItem[];
+  };
 };
 
 type GetFrontOfficeDashboardSnapshotInput = {
   organizationId: string;
   viewerMembershipId: string;
+  viewerRole: UserRole;
   officeId?: string | null;
   timeZone?: string | null;
 };
 
-const openFollowUpStatuses = ["queued", "in_progress"] as const;
+const openFollowUpStatuses: TaskStatus[] = [
+  TaskStatus.queued,
+  TaskStatus.in_progress,
+];
 const activeListingStatuses: ListingStatus[] = [
   ListingStatus.active,
   ListingStatus.hot,
@@ -344,6 +375,140 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
   };
 }
 
+function isClosedClientStage(stage: string) {
+  const normalized = stage.trim().toLowerCase();
+  return normalized.includes("won") || normalized.includes("lost");
+}
+
+async function getLeadershipScopeMembershipIds(input: {
+  organizationId: string;
+  viewerMembershipId: string;
+  viewerRole: UserRole;
+  officeId?: string | null;
+}) {
+  if (input.viewerRole === "team_lead") {
+    const teams = await prisma.team.findMany({
+      where: {
+        organizationId: input.organizationId,
+        isActive: true,
+        ...(input.officeId
+          ? {
+              OR: [{ officeId: input.officeId }, { officeId: null }],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+        parentTeamId: true,
+      },
+    });
+    const teamMemberships = await prisma.teamMembership.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ...(input.officeId
+          ? {
+              OR: [{ officeId: input.officeId }, { officeId: null }],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        membershipId: true,
+        teamId: true,
+        role: true,
+        reportsToTeamMembershipId: true,
+        membership: {
+          select: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const hierarchy = buildTeamMembershipHierarchyMap({
+      teams,
+      teamMemberships: teamMemberships.map((membership) => ({
+        id: membership.id,
+        membershipId: membership.membershipId,
+        teamId: membership.teamId,
+        role: membership.role,
+        reportsToTeamMembershipId: membership.reportsToTeamMembershipId,
+        label:
+          `${membership.membership.user.firstName} ${membership.membership.user.lastName}`.trim() ||
+          membership.membership.user.email ||
+          membership.membershipId,
+      })),
+    });
+
+    const viewerLeaderMemberships = teamMemberships.filter(
+      (membership) =>
+        membership.membershipId === input.viewerMembershipId &&
+        isLeaderTeamMembershipRole(membership.role),
+    );
+    const membershipIds = new Set<string>();
+
+    for (const membership of viewerLeaderMemberships) {
+      const hierarchyRecord = hierarchy.hierarchyMap.get(membership.id);
+
+      for (const branchMembershipId of hierarchyRecord?.branchMembershipIds ??
+        []) {
+        if (branchMembershipId !== input.viewerMembershipId) {
+          membershipIds.add(branchMembershipId);
+        }
+      }
+    }
+
+    return {
+      visible: true,
+      scopeLabel: "Team follow-up pressure",
+      membershipIds: [...membershipIds],
+    };
+  }
+
+  if (input.viewerRole === "office_admin" || input.viewerRole === "owner") {
+    const memberships = await prisma.membership.findMany({
+      where: {
+        organizationId: input.organizationId,
+        role: {
+          in: [UserRole.agent, UserRole.team_lead],
+        },
+        status: MembershipStatus.active,
+        ...(input.officeId
+          ? {
+              OR: [{ officeId: input.officeId }, { officeId: null }],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return {
+      visible: true,
+      scopeLabel: "Office follow-up pressure",
+      membershipIds: memberships
+        .map((membership) => membership.id)
+        .filter((membershipId) => membershipId !== input.viewerMembershipId),
+    };
+  }
+
+  return {
+    visible: false,
+    scopeLabel: "",
+    membershipIds: [] as string[],
+  };
+}
+
 export async function getFrontOfficeDashboardSnapshot(
   input: GetFrontOfficeDashboardSnapshotInput,
 ): Promise<FrontOfficeDashboardSnapshot> {
@@ -363,7 +528,18 @@ export async function getFrontOfficeDashboardSnapshot(
     now.getMonth(),
     now.getDate() + 7,
   );
+  const fifteenDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 15,
+  );
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
+  const leadershipScope = await getLeadershipScopeMembershipIds({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    viewerRole: input.viewerRole,
+    officeId: input.officeId ?? null,
+  });
 
   const clientWhere: Prisma.ClientWhereInput = {
     organizationId: input.organizationId,
@@ -439,6 +615,8 @@ export async function getFrontOfficeDashboardSnapshot(
   const [
     dueFollowUpClients,
     openFollowUpTaskCount,
+    overdueFollowUpTaskCount,
+    staleClientCount,
     stageGroups,
     recentClients,
     activeListingCount,
@@ -452,6 +630,9 @@ export async function getFrontOfficeDashboardSnapshot(
     handoffDraftCount,
     handoffDrafts,
     signatureTransactions,
+    leadershipOverdueTaskCount,
+    leadershipOverdueTasks,
+    leadershipStaleClientCandidates,
   ] = await Promise.all([
     prisma.client.findMany({
       where: {
@@ -478,6 +659,44 @@ export async function getFrontOfficeDashboardSnapshot(
         status: {
           in: [...openFollowUpStatuses],
         },
+      },
+    }),
+    prisma.followUpTask.count({
+      where: {
+        organizationId: input.organizationId,
+        assigneeMemberId: input.viewerMembershipId,
+        status: {
+          in: [...openFollowUpStatuses],
+        },
+        dueAt: {
+          lt: now,
+        },
+      },
+    }),
+    prisma.client.count({
+      where: {
+        ...clientWhere,
+        NOT: [
+          {
+            OR: [
+              { stage: { contains: "won", mode: "insensitive" } },
+              { stage: { contains: "lost", mode: "insensitive" } },
+            ],
+          },
+        ],
+        OR: [
+          {
+            lastContactAt: {
+              lt: fifteenDaysAgo,
+            },
+          },
+          {
+            lastContactAt: null,
+            createdAt: {
+              lt: fifteenDaysAgo,
+            },
+          },
+        ],
       },
     }),
     prisma.client.groupBy({
@@ -722,6 +941,112 @@ export async function getFrontOfficeDashboardSnapshot(
         },
       },
     }),
+    leadershipScope.visible && leadershipScope.membershipIds.length > 0
+      ? prisma.followUpTask.count({
+          where: {
+            organizationId: input.organizationId,
+            assigneeMemberId: {
+              in: leadershipScope.membershipIds,
+            },
+            status: {
+              in: [...openFollowUpStatuses],
+            },
+            dueAt: {
+              lt: now,
+            },
+          },
+        })
+      : Promise.resolve(0),
+    leadershipScope.visible && leadershipScope.membershipIds.length > 0
+      ? prisma.followUpTask.findMany({
+          where: {
+            organizationId: input.organizationId,
+            assigneeMemberId: {
+              in: leadershipScope.membershipIds,
+            },
+            status: {
+              in: [...openFollowUpStatuses],
+            },
+            dueAt: {
+              lt: now,
+            },
+          },
+          orderBy: [{ dueAt: "asc" }, { updatedAt: "asc" }],
+          take: 3,
+          select: {
+            id: true,
+            title: true,
+            dueAt: true,
+            clientId: true,
+            client: {
+              select: {
+                fullName: true,
+              },
+            },
+            assigneeMembership: {
+              select: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    leadershipScope.visible && leadershipScope.membershipIds.length > 0
+      ? prisma.client.findMany({
+          where: {
+            organizationId: input.organizationId,
+            ownerMembershipId: {
+              in: leadershipScope.membershipIds,
+            },
+            NOT: [
+              {
+                OR: [
+                  { stage: { contains: "won", mode: "insensitive" } },
+                  { stage: { contains: "lost", mode: "insensitive" } },
+                ],
+              },
+            ],
+            OR: [
+              {
+                lastContactAt: {
+                  lt: fifteenDaysAgo,
+                },
+              },
+              {
+                lastContactAt: null,
+                createdAt: {
+                  lt: fifteenDaysAgo,
+                },
+              },
+            ],
+          },
+          orderBy: [{ lastContactAt: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true,
+            fullName: true,
+            stage: true,
+            lastContactAt: true,
+            createdAt: true,
+            ownerMembership: {
+              select: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const recentListingIds = recentListings.map((listing) => listing.id);
@@ -755,6 +1080,49 @@ export async function getFrontOfficeDashboardSnapshot(
   );
 
   const dueFollowUpCount = dueFollowUpClients.length;
+  const filteredLeadershipStaleClients = leadershipStaleClientCandidates.filter(
+    (client) => !isClosedClientStage(client.stage),
+  );
+  const leadershipStaleClientCount = filteredLeadershipStaleClients.length;
+  const leadershipItems: FrontOfficeDashboardLeadershipItem[] = [
+    ...leadershipOverdueTasks.map((task) => ({
+      id: `leadership-task-${task.id}`,
+      title: task.client?.fullName ?? task.title,
+      description: `${task.title} · Due ${formatDateLabel(task.dueAt)}`,
+      contextLabel:
+        `${task.assigneeMembership?.user.firstName ?? ""} ${task.assigneeMembership?.user.lastName ?? ""}`.trim() ||
+        task.assigneeMembership?.user.email ||
+        "Assigned team member",
+      tone: "danger" as const,
+      actionLabel: "Open office contact",
+      href: task.clientId
+        ? `/office/contacts/${task.clientId}`
+        : "/office/contacts",
+    })),
+    ...filteredLeadershipStaleClients.slice(0, 3).map((client) => {
+      const inactiveDays = Math.max(
+        15,
+        Math.floor(
+          (now.getTime() -
+            (client.lastContactAt ?? client.createdAt).getTime()) /
+            86_400_000,
+        ),
+      );
+
+      return {
+        id: `leadership-client-${client.id}`,
+        title: client.fullName,
+        description: `${client.stage} · ${inactiveDays} day(s) since the last recorded touch.`,
+        contextLabel:
+          `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
+          client.ownerMembership?.user.email ||
+          "Assigned owner",
+        tone: "warning" as const,
+        actionLabel: "Open office contact",
+        href: `/office/contacts/${client.id}`,
+      };
+    }),
+  ].slice(0, 4);
   const todayEventCount = upcomingEvents.filter(
     (event) =>
       event.startsAt >= startOfToday && event.startsAt < startOfTomorrow,
@@ -790,6 +1158,8 @@ export async function getFrontOfficeDashboardSnapshot(
     })),
   ].slice(0, 4);
   const needsBackOfficeCount = handoffDraftCount + signatureTransactions.length;
+  const leadershipPressureCount =
+    leadershipOverdueTaskCount + leadershipStaleClientCount;
   const actionQueue: FrontOfficeDashboardActionQueueItem[] = [
     {
       id: "follow-up",
@@ -848,15 +1218,45 @@ export async function getFrontOfficeDashboardSnapshot(
       href: "/office/transactions",
       actionLabel: "Open Back Office",
     },
+    ...(leadershipScope.visible
+      ? [
+          {
+            id: "leadership",
+            label:
+              input.viewerRole === "team_lead"
+                ? "Team follow-up pressure"
+                : "Office follow-up pressure",
+            count: leadershipPressureCount,
+            tone: leadershipPressureCount > 0 ? "danger" : "neutral",
+            description:
+              leadershipPressureCount > 0
+                ? `${leadershipOverdueTaskCount} overdue task(s) and ${leadershipStaleClientCount} stale client(s) need leadership attention.`
+                : "No overdue or 15+ day stale follow-up pressure is visible in your leadership scope right now.",
+            helper:
+              "Leadership visibility should surface team risk before it turns into a formal Back Office problem.",
+            href: "/office/contacts",
+            actionLabel:
+              input.viewerRole === "team_lead"
+                ? "Open team contacts"
+                : "Open office contacts",
+          } satisfies FrontOfficeDashboardActionQueueItem,
+        ]
+      : []),
   ];
 
   return {
     summary: {
       todayActionCount:
-        dueFollowUpCount + todayCommitmentCount + needsBackOfficeCount,
+        dueFollowUpCount +
+        todayCommitmentCount +
+        needsBackOfficeCount +
+        leadershipPressureCount,
       followUpDueCount: dueFollowUpCount,
+      overdueTaskCount: overdueFollowUpTaskCount,
+      staleClientCount,
       todayCommitmentCount,
       needsBackOfficeCount,
+      leadershipPressureCount,
     },
     actionQueue,
     pipeline: {
@@ -1004,6 +1404,13 @@ export async function getFrontOfficeDashboardSnapshot(
     },
     backOffice: {
       items: backOfficeItems,
+    },
+    leadershipQueue: {
+      visible: leadershipScope.visible,
+      scopeLabel: leadershipScope.scopeLabel,
+      overdueTaskCount: leadershipOverdueTaskCount,
+      staleClientCount: leadershipStaleClientCount,
+      items: leadershipItems,
     },
   };
 }

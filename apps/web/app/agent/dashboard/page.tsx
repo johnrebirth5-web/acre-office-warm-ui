@@ -30,6 +30,7 @@ export default async function AgentDashboardPage() {
   const snapshot = await getFrontOfficeDashboardSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
+    viewerRole: context.currentMembership.role,
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
   });
@@ -459,6 +460,55 @@ export default async function AgentDashboardPage() {
               )}
             </div>
           </SectionCard>
+
+          {snapshot.leadershipQueue.visible ? (
+            <SectionCard
+              className="office-list-card"
+              subtitle="Team leads and office admins should see overdue follow-up pressure before it becomes a formal Back Office fire drill."
+              title={snapshot.leadershipQueue.scopeLabel}
+            >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="open shared follow-up tasks already overdue"
+                  label="Overdue tasks"
+                  value={snapshot.leadershipQueue.overdueTaskCount}
+                />
+                <StatCard
+                  hint="active clients with 15+ days of inactivity"
+                  label="15+ day stale"
+                  value={snapshot.leadershipQueue.staleClientCount}
+                />
+              </ListPageStatsGrid>
+
+              <div className="office-queue-list">
+                {snapshot.leadershipQueue.items.length ? (
+                  snapshot.leadershipQueue.items.map((item) => (
+                    <FrontOfficeRailItem
+                      action={
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={item.href}
+                        >
+                          {item.actionLabel}
+                        </FrontOfficeLink>
+                      }
+                      badgeLabel={item.contextLabel}
+                      badgeTone={item.tone}
+                      description={item.description}
+                      key={item.id}
+                      title={item.title}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    className="front-office-inline-empty"
+                    description="No overdue team or office follow-up pressure is visible right now."
+                    title="Leadership queue is clear"
+                  />
+                )}
+              </div>
+            </SectionCard>
+          ) : null}
         </>
       }
       summary={
@@ -480,6 +530,14 @@ export default async function AgentDashboardPage() {
             value={snapshot.summary.followUpDueCount}
           />
           <SummaryChip
+            label="Overdue tasks"
+            value={snapshot.summary.overdueTaskCount}
+          />
+          <SummaryChip
+            label="15+ day stale"
+            value={snapshot.summary.staleClientCount}
+          />
+          <SummaryChip
             label="Today commitments"
             value={snapshot.summary.todayCommitmentCount}
           />
@@ -488,6 +546,13 @@ export default async function AgentDashboardPage() {
             tone="accent"
             value={snapshot.summary.needsBackOfficeCount}
           />
+          {snapshot.leadershipQueue.visible ? (
+            <SummaryChip
+              label="Leadership pressure"
+              tone="accent"
+              value={snapshot.summary.leadershipPressureCount}
+            />
+          ) : null}
         </>
       }
       title="Front Office dashboard"

@@ -104,6 +104,7 @@ This keeps the handoff visible without pretending formal transaction creation al
 - `/agent/clients/[clientId]` now acts as the first real FO dossier page by surfacing stage history, appointments, follow-up tasks, and BO handoff state in one place
 - that FO dossier now also exposes workflow pressure + suggested next step signals, and agents can create follow-up tasks directly from the dossier instead of bouncing back to Back Office
 - FO follow-up creation reuses the shared `FollowUpTask` store and now keeps `Client.nextFollowUpAt` aligned when a dated follow-up is created, so FO/BO reminders stay on one clock
+- FO follow-up updates now also stay on that same shared task store: Front Office can complete or push a follow-up forward without inventing a second reminder model, and the client-level `nextFollowUpAt` stays synchronized when the updated task was driving the next-touch signal
 - marking an appointment `completed` updates `Client.lastContactAt` so FO CRM freshness reflects real meetings
 
 ## Non-goals in this phase

@@ -13736,6 +13736,12 @@ body,
   gap: 8px;
 }
 
+.front-office-follow-up-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .front-office-calendar-badges {
   justify-content: flex-end;
   align-items: flex-start;

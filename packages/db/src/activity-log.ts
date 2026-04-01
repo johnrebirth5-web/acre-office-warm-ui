@@ -106,6 +106,7 @@ export const activityLogActions = {
   transactionTaskCompleted: "transaction.task_completed",
   transactionTaskReopened: "transaction.task_reopened",
   followUpTaskCreated: "follow_up_task.created",
+  followUpTaskUpdated: "follow_up_task.updated",
   appointmentCreated: "appointment.created",
   appointmentUpdated: "appointment.updated",
   contactCreated: "contact.created",
@@ -233,6 +234,7 @@ export type ActivityLogPayload = {
   contextHref?: string;
   actionSource?: string;
   workflowReason?: string;
+  completed?: boolean;
   details?: string[];
   changes?: ActivityLogChange[];
 };
@@ -416,6 +418,7 @@ type ActivityAlertSectionDefinition = {
 type ParsedActivityPayload = ActivityLogPayload & {
   changes: ActivityLogChange[];
   details: string[];
+  completed?: boolean;
 };
 
 const activityActionLabelMap: Record<ActivityLogAction, string> = {
@@ -502,6 +505,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "transaction.task_completed": "Task completed",
   "transaction.task_reopened": "Task reopened",
   "follow_up_task.created": "Follow-up task created",
+  "follow_up_task.updated": "Follow-up task updated",
   "appointment.created": "Appointment created",
   "appointment.updated": "Appointment updated",
   "contact.created": "Contact created",
@@ -1479,6 +1483,12 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
         : appendActionSourceSummary("reopened a transaction task", payload);
     case activityLogActions.followUpTaskCreated:
       return "created a follow-up task";
+    case activityLogActions.followUpTaskUpdated:
+      return payload.completed
+        ? "completed a follow-up task"
+        : payload.changes.length === 1
+          ? `updated follow-up task ${payload.changes[0].label.toLowerCase()}`
+          : "updated a follow-up task";
     case activityLogActions.appointmentCreated:
       return "scheduled an appointment";
     case activityLogActions.appointmentUpdated:

@@ -158,6 +158,22 @@ export type CreateFollowUpTaskInput = {
   dueAt?: string;
 };
 
+export type UpdateFollowUpTaskInput = {
+  organizationId: string;
+  clientId: string;
+  taskId: string;
+  actorMembershipId: string;
+  actorOfficeId?: string | null;
+  title?: string;
+  status?: string;
+  dueAt?: string | null;
+};
+
+const openFollowUpTaskStatuses: TaskStatus[] = [
+  TaskStatus.queued,
+  TaskStatus.in_progress,
+];
+
 function formatDateLabel(date: Date | null) {
   if (!date) {
     return "—";
@@ -235,6 +251,103 @@ function buildContactObjectLabel(contact: {
   phone: string | null;
 }) {
   return `${contact.fullName}${contact.email ? ` · ${contact.email}` : contact.phone ? ` · ${contact.phone}` : ""}`;
+}
+
+function normalizeFollowUpTaskStatus(value: string | undefined) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === TaskStatus.queued) {
+    return TaskStatus.queued;
+  }
+
+  if (normalized === TaskStatus.in_progress) {
+    return TaskStatus.in_progress;
+  }
+
+  if (normalized === TaskStatus.completed) {
+    return TaskStatus.completed;
+  }
+
+  if (normalized === TaskStatus.canceled) {
+    return TaskStatus.canceled;
+  }
+
+  throw new Error("Unsupported follow-up task status.");
+}
+
+async function syncClientNextFollowUpAtFromOpenTasks(
+  tx: Prisma.TransactionClient,
+  input: {
+    clientId: string;
+    previousDueAt?: Date | null;
+  },
+) {
+  const client = await tx.client.findUnique({
+    where: {
+      id: input.clientId,
+    },
+    select: {
+      id: true,
+      nextFollowUpAt: true,
+    },
+  });
+
+  if (!client) {
+    return;
+  }
+
+  const openTasks = await tx.followUpTask.findMany({
+    where: {
+      clientId: input.clientId,
+      status: {
+        in: openFollowUpTaskStatuses,
+      },
+    },
+    orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+    select: {
+      dueAt: true,
+    },
+  });
+
+  const earliestOpenTaskDueAt =
+    openTasks.find((task) => task.dueAt)?.dueAt ?? null;
+  const currentNextFollowUpAt = client.nextFollowUpAt ?? null;
+
+  let nextFollowUpAt = currentNextFollowUpAt;
+
+  if (!currentNextFollowUpAt) {
+    nextFollowUpAt = earliestOpenTaskDueAt;
+  } else if (
+    input.previousDueAt &&
+    currentNextFollowUpAt.getTime() === input.previousDueAt.getTime()
+  ) {
+    nextFollowUpAt = earliestOpenTaskDueAt;
+  } else if (
+    earliestOpenTaskDueAt &&
+    earliestOpenTaskDueAt.getTime() < currentNextFollowUpAt.getTime()
+  ) {
+    nextFollowUpAt = earliestOpenTaskDueAt;
+  }
+
+  const currentTime = currentNextFollowUpAt?.getTime() ?? null;
+  const nextTime = nextFollowUpAt?.getTime() ?? null;
+
+  if (currentTime === nextTime) {
+    return;
+  }
+
+  await tx.client.update({
+    where: {
+      id: client.id,
+    },
+    data: {
+      nextFollowUpAt,
+    },
+  });
 }
 
 function buildContactChangedDetail(
@@ -1103,21 +1216,9 @@ export async function createFollowUpTask(
       },
     });
 
-    if (created.dueAt) {
-      await tx.client.update({
-        where: {
-          id: client.id,
-        },
-        data: {
-          nextFollowUpAt:
-            !client.nextFollowUpAt ||
-            client.nextFollowUpAt.getTime() <= new Date().getTime() ||
-            created.dueAt.getTime() < client.nextFollowUpAt.getTime()
-              ? created.dueAt
-              : client.nextFollowUpAt,
-        },
-      });
-    }
+    await syncClientNextFollowUpAtFromOpenTasks(tx, {
+      clientId: client.id,
+    });
 
     await recordActivityLogEvent(tx, {
       organizationId: input.organizationId,
@@ -1159,6 +1260,125 @@ export async function createFollowUpTask(
     });
 
     return created;
+  });
+
+  return {
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    dueAt: formatDateLabel(task.dueAt),
+    assigneeName: task.assigneeMembership
+      ? `${task.assigneeMembership.user.firstName} ${task.assigneeMembership.user.lastName}`
+      : "Unassigned",
+  };
+}
+
+export async function updateFollowUpTask(
+  input: UpdateFollowUpTaskInput,
+): Promise<OfficeContactTask | null> {
+  const existing = await prisma.followUpTask.findFirst({
+    where: {
+      id: input.taskId,
+      organizationId: input.organizationId,
+      clientId: input.clientId,
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      dueAt: true,
+      assigneeMemberId: true,
+      clientId: true,
+      client: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const nextStatus =
+    normalizeFollowUpTaskStatus(input.status) ?? existing.status;
+  const title = input.title !== undefined ? input.title.trim() : existing.title;
+
+  if (!title) {
+    throw new Error("Task title is required.");
+  }
+
+  const dueAt =
+    input.dueAt !== undefined
+      ? parseOptionalDate(input.dueAt ?? undefined)
+      : existing.dueAt;
+
+  const task = await prisma.$transaction(async (tx) => {
+    const updated = await tx.followUpTask.update({
+      where: {
+        id: existing.id,
+      },
+      data: {
+        title,
+        status: nextStatus,
+        dueAt,
+      },
+      include: {
+        assigneeMembership: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (existing.clientId) {
+      await syncClientNextFollowUpAtFromOpenTasks(tx, {
+        clientId: existing.clientId,
+        previousDueAt: existing.dueAt,
+      });
+    }
+
+    const details = [
+      title !== existing.title ? `Title: ${existing.title} → ${title}` : null,
+      nextStatus !== existing.status
+        ? `Status: ${existing.status} → ${nextStatus}`
+        : null,
+      formatDateValue(dueAt) !== formatDateValue(existing.dueAt)
+        ? `Due: ${formatDateLabel(existing.dueAt)} → ${formatDateLabel(dueAt)}`
+        : null,
+    ].filter((detail): detail is string => Boolean(detail));
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "follow_up_task",
+      entityId: updated.id,
+      action: activityLogActions.followUpTaskUpdated,
+      payload: {
+        officeId: input.actorOfficeId ?? null,
+        contactId: existing.client?.id ?? undefined,
+        contactName: existing.client?.fullName ?? undefined,
+        taskId: updated.id,
+        taskTitle: updated.title,
+        objectLabel: existing.client
+          ? `${updated.title} · ${buildContactObjectLabel(existing.client)}`
+          : updated.title,
+        changes: details.map((detail) => ({
+          label: detail.split(":")[0],
+          before: "",
+          after: detail,
+        })),
+        details,
+        completed: nextStatus === TaskStatus.completed,
+      },
+    });
+
+    return updated;
   });
 
   return {

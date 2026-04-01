@@ -25,6 +25,11 @@ type FeedbackState = {
   message: string;
 } | null;
 
+type FollowUpTaskUpdatePayload = {
+  status?: string;
+  dueAt?: string | null;
+};
+
 function buildDefaultDueAt() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -38,6 +43,19 @@ function buildEmptyFormState(): FollowUpFormState {
   };
 }
 
+function buildNextDueDateValue(currentValue: string) {
+  const baseDate = currentValue ? new Date(currentValue) : new Date();
+
+  if (Number.isNaN(baseDate.getTime())) {
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() + 1);
+    return fallback.toISOString().slice(0, 10);
+  }
+
+  baseDate.setDate(baseDate.getDate() + 1);
+  return baseDate.toISOString().slice(0, 10);
+}
+
 export function FrontOfficeClientDossierClient(
   props: FrontOfficeClientDossierClientProps,
 ) {
@@ -46,6 +64,7 @@ export function FrontOfficeClientDossierClient(
     useState<FollowUpFormState>(buildEmptyFormState);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending;
 
@@ -105,6 +124,59 @@ export function FrontOfficeClientDossierClient(
         message: "Could not create the follow-up task.",
       });
       setIsSaving(false);
+    }
+  }
+
+  async function handleTaskUpdate(
+    taskId: string,
+    payload: FollowUpTaskUpdatePayload,
+    successMessage: string,
+  ) {
+    setFeedback(null);
+    setIsSaving(true);
+    setActiveTaskId(taskId);
+
+    try {
+      const response = await fetch(
+        `/api/agent/clients/${props.snapshot.id}/follow-up-tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        setFeedback({
+          tone: "error",
+          message: body?.error ?? "Could not update the follow-up task.",
+        });
+        setIsSaving(false);
+        setActiveTaskId(null);
+        return;
+      }
+
+      setFeedback({
+        tone: "success",
+        message: successMessage,
+      });
+      startTransition(() => {
+        router.refresh();
+        setIsSaving(false);
+        setActiveTaskId(null);
+      });
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Could not update the follow-up task.",
+      });
+      setIsSaving(false);
+      setActiveTaskId(null);
     }
   }
 
@@ -193,6 +265,45 @@ export function FrontOfficeClientDossierClient(
         {props.snapshot.followUpTasks.length ? (
           props.snapshot.followUpTasks.map((task) => (
             <QueueItem
+              action={
+                task.statusValue === "completed" ||
+                task.statusValue === "canceled" ? null : (
+                  <div className="front-office-follow-up-actions">
+                    <Button
+                      disabled={isBusy}
+                      onClick={() =>
+                        void handleTaskUpdate(
+                          task.id,
+                          { status: "completed" },
+                          "Follow-up completed. Workflow pressure has been recalculated.",
+                        )
+                      }
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {activeTaskId === task.id ? "Saving..." : "Mark complete"}
+                    </Button>
+                    <Button
+                      disabled={isBusy}
+                      onClick={() =>
+                        void handleTaskUpdate(
+                          task.id,
+                          { dueAt: buildNextDueDateValue(task.dueAtValue) },
+                          task.dueAtValue
+                            ? "Follow-up pushed forward by one day."
+                            : "Follow-up scheduled for tomorrow.",
+                        )
+                      }
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      {task.dueAtValue ? "Push +1 day" : "Due tomorrow"}
+                    </Button>
+                  </div>
+                )
+              }
               badgeLabel={task.statusLabel}
               badgeTone={task.tone}
               description={task.dueLabel}

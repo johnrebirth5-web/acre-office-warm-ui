@@ -374,6 +374,10 @@
   - `/agent/clients/[clientId]` surfaces a workflow pressure signal plus a stage-derived suggested next step
   - agents can create shared follow-up tasks directly from the dossier through `/api/agent/clients/[clientId]/follow-up-tasks`
   - the task write reuses the existing `FollowUpTask` service and keeps `Client.nextFollowUpAt` synchronized when the new follow-up has a due date, so FO/BO reminder surfaces stay aligned
+- FO follow-up execution now goes beyond creation:
+  - `/api/agent/clients/[clientId]/follow-up-tasks/[taskId]` lets Front Office complete or push forward existing follow-up tasks without leaving the dossier
+  - updating a follow-up now records audit activity and re-synchronizes `Client.nextFollowUpAt` when that task was driving the current next-touch signal
+  - `/agent/dashboard` now shows overdue task counts, 15+ day stale counts, and a leadership pressure queue for `team_lead / office_admin / owner`, using team hierarchy for lead scope and office scope for admin/owner
 
 ## Next recommended work
 

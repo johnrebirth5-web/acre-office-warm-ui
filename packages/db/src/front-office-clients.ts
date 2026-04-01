@@ -42,7 +42,9 @@ export type FrontOfficeClientDetailAppointmentItem = {
 export type FrontOfficeClientDetailTaskItem = {
   id: string;
   title: string;
+  statusValue: TaskStatus;
   dueLabel: string;
+  dueAtValue: string;
   statusLabel: string;
   tone: FrontOfficeClientDetailTone;
   assigneeLabel: string;
@@ -855,7 +857,9 @@ export async function getFrontOfficeClientDetail(
     followUpTasks: client.followUpTasks.map((task) => ({
       id: task.id,
       title: task.title,
+      statusValue: task.status,
       dueLabel: formatTaskDueLabel(task.dueAt, now, input.timeZone),
+      dueAtValue: task.dueAt ? task.dueAt.toISOString().slice(0, 10) : "",
       statusLabel: formatTaskStatusLabel(task.status),
       tone: mapTaskTone(task.status, task.dueAt, now),
       assigneeLabel:
