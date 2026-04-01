@@ -17,13 +17,14 @@ Current canonical sources of truth:
 - [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/office-design-system.md)
 - [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css)
 - [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/ui/src/index.tsx)
+- [apps/web/app/_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
 - [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
 
-`Front Office` already partially follows this baseline through:
+`Front Office` already follows this baseline through:
 
 - [apps/web/app/agent/_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
 
-That FO template is directionally correct because it already composes `PageShell`, `PageHeader`, `OfficeListPageSummary`, `ListPageStack`, and `ListPageSplit` from `@acre/ui`. It should be treated as a thin FO flavor of the same system, not a separate template family.
+As of `2026-04-01`, FO and BO route-level templates already share one common route-template skeleton through [canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx). The remaining unification work is now about expanding adoption and removing legacy page-local chrome, not about inventing the shared skeleton for the first time.
 
 ## Audit method
 
@@ -54,20 +55,24 @@ The repo already has a solid canonical primitive set in [packages/ui/src/index.t
 
 This means the main problem is not missing foundation. The problem is incomplete adoption.
 
-### 2. Route-level page templates are still split across three patterns
+### 2. Route-level page templates now share one skeleton, but adoption is still incomplete
 
-Canonical route-level list template exists in:
+Canonical shared route-level list skeleton now exists in:
+
+- [apps/web/app/_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
+
+BO list-page adapter exists in:
 
 - [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
 
-It is only directly used by:
+FO list-page adapter exists in:
+
+- [apps/web/app/agent/_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
+
+The BO adapter is only directly used by:
 
 - [apps/web/app/office/transactions/transactions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transactions-client.tsx)
 - [apps/web/app/office/contacts/contacts-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/contacts-client.tsx)
-
-FO uses a second, closely related route-level template:
-
-- [apps/web/app/agent/_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
 
 Many BO pages still hand-roll route shells with `PageShell + PageHeader + PageHeaderSummary` instead of using the canonical list template directly, for example:
 
@@ -82,7 +87,8 @@ Many BO pages still hand-roll route shells with `PageShell + PageHeader + PageHe
 
 Finding:
 
-- there is one correct primitive family, but there is not yet one enforced route-template contract
+- there is now one correct route-template contract at the skeleton level
+- but BO adoption is still inconsistent because many route pages bypass the canonical list-page adapter
 
 ### 3. `bm-*` is still active in live BO pages
 

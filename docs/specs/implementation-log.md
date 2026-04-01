@@ -8,6 +8,11 @@
 
 ## Recently completed major work
 
+- 2026-04-01: FO / BO route-level page templates now share one canonical list-page skeleton instead of maintaining separate shell logic:
+  - added shared [apps/web/app/_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx) as the common route-template foundation for `PageShell`, canonical header summary, and canonical list-card composition
+  - [apps/web/app/agent/_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx) now composes that shared canonical skeleton instead of hand-assembling its own shell/header stack
+  - [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx) now also delegates to the same shared canonical skeleton, so FO and BO list-page routes start from one route-level template family
+  - this is the first implementation step of the “one Acre design system” rule: FO may still have its own action-first layout flavor, but it no longer owns a separate route-shell foundation
 - 2026-03-31: agent payout review reminders are now treated as persistent high-priority in-product work instead of one easy-to-miss inbox row:
   - `sendAgentPayoutStatementToAgent(...)` now writes `payout_statement_ready` notifications with action-required copy and `critical` severity for the agent-facing send / resend flow
   - `/office/notifications` now derives a live `Needs your payout review` queue from current `AgentPayoutStatement.reviewStatus === awaiting_agent`, so statement review stays visible even if the user already opened or marked the original inbox item as read

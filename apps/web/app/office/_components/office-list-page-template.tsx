@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SelectInput } from "@acre/ui";
 import {
-  ListPageSection,
-  OfficeListPageSummary,
-  PageHeader,
-  PageShell,
-  SelectInput,
-} from "@acre/ui";
+  CanonicalListPageHeader,
+  CanonicalListPageShell,
+  CanonicalListPageTableCard
+} from "../../_components/canonical-list-page-template";
 
 type ClassValue = string | false | null | undefined;
 
@@ -70,37 +69,17 @@ type OfficeListPagePaginationProps = {
 };
 
 export function OfficeListPageShell(props: OfficeListPageShellProps) {
-  return (
-    <PageShell
-      className={cx(
-        "office-list-page",
-        "office-canonical-list-page",
-        props.className,
-      )}
-    >
-      {props.children}
-    </PageShell>
-  );
+  return <CanonicalListPageShell className={props.className}>{props.children}</CanonicalListPageShell>;
 }
 
 export function OfficeListPageHeader(props: OfficeListPageHeaderProps) {
   return (
-    <PageHeader
-      actions={
-        props.summary ? (
-          <OfficeListPageSummary
-            className={cx(
-              "office-canonical-list-page-summary",
-              props.summaryClassName,
-            )}
-          >
-            {props.summary}
-          </OfficeListPageSummary>
-        ) : null
-      }
-      className={cx("office-canonical-list-page-header", props.className)}
+    <CanonicalListPageHeader
+      className={props.className}
       description={props.description}
       eyebrow={props.eyebrow}
+      summary={props.summary}
+      summaryClassName={props.summaryClassName}
       title={props.title}
     />
   );
@@ -108,21 +87,17 @@ export function OfficeListPageHeader(props: OfficeListPageHeaderProps) {
 
 export function OfficeListPageTableCard(props: OfficeListPageTableCardProps) {
   return (
-    <ListPageSection
+    <CanonicalListPageTableCard
       actions={props.actions}
-      className={cx("office-canonical-list-page-card", props.className)}
+      className={props.className}
       id={props.id}
+      filters={props.filters}
+      footer={props.footer}
       subtitle={props.subtitle}
       title={props.title}
     >
-      {props.filters ? (
-        <div className="office-list-page-workbench">{props.filters}</div>
-      ) : null}
-      <div className="office-list-page-table-region">{props.children}</div>
-      {props.footer ? (
-        <div className="office-list-page-footer-region">{props.footer}</div>
-      ) : null}
-    </ListPageSection>
+      {props.children}
+    </CanonicalListPageTableCard>
   );
 }
 

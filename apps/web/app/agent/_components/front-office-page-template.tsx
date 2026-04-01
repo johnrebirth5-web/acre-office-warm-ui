@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
 import {
-  ListPageSplit,
-  ListPageStack,
-  OfficeListPageSummary,
-  PageHeader,
-  PageShell
-} from "@acre/ui";
+  CanonicalListPageHeader,
+  CanonicalListPageShell,
+  CanonicalListPageSplitLayout
+} from "../../_components/canonical-list-page-template";
 
 function cx(...values: Array<string | null | undefined | false>) {
   return values.filter(Boolean).join(" ");
@@ -24,23 +22,23 @@ export function FrontOfficePageTemplate(props: {
   layoutClassName?: string;
 }) {
   return (
-    <PageShell className={cx("office-list-page", "office-canonical-list-page", "office-agent-page", "front-office-template-page", props.pageClassName)}>
-      <PageHeader
-        actions={<OfficeListPageSummary className={cx("office-canonical-list-page-summary", "front-office-template-summary", props.summaryClassName)}>{props.summary}</OfficeListPageSummary>}
-        className={cx("office-canonical-list-page-header", "front-office-template-header", props.headerClassName)}
+    <CanonicalListPageShell className={cx("office-agent-page", "front-office-template-page", props.pageClassName)}>
+      <CanonicalListPageHeader
+        className={cx("front-office-template-header", props.headerClassName)}
         description={props.description}
         eyebrow={props.eyebrow}
+        summary={props.summary}
+        summaryClassName={cx("front-office-template-summary", props.summaryClassName)}
         title={props.title}
       />
 
-      {props.rail ? (
-        <ListPageSplit className={cx("front-office-template-layout", props.layoutClassName)}>
-          <ListPageStack className="front-office-template-main">{props.main}</ListPageStack>
-          <ListPageStack className="front-office-template-rail">{props.rail}</ListPageStack>
-        </ListPageSplit>
-      ) : (
-        <ListPageStack className="front-office-template-main">{props.main}</ListPageStack>
-      )}
-    </PageShell>
+      <CanonicalListPageSplitLayout
+        className={cx("front-office-template-layout", props.layoutClassName)}
+        main={props.main}
+        mainClassName="front-office-template-main"
+        rail={props.rail}
+        railClassName="front-office-template-rail"
+      />
+    </CanonicalListPageShell>
   );
 }
