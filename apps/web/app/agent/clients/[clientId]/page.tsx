@@ -296,6 +296,101 @@ export default async function AgentClientDetailPage(
           </SectionCard>
 
           <SectionCard
+            actions={
+              <FrontOfficeLink
+                className="office-button-secondary"
+                href={snapshot.negotiation.primaryActionHref}
+              >
+                {snapshot.negotiation.primaryActionLabel}
+              </FrontOfficeLink>
+            }
+            className="office-list-card"
+            subtitle="Keep negotiation prep in Front Office until it needs a formal Back Office offer record, then jump straight into the shared offer workspace."
+            title="Offer & negotiation"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="where this client currently sits across FO prep and BO offer execution"
+                label="Workspace stage"
+                tone="accent"
+                value={snapshot.negotiation.boundaryLabel}
+              />
+              <StatCard
+                hint="formal Back Office offers already tracked for the linked transaction"
+                label="BO offers"
+                value={snapshot.negotiation.offerCount}
+              />
+              <StatCard
+                hint="offers that are close to expiration in the shared BO workspace"
+                label="Expiring soon"
+                value={snapshot.negotiation.expiringSoonCount}
+              />
+              <StatCard
+                hint="accepted offer or current primary state"
+                label="Accepted / primary"
+                value={snapshot.negotiation.acceptedOfferLabel}
+              />
+            </ListPageStatsGrid>
+
+            <div className="office-queue-list">
+              <QueueItem
+                action={
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={snapshot.negotiation.primaryActionHref}
+                  >
+                    {snapshot.negotiation.primaryActionLabel}
+                  </FrontOfficeLink>
+                }
+                badgeLabel={snapshot.negotiation.boundaryLabel}
+                badgeTone={snapshot.negotiation.boundaryTone}
+                description={snapshot.negotiation.boundaryDescription}
+                meta={<span>{snapshot.negotiation.boundaryMetaLabel}</span>}
+                title={snapshot.negotiation.boundaryTitle}
+              />
+            </div>
+
+            <div className="office-queue-list">
+              {snapshot.negotiation.offers.length ? (
+                snapshot.negotiation.offers.map((offer) => (
+                  <QueueItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={offer.href}
+                      >
+                        Open BO offer
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={offer.statusLabel}
+                    badgeTone={offer.statusTone}
+                    context={offer.partyLabel}
+                    description={[offer.priceLabel, offer.expirationLabel]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    key={offer.id}
+                    meta={<span>{offer.updatedAtLabel}</span>}
+                    title={offer.title}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    <FrontOfficeLink
+                      className="office-button-secondary"
+                      href={snapshot.negotiation.primaryActionHref}
+                    >
+                      {snapshot.negotiation.primaryActionLabel}
+                    </FrontOfficeLink>
+                  }
+                  description={snapshot.negotiation.emptyStateDescription}
+                  title={snapshot.negotiation.emptyStateTitle}
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
             className="office-list-card"
             subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
             title="Chat List & phone strategy"
@@ -472,6 +567,11 @@ export default async function AgentClientDetailPage(
             label="BO handoffs"
             tone="accent"
             value={snapshot.summary.openHandoffCount}
+          />
+          <SummaryChip
+            label="Negotiation"
+            tone="accent"
+            value={snapshot.negotiation.boundaryLabel}
           />
         </>
       }

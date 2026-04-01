@@ -15,6 +15,7 @@ import {
   defaultLeaseReminderLeadDays,
   resolveLeaseReminderDates,
 } from "./lease-reminders";
+import { listTransactionOffersSnapshot } from "./offers";
 
 export type FrontOfficeClientDetailTone =
   | "neutral"
@@ -84,6 +85,36 @@ export type FrontOfficeClientDetailTransactionItem = {
   statusLabel: string;
   roleLabel: string;
   href: string;
+};
+
+export type FrontOfficeClientDetailNegotiationOfferItem = {
+  id: string;
+  title: string;
+  statusLabel: string;
+  statusTone: FrontOfficeClientDetailTone;
+  partyLabel: string;
+  priceLabel: string;
+  expirationLabel: string;
+  updatedAtLabel: string;
+  href: string;
+};
+
+export type FrontOfficeClientDetailNegotiation = {
+  stageLabel: string;
+  stageTone: FrontOfficeClientDetailTone;
+  boundaryLabel: string;
+  boundaryTone: FrontOfficeClientDetailTone;
+  boundaryTitle: string;
+  boundaryDescription: string;
+  boundaryMetaLabel: string;
+  offerCount: number;
+  expiringSoonCount: number;
+  acceptedOfferLabel: string;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  emptyStateTitle: string;
+  emptyStateDescription: string;
+  offers: FrontOfficeClientDetailNegotiationOfferItem[];
 };
 
 export type FrontOfficeClientDetailWorkflowSignal = {
@@ -166,6 +197,7 @@ export type FrontOfficeClientDetailSnapshot = {
     lastEngagementLabel: string;
   };
   leaseReminder: FrontOfficeClientDetailLeaseReminder;
+  negotiation: FrontOfficeClientDetailNegotiation;
   workflow: FrontOfficeClientDetailWorkflowSignal;
   playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
@@ -1244,6 +1276,34 @@ function formatTransactionStatusLabel(status: string) {
     .join(" ");
 }
 
+function mapOfferStatusTone(status: string): FrontOfficeClientDetailTone {
+  switch (status) {
+    case "accepted":
+      return "success";
+    case "countered":
+    case "under_review":
+      return "warning";
+    case "submitted":
+    case "received":
+      return "accent";
+    case "rejected":
+    case "withdrawn":
+    case "expired":
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
+function buildOfferWorkspaceHref(
+  transactionId: string,
+  offerId?: string | null,
+) {
+  return offerId?.trim()
+    ? `/office/transactions/${transactionId}#offer-${offerId}`
+    : `/office/transactions/${transactionId}#transaction-offers`;
+}
+
 function buildWorkflowSignal(input: {
   clientId: string;
   stage: string;
@@ -1719,19 +1779,48 @@ export async function getFrontOfficeClientDetail(
         committedTransactionId: activeHandoffDraft.committedTransactionId,
       }
     : null;
+  const primaryLinkedTransaction =
+    (activeHandoffDraft?.committedTransactionId
+      ? client.transactionContacts.find(
+          (link) =>
+            link.transaction.id === activeHandoffDraft.committedTransactionId,
+        )
+      : null) ??
+    client.transactionContacts[0] ??
+    null;
+  const negotiationTransactionId =
+    primaryLinkedTransaction?.transaction.id ??
+    activeHandoffDraft?.committedTransactionId ??
+    null;
   const linkedTransactionHref = client.transactionContacts[0]
     ? `/office/transactions/${client.transactionContacts[0].transaction.id}`
     : null;
-  const upcomingAppointmentCount = client.appointments.filter(
-    (appointment) =>
-      appointment.status === AppointmentStatus.scheduled &&
-      appointment.startsAt.getTime() >= now.getTime(),
-  ).length;
-  const openHandoffCount = client.handoffDrafts.filter(
-    (draft) =>
-      draft.status === FrontOfficeHandoffStatus.draft ||
-      draft.status === FrontOfficeHandoffStatus.ready,
-  ).length;
+  const [
+    negotiationOffersSnapshot,
+    upcomingAppointmentCount,
+    openHandoffCount,
+  ] = await Promise.all([
+    negotiationTransactionId
+      ? listTransactionOffersSnapshot(
+          input.organizationId,
+          negotiationTransactionId,
+        )
+      : Promise.resolve(null),
+    Promise.resolve(
+      client.appointments.filter(
+        (appointment) =>
+          appointment.status === AppointmentStatus.scheduled &&
+          appointment.startsAt.getTime() >= now.getTime(),
+      ).length,
+    ),
+    Promise.resolve(
+      client.handoffDrafts.filter(
+        (draft) =>
+          draft.status === FrontOfficeHandoffStatus.draft ||
+          draft.status === FrontOfficeHandoffStatus.ready,
+      ).length,
+    ),
+  ]);
   const ownerLabel =
     `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
     client.ownerMembership?.user.email ||
@@ -1745,6 +1834,81 @@ export async function getFrontOfficeClientDetail(
     : "Areas not captured";
   const totalOpenCount = sendAggregate._sum.openCount ?? 0;
   const revisitCount = Math.max(totalOpenCount - openedSendCount, 0);
+  const workflow = buildWorkflowSignal({
+    clientId: client.id,
+    stage: client.stage,
+    lastContactAt: client.lastContactAt,
+    nextTouchAt,
+    leaseReminderAt: client.leaseReminderAt,
+    leaseReminderNeedsAttention: leaseReminder.needsAttention,
+    hasOverdueTask: client.followUpTasks.some(
+      (task) =>
+        task.status !== TaskStatus.completed &&
+        Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
+    ),
+    openTaskCount,
+    activeHandoff,
+    linkedTransactionHref,
+    timeZone: input.timeZone,
+    now,
+  });
+  const negotiationOfferCount = negotiationOffersSnapshot?.offers.length ?? 0;
+  const negotiationBoundaryLabel = negotiationTransactionId
+    ? "BO workspace live"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Ready for BO handoff"
+      : "Front Office prep";
+  const negotiationBoundaryTone: FrontOfficeClientDetailTone =
+    negotiationTransactionId
+      ? "success"
+      : isFrontOfficeStageReadyForBackOffice(client.stage)
+        ? "warning"
+        : "accent";
+  const negotiationPrimaryActionLabel = negotiationTransactionId
+    ? negotiationOfferCount > 0
+      ? "Open BO offers"
+      : "Start BO offer tracking"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Open Back Office create flow"
+      : workflow.actionLabel;
+  const negotiationPrimaryActionHref = negotiationTransactionId
+    ? buildOfferWorkspaceHref(negotiationTransactionId)
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? activeHandoff?.href ?? "/office/transactions"
+      : workflow.actionHref;
+  const negotiationBoundaryTitle = negotiationTransactionId
+    ? "Formal offer workspace is now the source of truth"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Negotiation is ready to become a formal record"
+      : "Keep offer prep lightweight inside Front Office";
+  const negotiationBoundaryDescription = negotiationTransactionId
+    ? negotiationOfferCount > 0
+      ? `${negotiationOfferCount} offer record(s) already exist in the shared Back Office workspace, so comparison, documents, and signatures stay anchored there.`
+      : "The formal transaction record is live. Start structured offer tracking from the shared Back Office offers workspace instead of creating a second Front Office record."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Stage, appointments, send trail, and handoff context are already lined up. The next formal offer record should start in Back Office, not as a duplicate Front Office note."
+      : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before this becomes a formal Back Office offer workflow.";
+  const negotiationBoundaryMetaLabel = negotiationTransactionId
+    ? primaryLinkedTransaction
+      ? `${primaryLinkedTransaction.transaction.title} · ${primaryLinkedTransaction.transaction.address}, ${primaryLinkedTransaction.transaction.city}, ${primaryLinkedTransaction.transaction.state}`
+      : "Linked transaction ready"
+    : activeHandoffDraft
+      ? activeHandoffDraft.summary?.trim() ||
+        buildFrontOfficeHandoffSummary(
+          activeHandoffDraft.stageLabel,
+          client.fullName,
+        )
+      : `Current stage · ${client.stage}`;
+  const negotiationEmptyStateTitle = negotiationTransactionId
+    ? "No formal offers yet"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "No BO offer workspace started yet"
+      : "Still in Front Office prep";
+  const negotiationEmptyStateDescription = negotiationTransactionId
+    ? "Once the first Back Office offer is created, it will appear here with status, price, expiration, and direct links into the shared offer workspace."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "This client is at a BO-ready stage, but the formal transaction and offer workspace have not been opened yet."
+      : "This client is not yet at a formal negotiation / offer stage, so the next move should stay in Front Office follow-up, showing, and send prep.";
 
   return {
     id: client.id,
@@ -1780,24 +1944,50 @@ export async function getFrontOfficeClientDetail(
           })}`
         : "No client engagement yet",
     },
-    workflow: buildWorkflowSignal({
-      clientId: client.id,
-      stage: client.stage,
-      lastContactAt: client.lastContactAt,
-      nextTouchAt,
-      leaseReminderAt: client.leaseReminderAt,
-      leaseReminderNeedsAttention: leaseReminder.needsAttention,
-      hasOverdueTask: client.followUpTasks.some(
-        (task) =>
-          task.status !== TaskStatus.completed &&
-          Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
-      ),
-      openTaskCount,
-      activeHandoff,
-      linkedTransactionHref,
-      timeZone: input.timeZone,
-      now,
-    }),
+    negotiation: {
+      stageLabel: client.stage,
+      stageTone: mapClientStageTone(client.stage),
+      boundaryLabel: negotiationBoundaryLabel,
+      boundaryTone: negotiationBoundaryTone,
+      boundaryTitle: negotiationBoundaryTitle,
+      boundaryDescription: negotiationBoundaryDescription,
+      boundaryMetaLabel: negotiationBoundaryMetaLabel,
+      offerCount: negotiationOfferCount,
+      expiringSoonCount: negotiationOffersSnapshot?.expiringSoonCount ?? 0,
+      acceptedOfferLabel:
+        negotiationOffersSnapshot?.acceptedOfferLabel || "No accepted offer",
+      primaryActionLabel: negotiationPrimaryActionLabel,
+      primaryActionHref: negotiationPrimaryActionHref,
+      emptyStateTitle: negotiationEmptyStateTitle,
+      emptyStateDescription: negotiationEmptyStateDescription,
+      offers:
+        negotiationTransactionId && negotiationOffersSnapshot
+          ? negotiationOffersSnapshot.offers.slice(0, 4).map((offer) => ({
+              id: offer.id,
+              title: offer.title,
+              statusLabel: offer.status,
+              statusTone: mapOfferStatusTone(offer.statusValue),
+              partyLabel:
+                offer.buyerName.trim() || offer.offeringPartyName.trim(),
+              priceLabel: offer.price || "Price not captured",
+              expirationLabel: offer.expirationAt
+                ? `Expires ${formatDateLabel(
+                    new Date(offer.expirationAt),
+                    input.timeZone,
+                  )}`
+                : "No expiration set",
+              updatedAtLabel: `Updated ${formatDateTimeLabel(
+                new Date(offer.updatedAt),
+                { timeZone: input.timeZone ?? null },
+              )}`,
+              href: buildOfferWorkspaceHref(
+                negotiationTransactionId,
+                offer.id,
+              ),
+            }))
+          : [],
+    },
+    workflow,
     playbook: buildFrontOfficePlaybook({
       fullName: client.fullName,
       ownerLabel,

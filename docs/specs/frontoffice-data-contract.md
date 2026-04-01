@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge` foundation, the recommended next implementation target is:
 
-- `offer / negotiation module rooted in the same Front Office dossier and handoff path`
+- `inspection report / inspection-era execution support rooted in the same dossier and BO boundary`
 
 That means:
 
-- Front Office should be able to carry active negotiation work a step further before Back Office transaction formalization
-- offer-oriented workflow should reuse existing client stage, appointment, send, and handoff context instead of introducing disconnected deal notes
-- the module should clarify what remains lightweight FO negotiation prep versus what becomes a formal BO transaction / document / signature record
-- the goal is to extend the now-visible execution trail into structured mid-funnel work before building inspection and PDF-heavy layers
+- Front Office should be able to guide the post-offer / under-contract execution window without pretending inspection findings are already formal BO documents
+- inspection-era workflow should reuse the current dossier, appointments, send trail, and linked transaction / offer context instead of introducing a disconnected project board
+- the module should keep the FO -> BO boundary explicit by showing what remains lightweight coordination versus what becomes a formal document, task, or signature artifact
+- the goal is to extend the newly visible negotiation boundary into the next real execution phase before adding PDF-heavy export layers
 
 ## First real FO workflow models
 
@@ -144,6 +144,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/dashboard` leadership scope now combines overdue tasks, 15+ day stale clients, and quiet tracked-send risk in one queue
   - the latest send per client is evaluated for `3+ day no open` and `7+ day quiet after last tracked open`, so management can see where tracked outreach exists but momentum has stalled
   - stage and appointment context captured on `FrontOfficeSendRecord` now appears directly in those leadership items, so oversight reflects the actual execution path rather than generic CRM aging text
+- offer / negotiation bridge now also lives inside the same FO dossier instead of becoming a second offer database:
+  - `/agent/clients/[clientId]` now exposes an `Offer & negotiation` section that makes the boundary explicit across `Front Office prep`, `Ready for BO handoff`, and `BO workspace live`
+  - when a linked transaction already exists, the dossier now reads the shared Back Office offers snapshot directly and surfaces offer count, expiring-soon count, accepted / primary state, and direct links into the BO offers workspace
+  - when a client is BO-ready but the transaction is not yet committed, the dossier now points straight into the formal BO create flow instead of encouraging a duplicated Front Office offer record
 
 ## Non-goals in this phase
 
@@ -154,4 +158,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- offer / negotiation module rooted in the same Front Office dossier and handoff path
+- inspection report / inspection-era execution support rooted in the same dossier and BO boundary

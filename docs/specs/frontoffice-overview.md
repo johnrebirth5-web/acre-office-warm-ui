@@ -112,8 +112,9 @@ Current implementation priority note:
 - `appointment reminders / notification delivery` are now also live on top of the FO calendar, so near-term appointments enter the same activity stream as other execution reminders
 - `send records` now also snapshot client stage and optional appointment context, so outreach can be read as part of the live execution trail instead of generic clipboard history
 - `leadership/team-level overdue engagement views` are now live on top of the same send trail, so team leads and office admins can spot quiet tracked sends alongside overdue tasks and 15+ day stale clients
-- the next recommended build target is `Offer / negotiation module`
-- prefer this next before `Inspection / PDF` and before AI, because the FO core execution trail now has both agent-side and management-side visibility and can support a structured mid-funnel offer workspace
+- the `Offer / negotiation bridge` is now live on the client dossier, so agents can see whether work is still in FO prep, ready for BO handoff, or already tracked in the shared BO offer workspace
+- the next recommended build target is `Inspection Report`
+- prefer this next before `PDF export` and before AI, because the FO core execution trail now reaches negotiation / offer boundary clearly and can move into inspection-era execution support without inventing parallel BO records
 
 ### Phase 2
 
