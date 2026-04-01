@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility` foundation, the recommended next implementation target is:
 
-- `leadership/team-level overdue engagement views on top of the same send trail`
+- `offer / negotiation module rooted in the same Front Office dossier and handoff path`
 
 That means:
 
-- team leads and office admins should be able to spot clients or agents whose send trail has gone quiet even when tracked links already exist
-- leadership visibility should build on the same `FrontOfficeSendRecord` context instead of inventing a second engagement scoring store
-- stage and appointment context already captured on sends should now become grouping / filtering signals for management review
-- the goal is to turn the current execution trail into actionable oversight before building heavier analytics modules
+- Front Office should be able to carry active negotiation work a step further before Back Office transaction formalization
+- offer-oriented workflow should reuse existing client stage, appointment, send, and handoff context instead of introducing disconnected deal notes
+- the module should clarify what remains lightweight FO negotiation prep versus what becomes a formal BO transaction / document / signature record
+- the goal is to extend the now-visible execution trail into structured mid-funnel work before building inspection and PDF-heavy layers
 
 ## First real FO workflow models
 
@@ -140,6 +140,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `FrontOfficeSendRecord` now also snapshots `clientStageLabel`, optional `appointmentId`, `appointmentTitle`, and `appointmentStartsAt`
   - `/agent/listings` now accepts appointment context in addition to client context, so sends can be recorded straight from a scheduled consultation/showing path
   - `/agent/clients/[clientId]`, `/agent/calendar`, and `/agent/dashboard` now surface that stage/appointment context directly in the send trail instead of forcing agents to reconstruct why a send happened
+- leadership/team-level overdue engagement views now also read from that same send trail instead of inventing a second management score:
+  - `/agent/dashboard` leadership scope now combines overdue tasks, 15+ day stale clients, and quiet tracked-send risk in one queue
+  - the latest send per client is evaluated for `3+ day no open` and `7+ day quiet after last tracked open`, so management can see where tracked outreach exists but momentum has stalled
+  - stage and appointment context captured on `FrontOfficeSendRecord` now appears directly in those leadership items, so oversight reflects the actual execution path rather than generic CRM aging text
 
 ## Non-goals in this phase
 
@@ -150,4 +154,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- leadership/team-level overdue engagement views on top of the same send trail
+- offer / negotiation module rooted in the same Front Office dossier and handoff path

@@ -5,10 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- Current recommended FO next target after live lease reminders, appointment reminders, and richer send context is `leadership/team-level overdue engagement views on top of the same send trail`, so future threads converge on the next real FO execution gap instead of jumping straight to `Offer`, `Inspection`, or AI
+- Current recommended FO next target after live leadership engagement visibility is `Offer / negotiation module`, so future threads extend the now-visible FO execution trail into structured mid-funnel work before jumping to `Inspection`, `PDF`, or AI
 
 ## Recently completed major work
 
+- 2026-04-01: `leadership/team-level overdue engagement views` are now live on top of the existing FO send trail instead of remaining only a spec target:
+  - [packages/db/src/front-office-dashboard.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-dashboard.ts) now expands leadership scope from only overdue follow-up tasks and 15+ day stale clients into a broader execution-pressure queue, including tracked-send risk derived from the latest `FrontOfficeSendRecord` per client
+  - that same leadership snapshot now flags `3+ day no tracked open` and `7+ day quiet after last tracked open` using the existing send trail, and surfaces stage + appointment context captured on the send record so management can see why the outreach happened before it went quiet
+  - [apps/web/app/agent/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/dashboard/page.tsx) now shows a dedicated `Send-trail risk` stat inside the leadership card and updates the section copy so team leads / office admins read the queue as execution oversight instead of only follow-up aging
 - 2026-04-01: `deeper send records tied to appointments and client stage` is now live on top of FO listing output instead of remaining only a planning note:
   - added `appointmentId`, `clientStageLabel`, `appointmentTitle`, and `appointmentStartsAt` to [packages/db/prisma/schema.prisma](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/prisma/schema.prisma) plus migration [packages/db/prisma/migrations/20260401195500_frontoffice_send_context/migration.sql](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/prisma/migrations/20260401195500_frontoffice_send_context/migration.sql), so send records now preserve execution context instead of only the raw share action
   - [packages/db/src/front-office-listing-output.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-listing-output.ts) and [apps/web/app/api/agent/listings/[listingId]/share-links/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/listings/[listingId]/share-links/route.ts) now accept optional appointment context, infer the right client when launching from a client-linked appointment, and snapshot the client stage at send time

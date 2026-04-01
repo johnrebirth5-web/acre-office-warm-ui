@@ -161,6 +161,12 @@ export type FrontOfficeDashboardLeadershipItem = {
   href: string;
 };
 
+type FrontOfficeDashboardLeadershipEngagementItem =
+  FrontOfficeDashboardLeadershipItem & {
+    _priority: number;
+    _sortAt: Date;
+  };
+
 export type FrontOfficeDashboardSnapshot = {
   summary: FrontOfficeDashboardSummary;
   actionQueue: FrontOfficeDashboardActionQueueItem[];
@@ -202,6 +208,7 @@ export type FrontOfficeDashboardSnapshot = {
     scopeLabel: string;
     overdueTaskCount: number;
     staleClientCount: number;
+    engagementRiskCount: number;
     items: FrontOfficeDashboardLeadershipItem[];
   };
 };
@@ -520,6 +527,37 @@ function buildSendRecordAppointmentLabel(input: {
   })}`;
 }
 
+function buildMembershipUserLabel(
+  user:
+    | {
+        firstName: string | null | undefined;
+        lastName: string | null | undefined;
+        email: string | null | undefined;
+      }
+    | null
+    | undefined,
+  fallback: string,
+) {
+  const fullName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
+
+  if (fullName) {
+    return fullName;
+  }
+
+  if (user?.email?.trim()) {
+    return user.email.trim();
+  }
+
+  return fallback;
+}
+
+function buildElapsedDayCount(value: Date, now: Date, minimum = 1) {
+  return Math.max(
+    minimum,
+    Math.floor((now.getTime() - value.getTime()) / 86_400_000),
+  );
+}
+
 function formatNotificationType(type: NotificationType) {
   return type
     .split("_")
@@ -677,7 +715,7 @@ async function getLeadershipScopeMembershipIds(input: {
 
     return {
       visible: true,
-      scopeLabel: "Team follow-up pressure",
+      scopeLabel: "Team execution pressure",
       membershipIds: [...membershipIds],
     };
   }
@@ -703,7 +741,7 @@ async function getLeadershipScopeMembershipIds(input: {
 
     return {
       visible: true,
-      scopeLabel: "Office follow-up pressure",
+      scopeLabel: "Office execution pressure",
       membershipIds: memberships
         .map((membership) => membership.id)
         .filter((membershipId) => membershipId !== input.viewerMembershipId),
@@ -742,6 +780,16 @@ export async function getFrontOfficeDashboardSnapshot(
     now.getMonth(),
     now.getDate() + 7,
   );
+  const threeDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 3,
+  );
+  const sevenDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 7,
+  );
   const fourteenDaysFromNow = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -757,6 +805,11 @@ export async function getFrontOfficeDashboardSnapshot(
     now.getMonth(),
     now.getDate() - 15,
   );
+  const thirtyDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 30,
+  );
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const leadershipScope = await getLeadershipScopeMembershipIds({
     organizationId: input.organizationId,
@@ -764,6 +817,23 @@ export async function getFrontOfficeDashboardSnapshot(
     viewerRole: input.viewerRole,
     officeId: input.officeId ?? null,
   });
+  const leadershipSendWhere: Prisma.FrontOfficeSendRecordWhereInput | null =
+    leadershipScope.visible && leadershipScope.membershipIds.length > 0
+      ? {
+          organizationId: input.organizationId,
+          senderMembershipId: {
+            in: leadershipScope.membershipIds,
+          },
+          sentAt: {
+            gte: thirtyDaysAgo,
+          },
+          ...(input.officeId
+            ? {
+                officeId: input.officeId,
+              }
+            : {}),
+        }
+      : null;
 
   const clientWhere: Prisma.ClientWhereInput = {
     organizationId: input.organizationId,
@@ -873,6 +943,7 @@ export async function getFrontOfficeDashboardSnapshot(
     leadershipOverdueTaskCount,
     leadershipOverdueTasks,
     leadershipStaleClientCandidates,
+    leadershipLatestSendGroups,
   ] = await Promise.all([
     prisma.client.findMany({
       where: {
@@ -1362,7 +1433,82 @@ export async function getFrontOfficeDashboardSnapshot(
           },
         })
       : Promise.resolve([]),
+    leadershipSendWhere
+      ? prisma.frontOfficeSendRecord.groupBy({
+          by: ["clientId"],
+          where: leadershipSendWhere,
+          _max: {
+            sentAt: true,
+          },
+        })
+      : Promise.resolve([]),
   ]);
+
+  const leadershipLatestSendRecordFilters = leadershipLatestSendGroups
+    .flatMap((group) =>
+      group._max.sentAt
+        ? [
+            {
+              clientId: group.clientId,
+              sentAt: group._max.sentAt,
+            },
+          ]
+        : [],
+    );
+  const leadershipLatestSendRecords =
+    leadershipSendWhere && leadershipLatestSendRecordFilters.length > 0
+      ? await prisma.frontOfficeSendRecord.findMany({
+          where: {
+            AND: [leadershipSendWhere, { OR: leadershipLatestSendRecordFilters }],
+          },
+          orderBy: [{ sentAt: "desc" }],
+          select: {
+            id: true,
+            clientId: true,
+            channel: true,
+            clientStageLabel: true,
+            appointmentTitle: true,
+            appointmentStartsAt: true,
+            sentAt: true,
+            lastOpenedAt: true,
+            openCount: true,
+            senderMembership: {
+              select: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            client: {
+              select: {
+                id: true,
+                fullName: true,
+                stage: true,
+                ownerMembership: {
+                  select: {
+                    user: {
+                      select: {
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            listing: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        })
+      : [];
 
   const recentListingIds = recentListings.map((listing) => listing.id);
   const listingShareRows =
@@ -1435,39 +1581,140 @@ export async function getFrontOfficeDashboardSnapshot(
     (client) => !isClosedClientStage(client.stage),
   );
   const leadershipStaleClientCount = filteredLeadershipStaleClients.length;
+  const leadershipLatestSendByClient = new Map<
+    string,
+    (typeof leadershipLatestSendRecords)[number]
+  >();
+
+  for (const record of leadershipLatestSendRecords) {
+    if (!leadershipLatestSendByClient.has(record.clientId)) {
+      leadershipLatestSendByClient.set(record.clientId, record);
+    }
+  }
+
+  const leadershipEngagementItems: FrontOfficeDashboardLeadershipEngagementItem[] =
+    [...leadershipLatestSendByClient.values()]
+      .filter((record) => !isClosedClientStage(record.client.stage))
+      .flatMap<FrontOfficeDashboardLeadershipEngagementItem>((record) => {
+      const appointmentLabel = buildSendRecordAppointmentLabel({
+        title: record.appointmentTitle,
+        startsAt: record.appointmentStartsAt,
+        timeZone: input.timeZone,
+      });
+      const stageLabel = formatSendRecordStageLabel(
+        record.clientStageLabel || record.client.stage,
+      );
+      const listingLabel =
+        record.listing?.title?.trim() || "Tracked Front Office send";
+
+        if (record.openCount <= 0) {
+          if (record.sentAt.getTime() > threeDaysAgo.getTime()) {
+            return [];
+          }
+
+          const daysSinceSend = buildElapsedDayCount(record.sentAt, now, 3);
+
+          return [
+            {
+              id: `leadership-engagement-${record.id}`,
+              title: record.client.fullName,
+              description: [
+                listingLabel,
+                stageLabel,
+                appointmentLabel,
+                `${daysSinceSend} day(s) since send with no tracked open.`,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+              contextLabel: buildMembershipUserLabel(
+                record.senderMembership.user,
+                buildMembershipUserLabel(
+                  record.client.ownerMembership?.user,
+                  "Assigned owner",
+                ),
+              ),
+              tone: "danger",
+              actionLabel: "Open office contact",
+              href: `/office/contacts/${record.client.id}`,
+              _priority: 0,
+              _sortAt: record.sentAt,
+            },
+          ];
+        }
+
+        const lastEngagementAt = record.lastOpenedAt ?? record.sentAt;
+
+        if (lastEngagementAt.getTime() > sevenDaysAgo.getTime()) {
+          return [];
+        }
+
+        const quietDays = buildElapsedDayCount(lastEngagementAt, now, 7);
+
+        return [
+          {
+            id: `leadership-engagement-${record.id}`,
+            title: record.client.fullName,
+            description: [
+              listingLabel,
+              stageLabel,
+              appointmentLabel,
+              `${quietDays} day(s) since the last tracked open.`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            contextLabel: buildMembershipUserLabel(
+              record.senderMembership.user,
+              buildMembershipUserLabel(
+                record.client.ownerMembership?.user,
+                "Assigned owner",
+              ),
+            ),
+            tone: "warning",
+            actionLabel: "Open office contact",
+            href: `/office/contacts/${record.client.id}`,
+            _priority: 1,
+            _sortAt: lastEngagementAt,
+          },
+        ];
+      })
+      .sort(
+        (left, right) =>
+          left._priority - right._priority ||
+          left._sortAt.getTime() - right._sortAt.getTime(),
+      );
+  const leadershipEngagementRiskCount = leadershipEngagementItems.length;
   const leadershipItems: FrontOfficeDashboardLeadershipItem[] = [
-    ...leadershipOverdueTasks.map((task) => ({
+    ...leadershipOverdueTasks.slice(0, 2).map((task) => ({
       id: `leadership-task-${task.id}`,
       title: task.client?.fullName ?? task.title,
       description: `${task.title} · Due ${formatDateLabel(task.dueAt)}`,
-      contextLabel:
-        `${task.assigneeMembership?.user.firstName ?? ""} ${task.assigneeMembership?.user.lastName ?? ""}`.trim() ||
-        task.assigneeMembership?.user.email ||
+      contextLabel: buildMembershipUserLabel(
+        task.assigneeMembership?.user,
         "Assigned team member",
+      ),
       tone: "danger" as const,
       actionLabel: "Open office contact",
       href: task.clientId
         ? `/office/contacts/${task.clientId}`
         : "/office/contacts",
     })),
-    ...filteredLeadershipStaleClients.slice(0, 3).map((client) => {
+    ...leadershipEngagementItems.slice(0, 2).map(
+      ({ _priority, _sortAt, ...item }) => item,
+    ),
+    ...filteredLeadershipStaleClients.slice(0, 2).map((client) => {
       const inactiveDays = Math.max(
         15,
-        Math.floor(
-          (now.getTime() -
-            (client.lastContactAt ?? client.createdAt).getTime()) /
-            86_400_000,
-        ),
+        buildElapsedDayCount(client.lastContactAt ?? client.createdAt, now, 15),
       );
 
       return {
         id: `leadership-client-${client.id}`,
         title: client.fullName,
         description: `${client.stage} · ${inactiveDays} day(s) since the last recorded touch.`,
-        contextLabel:
-          `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
-          client.ownerMembership?.user.email ||
+        contextLabel: buildMembershipUserLabel(
+          client.ownerMembership?.user,
           "Assigned owner",
+        ),
         tone: "warning" as const,
         actionLabel: "Open office contact",
         href: `/office/contacts/${client.id}`,
@@ -1510,7 +1757,9 @@ export async function getFrontOfficeDashboardSnapshot(
   ].slice(0, 4);
   const needsBackOfficeCount = handoffDraftCount + signatureTransactions.length;
   const leadershipPressureCount =
-    leadershipOverdueTaskCount + leadershipStaleClientCount;
+    leadershipOverdueTaskCount +
+    leadershipStaleClientCount +
+    leadershipEngagementRiskCount;
   const actionQueue: FrontOfficeDashboardActionQueueItem[] = [
     {
       id: "follow-up",
@@ -1596,16 +1845,16 @@ export async function getFrontOfficeDashboardSnapshot(
             id: "leadership",
             label:
               input.viewerRole === "team_lead"
-                ? "Team follow-up pressure"
-                : "Office follow-up pressure",
+                ? "Team execution pressure"
+                : "Office execution pressure",
             count: leadershipPressureCount,
             tone: leadershipPressureCount > 0 ? "danger" : "neutral",
             description:
               leadershipPressureCount > 0
-                ? `${leadershipOverdueTaskCount} overdue task(s) and ${leadershipStaleClientCount} stale client(s) need leadership attention.`
-                : "No overdue or 15+ day stale follow-up pressure is visible in your leadership scope right now.",
+                ? `${leadershipOverdueTaskCount} overdue task(s), ${leadershipStaleClientCount} stale client(s), and ${leadershipEngagementRiskCount} send-trail risk item(s) need leadership attention.`
+                : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
             helper:
-              "Leadership visibility should surface team risk before it turns into a formal Back Office problem.",
+              "Leadership visibility should surface follow-up drift and quiet engagement before it turns into a formal Back Office problem.",
             href: "/office/contacts",
             actionLabel:
               input.viewerRole === "team_lead"
@@ -1821,6 +2070,7 @@ export async function getFrontOfficeDashboardSnapshot(
       scopeLabel: leadershipScope.scopeLabel,
       overdueTaskCount: leadershipOverdueTaskCount,
       staleClientCount: leadershipStaleClientCount,
+      engagementRiskCount: leadershipEngagementRiskCount,
       items: leadershipItems,
     },
   };

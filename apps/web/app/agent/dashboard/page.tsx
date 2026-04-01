@@ -577,7 +577,7 @@ export default async function AgentDashboardPage() {
           {snapshot.leadershipQueue.visible ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Team leads and office admins should see overdue follow-up pressure before it becomes a formal Back Office fire drill."
+              subtitle="Team leads and office admins should see overdue tasks, stale clients, and quiet tracked-send trails before they become a formal Back Office fire drill."
               title={snapshot.leadershipQueue.scopeLabel}
             >
               <ListPageStatsGrid>
@@ -590,6 +590,11 @@ export default async function AgentDashboardPage() {
                   hint="active clients with 15+ days of inactivity"
                   label="15+ day stale"
                   value={snapshot.leadershipQueue.staleClientCount}
+                />
+                <StatCard
+                  hint="latest tracked sends that were never opened or have gone quiet"
+                  label="Send-trail risk"
+                  value={snapshot.leadershipQueue.engagementRiskCount}
                 />
               </ListPageStatsGrid>
 
@@ -615,7 +620,7 @@ export default async function AgentDashboardPage() {
                 ) : (
                   <EmptyState
                     className="front-office-inline-empty"
-                    description="No overdue team or office follow-up pressure is visible right now."
+                    description="No overdue task, stale-client, or quiet send-trail pressure is visible right now."
                     title="Leadership queue is clear"
                   />
                 )}
