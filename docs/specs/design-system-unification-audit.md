@@ -205,13 +205,13 @@ Finding:
 
 ### Partially canonical, but still hand-assembled
 
-- nested BO workspaces that still manage local inner-page hero/copy contracts inside a canonical outer shell
-- transaction detail workspaces that already use canonical cards/components but have not yet been normalized onto a dedicated shared inner detail grammar
-- special routes whose page body still carries route-local heading blocks, such as the permissions client under [apps/web/app/office/settings/users/[membershipId]/permissions](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions)
+- nested BO workspaces that still manage local inner-page content grammar inside a canonical outer shell
+- transaction detail workspaces that already use canonical cards/components but still need deeper section-level normalization beyond the top summary/header contract
+- special routes whose page body still has page-local interaction patterns even after the shell/header was unified
 
 ### Highest migration debt
 
-- route/template adoption for BO pages still bypassing the canonical list-page family
+- inner-workspace normalization for BO detail/admin surfaces that already sit inside canonical shells
 - dead compatibility CSS cleanup after the new class names bake in
 - runtime compatibility support such as legacy table-layout hooks
 
@@ -252,10 +252,13 @@ Completed workbench batch:
   - settings user detail / team detail / permissions
   - `1099 Summary Preview`
   - transaction signature prepare / edit routes
+- inner-workspace normalization has started inside that shell layer:
+  - [apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx) now promotes owner / office / status into the shared detail header instead of keeping those facts in a route-local header/overview split
+  - [apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx) now uses shared `SectionCard`, `ListPageStatsGrid`, and `StatCard` grammar for the main permissions workspace instead of a fully custom hero panel
 
 Next candidates:
 
-- inner-workspace normalization for transaction detail and permission-management surfaces
+- transaction detail sub-panels and other BO admin/detail workspaces that still carry route-local inner layouts
 - dead compatibility CSS cleanup once the new shell families have baked in
 
 ### P2. Migrate transaction detail off `bm-*`

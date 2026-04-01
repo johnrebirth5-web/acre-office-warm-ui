@@ -30,8 +30,9 @@ import {
   canViewOfficeDocuments,
   canViewOfficeOffers
 } from "@acre/auth";
-import { DetailSection, PageHeader, PageShell, SectionCard, SecondaryMetaList } from "@acre/ui";
+import { DetailSection, SectionCard, SummaryChip } from "@acre/ui";
 import { notFound } from "next/navigation";
+import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../_components/office-detail-page-template";
 import { TransactionContactsCard } from "./contacts-card";
 import { TransactionDocumentsCard, TransactionUnsortedDocumentsCard } from "./documents-card";
 import { TransactionFinanceForm } from "./finance-form";
@@ -128,38 +129,33 @@ export async function TransactionDetailWorkspace({
   const isEmbedded = chrome === "embedded";
 
   return (
-    <PageShell
+    <OfficeDetailPageShell
       className={[
         "office-transaction-detail-page",
-        "office-detail-page",
         isEmbedded ? "office-transaction-detail-embedded" : ""
       ]
         .filter(Boolean)
         .join(" ")}
     >
       {!isEmbedded ? (
-        <PageHeader
-          actions={
-            <Link className="office-button-secondary" href="/office/transactions">
-              Back to transactions
-            </Link>
-          }
+        <OfficeDetailPageHeader
           description={`${transaction.address}, ${transaction.city}, ${transaction.state} ${transaction.zipCode}`}
           eyebrow="Transaction detail"
+          summary={
+            <>
+              <Link className="office-button-secondary" href="/office/transactions">
+                Back to transactions
+              </Link>
+              <SummaryChip label="Owner" value={transaction.ownerName} />
+              <SummaryChip label="Office" value={transaction.officeName || "Unassigned"} />
+              <SummaryChip label="Status" tone="accent" value={transaction.status} />
+            </>
+          }
           title={transaction.title}
         />
       ) : null}
 
       <DetailSection
-        actions={
-          <SecondaryMetaList
-            items={[
-              { label: "Owner", value: transaction.ownerName },
-              { label: "Office", value: transaction.officeName || "Unassigned" },
-              { label: "Status", value: transaction.status }
-            ]}
-          />
-        }
         subtitle="Core transaction facts, dates, and referral context."
         title="Overview"
       >
@@ -406,8 +402,8 @@ export async function TransactionDetailWorkspace({
           signatureRequests={transaction.signatureRequests}
           taskOptions={taskOptions}
           transactionId={transaction.id}
-        />
-      </TransactionDetailCollapsibleSection>
-    </PageShell>
+          />
+        </TransactionDetailCollapsibleSection>
+    </OfficeDetailPageShell>
   );
 }

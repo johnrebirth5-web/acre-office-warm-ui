@@ -11907,10 +11907,10 @@ a {
 }
 
 .office-user-permissions-panel,
-.office-user-permissions-hero,
-.office-user-permissions-heading,
+.office-user-permissions-panel > .office-section-body,
 .office-user-permissions-panel-head,
 .office-user-permissions-panel-copy,
+.office-user-permissions-stats,
 .office-user-permissions-column,
 .office-user-permissions-node,
 .office-user-permissions-children {
@@ -11919,37 +11919,15 @@ a {
 }
 
 .office-user-permissions-panel {
-  gap: 28px;
-  padding: clamp(24px, 2.8vw, 40px);
-  border: 1px solid var(--office-border);
-  border-radius: 32px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 28px 70px rgba(31, 48, 79, 0.12);
+  gap: 20px;
 }
 
-.office-user-permissions-hero {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 18px;
+.office-user-permissions-panel > .office-section-body {
+  gap: 24px;
 }
 
-.office-user-permissions-heading {
-  gap: 8px;
-}
-
-.office-user-permissions-heading h1 {
-  margin: 0;
-  font-size: clamp(2.4rem, 4vw, 3.6rem);
-  line-height: 0.92;
-  letter-spacing: -0.05em;
-  text-transform: uppercase;
-}
-
-.office-user-permissions-for {
-  margin: 0;
-  color: var(--office-text-muted);
-  font-size: 1.04rem;
-  line-height: 1.4;
+.office-user-permissions-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .office-user-permissions-panel-copy p {
@@ -11961,8 +11939,6 @@ a {
 
 .office-user-permissions-panel-head {
   gap: 14px;
-  padding-top: 18px;
-  border-top: 1px solid var(--office-border);
 }
 
 .office-user-permissions-columns {
@@ -16589,10 +16565,6 @@ body,
     grid-template-columns: 1fr;
   }
 
-  .office-user-permissions-hero {
-    grid-template-columns: 1fr;
-  }
-
   .office-user-permissions-row {
     grid-template-columns: 22px minmax(0, 1fr);
   }
@@ -16640,6 +16612,7 @@ body,
   }
 
   .office-list-page-stats,
+  .office-user-permissions-stats,
   .office-reports-kpi-grid,
   .office-report-stat-strip,
   .office-commission-kpi-grid,

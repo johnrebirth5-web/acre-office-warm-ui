@@ -5,7 +5,7 @@ import type { OfficeAdminUserDetailSnapshot, PermissionOverrideValue, Permission
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useMemo, useState } from "react";
-import { Badge, Button, ConfirmActionDialog, StatusBadge } from "@acre/ui";
+import { Button, ConfirmActionDialog, ListPageStatsGrid, SectionCard, StatCard, StatusBadge } from "@acre/ui";
 import {
   buildPermissionOverrideMap,
   buildPermissionTreeMaps,
@@ -285,26 +285,29 @@ export function OfficeSettingsUserPermissionsClient({
       {submitError ? <p className="office-inline-error">{submitError}</p> : null}
       {actionNotice ? <p className="office-inline-success">{actionNotice}</p> : null}
 
-      <section className="office-user-permissions-panel">
-        <div className="office-user-permissions-hero">
-          <div className="office-user-permissions-heading">
-            <h1>Permissions</h1>
-            <p className="office-user-permissions-for">For {snapshot.profile.name}</p>
-          </div>
-
-          <Link className="office-button-secondary office-button-sm" href={detailHref}>
-            Close
-          </Link>
-        </div>
+      <SectionCard
+        actions={
+          <StatusBadge tone={isDirty ? "warning" : "success"}>
+            {isDirty ? "Unsaved changes" : "Role template in sync"}
+          </StatusBadge>
+        }
+        className="office-user-permissions-panel"
+        subtitle={`For ${snapshot.profile.name}`}
+        title="Permission overrides"
+      >
+        <ListPageStatsGrid className="office-user-permissions-stats">
+          <StatCard className="office-user-permissions-stat" label="Role template" tone="accent" value={snapshot.permissions.roleLabel} />
+          <StatCard className="office-user-permissions-stat" label="Overrides" value={permissionOverrides.size} />
+          <StatCard className="office-user-permissions-stat" label="Effective permissions" value={effectivePreviewCount} />
+          <StatCard
+            className="office-user-permissions-stat"
+            label="Edit access"
+            value={canManagePermissions ? "Writable" : "Read only"}
+          />
+        </ListPageStatsGrid>
 
         <div className="office-user-permissions-panel-head">
           <div className="office-user-permissions-panel-copy">
-            <div className="office-settings-user-inline-badges">
-              <Badge tone="accent">{snapshot.permissions.roleLabel}</Badge>
-              <Badge tone="neutral">{permissionOverrides.size} overrides</Badge>
-              <Badge tone="success">{effectivePreviewCount} effective permissions</Badge>
-              {isDirty ? <Badge tone="warning">Unsaved changes</Badge> : null}
-            </div>
             <p>
               {canManagePermissions
                 ? `Changes here override the ${snapshot.permissions.roleLabel} template for this user only. Checked items are the permissions this user can use right now.`
@@ -351,7 +354,7 @@ export function OfficeSettingsUserPermissionsClient({
             </Link>
           )}
         </div>
-      </section>
+      </SectionCard>
 
       <ConfirmActionDialog
         cancelLabel="Keep overrides"
