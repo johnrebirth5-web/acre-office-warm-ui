@@ -1,8 +1,8 @@
 import { canManageOfficeSettings, canViewOfficeUsers } from "@acre/auth";
 import { getOfficeAdminUserDetailSnapshot } from "@acre/db";
-import { PageShell } from "@acre/ui";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../../lib/auth-session";
+import { OfficeDetailPageShell } from "../../../../_components/office-detail-page-template";
 import { OfficeSettingsUserPermissionsClient } from "./permissions-client";
 
 type OfficeSettingsUserPermissionsPageProps = {
@@ -30,11 +30,11 @@ export default async function OfficeSettingsUserPermissionsPage({ params }: Offi
   }
 
   return (
-    <PageShell className="office-detail-page office-user-permissions-route">
+    <OfficeDetailPageShell className="office-user-permissions-route">
       <OfficeSettingsUserPermissionsClient
         canManagePermissions={canManageOfficeSettings(context.currentMembership)}
         snapshot={snapshot}
       />
-    </PageShell>
+    </OfficeDetailPageShell>
   );
 }

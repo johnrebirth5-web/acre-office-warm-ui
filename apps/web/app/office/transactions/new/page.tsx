@@ -9,9 +9,9 @@ import {
   getOfficeTransactionIntakeSchema,
   getOfficeTransactionOwnerAssignment
 } from "@acre/db";
-import { PageHeader, PageShell } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../_components/office-detail-page-template";
 import { getCreateTransactionStatusFieldPolicy } from "../transaction-status-rules";
 import { TransactionCreatePageClient } from "./transaction-create-page-client";
 
@@ -42,14 +42,14 @@ export default async function OfficeTransactionCreatePage() {
   ]);
 
   return (
-    <PageShell className="office-transaction-create-page">
-      <PageHeader
-        actions={
+    <OfficeDetailPageShell className="office-transaction-create-page">
+      <OfficeDetailPageHeader
+        description="Create a transaction using the current office intake schema. Office admins can now adjust intake fields directly from this page without leaving the form."
+        summary={
           <Link className="office-button-secondary" href="/office/transactions">
             Back to transactions
           </Link>
         }
-        description="Create a transaction using the current office intake schema. Office admins can now adjust intake fields directly from this page without leaving the form."
         title="New transaction"
       />
 
@@ -60,6 +60,6 @@ export default async function OfficeTransactionCreatePage() {
         ownerAssignment={ownerAssignment}
         statusFieldPolicy={getCreateTransactionStatusFieldPolicy(canManageTransactionStatus)}
       />
-    </PageShell>
+    </OfficeDetailPageShell>
   );
 }

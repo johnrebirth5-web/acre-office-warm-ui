@@ -111,17 +111,25 @@ The BO adapter is now directly used by the main Office list/workspace routes, in
 - [apps/web/app/office/contacts/contacts-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/contacts-client.tsx)
 - workspace routes such as [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx), [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx), [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx), [apps/web/app/office/notifications/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/notifications/page.tsx), [apps/web/app/office/tasks/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/tasks/page.tsx), [apps/web/app/office/pipeline/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/pipeline/page.tsx), [apps/web/app/office/library/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/library/page.tsx), [apps/web/app/office/reports/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/reports/page.tsx), [apps/web/app/office/billing/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/billing/page.tsx), [apps/web/app/office/approve-docs/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/approve-docs/page.tsx), [apps/web/app/office/performance/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/performance/page.tsx), [apps/web/app/office/account/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/account/page.tsx), [apps/web/app/office/1099-tracker/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/1099-tracker/page.tsx), [apps/web/app/office/signatures/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/signatures/page.tsx), and the settings index/workbench routes under [apps/web/app/office/settings](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings)
 
-The main remaining BO routes outside the canonical list template family are now mostly detail, preview, or create flows, for example:
+The repo now also has a dedicated shared detail-shell family:
+
+- [apps/web/app/_components/canonical-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-detail-page-template.tsx)
+- [apps/web/app/office/_components/office-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-detail-page-template.tsx)
+
+That adapter is now used by special Office routes such as:
 
 - [apps/web/app/office/settings/users/[membershipId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/page.tsx)
 - [apps/web/app/office/settings/teams/[teamId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/teams/[teamId]/page.tsx)
 - [apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx)
 - [apps/web/app/office/transactions/new/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/new/page.tsx)
+- [apps/web/app/office/transactions/[transactionId]/signatures/new/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/signatures/new/page.tsx)
+- [apps/web/app/office/transactions/[transactionId]/signatures/[signatureRequestId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/signatures/[signatureRequestId]/page.tsx)
+- [apps/web/app/office/settings/users/[membershipId]/permissions/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions/page.tsx)
 
 Finding:
 
 - there is now one correct route-template contract at the skeleton level
-- and the main remaining BO adoption work is concentrated in special-case detail/create/preview routes rather than the core list/workspace pages
+- and BO route-level adoption now spans both list/workbench pages and special detail/create/preview routes
 
 ### 3. Active page markup is now clean; remaining `bm-*` is compatibility/runtime only
 
@@ -144,14 +152,13 @@ Transaction detail and a smaller set of BO route pages now emit canonical `offic
 Relevant files:
 
 - [apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx)
-- [apps/web/app/office/settings/users/[membershipId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/page.tsx)
-- [apps/web/app/office/settings/teams/[teamId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/teams/[teamId]/page.tsx)
-- [apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/1099-tracker/preview/[membershipId]/page.tsx)
+- [apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx)
+- nested detail workspaces that still manage their own inner hero/body contract inside an otherwise canonical route shell
 
 Finding:
 
 - the design-language fork is largely closed at the class/markup layer
-- the remaining work is shared shell/template adoption and later dead-CSS removal
+- the remaining work is deeper inner-workspace normalization and later dead-CSS removal
 
 ### 5. FO shell is close to canonical, but nav and shell behavior are still separate implementations
 
@@ -198,9 +205,9 @@ Finding:
 
 ### Partially canonical, but still hand-assembled
 
-- BO detail, preview, or create routes that still use `PageShell + PageHeader + PageHeaderSummary` directly
-- transaction detail workspaces that already use canonical cards/components but have not yet been normalized onto a dedicated shared detail-shell contract
-- special routes such as user/team detail pages, 1099 preview, and transaction/signature create flows
+- nested BO workspaces that still manage local inner-page hero/copy contracts inside a canonical outer shell
+- transaction detail workspaces that already use canonical cards/components but have not yet been normalized onto a dedicated shared inner detail grammar
+- special routes whose page body still carries route-local heading blocks, such as the permissions client under [apps/web/app/office/settings/users/[membershipId]/permissions](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions)
 
 ### Highest migration debt
 
@@ -240,11 +247,16 @@ Completed workbench batch:
   - `pipeline`, `library`, `reports`
   - `billing`, `approve-docs`, `performance`, `account`, `1099-tracker`, `signatures`, `signatures/templates`
   - settings index/workbench routes under [apps/web/app/office/settings](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings)
+- route-level shell adoption now also covers the main Office special pages through the shared detail-shell family:
+  - `New transaction`
+  - settings user detail / team detail / permissions
+  - `1099 Summary Preview`
+  - transaction signature prepare / edit routes
 
 Next candidates:
 
-- detail/create/preview routes that still use route-local shell/header composition
-- a shared detail-shell contract for BO pages that are not true list/workbench routes
+- inner-workspace normalization for transaction detail and permission-management surfaces
+- dead compatibility CSS cleanup once the new shell families have baked in
 
 ### P2. Migrate transaction detail off `bm-*`
 

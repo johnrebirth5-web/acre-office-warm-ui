@@ -7,15 +7,13 @@ import {
   DataTableHeader,
   DataTableRow,
   HorizontalScrollArea,
-  PageHeader,
-  PageHeaderSummary,
-  PageShell,
   SectionCard,
   StatusBadge,
   SummaryChip
 } from "@acre/ui";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../lib/auth-session";
+import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../../_components/office-detail-page-template";
 
 type Office1099PreviewPageProps = {
   params: Promise<{
@@ -54,17 +52,17 @@ export default async function Office1099PreviewPage(props: Office1099PreviewPage
   }
 
   return (
-    <PageShell className="office-detail-page office-1099-preview-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeDetailPageShell className="office-1099-preview-page">
+      <OfficeDetailPageHeader
+        description="Internal 1099 summary / backup document preview built from saved payment records and the current agent payout profile."
+        eyebrow="1099 Tracker"
+        summary={
+          <>
             <SummaryChip label="Tax year" tone="accent" value={detail.taxYear} />
             <SummaryChip label="Payment lines" value={detail.paymentRecords.length} />
             <SummaryChip label="Total paid" value={detail.totalPaidLabel} />
-          </PageHeaderSummary>
+          </>
         }
-        description="Internal 1099 summary / backup document preview built from saved payment records and the current agent payout profile."
-        eyebrow="1099 Tracker"
         title={detail.displayName}
       />
 
@@ -151,6 +149,6 @@ export default async function Office1099PreviewPage(props: Office1099PreviewPage
           <strong>{detail.totalPaidLabel}</strong>
         </div>
       </SectionCard>
-    </PageShell>
+    </OfficeDetailPageShell>
   );
 }

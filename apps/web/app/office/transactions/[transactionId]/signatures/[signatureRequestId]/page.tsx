@@ -1,8 +1,8 @@
 import { canManageOfficeSignatures, canManageOfficeSignatureTemplates } from "@acre/auth";
 import { getOfficeSignatureTemplateLibrarySnapshot, getSignatureEditorSnapshot } from "@acre/db";
-import { PageHeader, PageShell } from "@acre/ui";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../../lib/auth-session";
+import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../../../_components/office-detail-page-template";
 import { SignatureRequestEditor } from "../signature-request-editor";
 
 type SignatureRequestPageProps = {
@@ -35,8 +35,8 @@ export default async function SignatureRequestPage({ params }: SignatureRequestP
   }
 
   return (
-    <PageShell className="office-signature-page">
-      <PageHeader
+    <OfficeDetailPageShell className="office-signature-page">
+      <OfficeDetailPageHeader
         description="Update recipients or field placement, keep every field assigned to the right signer, and resend when the request is ready."
         eyebrow="Transaction signatures"
         title={`Edit signature request · ${snapshot.document.title}`}
@@ -53,6 +53,6 @@ export default async function SignatureRequestPage({ params }: SignatureRequestP
         initialTemplate={null}
         transactionId={transactionId}
       />
-    </PageShell>
+    </OfficeDetailPageShell>
   );
 }

@@ -1,8 +1,8 @@
 import { canManageOfficeSignatures, canManageOfficeSignatureTemplates } from "@acre/auth";
 import { getOfficeSignatureTemplate, getOfficeSignatureTemplateLibrarySnapshot, getTransactionById } from "@acre/db";
-import { PageHeader, PageShell } from "@acre/ui";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../../lib/auth-session";
+import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../../../_components/office-detail-page-template";
 import { SignatureRequestEditor } from "../signature-request-editor";
 
 type NewSignatureRequestPageProps = {
@@ -63,8 +63,8 @@ export default async function NewSignatureRequestPage({ params, searchParams }: 
   }
 
   return (
-    <PageShell className="office-signature-page">
-      <PageHeader
+    <OfficeDetailPageShell className="office-signature-page">
+      <OfficeDetailPageHeader
         description="Step 1 configures recipients and delivery. Step 2 places the PDF fields and binds each field to the right signer."
         eyebrow="Transaction signatures"
         title={`Prepare signature · ${document.title}`}
@@ -81,6 +81,6 @@ export default async function NewSignatureRequestPage({ params, searchParams }: 
         initialTemplate={initialTemplate}
         transactionId={transactionId}
       />
-    </PageShell>
+    </OfficeDetailPageShell>
   );
 }

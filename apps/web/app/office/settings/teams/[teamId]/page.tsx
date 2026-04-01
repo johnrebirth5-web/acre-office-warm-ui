@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { canManageOfficeTeams, canViewOfficeTeams } from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { getOfficeAgentsRosterSnapshot } from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../lib/auth-session";
+import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../../_components/office-detail-page-template";
 import { OfficeSettingsNav } from "../../settings-nav";
 import {
   getBranchLeaderLabel,
@@ -43,10 +44,12 @@ export default async function OfficeSettingsTeamDetailPage({ params }: OfficeSet
   const directMembers = getDirectMembers(team);
 
   return (
-    <PageShell className="office-detail-page office-settings-team-detail-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeDetailPageShell className="office-settings-team-detail-page">
+      <OfficeDetailPageHeader
+        description={`${team.teamPathLabel} · ${team.memberCount} total members`}
+        eyebrow="Office admin"
+        summary={
+          <>
             <Link className="office-button-secondary office-button-sm" href="/office/settings/teams">
               Back to teams
             </Link>
@@ -54,10 +57,8 @@ export default async function OfficeSettingsTeamDetailPage({ params }: OfficeSet
             <SummaryChip label={getLeaderTitleLabel(team)} tone="accent" value={getBranchLeaderLabel(team)} />
             <SummaryChip label={getChildCollectionLabel(team)} value={team.childTeamCount} />
             <SummaryChip label="Direct agents" value={directMembers.length} />
-          </PageHeaderSummary>
+          </>
         }
-        description={`${team.teamPathLabel} · ${team.memberCount} total members`}
-        eyebrow="Office admin"
         title={team.name}
       />
 
@@ -69,6 +70,6 @@ export default async function OfficeSettingsTeamDetailPage({ params }: OfficeSet
           teamId={team.id}
         />
       </div>
-    </PageShell>
+    </OfficeDetailPageShell>
   );
 }

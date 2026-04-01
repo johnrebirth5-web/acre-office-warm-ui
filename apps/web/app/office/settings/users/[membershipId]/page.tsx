@@ -10,7 +10,7 @@ import {
   canViewOfficeAgents,
   canViewOfficeUsers
 } from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import {
   getOfficeAdminUserDetailSnapshot,
   getOfficeAgentProfileSnapshot,
@@ -18,6 +18,7 @@ import {
 } from "@acre/db";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../../lib/auth-session";
+import { OfficeDetailPageHeader, OfficeDetailPageShell } from "../../../_components/office-detail-page-template";
 import { OfficeSettingsNav } from "../../settings-nav";
 import { OfficeSettingsUserWorkspaceDetailClient } from "./user-workspace-detail-client";
 
@@ -72,10 +73,12 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
   const officeLabel = accessSnapshot?.profile.officeAccessLabel ?? operationsSnapshot?.profile.officeName ?? "—";
 
   return (
-    <PageShell className="office-detail-page office-settings-user-detail-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeDetailPageShell className="office-settings-user-detail-page">
+      <OfficeDetailPageHeader
+        description={primaryDescription}
+        eyebrow="Office admin"
+        summary={
+          <>
             <Link className="office-button-secondary office-button-sm" href="/office/settings/users">
               Back to users
             </Link>
@@ -101,10 +104,8 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
                 <SummaryChip label="Onboarding" value={operationsSnapshot.profile.onboardingStatus} />
               </>
             ) : null}
-          </PageHeaderSummary>
+          </>
         }
-        description={primaryDescription}
-        eyebrow="Office admin"
         title={primaryTitle}
       />
 
@@ -120,6 +121,6 @@ export default async function OfficeSettingsUserDetailPage({ params }: OfficeSet
           snapshot={snapshot}
         />
       </div>
-    </PageShell>
+    </OfficeDetailPageShell>
   );
 }

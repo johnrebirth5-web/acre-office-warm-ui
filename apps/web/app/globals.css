@@ -5982,6 +5982,10 @@ a {
   gap: 22px;
 }
 
+.office-canonical-detail-page {
+  gap: 22px;
+}
+
 .office-list-page-stack,
 .office-settings-list-stack {
   display: grid;
