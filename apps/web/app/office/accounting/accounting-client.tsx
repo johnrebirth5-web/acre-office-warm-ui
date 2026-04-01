@@ -1243,7 +1243,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                     <span>{statement.periodBasisLabel}</span>
                     <span>{statement.lineItemCount}</span>
                     <span>{statement.totalStatementAmountLabel}</span>
-                    <div className="bm-accounting-inline-actions office-accounting-statement-history-actions">
+                    <div className="office-accounting-inline-actions office-accounting-statement-history-actions">
                       <Button
                         className="office-inline-action-sm"
                         disabled={quickSendingStatementId.length > 0 || (selectedStatement?.id === statement.id && hasManualLineItemChanges)}

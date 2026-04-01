@@ -718,7 +718,7 @@ export function AgentBillingPanel({
 
         {formError ? <p className="office-form-error">{formError}</p> : null}
 
-        <div className="office-dashboard-grid-wide bm-accounting-grid">
+        <div className="office-dashboard-grid-wide office-accounting-grid">
           <div className="office-side-stack">
             <ListPageSection subtitle={`${snapshot.ledgerRows.length} ledger row(s) in the current filtered window.`} title="Agent ledger">
               <AgentBillingTable>
@@ -755,7 +755,7 @@ export function AgentBillingPanel({
                 ))}
 
                 {snapshot.ledgerRows.length === 0 ? (
-                  <div className="bm-accounting-empty">
+                  <div className="office-accounting-empty">
                     <p>No agent billing ledger rows match the current filters.</p>
                   </div>
                 ) : null}
@@ -783,7 +783,7 @@ export function AgentBillingPanel({
                     <span>{rule.amountLabel}</span>
                     <span>{rule.frequency}</span>
                     <span>{rule.nextDueDate}</span>
-                    <div className="bm-accounting-inline-actions">
+                    <div className="office-accounting-inline-actions">
                       <span>{rule.isActive ? "Active" : "Inactive"}</span>
                       {canManageAgentBilling ? (
                         <button className="office-inline-action" onClick={() => openRecurringRuleModal(rule.id)} type="button">
@@ -795,7 +795,7 @@ export function AgentBillingPanel({
                 ))}
 
                 {snapshot.recurringRules.length === 0 ? (
-                  <div className="bm-accounting-empty">
+                  <div className="office-accounting-empty">
                     <p>No recurring rules are configured for the current scope.</p>
                   </div>
                 ) : null}
@@ -823,7 +823,7 @@ export function AgentBillingPanel({
                     </div>
                     <span>{method.provider}</span>
                     <span>{method.status}</span>
-                    <div className="bm-accounting-inline-actions">
+                    <div className="office-accounting-inline-actions">
                       <span>{method.autoPayEnabled ? "Enabled" : "Manual"}</span>
                       {canManageAgentBilling ? (
                         <button className="office-inline-action" onClick={() => openPaymentMethodModal(method.id)} type="button">
@@ -835,7 +835,7 @@ export function AgentBillingPanel({
                 ))}
 
                 {snapshot.paymentMethods.length === 0 ? (
-                  <div className="bm-accounting-empty">
+                  <div className="office-accounting-empty">
                     <p>No payment methods are configured yet.</p>
                   </div>
                 ) : null}
@@ -849,8 +849,8 @@ export function AgentBillingPanel({
               title="Agent statement"
             >
               {snapshot.statement ? (
-                <div className="bm-agent-statement">
-                  <div className="bm-agent-statement-metrics">
+                <div className="office-agent-statement">
+                  <div className="office-agent-statement-metrics">
                     <div>
                       <span>Open charges</span>
                       <strong>{snapshot.statement.openChargesLabel}</strong>
@@ -892,7 +892,7 @@ export function AgentBillingPanel({
                   </AgentBillingTable>
                 </div>
               ) : (
-                <div className="bm-accounting-empty">
+                <div className="office-accounting-empty">
                   <p>Select an agent to inspect statement-ready billing context, including open charges, pending charges, credits, and recent activity.</p>
                 </div>
               )}
@@ -903,16 +903,16 @@ export function AgentBillingPanel({
 
       {isChargeModalOpen ? (
         <div className="office-modal-overlay" onClick={() => setIsChargeModalOpen(false)}>
-          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+          <section className="office-modal office-accounting-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <h3>NEW AGENT CHARGE</h3>
               <button aria-label="Close create charge modal" onClick={() => setIsChargeModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleCreateCharge}>
-              <div className="bm-accounting-form-grid">
-                <label className="bm-detail-field bm-detail-field-wide">
+            <form className="office-modal-body office-accounting-modal-body" onSubmit={handleCreateCharge}>
+              <div className="office-accounting-form-grid">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Agents</span>
                   <select
                     multiple
@@ -933,27 +933,27 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Charge type</span>
                   <input onChange={(event) => setChargeFormState((current) => ({ ...current, chargeType: event.target.value }))} type="text" value={chargeFormState.chargeType} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Amount</span>
                   <input onChange={(event) => setChargeFormState((current) => ({ ...current, amount: event.target.value }))} type="text" value={chargeFormState.amount} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Accounting date</span>
                   <input onChange={(event) => setChargeFormState((current) => ({ ...current, accountingDate: event.target.value }))} type="date" value={chargeFormState.accountingDate} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Due date</span>
                   <input onChange={(event) => setChargeFormState((current) => ({ ...current, dueDate: event.target.value }))} type="date" value={chargeFormState.dueDate} />
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-wide">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Related transaction</span>
                   <select
                     onChange={(event) => setChargeFormState((current) => ({ ...current, relatedTransactionId: event.target.value }))}
@@ -968,12 +968,12 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-wide">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Description</span>
                   <input onChange={(event) => setChargeFormState((current) => ({ ...current, description: event.target.value }))} type="text" value={chargeFormState.description} />
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-wide">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Notes</span>
                   <textarea onChange={(event) => setChargeFormState((current) => ({ ...current, notes: event.target.value }))} rows={3} value={chargeFormState.notes} />
                 </label>
@@ -992,16 +992,16 @@ export function AgentBillingPanel({
 
       {isRecurringRuleModalOpen ? (
         <div className="office-modal-overlay" onClick={() => setIsRecurringRuleModalOpen(false)}>
-          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+          <section className="office-modal office-accounting-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <h3>{recurringRuleFormState.recurringChargeRuleId ? "EDIT RECURRING RULE" : "NEW RECURRING RULE"}</h3>
               <button aria-label="Close recurring rule modal" onClick={() => setIsRecurringRuleModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleSaveRecurringRule}>
-              <div className="bm-accounting-form-grid">
-                <label className="bm-detail-field">
+            <form className="office-modal-body office-accounting-modal-body" onSubmit={handleSaveRecurringRule}>
+              <div className="office-accounting-form-grid">
+                <label className="office-detail-field">
                   <span>Agent</span>
                   <select
                     onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, membershipId: event.target.value }))}
@@ -1016,22 +1016,22 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Name</span>
                   <input onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, name: event.target.value }))} type="text" value={recurringRuleFormState.name} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Charge type</span>
                   <input onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, chargeType: event.target.value }))} type="text" value={recurringRuleFormState.chargeType} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Amount</span>
                   <input onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, amount: event.target.value }))} type="text" value={recurringRuleFormState.amount} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Frequency</span>
                   <select
                     onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, frequency: event.target.value }))}
@@ -1046,7 +1046,7 @@ export function AgentBillingPanel({
                 </label>
 
                 {recurringRuleFormState.frequency === "custom_interval" ? (
-                  <label className="bm-detail-field">
+                  <label className="office-detail-field">
                     <span>Custom interval days</span>
                     <input
                       onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, customIntervalDays: event.target.value }))}
@@ -1056,27 +1056,27 @@ export function AgentBillingPanel({
                   </label>
                 ) : null}
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Start date</span>
                   <input onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, startDate: event.target.value }))} type="date" value={recurringRuleFormState.startDate} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Next due date</span>
                   <input onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, nextDueDate: event.target.value }))} type="date" value={recurringRuleFormState.nextDueDate} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>End date</span>
                   <input onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, endDate: event.target.value }))} type="date" value={recurringRuleFormState.endDate} />
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-wide">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Description</span>
                   <textarea onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, description: event.target.value }))} rows={3} value={recurringRuleFormState.description} />
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-checkbox">
+                <label className="office-detail-field office-detail-field-checkbox">
                   <input
                     checked={recurringRuleFormState.autoGenerateInvoice}
                     onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, autoGenerateInvoice: event.target.checked }))}
@@ -1085,7 +1085,7 @@ export function AgentBillingPanel({
                   <span>Auto-generate invoice</span>
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-checkbox">
+                <label className="office-detail-field office-detail-field-checkbox">
                   <input
                     checked={recurringRuleFormState.isActive}
                     onChange={(event) => setRecurringRuleFormState((current) => ({ ...current, isActive: event.target.checked }))}
@@ -1108,16 +1108,16 @@ export function AgentBillingPanel({
 
       {isPaymentMethodModalOpen ? (
         <div className="office-modal-overlay" onClick={() => setIsPaymentMethodModalOpen(false)}>
-          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+          <section className="office-modal office-accounting-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <h3>{paymentMethodFormState.paymentMethodId ? "EDIT PAYMENT METHOD" : "NEW PAYMENT METHOD"}</h3>
               <button aria-label="Close payment method modal" onClick={() => setIsPaymentMethodModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
-              <div className="bm-accounting-form-grid">
-                <label className="bm-detail-field">
+            <form className="office-modal-body office-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
+              <div className="office-accounting-form-grid">
+                <label className="office-detail-field">
                   <span>Agent</span>
                   <select
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, membershipId: event.target.value }))}
@@ -1132,7 +1132,7 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Type</span>
                   <select onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, type: event.target.value }))} value={paymentMethodFormState.type}>
                     {paymentMethodTypeOptions.map((option) => (
@@ -1143,22 +1143,22 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Label</span>
                   <input onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, label: event.target.value }))} type="text" value={paymentMethodFormState.label} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Provider</span>
                   <input onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, provider: event.target.value }))} type="text" value={paymentMethodFormState.provider} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Masked last4</span>
                   <input onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, last4: event.target.value }))} maxLength={4} type="text" value={paymentMethodFormState.last4} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Status</span>
                   <select
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, status: event.target.value }))}
@@ -1172,7 +1172,7 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-checkbox">
+                <label className="office-detail-field office-detail-field-checkbox">
                   <input
                     checked={paymentMethodFormState.isDefault}
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, isDefault: event.target.checked }))}
@@ -1181,7 +1181,7 @@ export function AgentBillingPanel({
                   <span>Default method</span>
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-checkbox">
+                <label className="office-detail-field office-detail-field-checkbox">
                   <input
                     checked={paymentMethodFormState.autoPayEnabled}
                     onChange={(event) => setPaymentMethodFormState((current) => ({ ...current, autoPayEnabled: event.target.checked }))}
@@ -1204,16 +1204,16 @@ export function AgentBillingPanel({
 
       {isPaymentModalOpen ? (
         <div className="office-modal-overlay" onClick={() => setIsPaymentModalOpen(false)}>
-          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+          <section className="office-modal office-accounting-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <h3>RECORD AGENT PAYMENT</h3>
               <button aria-label="Close payment modal" onClick={() => setIsPaymentModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleRecordPayment}>
-              <div className="bm-accounting-form-grid">
-                <label className="bm-detail-field">
+            <form className="office-modal-body office-accounting-modal-body" onSubmit={handleRecordPayment}>
+              <div className="office-accounting-form-grid">
+                <label className="office-detail-field">
                   <span>Agent</span>
                   <select
                     onChange={(event) =>
@@ -1234,7 +1234,7 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-wide">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Open invoices</span>
                   <select
                     multiple
@@ -1255,17 +1255,17 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Amount</span>
                   <input onChange={(event) => setPaymentFormState((current) => ({ ...current, amount: event.target.value }))} type="text" value={paymentFormState.amount} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Accounting date</span>
                   <input onChange={(event) => setPaymentFormState((current) => ({ ...current, accountingDate: event.target.value }))} type="date" value={paymentFormState.accountingDate} />
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Payment method</span>
                   <select
                     onChange={(event) => setPaymentFormState((current) => ({ ...current, paymentMethod: event.target.value }))}
@@ -1279,7 +1279,7 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Reference number</span>
                   <input
                     onChange={(event) => setPaymentFormState((current) => ({ ...current, referenceNumber: event.target.value }))}
@@ -1288,7 +1288,7 @@ export function AgentBillingPanel({
                   />
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-wide">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Notes</span>
                   <textarea onChange={(event) => setPaymentFormState((current) => ({ ...current, notes: event.target.value }))} rows={3} value={paymentFormState.notes} />
                 </label>
@@ -1307,16 +1307,16 @@ export function AgentBillingPanel({
 
       {isCreditModalOpen ? (
         <div className="office-modal-overlay" onClick={() => setIsCreditModalOpen(false)}>
-          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+          <section className="office-modal office-accounting-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <h3>APPLY CREDIT MEMO</h3>
               <button aria-label="Close credit application modal" onClick={() => setIsCreditModalOpen(false)} type="button">
                 ×
               </button>
             </header>
-            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleApplyCredit}>
-              <div className="bm-accounting-form-grid">
-                <label className="bm-detail-field">
+            <form className="office-modal-body office-accounting-modal-body" onSubmit={handleApplyCredit}>
+              <div className="office-accounting-form-grid">
+                <label className="office-detail-field">
                   <span>Agent</span>
                   <select
                     onChange={(event) =>
@@ -1338,7 +1338,7 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Credit memo</span>
                   <select
                     onChange={(event) => setCreditApplicationFormState((current) => ({ ...current, creditMemoId: event.target.value }))}
@@ -1353,7 +1353,7 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Invoice</span>
                   <select
                     onChange={(event) => setCreditApplicationFormState((current) => ({ ...current, invoiceId: event.target.value }))}
@@ -1368,12 +1368,12 @@ export function AgentBillingPanel({
                   </select>
                 </label>
 
-                <label className="bm-detail-field">
+                <label className="office-detail-field">
                   <span>Amount</span>
                   <input onChange={(event) => setCreditApplicationFormState((current) => ({ ...current, amount: event.target.value }))} type="text" value={creditApplicationFormState.amount} />
                 </label>
 
-                <label className="bm-detail-field bm-detail-field-wide">
+                <label className="office-detail-field office-detail-field-wide">
                   <span>Memo</span>
                   <textarea onChange={(event) => setCreditApplicationFormState((current) => ({ ...current, memo: event.target.value }))} rows={3} value={creditApplicationFormState.memo} />
                 </label>

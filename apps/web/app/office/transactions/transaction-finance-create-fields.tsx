@@ -160,7 +160,7 @@ export function TransactionFinanceCreateFields({
   }
 
   return (
-    <section className="office-transaction-finance-panel bm-transaction-intake-finance-panel">
+    <section className="office-transaction-finance-panel office-transaction-intake-finance-panel">
       <div className="office-transaction-finance-panel-head">
         <div>
           <h4>Commission calculator</h4>

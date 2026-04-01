@@ -111,31 +111,31 @@ export function TransactionContactsCard({
   }
 
   return (
-    <section className="bm-detail-card">
-      <div className="bm-card-head">
+    <section className="office-detail-card">
+      <div className="office-card-head">
         <h3>Contacts</h3>
       </div>
 
-      <div className="bm-transaction-contact-list">
+      <div className="office-transaction-contact-list">
         {contacts.length > 0 ? (
           contacts.map((contact) => (
-            <div className="bm-transaction-contact-row" key={contact.id}>
-              <div className="bm-transaction-contact-main">
-                <div className="bm-transaction-contact-head">
-                  <Link className="bm-transaction-contact-link" href={`/office/contacts/${contact.clientId}`}>
+            <div className="office-transaction-contact-row" key={contact.id}>
+              <div className="office-transaction-contact-main">
+                <div className="office-transaction-contact-head">
+                  <Link className="office-transaction-contact-link" href={`/office/contacts/${contact.clientId}`}>
                     {contact.fullName}
                   </Link>
-                  <span className="bm-status-pill">{contact.role}</span>
-                  {contact.isPrimary ? <span className="bm-status-pill bm-status-pill-primary">Primary</span> : null}
+                  <span className="office-status-pill">{contact.role}</span>
+                  {contact.isPrimary ? <span className="office-status-pill office-status-pill-primary">Primary</span> : null}
                 </div>
                 <p>{contact.email || contact.phone || "No contact details saved."}</p>
                 {contact.email && contact.phone ? <p>{contact.phone}</p> : null}
               </div>
 
-              <div className="bm-transaction-contact-actions">
+              <div className="office-transaction-contact-actions">
                 {!contact.isPrimary ? (
                   <button
-                    className="bm-view-toggle"
+                    className="office-view-toggle"
                     disabled={pendingAction === `primary:${contact.id}`}
                     onClick={() => handleSetPrimary(contact.id)}
                     type="button"
@@ -144,7 +144,7 @@ export function TransactionContactsCard({
                   </button>
                 ) : null}
                 <button
-                  className="bm-view-toggle"
+                  className="office-view-toggle"
                   disabled={pendingAction === `unlink:${contact.id}`}
                   onClick={() =>
                     setConfirmDialog({
@@ -164,14 +164,14 @@ export function TransactionContactsCard({
             </div>
           ))
         ) : (
-          <div className="bm-detail-field">
+          <div className="office-detail-field">
             <span>Contacts</span>
             <strong>No linked contacts yet.</strong>
           </div>
         )}
       </div>
 
-      <div className="bm-transaction-contact-toolbar">
+      <div className="office-transaction-contact-toolbar">
         <select onChange={(event) => setSelectedContactId(event.target.value)} value={selectedContactId}>
           <option value="">Select contact to link</option>
           {availableContacts.map((contact) => (
@@ -180,7 +180,7 @@ export function TransactionContactsCard({
             </option>
           ))}
         </select>
-        <label className="bm-transaction-contact-checkbox">
+        <label className="office-transaction-contact-checkbox">
           <input checked={makePrimary} onChange={(event) => setMakePrimary(event.target.checked)} type="checkbox" />
           <span>Set as primary</span>
         </label>

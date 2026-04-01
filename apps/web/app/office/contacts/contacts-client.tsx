@@ -279,20 +279,20 @@ export function ContactsClient({
   const contactFilters = (
     <ListPageFilters
       as="form"
-      className="bm-contacts-toolbar"
+      className="office-contacts-toolbar"
       onSubmit={handleFilterSubmit}
     >
-      <FilterField className="bm-contacts-search-field" label="Search">
+      <FilterField className="office-contacts-search-field" label="Search">
         <TextInput
           aria-label="Search contacts"
-          className="bm-contacts-search-input"
+          className="office-contacts-search-input"
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search name, email, phone, area..."
           value={searchQuery}
         />
       </FilterField>
 
-      <FilterField className="bm-contacts-stage-field" label="Current view">
+      <FilterField className="office-contacts-stage-field" label="Current view">
         <SelectInput
           onChange={(event) =>
             setStageFilter(event.target.value as (typeof stageOptions)[number])
@@ -382,7 +382,7 @@ export function ContactsClient({
         summary={contactSummary}
         title="Contacts"
       >
-        <DataTable className="office-list-table office-list-table-wide bm-contacts-table">
+        <DataTable className="office-list-table office-list-table-wide office-contacts-table">
           <DataTableHeader className="office-list-table-header office-list-table-header-contacts">
             <span>Contact</span>
             <span>Stage</span>
@@ -443,7 +443,7 @@ export function ContactsClient({
       {isModalOpen ? (
         <div className="office-modal-overlay office-create-modal-overlay" onClick={() => setIsModalOpen(false)}>
           <section
-            className="office-modal office-create-modal office-contact-create-modal bm-contact-modal"
+            className="office-modal office-create-modal office-contact-create-modal office-contact-modal"
             onClick={(event) => event.stopPropagation()}
           >
             <header className="office-modal-header office-create-modal-header">

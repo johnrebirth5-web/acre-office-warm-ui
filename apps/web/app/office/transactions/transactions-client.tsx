@@ -649,7 +649,7 @@ export function TransactionsClient({
   function renderSearchField(field: OfficeTransactionSearchFieldDescriptor) {
     if (field.kind === "system" && field.key === "search") {
       return (
-        <FilterField className="bm-transactions-search" key={buildSearchFieldId(field)} label={field.label}>
+        <FilterField className="office-transactions-search" key={buildSearchFieldId(field)} label={field.label}>
           <TextInput
             aria-label="Search transactions"
             onChange={(event) =>
@@ -796,7 +796,7 @@ export function TransactionsClient({
   const transactionFilters = (
     <ListPageFilters
       as="form"
-      className="bm-transactions-toolbar office-transaction-search-layout-filters"
+      className="office-transactions-toolbar office-transaction-search-layout-filters"
       onSubmit={handleApplyFilters}
     >
       {searchLayout.selectedFields.length ? (
@@ -865,7 +865,7 @@ export function TransactionsClient({
         value={summary.totalNetIncome}
       />
       <Button
-        className="office-list-page-primary-action bm-transactions-create"
+        className="office-list-page-primary-action office-transactions-create"
         onClick={() => setIsCreateModalOpen(true)}
         type="button"
       >
@@ -900,7 +900,7 @@ export function TransactionsClient({
         summaryClassName="office-transactions-page-actions"
         title="Transactions"
       >
-        <DataTable className="office-list-table bm-transactions-list-shell">
+        <DataTable className="office-list-table office-transactions-list-shell">
           <DataTableHeader className="office-list-table-header office-list-table-header-transactions">
             <span />
             <span>Transaction</span>
@@ -918,11 +918,11 @@ export function TransactionsClient({
                 key={transaction.id}
               >
                 <span
-                  className={`bm-transaction-home-icon${transaction.isFlagged ? " is-flagged" : ""}`}
+                  className={`office-transaction-home-icon${transaction.isFlagged ? " is-flagged" : ""}`}
                 >
                   <svg
                     aria-hidden="true"
-                    className="bm-transaction-home-icon-svg"
+                    className="office-transaction-home-icon-svg"
                     viewBox="0 0 24 24"
                   >
                     <path
@@ -945,7 +945,7 @@ export function TransactionsClient({
                 <span>{transaction.owner}</span>
                 <span>{transaction.representing}</span>
                 <StatusBadge
-                  className="office-list-table-status bm-transaction-status-badge"
+                  className="office-list-table-status office-transaction-status-badge"
                   tone={getTransactionStatusTone(transaction.status)}
                 >
                   {transaction.status}

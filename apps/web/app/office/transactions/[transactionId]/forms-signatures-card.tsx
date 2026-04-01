@@ -323,29 +323,29 @@ export function TransactionFormsSignaturesCard({
   }
 
   return (
-    <section className="bm-detail-card" id="transaction-forms-signatures">
-      <div className="bm-card-head">
+    <section className="office-detail-card" id="transaction-forms-signatures">
+      <div className="office-card-head">
         <div>
           <h3>Forms &amp; eSignature</h3>
           <span>Generate transaction packets from templates, keep them tied to checklist tasks, and track manual signature status.</span>
         </div>
       </div>
 
-      <div className="bm-document-list">
+      <div className="office-document-list">
         {documentSignatureRequests.length > 0 ? (
-          <article className="bm-form-row">
-            <div className="bm-card-head bm-card-head-inline">
+          <article className="office-form-row">
+            <div className="office-card-head office-card-head-inline">
               <h3>Document signature requests</h3>
             </div>
 
-            <div className="bm-form-signature-list">
+            <div className="office-form-signature-list">
               {documentSignatureRequests.map((request) => {
                 const recipientSummary = buildRecipientSummary(request);
 
                 return (
-                <div className="bm-signature-row" key={request.id}>
-                  <div className="bm-signature-row-copy">
-                    <div className="bm-document-row-head">
+                <div className="office-signature-row" key={request.id}>
+                  <div className="office-signature-row-copy">
+                    <div className="office-document-row-head">
                       <strong>{request.documentTitle || "Signature request"}</strong>
                       <StatusBadge tone={getSignatureTone(request.statusKey)}>{request.status}</StatusBadge>
                     </div>
@@ -359,7 +359,7 @@ export function TransactionFormsSignaturesCard({
                     </p>
                   </div>
 
-                  <div className="bm-signature-row-actions">
+                  <div className="office-signature-row-actions">
                     <Link className="office-button-secondary office-inline-action-sm" href={`/office/transactions/${transactionId}/signatures/${request.id}`}>
                       Open request
                     </Link>
@@ -402,10 +402,10 @@ export function TransactionFormsSignaturesCard({
             const signatureDraft = signatureDrafts[form.id] ?? buildSignatureDraft();
 
             return (
-              <article className="bm-form-row" key={form.id}>
-                <div className="bm-document-row-top">
-                  <div className="bm-document-row-copy">
-                    <div className="bm-document-row-head">
+              <article className="office-form-row" key={form.id}>
+                <div className="office-document-row-top">
+                  <div className="office-document-row-copy">
+                    <div className="office-document-row-head">
                       <strong>{form.name}</strong>
                       <StatusBadge tone={getFormTone(form.statusKey)}>{form.status}</StatusBadge>
                       {form.documentTitle ? <StatusBadge tone="neutral">Rendered document</StatusBadge> : null}
@@ -420,7 +420,7 @@ export function TransactionFormsSignaturesCard({
                     ) : null}
                   </div>
 
-                  <div className="bm-document-row-actions">
+                  <div className="office-document-row-actions">
                     {canViewDocuments && form.documentId ? (
                       <Link className="office-toggle-link" href={`/api/office/transactions/${transactionId}/documents/${form.documentId}/file`} target="_blank">
                         Open document
@@ -430,7 +430,7 @@ export function TransactionFormsSignaturesCard({
                 </div>
 
                 {canUseForms ? (
-                  <div className="bm-document-edit-grid">
+                  <div className="office-document-edit-grid">
                     <FormField label="Form name">
                       <TextInput
                         onChange={(event) => updateFormState(form.id, "name", event.target.value)}
@@ -462,7 +462,7 @@ export function TransactionFormsSignaturesCard({
                         ))}
                       </SelectInput>
                     </FormField>
-                    <div className="bm-document-edit-actions">
+                    <div className="office-document-edit-actions">
                       <Button
                         disabled={pendingAction === `save-form:${form.id}`}
                         onClick={() => handleSaveForm(form.id)}
@@ -474,17 +474,17 @@ export function TransactionFormsSignaturesCard({
                   </div>
                 ) : null}
 
-                <div className="bm-form-payload-preview">
+                <div className="office-form-payload-preview">
                   {Object.entries(form.generatedPayload).slice(0, 8).map(([key, value]) => (
-                    <div className="bm-form-payload-item" key={key}>
+                    <div className="office-form-payload-item" key={key}>
                       <span>{key}</span>
                       <strong>{value || "—"}</strong>
                     </div>
                   ))}
                 </div>
 
-                <div className="bm-form-signature-list">
-                  <div className="bm-card-head bm-card-head-inline">
+                <div className="office-form-signature-list">
+                  <div className="office-card-head office-card-head-inline">
                     <h3>Signature requests</h3>
                   </div>
 
@@ -493,9 +493,9 @@ export function TransactionFormsSignaturesCard({
                       const recipientSummary = buildRecipientSummary(request);
 
                       return (
-                      <div className="bm-signature-row" key={request.id}>
-                        <div className="bm-signature-row-copy">
-                          <div className="bm-document-row-head">
+                      <div className="office-signature-row" key={request.id}>
+                        <div className="office-signature-row-copy">
+                          <div className="office-document-row-head">
                             <strong>{request.documentTitle || form.name}</strong>
                             <StatusBadge tone={getSignatureTone(request.statusKey)}>{request.status}</StatusBadge>
                           </div>
@@ -509,7 +509,7 @@ export function TransactionFormsSignaturesCard({
                         </div>
 
                         {canManageSignatures ? (
-                          <div className="bm-signature-row-actions">
+                          <div className="office-signature-row-actions">
                             {request.statusKey === "draft" || request.statusKey === "pending_send" ? (
                               <Button
                                 disabled={pendingAction === `send:${request.id}`}
@@ -568,11 +568,11 @@ export function TransactionFormsSignaturesCard({
                   )}
 
                   {canManageSignatures ? (
-                    <div className="bm-document-upload-panel bm-form-signature-create">
-                      <div className="bm-card-head bm-card-head-inline">
+                    <div className="office-document-upload-panel office-form-signature-create">
+                      <div className="office-card-head office-card-head-inline">
                         <h3>Prepare signature request</h3>
                       </div>
-                      <div className="bm-document-upload-grid">
+                      <div className="office-document-upload-grid">
                         <FormField label="Recipient name">
                           <TextInput
                             onChange={(event) => updateSignatureDraft(form.id, "recipientName", event.target.value)}
@@ -601,7 +601,7 @@ export function TransactionFormsSignaturesCard({
                         </FormField>
                       </div>
 
-                      <div className="bm-document-edit-actions">
+                      <div className="office-document-edit-actions">
                         <Button
                           disabled={pendingAction === `create-signature:${form.id}`}
                           onClick={() => handleCreateSignatureRequest(form.id)}
@@ -625,12 +625,12 @@ export function TransactionFormsSignaturesCard({
       </div>
 
       {canUseForms ? (
-        <div className="bm-document-upload-panel">
-          <div className="bm-card-head bm-card-head-inline">
+        <div className="office-document-upload-panel">
+          <div className="office-card-head office-card-head-inline">
             <h3>Use forms</h3>
           </div>
 
-          <div className="bm-document-upload-grid">
+          <div className="office-document-upload-grid">
             <FormField label="Template">
               <SelectInput
                 onChange={(event) => setNewFormState((current) => ({ ...current, templateId: event.target.value }))}
@@ -666,7 +666,7 @@ export function TransactionFormsSignaturesCard({
             </FormField>
           </div>
 
-          <div className="bm-document-edit-actions">
+          <div className="office-document-edit-actions">
             <Button disabled={pendingAction === "create-form"} onClick={handleCreateForm}>
               {pendingAction === "create-form" ? "Creating..." : "Create form draft"}
             </Button>

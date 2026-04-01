@@ -906,8 +906,8 @@ export function SignatureRequestEditor({
   return (
     <div className="office-signature-editor">
       <div className="office-signature-editor-main">
-        <section className="bm-detail-card office-signature-stepper-card">
-          <div className="bm-card-head">
+        <section className="office-detail-card office-signature-stepper-card">
+          <div className="office-card-head">
             <div>
               <h3>Signature request workflow</h3>
               <span>Save the recipients first, then place each signature field on the PDF and bind it to the correct signer.</span>
@@ -947,8 +947,8 @@ export function SignatureRequestEditor({
 
         {isRecipientsStep ? (
           <>
-            <section className="bm-detail-card">
-              <div className="bm-card-head">
+            <section className="office-detail-card">
+              <div className="office-card-head">
                 <div>
                   <h3>Step 1 · Recipients and delivery</h3>
                   <span>Configure the participants first. After saving this step, the PDF field placement stage unlocks.</span>
@@ -1067,7 +1067,7 @@ export function SignatureRequestEditor({
                 ))}
               </div>
 
-              <div className="bm-document-upload-grid">
+              <div className="office-document-upload-grid">
                 <FormField label="Expires on">
                   <TextInput onChange={(event) => updateDraftField("expiresAt", event.target.value)} type="date" value={draftState.expiresAt} />
                 </FormField>
@@ -1106,15 +1106,15 @@ export function SignatureRequestEditor({
               </div>
             </section>
 
-            <section className="bm-detail-card office-signature-delivery-card">
-              <div className="bm-card-head">
+            <section className="office-detail-card office-signature-delivery-card">
+              <div className="office-card-head">
                 <div>
                   <h3>Template library</h3>
                   <span>Load a saved template into this document or save the current recipient and field map as a reusable template.</span>
                 </div>
               </div>
 
-              <div className="bm-document-upload-grid">
+              <div className="office-document-upload-grid">
                 <FormField label="Apply template">
                   <SelectInput onChange={(event) => handleTemplateSelection(event.target.value)} value={initialTemplate?.id ?? ""}>
                     <option value="">No template</option>
@@ -1164,8 +1164,8 @@ export function SignatureRequestEditor({
             </section>
           </>
         ) : (
-          <section className="bm-detail-card office-signature-template-card">
-            <div className="bm-card-head">
+          <section className="office-detail-card office-signature-template-card">
+            <div className="office-card-head">
               <div>
                 <h3>Step 2 · PDF field placement</h3>
                 <span>Select a field type, place it on the PDF, then assign that field to the signer or approver who should complete it.</span>
@@ -1265,8 +1265,8 @@ export function SignatureRequestEditor({
 
       <aside className="office-signature-editor-side">
         {isFieldsStep ? (
-          <section className="bm-detail-card">
-            <div className="bm-card-head">
+          <section className="office-detail-card">
+            <div className="office-card-head">
               <div>
                 <h3>Selected field</h3>
                 <span>Bind this field to one signer, then refine the label, default value, and validation.</span>
@@ -1349,8 +1349,8 @@ export function SignatureRequestEditor({
             )}
           </section>
         ) : (
-          <section className="bm-detail-card">
-            <div className="bm-card-head">
+          <section className="office-detail-card">
+            <div className="office-card-head">
               <div>
                 <h3>Step 2 preview</h3>
                 <span>Once Step 1 is saved, you will place signature fields here and assign each one to a specific signer.</span>
@@ -1363,8 +1363,8 @@ export function SignatureRequestEditor({
           </section>
         )}
 
-        <section className="bm-detail-card">
-          <div className="bm-card-head">
+        <section className="office-detail-card">
+          <div className="office-card-head">
             <div>
               <h3>Document</h3>
               <span>{document.documentType}</span>
@@ -1392,8 +1392,8 @@ export function SignatureRequestEditor({
           </div>
         </section>
 
-        <section className="bm-detail-card">
-          <div className="bm-card-head">
+        <section className="office-detail-card">
+          <div className="office-card-head">
             <div>
               <h3>Audit trail</h3>
               <span>Internal and signer-side events are recorded here after the request is saved.</span>

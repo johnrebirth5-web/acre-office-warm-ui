@@ -1137,11 +1137,11 @@ select {
 }
 
 @media (max-width: 1100px) {
-  .bm-accounting-grid {
+  .bm-accounting-grid, .office-accounting-grid {
     grid-template-columns: 1fr;
   }
 
-  .bm-accounting-form-grid {
+  .bm-accounting-form-grid, .office-accounting-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1180,7 +1180,7 @@ select {
 }
 
 @media (max-width: 820px) {
-  .bm-accounting-form-grid {
+  .bm-accounting-form-grid, .office-accounting-form-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1449,7 +1449,7 @@ select {
   text-overflow: ellipsis;
 }
 
-.bm-card-head {
+.bm-card-head, .office-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1458,7 +1458,9 @@ select {
 }
 
 .bm-card-head h2,
-.bm-card-head h3 {
+.bm-card-head h3,
+.office-card-head h2,
+.office-card-head h3 {
   margin: 0;
   font-family: var(--office-font-sans);
   font-weight: 500;
@@ -1466,15 +1468,15 @@ select {
   letter-spacing: 0;
 }
 
-.bm-card-head h2 {
+.bm-card-head h2, .office-card-head h2 {
   font-size: 0.97rem;
 }
 
-.bm-card-head h3 {
+.bm-card-head h3, .office-card-head h3 {
   font-size: 0.87rem;
 }
 
-.bm-card-head span {
+.bm-card-head span, .office-card-head span {
   color: #b7b7b7;
   font-size: 0.9rem;
 }
@@ -1833,7 +1835,7 @@ select {
   align-content: start;
 }
 
-.bm-transactions-toolbar {
+.bm-transactions-toolbar, .office-transactions-toolbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1887,11 +1889,11 @@ select {
   padding-top: 8px;
 }
 
-.bm-transactions-search {
+.bm-transactions-search, .office-transactions-search {
   min-width: 512px;
 }
 
-.bm-transactions-search input {
+.bm-transactions-search input, .office-transactions-search input {
   width: 100%;
   height: 38px;
   padding: 0 14px;
@@ -1901,13 +1903,13 @@ select {
   font-size: 0.74rem;
 }
 
-.bm-transactions-create {
+.bm-transactions-create, .office-transactions-create {
   min-width: 152px;
   height: 38px;
   font-size: 0.72rem;
 }
 
-.bm-transactions-list-shell {
+.bm-transactions-list-shell, .office-transactions-list-shell {
   display: grid;
   border-top: 1px solid #e4e4e4;
 }
@@ -2021,7 +2023,7 @@ select {
   color: #ed4d43;
 }
 
-.bm-transaction-home-icon {
+.bm-transaction-home-icon, .office-transaction-home-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2033,7 +2035,7 @@ select {
   font-size: 0.84rem;
 }
 
-.bm-transaction-home-icon-svg {
+.bm-transaction-home-icon-svg, .office-transaction-home-icon-svg {
   display: block;
   width: 20px;
   height: 20px;
@@ -2041,7 +2043,7 @@ select {
   transform: translateX(0.4px);
 }
 
-.bm-transaction-home-icon.is-flagged {
+.bm-transaction-home-icon.is-flagged, .office-transaction-home-icon.is-flagged {
   background: #ef4d46;
 }
 
@@ -2322,20 +2324,20 @@ select {
   font-size: 0.74rem;
 }
 
-.bm-transaction-owner-field {
+.bm-transaction-owner-field, .office-transaction-owner-field {
   position: relative;
   display: grid;
   gap: 6px;
   max-width: 34rem;
 }
 
-.bm-transaction-owner-field input[readonly] {
+.bm-transaction-owner-field input[readonly], .office-transaction-owner-field input[readonly] {
   background: rgba(245, 248, 252, 0.96);
   color: var(--office-text);
   cursor: default;
 }
 
-.bm-transaction-owner-suggestions {
+.bm-transaction-owner-suggestions, .office-transaction-owner-suggestions {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
@@ -2350,7 +2352,7 @@ select {
   box-shadow: 0 18px 40px rgba(18, 40, 76, 0.18);
 }
 
-.bm-transaction-owner-suggestion {
+.bm-transaction-owner-suggestion, .office-transaction-owner-suggestion {
   display: grid;
   gap: 2px;
   width: 100%;
@@ -2364,30 +2366,35 @@ select {
   transition: background-color 140ms ease, color 140ms ease;
 }
 
-.bm-transaction-owner-suggestion strong {
+.bm-transaction-owner-suggestion strong, .office-transaction-owner-suggestion strong {
   font-size: 0.92rem;
   font-weight: 700;
 }
 
 .bm-transaction-owner-suggestion span,
-.bm-transaction-owner-empty {
+.bm-transaction-owner-empty,
+.office-transaction-owner-suggestion span,
+.office-transaction-owner-empty {
   color: var(--office-text-muted);
   font-size: 0.76rem;
 }
 
 .bm-transaction-owner-suggestion:hover,
 .bm-transaction-owner-suggestion:focus-visible,
-.bm-transaction-owner-suggestion.is-selected {
+.bm-transaction-owner-suggestion.is-selected,
+.office-transaction-owner-suggestion:hover,
+.office-transaction-owner-suggestion:focus-visible,
+.office-transaction-owner-suggestion.is-selected {
   background: rgba(26, 76, 163, 0.1);
   color: var(--office-accent-strong);
   outline: 0;
 }
 
-.bm-transaction-owner-empty {
+.bm-transaction-owner-empty, .office-transaction-owner-empty {
   padding: 10px 12px;
 }
 
-.bm-transaction-owner-helper {
+.bm-transaction-owner-helper, .office-transaction-owner-helper {
   max-width: 34rem;
 }
 
@@ -2431,17 +2438,17 @@ select {
   gap: 14px;
 }
 
-.bm-transaction-intake-shell {
+.bm-transaction-intake-shell, .office-transaction-intake-shell {
   min-width: 0;
 }
 
-.bm-transaction-intake-shell-modal {
+.bm-transaction-intake-shell-modal, .office-transaction-intake-shell-modal {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
 }
 
-.bm-transaction-intake-shell-modal .bm-transaction-modal-body {
+.bm-transaction-intake-shell-modal .bm-transaction-modal-body, .office-transaction-intake-shell-modal .bm-transaction-modal-body {
   min-height: 0;
 }
 
@@ -2451,7 +2458,7 @@ select {
   gap: 8px;
 }
 
-.bm-transaction-intake-toolbar {
+.bm-transaction-intake-toolbar, .office-transaction-intake-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2459,7 +2466,7 @@ select {
   padding: 0 4px 6px;
 }
 
-.bm-transaction-intake-toolbar strong {
+.bm-transaction-intake-toolbar strong, .office-transaction-intake-toolbar strong {
   color: #31415e;
   font-size: 0.92rem;
   letter-spacing: 0.04em;
@@ -2604,7 +2611,7 @@ select {
   border-top: 1px solid rgba(177, 188, 204, 0.38);
 }
 
-.bm-new-transaction-live-card > .office-section-body {
+.bm-new-transaction-live-card > .office-section-body, .office-new-transaction-live-card > .office-section-body {
   gap: 0;
   padding-top: 12px;
 }
@@ -2615,7 +2622,7 @@ select {
   font-size: 0.72rem;
 }
 
-.bm-transaction-next {
+.bm-transaction-next, .office-transaction-next {
   min-width: 84px;
   height: 40px;
   border: 0;
@@ -2625,7 +2632,7 @@ select {
   font-weight: 700;
 }
 
-.bm-transaction-next:disabled {
+.bm-transaction-next:disabled, .office-transaction-next:disabled {
   opacity: 0.7;
 }
 
@@ -2634,7 +2641,7 @@ select {
   gap: 18px;
 }
 
-.bm-detail-card {
+.bm-detail-card, .office-detail-card {
   border: 1px solid #d6d6d6;
   background: #ffffff;
   padding: 18px 20px;
@@ -2667,23 +2674,23 @@ select {
   gap: 14px 16px;
 }
 
-.bm-detail-field {
+.bm-detail-field, .office-detail-field {
   display: grid;
   gap: 6px;
 }
 
-.bm-detail-field span {
+.bm-detail-field span, .office-detail-field span {
   color: #888888;
   font-size: 0.72rem;
 }
 
-.bm-detail-field strong {
+.bm-detail-field strong, .office-detail-field strong {
   color: #313131;
   font-size: 0.82rem;
   font-weight: 600;
 }
 
-.bm-detail-field select {
+.bm-detail-field select, .office-detail-field select {
   width: 100%;
   height: 38px;
   padding: 0 10px;
@@ -3123,12 +3130,12 @@ select {
   }
 }
 
-.bm-transaction-contact-list {
+.bm-transaction-contact-list, .office-transaction-contact-list {
   display: grid;
   gap: 12px;
 }
 
-.bm-transaction-contact-row {
+.bm-transaction-contact-row, .office-transaction-contact-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -3138,43 +3145,43 @@ select {
   background: #fafafa;
 }
 
-.bm-transaction-contact-main {
+.bm-transaction-contact-main, .office-transaction-contact-main {
   display: grid;
   gap: 6px;
 }
 
-.bm-transaction-contact-head {
+.bm-transaction-contact-head, .office-transaction-contact-head {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.bm-transaction-contact-link {
+.bm-transaction-contact-link, .office-transaction-contact-link {
   color: #0f62db;
   font-size: 0.84rem;
   font-weight: 600;
   text-decoration: none;
 }
 
-.bm-transaction-contact-link:hover {
+.bm-transaction-contact-link:hover, .office-transaction-contact-link:hover {
   text-decoration: underline;
 }
 
-.bm-transaction-contact-main p {
+.bm-transaction-contact-main p, .office-transaction-contact-main p {
   margin: 0;
   color: #666666;
   font-size: 0.74rem;
 }
 
-.bm-transaction-contact-actions {
+.bm-transaction-contact-actions, .office-transaction-contact-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.bm-transaction-contact-toolbar {
+.bm-transaction-contact-toolbar, .office-transaction-contact-toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -3182,7 +3189,7 @@ select {
   flex-wrap: wrap;
 }
 
-.bm-transaction-contact-checkbox {
+.bm-transaction-contact-checkbox, .office-transaction-contact-checkbox {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -3190,45 +3197,47 @@ select {
   font-size: 0.74rem;
 }
 
-.bm-card-head-inline {
+.bm-card-head-inline, .office-card-head-inline {
   margin-bottom: 14px;
 }
 
-.bm-transaction-task-groups {
+.bm-transaction-task-groups, .office-transaction-task-groups {
   display: grid;
   gap: 16px;
 }
 
-.bm-transaction-task-group {
+.bm-transaction-task-group, .office-transaction-task-group {
   display: grid;
   gap: 10px;
 }
 
-.bm-transaction-task-group-head {
+.bm-transaction-task-group-head, .office-transaction-task-group-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.bm-transaction-task-group-head strong {
+.bm-transaction-task-group-head strong, .office-transaction-task-group-head strong {
   color: #2f2f2f;
   font-size: 0.86rem;
   font-weight: 700;
 }
 
-.bm-transaction-task-group-head span {
+.bm-transaction-task-group-head span, .office-transaction-task-group-head span {
   color: #8c8c8c;
   font-size: 0.72rem;
 }
 
-.bm-transaction-task-list {
+.bm-transaction-task-list, .office-transaction-task-list {
   display: grid;
   gap: 12px;
 }
 
 .bm-transaction-task-row,
-.bm-transaction-task-create {
+.bm-transaction-task-create,
+.office-transaction-task-row,
+.office-transaction-task-create {
   display: grid;
   gap: 14px;
   padding: 14px 16px;
@@ -3236,7 +3245,7 @@ select {
   background: #fafafa;
 }
 
-.bm-transaction-task-top {
+.bm-transaction-task-top, .office-transaction-task-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3244,27 +3253,27 @@ select {
   flex-wrap: wrap;
 }
 
-.bm-transaction-task-status {
+.bm-transaction-task-status, .office-transaction-task-status {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.bm-transaction-task-status strong {
+.bm-transaction-task-status strong, .office-transaction-task-status strong {
   color: #5b5b5b;
   font-size: 0.74rem;
   font-weight: 600;
 }
 
-.bm-transaction-task-actions {
+.bm-transaction-task-actions, .office-transaction-task-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.bm-transaction-task-grid {
+.bm-transaction-task-grid, .office-transaction-task-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px 16px;
@@ -3272,7 +3281,10 @@ select {
 
 .bm-transaction-task-grid input,
 .bm-transaction-task-grid select,
-.bm-transaction-task-grid textarea {
+.bm-transaction-task-grid textarea,
+.office-transaction-task-grid input,
+.office-transaction-task-grid select,
+.office-transaction-task-grid textarea {
   width: 100%;
   padding: 10px;
   border: 1px solid #cccccc;
@@ -3282,27 +3294,29 @@ select {
 }
 
 .bm-transaction-task-grid input,
-.bm-transaction-task-grid select {
+.bm-transaction-task-grid select,
+.office-transaction-task-grid input,
+.office-transaction-task-grid select {
   height: 38px;
 }
 
-.bm-transaction-task-grid textarea {
+.bm-transaction-task-grid textarea, .office-transaction-task-grid textarea {
   resize: vertical;
   min-height: 84px;
 }
 
-.bm-transaction-task-create {
+.bm-transaction-task-create, .office-transaction-task-create {
   margin-top: 18px;
 }
 
-.bm-transaction-task-evidence {
+.bm-transaction-task-evidence, .office-transaction-task-evidence {
   display: grid;
   gap: 12px;
   padding-top: 4px;
   border-top: 1px solid #ebebeb;
 }
 
-.bm-transaction-task-evidence-grid {
+.bm-transaction-task-evidence-grid, .office-transaction-task-evidence-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 16px;
@@ -3310,13 +3324,13 @@ select {
   font-size: 0.72rem;
 }
 
-.bm-transaction-task-linked-documents {
+.bm-transaction-task-linked-documents, .office-transaction-task-linked-documents {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.bm-task-linked-document {
+.bm-task-linked-document, .office-task-linked-document {
   display: grid;
   gap: 2px;
   min-width: 180px;
@@ -3327,62 +3341,62 @@ select {
   text-decoration: none;
 }
 
-.bm-task-linked-document strong {
+.bm-task-linked-document strong, .office-task-linked-document strong {
   font-size: 0.76rem;
   font-weight: 700;
 }
 
-.bm-task-linked-document span {
+.bm-task-linked-document span, .office-task-linked-document span {
   color: #6a778b;
   font-size: 0.7rem;
 }
 
-.bm-task-linked-document:hover {
+.bm-task-linked-document:hover, .office-task-linked-document:hover {
   border-color: #b8c7de;
   background: #f8fbff;
 }
 
-.bm-transaction-task-linked-documents.is-empty {
+.bm-transaction-task-linked-documents.is-empty, .office-transaction-task-linked-documents.is-empty {
   color: #6a778b;
   font-size: 0.72rem;
 }
 
-.bm-task-status-todo {
+.bm-task-status-todo, .office-task-status-todo {
   background: #f2f4f8;
   color: #556271;
 }
 
-.bm-task-status-in-progress {
+.bm-task-status-in-progress, .office-task-status-in-progress {
   background: #eef3ff;
   color: #365d9a;
 }
 
-.bm-task-status-pending {
+.bm-task-status-pending, .office-task-status-pending {
   background: #f2f4f8;
   color: #556271;
 }
 
-.bm-task-status-review {
+.bm-task-status-review, .office-task-status-review {
   background: #fff5e8;
   color: #8b5a12;
 }
 
-.bm-task-status-rejected {
+.bm-task-status-rejected, .office-task-status-rejected {
   background: #fff0f0;
   color: #9b4343;
 }
 
-.bm-task-status-completed {
+.bm-task-status-completed, .office-task-status-completed {
   background: #eef8f0;
   color: #3c7454;
 }
 
-.bm-task-status-reopened {
+.bm-task-status-reopened, .office-task-status-reopened {
   background: #eef3ff;
   color: #365d9a;
 }
 
-.bm-status-pill-primary {
+.bm-status-pill-primary, .office-status-pill-primary {
   background: #e7f0ff;
   color: #173c8a;
 }
@@ -3392,7 +3406,7 @@ select {
   color: #4a5565;
 }
 
-.bm-contacts-toolbar {
+.bm-contacts-toolbar, .office-contacts-toolbar {
   display: flex;
   align-items: end;
   gap: 12px;
@@ -3400,23 +3414,23 @@ select {
   flex-wrap: wrap;
 }
 
-.bm-contacts-toolbar .office-button {
+.bm-contacts-toolbar .office-button, .office-contacts-toolbar .office-button {
   min-height: 38px;
   padding: 0 14px;
   border: 0;
   cursor: pointer;
 }
 
-.bm-contacts-search-field {
+.bm-contacts-search-field, .office-contacts-search-field {
   flex: 1 1 340px;
   min-width: min(320px, 100%);
 }
 
-.bm-contacts-search-input {
+.bm-contacts-search-input, .office-contacts-search-input {
   min-width: 0;
 }
 
-.bm-contacts-stage-field {
+.bm-contacts-stage-field, .office-contacts-stage-field {
   flex: 0 0 220px;
   min-width: min(220px, 100%);
 }
@@ -3489,12 +3503,13 @@ select {
 }
 
 .bm-contacts-table-row strong a,
-.bm-detail-field span a {
+.bm-detail-field span a,
+.office-detail-field span a {
   color: #0f62db;
   text-decoration: none;
 }
 
-.bm-contact-modal {
+.bm-contact-modal, .office-contact-modal {
   width: min(100%, 720px);
 }
 
@@ -3701,24 +3716,24 @@ select {
   grid-template-columns: 78px minmax(180px, 1.22fr) 92px 82px;
 }
 
-.bm-agent-statement {
+.bm-agent-statement, .office-agent-statement {
   display: grid;
   gap: 18px;
 }
 
-.bm-agent-statement-metrics {
+.bm-agent-statement-metrics, .office-agent-statement-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
 }
 
-.bm-agent-statement-metrics div {
+.bm-agent-statement-metrics div, .office-agent-statement-metrics div {
   padding: 14px 16px;
   border: 1px solid #dfe5ee;
   background: #fbfcfe;
 }
 
-.bm-agent-statement-metrics span {
+.bm-agent-statement-metrics span, .office-agent-statement-metrics span {
   display: block;
   margin-bottom: 6px;
   color: #68788f;
@@ -3727,7 +3742,7 @@ select {
   text-transform: uppercase;
 }
 
-.bm-agent-statement-metrics strong {
+.bm-agent-statement-metrics strong, .office-agent-statement-metrics strong {
   color: #1f2d44;
   font-size: 1rem;
   font-weight: 700;
@@ -3783,7 +3798,8 @@ select {
 }
 
 .office-task-edit-grid .office-form-field,
-.office-task-edit-grid .bm-detail-field {
+.office-task-edit-grid .bm-detail-field,
+.office-task-edit-grid .office-detail-field {
   margin: 0;
 }
 
@@ -4088,7 +4104,7 @@ select {
   min-width: 260px;
 }
 
-.bm-detail-field-wide {
+.bm-detail-field-wide, .office-detail-field-wide {
   grid-column: span 3;
 }
 
@@ -4153,7 +4169,8 @@ select {
 }
 
 .bm-create-button,
-.bm-view-toggle {
+.bm-view-toggle,
+.office-view-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4173,13 +4190,13 @@ select {
   color: #ffffff;
 }
 
-.bm-view-toggle.is-active {
+.bm-view-toggle.is-active, .office-view-toggle.is-active {
   background: #0d2e74;
   border-color: #0d2e74;
   color: #ffffff;
 }
 
-.bm-filter-strip {
+.bm-filter-strip, .office-filter-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -4295,7 +4312,7 @@ select {
   flex-wrap: wrap;
 }
 
-.bm-accounting-grid {
+.bm-accounting-grid, .office-accounting-grid {
   align-items: start;
 }
 
@@ -4415,7 +4432,7 @@ select {
   gap: 14px;
 }
 
-.bm-accounting-form-grid {
+.bm-accounting-form-grid, .office-accounting-form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -4439,7 +4456,7 @@ select {
   background: #fafbfd;
 }
 
-.bm-accounting-inline-actions {
+.bm-accounting-inline-actions, .office-accounting-inline-actions {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -4510,21 +4527,21 @@ select {
   margin-top: 12px;
 }
 
-.bm-accounting-empty {
+.bm-accounting-empty, .office-accounting-empty {
   padding: 18px 16px;
   color: #6d7784;
   font-size: 0.9rem;
 }
 
-.bm-accounting-empty p {
+.bm-accounting-empty p, .office-accounting-empty p {
   margin: 0;
 }
 
-.bm-accounting-modal {
+.bm-accounting-modal, .office-accounting-modal {
   width: min(1120px, calc(100vw - 56px));
 }
 
-.bm-accounting-modal-body {
+.bm-accounting-modal-body, .office-accounting-modal-body {
   gap: 18px;
   padding: 8px 24px 28px;
 }
@@ -4533,19 +4550,19 @@ select {
   width: min(900px, calc(100vw - 56px));
 }
 
-.bm-detail-field-checkbox {
+.bm-detail-field-checkbox, .office-detail-field-checkbox {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 42px;
 }
 
-.bm-detail-field-checkbox input {
+.bm-detail-field-checkbox input, .office-detail-field-checkbox input {
   width: 16px;
   height: 16px;
 }
 
-.bm-detail-field-checkbox span {
+.bm-detail-field-checkbox span, .office-detail-field-checkbox span {
   margin: 0;
 }
 
@@ -4782,7 +4799,7 @@ select {
   font-weight: 600;
 }
 
-.bm-status-pill {
+.bm-status-pill, .office-status-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5053,7 +5070,7 @@ select {
   gap: 18px;
 }
 
-.bm-new-transaction-card {
+.bm-new-transaction-card, .office-new-transaction-card {
   padding: 18px;
   border: 1px solid #d6d6d6;
   background: #ffffff;
@@ -5209,7 +5226,8 @@ select {
 
 .bm-form-row,
 .bm-form-row-split,
-.bm-form-row-code {
+.bm-form-row-code,
+.office-form-row {
   display: grid;
   gap: 14px;
 }
@@ -5351,7 +5369,8 @@ select {
 
   .bm-new-transaction-grid,
   .bm-transaction-form-grid,
-  .bm-transaction-task-grid {
+  .bm-transaction-task-grid,
+  .office-transaction-task-grid {
     grid-template-columns: 1fr;
   }
 
@@ -5427,7 +5446,8 @@ select {
   }
 
   .bm-transactions-toolbar,
-  .bm-transactions-actions {
+  .bm-transactions-actions,
+  .office-transactions-toolbar {
     display: grid;
     justify-content: stretch;
   }
@@ -5437,7 +5457,8 @@ select {
   }
 
   .bm-search-shell,
-  .bm-transactions-search {
+  .bm-transactions-search,
+  .office-transactions-search {
     min-width: 0;
   }
 
@@ -5523,12 +5544,14 @@ select {
   .bm-transaction-modal-grid,
   .bm-transaction-modal-grid-additional,
   .bm-contact-form-grid,
-  .bm-transaction-task-grid {
+  .bm-transaction-task-grid,
+  .office-transaction-task-grid {
     grid-template-columns: 1fr;
   }
 
   .bm-transaction-modal-field.is-span-4,
-  .bm-detail-field-wide {
+  .bm-detail-field-wide,
+  .office-detail-field-wide {
     grid-column: auto;
   }
 
@@ -5740,7 +5763,9 @@ a {
 .office-detail-two-column,
 .office-transactions-page-actions,
 .bm-filter-strip,
-.bm-activity-filter-actions {
+.bm-activity-filter-actions,
+.office-detail-card,
+.office-filter-strip {
   min-width: 0;
 }
 
@@ -5927,7 +5952,8 @@ a {
 .bm-toolbar-actions,
 .bm-filter-strip,
 .bm-activity-filter-actions,
-.bm-accounting-form-actions {
+.bm-accounting-form-actions,
+.office-filter-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -6130,7 +6156,9 @@ a {
 .office-transaction-collapsible-panel > .office-section-card,
 .office-transaction-collapsible-panel > .bm-detail-card,
 .office-transaction-collapsible-panel > section > .office-section-card,
-.office-transaction-collapsible-panel > section > .bm-detail-card {
+.office-transaction-collapsible-panel > section > .bm-detail-card,
+.office-transaction-collapsible-panel > .office-detail-card,
+.office-transaction-collapsible-panel > section > .office-detail-card {
   padding: 0;
   border: 0;
   background: transparent;
@@ -6140,24 +6168,30 @@ a {
 .office-transaction-collapsible-panel > .office-section-card > .office-section-head:first-child,
 .office-transaction-collapsible-panel > .bm-detail-card > .bm-card-head:first-child,
 .office-transaction-collapsible-panel > section > .office-section-card > .office-section-head:first-child,
-.office-transaction-collapsible-panel > section > .bm-detail-card > .bm-card-head:first-child {
+.office-transaction-collapsible-panel > section > .bm-detail-card > .bm-card-head:first-child,
+.office-transaction-collapsible-panel > .office-detail-card > .office-card-head:first-child,
+.office-transaction-collapsible-panel > section > .office-detail-card > .office-card-head:first-child {
   display: none;
 }
 
-.bm-detail-card .bm-document-filter-strip {
+.bm-detail-card .bm-document-filter-strip, .office-detail-card .office-document-filter-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
 .bm-detail-card .bm-document-list,
-.bm-detail-card .bm-form-signature-list {
+.bm-detail-card .bm-form-signature-list,
+.office-detail-card .office-document-list,
+.office-detail-card .office-form-signature-list {
   display: grid;
   gap: 14px;
 }
 
 .bm-detail-card .bm-document-row,
-.bm-detail-card .bm-form-row {
+.bm-detail-card .bm-form-row,
+.office-detail-card .office-document-row,
+.office-detail-card .office-form-row {
   display: grid;
   gap: 14px;
   padding: 14px 16px;
@@ -6168,7 +6202,10 @@ a {
 
 .bm-detail-card .bm-document-row-top,
 .bm-detail-card .bm-signature-row,
-.bm-detail-card .bm-card-head-inline {
+.bm-detail-card .bm-card-head-inline,
+.office-detail-card .office-document-row-top,
+.office-detail-card .office-signature-row,
+.office-detail-card .office-card-head-inline {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -6176,13 +6213,15 @@ a {
 }
 
 .bm-detail-card .bm-document-row-copy,
-.bm-detail-card .bm-signature-row-copy {
+.bm-detail-card .bm-signature-row-copy,
+.office-detail-card .office-document-row-copy,
+.office-detail-card .office-signature-row-copy {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.bm-detail-card .bm-document-row-head {
+.bm-detail-card .bm-document-row-head, .office-detail-card .office-document-row-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -6190,14 +6229,18 @@ a {
 }
 
 .bm-detail-card .bm-document-row-head strong,
-.bm-detail-card .bm-signature-row-copy strong {
+.bm-detail-card .bm-signature-row-copy strong,
+.office-detail-card .office-document-row-head strong,
+.office-detail-card .office-signature-row-copy strong {
   color: var(--office-text);
   font-size: 0.95rem;
   font-weight: 700;
 }
 
 .bm-detail-card .bm-document-row-copy p,
-.bm-detail-card .bm-signature-row-copy p {
+.bm-detail-card .bm-signature-row-copy p,
+.office-detail-card .office-document-row-copy p,
+.office-detail-card .office-signature-row-copy p {
   margin: 0;
   color: var(--office-text-muted);
   font-size: 0.86rem;
@@ -6206,20 +6249,29 @@ a {
 
 .bm-detail-card .bm-document-row-copy a,
 .bm-detail-card .bm-signature-row-copy a,
-.bm-detail-card .bm-incoming-update-preview a {
+.bm-detail-card .bm-incoming-update-preview a,
+.office-detail-card .office-document-row-copy a,
+.office-detail-card .office-signature-row-copy a,
+.office-detail-card .office-incoming-update-preview a {
   color: var(--office-accent-strong);
   text-decoration: none;
 }
 
 .bm-detail-card .bm-document-row-copy a:hover,
 .bm-detail-card .bm-signature-row-copy a:hover,
-.bm-detail-card .bm-incoming-update-preview a:hover {
+.bm-detail-card .bm-incoming-update-preview a:hover,
+.office-detail-card .office-document-row-copy a:hover,
+.office-detail-card .office-signature-row-copy a:hover,
+.office-detail-card .office-incoming-update-preview a:hover {
   text-decoration: underline;
 }
 
 .bm-detail-card .bm-document-row-actions,
 .bm-detail-card .bm-signature-row-actions,
-.bm-detail-card .bm-document-edit-actions {
+.bm-detail-card .bm-document-edit-actions,
+.office-detail-card .office-document-row-actions,
+.office-detail-card .office-signature-row-actions,
+.office-detail-card .office-document-edit-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -6227,21 +6279,25 @@ a {
 }
 
 .bm-detail-card .bm-document-edit-grid,
-.bm-detail-card .bm-document-upload-grid {
+.bm-detail-card .bm-document-upload-grid,
+.office-detail-card .office-document-edit-grid,
+.office-detail-card .office-document-upload-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
 .bm-detail-card .bm-document-inline-checkbox,
-.bm-detail-card .bm-document-upload-checkboxes {
+.bm-detail-card .bm-document-upload-checkboxes,
+.office-detail-card .office-document-inline-checkbox,
+.office-detail-card .office-document-upload-checkboxes {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
 
-.bm-detail-card .bm-document-upload-panel {
+.bm-detail-card .bm-document-upload-panel, .office-detail-card .office-document-upload-panel {
   display: grid;
   gap: 14px;
   padding: 16px;
@@ -6250,21 +6306,21 @@ a {
   background: var(--office-bg-muted);
 }
 
-.bm-detail-card .bm-card-head-inline {
+.bm-detail-card .bm-card-head-inline, .office-detail-card .office-card-head-inline {
   justify-content: flex-start;
 }
 
-.bm-detail-card .bm-card-head-inline h3 {
+.bm-detail-card .bm-card-head-inline h3, .office-detail-card .office-card-head-inline h3 {
   font-size: 0.96rem;
 }
 
-.bm-detail-card .bm-form-payload-preview {
+.bm-detail-card .bm-form-payload-preview, .office-detail-card .office-form-payload-preview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
-.bm-detail-card .bm-form-payload-item {
+.bm-detail-card .bm-form-payload-item, .office-detail-card .office-form-payload-item {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -6273,7 +6329,7 @@ a {
   background: #fff;
 }
 
-.bm-detail-card .bm-form-payload-item span {
+.bm-detail-card .bm-form-payload-item span, .office-detail-card .office-form-payload-item span {
   color: var(--office-text-muted);
   font-size: 0.74rem;
   font-weight: 700;
@@ -6281,17 +6337,17 @@ a {
   letter-spacing: 0.04em;
 }
 
-.bm-detail-card .bm-form-payload-item strong {
+.bm-detail-card .bm-form-payload-item strong, .office-detail-card .office-form-payload-item strong {
   color: var(--office-text);
   font-size: 0.88rem;
   line-height: 1.35;
 }
 
-.bm-detail-card .bm-form-signature-create {
+.bm-detail-card .bm-form-signature-create, .office-detail-card .office-form-signature-create {
   margin-top: 4px;
 }
 
-.bm-detail-card .bm-incoming-update-preview {
+.bm-detail-card .bm-incoming-update-preview, .office-detail-card .office-incoming-update-preview {
   display: grid;
   gap: 6px;
   padding-left: 18px;
@@ -6327,7 +6383,7 @@ a {
   text-decoration: underline;
 }
 
-.bm-offer-head-metrics {
+.bm-offer-head-metrics, .office-offer-head-metrics {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -6336,7 +6392,10 @@ a {
 
 .bm-offer-list,
 .bm-offer-form-list,
-.bm-offer-comment-list {
+.bm-offer-comment-list,
+.office-offer-list,
+.office-offer-form-list,
+.office-offer-comment-list {
   display: grid;
   gap: 14px;
 }
@@ -6345,7 +6404,12 @@ a {
 .bm-offer-linked-section,
 .bm-offer-form-row,
 .bm-offer-comment-list li,
-.bm-offer-comparison {
+.bm-offer-comparison,
+.office-offer-row,
+.office-offer-linked-section,
+.office-offer-form-row,
+.office-offer-comment-list li,
+.office-offer-comparison {
   display: grid;
   gap: 14px;
   padding: 14px 16px;
@@ -6354,7 +6418,7 @@ a {
   background: var(--office-surface-subtle);
 }
 
-.bm-offer-comments-section {
+.bm-offer-comments-section, .office-offer-comments-section {
   display: grid;
   gap: 14px;
 }
@@ -6363,7 +6427,12 @@ a {
 .bm-offer-row-title,
 .bm-offer-row-metrics,
 .bm-offer-subhead,
-.bm-offer-comment-head {
+.bm-offer-comment-head,
+.office-offer-row-top,
+.office-offer-row-title,
+.office-offer-row-metrics,
+.office-offer-subhead,
+.office-offer-comment-head {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -6371,13 +6440,18 @@ a {
 
 .bm-offer-row-top,
 .bm-offer-subhead,
-.bm-offer-comment-head {
+.bm-offer-comment-head,
+.office-offer-row-top,
+.office-offer-subhead,
+.office-offer-comment-head {
   align-items: flex-start;
   justify-content: space-between;
 }
 
 .bm-offer-row-headline,
-.bm-offer-form-head {
+.bm-offer-form-head,
+.office-offer-row-headline,
+.office-offer-form-head {
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -6385,7 +6459,10 @@ a {
 
 .bm-offer-row-headline strong,
 .bm-offer-form-head strong,
-.bm-offer-subhead h4 {
+.bm-offer-subhead h4,
+.office-offer-row-headline strong,
+.office-offer-form-head strong,
+.office-offer-subhead h4 {
   color: var(--office-text);
   font-size: 0.95rem;
   font-weight: 700;
@@ -6393,14 +6470,17 @@ a {
 
 .bm-offer-row-headline p,
 .bm-offer-form-head p,
-.bm-offer-comment-list p {
+.bm-offer-comment-list p,
+.office-offer-row-headline p,
+.office-offer-form-head p,
+.office-offer-comment-list p {
   margin: 0;
   color: var(--office-text-muted);
   font-size: 0.86rem;
   line-height: 1.45;
 }
 
-.bm-offer-row-metrics {
+.bm-offer-row-metrics, .office-offer-row-metrics {
   color: var(--office-text-muted);
   font-size: 0.82rem;
   font-weight: 600;
@@ -6412,20 +6492,30 @@ a {
 .bm-offer-edit-grid,
 .bm-offer-upload-grid,
 .bm-offer-form-create-grid,
-.bm-offer-signature-grid {
+.bm-offer-signature-grid,
+.office-offer-meta-grid,
+.office-offer-create-grid,
+.office-offer-edit-grid,
+.office-offer-upload-grid,
+.office-offer-form-create-grid,
+.office-offer-signature-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
 .bm-offer-meta-grid div,
-.bm-offer-comparison-title {
+.bm-offer-comparison-title,
+.office-offer-meta-grid div,
+.office-offer-comparison-title {
   display: grid;
   gap: 4px;
 }
 
 .bm-offer-meta-grid span,
-.bm-offer-comparison-title span {
+.bm-offer-comparison-title span,
+.office-offer-meta-grid span,
+.office-offer-comparison-title span {
   color: var(--office-text-muted);
   font-size: 0.74rem;
   font-weight: 700;
@@ -6433,7 +6523,7 @@ a {
   text-transform: uppercase;
 }
 
-.bm-offer-meta-grid strong {
+.bm-offer-meta-grid strong, .office-offer-meta-grid strong {
   color: var(--office-text);
   font-size: 0.88rem;
   line-height: 1.35;
@@ -6441,30 +6531,35 @@ a {
 
 .bm-offer-create-notes,
 .bm-offer-edit-notes,
-.bm-offer-action-row {
+.bm-offer-action-row,
+.office-offer-create-notes,
+.office-offer-edit-notes,
+.office-offer-action-row {
   grid-column: 1 / -1;
 }
 
-.bm-offer-action-row {
+.bm-offer-action-row, .office-offer-action-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.bm-offer-linked-grid {
+.bm-offer-linked-grid, .office-offer-linked-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
 .bm-offer-inline-list,
-.bm-offer-comment-list {
+.bm-offer-comment-list,
+.office-offer-inline-list,
+.office-offer-comment-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.bm-offer-inline-list li {
+.bm-offer-inline-list li, .office-offer-inline-list li {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -6473,58 +6568,63 @@ a {
   font-size: 0.84rem;
 }
 
-.bm-offer-inline-list a {
+.bm-offer-inline-list a, .office-offer-inline-list a {
   color: var(--office-accent-strong);
   font-weight: 600;
   text-decoration: none;
 }
 
-.bm-offer-inline-list a:hover {
+.bm-offer-inline-list a:hover, .office-offer-inline-list a:hover {
   text-decoration: underline;
 }
 
 .bm-offer-upload-grid > .office-button,
 .bm-offer-form-create-grid > .office-button,
-.bm-offer-signature-grid > .office-button {
+.bm-offer-signature-grid > .office-button,
+.office-offer-upload-grid > .office-button,
+.office-offer-form-create-grid > .office-button,
+.office-offer-signature-grid > .office-button {
   align-self: end;
   justify-self: start;
 }
 
-.bm-offer-comment-list li {
+.bm-offer-comment-list li, .office-offer-comment-list li {
   gap: 10px;
   background: #fff;
 }
 
-.bm-offer-comment-head strong {
+.bm-offer-comment-head strong, .office-offer-comment-head strong {
   color: var(--office-text);
   font-size: 0.86rem;
 }
 
-.bm-offer-comment-head span {
+.bm-offer-comment-head span, .office-offer-comment-head span {
   color: var(--office-text-muted);
   font-size: 0.78rem;
 }
 
-.bm-offer-comment-compose {
+.bm-offer-comment-compose, .office-offer-comment-compose {
   display: grid;
   gap: 10px;
 }
 
-.bm-offer-comparison-table {
+.bm-offer-comparison-table, .office-offer-comparison-table {
   min-width: 960px;
   width: 100%;
   border-collapse: collapse;
 }
 
 .bm-offer-comparison-table th,
-.bm-offer-comparison-table td {
+.bm-offer-comparison-table td,
+.office-offer-comparison-table th,
+.office-offer-comparison-table td {
   padding: 12px 14px;
   border-bottom: 1px solid var(--office-border);
   text-align: left;
   vertical-align: top;
 }
 
-.bm-offer-comparison-table th {
+.bm-offer-comparison-table th, .office-offer-comparison-table th {
   color: var(--office-text-muted);
   font-size: 0.78rem;
   font-weight: 700;
@@ -6532,7 +6632,7 @@ a {
   text-transform: uppercase;
 }
 
-.bm-offer-comparison-table tbody tr:last-child td {
+.bm-offer-comparison-table tbody tr:last-child td, .office-offer-comparison-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
@@ -6614,7 +6714,8 @@ a {
 
 .office-status-badge,
 .bm-status-pill,
-.bm-transaction-status {
+.bm-transaction-status,
+.office-status-pill {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -6629,14 +6730,16 @@ a {
 }
 
 .bm-status-pill,
-.bm-transaction-status {
+.bm-transaction-status,
+.office-status-pill {
   background: #eef2f6;
   color: #334155;
 }
 
 .bm-status-pill-primary,
 .bm-status-active,
-.bm-transaction-status-active {
+.bm-transaction-status-active,
+.office-status-pill-primary {
   background: #e6f0ff;
   color: #18438f;
 }
@@ -6665,7 +6768,8 @@ a {
 .office-toggle-link,
 .bm-create-button,
 .bm-transaction-next,
-.office-button-secondary {
+.office-button-secondary,
+.office-transaction-next {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -6694,7 +6798,8 @@ a {
 .office-button:hover,
 .office-toggle-link:hover,
 .bm-create-button:hover,
-.bm-transaction-next:hover {
+.bm-transaction-next:hover,
+.office-transaction-next:hover {
   background: var(--office-accent-strong);
 }
 
@@ -6703,7 +6808,8 @@ a {
 .office-list-page-button,
 .bm-view-toggle,
 .bm-transactions-page-button,
-.bm-contacts-page-button {
+.bm-contacts-page-button,
+.office-view-toggle {
   background: #fff;
   border-color: var(--office-border-strong);
   color: var(--office-text);
@@ -6714,14 +6820,16 @@ a {
 .office-list-page-button:hover,
 .bm-view-toggle:hover,
 .bm-transactions-page-button:hover,
-.bm-contacts-page-button:hover {
+.bm-contacts-page-button:hover,
+.office-view-toggle:hover {
   background: var(--office-surface-subtle);
   color: var(--office-accent-strong);
 }
 
 .office-button:disabled,
 .bm-create-button:disabled,
-.bm-transaction-next:disabled {
+.bm-transaction-next:disabled,
+.office-transaction-next:disabled {
   background: #90a7c9;
   color: rgba(255, 255, 255, 0.9);
   box-shadow: none;
@@ -6734,7 +6842,8 @@ a {
 .office-list-page-button:disabled,
 .bm-view-toggle:disabled,
 .bm-transactions-page-button:disabled,
-.bm-contacts-page-button:disabled {
+.bm-contacts-page-button:disabled,
+.office-view-toggle:disabled {
   background: #f4f6f8;
   border-color: var(--office-border);
   color: #9aa7b6;
@@ -6744,7 +6853,8 @@ a {
 
 .bm-view-toggle.is-active,
 .office-toggle-link.is-active,
-.office-button.is-active {
+.office-button.is-active,
+.office-view-toggle.is-active {
   border-color: var(--office-accent);
   background: var(--office-accent-soft);
   color: var(--office-accent-strong);
@@ -6789,7 +6899,8 @@ a {
 .office-button.office-inline-action,
 .office-button-secondary.office-inline-action,
 .bm-create-button.office-inline-action,
-.bm-view-toggle.office-inline-action {
+.bm-view-toggle.office-inline-action,
+.office-view-toggle.office-inline-action {
   min-height: 34px;
   padding: 0 12px;
   font-size: var(--office-text-button-sm-size);
@@ -6798,7 +6909,8 @@ a {
 .office-button.office-inline-action-sm,
 .office-button-secondary.office-inline-action-sm,
 .bm-create-button.office-inline-action-sm,
-.bm-view-toggle.office-inline-action-sm {
+.bm-view-toggle.office-inline-action-sm,
+.office-view-toggle.office-inline-action-sm {
   min-height: 30px;
   padding: 0 10px;
   font-size: var(--office-text-inline-action-size);
@@ -6831,7 +6943,12 @@ a {
 .bm-transaction-status-form select:focus-visible,
 .bm-transaction-modal-field input:focus-visible,
 .bm-transaction-modal-field select:focus-visible,
-.bm-transaction-modal-field textarea:focus-visible {
+.bm-transaction-modal-field textarea:focus-visible,
+.office-view-toggle:focus-visible,
+.office-transactions-search input:focus-visible,
+.office-detail-field input:focus-visible,
+.office-detail-field select:focus-visible,
+.office-detail-field textarea:focus-visible {
   outline: 0;
   box-shadow: var(--office-focus-ring);
 }
@@ -6858,7 +6975,8 @@ a {
 .bm-transaction-modal-field input,
 .bm-transaction-modal-field select,
 .bm-transaction-modal-field textarea,
-.bm-modal-inline-select select {
+.bm-modal-inline-select select,
+.office-transactions-search input {
   width: 100%;
   min-height: 40px;
   padding: 0 12px;
@@ -6980,7 +7098,9 @@ a {
 .office-form-actions,
 .bm-transactions-toolbar,
 .bm-contacts-toolbar,
-.bm-transaction-status-form {
+.bm-transaction-status-form,
+.office-transactions-toolbar,
+.office-contacts-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
@@ -6998,7 +7118,9 @@ a {
 .office-form-actions > *,
 .bm-transactions-toolbar > *,
 .bm-contacts-toolbar > *,
-.bm-transaction-status-form > * {
+.bm-transaction-status-form > *,
+.office-transactions-toolbar > *,
+.office-contacts-toolbar > * {
   min-width: min(190px, 100%);
   flex: 1 1 170px;
 }
@@ -7032,7 +7154,11 @@ a {
 .bm-contacts-toolbar > .office-button,
 .bm-contacts-toolbar > .office-button-secondary,
 .bm-transaction-status-form > .office-button,
-.bm-transaction-status-form > .office-button-secondary {
+.bm-transaction-status-form > .office-button-secondary,
+.office-transactions-toolbar > .office-button,
+.office-transactions-toolbar > .office-button-secondary,
+.office-contacts-toolbar > .office-button,
+.office-contacts-toolbar > .office-button-secondary {
   flex: 0 0 auto;
   min-width: 0;
 }
@@ -7047,7 +7173,9 @@ a {
 
 .office-list-filters.bm-transactions-toolbar,
 .office-list-filters.bm-contacts-toolbar,
-.office-list-filters.office-agents-toolbar {
+.office-list-filters.office-agents-toolbar,
+.office-list-filters.office-transactions-toolbar,
+.office-list-filters.office-contacts-toolbar {
   margin: 0;
   padding: 0;
 }
@@ -7066,7 +7194,8 @@ a {
 .office-transaction-search-layout-filters .bm-transactions-search,
 .office-transaction-search-layout-filters .office-filter-field,
 .office-transaction-search-layout-filters .office-transaction-search-date-field,
-.office-transaction-search-layout-filters .office-transaction-search-empty {
+.office-transaction-search-layout-filters .office-transaction-search-empty,
+.office-transaction-search-layout-filters .office-transactions-search {
   min-width: 0;
 }
 
@@ -7436,7 +7565,8 @@ a {
 .bm-transactions-table,
 .office-pipeline-table,
 .bm-office-table,
-.office-agents-roster-table {
+.office-agents-roster-table,
+.office-transactions-list-shell {
   --office-table-cell-inline: 12px;
   --office-table-head-height: 38px;
   --office-table-row-height: 52px;
@@ -7484,7 +7614,8 @@ a {
 .office-horizontal-scroll-viewport > .bm-transactions-table,
 .office-horizontal-scroll-viewport > .office-pipeline-table,
 .office-horizontal-scroll-viewport > .bm-office-table,
-.office-horizontal-scroll-viewport > .office-agents-roster-table {
+.office-horizontal-scroll-viewport > .office-agents-roster-table,
+.office-horizontal-scroll-viewport > .office-transactions-list-shell {
   width: max-content;
   min-width: 100%;
   overflow: visible;
@@ -7929,8 +8060,7 @@ a {
 }
 
 .office-report-summary-table .office-table-row-report-accounting-recent
-  > :is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(5)),
-.office-report-summary-table .office-table-row-report-emd-recent
+  > :is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(5)), .office-report-summary-table .office-table-row-report-emd-recent
   > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)) {
   white-space: normal;
   overflow-wrap: anywhere;
@@ -8190,7 +8320,13 @@ a {
 .bm-offer-subhead h4,
 .bm-transaction-task-group-head strong,
 .bm-commission-item strong,
-.bm-rule-item span {
+.bm-rule-item span,
+.office-detail-card .office-document-row-head strong,
+.office-detail-card .office-signature-row-copy strong,
+.office-offer-row-headline strong,
+.office-offer-form-head strong,
+.office-offer-subhead h4,
+.office-transaction-task-group-head strong {
   color: var(--office-text);
   font-size: var(--office-text-subsection-title-size);
   line-height: var(--office-line-tight);
@@ -8206,37 +8342,29 @@ a {
 .bm-commission-item p,
 .bm-commission-meta p,
 .bm-transaction-task-group-head span,
-.bm-transaction-task-status span {
+.bm-transaction-task-status span,
+.office-detail-card .office-document-row-copy p,
+.office-detail-card .office-signature-row-copy p,
+.office-offer-row-headline p,
+.office-offer-form-head p,
+.office-offer-comment-list p,
+.office-transaction-task-group-head span,
+.office-transaction-task-status span {
   color: var(--office-text-muted);
   font-size: var(--office-text-meta-size);
   line-height: var(--office-line-body);
 }
 
-.office-table-row-report-transactions > :is(:nth-child(5), :nth-child(6)),
-.office-table-row-report-status
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-report-types
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-report-agents
-  > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
-.office-table-row-report-teams
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
-.office-table-row-report-commission-status > :is(:nth-child(2), :nth-child(3)),
-.office-table-row-report-commission-plan > :is(:nth-child(2), :nth-child(3)),
-.office-table-row-report-commission-recent
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-report-accounting-types > :is(:nth-child(2), :nth-child(3)),
-.office-table-row-report-accounting-recent
-  > :is(:nth-child(1), :nth-child(3), :nth-child(5)),
-.office-table-row-report-emd-status
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-report-emd-recent
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
-.office-table-row-accounting > :nth-child(4),
-.office-table-row-ledger > :is(:nth-child(3), :nth-child(4)),
-.office-table-row-accounting-statement-invoices
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-accounting-statement-rows
+.office-table-row-report-transactions > :is(:nth-child(5), :nth-child(6)), .office-table-row-report-status
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-types
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-agents
+  > :is(:nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-report-teams
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-report-commission-status > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-commission-plan > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-commission-recent
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-accounting-types > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-accounting-recent
+  > :is(:nth-child(1), :nth-child(3), :nth-child(5)), .office-table-row-report-emd-status
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-emd-recent
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-accounting > :nth-child(4), .office-table-row-ledger > :is(:nth-child(3), :nth-child(4)), .office-table-row-accounting-statement-invoices
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-accounting-statement-rows
   > :is(
     :nth-child(2),
     :nth-child(4),
@@ -8245,97 +8373,52 @@ a {
     :nth-child(7),
     :nth-child(8),
     :nth-child(9)
-  ),
-.office-table-row-accounting-statement-history
-  > :is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)),
-.office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-1099-summary > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(7)),
-.office-table-row-1099-preview > :is(:nth-child(1), :nth-child(2)),
-.office-table-row-agent-billing-ledger
-  > :is(:nth-child(5), :nth-child(6), :nth-child(7)),
-.office-table-row-recurring-rules > :nth-child(3),
-.office-table-row-agent-statement > :nth-child(3),
-.office-table-row-commission > :is(:nth-child(5), :nth-child(6)),
-.office-table-row-billing-open > :is(:nth-child(4), :nth-child(5)),
-.office-table-row-billing-upcoming > :nth-child(4),
-.office-table-row-billing-statements
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
-.bm-transactions-columns > :nth-child(3),
-.bm-transactions-row > :nth-child(3),
-.office-list-table-header-transactions > :nth-child(3),
-.office-list-table-row-transactions > :nth-child(3),
-.bm-office-table-row-transactions > :is(:nth-child(5), :nth-child(6)),
-.office-pipeline-cell-number {
+  ), .office-table-row-accounting-statement-history
+  > :is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)), .office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-1099-summary > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(7)), .office-table-row-1099-preview > :is(:nth-child(1), :nth-child(2)), .office-table-row-agent-billing-ledger
+  > :is(:nth-child(5), :nth-child(6), :nth-child(7)), .office-table-row-recurring-rules > :nth-child(3), .office-table-row-agent-statement > :nth-child(3), .office-table-row-commission > :is(:nth-child(5), :nth-child(6)), .office-table-row-billing-open > :is(:nth-child(4), :nth-child(5)), .office-table-row-billing-upcoming > :nth-child(4), .office-table-row-billing-statements
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)), .bm-transactions-columns > :nth-child(3), .bm-transactions-row > :nth-child(3), .office-list-table-header-transactions > :nth-child(3), .office-list-table-row-transactions > :nth-child(3), .bm-office-table-row-transactions > :is(:nth-child(5), :nth-child(6)), .office-pipeline-cell-number {
   justify-self: start;
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
-.office-table-row-report-transactions > :is(:nth-child(2), :nth-child(3)),
-.office-table-row-report-commission-recent > :nth-child(2),
-.office-table-row-commission > :nth-child(4),
-.office-table-row-report-accounting-recent > :nth-child(2),
-.office-table-row-report-emd-recent > :nth-child(2),
-.office-table-row-billing-open
-  > :is(:nth-child(1), :nth-child(2), :nth-child(6)),
-.office-table-row-billing-upcoming
-  > :is(:nth-child(1), :nth-child(2), :nth-child(5)),
-.office-table-row-billing-statements > :is(:nth-child(1), :nth-child(6)),
-.office-table-row-accounting
-  > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(7)),
-.office-table-row-ledger > :nth-child(1),
-.office-table-row-accounting-statement-invoices > :nth-child(1),
-.office-table-row-accounting-statement-rows > :nth-child(3),
-.office-table-row-accounting-statement-history > :nth-child(2),
-.office-table-row-emd > :is(:nth-child(5), :nth-child(6)),
-.office-table-row-1099-records > :is(:nth-child(1), :nth-child(2), :nth-child(4)),
-.office-table-row-recurring-rules
-  > :is(:nth-child(4), :nth-child(5), :nth-child(6)),
-.office-table-row-payment-methods
-  > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
-.office-table-row-agent-statement > :is(:nth-child(1), :nth-child(4)),
-.office-table-row-chart > :is(:nth-child(1), :nth-child(3), :nth-child(4)),
-.bm-transactions-columns
+.office-table-row-report-transactions > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-commission-recent > :nth-child(2), .office-table-row-commission > :nth-child(4), .office-table-row-report-accounting-recent > :nth-child(2), .office-table-row-report-emd-recent > :nth-child(2), .office-table-row-billing-open
+  > :is(:nth-child(1), :nth-child(2), :nth-child(6)), .office-table-row-billing-upcoming
+  > :is(:nth-child(1), :nth-child(2), :nth-child(5)), .office-table-row-billing-statements > :is(:nth-child(1), :nth-child(6)), .office-table-row-accounting
+  > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(7)), .office-table-row-ledger > :nth-child(1), .office-table-row-accounting-statement-invoices > :nth-child(1), .office-table-row-accounting-statement-rows > :nth-child(3), .office-table-row-accounting-statement-history > :nth-child(2), .office-table-row-emd > :is(:nth-child(5), :nth-child(6)), .office-table-row-1099-records > :is(:nth-child(1), :nth-child(2), :nth-child(4)), .office-table-row-recurring-rules
+  > :is(:nth-child(4), :nth-child(5), :nth-child(6)), .office-table-row-payment-methods
+  > :is(:nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-agent-statement > :is(:nth-child(1), :nth-child(4)), .office-table-row-chart > :is(:nth-child(1), :nth-child(3), :nth-child(4)), .bm-transactions-columns
   > :is(
     :nth-child(3),
     :nth-child(4),
     :nth-child(5),
     :nth-child(6),
     :nth-child(7)
-  ),
-.bm-transactions-row
+  ), .bm-transactions-row
   > :is(
     :nth-child(3),
     :nth-child(4),
     :nth-child(5),
     :nth-child(6),
     :nth-child(7)
-  ),
-.bm-contacts-table-header > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
-.bm-contacts-table-row > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
-.office-list-table-header-transactions
+  ), .bm-contacts-table-header > :is(:nth-child(2), :nth-child(5), :nth-child(6)), .bm-contacts-table-row > :is(:nth-child(2), :nth-child(5), :nth-child(6)), .office-list-table-header-transactions
   > :is(
     :nth-child(3),
     :nth-child(4),
     :nth-child(5),
     :nth-child(6),
     :nth-child(7)
-  ),
-.office-list-table-row-transactions
+  ), .office-list-table-row-transactions
   > :is(
     :nth-child(3),
     :nth-child(4),
     :nth-child(5),
     :nth-child(6),
     :nth-child(7)
-  ),
-.office-list-table-header-contacts
-  > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
-.office-list-table-row-contacts
-  > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
-.office-list-table-header-reports
-  > :is(:nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)),
-.office-list-table-row-reports
+  ), .office-list-table-header-contacts
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6)), .office-list-table-row-contacts
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6)), .office-list-table-header-reports
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)), .office-list-table-row-reports
   > :is(:nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)) {
   white-space: nowrap;
 }
@@ -8368,9 +8451,7 @@ a {
   text-align: left;
 }
 
-.office-table-row-agent-statement-snapshot > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8), :nth-child(10)),
-.office-table-row-1099-summary > :nth-child(2),
-.office-table-row-1099-preview > :nth-child(2) {
+.office-table-row-agent-statement-snapshot > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8), :nth-child(10)), .office-table-row-1099-summary > :nth-child(2), .office-table-row-1099-preview > :nth-child(2) {
   font-variant-numeric: tabular-nums;
 }
 
@@ -8381,10 +8462,8 @@ a {
   text-align: left;
 }
 
-.office-table-row-accounting-statement-invoices > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
-.office-table-row-accounting-statement-rows
-  > :is(:nth-child(2), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)),
-.office-table-row-accounting-statement-history
+.office-table-row-accounting-statement-invoices > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-accounting-statement-rows
+  > :is(:nth-child(2), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)), .office-table-row-accounting-statement-history
   > :is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)) {
   font-variant-numeric: tabular-nums;
 }
@@ -9237,7 +9316,8 @@ a {
 
 .bm-transaction-status-badge,
 .bm-contacts-table-row .office-status-badge,
-.office-agents-team-table-row .office-status-badge {
+.office-agents-team-table-row .office-status-badge,
+.office-transaction-status-badge {
   justify-self: start;
 }
 
@@ -10108,7 +10188,8 @@ a {
   .office-performance-board-grid,
   .office-detail-two-column,
   .office-pipeline-layout,
-  .bm-activity-layout {
+  .bm-activity-layout,
+  .office-accounting-grid {
     grid-template-columns: 1fr;
   }
 
@@ -10164,7 +10245,16 @@ a {
   .bm-detail-card .bm-document-upload-grid,
   .bm-detail-card .bm-form-payload-preview,
   .office-form-grid,
-  .office-form-grid-3 {
+  .office-form-grid-3,
+  .office-accounting-form-grid,
+  .office-offer-meta-grid,
+  .office-offer-create-grid,
+  .office-offer-edit-grid,
+  .office-offer-upload-grid,
+  .office-offer-form-create-grid,
+  .office-offer-signature-grid,
+  .office-detail-card .office-document-upload-grid,
+  .office-detail-card .office-form-payload-preview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -10207,7 +10297,8 @@ a {
   .bm-card-grid,
   .office-pipeline-layout,
   .bm-activity-layout,
-  .bm-offer-linked-grid {
+  .bm-offer-linked-grid,
+  .office-offer-linked-grid {
     grid-template-columns: 1fr;
   }
 
@@ -10251,7 +10342,16 @@ a {
   .bm-offer-form-create-grid,
   .bm-offer-signature-grid,
   .bm-detail-card .bm-document-upload-grid,
-  .bm-detail-card .bm-form-payload-preview {
+  .bm-detail-card .bm-form-payload-preview,
+  .office-accounting-form-grid,
+  .office-offer-meta-grid,
+  .office-offer-create-grid,
+  .office-offer-edit-grid,
+  .office-offer-upload-grid,
+  .office-offer-form-create-grid,
+  .office-offer-signature-grid,
+  .office-detail-card .office-document-upload-grid,
+  .office-detail-card .office-form-payload-preview {
     grid-template-columns: 1fr;
   }
 
@@ -10355,7 +10455,8 @@ a {
 
   .bm-transactions-search input,
   .bm-contacts-search,
-  .office-task-view-save-controls input {
+  .office-task-view-save-controls input,
+  .office-transactions-search input {
     min-width: 0;
     width: 100%;
   }
@@ -10580,8 +10681,7 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.office-fields-panel-head > :is(.office-button, .office-button-secondary),
-.office-fields-modal-head > :is(.office-button, .office-button-secondary) {
+.office-fields-panel-head > :is(.office-button, .office-button-secondary), .office-fields-modal-head > :is(.office-button, .office-button-secondary) {
   justify-self: end;
   align-self: start;
   width: auto;
@@ -15345,7 +15445,8 @@ body,
 .bm-filter-strip,
 .bm-activity-filter-actions,
 .bm-accounting-form-actions,
-.office-list-page-header-actions {
+.office-list-page-header-actions,
+.office-filter-strip {
   gap: 12px;
 }
 
@@ -15376,7 +15477,7 @@ body,
     .bm-transactions-page-button,
     .bm-contacts-page-button
   ),
-.office-section-actions
+    .office-section-actions
   > :is(
     .office-button,
     .office-button-secondary,
@@ -15386,13 +15487,43 @@ body,
     .bm-transactions-page-button,
     .bm-contacts-page-button
   ),
-.office-list-page-header-actions
+    .office-list-page-header-actions
   > :is(
     .office-button,
     .office-button-secondary,
     .office-toggle-link,
     .bm-create-button,
     .bm-view-toggle,
+    .bm-transactions-page-button,
+    .bm-contacts-page-button
+  ),
+    .office-page-actions
+  > :is(
+    .office-button,
+    .office-button-secondary,
+    .office-toggle-link,
+    .bm-create-button,
+    .office-view-toggle,
+    .bm-transactions-page-button,
+    .bm-contacts-page-button
+  ),
+    .office-section-actions
+  > :is(
+    .office-button,
+    .office-button-secondary,
+    .office-toggle-link,
+    .bm-create-button,
+    .office-view-toggle,
+    .bm-transactions-page-button,
+    .bm-contacts-page-button
+  ),
+    .office-list-page-header-actions
+  > :is(
+    .office-button,
+    .office-button-secondary,
+    .office-toggle-link,
+    .bm-create-button,
+    .office-view-toggle,
     .bm-transactions-page-button,
     .bm-contacts-page-button
   ) {
@@ -15454,7 +15585,8 @@ body,
 .workspace-tile,
 .action-card,
 .route-card,
-.list-row {
+.list-row,
+.office-detail-card {
   border: 1px solid rgba(194, 205, 220, 0.6);
   border-radius: 24px;
   background: linear-gradient(
@@ -15471,13 +15603,15 @@ body,
 .bm-table-card,
 .office-pipeline-panel,
 .office-pipeline-rail-card,
-.workspace-panel {
+.workspace-panel,
+.office-detail-card {
   padding: 20px 22px;
 }
 
 .office-section-head,
 .bm-card-head,
-.acre-panel-header {
+.acre-panel-header,
+.office-card-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
@@ -15490,14 +15624,17 @@ body,
 .office-section-copy,
 .bm-card-head > div,
 .bm-card-head h3,
-.acre-panel-header > div {
+.acre-panel-header > div,
+.office-card-head > div,
+.office-card-head h3 {
   min-width: 0;
 }
 
 .office-section-head h3,
 .bm-card-head h3,
 .office-section-card > .office-section-head h3,
-.acre-panel h3 {
+.acre-panel h3,
+.office-card-head h3 {
   margin: 0;
   color: var(--office-text);
   font-size: 1.02rem;
@@ -15508,7 +15645,8 @@ body,
 
 .office-section-head p,
 .bm-card-head span,
-.acre-panel-header p {
+.acre-panel-header p,
+.office-card-head span {
   margin: 2px 0 0;
   color: var(--office-text-muted);
   font-size: var(--office-text-meta-size);
@@ -15573,7 +15711,8 @@ body,
 .office-badge,
 .office-status-badge,
 .bm-status-pill,
-.bm-transaction-status {
+.bm-transaction-status,
+.office-status-pill {
   min-height: 28px;
   padding: 0 10px;
   border: 1px solid transparent;
@@ -15615,7 +15754,8 @@ body,
 .office-toggle-link,
 .bm-create-button,
 .bm-transaction-next,
-.office-button-secondary {
+.office-button-secondary,
+.office-transaction-next {
   min-height: 42px;
   padding: 0 18px;
   border-radius: 999px;
@@ -15624,14 +15764,16 @@ body,
 
 .office-button,
 .bm-create-button,
-.bm-transaction-next {
+.bm-transaction-next,
+.office-transaction-next {
   background: linear-gradient(180deg, #2552a4 0%, #183b79 100%);
 }
 
 .office-button:hover,
 .office-toggle-link:hover,
 .bm-create-button:hover,
-.bm-transaction-next:hover {
+.bm-transaction-next:hover,
+.office-transaction-next:hover {
   background: linear-gradient(180deg, #1f468e 0%, #163569 100%);
 }
 
@@ -15640,7 +15782,8 @@ body,
 .office-list-page-button,
 .bm-view-toggle,
 .bm-transactions-page-button,
-.bm-contacts-page-button {
+.bm-contacts-page-button,
+.office-view-toggle {
   background: rgba(255, 255, 255, 0.84);
   border-color: rgba(194, 205, 220, 0.82);
   color: var(--office-text);
@@ -15652,7 +15795,8 @@ body,
 .office-list-page-button:hover,
 .bm-view-toggle:hover,
 .bm-transactions-page-button:hover,
-.bm-contacts-page-button:hover {
+.bm-contacts-page-button:hover,
+.office-view-toggle:hover {
   background: rgba(245, 248, 252, 0.96);
 }
 
@@ -15686,7 +15830,8 @@ body,
 .bm-transaction-modal-field select,
 .office-modal-inline-select select,
 .bm-modal-inline-select select,
-.auth-field input {
+.auth-field input,
+.office-transactions-search input {
   min-height: 42px;
   border: 1px solid rgba(194, 205, 220, 0.84);
   border-radius: 14px;
@@ -15727,7 +15872,8 @@ body,
 .bm-transactions-table,
 .office-pipeline-table,
 .bm-office-table,
-.office-agents-roster-table {
+.office-agents-roster-table,
+.office-transactions-list-shell {
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.88);
   box-shadow: var(--office-shadow-sm);
@@ -15780,7 +15926,10 @@ body,
 .bm-offer-row-top,
 .bm-document-row-top,
 .bm-signature-row,
-.office-notification-row-title {
+.office-notification-row-title,
+.office-offer-row-top,
+.office-document-row-top,
+.office-signature-row {
   align-items: flex-start;
 }
 
@@ -16042,43 +16191,28 @@ body,
   color: var(--office-text);
 }
 
-.front-office-record :is(.office-badge, .office-status-badge),
-.front-office-resource-item :is(.office-badge, .office-status-badge),
-.front-office-vendor-item :is(.office-badge, .office-status-badge),
-.front-office-activity-event :is(.office-badge, .office-status-badge) {
+.front-office-record :is(.office-badge, .office-status-badge), .front-office-resource-item :is(.office-badge, .office-status-badge), .front-office-vendor-item :is(.office-badge, .office-status-badge), .front-office-activity-event :is(.office-badge, .office-status-badge) {
   opacity: 1;
   font-weight: 800;
   -webkit-text-fill-color: currentColor;
 }
 
-.front-office-record :is(.office-badge-neutral, .office-status-badge-neutral),
-.front-office-resource-item :is(.office-badge-neutral, .office-status-badge-neutral),
-.front-office-vendor-item :is(.office-badge-neutral, .office-status-badge-neutral),
-.front-office-activity-event :is(.office-badge-neutral, .office-status-badge-neutral) {
+.front-office-record :is(.office-badge-neutral, .office-status-badge-neutral), .front-office-resource-item :is(.office-badge-neutral, .office-status-badge-neutral), .front-office-vendor-item :is(.office-badge-neutral, .office-status-badge-neutral), .front-office-activity-event :is(.office-badge-neutral, .office-status-badge-neutral) {
   background: #e9eef4;
   color: #42556c;
 }
 
-.front-office-record :is(.office-badge-accent, .office-status-badge-accent),
-.front-office-resource-item :is(.office-badge-accent, .office-status-badge-accent),
-.front-office-vendor-item :is(.office-badge-accent, .office-status-badge-accent),
-.front-office-activity-event :is(.office-badge-accent, .office-status-badge-accent) {
+.front-office-record :is(.office-badge-accent, .office-status-badge-accent), .front-office-resource-item :is(.office-badge-accent, .office-status-badge-accent), .front-office-vendor-item :is(.office-badge-accent, .office-status-badge-accent), .front-office-activity-event :is(.office-badge-accent, .office-status-badge-accent) {
   background: #dfeaff;
   color: #173f86;
 }
 
-.front-office-record :is(.office-badge-success, .office-status-badge-success),
-.front-office-resource-item :is(.office-badge-success, .office-status-badge-success),
-.front-office-vendor-item :is(.office-badge-success, .office-status-badge-success),
-.front-office-activity-event :is(.office-badge-success, .office-status-badge-success) {
+.front-office-record :is(.office-badge-success, .office-status-badge-success), .front-office-resource-item :is(.office-badge-success, .office-status-badge-success), .front-office-vendor-item :is(.office-badge-success, .office-status-badge-success), .front-office-activity-event :is(.office-badge-success, .office-status-badge-success) {
   background: rgba(47, 109, 79, 0.16);
   color: #2b6548;
 }
 
-.front-office-record :is(.office-badge-warning, .office-status-badge-warning),
-.front-office-resource-item :is(.office-badge-warning, .office-status-badge-warning),
-.front-office-vendor-item :is(.office-badge-warning, .office-status-badge-warning),
-.front-office-activity-event :is(.office-badge-warning, .office-status-badge-warning) {
+.front-office-record :is(.office-badge-warning, .office-status-badge-warning), .front-office-resource-item :is(.office-badge-warning, .office-status-badge-warning), .front-office-vendor-item :is(.office-badge-warning, .office-status-badge-warning), .front-office-activity-event :is(.office-badge-warning, .office-status-badge-warning) {
   background: rgba(248, 214, 110, 0.28);
   color: #7c5b00;
 }
@@ -16297,7 +16431,8 @@ body,
 }
 
 .bm-form-field-wide,
-.bm-detail-field-wide {
+.bm-detail-field-wide,
+.office-detail-field-wide {
   grid-column: span 2;
 }
 
@@ -16341,7 +16476,8 @@ body,
   .office-page-header,
   .office-section-head,
   .bm-card-head,
-  .acre-panel-header {
+  .acre-panel-header,
+  .office-card-head {
     grid-template-columns: 1fr;
   }
 
@@ -16434,7 +16570,8 @@ body,
 
   .office-section-head,
   .bm-card-head,
-  .acre-panel-header {
+  .acre-panel-header,
+  .office-card-head {
     grid-template-columns: 1fr;
   }
 
@@ -16486,7 +16623,8 @@ body,
   .office-section-card,
   .acre-panel,
   .bm-detail-card,
-  .bm-table-card {
+  .bm-table-card,
+  .office-detail-card {
     padding: 18px;
     border-radius: 24px;
   }
@@ -17066,7 +17204,8 @@ body,
 .office-pipeline-table-head,
 .bm-office-table-header,
 .office-modal-overlay,
-.bm-modal-overlay {
+.bm-modal-overlay,
+.office-status-pill {
   backdrop-filter: none;
 }
 
@@ -17093,7 +17232,8 @@ body,
 .office-agents-team-table-head > *,
 .office-task-table thead th,
 .office-approval-table thead th,
-.bm-offer-comparison-table thead th {
+.bm-offer-comparison-table thead th,
+.office-offer-comparison-table thead th {
   position: relative;
 }
 
@@ -17160,7 +17300,9 @@ body,
 }
 
 .office-signature-editor-main .bm-detail-card,
-.office-signature-editor-side .bm-detail-card {
+.office-signature-editor-side .bm-detail-card,
+.office-signature-editor-main .office-detail-card,
+.office-signature-editor-side .office-detail-card {
   overflow: hidden;
 }
 
@@ -17373,18 +17515,21 @@ body,
   margin: 0;
 }
 
-.office-signature-editor-main .bm-document-upload-grid {
+.office-signature-editor-main .bm-document-upload-grid, .office-signature-editor-main .office-document-upload-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 16px;
 }
 
 .office-signature-editor-main .bm-document-upload-grid > .office-form-grid-span-2,
 .office-signature-editor-main .bm-document-upload-grid > .office-form-grid-span-4,
-.office-signature-editor-main .bm-document-upload-grid > .bm-document-edit-actions {
+.office-signature-editor-main .bm-document-upload-grid > .bm-document-edit-actions,
+.office-signature-editor-main .office-document-upload-grid > .office-form-grid-span-2,
+.office-signature-editor-main .office-document-upload-grid > .office-form-grid-span-4,
+.office-signature-editor-main .office-document-upload-grid > .office-document-edit-actions {
   grid-column: 1 / -1;
 }
 
-.office-signature-editor-main .bm-document-edit-actions {
+.office-signature-editor-main .bm-document-edit-actions, .office-signature-editor-main .office-document-edit-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -17519,7 +17664,9 @@ body,
 }
 
 .office-signature-delivery-card .bm-card-head,
-.office-signature-template-card .bm-card-head {
+.office-signature-template-card .bm-card-head,
+.office-signature-delivery-card .office-card-head,
+.office-signature-template-card .office-card-head {
   margin-bottom: 14px;
 }
 
@@ -17950,7 +18097,8 @@ body,
   .office-signature-editor-main .bm-document-upload-grid,
   .office-signature-recipient-grid,
   .office-signature-field-grid,
-  .office-signature-field-toggle-grid {
+  .office-signature-field-toggle-grid,
+  .office-signature-editor-main .office-document-upload-grid {
     grid-template-columns: 1fr;
   }
 

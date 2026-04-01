@@ -245,15 +245,15 @@ export function TransactionDocumentsCard({
 
   return (
     <>
-      <section className="bm-detail-card" id="transaction-documents">
-      <div className="bm-card-head">
+      <section className="office-detail-card" id="transaction-documents">
+      <div className="office-card-head">
         <div>
           <h3>Documents</h3>
           <span>Structured back-office files linked to this transaction and its checklist tasks.</span>
         </div>
       </div>
 
-      <div className="bm-document-filter-strip">
+      <div className="office-document-filter-strip">
         {documentFilterOptions.map((option) => (
           <button
             className={`office-toggle-link${filter === option.key ? " is-active" : ""}`}
@@ -266,16 +266,16 @@ export function TransactionDocumentsCard({
         ))}
       </div>
 
-      <div className="bm-document-list">
+      <div className="office-document-list">
         {visibleDocuments.length > 0 ? (
           visibleDocuments.map((document) => {
             const rowState = rowStates[document.id] ?? buildDocumentRowState(document);
 
             return (
-              <article className="bm-document-row" key={document.id}>
-                <div className="bm-document-row-top">
-                  <div className="bm-document-row-copy">
-                    <div className="bm-document-row-head">
+              <article className="office-document-row" key={document.id}>
+                <div className="office-document-row-top">
+                  <div className="office-document-row-copy">
+                    <div className="office-document-row-head">
                       <strong>{document.title}</strong>
                       <StatusBadge tone={getDocumentTone(document.statusKey)}>{document.status}</StatusBadge>
                       <StatusBadge tone="neutral">{document.source}</StatusBadge>
@@ -293,7 +293,7 @@ export function TransactionDocumentsCard({
                     ) : null}
                   </div>
 
-                  <div className="bm-document-row-actions">
+                  <div className="office-document-row-actions">
                     {canViewDocuments ? (
                       <Link className="office-button-secondary office-inline-action-sm" href={document.storageUrl} target="_blank">
                         Open
@@ -331,7 +331,7 @@ export function TransactionDocumentsCard({
                 </div>
 
                 {canManageDocuments ? (
-                  <div className="bm-document-edit-grid">
+                  <div className="office-document-edit-grid">
                     <FormField label="Linked task">
                       <SelectInput
                         onChange={(event) => updateRowState(document.id, "linkedTaskId", event.target.value)}
@@ -359,7 +359,7 @@ export function TransactionDocumentsCard({
                       </SelectInput>
                     </FormField>
 
-                    <CheckboxField className="bm-document-inline-checkbox" label="Required document">
+                    <CheckboxField className="office-document-inline-checkbox" label="Required document">
                       <input
                         checked={rowState.isRequired}
                         onChange={(event) => updateRowState(document.id, "isRequired", event.target.checked)}
@@ -367,7 +367,7 @@ export function TransactionDocumentsCard({
                       />
                     </CheckboxField>
 
-                    <div className="bm-document-edit-actions">
+                    <div className="office-document-edit-actions">
                       <Button
                         disabled={pendingAction === `save:${document.id}`}
                         onClick={() => handleSaveDocument(document.id)}
@@ -390,12 +390,12 @@ export function TransactionDocumentsCard({
       </div>
 
       {canManageDocuments ? (
-        <div className="bm-document-upload-panel">
-          <div className="bm-card-head bm-card-head-inline">
+        <div className="office-document-upload-panel">
+          <div className="office-card-head office-card-head-inline">
             <h3>Upload document</h3>
           </div>
 
-          <div className="bm-document-upload-grid">
+          <div className="office-document-upload-grid">
             <FormField label="File">
               <input
                 onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
@@ -427,7 +427,7 @@ export function TransactionDocumentsCard({
                 ))}
               </SelectInput>
             </FormField>
-            <div className="bm-document-upload-checkboxes">
+            <div className="office-document-upload-checkboxes">
               <CheckboxField label="Required document">
                 <input
                   checked={uploadState.isRequired}
@@ -445,7 +445,7 @@ export function TransactionDocumentsCard({
             </div>
           </div>
 
-          <div className="bm-document-edit-actions">
+          <div className="office-document-edit-actions">
             <Button disabled={!selectedFile || pendingAction === "upload"} onClick={handleUpload}>
               {pendingAction === "upload" ? "Uploading..." : "Upload document"}
             </Button>
@@ -549,21 +549,21 @@ export function TransactionUnsortedDocumentsCard({
 
   return (
     <>
-      <section className="bm-detail-card" id="transaction-unsorted-documents">
-      <div className="bm-card-head">
+      <section className="office-detail-card" id="transaction-unsorted-documents">
+      <div className="office-card-head">
         <div>
           <h3>Unsorted documents</h3>
           <span>Files that landed in the transaction but have not been organized into the main workflow yet.</span>
         </div>
       </div>
 
-      <div className="bm-document-list">
+      <div className="office-document-list">
         {unsortedDocuments.length > 0 ? (
           unsortedDocuments.map((document) => (
-            <article className="bm-document-row" key={document.id}>
-              <div className="bm-document-row-top">
-                <div className="bm-document-row-copy">
-                  <div className="bm-document-row-head">
+            <article className="office-document-row" key={document.id}>
+              <div className="office-document-row-top">
+                <div className="office-document-row-copy">
+                  <div className="office-document-row-head">
                     <strong>{document.title}</strong>
                     <StatusBadge tone="warning">Unsorted</StatusBadge>
                     <StatusBadge tone={getDocumentTone(document.statusKey)}>{document.status}</StatusBadge>
@@ -573,7 +573,7 @@ export function TransactionUnsortedDocumentsCard({
                   </p>
                 </div>
 
-                <div className="bm-document-row-actions">
+                <div className="office-document-row-actions">
                   {canViewDocuments ? (
                     <Link className="office-button-secondary office-inline-action-sm" href={document.storageUrl} target="_blank">
                       Open
@@ -603,7 +603,7 @@ export function TransactionUnsortedDocumentsCard({
               </div>
 
               {canManageDocuments ? (
-                <div className="bm-document-edit-grid">
+                <div className="office-document-edit-grid">
                   <FormField label="Move into task">
                     <SelectInput
                       onChange={(event) =>
@@ -623,7 +623,7 @@ export function TransactionUnsortedDocumentsCard({
                     </SelectInput>
                   </FormField>
 
-                  <div className="bm-document-edit-actions">
+                  <div className="office-document-edit-actions">
                     <Button
                       disabled={pendingAction === `move:${document.id}`}
                       onClick={() => handleMoveToStructured(document.id)}

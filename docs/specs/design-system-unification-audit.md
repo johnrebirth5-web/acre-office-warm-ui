@@ -39,6 +39,19 @@ As of `2026-04-01` in the next migration batch, the `office/dashboard` goal / KP
 
 The dashboard no longer emits `bm-*` classes for its goal tracking, KPI strip, chart, or payout-statement action row. Those surfaces now use `office-dashboard-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), which removes another major BO visual-language fork while keeping the same data and dashboard composition.
 
+As of the same `2026-04-01` consolidation pass, the remaining active Office workspaces with live `bm-*` markup were migrated in one batch:
+
+- [apps/web/app/office/accounting/accounting-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/accounting-client.tsx)
+- [apps/web/app/office/accounting/agent-billing-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/agent-billing-panel.tsx)
+- [apps/web/app/office/accounting/commission-management-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/commission-management-panel.tsx)
+- [apps/web/app/office/billing/billing-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/billing/billing-client.tsx)
+- [apps/web/app/office/contacts/contacts-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/contacts-client.tsx)
+- [apps/web/app/office/transactions/transactions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transactions-client.tsx)
+- [apps/web/app/office/transactions/transaction-intake-form.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transaction-intake-form.tsx)
+- transaction detail subcards and signature editor under [apps/web/app/office/transactions/[transactionId]](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId])
+
+After that sweep, active `apps/web/app` page markup no longer emits `bm-*` design-language classes. Remaining `bm-*` references are now limited to compatibility CSS and table-runtime support, not live page/component chrome.
+
 ## Audit method
 
 The current audit reviewed:
@@ -103,55 +116,35 @@ Finding:
 - there is now one correct route-template contract at the skeleton level
 - but BO adoption is still inconsistent because many route pages bypass the canonical list-page adapter
 
-### 3. `bm-*` is still active in live BO pages
+### 3. Active page markup is now clean; remaining `bm-*` is compatibility/runtime only
 
-The repo still contains a large amount of active `bm-*` markup, not just compatibility CSS.
+The repo still contains many `bm-*` selectors in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), but active page/component markup under `apps/web/app` no longer emits those classes for live Office surfaces.
 
-High-impact live files still using `bm-*` heavily:
+Remaining code references are limited to compatibility/runtime support such as:
 
-- [apps/web/app/office/accounting/agent-billing-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/agent-billing-panel.tsx)
-- [apps/web/app/office/accounting/accounting-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/accounting-client.tsx)
-- [apps/web/app/office/accounting/commission-management-panel.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/commission-management-panel.tsx)
-- [apps/web/app/office/transactions/transactions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transactions-client.tsx)
-- [apps/web/app/office/contacts/contacts-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/contacts-client.tsx)
-- [apps/web/app/office/transactions/transaction-intake-form.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transaction-intake-form.tsx)
-- [apps/web/app/office/transactions/[transactionId]/documents-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/documents-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/tasks-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/tasks-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/offers-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/offers-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/contacts-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/contacts-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/incoming-updates-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/incoming-updates-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/signatures/signature-request-editor.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/signatures/signature-request-editor.tsx)
+- [apps/web/app/office/office-table-layout-bootstrap.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-table-layout-bootstrap.ts)
+- [apps/web/app/office/office-table-layout-runtime.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-table-layout-runtime.tsx)
 
 Finding:
 
-- `bm-*` is not just dead CSS
-- several of the heaviest BO workspaces still visually depend on it
-- these areas are the largest risk to the “single system” goal
+- the product no longer has a second live page-markup language
+- remaining `bm-*` debt is now mostly CSS cleanup and backward-compatibility support
 
-### 4. Transaction detail still behaves like a parallel design language
+### 4. The biggest remaining unification gap is route/template adoption, not class vocabulary
 
-Transaction detail and its subcards are one of the biggest sources of parallel UI vocabulary:
-
-- `bm-detail-card`
-- `bm-card-head`
-- `bm-status-pill`
-- `bm-transaction-task-*`
-- `bm-document-*`
-- `bm-offer-*`
+Transaction detail, accounting workspaces, and several BO route pages now emit canonical `office-*` markup, but many of them still hand-assemble route shells or preserve older layout composition patterns instead of flowing through the shared route-template family.
 
 Relevant files:
 
 - [apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx)
-- [apps/web/app/office/transactions/[transactionId]/documents-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/documents-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/tasks-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/tasks-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/offers-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/offers-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/contacts-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/contacts-card.tsx)
-- [apps/web/app/office/transactions/[transactionId]/incoming-updates-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/incoming-updates-card.tsx)
+- [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx)
+- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
+- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
 
 Finding:
 
-- list pages have already moved much closer to the unified system
-- transaction detail is still the largest surviving visual subsystem
+- the design-language fork is largely closed at the class/markup layer
+- the remaining work is shared shell/template adoption and later dead-CSS removal
 
 ### 5. FO shell is close to canonical, but nav and shell behavior are still separate implementations
 
@@ -207,11 +200,9 @@ Finding:
 
 ### Highest migration debt
 
-- transaction detail workspace
-- activity workspace
-- accounting admin workbench
-- dashboard chart and KPI chrome
-- create transaction and transaction intake/edit modal flows
+- route/template adoption for BO pages still bypassing the canonical list-page family
+- dead compatibility CSS cleanup after the new class names bake in
+- runtime compatibility support such as legacy table-layout hooks
 
 ## Priority order for unification
 
@@ -249,6 +240,7 @@ Completed first batch:
 
 - `activity` shell/list chrome moved off `bm-*`; follow-up work there is now limited to routing the page through the canonical route-template family when the surrounding filter/header composition is ready
 - `dashboard` goal-tracking and KPI/chart chrome moved off `bm-*`; follow-up work there is now limited to route-template adoption and any deeper legacy card cleanup outside the main dashboard page
+- active Office module/page markup under accounting, billing, contacts, transactions list/create/detail, and related modals/cards now emits `office-*` classes instead of `bm-*`, leaving only compatibility/runtime references behind
 
 ### P2. Migrate transaction detail off `bm-*`
 

@@ -596,7 +596,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
 
       {isPaymentMethodModalOpen ? (
         <div className="office-modal-overlay" onClick={() => setIsPaymentMethodModalOpen(false)}>
-          <section className="office-modal bm-accounting-modal" onClick={(event) => event.stopPropagation()}>
+          <section className="office-modal office-accounting-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <h3>{paymentMethodFormState.paymentMethodId ? "EDIT PAYMENT METHOD" : "ADD PAYMENT METHOD"}</h3>
               <button aria-label="Close payment method modal" onClick={() => setIsPaymentMethodModalOpen(false)} type="button">
@@ -604,7 +604,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
               </button>
             </header>
 
-            <form className="office-modal-body bm-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
+            <form className="office-modal-body office-accounting-modal-body" onSubmit={handleSavePaymentMethod}>
               <div className="office-form-grid">
                 <FormField label="Type">
                   <SelectInput

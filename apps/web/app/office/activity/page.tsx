@@ -268,7 +268,7 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
       />
 
       <FilterBar as="form" className="office-activity-filter-bar office-activity-toolbar-card" method="get">
-        <div className="bm-filter-strip office-toggle-strip">
+        <div className="office-filter-strip office-toggle-strip">
           <Link
             className={`office-toggle-link office-button-sm${selectedView === "all" ? " is-active" : ""}`}
             href={buildActivityHref(normalizedSearchParams, {

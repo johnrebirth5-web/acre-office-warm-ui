@@ -497,7 +497,7 @@ export function TransactionCommissionCard({
             ))}
 
             {commissionBreakdownRows.length === 0 ? (
-              <div className="bm-accounting-empty">
+              <div className="office-accounting-empty">
                 <p>Run the finance calculation to generate stakeholder breakdown rows.</p>
               </div>
             ) : null}
@@ -678,7 +678,7 @@ export function TransactionCommissionCard({
                         value={row.amount}
                       />
                       {canManageOverrideParticipants ? (
-                        <div className="bm-accounting-inline-actions">
+                        <div className="office-accounting-inline-actions">
                           {row.isManualParticipant ? (
                             <Button
                               disabled={pendingAction === "override"}
@@ -742,7 +742,7 @@ export function TransactionCommissionCard({
             ))}
 
             {snapshot.versionHistory.length === 0 ? (
-              <div className="bm-accounting-empty">
+              <div className="office-accounting-empty">
                 <p>No finance calculation history has been saved for this transaction yet.</p>
               </div>
             ) : null}
@@ -775,7 +775,7 @@ export function TransactionCommissionCard({
                   </p>
                 </div>
                 <span>{row.calculatedAt || "—"}</span>
-                <div className="bm-accounting-inline-actions">
+                <div className="office-accounting-inline-actions">
                   {canManageOverride ? (
                     <>
                       <SelectInput
@@ -810,7 +810,7 @@ export function TransactionCommissionCard({
             ))}
 
             {snapshot.calculations.length === 0 ? (
-              <div className="bm-accounting-empty">
+              <div className="office-accounting-empty">
                 <p>No current payout rows have been saved for this transaction yet.</p>
               </div>
             ) : null}

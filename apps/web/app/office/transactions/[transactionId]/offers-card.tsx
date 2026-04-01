@@ -158,7 +158,7 @@ function getOfferFieldClassName(fieldClassName: string, context: "create" | "edi
     return undefined;
   }
 
-  return context === "create" ? "bm-offer-create-notes" : "bm-offer-edit-notes";
+  return context === "create" ? "office-offer-create-notes" : "office-offer-edit-notes";
 }
 
 function buildOfferUploadState(): OfferUploadState {
@@ -631,13 +631,13 @@ export function TransactionOffersCard({
   }
 
   return (
-    <section className="bm-detail-card" id="transaction-offers">
-      <div className="bm-card-head">
+    <section className="office-detail-card" id="transaction-offers">
+      <div className="office-card-head">
         <div>
           <h3>Offers</h3>
           <span>Back-office offer tracking, comparison, comments, and offer-linked documents/forms/signatures.</span>
         </div>
-        <div className="bm-offer-head-metrics">
+        <div className="office-offer-head-metrics">
           {snapshot.acceptedOfferLabel ? (
             <StatusBadge tone="success">Accepted: {snapshot.acceptedOfferLabel}</StatusBadge>
           ) : (
@@ -652,7 +652,7 @@ export function TransactionOffersCard({
       {error ? <div className="office-inline-error">{error}</div> : null}
 
       {canManageOffers ? (
-        <div className="bm-offer-create-grid">
+        <div className="office-offer-create-grid">
           {visibleOfferFields.map((entry) => {
             const field = entry.field;
             const fieldType =
@@ -726,7 +726,7 @@ export function TransactionOffersCard({
               </FormField>
             );
           })}
-          <div className="bm-offer-create-actions">
+          <div className="office-offer-create-actions">
             <Button disabled={pendingAction === "create-offer"} onClick={handleCreateOffer}>
               {pendingAction === "create-offer" ? "Saving..." : "Create offer"}
             </Button>
@@ -734,7 +734,7 @@ export function TransactionOffersCard({
         </div>
       ) : null}
 
-      <div className="bm-offer-list">
+      <div className="office-offer-list">
         {snapshot.offers.length ? (
           snapshot.offers.map((offer) => {
             const offerState =
@@ -743,24 +743,24 @@ export function TransactionOffersCard({
             const formDraft = formDrafts[offer.id] ?? buildOfferFormDraftState(formTemplates);
 
             return (
-              <article className="bm-offer-row" id={`offer-${offer.id}`} key={offer.id}>
-                <div className="bm-offer-row-top">
-                  <div className="bm-offer-row-headline">
-                    <div className="bm-offer-row-title">
+              <article className="office-offer-row" id={`offer-${offer.id}`} key={offer.id}>
+                <div className="office-offer-row-top">
+                  <div className="office-offer-row-headline">
+                    <div className="office-offer-row-title">
                       <strong>{offer.title}</strong>
                       <StatusBadge tone={getOfferTone(offer.statusValue)}>{offer.status}</StatusBadge>
                       {offer.isPrimaryOffer ? <StatusBadge tone="accent">Primary</StatusBadge> : null}
                     </div>
                     <p>{offer.buyerName || offer.offeringPartyName}</p>
                   </div>
-                  <div className="bm-offer-row-metrics">
+                  <div className="office-offer-row-metrics">
                     <span>{offer.price || "No price"}</span>
                     {offer.earnestMoneyAmount ? <span>EMD {offer.earnestMoneyAmount}</span> : null}
                     {offer.expirationAt ? <span>Expires {offer.expirationAt}</span> : null}
                   </div>
                 </div>
 
-                <div className="bm-offer-meta-grid">
+                <div className="office-offer-meta-grid">
                   <div><span>Financing</span><strong>{offer.financingType || "Not set"}</strong></div>
                   <div><span>Closing date</span><strong>{offer.closingDateOffered || "Not set"}</strong></div>
                   <div><span>Submitted</span><strong>{offer.submittedAt || "Not submitted"}</strong></div>
@@ -768,7 +768,7 @@ export function TransactionOffersCard({
                 </div>
 
                 {canManageOffers ? (
-                  <div className="bm-offer-edit-grid">
+                  <div className="office-offer-edit-grid">
                     {visibleOfferFields.map((entry) => {
                       const field = entry.field;
                       const fieldType =
@@ -850,7 +850,7 @@ export function TransactionOffersCard({
                         </FormField>
                       );
                     })}
-                    <FormField className="bm-offer-edit-checkbox" label="Primary offer">
+                    <FormField className="office-offer-edit-checkbox" label="Primary offer">
                       <input
                         checked={offerState.isPrimaryOffer}
                         onChange={(event) =>
@@ -859,7 +859,7 @@ export function TransactionOffersCard({
                         type="checkbox"
                       />
                     </FormField>
-                    <div className="bm-offer-action-row">
+                    <div className="office-offer-action-row">
                       <Button
                         disabled={pendingAction === `save-offer:${offer.id}`}
                         onClick={() => handleSaveOffer(offer.id)}
@@ -893,14 +893,14 @@ export function TransactionOffersCard({
                   </div>
                 ) : null}
 
-                <div className="bm-offer-linked-grid">
-                  <section className="bm-offer-linked-section">
-                    <div className="bm-offer-subhead">
+                <div className="office-offer-linked-grid">
+                  <section className="office-offer-linked-section">
+                    <div className="office-offer-subhead">
                       <h4>Documents</h4>
                       <span>{offer.documents.length} linked</span>
                     </div>
                     {offer.documents.length ? (
-                      <ul className="bm-offer-inline-list">
+                      <ul className="office-offer-inline-list">
                         {offer.documents.map((document) => (
                           <li key={document.id}>
                             <a href={document.href} rel="noreferrer" target="_blank">
@@ -917,7 +917,7 @@ export function TransactionOffersCard({
                     )}
 
                     {canManageDocuments ? (
-                      <div className="bm-offer-upload-grid">
+                      <div className="office-offer-upload-grid">
                         <FormField label="Document title">
                           <TextInput value={uploadState.title} onChange={(event) => updateUploadState(offer.id, "title", event.target.value)} />
                         </FormField>
@@ -956,21 +956,21 @@ export function TransactionOffersCard({
                     ) : null}
                   </section>
 
-                  <section className="bm-offer-linked-section">
-                    <div className="bm-offer-subhead">
+                  <section className="office-offer-linked-section">
+                    <div className="office-offer-subhead">
                       <h4>Forms & eSignature</h4>
                       <span>{offer.forms.length} forms · {offer.signatureRequests.length} requests</span>
                     </div>
 
                     {offer.forms.length ? (
-                      <div className="bm-offer-form-list">
+                      <div className="office-offer-form-list">
                         {offer.forms.map((form) => {
                           const signatureDraftKey = `${offer.id}:${form.id}`;
                           const signatureDraft = signatureDrafts[signatureDraftKey] ?? buildSignatureDraftState();
 
                           return (
-                            <div className="bm-offer-form-row" key={form.id}>
-                              <div className="bm-offer-form-head">
+                            <div className="office-offer-form-row" key={form.id}>
+                              <div className="office-offer-form-head">
                                 <div>
                                   <strong>{form.name}</strong>
                                   <p>{form.signatureStatusSummary}</p>
@@ -985,7 +985,7 @@ export function TransactionOffersCard({
                                 </Link>
                               ) : null}
                               {canManageSignatures ? (
-                                <div className="bm-offer-signature-grid">
+                                <div className="office-offer-signature-grid">
                                   <FormField label="Recipient name">
                                     <TextInput value={signatureDraft.recipientName} onChange={(event) => updateSignatureDraft(signatureDraftKey, "recipientName", event.target.value)} />
                                   </FormField>
@@ -1016,7 +1016,7 @@ export function TransactionOffersCard({
                     )}
 
                     {canUseForms ? (
-                      <div className="bm-offer-form-create-grid">
+                      <div className="office-offer-form-create-grid">
                         <FormField label="Template">
                           <SelectInput value={formDraft.templateId} onChange={(event) => updateFormDraft(offer.id, "templateId", event.target.value)}>
                             {formTemplates.map((template) => (
@@ -1051,16 +1051,16 @@ export function TransactionOffersCard({
                   </section>
                 </div>
 
-                <section className="bm-offer-comments-section">
-                  <div className="bm-offer-subhead">
+                <section className="office-offer-comments-section">
+                  <div className="office-offer-subhead">
                     <h4>Internal comments</h4>
                     <span>{offer.comments.length}</span>
                   </div>
                   {offer.comments.length ? (
-                    <ul className="bm-offer-comment-list">
+                    <ul className="office-offer-comment-list">
                       {offer.comments.map((comment) => (
                         <li key={comment.id}>
-                          <div className="bm-offer-comment-head">
+                          <div className="office-offer-comment-head">
                             <strong>{comment.authorName}</strong>
                             <span>{comment.createdAt}</span>
                           </div>
@@ -1071,7 +1071,7 @@ export function TransactionOffersCard({
                   ) : (
                     <EmptyState description="Use comments for internal offer discussion." title="No offer comments yet" />
                   )}
-                  <div className="bm-offer-comment-compose">
+                  <div className="office-offer-comment-compose">
                     <FormField label="Add comment">
                       <TextareaInput
                         onChange={(event) =>
@@ -1103,13 +1103,13 @@ export function TransactionOffersCard({
       </div>
 
       {comparisonRows.length > 1 ? (
-        <div className="bm-offer-comparison">
-          <div className="bm-offer-subhead">
+        <div className="office-offer-comparison">
+          <div className="office-offer-subhead">
             <h4>Offer comparison</h4>
             <span>{comparisonRows.length} offers</span>
           </div>
           <HorizontalScrollArea viewportClassName="office-table-scroll">
-            <table className="bm-offer-comparison-table">
+            <table className="office-offer-comparison-table">
               <thead>
                 <tr>
                   <th>Offer</th>
@@ -1127,7 +1127,7 @@ export function TransactionOffersCard({
                 {comparisonRows.map((row) => (
                   <tr key={row.id}>
                     <td>
-                      <div className="bm-offer-comparison-title">
+                      <div className="office-offer-comparison-title">
                         <strong>{row.title}</strong>
                         <span>{row.buyerName || row.offeringPartyName}</span>
                         {row.isPrimaryOffer ? <StatusBadge tone="accent">Primary</StatusBadge> : null}

@@ -222,38 +222,38 @@ export function TransactionTasksCard({
   }
 
   return (
-    <section className="bm-detail-card" id="transaction-tasks">
-      <div className="bm-card-head">
+    <section className="office-detail-card" id="transaction-tasks">
+      <div className="office-card-head">
         <h3>Checklist / Tasks</h3>
         <Link className="office-toggle-link" href={`/office/tasks?transactionId=${transactionId}`}>
           Open Task List
         </Link>
       </div>
 
-      <div className="bm-transaction-task-groups">
+      <div className="office-transaction-task-groups">
         {Object.entries(groupedTasks).length > 0 ? (
           Object.entries(groupedTasks).map(([groupName, groupTasks]) => (
-            <section className="bm-transaction-task-group" key={groupName}>
-              <div className="bm-transaction-task-group-head">
+            <section className="office-transaction-task-group" key={groupName}>
+              <div className="office-transaction-task-group-head">
                 <strong>{groupName}</strong>
                 <span>{groupTasks.length} task{groupTasks.length === 1 ? "" : "s"}</span>
               </div>
 
-              <div className="bm-transaction-task-list">
+              <div className="office-transaction-task-list">
                 {groupTasks.map((task) => {
                   const formState = taskStates[task.id] ?? buildTaskState(task);
                   const canCurrentUserSecondApprove =
                     !task.awaitingSecondaryApproval || task.firstApprovedByMembershipId !== currentMembershipId;
 
                   return (
-                    <article className="bm-transaction-task-row" id={`transaction-task-${task.id}`} key={task.id}>
-                      <div className="bm-transaction-task-top">
-                        <div className="bm-transaction-task-status">
-                          <span className={`bm-status-pill bm-task-status-${task.taskStatusTone}`}>{task.taskStatusLabel}</span>
+                    <article className="office-transaction-task-row" id={`transaction-task-${task.id}`} key={task.id}>
+                      <div className="office-transaction-task-top">
+                        <div className="office-transaction-task-status">
+                          <span className={`office-status-pill office-task-status-${task.taskStatusTone}`}>{task.taskStatusLabel}</span>
                           <strong>{task.assigneeName}</strong>
                           <span>{task.complianceStatus}</span>
                         </div>
-                        <div className="bm-transaction-task-actions">
+                        <div className="office-transaction-task-actions">
                           {task.requiresDocument || task.requiresDocumentApproval ? (
                             <Link className="office-toggle-link" href={`/office/transactions/${transactionId}#transaction-forms-signatures`}>
                               Use forms
@@ -327,8 +327,8 @@ export function TransactionTasksCard({
                         </div>
                       </div>
 
-                      <div className="bm-transaction-task-grid">
-                        <label className="bm-detail-field">
+                      <div className="office-transaction-task-grid">
+                        <label className="office-detail-field">
                           <span>Checklist group</span>
                           <input
                             onChange={(event) => updateTaskField(task.id, "checklistGroup", event.target.value)}
@@ -336,11 +336,11 @@ export function TransactionTasksCard({
                             value={formState.checklistGroup}
                           />
                         </label>
-                        <label className="bm-detail-field">
+                        <label className="office-detail-field">
                           <span>Task title</span>
                           <input onChange={(event) => updateTaskField(task.id, "title", event.target.value)} type="text" value={formState.title} />
                         </label>
-                        <label className="bm-detail-field">
+                        <label className="office-detail-field">
                           <span>Assignee</span>
                           <select
                             onChange={(event) => updateTaskField(task.id, "assigneeMembershipId", event.target.value)}
@@ -354,11 +354,11 @@ export function TransactionTasksCard({
                             ))}
                           </select>
                         </label>
-                        <label className="bm-detail-field">
+                        <label className="office-detail-field">
                           <span>Due date</span>
                           <input onChange={(event) => updateTaskField(task.id, "dueAt", event.target.value)} type="date" value={formState.dueAt} />
                         </label>
-                        <label className="bm-detail-field">
+                        <label className="office-detail-field">
                           <span>Workflow status</span>
                           <select onChange={(event) => updateTaskField(task.id, "status", event.target.value)} value={formState.status}>
                             {taskStatusOptions.map((status) => (
@@ -368,13 +368,13 @@ export function TransactionTasksCard({
                             ))}
                           </select>
                         </label>
-                        <div className="bm-detail-field">
+                        <div className="office-detail-field">
                           <span>Review state</span>
                           <strong>
                             {task.reviewStatus} / {task.complianceStatus}
                           </strong>
                         </div>
-                        <label className="bm-detail-field bm-detail-field-wide">
+                        <label className="office-detail-field office-detail-field-wide">
                           <span>Description</span>
                           <textarea
                             onChange={(event) => updateTaskField(task.id, "description", event.target.value)}
@@ -382,7 +382,7 @@ export function TransactionTasksCard({
                             value={formState.description}
                           />
                         </label>
-                        <div className="bm-detail-field bm-detail-field-wide office-task-checkbox-row">
+                        <div className="office-detail-field office-detail-field-wide office-task-checkbox-row">
                           <span>Compliance rules</span>
                           <label>
                             <input
@@ -411,8 +411,8 @@ export function TransactionTasksCard({
                         </div>
                       </div>
 
-                      <div className="bm-transaction-task-evidence">
-                        <div className="bm-transaction-task-evidence-grid">
+                      <div className="office-transaction-task-evidence">
+                        <div className="office-transaction-task-evidence-grid">
                           <span>Submitted by: {task.submittedForReviewByName || "—"}</span>
                           <span>Submitted at: {task.submittedForReviewAt ? formatDateTimeLabel(task.submittedForReviewAt) : "—"}</span>
                           <span>First approver: {task.firstApprovedByName || "—"}</span>
@@ -424,9 +424,9 @@ export function TransactionTasksCard({
                         </div>
 
                         {task.linkedDocuments.length ? (
-                          <div className="bm-transaction-task-linked-documents">
+                          <div className="office-transaction-task-linked-documents">
                             {task.linkedDocuments.map((document) => (
-                              <a className="bm-task-linked-document" href={document.href} key={document.id}>
+                              <a className="office-task-linked-document" href={document.href} key={document.id}>
                                 <strong>{document.title}</strong>
                                 <span>{document.status}</span>
                                 {document.isSigned ? <span>Signed</span> : null}
@@ -435,7 +435,7 @@ export function TransactionTasksCard({
                             ))}
                           </div>
                         ) : (
-                          <div className="bm-transaction-task-linked-documents is-empty">No linked documents yet.</div>
+                          <div className="office-transaction-task-linked-documents is-empty">No linked documents yet.</div>
                         )}
                       </div>
                     </article>
@@ -445,28 +445,28 @@ export function TransactionTasksCard({
             </section>
           ))
         ) : (
-          <div className="bm-detail-field">
+          <div className="office-detail-field">
             <span>Tasks</span>
             <strong>No checklist tasks yet.</strong>
           </div>
         )}
       </div>
 
-      <div className="bm-transaction-task-create">
-        <div className="bm-card-head bm-card-head-inline">
+      <div className="office-transaction-task-create">
+        <div className="office-card-head office-card-head-inline">
           <h3>New task</h3>
         </div>
 
-        <div className="bm-transaction-task-grid">
-          <label className="bm-detail-field">
+        <div className="office-transaction-task-grid">
+          <label className="office-detail-field">
             <span>Checklist group</span>
             <input onChange={(event) => updateNewTaskField("checklistGroup", event.target.value)} type="text" value={newTaskState.checklistGroup} />
           </label>
-          <label className="bm-detail-field">
+          <label className="office-detail-field">
             <span>Task title</span>
             <input onChange={(event) => updateNewTaskField("title", event.target.value)} type="text" value={newTaskState.title} />
           </label>
-          <label className="bm-detail-field">
+          <label className="office-detail-field">
             <span>Assignee</span>
             <select onChange={(event) => updateNewTaskField("assigneeMembershipId", event.target.value)} value={newTaskState.assigneeMembershipId}>
               <option value="">Unassigned</option>
@@ -477,11 +477,11 @@ export function TransactionTasksCard({
               ))}
             </select>
           </label>
-          <label className="bm-detail-field">
+          <label className="office-detail-field">
             <span>Due date</span>
             <input onChange={(event) => updateNewTaskField("dueAt", event.target.value)} type="date" value={newTaskState.dueAt} />
           </label>
-          <label className="bm-detail-field">
+          <label className="office-detail-field">
             <span>Workflow status</span>
             <select onChange={(event) => updateNewTaskField("status", event.target.value)} value={newTaskState.status}>
               {taskStatusOptions.map((status) => (
@@ -491,11 +491,11 @@ export function TransactionTasksCard({
               ))}
             </select>
           </label>
-          <label className="bm-detail-field bm-detail-field-wide">
+          <label className="office-detail-field office-detail-field-wide">
             <span>Description</span>
             <textarea onChange={(event) => updateNewTaskField("description", event.target.value)} rows={3} value={newTaskState.description} />
           </label>
-          <div className="bm-detail-field bm-detail-field-wide office-task-checkbox-row">
+          <div className="office-detail-field office-detail-field-wide office-task-checkbox-row">
             <span>Compliance rules</span>
             <label>
               <input
@@ -526,7 +526,7 @@ export function TransactionTasksCard({
 
         {error ? <p className="office-form-error">{error}</p> : null}
 
-        <div className="bm-transaction-task-actions">
+        <div className="office-transaction-task-actions">
           <button className="office-button" disabled={pendingAction === "create"} onClick={handleCreateTask} type="button">
             {pendingAction === "create" ? "Creating..." : "Create task"}
           </button>

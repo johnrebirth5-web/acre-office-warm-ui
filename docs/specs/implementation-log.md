@@ -8,6 +8,10 @@
 
 ## Recently completed major work
 
+- 2026-04-01: active Office module/page markup was consolidated onto one canonical `office-*` class language across the remaining high-debt workspaces:
+  - accounting, billing, contacts, transaction list/create flow, transaction detail subcards, offer/documents/tasks/contacts/incoming-updates/signature editor, and related modals/cards under [apps/web/app/office](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office) no longer emit `bm-*` design-language classes in live TSX markup
+  - [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now exposes `office-*` compatibility selectors for the previously active `bm-*` modules, so the live product uses one class vocabulary while visual behavior stays stable during cleanup
+  - remaining `bm-*` references are now limited to compatibility CSS and runtime helpers such as the legacy table-layout support path, not live page/component chrome
 - 2026-04-01: `/office/dashboard` completed the next `bm-*` to canonical `office-*` migration batch for one of the highest-visibility BO pages:
   - [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx) no longer emits `bm-*` markup for goal tracking, KPI strip, chart bars/month ticks, progress ring, or payout-statement row actions
   - new `office-dashboard-*` classes in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now define the canonical dashboard chrome for those surfaces, so the page aligns with the shared Office design language instead of depending on legacy `bm-*` dashboard vocabulary

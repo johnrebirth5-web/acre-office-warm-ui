@@ -146,21 +146,21 @@ export function TransactionIncomingUpdatesCard({
   }
 
   return (
-    <section className="bm-detail-card" id="transaction-incoming-updates">
-      <div className="bm-card-head">
+    <section className="office-detail-card" id="transaction-incoming-updates">
+      <div className="office-card-head">
         <div>
           <h3>Incoming updates</h3>
           <span>Review future Folio-like external updates before applying safe mapped changes to the transaction.</span>
         </div>
       </div>
 
-      <div className="bm-document-list">
+      <div className="office-document-list">
         {incomingUpdates.length > 0 ? (
           incomingUpdates.map((incomingUpdate) => (
-            <article className="bm-form-row" key={incomingUpdate.id}>
-              <div className="bm-document-row-top">
-                <div className="bm-document-row-copy">
-                  <div className="bm-document-row-head">
+            <article className="office-form-row" key={incomingUpdate.id}>
+              <div className="office-document-row-top">
+                <div className="office-document-row-copy">
+                  <div className="office-document-row-head">
                     <strong>{incomingUpdate.summary}</strong>
                     <StatusBadge tone={getIncomingUpdateTone(incomingUpdate.statusKey)}>{incomingUpdate.status}</StatusBadge>
                   </div>
@@ -175,7 +175,7 @@ export function TransactionIncomingUpdatesCard({
                 </div>
 
                 {canReviewIncomingUpdates && incomingUpdate.statusKey === "pending_review" ? (
-                  <div className="bm-signature-row-actions">
+                  <div className="office-signature-row-actions">
                     <Button
                       disabled={pendingAction === `accept:${incomingUpdate.id}`}
                       onClick={() => handleReview(incomingUpdate.id, "accept")}
@@ -196,7 +196,7 @@ export function TransactionIncomingUpdatesCard({
               </div>
 
               {incomingUpdate.payloadPreview.length > 0 ? (
-                <ul className="bm-incoming-update-preview">
+                <ul className="office-incoming-update-preview">
                   {incomingUpdate.payloadPreview.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
@@ -213,12 +213,12 @@ export function TransactionIncomingUpdatesCard({
       </div>
 
       {canReviewIncomingUpdates ? (
-        <div className="bm-document-upload-panel">
-          <div className="bm-card-head bm-card-head-inline">
+        <div className="office-document-upload-panel">
+          <div className="office-card-head office-card-head-inline">
             <h3>Create incoming update</h3>
           </div>
 
-          <div className="bm-document-upload-grid">
+          <div className="office-document-upload-grid">
             <FormField label="Source system">
               <TextInput
                 onChange={(event) => setNewUpdate((current) => ({ ...current, sourceSystem: event.target.value }))}
@@ -231,13 +231,13 @@ export function TransactionIncomingUpdatesCard({
                 value={newUpdate.sourceReference}
               />
             </FormField>
-            <FormField className="bm-detail-field-wide" label="Summary">
+            <FormField className="office-detail-field-wide" label="Summary">
               <TextInput
                 onChange={(event) => setNewUpdate((current) => ({ ...current, summary: event.target.value }))}
                 value={newUpdate.summary}
               />
             </FormField>
-            <FormField className="bm-detail-field-wide" label="Payload JSON">
+            <FormField className="office-detail-field-wide" label="Payload JSON">
               <TextareaInput
                 onChange={(event) => setNewUpdate((current) => ({ ...current, payload: event.target.value }))}
                 rows={6}
@@ -246,7 +246,7 @@ export function TransactionIncomingUpdatesCard({
             </FormField>
           </div>
 
-          <div className="bm-document-edit-actions">
+          <div className="office-document-edit-actions">
             <Button disabled={pendingAction === "create"} onClick={handleCreateIncomingUpdate}>
               {pendingAction === "create" ? "Creating..." : "Create incoming update"}
             </Button>

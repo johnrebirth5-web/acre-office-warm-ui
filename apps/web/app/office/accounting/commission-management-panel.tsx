@@ -1152,7 +1152,7 @@ export function CommissionManagementPanel({
                       </p>
                     </div>
                     <span>{row.calculatedAt}</span>
-                    <div className="bm-accounting-inline-actions">
+                    <div className="office-accounting-inline-actions">
                       {(canManageCommissions || canApproveCommissions) ? (
                         <>
                           <SelectInput
@@ -1187,7 +1187,7 @@ export function CommissionManagementPanel({
                 ))}
 
                 {snapshot.calculations.length === 0 ? (
-                  <div className="bm-accounting-empty">
+                  <div className="office-accounting-empty">
                     <p>No commission rows match the current filters.</p>
                   </div>
                 ) : null}
@@ -1217,7 +1217,7 @@ export function CommissionManagementPanel({
                   </div>
                 </>
               ) : (
-                <div className="bm-accounting-empty">
+                <div className="office-accounting-empty">
                   <p>Select an agent and generate a statement snapshot to review payout-ready commission totals.</p>
                 </div>
               )}

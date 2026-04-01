@@ -361,7 +361,7 @@ export function TransactionIntakeWorkspace({
           <span>{getFieldValueLabel(field)}</span>
         </div>
         {isAgentOwnerField ? (
-          <div className="bm-transaction-owner-field">
+          <div className="office-transaction-owner-field">
             <input
               autoComplete="off"
               aria-expanded={canSearchOwners ? ownerSuggestionsOpen : undefined}
@@ -385,11 +385,11 @@ export function TransactionIntakeWorkspace({
               value={canSearchOwners ? ownerSearchValue : ownerAssignment?.currentOwnerLabel ?? ""}
             />
             {canSearchOwners && ownerSuggestionsOpen ? (
-              <div className="bm-transaction-owner-suggestions" role="listbox">
+              <div className="office-transaction-owner-suggestions" role="listbox">
                 {filteredOwnerOptions.length ? (
                   filteredOwnerOptions.map((option) => (
                     <button
-                      className={`bm-transaction-owner-suggestion${selectedOwnerMembershipId === option.id ? " is-selected" : ""}`}
+                      className={`office-transaction-owner-suggestion${selectedOwnerMembershipId === option.id ? " is-selected" : ""}`}
                       key={option.id}
                       onMouseDown={(event) => {
                         event.preventDefault();
@@ -402,11 +402,11 @@ export function TransactionIntakeWorkspace({
                     </button>
                   ))
                 ) : (
-                  <div className="bm-transaction-owner-empty">No matching sales members.</div>
+                  <div className="office-transaction-owner-empty">No matching sales members.</div>
                 )}
               </div>
             ) : null}
-            <small className="office-form-helper bm-transaction-owner-helper">{ownerHelperText}</small>
+            <small className="office-form-helper office-transaction-owner-helper">{ownerHelperText}</small>
           </div>
         ) : field.type === "select" ? (
           <select
@@ -517,7 +517,7 @@ export function TransactionIntakeWorkspace({
   }
 
   return (
-    <div className={`bm-transaction-intake-shell bm-transaction-intake-shell-${chrome}`}>
+    <div className={`office-transaction-intake-shell office-transaction-intake-shell-${chrome}`}>
       {chrome === "modal" ? (
         <header
           className={`office-modal-header office-modal-header-configurable${useOfficeCreateModalChrome ? " office-create-modal-header" : ""}`}
@@ -549,13 +549,13 @@ export function TransactionIntakeWorkspace({
           ) : null}
         </header>
       ) : title ? (
-        <div className="bm-transaction-intake-toolbar">
+        <div className="office-transaction-intake-toolbar">
           <strong>{title}</strong>
         </div>
       ) : null}
 
       <form
-        className={`office-modal-body bm-transaction-intake-form${useOfficeCreateModalChrome ? " office-create-modal-body office-transaction-create-body" : ""}`}
+        className={`office-modal-body office-transaction-intake-form${useOfficeCreateModalChrome ? " office-create-modal-body office-transaction-create-body" : ""}`}
         onSubmit={handleSubmit}
       >
         {useOfficeCreateModalChrome ? (
@@ -721,7 +721,7 @@ export function TransactionIntakeWorkspace({
                 {isSubmitting ? "Saving..." : submitLabel}
               </Button>
             ) : (
-              <button className="bm-transaction-next" disabled={isSubmitting || !canEditValues} type="submit">
+              <button className="office-transaction-next" disabled={isSubmitting || !canEditValues} type="submit">
                 {isSubmitting ? "Saving..." : submitLabel}
               </button>
             )}

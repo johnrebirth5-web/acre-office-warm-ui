@@ -225,7 +225,7 @@ export function TransactionCreatePageClient({
       {mode === "page" ? (
         <SectionCard
           actions={editFieldsButton}
-          className="bm-new-transaction-card bm-new-transaction-live-card"
+          className="office-new-transaction-card office-new-transaction-live-card"
           title="Transaction intake"
         >
           {workspace}
