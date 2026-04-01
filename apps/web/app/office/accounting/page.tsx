@@ -1,8 +1,9 @@
 import { canAccessOfficeAdminAccountingWorkspace } from "@acre/auth";
 import { getOfficeAgentPayoutStatementsWorkspaceSnapshot } from "@acre/db";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeAccountingClient } from "./accounting-client";
 
 type OfficeAccountingPageProps = {
@@ -46,22 +47,22 @@ export default async function OfficeAccountingPage(props: OfficeAccountingPagePr
   });
 
   return (
-    <PageShell className="office-list-page office-accounting-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-accounting-list-page">
+      <OfficeListPageHeader
+        description="Generate agent payout statements from selected invoice numbers, save a durable snapshot, and download a PDF."
+        eyebrow="Accounting"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Invoice candidates" tone="accent" value={snapshot.filters.invoiceOptions.length} />
             <SummaryChip label="Saved statements" value={snapshot.history.length} />
             <SummaryChip label="Current basis" value="Invoice number" />
-          </PageHeaderSummary>
+          </>
         }
-        description="Generate agent payout statements from selected invoice numbers, save a durable snapshot, and download a PDF."
-        eyebrow="Accounting"
         title="Agent Statements"
       />
 
       <OfficeAccountingClient snapshot={snapshot} />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

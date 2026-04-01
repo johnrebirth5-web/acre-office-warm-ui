@@ -6,15 +6,13 @@ import {
   DataTableBody,
   DataTableHeader,
   DataTableRow,
-  PageHeader,
-  PageHeaderSummary,
-  PageShell,
   SectionCard,
   StatCard,
   StatusBadge,
   SummaryChip
 } from "@acre/ui";
 import { getSessionAccess, requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { LocalDateTime } from "../_components/local-date-time";
 
 function getChartTick(label: string, index: number, labels: string[]) {
@@ -76,20 +74,20 @@ export default async function OfficeDashboardPage() {
   const latestPayoutReviewStatement = payoutReviewQueue.statements[0] ?? null;
 
   return (
-    <PageShell className="office-dashboard-page office-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-dashboard-page">
+      <OfficeListPageHeader
+        description="Goal tracking, current back-office pressure, and recent transactions inside one operational dashboard."
+        eyebrow="Dashboard"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Access" value={access.label} />
             {canViewCommissionSelfServiceSummary ? (
               <SummaryChip label="My month commission" tone="accent" value={snapshot.commission.currentMonthCommissionLabel} />
             ) : null}
             <SummaryChip label="Live pipeline" tone="accent" value={livePipelineCount} />
-          </PageHeaderSummary>
+          </>
         }
-        description="Goal tracking, current back-office pressure, and recent transactions inside one operational dashboard."
-        eyebrow="Dashboard"
         title="Office dashboard"
       />
 
@@ -351,6 +349,6 @@ export default async function OfficeDashboardPage() {
           </SectionCard>
         ) : null}
       </div>
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

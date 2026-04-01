@@ -4,10 +4,11 @@ import {
   canReviewOfficeTasks,
   canSecondaryReviewOfficeTasks
 } from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { listOfficeTasks } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeTasksClient } from "./tasks-client";
 
 type OfficeTasksPageProps = {
@@ -52,17 +53,17 @@ export default async function OfficeTasksPage(props: OfficeTasksPageProps) {
   });
 
   return (
-    <PageShell className="office-list-page office-tasks-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-tasks-page">
+      <OfficeListPageHeader
+        description="Back-office task management for transaction work, compliance review, and due-date prioritization."
+        eyebrow="Task list"
+        summary={
+          <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Current view" value={snapshot.selectedViewName} />
             <SummaryChip label="Window" tone="accent" value={snapshot.maxWindowLabel} />
-          </PageHeaderSummary>
+          </>
         }
-        description="Back-office task management for transaction work, compliance review, and due-date prioritization."
-        eyebrow="Task list"
         title="Task list"
       />
 
@@ -73,6 +74,6 @@ export default async function OfficeTasksPage(props: OfficeTasksPageProps) {
         currentMembershipId={context.currentMembership.id}
         snapshot={snapshot}
       />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

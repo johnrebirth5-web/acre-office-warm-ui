@@ -52,6 +52,16 @@ As of the same `2026-04-01` consolidation pass, the remaining active Office work
 
 After that sweep, active `apps/web/app` page markup no longer emits `bm-*` design-language classes. Remaining `bm-*` references are now limited to compatibility CSS and table-runtime support, not live page/component chrome.
 
+As of the next `2026-04-01` cleanup step, the highest-traffic BO route pages also moved from hand-assembled `PageShell + PageHeader + PageHeaderSummary` composition onto the shared route-template shell/header pair:
+
+- [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx)
+- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
+- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
+- [apps/web/app/office/notifications/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/notifications/page.tsx)
+- [apps/web/app/office/tasks/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/tasks/page.tsx)
+
+These pages now start from [office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx) at the shell/header layer while preserving their existing body layouts, which narrows the remaining route-template gap to the rest of the BO surface set.
+
 ## Audit method
 
 The current audit reviewed:
@@ -100,15 +110,11 @@ The BO adapter is only directly used by:
 - [apps/web/app/office/transactions/transactions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/transactions-client.tsx)
 - [apps/web/app/office/contacts/contacts-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/contacts-client.tsx)
 
-Many BO pages still hand-roll route shells with `PageShell + PageHeader + PageHeaderSummary` instead of using the canonical list template directly, for example:
+Many BO pages still hand-roll route shells or preserve page-local header/body composition instead of using the canonical list template family directly, for example:
 
-- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
-- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
-- [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx)
 - [apps/web/app/office/pipeline/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/pipeline/page.tsx)
 - [apps/web/app/office/library/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/library/page.tsx)
-- [apps/web/app/office/tasks/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/tasks/page.tsx)
-- [apps/web/app/office/notifications/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/notifications/page.tsx)
+- [apps/web/app/office/reports/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/reports/page.tsx)
 - multiple settings index pages under [apps/web/app/office/settings](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings)
 
 Finding:
@@ -132,14 +138,14 @@ Finding:
 
 ### 4. The biggest remaining unification gap is route/template adoption, not class vocabulary
 
-Transaction detail, accounting workspaces, and several BO route pages now emit canonical `office-*` markup, but many of them still hand-assemble route shells or preserve older layout composition patterns instead of flowing through the shared route-template family.
+Transaction detail and a smaller set of BO route pages now emit canonical `office-*` markup, but some of them still preserve older layout composition patterns instead of flowing through the full shared route-template family.
 
 Relevant files:
 
 - [apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx)
-- [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx)
-- [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx)
-- [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx)
+- [apps/web/app/office/pipeline/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/pipeline/page.tsx)
+- [apps/web/app/office/library/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/library/page.tsx)
+- settings index pages under [apps/web/app/office/settings](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings)
 
 Finding:
 
@@ -228,11 +234,8 @@ Recommended approach:
 
 First candidates:
 
-- accounting
 - pipeline
 - library
-- notifications
-- tasks
 - reports
 - settings index pages
 
@@ -241,6 +244,7 @@ Completed first batch:
 - `activity` shell/list chrome moved off `bm-*`; follow-up work there is now limited to routing the page through the canonical route-template family when the surrounding filter/header composition is ready
 - `dashboard` goal-tracking and KPI/chart chrome moved off `bm-*`; follow-up work there is now limited to route-template adoption and any deeper legacy card cleanup outside the main dashboard page
 - active Office module/page markup under accounting, billing, contacts, transactions list/create/detail, and related modals/cards now emits `office-*` classes instead of `bm-*`, leaving only compatibility/runtime references behind
+- route-level shell/header adoption is now complete for `accounting`, `activity`, `dashboard`, `notifications`, and `tasks`; the remaining route-template candidates are mainly `pipeline`, `library`, `reports`, and settings index pages
 
 ### P2. Migrate transaction detail off `bm-*`
 

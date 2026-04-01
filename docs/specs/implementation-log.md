@@ -8,6 +8,9 @@
 
 ## Recently completed major work
 
+- 2026-04-01: shared BO route-template adoption advanced beyond class-language cleanup into the route shell/header layer:
+  - [apps/web/app/office/accounting/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/accounting/page.tsx), [apps/web/app/office/activity/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/activity/page.tsx), [apps/web/app/office/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/dashboard/page.tsx), [apps/web/app/office/notifications/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/notifications/page.tsx), and [apps/web/app/office/tasks/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/tasks/page.tsx) now start from `OfficeListPageShell + OfficeListPageHeader` instead of hand-assembling `PageShell + PageHeader + PageHeaderSummary`
+  - this keeps each page's existing workbench body intact, but standardizes the route-level page frame against the shared BO list-page family so those routes no longer maintain their own shell/header contract
 - 2026-04-01: active Office module/page markup was consolidated onto one canonical `office-*` class language across the remaining high-debt workspaces:
   - accounting, billing, contacts, transaction list/create flow, transaction detail subcards, offer/documents/tasks/contacts/incoming-updates/signature editor, and related modals/cards under [apps/web/app/office](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office) no longer emit `bm-*` design-language classes in live TSX markup
   - [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) now exposes `office-*` compatibility selectors for the previously active `bm-*` modules, so the live product uses one class vocabulary while visual behavior stays stable during cleanup

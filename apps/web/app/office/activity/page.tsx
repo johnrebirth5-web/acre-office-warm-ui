@@ -5,9 +5,6 @@ import {
   EmptyState,
   FilterBar,
   FilterField,
-  PageHeader,
-  PageHeaderSummary,
-  PageShell,
   SectionCard,
   StatusBadge,
   SummaryChip
@@ -15,6 +12,7 @@ import {
 import { getOfficeActivityLogSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { ActivityAlertsLayout } from "./activity-alerts-layout";
 import { ActivityCommentComposer } from "./activity-comment-composer";
 
@@ -249,10 +247,12 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
     ) : null;
 
   return (
-    <PageShell className="office-activity-page office-list-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-activity-page">
+      <OfficeListPageHeader
+        description="Audit-backed activity records remain the source of truth. Operational alerts are derived live from current transaction, task, and contact state."
+        eyebrow="Account activity"
+        summary={
+          <>
             <ActivityCommentComposer
               officeId={context.currentOffice?.id ?? null}
               scopeLabel={context.currentOffice?.name ?? context.currentOrganization.name}
@@ -260,10 +260,8 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Audit window" tone="accent" value={snapshot.latestWindowCount} />
             <SummaryChip label="Live alerts" value={selectedView === "activity" ? "On demand" : "Loading..."} />
-          </PageHeaderSummary>
+          </>
         }
-        description="Audit-backed activity records remain the source of truth. Operational alerts are derived live from current transaction, task, and contact state."
-        eyebrow="Account activity"
         title="Account activity"
       />
 
@@ -360,6 +358,6 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
         currentSearchParams={normalizedSearchParams}
         selectedView={selectedView}
       />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }

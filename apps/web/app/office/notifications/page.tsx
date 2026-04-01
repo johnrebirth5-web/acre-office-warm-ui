@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { canAccessOfficeNotifications } from "@acre/auth";
-import { PageHeader, PageHeaderSummary, PageShell, SummaryChip } from "@acre/ui";
+import { SummaryChip } from "@acre/ui";
 import { listOfficeNotifications } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeNotificationsClient } from "./notifications-client";
 
 type OfficeNotificationsPageProps = {
@@ -32,10 +33,12 @@ export default async function OfficeNotificationsPage(props: OfficeNotifications
   });
 
   return (
-    <PageShell className="office-list-page office-notifications-page">
-      <PageHeader
-        actions={
-          <PageHeaderSummary>
+    <OfficeListPageShell className="office-notifications-page">
+      <OfficeListPageHeader
+        description="Personal inbox for payout review, review work, follow-ups, offer changes, signatures, and incoming updates. Activity log remains the audited system-wide record."
+        eyebrow="Notifications"
+        summary={
+          <>
             <Link className="office-button-secondary" href="/office/activity">
               Open activity log
             </Link>
@@ -43,14 +46,12 @@ export default async function OfficeNotificationsPage(props: OfficeNotifications
             <SummaryChip label="Unread" tone="accent" value={snapshot.summary.unreadCount} />
             <SummaryChip label="Review queue" value={snapshot.summary.reviewCount} />
             <SummaryChip label="Payout review" tone="accent" value={snapshot.summary.payoutReviewCount} />
-          </PageHeaderSummary>
+          </>
         }
-        description="Personal inbox for payout review, review work, follow-ups, offer changes, signatures, and incoming updates. Activity log remains the audited system-wide record."
-        eyebrow="Notifications"
         title="Notifications"
       />
 
       <OfficeNotificationsClient snapshot={snapshot} />
-    </PageShell>
+    </OfficeListPageShell>
   );
 }
