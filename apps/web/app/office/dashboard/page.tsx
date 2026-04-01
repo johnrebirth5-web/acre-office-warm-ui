@@ -67,6 +67,7 @@ export default async function OfficeDashboardPage() {
     snapshot.commission.monthlyTotals.find((month) => month.isCurrent) ??
     snapshot.commission.monthlyTotals[snapshot.commission.monthlyTotals.length - 1] ??
     null;
+  const goalProgressPercent = Math.min(Math.max(snapshot.goal.progressPercent, 0), 100);
   const historicalCommissionMonths = currentCommissionMonth
     ? snapshot.commission.monthlyTotals.filter((month) => month.monthKey !== currentCommissionMonth.monthKey)
     : snapshot.commission.monthlyTotals;
@@ -165,7 +166,12 @@ export default async function OfficeDashboardPage() {
                 </div>
 
                 <aside className="office-dashboard-goal-side">
-                  <div className="office-dashboard-goal-ring">
+                  <div
+                    className="office-dashboard-goal-ring"
+                    style={{
+                      background: `conic-gradient(#2552a4 0 ${goalProgressPercent}%, rgba(214, 223, 235, 0.9) ${goalProgressPercent}% 100%)`
+                    }}
+                  >
                     <div className="office-dashboard-goal-ring-inner">
                       <strong>{snapshot.goal.progressPercent}%</strong>
                       <span>{snapshot.goal.currentValueLabel}</span>
@@ -180,7 +186,7 @@ export default async function OfficeDashboardPage() {
                     <strong>{snapshot.goal.secondaryValue}</strong>
                   </div>
                   <div className="office-dashboard-time-bar">
-                    <div className="office-dashboard-time-bar-fill" style={{ width: `${snapshot.goal.progressPercent}%` }} />
+                    <div className="office-dashboard-time-bar-fill" style={{ width: `${goalProgressPercent}%` }} />
                   </div>
                   <p className="office-dashboard-goal-caption">{snapshot.goal.currentValue}</p>
                 </aside>

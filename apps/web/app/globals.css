@@ -14419,9 +14419,11 @@ body,
   align-items: end;
   justify-content: center;
   min-width: 0;
+  height: 100%;
 }
 
 .office-dashboard-chart-bar {
+  display: block;
   width: min(26px, 100%);
   min-height: 0;
   border-radius: 8px 8px 0 0;
