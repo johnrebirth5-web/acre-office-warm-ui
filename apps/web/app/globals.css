@@ -14449,7 +14449,7 @@ body,
   pointer-events: none;
 }
 
-.office-dashboard-chart-months span {
+.office-dashboard-chart-months > span {
   position: relative;
   display: grid;
   justify-items: center;
@@ -14459,7 +14459,7 @@ body,
   text-align: center;
 }
 
-.office-dashboard-chart-months span::before {
+.office-dashboard-chart-months > span::before {
   content: "";
   position: absolute;
   top: 0;
