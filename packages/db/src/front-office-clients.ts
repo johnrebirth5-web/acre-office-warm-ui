@@ -2,7 +2,10 @@ import {
   AppointmentStatus,
   AppointmentType,
   FrontOfficeHandoffStatus,
+  IncomingUpdateStatus,
+  SignatureRequestStatus,
   TaskStatus,
+  TransactionTaskStatus,
 } from "@prisma/client";
 import { prisma } from "./client";
 import {
@@ -117,6 +120,35 @@ export type FrontOfficeClientDetailNegotiation = {
   offers: FrontOfficeClientDetailNegotiationOfferItem[];
 };
 
+export type FrontOfficeClientDetailInspectionItem = {
+  id: string;
+  title: string;
+  statusLabel: string;
+  statusTone: FrontOfficeClientDetailTone;
+  contextLabel: string;
+  description: string;
+  metaLabel: string;
+  actionLabel: string;
+  href: string;
+};
+
+export type FrontOfficeClientDetailInspection = {
+  boundaryLabel: string;
+  boundaryTone: FrontOfficeClientDetailTone;
+  boundaryTitle: string;
+  boundaryDescription: string;
+  boundaryMetaLabel: string;
+  openTaskCount: number;
+  overdueTaskCount: number;
+  pendingSignatureCount: number;
+  pendingIncomingUpdateCount: number;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  emptyStateTitle: string;
+  emptyStateDescription: string;
+  items: FrontOfficeClientDetailInspectionItem[];
+};
+
 export type FrontOfficeClientDetailWorkflowSignal = {
   pressureLabel: string;
   pressureTone: FrontOfficeClientDetailTone;
@@ -198,6 +230,7 @@ export type FrontOfficeClientDetailSnapshot = {
   };
   leaseReminder: FrontOfficeClientDetailLeaseReminder;
   negotiation: FrontOfficeClientDetailNegotiation;
+  inspection: FrontOfficeClientDetailInspection;
   workflow: FrontOfficeClientDetailWorkflowSignal;
   playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
@@ -1276,6 +1309,12 @@ function formatTransactionStatusLabel(status: string) {
     .join(" ");
 }
 
+function buildTransactionWorkspaceHref(transactionId: string, anchor?: string) {
+  return anchor?.trim()
+    ? `/office/transactions/${transactionId}#${anchor}`
+    : `/office/transactions/${transactionId}`;
+}
+
 function mapOfferStatusTone(status: string): FrontOfficeClientDetailTone {
   switch (status) {
     case "accepted":
@@ -1301,7 +1340,123 @@ function buildOfferWorkspaceHref(
 ) {
   return offerId?.trim()
     ? `/office/transactions/${transactionId}#offer-${offerId}`
-    : `/office/transactions/${transactionId}#transaction-offers`;
+    : buildTransactionWorkspaceHref(transactionId, "transaction-offers");
+}
+
+function formatTransactionTaskStatusLabel(status: TransactionTaskStatus) {
+  return formatTransactionStatusLabel(status);
+}
+
+function mapTransactionTaskTone(
+  status: TransactionTaskStatus,
+  dueAt: Date | null,
+  now: Date,
+): FrontOfficeClientDetailTone {
+  if (status === TransactionTaskStatus.completed) {
+    return "success";
+  }
+
+  if (dueAt && dueAt.getTime() < now.getTime()) {
+    return "danger";
+  }
+
+  if (status === TransactionTaskStatus.review_requested) {
+    return "warning";
+  }
+
+  if (status === TransactionTaskStatus.in_progress) {
+    return "accent";
+  }
+
+  if (status === TransactionTaskStatus.reopened) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
+function formatSignatureRequestStatusLabel(status: SignatureRequestStatus) {
+  return formatTransactionStatusLabel(status);
+}
+
+function mapSignatureRequestTone(
+  status: SignatureRequestStatus,
+): FrontOfficeClientDetailTone {
+  switch (status) {
+    case SignatureRequestStatus.completed:
+      return "success";
+    case SignatureRequestStatus.pending_send:
+      return "warning";
+    case SignatureRequestStatus.sent:
+    case SignatureRequestStatus.viewed:
+    case SignatureRequestStatus.signed:
+      return "accent";
+    case SignatureRequestStatus.declined:
+    case SignatureRequestStatus.canceled:
+    case SignatureRequestStatus.voided:
+    case SignatureRequestStatus.expired:
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
+function formatIncomingUpdateStatusLabel(status: IncomingUpdateStatus) {
+  return formatTransactionStatusLabel(status);
+}
+
+function mapIncomingUpdateTone(
+  status: IncomingUpdateStatus,
+): FrontOfficeClientDetailTone {
+  switch (status) {
+    case IncomingUpdateStatus.accepted:
+    case IncomingUpdateStatus.applied:
+      return "success";
+    case IncomingUpdateStatus.rejected:
+      return "danger";
+    default:
+      return "warning";
+  }
+}
+
+function buildTransactionLocationLabel(input: {
+  address: string | null | undefined;
+  city: string | null | undefined;
+  state: string | null | undefined;
+}) {
+  const addressLabel = input.address?.trim() || "";
+  const cityStateLabel = [input.city?.trim() || "", input.state?.trim() || ""]
+    .filter(Boolean)
+    .join(", ");
+
+  return [addressLabel, cityStateLabel].filter(Boolean).join(", ");
+}
+
+function buildTransactionContextMetaLabel(input: {
+  title: string | null | undefined;
+  address: string | null | undefined;
+  city: string | null | undefined;
+  state: string | null | undefined;
+  acceptanceDate: Date | null | undefined;
+  closingDate: Date | null | undefined;
+  timeZone?: string | null;
+}) {
+  const timingLabels = [
+    input.acceptanceDate
+      ? `Accepted ${formatDateLabel(input.acceptanceDate, input.timeZone)}`
+      : "",
+    input.closingDate
+      ? `Closing ${formatDateLabel(input.closingDate, input.timeZone)}`
+      : "",
+  ].filter(Boolean);
+
+  return [
+    input.title?.trim() || "",
+    buildTransactionLocationLabel(input),
+    ...timingLabels,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function buildWorkflowSignal(input: {
@@ -1795,10 +1950,24 @@ export async function getFrontOfficeClientDetail(
   const linkedTransactionHref = client.transactionContacts[0]
     ? `/office/transactions/${client.transactionContacts[0].transaction.id}`
     : null;
+  const activeSignatureStatuses = [
+    SignatureRequestStatus.pending_send,
+    SignatureRequestStatus.sent,
+    SignatureRequestStatus.viewed,
+    SignatureRequestStatus.signed,
+  ];
   const [
     negotiationOffersSnapshot,
     upcomingAppointmentCount,
     openHandoffCount,
+    inspectionTransactionRecord,
+    inspectionOpenTaskCount,
+    inspectionOverdueTaskCount,
+    inspectionPendingSignatureCount,
+    inspectionPendingIncomingUpdateCount,
+    inspectionTaskRows,
+    inspectionSignatureRows,
+    inspectionIncomingUpdateRows,
   ] = await Promise.all([
     negotiationTransactionId
       ? listTransactionOffersSnapshot(
@@ -1820,6 +1989,146 @@ export async function getFrontOfficeClientDetail(
           draft.status === FrontOfficeHandoffStatus.ready,
       ).length,
     ),
+    negotiationTransactionId
+      ? prisma.transaction.findFirst({
+          where: {
+            id: negotiationTransactionId,
+            organizationId: input.organizationId,
+          },
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            city: true,
+            state: true,
+            status: true,
+            acceptanceDate: true,
+            closingDate: true,
+          },
+        })
+      : Promise.resolve(null),
+    negotiationTransactionId
+      ? prisma.transactionTask.count({
+          where: {
+            organizationId: input.organizationId,
+            transactionId: negotiationTransactionId,
+            status: {
+              not: TransactionTaskStatus.completed,
+            },
+          },
+        })
+      : Promise.resolve(0),
+    negotiationTransactionId
+      ? prisma.transactionTask.count({
+          where: {
+            organizationId: input.organizationId,
+            transactionId: negotiationTransactionId,
+            status: {
+              not: TransactionTaskStatus.completed,
+            },
+            dueAt: {
+              lt: now,
+            },
+          },
+        })
+      : Promise.resolve(0),
+    negotiationTransactionId
+      ? prisma.signatureRequest.count({
+          where: {
+            organizationId: input.organizationId,
+            transactionId: negotiationTransactionId,
+            status: {
+              in: activeSignatureStatuses,
+            },
+          },
+        })
+      : Promise.resolve(0),
+    negotiationTransactionId
+      ? prisma.incomingUpdate.count({
+          where: {
+            organizationId: input.organizationId,
+            transactionId: negotiationTransactionId,
+            status: IncomingUpdateStatus.pending_review,
+          },
+        })
+      : Promise.resolve(0),
+    negotiationTransactionId
+      ? prisma.transactionTask.findMany({
+          where: {
+            organizationId: input.organizationId,
+            transactionId: negotiationTransactionId,
+            status: {
+              not: TransactionTaskStatus.completed,
+            },
+          },
+          orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
+          take: 3,
+          select: {
+            id: true,
+            checklistGroup: true,
+            title: true,
+            status: true,
+            dueAt: true,
+            assigneeMembership: {
+              select: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    negotiationTransactionId
+      ? prisma.signatureRequest.findMany({
+          where: {
+            organizationId: input.organizationId,
+            transactionId: negotiationTransactionId,
+            status: {
+              in: activeSignatureStatuses,
+            },
+          },
+          orderBy: [{ expiresAt: "asc" }, { updatedAt: "desc" }],
+          take: 2,
+          select: {
+            id: true,
+            contextLabel: true,
+            recipientName: true,
+            recipientEmail: true,
+            status: true,
+            sentAt: true,
+            expiresAt: true,
+            form: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    negotiationTransactionId
+      ? prisma.incomingUpdate.findMany({
+          where: {
+            organizationId: input.organizationId,
+            transactionId: negotiationTransactionId,
+            status: IncomingUpdateStatus.pending_review,
+          },
+          orderBy: [{ receivedAt: "desc" }],
+          take: 2,
+          select: {
+            id: true,
+            summary: true,
+            status: true,
+            sourceSystem: true,
+            sourceReference: true,
+            receivedAt: true,
+          },
+        })
+      : Promise.resolve([]),
   ]);
   const ownerLabel =
     `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
@@ -1889,8 +2198,16 @@ export async function getFrontOfficeClientDetail(
       ? "Stage, appointments, send trail, and handoff context are already lined up. The next formal offer record should start in Back Office, not as a duplicate Front Office note."
       : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before this becomes a formal Back Office offer workflow.";
   const negotiationBoundaryMetaLabel = negotiationTransactionId
-    ? primaryLinkedTransaction
-      ? `${primaryLinkedTransaction.transaction.title} · ${primaryLinkedTransaction.transaction.address}, ${primaryLinkedTransaction.transaction.city}, ${primaryLinkedTransaction.transaction.state}`
+    ? inspectionTransactionRecord
+      ? buildTransactionContextMetaLabel({
+          title: inspectionTransactionRecord.title,
+          address: inspectionTransactionRecord.address,
+          city: inspectionTransactionRecord.city,
+          state: inspectionTransactionRecord.state,
+          acceptanceDate: inspectionTransactionRecord.acceptanceDate,
+          closingDate: inspectionTransactionRecord.closingDate,
+          timeZone: input.timeZone,
+        })
       : "Linked transaction ready"
     : activeHandoffDraft
       ? activeHandoffDraft.summary?.trim() ||
@@ -1909,6 +2226,177 @@ export async function getFrontOfficeClientDetail(
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "This client is at a BO-ready stage, but the formal transaction and offer workspace have not been opened yet."
       : "This client is not yet at a formal negotiation / offer stage, so the next move should stay in Front Office follow-up, showing, and send prep.";
+  const inspectionBoundaryLabel = negotiationTransactionId
+    ? inspectionTransactionRecord?.acceptanceDate
+      ? "Inspection-era live"
+      : "Contract file live"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Ready for contract file"
+      : "Front Office prep";
+  const inspectionBoundaryTone: FrontOfficeClientDetailTone =
+    negotiationTransactionId
+      ? inspectionTransactionRecord?.acceptanceDate
+        ? "success"
+        : "accent"
+      : isFrontOfficeStageReadyForBackOffice(client.stage)
+        ? "warning"
+        : "neutral";
+  const inspectionBoundaryTitle = negotiationTransactionId
+    ? inspectionTransactionRecord?.acceptanceDate
+      ? "Inspection-era execution now lives in the shared BO workspace"
+      : "Formal contract file is live, but acceptance is not locked yet"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "The next formal contract step should start in Back Office"
+      : "Inspection support starts after the formal file exists";
+  const inspectionBoundaryDescription = negotiationTransactionId
+    ? inspectionTransactionRecord?.acceptanceDate
+      ? "Use the shared Back Office transaction to drive checklist work, signatures, incoming update review, and client-facing milestone clarity through the inspection window."
+      : "The transaction record exists, but Acre does not have an accepted-contract date yet. Finish the offer-to-contract transition in Back Office before treating this as a live inspection file."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Negotiation is advanced enough that the next formal contract / inspection step should begin from the shared Back Office record, not as a second Front Office checklist."
+      : "Keep the client in Front Office follow-up, showing, and negotiation prep until the formal contract file is opened.";
+  const inspectionBoundaryMetaLabel = negotiationTransactionId
+    ? inspectionTransactionRecord
+      ? buildTransactionContextMetaLabel({
+          title: inspectionTransactionRecord.title,
+          address: inspectionTransactionRecord.address,
+          city: inspectionTransactionRecord.city,
+          state: inspectionTransactionRecord.state,
+          acceptanceDate: inspectionTransactionRecord.acceptanceDate,
+          closingDate: inspectionTransactionRecord.closingDate,
+          timeZone: input.timeZone,
+        })
+      : "Back Office transaction ready"
+    : activeHandoffDraft
+      ? activeHandoffDraft.summary?.trim() ||
+        buildFrontOfficeHandoffSummary(
+          activeHandoffDraft.stageLabel,
+          client.fullName,
+        )
+      : `Current stage · ${client.stage}`;
+  const inspectionPrimaryActionLabel = negotiationTransactionId
+    ? inspectionOverdueTaskCount > 0 || inspectionOpenTaskCount > 0
+      ? "Open BO tasks"
+      : inspectionPendingSignatureCount > 0
+        ? "Open signatures"
+        : inspectionPendingIncomingUpdateCount > 0
+          ? "Review incoming updates"
+          : "Open transaction"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Open Back Office create flow"
+      : workflow.actionLabel;
+  const inspectionPrimaryActionHref = negotiationTransactionId
+    ? inspectionOverdueTaskCount > 0 || inspectionOpenTaskCount > 0
+      ? buildTransactionWorkspaceHref(
+          negotiationTransactionId,
+          "transaction-tasks",
+        )
+      : inspectionPendingSignatureCount > 0
+        ? buildTransactionWorkspaceHref(
+            negotiationTransactionId,
+            "transaction-forms-signatures",
+          )
+        : inspectionPendingIncomingUpdateCount > 0
+          ? buildTransactionWorkspaceHref(
+              negotiationTransactionId,
+              "transaction-incoming-updates",
+            )
+          : buildTransactionWorkspaceHref(negotiationTransactionId)
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? activeHandoff?.href ?? "/office/transactions"
+      : workflow.actionHref;
+  const inspectionEmptyStateTitle = negotiationTransactionId
+    ? inspectionTransactionRecord?.acceptanceDate
+      ? "No inspection pressure right now"
+      : "Contract file is live"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Formal contract support has not started yet"
+      : "Still in Front Office prep";
+  const inspectionEmptyStateDescription = negotiationTransactionId
+    ? inspectionTransactionRecord?.acceptanceDate
+      ? "Open tasks, pending signatures, and incoming review items will show up here when the shared transaction workspace needs action."
+      : "Open the formal transaction record to finish acceptance / contract setup. Inspection-era checklist support will become meaningful once the BO file is carrying the live milestones."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "This client is BO-ready, but the formal contract workspace has not been opened yet."
+      : "Inspection support is intentionally deferred until the client reaches formal contract work.";
+  const inspectionItems = negotiationTransactionId
+    ? [
+        ...inspectionTaskRows.map((task) => ({
+          id: `task-${task.id}`,
+          title: task.title,
+          statusLabel: formatTransactionTaskStatusLabel(task.status),
+          statusTone: mapTransactionTaskTone(task.status, task.dueAt, now),
+          contextLabel: task.checklistGroup?.trim() || "BO checklist",
+          description: [
+            formatTaskDueLabel(task.dueAt, now, input.timeZone),
+            task.assigneeMembership
+              ? `Assignee · ${
+                  `${task.assigneeMembership.user.firstName ?? ""} ${task.assigneeMembership.user.lastName ?? ""}`.trim() ||
+                  task.assigneeMembership.user.email ||
+                  "Unassigned"
+                }`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          metaLabel:
+            task.dueAt && task.dueAt.getTime() < now.getTime()
+              ? "Needs attention now"
+              : "Open Back Office checklist item",
+          actionLabel: "Open BO tasks",
+          href: buildTransactionWorkspaceHref(
+            negotiationTransactionId,
+            "transaction-tasks",
+          ),
+        })),
+        ...inspectionSignatureRows.map((request) => ({
+          id: `signature-${request.id}`,
+          title:
+            request.contextLabel?.trim() ||
+            request.form?.name?.trim() ||
+            `Signature request for ${request.recipientName || request.recipientEmail}`,
+          statusLabel: formatSignatureRequestStatusLabel(request.status),
+          statusTone: mapSignatureRequestTone(request.status),
+          contextLabel:
+            request.recipientName?.trim() || request.recipientEmail.trim(),
+          description: [
+            request.sentAt
+              ? `Sent ${formatDateLabel(request.sentAt, input.timeZone)}`
+              : request.status === SignatureRequestStatus.pending_send
+                ? "Ready to send"
+                : "",
+            request.expiresAt
+              ? `Expires ${formatDateLabel(request.expiresAt, input.timeZone)}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          metaLabel: request.form?.name?.trim() || "Shared BO signature flow",
+          actionLabel: "Open signatures",
+          href: buildTransactionWorkspaceHref(
+            negotiationTransactionId,
+            "transaction-forms-signatures",
+          ),
+        })),
+        ...inspectionIncomingUpdateRows.map((update) => ({
+          id: `incoming-update-${update.id}`,
+          title: update.summary,
+          statusLabel: formatIncomingUpdateStatusLabel(update.status),
+          statusTone: mapIncomingUpdateTone(update.status),
+          contextLabel: `${update.sourceSystem} · ${update.sourceReference}`,
+          description: `Received ${formatDateLabel(
+            update.receivedAt,
+            input.timeZone,
+          )}`,
+          metaLabel: "Awaiting Back Office review",
+          actionLabel: "Review update",
+          href: buildTransactionWorkspaceHref(
+            negotiationTransactionId,
+            "transaction-incoming-updates",
+          ),
+        })),
+      ]
+    : [];
 
   return {
     id: client.id,
@@ -1986,6 +2474,22 @@ export async function getFrontOfficeClientDetail(
               ),
             }))
           : [],
+    },
+    inspection: {
+      boundaryLabel: inspectionBoundaryLabel,
+      boundaryTone: inspectionBoundaryTone,
+      boundaryTitle: inspectionBoundaryTitle,
+      boundaryDescription: inspectionBoundaryDescription,
+      boundaryMetaLabel: inspectionBoundaryMetaLabel,
+      openTaskCount: inspectionOpenTaskCount,
+      overdueTaskCount: inspectionOverdueTaskCount,
+      pendingSignatureCount: inspectionPendingSignatureCount,
+      pendingIncomingUpdateCount: inspectionPendingIncomingUpdateCount,
+      primaryActionLabel: inspectionPrimaryActionLabel,
+      primaryActionHref: inspectionPrimaryActionHref,
+      emptyStateTitle: inspectionEmptyStateTitle,
+      emptyStateDescription: inspectionEmptyStateDescription,
+      items: inspectionItems,
     },
     workflow,
     playbook: buildFrontOfficePlaybook({

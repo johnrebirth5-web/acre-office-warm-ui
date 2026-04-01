@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge` foundation, the recommended next implementation target is:
 
-- `inspection report / inspection-era execution support rooted in the same dossier and BO boundary`
+- `PDF export / client-facing report delivery rooted in the same dossier and BO boundary`
 
 That means:
 
-- Front Office should be able to guide the post-offer / under-contract execution window without pretending inspection findings are already formal BO documents
-- inspection-era workflow should reuse the current dossier, appointments, send trail, and linked transaction / offer context instead of introducing a disconnected project board
-- the module should keep the FO -> BO boundary explicit by showing what remains lightweight coordination versus what becomes a formal document, task, or signature artifact
-- the goal is to extend the newly visible negotiation boundary into the next real execution phase before adding PDF-heavy export layers
+- Front Office should be able to package client-facing summaries or exports off the same live execution trail without pretending the PDF itself becomes the new source of truth
+- export-era workflow should reuse the current dossier, appointments, send trail, negotiation bridge, and inspection / contract-support bridge instead of introducing a disconnected reporting module
+- the module should keep the FO -> BO boundary explicit by treating tasks, signatures, and incoming updates as shared BO truth while FO owns the communication-ready wrapper around them
+- the goal is to add presentation / export value on top of the now-visible execution trail instead of creating a parallel inspection record system
 
 ## First real FO workflow models
 
@@ -148,6 +148,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/clients/[clientId]` now exposes an `Offer & negotiation` section that makes the boundary explicit across `Front Office prep`, `Ready for BO handoff`, and `BO workspace live`
   - when a linked transaction already exists, the dossier now reads the shared Back Office offers snapshot directly and surfaces offer count, expiring-soon count, accepted / primary state, and direct links into the BO offers workspace
   - when a client is BO-ready but the transaction is not yet committed, the dossier now points straight into the formal BO create flow instead of encouraging a duplicated Front Office offer record
+- inspection / contract-support bridge now also lives inside that same FO dossier instead of becoming a second inspection tracker:
+  - `/agent/clients/[clientId]` now exposes an `Inspection & contract support` section that makes the boundary explicit across `Front Office prep`, `Ready for contract file`, `Contract file live`, and `Inspection-era live`
+  - when a linked transaction already exists, the dossier now reads the shared BO transaction task, signature-request, and incoming-update foundations directly and surfaces open task counts, pending signatures, review-queue counts, and direct links into the relevant BO anchors
+  - when no formal transaction exists yet, the same section points back to the BO create flow or stays inside FO follow-up, so post-offer support remains visible without pretending a second contract / inspection store already exists
 
 ## Non-goals in this phase
 
@@ -158,4 +162,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- inspection report / inspection-era execution support rooted in the same dossier and BO boundary
+- PDF export / client-facing report delivery rooted in the same dossier and BO boundary

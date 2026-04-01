@@ -5,10 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- Current recommended FO next target after the live negotiation bridge is `Inspection Report`, so future threads extend the now-visible FO execution trail from offer boundary into post-offer execution support before jumping to `PDF` or AI
+- Current recommended FO next target after the live inspection bridge is `PDF export`, so future threads can build client-facing delivery on top of the now-visible FO -> BO execution trail before jumping into heavier AI work
 
 ## Recently completed major work
 
+- 2026-04-01: `inspection / contract-support bridge` is now live inside the FO client dossier instead of remaining only the next roadmap line:
+  - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now bridges the live dossier into existing BO transaction foundations, so each client can be read as `Front Office prep`, `Ready for contract file`, `Contract file live`, or `Inspection-era live` without inventing a second inspection store
+  - that same FO snapshot now reads the shared BO transaction task, signature-request, and incoming-update queues directly when a linked transaction exists, surfacing open-task pressure, pending signature work, review queue counts, and direct links back into `/office/transactions/[transactionId]#transaction-tasks`, `#transaction-forms-signatures`, and `#transaction-incoming-updates`
+  - [apps/web/app/agent/clients/[clientId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/page.tsx) now renders an `Inspection & contract support` section with dossier-native CTA routing, so agents can see whether to stay in FO prep, open the BO create flow, or work directly from the formal BO contract workspace during the inspection-era window
 - 2026-04-01: `offer / negotiation bridge` is now live inside the FO client dossier instead of remaining only a roadmap line:
   - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now bridges the live dossier to the existing BO handoff + offer foundations, so each client can be read as `Front Office prep`, `Ready for BO handoff`, or `BO workspace live` without inventing a second offer store
   - that same FO snapshot now reads the shared BO offers snapshot when a linked transaction already exists, surfacing offer count, expiring-soon count, accepted / primary state, and direct offer links back into `/office/transactions/[transactionId]#transaction-offers`

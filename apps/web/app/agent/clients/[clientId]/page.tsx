@@ -391,6 +391,99 @@ export default async function AgentClientDetailPage(
           </SectionCard>
 
           <SectionCard
+            actions={
+              <FrontOfficeLink
+                className="office-button-secondary"
+                href={snapshot.inspection.primaryActionHref}
+              >
+                {snapshot.inspection.primaryActionLabel}
+              </FrontOfficeLink>
+            }
+            className="office-list-card"
+            subtitle="Inspection-era support should surface the next formal milestone from the shared BO transaction instead of creating a second Front Office checklist."
+            title="Inspection & contract support"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="where this client currently sits across FO prep, contract setup, and live inspection-era BO execution"
+                label="Contract stage"
+                tone="accent"
+                value={snapshot.inspection.boundaryLabel}
+              />
+              <StatCard
+                hint="open checklist work already living on the shared BO transaction"
+                label="BO open tasks"
+                value={snapshot.inspection.openTaskCount}
+              />
+              <StatCard
+                hint="open signature requests that still need send / review / signer progress"
+                label="Pending signatures"
+                value={snapshot.inspection.pendingSignatureCount}
+              />
+              <StatCard
+                hint="incoming transaction updates still waiting on BO review"
+                label="Review queue"
+                value={snapshot.inspection.pendingIncomingUpdateCount}
+              />
+            </ListPageStatsGrid>
+
+            <div className="office-queue-list">
+              <QueueItem
+                action={
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={snapshot.inspection.primaryActionHref}
+                  >
+                    {snapshot.inspection.primaryActionLabel}
+                  </FrontOfficeLink>
+                }
+                badgeLabel={snapshot.inspection.boundaryLabel}
+                badgeTone={snapshot.inspection.boundaryTone}
+                description={snapshot.inspection.boundaryDescription}
+                meta={<span>{snapshot.inspection.boundaryMetaLabel}</span>}
+                title={snapshot.inspection.boundaryTitle}
+              />
+            </div>
+
+            <div className="office-queue-list">
+              {snapshot.inspection.items.length ? (
+                snapshot.inspection.items.map((item) => (
+                  <QueueItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={item.href}
+                      >
+                        {item.actionLabel}
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={item.statusLabel}
+                    badgeTone={item.statusTone}
+                    context={item.contextLabel}
+                    description={item.description}
+                    key={item.id}
+                    meta={<span>{item.metaLabel}</span>}
+                    title={item.title}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  action={
+                    <FrontOfficeLink
+                      className="office-button-secondary"
+                      href={snapshot.inspection.primaryActionHref}
+                    >
+                      {snapshot.inspection.primaryActionLabel}
+                    </FrontOfficeLink>
+                  }
+                  description={snapshot.inspection.emptyStateDescription}
+                  title={snapshot.inspection.emptyStateTitle}
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
             className="office-list-card"
             subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
             title="Chat List & phone strategy"
@@ -572,6 +665,11 @@ export default async function AgentClientDetailPage(
             label="Negotiation"
             tone="accent"
             value={snapshot.negotiation.boundaryLabel}
+          />
+          <SummaryChip
+            label="Contract support"
+            tone="accent"
+            value={snapshot.inspection.boundaryLabel}
           />
         </>
       }
