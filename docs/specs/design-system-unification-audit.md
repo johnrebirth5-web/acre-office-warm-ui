@@ -17,12 +17,14 @@ Current canonical sources of truth:
 - [docs/office-design-system.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/office-design-system.md)
 - [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css)
 - [packages/ui/src/index.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/ui/src/index.tsx)
-- [apps/web/app/_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
-- [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- [apps/web/app/\_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
+- [apps/web/app/\_components/canonical-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-detail-page-template.tsx)
+- [apps/web/app/\_components/workspace-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/workspace-nav.tsx)
+- [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
 
 `Front Office` already follows this baseline through:
 
-- [apps/web/app/agent/_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
+- [apps/web/app/agent/\_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
 
 As of `2026-04-01`, FO and BO route-level templates already share one common route-template skeleton through [canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx). The remaining unification work is now about expanding adoption and removing legacy page-local chrome, not about inventing the shared skeleton for the first time.
 
@@ -95,15 +97,15 @@ This means the main problem is not missing foundation. The problem is incomplete
 
 Canonical shared route-level list skeleton now exists in:
 
-- [apps/web/app/_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
+- [apps/web/app/\_components/canonical-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-list-page-template.tsx)
 
 BO list-page adapter exists in:
 
-- [apps/web/app/office/_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
+- [apps/web/app/office/\_components/office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
 
 FO list-page adapter exists in:
 
-- [apps/web/app/agent/_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
+- [apps/web/app/agent/\_components/front-office-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-page-template.tsx)
 
 The BO adapter is now directly used by the main Office list/workspace routes, including:
 
@@ -113,8 +115,8 @@ The BO adapter is now directly used by the main Office list/workspace routes, in
 
 The repo now also has a dedicated shared detail-shell family:
 
-- [apps/web/app/_components/canonical-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-detail-page-template.tsx)
-- [apps/web/app/office/_components/office-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-detail-page-template.tsx)
+- [apps/web/app/\_components/canonical-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/canonical-detail-page-template.tsx)
+- [apps/web/app/office/\_components/office-detail-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-detail-page-template.tsx)
 
 That adapter is now used by special Office routes such as:
 
@@ -131,57 +133,61 @@ Finding:
 - there is now one correct route-template contract at the skeleton level
 - and BO route-level adoption now spans both list/workbench pages and special detail/create/preview routes
 
-### 3. Active page markup is now clean; remaining `bm-*` is compatibility/runtime only
+### 3. Active page markup, runtime hooks, and global selectors are now clean
 
-The repo still contains many `bm-*` selectors in [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css), but active page/component markup under `apps/web/app` no longer emits those classes for live Office surfaces.
-
-Remaining code references are limited to compatibility/runtime support such as:
+Active page/component markup under `apps/web/app` no longer emits `bm-*` classes for live Office or Front Office surfaces, and the remaining runtime fallback hooks were also removed from:
 
 - [apps/web/app/office/office-table-layout-bootstrap.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-table-layout-bootstrap.ts)
 - [apps/web/app/office/office-table-layout-runtime.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-table-layout-runtime.tsx)
 
+[apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) no longer keeps the old `.bm-*`, `.office-bm-*`, `agent-nav-*`, or retired user-hero selector families as active compatibility baggage for live pages.
+
 Finding:
 
 - the product no longer has a second live page-markup language
-- remaining `bm-*` debt is now mostly CSS cleanup and backward-compatibility support
+- runtime compatibility for `bm-*` table/class parsing is gone
+- the remaining cleanup work is now opportunistic component consolidation, not legacy-language support
 
-### 4. The biggest remaining unification gap is route/template adoption, not class vocabulary
+### 4. Route/template adoption is effectively complete for active FO/BO surfaces
 
-Transaction detail and a smaller set of BO route pages now emit canonical `office-*` markup, but some of them still preserve older layout composition patterns instead of flowing through the full shared route-template family.
+The remaining active Office detail pages that still hand-assembled old route chrome have been moved onto the shared detail-shell family, including:
 
-Relevant files:
+- [apps/web/app/office/contacts/[contactId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/[contactId]/page.tsx)
+- [apps/web/app/office/payout-statements/[statementId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/payout-statements/[statementId]/page.tsx)
 
-- [apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/transactions/[transactionId]/transaction-detail-workspace.tsx)
-- [apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/permissions/permissions-client.tsx)
-- nested detail workspaces that still manage their own inner hero/body contract inside an otherwise canonical route shell
+Nested admin/detail workspaces also moved further into canonical body grammar in:
+
+- [apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx)
 
 Finding:
 
-- the design-language fork is largely closed at the class/markup layer
-- the remaining work is deeper inner-workspace normalization and later dead-CSS removal
+- the active route/template fork is closed for FO and BO page shells
+- the remaining work is optional future consolidation of local section layouts, not shell divergence
 
-### 5. FO shell is close to canonical, but nav and shell behavior are still separate implementations
+### 5. FO and BO now share one navigation behavior implementation
 
 FO layout and BO layout already share the same top-level shell classes:
 
 - [apps/web/app/office/layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/layout.tsx)
 - [apps/web/app/agent/layout.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/layout.tsx)
 
-That is good.
+Navigation behavior is now shared through:
 
-However, nav implementations are still separate:
+- [apps/web/app/\_components/workspace-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/_components/workspace-nav.tsx)
+
+Thin FO/BO wrappers now only provide workspace-specific item maps:
 
 - [apps/web/app/office/office-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/office-nav.tsx)
 - [apps/web/app/agent/agent-nav.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/agent-nav.tsx)
 
 Finding:
 
-- this is not a visual-brand fork
-- but it is still a second route-shell implementation that can drift over time
+- this removes the last major FO/BO shell-behavior split
+- future nav changes now have one implementation point instead of two drifting copies
 
 ### 6. Deprecated list patterns appear mostly cleaned up in markup, but dead compatibility CSS remains
 
-The repo still contains deprecated compatibility selectors in global CSS:
+The repo still contains some deprecated compatibility selectors in global CSS for older list patterns such as:
 
 - `office-note-item`
 - `front-office-note-item`
@@ -190,8 +196,8 @@ Current audit did not find active TSX usage of those classes in `apps/web/app`.
 
 Finding:
 
-- markup migration is ahead of CSS cleanup
-- dead compatibility CSS should be removed only after the remaining routes are confirmed clean
+- active route/shell cleanup is now ahead of secondary utility cleanup
+- any remaining dead CSS should be removed opportunistically when touched, not treated as a blocker for one-system parity
 
 ## Audit inventory
 
@@ -201,7 +207,9 @@ Finding:
 - BO list pages built on [office-list-page-template.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/_components/office-list-page-template.tsx)
 - detail/admin surfaces already centered on `SectionCard`, `QueueItem`, and shared form primitives, such as:
   - [apps/web/app/office/settings/users/[membershipId]/user-operations-detail-sections.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/user-operations-detail-sections.tsx)
-  - [apps/web/app/office/agents/[membershipId]/agent-profile-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/agents/[membershipId]/agent-profile-client.tsx)
+  - [apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/settings/users/[membershipId]/user-detail-client.tsx)
+  - [apps/web/app/office/contacts/[contactId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/contacts/[contactId]/page.tsx)
+  - [apps/web/app/office/payout-statements/[statementId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/office/payout-statements/[statementId]/page.tsx)
 
 ### Partially canonical, but still hand-assembled
 
@@ -211,9 +219,8 @@ Finding:
 
 ### Highest migration debt
 
-- inner-workspace normalization for BO detail/admin surfaces that already sit inside canonical shells
-- dead compatibility CSS cleanup after the new class names bake in
-- runtime compatibility support such as legacy table-layout hooks
+- opportunistic normalization for deeper nested content sections when those modules are touched again
+- optional pruning of remaining dead utility selectors after more bake time
 
 ## Priority order for unification
 
@@ -241,7 +248,7 @@ Completed workbench batch:
 
 - `activity` shell/list chrome moved off `bm-*`; follow-up work there is now limited to routing the page through the canonical route-template family when the surrounding filter/header composition is ready
 - `dashboard` goal-tracking and KPI/chart chrome moved off `bm-*`; follow-up work there is now limited to route-template adoption and any deeper legacy card cleanup outside the main dashboard page
-- active Office module/page markup under accounting, billing, contacts, transactions list/create/detail, and related modals/cards now emits `office-*` classes instead of `bm-*`, leaving only compatibility/runtime references behind
+- active Office module/page markup under accounting, billing, contacts, transactions list/create/detail, and related modals/cards now emits `office-*` classes instead of `bm-*`, and the old compatibility/runtime references have also been removed from active parsing paths
 - route-level shell/header adoption is now complete for the active Office list/workbench routes:
   - `accounting`, `activity`, `dashboard`, `notifications`, `tasks`
   - `pipeline`, `library`, `reports`
@@ -258,8 +265,8 @@ Completed workbench batch:
 
 Next candidates:
 
-- transaction detail sub-panels and other BO admin/detail workspaces that still carry route-local inner layouts
-- dead compatibility CSS cleanup once the new shell families have baked in
+- transaction detail sub-panels and other BO admin/detail workspaces that still carry localized section choreography
+- shared detail-body helpers if more admin/detail pages start repeating the same field-grid rhythm
 
 ### P2. Migrate transaction detail off `bm-*`
 

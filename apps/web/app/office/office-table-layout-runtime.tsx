@@ -7,7 +7,7 @@ import {
   getOfficeTableLayoutLegacyKeys,
   minimumColumnWidth,
   type OfficeTableLayoutColumn,
-  type OfficeTableLayoutMap
+  type OfficeTableLayoutMap,
 } from "./office-table-layout-shared";
 
 type GridTableGroup = {
@@ -51,7 +51,7 @@ const GRID_TABLE_ELEMENT_SELECTOR = [
   ".office-list-table-header[class*='office-list-table-header-']",
   ".office-list-table-row[class*='office-list-table-row-']",
   ".office-table-header[class*='office-table-row-']",
-  ".office-table-row[class*='office-table-row-']"
+  ".office-table-row[class*='office-table-row-']",
 ].join(", ");
 
 const GRID_HEADER_SELECTOR = [
@@ -60,7 +60,7 @@ const GRID_HEADER_SELECTOR = [
   ".office-agents-roster-head",
   ".office-agents-team-table-head",
   ".office-list-table-header[class*='office-list-table-header-']",
-  ".office-table-header[class*='office-table-row-']"
+  ".office-table-header[class*='office-table-row-']",
 ].join(", ");
 
 function sanitizeToken(value: string) {
@@ -90,9 +90,9 @@ function getColumnKey(cell: HTMLElement, index: number) {
 
   const semanticClass = Array.from(cell.classList).find(
     (className) =>
-      (className.startsWith("office-") || className.startsWith("bm-")) &&
+      className.startsWith("office-") &&
       !className.endsWith("status-badge") &&
-      !className.endsWith("badge")
+      !className.endsWith("badge"),
   );
 
   if (semanticClass) {
@@ -108,7 +108,9 @@ function isGridHeaderRow(element: HTMLElement) {
 
 function deriveGridTableKey(element: HTMLElement) {
   for (const className of element.classList) {
-    const listMatch = className.match(/^office-list-table-(?:header|row)-(.+)$/);
+    const listMatch = className.match(
+      /^office-list-table-(?:header|row)-(.+)$/,
+    );
 
     if (listMatch) {
       return `grid:office-list-table:${listMatch[1]}`;
@@ -120,19 +122,31 @@ function deriveGridTableKey(element: HTMLElement) {
       return `grid:office-table-row:${tableRowMatch[1]}`;
     }
 
-    if (className === "office-dashboard-transactions-head" || className === "office-dashboard-transactions-row") {
+    if (
+      className === "office-dashboard-transactions-head" ||
+      className === "office-dashboard-transactions-row"
+    ) {
       return "grid:office-dashboard-transactions";
     }
 
-    if (className === "office-pipeline-table-head" || className === "office-pipeline-row") {
+    if (
+      className === "office-pipeline-table-head" ||
+      className === "office-pipeline-row"
+    ) {
       return "grid:office-pipeline";
     }
 
-    if (className === "office-agents-roster-head" || className === "office-agents-roster-row") {
+    if (
+      className === "office-agents-roster-head" ||
+      className === "office-agents-roster-row"
+    ) {
       return "grid:office-agents-roster";
     }
 
-    if (className === "office-agents-team-table-head" || className === "office-agents-team-table-row") {
+    if (
+      className === "office-agents-team-table-head" ||
+      className === "office-agents-team-table-row"
+    ) {
       return "grid:office-agents-team-table";
     }
   }
@@ -141,41 +155,62 @@ function deriveGridTableKey(element: HTMLElement) {
 }
 
 function deriveNativeTableKey(table: HTMLTableElement) {
-  const preferredClass = Array.from(table.classList).find((className) => /^(office|bm)-.*table/.test(className));
+  const preferredClass = Array.from(table.classList).find((className) =>
+    /^(office|bm)-.*table/.test(className),
+  );
   return preferredClass ? `native:${preferredClass}` : null;
 }
 
 function getGridHeaderCells(headerRow: HTMLElement) {
-  return Array.from(headerRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement);
+  return Array.from(headerRow.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement,
+  );
 }
 
 function getNativeHeaderCells(headerRow: HTMLTableRowElement) {
-  return Array.from(headerRow.cells).filter((cell): cell is HTMLTableCellElement => cell instanceof HTMLTableCellElement);
+  return Array.from(headerRow.cells).filter(
+    (cell): cell is HTMLTableCellElement =>
+      cell instanceof HTMLTableCellElement,
+  );
 }
 
 function measureColumns(cells: HTMLElement[]) {
   return cells.map((cell, index) => ({
     key: getColumnKey(cell, index),
-    width: Math.max(Math.round(cell.getBoundingClientRect().width), minimumColumnWidth)
+    width: Math.max(
+      Math.round(cell.getBoundingClientRect().width),
+      minimumColumnWidth,
+    ),
   }));
 }
 
-function resolveColumnsForHeader(cells: HTMLElement[], persisted: OfficeTableLayoutColumn[] | undefined) {
+function resolveColumnsForHeader(
+  cells: HTMLElement[],
+  persisted: OfficeTableLayoutColumn[] | undefined,
+) {
   const measured = measureColumns(cells);
 
   if (!persisted?.length) {
     return measured;
   }
 
-  const persistedByKey = new Map(persisted.map((column) => [column.key, column.width]));
+  const persistedByKey = new Map(
+    persisted.map((column) => [column.key, column.width]),
+  );
 
   return measured.map((column) => ({
     key: column.key,
-    width: Math.max(Math.round(persistedByKey.get(column.key) ?? column.width), minimumColumnWidth)
+    width: Math.max(
+      Math.round(persistedByKey.get(column.key) ?? column.width),
+      minimumColumnWidth,
+    ),
   }));
 }
 
-function applyGridColumns(group: GridTableGroup, columns: OfficeTableLayoutColumn[]) {
+function applyGridColumns(
+  group: GridTableGroup,
+  columns: OfficeTableLayoutColumn[],
+) {
   const gridTemplateColumns = buildGridTemplate(columns);
   const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
 
@@ -186,8 +221,13 @@ function applyGridColumns(group: GridTableGroup, columns: OfficeTableLayoutColum
   });
 }
 
-function syncNativeColGroup(table: HTMLTableElement, columns: OfficeTableLayoutColumn[]) {
-  let colGroup = table.querySelector(":scope > colgroup[data-office-table-layout='true']");
+function syncNativeColGroup(
+  table: HTMLTableElement,
+  columns: OfficeTableLayoutColumn[],
+) {
+  let colGroup = table.querySelector(
+    ":scope > colgroup[data-office-table-layout='true']",
+  );
 
   if (!(colGroup instanceof HTMLTableColElement)) {
     colGroup = document.createElement("colgroup");
@@ -222,7 +262,10 @@ function syncNativeColGroup(table: HTMLTableElement, columns: OfficeTableLayoutC
   table.style.minWidth = `${totalWidth}px`;
 }
 
-function applyNativeColumns(group: NativeTableGroup, columns: OfficeTableLayoutColumn[]) {
+function applyNativeColumns(
+  group: NativeTableGroup,
+  columns: OfficeTableLayoutColumn[],
+) {
   group.tables.forEach((table) => {
     syncNativeColGroup(table, columns);
     table.dataset.officeTableLayoutKey = group.key;
@@ -230,8 +273,14 @@ function applyNativeColumns(group: NativeTableGroup, columns: OfficeTableLayoutC
 }
 
 function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
-  const scopedGridGroups = new Map<string, GridTableGroup & { baseKey: string }>();
-  const scopedNativeGroups = new Map<string, NativeTableGroup & { baseKey: string }>();
+  const scopedGridGroups = new Map<
+    string,
+    GridTableGroup & { baseKey: string }
+  >();
+  const scopedNativeGroups = new Map<
+    string,
+    NativeTableGroup & { baseKey: string }
+  >();
   const containerIds = new WeakMap<object, string>();
   let nextContainerId = 1;
 
@@ -249,38 +298,44 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
   }
 
   function getGridContainer(element: HTMLElement) {
-    return element.closest(".office-data-table, .office-table, .bm-office-table") ?? element.parentElement ?? element;
+    return (
+      element.closest(".office-data-table, .office-table") ??
+      element.parentElement ??
+      element
+    );
   }
 
-  root.querySelectorAll<HTMLElement>(GRID_TABLE_ELEMENT_SELECTOR).forEach((element) => {
-    const baseKey = deriveGridTableKey(element);
+  root
+    .querySelectorAll<HTMLElement>(GRID_TABLE_ELEMENT_SELECTOR)
+    .forEach((element) => {
+      const baseKey = deriveGridTableKey(element);
 
-    if (!baseKey) {
-      return;
-    }
-
-    const scopeKey = `${baseKey}@@${getContainerId(getGridContainer(element))}`;
-    const existing = scopedGridGroups.get(scopeKey);
-
-    if (existing) {
-      existing.elements.push(element);
-
-      if (isGridHeaderRow(element)) {
-        existing.headerRows.push(element);
+      if (!baseKey) {
+        return;
       }
 
-      return;
-    }
+      const scopeKey = `${baseKey}@@${getContainerId(getGridContainer(element))}`;
+      const existing = scopedGridGroups.get(scopeKey);
 
-    scopedGridGroups.set(scopeKey, {
-      kind: "grid",
-      baseKey,
-      key: baseKey,
-      legacyKeys: [],
-      headerRows: isGridHeaderRow(element) ? [element] : [],
-      elements: [element]
+      if (existing) {
+        existing.elements.push(element);
+
+        if (isGridHeaderRow(element)) {
+          existing.headerRows.push(element);
+        }
+
+        return;
+      }
+
+      scopedGridGroups.set(scopeKey, {
+        kind: "grid",
+        baseKey,
+        key: baseKey,
+        legacyKeys: [],
+        headerRows: isGridHeaderRow(element) ? [element] : [],
+        elements: [element],
+      });
     });
-  });
 
   root.querySelectorAll<HTMLTableElement>("table[class]").forEach((table) => {
     const baseKey = deriveNativeTableKey(table);
@@ -305,7 +360,7 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
       key: baseKey,
       legacyKeys: [],
       headerRows: [headerRow],
-      tables: [table]
+      tables: [table],
     });
   });
 
@@ -320,7 +375,9 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
 
     const key = buildOfficeTableLayoutKey(
       group.baseKey,
-      getGridHeaderCells(headerRow).map((cell, index) => getColumnKey(cell, index))
+      getGridHeaderCells(headerRow).map((cell, index) =>
+        getColumnKey(cell, index),
+      ),
     );
     const existing = groups.get(key);
 
@@ -335,7 +392,7 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
       key,
       legacyKeys: getOfficeTableLayoutLegacyKeys(key),
       headerRows: [...group.headerRows],
-      elements: [...group.elements]
+      elements: [...group.elements],
     });
   });
 
@@ -348,7 +405,9 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
 
     const key = buildOfficeTableLayoutKey(
       group.baseKey,
-      getNativeHeaderCells(headerRow).map((cell, index) => getColumnKey(cell, index))
+      getNativeHeaderCells(headerRow).map((cell, index) =>
+        getColumnKey(cell, index),
+      ),
     );
     const existing = groups.get(key);
 
@@ -363,7 +422,7 @@ function buildTableGroups(root: ParentNode): Map<string, TableGroup> {
       key,
       legacyKeys: getOfficeTableLayoutLegacyKeys(key),
       headerRows: [...group.headerRows],
-      tables: [...group.tables]
+      tables: [...group.tables],
     });
   });
 
@@ -391,7 +450,8 @@ function OfficeTableLayoutRuntime(props: {
   }, [props.initialLayouts]);
 
   useEffect(() => {
-    const rootNode = document.querySelector(".office-dashboard-main") ?? document.body;
+    const rootNode =
+      document.querySelector(".office-dashboard-main") ?? document.body;
 
     function applyLayout(key: string, columns: OfficeTableLayoutColumn[]) {
       const group = groupsRef.current.get(key);
@@ -433,14 +493,21 @@ function OfficeTableLayoutRuntime(props: {
 
       if (group.kind === "grid") {
         const headerRow = group.headerRows[0];
-        return headerRow ? resolveColumnsForHeader(getGridHeaderCells(headerRow), persisted) : [];
+        return headerRow
+          ? resolveColumnsForHeader(getGridHeaderCells(headerRow), persisted)
+          : [];
       }
 
       const headerRow = group.headerRows[0];
-      return headerRow ? resolveColumnsForHeader(getNativeHeaderCells(headerRow), persisted) : [];
+      return headerRow
+        ? resolveColumnsForHeader(getNativeHeaderCells(headerRow), persisted)
+        : [];
     }
 
-    async function persistLayout(key: string, columns: OfficeTableLayoutColumn[]) {
+    async function persistLayout(
+      key: string,
+      columns: OfficeTableLayoutColumn[],
+    ) {
       if (!canManageRef.current) {
         return;
       }
@@ -449,12 +516,12 @@ function OfficeTableLayoutRuntime(props: {
         const response = await fetch("/api/office/settings/table-layouts", {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             tableKey: key,
-            columns
-          })
+            columns,
+          }),
         });
 
         if (!response.ok) {
@@ -487,7 +554,10 @@ function OfficeTableLayoutRuntime(props: {
 
       dragState?.activeCell?.classList.remove("office-table-resize-active");
 
-      if (dragState.activeHandle && dragState.activeHandle.hasPointerCapture?.(dragState.pointerId)) {
+      if (
+        dragState.activeHandle &&
+        dragState.activeHandle.hasPointerCapture?.(dragState.pointerId)
+      ) {
         dragState.activeHandle.releasePointerCapture(dragState.pointerId);
       }
 
@@ -503,17 +573,20 @@ function OfficeTableLayoutRuntime(props: {
       }
 
       const delta = event.clientX - dragState.startX;
-      const nextWidth = Math.max(minimumColumnWidth, dragState.startColumnWidth + delta);
+      const nextWidth = Math.max(
+        minimumColumnWidth,
+        dragState.startColumnWidth + delta,
+      );
       const nextColumns = dragState.columns.map((column) => ({ ...column }));
 
       nextColumns[dragState.columnIndex] = {
         ...nextColumns[dragState.columnIndex],
-        width: nextWidth
+        width: nextWidth,
       };
 
       dragStateRef.current = {
         ...dragState,
-        columns: nextColumns
+        columns: nextColumns,
       };
 
       applyLayout(dragState.key, nextColumns);
@@ -551,7 +624,11 @@ function OfficeTableLayoutRuntime(props: {
       const key = handle.dataset.officeTableResizeKey;
       const columnIndex = Number(handle.dataset.officeTableResizeIndex);
 
-      if (!(activeCell instanceof HTMLElement) || !key || !Number.isFinite(columnIndex)) {
+      if (
+        !(activeCell instanceof HTMLElement) ||
+        !key ||
+        !Number.isFinite(columnIndex)
+      ) {
         return;
       }
 
@@ -563,7 +640,7 @@ function OfficeTableLayoutRuntime(props: {
       columnIndex: number,
       activeCell: HTMLElement,
       activeHandle: HTMLDivElement,
-      event: PointerEvent
+      event: PointerEvent,
     ) {
       const columns = getHeaderColumnsForKey(key);
       const column = columns[columnIndex];
@@ -584,7 +661,7 @@ function OfficeTableLayoutRuntime(props: {
         startColumnWidth: column.width,
         activeCell,
         activeHandle,
-        pointerId: event.pointerId
+        pointerId: event.pointerId,
       };
 
       document.body.classList.add("office-table-column-resizing");
@@ -598,11 +675,16 @@ function OfficeTableLayoutRuntime(props: {
       }
 
       headerCells.forEach((cell, index) => {
-        const existingHandles = cell.querySelectorAll(":scope > .office-table-resize-handle");
+        const existingHandles = cell.querySelectorAll(
+          ":scope > .office-table-resize-handle",
+        );
 
         if (index === 0) {
           existingHandles.forEach((handle) => handle.remove());
-          cell.classList.remove("office-table-resizable-cell", "office-table-resize-active");
+          cell.classList.remove(
+            "office-table-resizable-cell",
+            "office-table-resize-active",
+          );
           return;
         }
 
@@ -659,7 +741,10 @@ function OfficeTableLayoutRuntime(props: {
           return;
         }
 
-        const cells = group.kind === "grid" ? getGridHeaderCells(headerRow) : getNativeHeaderCells(headerRow as HTMLTableRowElement);
+        const cells =
+          group.kind === "grid"
+            ? getGridHeaderCells(headerRow)
+            : getNativeHeaderCells(headerRow as HTMLTableRowElement);
         const resolvedColumns = resolveColumnsForHeader(cells, persisted);
         applyLayout(key, resolvedColumns);
       });
@@ -681,12 +766,16 @@ function OfficeTableLayoutRuntime(props: {
 
     observer.observe(rootNode, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
 
-    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointermove", handlePointerMove, {
+      passive: false,
+    });
     window.addEventListener("pointerup", handlePointerUp, { passive: false });
-    window.addEventListener("pointercancel", handlePointerUp, { passive: false });
+    window.addEventListener("pointercancel", handlePointerUp, {
+      passive: false,
+    });
     window.addEventListener("blur", stopDragging);
 
     rescanTables();

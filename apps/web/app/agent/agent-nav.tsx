@@ -1,69 +1,36 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { SiteReleaseBadge } from "../site-release-badge";
+import {
+  WorkspaceNav,
+  type WorkspaceNavGroup,
+} from "../_components/workspace-nav";
 
-const frontOfficeNavItems = [
-  { href: "/agent/dashboard", label: "Dashboard", shortLabel: "Home" },
-  { href: "/agent/clients", label: "Clients", shortLabel: "Clients" },
-  { href: "/agent/listings", label: "Listings", shortLabel: "Listings" },
-  { href: "/agent/notifications", label: "Activity", shortLabel: "Alerts" },
-  { href: "/agent/resources", label: "Resources", shortLabel: "Resources" }
-] as const;
+const frontOfficeNavGroups: WorkspaceNavGroup[] = [
+  {
+    title: "Overview",
+    icon: "◫",
+    items: [
+      { href: "/agent/dashboard", label: "Dashboard" },
+      { href: "/agent/clients", label: "Clients" },
+      { href: "/agent/listings", label: "Listings" },
+      { href: "/agent/notifications", label: "Activity" },
+      { href: "/agent/resources", label: "Resources" },
+    ],
+  },
+];
 
 export function AgentNav() {
-  const pathname = usePathname();
-  const items = frontOfficeNavItems;
-
   return (
-    <>
-      <aside className="sidebar office-dashboard-sidebar agent-sidebar">
-        <div className="office-logo-panel agent-brand-panel">
-          <Image
-            alt="Acre New York Realty logo"
-            className="office-logo-image"
-            height={1404}
-            priority
-            src="/acre-logo-nyr.png"
-            width={1175}
-          />
-        </div>
-
-        <SiteReleaseBadge className="site-release-badge-office site-release-badge-agent-panel" />
-
-        <div className="office-company-switcher agent-company-switcher">
-          <strong>FRONT OFFICE</strong>
-          <span>▾</span>
-        </div>
-
-        <section className="nav-group agent-nav-group">
-          <header className="office-nav-header agent-nav-header">
-            <span>◫</span>
-            <strong>Overview</strong>
-          </header>
-          <div className="nav-items agent-nav-links">
-            {items.map((item) => (
-              <Link
-                key={item.href}
-                className={`office-nav-link agent-nav-link${pathname === item.href ? " is-active" : ""}`}
-                href={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </section>
-      </aside>
-
-      <nav className="mobile-rail office-mobile-rail">
-        {items.map((item) => (
-          <Link key={item.href} className={pathname === item.href ? "is-active" : ""} href={item.href}>
-            {item.shortLabel}
-          </Link>
-        ))}
-      </nav>
-    </>
+    <WorkspaceNav
+      brandPanelClassName="agent-brand-panel"
+      currentWorkspaceName="Front Office"
+      homeHref="/agent/dashboard"
+      navGroups={frontOfficeNavGroups}
+      navigationLabel="Front Office navigation"
+      releaseBadgeClassName="site-release-badge-agent-panel"
+      sidebarClassName="agent-sidebar"
+      switcherClassName="agent-company-switcher"
+      switcherLabel="FRONT OFFICE"
+    />
   );
 }

@@ -4,7 +4,17 @@ import type { OfficeAdminUserDetailSnapshot } from "@acre/db";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useState, type FormEvent } from "react";
-import { Badge, Button, EmptyState, FormField, QueueItem, SectionCard, SelectInput, StatusBadge, TextInput } from "@acre/ui";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  FormField,
+  QueueItem,
+  SectionCard,
+  SelectInput,
+  StatusBadge,
+  TextInput,
+} from "@acre/ui";
 import {
   copyTextToClipboard,
   formatInviteExpiry,
@@ -15,7 +25,7 @@ import {
   getRoleConfigurationHint,
   getRoleEditorOptions,
   getStatusEditorOptions,
-  isPrivilegedRoleValue
+  isPrivilegedRoleValue,
 } from "../users-shared";
 import { UserTeamAssignmentsCard } from "./user-team-assignments-card";
 
@@ -52,19 +62,23 @@ export function OfficeSettingsUserDetailClient({
   canManageSensitiveUsers,
   canManageTeams,
   mode = "full",
-  operationsHref
+  operationsHref,
 }: OfficeSettingsUserDetailClientProps) {
   const router = useRouter();
   const [draft, setDraft] = useState<DetailDraft>({
     role: snapshot.profile.roleValue,
     status: snapshot.profile.statusValue,
-    officeId: snapshot.profile.officeAccessValue
+    officeId: snapshot.profile.officeAccessValue,
   });
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
-  const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(null);
-  const canManagePrivilegedAccount = canManageSensitiveUsers || !isPrivilegedRoleValue(snapshot.profile.roleValue);
+  const [latestInvite, setLatestInvite] = useState<GeneratedInviteState | null>(
+    null,
+  );
+  const canManagePrivilegedAccount =
+    canManageSensitiveUsers ||
+    !isPrivilegedRoleValue(snapshot.profile.roleValue);
   const canManageAccountAccess = canManageUsers && canManagePrivilegedAccount;
 
   function getCommissionStatusTone(status: string) {
@@ -83,12 +97,12 @@ export function OfficeSettingsUserDetailClient({
     setDraft({
       role: snapshot.profile.roleValue,
       status: snapshot.profile.statusValue,
-      officeId: snapshot.profile.officeAccessValue
+      officeId: snapshot.profile.officeAccessValue,
     });
   }, [
     snapshot.profile.officeAccessValue,
     snapshot.profile.roleValue,
-    snapshot.profile.statusValue
+    snapshot.profile.statusValue,
   ]);
 
   function refreshCurrentPage() {
@@ -100,7 +114,7 @@ export function OfficeSettingsUserDetailClient({
   function setDraftField(field: keyof DetailDraft, value: string) {
     setDraft((current) => ({
       ...current,
-      [field]: value
+      [field]: value,
     }));
   }
 
@@ -111,23 +125,34 @@ export function OfficeSettingsUserDetailClient({
     setActionNotice("");
 
     try {
-      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
+      const response = await fetch(
+        `/api/office/settings/users/${snapshot.profile.membershipId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(draft),
         },
-        body: JSON.stringify(draft)
-      });
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to update the internal account.");
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(
+          body?.error ?? "Failed to update the internal account.",
+        );
       }
 
       setActionNotice("User access updated.");
       refreshCurrentPage();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to update the internal account.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update the internal account.",
+      );
     } finally {
       setPendingAction(null);
     }
@@ -139,13 +164,16 @@ export function OfficeSettingsUserDetailClient({
     setActionNotice("");
 
     try {
-      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/invitation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
+      const response = await fetch(
+        `/api/office/settings/users/${snapshot.profile.membershipId}/invitation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action }),
         },
-        body: JSON.stringify({ action })
-      });
+      );
 
       const body = (await response.json().catch(() => null)) as
         | ({
@@ -171,12 +199,16 @@ export function OfficeSettingsUserDetailClient({
       setLatestInvite({
         membershipId: body.membershipId,
         invitationUrl: body.invitationUrl,
-        expiresAtLabel: formatInviteExpiry(body.expiresAt)
+        expiresAtLabel: formatInviteExpiry(body.expiresAt),
       });
       setActionNotice("A fresh setup link is ready to copy.");
       refreshCurrentPage();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to update the invitation.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update the invitation.",
+      );
     } finally {
       setPendingAction(null);
     }
@@ -188,19 +220,28 @@ export function OfficeSettingsUserDetailClient({
     setActionNotice("");
 
     try {
-      const response = await fetch(`/api/office/settings/users/${snapshot.profile.membershipId}/unlock`, {
-        method: "POST"
-      });
+      const response = await fetch(
+        `/api/office/settings/users/${snapshot.profile.membershipId}/unlock`,
+        {
+          method: "POST",
+        },
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to unlock the account.");
       }
 
       setActionNotice("Account unlocked.");
       refreshCurrentPage();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to unlock the account.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to unlock the account.",
+      );
     } finally {
       setPendingAction(null);
     }
@@ -218,7 +259,11 @@ export function OfficeSettingsUserDetailClient({
       await copyTextToClipboard(latestInvite.invitationUrl);
       setActionNotice("Invitation link copied.");
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Unable to copy the invitation link.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to copy the invitation link.",
+      );
     } finally {
       setPendingAction(null);
     }
@@ -231,68 +276,106 @@ export function OfficeSettingsUserDetailClient({
 
   return (
     <div className="office-settings-user-detail-stack">
-      {submitError ? <p className="office-inline-error">{submitError}</p> : null}
-      {actionNotice ? <p className="office-inline-success">{actionNotice}</p> : null}
+      {submitError ? (
+        <p className="office-inline-error">{submitError}</p>
+      ) : null}
+      {actionNotice ? (
+        <p className="office-inline-success">{actionNotice}</p>
+      ) : null}
 
-      <SectionCard className="office-settings-user-hero-card">
-        <div className="office-settings-user-hero">
-          <div aria-hidden="true" className="office-settings-user-avatar">
-            {snapshot.profile.name.charAt(0).toUpperCase()}
+      <SectionCard
+        actions={
+          profileLinkHref ? (
+            <Link
+              className="office-button-secondary office-button-sm"
+              href={profileLinkHref}
+            >
+              {operationsHref ? "Jump to operations" : "Open agent profile"}
+            </Link>
+          ) : null
+        }
+        subtitle="Current identity, invitation state, and sign-in context for this internal account."
+        title="Account snapshot"
+      >
+        <div className="office-settings-user-inline-badges">
+          <Badge
+            tone={
+              snapshot.profile.roleValue === "owner" ||
+              snapshot.profile.roleValue === "office_admin"
+                ? "accent"
+                : "neutral"
+            }
+          >
+            {snapshot.profile.role}
+          </Badge>
+          <StatusBadge tone={getMembershipTone(snapshot.profile.statusValue)}>
+            {snapshot.profile.status}
+          </StatusBadge>
+          <StatusBadge
+            tone={getOnboardingTone(snapshot.profile.onboardingStatusValue)}
+          >
+            {snapshot.profile.onboardingStatusLabel}
+          </StatusBadge>
+          <Badge tone={getInvitationTone(snapshot.profile)}>
+            {snapshot.profile.invitationStatusLabel}
+          </Badge>
+          {snapshot.profile.isLocked ? (
+            <StatusBadge tone="danger">
+              Locked until {snapshot.profile.lockedUntilLabel}
+            </StatusBadge>
+          ) : null}
+        </div>
+
+        <div className="office-detail-grid">
+          <div className="office-detail-field office-detail-field-wide">
+            <span>Member</span>
+            <strong>{snapshot.profile.name}</strong>
+            <p>{snapshot.profile.title || snapshot.profile.email}</p>
           </div>
-
-          <div className="office-settings-user-hero-copy">
-            <div className="office-settings-user-hero-topline">
-              <div className="office-settings-user-hero-heading">
-                <h3>{snapshot.profile.name}</h3>
-                <Badge tone={snapshot.profile.roleValue === "owner" || snapshot.profile.roleValue === "office_admin" ? "accent" : "neutral"}>
-                  {snapshot.profile.role}
-                </Badge>
-                <StatusBadge tone={getMembershipTone(snapshot.profile.statusValue)}>{snapshot.profile.status}</StatusBadge>
-                <StatusBadge tone={getOnboardingTone(snapshot.profile.onboardingStatusValue)}>{snapshot.profile.onboardingStatusLabel}</StatusBadge>
-              </div>
-
-              {profileLinkHref ? (
-                <Link className="office-button-secondary office-button-sm" href={profileLinkHref}>
-                  {operationsHref ? "Jump to operations" : "Open agent profile"}
-                </Link>
-              ) : null}
-            </div>
-
-            <div className="office-settings-user-hero-meta">
-              <div>
-                <span>Email</span>
-                <strong>{snapshot.profile.email}</strong>
-              </div>
-              <div>
-                <span>Office access</span>
-                <strong>{snapshot.profile.officeAccessLabel}</strong>
-              </div>
-              <div>
-                <span>Team</span>
-                <strong>{snapshot.profile.teamSummary}</strong>
-              </div>
-              <div>
-                <span>Created</span>
-                <strong>{snapshot.profile.createdAtLabel || "—"}</strong>
-              </div>
-              <div>
-                <span>Last sign in</span>
-                <strong>{snapshot.profile.lastLoginAtLabel || "No successful sign-in yet"}</strong>
-              </div>
-              <div>
-                <span>Password</span>
-                <strong>{snapshot.profile.authStatusLabel}</strong>
-              </div>
-            </div>
-
-            <div className="office-settings-user-hero-banner">
-              <div className="office-settings-user-hero-banner-copy">
-                <Badge tone={getInvitationTone(snapshot.profile)}>{snapshot.profile.invitationStatusLabel}</Badge>
-                {snapshot.profile.invitationExpiresAtLabel ? <span>Invite expires {snapshot.profile.invitationExpiresAtLabel}</span> : null}
-                {snapshot.profile.isLocked ? <StatusBadge tone="danger">Locked until {snapshot.profile.lockedUntilLabel}</StatusBadge> : null}
-              </div>
-            </div>
+          <div className="office-detail-field">
+            <span>Email</span>
+            <strong>{snapshot.profile.email}</strong>
           </div>
+          <div className="office-detail-field">
+            <span>Office access</span>
+            <strong>{snapshot.profile.officeAccessLabel}</strong>
+          </div>
+          <div className="office-detail-field">
+            <span>Team</span>
+            <strong>{snapshot.profile.teamSummary}</strong>
+          </div>
+          <div className="office-detail-field">
+            <span>Created</span>
+            <strong>{snapshot.profile.createdAtLabel || "—"}</strong>
+          </div>
+          <div className="office-detail-field">
+            <span>Last sign in</span>
+            <strong>
+              {snapshot.profile.lastLoginAtLabel || "No successful sign-in yet"}
+            </strong>
+          </div>
+          <div className="office-detail-field">
+            <span>Password</span>
+            <strong>{snapshot.profile.authStatusLabel}</strong>
+          </div>
+          <div className="office-detail-field">
+            <span>Invitation</span>
+            <strong>{snapshot.profile.invitationStatusLabel}</strong>
+          </div>
+        </div>
+
+        <div className="office-inline-meta">
+          {snapshot.profile.invitationExpiresAtLabel ? (
+            <span>
+              Invite expires {snapshot.profile.invitationExpiresAtLabel}
+            </span>
+          ) : null}
+          <span>
+            Last failed login: {snapshot.profile.lastFailedLoginAtLabel || "—"}
+          </span>
+          <span>
+            Password changed: {snapshot.profile.passwordChangedAtLabel || "—"}
+          </span>
         </div>
       </SectionCard>
 
@@ -302,12 +385,28 @@ export function OfficeSettingsUserDetailClient({
           subtitle="Update role, membership lifecycle, office access, and invitation state from one place."
           title="Account access"
         >
-          <form className="office-settings-user-access-form" onSubmit={handleSaveUser}>
+          <form
+            className="office-settings-user-access-form"
+            onSubmit={handleSaveUser}
+          >
             <div className="office-form-grid office-form-grid-3 office-settings-user-access-controls">
               <FormField label="Role">
-                <SelectInput disabled={!canManageAccountAccess} onChange={(event) => setDraftField("role", event.target.value)} value={draft.role}>
-                  {getRoleEditorOptions(snapshot.profile, canManageSensitiveUsers).map((option) => (
-                    <option disabled={option.disabled} key={option.value} value={option.value}>
+                <SelectInput
+                  disabled={!canManageAccountAccess}
+                  onChange={(event) =>
+                    setDraftField("role", event.target.value)
+                  }
+                  value={draft.role}
+                >
+                  {getRoleEditorOptions(
+                    snapshot.profile,
+                    canManageSensitiveUsers,
+                  ).map((option) => (
+                    <option
+                      disabled={option.disabled}
+                      key={option.value}
+                      value={option.value}
+                    >
                       {option.label}
                     </option>
                   ))}
@@ -315,7 +414,13 @@ export function OfficeSettingsUserDetailClient({
               </FormField>
 
               <FormField label="Membership">
-                <SelectInput disabled={!canManageAccountAccess} onChange={(event) => setDraftField("status", event.target.value)} value={draft.status}>
+                <SelectInput
+                  disabled={!canManageAccountAccess}
+                  onChange={(event) =>
+                    setDraftField("status", event.target.value)
+                  }
+                  value={draft.status}
+                >
                   {getStatusEditorOptions(snapshot.profile).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -325,7 +430,13 @@ export function OfficeSettingsUserDetailClient({
               </FormField>
 
               <FormField label="Office access">
-                <SelectInput disabled={!canManageAccountAccess} onChange={(event) => setDraftField("officeId", event.target.value)} value={draft.officeId}>
+                <SelectInput
+                  disabled={!canManageAccountAccess}
+                  onChange={(event) =>
+                    setDraftField("officeId", event.target.value)
+                  }
+                  value={draft.officeId}
+                >
                   {snapshot.editors.officeOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
@@ -338,15 +449,21 @@ export function OfficeSettingsUserDetailClient({
             <div className="office-settings-user-access-callout">
               <strong>Permissions scope</strong>
               <p>{getRoleConfigurationHint(draft.role)}</p>
-              {snapshot.profile.hasActiveLeaderAssignments && snapshot.profile.roleValue === "agent" ? (
+              {snapshot.profile.hasActiveLeaderAssignments &&
+              snapshot.profile.roleValue === "agent" ? (
                 <p className="office-form-helper">
-                  This member already leads a Team / Junior Team, but the saved account role is still Agent. Team Lead visibility is applied
-                  automatically now, and you can switch the role to Team Lead here whenever you want to persist the matching template.
+                  This member already leads a Team / Junior Team, but the saved
+                  account role is still Agent. Team Lead visibility is applied
+                  automatically now, and you can switch the role to Team Lead
+                  here whenever you want to persist the matching template.
                 </p>
               ) : null}
-              {snapshot.profile.hasActiveLeaderAssignments && snapshot.profile.roleValue !== "agent" ? (
+              {snapshot.profile.hasActiveLeaderAssignments &&
+              snapshot.profile.roleValue !== "agent" ? (
                 <p className="office-form-helper">
-                  Active Team / Junior Team owners cannot be switched to Agent until leadership is transferred or removed in Settings &gt; Teams.
+                  Active Team / Junior Team owners cannot be switched to Agent
+                  until leadership is transferred or removed in Settings &gt;
+                  Teams.
                 </p>
               ) : null}
             </div>
@@ -354,17 +471,25 @@ export function OfficeSettingsUserDetailClient({
             <div className="office-settings-user-security-grid">
               <div className="office-detail-field">
                 <span>Current lock status</span>
-                <strong>{snapshot.profile.isLocked ? `Locked until ${snapshot.profile.lockedUntilLabel}` : snapshot.profile.lockStatusLabel}</strong>
+                <strong>
+                  {snapshot.profile.isLocked
+                    ? `Locked until ${snapshot.profile.lockedUntilLabel}`
+                    : snapshot.profile.lockStatusLabel}
+                </strong>
               </div>
 
               <div className="office-detail-field">
                 <span>Last failed login</span>
-                <strong>{snapshot.profile.lastFailedLoginAtLabel || "—"}</strong>
+                <strong>
+                  {snapshot.profile.lastFailedLoginAtLabel || "—"}
+                </strong>
               </div>
 
               <div className="office-detail-field">
                 <span>Password changed</span>
-                <strong>{snapshot.profile.passwordChangedAtLabel || "—"}</strong>
+                <strong>
+                  {snapshot.profile.passwordChangedAtLabel || "—"}
+                </strong>
               </div>
             </div>
 
@@ -374,23 +499,44 @@ export function OfficeSettingsUserDetailClient({
                   <Button disabled={pendingAction === "save"} type="submit">
                     {pendingAction === "save" ? "Saving..." : "Save access"}
                   </Button>
-                  <Button disabled={pendingAction === "issue"} onClick={() => handleInvitationAction("issue")} type="button" variant="secondary">
-                    {pendingAction === "issue" ? "Preparing..." : getIssueLinkLabel(snapshot.profile)}
+                  <Button
+                    disabled={pendingAction === "issue"}
+                    onClick={() => handleInvitationAction("issue")}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {pendingAction === "issue"
+                      ? "Preparing..."
+                      : getIssueLinkLabel(snapshot.profile)}
                   </Button>
                   {snapshot.profile.hasActiveInvitation ? (
-                    <Button disabled={pendingAction === "revoke"} onClick={() => handleInvitationAction("revoke")} type="button" variant="secondary">
-                      {pendingAction === "revoke" ? "Revoking..." : "Revoke link"}
+                    <Button
+                      disabled={pendingAction === "revoke"}
+                      onClick={() => handleInvitationAction("revoke")}
+                      type="button"
+                      variant="secondary"
+                    >
+                      {pendingAction === "revoke"
+                        ? "Revoking..."
+                        : "Revoke link"}
                     </Button>
                   ) : null}
                   {snapshot.profile.isLocked ? (
-                    <Button disabled={pendingAction === "unlock"} onClick={handleUnlockUser} type="button" variant="secondary">
+                    <Button
+                      disabled={pendingAction === "unlock"}
+                      onClick={handleUnlockUser}
+                      type="button"
+                      variant="secondary"
+                    >
                       {pendingAction === "unlock" ? "Unlocking..." : "Unlock"}
                     </Button>
                   ) : null}
                 </>
               ) : (
                 <span className="office-table-action-muted">
-                  {canManageUsers && !canManagePrivilegedAccount ? "Only Owner / Office Admin can manage this account." : "View only"}
+                  {canManageUsers && !canManagePrivilegedAccount
+                    ? "Only Owner / Office Admin can manage this account."
+                    : "View only"}
                 </span>
               )}
             </div>
@@ -404,7 +550,11 @@ export function OfficeSettingsUserDetailClient({
               </div>
               <div className="office-settings-generated-invite-actions">
                 <TextInput readOnly value={latestInvite.invitationUrl} />
-                <Button disabled={pendingAction === "copy"} onClick={handleCopyLatestInvite} variant="secondary">
+                <Button
+                  disabled={pendingAction === "copy"}
+                  onClick={handleCopyLatestInvite}
+                  variant="secondary"
+                >
                   {pendingAction === "copy" ? "Copying..." : "Copy link"}
                 </Button>
               </div>
@@ -419,22 +569,35 @@ export function OfficeSettingsUserDetailClient({
         >
           {roleChanged ? (
             <p className="office-form-helper">
-              Save access first if you want the permission editor to use the newly selected role template.
+              Save access first if you want the permission editor to use the
+              newly selected role template.
             </p>
           ) : null}
 
           <div className="office-settings-user-permissions-cta">
             <div className="office-settings-user-permissions-copy">
-              <strong>{canManageSensitiveUsers ? "Dedicated manage page" : "Dedicated read-only page"}</strong>
-              <p>Review role defaults, inherited permissions, and member-level overrides in a focused editor.</p>
+              <strong>
+                {canManageSensitiveUsers
+                  ? "Dedicated manage page"
+                  : "Dedicated read-only page"}
+              </strong>
+              <p>
+                Review role defaults, inherited permissions, and member-level
+                overrides in a focused editor.
+              </p>
             </div>
             {roleChanged ? (
               <Button disabled type="button" variant="secondary">
                 Save access to edit permissions
               </Button>
             ) : (
-              <Link className="office-button office-button-primary office-button-sm" href={permissionEditorHref}>
-                {canManageSensitiveUsers ? "Edit permissions" : "View permissions"}
+              <Link
+                className="office-button office-button-primary office-button-sm"
+                href={permissionEditorHref}
+              >
+                {canManageSensitiveUsers
+                  ? "Edit permissions"
+                  : "View permissions"}
               </Link>
             )}
           </div>
@@ -450,11 +613,17 @@ export function OfficeSettingsUserDetailClient({
             </div>
             <div className="office-detail-field">
               <span>Effective permissions</span>
-              <strong>{snapshot.permissions.effectivePermissions.length}</strong>
+              <strong>
+                {snapshot.permissions.effectivePermissions.length}
+              </strong>
             </div>
             <div className="office-detail-field">
               <span>Editor mode</span>
-              <strong>{canManageUsers ? "Dedicated manage page" : "Dedicated read-only page"}</strong>
+              <strong>
+                {canManageUsers
+                  ? "Dedicated manage page"
+                  : "Dedicated read-only page"}
+              </strong>
             </div>
           </div>
         </SectionCard>
@@ -471,7 +640,7 @@ export function OfficeSettingsUserDetailClient({
             name: team.name,
             roleLabel: team.roleLabel,
             reportsToLabel: team.reportsToLabel,
-            isActive: team.isActive
+            isActive: team.isActive,
           }))}
         />
       ) : null}
@@ -479,7 +648,10 @@ export function OfficeSettingsUserDetailClient({
       {showOperationalSections ? (
         <>
           <div className="office-detail-two-column office-settings-user-detail-grid">
-            <SectionCard subtitle="Current office, team memberships, and related profile routing." title="Context">
+            <SectionCard
+              subtitle="Current office, team memberships, and related profile routing."
+              title="Context"
+            >
               <div className="office-settings-user-context-list">
                 <div className="office-secondary-meta-row">
                   <dt>Office</dt>
@@ -497,17 +669,24 @@ export function OfficeSettingsUserDetailClient({
 
               <div className="office-settings-user-team-list">
                 {snapshot.teams.map((team) => (
-                  <article className="office-settings-user-team-item" key={team.id}>
+                  <article
+                    className="office-settings-user-team-item"
+                    key={team.id}
+                  >
                     <div>
                       <strong>{team.name}</strong>
                       <p>
                         {team.roleLabel} · {team.reportsToLabel}
                       </p>
                     </div>
-                    <StatusBadge tone={team.isActive ? "success" : "neutral"}>{team.isActive ? "Active" : "Inactive"}</StatusBadge>
+                    <StatusBadge tone={team.isActive ? "success" : "neutral"}>
+                      {team.isActive ? "Active" : "Inactive"}
+                    </StatusBadge>
                   </article>
                 ))}
-                {snapshot.teams.length === 0 ? <p className="office-form-helper">No team assignments yet.</p> : null}
+                {snapshot.teams.length === 0 ? (
+                  <p className="office-form-helper">No team assignments yet.</p>
+                ) : null}
               </div>
             </SectionCard>
 
@@ -516,13 +695,22 @@ export function OfficeSettingsUserDetailClient({
               title="Onboarding"
             >
               <div className="office-settings-user-inline-badges">
-                <StatusBadge tone={getOnboardingTone(snapshot.onboarding.statusValue)}>{snapshot.onboarding.statusLabel}</StatusBadge>
-                <Badge tone="neutral">{snapshot.onboarding.totalCount} items</Badge>
+                <StatusBadge
+                  tone={getOnboardingTone(snapshot.onboarding.statusValue)}
+                >
+                  {snapshot.onboarding.statusLabel}
+                </StatusBadge>
+                <Badge tone="neutral">
+                  {snapshot.onboarding.totalCount} items
+                </Badge>
               </div>
 
               <div className="office-settings-user-onboarding-list">
                 {snapshot.onboarding.items.map((item) => (
-                  <article className="office-settings-user-onboarding-item" key={item.id}>
+                  <article
+                    className="office-settings-user-onboarding-item"
+                    key={item.id}
+                  >
                     <div>
                       <strong>{item.title}</strong>
                       <p>
@@ -544,24 +732,38 @@ export function OfficeSettingsUserDetailClient({
                       >
                         {item.statusLabel}
                       </StatusBadge>
-                      {item.completedAtLabel ? <small>Completed {item.completedAtLabel}</small> : null}
+                      {item.completedAtLabel ? (
+                        <small>Completed {item.completedAtLabel}</small>
+                      ) : null}
                     </div>
                   </article>
                 ))}
-                {snapshot.onboarding.items.length === 0 ? <p className="office-form-helper">No onboarding items have been assigned.</p> : null}
+                {snapshot.onboarding.items.length === 0 ? (
+                  <p className="office-form-helper">
+                    No onboarding items have been assigned.
+                  </p>
+                ) : null}
               </div>
             </SectionCard>
           </div>
 
-          <SectionCard subtitle="Current commission assignment and recent persisted calculation visibility for this membership." title="Commission summary">
+          <SectionCard
+            subtitle="Current commission assignment and recent persisted calculation visibility for this membership."
+            title="Commission summary"
+          >
             <div className="office-agents-profile-summary-grid">
               <div className="office-detail-field">
                 <span>Active plan</span>
-                <strong>{snapshot.commission.activePlanLabel || "Manual / unassigned"}</strong>
+                <strong>
+                  {snapshot.commission.activePlanLabel || "Manual / unassigned"}
+                </strong>
               </div>
               <div className="office-detail-field">
                 <span>Plan source</span>
-                <strong>{snapshot.commission.activePlanSourceLabel || "No active assignment"}</strong>
+                <strong>
+                  {snapshot.commission.activePlanSourceLabel ||
+                    "No active assignment"}
+                </strong>
               </div>
               <div className="office-detail-field">
                 <span>Statement ready</span>
@@ -577,7 +779,13 @@ export function OfficeSettingsUserDetailClient({
               <div className="office-queue-list">
                 {snapshot.commission.recentCalculations.map((calculation) => (
                   <QueueItem
-                    badge={<StatusBadge tone={getCommissionStatusTone(calculation.status)}>{calculation.status}</StatusBadge>}
+                    badge={
+                      <StatusBadge
+                        tone={getCommissionStatusTone(calculation.status)}
+                      >
+                        {calculation.status}
+                      </StatusBadge>
+                    }
                     description={calculation.recipientLabel}
                     key={calculation.id}
                     meta={
@@ -585,19 +793,36 @@ export function OfficeSettingsUserDetailClient({
                         <span>{calculation.statementAmountLabel}</span>
                       </>
                     }
-                    title={calculation.transactionHref ? <Link href={calculation.transactionHref}>{calculation.transactionLabel}</Link> : calculation.transactionLabel}
+                    title={
+                      calculation.transactionHref ? (
+                        <Link href={calculation.transactionHref}>
+                          {calculation.transactionLabel}
+                        </Link>
+                      ) : (
+                        calculation.transactionLabel
+                      )
+                    }
                   />
                 ))}
               </div>
             ) : (
-              <EmptyState title="No commission calculations yet" description="No commission calculations have been recorded for this user yet." />
+              <EmptyState
+                title="No commission calculations yet"
+                description="No commission calculations have been recorded for this user yet."
+              />
             )}
           </SectionCard>
 
-          <SectionCard subtitle="Latest audit trail items tied to this user account, invitations, and credential events." title="Recent activity">
+          <SectionCard
+            subtitle="Latest audit trail items tied to this user account, invitations, and credential events."
+            title="Recent activity"
+          >
             <div className="office-settings-user-activity-list">
               {snapshot.recentActivity.map((item) => (
-                <article className="office-settings-user-activity-item" key={item.id}>
+                <article
+                  className="office-settings-user-activity-item"
+                  key={item.id}
+                >
                   <div className="office-settings-user-activity-copy">
                     <strong>{item.actionLabel}</strong>
                     <p>{item.detail}</p>
@@ -606,13 +831,20 @@ export function OfficeSettingsUserDetailClient({
                     </small>
                   </div>
                   {item.href ? (
-                    <Link className="office-button-secondary office-button-sm" href={item.href}>
+                    <Link
+                      className="office-button-secondary office-button-sm"
+                      href={item.href}
+                    >
                       Open
                     </Link>
                   ) : null}
                 </article>
               ))}
-              {snapshot.recentActivity.length === 0 ? <p className="office-form-helper">No recent user activity yet.</p> : null}
+              {snapshot.recentActivity.length === 0 ? (
+                <p className="office-form-helper">
+                  No recent user activity yet.
+                </p>
+              ) : null}
             </div>
           </SectionCard>
         </>

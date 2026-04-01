@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { Button, FormField, PageHeader, PageShell, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
+import {
+  Button,
+  FormField,
+  SectionCard,
+  SelectInput,
+  TextInput,
+  TextareaInput,
+} from "@acre/ui";
 import type { OfficeContactDetail, OfficeContactFieldSchema } from "@acre/db";
 
 type ContactDetailClientProps = {
@@ -12,7 +19,10 @@ type ContactDetailClientProps = {
 };
 
 type ContactVisibleField =
-  | { kind: "builtIn"; field: OfficeContactFieldSchema["builtInFields"][number] }
+  | {
+      kind: "builtIn";
+      field: OfficeContactFieldSchema["builtInFields"][number];
+    }
   | { kind: "custom"; field: OfficeContactFieldSchema["customFields"][number] };
 
 function sortSchemaFieldEntries(fields: ContactVisibleField[]) {
@@ -25,7 +35,10 @@ function sortSchemaFieldEntries(fields: ContactVisibleField[]) {
   });
 }
 
-function buildContactDetailValues(schema: OfficeContactFieldSchema, contact: OfficeContactDetail) {
+function buildContactDetailValues(
+  schema: OfficeContactFieldSchema,
+  contact: OfficeContactDetail,
+) {
   const values: Record<string, string> = {
     fullName: contact.fullName,
     email: contact.email,
@@ -59,14 +72,19 @@ function getContactDetailFieldClassName(fieldClassName: string) {
     : "office-detail-field";
 }
 
-export function ContactDetailClient({ contact, schema }: ContactDetailClientProps) {
+export function ContactDetailClient({
+  contact,
+  schema,
+}: ContactDetailClientProps) {
   const router = useRouter();
   const [formState, setFormState] = useState<Record<string, string>>(() =>
     buildContactDetailValues(schema, contact),
   );
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDueAt, setTaskDueAt] = useState("");
-  const [selectedTransactionId, setSelectedTransactionId] = useState(contact.availableTransactions[0]?.id ?? "");
+  const [selectedTransactionId, setSelectedTransactionId] = useState(
+    contact.availableTransactions[0]?.id ?? "",
+  );
   const [saveError, setSaveError] = useState("");
   const [taskError, setTaskError] = useState("");
   const [linkError, setLinkError] = useState("");
@@ -91,7 +109,7 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
   function updateField(name: string, value: string) {
     setFormState((current) => ({
       ...current,
-      [name]: value
+      [name]: value,
     }));
   }
 
@@ -104,19 +122,23 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
       const response = await fetch(`/api/office/contacts/${contact.id}`, {
         method: "PATCH",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(formState)
+        body: JSON.stringify(formState),
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to save contact.");
       }
 
       router.refresh();
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Failed to save contact.");
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to save contact.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -128,19 +150,24 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
     setTaskError("");
 
     try {
-      const response = await fetch(`/api/office/contacts/${contact.id}/follow-up-tasks`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
+      const response = await fetch(
+        `/api/office/contacts/${contact.id}/follow-up-tasks`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: taskTitle,
+            dueAt: taskDueAt,
+          }),
         },
-        body: JSON.stringify({
-          title: taskTitle,
-          dueAt: taskDueAt
-        })
-      });
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to create follow-up task.");
       }
 
@@ -148,7 +175,11 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
       setTaskDueAt("");
       router.refresh();
     } catch (error) {
-      setTaskError(error instanceof Error ? error.message : "Failed to create follow-up task.");
+      setTaskError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create follow-up task.",
+      );
     } finally {
       setIsCreatingTask(false);
     }
@@ -163,37 +194,36 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
     setLinkError("");
 
     try {
-      const response = await fetch(`/api/office/contacts/${contact.id}/transactions/${selectedTransactionId}`, {
-        method: "PATCH"
-      });
+      const response = await fetch(
+        `/api/office/contacts/${contact.id}/transactions/${selectedTransactionId}`,
+        {
+          method: "PATCH",
+        },
+      );
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(body?.error ?? "Failed to link transaction.");
       }
 
       router.refresh();
     } catch (error) {
-      setLinkError(error instanceof Error ? error.message : "Failed to link transaction.");
+      setLinkError(
+        error instanceof Error ? error.message : "Failed to link transaction.",
+      );
     } finally {
       setIsLinking(false);
     }
   }
 
   return (
-    <PageShell className="office-transaction-detail-page office-detail-page">
-      <PageHeader
-        actions={
-          <Link className="office-button-secondary" href="/office/contacts">
-            Back to contacts
-          </Link>
-        }
-        description={contact.email || contact.phone || contact.source}
-        eyebrow="Contact detail"
-        title={contact.fullName}
-      />
-
-      <SectionCard subtitle="Core profile, lifecycle, and follow-up details for this contact." title="Overview">
+    <div className="office-list-page-stack">
+      <SectionCard
+        subtitle="Core profile, lifecycle, and follow-up details for this contact."
+        title="Overview"
+      >
         <form className="office-detail-grid" onSubmit={handleSave}>
           {visibleFields.map((entry) => {
             const field = entry.field;
@@ -251,21 +281,29 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
             <Button disabled={isSaving} type="submit">
               {isSaving ? "Saving..." : "Save contact"}
             </Button>
-            {saveError ? <p className="office-form-error">{saveError}</p> : null}
+            {saveError ? (
+              <p className="office-form-error">{saveError}</p>
+            ) : null}
           </div>
         </form>
       </SectionCard>
 
-      <SectionCard subtitle="Transactions currently linked to this contact." title="Linked transactions">
+      <SectionCard
+        subtitle="Transactions currently linked to this contact."
+        title="Linked transactions"
+      >
         <div className="office-detail-grid">
           {contact.linkedTransactions.map((transaction) => (
             <div className="office-detail-field" key={transaction.id}>
               <span>
-                <Link href={`/office/transactions/${transaction.id}`}>{transaction.label}</Link>
+                <Link href={`/office/transactions/${transaction.id}`}>
+                  {transaction.label}
+                </Link>
               </span>
               <strong>{transaction.status}</strong>
               <span>
-                Asking: {transaction.askingPrice || "—"} · Purchased: {transaction.purchasedPrice || "—"}
+                Asking: {transaction.askingPrice || "—"} · Purchased:{" "}
+                {transaction.purchasedPrice || "—"}
               </span>
             </div>
           ))}
@@ -278,7 +316,10 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
         </div>
 
         <div className="office-form-actions">
-          <SelectInput onChange={(event) => setSelectedTransactionId(event.target.value)} value={selectedTransactionId}>
+          <SelectInput
+            onChange={(event) => setSelectedTransactionId(event.target.value)}
+            value={selectedTransactionId}
+          >
             <option value="">Select transaction to link</option>
             {contact.availableTransactions.map((transaction) => (
               <option key={transaction.id} value={transaction.id}>
@@ -286,14 +327,21 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
               </option>
             ))}
           </SelectInput>
-          <Button disabled={!selectedTransactionId || isLinking} onClick={handleLinkTransaction} type="button">
+          <Button
+            disabled={!selectedTransactionId || isLinking}
+            onClick={handleLinkTransaction}
+            type="button"
+          >
             {isLinking ? "Linking..." : "Link transaction"}
           </Button>
           {linkError ? <p className="office-form-error">{linkError}</p> : null}
         </div>
       </SectionCard>
 
-      <SectionCard subtitle="Follow-up work attached to this contact." title="Follow-up tasks">
+      <SectionCard
+        subtitle="Follow-up work attached to this contact."
+        title="Follow-up tasks"
+      >
         <div className="office-detail-grid">
           {contact.followUpTasks.map((task) => (
             <div className="office-detail-field" key={task.id}>
@@ -312,14 +360,23 @@ export function ContactDetailClient({ contact, schema }: ContactDetailClientProp
         </div>
 
         <form className="office-form-actions" onSubmit={handleCreateTask}>
-          <TextInput onChange={(event) => setTaskTitle(event.target.value)} placeholder="New follow-up task" type="text" value={taskTitle} />
-          <TextInput onChange={(event) => setTaskDueAt(event.target.value)} type="date" value={taskDueAt} />
+          <TextInput
+            onChange={(event) => setTaskTitle(event.target.value)}
+            placeholder="New follow-up task"
+            type="text"
+            value={taskTitle}
+          />
+          <TextInput
+            onChange={(event) => setTaskDueAt(event.target.value)}
+            type="date"
+            value={taskDueAt}
+          />
           <Button disabled={isCreatingTask} type="submit">
             {isCreatingTask ? "Saving..." : "Add task"}
           </Button>
           {taskError ? <p className="office-form-error">{taskError}</p> : null}
         </form>
       </SectionCard>
-    </PageShell>
+    </div>
   );
 }
