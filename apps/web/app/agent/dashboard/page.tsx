@@ -8,13 +8,16 @@ import {
   SectionCard,
   StatCard,
   StatusBadge,
-  SummaryChip
+  SummaryChip,
 } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
-import { getSessionAccess, requireSessionContext } from "../../../lib/auth-session";
+import {
+  getSessionAccess,
+  requireSessionContext,
+} from "../../../lib/auth-session";
 
 export default async function AgentDashboardPage() {
   const context = await requireSessionContext();
@@ -28,7 +31,7 @@ export default async function AgentDashboardPage() {
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
-    timeZone: context.currentUser.timezone
+    timeZone: context.currentUser.timezone,
   });
 
   return (
@@ -46,19 +49,27 @@ export default async function AgentDashboardPage() {
           >
             <div className="list-column front-office-record-list">
               {snapshot.actionQueue.map((item) => (
-                <article className={`list-row front-office-record tone-${item.tone}`} key={item.id}>
+                <article
+                  className={`list-row front-office-record tone-${item.tone}`}
+                  key={item.id}
+                >
                   <div className="list-row-top front-office-record-head">
                     <div>
                       <strong>{item.label}</strong>
                       <p>{item.description}</p>
                     </div>
-                    <StatusBadge tone={item.tone}>{item.tone === "neutral" ? "In view" : "Active"}</StatusBadge>
+                    <StatusBadge tone={item.tone}>
+                      {item.tone === "neutral" ? "In view" : "Active"}
+                    </StatusBadge>
                   </div>
                   <div className="list-row-meta front-office-record-meta">
                     <span>{item.count} item(s)</span>
                     <span>{item.helper}</span>
                   </div>
-                  <FrontOfficeLink className="office-inline-link front-office-inline-link" href={item.href}>
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={item.href}
+                  >
                     {item.actionLabel}
                   </FrontOfficeLink>
                 </article>
@@ -79,7 +90,11 @@ export default async function AgentDashboardPage() {
                     hint="clients in this stage"
                     key={metric.label}
                     label={metric.label}
-                    tone={metric.tone === "accent" || metric.tone === "success" ? "accent" : "default"}
+                    tone={
+                      metric.tone === "accent" || metric.tone === "success"
+                        ? "accent"
+                        : "default"
+                    }
                     value={metric.count}
                   />
                 ))
@@ -95,19 +110,27 @@ export default async function AgentDashboardPage() {
             <div className="list-column front-office-record-list">
               {snapshot.pipeline.recentClients.length ? (
                 snapshot.pipeline.recentClients.map((client) => (
-                  <article className="list-row front-office-record" key={client.id}>
+                  <article
+                    className="list-row front-office-record"
+                    key={client.id}
+                  >
                     <div className="list-row-top front-office-record-head">
                       <div>
                         <strong>{client.fullName}</strong>
                         <p>{client.source}</p>
                       </div>
-                      <StatusBadge tone={client.stageTone}>{client.stage}</StatusBadge>
+                      <StatusBadge tone={client.stageTone}>
+                        {client.stage}
+                      </StatusBadge>
                     </div>
                     <div className="list-row-meta front-office-record-meta">
                       <span>{client.nextTouchLabel}</span>
                       <span>{client.lastTouchLabel}</span>
                     </div>
-                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={client.href}>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={client.href}
+                    >
                       Open client workspace
                     </FrontOfficeLink>
                   </article>
@@ -123,40 +146,70 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Shared office commitments are visible now. Dedicated Front Office appointment scheduling is on the active roadmap but is not live yet."
+            subtitle="Your own Front Office appointments now sit next to shared office commitments so the workday stays in one place."
             title="Calendar & commitments"
           >
             <ListPageStatsGrid>
-              <StatCard hint="visible today or upcoming in scope" label="Upcoming commitments" value={snapshot.commitments.items.length} />
               <StatCard
-                hint={snapshot.commitments.appointmentModuleReady ? "agent scheduling is live" : "not live yet"}
+                hint="visible today or upcoming in scope"
+                label="Upcoming commitments"
+                value={snapshot.commitments.items.length}
+              />
+              <StatCard
+                hint={
+                  snapshot.commitments.appointmentModuleReady
+                    ? "agent scheduling is live"
+                    : "not live yet"
+                }
                 label="Appointment module"
-                value={snapshot.commitments.appointmentModuleReady ? "Live" : "In progress"}
+                value={
+                  snapshot.commitments.appointmentModuleReady
+                    ? "Live"
+                    : "In progress"
+                }
               />
             </ListPageStatsGrid>
 
             <div className="front-office-placeholder-note">
-              <Badge tone="neutral">Honest state</Badge>
+              <Badge
+                tone={
+                  snapshot.commitments.appointmentModuleReady
+                    ? "accent"
+                    : "neutral"
+                }
+              >
+                {snapshot.commitments.appointmentModuleReady
+                  ? "Live now"
+                  : "Honest state"}
+              </Badge>
               <p>{snapshot.commitments.appointmentMessage}</p>
             </div>
 
             <div className="list-column front-office-record-list">
               {snapshot.commitments.items.length ? (
                 snapshot.commitments.items.map((commitment) => (
-                  <article className="list-row front-office-record" key={commitment.id}>
+                  <article
+                    className="list-row front-office-record"
+                    key={commitment.id}
+                  >
                     <div className="list-row-top front-office-record-head">
                       <div>
                         <strong>{commitment.title}</strong>
                         <p>{commitment.startsAtLabel}</p>
                       </div>
-                      <StatusBadge tone="accent">{commitment.visibilityLabel}</StatusBadge>
+                      <StatusBadge tone={commitment.badgeTone}>
+                        {commitment.badgeLabel}
+                      </StatusBadge>
                     </div>
                     <div className="list-row-meta front-office-record-meta">
                       <span>{commitment.locationLabel}</span>
-                      <span>{commitment.rsvpLabel}</span>
+                      <span>{commitment.contextLabel}</span>
                     </div>
-                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={commitment.href}>
-                      Open notices & events
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={commitment.href}
+                    >
+                      Open calendar
                     </FrontOfficeLink>
                   </article>
                 ))
@@ -175,13 +228,33 @@ export default async function AgentDashboardPage() {
             title="Listing & content output"
           >
             <ListPageStatsGrid>
-              <StatCard hint="active or hot listings in scope" label="Send-ready listings" value={snapshot.listingOutput.activeListingCount} />
-              <StatCard hint="tracked links already created by you" label="Tracked links" value={snapshot.listingOutput.trackedLinkCount} />
-              <StatCard hint="clicks recorded on your tracked links" label="Tracked clicks" value={snapshot.listingOutput.trackedClickCount} />
               <StatCard
-                hint={snapshot.listingOutput.trackedSendingReady ? "existing share links are already producing engagement" : "listing outreach can start as soon as share links are created"}
+                hint="active or hot listings in scope"
+                label="Send-ready listings"
+                value={snapshot.listingOutput.activeListingCount}
+              />
+              <StatCard
+                hint="tracked links already created by you"
+                label="Tracked links"
+                value={snapshot.listingOutput.trackedLinkCount}
+              />
+              <StatCard
+                hint="clicks recorded on your tracked links"
+                label="Tracked clicks"
+                value={snapshot.listingOutput.trackedClickCount}
+              />
+              <StatCard
+                hint={
+                  snapshot.listingOutput.trackedSendingReady
+                    ? "existing share links are already producing engagement"
+                    : "listing outreach can start as soon as share links are created"
+                }
                 label="Tracked sending"
-                value={snapshot.listingOutput.trackedSendingReady ? "Active" : "Ready"}
+                value={
+                  snapshot.listingOutput.trackedSendingReady
+                    ? "Active"
+                    : "Ready"
+                }
                 tone="accent"
               />
             </ListPageStatsGrid>
@@ -189,20 +262,28 @@ export default async function AgentDashboardPage() {
             <div className="list-column front-office-record-list">
               {snapshot.listingOutput.recentListings.length ? (
                 snapshot.listingOutput.recentListings.map((listing) => (
-                  <article className="list-row front-office-record" key={listing.id}>
+                  <article
+                    className="list-row front-office-record"
+                    key={listing.id}
+                  >
                     <div className="list-row-top front-office-record-head">
                       <div>
                         <strong>{listing.title}</strong>
                         <p>{listing.neighborhoodLabel}</p>
                       </div>
-                      <StatusBadge tone={listing.statusTone}>{listing.statusLabel}</StatusBadge>
+                      <StatusBadge tone={listing.statusTone}>
+                        {listing.statusLabel}
+                      </StatusBadge>
                     </div>
                     <div className="list-row-meta front-office-record-meta">
                       <span>{listing.priceLabel}</span>
                       <span>{listing.trackedLinkCount} tracked link(s)</span>
                       <span>{listing.trackedClickCount} click(s)</span>
                     </div>
-                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={listing.href}>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={listing.href}
+                    >
                       Open listings
                     </FrontOfficeLink>
                   </article>
@@ -224,15 +305,23 @@ export default async function AgentDashboardPage() {
             <div className="list-column front-office-record-list">
               {snapshot.backOffice.items.length ? (
                 snapshot.backOffice.items.map((item) => (
-                  <article className={`list-row front-office-record tone-${item.tone}`} key={item.id}>
+                  <article
+                    className={`list-row front-office-record tone-${item.tone}`}
+                    key={item.id}
+                  >
                     <div className="list-row-top front-office-record-head">
                       <div>
                         <strong>{item.title}</strong>
                         <p>{item.description}</p>
                       </div>
-                      <StatusBadge tone={item.tone}>{item.contextLabel}</StatusBadge>
+                      <StatusBadge tone={item.tone}>
+                        {item.contextLabel}
+                      </StatusBadge>
                     </div>
-                    <FrontOfficeLink className="office-inline-link front-office-inline-link" href={item.href}>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={item.href}
+                    >
                       {item.actionLabel}
                     </FrontOfficeLink>
                   </article>
@@ -240,7 +329,10 @@ export default async function AgentDashboardPage() {
               ) : (
                 <EmptyState
                   action={
-                    <Link className="office-button-secondary" href="/office/transactions">
+                    <Link
+                      className="office-button-secondary"
+                      href="/office/transactions"
+                    >
                       Open Back Office
                     </Link>
                   }
@@ -265,7 +357,10 @@ export default async function AgentDashboardPage() {
                 snapshot.noticeRail.notifications.map((notification) => (
                   <FrontOfficeRailItem
                     action={
-                      <FrontOfficeLink className="office-inline-link front-office-inline-link" href={notification.href}>
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={notification.href}
+                      >
                         Open notice
                       </FrontOfficeLink>
                     }
@@ -301,7 +396,10 @@ export default async function AgentDashboardPage() {
                 snapshot.noticeRail.resources.map((resource) => (
                   <FrontOfficeRailItem
                     action={
-                      <FrontOfficeLink className="office-inline-link front-office-inline-link" href={resource.href}>
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={resource.href}
+                      >
                         Open resource
                       </FrontOfficeLink>
                     }
@@ -332,7 +430,10 @@ export default async function AgentDashboardPage() {
                   <FrontOfficeRailItem
                     action={
                       vendor.href ? (
-                        <FrontOfficeLink className="office-inline-link front-office-inline-link" href={vendor.href}>
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={vendor.href}
+                        >
                           Contact vendor
                         </FrontOfficeLink>
                       ) : null
@@ -362,12 +463,31 @@ export default async function AgentDashboardPage() {
       }
       summary={
         <>
-          <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
+          <SummaryChip
+            label="Office scope"
+            value={
+              context.currentOffice?.name ?? context.currentOrganization.name
+            }
+          />
           <SummaryChip label="Access" value={access.label} />
-          <SummaryChip label="Today actions" tone="accent" value={snapshot.summary.todayActionCount} />
-          <SummaryChip label="Follow-up due" value={snapshot.summary.followUpDueCount} />
-          <SummaryChip label="Today commitments" value={snapshot.summary.todayCommitmentCount} />
-          <SummaryChip label="Needs Back Office" tone="accent" value={snapshot.summary.needsBackOfficeCount} />
+          <SummaryChip
+            label="Today actions"
+            tone="accent"
+            value={snapshot.summary.todayActionCount}
+          />
+          <SummaryChip
+            label="Follow-up due"
+            value={snapshot.summary.followUpDueCount}
+          />
+          <SummaryChip
+            label="Today commitments"
+            value={snapshot.summary.todayCommitmentCount}
+          />
+          <SummaryChip
+            label="Needs Back Office"
+            tone="accent"
+            value={snapshot.summary.needsBackOfficeCount}
+          />
         </>
       }
       title="Front Office dashboard"

@@ -1623,7 +1623,9 @@ select {
   color: var(--office-text);
   text-align: left;
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .office-transaction-owner-suggestion strong {
@@ -2623,10 +2625,9 @@ select {
 }
 
 .office-table-row-agent-billing-ledger {
-  grid-template-columns: 78px 84px minmax(
-      188px,
-      1.3fr
-    ) 88px 92px 92px 96px 78px minmax(144px, 0.88fr);
+  grid-template-columns:
+    78px 84px minmax(188px, 1.3fr)
+    88px 92px 92px 96px 78px minmax(144px, 0.88fr);
 }
 
 .office-table-row-recurring-rules {
@@ -3123,10 +3124,9 @@ select {
 }
 
 .office-table-row-accounting-lines-manual {
-  grid-template-columns: minmax(182px, 1.18fr) minmax(
-      156px,
-      0.94fr
-    ) 94px 94px 72px;
+  grid-template-columns:
+    minmax(182px, 1.18fr) minmax(156px, 0.94fr)
+    94px 94px 72px;
 }
 
 .office-table-row-1099-records {
@@ -3193,7 +3193,8 @@ select {
   min-width: max-content;
 }
 
-.office-accounting-statement-history-actions > :is(.office-button, .office-button-secondary) {
+.office-accounting-statement-history-actions
+  > :is(.office-button, .office-button-secondary) {
   flex: 0 0 auto;
 }
 
@@ -3303,7 +3304,12 @@ select {
 .office-activity-alerts-loading-block {
   height: 12px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(231, 221, 208, 0.44) 0%, rgba(255, 250, 240, 0.92) 50%, rgba(231, 221, 208, 0.44) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(231, 221, 208, 0.44) 0%,
+    rgba(255, 250, 240, 0.92) 50%,
+    rgba(231, 221, 208, 0.44) 100%
+  );
   background-size: 220px 100%;
   animation: office-activity-alerts-loading-pulse 1.25s ease-in-out infinite;
 }
@@ -3661,8 +3667,8 @@ select {
 :root {
   --office-font-sans:
     var(--font-office-sans), "Inter", "SF Pro Text", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
-    "Source Han Sans SC", "Segoe UI", sans-serif;
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC",
+    "Segoe UI", sans-serif;
   --office-bg: #eef1f5;
   --office-bg-muted: #f6f8fb;
   --office-surface: #ffffff;
@@ -4145,7 +4151,8 @@ a {
   line-height: 1;
 }
 
-.office-transaction-collapsible-card.is-expanded .office-transaction-collapsible-trigger {
+.office-transaction-collapsible-card.is-expanded
+  .office-transaction-collapsible-trigger {
   border-bottom: 1px solid rgba(194, 205, 220, 0.46);
 }
 
@@ -4165,10 +4172,20 @@ a {
   box-shadow: none;
 }
 
-.office-transaction-collapsible-panel > .office-section-card > .office-section-head:first-child,
-.office-transaction-collapsible-panel > section > .office-section-card > .office-section-head:first-child,
-.office-transaction-collapsible-panel > .office-detail-card > .office-card-head:first-child,
-.office-transaction-collapsible-panel > section > .office-detail-card > .office-card-head:first-child {
+.office-transaction-collapsible-panel
+  > .office-section-card
+  > .office-section-head:first-child,
+.office-transaction-collapsible-panel
+  > section
+  > .office-section-card
+  > .office-section-head:first-child,
+.office-transaction-collapsible-panel
+  > .office-detail-card
+  > .office-card-head:first-child,
+.office-transaction-collapsible-panel
+  > section
+  > .office-detail-card
+  > .office-card-head:first-child {
   display: none;
 }
 
@@ -5288,7 +5305,8 @@ a {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .office-transaction-search-layout-filters .office-transaction-search-date-field {
+  .office-transaction-search-layout-filters
+    .office-transaction-search-date-field {
     grid-column: span 2;
   }
 }
@@ -5314,7 +5332,8 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .office-transaction-search-layout-filters .office-transaction-search-date-field {
+  .office-transaction-search-layout-filters
+    .office-transaction-search-date-field {
     grid-column: auto;
   }
 
@@ -5639,10 +5658,9 @@ a {
 
 .office-table-row-commission-assignments {
   min-width: 640px;
-  grid-template-columns: minmax(168px, 1.28fr) minmax(68px, 0.54fr) minmax(
-      144px,
-      0.96fr
-    ) minmax(92px, 0.68fr) minmax(94px, 0.7fr);
+  grid-template-columns:
+    minmax(168px, 1.28fr) minmax(68px, 0.54fr) minmax(144px, 0.96fr)
+    minmax(92px, 0.68fr) minmax(94px, 0.7fr);
 }
 
 .office-table-row-commission {
@@ -5660,18 +5678,16 @@ a {
 .office-table-row-report-status,
 .office-table-row-report-types {
   min-width: 500px;
-  grid-template-columns: minmax(128px, 1.08fr) minmax(62px, 0.52fr) minmax(
-      92px,
-      0.72fr
-    ) minmax(92px, 0.72fr);
+  grid-template-columns:
+    minmax(128px, 1.08fr) minmax(62px, 0.52fr) minmax(92px, 0.72fr)
+    minmax(92px, 0.72fr);
 }
 
 .office-table-row-report-transactions {
   min-width: 780px;
-  grid-template-columns: minmax(210px, 1.62fr) minmax(92px, 0.68fr) minmax(
-      104px,
-      0.76fr
-    ) minmax(122px, 0.86fr) minmax(96px, 0.7fr) minmax(96px, 0.7fr);
+  grid-template-columns:
+    minmax(210px, 1.62fr) minmax(92px, 0.68fr) minmax(104px, 0.76fr)
+    minmax(122px, 0.86fr) minmax(96px, 0.7fr) minmax(96px, 0.7fr);
 }
 
 .office-table-row-report-agents {
@@ -5688,10 +5704,9 @@ a {
 
 .office-table-row-report-teams {
   min-width: 720px;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(58px, 0.48fr) minmax(
-      58px,
-      0.48fr
-    ) minmax(58px, 0.48fr) minmax(92px, 0.68fr) minmax(108px, 0.74fr);
+  grid-template-columns:
+    minmax(180px, 1.4fr) minmax(58px, 0.48fr) minmax(58px, 0.48fr)
+    minmax(58px, 0.48fr) minmax(92px, 0.68fr) minmax(108px, 0.74fr);
 }
 
 .office-table-row-report-commission-status,
@@ -5706,34 +5721,30 @@ a {
 
 .office-table-row-report-commission-recent {
   min-width: 820px;
-  grid-template-columns: minmax(210px, 1.5fr) minmax(96px, 0.72fr) minmax(
-      98px,
-      0.74fr
-    ) minmax(98px, 0.74fr) minmax(126px, 0.82fr);
+  grid-template-columns:
+    minmax(210px, 1.5fr) minmax(96px, 0.72fr) minmax(98px, 0.74fr)
+    minmax(98px, 0.74fr) minmax(126px, 0.82fr);
 }
 
 .office-table-row-report-accounting-recent {
   min-width: 780px;
-  grid-template-columns: minmax(76px, 0.6fr) minmax(104px, 0.76fr) minmax(
-      92px,
-      0.68fr
-    ) minmax(210px, 1.45fr) minmax(98px, 0.72fr);
+  grid-template-columns:
+    minmax(76px, 0.6fr) minmax(104px, 0.76fr) minmax(92px, 0.68fr)
+    minmax(210px, 1.45fr) minmax(98px, 0.72fr);
 }
 
 .office-table-row-report-emd-status {
   min-width: 580px;
-  grid-template-columns: minmax(152px, 1.18fr) minmax(62px, 0.52fr) minmax(
-      92px,
-      0.7fr
-    ) minmax(92px, 0.7fr);
+  grid-template-columns:
+    minmax(152px, 1.18fr) minmax(62px, 0.52fr) minmax(92px, 0.7fr)
+    minmax(92px, 0.7fr);
 }
 
 .office-table-row-report-emd-recent {
   min-width: 780px;
-  grid-template-columns: minmax(210px, 1.5fr) minmax(92px, 0.72fr) minmax(
-      92px,
-      0.7fr
-    ) minmax(92px, 0.7fr) minmax(96px, 0.72fr);
+  grid-template-columns:
+    minmax(210px, 1.5fr) minmax(92px, 0.72fr) minmax(92px, 0.7fr)
+    minmax(92px, 0.7fr) minmax(96px, 0.72fr);
 }
 
 .office-reports-workspace,
@@ -5819,8 +5830,11 @@ a {
   min-width: 0;
 }
 
-.office-report-summary-table .office-table-row-report-accounting-recent
-  > :is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(5)), .office-report-summary-table .office-table-row-report-emd-recent
+.office-report-summary-table
+  .office-table-row-report-accounting-recent
+  > :is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(5)),
+.office-report-summary-table
+  .office-table-row-report-emd-recent
   > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)) {
   white-space: normal;
   overflow-wrap: anywhere;
@@ -6074,16 +6088,31 @@ a {
   line-height: var(--office-line-body);
 }
 
-.office-table-row-report-transactions > :is(:nth-child(5), :nth-child(6)), .office-table-row-report-status
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-types
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-agents
-  > :is(:nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-report-teams
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-report-commission-status > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-commission-plan > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-commission-recent
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-accounting-types > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-accounting-recent
-  > :is(:nth-child(1), :nth-child(3), :nth-child(5)), .office-table-row-report-emd-status
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-report-emd-recent
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-accounting > :nth-child(4), .office-table-row-ledger > :is(:nth-child(3), :nth-child(4)), .office-table-row-accounting-statement-invoices
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-accounting-statement-rows
+.office-table-row-report-transactions > :is(:nth-child(5), :nth-child(6)),
+.office-table-row-report-status
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-types
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-agents
+  > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-report-teams
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-report-commission-status > :is(:nth-child(2), :nth-child(3)),
+.office-table-row-report-commission-plan > :is(:nth-child(2), :nth-child(3)),
+.office-table-row-report-commission-recent
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-accounting-types > :is(:nth-child(2), :nth-child(3)),
+.office-table-row-report-accounting-recent
+  > :is(:nth-child(1), :nth-child(3), :nth-child(5)),
+.office-table-row-report-emd-status
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-report-emd-recent
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-accounting > :nth-child(4),
+.office-table-row-ledger > :is(:nth-child(3), :nth-child(4)),
+.office-table-row-accounting-statement-invoices
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-accounting-statement-rows
   > :is(
     :nth-child(2),
     :nth-child(4),
@@ -6092,39 +6121,98 @@ a {
     :nth-child(7),
     :nth-child(8),
     :nth-child(9)
-  ), .office-table-row-accounting-statement-history
-  > :is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)), .office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-1099-summary > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(7)), .office-table-row-1099-preview > :is(:nth-child(1), :nth-child(2)), .office-table-row-agent-billing-ledger
-  > :is(:nth-child(5), :nth-child(6), :nth-child(7)), .office-table-row-recurring-rules > :nth-child(3), .office-table-row-agent-statement > :nth-child(3), .office-table-row-commission > :is(:nth-child(5), :nth-child(6)), .office-table-row-billing-open > :is(:nth-child(4), :nth-child(5)), .office-table-row-billing-upcoming > :nth-child(4), .office-table-row-billing-statements
-  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)), .office-list-table-header-transactions > :nth-child(3), .office-list-table-row-transactions > :nth-child(3), .office-pipeline-cell-number {
+  ),
+.office-table-row-accounting-statement-history
+  > :is(
+    :nth-child(1),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7),
+    :nth-child(8)
+  ),
+.office-table-row-emd > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-1099-summary
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(7)),
+.office-table-row-1099-preview > :is(:nth-child(1), :nth-child(2)),
+.office-table-row-agent-billing-ledger
+  > :is(:nth-child(5), :nth-child(6), :nth-child(7)),
+.office-table-row-recurring-rules > :nth-child(3),
+.office-table-row-agent-statement > :nth-child(3),
+.office-table-row-commission > :is(:nth-child(5), :nth-child(6)),
+.office-table-row-billing-open > :is(:nth-child(4), :nth-child(5)),
+.office-table-row-billing-upcoming > :nth-child(4),
+.office-table-row-billing-statements
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5)),
+.office-list-table-header-transactions > :nth-child(3),
+.office-list-table-row-transactions > :nth-child(3),
+.office-pipeline-cell-number {
   justify-self: start;
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
-.office-table-row-report-transactions > :is(:nth-child(2), :nth-child(3)), .office-table-row-report-commission-recent > :nth-child(2), .office-table-row-commission > :nth-child(4), .office-table-row-report-accounting-recent > :nth-child(2), .office-table-row-report-emd-recent > :nth-child(2), .office-table-row-billing-open
-  > :is(:nth-child(1), :nth-child(2), :nth-child(6)), .office-table-row-billing-upcoming
-  > :is(:nth-child(1), :nth-child(2), :nth-child(5)), .office-table-row-billing-statements > :is(:nth-child(1), :nth-child(6)), .office-table-row-accounting
-  > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(7)), .office-table-row-ledger > :nth-child(1), .office-table-row-accounting-statement-invoices > :nth-child(1), .office-table-row-accounting-statement-rows > :nth-child(3), .office-table-row-accounting-statement-history > :nth-child(2), .office-table-row-emd > :is(:nth-child(5), :nth-child(6)), .office-table-row-1099-records > :is(:nth-child(1), :nth-child(2), :nth-child(4)), .office-table-row-recurring-rules
-  > :is(:nth-child(4), :nth-child(5), :nth-child(6)), .office-table-row-payment-methods
-  > :is(:nth-child(3), :nth-child(4), :nth-child(5)), .office-table-row-agent-statement > :is(:nth-child(1), :nth-child(4)), .office-table-row-chart > :is(:nth-child(1), :nth-child(3), :nth-child(4)), .office-list-table-header-transactions
+.office-table-row-report-transactions > :is(:nth-child(2), :nth-child(3)),
+.office-table-row-report-commission-recent > :nth-child(2),
+.office-table-row-commission > :nth-child(4),
+.office-table-row-report-accounting-recent > :nth-child(2),
+.office-table-row-report-emd-recent > :nth-child(2),
+.office-table-row-billing-open
+  > :is(:nth-child(1), :nth-child(2), :nth-child(6)),
+.office-table-row-billing-upcoming
+  > :is(:nth-child(1), :nth-child(2), :nth-child(5)),
+.office-table-row-billing-statements > :is(:nth-child(1), :nth-child(6)),
+.office-table-row-accounting
+  > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(7)),
+.office-table-row-ledger > :nth-child(1),
+.office-table-row-accounting-statement-invoices > :nth-child(1),
+.office-table-row-accounting-statement-rows > :nth-child(3),
+.office-table-row-accounting-statement-history > :nth-child(2),
+.office-table-row-emd > :is(:nth-child(5), :nth-child(6)),
+.office-table-row-1099-records
+  > :is(:nth-child(1), :nth-child(2), :nth-child(4)),
+.office-table-row-recurring-rules
+  > :is(:nth-child(4), :nth-child(5), :nth-child(6)),
+.office-table-row-payment-methods
+  > :is(:nth-child(3), :nth-child(4), :nth-child(5)),
+.office-table-row-agent-statement > :is(:nth-child(1), :nth-child(4)),
+.office-table-row-chart > :is(:nth-child(1), :nth-child(3), :nth-child(4)),
+.office-list-table-header-transactions
   > :is(
     :nth-child(3),
     :nth-child(4),
     :nth-child(5),
     :nth-child(6),
     :nth-child(7)
-  ), .office-list-table-row-transactions
+  ),
+.office-list-table-row-transactions
   > :is(
     :nth-child(3),
     :nth-child(4),
     :nth-child(5),
     :nth-child(6),
     :nth-child(7)
-  ), .office-list-table-header-contacts
-  > :is(:nth-child(2), :nth-child(5), :nth-child(6)), .office-list-table-row-contacts
-  > :is(:nth-child(2), :nth-child(5), :nth-child(6)), .office-list-table-header-reports
-  > :is(:nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)), .office-list-table-row-reports
-  > :is(:nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)) {
+  ),
+.office-list-table-header-contacts
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
+.office-list-table-row-contacts
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6)),
+.office-list-table-header-reports
+  > :is(
+    :nth-child(2),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7),
+    :nth-child(8)
+  ),
+.office-list-table-row-reports
+  > :is(
+    :nth-child(2),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7),
+    :nth-child(8)
+  ) {
   white-space: nowrap;
 }
 
@@ -6156,7 +6244,18 @@ a {
   text-align: left;
 }
 
-.office-table-row-agent-statement-snapshot > :is(:nth-child(1), :nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8), :nth-child(10)), .office-table-row-1099-summary > :nth-child(2), .office-table-row-1099-preview > :nth-child(2) {
+.office-table-row-agent-statement-snapshot
+  > :is(
+    :nth-child(1),
+    :nth-child(2),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7),
+    :nth-child(8),
+    :nth-child(10)
+  ),
+.office-table-row-1099-summary > :nth-child(2),
+.office-table-row-1099-preview > :nth-child(2) {
   font-variant-numeric: tabular-nums;
 }
 
@@ -6167,9 +6266,25 @@ a {
   text-align: left;
 }
 
-.office-table-row-accounting-statement-invoices > :is(:nth-child(2), :nth-child(3), :nth-child(4)), .office-table-row-accounting-statement-rows
-  > :is(:nth-child(2), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)), .office-table-row-accounting-statement-history
-  > :is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6), :nth-child(7)) {
+.office-table-row-accounting-statement-invoices
+  > :is(:nth-child(2), :nth-child(3), :nth-child(4)),
+.office-table-row-accounting-statement-rows
+  > :is(
+    :nth-child(2),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7),
+    :nth-child(8)
+  ),
+.office-table-row-accounting-statement-history
+  > :is(
+    :nth-child(1),
+    :nth-child(4),
+    :nth-child(5),
+    :nth-child(6),
+    :nth-child(7)
+  ) {
   font-variant-numeric: tabular-nums;
 }
 
@@ -6421,7 +6536,11 @@ a {
   gap: 10px;
   padding: 20px;
   background:
-    linear-gradient(180deg, rgba(248, 250, 252, 0.97) 0%, rgba(241, 245, 249, 0.98) 100%),
+    linear-gradient(
+      180deg,
+      rgba(248, 250, 252, 0.97) 0%,
+      rgba(241, 245, 249, 0.98) 100%
+    ),
     repeating-linear-gradient(
       -45deg,
       rgba(148, 163, 184, 0.08) 0,
@@ -6455,8 +6574,12 @@ a {
   min-height: 92px;
   border-radius: var(--office-radius-md);
   border: 1px solid rgba(203, 213, 225, 0.7);
-  background:
-    linear-gradient(90deg, rgba(226, 232, 240, 0.72) 0%, rgba(248, 250, 252, 0.96) 50%, rgba(226, 232, 240, 0.72) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.72) 0%,
+    rgba(248, 250, 252, 0.96) 50%,
+    rgba(226, 232, 240, 0.72) 100%
+  );
   background-size: 220% 100%;
   animation: office-embedded-loading-pulse 1.35s ease-in-out infinite;
 }
@@ -6589,7 +6712,11 @@ a {
   background:
     linear-gradient(135deg, rgba(35, 91, 196, 0.08), rgba(35, 91, 196, 0.02)),
     var(--office-surface-muted);
-  border-color: color-mix(in srgb, var(--office-accent) 20%, var(--office-border) 80%);
+  border-color: color-mix(
+    in srgb,
+    var(--office-accent) 20%,
+    var(--office-border) 80%
+  );
 }
 
 .office-kpi-grid,
@@ -6621,10 +6748,9 @@ a {
 .office-dashboard-transactions-head,
 .office-dashboard-transactions-row {
   min-width: 0;
-  grid-template-columns: minmax(196px, 1.52fr) minmax(92px, 0.66fr) minmax(
-      100px,
-      0.72fr
-    ) minmax(112px, 0.78fr);
+  grid-template-columns:
+    minmax(196px, 1.52fr) minmax(92px, 0.66fr) minmax(100px, 0.72fr)
+    minmax(112px, 0.78fr);
   gap: 10px;
 }
 
@@ -6696,7 +6822,11 @@ a {
   padding: 18px 20px;
   border: 1px solid rgba(192, 95, 95, 0.28);
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 247, 247, 0.98), rgba(255, 241, 241, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 247, 247, 0.98),
+    rgba(255, 241, 241, 0.94)
+  );
   box-shadow: 0 20px 42px rgba(137, 41, 41, 0.08);
 }
 
@@ -6747,7 +6877,11 @@ a {
 
 .office-dashboard-commission-month.is-current {
   border-color: rgba(78, 120, 198, 0.52);
-  background: linear-gradient(180deg, rgba(241, 246, 255, 0.98), rgba(232, 239, 252, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(241, 246, 255, 0.98),
+    rgba(232, 239, 252, 0.94)
+  );
 }
 
 .office-dashboard-commission-month-copy {
@@ -6839,7 +6973,8 @@ a {
   transition: transform 180ms ease;
 }
 
-.office-dashboard-commission-history[open] .office-dashboard-commission-history-action::after {
+.office-dashboard-commission-history[open]
+  .office-dashboard-commission-history-action::after {
   transform: rotate(225deg);
 }
 
@@ -7558,7 +7693,11 @@ a {
   padding: 18px 20px;
   border: 1px solid var(--office-border);
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(250, 252, 255, 0.98), rgba(244, 247, 252, 0.96));
+  background: linear-gradient(
+    180deg,
+    rgba(250, 252, 255, 0.98),
+    rgba(244, 247, 252, 0.96)
+  );
   box-shadow: var(--office-shadow-sm);
 }
 
@@ -8160,7 +8299,11 @@ a {
 
 .office-fields-module-link.is-active {
   border-color: var(--office-accent);
-  background: linear-gradient(135deg, rgba(15, 98, 219, 0.12), rgba(15, 98, 219, 0.04));
+  background: linear-gradient(
+    135deg,
+    rgba(15, 98, 219, 0.12),
+    rgba(15, 98, 219, 0.04)
+  );
   transform: translateY(-1px);
 }
 
@@ -8184,7 +8327,8 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.office-fields-panel-head > :is(.office-button, .office-button-secondary), .office-fields-modal-head > :is(.office-button, .office-button-secondary) {
+.office-fields-panel-head > :is(.office-button, .office-button-secondary),
+.office-fields-modal-head > :is(.office-button, .office-button-secondary) {
   justify-self: end;
   align-self: start;
   width: auto;
@@ -8263,7 +8407,11 @@ a {
   flex: 1;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(28, 74, 163, 0.38), rgba(28, 74, 163, 0.9));
+  background: linear-gradient(
+    90deg,
+    rgba(28, 74, 163, 0.38),
+    rgba(28, 74, 163, 0.9)
+  );
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.82);
 }
 
@@ -8289,7 +8437,10 @@ a {
 
 .office-fields-row-main {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.7fr) minmax(110px, 0.6fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.7fr) minmax(
+      110px,
+      0.6fr
+    );
   gap: 16px;
   align-items: center;
   text-align: left;
@@ -8423,7 +8574,11 @@ a {
   width: min(100%, 720px);
   max-height: min(90vh, 820px);
   overflow: auto;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.995) 0%, #f9fbff 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.995) 0%,
+    #f9fbff 100%
+  );
 }
 
 .office-transaction-search-layout-modal {
@@ -8517,7 +8672,8 @@ a {
   gap: 12px;
 }
 
-.office-transaction-search-layout-group + .office-transaction-search-layout-group {
+.office-transaction-search-layout-group
+  + .office-transaction-search-layout-group {
   padding-top: 18px;
   border-top: 1px solid rgba(194, 205, 220, 0.54);
 }
@@ -8812,7 +8968,11 @@ a {
   overflow: hidden;
   border: 1px solid rgba(194, 205, 220, 0.62);
   border-radius: 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, #f8fbff 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    #f8fbff 100%
+  );
   box-shadow: 0 28px 70px rgba(18, 40, 76, 0.18);
 }
 
@@ -9061,7 +9221,10 @@ a {
   color: var(--office-text-muted);
 }
 
-.office-create-modal .office-modal-inline-select > .office-modal-field-head span,
+.office-create-modal
+  .office-modal-inline-select
+  > .office-modal-field-head
+  span,
 .office-create-modal .office-modal-field span {
   color: var(--office-text-muted);
   font-size: 0.79rem;
@@ -9582,7 +9745,10 @@ a {
 
 .office-settings-team-editor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.92fr) minmax(180px, 0.72fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.92fr) minmax(
+      180px,
+      0.72fr
+    );
   gap: 12px;
   align-items: end;
 }
@@ -9632,14 +9798,22 @@ a {
   border: 1px solid rgba(194, 205, 220, 0.54);
   border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 253, 0.98)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(246, 249, 253, 0.98)
+    ),
     var(--office-surface-subtle);
   box-shadow: 0 20px 42px rgba(15, 23, 42, 0.05);
 }
 
 .office-settings-team-directory-card.is-child-branch {
   background:
-    linear-gradient(180deg, rgba(251, 252, 255, 0.98), rgba(244, 248, 253, 0.98)),
+    linear-gradient(
+      180deg,
+      rgba(251, 252, 255, 0.98),
+      rgba(244, 248, 253, 0.98)
+    ),
     var(--office-surface-subtle);
 }
 
@@ -9805,7 +9979,10 @@ a {
 
 .office-settings-team-assign-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(180px, 0.8fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(180px, 0.8fr) minmax(
+      220px,
+      1fr
+    );
   gap: 12px;
   align-items: end;
 }
@@ -10442,10 +10619,9 @@ a {
 }
 
 .office-pipeline-filters {
-  grid-template-columns: minmax(260px, 1.55fr) repeat(
-      3,
-      minmax(180px, 1fr)
-    ) auto;
+  grid-template-columns:
+    minmax(260px, 1.55fr) repeat(3, minmax(180px, 1fr))
+    auto;
 }
 
 .office-pipeline-overview-strip {
@@ -11031,8 +11207,16 @@ a {
   border: 1px solid var(--office-border);
   border-radius: 28px;
   background:
-    radial-gradient(circle at top left, rgba(15, 43, 116, 0.04), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.96) 100%);
+    radial-gradient(
+      circle at top left,
+      rgba(15, 43, 116, 0.04),
+      transparent 34%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(249, 251, 255, 0.96) 100%
+    );
   box-shadow: var(--office-shadow-md);
 }
 
@@ -11055,7 +11239,11 @@ a {
   padding: 18px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 248, 255, 0.96) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(245, 248, 255, 0.96) 100%
+  );
 }
 
 .office-pipeline-v2-focus-head {
@@ -11120,7 +11308,13 @@ a {
   position: absolute;
   inset-inline: 16px;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(15, 43, 116, 0.16) 18%, rgba(15, 43, 116, 0.16) 82%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(15, 43, 116, 0.16) 18%,
+    rgba(15, 43, 116, 0.16) 82%,
+    transparent 100%
+  );
   pointer-events: none;
 }
 
@@ -11133,11 +11327,19 @@ a {
 }
 
 .office-pipeline-v2-stage-card-pending {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 251, 255, 0.96) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(248, 251, 255, 0.96) 100%
+  );
 }
 
 .office-pipeline-v2-stage-card-closed {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(248, 250, 252, 0.96) 100%
+  );
 }
 
 .office-pipeline-v2-stage-card-label {
@@ -11180,7 +11382,11 @@ a {
 
 .office-pipeline-v2-stage-card.is-active {
   border-color: rgba(15, 43, 116, 0.24);
-  background: linear-gradient(180deg, rgba(15, 43, 116, 0.98) 0%, rgba(24, 57, 138, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 43, 116, 0.98) 0%,
+    rgba(24, 57, 138, 0.98) 100%
+  );
   box-shadow: 0 18px 36px rgba(15, 43, 116, 0.18);
   transform: translateY(-1px);
 }
@@ -11196,7 +11402,13 @@ a {
 
 .office-pipeline-v2-stage-card.is-active::before,
 .office-pipeline-v2-stage-card.is-active::after {
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.26) 18%, rgba(255, 255, 255, 0.26) 82%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.26) 18%,
+    rgba(255, 255, 255, 0.26) 82%,
+    transparent 100%
+  );
 }
 
 .office-pipeline-v2-history-card {
@@ -11247,7 +11459,11 @@ a {
 
 .office-pipeline-v2-history-row.is-active {
   border-color: rgba(15, 43, 116, 0.18);
-  background: linear-gradient(180deg, rgba(238, 244, 255, 0.96) 0%, rgba(231, 239, 255, 0.96) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(238, 244, 255, 0.96) 0%,
+    rgba(231, 239, 255, 0.96) 100%
+  );
   box-shadow: inset 0 0 0 1px rgba(15, 43, 116, 0.05);
   transform: none;
 }
@@ -11295,9 +11511,13 @@ a {
   font-weight: 700;
 }
 
-.office-pipeline-v2-history-row.is-active .office-pipeline-v2-history-copy strong,
+.office-pipeline-v2-history-row.is-active
+  .office-pipeline-v2-history-copy
+  strong,
 .office-pipeline-v2-history-row.is-active .office-pipeline-v2-history-metrics b,
-.office-pipeline-v2-history-row.is-active .office-pipeline-v2-history-metrics em {
+.office-pipeline-v2-history-row.is-active
+  .office-pipeline-v2-history-metrics
+  em {
   color: #173a8f;
 }
 
@@ -12180,7 +12400,11 @@ a {
   padding: 18px 20px;
   border: 1px solid rgba(192, 95, 95, 0.28);
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 247, 247, 0.98), rgba(255, 241, 241, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 247, 247, 0.98),
+    rgba(255, 241, 241, 0.94)
+  );
   box-shadow: 0 18px 40px rgba(137, 41, 41, 0.08);
 }
 
@@ -12265,12 +12489,20 @@ a {
 
 .office-notification-row.is-critical {
   border-color: rgba(192, 95, 95, 0.28);
-  background: linear-gradient(180deg, rgba(255, 249, 249, 0.98), rgba(255, 244, 244, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 249, 249, 0.98),
+    rgba(255, 244, 244, 0.92)
+  );
 }
 
 .office-notification-row.is-critical.is-unread {
   border-color: rgba(192, 95, 95, 0.52);
-  background: linear-gradient(180deg, rgba(255, 241, 241, 0.98), rgba(255, 232, 232, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 241, 241, 0.98),
+    rgba(255, 232, 232, 0.94)
+  );
   box-shadow: 0 14px 34px rgba(137, 41, 41, 0.08);
 }
 
@@ -13416,28 +13648,55 @@ body,
   color: var(--office-text);
 }
 
-.front-office-record :is(.office-badge, .office-status-badge), .front-office-resource-item :is(.office-badge, .office-status-badge), .front-office-vendor-item :is(.office-badge, .office-status-badge), .front-office-activity-event :is(.office-badge, .office-status-badge) {
+.front-office-record :is(.office-badge, .office-status-badge),
+.front-office-resource-item :is(.office-badge, .office-status-badge),
+.front-office-vendor-item :is(.office-badge, .office-status-badge),
+.front-office-activity-event :is(.office-badge, .office-status-badge) {
   opacity: 1;
   font-weight: 800;
   -webkit-text-fill-color: currentColor;
 }
 
-.front-office-record :is(.office-badge-neutral, .office-status-badge-neutral), .front-office-resource-item :is(.office-badge-neutral, .office-status-badge-neutral), .front-office-vendor-item :is(.office-badge-neutral, .office-status-badge-neutral), .front-office-activity-event :is(.office-badge-neutral, .office-status-badge-neutral) {
+.front-office-record :is(.office-badge-neutral, .office-status-badge-neutral),
+.front-office-resource-item
+  :is(.office-badge-neutral, .office-status-badge-neutral),
+.front-office-vendor-item
+  :is(.office-badge-neutral, .office-status-badge-neutral),
+.front-office-activity-event
+  :is(.office-badge-neutral, .office-status-badge-neutral) {
   background: #e9eef4;
   color: #42556c;
 }
 
-.front-office-record :is(.office-badge-accent, .office-status-badge-accent), .front-office-resource-item :is(.office-badge-accent, .office-status-badge-accent), .front-office-vendor-item :is(.office-badge-accent, .office-status-badge-accent), .front-office-activity-event :is(.office-badge-accent, .office-status-badge-accent) {
+.front-office-record :is(.office-badge-accent, .office-status-badge-accent),
+.front-office-resource-item
+  :is(.office-badge-accent, .office-status-badge-accent),
+.front-office-vendor-item
+  :is(.office-badge-accent, .office-status-badge-accent),
+.front-office-activity-event
+  :is(.office-badge-accent, .office-status-badge-accent) {
   background: #dfeaff;
   color: #173f86;
 }
 
-.front-office-record :is(.office-badge-success, .office-status-badge-success), .front-office-resource-item :is(.office-badge-success, .office-status-badge-success), .front-office-vendor-item :is(.office-badge-success, .office-status-badge-success), .front-office-activity-event :is(.office-badge-success, .office-status-badge-success) {
+.front-office-record :is(.office-badge-success, .office-status-badge-success),
+.front-office-resource-item
+  :is(.office-badge-success, .office-status-badge-success),
+.front-office-vendor-item
+  :is(.office-badge-success, .office-status-badge-success),
+.front-office-activity-event
+  :is(.office-badge-success, .office-status-badge-success) {
   background: rgba(47, 109, 79, 0.16);
   color: #2b6548;
 }
 
-.front-office-record :is(.office-badge-warning, .office-status-badge-warning), .front-office-resource-item :is(.office-badge-warning, .office-status-badge-warning), .front-office-vendor-item :is(.office-badge-warning, .office-status-badge-warning), .front-office-activity-event :is(.office-badge-warning, .office-status-badge-warning) {
+.front-office-record :is(.office-badge-warning, .office-status-badge-warning),
+.front-office-resource-item
+  :is(.office-badge-warning, .office-status-badge-warning),
+.front-office-vendor-item
+  :is(.office-badge-warning, .office-status-badge-warning),
+.front-office-activity-event
+  :is(.office-badge-warning, .office-status-badge-warning) {
   background: rgba(248, 214, 110, 0.28);
   color: #7c5b00;
 }
@@ -13463,6 +13722,45 @@ body,
   font-size: var(--office-text-meta-size);
   font-weight: 700;
   line-height: 1.35;
+}
+
+.front-office-calendar-form {
+  display: grid;
+  gap: 14px;
+}
+
+.front-office-calendar-badges,
+.front-office-calendar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.front-office-calendar-badges {
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.front-office-calendar-feedback {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(194, 205, 220, 0.56);
+  border-radius: 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.front-office-calendar-feedback.is-error {
+  border-color: rgba(191, 71, 71, 0.26);
+  background: rgba(252, 241, 241, 0.92);
+  color: #8d3434;
+}
+
+.front-office-calendar-feedback.is-success {
+  border-color: rgba(43, 122, 85, 0.22);
+  background: rgba(241, 251, 246, 0.94);
+  color: #295f45;
 }
 
 .agent-brand-panel {
@@ -13839,7 +14137,11 @@ body,
 
 .office-activity-section-link.is-active {
   border-color: rgba(129, 160, 222, 0.52);
-  background: linear-gradient(180deg, rgba(241, 246, 255, 0.96), rgba(232, 239, 252, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(241, 246, 255, 0.96),
+    rgba(232, 239, 252, 0.92)
+  );
 }
 
 .office-activity-section-link.is-active strong,
@@ -13858,7 +14160,11 @@ body,
 }
 
 .office-alert-record {
-  background: linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(255, 247, 235, 0.92));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 252, 245, 0.98),
+    rgba(255, 247, 235, 0.92)
+  );
 }
 
 .office-activity-record-top {
@@ -14084,7 +14390,11 @@ body,
   overflow-y: visible;
   border: 1px solid rgba(194, 205, 220, 0.5);
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(244, 247, 252, 0.96), rgba(234, 240, 248, 0.88));
+  background: linear-gradient(
+    180deg,
+    rgba(244, 247, 252, 0.96),
+    rgba(234, 240, 248, 0.88)
+  );
 }
 
 .office-dashboard-chart-canvas {
@@ -14348,7 +14658,10 @@ body,
   background: color-mix(in srgb, var(--office-border-strong) 88%, transparent);
   opacity: 0.72;
   pointer-events: none;
-  transition: opacity 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition:
+    opacity 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .office-table-resize-handle {
@@ -14368,7 +14681,8 @@ body,
 .office-table-resize-active::before {
   opacity: 1;
   background: var(--office-accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--office-accent-soft) 70%, transparent);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--office-accent-soft) 70%, transparent);
 }
 
 .office-table-column-resizing,
@@ -14612,9 +14926,15 @@ body,
   gap: 14px 16px;
 }
 
-.office-signature-editor-main .office-document-upload-grid > .office-form-grid-span-2,
-.office-signature-editor-main .office-document-upload-grid > .office-form-grid-span-4,
-.office-signature-editor-main .office-document-upload-grid > .office-document-edit-actions {
+.office-signature-editor-main
+  .office-document-upload-grid
+  > .office-form-grid-span-2,
+.office-signature-editor-main
+  .office-document-upload-grid
+  > .office-form-grid-span-4,
+.office-signature-editor-main
+  .office-document-upload-grid
+  > .office-document-edit-actions {
   grid-column: 1 / -1;
 }
 
@@ -14703,8 +15023,7 @@ body,
   padding: 14px 16px;
   border: 1px solid var(--office-border);
   border-radius: 16px;
-  background:
-    linear-gradient(180deg, #fbfdff 0%, #f6f9ff 100%);
+  background: linear-gradient(180deg, #fbfdff 0%, #f6f9ff 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
@@ -14762,7 +15081,11 @@ body,
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 32%),
+    radial-gradient(
+      circle at top left,
+      rgba(59, 130, 246, 0.08),
+      transparent 32%
+    ),
     linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
 }
 

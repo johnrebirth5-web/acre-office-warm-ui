@@ -1,5 +1,5 @@
 export const databaseEnv = {
-  primaryUrl: "DATABASE_URL"
+  primaryUrl: "DATABASE_URL",
 } as const;
 
 export const databaseModules = [
@@ -14,6 +14,9 @@ export const databaseModules = [
   "listings",
   "listing_share_links",
   "clients",
+  "appointments",
+  "client_stage_histories",
+  "front_office_handoff_drafts",
   "follow_up_tasks",
   "notifications",
   "events",
@@ -66,13 +69,12 @@ export const databaseModules = [
   "signature_requests",
   "signature_fields",
   "signature_audit_entries",
-  "incoming_updates"
-  ,
+  "incoming_updates",
   "offers",
   "offer_comments",
   "organization_role_templates",
   "organization_role_template_permissions",
-  "membership_permission_overrides"
+  "membership_permission_overrides",
 ] as const;
 
 export { assertDatabaseUrl, getPrismaClient, prisma } from "./client";
@@ -86,7 +88,7 @@ export {
   canViewFinancialsForMembership,
   getVisibleMembershipIds,
   redactCurrency,
-  resolveOfficeDataScope
+  resolveOfficeDataScope,
 } from "./access";
 export {
   buildTeamMembershipHierarchyMap,
@@ -97,7 +99,7 @@ export {
   getDescendantTeamIds,
   getTeamDepth,
   getTeamPath,
-  isLeaderTeamMembershipRole
+  isLeaderTeamMembershipRole,
 } from "./team-hierarchy";
 export { getOfficeActivitySnapshot } from "./activity";
 export {
@@ -105,7 +107,7 @@ export {
   addOfficeActivityComment,
   getOfficeActivityLogSnapshot,
   getOfficeOperationalAlertsSnapshot,
-  recordActivityLogEvent
+  recordActivityLogEvent,
 } from "./activity-log";
 export {
   acceptInvitation,
@@ -120,13 +122,13 @@ export {
   getSessionMembershipContext,
   issueInvitationForMembership,
   revokeInvitationForMembership,
-  unlockInternalAccount
+  unlockInternalAccount,
 } from "./auth";
 export { getSeededWorkspaceSnapshot } from "./bootstrap";
 export {
   getOfficeAccountSnapshot,
   saveOfficeAccountNotificationPreferences,
-  saveOfficeAccountProfile
+  saveOfficeAccountProfile,
 } from "./account";
 export {
   createNotificationsForMemberships,
@@ -136,7 +138,7 @@ export {
   markAllOfficeNotificationsRead,
   markOfficeNotificationRead,
   markOfficeNotificationUnread,
-  openOfficeNotification
+  openOfficeNotification,
 } from "./notifications";
 export {
   createLibraryDocument,
@@ -146,7 +148,7 @@ export {
   getOfficeLibrarySnapshot,
   recordLibraryDocumentOpened,
   updateLibraryDocument,
-  updateLibraryFolder
+  updateLibraryFolder,
 } from "./library";
 export {
   applyAgentOnboardingTemplate,
@@ -161,7 +163,7 @@ export {
   saveAgentProfile,
   updateAgentGoal,
   updateAgentOnboardingItem,
-  updateAgentTeam
+  updateAgentTeam,
 } from "./agents";
 export {
   accountingSystemAccountCodes,
@@ -169,7 +171,7 @@ export {
   createEarnestMoneyRecord,
   getOfficeAccountingSnapshot,
   updateAccountingTransaction,
-  updateEarnestMoneyRecord
+  updateEarnestMoneyRecord,
 } from "./accounting";
 export {
   getOffice1099SummaryDetail,
@@ -183,7 +185,7 @@ export {
   type Office1099SummaryRow,
   type Office1099TrackerMemberOption,
   type Office1099TrackerTab,
-  type Office1099TrackerWorkspaceSnapshot
+  type Office1099TrackerWorkspaceSnapshot,
 } from "./agent-1099-tracker";
 export {
   createAgentPayoutStatement,
@@ -191,7 +193,7 @@ export {
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
   respondToAgentPayoutStatement,
   sendAgentPayoutStatementToAgent,
-  updateAgentPayoutStatementManualLineItems
+  updateAgentPayoutStatementManualLineItems,
 } from "./agent-payout-statements";
 export {
   applyAgentBillingCreditMemo,
@@ -205,10 +207,20 @@ export {
   recordAgentBillingPayment,
   updateAgentPaymentMethod,
   updateOfficeBillingPaymentMethod,
-  updateAgentRecurringChargeRule
+  updateAgentRecurringChargeRule,
 } from "./agent-billing";
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
+export {
+  createFrontOfficeAppointment,
+  getFrontOfficeAppointmentsSnapshot,
+  updateFrontOfficeAppointmentStatus,
+  type FrontOfficeAppointmentHandoffItem,
+  type FrontOfficeAppointmentOption,
+  type FrontOfficeAppointmentRecord,
+  type FrontOfficeAppointmentsSnapshot,
+  type FrontOfficeAppointmentTone,
+} from "./front-office-appointments";
 export {
   getFrontOfficeActivitySnapshot,
   getFrontOfficeClientsSnapshot,
@@ -225,7 +237,7 @@ export {
   type FrontOfficeResourcesSnapshot,
   type FrontOfficeTone,
   type FrontOfficeVendorRecord,
-  type FrontOfficeWorkspaceInput
+  type FrontOfficeWorkspaceInput,
 } from "./front-office-workspaces";
 export {
   getOfficePerformanceWorkspace,
@@ -235,7 +247,7 @@ export {
   type OfficePerformanceLeaderboardEntry,
   type OfficePerformanceSummary,
   type OfficePerformanceTableRow,
-  type OfficePerformanceWorkspace
+  type OfficePerformanceWorkspace,
 } from "./performance";
 export {
   assignCommissionPlanToMembership,
@@ -250,13 +262,13 @@ export {
   overrideTransactionCommission,
   previewCreateTransactionCommissionCalculator,
   saveCommissionPlan,
-  updateCommissionCalculationStatus
+  updateCommissionCalculationStatus,
 } from "./commissions";
 export {
   deleteCommissionSplitTemplate,
   listCommissionSplitTemplateOptions,
   listCommissionSplitTemplates,
-  saveCommissionSplitTemplate
+  saveCommissionSplitTemplate,
 } from "./commission-defaults";
 export {
   createContact,
@@ -266,7 +278,7 @@ export {
   listContacts,
   officeContactsPageDefaults,
   officeContactsPageLimits,
-  updateContact
+  updateContact,
 } from "./contacts";
 export { getOfficePipelineWorkspaceSnapshot } from "./pipeline";
 export {
@@ -275,35 +287,40 @@ export {
   getOfficeTransactionReportsWorkspace,
   listOfficeTransactionReportExportRows,
   officeTransactionReportColumns,
-  saveOfficeTransactionReportSearchLayout
+  saveOfficeTransactionReportSearchLayout,
 } from "./reports";
-export { getOfficeTableLayouts, saveOfficeTableLayout, type OfficeTableLayoutColumn, type OfficeTableLayoutMap } from "./table-layouts";
+export {
+  getOfficeTableLayouts,
+  saveOfficeTableLayout,
+  type OfficeTableLayoutColumn,
+  type OfficeTableLayoutMap,
+} from "./table-layouts";
 export {
   deleteOrganizationSmtpSettings,
   getOfficeEmailDeliverySettingsSnapshot,
   resolveOrganizationSignatureSmtpConfig,
-  saveOrganizationSmtpSettings
+  saveOrganizationSmtpSettings,
 } from "./smtp-settings";
 export {
   deleteOrganizationSignatureDriveSettings,
   getOfficeSignatureDriveSettingsSnapshot,
   resolveOrganizationSignatureDriveConfig,
-  saveOrganizationSignatureDriveSettings
+  saveOrganizationSignatureDriveSettings,
 } from "./signature-drive-settings";
 export {
   getOfficeSignatureTemplate,
   getOfficeSignatureTemplateLibrarySnapshot,
-  saveSignatureTemplate
+  saveSignatureTemplate,
 } from "./signature-templates";
 export {
   ensureSignatureDriveArtifacts,
   getSignatureDriveSyncJob,
   markSignatureDriveSyncPending,
-  saveSignatureDriveSyncResult
+  saveSignatureDriveSyncResult,
 } from "./signature-drive-sync";
 export {
   getOfficeSignatureExportPayload,
-  getOfficeSignaturesWorkspace
+  getOfficeSignaturesWorkspace,
 } from "./signature-workspace";
 export {
   getOfficeFieldSettingsSnapshot,
@@ -318,7 +335,7 @@ export {
   createOfficeTransactionCustomFieldDefinition,
   updateOfficeTransactionCustomFieldDefinition,
   prepareContactFieldSubmission,
-  prepareOfferFieldSubmission
+  prepareOfferFieldSubmission,
 } from "./field-settings";
 export {
   createChecklistTemplate,
@@ -327,7 +344,7 @@ export {
   getOfficeChecklistTemplatesSnapshot,
   getOfficeSettingsSummarySnapshot,
   updateChecklistTemplate,
-  updateOfficeAdminUser
+  updateOfficeAdminUser,
 } from "./settings";
 export {
   ensureOrganizationRoleTemplates,
@@ -336,7 +353,7 @@ export {
   getOrganizationRoleTemplatesSnapshot,
   resetMembershipPermissionOverrides,
   saveMembershipPermissionOverrides,
-  saveOrganizationRoleTemplatePermissions
+  saveOrganizationRoleTemplatePermissions,
 } from "./permissions";
 export {
   createIncomingUpdate,
@@ -356,14 +373,14 @@ export {
   reviewIncomingUpdate,
   updateSignatureRequest,
   updateTransactionDocument,
-  updateTransactionForm
+  updateTransactionForm,
 } from "./transaction-documents";
 export {
   createOffer,
   createOfferComment,
   listTransactionOffersSnapshot,
   transitionOfferStatus,
-  updateOffer
+  updateOffer,
 } from "./offers";
 export {
   getDefaultTransactionContactRole,
@@ -371,7 +388,7 @@ export {
   listAvailableContactsForTransaction,
   listTransactionContacts,
   setPrimaryTransactionContact,
-  unlinkContactFromTransaction
+  unlinkContactFromTransaction,
 } from "./transaction-contacts";
 export {
   approveTransactionTask,
@@ -388,7 +405,7 @@ export {
   reopenTransactionTask,
   requestTransactionTaskReview,
   saveTaskListView,
-  updateTransactionTask
+  updateTransactionTask,
 } from "./transaction-tasks";
 export {
   getOfficeTransactionsPageSnapshot,
@@ -403,7 +420,7 @@ export {
   saveOfficeTransactionSearchLayout,
   updateTransactionFinance,
   updateTransactionIntake,
-  updateTransactionStatus
+  updateTransactionStatus,
 } from "./transactions";
 export type {
   MembershipEffectivePermissionsSnapshot,
@@ -414,7 +431,7 @@ export type {
   PermissionTreeStateNode,
   ResetMembershipPermissionOverridesInput,
   SaveMembershipPermissionOverridesInput,
-  SaveOrganizationRoleTemplatePermissionsInput
+  SaveOrganizationRoleTemplatePermissionsInput,
 } from "./permissions";
 export type {
   AcceptInvitationResult,
@@ -425,14 +442,14 @@ export type {
   IssueInvitationResult,
   PasswordLoginResult,
   SessionMembershipContext,
-  UnlockInternalAccountInput
+  UnlockInternalAccountInput,
 } from "./auth";
 export type {
   GetOfficeAccountSnapshotInput,
   OfficeAccountNotificationPreferenceState,
   OfficeAccountSnapshot,
   SaveOfficeAccountNotificationPreferencesInput,
-  SaveOfficeAccountProfileInput
+  SaveOfficeAccountProfileInput,
 } from "./account";
 export type {
   AddAgentToTeamInput,
@@ -456,7 +473,7 @@ export type {
   SaveAgentProfileInput,
   UpdateAgentGoalInput,
   UpdateAgentOnboardingItemInput,
-  UpdateAgentTeamInput
+  UpdateAgentTeamInput,
 } from "./agents";
 export type {
   AccountingTransactionLineItemInput,
@@ -475,7 +492,7 @@ export type {
   OfficeLedgerAccountOption,
   OfficeLedgerAccountRecord,
   SaveAccountingTransactionInput,
-  UpdateEarnestMoneyRecordInput
+  UpdateEarnestMoneyRecordInput,
 } from "./accounting";
 export type {
   CreateAgentPayoutStatementInput,
@@ -494,7 +511,7 @@ export type {
   RespondToAgentPayoutStatementInput,
   SendAgentPayoutStatementToAgentInput,
   UpdateAgentPayoutStatementManualLineItemInput,
-  UpdateAgentPayoutStatementManualLineItemsInput
+  UpdateAgentPayoutStatementManualLineItemsInput,
 } from "./agent-payout-statements";
 export type {
   ApplyAgentBillingCreditMemoInput,
@@ -527,7 +544,7 @@ export type {
   RecordAgentBillingPaymentInput,
   UpdateAgentPaymentMethodInput,
   UpdateOfficeBillingPaymentMethodInput,
-  UpdateAgentRecurringChargeRuleInput
+  UpdateAgentRecurringChargeRuleInput,
 } from "./agent-billing";
 export type {
   GetOfficeActivitySnapshotInput,
@@ -535,7 +552,7 @@ export type {
   OfficeActivityFollowUpItem,
   OfficeActivityNotification,
   OfficeActivityOperationalItem,
-  OfficeActivitySnapshot
+  OfficeActivitySnapshot,
 } from "./activity";
 export type {
   CreateNotificationsForMembershipsInput,
@@ -548,7 +565,7 @@ export type {
   OfficeNotificationPermissionGroup,
   OfficePayoutReviewReminder,
   OfficeNotificationsSnapshot,
-  OfficeNotificationSummary
+  OfficeNotificationSummary,
 } from "./notifications";
 export type {
   ActivityLogChange,
@@ -568,7 +585,7 @@ export type {
   OfficeActivityLogSnapshot,
   OfficeOperationalAlert,
   OfficeOperationalAlertsSnapshot,
-  OfficeOperationalAlertSeverity
+  OfficeOperationalAlertSeverity,
 } from "./activity-log";
 export type {
   CreateLibraryDocumentInput,
@@ -583,36 +600,36 @@ export type {
   OfficeLibrarySnapshot,
   OfficeLibrarySummary,
   UpdateLibraryDocumentInput,
-  UpdateLibraryFolderInput
+  UpdateLibraryFolderInput,
 } from "./library";
 export type {
   DeleteOrganizationSmtpSettingsInput,
   OfficeEmailDeliverySettingsSnapshot,
   ResolveOrganizationSignatureSmtpConfigResult,
-  SaveOrganizationSmtpSettingsInput
+  SaveOrganizationSmtpSettingsInput,
 } from "./smtp-settings";
 export type {
   DeleteOrganizationSignatureDriveSettingsInput,
   OfficeSignatureDriveSettingsSnapshot,
   ResolveOrganizationSignatureDriveConfigResult,
-  SaveOrganizationSignatureDriveSettingsInput
+  SaveOrganizationSignatureDriveSettingsInput,
 } from "./signature-drive-settings";
 export type {
   OfficeSignatureTemplate,
   OfficeSignatureTemplateField,
   OfficeSignatureTemplateLibrarySnapshot,
   OfficeSignatureTemplateRecipient,
-  SaveSignatureTemplateInput
+  SaveSignatureTemplateInput,
 } from "./signature-templates";
 export type {
   SignatureDriveSyncArtifactJob,
-  SignatureDriveSyncJob
+  SignatureDriveSyncJob,
 } from "./signature-drive-sync";
 export type {
   ListOfficeSignaturesInput,
   OfficeSignatureExportPayload,
   OfficeSignatureWorkspaceRow,
-  OfficeSignatureWorkspaceSnapshot
+  OfficeSignatureWorkspaceSnapshot,
 } from "./signature-workspace";
 export type {
   CreateOfficeCustomFieldDefinitionInput,
@@ -639,7 +656,7 @@ export type {
   ReorderOfficeFieldsInput,
   SaveOfficeFieldSettingsInput,
   UpdateOfficeCustomFieldDefinitionInput,
-  UpdateOfficeTransactionCustomFieldDefinitionInput
+  UpdateOfficeTransactionCustomFieldDefinitionInput,
 } from "./field-settings";
 export type {
   OfficeAdminAssignableTeam,
@@ -657,10 +674,17 @@ export type {
   OfficeChecklistTemplatesSnapshot,
   OfficeSettingsSummarySnapshot,
   UpdateChecklistTemplateInput,
-  UpdateOfficeAdminUserInput
+  UpdateOfficeAdminUserInput,
 } from "./settings";
-export type { OfficeUserDetailWorkspaceSnapshot, OfficeUsersWorkspaceSnapshot, OfficeUsersWorkspaceView } from "./users-workspace";
-export type { SeededMembershipSnapshot, SeededWorkspaceSnapshot } from "./bootstrap";
+export type {
+  OfficeUserDetailWorkspaceSnapshot,
+  OfficeUsersWorkspaceSnapshot,
+  OfficeUsersWorkspaceView,
+} from "./users-workspace";
+export type {
+  SeededMembershipSnapshot,
+  SeededWorkspaceSnapshot,
+} from "./bootstrap";
 export type {
   OfficeDashboardBusinessSnapshot,
   OfficeDashboardChartPoint,
@@ -669,7 +693,7 @@ export type {
   OfficeDashboardCommissionSnapshot,
   OfficeDashboardPayoutReviewQueue,
   OfficeDashboardRecentTransaction,
-  OfficeDashboardStatusMetric
+  OfficeDashboardStatusMetric,
 } from "./dashboard";
 export type {
   FrontOfficeDashboardActionQueueItem,
@@ -683,7 +707,7 @@ export type {
   FrontOfficeDashboardStageMetric,
   FrontOfficeDashboardSummary,
   FrontOfficeDashboardTone,
-  FrontOfficeDashboardVendorItem
+  FrontOfficeDashboardVendorItem,
 } from "./front-office-dashboard";
 export type {
   CalculateTransactionCommissionInput,
@@ -717,7 +741,7 @@ export type {
   SaveCommissionPlanAssignmentInput,
   SaveCommissionPlanInput,
   SaveCommissionPlanRuleInput,
-  UpdateCommissionCalculationStatusInput
+  UpdateCommissionCalculationStatusInput,
 } from "./commissions";
 export type {
   CreateFollowUpTaskInput,
@@ -728,7 +752,7 @@ export type {
   OfficeContactRecord,
   OfficeContactTask,
   OfficeTransactionLinkOption,
-  SaveContactInput
+  SaveContactInput,
 } from "./contacts";
 export type {
   GetOfficePipelineWorkspaceInput,
@@ -743,7 +767,7 @@ export type {
   OfficePipelineStatus,
   OfficePipelineView,
   OfficePipelineWorkspaceRow,
-  OfficePipelineWorkspaceSnapshot
+  OfficePipelineWorkspaceSnapshot,
 } from "./pipeline";
 export type {
   GetOfficeTransactionReportsWorkspaceInput,
@@ -761,7 +785,7 @@ export type {
   OfficeTransactionReportsFilters,
   OfficeTransactionReportsSummary,
   OfficeTransactionReportsWorkspace,
-  SaveOfficeTransactionReportSearchLayoutInput
+  SaveOfficeTransactionReportSearchLayoutInput,
 } from "./reports";
 export type {
   CreateIncomingUpdateInput,
@@ -785,7 +809,7 @@ export type {
   ReviewIncomingUpdateInput,
   UpdateSignatureRequestInput,
   UpdateTransactionDocumentInput,
-  UpdateTransactionFormInput
+  UpdateTransactionFormInput,
 } from "./transaction-documents";
 export type {
   CreateOfferCommentInput,
@@ -799,9 +823,13 @@ export type {
   OfficeTransactionOffersSnapshot,
   TransitionOfferAction,
   TransitionOfferStatusInput,
-  UpdateOfferInput
+  UpdateOfferInput,
 } from "./offers";
-export type { LinkTransactionContactInput, OfficeTransactionContact, OfficeTransactionContactOption } from "./transaction-contacts";
+export type {
+  LinkTransactionContactInput,
+  OfficeTransactionContact,
+  OfficeTransactionContactOption,
+} from "./transaction-contacts";
 export type {
   CreateTransactionTaskInput,
   ListOfficeDocumentApprovalQueueInput,
@@ -832,7 +860,7 @@ export type {
   OfficeTransactionTaskStatus,
   SaveTaskListViewInput,
   TransactionTaskAuditSource,
-  UpdateTransactionTaskInput
+  UpdateTransactionTaskInput,
 } from "./transaction-tasks";
 export type {
   CreateTransactionInput,
@@ -855,5 +883,5 @@ export type {
   UpdateTransactionIntakeInput,
   OfficeTransactionOwnerAssignment,
   OfficeTransactionOwnerOption,
-  UpdateTransactionStatusInput
+  UpdateTransactionStatusInput,
 } from "./transactions";

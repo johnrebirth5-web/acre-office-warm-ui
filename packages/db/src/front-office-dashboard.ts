@@ -1,15 +1,23 @@
 import {
+  AppointmentStatus,
+  AppointmentType,
+  FrontOfficeHandoffStatus,
   ListingStatus,
   NotificationType,
   Prisma,
   ResourceType,
   SignatureRequestStatus,
-  TransactionStatus
+  TransactionStatus,
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 
-export type FrontOfficeDashboardTone = "neutral" | "accent" | "success" | "warning" | "danger";
+export type FrontOfficeDashboardTone =
+  | "neutral"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger";
 
 export type FrontOfficeDashboardSummary = {
   todayActionCount: number;
@@ -49,10 +57,11 @@ export type FrontOfficeDashboardClientItem = {
 export type FrontOfficeDashboardCommitmentItem = {
   id: string;
   title: string;
-  visibilityLabel: string;
+  badgeLabel: string;
+  badgeTone: FrontOfficeDashboardTone;
   startsAtLabel: string;
   locationLabel: string;
-  rsvpLabel: string;
+  contextLabel: string;
   href: string;
 };
 
@@ -141,15 +150,20 @@ type GetFrontOfficeDashboardSnapshotInput = {
 };
 
 const openFollowUpStatuses = ["queued", "in_progress"] as const;
-const activeListingStatuses: ListingStatus[] = [ListingStatus.active, ListingStatus.hot];
-const activeTransactionStatuses: TransactionStatus[] = [TransactionStatus.pending, TransactionStatus.active];
+const activeListingStatuses: ListingStatus[] = [
+  ListingStatus.active,
+  ListingStatus.hot,
+];
+const activeTransactionStatuses: TransactionStatus[] = [
+  TransactionStatus.pending,
+  TransactionStatus.active,
+];
 const openSignatureStatuses: SignatureRequestStatus[] = [
   SignatureRequestStatus.draft,
   SignatureRequestStatus.pending_send,
   SignatureRequestStatus.sent,
-  SignatureRequestStatus.viewed
+  SignatureRequestStatus.viewed,
 ];
-const handoffStagePatterns = ["negotiation", "application", "offer", "won", "contract"];
 
 function formatCurrency(value: Prisma.Decimal | number | null | undefined) {
   const numeric = Number(value ?? 0);
@@ -161,7 +175,7 @@ function formatCurrency(value: Prisma.Decimal | number | null | undefined) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: numeric % 1 === 0 ? 0 : 2
+    maximumFractionDigits: numeric % 1 === 0 ? 0 : 2,
   }).format(numeric);
 }
 
@@ -172,7 +186,7 @@ function formatDateLabel(value: Date | null | undefined) {
 
   return value.toLocaleDateString("en-US", {
     month: "short",
-    day: "numeric"
+    day: "numeric",
   });
 }
 
@@ -182,8 +196,16 @@ function formatRelativeDueLabel(value: Date | null | undefined, now: Date) {
   }
 
   const dueTime = value.getTime();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  ).getTime();
 
   if (dueTime < startOfToday) {
     return `Overdue since ${formatDateLabel(value)}`;
@@ -211,11 +233,20 @@ function mapClientStageTone(stage: string): FrontOfficeDashboardTone {
     return "danger";
   }
 
-  if (normalized.includes("negotiation") || normalized.includes("offer") || normalized.includes("application")) {
+  if (
+    normalized.includes("negotiation") ||
+    normalized.includes("offer") ||
+    normalized.includes("application")
+  ) {
     return "warning";
   }
 
-  if (normalized.includes("tour") || normalized.includes("viewing") || normalized.includes("contacted") || normalized.includes("warm")) {
+  if (
+    normalized.includes("tour") ||
+    normalized.includes("viewing") ||
+    normalized.includes("contacted") ||
+    normalized.includes("warm")
+  ) {
     return "accent";
   }
 
@@ -263,7 +294,9 @@ function formatResourceType(type: ResourceType) {
     .join(" ");
 }
 
-function formatEventVisibilityLabel(value: "all_agents" | "office_only" | "invite_only") {
+function formatEventVisibilityLabel(
+  value: "all_agents" | "office_only" | "invite_only",
+) {
   if (value === "all_agents") {
     return "All agents";
   }
@@ -275,60 +308,84 @@ function formatEventVisibilityLabel(value: "all_agents" | "office_only" | "invit
   return "Invite only";
 }
 
+function formatAppointmentTypeLabel(type: AppointmentType) {
+  return type
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function mapAppointmentTypeTone(
+  type: AppointmentType,
+): FrontOfficeDashboardTone {
+  if (type === AppointmentType.showing || type === AppointmentType.open_house) {
+    return "accent";
+  }
+
+  if (type === AppointmentType.consultation) {
+    return "success";
+  }
+
+  if (type === AppointmentType.client_meeting) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
 function buildOfficeScopeFilter(officeId: string | null | undefined) {
   if (!officeId) {
     return undefined;
   }
 
   return {
-    OR: [{ officeId }, { officeId: null }]
-  };
-}
-
-function buildClientHandoffWhere(organizationId: string, viewerMembershipId: string) {
-  return {
-    organizationId,
-    ownerMembershipId: viewerMembershipId,
-    OR: handoffStagePatterns.map((pattern) => ({
-      stage: {
-        contains: pattern,
-        mode: "insensitive" as const
-      }
-    }))
+    OR: [{ officeId }, { officeId: null }],
   };
 }
 
 export async function getFrontOfficeDashboardSnapshot(
-  input: GetFrontOfficeDashboardSnapshotInput
+  input: GetFrontOfficeDashboardSnapshotInput,
 ): Promise<FrontOfficeDashboardSnapshot> {
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const sevenDaysFromNow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  const sevenDaysFromNow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 7,
+  );
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
 
   const clientWhere: Prisma.ClientWhereInput = {
     organizationId: input.organizationId,
-    ownerMembershipId: input.viewerMembershipId
+    ownerMembershipId: input.viewerMembershipId,
   };
 
   const listingWhere: Prisma.ListingWhereInput = {
     organizationId: input.organizationId,
     status: {
-      in: activeListingStatuses
+      in: activeListingStatuses,
     },
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {})
+    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
   const resourceWhere: Prisma.ResourceWhereInput = {
     organizationId: input.organizationId,
     isPublished: true,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {})
+    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
   const vendorWhere: Prisma.VendorWhereInput = {
     organizationId: input.organizationId,
-    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {})
+    ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
   const notificationWhere: Prisma.NotificationWhereInput = {
@@ -336,249 +393,335 @@ export async function getFrontOfficeDashboardSnapshot(
     AND: [
       officeScopeFilter ?? {},
       {
-        OR: [{ membershipId: input.viewerMembershipId }, { membershipId: null }]
-      }
-    ]
+        OR: [
+          { membershipId: input.viewerMembershipId },
+          { membershipId: null },
+        ],
+      },
+    ],
   };
 
   const commitmentWhere: Prisma.EventWhereInput = {
     organizationId: input.organizationId,
     startsAt: {
       gte: startOfToday,
-      lte: sevenDaysFromNow
+      lte: sevenDaysFromNow,
     },
     AND: [
       officeScopeFilter ?? {},
       {
         OR: [
           {
-            visibility: "all_agents"
+            visibility: "all_agents",
           },
           ...(input.officeId
             ? [
                 {
                   visibility: "office_only" as const,
-                  officeId: input.officeId
-                }
+                  officeId: input.officeId,
+                },
               ]
             : []),
           {
             visibility: "invite_only",
             rsvps: {
               some: {
-                membershipId: input.viewerMembershipId
-              }
-            }
-          }
-        ]
-      }
-    ]
+                membershipId: input.viewerMembershipId,
+              },
+            },
+          },
+        ],
+      },
+    ],
   };
 
-  const [dueFollowUpClients, openFollowUpTaskCount, stageGroups, recentClients, activeListingCount, recentListings, shareAggregate, upcomingEvents, notifications, resources, vendors, handoffClients, signatureTransactions] =
-    await Promise.all([
-      prisma.client.findMany({
-        where: {
-          ...clientWhere,
-          nextFollowUpAt: {
-            lt: startOfTomorrow
-          }
+  const [
+    dueFollowUpClients,
+    openFollowUpTaskCount,
+    stageGroups,
+    recentClients,
+    activeListingCount,
+    recentListings,
+    shareAggregate,
+    upcomingEvents,
+    upcomingAppointments,
+    notifications,
+    resources,
+    vendors,
+    handoffDraftCount,
+    handoffDrafts,
+    signatureTransactions,
+  ] = await Promise.all([
+    prisma.client.findMany({
+      where: {
+        ...clientWhere,
+        nextFollowUpAt: {
+          lt: startOfTomorrow,
         },
-        orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
-        take: 3,
-        select: {
-          id: true,
-          fullName: true,
-          source: true,
-          stage: true,
-          nextFollowUpAt: true,
-          lastContactAt: true
-        }
-      }),
-      prisma.followUpTask.count({
-        where: {
+      },
+      orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        fullName: true,
+        source: true,
+        stage: true,
+        nextFollowUpAt: true,
+        lastContactAt: true,
+      },
+    }),
+    prisma.followUpTask.count({
+      where: {
+        organizationId: input.organizationId,
+        assigneeMemberId: input.viewerMembershipId,
+        status: {
+          in: [...openFollowUpStatuses],
+        },
+      },
+    }),
+    prisma.client.groupBy({
+      by: ["stage"],
+      where: clientWhere,
+      _count: {
+        _all: true,
+      },
+    }),
+    prisma.client.findMany({
+      where: clientWhere,
+      orderBy: [{ updatedAt: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        fullName: true,
+        source: true,
+        stage: true,
+        nextFollowUpAt: true,
+        lastContactAt: true,
+      },
+    }),
+    prisma.listing.count({
+      where: listingWhere,
+    }),
+    prisma.listing.findMany({
+      where: listingWhere,
+      orderBy: [{ updatedAt: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        title: true,
+        neighborhood: true,
+        city: true,
+        price: true,
+        status: true,
+      },
+    }),
+    prisma.listingShareLink.aggregate({
+      where: {
+        membershipId: input.viewerMembershipId,
+        listing: {
           organizationId: input.organizationId,
-          assigneeMemberId: input.viewerMembershipId,
-          status: {
-            in: [...openFollowUpStatuses]
-          }
-        }
-      }),
-      prisma.client.groupBy({
-        by: ["stage"],
-        where: clientWhere,
+          ...(officeScopeFilter ? officeScopeFilter : {}),
+        },
+      },
+      _count: {
+        _all: true,
+      },
+      _sum: {
+        clickCount: true,
+      },
+    }),
+    prisma.event.findMany({
+      where: commitmentWhere,
+      orderBy: [{ startsAt: "asc" }],
+      take: 4,
+      select: {
+        id: true,
+        title: true,
+        visibility: true,
+        startsAt: true,
+        location: true,
+        meetingUrl: true,
         _count: {
-          _all: true
-        }
-      }),
-      prisma.client.findMany({
-        where: clientWhere,
-        orderBy: [{ updatedAt: "desc" }],
-        take: 4,
-        select: {
-          id: true,
-          fullName: true,
-          source: true,
-          stage: true,
-          nextFollowUpAt: true,
-          lastContactAt: true
-        }
-      }),
-      prisma.listing.count({
-        where: listingWhere
-      }),
-      prisma.listing.findMany({
-        where: listingWhere,
-        orderBy: [{ updatedAt: "desc" }],
-        take: 4,
-        select: {
-          id: true,
-          title: true,
-          neighborhood: true,
-          city: true,
-          price: true,
-          status: true
-        }
-      }),
-      prisma.listingShareLink.aggregate({
-        where: {
-          membershipId: input.viewerMembershipId,
-          listing: {
-            organizationId: input.organizationId,
-            ...(officeScopeFilter ? officeScopeFilter : {})
-          }
-        },
-        _count: {
-          _all: true
-        },
-        _sum: {
-          clickCount: true
-        }
-      }),
-      prisma.event.findMany({
-        where: commitmentWhere,
-        orderBy: [{ startsAt: "asc" }],
-        take: 4,
-        select: {
-          id: true,
-          title: true,
-          visibility: true,
-          startsAt: true,
-          location: true,
-          meetingUrl: true,
-          _count: {
-            select: {
-              rsvps: true
-            }
+          select: {
+            rsvps: true,
           },
-          rsvps: {
-            where: {
-              membershipId: input.viewerMembershipId
-            },
-            select: {
-              status: true
-            },
-            take: 1
-          }
-        }
-      }),
-      prisma.notification.findMany({
-        where: notificationWhere,
-        orderBy: [{ createdAt: "desc" }],
-        take: 3,
-        select: {
-          id: true,
-          type: true,
-          title: true,
-          body: true,
-          actionUrl: true,
-          createdAt: true
-        }
-      }),
-      prisma.resource.findMany({
-        where: resourceWhere,
-        orderBy: [{ updatedAt: "desc" }],
-        take: 3,
-        select: {
-          id: true,
-          type: true,
-          title: true,
-          summary: true,
-          url: true
-        }
-      }),
-      prisma.vendor.findMany({
-        where: vendorWhere,
-        orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
-        take: 3,
-        select: {
-          id: true,
-          category: true,
-          name: true,
-          headline: true,
-          phone: true,
-          email: true,
-          website: true
-        }
-      }),
-      prisma.client.findMany({
-        where: buildClientHandoffWhere(input.organizationId, input.viewerMembershipId),
-        orderBy: [{ updatedAt: "desc" }],
-        take: 3,
-        select: {
-          id: true,
-          fullName: true,
-          stage: true,
-          transactionContacts: {
-            select: {
-              id: true
-            },
-            take: 1
-          },
-          primaryTransactions: {
-            select: {
-              id: true
-            },
-            take: 1
-          }
-        }
-      }),
-      prisma.transaction.findMany({
-        where: {
-          organizationId: input.organizationId,
-          ownerMembershipId: input.viewerMembershipId,
-          status: {
-            in: activeTransactionStatuses
-          },
-          signatureRequests: {
-            some: {
-              status: {
-                in: openSignatureStatuses
-              }
-            }
-          }
         },
-        orderBy: [{ updatedAt: "desc" }],
-        take: 3,
-        select: {
-          id: true,
-          title: true,
-          address: true,
-          signatureRequests: {
-            where: {
-              status: {
-                in: openSignatureStatuses
-              }
+        rsvps: {
+          where: {
+            membershipId: input.viewerMembershipId,
+          },
+          select: {
+            status: true,
+          },
+          take: 1,
+        },
+      },
+    }),
+    prisma.appointment.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.viewerMembershipId,
+        status: AppointmentStatus.scheduled,
+        startsAt: {
+          gte: startOfToday,
+          lte: sevenDaysFromNow,
+        },
+      },
+      orderBy: [{ startsAt: "asc" }],
+      take: 4,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        startsAt: true,
+        location: true,
+        meetingUrl: true,
+        client: {
+          select: {
+            fullName: true,
+          },
+        },
+        listing: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    }),
+    prisma.notification.findMany({
+      where: notificationWhere,
+      orderBy: [{ createdAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        actionUrl: true,
+        createdAt: true,
+      },
+    }),
+    prisma.resource.findMany({
+      where: resourceWhere,
+      orderBy: [{ updatedAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        summary: true,
+        url: true,
+      },
+    }),
+    prisma.vendor.findMany({
+      where: vendorWhere,
+      orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        category: true,
+        name: true,
+        headline: true,
+        phone: true,
+        email: true,
+        website: true,
+      },
+    }),
+    prisma.frontOfficeHandoffDraft.count({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.viewerMembershipId,
+        status: {
+          in: [FrontOfficeHandoffStatus.draft, FrontOfficeHandoffStatus.ready],
+        },
+        committedTransactionId: null,
+        AND: [
+          officeScopeFilter ?? {},
+          {
+            client: {
+              primaryTransactions: {
+                none: {},
+              },
+              transactionContacts: {
+                none: {},
+              },
             },
-            select: {
-              status: true,
-              recipientRole: true
+          },
+        ],
+      },
+    }),
+    prisma.frontOfficeHandoffDraft.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.viewerMembershipId,
+        status: {
+          in: [FrontOfficeHandoffStatus.draft, FrontOfficeHandoffStatus.ready],
+        },
+        committedTransactionId: null,
+        AND: [
+          officeScopeFilter ?? {},
+          {
+            client: {
+              primaryTransactions: {
+                none: {},
+              },
+              transactionContacts: {
+                none: {},
+              },
             },
-            take: 1
-          }
-        }
-      })
-    ]);
+          },
+        ],
+      },
+      orderBy: [{ updatedAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        stageLabel: true,
+        summary: true,
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
+    }),
+    prisma.transaction.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.viewerMembershipId,
+        status: {
+          in: activeTransactionStatuses,
+        },
+        signatureRequests: {
+          some: {
+            status: {
+              in: openSignatureStatuses,
+            },
+          },
+        },
+      },
+      orderBy: [{ updatedAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        address: true,
+        signatureRequests: {
+          where: {
+            status: {
+              in: openSignatureStatuses,
+            },
+          },
+          select: {
+            status: true,
+            recipientRole: true,
+          },
+          take: 1,
+        },
+      },
+    }),
+  ]);
 
   const recentListingIds = recentListings.map((listing) => listing.id);
   const listingShareRows =
@@ -588,15 +731,15 @@ export async function getFrontOfficeDashboardSnapshot(
           where: {
             membershipId: input.viewerMembershipId,
             listingId: {
-              in: recentListingIds
-            }
+              in: recentListingIds,
+            },
           },
           _count: {
-            _all: true
+            _all: true,
           },
           _sum: {
-            clickCount: true
-          }
+            clickCount: true,
+          },
         })
       : [];
 
@@ -605,25 +748,33 @@ export async function getFrontOfficeDashboardSnapshot(
       row.listingId,
       {
         count: row._count._all,
-        clicks: row._sum.clickCount ?? 0
-      }
-    ])
+        clicks: row._sum.clickCount ?? 0,
+      },
+    ]),
   );
 
   const dueFollowUpCount = dueFollowUpClients.length;
-  const todayCommitmentCount = upcomingEvents.filter((event) => event.startsAt >= startOfToday && event.startsAt < startOfTomorrow).length;
-  const handoffCandidates = handoffClients.filter(
-    (client) => client.transactionContacts.length === 0 && client.primaryTransactions.length === 0
-  );
+  const todayEventCount = upcomingEvents.filter(
+    (event) =>
+      event.startsAt >= startOfToday && event.startsAt < startOfTomorrow,
+  ).length;
+  const todayAppointmentCount = upcomingAppointments.filter(
+    (appointment) =>
+      appointment.startsAt >= startOfToday &&
+      appointment.startsAt < startOfTomorrow,
+  ).length;
+  const todayCommitmentCount = todayEventCount + todayAppointmentCount;
   const backOfficeItems: FrontOfficeDashboardBackOfficeItem[] = [
-    ...handoffCandidates.map((client) => ({
-      id: `handoff-client-${client.id}`,
-      title: client.fullName,
-      description: `${client.stage} is ready to become a formal transaction record.`,
+    ...handoffDrafts.map((draft) => ({
+      id: `handoff-client-${draft.id}`,
+      title: draft.client.fullName,
+      description:
+        draft.summary?.trim() ||
+        `${draft.stageLabel} is ready to become a formal transaction record.`,
       contextLabel: "Create transaction",
       tone: "warning" as const,
       actionLabel: "Open Back Office create flow",
-      href: `/office/transactions/new`
+      href: `/office/transactions/new`,
     })),
     ...signatureTransactions.map((transaction) => ({
       id: `handoff-signature-${transaction.id}`,
@@ -634,10 +785,10 @@ export async function getFrontOfficeDashboardSnapshot(
         : "Signature follow-through",
       tone: "accent" as const,
       actionLabel: "Open forms & signatures",
-      href: `/office/transactions/${transaction.id}#transaction-forms-signatures`
-    }))
+      href: `/office/transactions/${transaction.id}#transaction-forms-signatures`,
+    })),
   ].slice(0, 4);
-  const needsBackOfficeCount = handoffCandidates.length + signatureTransactions.length;
+  const needsBackOfficeCount = handoffDraftCount + signatureTransactions.length;
   const actionQueue: FrontOfficeDashboardActionQueueItem[] = [
     {
       id: "follow-up",
@@ -650,7 +801,7 @@ export async function getFrontOfficeDashboardSnapshot(
           : "No overdue or same-day follow-ups are waiting right now.",
       helper: `${openFollowUpTaskCount} open scheduled follow-up task(s) in your queue.`,
       href: "/agent/clients",
-      actionLabel: "Open clients"
+      actionLabel: "Open clients",
     },
     {
       id: "commitments",
@@ -659,11 +810,12 @@ export async function getFrontOfficeDashboardSnapshot(
       tone: todayCommitmentCount > 0 ? "accent" : "neutral",
       description:
         todayCommitmentCount > 0
-          ? `${todayCommitmentCount} office event or meeting item(s) land today.`
-          : "No office commitments are scheduled for today.",
-      helper: "Agent appointment scheduling is not live yet, so this card tracks visible commitments only.",
-      href: "/agent/notifications",
-      actionLabel: "Open activity"
+          ? `${todayAppointmentCount} appointment(s) and ${todayEventCount} shared office event(s) land today.`
+          : "No appointments or shared office commitments are scheduled for today.",
+      helper:
+        "Your own Front Office appointments now live here alongside shared office events.",
+      href: "/agent/calendar",
+      actionLabel: "Open calendar",
     },
     {
       id: "content",
@@ -679,7 +831,7 @@ export async function getFrontOfficeDashboardSnapshot(
           ? `${shareAggregate._count._all} tracked link(s) already created from this dashboard scope.`
           : "Tracked sending is ready for listings with existing share links.",
       href: "/agent/listings",
-      actionLabel: "Open listings"
+      actionLabel: "Open listings",
     },
     {
       id: "handoff",
@@ -690,28 +842,34 @@ export async function getFrontOfficeDashboardSnapshot(
         needsBackOfficeCount > 0
           ? `${needsBackOfficeCount} item(s) should move into formal transaction or signature workflow.`
           : "Nothing is waiting for formal transaction or signature work right now.",
-      helper: "Use this queue when a client, document, or signature step becomes an official record.",
+      helper:
+        "Use this queue when a client, document, or signature step becomes an official record.",
       href: "/office/transactions",
-      actionLabel: "Open Back Office"
-    }
+      actionLabel: "Open Back Office",
+    },
   ];
 
   return {
     summary: {
-      todayActionCount: dueFollowUpCount + todayCommitmentCount + needsBackOfficeCount,
+      todayActionCount:
+        dueFollowUpCount + todayCommitmentCount + needsBackOfficeCount,
       followUpDueCount: dueFollowUpCount,
       todayCommitmentCount,
-      needsBackOfficeCount
+      needsBackOfficeCount,
     },
     actionQueue,
     pipeline: {
       stageMetrics: stageGroups
-        .sort((left, right) => right._count._all - left._count._all || left.stage.localeCompare(right.stage))
+        .sort(
+          (left, right) =>
+            right._count._all - left._count._all ||
+            left.stage.localeCompare(right.stage),
+        )
         .slice(0, 4)
         .map((stage) => ({
           label: stage.stage,
           count: stage._count._all,
-          tone: mapClientStageTone(stage.stage)
+          tone: mapClientStageTone(stage.stage),
         })),
       recentClients: recentClients.map((client) => ({
         id: client.id,
@@ -720,30 +878,70 @@ export async function getFrontOfficeDashboardSnapshot(
         stageTone: mapClientStageTone(client.stage),
         source: client.source,
         nextTouchLabel: formatRelativeDueLabel(client.nextFollowUpAt, now),
-        lastTouchLabel: client.lastContactAt ? `Last contact · ${formatDateLabel(client.lastContactAt)}` : "No contact logged yet",
-        href: "/agent/clients"
-      }))
+        lastTouchLabel: client.lastContactAt
+          ? `Last contact · ${formatDateLabel(client.lastContactAt)}`
+          : "No contact logged yet",
+        href: "/agent/clients",
+      })),
     },
     commitments: {
-      items: upcomingEvents.map((event) => ({
-        id: event.id,
-        title: event.title,
-        visibilityLabel: formatEventVisibilityLabel(event.visibility),
-        startsAtLabel: formatDateTimeLabel(event.startsAt, { timeZone: input.timeZone }),
-        locationLabel: event.location?.trim() || event.meetingUrl?.trim() || "Location pending",
-        rsvpLabel:
-          event.rsvps[0]?.status === "going"
-            ? "You RSVP'd going"
-            : event.rsvps[0]?.status === "maybe"
-              ? "You RSVP'd maybe"
-              : event.rsvps[0]?.status === "declined"
-                ? "You declined"
-                : `${event._count.rsvps} RSVP(s)`,
-        href: "/agent/notifications"
-      })),
-      appointmentModuleReady: false,
+      items: [
+        ...upcomingAppointments.map((appointment) => ({
+          sortAt: appointment.startsAt,
+          item: {
+            id: `appointment-${appointment.id}`,
+            title: appointment.title,
+            badgeLabel: formatAppointmentTypeLabel(appointment.type),
+            badgeTone: mapAppointmentTypeTone(appointment.type),
+            startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
+              timeZone: input.timeZone,
+            }),
+            locationLabel:
+              appointment.location?.trim() ||
+              appointment.meetingUrl?.trim() ||
+              "Location pending",
+            contextLabel: appointment.client?.fullName
+              ? `Client · ${appointment.client.fullName}`
+              : appointment.listing?.title
+                ? `Listing · ${appointment.listing.title}`
+                : "Front Office appointment",
+            href: "/agent/calendar",
+          },
+        })),
+        ...upcomingEvents.map((event) => ({
+          sortAt: event.startsAt,
+          item: {
+            id: `event-${event.id}`,
+            title: event.title,
+            badgeLabel: "Office event",
+            badgeTone: "neutral" as const,
+            startsAtLabel: formatDateTimeLabel(event.startsAt, {
+              timeZone: input.timeZone,
+            }),
+            locationLabel:
+              event.location?.trim() ||
+              event.meetingUrl?.trim() ||
+              "Location pending",
+            contextLabel:
+              event.rsvps[0]?.status === "going"
+                ? "You RSVP'd going"
+                : event.rsvps[0]?.status === "maybe"
+                  ? "You RSVP'd maybe"
+                  : event.rsvps[0]?.status === "declined"
+                    ? "You declined"
+                    : `${formatEventVisibilityLabel(event.visibility)} · ${event._count.rsvps} RSVP(s)`,
+            href: "/agent/notifications",
+          },
+        })),
+      ]
+        .sort((left, right) => left.sortAt.getTime() - right.sortAt.getTime())
+        .slice(0, 4)
+        .map((entry) => entry.item),
+      appointmentModuleReady: true,
       appointmentMessage:
-        "Agent appointment scheduling is on the active Front Office roadmap but is not live yet. This section currently shows shared office commitments so the dashboard stays honest."
+        todayAppointmentCount > 0
+          ? `${todayAppointmentCount} Front Office appointment(s) are on your calendar today. Shared office events still stay visible so the workday does not fragment.`
+          : "Front Office appointment scheduling is now live. Shared office events still stay visible here when the office publishes commitments.",
     },
     listingOutput: {
       activeListingCount,
@@ -762,9 +960,9 @@ export async function getFrontOfficeDashboardSnapshot(
           statusTone: mapListingStatusTone(listing.status),
           trackedLinkCount: shareMetrics?.count ?? 0,
           trackedClickCount: shareMetrics?.clicks ?? 0,
-          href: "/agent/listings"
+          href: "/agent/listings",
         };
-      })
+      }),
     },
     noticeRail: {
       notifications: notifications.map((notification) => ({
@@ -772,27 +970,39 @@ export async function getFrontOfficeDashboardSnapshot(
         title: notification.title,
         body: notification.body,
         typeLabel: formatNotificationType(notification.type),
-        createdAtLabel: formatDateTimeLabel(notification.createdAt, { timeZone: input.timeZone }),
-        href: notification.actionUrl?.trim() || "/agent/notifications"
+        createdAtLabel: formatDateTimeLabel(notification.createdAt, {
+          timeZone: input.timeZone,
+        }),
+        href: notification.actionUrl?.trim() || "/agent/notifications",
       })),
       resources: resources.map((resource) => ({
         id: resource.id,
         title: resource.title,
         typeLabel: formatResourceType(resource.type),
         summary: resource.summary,
-        href: resource.url
+        href: resource.url,
       })),
       vendors: vendors.map((vendor) => ({
         id: vendor.id,
         name: vendor.name,
         category: vendor.category,
         headline: vendor.headline,
-        contactLabel: vendor.phone?.trim() || vendor.website?.trim() || vendor.email?.trim() || "Open vendor profile",
-        href: vendor.website?.trim() || (vendor.phone?.trim() ? `tel:${vendor.phone.trim()}` : vendor.email?.trim() ? `mailto:${vendor.email.trim()}` : null)
-      }))
+        contactLabel:
+          vendor.phone?.trim() ||
+          vendor.website?.trim() ||
+          vendor.email?.trim() ||
+          "Open vendor profile",
+        href:
+          vendor.website?.trim() ||
+          (vendor.phone?.trim()
+            ? `tel:${vendor.phone.trim()}`
+            : vendor.email?.trim()
+              ? `mailto:${vendor.email.trim()}`
+              : null),
+      })),
     },
     backOffice: {
-      items: backOfficeItems
-    }
+      items: backOfficeItems,
+    },
   };
 }

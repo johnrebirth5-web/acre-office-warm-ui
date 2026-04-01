@@ -12,6 +12,7 @@ const frontOfficeNavGroups: WorkspaceNavGroup[] = [
     items: [
       { href: "/agent/dashboard", label: "Dashboard" },
       { href: "/agent/clients", label: "Clients" },
+      { href: "/agent/calendar", label: "Calendar" },
       { href: "/agent/listings", label: "Listings" },
       { href: "/agent/notifications", label: "Activity" },
       { href: "/agent/resources", label: "Resources" },
