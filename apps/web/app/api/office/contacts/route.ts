@@ -108,6 +108,8 @@ export async function POST(request: NextRequest) {
       notes: submission.notes,
       lastContactAt: submission.lastContactAt,
       nextFollowUpAt: submission.nextFollowUpAt,
+      leaseEndDate: submission.leaseEndDate,
+      leaseReminderAt: submission.leaseReminderAt,
       additionalFields: submission.additionalFields
     });
 

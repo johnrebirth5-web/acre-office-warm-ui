@@ -53,6 +53,8 @@ function buildContactDetailValues(
     notes: contact.notes,
     lastContactAt: contact.lastContactAt,
     nextFollowUpAt: contact.nextFollowUpAt,
+    leaseEndDate: contact.leaseEndDate,
+    leaseReminderAt: contact.leaseReminderAt,
   };
 
   for (const field of schema.customFields) {

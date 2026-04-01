@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + agent material window` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement` foundation, the recommended next implementation target is:
 
-- `send record + client engagement`
+- `lease-date reminders`
 
 That means:
 
-- each FO send action should be attributable to a `Client`, optional `Listing`, and optional material type
-- the system should record `channel`, `sender`, and `sentAt`
-- the client dossier and FO dashboard should show whether the client has opened, clicked, or revisited the material
-- team-lead visibility should come from this shared engagement trail instead of informal status notes
+- the shared `Client` record should carry explicit lease timing, not hide it in notes
+- Front Office should surface renewal / remarketing timing from that one client record instead of relying on side spreadsheets
+- the FO dossier and dashboard should show when lease follow-up is overdue, due today, or due soon
+- Office / admin views can later expand from the same client-level reminder fields instead of inventing a second reminder store
 
 ## First real FO workflow models
 
@@ -128,6 +128,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - opening the public listing-share page now increments both the shared-link click counter and the matching send record's `openCount`, `firstOpenedAt`, and `lastOpenedAt`
   - `/agent/clients/[clientId]` now shows send counts, opened sends, revisits, last engagement time, and recent send history directly in the dossier
   - `/agent/dashboard` now shows client-send and engagement summary stats plus a recent engagement list, so FO management visibility starts from the same send trail instead of informal notes
+- `Client` now also carries lease-timing truth for Front Office reminder work:
+  - shared contact save flows persist `leaseEndDate` and `leaseReminderAt` directly on the client record
+  - `/agent/clients/[clientId]` now exposes a `Lease-date reminder` card where agents can set or adjust those dates without leaving the dossier
+  - `/agent/dashboard` now shows a lease reminder queue so renewal / remarketing windows sit beside follow-up and appointment pressure instead of hiding in notes
 
 ## Non-goals in this phase
 

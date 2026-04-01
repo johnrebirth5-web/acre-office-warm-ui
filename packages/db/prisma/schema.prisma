@@ -1217,6 +1217,8 @@ model Client {
   notes               String?
   lastContactAt       DateTime?
   nextFollowUpAt      DateTime?
+  leaseEndDate        DateTime?
+  leaseReminderAt     DateTime?
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
   organization        Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1232,6 +1234,7 @@ model Client {
   @@index([organizationId, stage])
   @@index([organizationId, visibility])
   @@index([organizationId, nextFollowUpAt])
+  @@index([organizationId, leaseReminderAt])
 }
 
 model Appointment {

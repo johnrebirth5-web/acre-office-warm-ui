@@ -108,9 +108,10 @@ Intent:
 
 Current implementation priority note:
 
-- once the current FO foundations are in place, the recommended next build target is `send records + client engagement`
-- this means recording who each FO listing/material send was sent to, through which channel, when it was sent, and whether the client opened or revisited it
-- prefer this before `Offer / Inspection / PDF` and before AI, because it closes the agent execution loop and gives team leads real management visibility
+- `send records + client engagement` is now live on top of tracked links
+- the next recommended build target is `lease-date reminders`
+- this means capturing lease end / reminder timing on the client record, surfacing renewal or remarketing windows directly in the FO dossier and dashboard, and keeping those reminders visible before the client goes quiet
+- prefer this before `Offer / Inspection / PDF` and before AI, because it closes another daily execution gap without pushing agents into formal Back Office workflow too early
 
 ### Phase 2
 

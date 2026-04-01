@@ -273,7 +273,15 @@ const contactBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
   },
   { key: "lastContactAt", label: "Last contact", inputName: "lastContactAt", control: "date", sortOrder: 10 },
   { key: "nextFollowUpAt", label: "Next follow-up", inputName: "nextFollowUpAt", control: "date", sortOrder: 11 },
-  { key: "notes", label: "Notes", inputName: "notes", control: "textarea", className: "is-span-4", sortOrder: 12 }
+  { key: "leaseEndDate", label: "Lease end date", inputName: "leaseEndDate", control: "date", sortOrder: 12 },
+  {
+    key: "leaseReminderAt",
+    label: "Lease reminder date",
+    inputName: "leaseReminderAt",
+    control: "date",
+    sortOrder: 13
+  },
+  { key: "notes", label: "Notes", inputName: "notes", control: "textarea", className: "is-span-4", sortOrder: 14 }
 ];
 
 const offerBuiltInFieldCatalog: OfficeFieldBuiltInCatalogEntry[] = [
@@ -539,6 +547,8 @@ export type PreparedContactFieldSubmission = {
   notes: string;
   lastContactAt: string;
   nextFollowUpAt: string;
+  leaseEndDate: string;
+  leaseReminderAt: string;
   additionalFields: Record<string, string>;
 };
 
@@ -1505,6 +1515,8 @@ export function prepareContactFieldSubmission(input: {
     notes: string;
     lastContactAt: string;
     nextFollowUpAt: string;
+    leaseEndDate: string;
+    leaseReminderAt: string;
     additionalFields?: Record<string, string>;
   } | null;
 }): PreparedContactFieldSubmission {
@@ -1522,7 +1534,9 @@ export function prepareContactFieldSubmission(input: {
         preferredAreas: input.existingContact.areas.join(", "),
         notes: input.existingContact.notes,
         lastContactAt: input.existingContact.lastContactAt,
-        nextFollowUpAt: input.existingContact.nextFollowUpAt
+        nextFollowUpAt: input.existingContact.nextFollowUpAt,
+        leaseEndDate: input.existingContact.leaseEndDate,
+        leaseReminderAt: input.existingContact.leaseReminderAt
       }
     : null;
 
@@ -1548,7 +1562,9 @@ export function prepareContactFieldSubmission(input: {
     preferredAreas: defaults.get("preferredAreas") ?? "",
     notes: defaults.get("notes") ?? "",
     lastContactAt: defaults.get("lastContactAt") ?? "",
-    nextFollowUpAt: defaults.get("nextFollowUpAt") ?? ""
+    nextFollowUpAt: defaults.get("nextFollowUpAt") ?? "",
+    leaseEndDate: defaults.get("leaseEndDate") ?? "",
+    leaseReminderAt: defaults.get("leaseReminderAt") ?? ""
   };
 
   for (const field of input.schema.builtInFields.filter((entry) => entry.isVisible)) {
@@ -1582,6 +1598,8 @@ export function prepareContactFieldSubmission(input: {
     notes: values.notes,
     lastContactAt: values.lastContactAt,
     nextFollowUpAt: values.nextFollowUpAt,
+    leaseEndDate: values.leaseEndDate,
+    leaseReminderAt: values.leaseReminderAt,
     additionalFields
   };
 }

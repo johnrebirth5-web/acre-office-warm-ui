@@ -23,6 +23,7 @@ import {
   type LinkTransactionContactInput,
   linkContactToTransaction as linkTransactionContact,
 } from "./transaction-contacts";
+import { resolveLeaseReminderDates } from "./lease-reminders";
 
 export type OfficeContactRecord = {
   id: string;
@@ -86,6 +87,8 @@ export type OfficeContactDetail = {
   notes: string;
   lastContactAt: string;
   nextFollowUpAt: string;
+  leaseEndDate: string;
+  leaseReminderAt: string;
   ownerMembershipId: string | null;
   ownerName: string;
   additionalFields: Record<string, string>;
@@ -145,7 +148,18 @@ export type SaveContactInput = {
   notes?: string;
   lastContactAt?: string;
   nextFollowUpAt?: string;
+  leaseEndDate?: string;
+  leaseReminderAt?: string;
   additionalFields?: Record<string, string>;
+};
+
+export type SaveFrontOfficeClientLeaseReminderInput = {
+  organizationId: string;
+  clientId: string;
+  actorMembershipId: string;
+  actorOfficeId?: string | null;
+  leaseEndDate?: string;
+  leaseReminderAt?: string;
 };
 
 export type CreateFollowUpTaskInput = {
@@ -200,6 +214,16 @@ function parseOptionalDate(value: string | undefined) {
   }
 
   return new Date(value);
+}
+
+function normalizeLeaseReminderInput(input: {
+  leaseEndDate?: string;
+  leaseReminderAt?: string;
+}) {
+  return resolveLeaseReminderDates({
+    leaseEndDate: parseOptionalDate(input.leaseEndDate),
+    leaseReminderAt: parseOptionalDate(input.leaseReminderAt),
+  });
 }
 
 function parseOptionalDecimal(value: string | undefined) {
@@ -711,6 +735,11 @@ export const officeContactsPageLimits = {
 export async function createContact(
   input: SaveContactInput,
 ): Promise<OfficeContactDetail> {
+  const leaseDates = normalizeLeaseReminderInput({
+    leaseEndDate: input.leaseEndDate,
+    leaseReminderAt: input.leaseReminderAt,
+  });
+
   const client = await prisma.$transaction(async (tx) => {
     const created = await tx.client.create({
       data: {
@@ -730,6 +759,8 @@ export async function createContact(
         notes: input.notes?.trim() || null,
         lastContactAt: parseOptionalDate(input.lastContactAt),
         nextFollowUpAt: parseOptionalDate(input.nextFollowUpAt),
+        leaseEndDate: leaseDates.leaseEndDate,
+        leaseReminderAt: leaseDates.leaseReminderAt,
       },
     });
 
@@ -803,6 +834,8 @@ export async function updateContact(
       preferredAreas: true,
       lastContactAt: true,
       nextFollowUpAt: true,
+      leaseEndDate: true,
+      leaseReminderAt: true,
     },
   });
 
@@ -835,6 +868,10 @@ export async function updateContact(
     preferredAreas: input.preferredAreas?.filter(Boolean) ?? [],
     lastContactAt: parseOptionalDate(input.lastContactAt),
     nextFollowUpAt: parseOptionalDate(input.nextFollowUpAt),
+    ...normalizeLeaseReminderInput({
+      leaseEndDate: input.leaseEndDate,
+      leaseReminderAt: input.leaseReminderAt,
+    }),
   };
 
   await prisma.$transaction(async (tx) => {
@@ -855,6 +892,8 @@ export async function updateContact(
         notes: nextValues.notes,
         lastContactAt: nextValues.lastContactAt,
         nextFollowUpAt: nextValues.nextFollowUpAt,
+        leaseEndDate: nextValues.leaseEndDate,
+        leaseReminderAt: nextValues.leaseReminderAt,
       },
     });
 
@@ -927,6 +966,16 @@ export async function updateContact(
         formatDateValue(existing.nextFollowUpAt),
         formatDateValue(nextValues.nextFollowUpAt),
       ),
+      buildContactChangedDetail(
+        "Lease end date",
+        formatDateValue(existing.leaseEndDate),
+        formatDateValue(nextValues.leaseEndDate),
+      ),
+      buildContactChangedDetail(
+        "Lease reminder",
+        formatDateValue(existing.leaseReminderAt),
+        formatDateValue(nextValues.leaseReminderAt),
+      ),
       ...Object.keys(nextValues.additionalFields).map((fieldKey) =>
         buildContactChangedDetail(
           fieldKey,
@@ -975,6 +1024,16 @@ export async function updateContact(
         "Next follow-up",
         formatDateValue(existing.nextFollowUpAt),
         formatDateValue(nextValues.nextFollowUpAt),
+      ),
+      buildContactChange(
+        "Lease end date",
+        formatDateValue(existing.leaseEndDate),
+        formatDateValue(nextValues.leaseEndDate),
+      ),
+      buildContactChange(
+        "Lease reminder",
+        formatDateValue(existing.leaseReminderAt),
+        formatDateValue(nextValues.leaseReminderAt),
       ),
       ...Object.keys(nextValues.additionalFields).map((fieldKey) =>
         buildContactChange(
@@ -1154,6 +1213,8 @@ export async function getContactById(
     notes: client.notes ?? "",
     lastContactAt: formatDateValue(client.lastContactAt),
     nextFollowUpAt: formatDateValue(client.nextFollowUpAt),
+    leaseEndDate: formatDateValue(client.leaseEndDate),
+    leaseReminderAt: formatDateValue(client.leaseReminderAt),
     ownerMembershipId: client.ownerMembershipId,
     ownerName: client.ownerMembership
       ? `${client.ownerMembership.user.firstName} ${client.ownerMembership.user.lastName}`
@@ -1172,6 +1233,96 @@ export async function getContactById(
         ? `${task.assigneeMembership.user.firstName} ${task.assigneeMembership.user.lastName}`
         : "Unassigned",
     })),
+  };
+}
+
+export async function saveFrontOfficeClientLeaseReminder(
+  input: SaveFrontOfficeClientLeaseReminderInput,
+) {
+  const existing = await prisma.client.findFirst({
+    where: {
+      id: input.clientId,
+      organizationId: input.organizationId,
+      ownerMembershipId: input.actorMembershipId,
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      leaseEndDate: true,
+      leaseReminderAt: true,
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const nextValues = normalizeLeaseReminderInput({
+    leaseEndDate: input.leaseEndDate,
+    leaseReminderAt: input.leaseReminderAt,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.client.update({
+      where: {
+        id: input.clientId,
+      },
+      data: {
+        leaseEndDate: nextValues.leaseEndDate,
+        leaseReminderAt: nextValues.leaseReminderAt,
+      },
+    });
+
+    const details = [
+      buildContactChangedDetail(
+        "Lease end date",
+        formatDateValue(existing.leaseEndDate),
+        formatDateValue(nextValues.leaseEndDate),
+      ),
+      buildContactChangedDetail(
+        "Lease reminder",
+        formatDateValue(existing.leaseReminderAt),
+        formatDateValue(nextValues.leaseReminderAt),
+      ),
+    ].filter((detail): detail is string => Boolean(detail));
+    const changes = [
+      buildContactChange(
+        "Lease end date",
+        formatDateValue(existing.leaseEndDate),
+        formatDateValue(nextValues.leaseEndDate),
+      ),
+      buildContactChange(
+        "Lease reminder",
+        formatDateValue(existing.leaseReminderAt),
+        formatDateValue(nextValues.leaseReminderAt),
+      ),
+    ].filter((change): change is NonNullable<typeof change> => Boolean(change));
+
+    if (details.length > 0) {
+      await recordActivityLogEvent(tx, {
+        organizationId: input.organizationId,
+        membershipId: input.actorMembershipId,
+        entityType: "contact",
+        entityId: input.clientId,
+        action: activityLogActions.contactUpdated,
+        payload: {
+          officeId: input.actorOfficeId ?? null,
+          contactId: input.clientId,
+          contactName: existing.fullName,
+          objectLabel: buildContactObjectLabel(existing),
+          changes,
+          details,
+        },
+      });
+    }
+  });
+
+  return {
+    id: existing.id,
+    leaseEndDate: formatDateValue(nextValues.leaseEndDate),
+    leaseReminderAt: formatDateValue(nextValues.leaseReminderAt),
   };
 }
 

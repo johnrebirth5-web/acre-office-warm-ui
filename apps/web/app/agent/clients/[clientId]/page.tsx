@@ -14,6 +14,7 @@ import { FrontOfficeLink } from "../../_components/front-office-link";
 import { FrontOfficePageTemplate } from "../../_components/front-office-page-template";
 import { FrontOfficeClientChatListClient } from "./front-office-client-chat-list-client";
 import { FrontOfficeClientDossierClient } from "./front-office-client-dossier-client";
+import { FrontOfficeClientLeaseReminderClient } from "./front-office-client-lease-reminder-client";
 import {
   getSessionAccess,
   requireSessionContext,
@@ -115,6 +116,14 @@ export default async function AgentClientDetailPage(
                 <strong>{snapshot.nextTouchLabel}</strong>
               </div>
               <div className="office-detail-field">
+                <span>Lease end</span>
+                <strong>{snapshot.leaseReminder.leaseEndDateLabel}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Lease reminder</span>
+                <strong>{snapshot.leaseReminder.reminderAtLabel}</strong>
+              </div>
+              <div className="office-detail-field">
                 <span>Email</span>
                 <strong>{snapshot.email || "No email captured"}</strong>
               </div>
@@ -127,6 +136,14 @@ export default async function AgentClientDetailPage(
                 <strong>{snapshot.notesLabel}</strong>
               </div>
             </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="Lease renewal and remarketing dates should live beside the live client dossier, not inside a separate spreadsheet."
+            title="Lease-date reminder"
+          >
+            <FrontOfficeClientLeaseReminderClient snapshot={snapshot} />
           </SectionCard>
 
           <SectionCard
@@ -435,6 +452,11 @@ export default async function AgentClientDetailPage(
           <SummaryChip
             label="Workflow"
             value={snapshot.workflow.pressureLabel}
+          />
+          <SummaryChip
+            label="Lease reminder"
+            tone={snapshot.leaseReminder.needsAttention ? "accent" : "default"}
+            value={snapshot.leaseReminder.statusLabel}
           />
           <SummaryChip
             label="Open follow-up"

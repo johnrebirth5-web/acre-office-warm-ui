@@ -483,6 +483,54 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
+            subtitle="Lease renewal and remarketing windows should show up before they turn into a last-minute fire drill."
+            title="Lease-date reminders"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="lease reminders due within the next two weeks"
+                label="Due soon"
+                value={snapshot.leaseReminders.dueCount}
+              />
+              <StatCard
+                hint="lease reminders already past their target touch date"
+                label="Overdue"
+                value={snapshot.leaseReminders.overdueCount}
+              />
+            </ListPageStatsGrid>
+
+            <div className="office-queue-list">
+              {snapshot.leaseReminders.items.length ? (
+                snapshot.leaseReminders.items.map((item) => (
+                  <FrontOfficeRailItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={item.href}
+                      >
+                        Open client dossier
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={item.statusLabel}
+                    badgeTone={item.tone}
+                    description={item.detailLabel}
+                    key={item.id}
+                    meta={<span>{item.reminderLabel}</span>}
+                    title={item.clientName}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  className="front-office-inline-empty"
+                  description="Lease-date reminders will appear here once clients start carrying renewal or move timing."
+                  title="No lease reminders due"
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
             subtitle="Operational shortcuts for vendors that agents need during client execution."
             title="Vendor shortcuts"
           >
@@ -589,6 +637,11 @@ export default async function AgentDashboardPage() {
           <SummaryChip
             label="Follow-up due"
             value={snapshot.summary.followUpDueCount}
+          />
+          <SummaryChip
+            label="Lease reminders"
+            tone="accent"
+            value={snapshot.summary.leaseReminderCount}
           />
           <SummaryChip
             label="Overdue tasks"

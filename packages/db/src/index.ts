@@ -311,6 +311,7 @@ export {
   listContacts,
   officeContactsPageDefaults,
   officeContactsPageLimits,
+  saveFrontOfficeClientLeaseReminder,
   updateContact,
   updateFollowUpTask,
 } from "./contacts";

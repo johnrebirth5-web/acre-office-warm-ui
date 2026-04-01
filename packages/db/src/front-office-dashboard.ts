@@ -15,6 +15,7 @@ import {
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
+import { resolveLeaseReminderDates } from "./lease-reminders";
 import {
   buildTeamMembershipHierarchyMap,
   isLeaderTeamMembershipRole,
@@ -30,6 +31,7 @@ export type FrontOfficeDashboardTone =
 export type FrontOfficeDashboardSummary = {
   todayActionCount: number;
   followUpDueCount: number;
+  leaseReminderCount: number;
   overdueTaskCount: number;
   staleClientCount: number;
   todayCommitmentCount: number;
@@ -126,6 +128,16 @@ export type FrontOfficeDashboardVendorItem = {
   href: string | null;
 };
 
+export type FrontOfficeDashboardLeaseReminderItem = {
+  id: string;
+  clientName: string;
+  statusLabel: string;
+  tone: FrontOfficeDashboardTone;
+  reminderLabel: string;
+  detailLabel: string;
+  href: string;
+};
+
 export type FrontOfficeDashboardBackOfficeItem = {
   id: string;
   title: string;
@@ -173,6 +185,11 @@ export type FrontOfficeDashboardSnapshot = {
     notifications: FrontOfficeDashboardNoticeItem[];
     resources: FrontOfficeDashboardResourceItem[];
     vendors: FrontOfficeDashboardVendorItem[];
+  };
+  leaseReminders: {
+    dueCount: number;
+    overdueCount: number;
+    items: FrontOfficeDashboardLeaseReminderItem[];
   };
   backOffice: {
     items: FrontOfficeDashboardBackOfficeItem[];
@@ -264,6 +281,113 @@ function formatRelativeDueLabel(value: Date | null | undefined, now: Date) {
   }
 
   return `Next follow-up · ${formatDateLabel(value)}`;
+}
+
+function buildLeaseReminderStatus(input: {
+  leaseEndDate: Date | null;
+  leaseReminderAt: Date | null;
+  now: Date;
+}) {
+  const leaseDates = resolveLeaseReminderDates({
+    leaseEndDate: input.leaseEndDate,
+    leaseReminderAt: input.leaseReminderAt,
+  });
+  const startOfToday = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate(),
+  );
+  const startOfTomorrow = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate() + 1,
+  );
+  const fourteenDaysFromNow = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate() + 14,
+  );
+
+  if (!leaseDates.leaseReminderAt) {
+    return {
+      reminderAt: null,
+      statusLabel: "No reminder",
+      tone: "neutral" as const,
+      detailLabel: "No lease reminder is scheduled.",
+    };
+  }
+
+  if (leaseDates.leaseReminderAt.getTime() < startOfToday.getTime()) {
+    return {
+      reminderAt: leaseDates.leaseReminderAt,
+      statusLabel: "Overdue",
+      tone: "danger" as const,
+      detailLabel: leaseDates.leaseEndDate
+        ? `Lease end ${formatDateLabel(leaseDates.leaseEndDate)}`
+        : "Lease follow-up is already late.",
+    };
+  }
+
+  if (leaseDates.leaseReminderAt.getTime() < startOfTomorrow.getTime()) {
+    return {
+      reminderAt: leaseDates.leaseReminderAt,
+      statusLabel: "Due today",
+      tone: "warning" as const,
+      detailLabel: leaseDates.leaseEndDate
+        ? `Lease end ${formatDateLabel(leaseDates.leaseEndDate)}`
+        : "Renewal or remarketing touch is due today.",
+    };
+  }
+
+  if (leaseDates.leaseReminderAt.getTime() <= fourteenDaysFromNow.getTime()) {
+    return {
+      reminderAt: leaseDates.leaseReminderAt,
+      statusLabel: "Due soon",
+      tone: "accent" as const,
+      detailLabel: leaseDates.leaseEndDate
+        ? `Lease end ${formatDateLabel(leaseDates.leaseEndDate)}`
+        : "Lease-related follow-up is coming up soon.",
+    };
+  }
+
+  return {
+    reminderAt: leaseDates.leaseReminderAt,
+    statusLabel: "Scheduled",
+    tone: "success" as const,
+    detailLabel: leaseDates.leaseEndDate
+      ? `Lease end ${formatDateLabel(leaseDates.leaseEndDate)}`
+      : "Lease reminder is already on the calendar.",
+  };
+}
+
+function formatNextTouchLabel(input: {
+  nextFollowUpAt: Date | null;
+  leaseReminderAt: Date | null;
+  now: Date;
+}) {
+  const leaseReminder = buildLeaseReminderStatus({
+    leaseEndDate: null,
+    leaseReminderAt: input.leaseReminderAt,
+    now: input.now,
+  });
+
+  if (
+    leaseReminder.reminderAt &&
+    (!input.nextFollowUpAt ||
+      leaseReminder.reminderAt.getTime() <= input.nextFollowUpAt.getTime())
+  ) {
+    if (leaseReminder.statusLabel === "Overdue") {
+      return `Lease reminder overdue since ${formatDateLabel(leaseReminder.reminderAt)}`;
+    }
+
+    if (leaseReminder.statusLabel === "Due today") {
+      return `Lease reminder · ${formatDateTimeLabel(leaseReminder.reminderAt, { timeZone: null })}`;
+    }
+
+    return `Lease reminder · ${formatDateLabel(leaseReminder.reminderAt)}`;
+  }
+
+  return formatRelativeDueLabel(input.nextFollowUpAt, input.now);
 }
 
 function mapClientStageTone(stage: string): FrontOfficeDashboardTone {
@@ -581,6 +705,16 @@ export async function getFrontOfficeDashboardSnapshot(
     now.getMonth(),
     now.getDate() + 7,
   );
+  const fourteenDaysFromNow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 14,
+  );
+  const thirtyDaysFromNow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 30,
+  );
   const fifteenDaysAgo = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -677,6 +811,8 @@ export async function getFrontOfficeDashboardSnapshot(
 
   const [
     dueFollowUpClients,
+    dueLeaseReminderClients,
+    overdueLeaseReminderCount,
     openFollowUpTaskCount,
     overdueFollowUpTaskCount,
     staleClientCount,
@@ -716,7 +852,32 @@ export async function getFrontOfficeDashboardSnapshot(
         source: true,
         stage: true,
         nextFollowUpAt: true,
+        leaseReminderAt: true,
         lastContactAt: true,
+      },
+    }),
+    prisma.client.findMany({
+      where: {
+        ...clientWhere,
+        leaseReminderAt: {
+          lte: thirtyDaysFromNow,
+        },
+      },
+      orderBy: [{ leaseReminderAt: "asc" }, { updatedAt: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        fullName: true,
+        leaseEndDate: true,
+        leaseReminderAt: true,
+      },
+    }),
+    prisma.client.count({
+      where: {
+        ...clientWhere,
+        leaseReminderAt: {
+          lt: startOfToday,
+        },
       },
     }),
     prisma.followUpTask.count({
@@ -783,6 +944,7 @@ export async function getFrontOfficeDashboardSnapshot(
         source: true,
         stage: true,
         nextFollowUpAt: true,
+        leaseReminderAt: true,
         lastContactAt: true,
       },
     }),
@@ -1193,6 +1355,42 @@ export async function getFrontOfficeDashboardSnapshot(
   );
 
   const dueFollowUpCount = dueFollowUpClients.length;
+  const leaseReminderItems: FrontOfficeDashboardLeaseReminderItem[] =
+    dueLeaseReminderClients.flatMap((client) => {
+      const leaseReminder = buildLeaseReminderStatus({
+        leaseEndDate: client.leaseEndDate,
+        leaseReminderAt: client.leaseReminderAt,
+        now,
+      });
+
+      if (!leaseReminder.reminderAt) {
+        return [];
+      }
+
+      return [
+        {
+          id: client.id,
+          clientName: client.fullName,
+          statusLabel: leaseReminder.statusLabel,
+          tone: leaseReminder.tone,
+          reminderLabel:
+            leaseReminder.statusLabel === "Due today"
+              ? formatDateTimeLabel(leaseReminder.reminderAt, {
+                  timeZone: null,
+                })
+              : formatDateLabel(leaseReminder.reminderAt),
+          detailLabel: leaseReminder.detailLabel,
+          href: `/agent/clients/${client.id}`,
+        },
+      ];
+    });
+  const dueLeaseReminderCount = dueLeaseReminderClients.filter((client) => {
+    if (!client.leaseReminderAt) {
+      return false;
+    }
+
+    return client.leaseReminderAt.getTime() <= fourteenDaysFromNow.getTime();
+  }).length;
   const filteredLeadershipStaleClients = leadershipStaleClientCandidates.filter(
     (client) => !isClosedClientStage(client.stage),
   );
@@ -1302,6 +1500,27 @@ export async function getFrontOfficeDashboardSnapshot(
       actionLabel: "Open calendar",
     },
     {
+      id: "lease-reminders",
+      label: "Lease reminders",
+      count: dueLeaseReminderCount,
+      tone:
+        overdueLeaseReminderCount > 0
+          ? "danger"
+          : dueLeaseReminderCount > 0
+            ? "warning"
+            : "neutral",
+      description:
+        leaseReminderItems.length > 0
+          ? leaseReminderItems.map((item) => item.clientName).join(" · ")
+          : "No lease-date reminders are due soon right now.",
+      helper:
+        overdueLeaseReminderCount > 0
+          ? `${overdueLeaseReminderCount} reminder(s) are already overdue.`
+          : "Use lease dates to surface renewal, remarketing, and move planning before they go quiet.",
+      href: "/agent/clients",
+      actionLabel: "Open client pipeline",
+    },
+    {
       id: "content",
       label: "Content ready to send",
       count: activeListingCount,
@@ -1361,10 +1580,12 @@ export async function getFrontOfficeDashboardSnapshot(
     summary: {
       todayActionCount:
         dueFollowUpCount +
+        dueLeaseReminderCount +
         todayCommitmentCount +
         needsBackOfficeCount +
         leadershipPressureCount,
       followUpDueCount: dueFollowUpCount,
+      leaseReminderCount: dueLeaseReminderCount,
       overdueTaskCount: overdueFollowUpTaskCount,
       staleClientCount,
       todayCommitmentCount,
@@ -1391,7 +1612,11 @@ export async function getFrontOfficeDashboardSnapshot(
         stage: client.stage,
         stageTone: mapClientStageTone(client.stage),
         source: client.source,
-        nextTouchLabel: formatRelativeDueLabel(client.nextFollowUpAt, now),
+        nextTouchLabel: formatNextTouchLabel({
+          nextFollowUpAt: client.nextFollowUpAt,
+          leaseReminderAt: client.leaseReminderAt,
+          now,
+        }),
         lastTouchLabel: client.lastContactAt
           ? `Last contact · ${formatDateLabel(client.lastContactAt)}`
           : "No contact logged yet",
@@ -1536,6 +1761,11 @@ export async function getFrontOfficeDashboardSnapshot(
               ? `mailto:${vendor.email.trim()}`
               : null),
       })),
+    },
+    leaseReminders: {
+      dueCount: dueLeaseReminderCount,
+      overdueCount: overdueLeaseReminderCount,
+      items: leaseReminderItems,
     },
     backOffice: {
       items: backOfficeItems,

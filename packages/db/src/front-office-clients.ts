@@ -11,6 +11,10 @@ import {
   isFrontOfficeStageReadyForBackOffice,
 } from "./front-office-contracts";
 import { formatDateTimeLabel } from "./date-time";
+import {
+  defaultLeaseReminderLeadDays,
+  resolveLeaseReminderDates,
+} from "./lease-reminders";
 
 export type FrontOfficeClientDetailTone =
   | "neutral"
@@ -90,6 +94,18 @@ export type FrontOfficeClientDetailWorkflowSignal = {
   actionHref: string;
 };
 
+export type FrontOfficeClientDetailLeaseReminder = {
+  leaseEndDateValue: string;
+  leaseEndDateLabel: string;
+  reminderAtValue: string;
+  reminderAtLabel: string;
+  statusLabel: string;
+  statusTone: FrontOfficeClientDetailTone;
+  helperText: string;
+  isAutoScheduled: boolean;
+  needsAttention: boolean;
+};
+
 export type FrontOfficeClientDetailPlaybookItem = {
   id: string;
   title: string;
@@ -146,6 +162,7 @@ export type FrontOfficeClientDetailSnapshot = {
     revisitCount: number;
     lastEngagementLabel: string;
   };
+  leaseReminder: FrontOfficeClientDetailLeaseReminder;
   workflow: FrontOfficeClientDetailWorkflowSignal;
   playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
@@ -215,6 +232,14 @@ function formatDateLabel(
   });
 }
 
+function formatDateValue(value: Date | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.toISOString().slice(0, 10);
+}
+
 function pickEarliestDate(...values: Array<Date | null | undefined>) {
   return values.reduce<Date | null>((earliest, value) => {
     if (!value) {
@@ -227,6 +252,101 @@ function pickEarliestDate(...values: Array<Date | null | undefined>) {
 
     return earliest;
   }, null);
+}
+
+function buildLeaseReminderSnapshot(input: {
+  leaseEndDate: Date | null;
+  leaseReminderAt: Date | null;
+  now: Date;
+  timeZone?: string | null;
+}): FrontOfficeClientDetailLeaseReminder {
+  const leaseDates = resolveLeaseReminderDates({
+    leaseEndDate: input.leaseEndDate,
+    leaseReminderAt: input.leaseReminderAt,
+  });
+  const startOfToday = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate(),
+  );
+  const startOfTomorrow = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate() + 1,
+  );
+  const fourteenDaysFromNow = new Date(
+    input.now.getFullYear(),
+    input.now.getMonth(),
+    input.now.getDate() + 14,
+  );
+
+  if (!leaseDates.leaseReminderAt) {
+    return {
+      leaseEndDateValue: "",
+      leaseEndDateLabel: leaseDates.leaseEndDate
+        ? formatDateLabel(leaseDates.leaseEndDate, input.timeZone)
+        : "No lease end date captured",
+      reminderAtValue: "",
+      reminderAtLabel: "Not scheduled",
+      statusLabel: "No lease reminder",
+      statusTone: "neutral",
+      helperText:
+        "Add the lease end date and reminder date when this client needs renewal, remarketing, or move planning to stay visible in Front Office.",
+      isAutoScheduled: false,
+      needsAttention: false,
+    };
+  }
+
+  let statusLabel = "Reminder scheduled";
+  let statusTone: FrontOfficeClientDetailTone = "success";
+  let helperText = leaseDates.leaseEndDate
+    ? `Lease ends ${formatDateLabel(leaseDates.leaseEndDate, input.timeZone)}.`
+    : "Lease reminder is on the calendar.";
+  let needsAttention = false;
+
+  if (leaseDates.leaseReminderAt.getTime() < startOfToday.getTime()) {
+    statusLabel = "Reminder overdue";
+    statusTone = "danger";
+    helperText = leaseDates.leaseEndDate
+      ? `Lease ended or will end ${formatDateLabel(leaseDates.leaseEndDate, input.timeZone)}. Renewal or remarketing follow-up should already be underway.`
+      : `This lease reminder slipped past ${formatDateLabel(leaseDates.leaseReminderAt, input.timeZone)}.`;
+    needsAttention = true;
+  } else if (
+    leaseDates.leaseReminderAt.getTime() < startOfTomorrow.getTime()
+  ) {
+    statusLabel = "Reminder due today";
+    statusTone = "warning";
+    helperText = leaseDates.leaseEndDate
+      ? `Lease ends ${formatDateLabel(leaseDates.leaseEndDate, input.timeZone)}. Make the renewal or move-out touch today.`
+      : "Make the lease follow-up today so this client does not go quiet.";
+    needsAttention = true;
+  } else if (
+    leaseDates.leaseReminderAt.getTime() <= fourteenDaysFromNow.getTime()
+  ) {
+    statusLabel = "Reminder due soon";
+    statusTone = "accent";
+    helperText = leaseDates.leaseEndDate
+      ? `Lease ends ${formatDateLabel(leaseDates.leaseEndDate, input.timeZone)}. Use the next two weeks to confirm renewal, remarketing, or move plans.`
+      : "A lease-related touch is coming up soon. Confirm the outreach plan before it is late.";
+  }
+
+  if (leaseDates.isAutoScheduled && leaseDates.leaseEndDate) {
+    helperText = `${helperText} Acre auto-scheduled this reminder ${defaultLeaseReminderLeadDays} days before the lease end date.`;
+  }
+
+  return {
+    leaseEndDateValue: formatDateValue(leaseDates.leaseEndDate),
+    leaseEndDateLabel: leaseDates.leaseEndDate
+      ? formatDateLabel(leaseDates.leaseEndDate, input.timeZone)
+      : "No lease end date captured",
+    reminderAtValue: formatDateValue(leaseDates.leaseReminderAt),
+    reminderAtLabel: formatDateLabel(leaseDates.leaseReminderAt, input.timeZone),
+    statusLabel,
+    statusTone,
+    helperText,
+    isAutoScheduled: leaseDates.isAutoScheduled,
+    needsAttention,
+  };
 }
 
 function formatRelativeDueLabel(
@@ -1098,6 +1218,8 @@ function buildWorkflowSignal(input: {
   stage: string;
   lastContactAt: Date | null;
   nextTouchAt: Date | null;
+  leaseReminderAt: Date | null;
+  leaseReminderNeedsAttention: boolean;
   hasOverdueTask: boolean;
   openTaskCount: number;
   activeHandoff: {
@@ -1134,6 +1256,13 @@ function buildWorkflowSignal(input: {
     pressureTone = "danger";
     pressureDescription =
       "At least one follow-up task is already past due. Close the loop or reschedule it today so the client does not slip.";
+  } else if (input.leaseReminderNeedsAttention && input.leaseReminderAt) {
+    pressureLabel = "Lease reminder due";
+    pressureTone =
+      input.leaseReminderAt.getTime() < input.now.getTime()
+        ? "danger"
+        : "warning";
+    pressureDescription = `Lease-related follow-up is due by ${formatDateLabel(input.leaseReminderAt, input.timeZone)}. Confirm renewal, remarketing, or move timing before this window slips.`;
   } else if (
     isActiveOpportunity &&
     daysSinceLastTouch !== null &&
@@ -1261,6 +1390,30 @@ function buildWorkflowSignal(input: {
     };
   }
 
+  if (input.leaseReminderAt) {
+    const leaseReminderSoon =
+      input.leaseReminderAt.getTime() <=
+      new Date(
+        input.now.getFullYear(),
+        input.now.getMonth(),
+        input.now.getDate() + 14,
+      ).getTime();
+
+    if (leaseReminderSoon) {
+      return {
+        pressureLabel,
+        pressureTone,
+        pressureDescription,
+        nextStepTitle: "Start renewal or remarketing follow-up",
+        nextStepTone: input.leaseReminderNeedsAttention ? "warning" : "accent",
+        nextStepDescription:
+          "Use the lease window to confirm whether this client is renewing, moving, or needs a fresh listing / tour plan before the date passes quietly.",
+        actionLabel: "Create follow-up",
+        actionHref: "#front-office-follow-up-form",
+      };
+    }
+  }
+
   return {
     pressureLabel,
     pressureTone,
@@ -1309,6 +1462,8 @@ export async function getFrontOfficeClientDetail(
       notes: true,
       lastContactAt: true,
       nextFollowUpAt: true,
+      leaseEndDate: true,
+      leaseReminderAt: true,
       ownerMembership: {
         select: {
           user: {
@@ -1500,7 +1655,14 @@ export async function getFrontOfficeClientDetail(
   const nextTouchAt = pickEarliestDate(
     earliestOpenTaskDueAt,
     client.nextFollowUpAt,
+    client.leaseReminderAt,
   );
+  const leaseReminder = buildLeaseReminderSnapshot({
+    leaseEndDate: client.leaseEndDate,
+    leaseReminderAt: client.leaseReminderAt,
+    now,
+    timeZone: input.timeZone,
+  });
   const activeHandoffDraft =
     client.handoffDrafts.find(
       (draft) =>
@@ -1572,6 +1734,7 @@ export async function getFrontOfficeClientDetail(
       stageHistoryCount: client.stageHistory.length,
       openHandoffCount,
     },
+    leaseReminder,
     engagement: {
       sendCount,
       openedSendCount,
@@ -1587,6 +1750,8 @@ export async function getFrontOfficeClientDetail(
       stage: client.stage,
       lastContactAt: client.lastContactAt,
       nextTouchAt,
+      leaseReminderAt: client.leaseReminderAt,
+      leaseReminderNeedsAttention: leaseReminder.needsAttention,
       hasOverdueTask: client.followUpTasks.some(
         (task) =>
           task.status !== TaskStatus.completed &&

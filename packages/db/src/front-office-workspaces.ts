@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import { resolveLeaseReminderDates } from "./lease-reminders";
 
 export type FrontOfficeWorkspaceInput = {
   organizationId: string;
@@ -262,6 +263,48 @@ function formatRelativeDueLabel(
   return `Next follow-up · ${formatDateLabel(value, timeZone)}`;
 }
 
+function formatNextTouchLabel(input: {
+  nextFollowUpAt: Date | null;
+  leaseReminderAt: Date | null;
+  now: Date;
+  timeZone?: string | null;
+}) {
+  const leaseReminder = resolveLeaseReminderDates({
+    leaseEndDate: null,
+    leaseReminderAt: input.leaseReminderAt,
+  });
+
+  if (
+    leaseReminder.leaseReminderAt &&
+    (!input.nextFollowUpAt ||
+      leaseReminder.leaseReminderAt.getTime() <= input.nextFollowUpAt.getTime())
+  ) {
+    const reminderTime = leaseReminder.leaseReminderAt.getTime();
+    const startOfToday = new Date(
+      input.now.getFullYear(),
+      input.now.getMonth(),
+      input.now.getDate(),
+    ).getTime();
+    const startOfTomorrow = new Date(
+      input.now.getFullYear(),
+      input.now.getMonth(),
+      input.now.getDate() + 1,
+    ).getTime();
+
+    if (reminderTime < startOfToday) {
+      return `Lease reminder overdue since ${formatDateLabel(leaseReminder.leaseReminderAt, input.timeZone)}`;
+    }
+
+    if (reminderTime < startOfTomorrow) {
+      return `Lease reminder · ${formatDateTimeLabel(leaseReminder.leaseReminderAt, { timeZone: input.timeZone ?? null })}`;
+    }
+
+    return `Lease reminder · ${formatDateLabel(leaseReminder.leaseReminderAt, input.timeZone)}`;
+  }
+
+  return formatRelativeDueLabel(input.nextFollowUpAt, input.now, input.timeZone);
+}
+
 function mapClientStageTone(stage: string): FrontOfficeTone {
   const normalized = stage.trim().toLowerCase();
 
@@ -466,6 +509,7 @@ export async function getFrontOfficeClientsSnapshot(
           preferredAreas: true,
           lastContactAt: true,
           nextFollowUpAt: true,
+          leaseReminderAt: true,
         },
       }),
       prisma.client.groupBy({
@@ -530,11 +574,12 @@ export async function getFrontOfficeClientsSnapshot(
       lastTouchLabel: client.lastContactAt
         ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
         : "No contact logged yet",
-      nextTouchLabel: formatRelativeDueLabel(
-        client.nextFollowUpAt,
+      nextTouchLabel: formatNextTouchLabel({
+        nextFollowUpAt: client.nextFollowUpAt,
+        leaseReminderAt: client.leaseReminderAt,
         now,
-        input.timeZone,
-      ),
+        timeZone: input.timeZone,
+      }),
       href: `/agent/clients/${client.id}`,
     })),
   };
@@ -616,6 +661,7 @@ export async function getFrontOfficeListingsSnapshot(
             fullName: true,
             stage: true,
             nextFollowUpAt: true,
+            leaseReminderAt: true,
           },
         })
       : Promise.resolve(null),
@@ -759,11 +805,12 @@ export async function getFrontOfficeListingsSnapshot(
           fullName: targetClient.fullName,
           stage: targetClient.stage,
           stageTone: mapClientStageTone(targetClient.stage),
-          nextTouchLabel: formatRelativeDueLabel(
-            targetClient.nextFollowUpAt,
+          nextTouchLabel: formatNextTouchLabel({
+            nextFollowUpAt: targetClient.nextFollowUpAt,
+            leaseReminderAt: targetClient.leaseReminderAt,
             now,
-            input.timeZone,
-          ),
+            timeZone: input.timeZone,
+          }),
           href: `/agent/clients/${targetClient.id}`,
         }
       : null,

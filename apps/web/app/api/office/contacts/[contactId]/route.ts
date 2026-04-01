@@ -103,6 +103,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       notes: submission.notes,
       lastContactAt: submission.lastContactAt,
       nextFollowUpAt: submission.nextFollowUpAt,
+      leaseEndDate: submission.leaseEndDate,
+      leaseReminderAt: submission.leaseReminderAt,
       additionalFields: submission.additionalFields
     });
 
