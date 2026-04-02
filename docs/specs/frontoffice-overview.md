@@ -118,8 +118,9 @@ Current implementation priority note:
 - `closing / deal-win suggestions` are now also live on the client dossier, so the same FO record can turn shared BO outcome signals into post-close touches, referral timing, recap PDF suggestions, and respectful re-entry guidance without inventing a second “win board”
 - `AI next-touch suggestions` are now also live on the client dossier for memberships with `ai:use`, so Acre can ground copyable call / text / email drafts in the live dossier trail without auto-sending anything or inventing a second recommendation layer
 - `dashboard-level AI queue + safe automation actions` are now also live, so the dashboard can surface grounded next-touch opportunities and route agents into prefilled follow-up forms without auto-creating or auto-sending anything
-- the next recommended build target is `agent-approved one-click follow-up creation + outbound draft assist`
-- prefer this next because grounded AI suggestions now exist on both dossier and dashboard, so the highest-value follow-through is turning approved suggestions into created tasks and cleaner send handoff before any heavier automation
+- `agent-approved one-click follow-up creation + outbound draft assist` are now also live, so grounded AI suggestions can become real shared follow-up tasks from the dossier or dashboard, and copy-ready AI drafts can now enter the tracked listing-output surface without auto-sending anything
+- the next recommended build target is `accepted-action history + AI outcome tracking`
+- prefer this next because FO can now surface suggestions, create approved follow-up tasks, and hand drafts into tracked output, so the highest-value follow-through is measuring which accepted actions were used and what actually moved the client before heavier automation
 
 ### Phase 2
 

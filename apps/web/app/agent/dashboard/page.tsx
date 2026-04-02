@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { FrontOfficeDashboardAiQueueClient } from "./front-office-dashboard-ai-queue-client";
 import {
   getSessionAccess,
   requireSessionContext,
@@ -94,42 +95,7 @@ export default async function AgentDashboardPage() {
                 />
               </ListPageStatsGrid>
 
-              <div className="office-queue-list">
-                {snapshot.aiQueue.items.length ? (
-                  snapshot.aiQueue.items.map((item) => (
-                    <FrontOfficeRailItem
-                      action={
-                        <>
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={item.followUpHref}
-                          >
-                            {item.followUpLabel}
-                          </FrontOfficeLink>
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={item.openDossierHref}
-                          >
-                            Open AI dossier
-                          </FrontOfficeLink>
-                        </>
-                      }
-                      badgeLabel={item.statusLabel}
-                      badgeTone={item.tone}
-                      context={item.contextLabel}
-                      description={item.description}
-                      key={item.id}
-                      meta={<span>{item.helperLabel}</span>}
-                      title={item.clientName}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
-                    description="As lease timing, appointments, tracked send behavior, handoff state, and transaction milestones line up, grounded AI next-touch opportunities will appear here."
-                    title="No AI suggestions in queue"
-                  />
-                )}
-              </div>
+              <FrontOfficeDashboardAiQueueClient items={snapshot.aiQueue.items} />
             </SectionCard>
           ) : null}
 

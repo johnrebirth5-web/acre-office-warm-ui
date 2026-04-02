@@ -14,6 +14,7 @@ import {
   buildFrontOfficeHandoffSummary,
   isFrontOfficeStageReadyForBackOffice,
 } from "./front-office-contracts";
+import { buildFrontOfficeAiFollowUpAction } from "./front-office-ai";
 import { formatDateTimeLabel } from "./date-time";
 import {
   defaultLeaseReminderLeadDays,
@@ -196,6 +197,11 @@ export type FrontOfficeClientDetailAiDraft = {
   body: string;
 };
 
+export type FrontOfficeClientDetailAiFollowUpSuggestion = {
+  title: string;
+  dueAt: string;
+};
+
 export type FrontOfficeClientDetailAiSuggestions = {
   statusLabel: string;
   statusTone: FrontOfficeClientDetailTone;
@@ -203,6 +209,7 @@ export type FrontOfficeClientDetailAiSuggestions = {
   summary: string;
   helperText: string;
   groundingSignals: string[];
+  followUpSuggestion: FrontOfficeClientDetailAiFollowUpSuggestion | null;
   primaryActionLabel: string;
   primaryActionHref: string;
   primaryActionOpensInNewTab: boolean;
@@ -1348,6 +1355,7 @@ function buildFrontOfficePlaybook(input: {
 function buildFrontOfficeAiSuggestions(input: {
   clientId: string;
   fullName: string;
+  now: Date;
   stage: string;
   intentLabel: string;
   budgetLabel: string;
@@ -1438,6 +1446,12 @@ function buildFrontOfficeAiSuggestions(input: {
     "Acre can already ground the next touch in the live dossier instead of leaving the agent to guess the right opener.";
   let helperText =
     "These drafts are grounded in the appointment, send, follow-up, handoff, and transaction signals already on this record. Nothing auto-sends; edit before using.";
+  let followUpSuggestion: FrontOfficeClientDetailAiFollowUpSuggestion | null =
+    buildFrontOfficeAiFollowUpAction({
+      kind: "generic",
+      now: input.now,
+      clientFullName: input.fullName,
+    });
   let primaryActionLabel = input.workflow.actionLabel;
   let primaryActionHref = input.workflow.actionHref;
   let primaryActionOpensInNewTab = false;
@@ -1448,6 +1462,11 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Use a respectful reopen touch, not a hard restart";
     summary =
       "The formal deal did not close, so the best next-touch should stay low-pressure and leave the door open for timing to restart.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "reentry",
+      now: input.now,
+      clientFullName: input.fullName,
+    });
     primaryActionLabel = "Create follow-up";
     primaryActionHref = "#front-office-follow-up-form";
 
@@ -1477,6 +1496,11 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Keep the win warm with a human follow-up";
     summary =
       "The deal is already closed, so the next-touch should sound supportive, recap-oriented, and referral-aware rather than salesy.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "postclose",
+      now: input.now,
+      clientFullName: input.fullName,
+    });
     primaryActionLabel = input.closingPrimaryActionLabel;
     primaryActionHref = input.closingPrimaryActionHref;
     primaryActionOpensInNewTab = input.closingPrimaryActionOpensInNewTab;
@@ -1510,6 +1534,11 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Use the next touch to steady the closing window";
     summary =
       "A near-term closing or move-in date is already on the shared file, so the next-touch should reduce wrap-up confusion before the date slips by.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "closing",
+      now: input.now,
+      clientFullName: input.fullName,
+    });
     primaryActionLabel = input.closingPrimaryActionLabel;
     primaryActionHref = input.closingPrimaryActionHref;
     primaryActionOpensInNewTab = input.closingPrimaryActionOpensInNewTab;
@@ -1543,6 +1572,14 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Use the next touch to clarify renewal or move timing";
     summary =
       "The lease reminder is already due or near due, so the next-touch should lock whether this is a renewal, remarketing, or move-planning conversation.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "lease",
+      now:
+        input.leaseReminder.statusLabel === "Reminder due soon"
+          ? new Date(input.now.getTime() + 2 * 24 * 60 * 60 * 1000)
+          : input.now,
+      clientFullName: input.fullName,
+    });
 
     pushDraft({
       id: "lease-call",
@@ -1570,6 +1607,12 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Use the touch to tighten expectations before the meeting";
     summary =
       "There is already a scheduled appointment on the calendar, so the next-touch should sharpen logistics and expectations instead of reopening discovery from zero.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "appointment",
+      now: input.now,
+      clientFullName: input.fullName,
+      appointmentTitle: input.latestAppointment.title,
+    });
     primaryActionLabel = "Open calendar";
     primaryActionHref = `/agent/calendar?clientId=${input.clientId}`;
 
@@ -1605,6 +1648,11 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Rescue the tracked send before it goes quiet";
     summary =
       "Material has already been sent, but there is no tracked open yet, so the next-touch should reduce friction and offer a smaller next step.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "content_rescue",
+      now: input.now,
+      clientFullName: input.fullName,
+    });
     primaryActionLabel = "Open listing output";
     primaryActionHref = `/agent/listings?clientId=${input.clientId}`;
 
@@ -1634,6 +1682,11 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Follow the signal while the client is still engaged";
     summary =
       "The send trail already shows engagement, so the next-touch should turn interest into a clearer shortlist, feedback, or booked step.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "warm_engagement",
+      now: input.now,
+      clientFullName: input.fullName,
+    });
     primaryActionLabel = "Create follow-up";
     primaryActionHref = "#front-office-follow-up-form";
 
@@ -1666,6 +1719,11 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle = "Use the touch to align the client before the BO handoff";
     summary =
       "The dossier is BO-ready, but the formal file is not live yet, so the next-touch should confirm package, timing, and expectations before handoff.";
+    followUpSuggestion = buildFrontOfficeAiFollowUpAction({
+      kind: "handoff",
+      now: input.now,
+      clientFullName: input.fullName,
+    });
     primaryActionLabel = input.closingPrimaryActionLabel;
     primaryActionHref = input.closingPrimaryActionHref;
     primaryActionOpensInNewTab = input.closingPrimaryActionOpensInNewTab;
@@ -1720,6 +1778,7 @@ function buildFrontOfficeAiSuggestions(input: {
     summary,
     helperText,
     groundingSignals,
+    followUpSuggestion,
     primaryActionLabel,
     primaryActionHref,
     primaryActionOpensInNewTab,
@@ -3216,6 +3275,7 @@ export async function getFrontOfficeClientDetail(
   const aiSuggestions = buildFrontOfficeAiSuggestions({
     clientId: client.id,
     fullName: client.fullName,
+    now,
     stage: client.stage,
     intentLabel: client.intent?.trim() || "Intent not captured",
     budgetLabel,

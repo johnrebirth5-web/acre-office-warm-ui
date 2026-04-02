@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import type {
   FrontOfficeClientDetailAiDraft,
   FrontOfficeClientDetailSnapshot,
 } from "@acre/db";
 import { Button, QueueItem } from "@acre/ui";
+import { useRouter } from "next/navigation";
 import { FrontOfficeLink } from "../../_components/front-office-link";
 
 type FrontOfficeClientAiSuggestionsClientProps = {
@@ -62,11 +63,82 @@ function buildDraftDirectHref(
   return null;
 }
 
+function canUseTrackedDraftAssist(statusLabel: string) {
+  return (
+    statusLabel === "Content follow-up" ||
+    statusLabel === "Warm engagement" ||
+    statusLabel === "Appointment prep" ||
+    statusLabel === "Next touch"
+  );
+}
+
 export function FrontOfficeClientAiSuggestionsClient(
   props: FrontOfficeClientAiSuggestionsClientProps,
 ) {
+  const router = useRouter();
   const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const aiSuggestions = props.snapshot.aiSuggestions;
+  const primaryActionLabel =
+    aiSuggestions.followUpSuggestion &&
+    aiSuggestions.primaryActionHref === "#front-office-follow-up-form"
+      ? "Review in follow-up form"
+      : aiSuggestions.primaryActionLabel;
+
+  async function handleCreateFollowUp() {
+    if (!aiSuggestions.followUpSuggestion) {
+      return;
+    }
+
+    setFeedback(null);
+    setActiveAction("follow-up");
+
+    try {
+      const response = await fetch(
+        `/api/agent/clients/${props.snapshot.id}/follow-up-tasks`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: aiSuggestions.followUpSuggestion.title,
+            dueAt: aiSuggestions.followUpSuggestion.dueAt,
+          }),
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        setFeedback({
+          tone: "error",
+          message:
+            payload?.error ?? "Could not create the suggested follow-up task.",
+        });
+        setActiveAction(null);
+        return;
+      }
+
+      setFeedback({
+        tone: "success",
+        message:
+          "Suggested follow-up created. The dossier will refresh with the accepted next touch.",
+      });
+      startTransition(() => {
+        router.refresh();
+        setActiveAction(null);
+      });
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Could not create the suggested follow-up task.",
+      });
+      setActiveAction(null);
+    }
+  }
 
   async function handleCopyDraft(draft: FrontOfficeClientDetailAiDraft) {
     try {
@@ -84,28 +156,66 @@ export function FrontOfficeClientAiSuggestionsClient(
     }
   }
 
+  function buildTrackedDraftAssistHref(draft: FrontOfficeClientDetailAiDraft) {
+    if (
+      !canUseTrackedDraftAssist(aiSuggestions.statusLabel) ||
+      (draft.channelKey !== "sms" && draft.channelKey !== "email")
+    ) {
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      clientId: props.snapshot.id,
+      draftChannel: draft.channelKey,
+      draftTitle: draft.title,
+      draftBody: draft.body,
+      draftSource: "ai",
+    });
+
+    if (draft.subjectLine.trim()) {
+      params.set("draftSubject", draft.subjectLine.trim());
+    }
+
+    return `/agent/listings?${params.toString()}#front-office-draft-assist`;
+  }
+
   return (
     <div className="office-list-page-stack">
       <div className="office-queue-list">
         <QueueItem
           action={
-            aiSuggestions.primaryActionOpensInNewTab ? (
-              <a
-                className="office-inline-link"
-                href={aiSuggestions.primaryActionHref}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {aiSuggestions.primaryActionLabel}
-              </a>
-            ) : (
-              <FrontOfficeLink
-                className="office-inline-link"
-                href={aiSuggestions.primaryActionHref}
-              >
-                {aiSuggestions.primaryActionLabel}
-              </FrontOfficeLink>
-            )
+            <>
+              {aiSuggestions.followUpSuggestion ? (
+                <Button
+                  disabled={Boolean(activeAction) || isPending}
+                  onClick={() => void handleCreateFollowUp()}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {activeAction === "follow-up" || isPending
+                    ? "Working..."
+                    : "Create suggested follow-up"}
+                </Button>
+              ) : null}
+              {aiSuggestions.primaryActionOpensInNewTab ? (
+                <a
+                  className="office-inline-link"
+                  href={aiSuggestions.primaryActionHref}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {primaryActionLabel}
+                </a>
+              ) : (
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={aiSuggestions.primaryActionHref}
+                >
+                  {primaryActionLabel}
+                </FrontOfficeLink>
+              )}
+            </>
           }
           badgeLabel={aiSuggestions.statusLabel}
           badgeTone={aiSuggestions.statusTone}
@@ -136,6 +246,7 @@ export function FrontOfficeClientAiSuggestionsClient(
       <div className="front-office-playbook-template-list">
         {aiSuggestions.drafts.map((draft) => {
           const directAction = buildDraftDirectHref(props.snapshot, draft);
+          const trackedAssistHref = buildTrackedDraftAssistHref(draft);
 
           return (
             <article className="front-office-playbook-template" key={draft.id}>
@@ -151,6 +262,14 @@ export function FrontOfficeClientAiSuggestionsClient(
                     <a className="office-inline-link" href={directAction.href}>
                       {directAction.label}
                     </a>
+                  ) : null}
+                  {trackedAssistHref ? (
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={trackedAssistHref}
+                    >
+                      Open tracked assist
+                    </FrontOfficeLink>
                   ) : null}
                   <Button
                     onClick={() => void handleCopyDraft(draft)}

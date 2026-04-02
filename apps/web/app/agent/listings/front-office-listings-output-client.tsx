@@ -8,6 +8,13 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 
 type FrontOfficeListingsOutputClientProps = {
   snapshot: FrontOfficeListingsSnapshot;
+  draftAssist?: {
+    channel: "sms" | "email";
+    title: string;
+    subjectLine: string;
+    body: string;
+    sourceLabel?: string | null;
+  } | null;
 };
 
 type FeedbackState = {
@@ -61,17 +68,45 @@ function buildEmailTemplate(input: {
   return `Subject: Listing match: ${input.title}\n\n${greeting}\n\nI found a listing that may fit what we discussed.\n\nListing: ${input.title}\nArea: ${input.areaLabel}\nPrice: ${input.priceLabel}\nWhy it stands out: ${input.summaryLabel}\n\nPrivate share link: ${input.shareUrl}\n\nReply with your reaction and I can line up the next options or a showing.\n`;
 }
 
+function buildAssistedSmsTemplate(input: {
+  body: string;
+  shareUrl: string;
+}) {
+  return `${input.body.trim()}\n\nPrivate listing link: ${input.shareUrl}`;
+}
+
+function buildAssistedEmailTemplate(input: {
+  subjectLine: string;
+  body: string;
+  title: string;
+  shareUrl: string;
+}) {
+  const footer = `\n\nListing: ${input.title}\nPrivate share link: ${input.shareUrl}`;
+  const subject = input.subjectLine.trim()
+    ? `Subject: ${input.subjectLine.trim()}\n\n`
+    : "";
+
+  return `${subject}${input.body.trim()}${footer}`;
+}
+
 function buildRecordedContextMessage(
   snapshot: FrontOfficeListingsSnapshot,
   listingTitle: string,
   variant: "text" | "email" | "link",
+  usedDraftAssist: boolean,
 ) {
   const baseLabel =
-    variant === "text"
-      ? `Tracked text template copied for ${listingTitle}`
-      : variant === "email"
-        ? `Tracked email template copied for ${listingTitle}`
-        : `Private tracked link copied for ${listingTitle}`;
+    usedDraftAssist
+      ? variant === "text"
+        ? `AI-assisted tracked text copied for ${listingTitle}`
+        : variant === "email"
+          ? `AI-assisted tracked email copied for ${listingTitle}`
+          : `Private tracked link copied for ${listingTitle}`
+      : variant === "text"
+        ? `Tracked text template copied for ${listingTitle}`
+        : variant === "email"
+          ? `Tracked email template copied for ${listingTitle}`
+          : `Private tracked link copied for ${listingTitle}`;
 
   if (snapshot.targetClient && snapshot.targetAppointment) {
     return `${baseLabel}, and the send was recorded for ${snapshot.targetClient.fullName} in the selected appointment context.`;
@@ -138,8 +173,24 @@ export function FrontOfficeListingsOutputClient(
       }
 
       const shareUrl = buildAbsoluteUrl(payload.shareLink.sharePath);
+      const usesDraftAssist =
+        action !== "direct" &&
+        props.draftAssist?.channel === action &&
+        Boolean(props.draftAssist.body.trim());
       const copiedValue =
-        action === "sms"
+        usesDraftAssist && action === "sms"
+          ? buildAssistedSmsTemplate({
+              body: props.draftAssist?.body || "",
+              shareUrl,
+            })
+          : usesDraftAssist && action === "email"
+            ? buildAssistedEmailTemplate({
+                subjectLine: props.draftAssist?.subjectLine || "",
+                body: props.draftAssist?.body || "",
+                title: listing.title,
+                shareUrl,
+              })
+            : action === "sms"
           ? buildSmsTemplate({
               title: listing.title,
               areaLabel: listing.areaLabel,
@@ -165,6 +216,7 @@ export function FrontOfficeListingsOutputClient(
           props.snapshot,
           listing.title,
           action === "sms" ? "text" : action === "email" ? "email" : "link",
+          usesDraftAssist,
         ),
       });
       startTransition(() => {
@@ -235,6 +287,28 @@ export function FrontOfficeListingsOutputClient(
             </FrontOfficeLink>
           ) : null}
         </div>
+
+        {props.draftAssist ? (
+          <div
+            className="front-office-placeholder-note front-office-playbook-surface"
+            id="front-office-draft-assist"
+          >
+            <strong>{props.draftAssist.title}</strong>
+            <p>
+              {props.draftAssist.sourceLabel ||
+                "A draft assist is loaded into this tracked send surface. Copying the matching channel will use that draft and still append a private tracked listing link."}
+            </p>
+            <div className="list-row-meta front-office-record-meta">
+              <span>
+                Channel ·{" "}
+                {props.draftAssist.channel === "sms" ? "SMS" : "Email"}
+              </span>
+              {props.draftAssist.subjectLine.trim() ? (
+                <span>Subject · {props.draftAssist.subjectLine.trim()}</span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {props.snapshot.listings.length ? (
           props.snapshot.listings.map((listing) => {

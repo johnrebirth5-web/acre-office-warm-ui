@@ -14,6 +14,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import { buildFrontOfficeAiFollowUpAction } from "./front-office-ai";
 import {
   buildFrontOfficeHandoffCreateHref,
   isFrontOfficeStageReadyForBackOffice,
@@ -167,6 +168,7 @@ export type FrontOfficeDashboardLeadershipItem = {
 
 export type FrontOfficeDashboardAiQueueItem = {
   id: string;
+  clientId: string;
   clientName: string;
   statusLabel: string;
   tone: FrontOfficeDashboardTone;
@@ -174,8 +176,8 @@ export type FrontOfficeDashboardAiQueueItem = {
   contextLabel: string;
   helperLabel: string;
   openDossierHref: string;
-  followUpLabel: string;
-  followUpHref: string;
+  followUpTitle: string;
+  followUpDueAt: string;
 };
 
 type FrontOfficeDashboardLeadershipEngagementItem =
@@ -650,30 +652,6 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
 function isClosedClientStage(stage: string) {
   const normalized = stage.trim().toLowerCase();
   return normalized.includes("won") || normalized.includes("lost");
-}
-
-function formatDateValue(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-function buildSuggestedFollowUpDate(now: Date, daysFromNow: number) {
-  const target = new Date(now);
-  target.setDate(target.getDate() + daysFromNow);
-  return formatDateValue(target);
-}
-
-function buildFrontOfficeSuggestedFollowUpHref(input: {
-  clientId: string;
-  title: string;
-  dueAt: string;
-}) {
-  const params = new URLSearchParams({
-    followUpTitle: input.title,
-    followUpDueAt: input.dueAt,
-    followUpSource: "ai",
-  });
-
-  return `/agent/clients/${input.clientId}?${params.toString()}#front-office-follow-up-form`;
 }
 
 async function getLeadershipScopeMembershipIds(input: {
@@ -1881,12 +1859,16 @@ export async function getFrontOfficeDashboardSnapshot(
       const openDossierHref = `/agent/clients/${client.id}#front-office-ai-suggestions`;
 
       if (hasCancelledTransaction) {
-        const dueAt = buildSuggestedFollowUpDate(now, 21);
-        const title = `Nurture check-in with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "reentry",
+          now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-reentry`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Re-entry",
             tone: "warning",
@@ -1895,12 +1877,8 @@ export async function getFrontOfficeDashboardSnapshot(
             contextLabel: nextTouchLabel,
             helperLabel: "Grounded by cancelled / lost transaction outcome",
             openDossierHref,
-            followUpLabel: "Prefill nurture follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 0,
             _sortAt: linkedTransaction?.acceptanceDate ?? client.createdAt,
           },
@@ -1908,12 +1886,16 @@ export async function getFrontOfficeDashboardSnapshot(
       }
 
       if (hasClosedTransaction) {
-        const dueAt = buildSuggestedFollowUpDate(now, 2);
-        const title = `Post-close check-in with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "postclose",
+          now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-postclose`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Post-close",
             tone: "success",
@@ -1927,12 +1909,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 ? `Milestone · ${formatDateLabel(closingReferenceDate)}`
                 : "Grounded by closed transaction outcome",
             openDossierHref,
-            followUpLabel: "Prefill post-close follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 1,
             _sortAt: closingReferenceDate ?? client.createdAt,
           },
@@ -1940,12 +1918,16 @@ export async function getFrontOfficeDashboardSnapshot(
       }
 
       if (isClosingSoon && closingReferenceDate) {
-        const dueAt = buildSuggestedFollowUpDate(now, 1);
-        const title = `Confirm closing logistics with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "closing",
+          now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-closing`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Closing support",
             tone: "warning",
@@ -1960,12 +1942,8 @@ export async function getFrontOfficeDashboardSnapshot(
                   ? "Closing date is approaching"
                   : "Accepted file needs a wrap-up plan",
             openDossierHref,
-            followUpLabel: "Prefill closing follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 2,
             _sortAt: closingReferenceDate,
           },
@@ -1977,15 +1955,19 @@ export async function getFrontOfficeDashboardSnapshot(
         leaseReminder.statusLabel === "Due today" ||
         leaseReminder.statusLabel === "Due soon"
       ) {
-        const dueAt = buildSuggestedFollowUpDate(
-          now,
-          leaseReminder.statusLabel === "Due soon" ? 2 : 0,
-        );
-        const title = `Confirm lease timing with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "lease",
+          now:
+            leaseReminder.statusLabel === "Due soon"
+              ? new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)
+              : now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-lease`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Lease timing",
             tone: leaseReminder.tone,
@@ -1994,12 +1976,8 @@ export async function getFrontOfficeDashboardSnapshot(
             contextLabel: nextTouchLabel,
             helperLabel: `${leaseReminder.statusLabel} · ${leaseReminder.detailLabel}`,
             openDossierHref,
-            followUpLabel: "Prefill lease follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: leaseReminder.statusLabel === "Overdue" ? 3 : 4,
             _sortAt: leaseReminder.reminderAt ?? client.createdAt,
           },
@@ -2007,12 +1985,17 @@ export async function getFrontOfficeDashboardSnapshot(
       }
 
       if (latestAppointment) {
-        const dueAt = buildSuggestedFollowUpDate(now, 0);
-        const title = `Prep ${latestAppointment.title} with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "appointment",
+          now,
+          clientFullName: client.fullName,
+          appointmentTitle: latestAppointment.title,
+        });
 
         return [
           {
             id: `ai-${client.id}-appointment`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Appointment prep",
             tone: "accent",
@@ -2025,12 +2008,8 @@ export async function getFrontOfficeDashboardSnapshot(
               { timeZone: input.timeZone ?? null },
             )}`,
             openDossierHref,
-            followUpLabel: "Prefill prep follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 5,
             _sortAt: latestAppointment.startsAt,
           },
@@ -2042,12 +2021,16 @@ export async function getFrontOfficeDashboardSnapshot(
         latestSendRecord.openCount <= 0 &&
         latestSendRecord.sentAt.getTime() <= threeDaysAgo.getTime()
       ) {
-        const dueAt = buildSuggestedFollowUpDate(now, 1);
-        const title = `Follow up on sent shortlist with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "content_rescue",
+          now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-unopened-send`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Content follow-up",
             tone: "warning",
@@ -2059,12 +2042,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 ? `No open on ${latestSendRecord.listing.title.trim()}`
                 : "Tracked send has no open yet",
             openDossierHref,
-            followUpLabel: "Prefill rescue follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 6,
             _sortAt: latestSendRecord.sentAt,
           },
@@ -2077,12 +2056,16 @@ export async function getFrontOfficeDashboardSnapshot(
         (latestSendRecord.lastOpenedAt ?? latestSendRecord.sentAt).getTime() >=
           sevenDaysAgo.getTime()
       ) {
-        const dueAt = buildSuggestedFollowUpDate(now, 1);
-        const title = `Follow up on viewed listings with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "warm_engagement",
+          now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-warm-send`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Warm engagement",
             tone: latestSendRecord.openCount > 1 ? "success" : "accent",
@@ -2097,12 +2080,8 @@ export async function getFrontOfficeDashboardSnapshot(
                   )}`
                 : `Opened ${latestSendRecord.openCount} time(s)`,
             openDossierHref,
-            followUpLabel: "Prefill engagement follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 7,
             _sortAt: latestSendRecord.lastOpenedAt ?? latestSendRecord.sentAt,
           },
@@ -2110,12 +2089,16 @@ export async function getFrontOfficeDashboardSnapshot(
       }
 
       if (isReadyForBackOffice && !linkedTransaction) {
-        const dueAt = buildSuggestedFollowUpDate(now, 1);
-        const title = `Confirm formal handoff package with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "handoff",
+          now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-handoff`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Formal handoff",
             tone: "warning",
@@ -2126,12 +2109,8 @@ export async function getFrontOfficeDashboardSnapshot(
               client.handoffDrafts[0]?.summary?.trim() ||
               "Front Office stage is ready for formal workflow",
             openDossierHref,
-            followUpLabel: "Prefill handoff follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 8,
             _sortAt: client.createdAt,
           },
@@ -2139,12 +2118,16 @@ export async function getFrontOfficeDashboardSnapshot(
       }
 
       if (!isClosedClientStage(client.stage) && !client.nextFollowUpAt) {
-        const dueAt = buildSuggestedFollowUpDate(now, 2);
-        const title = `Set next touch with ${client.fullName}`;
+        const followUp = buildFrontOfficeAiFollowUpAction({
+          kind: "generic",
+          now,
+          clientFullName: client.fullName,
+        });
 
         return [
           {
             id: `ai-${client.id}-generic`,
+            clientId: client.id,
             clientName: client.fullName,
             statusLabel: "Next touch",
             tone: "accent",
@@ -2153,12 +2136,8 @@ export async function getFrontOfficeDashboardSnapshot(
             contextLabel: nextTouchLabel,
             helperLabel: `Stage · ${client.stage}`,
             openDossierHref,
-            followUpLabel: "Prefill follow-up",
-            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
-              clientId: client.id,
-              title,
-              dueAt,
-            }),
+            followUpTitle: followUp.title,
+            followUpDueAt: followUp.dueAt,
             _priority: 9,
             _sortAt: client.createdAt,
           },

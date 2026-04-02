@@ -216,6 +216,7 @@ export {
   getFrontOfficeClientDetail,
   type FrontOfficeClientDetailAiDraft,
   type FrontOfficeClientDetailAiDraftChannel,
+  type FrontOfficeClientDetailAiFollowUpSuggestion,
   type FrontOfficeClientDetailAiSuggestions,
   type FrontOfficeClientDetailAppointmentItem,
   type FrontOfficeClientDetailHandoffItem,
@@ -736,6 +737,7 @@ export type {
 } from "./dashboard";
 export type {
   FrontOfficeDashboardActionQueueItem,
+  FrontOfficeDashboardAiQueueItem,
   FrontOfficeDashboardBackOfficeItem,
   FrontOfficeDashboardClientItem,
   FrontOfficeDashboardCommitmentItem,

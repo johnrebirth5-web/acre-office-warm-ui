@@ -37,6 +37,29 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
   const targetAppointmentId = readSearchParamValue(
     searchParams.appointmentId,
   )?.trim();
+  const draftChannelValue = readSearchParamValue(searchParams.draftChannel)?.trim();
+  const draftBodyValue = readSearchParamValue(searchParams.draftBody)?.trim();
+  const draftSubjectValue =
+    readSearchParamValue(searchParams.draftSubject)?.trim() || "";
+  const draftTitleValue =
+    readSearchParamValue(searchParams.draftTitle)?.trim() || "";
+  const draftChannel: "sms" | "email" | null =
+    draftChannelValue === "sms" || draftChannelValue === "email"
+      ? draftChannelValue
+      : null;
+  const draftAssist =
+    draftChannel && draftBodyValue
+      ? {
+          channel: draftChannel,
+          title: draftTitleValue || "AI outbound draft",
+          subjectLine: draftSubjectValue,
+          body: draftBodyValue,
+          sourceLabel:
+            readSearchParamValue(searchParams.draftSource) === "ai"
+              ? "AI draft assist loaded below. Copying the matching channel now uses this draft and still appends a tracked listing link."
+              : null,
+        }
+      : null;
   const snapshot = await getFrontOfficeListingsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -56,7 +79,10 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           subtitle="Use this list as the send-ready inventory surface for active client outreach."
           title="Send-ready inventory"
         >
-          <FrontOfficeListingsOutputClient snapshot={snapshot} />
+          <FrontOfficeListingsOutputClient
+            draftAssist={draftAssist}
+            snapshot={snapshot}
+          />
         </SectionCard>
       }
       rail={

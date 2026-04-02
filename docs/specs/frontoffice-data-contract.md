@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist` foundation, the recommended next implementation target is:
 
-- `agent-approved one-click follow-up creation + outbound draft assist rooted in the same dossier and live execution trail`
+- `accepted-action history + AI outcome tracking rooted in the same dossier and live execution trail`
 
 That means:
 
-- Front Office should now let agents accept grounded suggestions with less friction than opening the detail page and manually retyping the next task
-- automation should stay safe and agent-approved first: one-click task creation, better draft handoff into send surfaces, or pre-approved outbound prep before any true auto-send behavior
+- Front Office should now measure which grounded suggestions were accepted, converted into follow-up work, or used in tracked send surfaces instead of leaving that acceptance invisible
+- automation should still stay safe and agent-approved first: track accepted actions, draft-assist usage, and resulting engagement movement before any true auto-send behavior
 - the module should keep the FO -> BO boundary explicit by grounding recommendations in formal BO status / outcome signals while FO still owns client-facing follow-up, recap, referral, renewal, or re-entry prompts
-- the goal is to extend the grounded AI bridge into lighter-weight accepted actions before skipping straight to opaque background automation
+- the goal is to extend the grounded AI bridge into a measurable outcome loop before skipping straight to opaque background automation
 
 ## First real FO workflow models
 
@@ -166,8 +166,12 @@ This keeps the handoff visible without pretending formal transaction creation al
   - the first AI bridge intentionally does not auto-send anything and does not require a standalone model service; it turns the existing execution trail into a grounded suggestion layer that future dashboard / automation work can reuse
 - dashboard-level AI queue + safe automation actions now also live on top of that same grounded suggestion layer:
   - `/agent/dashboard` now exposes an `AI next-touch queue` for memberships with `ai:use`, surfacing the most actionable grounded suggestions across lease timing, appointment prep, tracked send follow-up, BO-ready handoff, and post-close support
-  - those dashboard items now route either back into the dossier AI section or into the shared follow-up form with AI-prefilled task titles / due dates, so the agent can accept the suggestion without retyping it
-  - the first dashboard automation layer intentionally stops at safe prefill and review: it does not auto-create follow-up tasks or auto-send messages in the background
+  - those dashboard items now still keep a review path back into the dossier AI section while also carrying structured AI follow-up titles / due dates that the next layer can accept directly
+  - the first dashboard automation layer intentionally stays agent-approved: it never auto-sends in the background, and even direct task creation still lands in the shared FO follow-up store instead of creating a hidden automation queue
+- agent-approved one-click follow-up creation + outbound draft assist now also live on top of that same grounded suggestion layer:
+  - `/agent/dashboard` AI queue items can now create shared FO follow-up tasks directly with one click, so the accepted suggestion lands in the same `FollowUpTask` store and client next-touch clock without retyping
+  - `/agent/clients/[clientId]` AI suggestions can now also create the suggested follow-up task directly from the dossier, while still leaving the existing review path and other FO / BO actions available
+  - AI text / email drafts from the dossier can now open `/agent/listings?clientId=...` with outbound draft assist loaded, so the agent can reuse grounded draft copy inside the tracked listing-output send surface and still generate the private tracked link / send record instead of bypassing the execution trail
 
 ## Non-goals in this phase
 
@@ -178,4 +182,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- agent-approved one-click follow-up creation + outbound draft assist rooted in the same dossier and live execution trail
+- accepted-action history + AI outcome tracking rooted in the same dossier and live execution trail
