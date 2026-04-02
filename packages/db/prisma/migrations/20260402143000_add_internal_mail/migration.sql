@@ -119,3 +119,61 @@ ALTER TABLE "OfficeMailAttachment" ADD CONSTRAINT "OfficeMailAttachment_organiza
 
 -- AddForeignKey
 ALTER TABLE "OfficeMailAttachment" ADD CONSTRAINT "OfficeMailAttachment_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "OfficeMailMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Backfill existing role templates with mail baseline permissions
+INSERT INTO "OrganizationRoleTemplatePermission" (
+    "id",
+    "organizationId",
+    "organizationRoleTemplateId",
+    "permissionKey",
+    "createdAt",
+    "updatedAt"
+)
+SELECT
+    md5(template."id" || ':mail:view'),
+    template."organizationId",
+    template."id",
+    'mail:view',
+    NOW(),
+    NOW()
+FROM "OrganizationRoleTemplate" template
+WHERE template."role" IN ('owner', 'office_admin', 'accountant', 'human_resources', 'team_lead', 'agent', 'office_manager', 'office_user')
+ON CONFLICT ("organizationRoleTemplateId", "permissionKey") DO NOTHING;
+
+INSERT INTO "OrganizationRoleTemplatePermission" (
+    "id",
+    "organizationId",
+    "organizationRoleTemplateId",
+    "permissionKey",
+    "createdAt",
+    "updatedAt"
+)
+SELECT
+    md5(template."id" || ':mail:send'),
+    template."organizationId",
+    template."id",
+    'mail:send',
+    NOW(),
+    NOW()
+FROM "OrganizationRoleTemplate" template
+WHERE template."role" IN ('owner', 'office_admin', 'accountant', 'human_resources', 'team_lead', 'agent', 'office_manager', 'office_user')
+ON CONFLICT ("organizationRoleTemplateId", "permissionKey") DO NOTHING;
+
+INSERT INTO "OrganizationRoleTemplatePermission" (
+    "id",
+    "organizationId",
+    "organizationRoleTemplateId",
+    "permissionKey",
+    "createdAt",
+    "updatedAt"
+)
+SELECT
+    md5(template."id" || ':mail:audit'),
+    template."organizationId",
+    template."id",
+    'mail:audit',
+    NOW(),
+    NOW()
+FROM "OrganizationRoleTemplate" template
+WHERE template."role" IN ('owner', 'office_admin')
+ON CONFLICT ("organizationRoleTemplateId", "permissionKey") DO NOTHING;
