@@ -162,7 +162,7 @@ This file is the high-level product map for the current `Office / Back Office` s
 ### Mail
 
 - What it is for:
-  - organization-scoped internal mail threads for human Back Office communication, separate from system-generated notifications.
+  - organization-scoped internal mail threads for Back Office communication, plus a small set of thread-worthy system alerts that need auditability and deep links.
 - Current maturity:
   - `MVP`
 - Current notable behavior:
@@ -171,6 +171,8 @@ This file is the high-level product map for the current `Office / Back Office` s
   - only active Back Office memberships in the same organization can be selected as recipients.
   - read/unread and archive state are private per participant; new replies automatically restore archived threads for other recipients.
   - each new message also upserts a single `internal_message_received` notification per recipient thread, so the personal inbox shows the latest unread mail reminder without duplicating rows.
+  - when an `agent` creates a new `Transaction`, every active `owner / office_admin` now receives a system-generated mail alert thread with a direct `View transaction` CTA into `/office/transactions/[transactionId]`.
+  - the Office sidebar now shows a live unread count badge next to `Mail`, driven from the current mailbox unread total.
   - users with `mail:audit` can switch into an `Audit view` that can inspect any org thread and attachment without becoming a participant.
   - `Activity Log` only stores mail metadata events and intentionally does not copy mail bodies into the global activity stream.
 - Follow-up work:

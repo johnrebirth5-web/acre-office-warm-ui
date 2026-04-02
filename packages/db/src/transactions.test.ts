@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
-import { Prisma, type UserRole } from "@prisma/client";
+import { NotificationType, Prisma, type UserRole } from "@prisma/client";
 import { prisma } from "./client.ts";
 import {
   createOfficeTransactionCustomFieldDefinition,
@@ -17,6 +17,7 @@ import {
   saveOfficeTransactionSearchLayout,
   updateTransactionIntake
 } from "./transactions.ts";
+import { getOfficeMailWorkspace } from "./mail.ts";
 import { getOfficePipelineWorkspaceSnapshot } from "./pipeline.ts";
 
 after(async () => {
@@ -267,6 +268,102 @@ test("createTransaction and updateTransactionIntake keep asking price, purchased
     assert.equal(String(storedAfterUpdate?.purchasedPrice), "790000");
     assert.equal(String(storedAfterUpdate?.price), "790000");
     assert.equal(storedAfterUpdate?.moveInDate?.toISOString().slice(0, 10), "2026-07-01");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("createTransaction sends a system mail alert to system admins when an agent creates a transaction", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const agent = await context.createMembership("agent", "mail-alert-agent");
+    const owner = await context.createMembership("owner", "mail-alert-owner");
+
+    const created = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: agent.membership.id,
+      actorMembershipId: agent.membership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "101 Alert Ave",
+      city: "New York",
+      state: "NY",
+      zipCode: "10003",
+      transactionName: "Alert Transaction",
+      price: "610000"
+    });
+
+    const adminWorkspace = await getOfficeMailWorkspace({
+      organizationId: context.organization.id,
+      membershipId: context.adminMembership.id
+    });
+    const ownerWorkspace = await getOfficeMailWorkspace({
+      organizationId: context.organization.id,
+      membershipId: owner.membership.id
+    });
+    const adminThread = adminWorkspace.selectedThread;
+    const ownerThread = ownerWorkspace.selectedThread;
+
+    assert.ok(adminThread);
+    assert.ok(ownerThread);
+    assert.equal(adminThread?.actionUrl, `/office/transactions/${created.id}`);
+    assert.equal(adminThread?.actionLabel, "View transaction");
+    assert.match(adminThread?.subject ?? "", /New transaction created/);
+    assert.match(adminThread?.messages[0]?.body ?? "", /created a new transaction/);
+    assert.match(adminThread?.messages[0]?.body ?? "", /Alert Transaction/);
+    assert.match(ownerThread?.messages[0]?.body ?? "", /mail-alert-agent User/);
+
+    const notifications = await prisma.notification.findMany({
+      where: {
+        organizationId: context.organization.id,
+        type: NotificationType.internal_message_received,
+        entityId: adminThread?.id
+      },
+      orderBy: [{ membershipId: "asc" }]
+    });
+
+    assert.deepEqual(
+      notifications.map((notification) => notification.membershipId).sort(),
+      [context.adminMembership.id, owner.membership.id].sort()
+    );
+    assert.deepEqual(
+      notifications.map((notification) => notification.actionUrl),
+      [`/office/mail?threadId=${adminThread?.id}`, `/office/mail?threadId=${adminThread?.id}`]
+    );
+
+    const transactionCountAfterAdminCreate = await prisma.officeMailThread.count({
+      where: {
+        organizationId: context.organization.id
+      }
+    });
+
+    await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: agent.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "102 Alert Ave",
+      city: "New York",
+      state: "NY",
+      zipCode: "10004",
+      transactionName: "Admin Created Transaction",
+      price: "620000"
+    });
+
+    assert.equal(
+      await prisma.officeMailThread.count({
+        where: {
+          organizationId: context.organization.id
+        }
+      }),
+      transactionCountAfterAdminCreate
+    );
   } finally {
     await context.cleanup();
   }

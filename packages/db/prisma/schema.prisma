@@ -1545,6 +1545,8 @@ model OfficeMailThread {
   organizationId        String
   createdByMembershipId String
   subject               String
+  actionUrl             String?
+  actionLabel           String?
   latestMessageAt       DateTime
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt

@@ -250,6 +250,10 @@ Trade-off：
 - `Notifications` 新增 `internal_message_received` 作为 mail bridge，而不是承载完整消息流
 - `Mail` 审计能力通过单独 `mail:audit` 权限进入模块内 `Audit view`，不通过 `Activity Log` 回放正文
 - `Activity Log` 只记录 thread create / message sent / archive / unarchive 等元数据，不记录正文全文
+- 允许少量需要线程化留痕和 deep-link 的系统事件直接落到 `Mail`：
+  - 当前第一条是 `agent` 创建 transaction 时，自动给 `owner / office_admin` 创建 system-generated mail alert
+  - 这类线程直接在 mail detail 中展示 `View transaction` CTA，而不是要求管理员先去 notifications 再二次跳转
+- `Mail` 侧边栏未读数字不从静态 layout 快照硬编码，而是通过轻量 unread-count route 按当前 mailbox 状态刷新，避免读信后徽标滞后
 
 Trade-off：
 

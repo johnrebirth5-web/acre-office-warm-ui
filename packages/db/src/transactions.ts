@@ -46,6 +46,7 @@ import {
   type OfficeTransactionDocument,
   type OfficeTransactionForm
 } from "./transaction-documents";
+import { createSystemOfficeMailThread } from "./mail";
 
 export type OfficeTransactionStatus = "Opportunity" | "Active" | "Pending" | "Closed" | "Cancelled";
 
@@ -1602,6 +1603,40 @@ function buildTransactionObjectLabel(transaction: {
   return `${transaction.title} · ${transaction.address}, ${transaction.city}, ${transaction.state}`;
 }
 
+function formatTransactionAlertDateTime(date: Date) {
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function buildTransactionCreatedMailSubject(transaction: {
+  title: string;
+  address: string;
+  city: string;
+  state: string;
+}) {
+  return `New transaction created · ${buildTransactionObjectLabel(transaction)}`;
+}
+
+function buildTransactionCreatedMailBody(input: {
+  actorName: string;
+  createdAt: Date;
+  transactionLabel: string;
+  statusLabel: string;
+  ownerLabel: string;
+}) {
+  return [
+    `${input.actorName} created a new transaction on ${formatTransactionAlertDateTime(input.createdAt)}.`,
+    `Transaction: ${input.transactionLabel}`,
+    `Status: ${input.statusLabel}`,
+    `Owner: ${input.ownerLabel}`
+  ].join("\n");
+}
+
 function getSearchMatchingTransactionStatuses(query: string) {
   const normalizedQuery = query.toLowerCase();
 
@@ -2608,6 +2643,7 @@ export async function getTransactionById(input: GetTransactionByIdInput): Promis
 
 export async function createTransaction(input: CreateTransactionInput): Promise<OfficeTransactionDetail> {
   const transaction = await prisma.$transaction(async (tx) => {
+    const actorMembershipId = input.actorMembershipId ?? input.ownerMembershipId;
     const ownerMembership = await tx.membership.findFirst({
       where: {
         id: input.ownerMembershipId,
@@ -2629,7 +2665,26 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
       throw new Error("Transaction owner was not found.");
     }
 
+    const actorMembership =
+      actorMembershipId === ownerMembership.id
+        ? ownerMembership
+        : await tx.membership.findFirst({
+            where: {
+              id: actorMembershipId,
+              organizationId: input.organizationId,
+              status: MembershipStatus.active
+            },
+            include: {
+              user: true
+            }
+          });
+
+    if (!actorMembership) {
+      throw new Error("Transaction actor was not found.");
+    }
+
     const ownerLabel = `${ownerMembership.user.firstName} ${ownerMembership.user.lastName}`.trim() || ownerMembership.user.email;
+    const actorLabel = `${actorMembership.user.firstName} ${actorMembership.user.lastName}`.trim() || actorMembership.user.email;
     const additionalFields = stripRetiredTransactionAdditionalFields({
       ...(input.additionalFields ?? {}),
       agentName: ownerLabel
@@ -2797,6 +2852,46 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
         ]
       }
     });
+
+    if (actorMembership.role === "agent") {
+      const adminRecipients = await tx.membership.findMany({
+        where: {
+          organizationId: input.organizationId,
+          id: {
+            not: actorMembership.id
+          },
+          status: MembershipStatus.active,
+          role: {
+            in: ["owner", "office_admin"]
+          },
+          user: {
+            isActive: true
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (adminRecipients.length > 0) {
+        await createSystemOfficeMailThread(tx, {
+          organizationId: input.organizationId,
+          membershipId: actorMembership.id,
+          recipientMembershipIds: adminRecipients.map((recipient) => recipient.id),
+          subject: buildTransactionCreatedMailSubject(created),
+          body: buildTransactionCreatedMailBody({
+            actorName: actorLabel,
+            createdAt: created.createdAt,
+            transactionLabel: buildTransactionObjectLabel(created),
+            statusLabel: transactionStatusLabelMap[created.status],
+            ownerLabel
+          }),
+          actionUrl: `/office/transactions/${created.id}`,
+          actionLabel: "View transaction",
+          createdAt: created.createdAt
+        });
+      }
+    }
 
     return created;
   });

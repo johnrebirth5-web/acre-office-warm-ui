@@ -9,16 +9,19 @@ import { SiteReleaseBadge } from "../site-release-badge";
 type WorkspaceNavItem =
   | {
       label: string;
+      badgeText?: string;
       href: string;
     }
   | {
       label: string;
+      badgeText?: string;
       kind: "submit";
       formAction: string;
       formMethod?: "get" | "post";
     }
   | {
       label: string;
+      badgeText?: string;
       kind: "muted";
     };
 
@@ -74,6 +77,15 @@ function splitLocationKey(locationKey: string): WorkspaceLocation {
 
 function isLinkItem(item: WorkspaceNavItem): item is LinkNavItem {
   return "href" in item;
+}
+
+function renderNavItemLabel(item: WorkspaceNavItem) {
+  return (
+    <span className="office-nav-link-row">
+      <span>{item.label}</span>
+      {item.badgeText ? <span className="office-nav-link-badge">{item.badgeText}</span> : null}
+    </span>
+  );
 }
 
 export function WorkspaceNav({
@@ -325,7 +337,7 @@ export function WorkspaceNav({
                         href={href}
                         onClick={() => handleNavIntent(href)}
                       >
-                        {item.label}
+                        {renderNavItemLabel(item)}
                       </Link>
                     );
                   }
@@ -342,7 +354,7 @@ export function WorkspaceNav({
                           className="office-nav-link office-nav-link-button"
                           type="submit"
                         >
-                          {item.label}
+                          {renderNavItemLabel(item)}
                         </button>
                       </form>
                     );
@@ -353,7 +365,7 @@ export function WorkspaceNav({
                       className="office-nav-link office-nav-link-muted"
                       key={item.label}
                     >
-                      {item.label}
+                      {renderNavItemLabel(item)}
                     </span>
                   );
                 })}
@@ -455,7 +467,7 @@ export function WorkspaceNav({
                               setIsMobileMenuOpen(false);
                             }}
                           >
-                            {item.label}
+                            {renderNavItemLabel(item)}
                           </Link>
                         );
                       }
@@ -472,7 +484,7 @@ export function WorkspaceNav({
                               className="office-mobile-menu-link office-mobile-menu-link-button"
                               type="submit"
                             >
-                              {item.label}
+                              {renderNavItemLabel(item)}
                             </button>
                           </form>
                         );
@@ -483,7 +495,7 @@ export function WorkspaceNav({
                           className="office-mobile-menu-link office-mobile-menu-link-muted"
                           key={item.label}
                         >
-                          {item.label}
+                          {renderNavItemLabel(item)}
                         </span>
                       );
                     })}

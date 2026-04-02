@@ -199,11 +199,16 @@
   - `/api/office/mail/threads/:threadId`
   - `/api/office/mail/threads/:threadId/messages`
   - `/api/office/mail/attachments/:attachmentId/file`
+  - `/api/office/mail/unread-count`
   - 核心复用：
     - `OfficeMailThread / OfficeMailParticipant / OfficeMailMessage / OfficeMailAttachment` 做线程、参与者、消息与附件真源
     - `MembershipNotificationPreference.messageAlertsEnabled` 做 thread-notification opt-in
     - `Notification` 做 `internal_message_received` inbox bridge
     - `AuditLog` 只记录 mail metadata events，不记录正文全文
+  - 当前还包含一条系统化 mail workflow：
+    - 当 `agent` 创建新的 `Transaction` 时，会自动创建一条发给 `owner / office_admin` 的站内信线程
+    - 该线程在 `OfficeMailThread.actionUrl / actionLabel` 上挂载 `/office/transactions/:transactionId` 深链，邮件详情里直接显示 CTA 按钮
+    - Office 侧边栏通过 unread-count route 拉取当前 membership 的 mailbox unread 数量并显示在 `Mail` 旁边
   - 当前附件继续复用本地文件系统 storage adapter，落盘路径在当前 document storage root 下的 `organization/mail/thread/message`
 - 当前 `Office Notifications` 现在除了持久化 inbox rows 以外，还会在页面上派生一个 live payout review queue：
   - 当 `AgentPayoutStatement.reviewStatus === awaiting_agent` 时，agent 会在 `/office/notifications` 和 `/office/dashboard` 持续看到高优先级 review reminder

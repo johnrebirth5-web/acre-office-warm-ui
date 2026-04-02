@@ -37,7 +37,7 @@ export default async function OfficeMailPage(props: OfficeMailPageProps) {
   return (
     <OfficeListPageShell className="office-mail-page">
       <OfficeListPageHeader
-        description="Internal mail lives entirely inside Back Office. Notifications still handle system-generated alerts, while Mail covers human conversation between active Back Office members."
+        description="Internal mail lives entirely inside Back Office. Alongside teammate conversations, certain operational alerts such as new agent-created transactions now land here so admins can jump straight into the workflow."
         eyebrow="Mail"
         summary={
           <>

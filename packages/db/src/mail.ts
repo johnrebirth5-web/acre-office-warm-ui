@@ -100,6 +100,8 @@ export type OfficeMailThreadDetail = {
   latestMessageAtLabel: string;
   auditedByAdmin: boolean;
   canReply: boolean;
+  actionUrl: string | null;
+  actionLabel: string | null;
 };
 
 export type OfficeMailWorkspaceSnapshot = {
@@ -139,6 +141,20 @@ export type CreateOfficeMailThreadInput = {
   threadId?: string;
   initialMessageId?: string;
   attachments?: OfficeMailAttachmentInput[];
+};
+
+type CreateMailThreadRecordInput = {
+  organizationId: string;
+  membershipId: string;
+  subject: string;
+  body: string;
+  recipientMembershipIds: string[];
+  threadId?: string;
+  initialMessageId?: string;
+  attachments?: OfficeMailAttachmentInput[];
+  actionUrl?: string | null;
+  actionLabel?: string | null;
+  createdAt?: Date;
 };
 
 export type ReplyToOfficeMailThreadInput = {
@@ -295,6 +311,20 @@ function normalizeSubject(value: string) {
   }
 
   return subject;
+}
+
+function normalizeActionUrl(value: string | null | undefined) {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized.startsWith("/") ? normalized : null;
+}
+
+function normalizeActionLabel(value: string | null | undefined) {
+  const normalized = value?.trim() ?? "";
+  return normalized || null;
 }
 
 function normalizeRecipientIds(membershipId: string, recipientMembershipIds: string[]) {
@@ -746,7 +776,9 @@ function mapThreadDetail(
     latestMessageAt: record.latestMessageAt.toISOString(),
     latestMessageAtLabel: formatDateTimeLabel(record.latestMessageAt),
     auditedByAdmin: mode === "audit",
-    canReply: mode === "mine" && actor.canSend
+    canReply: mode === "mine" && actor.canSend,
+    actionUrl: normalizeActionUrl(record.actionUrl),
+    actionLabel: normalizeActionLabel(record.actionLabel)
   };
 }
 
@@ -948,12 +980,8 @@ export async function getOfficeMailWorkspace(input: GetOfficeMailWorkspaceInput)
     threadRecords.map((record) => record.id)
   );
 
-  let threads = threadRecords.map((record) => mapThreadListItem(actor, mode, record, attachmentCounts));
-  const activeThreads = threads.filter((thread) => !thread.isArchived);
-  const archivedThreads = threads.filter((thread) => thread.isArchived);
-  const unreadThreads = activeThreads.filter((thread) => thread.isUnread);
-
-  threads = threads.filter((thread) => applyThreadViewFilter(thread, view));
+  let allThreads = threadRecords.map((record) => mapThreadListItem(actor, mode, record, attachmentCounts));
+  let threads = allThreads.filter((thread) => applyThreadViewFilter(thread, view));
 
   let selectedThreadId = input.threadId?.trim() || "";
 
@@ -983,7 +1011,7 @@ export async function getOfficeMailWorkspace(input: GetOfficeMailWorkspaceInput)
     if (detailRecord) {
       const nextSelectedThread = mapThreadDetail(actor, mode, detailRecord);
       selectedThread = nextSelectedThread;
-      threads = threads.map((thread) =>
+      allThreads = allThreads.map((thread) =>
         thread.id === selectedThreadId
           ? {
               ...thread,
@@ -992,8 +1020,13 @@ export async function getOfficeMailWorkspace(input: GetOfficeMailWorkspaceInput)
             }
           : thread
       );
+      threads = allThreads.filter((thread) => applyThreadViewFilter(thread, view));
     }
   }
+
+  const activeThreads = allThreads.filter((thread) => !thread.isArchived);
+  const archivedThreads = allThreads.filter((thread) => thread.isArchived);
+  const unreadThreads = activeThreads.filter((thread) => thread.isUnread);
 
   return {
     mode,
@@ -1016,6 +1049,133 @@ export async function getOfficeMailWorkspace(input: GetOfficeMailWorkspaceInput)
   };
 }
 
+async function createMailThreadRecord(
+  db: MailDbClient,
+  input: CreateMailThreadRecordInput
+) {
+  const subject = normalizeSubject(input.subject);
+  const body = normalizeBody(input.body);
+  const attachments = normalizeAttachments(input.attachments);
+  const recipientIds = normalizeRecipientIds(input.membershipId, input.recipientMembershipIds);
+  const actionUrl = normalizeActionUrl(input.actionUrl);
+  const actionLabel = normalizeActionLabel(input.actionLabel);
+
+  assertBodyOrAttachments(body, attachments);
+
+  const recipients = await getValidRecipients(db, input.organizationId, recipientIds);
+  const threadId = input.threadId?.trim() || randomUUID();
+  const messageId = input.initialMessageId?.trim() || randomUUID();
+  const createdAt = input.createdAt ?? new Date();
+
+  await db.officeMailThread.create({
+    data: {
+      id: threadId,
+      organizationId: input.organizationId,
+      createdByMembershipId: input.membershipId,
+      subject,
+      actionUrl,
+      actionLabel,
+      latestMessageAt: createdAt,
+      createdAt,
+      updatedAt: createdAt,
+      participants: {
+        createMany: {
+          data: [
+            {
+              organizationId: input.organizationId,
+              membershipId: input.membershipId,
+              joinedAt: createdAt,
+              lastReadAt: createdAt
+            },
+            ...recipients.map((recipient) => ({
+              organizationId: input.organizationId,
+              membershipId: recipient.id,
+              joinedAt: createdAt
+            }))
+          ]
+        }
+      },
+      messages: {
+        create: {
+          id: messageId,
+          organizationId: input.organizationId,
+          senderMembershipId: input.membershipId,
+          body,
+          createdAt,
+          attachments: attachments.length
+            ? {
+                createMany: {
+                  data: attachments.map((attachment) => ({
+                    id: attachment.id,
+                    organizationId: input.organizationId,
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    fileSizeBytes: attachment.fileSizeBytes,
+                    storageKey: attachment.storageKey,
+                    createdAt
+                  }))
+                }
+              }
+            : undefined
+        }
+      }
+    }
+  });
+
+  const actorMembership = await db.membership.findFirst({
+    where: {
+      id: input.membershipId,
+      organizationId: input.organizationId
+    },
+    include: {
+      user: true,
+      office: true
+    }
+  });
+  const actorName = actorMembership
+    ? formatMembershipName({
+        firstName: actorMembership.user.firstName,
+        lastName: actorMembership.user.lastName,
+        email: actorMembership.user.email
+      })
+    : "Unknown sender";
+
+  await createThreadNotification(db, {
+    organizationId: input.organizationId,
+    senderName: actorName,
+    subject,
+    threadId,
+    officeId: actorMembership?.officeId ?? null,
+    recipientMembershipIds: recipients.map((recipient) => recipient.id),
+    preview: summarizeMessageBody(body, attachments.length)
+  });
+
+  await recordActivityLogEvent(db, {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    entityType: "office_mail_thread",
+    entityId: threadId,
+    action: activityLogActions.officeMailThreadCreated,
+    payload: {
+      objectLabel: subject,
+      contextHref: buildThreadHref(threadId),
+      details: [
+        `Participants: ${recipients.length + 1}`,
+        `Initial attachments: ${attachments.length}`,
+        ...(actionUrl ? [`Action target: ${actionLabel ?? actionUrl}`] : [])
+      ]
+    }
+  });
+
+  return {
+    threadId,
+    subject,
+    body,
+    attachments,
+    recipients
+  };
+}
+
 export async function createOfficeMailThread(input: CreateOfficeMailThreadInput): Promise<OfficeMailThreadDetail> {
   const actor = await getMailActor(input.organizationId, input.membershipId);
 
@@ -1023,117 +1183,8 @@ export async function createOfficeMailThread(input: CreateOfficeMailThreadInput)
     throw new Error("Mail send access required.");
   }
 
-  const subject = normalizeSubject(input.subject);
-  const body = normalizeBody(input.body);
-  const attachments = normalizeAttachments(input.attachments);
-  const recipientIds = normalizeRecipientIds(input.membershipId, input.recipientMembershipIds);
-
-  assertBodyOrAttachments(body, attachments);
-
-  const recipients = await getValidRecipients(prisma, input.organizationId, recipientIds);
-  const threadId = input.threadId?.trim() || randomUUID();
-  const messageId = input.initialMessageId?.trim() || randomUUID();
-  const createdAt = new Date();
-
-  await prisma.$transaction(async (tx) => {
-    await tx.officeMailThread.create({
-      data: {
-        id: threadId,
-        organizationId: input.organizationId,
-        createdByMembershipId: input.membershipId,
-        subject,
-        latestMessageAt: createdAt,
-        createdAt,
-        updatedAt: createdAt,
-        participants: {
-          createMany: {
-            data: [
-              {
-                organizationId: input.organizationId,
-                membershipId: input.membershipId,
-                joinedAt: createdAt,
-                lastReadAt: createdAt
-              },
-              ...recipients.map((recipient) => ({
-                organizationId: input.organizationId,
-                membershipId: recipient.id,
-                joinedAt: createdAt
-              }))
-            ]
-          }
-        },
-        messages: {
-          create: {
-            id: messageId,
-            organizationId: input.organizationId,
-            senderMembershipId: input.membershipId,
-            body,
-            createdAt,
-            attachments: attachments.length
-              ? {
-                  createMany: {
-                    data: attachments.map((attachment) => ({
-                      id: attachment.id,
-                      organizationId: input.organizationId,
-                      fileName: attachment.fileName,
-                      mimeType: attachment.mimeType,
-                      fileSizeBytes: attachment.fileSizeBytes,
-                      storageKey: attachment.storageKey,
-                      createdAt
-                    }))
-                  }
-                }
-              : undefined
-          }
-        }
-      }
-    });
-
-    const actorMembership = await tx.membership.findFirst({
-      where: {
-        id: input.membershipId,
-        organizationId: input.organizationId
-      },
-      include: {
-        user: true,
-        office: true
-      }
-    });
-    const actorName = actorMembership
-      ? formatMembershipName({
-          firstName: actorMembership.user.firstName,
-          lastName: actorMembership.user.lastName,
-          email: actorMembership.user.email
-        })
-      : "Unknown sender";
-
-    await createThreadNotification(tx, {
-      organizationId: input.organizationId,
-      senderName: actorName,
-      subject,
-      threadId,
-      officeId: actorMembership?.officeId ?? null,
-      recipientMembershipIds: recipients.map((recipient) => recipient.id),
-      preview: summarizeMessageBody(body, attachments.length)
-    });
-
-    await recordActivityLogEvent(tx, {
-      organizationId: input.organizationId,
-      membershipId: input.membershipId,
-      entityType: "office_mail_thread",
-      entityId: threadId,
-      action: activityLogActions.officeMailThreadCreated,
-      payload: {
-        objectLabel: subject,
-        contextHref: buildThreadHref(threadId),
-        details: [
-          `Participants: ${recipients.length + 1}`,
-          `Initial attachments: ${attachments.length}`
-        ]
-      }
-    });
-  });
-
+  const createdThread = await prisma.$transaction((tx) => createMailThreadRecord(tx, input));
+  const threadId = createdThread.threadId;
   const record = await getReadableThread(actor, threadId, "mine");
 
   if (!record) {
@@ -1141,6 +1192,53 @@ export async function createOfficeMailThread(input: CreateOfficeMailThreadInput)
   }
 
   return mapThreadDetail(actor, "mine", record);
+}
+
+export async function createSystemOfficeMailThread(
+  db: Prisma.TransactionClient | typeof prisma,
+  input: {
+    organizationId: string;
+    membershipId: string;
+    subject: string;
+    body: string;
+    recipientMembershipIds: string[];
+    threadId?: string;
+    initialMessageId?: string;
+    attachments?: OfficeMailAttachmentInput[];
+    actionUrl?: string | null;
+    actionLabel?: string | null;
+    createdAt?: Date;
+  }
+) {
+  return createMailThreadRecord(db, input);
+}
+
+export async function getOfficeMailUnreadCount(input: {
+  organizationId: string;
+  membershipId: string;
+}) {
+  const actor = await getMailActor(input.organizationId, input.membershipId);
+  const participants = await prisma.officeMailParticipant.findMany({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: actor.membershipId,
+      archivedAt: null
+    },
+    select: {
+      lastReadAt: true,
+      thread: {
+        select: {
+          latestMessageAt: true
+        }
+      }
+    }
+  });
+
+  return participants.filter(
+    (participant) =>
+      !participant.lastReadAt ||
+      participant.lastReadAt.getTime() < participant.thread.latestMessageAt.getTime()
+  ).length;
 }
 
 export async function replyToOfficeMailThread(input: ReplyToOfficeMailThreadInput): Promise<OfficeMailThreadDetail> {

@@ -7,6 +7,7 @@ import {
   archiveOfficeMailThread,
   createOfficeMailThread,
   getOfficeMailAttachmentStorageRecord,
+  getOfficeMailUnreadCount,
   getOfficeMailThreadDetail,
   getOfficeMailWorkspace,
   markOfficeMailThreadUnread,
@@ -385,6 +386,13 @@ test("workspace reads sync notification state and replies restore archived threa
 
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0]?.readAt, null);
+    assert.equal(
+      await getOfficeMailUnreadCount({
+        organizationId: context.primary.organization.id,
+        membershipId: recipient.membership.id
+      }),
+      1
+    );
 
     const workspace = await getOfficeMailWorkspace({
       organizationId: context.primary.organization.id,
@@ -405,6 +413,13 @@ test("workspace reads sync notification state and replies restore archived threa
 
     assert.equal(notifications.length, 1);
     assert.ok(notifications[0]?.readAt);
+    assert.equal(
+      await getOfficeMailUnreadCount({
+        organizationId: context.primary.organization.id,
+        membershipId: recipient.membership.id
+      }),
+      0
+    );
 
     const markUnreadResult = await markOfficeMailThreadUnread({
       organizationId: context.primary.organization.id,
@@ -425,6 +440,13 @@ test("workspace reads sync notification state and replies restore archived threa
 
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0]?.readAt, null);
+    assert.equal(
+      await getOfficeMailUnreadCount({
+        organizationId: context.primary.organization.id,
+        membershipId: recipient.membership.id
+      }),
+      1
+    );
 
     const archiveResult = await archiveOfficeMailThread({
       organizationId: context.primary.organization.id,
@@ -442,6 +464,13 @@ test("workspace reads sync notification state and replies restore archived threa
     });
 
     assert.ok(archivedParticipant?.archivedAt);
+    assert.equal(
+      await getOfficeMailUnreadCount({
+        organizationId: context.primary.organization.id,
+        membershipId: recipient.membership.id
+      }),
+      0
+    );
 
     const repliedThread = await replyToOfficeMailThread({
       organizationId: context.primary.organization.id,
@@ -474,6 +503,13 @@ test("workspace reads sync notification state and replies restore archived threa
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0]?.readAt, null);
     assert.match(notifications[0]?.body ?? "", /Second message after archive\./);
+    assert.equal(
+      await getOfficeMailUnreadCount({
+        organizationId: context.primary.organization.id,
+        membershipId: recipient.membership.id
+      }),
+      1
+    );
   } finally {
     await context.cleanup();
   }

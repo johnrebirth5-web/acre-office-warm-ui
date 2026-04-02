@@ -83,6 +83,14 @@ function getMultiSelectValues(event: ChangeEvent<HTMLSelectElement>) {
   return Array.from(event.target.selectedOptions).map((option) => option.value);
 }
 
+function notifyMailUnreadChanged() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event("office-mail-unread-changed"));
+}
+
 export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -277,6 +285,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
         throw new Error(body?.error ?? "Could not update the mail thread.");
       }
 
+      notifyMailUnreadChanged();
       router.refresh();
     } catch (threadError) {
       setError(threadError instanceof Error ? threadError.message : "Could not update the mail thread.");
@@ -505,6 +514,11 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
                 {snapshot.mode === "mine" ? (
                   <div className="office-mail-detail-actions">
+                    {selectedThread.actionUrl ? (
+                      <Link className="office-button-secondary office-button-sm" href={selectedThread.actionUrl}>
+                        {selectedThread.actionLabel || "Open"}
+                      </Link>
+                    ) : null}
                     <Button
                       disabled={pendingAction === "mark_unread" || pendingAction === "mark_read"}
                       onClick={() => handleThreadAction(selectedThread.isUnread ? "mark_read" : "mark_unread")}
@@ -523,6 +537,12 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
                     >
                       {selectedThread.isArchived ? "Unarchive" : "Archive"}
                     </Button>
+                  </div>
+                ) : selectedThread.actionUrl ? (
+                  <div className="office-mail-detail-actions">
+                    <Link className="office-button-secondary office-button-sm" href={selectedThread.actionUrl}>
+                      {selectedThread.actionLabel || "Open"}
+                    </Link>
                   </div>
                 ) : null}
               </div>

@@ -578,7 +578,7 @@
   - 与 `Activity Log` 的边界现在明确：
     - `Activity Log` = account/system 级审计事件与实时 operational alerts
     - `Notifications` = 面向当前用户的 actionable alerts / reminders inbox
-    - `Mail` = 同组织 Back Office 成员之间的人工作业沟通线程，不承载系统提醒
+    - `Mail` = 组织内线程沟通，以及少量需要线程化留痕的系统 mail alerts
   - 当前支持：
     - unread-first 排序
     - category / type / read-state filters
@@ -607,6 +607,8 @@
     - 附件上传与下载
     - thread-level read / unread / archive
     - `mail:audit` 审计视图
+    - agent 创建 transaction 时，`owner / office_admin` 会自动收到一封 system-generated mail alert，并带 `View transaction` 跳转按钮
+    - 侧边栏 `Mail` 会显示当前 inbox unread 数字徽标
   - 当前明确不支持：
     - 外部收件人
     - CC / BCC
@@ -616,6 +618,8 @@
     - 每次新消息会给其他参与者写入一条 `internal_message_received` inbox notification
     - 同一线程 / 同一接收者只保留一条活动通知，避免刷屏
     - 打开线程读信后，会把同线程通知同步标为已读
+  - 当前额外接口：
+    - `/api/office/mail/unread-count` 供 Office 侧边栏刷新未读数字
   - 当前 `Activity Log` 只记录 mail 元数据事件，不写入正文全文
 - `Account / My Profile` 现在也已落成真实 Back Office 自助账户页：
   - 路由：`/office/account`

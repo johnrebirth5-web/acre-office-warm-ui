@@ -33,7 +33,7 @@
 
 - `OfficeMailThread`
   - org-scoped thread header
-  - stores `subject`, `createdByMembershipId`, and `latestMessageAt`
+  - stores `subject`, `createdByMembershipId`, `latestMessageAt`, and optional `actionUrl / actionLabel` for deep-linkable system alerts
 - `OfficeMailParticipant`
   - access-control source of truth
   - stores private participant state: `lastReadAt`, `archivedAt`
@@ -73,6 +73,8 @@ Default behavior:
   - appends a reply to the thread
 - `GET /api/office/mail/attachments/[attachmentId]/file`
   - downloads an attachment if the caller is a participant or has `mail:audit`
+- `GET /api/office/mail/unread-count`
+  - returns the current participant's active unread-thread count for sidebar badge refresh
 
 ## Behavioral rules
 
@@ -88,6 +90,17 @@ Default behavior:
 - `subject` is required on thread creation
 - `body` or at least one attachment is required for every message
 - replies always keep the original participant set
+- system-generated threads may include an optional thread-level CTA via `actionUrl / actionLabel`
+
+### System-generated alerts
+
+- when an `agent` creates a new `Transaction`, the system creates a mail thread addressed to all active `owner` and `office_admin` memberships in the same organization
+- the sending membership recorded on the first message is the creating agent, so the alert remains attributable in audit history
+- the thread carries:
+  - a subject describing the new transaction
+  - a body with agent name, creation timestamp, transaction label, status, and owner
+  - a `View transaction` CTA pointing at `/office/transactions/[transactionId]`
+- admin-created transactions do not generate this automatic mail alert
 
 ### Read / archive state
 
@@ -128,7 +141,9 @@ Default behavior:
   - compose panel
 - right column:
   - thread header
+  - optional CTA button when the selected thread includes `actionUrl`
   - participant strip
   - ordered message timeline
   - reply composer in `mine` mode
 - `My mail / Audit view` switch is only visible to `mail:audit`
+- Office sidebar shows `Mail +N` when the current mailbox has unread active threads

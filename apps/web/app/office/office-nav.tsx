@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   canAccessAccountActivity,
   canAccessOfficeMail,
@@ -32,7 +34,10 @@ function canViewUnifiedUsers(subject: PermissionSubject) {
   return canViewOfficeUsers(subject) || canViewOfficeAgents(subject);
 }
 
-function getNavGroups(subject: PermissionSubject): WorkspaceNavGroup[] {
+function getNavGroups(
+  subject: PermissionSubject,
+  mailUnreadCount: number
+): WorkspaceNavGroup[] {
   return [
     {
       title: "Overview",
@@ -157,6 +162,7 @@ function getNavGroups(subject: PermissionSubject): WorkspaceNavGroup[] {
         {
           label: "Mail",
           href: "/office/mail",
+          badgeText: mailUnreadCount > 0 ? `+${mailUnreadCount}` : undefined,
           isVisible: canAccessOfficeMail,
         },
         {
@@ -188,11 +194,63 @@ export function OfficeNav({
   currentOfficeName,
   currentAccess,
 }: OfficeNavProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const canViewMail = canAccessOfficeMail(currentAccess);
+  const [mailUnreadCount, setMailUnreadCount] = useState(0);
+  const mailRefreshKey = `${pathname}?${searchParams.toString()}`;
+
+  useEffect(() => {
+    if (!canViewMail) {
+      setMailUnreadCount(0);
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadMailUnreadCount() {
+      try {
+        const response = await fetch("/api/office/mail/unread-count", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const body = (await response.json().catch(() => null)) as {
+          unreadCount?: number;
+        } | null;
+
+        if (isActive) {
+          setMailUnreadCount(Number(body?.unreadCount) || 0);
+        }
+      } catch {
+        if (isActive) {
+          setMailUnreadCount(0);
+        }
+      }
+    }
+
+    void loadMailUnreadCount();
+
+    function handleUnreadCountRefresh() {
+      void loadMailUnreadCount();
+    }
+
+    window.addEventListener("office-mail-unread-changed", handleUnreadCountRefresh);
+
+    return () => {
+      isActive = false;
+      window.removeEventListener("office-mail-unread-changed", handleUnreadCountRefresh);
+    };
+  }, [canViewMail, mailRefreshKey]);
+
   return (
     <WorkspaceNav
       currentWorkspaceName="Back Office"
       homeHref="/office/dashboard"
-      navGroups={getNavGroups(currentAccess)}
+      navGroups={getNavGroups(currentAccess, mailUnreadCount)}
       navigationLabel="Office navigation"
       switcherLabel="Workspace"
       switcherShortcut={{

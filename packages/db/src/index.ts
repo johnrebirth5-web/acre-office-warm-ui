@@ -149,6 +149,7 @@ export {
 export {
   archiveOfficeMailThread,
   createOfficeMailThread,
+  getOfficeMailUnreadCount,
   getOfficeMailAttachmentStorageRecord,
   getOfficeMailThreadDetail,
   getOfficeMailWorkspace,
