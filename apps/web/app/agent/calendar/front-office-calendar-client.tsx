@@ -388,9 +388,13 @@ export function FrontOfficeCalendarClient(
                   <span>{appointment.clientLabel}</span>
                   <span>{appointment.listingLabel}</span>
                   <span>{appointment.locationLabel}</span>
+                  <span>{appointment.bridgeStatusLabel}</span>
                 </div>
 
                 <p>{appointment.notesLabel}</p>
+                <p className="front-office-record-supporting">
+                  {appointment.bridgeStatusDetail}
+                </p>
 
                 {appointment.statusLabel === "Scheduled" ? (
                   <div className="front-office-calendar-actions">

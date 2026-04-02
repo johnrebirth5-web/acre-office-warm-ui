@@ -166,7 +166,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               />
               <FrontOfficeRailItem
                 badgeLabel="Sync"
-                description="Scheduled appointments can now jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief without pretending Acre already owns a two-way sync."
+                description="Scheduled appointments can now jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief, and Acre records the latest bridge action without pretending it already owns a two-way sync."
                 title="External bridge is action-first"
               />
               <FrontOfficeRailItem

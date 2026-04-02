@@ -71,7 +71,7 @@ Audit date:
 | `CRM / dossier center` | `Partial / MVP` | Real client dossier, visible-scope duplicate review / merge, and a first browser-side OCR / transcript intake assist are live, but a more unified office-wide cleanup center and deeper provider-backed intake acceleration are still follow-up work. |
 | `Status flow and reminders` | `Live core` | Stage history, reminder pressure, overdue visibility, lease reminders, and team-lead pressure queues are live. |
 | `Phone strategy / Chat List` | `Live core` | Embedded directly in the dossier as execution support. |
-| `Calendar / appointments` | `Partial / MVP` | Real appointments, notes, meeting links, in-app reminder pressure, and a first Google / Outlook / ICS / email export bridge are live; full external calendar sync is not. |
+| `Calendar / appointments` | `Partial / MVP` | Real appointments, notes, meeting links, in-app reminder pressure, and a first Google / Outlook / ICS / email bridge are live; those bridge actions now log back into Acre and surface as latest external-action status, but full external calendar sync is still not. |
 | `Listings and output` | `Live core` | Tracked private links, send records, opens, revisits, and listing-output workflow are live. |
 | `Agent material window` | `Partial / MVP` | Live beside listing output, but not yet the broader dynamic profile / landing-page vision. |
 | `Document center / training center / vendor pool` | `Partial / MVP` | Resources and vendor shortcuts are live, but not every target-state training or watch-progress behavior is complete. |
@@ -89,7 +89,7 @@ Audit date:
 ### Missing or notably incomplete documented capabilities
 
 - `OCR-assisted intake from WeChat screenshots` is now only partially covered: a browser-side OCR / transcript beta exists in quick intake, but there is still no provider-backed ingestion pipeline, no WeChat integration, and no office-wide import workflow
-- complete `external calendar / email systems` integration is still missing beyond the current export-style bridge
+- complete `external calendar / email systems` integration is still missing beyond the current export-style bridge plus logged bridge-action writeback
 - duplicate cleanup no longer stops at the current agent-owned queue, but `/agent/clients` still is not yet a fully unified office-wide cleanup center
 - the later `Phase 3` line is still largely open:
   - automated content generation
@@ -101,7 +101,7 @@ Audit date:
 
 The next FO implementation work should remain focused on:
 
-- deeper external calendar / email integration beyond the current export bridge
+- deeper external calendar / email integration beyond the current export bridge plus logged bridge-action writeback
 - workflow hardening on top of the now-explainable AI layer
 - remaining CRM quality-of-life gaps such as deeper OCR-assisted intake and broader office-wide cleanup depth
 

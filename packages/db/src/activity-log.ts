@@ -10,6 +10,10 @@ import {
   TransactionTaskStatus,
 } from "@prisma/client";
 import { prisma } from "./client";
+import {
+  formatFrontOfficeAppointmentBridgeActionLabel,
+  isFrontOfficeAppointmentBridgeAction,
+} from "./front-office-calendar-links";
 
 export const activityLogActions = {
   accountProfileUpdated: "account.profile_updated",
@@ -109,6 +113,7 @@ export const activityLogActions = {
   followUpTaskUpdated: "follow_up_task.updated",
   appointmentCreated: "appointment.created",
   appointmentUpdated: "appointment.updated",
+  appointmentBridgeOpened: "appointment.bridge_opened",
   contactCreated: "contact.created",
   contactUpdated: "contact.updated",
   activityCommentAdded: "activity.comment_added",
@@ -508,6 +513,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "follow_up_task.updated": "Follow-up task updated",
   "appointment.created": "Appointment created",
   "appointment.updated": "Appointment updated",
+  "appointment.bridge_opened": "Appointment bridge opened",
   "contact.created": "Contact created",
   "contact.updated": "Contact updated",
   "activity.comment_added": "Comment added",
@@ -640,6 +646,7 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
     matches: (action) =>
       action === activityLogActions.appointmentCreated ||
       action === activityLogActions.appointmentUpdated ||
+      action === activityLogActions.appointmentBridgeOpened ||
       action === activityLogActions.contactCreated ||
       action === activityLogActions.contactUpdated,
   },
@@ -1495,6 +1502,13 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return payload.changes.length === 1
         ? `updated appointment ${payload.changes[0].label.toLowerCase()}`
         : "updated an appointment";
+    case activityLogActions.appointmentBridgeOpened:
+      return payload.workflowReason &&
+        isFrontOfficeAppointmentBridgeAction(payload.workflowReason)
+        ? `opened the ${formatFrontOfficeAppointmentBridgeActionLabel(
+            payload.workflowReason,
+          ).toLowerCase()} bridge`
+        : "opened an appointment bridge";
     case activityLogActions.contactCreated:
       return "created a contact";
     case activityLogActions.contactUpdated:

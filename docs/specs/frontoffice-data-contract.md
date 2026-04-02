@@ -204,7 +204,8 @@ This keeps the handoff visible without pretending formal transaction creation al
 - external calendar / email bridge now also lives on top of the same FO appointment foundation instead of remaining only a roadmap line:
   - scheduled appointments on `/agent/calendar` and `/agent/clients/[clientId]` now expose direct `Google Calendar`, `Outlook`, `Download ICS`, and `Email client` actions
   - the shared appointment service now generates those export links from the same FO appointment record instead of asking the agent to manually retype title, time, location, or meeting link into outside systems
-  - this first bridge intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path that preserves the existing FO appointment source of truth
+  - those bridge actions now also write back into the shared `AuditLog`, so the FO calendar and dossier can show the latest logged external action on each appointment without inventing a second sync-status store
+  - this first bridge intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path with lightweight writeback that preserves the existing FO appointment source of truth
 
 ## Non-goals in this phase
 
@@ -215,5 +216,5 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- deeper calendar / inbox writeback on top of the current export bridge
+- deeper calendar / inbox writeback on top of the current export + logged-bridge layer
 - broader CRM quality-of-life work such as deeper office-wide cleanup depth and provider-backed OCR / transcript intake depth beyond the current browser-side beta

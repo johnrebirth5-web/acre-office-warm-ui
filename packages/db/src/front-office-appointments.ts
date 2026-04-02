@@ -11,6 +11,11 @@ import { formatDateTimeLabel } from "./date-time";
 import {
   buildFrontOfficeAppointmentCalendarExport,
   buildFrontOfficeAppointmentExternalLinks,
+  buildFrontOfficeAppointmentExternalTargets,
+  formatFrontOfficeAppointmentBridgeActionLabel,
+  frontOfficeAppointmentBridgeActions,
+  isFrontOfficeAppointmentBridgeAction,
+  type FrontOfficeAppointmentBridgeAction,
   type FrontOfficeAppointmentCalendarExport,
 } from "./front-office-calendar-links";
 import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
@@ -47,6 +52,8 @@ export type FrontOfficeAppointmentRecord = {
   outlookCalendarHref: string;
   icsHref: string;
   emailBriefHref: string | null;
+  bridgeStatusLabel: string;
+  bridgeStatusDetail: string;
 };
 
 export type FrontOfficeAppointmentHandoffItem = {
@@ -108,6 +115,31 @@ export type GetFrontOfficeAppointmentCalendarExportInput = {
   organizationId: string;
   appointmentId: string;
   ownerMembershipId: string;
+  actorMembershipId?: string | null;
+  officeId?: string | null;
+};
+
+export type GetFrontOfficeAppointmentBridgeResultInput = {
+  organizationId: string;
+  appointmentId: string;
+  ownerMembershipId: string;
+  actorMembershipId?: string | null;
+  officeId?: string | null;
+  action: FrontOfficeAppointmentBridgeAction;
+};
+
+export type FrontOfficeAppointmentBridgeResult =
+  | {
+      kind: "redirect";
+      href: string;
+    }
+  | ({
+      kind: "calendar_export";
+    } & FrontOfficeAppointmentCalendarExport);
+
+export type FrontOfficeAppointmentBridgeStatus = {
+  label: string;
+  detail: string;
 };
 
 const frontOfficeAppointmentTypeDefinitions = [
@@ -325,12 +357,114 @@ function buildDefaultAppointmentTitle(
   return context ? `${typeLabel} · ${context}` : typeLabel;
 }
 
+type FrontOfficeAppointmentLatestBridgeAction = {
+  action: FrontOfficeAppointmentBridgeAction;
+  createdAt: Date;
+};
+
+function parseAppointmentBridgeActionFromPayload(payload: Prisma.JsonValue | null) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const workflowReason = "workflowReason" in payload ? payload.workflowReason : null;
+
+  if (
+    typeof workflowReason === "string" &&
+    isFrontOfficeAppointmentBridgeAction(workflowReason)
+  ) {
+    return workflowReason;
+  }
+
+  return null;
+}
+
+function buildFrontOfficeAppointmentBridgeStatus(
+  latestAction: FrontOfficeAppointmentLatestBridgeAction | null | undefined,
+  timeZone?: string | null,
+): FrontOfficeAppointmentBridgeStatus {
+  if (!latestAction) {
+    return {
+      label: "External bridge idle",
+      detail: "No Google / Outlook / ICS / email action logged yet",
+    };
+  }
+
+  return {
+    label: `Last bridge · ${formatFrontOfficeAppointmentBridgeActionLabel(latestAction.action)}`,
+    detail: `Logged ${formatDateTimeLabel(latestAction.createdAt, {
+      timeZone: timeZone ?? null,
+    })}`,
+  };
+}
+
+export async function getFrontOfficeAppointmentBridgeStatusMap(input: {
+  organizationId: string;
+  appointmentIds: string[];
+  timeZone?: string | null;
+}) {
+  const uniqueAppointmentIds = [...new Set(input.appointmentIds.filter(Boolean))];
+
+  if (!uniqueAppointmentIds.length) {
+    return new Map<string, FrontOfficeAppointmentBridgeStatus>();
+  }
+
+  const bridgeLogs = await prisma.auditLog.findMany({
+    where: {
+      organizationId: input.organizationId,
+      entityType: "appointment",
+      entityId: {
+        in: uniqueAppointmentIds,
+      },
+      action: activityLogActions.appointmentBridgeOpened,
+    },
+    orderBy: [{ createdAt: "desc" }],
+    select: {
+      entityId: true,
+      createdAt: true,
+      payload: true,
+    },
+  });
+  const latestBridgeActionMap = new Map<
+    string,
+    FrontOfficeAppointmentLatestBridgeAction
+  >();
+
+  for (const log of bridgeLogs) {
+    if (latestBridgeActionMap.has(log.entityId)) {
+      continue;
+    }
+
+    const action = parseAppointmentBridgeActionFromPayload(log.payload);
+
+    if (!action) {
+      continue;
+    }
+
+    latestBridgeActionMap.set(log.entityId, {
+      action,
+      createdAt: log.createdAt,
+    });
+  }
+
+  return new Map(
+    uniqueAppointmentIds.map((appointmentId) => [
+      appointmentId,
+      buildFrontOfficeAppointmentBridgeStatus(
+        latestBridgeActionMap.get(appointmentId),
+        input.timeZone,
+      ),
+    ]),
+  );
+}
+
 function mapAppointmentRecord(
   appointment: Prisma.AppointmentGetPayload<{
     select: typeof appointmentSelect;
   }>,
   now: Date,
   timeZone?: string | null,
+  bridgeStatus?: FrontOfficeAppointmentBridgeStatus | null,
 ): FrontOfficeAppointmentRecord {
   const meetingOrLocation =
     appointment.location?.trim() ||
@@ -363,6 +497,9 @@ function mapAppointmentRecord(
     listingCity: appointment.listing?.city,
     timeZone,
   });
+  const resolvedBridgeStatus = bridgeStatus
+    ? bridgeStatus
+    : buildFrontOfficeAppointmentBridgeStatus(null, timeZone);
 
   return {
     id: appointment.id,
@@ -388,6 +525,8 @@ function mapAppointmentRecord(
     outlookCalendarHref: externalLinks.outlookCalendarHref,
     icsHref: externalLinks.icsHref,
     emailBriefHref: externalLinks.emailBriefHref,
+    bridgeStatusLabel: resolvedBridgeStatus.label,
+    bridgeStatusDetail: resolvedBridgeStatus.detail,
   };
 }
 
@@ -562,6 +701,12 @@ export async function getFrontOfficeAppointmentsSnapshot(
       },
     }),
   ]);
+  const appointmentBridgeStatusMap =
+    await getFrontOfficeAppointmentBridgeStatusMap({
+      organizationId: input.organizationId,
+      appointmentIds: appointments.map((appointment) => appointment.id),
+      timeZone: input.timeZone,
+    });
 
   return {
     summary: {
@@ -583,7 +728,12 @@ export async function getFrontOfficeAppointmentsSnapshot(
       label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
     })),
     appointments: appointments.map((appointment) =>
-      mapAppointmentRecord(appointment, now, input.timeZone),
+      mapAppointmentRecord(
+        appointment,
+        now,
+        input.timeZone,
+        appointmentBridgeStatusMap.get(appointment.id) ?? null,
+      ),
     ),
     handoffs: handoffs.map((draft) => ({
       id: draft.id,
@@ -804,6 +954,32 @@ export async function updateFrontOfficeAppointmentStatus(
 export async function getFrontOfficeAppointmentCalendarExport(
   input: GetFrontOfficeAppointmentCalendarExportInput,
 ): Promise<FrontOfficeAppointmentCalendarExport | null> {
+  const result = await getFrontOfficeAppointmentBridgeResult({
+    organizationId: input.organizationId,
+    appointmentId: input.appointmentId,
+    ownerMembershipId: input.ownerMembershipId,
+    actorMembershipId: input.actorMembershipId ?? input.ownerMembershipId,
+    officeId: input.officeId ?? null,
+    action: frontOfficeAppointmentBridgeActions.icsDownload,
+  });
+
+  if (!result || result.kind !== "calendar_export") {
+    return null;
+  }
+
+  return {
+    fileName: result.fileName,
+    content: result.content,
+  };
+}
+
+export async function getFrontOfficeAppointmentBridgeResult(
+  input: GetFrontOfficeAppointmentBridgeResultInput,
+): Promise<FrontOfficeAppointmentBridgeResult | null> {
+  if (!isFrontOfficeAppointmentBridgeAction(input.action)) {
+    throw new Error("A valid appointment bridge action is required.");
+  }
+
   const appointment = await prisma.appointment.findFirst({
     where: {
       id: input.appointmentId,
@@ -817,7 +993,7 @@ export async function getFrontOfficeAppointmentCalendarExport(
     return null;
   }
 
-  return buildFrontOfficeAppointmentCalendarExport({
+  const externalTargets = buildFrontOfficeAppointmentExternalTargets({
     appointmentId: appointment.id,
     title: appointment.title,
     startsAt: appointment.startsAt,
@@ -831,4 +1007,82 @@ export async function getFrontOfficeAppointmentCalendarExport(
     listingNeighborhood: appointment.listing?.neighborhood,
     listingCity: appointment.listing?.city,
   });
+  const result: FrontOfficeAppointmentBridgeResult =
+    input.action === frontOfficeAppointmentBridgeActions.googleCalendar
+      ? {
+          kind: "redirect",
+          href: externalTargets.googleCalendarHref,
+        }
+      : input.action === frontOfficeAppointmentBridgeActions.outlookCalendar
+        ? {
+            kind: "redirect",
+            href: externalTargets.outlookCalendarHref,
+          }
+        : input.action === frontOfficeAppointmentBridgeActions.emailBrief
+          ? externalTargets.emailBriefHref
+            ? {
+                kind: "redirect",
+                href: externalTargets.emailBriefHref,
+              }
+            : (() => {
+                throw new Error(
+                  "Client email is required before opening the appointment email brief.",
+                );
+              })()
+          : {
+              kind: "calendar_export",
+              ...buildFrontOfficeAppointmentCalendarExport({
+                appointmentId: appointment.id,
+                title: appointment.title,
+                startsAt: appointment.startsAt,
+                endsAt: appointment.endsAt,
+                location: appointment.location,
+                meetingUrl: appointment.meetingUrl,
+                clientName: appointment.client?.fullName,
+                clientEmail: appointment.client?.email,
+                contactLabel: appointment.contactLabel,
+                listingTitle: appointment.listing?.title,
+                listingNeighborhood: appointment.listing?.neighborhood,
+                listingCity: appointment.listing?.city,
+              }),
+            };
+
+  await prisma.$transaction(async (tx) => {
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId ?? input.ownerMembershipId,
+      entityType: "appointment",
+      entityId: appointment.id,
+      action: activityLogActions.appointmentBridgeOpened,
+      payload: {
+        officeId: input.officeId ?? null,
+        ...(appointment.client?.id ? { contactId: appointment.client.id } : {}),
+        ...(appointment.client?.fullName
+          ? { contactName: appointment.client.fullName }
+          : {}),
+        objectLabel: `${appointment.title}${appointment.client?.fullName ? ` · ${appointment.client.fullName}` : ""}`,
+        contextHref: appointment.client?.id
+          ? `/agent/clients/${appointment.client.id}`
+          : "/agent/calendar",
+        actionSource: "front_office_appointment_bridge",
+        workflowReason: input.action,
+        details: [
+          `Bridge target: ${formatFrontOfficeAppointmentBridgeActionLabel(input.action)}`,
+          `Starts: ${formatDateTimeLabel(appointment.startsAt, { timeZone: null })}`,
+          ...(appointment.location?.trim()
+            ? [`Location: ${appointment.location.trim()}`]
+            : []),
+          ...(input.action === frontOfficeAppointmentBridgeActions.emailBrief &&
+          appointment.client?.email?.trim()
+            ? [`Email: ${appointment.client.email.trim()}`]
+            : []),
+          ...(appointment.listing?.title
+            ? [`Listing: ${appointment.listing.title}`]
+            : []),
+        ],
+      },
+    });
+  });
+
+  return result;
 }

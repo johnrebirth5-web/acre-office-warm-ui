@@ -13902,6 +13902,13 @@ body,
   color: inherit;
 }
 
+.front-office-record-supporting {
+  margin: 0;
+  color: #657991;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .front-office-activity-record p,
 .front-office-activity-event p {
   color: #556a83;

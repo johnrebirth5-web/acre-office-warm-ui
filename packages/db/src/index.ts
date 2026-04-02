@@ -264,10 +264,21 @@ export {
   type FrontOfficeClientDetailWorkflowSignal,
 } from "./front-office-clients";
 export {
+  formatFrontOfficeAppointmentBridgeActionLabel,
+  frontOfficeAppointmentBridgeActions,
+  isFrontOfficeAppointmentBridgeAction,
+  type FrontOfficeAppointmentBridgeAction,
+  type FrontOfficeAppointmentExternalTargets,
+} from "./front-office-calendar-links";
+export {
   createFrontOfficeAppointment,
+  getFrontOfficeAppointmentBridgeResult,
+  getFrontOfficeAppointmentBridgeStatusMap,
   getFrontOfficeAppointmentCalendarExport,
   getFrontOfficeAppointmentsSnapshot,
   updateFrontOfficeAppointmentStatus,
+  type FrontOfficeAppointmentBridgeResult,
+  type FrontOfficeAppointmentBridgeStatus,
   type FrontOfficeAppointmentHandoffItem,
   type FrontOfficeAppointmentOption,
   type FrontOfficeAppointmentRecord,

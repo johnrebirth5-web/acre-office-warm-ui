@@ -2,10 +2,26 @@ import { formatDateTimeLabel } from "./date-time";
 
 const defaultAppointmentDurationMs = 60 * 60 * 1000;
 
+export const frontOfficeAppointmentBridgeActions = {
+  googleCalendar: "google_calendar",
+  outlookCalendar: "outlook_calendar",
+  icsDownload: "ics_download",
+  emailBrief: "email_brief",
+} as const;
+
+export type FrontOfficeAppointmentBridgeAction =
+  (typeof frontOfficeAppointmentBridgeActions)[keyof typeof frontOfficeAppointmentBridgeActions];
+
 export type FrontOfficeAppointmentExternalLinks = {
   googleCalendarHref: string;
   outlookCalendarHref: string;
   icsHref: string;
+  emailBriefHref: string | null;
+};
+
+export type FrontOfficeAppointmentExternalTargets = {
+  googleCalendarHref: string;
+  outlookCalendarHref: string;
   emailBriefHref: string | null;
 };
 
@@ -100,6 +116,42 @@ function buildMailtoHref(to: string, subject: string, body: string) {
   return `mailto:${to}?${params.toString()}`;
 }
 
+function buildBridgeHref(
+  appointmentId: string,
+  action: FrontOfficeAppointmentBridgeAction,
+) {
+  const params = new URLSearchParams({
+    action,
+  });
+
+  return `/api/agent/appointments/${appointmentId}/bridge?${params.toString()}`;
+}
+
+export function isFrontOfficeAppointmentBridgeAction(
+  value: string | null | undefined,
+): value is FrontOfficeAppointmentBridgeAction {
+  return Object.values(frontOfficeAppointmentBridgeActions).includes(
+    value as FrontOfficeAppointmentBridgeAction,
+  );
+}
+
+export function formatFrontOfficeAppointmentBridgeActionLabel(
+  action: FrontOfficeAppointmentBridgeAction,
+) {
+  switch (action) {
+    case frontOfficeAppointmentBridgeActions.googleCalendar:
+      return "Google Calendar";
+    case frontOfficeAppointmentBridgeActions.outlookCalendar:
+      return "Outlook";
+    case frontOfficeAppointmentBridgeActions.icsDownload:
+      return "ICS download";
+    case frontOfficeAppointmentBridgeActions.emailBrief:
+      return "Email brief";
+    default:
+      return "External bridge";
+  }
+}
+
 function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
   const to = input.clientEmail?.trim();
 
@@ -133,9 +185,9 @@ function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
   );
 }
 
-export function buildFrontOfficeAppointmentExternalLinks(
+export function buildFrontOfficeAppointmentExternalTargets(
   input: AppointmentExternalLinkInput,
-): FrontOfficeAppointmentExternalLinks {
+): FrontOfficeAppointmentExternalTargets {
   const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
   const location = input.location?.trim() || input.meetingUrl?.trim() || "";
   const details = buildCalendarDescription(input);
@@ -159,8 +211,34 @@ export function buildFrontOfficeAppointmentExternalLinks(
   return {
     googleCalendarHref: `https://calendar.google.com/calendar/render?${googleParams.toString()}`,
     outlookCalendarHref: `https://outlook.office.com/calendar/0/deeplink/compose?${outlookParams.toString()}`,
-    icsHref: `/api/agent/appointments/${input.appointmentId}/ics`,
     emailBriefHref: buildEmailBriefHref(input),
+  };
+}
+
+export function buildFrontOfficeAppointmentExternalLinks(
+  input: AppointmentExternalLinkInput,
+): FrontOfficeAppointmentExternalLinks {
+  const targets = buildFrontOfficeAppointmentExternalTargets(input);
+
+  return {
+    googleCalendarHref: buildBridgeHref(
+      input.appointmentId,
+      frontOfficeAppointmentBridgeActions.googleCalendar,
+    ),
+    outlookCalendarHref: buildBridgeHref(
+      input.appointmentId,
+      frontOfficeAppointmentBridgeActions.outlookCalendar,
+    ),
+    icsHref: buildBridgeHref(
+      input.appointmentId,
+      frontOfficeAppointmentBridgeActions.icsDownload,
+    ),
+    emailBriefHref: targets.emailBriefHref
+      ? buildBridgeHref(
+          input.appointmentId,
+          frontOfficeAppointmentBridgeActions.emailBrief,
+        )
+      : null,
   };
 }
 

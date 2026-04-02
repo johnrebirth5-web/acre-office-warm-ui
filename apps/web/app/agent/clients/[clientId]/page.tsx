@@ -260,7 +260,15 @@ export default async function AgentClientDetailPage(
                       context={appointment.statusLabel}
                       description={`${appointment.startsAtLabel} · ${appointment.locationLabel}`}
                       key={appointment.id}
-                      meta={<span>{appointment.contextLabel}</span>}
+                      meta={
+                        <div className="list-row-meta front-office-record-meta">
+                          <span>{appointment.contextLabel}</span>
+                          <span>
+                            {appointment.bridgeStatusLabel} ·{" "}
+                            {appointment.bridgeStatusDetail}
+                          </span>
+                        </div>
+                      }
                       title={appointment.title}
                     />
                   ))

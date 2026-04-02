@@ -29,6 +29,7 @@ import {
 } from "./front-office-ai";
 import { formatDateTimeLabel } from "./date-time";
 import { buildFrontOfficeAppointmentExternalLinks } from "./front-office-calendar-links";
+import { getFrontOfficeAppointmentBridgeStatusMap } from "./front-office-appointments";
 import {
   defaultLeaseReminderLeadDays,
   resolveLeaseReminderDates,
@@ -65,6 +66,8 @@ export type FrontOfficeClientDetailAppointmentItem = {
   outlookCalendarHref: string;
   icsHref: string;
   emailBriefHref: string | null;
+  bridgeStatusLabel: string;
+  bridgeStatusDetail: string;
 };
 
 export type FrontOfficeClientDetailTaskItem = {
@@ -2605,6 +2608,12 @@ export async function getFrontOfficeClientDetail(
       },
     }),
   ]);
+  const appointmentBridgeStatusMap =
+    await getFrontOfficeAppointmentBridgeStatusMap({
+      organizationId: input.organizationId,
+      appointmentIds: client.appointments.map((appointment) => appointment.id),
+      timeZone: input.timeZone,
+    });
 
   const openTaskCount = client.followUpTasks.filter(
     (task) => task.status !== TaskStatus.completed,
@@ -3840,6 +3849,12 @@ export async function getFrontOfficeClientDetail(
         outlookCalendarHref: externalLinks.outlookCalendarHref,
         icsHref: externalLinks.icsHref,
         emailBriefHref: externalLinks.emailBriefHref,
+        bridgeStatusLabel:
+          appointmentBridgeStatusMap.get(appointment.id)?.label ??
+          "External bridge idle",
+        bridgeStatusDetail:
+          appointmentBridgeStatusMap.get(appointment.id)?.detail ??
+          "No Google / Outlook / ICS / email action logged yet",
       };
     }),
     followUpTasks: client.followUpTasks.map((task) => ({
