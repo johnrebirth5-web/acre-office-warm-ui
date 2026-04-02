@@ -21,7 +21,8 @@
     "pdfjs-dist": "^5.5.207",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "resend": "^6.10.0"
+    "resend": "^6.10.0",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@types/node": "25.3.5",

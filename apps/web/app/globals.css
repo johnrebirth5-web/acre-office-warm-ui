@@ -14080,8 +14080,135 @@ body,
   gap: 12px;
 }
 
+.front-office-lead-intake-assist {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(96, 136, 183, 0.22);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(236, 244, 253, 0.94)),
+    radial-gradient(circle at top right, rgba(111, 172, 255, 0.14), transparent 48%);
+}
+
+.front-office-lead-intake-assist-copy,
+.front-office-lead-intake-assist-head {
+  display: grid;
+  gap: 6px;
+}
+
+.front-office-lead-intake-assist-copy strong,
+.front-office-lead-intake-assist-head strong {
+  color: var(--office-text);
+}
+
+.front-office-lead-intake-assist-copy p,
+.front-office-lead-intake-assist-head p {
+  margin: 0;
+  color: #556a83;
+  line-height: var(--office-line-body);
+  max-width: 78ch;
+}
+
+.front-office-lead-intake-assist-grid {
+  align-items: start;
+}
+
+.front-office-lead-intake-file-input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px dashed rgba(110, 143, 181, 0.45);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #31455f;
+  font: inherit;
+}
+
+.front-office-lead-intake-file-input::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #dbe8fb;
+  color: #29425b;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.front-office-lead-intake-assist-actions {
+  padding-top: 2px;
+}
+
+.front-office-lead-intake-assist-result {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(153, 175, 203, 0.26);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.front-office-lead-intake-assist-field-list {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.front-office-lead-intake-assist-field {
+  display: grid;
+  gap: 6px;
+  padding: 12px 13px;
+  border: 1px solid rgba(183, 198, 219, 0.34);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(245, 249, 254, 0.92)
+  );
+}
+
+.front-office-lead-intake-assist-field span {
+  color: #637a94;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.front-office-lead-intake-assist-field strong {
+  color: #23364f;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.front-office-lead-intake-assist-field.is-empty {
+  background: rgba(247, 250, 254, 0.94);
+}
+
+.front-office-lead-intake-assist-preview {
+  margin: 0;
+  padding: 12px 13px;
+  border-radius: 16px;
+  background: rgba(237, 243, 251, 0.84);
+  color: #4f647c;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
 .front-office-lead-intake-card.is-compact .front-office-lead-intake-form {
   align-content: start;
+}
+
+.front-office-lead-intake-card.is-compact .front-office-lead-intake-assist {
+  padding: 14px 16px;
+  gap: 10px;
+}
+
+.front-office-lead-intake-card.is-compact .front-office-lead-intake-assist-copy p,
+.front-office-lead-intake-card.is-compact .front-office-lead-intake-assist-head p,
+.front-office-lead-intake-card.is-compact .front-office-lead-intake-assist-preview {
+  font-size: 0.9rem;
 }
 
 .front-office-lead-intake-card.is-compact .front-office-lead-intake-grid {
@@ -14663,6 +14790,12 @@ body,
   border-color: rgba(43, 122, 85, 0.22);
   background: rgba(241, 251, 246, 0.94);
   color: #295f45;
+}
+
+.front-office-calendar-feedback.is-neutral {
+  border-color: rgba(103, 132, 168, 0.24);
+  background: rgba(241, 246, 252, 0.94);
+  color: #486178;
 }
 
 .agent-brand-panel {

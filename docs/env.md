@@ -453,6 +453,11 @@ ACRE_SECURE_COOKIES=false
 
 这些在真正接入前，不应写入生产部署手册中作为“已存在配置”。
 
+补充说明：
+
+- 当前 `/agent` quick lead intake 的首版 `OCR / transcript assist` 使用浏览器侧 `tesseract.js`，不需要单独的 OCR provider key
+- 因此上面的 `OCR provider key` 仍然属于未来增强项，而不是当前代码已经依赖的配置
+
 ## 开发环境建议
 
 如果你当前只是前端开发或页面结构开发：

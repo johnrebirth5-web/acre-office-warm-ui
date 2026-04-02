@@ -8,6 +8,11 @@ import {
 } from "react";
 import { Button, FormField, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 import { useRouter } from "next/navigation";
+import {
+  extractFrontOfficeLeadIntakeAssist,
+  type FrontOfficeLeadIntakeAssistDraft,
+  type FrontOfficeLeadIntakeAssistResult,
+} from "./front-office-lead-intake-assist";
 import { FrontOfficeLink } from "./front-office-link";
 
 type FrontOfficeLeadIntakeCardProps = {
@@ -52,6 +57,11 @@ type CreatedClientState = {
   fullName: string;
 };
 
+type AssistFeedbackState = {
+  tone: "success" | "error" | "neutral";
+  message: string;
+} | null;
+
 const stageOptions = [
   "Cold Lead",
   "Warm Lead",
@@ -75,6 +85,19 @@ const intentOptions = [
   "Unknown",
 ] as const;
 
+const assistMergeFields = [
+  "fullName",
+  "phone",
+  "email",
+  "source",
+  "stage",
+  "intent",
+  "budgetMax",
+  "preferredAreas",
+  "nextFollowUpAt",
+  "notes",
+] as const satisfies ReadonlyArray<keyof LeadFormState>;
+
 function buildDefaultNextFollowUpAt() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -96,6 +119,38 @@ function buildEmptyFormState(): LeadFormState {
   };
 }
 
+function mergeLeadFormStateWithAssistDraft(
+  current: LeadFormState,
+  draft: FrontOfficeLeadIntakeAssistDraft,
+) {
+  const defaults = buildEmptyFormState();
+  const nextState = {
+    ...current,
+  };
+  const appliedFields: Array<keyof LeadFormState> = [];
+
+  for (const field of assistMergeFields) {
+    const suggestedValue = draft[field];
+
+    if (typeof suggestedValue !== "string" || !suggestedValue.trim()) {
+      continue;
+    }
+
+    const currentValue = current[field].trim();
+    const defaultValue = defaults[field].trim();
+
+    if (!currentValue || currentValue === defaultValue) {
+      nextState[field] = suggestedValue;
+      appliedFields.push(field);
+    }
+  }
+
+  return {
+    nextState,
+    appliedFields,
+  };
+}
+
 export function FrontOfficeLeadIntakeCard(
   props: FrontOfficeLeadIntakeCardProps,
 ) {
@@ -107,9 +162,31 @@ export function FrontOfficeLeadIntakeCard(
   const [createdClient, setCreatedClient] = useState<CreatedClientState | null>(
     null,
   );
+  const [assistTranscript, setAssistTranscript] = useState("");
+  const [assistImage, setAssistImage] = useState<File | null>(null);
+  const [assistInputResetKey, setAssistInputResetKey] = useState(0);
+  const [assistResult, setAssistResult] =
+    useState<FrontOfficeLeadIntakeAssistResult | null>(null);
+  const [assistFeedback, setAssistFeedback] =
+    useState<AssistFeedbackState>(null);
+  const [assistProgressMessage, setAssistProgressMessage] = useState("");
+  const [isExtractingAssist, setIsExtractingAssist] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const isBusy = isSaving || isPending;
+  const isBusy = isSaving || isPending || isExtractingAssist;
+
+  function clearAssistOutput() {
+    setAssistResult(null);
+    setAssistFeedback(null);
+    setAssistProgressMessage("");
+  }
+
+  function resetAssistComposer() {
+    clearAssistOutput();
+    setAssistTranscript("");
+    setAssistImage(null);
+    setAssistInputResetKey((current) => current + 1);
+  }
 
   function handleFieldChange(
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -119,6 +196,133 @@ export function FrontOfficeLeadIntakeCard(
       ...current,
       [name]: value,
     }));
+  }
+
+  function handleAssistTranscriptChange(
+    event: ChangeEvent<HTMLTextAreaElement>,
+  ) {
+    clearAssistOutput();
+    setAssistTranscript(event.target.value);
+  }
+
+  function handleAssistImageChange(event: ChangeEvent<HTMLInputElement>) {
+    clearAssistOutput();
+    setAssistImage(event.target.files?.[0] ?? null);
+  }
+
+  async function handleExtractAssist() {
+    const transcriptText = assistTranscript.trim();
+
+    if (!assistImage && !transcriptText) {
+      setAssistFeedback({
+        tone: "error",
+        message:
+          "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
+      });
+      return;
+    }
+
+    setAssistResult(null);
+    setAssistFeedback(null);
+    setAssistProgressMessage(
+      assistImage
+        ? "Preparing browser-side OCR for the uploaded screenshot..."
+        : "Parsing pasted transcript...",
+    );
+    setIsExtractingAssist(true);
+    try {
+      let ocrText = "";
+      let ocrFailed = false;
+
+      try {
+        if (assistImage) {
+          const { recognize } = await import("tesseract.js");
+          const { data } = await recognize(assistImage, "eng+chi_sim", {
+            logger: (message) => {
+              const progress =
+                typeof message.progress === "number"
+                  ? ` ${Math.round(message.progress * 100)}%`
+                  : "";
+              setAssistProgressMessage(`${message.status}${progress}`);
+            },
+          });
+          ocrText = data.text.trim();
+        }
+      } catch {
+        ocrFailed = true;
+      }
+
+      const combinedText = [transcriptText, ocrText]
+        .filter(Boolean)
+        .join("\n\n");
+
+      if (!combinedText) {
+        setAssistProgressMessage("");
+        setAssistFeedback({
+          tone: "error",
+          message:
+            "Acre could not read usable text from that screenshot. Try a tighter crop, better contrast, or paste the chat text directly.",
+        });
+        return;
+      }
+
+      const result = extractFrontOfficeLeadIntakeAssist({
+        rawText: combinedText,
+        sourceMode: assistImage ? "image" : "text",
+      });
+      const mergeOutcome = mergeLeadFormStateWithAssistDraft(
+        formState,
+        result.draft,
+      );
+      const feedbackParts: string[] = [];
+
+      if (assistImage && ocrText) {
+        feedbackParts.push("Screenshot text extracted.");
+      }
+
+      if (transcriptText) {
+        feedbackParts.push("Transcript parsed.");
+      }
+
+      if (result.fields.length) {
+        feedbackParts.push(`${result.fields.length} lead field(s) detected.`);
+      } else {
+        feedbackParts.push("No structured lead fields were detected yet.");
+      }
+
+      if (mergeOutcome.appliedFields.length) {
+        feedbackParts.push(
+          `${mergeOutcome.appliedFields.length} empty/default field(s) were filled into the live intake form.`,
+        );
+      } else if (result.fields.length) {
+        feedbackParts.push(
+          "Current form values were preserved where you had already typed something more specific.",
+        );
+      }
+
+      if (ocrFailed && transcriptText) {
+        feedbackParts.push(
+          "Screenshot OCR could not finish, so Acre used the pasted transcript only.",
+        );
+      }
+
+      setAssistResult(result);
+      setFormState(mergeOutcome.nextState);
+      setAssistProgressMessage("");
+      setAssistFeedback({
+        tone: result.fields.length ? "success" : "neutral",
+        message: feedbackParts.join(" "),
+      });
+    } catch {
+      setAssistProgressMessage("");
+      setAssistFeedback({
+        tone: "error",
+        message:
+          "Acre could not finish intake extraction right now. Retry with a cleaner screenshot or paste the transcript directly.",
+      });
+    } finally {
+      setIsExtractingAssist(false);
+    }
   }
 
   async function submitLead(skipDuplicateCheck = false) {
@@ -171,6 +375,7 @@ export function FrontOfficeLeadIntakeCard(
         "Lead captured. Front Office will refresh now so the queue and stage counts stay current.",
     });
     setFormState(buildEmptyFormState());
+    resetAssistComposer();
     startTransition(() => {
       router.refresh();
       setIsSaving(false);
@@ -233,6 +438,134 @@ export function FrontOfficeLeadIntakeCard(
           className="front-office-calendar-form front-office-lead-intake-form"
           onSubmit={handleSubmit}
         >
+          <div className="front-office-lead-intake-assist">
+            <div className="front-office-lead-intake-assist-copy">
+              <strong>OCR / transcript assist beta</strong>
+              <p>
+                Drop in a WeChat screenshot or paste the chat thread. Acre reads
+                it in the browser, extracts what it can, and only fills
+                empty/default intake fields for review.
+              </p>
+              <div className="front-office-record-meta">
+                <span>Browser-side extraction only</span>
+                <span>No auto-create or auto-send</span>
+                <span>Review before capture</span>
+              </div>
+            </div>
+
+            <div className="office-form-grid front-office-lead-intake-assist-grid">
+              <FormField
+                className="office-form-grid-span-2"
+                helper={
+                  assistImage
+                    ? `Selected screenshot: ${assistImage.name}`
+                    : "Optional. PNG / JPG chat screenshots work best."
+                }
+                label="Screenshot OCR"
+              >
+                <input
+                  accept="image/*"
+                  className="front-office-lead-intake-file-input"
+                  disabled={isBusy}
+                  key={assistInputResetKey}
+                  onChange={handleAssistImageChange}
+                  type="file"
+                />
+              </FormField>
+
+              <FormField
+                className="office-form-grid-span-3"
+                helper="Optional. Paste the live chat, notes, or call transcript to improve extraction."
+                label="Transcript or chat text"
+              >
+                <TextareaInput
+                  disabled={isBusy}
+                  onChange={handleAssistTranscriptChange}
+                  placeholder="Buyer from WeChat. Name: Jamie Chen. Wants LIC or Astoria, budget up to $5,500, tour next week..."
+                  rows={4}
+                  value={assistTranscript}
+                />
+              </FormField>
+            </div>
+
+            <div className="front-office-lead-intake-actions front-office-lead-intake-assist-actions">
+              <Button
+                disabled={isBusy || (!assistImage && !assistTranscript.trim())}
+                onClick={() => {
+                  void handleExtractAssist();
+                }}
+                type="button"
+              >
+                {isExtractingAssist ? "Extracting..." : "Extract intake"}
+              </Button>
+              <Button
+                disabled={isBusy}
+                onClick={resetAssistComposer}
+                type="button"
+                variant="secondary"
+              >
+                Clear assist
+              </Button>
+            </div>
+
+            {assistProgressMessage ? (
+              <p className="front-office-calendar-feedback is-neutral">
+                {assistProgressMessage}
+              </p>
+            ) : null}
+
+            {assistFeedback ? (
+              <p
+                className={`front-office-calendar-feedback ${
+                  assistFeedback.tone === "success"
+                    ? "is-success"
+                    : assistFeedback.tone === "error"
+                      ? "is-error"
+                      : "is-neutral"
+                }`}
+              >
+                {assistFeedback.message}
+              </p>
+            ) : null}
+
+            {assistResult ? (
+              <div className="front-office-lead-intake-assist-result">
+                <div className="front-office-lead-intake-assist-head">
+                  <strong>{assistResult.summaryLabel}</strong>
+                  <p>
+                    Acre keeps the raw extract as a preview only. Review the
+                    suggested fields below before saving the real lead.
+                  </p>
+                </div>
+
+                <div className="front-office-lead-intake-assist-field-list">
+                  {assistResult.fields.length ? (
+                    assistResult.fields.map((field) => (
+                      <article
+                        className="front-office-lead-intake-assist-field"
+                        key={`${field.field}-${field.value}`}
+                      >
+                        <span>{field.label}</span>
+                        <strong>{field.value}</strong>
+                      </article>
+                    ))
+                  ) : (
+                    <article className="front-office-lead-intake-assist-field is-empty">
+                      <span>Detected fields</span>
+                      <strong>Nothing structured yet</strong>
+                    </article>
+                  )}
+                </div>
+
+                <p className="front-office-lead-intake-assist-preview">
+                  {assistResult.rawText.length > 280
+                    ? `${assistResult.rawText.slice(0, 280)}...`
+                    : assistResult.rawText}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
           <div className="office-form-grid front-office-lead-intake-grid">
             <FormField
               className="office-form-grid-span-2"
@@ -364,6 +697,7 @@ export function FrontOfficeLeadIntakeCard(
                 setFeedback(null);
                 setDuplicateMatches([]);
                 setCreatedClient(null);
+                resetAssistComposer();
               }}
               type="button"
               variant="secondary"

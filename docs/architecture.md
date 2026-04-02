@@ -269,12 +269,17 @@
 - `Vercel`：历史上可能存在绑定，但不是当前默认部署目标
 - `PostgreSQL / Prisma runtime`：代码已接入，本机已验证 local migrate + seed + query，但主页面和主 API 尚未切换到数据库
 - 对象存储：未实现
-- OCR / AI / 外部地产系统集成：未实现
+- OCR / AI / 外部地产系统集成：部分实现
 
 补充说明：
 
 - 当前文档文件不是接入 S3 / R2，而是本地文件系统 MVP
 - `Company Library` 也复用同一套本地文件系统存储基础，但按 organization / library scope 单独分目录
+- `Front Office` quick lead intake 现在已有首版浏览器侧 `OCR / transcript assist`：
+  - `/agent/dashboard` 和 `/agent/clients` 可以上传截图或粘贴聊天文本
+  - 浏览器端通过 `tesseract.js` 做首轮 OCR，随后本地解析 name / phone / email / source / stage / intent / budget / area / next follow-up / notes 建议
+  - 当前不是 provider-backed OCR pipeline，不会自动建档，也不是 WeChat 官方集成
+- grounded `Front Office` AI suggestion layer 也已存在于 dossier / dashboard，但仍然是 agent-approved、no auto-send 的产品内建议层，不是外部 AI agent 平台集成
 - 当前 eSignature 已升级为平台级电子签署中心 MVP：
   - 内部准备工作区 + 公共签署页仍由本仓库自托管
   - 平台中心页是 `/office/signatures`，模板库是 `/office/signatures/templates`

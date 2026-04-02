@@ -5,9 +5,15 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- `visible-scope CRM cleanup` and the first FO `activity + cleanup center` are now live, so the next FO work should stay focused on deeper external writeback, OCR-style intake assists, and broader office-wide cleanup depth before any heavier background automation
+- `visible-scope CRM cleanup`, the first FO `activity + cleanup center`, and the first browser-side `OCR / transcript intake assist` are now live, so the next FO work should stay focused on deeper external writeback, stronger provider-backed intake acceleration, and broader office-wide cleanup depth before any heavier background automation
 
 ## Recently completed major work
+
+- 2026-04-02: `Front Office OCR / transcript intake assist` is now live inside the quick lead-intake card instead of remaining only a follow-up roadmap item:
+  - added [apps/web/app/agent/_components/front-office-lead-intake-assist.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-lead-intake-assist.ts) so Acre can turn pasted chat text or OCR output into structured lead-intake suggestions for name, phone, email, source, stage, intent, budget, areas, next follow-up date, and notes
+  - updated [apps/web/app/agent/_components/front-office-lead-intake-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-lead-intake-card.tsx) so `/agent/dashboard` and `/agent/clients` now expose a `Screenshot OCR / transcript assist` block directly above the quick lead form, using browser-side extraction and conservative fill rules that only apply to empty/default intake fields
+  - updated [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) so the new assist surface stays inside the existing FO lead-intake visual language instead of introducing a one-off import widget
+  - this first pass stays honest about scope: it is a browser-side beta for faster first-call capture, not a provider-backed OCR ingestion pipeline, not a WeChat integration, and not an auto-create lead flow
 
 - 2026-04-02: `Front Office activity + cleanup center` is now live on top of the reminder / duplicate foundation instead of keeping activity, cleanup, and notices spread across separate FO surfaces:
   - extended [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) so `getFrontOfficeActivitySnapshot(...)` now emits one FO cleanup queue combining due follow-up work, stale clients, tracked-send risk, near-term appointments, visible-scope duplicate review, and the existing notice / event stream instead of only returning notifications and events
