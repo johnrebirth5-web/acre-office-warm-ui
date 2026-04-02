@@ -197,7 +197,7 @@ export function OfficeSignaturesClient({
             />
           </FormField>
 
-          <div className="office-settings-actions">
+          <div className="office-filter-actions office-form-grid-span-2 office-signatures-filter-actions">
             <Button type="submit">Apply filters</Button>
             <Button onClick={() => router.push("/office/signatures")} type="button" variant="secondary">
               Clear

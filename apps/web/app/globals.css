@@ -6138,6 +6138,20 @@ a {
   gap: 6px;
 }
 
+.office-signatures-filter-actions {
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px 12px;
+  margin-top: 6px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(177, 188, 204, 0.34);
+}
+
+.office-signatures-filter-actions > * {
+  flex: 0 0 auto;
+}
+
 .office-signatures-updated-cell {
   align-items: flex-start;
 }
