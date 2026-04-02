@@ -185,6 +185,8 @@ export type FrontOfficeDashboardAiQueueItem = {
   description: string;
   contextLabel: string;
   helperLabel: string;
+  whyNowSignals: string[];
+  rankingSignals: string[];
   openDossierHref: string;
   followUpTitle: string;
   followUpDueAt: string;
@@ -213,7 +215,7 @@ type FrontOfficeDashboardLeadershipEngagementItem =
 
 type FrontOfficeDashboardAiCandidateItem = Omit<
   FrontOfficeDashboardAiQueueItem,
-  "allowsDirectFollowUpCreation"
+  "allowsDirectFollowUpCreation" | "whyNowSignals" | "rankingSignals"
 > & {
   _priority: number;
   _sortAt: Date;
@@ -2299,9 +2301,9 @@ export async function getFrontOfficeDashboardSnapshot(
 
       return {
         ...candidate,
-        helperLabel: [candidate.helperLabel, ...insight.historySignals]
-          .filter(Boolean)
-          .join(" · "),
+        helperLabel: candidate.helperLabel,
+        whyNowSignals: candidate.helperLabel ? [candidate.helperLabel] : [],
+        rankingSignals: insight.historySignals,
         allowsDirectFollowUpCreation:
           !insight.suppressDirectFollowUpCreation,
         openDossierHref: insight.suppressDirectFollowUpCreation

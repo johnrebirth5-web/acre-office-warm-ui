@@ -242,11 +242,23 @@ export function FrontOfficeClientAiSuggestionsClient(
         <strong>Why Acre is suggesting this</strong>
         <p>{aiSuggestions.helperText}</p>
 
+        <strong>Why now</strong>
         <div className="list-row-meta front-office-record-meta">
           {aiSuggestions.groundingSignals.map((signal) => (
             <span key={signal}>{signal}</span>
           ))}
         </div>
+
+        {aiSuggestions.rankingSignals.length ? (
+          <>
+            <strong>What changed the priority</strong>
+            <div className="list-row-meta front-office-record-meta">
+              {aiSuggestions.rankingSignals.map((signal) => (
+                <span key={signal}>{signal}</span>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {feedback ? (
           <p

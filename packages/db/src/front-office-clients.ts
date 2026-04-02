@@ -242,6 +242,7 @@ export type FrontOfficeClientDetailAiSuggestions = {
   summary: string;
   helperText: string;
   groundingSignals: string[];
+  rankingSignals: string[];
   followUpSuggestion: FrontOfficeClientDetailAiFollowUpSuggestion | null;
   allowsDirectFollowUpCreation: boolean;
   primaryActionLabel: string;
@@ -1882,10 +1883,6 @@ function buildFrontOfficeAiSuggestions(input: {
     });
   }
 
-  if (selectedInsight.historySignals.length) {
-    groundingSignals.push(...selectedInsight.historySignals);
-  }
-
   if (selectedInsight.suppressDirectFollowUpCreation) {
     allowsDirectFollowUpCreation = false;
     helperText = `${helperText} Acre is holding back one-click follow-up creation here because a similar AI-created follow-up still needs review first.`;
@@ -1902,6 +1899,7 @@ function buildFrontOfficeAiSuggestions(input: {
     summary,
     helperText,
     groundingSignals: groundingSignals.slice(0, 7),
+    rankingSignals: selectedInsight.historySignals,
     followUpSuggestion,
     allowsDirectFollowUpCreation,
     primaryActionLabel,
