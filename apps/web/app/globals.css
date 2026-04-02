@@ -13229,9 +13229,10 @@ body,
 
 .office-page-summary-grid,
 .office-list-page-header-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   align-items: stretch;
+  justify-content: flex-start;
 }
 
 .office-page-summary-grid > a,
@@ -13241,18 +13242,23 @@ body,
 .office-list-page-header-actions > button,
 .office-list-page-header-actions > [role="button"] {
   min-height: 100%;
+  flex: 0 0 auto;
 }
 
 .office-page-summary-grid .office-list-page-primary-action,
 .office-list-page-header-actions .office-list-page-primary-action {
-  width: 100%;
-  min-width: 0;
+  width: auto;
+  min-width: max-content;
+  max-width: 100%;
+  margin-left: auto;
+  align-self: center;
 }
 
 .office-summary-chip,
 .office-transactions-summary-chip {
   display: grid;
   align-content: space-between;
+  flex: 1 1 168px;
   min-width: 0;
   min-height: 96px;
   max-width: 100%;
@@ -14893,6 +14899,13 @@ body,
   .office-page-actions,
   .office-section-actions {
     justify-content: flex-start;
+  }
+
+  .office-page-summary-grid .office-list-page-primary-action,
+  .office-list-page-header-actions .office-list-page-primary-action {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
   }
 
   .office-user-permissions-columns {
