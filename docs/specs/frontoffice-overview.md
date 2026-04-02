@@ -129,8 +129,9 @@ Current implementation priority note:
 - `AI explainability + FO / BO boundary hardening` are now also live, so the dashboard queue and dossier can explicitly answer why a suggestion is surfacing now, what changed the priority, whether the work should stay in Front Office or move into Back Office, and why one-click follow-up is available or paused
 - a first `external calendar / email bridge` is now also live on appointment surfaces, so scheduled meetings can jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief without pretending Acre already owns a two-way sync
 - that same bridge now also writes the latest bridge action back into Acre activity, so the FO calendar and dossier can show whether Google / Outlook / ICS / email was last opened from the appointment record instead of treating every external jump as invisible
+- FO appointments now also carry an agent-managed external follow-up writeback state, so the calendar, dossier, and cleanup center can explicitly show `needs follow-up`, `awaiting confirmation`, `confirmed`, or `reschedule requested` instead of reducing outside coordination to the last bridge click only
 - `/agent/notifications` now also acts as the first unified `Activity + Cleanup Center`, so due follow-up, stale clients, tracked-send risk, duplicate review, near-term appointments, notices, and shared office events can now be scanned from one FO route instead of staying split across dashboard-only and notice-only surfaces
-- keep the next FO iteration focused on deeper external-system integration, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
+- keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
 
 ### Phase 2
 
@@ -233,6 +234,7 @@ Expected coverage:
 - in-app, email, and calendar reminders
 - meeting links for Zoom / Google Meet
 - on-site address, contact, and notes
+- agent-managed external confirmation / reschedule writeback
 
 ### Listings and output
 
@@ -292,6 +294,7 @@ Track at least:
 - send, open, click, and latest visit behavior
 - template generation and usage
 - appointment creation / reschedule / cancel / attendance
+- appointment external follow-up / confirmation / reschedule writeback state
 - resource search / open / watch progress / vendor click
 - offer / inspection create / export / client view
 

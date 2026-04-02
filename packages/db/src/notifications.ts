@@ -17,7 +17,11 @@ import {
 import { prisma } from "./client";
 
 type NotificationDbClient = Prisma.TransactionClient | typeof prisma;
-type NotificationPreferenceField = "approvalAlertsEnabled" | "taskRemindersEnabled" | "offerAlertsEnabled";
+type NotificationPreferenceField =
+  | "approvalAlertsEnabled"
+  | "taskRemindersEnabled"
+  | "offerAlertsEnabled"
+  | "messageAlertsEnabled";
 
 export type OfficeNotificationReadFilter = "all" | "unread" | "read";
 export type OfficeNotificationPermissionGroup = "task_reviewers" | "secondary_task_reviewers" | "incoming_update_reviewers";
@@ -118,6 +122,7 @@ export type EnsureNotificationForMembershipsInput = Omit<CreateNotificationsForM
 };
 
 export const officeNotificationInboxTypes: NotificationType[] = [
+  NotificationType.internal_message_received,
   NotificationType.appointment_due_soon,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
@@ -142,6 +147,7 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
   listing: "Listing",
   follow_up: "Follow-up",
   event: "Event",
+  internal_message_received: "Internal message",
   appointment_due_soon: "Appointment due soon",
   task_review_requested: "Awaiting my review",
   task_second_review_requested: "Awaiting second review",
@@ -163,6 +169,7 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
 
 const notificationCategoryLabelMap: Record<NotificationCategory, string> = {
   system: "System",
+  message: "Mail",
   task: "Tasks",
   offer: "Offers",
   signature: "Signatures",
@@ -179,6 +186,7 @@ const notificationSeverityLabelMap: Record<NotificationSeverity, string> = {
 };
 
 const typeFilterOrder: NotificationType[] = [
+  NotificationType.internal_message_received,
   NotificationType.appointment_due_soon,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
@@ -199,6 +207,7 @@ const typeFilterOrder: NotificationType[] = [
 ];
 
 const categoryFilterOrder: NotificationCategory[] = [
+  NotificationCategory.message,
   NotificationCategory.event,
   NotificationCategory.task,
   NotificationCategory.offer,
@@ -211,6 +220,12 @@ const categoryFilterOrder: NotificationCategory[] = [
 const readStateOptions: OfficeNotificationReadFilter[] = ["all", "unread", "read"];
 
 function getNotificationPreferenceField(type: NotificationType): NotificationPreferenceField | null {
+  if (
+    type === NotificationType.internal_message_received
+  ) {
+    return "messageAlertsEnabled";
+  }
+
   if (
     type === NotificationType.task_review_requested ||
     type === NotificationType.task_second_review_requested ||
@@ -271,7 +286,8 @@ async function applyNotificationPreferenceFilter(
       inAppEnabled: true,
       approvalAlertsEnabled: true,
       taskRemindersEnabled: true,
-      offerAlertsEnabled: true
+      offerAlertsEnabled: true,
+      messageAlertsEnabled: true
     }
   });
   const preferenceMap = new Map(preferences.map((preference) => [preference.membershipId, preference]));
@@ -605,6 +621,84 @@ export async function ensureNotificationForMemberships(db: NotificationDbClient,
   }
 
   return createdCount;
+}
+
+export async function upsertNotificationForMemberships(db: NotificationDbClient, input: EnsureNotificationForMembershipsInput) {
+  const recipientIds = await normalizeRecipientMembershipIds(db, {
+    organizationId: input.organizationId,
+    membershipIds: input.membershipIds,
+    excludeMembershipIds: input.excludeMembershipIds,
+    restrictToOfficeRoles: input.restrictToOfficeRoles
+  });
+  const membershipIds = await applyNotificationPreferenceFilter(db, {
+    organizationId: input.organizationId,
+    membershipIds: recipientIds,
+    type: input.type
+  });
+
+  if (membershipIds.length === 0) {
+    return 0;
+  }
+
+  let affectedCount = 0;
+
+  for (const membershipId of membershipIds) {
+    const existing = await db.notification.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        membershipId,
+        type: input.type,
+        entityType: input.entityType ?? null,
+        entityId: input.entityId ?? null
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (existing) {
+      await db.notification.update({
+        where: {
+          id: existing.id
+        },
+        data: {
+          officeId: input.officeId ?? null,
+          followUpTaskId: input.followUpTaskId ?? null,
+          eventId: input.eventId ?? null,
+          category: input.category ?? null,
+          severity: input.severity ?? null,
+          metadata: input.metadata,
+          title: input.title,
+          body: input.body,
+          actionUrl: getRelativeUrl(input.actionUrl) || null,
+          readAt: null
+        }
+      });
+    } else {
+      await db.notification.create({
+        data: {
+          organizationId: input.organizationId,
+          officeId: input.officeId ?? null,
+          membershipId,
+          followUpTaskId: input.followUpTaskId ?? null,
+          eventId: input.eventId ?? null,
+          type: input.type,
+          category: input.category ?? null,
+          severity: input.severity ?? null,
+          entityType: input.entityType ?? null,
+          entityId: input.entityId ?? null,
+          metadata: input.metadata,
+          title: input.title,
+          body: input.body,
+          actionUrl: getRelativeUrl(input.actionUrl) || null
+        }
+      });
+    }
+
+    affectedCount += 1;
+  }
+
+  return affectedCount;
 }
 
 function buildAppointmentReminderTitle(startsAt: Date, title: string, now: Date) {

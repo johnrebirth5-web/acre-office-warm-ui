@@ -159,6 +159,25 @@ This file is the high-level product map for the current `Office / Back Office` s
   - add archive/dismiss behavior if the inbox grows beyond read state
   - keep extending coverage only where a real workflow already exists
 
+### Mail
+
+- What it is for:
+  - organization-scoped internal mail threads for human Back Office communication, separate from system-generated notifications.
+- Current maturity:
+  - `MVP`
+- Current notable behavior:
+  - `/office/mail` is now a real user-scoped mailbox route inside the Office shell.
+  - threads are modeled explicitly as `subject + fixed participants + message stream + attachments`.
+  - only active Back Office memberships in the same organization can be selected as recipients.
+  - read/unread and archive state are private per participant; new replies automatically restore archived threads for other recipients.
+  - each new message also upserts a single `internal_message_received` notification per recipient thread, so the personal inbox shows the latest unread mail reminder without duplicating rows.
+  - users with `mail:audit` can switch into an `Audit view` that can inspect any org thread and attachment without becoming a participant.
+  - `Activity Log` only stores mail metadata events and intentionally does not copy mail bodies into the global activity stream.
+- Follow-up work:
+  - richer search and attachment previews only when a real need appears
+  - thread participant changes only if the workflow genuinely needs re-openable group membership
+  - external delivery only if a true email bridge is later implemented
+
 ### Account / My Profile
 
 - What it is for:
@@ -169,7 +188,7 @@ This file is the high-level product map for the current `Office / Back Office` s
   - `/office/account` is now a real user-scoped route inside the Office shell.
   - profile editing is limited to safe self-service fields on `User` and `AgentProfile`.
   - office, role, and team assignment remain visible but read-only in this page.
-  - notification preferences are persisted explicitly per membership and only govern the real in-app inbox.
+  - notification preferences are persisted explicitly per membership and only govern the real in-app inbox and internal mail reminder bridge.
   - security section stays truthful about the current internal password-account flow and does not fake forgot-password, email delivery, or 2-step support.
   - profile and notification preference changes write into `AuditLog`.
 - Follow-up work:

@@ -232,6 +232,30 @@ Trade-off：
 - 账户页现在不是完整 identity center
 - 但这样能先把真实 self-service 体验做出来，同时保持 admin 模块边界清晰
 
+## 关键决策 8.7：`Office Mail` 独立于 `Notifications`，但通过通知桥接新消息提醒
+
+原因：
+
+- `Notifications` 承载的是系统生成的 actionable alerts / reminders，不适合混入人工对话正文
+- `Mail` 需要线程、参与者、附件、归档、审计权限这些与提醒 inbox 完全不同的状态模型
+- 但新消息又必须进入当前用户已经熟悉的个人提醒入口，所以两者需要桥接而不是合并
+
+影响：
+
+- `/office/mail` 成为独立模块，使用显式 Prisma 模型：
+  - `OfficeMailThread`
+  - `OfficeMailParticipant`
+  - `OfficeMailMessage`
+  - `OfficeMailAttachment`
+- `Notifications` 新增 `internal_message_received` 作为 mail bridge，而不是承载完整消息流
+- `Mail` 审计能力通过单独 `mail:audit` 权限进入模块内 `Audit view`，不通过 `Activity Log` 回放正文
+- `Activity Log` 只记录 thread create / message sent / archive / unarchive 等元数据，不记录正文全文
+
+Trade-off：
+
+- 第一版不会支持外部邮箱、CC/BCC、草稿、转发、消息编辑、线程加人减人
+- 但这样可以先把组织内真实可审计沟通落到统一 Back Office 工作台，而不是继续让人依赖系统外聊天工具
+
 ## 当前已知限制
 
 这些限制是当前真实存在的，不应忽略：

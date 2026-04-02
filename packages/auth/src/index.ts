@@ -103,6 +103,9 @@ export type PermissionKey =
   | "resources:view"
   | "resources:manage"
   | "notifications:view"
+  | "mail:view"
+  | "mail:send"
+  | "mail:audit"
   | "fields:view"
   | "fields:manage"
   | "checklists:view"
@@ -134,6 +137,7 @@ export type PermissionGroupKey =
   | "events"
   | "resources"
   | "notifications"
+  | "mail"
   | "fields"
   | "checklists"
   | "integrations"
@@ -1053,6 +1057,32 @@ const permissionCatalog: PermissionDefinition[] = [
     scopeBehavior: "base"
   },
   {
+    key: "mail:view",
+    label: "Can access internal mail",
+    description: "View the internal mail workspace.",
+    group: "mail",
+    sortOrder: 235,
+    scopeBehavior: "base"
+  },
+  {
+    key: "mail:send",
+    label: "Can send internal mail",
+    description: "Create threads and reply inside the internal mail workspace.",
+    group: "mail",
+    parentKey: "mail:view",
+    sortOrder: 236,
+    scopeBehavior: "base"
+  },
+  {
+    key: "mail:audit",
+    label: "Can audit internal mail",
+    description: "View every internal mail thread for audit purposes.",
+    group: "mail",
+    parentKey: "mail:view",
+    sortOrder: 237,
+    scopeBehavior: "company"
+  },
+  {
     key: "fields:view",
     label: "Can view field settings",
     description: "View required roles and transaction field settings.",
@@ -1148,6 +1178,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "offers:view:company",
     "tasks:view",
     "notifications:view",
+    "mail:view",
+    "mail:send",
     "ai:use"
   ],
   human_resources: [
@@ -1178,6 +1210,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "offers:view:company",
     "tasks:view",
     "notifications:view",
+    "mail:view",
+    "mail:send",
     "ai:use"
   ],
   team_lead: [
@@ -1203,6 +1237,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "commissions:view",
     "commissions:view:team",
     "notifications:view",
+    "mail:view",
+    "mail:send",
     "ai:use"
   ],
   agent: [
@@ -1223,6 +1259,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "accounting:billing:view",
     "commissions:view",
     "notifications:view",
+    "mail:view",
+    "mail:send",
     "ai:use"
   ],
   office_manager: [
@@ -1292,6 +1330,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "resources:view",
     "resources:manage",
     "notifications:view",
+    "mail:view",
+    "mail:send",
     "fields:view",
     "fields:manage",
     "checklists:view",
@@ -1316,6 +1356,8 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "accounting:view",
     "accounting:billing:view",
     "notifications:view",
+    "mail:view",
+    "mail:send",
     "ai:use"
   ]
 };
@@ -1481,6 +1523,18 @@ export function canCommentOfficeActivity(subject: PermissionSubject): boolean {
 
 export function canAccessOfficeNotifications(subject: PermissionSubject): boolean {
   return can(subject, "notifications:view");
+}
+
+export function canAccessOfficeMail(subject: PermissionSubject): boolean {
+  return can(subject, "mail:view");
+}
+
+export function canSendOfficeMail(subject: PermissionSubject): boolean {
+  return can(subject, "mail:send");
+}
+
+export function canAuditOfficeMail(subject: PermissionSubject): boolean {
+  return can(subject, "mail:audit");
 }
 
 export function canAccessOfficeSettings(subject: PermissionSubject): boolean {

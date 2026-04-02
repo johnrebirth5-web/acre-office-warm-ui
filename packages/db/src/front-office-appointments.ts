@@ -52,6 +52,10 @@ export type FrontOfficeAppointmentRecord = {
   outlookCalendarHref: string;
   icsHref: string;
   emailBriefHref: string | null;
+  externalStatusValue: FrontOfficeAppointmentExternalWorkflowStatus;
+  externalStatusLabel: string;
+  externalStatusTone: FrontOfficeAppointmentTone;
+  externalStatusDetail: string;
   bridgeStatusLabel: string;
   bridgeStatusDetail: string;
 };
@@ -108,6 +112,8 @@ export type UpdateFrontOfficeAppointmentStatusInput = {
   ownerMembershipId: string;
   actorMembershipId?: string | null;
   status?: string | null;
+  externalStatus?: string | null;
+  externalNote?: string | null;
   officeId?: string | null;
 };
 
@@ -139,6 +145,24 @@ export type FrontOfficeAppointmentBridgeResult =
 
 export type FrontOfficeAppointmentBridgeStatus = {
   label: string;
+  detail: string;
+};
+
+export const frontOfficeAppointmentExternalWorkflowStatuses = {
+  idle: "idle",
+  needsFollowUp: "needs_follow_up",
+  confirmationPending: "confirmation_pending",
+  confirmed: "confirmed",
+  rescheduleRequested: "reschedule_requested",
+} as const;
+
+export type FrontOfficeAppointmentExternalWorkflowStatus =
+  (typeof frontOfficeAppointmentExternalWorkflowStatuses)[keyof typeof frontOfficeAppointmentExternalWorkflowStatuses];
+
+export type FrontOfficeAppointmentExternalWorkflowState = {
+  value: FrontOfficeAppointmentExternalWorkflowStatus;
+  label: string;
+  tone: FrontOfficeAppointmentTone;
   detail: string;
 };
 
@@ -178,6 +202,7 @@ const appointmentSelect = Prisma.validator<Prisma.AppointmentSelect>()({
   meetingUrl: true,
   contactLabel: true,
   notes: true,
+  metadata: true,
   client: {
     select: {
       id: true,
@@ -194,6 +219,9 @@ const appointmentSelect = Prisma.validator<Prisma.AppointmentSelect>()({
     },
   },
 });
+
+const appointmentExternalWorkflowMetadataKey =
+  "frontOfficeExternalWorkflow";
 
 function buildOfficeScopeFilter(officeId: string | null | undefined) {
   if (!officeId) {
@@ -323,6 +351,173 @@ function isAppointmentStatus(
   return frontOfficeAppointmentStatusDefinitions.some(
     (option) => option.value === value,
   );
+}
+
+function isFrontOfficeAppointmentExternalWorkflowStatus(
+  value: string | null | undefined,
+): value is FrontOfficeAppointmentExternalWorkflowStatus {
+  return Object.values(frontOfficeAppointmentExternalWorkflowStatuses).includes(
+    value as FrontOfficeAppointmentExternalWorkflowStatus,
+  );
+}
+
+export function formatFrontOfficeAppointmentExternalWorkflowLabel(
+  value: FrontOfficeAppointmentExternalWorkflowStatus,
+) {
+  switch (value) {
+    case frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp:
+      return "Needs follow-up";
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending:
+      return "Awaiting confirmation";
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmed:
+      return "Confirmed";
+    case frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested:
+      return "Reschedule requested";
+    default:
+      return "External follow-up idle";
+  }
+}
+
+function mapFrontOfficeAppointmentExternalWorkflowTone(
+  value: FrontOfficeAppointmentExternalWorkflowStatus,
+): FrontOfficeAppointmentTone {
+  switch (value) {
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmed:
+      return "success";
+    case frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested:
+      return "danger";
+    case frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp:
+      return "warning";
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending:
+      return "accent";
+    default:
+      return "neutral";
+  }
+}
+
+function parseAppointmentMetadataRecord(value: Prisma.JsonValue | null) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return { ...value } as Record<string, Prisma.JsonValue>;
+}
+
+function parseFrontOfficeAppointmentExternalWorkflowMetadata(
+  value: Prisma.JsonValue | null,
+): {
+  status: FrontOfficeAppointmentExternalWorkflowStatus;
+  updatedAt: Date | null;
+  note: string | null;
+} {
+  const metadata = parseAppointmentMetadataRecord(value);
+  const workflowValue = metadata[appointmentExternalWorkflowMetadataKey];
+
+  if (
+    !workflowValue ||
+    typeof workflowValue !== "object" ||
+    Array.isArray(workflowValue)
+  ) {
+    return {
+      status: frontOfficeAppointmentExternalWorkflowStatuses.idle,
+      updatedAt: null,
+      note: null,
+    };
+  }
+
+  const statusValue =
+    "status" in workflowValue && typeof workflowValue.status === "string"
+      ? workflowValue.status
+      : null;
+  const updatedAtValue =
+    "updatedAt" in workflowValue ? workflowValue.updatedAt : undefined;
+  const noteValue = "note" in workflowValue ? workflowValue.note : undefined;
+  const updatedAt =
+    typeof updatedAtValue === "string" && updatedAtValue.trim()
+      ? new Date(updatedAtValue)
+      : null;
+
+  return {
+    status: isFrontOfficeAppointmentExternalWorkflowStatus(statusValue)
+      ? statusValue
+      : frontOfficeAppointmentExternalWorkflowStatuses.idle,
+    updatedAt:
+      updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
+    note: typeof noteValue === "string" && noteValue.trim() ? noteValue.trim() : null,
+  };
+}
+
+function buildFrontOfficeAppointmentExternalWorkflowDetail(input: {
+  status: FrontOfficeAppointmentExternalWorkflowStatus;
+  updatedAt: Date | null;
+  note: string | null;
+  timeZone?: string | null;
+}) {
+  if (input.status === frontOfficeAppointmentExternalWorkflowStatuses.idle) {
+    return "No explicit confirmation, follow-up, or reschedule state recorded yet.";
+  }
+
+  const timestamp = input.updatedAt
+    ? `Marked ${formatDateTimeLabel(input.updatedAt, {
+        timeZone: input.timeZone ?? null,
+      })}`
+    : "";
+  const defaultSummary =
+    input.status === frontOfficeAppointmentExternalWorkflowStatuses.confirmed
+      ? "Client or counterpart confirmed the plan."
+      : input.status ===
+          frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending
+        ? "Waiting on the client or counterpart to confirm."
+        : input.status ===
+            frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+          ? "The appointment needs a time change or reset."
+          : "This appointment still needs active outreach or a fresh confirmation.";
+
+  return [timestamp, input.note, defaultSummary].filter(Boolean).join(" · ");
+}
+
+export function getFrontOfficeAppointmentExternalWorkflowState(input: {
+  metadata: Prisma.JsonValue | null;
+  timeZone?: string | null;
+}): FrontOfficeAppointmentExternalWorkflowState {
+  const parsed = parseFrontOfficeAppointmentExternalWorkflowMetadata(
+    input.metadata,
+  );
+
+  return {
+    value: parsed.status,
+    label: formatFrontOfficeAppointmentExternalWorkflowLabel(parsed.status),
+    tone: mapFrontOfficeAppointmentExternalWorkflowTone(parsed.status),
+    detail: buildFrontOfficeAppointmentExternalWorkflowDetail({
+      status: parsed.status,
+      updatedAt: parsed.updatedAt,
+      note: parsed.note,
+      timeZone: input.timeZone ?? null,
+    }),
+  };
+}
+
+function buildAppointmentMetadataWithExternalWorkflow(input: {
+  existingMetadata: Prisma.JsonValue | null;
+  status: FrontOfficeAppointmentExternalWorkflowStatus;
+  updatedAt: Date;
+  note?: string | null;
+}) {
+  const metadataRecord = parseAppointmentMetadataRecord(input.existingMetadata);
+
+  if (input.status === frontOfficeAppointmentExternalWorkflowStatuses.idle) {
+    delete metadataRecord[appointmentExternalWorkflowMetadataKey];
+  } else {
+    metadataRecord[appointmentExternalWorkflowMetadataKey] = {
+      status: input.status,
+      updatedAt: input.updatedAt.toISOString(),
+      ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+    };
+  }
+
+  return Object.keys(metadataRecord).length
+    ? (metadataRecord as Prisma.InputJsonValue)
+    : Prisma.JsonNull;
 }
 
 function parseRequiredDate(value: string, fieldLabel: string) {
@@ -482,6 +677,10 @@ function mapAppointmentRecord(
     status: appointment.status,
     now,
   });
+  const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
+    metadata: appointment.metadata,
+    timeZone,
+  });
   const externalLinks = buildFrontOfficeAppointmentExternalLinks({
     appointmentId: appointment.id,
     title: appointment.title,
@@ -525,6 +724,10 @@ function mapAppointmentRecord(
     outlookCalendarHref: externalLinks.outlookCalendarHref,
     icsHref: externalLinks.icsHref,
     emailBriefHref: externalLinks.emailBriefHref,
+    externalStatusValue: externalWorkflow.value,
+    externalStatusLabel: externalWorkflow.label,
+    externalStatusTone: externalWorkflow.tone,
+    externalStatusDetail: externalWorkflow.detail,
     bridgeStatusLabel: resolvedBridgeStatus.label,
     bridgeStatusDetail: resolvedBridgeStatus.detail,
   };
@@ -866,11 +1069,35 @@ export async function createFrontOfficeAppointment(
 export async function updateFrontOfficeAppointmentStatus(
   input: UpdateFrontOfficeAppointmentStatusInput,
 ): Promise<FrontOfficeAppointmentRecord | null> {
-  if (!isAppointmentStatus(input.status)) {
+  if (
+    input.status != null &&
+    input.status !== "" &&
+    !isAppointmentStatus(input.status)
+  ) {
     throw new Error("A valid appointment status is required.");
   }
 
-  const nextStatus = input.status;
+  if (
+    input.externalStatus != null &&
+    input.externalStatus !== "" &&
+    !isFrontOfficeAppointmentExternalWorkflowStatus(input.externalStatus)
+  ) {
+    throw new Error("A valid appointment external workflow status is required.");
+  }
+
+  const nextStatus = isAppointmentStatus(input.status) ? input.status : null;
+  const nextExternalStatus = isFrontOfficeAppointmentExternalWorkflowStatus(
+    input.externalStatus,
+  )
+    ? input.externalStatus
+    : null;
+  const nextExternalNote = input.externalNote?.trim() || null;
+
+  if (!nextStatus && !nextExternalStatus) {
+    throw new Error(
+      "A valid appointment status or external workflow status is required.",
+    );
+  }
 
   const existing = await prisma.appointment.findFirst({
     where: {
@@ -885,7 +1112,18 @@ export async function updateFrontOfficeAppointmentStatus(
     return null;
   }
 
-  if (existing.status === nextStatus) {
+  const currentExternalWorkflow =
+    parseFrontOfficeAppointmentExternalWorkflowMetadata(existing.metadata);
+  const shouldUpdateStatus = Boolean(
+    nextStatus && existing.status !== nextStatus,
+  );
+  const shouldUpdateExternalWorkflow = Boolean(
+    nextExternalStatus &&
+      (currentExternalWorkflow.status !== nextExternalStatus ||
+        currentExternalWorkflow.note !== nextExternalNote),
+  );
+
+  if (!shouldUpdateStatus && !shouldUpdateExternalWorkflow) {
     return mapAppointmentRecord(existing, new Date(), null);
   }
 
@@ -896,12 +1134,26 @@ export async function updateFrontOfficeAppointmentStatus(
         id: input.appointmentId,
       },
       data: {
-        status: nextStatus,
+        ...(shouldUpdateStatus && nextStatus ? { status: nextStatus } : {}),
+        ...(shouldUpdateExternalWorkflow && nextExternalStatus
+          ? {
+              metadata: buildAppointmentMetadataWithExternalWorkflow({
+                existingMetadata: existing.metadata,
+                status: nextExternalStatus,
+                updatedAt: now,
+                note: nextExternalNote,
+              }),
+            }
+          : {}),
       },
       select: appointmentSelect,
     });
 
-    if (saved.client?.id && nextStatus === AppointmentStatus.completed) {
+    if (
+      saved.client?.id &&
+      shouldUpdateStatus &&
+      nextStatus === AppointmentStatus.completed
+    ) {
       await tx.client.update({
         where: {
           id: saved.client.id,
@@ -926,20 +1178,48 @@ export async function updateFrontOfficeAppointmentStatus(
           : {}),
         objectLabel: `${saved.title}${saved.client?.fullName ? ` · ${saved.client.fullName}` : ""}`,
         changes: [
-          {
-            label: "Status",
-            previousValue:
-              findAppointmentStatusDefinition(existing.status)?.label ??
-              "Scheduled",
-            nextValue:
-              findAppointmentStatusDefinition(saved.status)?.label ??
-              "Scheduled",
-          },
+          ...(shouldUpdateStatus && nextStatus
+            ? [
+                {
+                  label: "Status",
+                  previousValue:
+                    findAppointmentStatusDefinition(existing.status)?.label ??
+                    "Scheduled",
+                  nextValue:
+                    findAppointmentStatusDefinition(saved.status)?.label ??
+                    "Scheduled",
+                },
+              ]
+            : []),
+          ...(shouldUpdateExternalWorkflow && nextExternalStatus
+            ? [
+                {
+                  label: "External follow-up",
+                  previousValue: formatFrontOfficeAppointmentExternalWorkflowLabel(
+                    currentExternalWorkflow.status,
+                  ),
+                  nextValue:
+                    formatFrontOfficeAppointmentExternalWorkflowLabel(
+                      nextExternalStatus,
+                    ),
+                },
+              ]
+            : []),
         ],
         details: [
           `Starts: ${formatDateTimeLabel(saved.startsAt, { timeZone: null })}`,
           ...(saved.location?.trim()
             ? [`Location: ${saved.location.trim()}`]
+            : []),
+          ...(shouldUpdateExternalWorkflow && nextExternalStatus
+            ? [
+                `External workflow: ${formatFrontOfficeAppointmentExternalWorkflowLabel(
+                  nextExternalStatus,
+                )}`,
+              ]
+            : []),
+          ...(shouldUpdateExternalWorkflow && nextExternalNote
+            ? [`Workflow note: ${nextExternalNote}`]
             : []),
         ],
       },

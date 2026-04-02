@@ -45,7 +45,7 @@ export default async function AgentNotificationsPage() {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="This queue keeps the highest-pressure cleanup signal per client visible in one place, while duplicate review stays as a separate block so agents can clean the dossier before the next touch."
+            subtitle="This queue keeps the highest-pressure cleanup signal per client visible in one place, including appointment follow-up, confirmation, and reschedule pressure, while duplicate review stays as a separate block so agents can clean the dossier before the next touch."
             title="Cleanup center"
           >
             <ListPageStatsGrid>

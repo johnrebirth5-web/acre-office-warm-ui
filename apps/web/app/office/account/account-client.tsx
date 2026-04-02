@@ -401,6 +401,19 @@ export function OfficeAccountClient({ snapshot }: OfficeAccountClientProps) {
 
                 <label className={`office-account-toggle${notificationState.inAppEnabled ? "" : " is-disabled"}`}>
                   <input
+                    checked={notificationState.messageAlertsEnabled}
+                    disabled={!notificationState.inAppEnabled}
+                    onChange={(event) => setNotificationField("messageAlertsEnabled", event.target.checked)}
+                    type="checkbox"
+                  />
+                  <div>
+                    <strong>Mail notifications</strong>
+                    <p>New internal message alerts that link directly back into your Back Office mailbox.</p>
+                  </div>
+                </label>
+
+                <label className={`office-account-toggle${notificationState.inAppEnabled ? "" : " is-disabled"}`}>
+                  <input
                     checked={notificationState.offerAlertsEnabled}
                     disabled={!notificationState.inAppEnabled}
                     onChange={(event) => setNotificationField("offerAlertsEnabled", event.target.checked)}

@@ -29,7 +29,10 @@ import {
 } from "./front-office-ai";
 import { formatDateTimeLabel } from "./date-time";
 import { buildFrontOfficeAppointmentExternalLinks } from "./front-office-calendar-links";
-import { getFrontOfficeAppointmentBridgeStatusMap } from "./front-office-appointments";
+import {
+  getFrontOfficeAppointmentBridgeStatusMap,
+  getFrontOfficeAppointmentExternalWorkflowState,
+} from "./front-office-appointments";
 import {
   defaultLeaseReminderLeadDays,
   resolveLeaseReminderDates,
@@ -58,6 +61,9 @@ export type FrontOfficeClientDetailAppointmentItem = {
   typeTone: FrontOfficeClientDetailTone;
   statusLabel: string;
   statusTone: FrontOfficeClientDetailTone;
+  externalStatusLabel: string;
+  externalStatusTone: FrontOfficeClientDetailTone;
+  externalStatusDetail: string;
   startsAtLabel: string;
   locationLabel: string;
   contextLabel: string;
@@ -2504,6 +2510,7 @@ export async function getFrontOfficeClientDetail(
           location: true,
           meetingUrl: true,
           contactLabel: true,
+          metadata: true,
           listing: {
             select: {
               title: true,
@@ -3811,6 +3818,10 @@ export async function getFrontOfficeClientDetail(
       };
     }),
     appointments: client.appointments.map((appointment) => {
+      const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
+        metadata: appointment.metadata,
+        timeZone: input.timeZone ?? null,
+      });
       const externalLinks = buildFrontOfficeAppointmentExternalLinks({
         appointmentId: appointment.id,
         title: appointment.title,
@@ -3834,6 +3845,9 @@ export async function getFrontOfficeClientDetail(
         typeTone: mapAppointmentTypeTone(appointment.type),
         statusLabel: formatAppointmentStatusLabel(appointment.status),
         statusTone: mapAppointmentStatusTone(appointment.status),
+        externalStatusLabel: externalWorkflow.label,
+        externalStatusTone: externalWorkflow.tone,
+        externalStatusDetail: externalWorkflow.detail,
         startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
           timeZone: input.timeZone ?? null,
         }),

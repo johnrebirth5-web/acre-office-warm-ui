@@ -15,6 +15,7 @@ export async function PATCH(request: NextRequest) {
         approvalAlertsEnabled?: boolean;
         taskRemindersEnabled?: boolean;
         offerAlertsEnabled?: boolean;
+        messageAlertsEnabled?: boolean;
       }
     | null;
 
@@ -23,7 +24,8 @@ export async function PATCH(request: NextRequest) {
     typeof body.inAppEnabled !== "boolean" ||
     typeof body.approvalAlertsEnabled !== "boolean" ||
     typeof body.taskRemindersEnabled !== "boolean" ||
-    typeof body.offerAlertsEnabled !== "boolean"
+    typeof body.offerAlertsEnabled !== "boolean" ||
+    typeof body.messageAlertsEnabled !== "boolean"
   ) {
     return NextResponse.json({ error: "Valid notification preferences are required." }, { status: 400 });
   }
@@ -34,7 +36,8 @@ export async function PATCH(request: NextRequest) {
     inAppEnabled: body.inAppEnabled,
     approvalAlertsEnabled: body.approvalAlertsEnabled,
     taskRemindersEnabled: body.taskRemindersEnabled,
-    offerAlertsEnabled: body.offerAlertsEnabled
+    offerAlertsEnabled: body.offerAlertsEnabled,
+    messageAlertsEnabled: body.messageAlertsEnabled
   });
 
   if (!saved) {

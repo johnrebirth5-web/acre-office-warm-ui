@@ -6,7 +6,10 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import type { FrontOfficeAppointmentsSnapshot } from "@acre/db";
+import type {
+  FrontOfficeAppointmentExternalWorkflowStatus,
+  FrontOfficeAppointmentsSnapshot,
+} from "@acre/db";
 import {
   Badge,
   EmptyState,
@@ -42,6 +45,17 @@ type FeedbackState = {
   tone: "success" | "error";
   message: string;
 } | null;
+
+const externalStatusOptions: Array<{
+  value: FrontOfficeAppointmentExternalWorkflowStatus;
+  label: string;
+}> = [
+  { value: "idle", label: "External follow-up idle" },
+  { value: "needs_follow_up", label: "Needs follow-up" },
+  { value: "confirmation_pending", label: "Awaiting confirmation" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "reschedule_requested", label: "Reschedule requested" },
+];
 
 function buildDefaultStartValue() {
   const nextHour = new Date();
@@ -87,6 +101,9 @@ export function FrontOfficeCalendarClient(
   );
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [externalStatusDrafts, setExternalStatusDrafts] = useState<
+    Record<string, FrontOfficeAppointmentExternalWorkflowStatus>
+  >({});
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending;
 
@@ -99,6 +116,16 @@ export function FrontOfficeCalendarClient(
     setFormState((current) => ({
       ...current,
       [name]: value,
+    }));
+  }
+
+  function handleExternalStatusDraftChange(
+    appointmentId: string,
+    value: FrontOfficeAppointmentExternalWorkflowStatus,
+  ) {
+    setExternalStatusDrafts((current) => ({
+      ...current,
+      [appointmentId]: value,
     }));
   }
 
@@ -191,6 +218,66 @@ export function FrontOfficeCalendarClient(
       setFeedback({
         tone: "error",
         message: "Could not update the appointment.",
+      });
+      setIsSaving(false);
+    }
+  }
+
+  async function handleExternalStatusUpdate(appointmentId: string) {
+    const appointment = props.snapshot.appointments.find(
+      (item) => item.id === appointmentId,
+    );
+    const nextExternalStatus =
+      externalStatusDrafts[appointmentId] ?? appointment?.externalStatusValue;
+
+    if (!appointment || !nextExternalStatus) {
+      return;
+    }
+
+    setFeedback(null);
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(`/api/agent/appointments/${appointmentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          externalStatus: nextExternalStatus,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        setFeedback({
+          tone: "error",
+          message:
+            payload?.error ?? "Could not update the external appointment state.",
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      setFeedback({
+        tone: "success",
+        message: "Appointment external writeback updated.",
+      });
+      setExternalStatusDrafts((current) => {
+        const next = { ...current };
+        delete next[appointmentId];
+        return next;
+      });
+      startTransition(() => {
+        router.refresh();
+        setIsSaving(false);
+      });
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Could not update the external appointment state.",
       });
       setIsSaving(false);
     }
@@ -381,6 +468,9 @@ export function FrontOfficeCalendarClient(
                     <Badge tone={appointment.reminderTone}>
                       {appointment.reminderLabel}
                     </Badge>
+                    <StatusBadge tone={appointment.externalStatusTone}>
+                      {appointment.externalStatusLabel}
+                    </StatusBadge>
                   </div>
                 </div>
 
@@ -392,6 +482,9 @@ export function FrontOfficeCalendarClient(
                 </div>
 
                 <p>{appointment.notesLabel}</p>
+                <p className="front-office-record-supporting">
+                  {appointment.externalStatusDetail}
+                </p>
                 <p className="front-office-record-supporting">
                   {appointment.bridgeStatusDetail}
                 </p>
@@ -461,6 +554,47 @@ export function FrontOfficeCalendarClient(
                       type="button"
                     >
                       Cancel
+                    </button>
+                  </div>
+                ) : null}
+
+                {appointment.statusLabel === "Scheduled" ? (
+                  <div className="front-office-calendar-writeback">
+                    <span className="front-office-calendar-writeback-label">
+                      External writeback
+                    </span>
+                    <SelectInput
+                      className="front-office-calendar-writeback-select"
+                      onChange={(event) =>
+                        handleExternalStatusDraftChange(
+                          appointment.id,
+                          event.target
+                            .value as FrontOfficeAppointmentExternalWorkflowStatus,
+                        )
+                      }
+                      value={
+                        externalStatusDrafts[appointment.id] ??
+                        appointment.externalStatusValue
+                      }
+                    >
+                      {externalStatusOptions.map((option) => (
+                        <option key={`${appointment.id}-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </SelectInput>
+                    <button
+                      className="office-button-secondary office-inline-action-sm"
+                      disabled={
+                        isBusy ||
+                        (externalStatusDrafts[appointment.id] ??
+                          appointment.externalStatusValue) ===
+                          appointment.externalStatusValue
+                      }
+                      onClick={() => handleExternalStatusUpdate(appointment.id)}
+                      type="button"
+                    >
+                      Save writeback
                     </button>
                   </div>
                 ) : null}

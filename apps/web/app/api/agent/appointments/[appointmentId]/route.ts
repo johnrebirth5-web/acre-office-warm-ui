@@ -52,6 +52,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       actorMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
       status: readOptionalString(body, "status"),
+      externalStatus: readOptionalString(body, "externalStatus"),
+      externalNote: readOptionalString(body, "externalNote"),
     });
 
     if (!appointment) {

@@ -65,6 +65,7 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
   listing: "Listing",
   follow_up: "Follow-up",
   event: "Event",
+  internal_message_received: "Internal message",
   appointment_due_soon: "Appointment due soon",
   task_review_requested: "Awaiting my review",
   task_second_review_requested: "Awaiting second review",

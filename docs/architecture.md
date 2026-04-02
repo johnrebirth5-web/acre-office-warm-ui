@@ -19,7 +19,7 @@
   - membership-level `allow / deny` overrides
   - team hierarchy 驱动的 `self / team / company` scope resolution
 - 数据级 scope 也开始由显式 view permission 驱动，而不是只靠角色白名单
-- `Office / Back Office` 的页面主线已经开始按 `Brokermint` 的后台结构收敛，其中 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Approve Docs`、`Reports`、`Performance`、`Notifications`、`Account`、`Billing`、`Activity`、`Library` 已经切到真实数据库，其他页面仍主要由静态示例数据驱动
+- `Office / Back Office` 的页面主线已经开始按 `Brokermint` 的后台结构收敛，其中 `Dashboard` 的业务指标、`Pipeline`、`Transactions`、`Contacts`、`Tasks`、`Approve Docs`、`Reports`、`Performance`、`Mail`、`Notifications`、`Account`、`Billing`、`Activity`、`Library` 已经切到真实数据库，其他页面仍主要由静态示例数据驱动
 - `Transaction detail` 现在已经进入真实 workflow 阶段，除 overview / status / contacts / finance / tasks 外，还包含：
   - offers
   - documents
@@ -67,6 +67,7 @@
   - `Transactions`：list / detail / create / status update
   - `Contacts`：list / detail / create / edit / follow-up task create / transaction link
   - `Account`：current-membership profile update、notification preference save、self summary snapshot
+  - `Mail`：recipient lookup、thread create、thread detail、reply、read/unread、archive/unarchive、attachment download、audit-mode thread inspection
   - `Library`：folder create / rename、document upload / rename / move / delete、inline preview / download
   - `Transaction detail`：finance update、linked contacts 管理、transaction tasks create / update、documents / forms / signatures、commission calculation
   - `Approve Docs`：server-side document review queue snapshot；approve / reject / reopen / complete 继续复用 transaction task workflow route
@@ -191,6 +192,19 @@
     - `AgentProfile` 做 avatar / license / extension / onboarding context
     - `MembershipNotificationPreference` 做当前 membership 的 inbox preference state
   - 当前 security section 只反映真实内部账号现状，不伪造 forgot-password、email delivery 或 2-step flows
+- 当前 `Office Mail` 也已通过 Prisma service 和 route handlers 落地到：
+  - `/office/mail`
+  - `/api/office/mail/recipients`
+  - `/api/office/mail/threads`
+  - `/api/office/mail/threads/:threadId`
+  - `/api/office/mail/threads/:threadId/messages`
+  - `/api/office/mail/attachments/:attachmentId/file`
+  - 核心复用：
+    - `OfficeMailThread / OfficeMailParticipant / OfficeMailMessage / OfficeMailAttachment` 做线程、参与者、消息与附件真源
+    - `MembershipNotificationPreference.messageAlertsEnabled` 做 thread-notification opt-in
+    - `Notification` 做 `internal_message_received` inbox bridge
+    - `AuditLog` 只记录 mail metadata events，不记录正文全文
+  - 当前附件继续复用本地文件系统 storage adapter，落盘路径在当前 document storage root 下的 `organization/mail/thread/message`
 - 当前 `Office Notifications` 现在除了持久化 inbox rows 以外，还会在页面上派生一个 live payout review queue：
   - 当 `AgentPayoutStatement.reviewStatus === awaiting_agent` 时，agent 会在 `/office/notifications` 和 `/office/dashboard` 持续看到高优先级 review reminder
   - 该 queue 的真源是 statement 当前状态，不依赖 notification unread / read 状态

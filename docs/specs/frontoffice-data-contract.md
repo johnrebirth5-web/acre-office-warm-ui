@@ -19,13 +19,13 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking + quick lead intake + visible-scope duplicate merge + ai explainability / boundary hardening + external calendar / email bridge` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking + quick lead intake + visible-scope duplicate merge + ai explainability / boundary hardening + external calendar / email bridge + appointment external writeback state` foundation, the recommended next implementation target is:
 
 - `broader CRM quality-of-life + deeper external-system integration`
 
 That means:
 
-- Front Office should keep extending beyond Acre-only scheduling surfaces, moving from export-style bridges into stronger calendar / inbox writeback where it is truly supported
+- Front Office should keep extending beyond Acre-only scheduling surfaces, moving from export-style bridges into stronger calendar / inbox writeback where it is truly supported on top of the current bridge-action log plus agent-managed external follow-up state
 - the next CRM pass should keep reducing first-call friction through stronger cleanup, deeper OCR-style intake assists, and eventually a more unified cross-surface cleanup center
 - automation should still stay safe and agent-approved first: connect systems and improve operational reach before any true auto-send behavior
 - the goal is to extend the now-explainable FO execution layer into the tools agents actually live in day to day
@@ -205,7 +205,8 @@ This keeps the handoff visible without pretending formal transaction creation al
   - scheduled appointments on `/agent/calendar` and `/agent/clients/[clientId]` now expose direct `Google Calendar`, `Outlook`, `Download ICS`, and `Email client` actions
   - the shared appointment service now generates those export links from the same FO appointment record instead of asking the agent to manually retype title, time, location, or meeting link into outside systems
   - those bridge actions now also write back into the shared `AuditLog`, so the FO calendar and dossier can show the latest logged external action on each appointment without inventing a second sync-status store
-  - this first bridge intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path with lightweight writeback that preserves the existing FO appointment source of truth
+  - FO appointments now also carry an explicit agent-managed external follow-up state, so confirmation, resend, and reschedule pressure can be surfaced in the calendar, dossier, and cleanup center even though Acre still does not own the outside system
+  - this current layer intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path with lightweight writeback that preserves the existing FO appointment source of truth
 
 ## Non-goals in this phase
 
@@ -216,5 +217,5 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- deeper calendar / inbox writeback on top of the current export + logged-bridge layer
+- deeper calendar / inbox writeback on top of the current export + logged-bridge + external-status layer
 - broader CRM quality-of-life work such as deeper office-wide cleanup depth and provider-backed OCR / transcript intake depth beyond the current browser-side beta

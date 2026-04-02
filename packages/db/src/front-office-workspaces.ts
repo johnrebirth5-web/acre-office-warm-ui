@@ -10,6 +10,10 @@ import {
 import { resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import {
+  frontOfficeAppointmentExternalWorkflowStatuses,
+  getFrontOfficeAppointmentExternalWorkflowState,
+} from "./front-office-appointments";
 import { resolveLeaseReminderDates } from "./lease-reminders";
 import { reconcileOfficeNotificationReminders } from "./notifications";
 
@@ -1834,6 +1838,7 @@ export async function getFrontOfficeActivitySnapshot(
         startsAt: true,
         location: true,
         meetingUrl: true,
+        metadata: true,
         client: {
           select: {
             id: true,
@@ -1919,19 +1924,51 @@ export async function getFrontOfficeActivitySnapshot(
 
   const appointmentItems: CleanupCandidate[] = upcomingAppointments.map(
     (appointment) => {
+      const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
+        metadata: appointment.metadata,
+        timeZone: input.timeZone ?? null,
+      });
       const startsAtTime = appointment.startsAt.getTime();
-      const tone: FrontOfficeTone =
+      let tone: FrontOfficeTone =
         startsAtTime <= now.getTime() + 2 * 60 * 60 * 1000
           ? "danger"
           : startsAtTime < startOfTomorrow.getTime()
             ? "warning"
             : "accent";
-      const priority =
+      let priority =
         tone === "danger" ? 1 : tone === "warning" ? 3 : 7;
+      let kindLabel = "Appointment soon";
+
+      if (
+        externalWorkflow.value ===
+        frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+      ) {
+        tone = "danger";
+        priority = 0;
+        kindLabel = "Reschedule requested";
+      } else if (
+        externalWorkflow.value ===
+        frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp
+      ) {
+        tone =
+          startsAtTime <= now.getTime() + 6 * 60 * 60 * 1000
+            ? "danger"
+            : "warning";
+        priority = tone === "danger" ? 1 : 2;
+        kindLabel = "Appointment follow-up";
+      } else if (
+        externalWorkflow.value ===
+          frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending &&
+        startsAtTime < startOfTomorrow.getTime()
+      ) {
+        tone = "warning";
+        priority = 3;
+        kindLabel = "Awaiting confirmation";
+      }
 
       return {
         id: `appointment-${appointment.id}`,
-        kindLabel: "Appointment soon",
+        kindLabel,
         tone,
         title: appointment.client?.fullName || appointment.title,
         description: [
@@ -1947,12 +1984,16 @@ export async function getFrontOfficeActivitySnapshot(
           appointment.client?.stage?.trim()
             ? `Stage · ${appointment.client.stage.trim()}`
             : "No client linked",
+          externalWorkflow.label,
           appointment.location?.trim() ||
           appointment.meetingUrl?.trim() ||
           "Location pending",
         ],
         href: `/agent/calendar?appointmentId=${appointment.id}`,
-        actionLabel: "Open calendar item",
+        actionLabel:
+          kindLabel === "Appointment soon"
+            ? "Open calendar item"
+            : "Open calendar writeback",
         _priority: priority,
         _sortAt: appointment.startsAt,
         _clientId: appointment.client?.id ?? null,

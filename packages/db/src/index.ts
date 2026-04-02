@@ -76,6 +76,10 @@ export const databaseModules = [
   "organization_role_templates",
   "organization_role_template_permissions",
   "membership_permission_overrides",
+  "office_mail_threads",
+  "office_mail_participants",
+  "office_mail_messages",
+  "office_mail_attachments",
 ] as const;
 
 export { assertDatabaseUrl, getPrismaClient, prisma } from "./client";
@@ -140,7 +144,30 @@ export {
   markOfficeNotificationRead,
   markOfficeNotificationUnread,
   openOfficeNotification,
+  upsertNotificationForMemberships,
 } from "./notifications";
+export {
+  archiveOfficeMailThread,
+  createOfficeMailThread,
+  getOfficeMailAttachmentStorageRecord,
+  getOfficeMailThreadDetail,
+  getOfficeMailWorkspace,
+  listOfficeMailRecipientOptions,
+  markOfficeMailThreadRead,
+  markOfficeMailThreadUnread,
+  replyToOfficeMailThread,
+  unarchiveOfficeMailThread,
+  type OfficeMailAttachmentInput,
+  type OfficeMailAttachmentItem,
+  type OfficeMailMessageItem,
+  type OfficeMailMode,
+  type OfficeMailParticipantItem,
+  type OfficeMailRecipientOption,
+  type OfficeMailThreadDetail,
+  type OfficeMailThreadListItem,
+  type OfficeMailView,
+  type OfficeMailWorkspaceSnapshot,
+} from "./mail";
 export {
   createLibraryDocument,
   createLibraryFolder,
@@ -272,13 +299,18 @@ export {
 } from "./front-office-calendar-links";
 export {
   createFrontOfficeAppointment,
+  formatFrontOfficeAppointmentExternalWorkflowLabel,
   getFrontOfficeAppointmentBridgeResult,
   getFrontOfficeAppointmentBridgeStatusMap,
   getFrontOfficeAppointmentCalendarExport,
+  getFrontOfficeAppointmentExternalWorkflowState,
   getFrontOfficeAppointmentsSnapshot,
+  frontOfficeAppointmentExternalWorkflowStatuses,
   updateFrontOfficeAppointmentStatus,
   type FrontOfficeAppointmentBridgeResult,
   type FrontOfficeAppointmentBridgeStatus,
+  type FrontOfficeAppointmentExternalWorkflowState,
+  type FrontOfficeAppointmentExternalWorkflowStatus,
   type FrontOfficeAppointmentHandoffItem,
   type FrontOfficeAppointmentOption,
   type FrontOfficeAppointmentRecord,

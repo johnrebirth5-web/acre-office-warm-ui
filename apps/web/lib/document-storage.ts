@@ -23,6 +23,14 @@ type SaveStoredTextInput = {
   content: string;
 };
 
+type SaveStoredMailFileInput = {
+  organizationId: string;
+  threadId: string;
+  messageId: string;
+  fileName: string;
+  bytes: Uint8Array;
+};
+
 const DEV_DOCUMENT_STORAGE_ROOT = path.join(process.cwd(), ".local-storage", "documents");
 const PRODUCTION_DOCUMENT_STORAGE_ROOT = "/var/lib/acre/documents";
 
@@ -103,6 +111,15 @@ export async function saveStoredTextDocument(input: SaveStoredTextInput): Promis
     transactionId: input.transactionId,
     fileName: input.fileName,
     bytes
+  });
+}
+
+export async function saveStoredMailFile(input: SaveStoredMailFileInput): Promise<StoredDocumentFile> {
+  return saveScopedFile({
+    organizationId: input.organizationId,
+    scopeSegments: ["mail", input.threadId, input.messageId],
+    fileName: input.fileName,
+    bytes: input.bytes
   });
 }
 

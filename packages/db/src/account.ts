@@ -11,7 +11,8 @@ const notificationPreferenceDefaults = {
   inAppEnabled: true,
   approvalAlertsEnabled: true,
   taskRemindersEnabled: true,
-  offerAlertsEnabled: true
+  offerAlertsEnabled: true,
+  messageAlertsEnabled: true
 } as const;
 
 const membershipStatusLabelMap: Record<MembershipStatus, string> = {
@@ -31,6 +32,7 @@ export type OfficeAccountNotificationPreferenceState = {
   approvalAlertsEnabled: boolean;
   taskRemindersEnabled: boolean;
   offerAlertsEnabled: boolean;
+  messageAlertsEnabled: boolean;
 };
 
 export type OfficeAccountSnapshot = {
@@ -121,6 +123,7 @@ export type SaveOfficeAccountNotificationPreferencesInput = {
   approvalAlertsEnabled: boolean;
   taskRemindersEnabled: boolean;
   offerAlertsEnabled: boolean;
+  messageAlertsEnabled: boolean;
 };
 
 function parseOptionalText(value: string | null | undefined) {
@@ -208,6 +211,7 @@ function getNotificationPreferenceState(
         approvalAlertsEnabled: boolean;
         taskRemindersEnabled: boolean;
         offerAlertsEnabled: boolean;
+        messageAlertsEnabled: boolean;
       }
     | null
     | undefined
@@ -216,7 +220,8 @@ function getNotificationPreferenceState(
     inAppEnabled: preference?.inAppEnabled ?? notificationPreferenceDefaults.inAppEnabled,
     approvalAlertsEnabled: preference?.approvalAlertsEnabled ?? notificationPreferenceDefaults.approvalAlertsEnabled,
     taskRemindersEnabled: preference?.taskRemindersEnabled ?? notificationPreferenceDefaults.taskRemindersEnabled,
-    offerAlertsEnabled: preference?.offerAlertsEnabled ?? notificationPreferenceDefaults.offerAlertsEnabled
+    offerAlertsEnabled: preference?.offerAlertsEnabled ?? notificationPreferenceDefaults.offerAlertsEnabled,
+    messageAlertsEnabled: preference?.messageAlertsEnabled ?? notificationPreferenceDefaults.messageAlertsEnabled
   };
 }
 
@@ -583,13 +588,15 @@ export async function saveOfficeAccountNotificationPreferences(input: SaveOffice
     inAppEnabled: input.inAppEnabled,
     approvalAlertsEnabled: input.approvalAlertsEnabled,
     taskRemindersEnabled: input.taskRemindersEnabled,
-    offerAlertsEnabled: input.offerAlertsEnabled
+    offerAlertsEnabled: input.offerAlertsEnabled,
+    messageAlertsEnabled: input.messageAlertsEnabled
   } satisfies OfficeAccountNotificationPreferenceState;
   const changes = [
     buildChange("In-app notifications", previousPreferences.inAppEnabled ? "Enabled" : "Disabled", nextPreferences.inAppEnabled ? "Enabled" : "Disabled"),
     buildChange("Approval alerts", previousPreferences.approvalAlertsEnabled ? "Enabled" : "Disabled", nextPreferences.approvalAlertsEnabled ? "Enabled" : "Disabled"),
     buildChange("Task reminders", previousPreferences.taskRemindersEnabled ? "Enabled" : "Disabled", nextPreferences.taskRemindersEnabled ? "Enabled" : "Disabled"),
-    buildChange("Offer alerts", previousPreferences.offerAlertsEnabled ? "Enabled" : "Disabled", nextPreferences.offerAlertsEnabled ? "Enabled" : "Disabled")
+    buildChange("Offer alerts", previousPreferences.offerAlertsEnabled ? "Enabled" : "Disabled", nextPreferences.offerAlertsEnabled ? "Enabled" : "Disabled"),
+    buildChange("Mail notifications", previousPreferences.messageAlertsEnabled ? "Enabled" : "Disabled", nextPreferences.messageAlertsEnabled ? "Enabled" : "Disabled")
   ].flatMap((change) => (change ? [change] : [] satisfies ActivityLogChange[]));
 
   if (changes.length === 0) {
@@ -607,7 +614,8 @@ export async function saveOfficeAccountNotificationPreferences(input: SaveOffice
         inAppEnabled: nextPreferences.inAppEnabled,
         approvalAlertsEnabled: nextPreferences.approvalAlertsEnabled,
         taskRemindersEnabled: nextPreferences.taskRemindersEnabled,
-        offerAlertsEnabled: nextPreferences.offerAlertsEnabled
+        offerAlertsEnabled: nextPreferences.offerAlertsEnabled,
+        messageAlertsEnabled: nextPreferences.messageAlertsEnabled
       },
       create: {
         organizationId: input.organizationId,
@@ -616,7 +624,8 @@ export async function saveOfficeAccountNotificationPreferences(input: SaveOffice
         inAppEnabled: nextPreferences.inAppEnabled,
         approvalAlertsEnabled: nextPreferences.approvalAlertsEnabled,
         taskRemindersEnabled: nextPreferences.taskRemindersEnabled,
-        offerAlertsEnabled: nextPreferences.offerAlertsEnabled
+        offerAlertsEnabled: nextPreferences.offerAlertsEnabled,
+        messageAlertsEnabled: nextPreferences.messageAlertsEnabled
       }
     });
 

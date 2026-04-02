@@ -14360,6 +14360,25 @@ body,
   gap: 8px;
 }
 
+.front-office-calendar-writeback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.front-office-calendar-writeback-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5f6f82;
+}
+
+.front-office-calendar-writeback-select {
+  min-width: 220px;
+}
+
 .front-office-follow-up-actions {
   display: flex;
   flex-wrap: wrap;
@@ -16605,5 +16624,305 @@ body,
 
   .office-mobile-rail-current strong {
     font-size: 0.94rem;
+  }
+}
+
+.office-mail-summary-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.office-mail-toolbar-row {
+  margin-top: 1rem;
+}
+
+.office-mail-filter-grid {
+  align-items: end;
+}
+
+.office-mail-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.office-mail-mode-toggle {
+  display: inline-flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.office-mail-mode-button.is-active {
+  border-color: var(--office-accent);
+  background: color-mix(in srgb, var(--office-accent) 12%, var(--office-surface));
+  color: var(--office-accent-strong);
+}
+
+.office-mail-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(21rem, 30rem) minmax(0, 1fr);
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.office-mail-thread-column,
+.office-mail-detail-column {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+
+.office-mail-compose-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.office-mail-compose-field-wide {
+  grid-column: 1 / -1;
+}
+
+.office-mail-compose-form .office-select[multiple] {
+  min-height: 10rem;
+}
+
+.office-mail-compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.office-mail-thread-list {
+  gap: 0.75rem;
+}
+
+.office-mail-thread-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.office-mail-thread-item {
+  border: 1px solid transparent;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.office-mail-thread-item.is-selected {
+  border-color: var(--office-accent);
+  background: color-mix(in srgb, var(--office-accent) 8%, var(--office-surface));
+  box-shadow: var(--office-shadow-sm);
+}
+
+.office-mail-thread-participants,
+.office-mail-thread-preview {
+  display: block;
+}
+
+.office-mail-thread-participants {
+  font-weight: 600;
+  color: var(--office-text);
+}
+
+.office-mail-thread-preview {
+  margin-top: 0.3rem;
+  color: var(--office-text-muted);
+}
+
+.office-mail-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.office-mail-detail-meta,
+.office-mail-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.office-mail-participant-strip {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-md);
+  background: var(--office-surface-muted);
+}
+
+.office-mail-participant-label {
+  font-size: var(--office-text-label-size);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--office-text-soft);
+}
+
+.office-mail-participant-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.office-mail-participant-pill {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 12rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-md);
+  background: var(--office-surface);
+}
+
+.office-mail-participant-pill strong {
+  color: var(--office-text);
+}
+
+.office-mail-participant-pill span {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+}
+
+.office-mail-message-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.office-mail-message {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-md);
+  background: var(--office-surface);
+}
+
+.office-mail-message.is-self {
+  border-color: color-mix(in srgb, var(--office-accent) 35%, var(--office-border));
+  background: color-mix(in srgb, var(--office-accent) 6%, var(--office-surface));
+}
+
+.office-mail-message-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.office-mail-message-head div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.office-mail-message-head span {
+  color: var(--office-text-muted);
+  font-size: var(--office-text-meta-size);
+}
+
+.office-mail-message-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--office-text);
+}
+
+.office-mail-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.office-mail-attachment-link {
+  display: inline-flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--office-border);
+  border-radius: 999px;
+  background: var(--office-surface-muted);
+  color: var(--office-text);
+  text-decoration: none;
+}
+
+.office-mail-attachment-link:hover,
+.office-mail-attachment-link:focus-visible {
+  border-color: var(--office-accent);
+  color: var(--office-accent-strong);
+}
+
+.office-mail-reply-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--office-border);
+  border-radius: var(--office-radius-md);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--office-surface-muted) 90%, #ffffff), var(--office-surface));
+  position: sticky;
+  bottom: 1rem;
+}
+
+.office-mail-reply-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.office-mail-reply-head p,
+.office-mail-audit-note p {
+  margin: 0.35rem 0 0;
+  color: var(--office-text-muted);
+}
+
+.office-mail-audit-note {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px dashed color-mix(in srgb, var(--office-warning) 55%, var(--office-border));
+  border-radius: var(--office-radius-md);
+  background: color-mix(in srgb, var(--office-warning-soft) 68%, #ffffff);
+}
+
+@media (max-width: 1120px) {
+  .office-mail-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .office-mail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .office-mail-reply-form {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .office-mail-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .office-mail-filter-actions {
+    width: 100%;
+  }
+
+  .office-mail-filter-actions > * {
+    width: 100%;
+  }
+
+  .office-mail-mode-toggle {
+    width: 100%;
+  }
+
+  .office-mail-mode-button {
+    flex: 1 1 0;
+    text-align: center;
   }
 }

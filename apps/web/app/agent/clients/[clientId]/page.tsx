@@ -257,15 +257,17 @@ export default async function AgentClientDetailPage(
                       }
                       badgeLabel={appointment.typeLabel}
                       badgeTone={appointment.typeTone}
-                      context={appointment.statusLabel}
+                      context={`${appointment.statusLabel} · ${appointment.externalStatusLabel}`}
                       description={`${appointment.startsAtLabel} · ${appointment.locationLabel}`}
                       key={appointment.id}
                       meta={
                         <div className="list-row-meta front-office-record-meta">
                           <span>{appointment.contextLabel}</span>
                           <span>
-                            {appointment.bridgeStatusLabel} ·{" "}
-                            {appointment.bridgeStatusDetail}
+                            {appointment.externalStatusDetail}
+                          </span>
+                          <span>
+                            {appointment.bridgeStatusLabel} · {appointment.bridgeStatusDetail}
                           </span>
                         </div>
                       }

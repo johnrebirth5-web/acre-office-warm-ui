@@ -66,6 +66,10 @@ export const activityLogActions = {
   settingsChecklistTemplateActivated: "settings.checklist_template_activated",
   settingsChecklistTemplateDeactivated:
     "settings.checklist_template_deactivated",
+  officeMailThreadCreated: "office_mail.thread_created",
+  officeMailMessageSent: "office_mail.message_sent",
+  officeMailThreadArchived: "office_mail.thread_archived",
+  officeMailThreadUnarchived: "office_mail.thread_unarchived",
   transactionCreated: "transaction.created",
   transactionUpdated: "transaction.updated",
   transactionStatusChanged: "transaction.status_changed",
@@ -186,6 +190,8 @@ export type ActivityLogEntityType =
   | "signature_template"
   | "organization_role_template"
   | "membership_permission_override"
+  | "office_mail_thread"
+  | "office_mail_message"
   | "transaction"
   | "offer"
   | "contact"
@@ -466,6 +472,10 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "settings.checklist_template_updated": "Checklist template updated",
   "settings.checklist_template_activated": "Checklist template activated",
   "settings.checklist_template_deactivated": "Checklist template deactivated",
+  "office_mail.thread_created": "Mail thread created",
+  "office_mail.message_sent": "Mail message sent",
+  "office_mail.thread_archived": "Mail thread archived",
+  "office_mail.thread_unarchived": "Mail thread restored",
   "transaction.created": "Transaction created",
   "transaction.updated": "Transaction updated",
   "transaction.status_changed": "Transaction status changed",
@@ -962,6 +972,9 @@ function mapEntityTypeToObjectType(
     case "organization_role_template":
     case "membership_permission_override":
       return "agent";
+    case "office_mail_thread":
+    case "office_mail_message":
+      return "comment";
     case "user_credential":
     case "invitation":
       return "auth";
@@ -1204,6 +1217,13 @@ function getActivityHref(
     return payload.contextHref ?? null;
   }
 
+  if (
+    record.entityType === "office_mail_thread" ||
+    record.entityType === "office_mail_message"
+  ) {
+    return payload.contextHref ?? "/office/mail";
+  }
+
   return null;
 }
 
@@ -1360,6 +1380,14 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
       return "activated a checklist template";
     case activityLogActions.settingsChecklistTemplateDeactivated:
       return "deactivated a checklist template";
+    case activityLogActions.officeMailThreadCreated:
+      return "created an internal mail thread";
+    case activityLogActions.officeMailMessageSent:
+      return "sent an internal mail reply";
+    case activityLogActions.officeMailThreadArchived:
+      return "archived an internal mail thread";
+    case activityLogActions.officeMailThreadUnarchived:
+      return "restored an internal mail thread";
     case activityLogActions.transactionCreated:
       return "created a transaction";
     case activityLogActions.transactionUpdated:

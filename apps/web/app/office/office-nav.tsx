@@ -2,6 +2,7 @@
 
 import {
   canAccessAccountActivity,
+  canAccessOfficeMail,
   canAccessOffice1099Tracker,
   canAccessOfficeAdminAccountingWorkspace,
   canAccessOfficeCommissionWorkspace,
@@ -153,6 +154,11 @@ function getNavGroups(subject: PermissionSubject): WorkspaceNavGroup[] {
       title: "User",
       icon: "◉",
       items: [
+        {
+          label: "Mail",
+          href: "/office/mail",
+          isVisible: canAccessOfficeMail,
+        },
         {
           label: "Notifications",
           href: "/office/notifications",

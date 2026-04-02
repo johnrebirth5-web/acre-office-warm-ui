@@ -45,6 +45,7 @@ enum NotificationType {
   listing
   follow_up
   event
+  internal_message_received
   appointment_due_soon
   task_review_requested
   task_second_review_requested
@@ -66,6 +67,7 @@ enum NotificationType {
 
 enum NotificationCategory {
   system
+  message
   task
   offer
   signature
@@ -82,6 +84,7 @@ enum NotificationSeverity {
 }
 
 enum NotificationEntityType {
+  office_mail_thread
   follow_up_task
   transaction_task
   offer
@@ -684,6 +687,10 @@ model Organization {
   roleTemplates                         OrganizationRoleTemplate[]
   roleTemplatePermissions               OrganizationRoleTemplatePermission[]
   membershipPermissionOverrides         MembershipPermissionOverride[]
+  officeMailThreads                     OfficeMailThread[]
+  officeMailParticipants                OfficeMailParticipant[]
+  officeMailMessages                    OfficeMailMessage[]
+  officeMailAttachments                 OfficeMailAttachment[]
 }
 
 model Office {
@@ -762,7 +769,6 @@ model Office {
   checklistTemplateItems                ChecklistTemplateItem[]
   transactionSearchLayouts              TransactionSearchLayout[]
   transactionReportSearchLayouts        TransactionReportSearchLayout[]
-
   @@unique([organizationId, slug])
 }
 
@@ -870,6 +876,9 @@ model Membership {
   createdPermissionOverrides                   MembershipPermissionOverride[]         @relation("MembershipPermissionOverrideCreatedBy")
   ownedLibraryFolders                          LibraryFolder[]                        @relation("LibraryFolderOwner")
   ownedLibraryDocuments                        LibraryDocument[]                      @relation("LibraryDocumentOwner")
+  createdOfficeMailThreads                     OfficeMailThread[]                     @relation("OfficeMailThreadCreatedBy")
+  officeMailParticipants                       OfficeMailParticipant[]
+  sentOfficeMailMessages                       OfficeMailMessage[]                    @relation("OfficeMailMessageSender")
 
   @@unique([organizationId, userId])
 }
@@ -1056,6 +1065,7 @@ model MembershipNotificationPreference {
   approvalAlertsEnabled Boolean      @default(true)
   taskRemindersEnabled  Boolean      @default(true)
   offerAlertsEnabled    Boolean      @default(true)
+  messageAlertsEnabled  Boolean      @default(true)
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1528,6 +1538,72 @@ model Notification {
   @@index([organizationId, membershipId, readAt, createdAt])
   @@index([organizationId, membershipId, category])
   @@index([organizationId, membershipId, entityType, entityId])
+}
+
+model OfficeMailThread {
+  id                    String                 @id @default(cuid())
+  organizationId        String
+  createdByMembershipId String
+  subject               String
+  latestMessageAt       DateTime
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByMembership   Membership             @relation("OfficeMailThreadCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
+  participants          OfficeMailParticipant[]
+  messages              OfficeMailMessage[]
+
+  @@index([organizationId, latestMessageAt])
+  @@index([organizationId, createdByMembershipId, latestMessageAt])
+}
+
+model OfficeMailParticipant {
+  id             String          @id @default(cuid())
+  organizationId String
+  threadId       String
+  membershipId   String
+  joinedAt       DateTime        @default(now())
+  lastReadAt     DateTime?
+  archivedAt     DateTime?
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread         OfficeMailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  membership     Membership      @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, membershipId])
+  @@index([organizationId, membershipId, archivedAt])
+  @@index([organizationId, membershipId, lastReadAt])
+}
+
+model OfficeMailMessage {
+  id                 String                @id @default(cuid())
+  organizationId     String
+  threadId           String
+  senderMembershipId String
+  body               String                @default("")
+  createdAt          DateTime              @default(now())
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread             OfficeMailThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderMembership   Membership            @relation("OfficeMailMessageSender", fields: [senderMembershipId], references: [id], onDelete: Cascade)
+  attachments        OfficeMailAttachment[]
+
+  @@index([organizationId, threadId, createdAt])
+  @@index([organizationId, senderMembershipId, createdAt])
+}
+
+model OfficeMailAttachment {
+  id             String            @id @default(cuid())
+  organizationId String
+  messageId      String
+  fileName       String
+  mimeType       String
+  fileSizeBytes  Int
+  storageKey     String
+  createdAt      DateTime          @default(now())
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  message        OfficeMailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, messageId])
 }
 
 model Event {

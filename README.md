@@ -3,7 +3,7 @@
 `Acre` 是一个面向房地产经纪公司内部团队的 Web 工作台。当前仓库实现的是 `Acre Agent OS` 的第一版工程骨架，服务对象是：
 
 - `Agent`：一线经纪人，使用 listings、轻 CRM、活动通知、资源库、AI 工具
-- `Office Team`：运营/管理人员，当前重点是 `Back Office`，参考 `Brokermint` 的 `Dashboard / Pipeline / Transactions / Contacts / Reports / Notifications / Account / Billing / Activity / Library / Accounting`
+- `Office Team`：运营/管理人员，当前重点是 `Back Office`，参考 `Brokermint` 的 `Dashboard / Pipeline / Transactions / Contacts / Reports / Mail / Notifications / Account / Billing / Activity / Library / Accounting`
 
 这不是客户前台网站。客户前台后续会是独立 surface，复用这里的 listings 和后台数据能力。
 
@@ -40,6 +40,7 @@
   - `Signatures`
   - `Reports`
   - `Performance`
+  - `Mail`
   - `Notifications`
   - `Account / My Profile`
   - `Billing / My Billing`
@@ -577,6 +578,7 @@
   - 与 `Activity Log` 的边界现在明确：
     - `Activity Log` = account/system 级审计事件与实时 operational alerts
     - `Notifications` = 面向当前用户的 actionable alerts / reminders inbox
+    - `Mail` = 同组织 Back Office 成员之间的人工作业沟通线程，不承载系统提醒
   - 当前支持：
     - unread-first 排序
     - category / type / read-state filters
@@ -596,6 +598,25 @@
     - onboarding assigned / due soon
   - 当前不会伪造 email / SMS / WeChat delivery
   - 当前也没有 dismiss / archive；MVP 先以 read/unread 为唯一用户状态
+- `Mail` 现在也已落成真实 Back Office 站内邮件：
+  - 路由：`/office/mail`
+  - 每个账号都有自己的 Back Office 信箱，不依赖真实邮箱地址
+  - 当前范围固定为：
+    - 同组织 active Back Office 成员互发
+    - 多人线程会话
+    - 附件上传与下载
+    - thread-level read / unread / archive
+    - `mail:audit` 审计视图
+  - 当前明确不支持：
+    - 外部收件人
+    - CC / BCC
+    - 草稿 / 转发 / 删除恢复 / 消息编辑
+    - 线程中途加人或减人
+  - 当前通知联动规则：
+    - 每次新消息会给其他参与者写入一条 `internal_message_received` inbox notification
+    - 同一线程 / 同一接收者只保留一条活动通知，避免刷屏
+    - 打开线程读信后，会把同线程通知同步标为已读
+  - 当前 `Activity Log` 只记录 mail 元数据事件，不写入正文全文
 - `Account / My Profile` 现在也已落成真实 Back Office 自助账户页：
   - 路由：`/office/account`
   - 这是当前登录 membership 的 self-service account/profile page，不是 admin-facing `Users / Teams / Settings`
@@ -623,6 +644,7 @@
   - 当前通知偏好使用显式持久化模型：
     - `MembershipNotificationPreference`
     - 支持 `in-app notifications`
+    - 支持 `mail notifications`
     - 支持 `activity / approval alerts`
     - 支持 `task reminders`
     - 支持 `offer notifications`
