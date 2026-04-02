@@ -13592,6 +13592,10 @@ body,
   gap: 22px;
 }
 
+.front-office-dashboard-page {
+  gap: 18px;
+}
+
 .front-office-template-header,
 .front-office-dashboard-header {
   gap: 18px 24px;
@@ -13632,8 +13636,9 @@ body,
 
 .front-office-dashboard-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
   width: 100%;
+  gap: 10px;
   justify-self: stretch;
 }
 
@@ -13642,10 +13647,27 @@ body,
   min-width: min(156px, 100%);
 }
 
+.front-office-dashboard-summary .office-summary-chip {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  box-shadow: 0 10px 18px rgba(148, 163, 184, 0.11);
+}
+
+.front-office-dashboard-summary .office-summary-chip strong {
+  font-size: 1.12rem;
+}
+
 .front-office-template-layout,
 .front-office-dashboard-layout {
   grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
   gap: 18px;
+}
+
+.front-office-dashboard-layout {
+  grid-template-columns: minmax(0, 1.68fr) minmax(290px, 0.78fr);
+  gap: 16px;
+  align-items: start;
 }
 
 .front-office-template-main,
@@ -13653,6 +13675,72 @@ body,
 .front-office-dashboard-main,
 .front-office-dashboard-rail {
   gap: 18px;
+}
+
+.front-office-dashboard-page .front-office-template-main {
+  gap: 16px;
+}
+
+.front-office-dashboard-page .front-office-template-rail {
+  gap: 14px;
+}
+
+.front-office-dashboard-page .front-office-template-main .office-list-card > .office-section-body {
+  gap: 14px;
+}
+
+.front-office-dashboard-page .front-office-template-main .office-list-page-stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 10px;
+}
+
+.front-office-dashboard-page .front-office-template-main .office-stat-card {
+  padding: 12px 13px;
+  border-radius: 18px;
+}
+
+.front-office-dashboard-page .front-office-template-main .office-stat-card strong {
+  font-size: 1.22rem;
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-list-card {
+  border-radius: 20px;
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-section-head {
+  gap: 8px 12px;
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-section-head h3 {
+  font-size: 0.98rem;
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-section-body {
+  gap: 12px;
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-queue-list {
+  gap: 8px;
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-queue-item {
+  gap: 5px;
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: rgba(248, 250, 253, 0.94);
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-queue-item p {
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.front-office-dashboard-page .front-office-template-rail .office-queue-meta {
+  gap: 6px 10px;
+}
+
+.front-office-dashboard-page .front-office-template-rail .front-office-inline-empty {
+  min-height: 88px;
 }
 
 .front-office-action-grid,
@@ -13913,8 +14001,9 @@ body,
 }
 
 .front-office-lead-intake-card.is-compact .front-office-lead-intake-shell {
-  grid-template-columns: minmax(220px, 0.78fr) minmax(0, 1.22fr);
+  grid-template-columns: minmax(190px, 0.68fr) minmax(0, 1.32fr);
   align-items: start;
+  gap: 14px;
 }
 
 .front-office-lead-intake-copy {
@@ -13968,7 +14057,13 @@ body,
 }
 
 .front-office-lead-intake-card.is-compact .office-form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
+}
+
+.front-office-lead-intake-card.is-compact .front-office-record-meta {
+  gap: 8px 10px;
+  font-size: 0.76rem;
 }
 
 .front-office-lead-intake-actions {
