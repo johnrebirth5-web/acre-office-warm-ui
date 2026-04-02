@@ -13,6 +13,7 @@ import { FrontOfficeLink } from "./front-office-link";
 type FrontOfficeLeadIntakeCardProps = {
   title?: string;
   subtitle?: string;
+  density?: "default" | "compact";
   sourceSurface: "dashboard" | "clients";
 };
 
@@ -97,6 +98,7 @@ export function FrontOfficeLeadIntakeCard(
   props: FrontOfficeLeadIntakeCardProps,
 ) {
   const router = useRouter();
+  const density = props.density ?? "default";
   const [formState, setFormState] = useState<LeadFormState>(buildEmptyFormState);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
@@ -202,7 +204,9 @@ export function FrontOfficeLeadIntakeCard(
 
   return (
     <SectionCard
-      className="office-list-card front-office-lead-intake-card"
+      className={`office-list-card front-office-lead-intake-card ${
+        density === "compact" ? "is-compact" : ""
+      }`}
       subtitle={
         props.subtitle ??
         "Capture the next live lead without leaving Front Office. This writes into the shared client record, stage timeline, and follow-up clock."
@@ -223,7 +227,10 @@ export function FrontOfficeLeadIntakeCard(
           </div>
         </div>
 
-        <form className="front-office-calendar-form" onSubmit={handleSubmit}>
+        <form
+          className="front-office-calendar-form front-office-lead-intake-form"
+          onSubmit={handleSubmit}
+        >
           <div className="office-form-grid front-office-lead-intake-grid">
             <FormField
               className="office-form-grid-span-2"

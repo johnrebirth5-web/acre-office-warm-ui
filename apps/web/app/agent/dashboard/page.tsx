@@ -44,9 +44,11 @@ export default async function AgentDashboardPage() {
       eyebrow="Front Office"
       headerClassName="front-office-dashboard-header"
       layoutClassName="front-office-dashboard-layout"
+      summaryClassName="front-office-dashboard-summary"
       main={
         <>
           <FrontOfficeLeadIntakeCard
+            density="compact"
             sourceSurface="dashboard"
             subtitle="Capture a new lead the moment it comes in, keep the next follow-up dated, and let Front Office build the dossier before anything becomes a formal Back Office record."
             title="Quick lead intake"
