@@ -67,7 +67,7 @@ Audit date:
 
 | Module or capability | Current status | Notes |
 | --- | --- | --- |
-| `Dashboard` | `Live core` | Real `/agent/dashboard` with tasks, reminders, quick lead intake, send/click summary, AI queue, vendor shortcuts, and FO/BO split context. |
+| `Dashboard` | `Live core` | Real `/agent/dashboard` with tasks, reminders, quick lead intake, send/click summary, AI queue, explainable next-touch rationale, vendor shortcuts, and FO/BO split context. |
 | `CRM / dossier center` | `Partial / MVP` | Real client dossier plus agent-owned duplicate review / merge are live, but broader office-wide cleanup tooling and OCR-assisted intake are still follow-up work. |
 | `Status flow and reminders` | `Live core` | Stage history, reminder pressure, overdue visibility, lease reminders, and team-lead pressure queues are live. |
 | `Phone strategy / Chat List` | `Live core` | Embedded directly in the dossier as execution support. |
@@ -81,7 +81,7 @@ Audit date:
 | `Inspection / contract-support bridge` | `Live core` | FO dossier exposes BO tasks, signatures, and incoming-update context when a formal file exists. |
 | `PDF export` | `Live core` | Client-facing summary export exists from the dossier. |
 | `Closing / deal-win suggestions` | `Live core` | FO dossier can surface post-close and re-entry suggestions off BO outcome context. |
-| `AI next-touch suggestions and queue` | `Live core` | Dossier and dashboard AI suggestions, accepted-action tracking, outcome ranking, and safe escalation are live. |
+| `AI next-touch suggestions and queue` | `Live core` | Dossier and dashboard AI suggestions, accepted-action tracking, outcome ranking, explainability, safe escalation, and FO/BO boundary guardrails are live. |
 | `FO -> BO handoff boundary` | `Live core` | Explicit handoff draft and BO transaction prefill contract are live. |
 
 ## Front Office gaps still not fully covered
@@ -102,10 +102,8 @@ Audit date:
 
 The next FO implementation work should remain focused on:
 
-- explainability
-- workflow hardening
-- cleaner FO / BO execution boundaries
-- FO AI explainability and cleaner FO / BO execution boundaries
+- external calendar / email integration
+- workflow hardening on top of the now-explainable AI layer
 - remaining CRM quality-of-life gaps such as broader duplicate governance and OCR-assisted intake
 
 It should not jump straight to heavier background automation or auto-send behavior first.
@@ -158,9 +156,9 @@ It should not jump straight to heavier background automation or auto-send behavi
 
 ### Highest-value next steps
 
-1. FO AI explainability and FO / BO boundary hardening
-2. FO external calendar / email integration
-3. broader CRM cleanup plus OCR-assisted intake
+1. FO external calendar / email integration
+2. broader CRM cleanup plus OCR-assisted intake
+3. unified FO activity-center hardening on top of the current dashboard / notifications split
 4. BO generic eSignature create flow beyond transaction-first authoring
 5. platform storage and job-runner foundations
 

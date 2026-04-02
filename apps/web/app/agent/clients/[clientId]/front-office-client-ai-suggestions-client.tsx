@@ -7,6 +7,7 @@ import type {
 } from "@acre/db";
 import { Button, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
+import { FrontOfficeAiExplainabilitySurface } from "../../_components/front-office-ai-explainability-surface";
 import { FrontOfficeLink } from "../../_components/front-office-link";
 
 type FrontOfficeClientAiSuggestionsClientProps = {
@@ -239,26 +240,17 @@ export function FrontOfficeClientAiSuggestionsClient(
       </div>
 
       <div className="front-office-placeholder-note front-office-playbook-surface">
-        <strong>Why Acre is suggesting this</strong>
-        <p>{aiSuggestions.helperText}</p>
-
-        <strong>Why now</strong>
-        <div className="list-row-meta front-office-record-meta">
-          {aiSuggestions.groundingSignals.map((signal) => (
-            <span key={signal}>{signal}</span>
-          ))}
-        </div>
-
-        {aiSuggestions.rankingSignals.length ? (
-          <>
-            <strong>What changed the priority</strong>
-            <div className="list-row-meta front-office-record-meta">
-              {aiSuggestions.rankingSignals.map((signal) => (
-                <span key={signal}>{signal}</span>
-              ))}
-            </div>
-          </>
-        ) : null}
+        <FrontOfficeAiExplainabilitySurface
+          allowsDirectFollowUpCreation={aiSuggestions.allowsDirectFollowUpCreation}
+          boundaryDescription={aiSuggestions.boundaryDescription}
+          boundaryLabel={aiSuggestions.boundaryLabel}
+          boundaryTone={aiSuggestions.boundaryTone}
+          helperText={aiSuggestions.helperText}
+          oneClickReason={aiSuggestions.oneClickReason}
+          primaryActionReason={aiSuggestions.primaryActionReason}
+          rankingSignals={aiSuggestions.rankingSignals}
+          whyNowSignals={aiSuggestions.groundingSignals}
+        />
 
         {feedback ? (
           <p

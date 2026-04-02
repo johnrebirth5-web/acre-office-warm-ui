@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking + quick lead intake + duplicate merge` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking + quick lead intake + duplicate merge + ai explainability / boundary hardening` foundation, the recommended next implementation target is:
 
-- `FO AI explainability + FO / BO boundary hardening`
+- `FO external calendar / email integration + broader CRM quality-of-life`
 
 That means:
 
-- Front Office should explain why a suggestion is surfacing now, which live dossier signals created the pressure, and what changed the ranking or escalation
-- the UI should make the FO -> BO boundary even clearer by telling the agent when work should stay in follow-up / outreach and when it should hand off into formal BO transaction execution
-- automation should still stay safe and agent-approved first: strengthen rationale, reviewability, and workflow guardrails before any true auto-send behavior
-- the goal is to make the current grounded FO recommendation layer easier to trust before introducing heavier background automation or wider external-system sync
+- Front Office should connect live reminders and touch planning to the calendars and inboxes agents already use instead of staying inside Acre-only scheduling surfaces
+- the next CRM pass should keep reducing first-call friction through stronger cleanup, broader duplicate governance, and future OCR-style intake assists
+- automation should still stay safe and agent-approved first: connect systems and improve operational reach before any true auto-send behavior
+- the goal is to extend the now-explainable FO execution layer into the tools agents actually live in day to day
 
 ## First real FO workflow models
 
@@ -183,6 +183,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - dashboard one-click follow-up creation now intentionally backs off when the latest similar AI-created follow-up is still overdue, pushing the agent back into the dossier review path instead of stacking a duplicate shared follow-up task
   - dossier AI suggestions now separate `why now` from `what changed the priority`, so live record signals and history-driven ranking cues stop appearing as one mixed explanation string
   - accepted AI outcomes now also expose compact `Last 7d` and `Last 90d` suggestion-kind summaries, so agents can see whether current behavior still matches recent conversion patterns instead of relying only on all-up totals
+- AI explainability + FO / BO boundary hardening now also live on top of that same grounded suggestion layer:
+  - `/agent/clients/[clientId]` dossier AI suggestions and `/agent/dashboard` AI queue items now render a shared explainability surface that explicitly breaks out `Why Acre is suggesting this`, `Why now`, `What changed the priority`, `Execution boundary`, `Why this action is next`, and whether one-click follow-up is available or paused
+  - the shared FO AI service now emits an execution-boundary contract, so the UI can tell the agent when work should stay in client-facing follow-up versus when the record should move into the formal Back Office flow
+  - BO-ready `handoff` suggestions now intentionally suppress one-click follow-up creation and promote the Back Office create flow as the primary action, keeping the FO -> BO boundary explicit instead of stacking another reminder onto a formal-transition moment
 - quick lead intake now also lives directly inside the active FO shell instead of forcing agents through Back Office contact admin first:
   - `/agent/dashboard` and `/agent/clients` now expose a lightweight lead-capture form that writes into the same shared `Client` record, `ClientStageHistory`, and `FollowUp` clock foundation used by the rest of Front Office
   - the intake path intentionally captures only first-touch essentials such as name, source, stage, intent, target areas, budget, notes, and next follow-up timing so the agent can keep moving during a live call or message thread
@@ -201,4 +205,5 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- deeper explainability, permissions, and workflow hardening on top of the current FO AI bridge before any heavier background automation
+- external calendar / email integration on top of the now-explainable FO execution layer
+- broader CRM quality-of-life work such as office-wide duplicate governance and future OCR-assisted intake

@@ -17,6 +17,7 @@ import { formatDateTimeLabel } from "./date-time";
 import {
   buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiAcceptedActionBreakdownWindows,
+  buildFrontOfficeAiBoundaryContract,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
   formatFrontOfficeAiActionTypeLabel,
@@ -188,7 +189,15 @@ export type FrontOfficeDashboardAiQueueItem = {
   helperLabel: string;
   whyNowSignals: string[];
   rankingSignals: string[];
+  boundaryLabel: string;
+  boundaryTone: FrontOfficeDashboardTone;
+  boundaryDescription: string;
+  primaryActionReason: string;
+  oneClickReason: string;
   openDossierHref: string;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  primaryActionOpensInNewTab: boolean;
   followUpTitle: string;
   followUpDueAt: string;
   allowsDirectFollowUpCreation: boolean;
@@ -219,9 +228,25 @@ type FrontOfficeDashboardAiCandidateItem = Omit<
   | "allowsDirectFollowUpCreation"
   | "whyNowSignals"
   | "rankingSignals"
+  | "boundaryLabel"
+  | "boundaryTone"
+  | "boundaryDescription"
+  | "primaryActionReason"
+  | "oneClickReason"
+  | "primaryActionLabel"
+  | "primaryActionHref"
+  | "primaryActionOpensInNewTab"
   | "helperLabel"
 > & {
   helperLabel: string;
+  primaryActionLabel?: string;
+  primaryActionHref?: string;
+  primaryActionOpensInNewTab?: boolean;
+  defaultAllowsDirectFollowUpCreation?: boolean;
+  hasLinkedTransaction: boolean;
+  isReadyForBackOffice: boolean;
+  hasClosedTransaction: boolean;
+  hasCancelledTransaction: boolean;
   basePriority: number;
   sortAt: Date;
 };
@@ -1974,69 +1999,79 @@ export async function getFrontOfficeDashboardSnapshot(
     }),
   ].slice(0, 4);
   const aiQueueCandidates = rankFrontOfficeAiQueueHistoryCandidates({
-    candidates: aiSuggestionCandidates
-    .flatMap<FrontOfficeDashboardAiCandidateItem>((client) => {
-      const leaseReminder = buildLeaseReminderStatus({
-        leaseEndDate: client.leaseEndDate,
-        leaseReminderAt: client.leaseReminderAt,
-        now,
-      });
-      const nextTouchLabel = formatNextTouchLabel({
-        nextFollowUpAt: client.nextFollowUpAt,
-        leaseReminderAt: client.leaseReminderAt,
-        now,
-      });
-      const latestAppointment = client.appointments[0] ?? null;
-      const latestSendRecord = client.frontOfficeSendRecords[0] ?? null;
-      const linkedTransaction = client.transactionContacts[0]?.transaction ?? null;
-      const closingReferenceDate =
-        linkedTransaction?.moveInDate ??
-        linkedTransaction?.closingDate ??
-        linkedTransaction?.acceptanceDate ??
-        null;
-      const hasClosedTransaction =
-        linkedTransaction?.status === TransactionStatus.closed;
-      const hasCancelledTransaction =
-        linkedTransaction?.status === TransactionStatus.cancelled;
-      const isClosingSoon = Boolean(
-        !hasClosedTransaction &&
-          !hasCancelledTransaction &&
-          closingReferenceDate &&
-          closingReferenceDate.getTime() >= startOfToday.getTime() &&
-          closingReferenceDate.getTime() <= fourteenDaysFromNow.getTime(),
-      );
-      const isReadyForBackOffice = isFrontOfficeStageReadyForBackOffice(
-        client.stage,
-      );
-      const openDossierHref = `/agent/clients/${client.id}#front-office-ai-suggestions`;
+    candidates:
+      aiSuggestionCandidates.flatMap<FrontOfficeDashboardAiCandidateItem>(
+        (client) => {
+          const leaseReminder = buildLeaseReminderStatus({
+            leaseEndDate: client.leaseEndDate,
+            leaseReminderAt: client.leaseReminderAt,
+            now,
+          });
+          const nextTouchLabel = formatNextTouchLabel({
+            nextFollowUpAt: client.nextFollowUpAt,
+            leaseReminderAt: client.leaseReminderAt,
+            now,
+          });
+          const latestAppointment = client.appointments[0] ?? null;
+          const latestSendRecord = client.frontOfficeSendRecords[0] ?? null;
+          const linkedTransaction =
+            client.transactionContacts[0]?.transaction ?? null;
+          const closingReferenceDate =
+            linkedTransaction?.moveInDate ??
+            linkedTransaction?.closingDate ??
+            linkedTransaction?.acceptanceDate ??
+            null;
+          const hasClosedTransaction =
+            linkedTransaction?.status === TransactionStatus.closed;
+          const hasCancelledTransaction =
+            linkedTransaction?.status === TransactionStatus.cancelled;
+          const isClosingSoon = Boolean(
+            !hasClosedTransaction &&
+              !hasCancelledTransaction &&
+              closingReferenceDate &&
+              closingReferenceDate.getTime() >= startOfToday.getTime() &&
+              closingReferenceDate.getTime() <=
+                fourteenDaysFromNow.getTime(),
+          );
+          const isReadyForBackOffice = isFrontOfficeStageReadyForBackOffice(
+            client.stage,
+          );
+          const openDossierHref = `/agent/clients/${client.id}#front-office-ai-suggestions`;
+          const aiBoundaryState = {
+            hasLinkedTransaction: Boolean(linkedTransaction),
+            isReadyForBackOffice,
+            hasClosedTransaction,
+            hasCancelledTransaction,
+          };
 
-      if (hasCancelledTransaction) {
-        const followUp = buildFrontOfficeAiFollowUpAction({
-          kind: "reentry",
-          now,
-          clientFullName: client.fullName,
-        });
+          if (hasCancelledTransaction) {
+            const followUp = buildFrontOfficeAiFollowUpAction({
+              kind: "reentry",
+              now,
+              clientFullName: client.fullName,
+            });
 
-        return [
-          {
-            id: `ai-${client.id}-reentry`,
-            clientId: client.id,
-            clientName: client.fullName,
-            suggestionKind: "reentry",
-            statusLabel: "Re-entry",
-            tone: "warning",
-            description:
-              "The formal deal did not close, so the next-touch should reopen the relationship without forcing urgency.",
-            contextLabel: nextTouchLabel,
-            helperLabel: "Grounded by cancelled / lost transaction outcome",
-            openDossierHref,
-            followUpTitle: followUp.title,
-            followUpDueAt: followUp.dueAt,
-            basePriority: 0,
-            sortAt: linkedTransaction?.acceptanceDate ?? client.createdAt,
-          },
-        ];
-      }
+            return [
+              {
+                id: `ai-${client.id}-reentry`,
+                clientId: client.id,
+                clientName: client.fullName,
+                suggestionKind: "reentry",
+                statusLabel: "Re-entry",
+                tone: "warning",
+                description:
+                  "The formal deal did not close, so the next-touch should reopen the relationship without forcing urgency.",
+                contextLabel: nextTouchLabel,
+                helperLabel: "Grounded by cancelled / lost transaction outcome",
+                openDossierHref,
+                ...aiBoundaryState,
+                followUpTitle: followUp.title,
+                followUpDueAt: followUp.dueAt,
+                basePriority: 0,
+                sortAt: linkedTransaction?.acceptanceDate ?? client.createdAt,
+              },
+            ];
+          }
 
       if (hasClosedTransaction) {
         const followUp = buildFrontOfficeAiFollowUpAction({
@@ -2063,6 +2098,7 @@ export async function getFrontOfficeDashboardSnapshot(
                 ? `Milestone · ${formatDateLabel(closingReferenceDate)}`
                 : "Grounded by closed transaction outcome",
             openDossierHref,
+            ...aiBoundaryState,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 1,
@@ -2097,6 +2133,7 @@ export async function getFrontOfficeDashboardSnapshot(
                   ? "Closing date is approaching"
                   : "Accepted file needs a wrap-up plan",
             openDossierHref,
+            ...aiBoundaryState,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 2,
@@ -2132,6 +2169,7 @@ export async function getFrontOfficeDashboardSnapshot(
             contextLabel: nextTouchLabel,
             helperLabel: `${leaseReminder.statusLabel} · ${leaseReminder.detailLabel}`,
             openDossierHref,
+            ...aiBoundaryState,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: leaseReminder.statusLabel === "Overdue" ? 3 : 4,
@@ -2165,6 +2203,9 @@ export async function getFrontOfficeDashboardSnapshot(
               { timeZone: input.timeZone ?? null },
             )}`,
             openDossierHref,
+            ...aiBoundaryState,
+            primaryActionLabel: "Open calendar",
+            primaryActionHref: `/agent/calendar?clientId=${client.id}`,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 5,
@@ -2200,6 +2241,7 @@ export async function getFrontOfficeDashboardSnapshot(
                 ? `No open on ${latestSendRecord.listing.title.trim()}`
                 : "Tracked send has no open yet",
             openDossierHref,
+            ...aiBoundaryState,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 6,
@@ -2239,6 +2281,7 @@ export async function getFrontOfficeDashboardSnapshot(
                   )}`
                 : `Opened ${latestSendRecord.openCount} time(s)`,
             openDossierHref,
+            ...aiBoundaryState,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 7,
@@ -2269,6 +2312,12 @@ export async function getFrontOfficeDashboardSnapshot(
               client.handoffDrafts[0]?.summary?.trim() ||
               "Front Office stage is ready for formal workflow",
             openDossierHref,
+            ...aiBoundaryState,
+            primaryActionLabel: "Open Back Office create flow",
+            primaryActionHref: client.handoffDrafts[0]
+              ? buildFrontOfficeHandoffCreateHref(client.handoffDrafts[0].id)
+              : "/office/transactions/new",
+            defaultAllowsDirectFollowUpCreation: false,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 8,
@@ -2297,6 +2346,7 @@ export async function getFrontOfficeDashboardSnapshot(
             contextLabel: nextTouchLabel,
             helperLabel: `Stage · ${client.stage}`,
             openDossierHref,
+            ...aiBoundaryState,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 9,
@@ -2305,13 +2355,42 @@ export async function getFrontOfficeDashboardSnapshot(
         ];
       }
 
-      return [];
-    }),
+          return [];
+        },
+      ),
     historyIndex: aiHistoryIndex,
   });
   const aiQueueItems = aiQueueCandidates
     .slice(0, 4)
-    .map(({ basePriority, sortAt, priority, ...item }) => item);
+    .map(
+      ({
+        priority,
+        directFollowUpState,
+        hasLinkedTransaction,
+        isReadyForBackOffice,
+        hasClosedTransaction,
+        hasCancelledTransaction,
+        ...item
+      }) => {
+        const boundaryContract = buildFrontOfficeAiBoundaryContract({
+          suggestionKind: item.suggestionKind,
+          hasLinkedTransaction,
+          isReadyForBackOffice,
+          hasClosedTransaction,
+          hasCancelledTransaction,
+          directFollowUpState,
+        });
+
+        return {
+          ...item,
+          boundaryLabel: boundaryContract.boundaryLabel,
+          boundaryTone: boundaryContract.boundaryTone,
+          boundaryDescription: boundaryContract.boundaryDescription,
+          primaryActionReason: boundaryContract.primaryActionReason,
+          oneClickReason: boundaryContract.oneClickReason,
+        };
+      },
+    );
   const aiSuggestionCount = aiQueueCandidates.length;
   const aiAcceptedActionBreakdown = buildFrontOfficeAiAcceptedActionBreakdown({
     historyIndex: aiHistoryIndex,

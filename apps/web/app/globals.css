@@ -14240,6 +14240,105 @@ body,
   gap: 12px;
 }
 
+.front-office-ai-explainability {
+  display: grid;
+  gap: 12px;
+}
+
+.front-office-ai-explainability-block,
+.front-office-ai-explainability-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(194, 205, 220, 0.7);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(249, 251, 254, 0.98),
+    rgba(243, 247, 252, 0.92)
+  );
+}
+
+.front-office-ai-explainability-block p,
+.front-office-ai-explainability-card p {
+  margin: 0;
+  color: #42556c;
+  line-height: 1.6;
+}
+
+.front-office-ai-explainability-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.front-office-ai-explainability-kicker {
+  color: #667c93;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.front-office-ai-explainability-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.front-office-ai-explainability .front-office-record-meta {
+  gap: 8px;
+}
+
+.front-office-ai-explainability .front-office-record-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(226, 234, 246, 0.82);
+  color: #435871;
+}
+
+.front-office-ai-explainability.is-compact {
+  gap: 10px;
+}
+
+.front-office-ai-explainability.is-compact .front-office-ai-explainability-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.front-office-ai-explainability.is-compact .front-office-ai-explainability-block,
+.front-office-ai-explainability.is-compact .front-office-ai-explainability-card {
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.front-office-ai-explainability.is-compact
+  .front-office-ai-explainability-block
+  p,
+.front-office-ai-explainability.is-compact
+  .front-office-ai-explainability-card
+  p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.front-office-ai-explainability.is-compact .front-office-record-meta {
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.front-office-ai-explainability.is-compact .front-office-record-meta span {
+  min-height: 26px;
+  padding: 0 9px;
+}
+
 .front-office-playbook-header {
   display: grid;
   gap: 8px;

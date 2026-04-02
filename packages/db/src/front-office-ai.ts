@@ -96,6 +96,19 @@ export type FrontOfficeAiSuggestionInsight = {
   suppressDirectFollowUpCreation: boolean;
 };
 
+export type FrontOfficeAiDirectFollowUpState =
+  | "available"
+  | "suppressed_by_history"
+  | "suppressed_by_boundary";
+
+export type FrontOfficeAiBoundaryContract = {
+  boundaryLabel: string;
+  boundaryTone: FrontOfficeAiTone;
+  boundaryDescription: string;
+  primaryActionReason: string;
+  oneClickReason: string;
+};
+
 export type FrontOfficeAiAcceptedActionBreakdownItem = {
   suggestionKind: FrontOfficeAiFollowUpKind;
   label: string;
@@ -118,15 +131,30 @@ export type FrontOfficeAiQueueHistoryCandidate = {
   suggestionKind: FrontOfficeAiFollowUpKind;
   helperLabel: string;
   openDossierHref: string;
+  primaryActionLabel?: string;
+  primaryActionHref?: string;
+  primaryActionOpensInNewTab?: boolean;
+  defaultAllowsDirectFollowUpCreation?: boolean;
   basePriority: number;
   sortAt: Date;
 };
 
 export type FrontOfficeAiQueueHistoryDecoratedCandidate =
-  FrontOfficeAiQueueHistoryCandidate & {
+  Omit<
+    FrontOfficeAiQueueHistoryCandidate,
+    | "basePriority"
+    | "sortAt"
+    | "primaryActionLabel"
+    | "primaryActionHref"
+    | "primaryActionOpensInNewTab"
+  > & {
     whyNowSignals: string[];
     rankingSignals: string[];
     allowsDirectFollowUpCreation: boolean;
+    directFollowUpState: FrontOfficeAiDirectFollowUpState;
+    primaryActionLabel: string;
+    primaryActionHref: string;
+    primaryActionOpensInNewTab: boolean;
     priority: number;
   };
 
@@ -449,6 +477,78 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
   };
 }
 
+export function buildFrontOfficeAiBoundaryContract(input: {
+  suggestionKind: FrontOfficeAiFollowUpKind;
+  hasLinkedTransaction: boolean;
+  isReadyForBackOffice: boolean;
+  hasClosedTransaction: boolean;
+  hasCancelledTransaction: boolean;
+  directFollowUpState: FrontOfficeAiDirectFollowUpState;
+}): FrontOfficeAiBoundaryContract {
+  let boundaryLabel = "Stay in Front Office";
+  let boundaryTone: FrontOfficeAiTone = "accent";
+  let boundaryDescription =
+    "The next move is still client-facing outreach, prep, or follow-up. Keep it in the dossier until the work becomes formal.";
+  let primaryActionReason =
+    "The primary action stays in Front Office because the next move is still client-facing rather than formal transaction execution.";
+
+  if (input.hasCancelledTransaction) {
+    boundaryLabel = "Return to Front Office";
+    boundaryTone = "warning";
+    boundaryDescription =
+      "The formal file is no longer the driver. Rebuild timing, trust, and intent in Front Office before any new Back Office handoff starts.";
+    primaryActionReason =
+      "The primary action stays on re-entry follow-up because this relationship needs a calm restart, not another formal workflow jump.";
+  } else if (
+    input.suggestionKind === "handoff" &&
+    input.isReadyForBackOffice &&
+    !input.hasLinkedTransaction
+  ) {
+    boundaryLabel = "Move into Back Office";
+    boundaryTone = "warning";
+    boundaryDescription =
+      "Use Front Office only to align package, timing, and client expectations. The formal transaction file should open in Back Office next.";
+    primaryActionReason =
+      "The primary action should move into Back Office now because the record has crossed from prep into offer, application, or contract-style work.";
+  } else if (input.hasClosedTransaction) {
+    boundaryLabel = "Back Office record stays primary";
+    boundaryTone = "success";
+    boundaryDescription =
+      "The deal is already formal and closed. Keep this touch client-facing in Front Office, but let milestones and archival truth stay in Back Office.";
+    primaryActionReason =
+      "The primary action stays tied to recap, support, or referral timing because the formal milestone already exists in Back Office.";
+  } else if (input.hasLinkedTransaction) {
+    boundaryLabel = "Client-facing touch, BO file live";
+    boundaryTone = "accent";
+    boundaryDescription =
+      "Use Front Office for the conversation, but keep deadlines, signatures, checklist work, and formal status in the linked Back Office file.";
+    primaryActionReason =
+      "The primary action should keep client communication aligned with the linked Back Office record instead of creating a parallel Front Office workflow.";
+  }
+
+  let oneClickReason =
+    "One-click follow-up is available because no unresolved AI-created follow-up is blocking this touch pattern.";
+
+  if (input.directFollowUpState === "suppressed_by_history") {
+    oneClickReason =
+      "One-click follow-up is paused because a similar AI-created follow-up is still unresolved, so Acre is sending you back to review that existing task first.";
+  } else if (input.directFollowUpState === "suppressed_by_boundary") {
+    oneClickReason =
+      "One-click follow-up is intentionally paused here because the bigger tracked action is moving the record into formal Back Office workflow, not adding another Front Office reminder.";
+  } else if (input.hasLinkedTransaction) {
+    oneClickReason =
+      "One-click follow-up is still safe for this client-facing touch, but it does not replace the linked Back Office checklist or milestone work.";
+  }
+
+  return {
+    boundaryLabel,
+    boundaryTone,
+    boundaryDescription,
+    primaryActionReason,
+    oneClickReason,
+  };
+}
+
 export function buildFrontOfficeAiSuggestionHistoryIndex(input: {
   actions: FrontOfficeAiHistoryAction[];
   now: Date;
@@ -599,7 +699,14 @@ export function rankFrontOfficeAiQueueHistoryCandidates<T extends FrontOfficeAiQ
     historyIndex: FrontOfficeAiSuggestionHistoryIndex;
   },
 ): Array<
-  Omit<T, "basePriority" | "sortAt"> &
+  Omit<
+    T,
+    | "basePriority"
+    | "sortAt"
+    | "primaryActionLabel"
+    | "primaryActionHref"
+    | "primaryActionOpensInNewTab"
+  > &
     FrontOfficeAiQueueHistoryDecoratedCandidate
 > {
   return input.candidates
@@ -609,15 +716,30 @@ export function rankFrontOfficeAiQueueHistoryCandidates<T extends FrontOfficeAiQ
         clientId: candidate.clientId,
         suggestionKind: candidate.suggestionKind,
       });
+      const directFollowUpState: FrontOfficeAiDirectFollowUpState =
+        insight.suppressDirectFollowUpCreation
+          ? "suppressed_by_history"
+          : candidate.defaultAllowsDirectFollowUpCreation === false
+            ? "suppressed_by_boundary"
+            : "available";
 
       return {
         ...candidate,
         whyNowSignals: candidate.helperLabel ? [candidate.helperLabel] : [],
         rankingSignals: insight.historySignals,
-        allowsDirectFollowUpCreation: !insight.suppressDirectFollowUpCreation,
-        openDossierHref: insight.suppressDirectFollowUpCreation
+        allowsDirectFollowUpCreation:
+          candidate.defaultAllowsDirectFollowUpCreation !== false &&
+          !insight.suppressDirectFollowUpCreation,
+        directFollowUpState,
+        primaryActionLabel: insight.suppressDirectFollowUpCreation
+          ? "Review existing follow-up"
+          : candidate.primaryActionLabel ?? "Open AI dossier",
+        primaryActionHref: insight.suppressDirectFollowUpCreation
           ? `/agent/clients/${candidate.clientId}#front-office-follow-up-form`
-          : candidate.openDossierHref,
+          : candidate.primaryActionHref ?? candidate.openDossierHref,
+        primaryActionOpensInNewTab: insight.suppressDirectFollowUpCreation
+          ? false
+          : candidate.primaryActionOpensInNewTab ?? false,
         priority: candidate.basePriority + insight.priorityAdjustment,
       };
     })

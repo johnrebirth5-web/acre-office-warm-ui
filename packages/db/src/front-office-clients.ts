@@ -17,6 +17,7 @@ import {
 import {
   buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiAcceptedActionBreakdownWindows,
+  buildFrontOfficeAiBoundaryContract,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
   buildFrontOfficeAiSuggestionInsight,
@@ -252,6 +253,11 @@ export type FrontOfficeClientDetailAiSuggestions = {
   helperText: string;
   groundingSignals: string[];
   rankingSignals: string[];
+  boundaryLabel: string;
+  boundaryTone: FrontOfficeClientDetailTone;
+  boundaryDescription: string;
+  primaryActionReason: string;
+  oneClickReason: string;
   followUpSuggestion: FrontOfficeClientDetailAiFollowUpSuggestion | null;
   allowsDirectFollowUpCreation: boolean;
   primaryActionLabel: string;
@@ -1553,6 +1559,10 @@ function buildFrontOfficeAiSuggestions(input: {
       clientFullName: input.fullName,
     });
   let allowsDirectFollowUpCreation = true;
+  let directFollowUpState:
+    | "available"
+    | "suppressed_by_history"
+    | "suppressed_by_boundary" = "available";
   let primaryActionLabel = input.workflow.actionLabel;
   let primaryActionHref = input.workflow.actionHref;
   let primaryActionOpensInNewTab = false;
@@ -1848,6 +1858,8 @@ function buildFrontOfficeAiSuggestions(input: {
     primaryActionLabel = input.closingPrimaryActionLabel;
     primaryActionHref = input.closingPrimaryActionHref;
     primaryActionOpensInNewTab = input.closingPrimaryActionOpensInNewTab;
+    allowsDirectFollowUpCreation = false;
+    directFollowUpState = "suppressed_by_boundary";
 
     pushDraft({
       id: "handoff-call",
@@ -1894,11 +1906,21 @@ function buildFrontOfficeAiSuggestions(input: {
 
   if (selectedInsight.suppressDirectFollowUpCreation) {
     allowsDirectFollowUpCreation = false;
+    directFollowUpState = "suppressed_by_history";
     helperText = `${helperText} Acre is holding back one-click follow-up creation here because a similar AI-created follow-up still needs review first.`;
     primaryActionLabel = "Review existing follow-up";
     primaryActionHref = "#front-office-follow-up-form";
     primaryActionOpensInNewTab = false;
   }
+
+  const boundaryContract = buildFrontOfficeAiBoundaryContract({
+    suggestionKind,
+    hasLinkedTransaction: input.hasLinkedTransaction,
+    isReadyForBackOffice: input.isReadyForBackOffice,
+    hasClosedTransaction: input.hasClosedTransaction,
+    hasCancelledTransaction: input.hasCancelledTransaction,
+    directFollowUpState,
+  });
 
   return {
     suggestionKind,
@@ -1909,6 +1931,11 @@ function buildFrontOfficeAiSuggestions(input: {
     helperText,
     groundingSignals: groundingSignals.slice(0, 7),
     rankingSignals: selectedInsight.historySignals,
+    boundaryLabel: boundaryContract.boundaryLabel,
+    boundaryTone: boundaryContract.boundaryTone,
+    boundaryDescription: boundaryContract.boundaryDescription,
+    primaryActionReason: boundaryContract.primaryActionReason,
+    oneClickReason: boundaryContract.oneClickReason,
     followUpSuggestion,
     allowsDirectFollowUpCreation,
     primaryActionLabel,

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import type { FrontOfficeDashboardAiQueueItem } from "@acre/db";
 import { Button, EmptyState } from "@acre/ui";
 import { useRouter } from "next/navigation";
+import { FrontOfficeAiExplainabilitySurface } from "../_components/front-office-ai-explainability-surface";
 import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 
@@ -108,14 +109,31 @@ export function FrontOfficeDashboardAiQueueClient(
                         : "Create follow-up"}
                     </Button>
                   ) : null}
-                  <FrontOfficeLink
-                    className="office-inline-link front-office-inline-link"
-                    href={item.openDossierHref}
-                  >
-                    {item.allowsDirectFollowUpCreation
-                      ? "Open AI dossier"
-                      : "Review in dossier"}
-                  </FrontOfficeLink>
+                  {item.primaryActionOpensInNewTab ? (
+                    <a
+                      className="office-inline-link front-office-inline-link"
+                      href={item.primaryActionHref}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {item.primaryActionLabel}
+                    </a>
+                  ) : (
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={item.primaryActionHref}
+                    >
+                      {item.primaryActionLabel}
+                    </FrontOfficeLink>
+                  )}
+                  {item.primaryActionHref !== item.openDossierHref ? (
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={item.openDossierHref}
+                    >
+                      Review in dossier
+                    </FrontOfficeLink>
+                  ) : null}
                 </>
               }
               badgeLabel={item.statusLabel}
@@ -124,28 +142,17 @@ export function FrontOfficeDashboardAiQueueClient(
               description={item.description}
               key={item.id}
               meta={
-                <>
-                  {item.whyNowSignals.length ? (
-                    <div>
-                      <strong>Why now</strong>
-                      <div className="list-row-meta front-office-record-meta">
-                        {item.whyNowSignals.map((signal) => (
-                          <span key={signal}>{signal}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  {item.rankingSignals.length ? (
-                    <div>
-                      <strong>What changed the priority</strong>
-                      <div className="list-row-meta front-office-record-meta">
-                        {item.rankingSignals.map((signal) => (
-                          <span key={signal}>{signal}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </>
+                <FrontOfficeAiExplainabilitySurface
+                  allowsDirectFollowUpCreation={item.allowsDirectFollowUpCreation}
+                  boundaryDescription={item.boundaryDescription}
+                  boundaryLabel={item.boundaryLabel}
+                  boundaryTone={item.boundaryTone}
+                  compact
+                  oneClickReason={item.oneClickReason}
+                  primaryActionReason={item.primaryActionReason}
+                  rankingSignals={item.rankingSignals}
+                  whyNowSignals={item.whyNowSignals}
+                />
               }
               title={item.clientName}
             />
