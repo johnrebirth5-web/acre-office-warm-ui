@@ -183,6 +183,11 @@ This keeps the handoff visible without pretending formal transaction creation al
   - dashboard one-click follow-up creation now intentionally backs off when the latest similar AI-created follow-up is still overdue, pushing the agent back into the dossier review path instead of stacking a duplicate shared follow-up task
   - dossier AI suggestions now separate `why now` from `what changed the priority`, so live record signals and history-driven ranking cues stop appearing as one mixed explanation string
   - accepted AI outcomes now also expose compact `Last 7d` and `Last 90d` suggestion-kind summaries, so agents can see whether current behavior still matches recent conversion patterns instead of relying only on all-up totals
+- quick lead intake now also lives directly inside the active FO shell instead of forcing agents through Back Office contact admin first:
+  - `/agent/dashboard` and `/agent/clients` now expose a lightweight lead-capture form that writes into the same shared `Client` record, `ClientStageHistory`, and `FollowUp` clock foundation used by the rest of Front Office
+  - the intake path intentionally captures only first-touch essentials such as name, source, stage, intent, target areas, budget, notes, and next follow-up timing so the agent can keep moving during a live call or message thread
+  - before create, that path now performs a lightweight duplicate warning check against the current agent-owned queue for same-email, same-phone, or same-name records, pushing the user toward dossier review before creating a second FO record
+  - the duplicate warning is intentionally a safe guardrail, not a hard merge workflow; full dedupe / merge behavior remains follow-up work
 
 ## Non-goals in this phase
 

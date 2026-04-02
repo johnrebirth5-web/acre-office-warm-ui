@@ -186,6 +186,16 @@ export type UpdateFollowUpTaskInput = {
   dueAt?: string | null;
 };
 
+export type FrontOfficeLeadDuplicateMatch = {
+  id: string;
+  fullName: string;
+  stage: string;
+  sourceLabel: string;
+  nextTouchLabel: string;
+  href: string;
+  matchReasons: string[];
+};
+
 const openFollowUpTaskStatuses: TaskStatus[] = [
   TaskStatus.queued,
   TaskStatus.in_progress,
@@ -217,6 +227,64 @@ function parseOptionalDate(value: string | undefined) {
   }
 
   return new Date(value);
+}
+
+function normalizeEmail(value: string | null | undefined) {
+  return value?.trim().toLowerCase() || "";
+}
+
+function normalizeName(value: string | null | undefined) {
+  return value
+    ?.trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ") || "";
+}
+
+function normalizePhoneDigits(value: string | null | undefined) {
+  return value?.replace(/\D/g, "") || "";
+}
+
+function formatCompactDateLabel(date: Date | null, timeZone?: string | null) {
+  if (!date) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: timeZone ?? undefined,
+  });
+}
+
+function formatFrontOfficeDuplicateNextTouchLabel(input: {
+  nextFollowUpAt: Date | null;
+  leaseReminderAt: Date | null;
+  timeZone?: string | null;
+}) {
+  const leaseReminder = resolveLeaseReminderDates({
+    leaseEndDate: null,
+    leaseReminderAt: input.leaseReminderAt,
+  });
+
+  if (
+    leaseReminder.leaseReminderAt &&
+    (!input.nextFollowUpAt ||
+      leaseReminder.leaseReminderAt.getTime() <= input.nextFollowUpAt.getTime())
+  ) {
+    return `Lease reminder · ${formatCompactDateLabel(
+      leaseReminder.leaseReminderAt,
+      input.timeZone,
+    )}`;
+  }
+
+  if (input.nextFollowUpAt) {
+    return `Next follow-up · ${formatCompactDateLabel(
+      input.nextFollowUpAt,
+      input.timeZone,
+    )}`;
+  }
+
+  return "No follow-up scheduled";
 }
 
 function normalizeLeaseReminderInput(input: {
@@ -809,6 +877,121 @@ export async function createContact(
     contactId: client.id,
     officeId: input.actorOfficeId ?? null,
   })) as OfficeContactDetail;
+}
+
+export async function findFrontOfficeLeadDuplicateMatches(input: {
+  organizationId: string;
+  ownerMembershipId: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  timeZone?: string | null;
+}): Promise<FrontOfficeLeadDuplicateMatch[]> {
+  const normalizedName = normalizeName(input.fullName);
+  const normalizedEmail = normalizeEmail(input.email);
+  const normalizedPhoneDigits = normalizePhoneDigits(input.phone);
+  const phoneNeedle =
+    normalizedPhoneDigits.length >= 7
+      ? normalizedPhoneDigits.slice(-7)
+      : normalizedPhoneDigits;
+
+  if (!normalizedName && !normalizedEmail && !normalizedPhoneDigits) {
+    return [];
+  }
+
+  const candidates = await prisma.client.findMany({
+    where: {
+      organizationId: input.organizationId,
+      ownerMembershipId: input.ownerMembershipId,
+      OR: [
+        normalizedEmail
+          ? {
+              email: {
+                equals: normalizedEmail,
+                mode: "insensitive",
+              },
+            }
+          : undefined,
+        phoneNeedle
+          ? {
+              phone: {
+                contains: phoneNeedle,
+              },
+            }
+          : undefined,
+        normalizedName
+          ? {
+              fullName: {
+                equals: input.fullName.trim(),
+                mode: "insensitive",
+              },
+            }
+          : undefined,
+      ].filter(Boolean) as Prisma.ClientWhereInput[],
+    },
+    orderBy: [{ updatedAt: "desc" }],
+    take: 6,
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      source: true,
+      stage: true,
+      nextFollowUpAt: true,
+      leaseReminderAt: true,
+    },
+  });
+
+  return candidates
+    .map((candidate) => {
+      const matchReasons: string[] = [];
+
+      if (
+        normalizedEmail &&
+        normalizeEmail(candidate.email) &&
+        normalizeEmail(candidate.email) === normalizedEmail
+      ) {
+        matchReasons.push("Same email");
+      }
+
+      if (
+        normalizedPhoneDigits &&
+        normalizePhoneDigits(candidate.phone) &&
+        normalizePhoneDigits(candidate.phone) === normalizedPhoneDigits
+      ) {
+        matchReasons.push("Same phone");
+      }
+
+      if (
+        normalizedName &&
+        normalizeName(candidate.fullName) &&
+        normalizeName(candidate.fullName) === normalizedName
+      ) {
+        matchReasons.push("Same name");
+      }
+
+      if (!matchReasons.length) {
+        return null;
+      }
+
+      return {
+        id: candidate.id,
+        fullName: candidate.fullName,
+        stage: candidate.stage,
+        sourceLabel: candidate.source?.trim() || "Manual entry",
+        nextTouchLabel: formatFrontOfficeDuplicateNextTouchLabel({
+          nextFollowUpAt: candidate.nextFollowUpAt,
+          leaseReminderAt: candidate.leaseReminderAt,
+          timeZone: input.timeZone,
+        }),
+        href: `/agent/clients/${candidate.id}`,
+        matchReasons,
+      } satisfies FrontOfficeLeadDuplicateMatch;
+    })
+    .filter((candidate): candidate is FrontOfficeLeadDuplicateMatch =>
+      Boolean(candidate),
+    );
 }
 
 export async function updateContact(

@@ -342,6 +342,8 @@ export {
 export {
   createContact,
   createFollowUpTask,
+  findFrontOfficeLeadDuplicateMatches,
+  type FrontOfficeLeadDuplicateMatch,
   getContactById,
   linkContactToTransaction,
   listContacts,

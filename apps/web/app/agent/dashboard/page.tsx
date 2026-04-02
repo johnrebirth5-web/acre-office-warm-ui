@@ -12,6 +12,7 @@ import {
 } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { FrontOfficeLeadIntakeCard } from "../_components/front-office-lead-intake-card";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeDashboardAiQueueClient } from "./front-office-dashboard-ai-queue-client";
@@ -45,6 +46,12 @@ export default async function AgentDashboardPage() {
       layoutClassName="front-office-dashboard-layout"
       main={
         <>
+          <FrontOfficeLeadIntakeCard
+            sourceSurface="dashboard"
+            subtitle="Capture a new lead the moment it comes in, keep the next follow-up dated, and let Front Office build the dossier before anything becomes a formal Back Office record."
+            title="Quick lead intake"
+          />
+
           <SectionCard
             className="office-list-card"
             subtitle="The queue stays inside Front Office until a client or document needs to become a formal Back Office record."

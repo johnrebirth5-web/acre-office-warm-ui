@@ -67,7 +67,7 @@ Audit date:
 
 | Module or capability | Current status | Notes |
 | --- | --- | --- |
-| `Dashboard` | `Live core` | Real `/agent/dashboard` with tasks, reminders, send/click summary, AI queue, vendor shortcuts, and FO/BO split context. |
+| `Dashboard` | `Live core` | Real `/agent/dashboard` with tasks, reminders, quick lead intake, send/click summary, AI queue, vendor shortcuts, and FO/BO split context. |
 | `CRM / dossier center` | `Partial / MVP` | Real client dossier is live, but documented `dedupe / merge support` is not yet implemented. |
 | `Status flow and reminders` | `Live core` | Stage history, reminder pressure, overdue visibility, lease reminders, and team-lead pressure queues are live. |
 | `Phone strategy / Chat List` | `Live core` | Embedded directly in the dossier as execution support. |
@@ -88,7 +88,6 @@ Audit date:
 
 ### Missing or notably incomplete documented capabilities
 
-- `quick create lead entry` is still not clearly implemented as a dedicated fast-entry workflow
 - CRM `dedupe / merge support` is still missing
 - `OCR-assisted intake from WeChat screenshots` is still not implemented
 - complete `external calendar / email systems` integration is still missing

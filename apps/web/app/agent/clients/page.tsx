@@ -10,6 +10,7 @@ import {
 } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { FrontOfficeLeadIntakeCard } from "../_components/front-office-lead-intake-card";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { getSessionAccess, requireSessionContext } from "../../../lib/auth-session";
@@ -92,6 +93,12 @@ export default async function AgentClientsPage() {
       }
       rail={
         <>
+          <FrontOfficeLeadIntakeCard
+            sourceSurface="clients"
+            subtitle="Use this when the lead is still hot and you only have the essentials. Acre will write the real client record, stage timeline, and next-touch date for you."
+            title="Capture a lead"
+          />
+
           <SectionCard
             className="office-list-card"
             subtitle="A compact read on how much active client pressure exists in this route."

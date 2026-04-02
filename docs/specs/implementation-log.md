@@ -9,6 +9,12 @@
 
 ## Recently completed major work
 
+- 2026-04-02: `quick lead intake + lightweight duplicate guard` is now live inside the active FO shell instead of remaining only a dashboard expectation:
+  - added [apps/web/app/api/agent/clients/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/clients/route.ts) so Front Office now has its own lightweight client-create entry point that writes directly into the existing shared `Client` / stage-history / handoff foundation instead of bouncing through the Back Office contacts workspace
+  - added [packages/db/src/contacts.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/contacts.ts) duplicate-match helpers, so quick intake can warn on same-email / same-phone / same-name records already owned by the current agent before a second FO dossier is created
+  - added [apps/web/app/agent/_components/front-office-lead-intake-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-lead-intake-card.tsx) and mounted it on [apps/web/app/agent/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/dashboard/page.tsx) plus [apps/web/app/agent/clients/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/page.tsx), so agents can capture a real FO lead record, first follow-up date, and stage context from the two highest-frequency FO surfaces
+  - updated [apps/web/app/globals.css](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/globals.css) so the new intake surface keeps the same `Front Office` action-first visual language instead of introducing a page-local form shell
+
 - 2026-04-02: `outcome-informed AI ranking + safe escalation rules` are now live on top of the FO AI bridge instead of remaining only the next roadmap line:
   - [packages/db/src/front-office-ai.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-ai.ts) now centralizes accepted-action outcome mapping, recent history indexing, ranking insight, and safe escalation signals so dossier and dashboard stop maintaining two separate interpretations of AI results
   - [packages/db/src/front-office-dashboard.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-dashboard.ts) now feeds recent accepted-action history back into dashboard queue ordering, promoting suggestion kinds with stronger recent outcomes while escalating stalled accepted actions to the top for review instead of leaving the queue purely static
