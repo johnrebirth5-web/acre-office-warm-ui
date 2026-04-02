@@ -124,6 +124,7 @@ Current implementation priority note:
 - that ranking layer stays deliberately explainable and agent-approved: Acre can now promote higher-converting suggestion kinds, escalate stalled accepted actions for review, and suppress one-click duplicate follow-up creation when a similar AI-created follow-up is already overdue or still unresolved
 - `quick lead intake` is now also live on `/agent/dashboard` and `/agent/clients`, so agents can capture a real FO client dossier, first follow-up date, and stage context without leaving the active execution shell
 - that intake path now also performs a lightweight duplicate warning check against the current agent-owned FO queue before create, so obvious same-email / same-phone / same-name lead collisions can be reviewed before a second dossier is created
+- `/agent/clients` now also exposes pairwise duplicate review + merge actions for the current agent-owned queue, so appointments, follow-up tasks, send records, handoff drafts, and transaction-contact links can be reconciled into one surviving FO dossier instead of leaving the duplicate guard at warning-only
 - keep the next FO iteration focused on explainability, workflow hardening, and cleaner FO/BO execution boundaries before introducing any heavier automation or auto-send behavior
 
 ### Phase 2

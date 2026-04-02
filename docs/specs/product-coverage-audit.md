@@ -68,7 +68,7 @@ Audit date:
 | Module or capability | Current status | Notes |
 | --- | --- | --- |
 | `Dashboard` | `Live core` | Real `/agent/dashboard` with tasks, reminders, quick lead intake, send/click summary, AI queue, vendor shortcuts, and FO/BO split context. |
-| `CRM / dossier center` | `Partial / MVP` | Real client dossier is live, but documented `dedupe / merge support` is not yet implemented. |
+| `CRM / dossier center` | `Partial / MVP` | Real client dossier plus agent-owned duplicate review / merge are live, but broader office-wide cleanup tooling and OCR-assisted intake are still follow-up work. |
 | `Status flow and reminders` | `Live core` | Stage history, reminder pressure, overdue visibility, lease reminders, and team-lead pressure queues are live. |
 | `Phone strategy / Chat List` | `Live core` | Embedded directly in the dossier as execution support. |
 | `Calendar / appointments` | `Partial / MVP` | Real appointments, notes, meeting links, and in-app reminder pressure are live; full external calendar integration is not. |
@@ -88,10 +88,10 @@ Audit date:
 
 ### Missing or notably incomplete documented capabilities
 
-- CRM `dedupe / merge support` is still missing
 - `OCR-assisted intake from WeChat screenshots` is still not implemented
 - complete `external calendar / email systems` integration is still missing
 - `Activity center` is still distributed across multiple surfaces instead of one strong center
+- duplicate cleanup is still scoped to the current agent-owned queue instead of broader office-wide CRM governance
 - the later `Phase 3` line is still largely open:
   - automated content generation
   - enterprise WeChat exploration
@@ -105,7 +105,8 @@ The next FO implementation work should remain focused on:
 - explainability
 - workflow hardening
 - cleaner FO / BO execution boundaries
-- CRM quality-of-life gaps such as quick lead intake and dedupe / merge
+- FO AI explainability and cleaner FO / BO execution boundaries
+- remaining CRM quality-of-life gaps such as broader duplicate governance and OCR-assisted intake
 
 It should not jump straight to heavier background automation or auto-send behavior first.
 
@@ -157,9 +158,9 @@ It should not jump straight to heavier background automation or auto-send behavi
 
 ### Highest-value next steps
 
-1. `Front Office` quick lead intake plus CRM dedupe / merge
-2. FO AI explainability and FO / BO boundary hardening
-3. FO external calendar / email integration
+1. FO AI explainability and FO / BO boundary hardening
+2. FO external calendar / email integration
+3. broader CRM cleanup plus OCR-assisted intake
 4. BO generic eSignature create flow beyond transaction-first authoring
 5. platform storage and job-runner foundations
 

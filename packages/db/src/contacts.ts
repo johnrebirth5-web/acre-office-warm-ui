@@ -196,6 +196,23 @@ export type FrontOfficeLeadDuplicateMatch = {
   matchReasons: string[];
 };
 
+export type FrontOfficeClientMergeResult = {
+  targetClientId: string;
+  targetFullName: string;
+  sourceClientId: string;
+  sourceFullName: string;
+  movedCounts: {
+    appointments: number;
+    sendRecords: number;
+    aiAcceptedActions: number;
+    stageHistoryEntries: number;
+    handoffDrafts: number;
+    followUpTasks: number;
+    transactionLinks: number;
+    primaryTransactions: number;
+  };
+};
+
 const openFollowUpTaskStatuses: TaskStatus[] = [
   TaskStatus.queued,
   TaskStatus.in_progress,
@@ -242,6 +259,100 @@ function normalizeName(value: string | null | undefined) {
 
 function normalizePhoneDigits(value: string | null | undefined) {
   return value?.replace(/\D/g, "") || "";
+}
+
+function pickEarlierDate(
+  left: Date | null | undefined,
+  right: Date | null | undefined,
+) {
+  if (!left) {
+    return right ?? null;
+  }
+
+  if (!right) {
+    return left;
+  }
+
+  return left.getTime() <= right.getTime() ? left : right;
+}
+
+function pickLaterDate(
+  left: Date | null | undefined,
+  right: Date | null | undefined,
+) {
+  if (!left) {
+    return right ?? null;
+  }
+
+  if (!right) {
+    return left;
+  }
+
+  return left.getTime() >= right.getTime() ? left : right;
+}
+
+function mergeStringLists(primary: string[], secondary: string[]) {
+  const merged = new Set<string>();
+
+  for (const value of [...primary, ...secondary]) {
+    const normalized = value.trim();
+
+    if (normalized) {
+      merged.add(normalized);
+    }
+  }
+
+  return Array.from(merged);
+}
+
+function mergeNotes(primary: string | null | undefined, secondary: string | null | undefined) {
+  const primaryValue = primary?.trim() || "";
+  const secondaryValue = secondary?.trim() || "";
+
+  if (!primaryValue) {
+    return secondaryValue || null;
+  }
+
+  if (!secondaryValue || primaryValue.includes(secondaryValue)) {
+    return primaryValue;
+  }
+
+  return `${primaryValue}\n\nMerged from duplicate record:\n${secondaryValue}`;
+}
+
+function asJsonObject(
+  value: Prisma.JsonValue | null | undefined,
+): Record<string, Prisma.JsonValue> | null {
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    return null;
+  }
+
+  return value as Record<string, Prisma.JsonValue>;
+}
+
+function mergeJsonObjects(
+  primary: Prisma.JsonValue | null | undefined,
+  secondary: Prisma.JsonValue | null | undefined,
+) {
+  const primaryObject = asJsonObject(primary);
+  const secondaryObject = asJsonObject(secondary);
+
+  if (primaryObject && secondaryObject) {
+    return {
+      ...secondaryObject,
+      ...primaryObject,
+    } satisfies Prisma.InputJsonValue;
+  }
+
+  if (primaryObject) {
+    return primaryObject satisfies Prisma.InputJsonValue;
+  }
+
+  if (secondaryObject) {
+    return secondaryObject satisfies Prisma.InputJsonValue;
+  }
+
+  return Prisma.JsonNull;
 }
 
 function formatCompactDateLabel(date: Date | null, timeZone?: string | null) {
@@ -992,6 +1103,445 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
     .filter((candidate): candidate is FrontOfficeLeadDuplicateMatch =>
       Boolean(candidate),
     );
+}
+
+export async function mergeFrontOfficeClients(input: {
+  organizationId: string;
+  ownerMembershipId: string;
+  targetClientId: string;
+  sourceClientId: string;
+  actorMembershipId: string;
+  actorOfficeId?: string | null;
+}): Promise<FrontOfficeClientMergeResult> {
+  if (input.targetClientId === input.sourceClientId) {
+    throw new Error("Choose two different client records to merge.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const clients = await tx.client.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.ownerMembershipId,
+        id: {
+          in: [input.targetClientId, input.sourceClientId],
+        },
+      },
+      select: {
+        id: true,
+        ownerMembershipId: true,
+        visibility: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        contactType: true,
+        source: true,
+        stage: true,
+        intent: true,
+        budgetMin: true,
+        budgetMax: true,
+        preferredAreas: true,
+        needsSummary: true,
+        additionalFields: true,
+        notes: true,
+        lastContactAt: true,
+        nextFollowUpAt: true,
+        leaseEndDate: true,
+        leaseReminderAt: true,
+      },
+    });
+
+    const target = clients.find((client) => client.id === input.targetClientId);
+    const source = clients.find((client) => client.id === input.sourceClientId);
+
+    if (!target || !source) {
+      throw new Error(
+        "Both duplicate records must still exist in your Front Office queue before merging.",
+      );
+    }
+
+    const mergedBudgetMin =
+      target.budgetMin && source.budgetMin
+        ? target.budgetMin.lessThan(source.budgetMin)
+          ? target.budgetMin
+          : source.budgetMin
+        : target.budgetMin ?? source.budgetMin ?? null;
+    const mergedBudgetMax =
+      target.budgetMax && source.budgetMax
+        ? target.budgetMax.greaterThan(source.budgetMax)
+          ? target.budgetMax
+          : source.budgetMax
+        : target.budgetMax ?? source.budgetMax ?? null;
+    const mergedEmail = target.email?.trim() || source.email?.trim() || null;
+    const mergedPhone = target.phone?.trim() || source.phone?.trim() || null;
+    const mergedContactType =
+      target.contactType?.trim() || source.contactType?.trim() || null;
+    const mergedSource =
+      (target.source?.trim() &&
+      target.source.trim().toLowerCase() !== "manual entry"
+        ? target.source.trim()
+        : source.source?.trim()) ||
+      target.source.trim();
+    const mergedIntent =
+      (target.intent?.trim() &&
+      target.intent.trim().toLowerCase() !== "unknown"
+        ? target.intent.trim()
+        : source.intent?.trim()) ||
+      target.intent.trim();
+    const mergedPreferredAreas = mergeStringLists(
+      target.preferredAreas,
+      source.preferredAreas,
+    );
+    const mergedNotes = mergeNotes(target.notes, source.notes);
+    const mergedLastContactAt = pickLaterDate(
+      target.lastContactAt,
+      source.lastContactAt,
+    );
+    const mergedNextFollowUpAt = pickEarlierDate(
+      target.nextFollowUpAt,
+      source.nextFollowUpAt,
+    );
+    const mergedLeaseEndDate = target.leaseEndDate ?? source.leaseEndDate ?? null;
+    const mergedLeaseReminderAt = pickEarlierDate(
+      target.leaseReminderAt,
+      source.leaseReminderAt,
+    );
+    const mergedNeedsSummary =
+      target.needsSummary ?? source.needsSummary ?? Prisma.JsonNull;
+    const mergedAdditionalFields = mergeJsonObjects(
+      target.additionalFields,
+      source.additionalFields,
+    );
+
+    const sourceTransactionLinks = await tx.transactionContact.findMany({
+      where: {
+        organizationId: input.organizationId,
+        clientId: source.id,
+      },
+      select: {
+        id: true,
+        transactionId: true,
+        isPrimary: true,
+        notes: true,
+        createdAt: true,
+      },
+    });
+    const existingTargetTransactionLinks = await tx.transactionContact.findMany({
+      where: {
+        organizationId: input.organizationId,
+        clientId: target.id,
+      },
+      select: {
+        id: true,
+        transactionId: true,
+        isPrimary: true,
+        notes: true,
+        createdAt: true,
+      },
+    });
+    const touchedTransactionIds = new Set<string>();
+    const targetLinksByTransactionId = new Map(
+      existingTargetTransactionLinks.map((link) => [link.transactionId, link]),
+    );
+
+    for (const sourceLink of sourceTransactionLinks) {
+      touchedTransactionIds.add(sourceLink.transactionId);
+      const targetLink = targetLinksByTransactionId.get(sourceLink.transactionId);
+
+      if (targetLink) {
+        const mergedLinkNotes = mergeNotes(targetLink.notes, sourceLink.notes);
+        const shouldBePrimary = targetLink.isPrimary || sourceLink.isPrimary;
+
+        if (
+          mergedLinkNotes !== (targetLink.notes?.trim() || null) ||
+          shouldBePrimary !== targetLink.isPrimary
+        ) {
+          await tx.transactionContact.update({
+            where: {
+              id: targetLink.id,
+            },
+            data: {
+              notes: mergedLinkNotes,
+              isPrimary: shouldBePrimary,
+            },
+          });
+        }
+
+        await tx.transactionContact.delete({
+          where: {
+            id: sourceLink.id,
+          },
+        });
+
+        targetLinksByTransactionId.set(sourceLink.transactionId, {
+          ...targetLink,
+          isPrimary: shouldBePrimary,
+          notes: mergedLinkNotes,
+        });
+        continue;
+      }
+
+      await tx.transactionContact.update({
+        where: {
+          id: sourceLink.id,
+        },
+        data: {
+          clientId: target.id,
+        },
+      });
+
+      targetLinksByTransactionId.set(sourceLink.transactionId, {
+        id: sourceLink.id,
+        transactionId: sourceLink.transactionId,
+        isPrimary: sourceLink.isPrimary,
+        notes: sourceLink.notes,
+        createdAt: sourceLink.createdAt,
+      });
+    }
+
+    for (const transactionId of touchedTransactionIds) {
+      const links = await tx.transactionContact.findMany({
+        where: {
+          organizationId: input.organizationId,
+          transactionId,
+        },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        select: {
+          clientId: true,
+        },
+      });
+      const primaryClientId = links[0]?.clientId ?? null;
+
+      await tx.transaction.updateMany({
+        where: {
+          id: transactionId,
+          organizationId: input.organizationId,
+        },
+        data: {
+          primaryClientId,
+        },
+      });
+    }
+
+    const [
+      appointmentsResult,
+      sendRecordsResult,
+      aiAcceptedActionsResult,
+      stageHistoryResult,
+      handoffDraftsResult,
+      followUpTasksResult,
+      primaryTransactionsResult,
+    ] = await Promise.all([
+      tx.appointment.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          clientId: source.id,
+        },
+        data: {
+          clientId: target.id,
+        },
+      }),
+      tx.frontOfficeSendRecord.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          clientId: source.id,
+        },
+        data: {
+          clientId: target.id,
+        },
+      }),
+      tx.frontOfficeAiAcceptedAction.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          clientId: source.id,
+        },
+        data: {
+          clientId: target.id,
+        },
+      }),
+      tx.clientStageHistory.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          clientId: source.id,
+        },
+        data: {
+          clientId: target.id,
+        },
+      }),
+      tx.frontOfficeHandoffDraft.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          clientId: source.id,
+        },
+        data: {
+          clientId: target.id,
+          ownerMembershipId: target.ownerMembershipId,
+        },
+      }),
+      tx.followUpTask.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          clientId: source.id,
+        },
+        data: {
+          clientId: target.id,
+        },
+      }),
+      tx.transaction.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          primaryClientId: source.id,
+        },
+        data: {
+          primaryClientId: target.id,
+        },
+      }),
+    ]);
+
+    const updatedTarget = await tx.client.update({
+      where: {
+        id: target.id,
+      },
+      data: {
+        email: mergedEmail,
+        phone: mergedPhone,
+        contactType: mergedContactType,
+        source: mergedSource,
+        intent: mergedIntent,
+        budgetMin: mergedBudgetMin,
+        budgetMax: mergedBudgetMax,
+        preferredAreas: mergedPreferredAreas,
+        needsSummary: mergedNeedsSummary,
+        additionalFields: mergedAdditionalFields,
+        notes: mergedNotes,
+        lastContactAt: mergedLastContactAt,
+        nextFollowUpAt: mergedNextFollowUpAt,
+        leaseEndDate: mergedLeaseEndDate,
+        leaseReminderAt: mergedLeaseReminderAt,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+      },
+    });
+
+    await syncClientNextFollowUpAtFromOpenTasks(tx, {
+      clientId: target.id,
+      previousDueAt: mergedNextFollowUpAt,
+    });
+
+    const movedCounts = {
+      appointments: appointmentsResult.count,
+      sendRecords: sendRecordsResult.count,
+      aiAcceptedActions: aiAcceptedActionsResult.count,
+      stageHistoryEntries: stageHistoryResult.count,
+      handoffDrafts: handoffDraftsResult.count,
+      followUpTasks: followUpTasksResult.count,
+      transactionLinks: sourceTransactionLinks.length,
+      primaryTransactions: primaryTransactionsResult.count,
+    };
+
+    const details = [
+      `Merged duplicate client ${buildContactObjectLabel(source)} into ${updatedTarget.fullName}.`,
+      movedCounts.appointments > 0
+        ? `Moved ${movedCounts.appointments} appointment record(s).`
+        : null,
+      movedCounts.sendRecords > 0
+        ? `Moved ${movedCounts.sendRecords} tracked send record(s).`
+        : null,
+      movedCounts.followUpTasks > 0
+        ? `Moved ${movedCounts.followUpTasks} follow-up task(s).`
+        : null,
+      movedCounts.handoffDrafts > 0
+        ? `Moved ${movedCounts.handoffDrafts} Back Office handoff draft(s).`
+        : null,
+      movedCounts.transactionLinks > 0
+        ? `Reconciled ${movedCounts.transactionLinks} transaction contact link(s).`
+        : null,
+      movedCounts.primaryTransactions > 0
+        ? `Updated ${movedCounts.primaryTransactions} transaction primary-client pointer(s).`
+        : null,
+    ].filter((detail): detail is string => Boolean(detail));
+
+    const changes = [
+      buildContactChange("Email", target.email ?? "", mergedEmail ?? ""),
+      buildContactChange("Phone", target.phone ?? "", mergedPhone ?? ""),
+      buildContactChange(
+        "Contact type",
+        target.contactType ?? "",
+        mergedContactType ?? "",
+      ),
+      buildContactChange("Source", target.source, mergedSource),
+      buildContactChange("Intent", target.intent, mergedIntent),
+      buildContactChange(
+        "Budget min",
+        formatBudget(target.budgetMin, target.budgetMin),
+        formatBudget(mergedBudgetMin, mergedBudgetMin),
+      ),
+      buildContactChange(
+        "Budget max",
+        formatBudget(target.budgetMax, target.budgetMax),
+        formatBudget(mergedBudgetMax, mergedBudgetMax),
+      ),
+      buildContactChange(
+        "Preferred areas",
+        formatAreas(target.preferredAreas),
+        formatAreas(mergedPreferredAreas),
+      ),
+      buildContactChange("Notes", target.notes ?? "", mergedNotes ?? ""),
+      buildContactChange(
+        "Last contact",
+        formatDateValue(target.lastContactAt),
+        formatDateValue(mergedLastContactAt),
+      ),
+      buildContactChange(
+        "Next follow-up",
+        formatDateValue(target.nextFollowUpAt),
+        formatDateValue(mergedNextFollowUpAt),
+      ),
+      buildContactChange(
+        "Lease end date",
+        formatDateValue(target.leaseEndDate),
+        formatDateValue(mergedLeaseEndDate),
+      ),
+      buildContactChange(
+        "Lease reminder",
+        formatDateValue(target.leaseReminderAt),
+        formatDateValue(mergedLeaseReminderAt),
+      ),
+    ].filter((change): change is NonNullable<typeof change> => Boolean(change));
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "contact",
+      entityId: updatedTarget.id,
+      action: activityLogActions.contactUpdated,
+      payload: {
+        officeId: input.actorOfficeId ?? null,
+        contactId: updatedTarget.id,
+        contactName: updatedTarget.fullName,
+        objectLabel: buildContactObjectLabel(updatedTarget),
+        details,
+        changes,
+      },
+    });
+
+    await tx.client.delete({
+      where: {
+        id: source.id,
+      },
+    });
+
+    return {
+      targetClientId: updatedTarget.id,
+      targetFullName: updatedTarget.fullName,
+      sourceClientId: source.id,
+      sourceFullName: source.fullName,
+      movedCounts,
+    } satisfies FrontOfficeClientMergeResult;
+  });
 }
 
 export async function updateContact(

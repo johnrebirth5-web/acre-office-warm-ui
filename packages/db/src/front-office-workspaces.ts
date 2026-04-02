@@ -48,6 +48,7 @@ export type FrontOfficeClientsSnapshot = {
     activeStages: number;
     followUpDueCount: number;
     overdueTaskCount: number;
+    potentialDuplicateCount: number;
   };
   stageMetrics: Array<{
     label: string;
@@ -55,6 +56,27 @@ export type FrontOfficeClientsSnapshot = {
     tone: FrontOfficeTone;
   }>;
   clients: FrontOfficeClientRecord[];
+  duplicatePairs: FrontOfficeClientDuplicatePair[];
+};
+
+export type FrontOfficeClientDuplicateRecord = {
+  id: string;
+  fullName: string;
+  href: string;
+  stage: string;
+  stageTone: FrontOfficeTone;
+  sourceLabel: string;
+  nextTouchLabel: string;
+  detailLabel: string;
+  lastUpdatedLabel: string;
+};
+
+export type FrontOfficeClientDuplicatePair = {
+  id: string;
+  matchReasons: string[];
+  rationaleLabel: string;
+  recommendedClient: FrontOfficeClientDuplicateRecord;
+  duplicateClient: FrontOfficeClientDuplicateRecord;
 };
 
 export type FrontOfficeListingRecord = {
@@ -356,6 +378,272 @@ function mapClientStageTone(stage: string): FrontOfficeTone {
   return "neutral";
 }
 
+function normalizeDuplicateName(value: string | null | undefined) {
+  return value?.trim().toLowerCase().replace(/\s+/g, " ") || "";
+}
+
+function normalizeDuplicateEmail(value: string | null | undefined) {
+  return value?.trim().toLowerCase() || "";
+}
+
+function normalizeDuplicatePhone(value: string | null | undefined) {
+  return value?.replace(/\D/g, "") || "";
+}
+
+type DuplicateCandidate = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  source: string;
+  stage: string;
+  budgetMin: Prisma.Decimal | null;
+  budgetMax: Prisma.Decimal | null;
+  preferredAreas: string[];
+  notes: string | null;
+  lastContactAt: Date | null;
+  nextFollowUpAt: Date | null;
+  leaseReminderAt: Date | null;
+  updatedAt: Date;
+  _count: {
+    appointments: number;
+    frontOfficeSendRecords: number;
+    followUpTasks: number;
+    handoffDrafts: number;
+    transactionContacts: number;
+    stageHistory: number;
+  };
+};
+
+function buildDuplicateCandidateStrengthScore(candidate: DuplicateCandidate) {
+  return (
+    (candidate.email?.trim() ? 4 : 0) +
+    (candidate.phone?.trim() ? 4 : 0) +
+    (candidate.notes?.trim() ? 3 : 0) +
+    (candidate.preferredAreas.length > 0 ? 2 : 0) +
+    (candidate.budgetMin || candidate.budgetMax ? 2 : 0) +
+    (candidate.lastContactAt ? 2 : 0) +
+    (candidate.nextFollowUpAt ? 2 : 0) +
+    candidate._count.followUpTasks * 3 +
+    candidate._count.transactionContacts * 4 +
+    candidate._count.appointments * 2 +
+    candidate._count.frontOfficeSendRecords * 2 +
+    candidate._count.handoffDrafts * 2 +
+    candidate._count.stageHistory
+  );
+}
+
+function buildDuplicateCandidateDetailLabel(candidate: DuplicateCandidate) {
+  const labels = [
+    candidate._count.followUpTasks > 0
+      ? `${candidate._count.followUpTasks} follow-up task(s)`
+      : null,
+    candidate._count.appointments > 0
+      ? `${candidate._count.appointments} appointment(s)`
+      : null,
+    candidate._count.frontOfficeSendRecords > 0
+      ? `${candidate._count.frontOfficeSendRecords} tracked send(s)`
+      : null,
+    candidate._count.transactionContacts > 0
+      ? `${candidate._count.transactionContacts} BO link(s)`
+      : null,
+    candidate.preferredAreas.length > 0
+      ? `${candidate.preferredAreas.length} area tag(s)`
+      : null,
+  ].filter((label): label is string => Boolean(label));
+
+  return labels.join(" · ") || "Light dossier with no linked workflow yet";
+}
+
+function buildDuplicateRecommendationLabel(
+  recommended: DuplicateCandidate,
+  duplicate: DuplicateCandidate,
+) {
+  const recommendedWorkflowCount =
+    recommended._count.followUpTasks +
+    recommended._count.appointments +
+    recommended._count.frontOfficeSendRecords +
+    recommended._count.transactionContacts +
+    recommended._count.handoffDrafts;
+  const duplicateWorkflowCount =
+    duplicate._count.followUpTasks +
+    duplicate._count.appointments +
+    duplicate._count.frontOfficeSendRecords +
+    duplicate._count.transactionContacts +
+    duplicate._count.handoffDrafts;
+
+  if (recommendedWorkflowCount > duplicateWorkflowCount) {
+    return "Recommended keep: more live workflow is already attached here.";
+  }
+
+  if (
+    buildDuplicateCandidateStrengthScore(recommended) >
+    buildDuplicateCandidateStrengthScore(duplicate)
+  ) {
+    return "Recommended keep: this dossier already carries richer contact context.";
+  }
+
+  if (recommended.updatedAt.getTime() !== duplicate.updatedAt.getTime()) {
+    return "Recommended keep: this record was updated more recently.";
+  }
+
+  return "Recommended keep: this record has the stronger contact profile.";
+}
+
+function buildDuplicateRecord(
+  candidate: DuplicateCandidate,
+  now: Date,
+  timeZone?: string | null,
+): FrontOfficeClientDuplicateRecord {
+  return {
+    id: candidate.id,
+    fullName: candidate.fullName,
+    href: `/agent/clients/${candidate.id}`,
+    stage: candidate.stage,
+    stageTone: mapClientStageTone(candidate.stage),
+    sourceLabel: candidate.source?.trim() || "Source not captured",
+    nextTouchLabel: formatNextTouchLabel({
+      nextFollowUpAt: candidate.nextFollowUpAt,
+      leaseReminderAt: candidate.leaseReminderAt,
+      now,
+      timeZone,
+    }),
+    detailLabel: buildDuplicateCandidateDetailLabel(candidate),
+    lastUpdatedLabel: `Updated ${formatDateTimeLabel(candidate.updatedAt, {
+      timeZone: timeZone ?? null,
+    })}`,
+  };
+}
+
+function buildFrontOfficeDuplicatePairs(input: {
+  candidates: DuplicateCandidate[];
+  now: Date;
+  timeZone?: string | null;
+}) {
+  const bucketMap = new Map<string, { reason: string; clientIds: string[] }>();
+
+  for (const candidate of input.candidates) {
+    const emailKey = normalizeDuplicateEmail(candidate.email);
+    const phoneKey = normalizeDuplicatePhone(candidate.phone);
+    const nameKey = normalizeDuplicateName(candidate.fullName);
+
+    if (emailKey) {
+      bucketMap.set(`email:${emailKey}`, {
+        reason: "Same email",
+        clientIds: [...(bucketMap.get(`email:${emailKey}`)?.clientIds ?? []), candidate.id],
+      });
+    }
+
+    if (phoneKey) {
+      bucketMap.set(`phone:${phoneKey}`, {
+        reason: "Same phone",
+        clientIds: [...(bucketMap.get(`phone:${phoneKey}`)?.clientIds ?? []), candidate.id],
+      });
+    }
+
+    if (nameKey) {
+      bucketMap.set(`name:${nameKey}`, {
+        reason: "Same name",
+        clientIds: [...(bucketMap.get(`name:${nameKey}`)?.clientIds ?? []), candidate.id],
+      });
+    }
+  }
+
+  const candidatesById = new Map(
+    input.candidates.map((candidate) => [candidate.id, candidate]),
+  );
+  const pairReasonMap = new Map<
+    string,
+    { leftId: string; rightId: string; reasons: Set<string> }
+  >();
+
+  for (const bucket of bucketMap.values()) {
+    if (bucket.clientIds.length < 2) {
+      continue;
+    }
+
+    const uniqueIds = Array.from(new Set(bucket.clientIds));
+
+    for (let index = 0; index < uniqueIds.length - 1; index += 1) {
+      for (let compareIndex = index + 1; compareIndex < uniqueIds.length; compareIndex += 1) {
+        const leftId = uniqueIds[index];
+        const rightId = uniqueIds[compareIndex];
+        const pairKey = [leftId, rightId].sort().join(":");
+        const existingPair = pairReasonMap.get(pairKey);
+
+        if (existingPair) {
+          existingPair.reasons.add(bucket.reason);
+          continue;
+        }
+
+        pairReasonMap.set(pairKey, {
+          leftId,
+          rightId,
+          reasons: new Set([bucket.reason]),
+        });
+      }
+    }
+  }
+
+  return Array.from(pairReasonMap.values())
+    .map((pair) => {
+      const left = candidatesById.get(pair.leftId);
+      const right = candidatesById.get(pair.rightId);
+
+      if (!left || !right) {
+        return null;
+      }
+
+      const leftScore = buildDuplicateCandidateStrengthScore(left);
+      const rightScore = buildDuplicateCandidateStrengthScore(right);
+      const recommended =
+        leftScore > rightScore
+          ? left
+          : rightScore > leftScore
+            ? right
+            : left.updatedAt.getTime() >= right.updatedAt.getTime()
+              ? left
+              : right;
+      const duplicate = recommended.id === left.id ? right : left;
+
+      return {
+        id: [recommended.id, duplicate.id].join(":"),
+        matchReasons: Array.from(pair.reasons).sort(),
+        rationaleLabel: buildDuplicateRecommendationLabel(
+          recommended,
+          duplicate,
+        ),
+        sortUpdatedAt: recommended.updatedAt.getTime(),
+        recommendedClient: buildDuplicateRecord(
+          recommended,
+          input.now,
+          input.timeZone,
+        ),
+        duplicateClient: buildDuplicateRecord(
+          duplicate,
+          input.now,
+          input.timeZone,
+        ),
+      };
+    })
+    .filter(
+      (
+        pair,
+      ): pair is FrontOfficeClientDuplicatePair & { sortUpdatedAt: number } =>
+        Boolean(pair),
+    )
+    .sort((left, right) => {
+      const reasonDelta = right.matchReasons.length - left.matchReasons.length;
+
+      if (reasonDelta !== 0) {
+        return reasonDelta;
+      }
+
+      return right.sortUpdatedAt - left.sortUpdatedAt;
+    })
+    .slice(0, 6);
+}
+
 function mapListingStatusTone(status: ListingStatus): FrontOfficeTone {
   if (status === ListingStatus.hot || status === ListingStatus.active) {
     return "success";
@@ -538,7 +826,7 @@ export async function getFrontOfficeClientsSnapshot(
     ownerMembershipId: input.viewerMembershipId,
   };
 
-  const [clients, stageGroups, followUpDueCount, overdueTaskCount] =
+  const [clients, stageGroups, followUpDueCount, overdueTaskCount, duplicateCandidates] =
     await Promise.all([
       prisma.client.findMany({
         where: clientWhere,
@@ -585,7 +873,42 @@ export async function getFrontOfficeClientsSnapshot(
           },
         },
       }),
+      prisma.client.findMany({
+        where: clientWhere,
+        orderBy: [{ updatedAt: "desc" }],
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          source: true,
+          stage: true,
+          budgetMin: true,
+          budgetMax: true,
+          preferredAreas: true,
+          notes: true,
+          lastContactAt: true,
+          nextFollowUpAt: true,
+          leaseReminderAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              appointments: true,
+              frontOfficeSendRecords: true,
+              followUpTasks: true,
+              handoffDrafts: true,
+              transactionContacts: true,
+              stageHistory: true,
+            },
+          },
+        },
+      }),
     ]);
+  const duplicatePairs = buildFrontOfficeDuplicatePairs({
+    candidates: duplicateCandidates,
+    now,
+    timeZone: input.timeZone,
+  });
 
   return {
     summary: {
@@ -593,6 +916,7 @@ export async function getFrontOfficeClientsSnapshot(
       activeStages: stageGroups.length,
       followUpDueCount,
       overdueTaskCount,
+      potentialDuplicateCount: duplicatePairs.length,
     },
     stageMetrics: stageGroups
       .sort(
@@ -628,6 +952,7 @@ export async function getFrontOfficeClientsSnapshot(
       }),
       href: `/agent/clients/${client.id}`,
     })),
+    duplicatePairs,
   };
 }
 

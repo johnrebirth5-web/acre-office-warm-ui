@@ -13,6 +13,7 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeLeadIntakeCard } from "../_components/front-office-lead-intake-card";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { FrontOfficeClientDuplicatesCard } from "./front-office-client-duplicates-card";
 import { getSessionAccess, requireSessionContext } from "../../../lib/auth-session";
 
 export default async function AgentClientsPage() {
@@ -99,6 +100,12 @@ export default async function AgentClientsPage() {
             title="Capture a lead"
           />
 
+          {snapshot.duplicatePairs.length ? (
+            <FrontOfficeClientDuplicatesCard
+              duplicatePairs={snapshot.duplicatePairs}
+            />
+          ) : null}
+
           <SectionCard
             className="office-list-card"
             subtitle="A compact read on how much active client pressure exists in this route."
@@ -109,6 +116,7 @@ export default async function AgentClientsPage() {
               <StatCard hint="stages represented in the current list" label="Active stages" value={snapshot.summary.activeStages} />
               <StatCard hint="overdue or same-day follow-up markers in scope" label="Follow-up due" value={snapshot.summary.followUpDueCount} />
               <StatCard hint="scheduled follow-up tasks already overdue" label="Overdue tasks" value={snapshot.summary.overdueTaskCount} />
+              <StatCard hint="pairwise duplicate review suggestions ready now" label="Potential dupes" tone="accent" value={snapshot.summary.potentialDuplicateCount} />
               <StatCard hint="current role template in Front Office" label="Access" tone="accent" value={access.label} />
             </ListPageStatsGrid>
           </SectionCard>
@@ -144,6 +152,7 @@ export default async function AgentClientsPage() {
           <SummaryChip label="Live contacts" value={snapshot.summary.liveContacts} />
           <SummaryChip label="Follow-up due" tone="accent" value={snapshot.summary.followUpDueCount} />
           <SummaryChip label="Stages in view" value={snapshot.summary.activeStages} />
+          <SummaryChip label="Potential dupes" tone="accent" value={snapshot.summary.potentialDuplicateCount} />
           <SummaryChip label="Overdue tasks" value={snapshot.summary.overdueTaskCount} />
         </>
       }

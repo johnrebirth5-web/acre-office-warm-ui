@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking + quick lead intake + duplicate merge` foundation, the recommended next implementation target is:
 
-- `outcome-informed AI ranking + safe escalation rules`
+- `FO AI explainability + FO / BO boundary hardening`
 
 That means:
 
-- Front Office should now use accepted-action and outcome history to rank which grounded suggestions deserve more prominence instead of treating every suggestion path as equally valuable forever
-- automation should still stay safe and agent-approved first: use measured completion / engagement outcomes to tune escalation thresholds, reminder order, and suggestion emphasis before any true auto-send behavior
-- the module should keep the FO -> BO boundary explicit by using formal BO status / outcome signals plus measured FO response history while FO still owns client-facing follow-up, recap, referral, renewal, or re-entry prompts
-- the goal is to turn the measurable AI bridge into a smarter recommendation loop before skipping straight to opaque background automation
+- Front Office should explain why a suggestion is surfacing now, which live dossier signals created the pressure, and what changed the ranking or escalation
+- the UI should make the FO -> BO boundary even clearer by telling the agent when work should stay in follow-up / outreach and when it should hand off into formal BO transaction execution
+- automation should still stay safe and agent-approved first: strengthen rationale, reviewability, and workflow guardrails before any true auto-send behavior
+- the goal is to make the current grounded FO recommendation layer easier to trust before introducing heavier background automation or wider external-system sync
 
 ## First real FO workflow models
 
@@ -187,7 +187,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/dashboard` and `/agent/clients` now expose a lightweight lead-capture form that writes into the same shared `Client` record, `ClientStageHistory`, and `FollowUp` clock foundation used by the rest of Front Office
   - the intake path intentionally captures only first-touch essentials such as name, source, stage, intent, target areas, budget, notes, and next follow-up timing so the agent can keep moving during a live call or message thread
   - before create, that path now performs a lightweight duplicate warning check against the current agent-owned queue for same-email, same-phone, or same-name records, pushing the user toward dossier review before creating a second FO record
-  - the duplicate warning is intentionally a safe guardrail, not a hard merge workflow; full dedupe / merge behavior remains follow-up work
+- `/agent/clients` now also exposes a pairwise duplicate review + merge surface for the current agent-owned queue:
+  - Acre surfaces same-email / same-phone / same-name duplicate pairs in the active FO pipeline instead of only warning at create time
+  - the merge action keeps one surviving FO dossier and moves shared FO workflow context such as appointments, follow-up tasks, tracked send history, AI accepted actions, handoff drafts, and transaction-contact links onto that surviving record
+  - this first merge pass intentionally stays scoped to the current agent-owned queue; broader office-wide duplicate governance and OCR-assisted intake remain follow-up work
 
 ## Non-goals in this phase
 
