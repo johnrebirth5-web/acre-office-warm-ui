@@ -189,6 +189,10 @@ export function OfficeNav({
       navGroups={getNavGroups(currentAccess)}
       navigationLabel="Office navigation"
       switcherLabel={currentOfficeName.toUpperCase()}
+      switcherShortcut={{
+        href: "/agent/dashboard",
+        label: "Open Front Office",
+      }}
     />
   );
 }

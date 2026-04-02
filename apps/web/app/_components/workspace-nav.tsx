@@ -28,6 +28,11 @@ export type WorkspaceNavGroup = {
   items: WorkspaceNavItem[];
 };
 
+type WorkspaceSwitchShortcut = {
+  label: string;
+  href: string;
+};
+
 type WorkspaceNavProps = {
   currentWorkspaceName: string;
   navigationLabel: string;
@@ -38,6 +43,7 @@ type WorkspaceNavProps = {
   brandPanelClassName?: string;
   releaseBadgeClassName?: string;
   switcherClassName?: string;
+  switcherShortcut?: WorkspaceSwitchShortcut;
 };
 
 type WorkspaceLocation = {
@@ -79,6 +85,7 @@ export function WorkspaceNav({
   brandPanelClassName,
   releaseBadgeClassName,
   switcherClassName,
+  switcherShortcut,
 }: WorkspaceNavProps) {
   const pathname = usePathname();
   const [currentHash, setCurrentHash] = useState("");
@@ -219,8 +226,22 @@ export function WorkspaceNav({
         />
 
         <div className={cx("office-company-switcher", switcherClassName)}>
-          <strong>{switcherLabel}</strong>
-          <span>▾</span>
+          <div className="office-company-switcher-copy">
+            <strong>{switcherLabel}</strong>
+            <span>{currentWorkspaceName}</span>
+          </div>
+          {switcherShortcut ? (
+            <Link
+              className="office-company-switcher-link"
+              href={switcherShortcut.href}
+            >
+              {switcherShortcut.label}
+            </Link>
+          ) : (
+            <span aria-hidden="true" className="office-company-switcher-caret">
+              ▾
+            </span>
+          )}
         </div>
 
         <div className="office-nav-groups">
@@ -335,6 +356,22 @@ export function WorkspaceNav({
             />
 
             <div className="office-mobile-menu-panel" id={mobileMenuPanelId}>
+              {switcherShortcut ? (
+                <div className="office-mobile-workspace-bridge">
+                  <div className="office-mobile-workspace-bridge-copy">
+                    <span>{switcherLabel}</span>
+                    <strong>{currentWorkspaceName}</strong>
+                  </div>
+                  <Link
+                    className="office-mobile-workspace-bridge-link"
+                    href={switcherShortcut.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {switcherShortcut.label}
+                  </Link>
+                </div>
+              ) : null}
+
               {navGroups.map((group) => (
                 <section className="office-mobile-menu-group" key={group.title}>
                   <header className="office-mobile-menu-header">

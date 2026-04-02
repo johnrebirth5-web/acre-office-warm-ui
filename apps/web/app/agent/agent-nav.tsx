@@ -32,6 +32,10 @@ export function AgentNav() {
       sidebarClassName="agent-sidebar"
       switcherClassName="agent-company-switcher"
       switcherLabel="FRONT OFFICE"
+      switcherShortcut={{
+        href: "/office/dashboard",
+        label: "Open Back Office",
+      }}
     />
   );
 }
