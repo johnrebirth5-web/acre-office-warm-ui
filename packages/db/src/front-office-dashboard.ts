@@ -14,7 +14,10 @@ import {
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
-import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
+import {
+  buildFrontOfficeHandoffCreateHref,
+  isFrontOfficeStageReadyForBackOffice,
+} from "./front-office-contracts";
 import { resolveLeaseReminderDates } from "./lease-reminders";
 import { reconcileOfficeNotificationReminders } from "./notifications";
 import {
@@ -38,6 +41,7 @@ export type FrontOfficeDashboardSummary = {
   todayCommitmentCount: number;
   needsBackOfficeCount: number;
   leadershipPressureCount: number;
+  aiSuggestionCount: number;
 };
 
 export type FrontOfficeDashboardActionQueueItem = {
@@ -161,11 +165,29 @@ export type FrontOfficeDashboardLeadershipItem = {
   href: string;
 };
 
+export type FrontOfficeDashboardAiQueueItem = {
+  id: string;
+  clientName: string;
+  statusLabel: string;
+  tone: FrontOfficeDashboardTone;
+  description: string;
+  contextLabel: string;
+  helperLabel: string;
+  openDossierHref: string;
+  followUpLabel: string;
+  followUpHref: string;
+};
+
 type FrontOfficeDashboardLeadershipEngagementItem =
   FrontOfficeDashboardLeadershipItem & {
     _priority: number;
     _sortAt: Date;
   };
+
+type FrontOfficeDashboardAiCandidateItem = FrontOfficeDashboardAiQueueItem & {
+  _priority: number;
+  _sortAt: Date;
+};
 
 export type FrontOfficeDashboardSnapshot = {
   summary: FrontOfficeDashboardSummary;
@@ -199,6 +221,10 @@ export type FrontOfficeDashboardSnapshot = {
     dueCount: number;
     overdueCount: number;
     items: FrontOfficeDashboardLeaseReminderItem[];
+  };
+  aiQueue: {
+    suggestionCount: number;
+    items: FrontOfficeDashboardAiQueueItem[];
   };
   backOffice: {
     items: FrontOfficeDashboardBackOfficeItem[];
@@ -626,6 +652,30 @@ function isClosedClientStage(stage: string) {
   return normalized.includes("won") || normalized.includes("lost");
 }
 
+function formatDateValue(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function buildSuggestedFollowUpDate(now: Date, daysFromNow: number) {
+  const target = new Date(now);
+  target.setDate(target.getDate() + daysFromNow);
+  return formatDateValue(target);
+}
+
+function buildFrontOfficeSuggestedFollowUpHref(input: {
+  clientId: string;
+  title: string;
+  dueAt: string;
+}) {
+  const params = new URLSearchParams({
+    followUpTitle: input.title,
+    followUpDueAt: input.dueAt,
+    followUpSource: "ai",
+  });
+
+  return `/agent/clients/${input.clientId}?${params.toString()}#front-office-follow-up-form`;
+}
+
 async function getLeadershipScopeMembershipIds(input: {
   organizationId: string;
   viewerMembershipId: string;
@@ -925,6 +975,7 @@ export async function getFrontOfficeDashboardSnapshot(
     staleClientCount,
     stageGroups,
     recentClients,
+    aiSuggestionCandidates,
     activeListingCount,
     recentListings,
     shareAggregate,
@@ -1054,6 +1105,78 @@ export async function getFrontOfficeDashboardSnapshot(
         nextFollowUpAt: true,
         leaseReminderAt: true,
         lastContactAt: true,
+      },
+    }),
+    prisma.client.findMany({
+      where: clientWhere,
+      orderBy: [{ updatedAt: "desc" }],
+      take: 8,
+      select: {
+        id: true,
+        fullName: true,
+        stage: true,
+        nextFollowUpAt: true,
+        leaseEndDate: true,
+        leaseReminderAt: true,
+        lastContactAt: true,
+        createdAt: true,
+        appointments: {
+          where: {
+            status: AppointmentStatus.scheduled,
+            startsAt: {
+              gte: startOfToday,
+              lte: fourteenDaysFromNow,
+            },
+          },
+          orderBy: [{ startsAt: "asc" }],
+          take: 1,
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            startsAt: true,
+          },
+        },
+        frontOfficeSendRecords: {
+          orderBy: [{ sentAt: "desc" }],
+          take: 1,
+          select: {
+            id: true,
+            sentAt: true,
+            openCount: true,
+            lastOpenedAt: true,
+            listing: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        },
+        handoffDrafts: {
+          orderBy: [{ updatedAt: "desc" }],
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            committedTransactionId: true,
+            summary: true,
+          },
+        },
+        transactionContacts: {
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+          take: 1,
+          select: {
+            transaction: {
+              select: {
+                id: true,
+                status: true,
+                acceptanceDate: true,
+                closingDate: true,
+                moveInDate: true,
+              },
+            },
+          },
+        },
       },
     }),
     prisma.listing.count({
@@ -1721,6 +1844,338 @@ export async function getFrontOfficeDashboardSnapshot(
       };
     }),
   ].slice(0, 4);
+  const aiQueueCandidates = aiSuggestionCandidates
+    .flatMap<FrontOfficeDashboardAiCandidateItem>((client) => {
+      const leaseReminder = buildLeaseReminderStatus({
+        leaseEndDate: client.leaseEndDate,
+        leaseReminderAt: client.leaseReminderAt,
+        now,
+      });
+      const nextTouchLabel = formatNextTouchLabel({
+        nextFollowUpAt: client.nextFollowUpAt,
+        leaseReminderAt: client.leaseReminderAt,
+        now,
+      });
+      const latestAppointment = client.appointments[0] ?? null;
+      const latestSendRecord = client.frontOfficeSendRecords[0] ?? null;
+      const linkedTransaction = client.transactionContacts[0]?.transaction ?? null;
+      const closingReferenceDate =
+        linkedTransaction?.moveInDate ??
+        linkedTransaction?.closingDate ??
+        linkedTransaction?.acceptanceDate ??
+        null;
+      const hasClosedTransaction =
+        linkedTransaction?.status === TransactionStatus.closed;
+      const hasCancelledTransaction =
+        linkedTransaction?.status === TransactionStatus.cancelled;
+      const isClosingSoon = Boolean(
+        !hasClosedTransaction &&
+          !hasCancelledTransaction &&
+          closingReferenceDate &&
+          closingReferenceDate.getTime() >= startOfToday.getTime() &&
+          closingReferenceDate.getTime() <= fourteenDaysFromNow.getTime(),
+      );
+      const isReadyForBackOffice = isFrontOfficeStageReadyForBackOffice(
+        client.stage,
+      );
+      const openDossierHref = `/agent/clients/${client.id}#front-office-ai-suggestions`;
+
+      if (hasCancelledTransaction) {
+        const dueAt = buildSuggestedFollowUpDate(now, 21);
+        const title = `Nurture check-in with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-reentry`,
+            clientName: client.fullName,
+            statusLabel: "Re-entry",
+            tone: "warning",
+            description:
+              "The formal deal did not close, so the next-touch should reopen the relationship without forcing urgency.",
+            contextLabel: nextTouchLabel,
+            helperLabel: "Grounded by cancelled / lost transaction outcome",
+            openDossierHref,
+            followUpLabel: "Prefill nurture follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 0,
+            _sortAt: linkedTransaction?.acceptanceDate ?? client.createdAt,
+          },
+        ];
+      }
+
+      if (hasClosedTransaction) {
+        const dueAt = buildSuggestedFollowUpDate(now, 2);
+        const title = `Post-close check-in with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-postclose`,
+            clientName: client.fullName,
+            statusLabel: "Post-close",
+            tone: "success",
+            description:
+              closingReferenceDate
+                ? `The shared transaction is already closed around ${formatDateLabel(closingReferenceDate)}. Keep the relationship warm while the win is still fresh.`
+                : "The shared transaction is already closed. Keep the relationship warm while the win is still fresh.",
+            contextLabel: nextTouchLabel,
+            helperLabel:
+              closingReferenceDate
+                ? `Milestone · ${formatDateLabel(closingReferenceDate)}`
+                : "Grounded by closed transaction outcome",
+            openDossierHref,
+            followUpLabel: "Prefill post-close follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 1,
+            _sortAt: closingReferenceDate ?? client.createdAt,
+          },
+        ];
+      }
+
+      if (isClosingSoon && closingReferenceDate) {
+        const dueAt = buildSuggestedFollowUpDate(now, 1);
+        const title = `Confirm closing logistics with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-closing`,
+            clientName: client.fullName,
+            statusLabel: "Closing support",
+            tone: "warning",
+            description: `A formal deal milestone is close: ${formatDateLabel(
+              closingReferenceDate,
+            )}. Use the next touch to steady logistics and wrap-up timing.`,
+            contextLabel: nextTouchLabel,
+            helperLabel:
+              linkedTransaction?.moveInDate
+                ? "Move-in window is approaching"
+                : linkedTransaction?.closingDate
+                  ? "Closing date is approaching"
+                  : "Accepted file needs a wrap-up plan",
+            openDossierHref,
+            followUpLabel: "Prefill closing follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 2,
+            _sortAt: closingReferenceDate,
+          },
+        ];
+      }
+
+      if (
+        leaseReminder.statusLabel === "Overdue" ||
+        leaseReminder.statusLabel === "Due today" ||
+        leaseReminder.statusLabel === "Due soon"
+      ) {
+        const dueAt = buildSuggestedFollowUpDate(
+          now,
+          leaseReminder.statusLabel === "Due soon" ? 2 : 0,
+        );
+        const title = `Confirm lease timing with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-lease`,
+            clientName: client.fullName,
+            statusLabel: "Lease timing",
+            tone: leaseReminder.tone,
+            description:
+              "Lease timing is already visible on this record, so the next-touch should lock renewal, move, or remarketing intent before the window slips.",
+            contextLabel: nextTouchLabel,
+            helperLabel: `${leaseReminder.statusLabel} · ${leaseReminder.detailLabel}`,
+            openDossierHref,
+            followUpLabel: "Prefill lease follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: leaseReminder.statusLabel === "Overdue" ? 3 : 4,
+            _sortAt: leaseReminder.reminderAt ?? client.createdAt,
+          },
+        ];
+      }
+
+      if (latestAppointment) {
+        const dueAt = buildSuggestedFollowUpDate(now, 0);
+        const title = `Prep ${latestAppointment.title} with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-appointment`,
+            clientName: client.fullName,
+            statusLabel: "Appointment prep",
+            tone: "accent",
+            description: `There is already a scheduled ${formatAppointmentTypeLabel(
+              latestAppointment.type,
+            ).toLowerCase()} on the calendar, so the next-touch should sharpen expectations before the meeting.`,
+            contextLabel: nextTouchLabel,
+            helperLabel: `${latestAppointment.title} · ${formatDateTimeLabel(
+              latestAppointment.startsAt,
+              { timeZone: input.timeZone ?? null },
+            )}`,
+            openDossierHref,
+            followUpLabel: "Prefill prep follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 5,
+            _sortAt: latestAppointment.startsAt,
+          },
+        ];
+      }
+
+      if (
+        latestSendRecord &&
+        latestSendRecord.openCount <= 0 &&
+        latestSendRecord.sentAt.getTime() <= threeDaysAgo.getTime()
+      ) {
+        const dueAt = buildSuggestedFollowUpDate(now, 1);
+        const title = `Follow up on sent shortlist with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-unopened-send`,
+            clientName: client.fullName,
+            statusLabel: "Content follow-up",
+            tone: "warning",
+            description:
+              "Material was sent but there is still no tracked open, so the safest next-touch is to reduce friction and offer a smaller next step.",
+            contextLabel: nextTouchLabel,
+            helperLabel:
+              latestSendRecord.listing?.title?.trim()
+                ? `No open on ${latestSendRecord.listing.title.trim()}`
+                : "Tracked send has no open yet",
+            openDossierHref,
+            followUpLabel: "Prefill rescue follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 6,
+            _sortAt: latestSendRecord.sentAt,
+          },
+        ];
+      }
+
+      if (
+        latestSendRecord &&
+        latestSendRecord.openCount > 0 &&
+        (latestSendRecord.lastOpenedAt ?? latestSendRecord.sentAt).getTime() >=
+          sevenDaysAgo.getTime()
+      ) {
+        const dueAt = buildSuggestedFollowUpDate(now, 1);
+        const title = `Follow up on viewed listings with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-warm-send`,
+            clientName: client.fullName,
+            statusLabel: "Warm engagement",
+            tone: latestSendRecord.openCount > 1 ? "success" : "accent",
+            description:
+              "Tracked content already shows live interest, so the next-touch should turn that signal into a shortlist, feedback, or booked step.",
+            contextLabel: nextTouchLabel,
+            helperLabel:
+              latestSendRecord.lastOpenedAt
+                ? `Last open · ${formatDateTimeLabel(
+                    latestSendRecord.lastOpenedAt,
+                    { timeZone: input.timeZone ?? null },
+                  )}`
+                : `Opened ${latestSendRecord.openCount} time(s)`,
+            openDossierHref,
+            followUpLabel: "Prefill engagement follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 7,
+            _sortAt: latestSendRecord.lastOpenedAt ?? latestSendRecord.sentAt,
+          },
+        ];
+      }
+
+      if (isReadyForBackOffice && !linkedTransaction) {
+        const dueAt = buildSuggestedFollowUpDate(now, 1);
+        const title = `Confirm formal handoff package with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-handoff`,
+            clientName: client.fullName,
+            statusLabel: "Formal handoff",
+            tone: "warning",
+            description:
+              "This record is BO-ready, but the formal file is not live yet, so the next-touch should confirm package, timing, and expectations before handoff.",
+            contextLabel: nextTouchLabel,
+            helperLabel:
+              client.handoffDrafts[0]?.summary?.trim() ||
+              "Front Office stage is ready for formal workflow",
+            openDossierHref,
+            followUpLabel: "Prefill handoff follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 8,
+            _sortAt: client.createdAt,
+          },
+        ];
+      }
+
+      if (!isClosedClientStage(client.stage) && !client.nextFollowUpAt) {
+        const dueAt = buildSuggestedFollowUpDate(now, 2);
+        const title = `Set next touch with ${client.fullName}`;
+
+        return [
+          {
+            id: `ai-${client.id}-generic`,
+            clientName: client.fullName,
+            statusLabel: "Next touch",
+            tone: "accent",
+            description:
+              "This active client does not yet have a future touch on the books, so Acre should not leave the next move implicit.",
+            contextLabel: nextTouchLabel,
+            helperLabel: `Stage · ${client.stage}`,
+            openDossierHref,
+            followUpLabel: "Prefill follow-up",
+            followUpHref: buildFrontOfficeSuggestedFollowUpHref({
+              clientId: client.id,
+              title,
+              dueAt,
+            }),
+            _priority: 9,
+            _sortAt: client.createdAt,
+          },
+        ];
+      }
+
+      return [];
+    })
+    .sort(
+      (left, right) =>
+        left._priority - right._priority ||
+        left._sortAt.getTime() - right._sortAt.getTime(),
+    );
+  const aiQueueItems = aiQueueCandidates
+    .slice(0, 4)
+    .map(({ _priority, _sortAt, ...item }) => item);
+  const aiSuggestionCount = aiQueueCandidates.length;
   const todayEventCount = upcomingEvents.filter(
     (event) =>
       event.startsAt >= startOfToday && event.startsAt < startOfTomorrow,
@@ -1872,7 +2327,8 @@ export async function getFrontOfficeDashboardSnapshot(
         dueLeaseReminderCount +
         todayCommitmentCount +
         needsBackOfficeCount +
-        leadershipPressureCount,
+        leadershipPressureCount +
+        aiSuggestionCount,
       followUpDueCount: dueFollowUpCount,
       leaseReminderCount: dueLeaseReminderCount,
       overdueTaskCount: overdueFollowUpTaskCount,
@@ -1880,6 +2336,7 @@ export async function getFrontOfficeDashboardSnapshot(
       todayCommitmentCount,
       needsBackOfficeCount,
       leadershipPressureCount,
+      aiSuggestionCount,
     },
     actionQueue,
     pipeline: {
@@ -2061,6 +2518,10 @@ export async function getFrontOfficeDashboardSnapshot(
       dueCount: dueLeaseReminderCount,
       overdueCount: overdueLeaseReminderCount,
       items: leaseReminderItems,
+    },
+    aiQueue: {
+      suggestionCount: aiSuggestionCount,
+      items: aiQueueItems,
     },
     backOffice: {
       items: backOfficeItems,

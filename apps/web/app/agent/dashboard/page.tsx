@@ -27,6 +27,7 @@ export default async function AgentDashboardPage() {
   }
 
   const access = getSessionAccess(context);
+  const canUseAi = can(context.currentMembership, "ai:use");
   const snapshot = await getFrontOfficeDashboardSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -77,6 +78,60 @@ export default async function AgentDashboardPage() {
               ))}
             </div>
           </SectionCard>
+
+          {canUseAi ? (
+            <SectionCard
+              className="office-list-card"
+              subtitle="Acre can now lift grounded next-touch opportunities out of the dossier and into the dashboard, but every action still stays agent-approved."
+              title="AI next-touch queue"
+            >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="grounded AI suggestion opportunities currently visible in this dashboard scope"
+                  label="AI suggestions"
+                  tone="accent"
+                  value={snapshot.aiQueue.suggestionCount}
+                />
+              </ListPageStatsGrid>
+
+              <div className="office-queue-list">
+                {snapshot.aiQueue.items.length ? (
+                  snapshot.aiQueue.items.map((item) => (
+                    <FrontOfficeRailItem
+                      action={
+                        <>
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href={item.followUpHref}
+                          >
+                            {item.followUpLabel}
+                          </FrontOfficeLink>
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href={item.openDossierHref}
+                          >
+                            Open AI dossier
+                          </FrontOfficeLink>
+                        </>
+                      }
+                      badgeLabel={item.statusLabel}
+                      badgeTone={item.tone}
+                      context={item.contextLabel}
+                      description={item.description}
+                      key={item.id}
+                      meta={<span>{item.helperLabel}</span>}
+                      title={item.clientName}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    description="As lease timing, appointments, tracked send behavior, handoff state, and transaction milestones line up, grounded AI next-touch opportunities will appear here."
+                    title="No AI suggestions in queue"
+                  />
+                )}
+              </div>
+            </SectionCard>
+          ) : null}
 
           <SectionCard
             className="office-list-card"
@@ -669,6 +724,13 @@ export default async function AgentDashboardPage() {
             tone="accent"
             value={snapshot.summary.needsBackOfficeCount}
           />
+          {canUseAi ? (
+            <SummaryChip
+              label="AI suggestions"
+              tone="accent"
+              value={snapshot.summary.aiSuggestionCount}
+            />
+          ) : null}
           {snapshot.leadershipQueue.visible ? (
             <SummaryChip
               label="Leadership pressure"

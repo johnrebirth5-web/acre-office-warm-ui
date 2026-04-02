@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue` foundation, the recommended next implementation target is:
 
-- `dashboard-level AI queue + safe automation actions rooted in the same dossier and live execution trail`
+- `agent-approved one-click follow-up creation + outbound draft assist rooted in the same dossier and live execution trail`
 
 That means:
 
-- Front Office should now lift grounded next-touch opportunities out of the dossier and into the agent's daily dashboard instead of hiding them only in the detail page
-- automation should stay safe and agent-approved first: copy drafts, suggested follow-up creation, or draft task titles before any true auto-send behavior
+- Front Office should now let agents accept grounded suggestions with less friction than opening the detail page and manually retyping the next task
+- automation should stay safe and agent-approved first: one-click task creation, better draft handoff into send surfaces, or pre-approved outbound prep before any true auto-send behavior
 - the module should keep the FO -> BO boundary explicit by grounding recommendations in formal BO status / outcome signals while FO still owns client-facing follow-up, recap, referral, renewal, or re-entry prompts
-- the goal is to extend the first grounded AI bridge into visible workflow actions without skipping straight to opaque background automation
+- the goal is to extend the grounded AI bridge into lighter-weight accepted actions before skipping straight to opaque background automation
 
 ## First real FO workflow models
 
@@ -164,6 +164,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/clients/[clientId]` now exposes an `AI next-touch suggestions` section for memberships with `ai:use`, and the suggestions are grounded in the same live dossier trail: workflow pressure, lease reminders, appointments, tracked send/open behavior, BO handoff state, and formal transaction milestones
   - the dossier now emits a primary AI recommendation plus copyable call / text / email drafts that stay aligned to the current record state, while keeping the actual send decision with the agent
   - the first AI bridge intentionally does not auto-send anything and does not require a standalone model service; it turns the existing execution trail into a grounded suggestion layer that future dashboard / automation work can reuse
+- dashboard-level AI queue + safe automation actions now also live on top of that same grounded suggestion layer:
+  - `/agent/dashboard` now exposes an `AI next-touch queue` for memberships with `ai:use`, surfacing the most actionable grounded suggestions across lease timing, appointment prep, tracked send follow-up, BO-ready handoff, and post-close support
+  - those dashboard items now route either back into the dossier AI section or into the shared follow-up form with AI-prefilled task titles / due dates, so the agent can accept the suggestion without retyping it
+  - the first dashboard automation layer intentionally stops at safe prefill and review: it does not auto-create follow-up tasks or auto-send messages in the background
 
 ## Non-goals in this phase
 
@@ -174,4 +178,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- dashboard-level AI queue + safe automation actions rooted in the same dossier and live execution trail
+- agent-approved one-click follow-up creation + outbound draft assist rooted in the same dossier and live execution trail

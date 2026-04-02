@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useState,
   useTransition,
   type ChangeEvent,
@@ -13,6 +14,11 @@ import { FrontOfficeLink } from "../../_components/front-office-link";
 
 type FrontOfficeClientDossierClientProps = {
   snapshot: FrontOfficeClientDetailSnapshot;
+  suggestedFollowUp?: {
+    title: string;
+    dueAt?: string;
+    sourceLabel?: string | null;
+  } | null;
 };
 
 type FollowUpFormState = {
@@ -36,10 +42,12 @@ function buildDefaultDueAt() {
   return tomorrow.toISOString().slice(0, 10);
 }
 
-function buildEmptyFormState(): FollowUpFormState {
+function buildEmptyFormState(
+  suggestion?: FrontOfficeClientDossierClientProps["suggestedFollowUp"],
+): FollowUpFormState {
   return {
-    title: "",
-    dueAt: buildDefaultDueAt(),
+    title: suggestion?.title?.trim() || "",
+    dueAt: suggestion?.dueAt || buildDefaultDueAt(),
   };
 }
 
@@ -61,12 +69,16 @@ export function FrontOfficeClientDossierClient(
 ) {
   const router = useRouter();
   const [formState, setFormState] =
-    useState<FollowUpFormState>(buildEmptyFormState);
+    useState<FollowUpFormState>(() => buildEmptyFormState(props.suggestedFollowUp));
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending;
+
+  useEffect(() => {
+    setFormState(buildEmptyFormState(props.suggestedFollowUp));
+  }, [props.suggestedFollowUp?.dueAt, props.suggestedFollowUp?.title]);
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
@@ -212,6 +224,11 @@ export function FrontOfficeClientDossierClient(
           dossier&apos;s next-touch signal current for Front Office and Back
           Office views.
         </p>
+        {props.suggestedFollowUp?.sourceLabel ? (
+          <p className="front-office-calendar-feedback is-success">
+            {props.suggestedFollowUp.sourceLabel}
+          </p>
+        ) : null}
 
         <form
           className="front-office-calendar-form"

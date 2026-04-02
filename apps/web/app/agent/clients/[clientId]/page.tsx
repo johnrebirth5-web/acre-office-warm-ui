@@ -25,6 +25,11 @@ type AgentClientDetailPageProps = {
   params: Promise<{
     clientId: string;
   }>;
+  searchParams: Promise<{
+    followUpTitle?: string;
+    followUpDueAt?: string;
+    followUpSource?: string;
+  }>;
 };
 
 export default async function AgentClientDetailPage(
@@ -37,8 +42,25 @@ export default async function AgentClientDetailPage(
   }
 
   const { clientId } = await props.params;
+  const searchParams = await props.searchParams;
   const access = getSessionAccess(context);
   const canUseAi = can(context.currentMembership, "ai:use");
+  const suggestedFollowUpTitle = searchParams.followUpTitle?.trim() || "";
+  const suggestedFollowUpDueAt =
+    searchParams.followUpDueAt &&
+    /^\d{4}-\d{2}-\d{2}$/.test(searchParams.followUpDueAt)
+      ? searchParams.followUpDueAt
+      : undefined;
+  const suggestedFollowUp = suggestedFollowUpTitle
+    ? {
+        title: suggestedFollowUpTitle,
+        dueAt: suggestedFollowUpDueAt,
+        sourceLabel:
+          searchParams.followUpSource === "ai"
+            ? "AI suggestion loaded into the follow-up form below."
+            : null,
+      }
+    : null;
   const snapshot = await getFrontOfficeClientDetail({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -227,7 +249,10 @@ export default async function AgentClientDetailPage(
               </div>
             </div>
 
-            <FrontOfficeClientDossierClient snapshot={snapshot} />
+            <FrontOfficeClientDossierClient
+              snapshot={snapshot}
+              suggestedFollowUp={suggestedFollowUp}
+            />
           </SectionCard>
 
           <SectionCard
@@ -638,32 +663,34 @@ export default async function AgentClientDetailPage(
           </SectionCard>
 
           {canUseAi ? (
-            <SectionCard
-              actions={
-                snapshot.aiSuggestions.primaryActionOpensInNewTab ? (
-                  <a
-                    className="office-button-secondary"
-                    href={snapshot.aiSuggestions.primaryActionHref}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {snapshot.aiSuggestions.primaryActionLabel}
-                  </a>
-                ) : (
-                  <FrontOfficeLink
-                    className="office-button-secondary"
-                    href={snapshot.aiSuggestions.primaryActionHref}
-                  >
-                    {snapshot.aiSuggestions.primaryActionLabel}
-                  </FrontOfficeLink>
-                )
-              }
-              className="office-list-card"
-              subtitle="Acre now grounds the next-touch suggestion in the live dossier trail, but still leaves the final wording and send decision to the agent."
-              title="AI next-touch suggestions"
-            >
-              <FrontOfficeClientAiSuggestionsClient snapshot={snapshot} />
-            </SectionCard>
+            <div id="front-office-ai-suggestions">
+              <SectionCard
+                actions={
+                  snapshot.aiSuggestions.primaryActionOpensInNewTab ? (
+                    <a
+                      className="office-button-secondary"
+                      href={snapshot.aiSuggestions.primaryActionHref}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {snapshot.aiSuggestions.primaryActionLabel}
+                    </a>
+                  ) : (
+                    <FrontOfficeLink
+                      className="office-button-secondary"
+                      href={snapshot.aiSuggestions.primaryActionHref}
+                    >
+                      {snapshot.aiSuggestions.primaryActionLabel}
+                    </FrontOfficeLink>
+                  )
+                }
+                className="office-list-card"
+                subtitle="Acre now grounds the next-touch suggestion in the live dossier trail, but still leaves the final wording and send decision to the agent."
+                title="AI next-touch suggestions"
+              >
+                <FrontOfficeClientAiSuggestionsClient snapshot={snapshot} />
+              </SectionCard>
+            </div>
           ) : null}
 
           <SectionCard

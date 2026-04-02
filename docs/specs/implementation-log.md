@@ -5,9 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- Current recommended FO next target after the live dossier AI suggestion bridge is `dashboard-level AI queue + safe automation actions`, so future threads can pull grounded suggestions into the daily workbench before introducing heavier background automation
+- Current recommended FO next target after the live dashboard AI queue bridge is `agent-approved one-click follow-up creation + outbound draft assist`, so future threads can reduce acceptance friction before introducing heavier background automation
 
 ## Recently completed major work
+
+- 2026-04-02: `dashboard-level AI queue + safe automation actions` are now live on top of the dossier AI bridge instead of remaining only the next roadmap line:
+  - [packages/db/src/front-office-dashboard.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-dashboard.ts) now derives grounded AI queue items from the same FO execution trail, surfacing lease-timing, appointment-prep, tracked-send, BO-handoff, closing, and post-close opportunities directly on `/agent/dashboard`
+  - [apps/web/app/agent/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/dashboard/page.tsx) now renders an `AI next-touch queue` for memberships with `ai:use`, and each queue item offers a safe automation path into a prefilled FO follow-up instead of auto-creating or auto-sending in the background
+  - [apps/web/app/agent/clients/[clientId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/page.tsx) plus [front-office-client-dossier-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/front-office-client-dossier-client.tsx) now accept AI-prefilled follow-up query params, so dashboard actions can land agents inside the shared follow-up form with the suggested task title and due date already loaded
 
 - 2026-04-02: `AI next-touch suggestions` are now live inside the FO client dossier instead of remaining only the next roadmap line:
   - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now turns the live dossier trail into a grounded AI suggestion snapshot, combining workflow pressure, lease timing, appointments, tracked send/open behavior, BO handoff readiness, and formal transaction milestones into one recommended next touch plus copyable call / text / email drafts
