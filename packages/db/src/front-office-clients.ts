@@ -15,6 +15,7 @@ import {
   isFrontOfficeStageReadyForBackOffice,
 } from "./front-office-contracts";
 import {
+  buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
   buildFrontOfficeAiSuggestionInsight,
@@ -226,6 +227,10 @@ export type FrontOfficeClientDetailAiAcceptedActionItem = {
 export type FrontOfficeClientDetailAiAcceptedActions = {
   acceptedCount: number;
   positiveOutcomeCount: number;
+  breakdown: {
+    label: string;
+    summary: string;
+  }[];
   items: FrontOfficeClientDetailAiAcceptedActionItem[];
 };
 
@@ -2915,6 +2920,22 @@ export async function getFrontOfficeClientDetail(
     now,
     timeZone: input.timeZone,
   });
+  const clientAiAcceptedActionBreakdown = buildFrontOfficeAiAcceptedActionBreakdown(
+    {
+      historyIndex: aiHistoryIndex,
+      suggestionKinds: Array.from(
+        new Set(
+          membershipAiLearningActions
+            .filter((action) => action.clientId === client.id)
+            .map((action) => action.suggestionKind),
+        ),
+      ),
+      limit: 3,
+    },
+  ).map((item) => ({
+    label: item.label,
+    summary: item.summary,
+  }));
   const ownerLabel =
     `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
     client.ownerMembership?.user.email ||
@@ -3548,6 +3569,7 @@ export async function getFrontOfficeClientDetail(
   const aiAcceptedActions: FrontOfficeClientDetailAiAcceptedActions = {
     acceptedCount: aiAcceptedActionCount,
     positiveOutcomeCount: aiPositiveOutcomeCount,
+    breakdown: clientAiAcceptedActionBreakdown,
     items: recentAiAcceptedActions.map((action) => {
       const outcome = mapFrontOfficeAiAcceptedActionOutcome({
         actionType: action.actionType,

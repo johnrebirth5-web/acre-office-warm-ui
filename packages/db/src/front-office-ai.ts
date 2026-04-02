@@ -96,6 +96,15 @@ export type FrontOfficeAiSuggestionInsight = {
   suppressDirectFollowUpCreation: boolean;
 };
 
+export type FrontOfficeAiAcceptedActionBreakdownItem = {
+  suggestionKind: FrontOfficeAiFollowUpKind;
+  label: string;
+  acceptedCount: number;
+  positiveOutcomeCount: number;
+  stalledCount: number;
+  summary: string;
+};
+
 function formatDateValue(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -149,6 +158,31 @@ export function normalizeFrontOfficeAiFollowUpKind(
       return normalized as FrontOfficeAiFollowUpKind;
     default:
       return null;
+  }
+}
+
+export function formatFrontOfficeAiFollowUpKindLabel(
+  value: FrontOfficeAiFollowUpKind,
+) {
+  switch (value) {
+    case "reentry":
+      return "Re-entry";
+    case "postclose":
+      return "Post-close";
+    case "closing":
+      return "Closing support";
+    case "lease":
+      return "Lease timing";
+    case "appointment":
+      return "Appointment prep";
+    case "content_rescue":
+      return "Content follow-up";
+    case "warm_engagement":
+      return "Warm engagement";
+    case "handoff":
+      return "Formal handoff";
+    default:
+      return "Next touch";
   }
 }
 
@@ -528,6 +562,56 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
     historySignals: Array.from(new Set(historySignals)).slice(0, 2),
     suppressDirectFollowUpCreation,
   };
+}
+
+export function buildFrontOfficeAiAcceptedActionBreakdown(input: {
+  historyIndex: FrontOfficeAiSuggestionHistoryIndex;
+  limit?: number;
+  suggestionKinds?: FrontOfficeAiFollowUpKind[];
+}): FrontOfficeAiAcceptedActionBreakdownItem[] {
+  const allowedKinds = input.suggestionKinds
+    ? new Set(input.suggestionKinds)
+    : null;
+
+  return Object.entries(input.historyIndex.byKind)
+    .flatMap(([suggestionKind, stats]) => {
+      if (!stats) {
+        return [];
+      }
+
+      const typedKind = suggestionKind as FrontOfficeAiFollowUpKind;
+
+      if (allowedKinds && !allowedKinds.has(typedKind)) {
+        return [];
+      }
+
+      const parts = [
+        `${stats.acceptedCount} accepted`,
+        `${stats.positiveCount} positive`,
+        stats.stalledCount > 0 ? `${stats.stalledCount} stalled` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      return [
+        {
+          suggestionKind: typedKind,
+          label: formatFrontOfficeAiFollowUpKindLabel(typedKind),
+          acceptedCount: stats.acceptedCount,
+          positiveOutcomeCount: stats.positiveCount,
+          stalledCount: stats.stalledCount,
+          summary: parts,
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        right.positiveOutcomeCount - left.positiveOutcomeCount ||
+        right.acceptedCount - left.acceptedCount ||
+        left.stalledCount - right.stalledCount ||
+        left.label.localeCompare(right.label),
+    )
+    .slice(0, input.limit ?? 3);
 }
 
 export async function recordFrontOfficeAiAcceptedAction(

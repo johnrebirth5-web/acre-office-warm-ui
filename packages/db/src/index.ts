@@ -213,13 +213,16 @@ export {
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
+  buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
   buildFrontOfficeAiSuggestionInsight,
   buildFrontOfficeSuggestedFollowUpHref,
   formatFrontOfficeAiActionTypeLabel,
+  formatFrontOfficeAiFollowUpKindLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
   mapFrontOfficeAiAcceptedActionOutcome,
+  type FrontOfficeAiAcceptedActionBreakdownItem,
   normalizeFrontOfficeAiFollowUpKind,
   normalizeFrontOfficeAiSourceSurface,
   recordFrontOfficeAiAcceptedAction,

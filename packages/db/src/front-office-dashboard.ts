@@ -15,6 +15,7 @@ import {
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import {
+  buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
   buildFrontOfficeAiSuggestionInsight,
@@ -258,6 +259,10 @@ export type FrontOfficeDashboardSnapshot = {
   aiAcceptedActions: {
     acceptedCount: number;
     positiveOutcomeCount: number;
+    breakdown: {
+      label: string;
+      summary: string;
+    }[];
     items: FrontOfficeDashboardAiAcceptedActionItem[];
   };
   backOffice: {
@@ -2314,6 +2319,13 @@ export async function getFrontOfficeDashboardSnapshot(
     .slice(0, 4)
     .map(({ _priority, _sortAt, ...item }) => item);
   const aiSuggestionCount = aiQueueCandidates.length;
+  const aiAcceptedActionBreakdown = buildFrontOfficeAiAcceptedActionBreakdown({
+    historyIndex: aiHistoryIndex,
+    limit: 3,
+  }).map((item) => ({
+    label: item.label,
+    summary: item.summary,
+  }));
   const aiAcceptedActionItems = recentAiAcceptedActionItems.map((action) => {
     const outcome = mapFrontOfficeAiAcceptedActionOutcome({
       actionType: action.actionType,
@@ -2698,6 +2710,7 @@ export async function getFrontOfficeDashboardSnapshot(
     aiAcceptedActions: {
       acceptedCount: aiAcceptedActionCount,
       positiveOutcomeCount: aiPositiveOutcomeCount,
+      breakdown: aiAcceptedActionBreakdown,
       items: aiAcceptedActionItems,
     },
     backOffice: {

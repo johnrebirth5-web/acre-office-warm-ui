@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { TaskStatus } from "@prisma/client";
 import {
+  buildFrontOfficeAiAcceptedActionBreakdown,
   buildFrontOfficeAiSuggestionHistoryIndex,
   buildFrontOfficeAiSuggestionInsight,
   mapFrontOfficeAiAcceptedActionOutcome,
@@ -109,4 +110,56 @@ test("history insight boosts proven kinds and suppresses duplicate follow-up cre
       signal.startsWith("Escalation"),
     ),
   );
+});
+
+test("accepted action breakdown ranks kinds by positive outcomes first", () => {
+  const historyIndex = buildFrontOfficeAiSuggestionHistoryIndex({
+    actions: [
+      {
+        clientId: "client-1",
+        suggestionKind: "content_rescue",
+        actionType: "tracked_send_created",
+        createdAt: new Date("2026-04-01T12:00:00.000Z"),
+        followUpTask: null,
+        sendRecord: {
+          openCount: 1,
+          lastOpenedAt: new Date("2026-04-01T13:00:00.000Z"),
+          sentAt: new Date("2026-04-01T12:00:00.000Z"),
+        },
+      },
+      {
+        clientId: "client-2",
+        suggestionKind: "content_rescue",
+        actionType: "follow_up_created",
+        createdAt: new Date("2026-03-31T12:00:00.000Z"),
+        followUpTask: {
+          status: TaskStatus.completed,
+          dueAt: new Date("2026-04-01T12:00:00.000Z"),
+        },
+        sendRecord: null,
+      },
+      {
+        clientId: "client-3",
+        suggestionKind: "lease",
+        actionType: "follow_up_created",
+        createdAt: new Date("2026-03-30T12:00:00.000Z"),
+        followUpTask: {
+          status: TaskStatus.queued,
+          dueAt: new Date("2026-04-03T12:00:00.000Z"),
+        },
+        sendRecord: null,
+      },
+    ],
+    now: new Date("2026-04-02T12:00:00.000Z"),
+  });
+
+  const breakdown = buildFrontOfficeAiAcceptedActionBreakdown({
+    historyIndex,
+    limit: 2,
+  });
+
+  assert.equal(breakdown.length, 2);
+  assert.equal(breakdown[0]?.label, "Content follow-up");
+  assert.equal(breakdown[0]?.summary, "2 accepted · 2 positive");
+  assert.equal(breakdown[1]?.label, "Lease timing");
 });

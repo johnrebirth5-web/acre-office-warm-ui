@@ -714,6 +714,16 @@ export default async function AgentClientDetailPage(
                   />
                 </ListPageStatsGrid>
 
+                {snapshot.aiAcceptedActions.breakdown.length ? (
+                  <div className="list-row-meta front-office-record-meta">
+                    {snapshot.aiAcceptedActions.breakdown.map((item) => (
+                      <span key={item.label}>
+                        {item.label} · {item.summary}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
                 <div className="office-queue-list">
                   {snapshot.aiAcceptedActions.items.length ? (
                     snapshot.aiAcceptedActions.items.map((item) => (
