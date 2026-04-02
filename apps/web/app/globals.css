@@ -4019,6 +4019,12 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.office-performance-table-head,
+.office-performance-table-row {
+  min-width: max-content;
+  gap: var(--office-table-row-gap);
+}
+
 .office-performance-board-summary {
   margin-top: 14px;
 }
