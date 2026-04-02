@@ -214,17 +214,26 @@ export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
   buildFrontOfficeAiFollowUpAction,
+  buildFrontOfficeAiSuggestionHistoryIndex,
+  buildFrontOfficeAiSuggestionInsight,
   buildFrontOfficeSuggestedFollowUpHref,
   formatFrontOfficeAiActionTypeLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
+  mapFrontOfficeAiAcceptedActionOutcome,
   normalizeFrontOfficeAiFollowUpKind,
   normalizeFrontOfficeAiSourceSurface,
   recordFrontOfficeAiAcceptedAction,
   type FrontOfficeAiAcceptedActionContext,
+  type FrontOfficeAiAcceptedActionOutcome,
   type FrontOfficeAiAcceptedActionType,
   type FrontOfficeAiFollowUpKind,
   type FrontOfficeAiFollowUpAction,
+  type FrontOfficeAiHistoryAction,
   type FrontOfficeAiSourceSurface,
+  type FrontOfficeAiSuggestionHistoryIndex,
+  type FrontOfficeAiSuggestionHistoryStats,
+  type FrontOfficeAiSuggestionInsight,
+  type FrontOfficeAiTone,
 } from "./front-office-ai";
 export {
   getFrontOfficeClientDetail,

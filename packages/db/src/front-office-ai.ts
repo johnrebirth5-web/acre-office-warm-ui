@@ -1,4 +1,11 @@
-import type { Prisma } from "@prisma/client";
+import { TaskStatus, type Prisma } from "@prisma/client";
+
+export type FrontOfficeAiTone =
+  | "neutral"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger";
 
 export type FrontOfficeAiFollowUpKind =
   | "reentry"
@@ -32,8 +39,90 @@ export type FrontOfficeAiFollowUpAction = {
   dueAt: string;
 };
 
+export type FrontOfficeAiAcceptedActionOutcome = {
+  label: string;
+  tone: FrontOfficeAiTone;
+  detail: string;
+  positive: boolean;
+  stalled: boolean;
+};
+
+export type FrontOfficeAiHistoryAction = {
+  clientId: string;
+  suggestionKind: FrontOfficeAiFollowUpKind;
+  actionType: FrontOfficeAiAcceptedActionType;
+  createdAt: Date;
+  followUpTask:
+    | {
+        status: TaskStatus;
+        dueAt: Date | null;
+      }
+    | null
+    | undefined;
+  sendRecord:
+    | {
+        openCount: number;
+        lastOpenedAt: Date | null;
+        sentAt: Date;
+      }
+    | null
+    | undefined;
+};
+
+export type FrontOfficeAiSuggestionHistoryStats = {
+  acceptedCount: number;
+  positiveCount: number;
+  stalledCount: number;
+  latestAcceptedAt: Date | null;
+  latestPositiveAt: Date | null;
+  latestStalledAt: Date | null;
+};
+
+export type FrontOfficeAiSuggestionHistoryIndex = {
+  byKind: Partial<Record<FrontOfficeAiFollowUpKind, FrontOfficeAiSuggestionHistoryStats>>;
+  latestByClientAndKind: Record<
+    string,
+    {
+      actionType: FrontOfficeAiAcceptedActionType;
+      createdAt: Date;
+      outcome: FrontOfficeAiAcceptedActionOutcome;
+    }
+  >;
+};
+
+export type FrontOfficeAiSuggestionInsight = {
+  priorityAdjustment: number;
+  historySignals: string[];
+  suppressDirectFollowUpCreation: boolean;
+};
+
 function formatDateValue(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function formatDisplayDate(value: Date, timeZone?: string | null) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: timeZone ?? undefined,
+  }).format(value);
+}
+
+function formatDisplayDateTime(value: Date, timeZone?: string | null) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timeZone ?? undefined,
+  }).format(value);
+}
+
+function buildFrontOfficeAiClientKindKey(
+  clientId: string,
+  suggestionKind: FrontOfficeAiFollowUpKind,
+) {
+  return `${clientId}:${suggestionKind}`;
 }
 
 function buildSuggestedFollowUpDate(now: Date, daysFromNow: number) {
@@ -166,6 +255,279 @@ export function buildFrontOfficeSuggestedFollowUpHref(input: {
   });
 
   return `/agent/clients/${input.clientId}?${params.toString()}#front-office-follow-up-form`;
+}
+
+export function mapFrontOfficeAiAcceptedActionOutcome(input: {
+  actionType: FrontOfficeAiAcceptedActionType;
+  followUpTask:
+    | {
+        status: TaskStatus;
+        dueAt: Date | null;
+      }
+    | null
+    | undefined;
+  sendRecord:
+    | {
+        openCount: number;
+        lastOpenedAt: Date | null;
+        sentAt: Date;
+      }
+    | null
+    | undefined;
+  now: Date;
+  timeZone?: string | null;
+  staleSendDays?: number;
+}): FrontOfficeAiAcceptedActionOutcome {
+  if (input.actionType === "follow_up_created") {
+    if (!input.followUpTask) {
+      return {
+        label: "Task no longer linked",
+        tone: "neutral",
+        detail: "The accepted follow-up task is no longer available.",
+        positive: false,
+        stalled: false,
+      };
+    }
+
+    if (input.followUpTask.status === TaskStatus.completed) {
+      return {
+        label: "Completed",
+        tone: "success",
+        detail: "The accepted follow-up was completed.",
+        positive: true,
+        stalled: false,
+      };
+    }
+
+    if (input.followUpTask.status === TaskStatus.canceled) {
+      return {
+        label: "Canceled",
+        tone: "neutral",
+        detail: "The accepted follow-up was canceled.",
+        positive: false,
+        stalled: false,
+      };
+    }
+
+    if (
+      input.followUpTask.dueAt &&
+      input.followUpTask.dueAt.getTime() < input.now.getTime()
+    ) {
+      return {
+        label: "Overdue",
+        tone: "danger",
+        detail: `Due ${formatDisplayDate(input.followUpTask.dueAt, input.timeZone)}.`,
+        positive: false,
+        stalled: true,
+      };
+    }
+
+    if (input.followUpTask.dueAt) {
+      return {
+        label: "Queued",
+        tone: "accent",
+        detail: `Due ${formatDisplayDate(input.followUpTask.dueAt, input.timeZone)}.`,
+        positive: false,
+        stalled: false,
+      };
+    }
+
+    return {
+      label: "Queued",
+      tone: "accent",
+      detail: "No due date captured yet.",
+      positive: false,
+      stalled: false,
+    };
+  }
+
+  if (!input.sendRecord) {
+    return {
+      label: "Send missing",
+      tone: "neutral",
+      detail: "The accepted tracked send is no longer available.",
+      positive: false,
+      stalled: false,
+    };
+  }
+
+  if (input.sendRecord.openCount > 0) {
+    return {
+      label: "Opened",
+      tone: "success",
+      detail: input.sendRecord.lastOpenedAt
+        ? `Last opened ${formatDisplayDateTime(input.sendRecord.lastOpenedAt, input.timeZone)}.`
+        : `Opened ${input.sendRecord.openCount} time(s).`,
+      positive: true,
+      stalled: false,
+    };
+  }
+
+  const staleSendDays = input.staleSendDays ?? 3;
+  const staleThreshold = new Date(input.now);
+  staleThreshold.setDate(staleThreshold.getDate() - staleSendDays);
+
+  if (input.sendRecord.sentAt.getTime() <= staleThreshold.getTime()) {
+    return {
+      label: "Still unopened",
+      tone: "warning",
+      detail: `Sent ${formatDisplayDate(input.sendRecord.sentAt, input.timeZone)} and still has no tracked open.`,
+      positive: false,
+      stalled: true,
+    };
+  }
+
+  return {
+    label: "Awaiting open",
+    tone: "accent",
+    detail: `Sent ${formatDisplayDate(input.sendRecord.sentAt, input.timeZone)}.`,
+    positive: false,
+    stalled: false,
+  };
+}
+
+export function buildFrontOfficeAiSuggestionHistoryIndex(input: {
+  actions: FrontOfficeAiHistoryAction[];
+  now: Date;
+  timeZone?: string | null;
+  staleSendDays?: number;
+}): FrontOfficeAiSuggestionHistoryIndex {
+  const byKind: FrontOfficeAiSuggestionHistoryIndex["byKind"] = {};
+  const latestByClientAndKind: FrontOfficeAiSuggestionHistoryIndex["latestByClientAndKind"] =
+    {};
+
+  for (const action of input.actions) {
+    const outcome = mapFrontOfficeAiAcceptedActionOutcome({
+      actionType: action.actionType,
+      followUpTask: action.followUpTask,
+      sendRecord: action.sendRecord,
+      now: input.now,
+      timeZone: input.timeZone,
+      staleSendDays: input.staleSendDays,
+    });
+    const kindStats = byKind[action.suggestionKind] ?? {
+      acceptedCount: 0,
+      positiveCount: 0,
+      stalledCount: 0,
+      latestAcceptedAt: null,
+      latestPositiveAt: null,
+      latestStalledAt: null,
+    };
+
+    kindStats.acceptedCount += 1;
+
+    if (outcome.positive) {
+      kindStats.positiveCount += 1;
+      if (
+        !kindStats.latestPositiveAt ||
+        action.createdAt.getTime() > kindStats.latestPositiveAt.getTime()
+      ) {
+        kindStats.latestPositiveAt = action.createdAt;
+      }
+    }
+
+    if (outcome.stalled) {
+      kindStats.stalledCount += 1;
+      if (
+        !kindStats.latestStalledAt ||
+        action.createdAt.getTime() > kindStats.latestStalledAt.getTime()
+      ) {
+        kindStats.latestStalledAt = action.createdAt;
+      }
+    }
+
+    if (
+      !kindStats.latestAcceptedAt ||
+      action.createdAt.getTime() > kindStats.latestAcceptedAt.getTime()
+    ) {
+      kindStats.latestAcceptedAt = action.createdAt;
+    }
+
+    byKind[action.suggestionKind] = kindStats;
+
+    const clientKindKey = buildFrontOfficeAiClientKindKey(
+      action.clientId,
+      action.suggestionKind,
+    );
+    const latestAction = latestByClientAndKind[clientKindKey];
+
+    if (
+      !latestAction ||
+      action.createdAt.getTime() > latestAction.createdAt.getTime()
+    ) {
+      latestByClientAndKind[clientKindKey] = {
+        actionType: action.actionType,
+        createdAt: action.createdAt,
+        outcome,
+      };
+    }
+  }
+
+  return {
+    byKind,
+    latestByClientAndKind,
+  };
+}
+
+export function buildFrontOfficeAiSuggestionInsight(input: {
+  historyIndex: FrontOfficeAiSuggestionHistoryIndex;
+  clientId: string;
+  suggestionKind: FrontOfficeAiFollowUpKind;
+}): FrontOfficeAiSuggestionInsight {
+  const historySignals: string[] = [];
+  let priorityAdjustment = 0;
+  let suppressDirectFollowUpCreation = false;
+  const kindStats = input.historyIndex.byKind[input.suggestionKind] ?? null;
+  const latestClientAction =
+    input.historyIndex.latestByClientAndKind[
+      buildFrontOfficeAiClientKindKey(input.clientId, input.suggestionKind)
+    ] ?? null;
+
+  if (latestClientAction?.outcome.stalled) {
+    priorityAdjustment -= 2;
+    historySignals.push(
+      latestClientAction.actionType === "follow_up_created"
+        ? "Escalation · the last accepted follow-up of this kind is still overdue or stalled"
+        : "Escalation · the last accepted tracked send of this kind is still unopened",
+    );
+    suppressDirectFollowUpCreation =
+      latestClientAction.actionType === "follow_up_created";
+  } else if (latestClientAction?.outcome.positive) {
+    priorityAdjustment -= 1;
+    historySignals.push(
+      latestClientAction.actionType === "follow_up_created"
+        ? "Momentum · the last accepted follow-up of this kind was completed"
+        : "Momentum · the last accepted tracked send of this kind was opened",
+    );
+  }
+
+  if (kindStats) {
+    if (
+      kindStats.acceptedCount >= 2 &&
+      kindStats.positiveCount > kindStats.stalledCount
+    ) {
+      priorityAdjustment -= 1;
+      historySignals.push(
+        kindStats.positiveCount >= 2
+          ? "Outcome signal · similar suggestions have produced repeated positive outcomes lately"
+          : "Outcome signal · this suggestion kind recently produced a positive outcome",
+      );
+    } else if (
+      kindStats.acceptedCount >= 2 &&
+      kindStats.stalledCount > kindStats.positiveCount
+    ) {
+      priorityAdjustment += 1;
+      historySignals.push(
+        "Outcome signal · similar suggestions have stalled more often lately, so Acre keeps stronger signals ahead of this one",
+      );
+    }
+  }
+
+  return {
+    priorityAdjustment,
+    historySignals: Array.from(new Set(historySignals)).slice(0, 2),
+    suppressDirectFollowUpCreation,
+  };
 }
 
 export async function recordFrontOfficeAiAcceptedAction(

@@ -120,8 +120,9 @@ Current implementation priority note:
 - `dashboard-level AI queue + safe automation actions` are now also live, so the dashboard can surface grounded next-touch opportunities and route agents into prefilled follow-up forms without auto-creating or auto-sending anything
 - `agent-approved one-click follow-up creation + outbound draft assist` are now also live, so grounded AI suggestions can become real shared follow-up tasks from the dossier or dashboard, and copy-ready AI drafts can now enter the tracked listing-output surface without auto-sending anything
 - `accepted-action history + AI outcome tracking` is now also live, so the dossier and dashboard can measure which AI suggestions actually became shared follow-up tasks or tracked sends, and whether those accepted actions produced a completed task or real engagement signal
-- the next recommended build target is `outcome-informed AI ranking + safe escalation rules`
-- prefer this next because FO now knows which grounded actions were accepted and which ones produced movement, so the highest-value follow-through is to improve suggestion ordering and escalation thresholds before introducing any heavier automation or auto-send behavior
+- `outcome-informed AI ranking + safe escalation rules` are now also live, so dashboard queue order and dossier suggestion emphasis can react to measured completion / open outcomes instead of treating every grounded path as equally strong forever
+- that ranking layer stays deliberately explainable and agent-approved: Acre can now promote higher-converting suggestion kinds, escalate stalled accepted actions for review, and suppress one-click duplicate follow-up creation when a similar AI-created follow-up is already overdue or still unresolved
+- keep the next FO iteration focused on explainability, workflow hardening, and cleaner FO/BO execution boundaries before introducing any heavier automation or auto-send behavior
 
 ### Phase 2
 

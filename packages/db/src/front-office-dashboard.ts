@@ -16,8 +16,11 @@ import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import {
   buildFrontOfficeAiFollowUpAction,
+  buildFrontOfficeAiSuggestionHistoryIndex,
+  buildFrontOfficeAiSuggestionInsight,
   formatFrontOfficeAiActionTypeLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
+  mapFrontOfficeAiAcceptedActionOutcome,
   type FrontOfficeAiFollowUpKind,
 } from "./front-office-ai";
 import {
@@ -184,6 +187,7 @@ export type FrontOfficeDashboardAiQueueItem = {
   openDossierHref: string;
   followUpTitle: string;
   followUpDueAt: string;
+  allowsDirectFollowUpCreation: boolean;
 };
 
 export type FrontOfficeDashboardAiAcceptedActionItem = {
@@ -206,7 +210,10 @@ type FrontOfficeDashboardLeadershipEngagementItem =
     _sortAt: Date;
   };
 
-type FrontOfficeDashboardAiCandidateItem = FrontOfficeDashboardAiQueueItem & {
+type FrontOfficeDashboardAiCandidateItem = Omit<
+  FrontOfficeDashboardAiQueueItem,
+  "allowsDirectFollowUpCreation"
+> & {
   _priority: number;
   _sortAt: Date;
 };
@@ -552,129 +559,6 @@ function buildFrontOfficeSendEngagementLabel(openCount: number) {
   return `Revisited ${openCount} times`;
 }
 
-function mapAcceptedAiActionOutcome(input: {
-  actionType: "follow_up_created" | "tracked_send_created";
-  followUpTask:
-    | {
-        status: TaskStatus;
-        dueAt: Date | null;
-      }
-    | null
-    | undefined;
-  sendRecord:
-    | {
-        openCount: number;
-        lastOpenedAt: Date | null;
-        sentAt: Date;
-      }
-    | null
-    | undefined;
-  now: Date;
-  timeZone?: string | null;
-}) {
-  if (input.actionType === "follow_up_created") {
-    if (!input.followUpTask) {
-      return {
-        label: "Task no longer linked",
-        tone: "neutral" as const,
-        detail: "The accepted follow-up task is no longer available.",
-        positive: false,
-      };
-    }
-
-    if (input.followUpTask.status === TaskStatus.completed) {
-      return {
-        label: "Completed",
-        tone: "success" as const,
-        detail: "The accepted follow-up was completed.",
-        positive: true,
-      };
-    }
-
-    if (input.followUpTask.status === TaskStatus.canceled) {
-      return {
-        label: "Canceled",
-        tone: "neutral" as const,
-        detail: "The accepted follow-up was canceled.",
-        positive: false,
-      };
-    }
-
-    if (
-      input.followUpTask.dueAt &&
-      input.followUpTask.dueAt.getTime() < input.now.getTime()
-    ) {
-      return {
-        label: "Overdue",
-        tone: "danger" as const,
-        detail: `Due ${formatDateLabel(input.followUpTask.dueAt)}.`,
-        positive: false,
-      };
-    }
-
-    if (input.followUpTask.dueAt) {
-      return {
-        label: "Queued",
-        tone: "accent" as const,
-        detail: `Due ${formatDateLabel(input.followUpTask.dueAt)}.`,
-        positive: false,
-      };
-    }
-
-    return {
-      label: "Queued",
-      tone: "accent" as const,
-      detail: "No due date captured yet.",
-      positive: false,
-    };
-  }
-
-  if (!input.sendRecord) {
-    return {
-      label: "Send missing",
-      tone: "neutral" as const,
-      detail: "The accepted tracked send is no longer available.",
-      positive: false,
-    };
-  }
-
-  if (input.sendRecord.openCount > 0) {
-    return {
-      label: "Opened",
-      tone: "success" as const,
-      detail: input.sendRecord.lastOpenedAt
-        ? `Last opened ${formatDateTimeLabel(input.sendRecord.lastOpenedAt, {
-            timeZone: input.timeZone ?? null,
-          })}.`
-        : `Opened ${input.sendRecord.openCount} time(s).`,
-      positive: true,
-    };
-  }
-
-  return {
-    label: "Awaiting open",
-    tone:
-      input.sendRecord.sentAt.getTime() <
-      new Date(
-        input.now.getFullYear(),
-        input.now.getMonth(),
-        input.now.getDate() - 3,
-      ).getTime()
-        ? ("warning" as const)
-        : ("accent" as const),
-    detail:
-      input.sendRecord.sentAt.getTime() <
-      new Date(
-        input.now.getFullYear(),
-        input.now.getMonth(),
-        input.now.getDate() - 3,
-      ).getTime()
-        ? "No tracked open yet after three days."
-        : "Tracked send is still waiting for the first open.",
-    positive: false,
-  };
-}
-
 function formatSendRecordStageLabel(value: string | null | undefined) {
   return value?.trim() || "Stage not captured";
 }
@@ -980,6 +864,11 @@ export async function getFrontOfficeDashboardSnapshot(
     now.getFullYear(),
     now.getMonth(),
     now.getDate() - 15,
+  );
+  const ninetyDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 90,
   );
   const thirtyDaysAgo = new Date(
     now.getFullYear(),
@@ -1344,13 +1233,17 @@ export async function getFrontOfficeDashboardSnapshot(
       where: {
         organizationId: input.organizationId,
         membershipId: input.viewerMembershipId,
+        createdAt: {
+          gte: ninetyDaysAgo,
+        },
       },
       orderBy: [{ createdAt: "desc" }],
-      take: 4,
+      take: 40,
       select: {
         id: true,
         actionType: true,
         sourceSurface: true,
+        suggestionKind: true,
         suggestionLabel: true,
         actionTitle: true,
         channel: true,
@@ -1768,6 +1661,19 @@ export async function getFrontOfficeDashboardSnapshot(
         })
       : Promise.resolve([]),
   ]);
+  const aiHistoryIndex = buildFrontOfficeAiSuggestionHistoryIndex({
+    actions: recentAiAcceptedActions.map((action) => ({
+      clientId: action.client.id,
+      suggestionKind: action.suggestionKind,
+      actionType: action.actionType,
+      createdAt: action.createdAt,
+      followUpTask: action.followUpTask,
+      sendRecord: action.sendRecord,
+    })),
+    now,
+    timeZone: input.timeZone,
+  });
+  const recentAiAcceptedActionItems = recentAiAcceptedActions.slice(0, 4);
 
   const leadershipLatestSendRecordFilters = leadershipLatestSendGroups
     .flatMap((group) =>
@@ -2379,6 +2285,23 @@ export async function getFrontOfficeDashboardSnapshot(
 
       return [];
     })
+    .map((candidate) => {
+      const insight = buildFrontOfficeAiSuggestionInsight({
+        historyIndex: aiHistoryIndex,
+        clientId: candidate.clientId,
+        suggestionKind: candidate.suggestionKind,
+      });
+
+      return {
+        ...candidate,
+        helperLabel: [candidate.helperLabel, ...insight.historySignals]
+          .filter(Boolean)
+          .join(" · "),
+        allowsDirectFollowUpCreation:
+          !insight.suppressDirectFollowUpCreation,
+        _priority: candidate._priority + insight.priorityAdjustment,
+      };
+    })
     .sort(
       (left, right) =>
         left._priority - right._priority ||
@@ -2388,8 +2311,8 @@ export async function getFrontOfficeDashboardSnapshot(
     .slice(0, 4)
     .map(({ _priority, _sortAt, ...item }) => item);
   const aiSuggestionCount = aiQueueCandidates.length;
-  const aiAcceptedActionItems = recentAiAcceptedActions.map((action) => {
-    const outcome = mapAcceptedAiActionOutcome({
+  const aiAcceptedActionItems = recentAiAcceptedActionItems.map((action) => {
+    const outcome = mapFrontOfficeAiAcceptedActionOutcome({
       actionType: action.actionType,
       followUpTask: action.followUpTask,
       sendRecord: action.sendRecord,

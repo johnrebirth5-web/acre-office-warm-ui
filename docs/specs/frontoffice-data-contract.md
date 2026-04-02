@@ -177,6 +177,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/clients/[clientId]` now exposes an `Accepted AI actions & outcomes` section for memberships with `ai:use`, showing recent accepted actions, their source surface / suggestion context, and whether the resulting follow-up was completed or the tracked send was opened
   - `/agent/dashboard` now also exposes `AI accepted actions & outcomes`, so the agent can see acceptance volume and positive outcomes across their current FO scope instead of reopening each dossier to understand whether the suggestions actually moved work
   - dashboard one-click follow-up acceptance, dossier one-click follow-up acceptance, and dossier-to-listing-output draft assist now all send structured accepted-action metadata through the same API layer before the shared follow-up task or send record is created
+- outcome-informed AI ranking + safe escalation rules now also live on top of that same grounded suggestion layer:
+  - the shared FO AI service now turns recent accepted-action outcomes into a reusable ranking signal, so dashboard queue order and dossier suggestion emphasis can promote suggestion kinds that recently led to completed follow-ups or tracked opens
+  - the same history index now also adds safe escalation cues when a similar accepted action stalled, so Acre can elevate the review path without quietly auto-sending or auto-creating more work in the background
+  - dashboard one-click follow-up creation now intentionally backs off when the latest similar AI-created follow-up is still overdue, pushing the agent back into the dossier review path instead of stacking a duplicate shared follow-up task
 
 ## Non-goals in this phase
 
@@ -187,4 +191,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- outcome-informed AI ranking + safe escalation rules
+- deeper explainability, permissions, and workflow hardening on top of the current FO AI bridge before any heavier background automation

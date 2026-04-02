@@ -95,22 +95,26 @@ export function FrontOfficeDashboardAiQueueClient(
             <FrontOfficeRailItem
               action={
                 <>
-                  <Button
-                    disabled={Boolean(activeClientId) || isPending}
-                    onClick={() => void handleCreateFollowUp(item)}
-                    size="sm"
-                    type="button"
-                    variant="secondary"
-                  >
-                    {activeClientId === item.clientId || isPending
-                      ? "Working..."
-                      : "Create follow-up"}
-                  </Button>
+                  {item.allowsDirectFollowUpCreation ? (
+                    <Button
+                      disabled={Boolean(activeClientId) || isPending}
+                      onClick={() => void handleCreateFollowUp(item)}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {activeClientId === item.clientId || isPending
+                        ? "Working..."
+                        : "Create follow-up"}
+                    </Button>
+                  ) : null}
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
                     href={item.openDossierHref}
                   >
-                    Open AI dossier
+                    {item.allowsDirectFollowUpCreation
+                      ? "Open AI dossier"
+                      : "Review in dossier"}
                   </FrontOfficeLink>
                 </>
               }

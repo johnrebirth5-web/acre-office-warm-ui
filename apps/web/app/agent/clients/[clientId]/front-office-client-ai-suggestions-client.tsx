@@ -80,9 +80,15 @@ export function FrontOfficeClientAiSuggestionsClient(
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const aiSuggestions = props.snapshot.aiSuggestions;
+  const canCreateSuggestedFollowUp =
+    Boolean(aiSuggestions.followUpSuggestion) &&
+    aiSuggestions.allowsDirectFollowUpCreation;
   const primaryActionLabel =
-    aiSuggestions.followUpSuggestion &&
+    !aiSuggestions.allowsDirectFollowUpCreation &&
     aiSuggestions.primaryActionHref === "#front-office-follow-up-form"
+      ? "Review existing follow-up"
+      : aiSuggestions.followUpSuggestion &&
+          aiSuggestions.primaryActionHref === "#front-office-follow-up-form"
       ? "Review in follow-up form"
       : aiSuggestions.primaryActionLabel;
 
@@ -193,7 +199,7 @@ export function FrontOfficeClientAiSuggestionsClient(
         <QueueItem
           action={
             <>
-              {aiSuggestions.followUpSuggestion ? (
+              {canCreateSuggestedFollowUp ? (
                 <Button
                   disabled={Boolean(activeAction) || isPending}
                   onClick={() => void handleCreateFollowUp()}

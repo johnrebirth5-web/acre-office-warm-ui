@@ -16,9 +16,13 @@ import {
 } from "./front-office-contracts";
 import {
   buildFrontOfficeAiFollowUpAction,
+  buildFrontOfficeAiSuggestionHistoryIndex,
+  buildFrontOfficeAiSuggestionInsight,
   formatFrontOfficeAiActionTypeLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
+  mapFrontOfficeAiAcceptedActionOutcome,
   type FrontOfficeAiFollowUpKind,
+  type FrontOfficeAiSuggestionHistoryIndex,
 } from "./front-office-ai";
 import { formatDateTimeLabel } from "./date-time";
 import {
@@ -234,6 +238,7 @@ export type FrontOfficeClientDetailAiSuggestions = {
   helperText: string;
   groundingSignals: string[];
   followUpSuggestion: FrontOfficeClientDetailAiFollowUpSuggestion | null;
+  allowsDirectFollowUpCreation: boolean;
   primaryActionLabel: string;
   primaryActionHref: string;
   primaryActionOpensInNewTab: boolean;
@@ -1417,6 +1422,7 @@ function buildFrontOfficeAiSuggestions(input: {
   closingPrimaryActionLabel: string;
   closingPrimaryActionHref: string;
   closingPrimaryActionOpensInNewTab: boolean;
+  historyIndex: FrontOfficeAiSuggestionHistoryIndex;
   timeZone?: string | null;
 }): FrontOfficeClientDetailAiSuggestions {
   const firstName = getClientFirstName(input.fullName);
@@ -1439,6 +1445,59 @@ function buildFrontOfficeAiSuggestions(input: {
     : "";
   const latestListingLabel =
     input.latestSendRecord?.listingTitle.trim() || "the last shortlist";
+  const candidateKinds: FrontOfficeAiFollowUpKind[] = input.hasCancelledTransaction
+    ? ["reentry"]
+    : input.hasClosedTransaction
+      ? ["postclose"]
+      : [
+          ...(input.isClosingSoon ? (["closing"] as const) : []),
+          ...(input.leaseReminder.needsAttention ? (["lease"] as const) : []),
+          ...(input.latestAppointment ? (["appointment"] as const) : []),
+          ...(input.latestSendRecord && input.latestSendRecord.openCount <= 0
+            ? (["content_rescue"] as const)
+            : []),
+          ...(input.latestSendRecord && input.latestSendRecord.openCount > 0
+            ? (["warm_engagement"] as const)
+            : []),
+          ...(input.isReadyForBackOffice && !input.hasLinkedTransaction
+            ? (["handoff"] as const)
+            : []),
+        ];
+  const rankedCandidateKinds = (
+    candidateKinds.length ? candidateKinds : (["generic"] as const)
+  )
+    .map((kind) => {
+      const basePriority = {
+        reentry: 0,
+        postclose: 1,
+        closing: 2,
+        lease: 4,
+        appointment: 5,
+        content_rescue: 6,
+        warm_engagement: 7,
+        handoff: 8,
+        generic: 9,
+      } satisfies Record<FrontOfficeAiFollowUpKind, number>;
+      const insight = buildFrontOfficeAiSuggestionInsight({
+        historyIndex: input.historyIndex,
+        clientId: input.clientId,
+        suggestionKind: kind,
+      });
+
+      return {
+        kind,
+        insight,
+        priority: basePriority[kind] + insight.priorityAdjustment,
+      };
+    })
+    .sort((left, right) => left.priority - right.priority);
+  const selectedSuggestionKind =
+    rankedCandidateKinds[0]?.kind ?? ("generic" as const);
+  const selectedInsight = rankedCandidateKinds[0]?.insight ?? {
+    priorityAdjustment: 0,
+    historySignals: [],
+    suppressDirectFollowUpCreation: false,
+  };
 
   const groundingSignals = [
     `Stage · ${input.stage}`,
@@ -1478,11 +1537,12 @@ function buildFrontOfficeAiSuggestions(input: {
       now: input.now,
       clientFullName: input.fullName,
     });
+  let allowsDirectFollowUpCreation = true;
   let primaryActionLabel = input.workflow.actionLabel;
   let primaryActionHref = input.workflow.actionHref;
   let primaryActionOpensInNewTab = false;
 
-  if (input.hasCancelledTransaction) {
+  if (selectedSuggestionKind === "reentry") {
     suggestionKind = "reentry";
     statusLabel = "Re-entry";
     statusTone = "warning";
@@ -1517,7 +1577,7 @@ function buildFrontOfficeAiSuggestions(input: {
       subjectLine: "Checking in whenever the timing reopens",
       body: `Hi ${firstName},\n\nI wanted to check in without any pressure. If your timing opens back up or you want to revisit options, I can restart quickly from where we left off instead of rebuilding the search from scratch.\n\nIf it helps, I can also tighten a smaller shortlist around ${areaContext} so the next step feels simpler.\n\nBest,\nAcre`,
     });
-  } else if (input.hasClosedTransaction) {
+  } else if (selectedSuggestionKind === "postclose") {
     suggestionKind = "postclose";
     statusLabel = "Post-close";
     statusTone = "success";
@@ -1556,7 +1616,7 @@ function buildFrontOfficeAiSuggestions(input: {
       subjectLine: "Checking in after the close",
       body: `Hi ${firstName},\n\nCongratulations again on the close. I wanted to check that everything feels settled and make sure there is nothing you need as move-in continues.\n\nIf it helps, I can also send a clean recap packet from our current dossier so you have the key details in one place. And once you are fully settled, I would love to help anyone you send my way.\n\nBest,\nAcre`,
     });
-  } else if (input.isClosingSoon) {
+  } else if (selectedSuggestionKind === "closing") {
     suggestionKind = "closing";
     statusLabel = "Closing support";
     statusTone = "warning";
@@ -1595,7 +1655,7 @@ function buildFrontOfficeAiSuggestions(input: {
       subjectLine: "Quick check-in before the close",
       body: `Hi ${firstName},\n\nAs we get closer to ${input.closingKeyDateLabel.toLowerCase()}, I want to make sure the wrap-up stays smooth and that nothing important is left fuzzy.\n\nIf it helps, I can send one clean recap and keep the first post-close follow-up visible now so there is no gap once the deal lands.\n\nBest,\nAcre`,
     });
-  } else if (input.leaseReminder.needsAttention) {
+  } else if (selectedSuggestionKind === "lease") {
     suggestionKind = "lease";
     statusLabel = "Lease timing";
     statusTone = input.leaseReminder.statusTone;
@@ -1631,7 +1691,7 @@ function buildFrontOfficeAiSuggestions(input: {
       subjectLine: "",
       body: `Hi ${firstName}, I wanted to check in on your lease timing so we can stay ahead of the next step. If you are leaning toward renewal, moving, or starting a new search, I can map the options now rather than waiting until it gets tight.`,
     });
-  } else if (input.latestAppointment) {
+  } else if (selectedSuggestionKind === "appointment" && input.latestAppointment) {
     suggestionKind = "appointment";
     statusLabel = "Appointment prep";
     statusTone = "accent";
@@ -1673,7 +1733,11 @@ function buildFrontOfficeAiSuggestions(input: {
         { timeZone: input.timeZone ?? null },
       )}.\n\nI will come in ready around ${intentContext}, ${budgetContext}, and ${areaContext}. If anything changed on timing or priorities, reply here and I will adjust before we meet.\n\nBest,\nAcre`,
     });
-  } else if (input.latestSendRecord && input.latestSendRecord.openCount <= 0) {
+  } else if (
+    selectedSuggestionKind === "content_rescue" &&
+    input.latestSendRecord &&
+    input.latestSendRecord.openCount <= 0
+  ) {
     suggestionKind = "content_rescue";
     statusLabel = "Content follow-up";
     statusTone = "warning";
@@ -1708,7 +1772,11 @@ function buildFrontOfficeAiSuggestions(input: {
       subjectLine: "",
       body: `Hi ${firstName}, I wanted to make this easier instead of sending another big batch. I can cut the shortlist down around ${areaContext} and ${budgetContext} so the next step feels obvious. Which direction would help most right now?`,
     });
-  } else if (input.latestSendRecord && input.latestSendRecord.openCount > 0) {
+  } else if (
+    selectedSuggestionKind === "warm_engagement" &&
+    input.latestSendRecord &&
+    input.latestSendRecord.openCount > 0
+  ) {
     suggestionKind = "warm_engagement";
     statusLabel = "Warm engagement";
     statusTone = input.revisitCount > 0 ? "success" : "accent";
@@ -1746,7 +1814,11 @@ function buildFrontOfficeAiSuggestions(input: {
       subjectLine: "",
       body: `Hi ${firstName}, wanted to follow up on the options I sent over. If one or two stood out, I can narrow the list and line up the next step around ${areaContext}. Want me to tighten the shortlist or book a quick tour?`,
     });
-  } else if (input.isReadyForBackOffice && !input.hasLinkedTransaction) {
+  } else if (
+    selectedSuggestionKind === "handoff" &&
+    input.isReadyForBackOffice &&
+    !input.hasLinkedTransaction
+  ) {
     suggestionKind = "handoff";
     statusLabel = "Formal handoff";
     statusTone = "warning";
@@ -1805,6 +1877,15 @@ function buildFrontOfficeAiSuggestions(input: {
     });
   }
 
+  if (selectedInsight.historySignals.length) {
+    groundingSignals.push(...selectedInsight.historySignals);
+  }
+
+  if (selectedInsight.suppressDirectFollowUpCreation) {
+    allowsDirectFollowUpCreation = false;
+    helperText = `${helperText} Acre is holding back one-click follow-up creation here because a similar AI-created follow-up still needs review first.`;
+  }
+
   return {
     suggestionKind,
     statusLabel,
@@ -1812,135 +1893,13 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle,
     summary,
     helperText,
-    groundingSignals,
+    groundingSignals: groundingSignals.slice(0, 7),
     followUpSuggestion,
+    allowsDirectFollowUpCreation,
     primaryActionLabel,
     primaryActionHref,
     primaryActionOpensInNewTab,
     drafts,
-  };
-}
-
-function mapAiAcceptedActionOutcome(input: {
-  actionType: "follow_up_created" | "tracked_send_created";
-  followUpTask:
-    | {
-        status: TaskStatus;
-        dueAt: Date | null;
-      }
-    | null
-    | undefined;
-  sendRecord:
-    | {
-        openCount: number;
-        lastOpenedAt: Date | null;
-        sentAt: Date;
-      }
-    | null
-    | undefined;
-  now: Date;
-  timeZone?: string | null;
-}) {
-  if (input.actionType === "follow_up_created") {
-    if (!input.followUpTask) {
-      return {
-        label: "Task no longer linked",
-        tone: "neutral" as const,
-        detail: "The accepted follow-up task is no longer available.",
-        positive: false,
-      };
-    }
-
-    if (input.followUpTask.status === TaskStatus.completed) {
-      return {
-        label: "Completed",
-        tone: "success" as const,
-        detail: "The accepted follow-up was completed.",
-        positive: true,
-      };
-    }
-
-    if (input.followUpTask.status === TaskStatus.canceled) {
-      return {
-        label: "Canceled",
-        tone: "neutral" as const,
-        detail: "The accepted follow-up was canceled.",
-        positive: false,
-      };
-    }
-
-    if (
-      input.followUpTask.dueAt &&
-      input.followUpTask.dueAt.getTime() < input.now.getTime()
-    ) {
-      return {
-        label: "Overdue",
-        tone: "danger" as const,
-        detail: `Due ${formatDateLabel(input.followUpTask.dueAt, input.timeZone)}.`,
-        positive: false,
-      };
-    }
-
-    if (input.followUpTask.dueAt) {
-      return {
-        label: "Queued",
-        tone: "accent" as const,
-        detail: `Due ${formatDateLabel(input.followUpTask.dueAt, input.timeZone)}.`,
-        positive: false,
-      };
-    }
-
-    return {
-      label: "Queued",
-      tone: "accent" as const,
-      detail: "No due date captured yet.",
-      positive: false,
-    };
-  }
-
-  if (!input.sendRecord) {
-    return {
-      label: "Send missing",
-      tone: "neutral" as const,
-      detail: "The accepted tracked send is no longer available.",
-      positive: false,
-    };
-  }
-
-  if (input.sendRecord.openCount > 0) {
-    return {
-      label: "Opened",
-      tone: "success" as const,
-      detail: input.sendRecord.lastOpenedAt
-        ? `Last opened ${formatDateTimeLabel(input.sendRecord.lastOpenedAt, {
-            timeZone: input.timeZone ?? null,
-          })}.`
-        : `Opened ${input.sendRecord.openCount} time(s).`,
-      positive: true,
-    };
-  }
-
-  return {
-    label: "Awaiting open",
-    tone:
-      input.sendRecord.sentAt.getTime() <
-      new Date(
-        input.now.getFullYear(),
-        input.now.getMonth(),
-        input.now.getDate() - 3,
-      ).getTime()
-        ? ("warning" as const)
-        : ("accent" as const),
-    detail:
-      input.sendRecord.sentAt.getTime() <
-      new Date(
-        input.now.getFullYear(),
-        input.now.getMonth(),
-        input.now.getDate() - 3,
-      ).getTime()
-        ? "No tracked open yet after three days."
-        : "Tracked send is still waiting for the first open.",
-    positive: false,
   };
 }
 
@@ -2386,6 +2345,11 @@ export async function getFrontOfficeClientDetail(
     now.getFullYear(),
     now.getMonth(),
     now.getDate() - 30,
+  );
+  const ninetyDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 90,
   );
   const thirtyDaysFromNow = new Date(
     now.getFullYear(),
@@ -2840,6 +2804,7 @@ export async function getFrontOfficeClientDetail(
     aiAcceptedActionCount,
     aiPositiveOutcomeCount,
     recentAiAcceptedActions,
+    membershipAiLearningActions,
   ] = await Promise.all([
     prisma.frontOfficeAiAcceptedAction.count({
       where: {
@@ -2911,7 +2876,42 @@ export async function getFrontOfficeClientDetail(
         },
       },
     }),
+    prisma.frontOfficeAiAcceptedAction.findMany({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.viewerMembershipId,
+        createdAt: {
+          gte: ninetyDaysAgo,
+        },
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 40,
+      select: {
+        clientId: true,
+        suggestionKind: true,
+        actionType: true,
+        createdAt: true,
+        followUpTask: {
+          select: {
+            status: true,
+            dueAt: true,
+          },
+        },
+        sendRecord: {
+          select: {
+            openCount: true,
+            lastOpenedAt: true,
+            sentAt: true,
+          },
+        },
+      },
+    }),
   ]);
+  const aiHistoryIndex = buildFrontOfficeAiSuggestionHistoryIndex({
+    actions: membershipAiLearningActions,
+    now,
+    timeZone: input.timeZone,
+  });
   const ownerLabel =
     `${client.ownerMembership?.user.firstName ?? ""} ${client.ownerMembership?.user.lastName ?? ""}`.trim() ||
     client.ownerMembership?.user.email ||
@@ -3539,13 +3539,14 @@ export async function getFrontOfficeClientDetail(
     closingPrimaryActionLabel,
     closingPrimaryActionHref,
     closingPrimaryActionOpensInNewTab,
+    historyIndex: aiHistoryIndex,
     timeZone: input.timeZone,
   });
   const aiAcceptedActions: FrontOfficeClientDetailAiAcceptedActions = {
     acceptedCount: aiAcceptedActionCount,
     positiveOutcomeCount: aiPositiveOutcomeCount,
     items: recentAiAcceptedActions.map((action) => {
-      const outcome = mapAiAcceptedActionOutcome({
+      const outcome = mapFrontOfficeAiAcceptedActionOutcome({
         actionType: action.actionType,
         followUpTask: action.followUpTask,
         sendRecord: action.sendRecord,
