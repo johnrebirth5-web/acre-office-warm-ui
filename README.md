@@ -1002,6 +1002,11 @@ Docker 本地开发说明：
 - 当前未实现 forgot password、邮件发送、2-step verification、OAuth / SSO
 - 详细使用说明见 [docs/specs/auth-usage-guide.md](./docs/specs/auth-usage-guide.md)
 
+当前产品覆盖盘点：
+
+- `Front Office / Back Office` 当前模块覆盖与缺口基线见 [docs/specs/product-coverage-audit.md](./docs/specs/product-coverage-audit.md)
+- 这份文档用于回答“哪些模块已经 live、哪些还只是 MVP、哪些还没补齐”
+
 直接运行 `npm run dev` 且未设置 `PORT` 时，Next.js 默认仍会使用：
 
 - `http://localhost:3000`
