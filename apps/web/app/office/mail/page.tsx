@@ -37,13 +37,15 @@ export default async function OfficeMailPage(props: OfficeMailPageProps) {
   return (
     <OfficeListPageShell className="office-mail-page">
       <OfficeListPageHeader
+        actions={
+          <Link className="office-button-secondary" href="/office/notifications">
+            Open notifications
+          </Link>
+        }
         description="Internal mail lives entirely inside Back Office. Alongside teammate conversations, certain operational alerts such as new agent-created transactions now land here so admins can jump straight into the workflow."
         eyebrow="Mail"
         summary={
           <>
-            <Link className="office-button-secondary" href="/office/notifications">
-              Open notifications
-            </Link>
             <SummaryChip label="Scope" value={scopeLabel} />
             <SummaryChip label="Unread" tone="accent" value={snapshot.summary.unreadCount} />
             <SummaryChip label="Active" value={snapshot.summary.activeCount} />

@@ -4067,10 +4067,33 @@ a {
   gap: 12px;
 }
 
-.office-list-page-header-actions {
+.office-list-page-header-supporting {
+  display: grid;
   width: 100%;
+  min-width: 0;
+  gap: 14px;
+}
+
+.office-list-page-header-toolbar {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.office-list-page-header-toolbar > * {
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.office-list-page-header-actions {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 12px;
 }
 
 .office-list-page-primary-action {
@@ -7915,6 +7938,10 @@ a {
   .office-task-create-actions,
   .office-task-edit-actions {
     width: 100%;
+    justify-content: flex-start;
+  }
+
+  .office-list-page-header-toolbar {
     justify-content: flex-start;
   }
 
@@ -13279,13 +13306,6 @@ body,
   flex: 0 0 auto;
 }
 
-.office-page-summary-action {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  margin-left: auto;
-}
-
 .office-summary-chip,
 .office-transactions-summary-chip {
   display: grid;
@@ -15127,15 +15147,6 @@ body,
   .office-page-actions,
   .office-section-actions {
     justify-content: flex-start;
-  }
-
-  .office-page-summary-action {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .office-page-summary-action > * {
-    width: 100%;
   }
 
   .office-user-permissions-columns {

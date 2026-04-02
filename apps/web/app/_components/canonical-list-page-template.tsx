@@ -30,16 +30,22 @@ export function CanonicalListPageHeader(props: {
   title: string;
   description?: string;
   summary?: ReactNode;
+  actions?: ReactNode;
   summaryClassName?: string;
   className?: string;
 }) {
   return (
     <PageHeader
       actions={
-        props.summary ? (
-          <OfficeListPageSummary className={cx("office-canonical-list-page-summary", props.summaryClassName)}>
-            {props.summary}
-          </OfficeListPageSummary>
+        props.summary || props.actions ? (
+          <div className="office-list-page-header-supporting">
+            {props.actions ? <div className="office-list-page-header-toolbar">{props.actions}</div> : null}
+            {props.summary ? (
+              <OfficeListPageSummary className={cx("office-canonical-list-page-summary", props.summaryClassName)}>
+                {props.summary}
+              </OfficeListPageSummary>
+            ) : null}
+          </div>
         ) : null
       }
       className={cx("office-canonical-list-page-header", props.className)}

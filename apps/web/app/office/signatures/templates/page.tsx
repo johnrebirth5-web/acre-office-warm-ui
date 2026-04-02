@@ -22,15 +22,17 @@ export default async function OfficeSignatureTemplatesPage() {
   return (
     <OfficeListPageShell className="office-signatures-page">
       <OfficeListPageHeader
+        actions={
+          <Link className="office-button-secondary" href="/office/signatures">
+            Back to signatures
+          </Link>
+        }
         description="Manage reusable signature blueprints by category, delivery copy, recipient roles, and field placements."
         eyebrow="Documents"
         summary={
           <>
             <SummaryChip label="Templates" tone="accent" value={snapshot.summary.totalCount} />
             <SummaryChip label="Active" value={snapshot.summary.activeCount} />
-            <Link className="office-button-secondary" href="/office/signatures">
-              Back to signatures
-            </Link>
           </>
         }
         title="Signature templates"

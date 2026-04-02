@@ -127,6 +127,11 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
   return (
     <OfficeListPageShell className="office-reports-list-page">
       <OfficeListPageHeader
+        actions={
+          <Link className="office-button-secondary" href={exportHref}>
+            Export CSV
+          </Link>
+        }
         description="Unified transaction reporting, summary, and CSV export from the live transaction data source."
         eyebrow="Reports"
         summary={
@@ -134,9 +139,6 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
             <SummaryChip label="Matching transactions" tone="accent" value={workspace.totalCount} />
             <SummaryChip label="Purchased volume" value={workspace.summary.totalPurchasedPrice} />
             <SummaryChip label="Gross commission" value={workspace.summary.totalGrossCommission} />
-            <Link className="office-button-secondary" href={exportHref}>
-              Export CSV
-            </Link>
           </>
         }
         title="Reports"

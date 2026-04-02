@@ -25,6 +25,7 @@ type OfficeListPageHeaderProps = {
   title: string;
   description?: string;
   summary?: ReactNode;
+  actions?: ReactNode;
   summaryClassName?: string;
   className?: string;
 };
@@ -46,6 +47,7 @@ type OfficeListPageTemplateProps = {
   title: string;
   description?: string;
   summary?: ReactNode;
+  actions?: ReactNode;
   summaryClassName?: string;
   sectionId?: string;
   sectionTitle?: string;
@@ -75,6 +77,7 @@ export function OfficeListPageShell(props: OfficeListPageShellProps) {
 export function OfficeListPageHeader(props: OfficeListPageHeaderProps) {
   return (
     <CanonicalListPageHeader
+      actions={props.actions}
       className={props.className}
       description={props.description}
       eyebrow={props.eyebrow}
@@ -105,6 +108,7 @@ export function OfficeListPageTemplate(props: OfficeListPageTemplateProps) {
   return (
     <OfficeListPageShell className={props.className}>
       <OfficeListPageHeader
+        actions={props.actions}
         description={props.description}
         eyebrow={props.eyebrow}
         summary={props.summary}

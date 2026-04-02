@@ -75,14 +75,8 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
   return (
     <OfficeListPageShell className="office-signatures-page">
       <OfficeListPageHeader
-        description="Unified envelope tracking, signer visibility, Drive sync state, and template entry points from a single Back Office workspace."
-        eyebrow="Documents"
-        summary={
+        actions={
           <>
-            <SummaryChip label="Requests" tone="accent" value={workspace.summary.totalCount} />
-            <SummaryChip label="Pending" value={workspace.summary.pendingCount} />
-            <SummaryChip label="Drive failures" value={workspace.summary.failedDriveCount} />
-            {canManageTemplateLibrary ? <SummaryChip label="Templates" value={workspace.summary.templateCount} /> : null}
             {canExportReports ? (
               <Link className="office-button-secondary" href={exportHref}>
                 Export CSV
@@ -98,6 +92,16 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
                 Drive settings
               </Link>
             ) : null}
+          </>
+        }
+        description="Unified envelope tracking, signer visibility, Drive sync state, and template entry points from a single Back Office workspace."
+        eyebrow="Documents"
+        summary={
+          <>
+            <SummaryChip label="Requests" tone="accent" value={workspace.summary.totalCount} />
+            <SummaryChip label="Pending" value={workspace.summary.pendingCount} />
+            <SummaryChip label="Drive failures" value={workspace.summary.failedDriveCount} />
+            {canManageTemplateLibrary ? <SummaryChip label="Templates" value={workspace.summary.templateCount} /> : null}
           </>
         }
         title="Signatures"

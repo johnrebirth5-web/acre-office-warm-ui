@@ -100,6 +100,13 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
   return (
     <OfficeListPageShell className="office-performance-page">
       <OfficeListPageHeader
+        actions={
+          workspace.filters.canExport ? (
+            <Link className="office-button-secondary" href={exportHref}>
+              Export CSV
+            </Link>
+          ) : null
+        }
         description="Track agent performance, compare visible contributors across natural month, quarter, and year windows, and review current rankings without leaving the CRM."
         eyebrow="Performance"
         summary={
@@ -107,11 +114,6 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
             <SummaryChip label="Company" value={workspace.filters.companyLabel} />
             <SummaryChip label="Scope" value={workspace.filters.scopeLabel} />
             <SummaryChip label="View" tone="accent" value={workspace.selectedRangeLabel} />
-            {workspace.filters.canExport ? (
-              <Link className="office-button-secondary" href={exportHref}>
-                Export CSV
-              </Link>
-            ) : null}
           </>
         }
         title="Agent Performance"

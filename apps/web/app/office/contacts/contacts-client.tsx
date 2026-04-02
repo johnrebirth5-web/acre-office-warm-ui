@@ -359,11 +359,6 @@ export function ContactsClient({
         tone="accent"
         value={currentStageLabel}
       />
-      <div className="office-page-summary-action">
-        <Button onClick={() => setIsModalOpen(true)} type="button">
-          New contact
-        </Button>
-      </div>
     </>
   );
 
@@ -373,6 +368,11 @@ export function ContactsClient({
         className="office-contacts-page"
         description="Operational contact list with organization-scoped search, stage views, and follow-up visibility across the current office."
         eyebrow="Contacts"
+        actions={
+          <Button onClick={() => setIsModalOpen(true)} type="button">
+            New contact
+          </Button>
+        }
         filters={contactFilters}
         footer={contactFooter}
         sectionSubtitle="Search, filter, and review the current office contact set."

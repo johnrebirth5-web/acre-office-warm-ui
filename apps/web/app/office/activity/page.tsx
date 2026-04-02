@@ -249,14 +249,16 @@ export default async function OfficeActivityPage(props: OfficeActivityPageProps)
   return (
     <OfficeListPageShell className="office-activity-page">
       <OfficeListPageHeader
+        actions={
+          <ActivityCommentComposer
+            officeId={context.currentOffice?.id ?? null}
+            scopeLabel={context.currentOffice?.name ?? context.currentOrganization.name}
+          />
+        }
         description="Audit-backed activity records remain the source of truth. Operational alerts are derived live from current transaction, task, and contact state."
         eyebrow="Account activity"
         summary={
           <>
-            <ActivityCommentComposer
-              officeId={context.currentOffice?.id ?? null}
-              scopeLabel={context.currentOffice?.name ?? context.currentOrganization.name}
-            />
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Audit window" tone="accent" value={snapshot.latestWindowCount} />
             <SummaryChip label="Live alerts" value={selectedView === "activity" ? "On demand" : "Loading..."} />

@@ -22,13 +22,15 @@ export default async function OfficeAccountPage() {
   return (
     <OfficeListPageShell className="office-account-page">
       <OfficeListPageHeader
+        actions={
+          <Link className="office-button-secondary office-button-sm" href="/office/notifications">
+            Open notifications
+          </Link>
+        }
         description="Self-service profile, current office/team assignment, in-app notification preferences, and truthful account security context."
         eyebrow="Account"
         summary={
           <>
-            <Link className="office-button-secondary office-button-sm" href="/office/notifications">
-              Open notifications
-            </Link>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Role" value={getRoleSummary(context.currentMembership).label} />
             <SummaryChip label="Open tasks" tone="accent" value={snapshot.summary.openTaskCount} />

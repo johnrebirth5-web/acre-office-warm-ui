@@ -864,11 +864,6 @@ export function TransactionsClient({
         tone="accent"
         value={summary.totalNetIncome}
       />
-      <div className="office-page-summary-action">
-        <Button onClick={() => setIsCreateModalOpen(true)} type="button">
-          Create transaction
-        </Button>
-      </div>
     </>
   );
 
@@ -880,6 +875,11 @@ export function TransactionsClient({
         eyebrow="Transactions"
         filters={transactionFilters}
         footer={transactionFooter}
+        actions={
+          <Button onClick={() => setIsCreateModalOpen(true)} type="button">
+            Create transaction
+          </Button>
+        }
         sectionActions={
           canManageSearchLayout ? (
             <Button
@@ -895,7 +895,6 @@ export function TransactionsClient({
         sectionSubtitle="Search, filter, and review the current office transaction set."
         sectionTitle="Transaction list"
         summary={transactionSummary}
-        summaryClassName="office-transactions-page-actions"
         title="Transactions"
       >
         <DataTable className="office-list-table office-transactions-list-shell">
