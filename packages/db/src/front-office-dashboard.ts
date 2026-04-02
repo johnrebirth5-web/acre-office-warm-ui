@@ -16,12 +16,13 @@ import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import {
   buildFrontOfficeAiAcceptedActionBreakdown,
+  buildFrontOfficeAiAcceptedActionBreakdownWindows,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
-  buildFrontOfficeAiSuggestionInsight,
   formatFrontOfficeAiActionTypeLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
   mapFrontOfficeAiAcceptedActionOutcome,
+  rankFrontOfficeAiQueueHistoryCandidates,
   type FrontOfficeAiFollowUpKind,
 } from "./front-office-ai";
 import {
@@ -215,10 +216,14 @@ type FrontOfficeDashboardLeadershipEngagementItem =
 
 type FrontOfficeDashboardAiCandidateItem = Omit<
   FrontOfficeDashboardAiQueueItem,
-  "allowsDirectFollowUpCreation" | "whyNowSignals" | "rankingSignals"
+  | "allowsDirectFollowUpCreation"
+  | "whyNowSignals"
+  | "rankingSignals"
+  | "helperLabel"
 > & {
-  _priority: number;
-  _sortAt: Date;
+  helperLabel: string;
+  basePriority: number;
+  sortAt: Date;
 };
 
 export type FrontOfficeDashboardSnapshot = {
@@ -264,6 +269,14 @@ export type FrontOfficeDashboardSnapshot = {
     breakdown: {
       label: string;
       summary: string;
+    }[];
+    windows: {
+      label: string;
+      summary: string;
+      items: {
+        label: string;
+        summary: string;
+      }[];
     }[];
     items: FrontOfficeDashboardAiAcceptedActionItem[];
   };
@@ -1668,15 +1681,16 @@ export async function getFrontOfficeDashboardSnapshot(
         })
       : Promise.resolve([]),
   ]);
+  const aiLearningActions = recentAiAcceptedActions.map((action) => ({
+    clientId: action.client.id,
+    suggestionKind: action.suggestionKind,
+    actionType: action.actionType,
+    createdAt: action.createdAt,
+    followUpTask: action.followUpTask,
+    sendRecord: action.sendRecord,
+  }));
   const aiHistoryIndex = buildFrontOfficeAiSuggestionHistoryIndex({
-    actions: recentAiAcceptedActions.map((action) => ({
-      clientId: action.client.id,
-      suggestionKind: action.suggestionKind,
-      actionType: action.actionType,
-      createdAt: action.createdAt,
-      followUpTask: action.followUpTask,
-      sendRecord: action.sendRecord,
-    })),
+    actions: aiLearningActions,
     now,
     timeZone: input.timeZone,
   });
@@ -1959,7 +1973,8 @@ export async function getFrontOfficeDashboardSnapshot(
       };
     }),
   ].slice(0, 4);
-  const aiQueueCandidates = aiSuggestionCandidates
+  const aiQueueCandidates = rankFrontOfficeAiQueueHistoryCandidates({
+    candidates: aiSuggestionCandidates
     .flatMap<FrontOfficeDashboardAiCandidateItem>((client) => {
       const leaseReminder = buildLeaseReminderStatus({
         leaseEndDate: client.leaseEndDate,
@@ -2017,8 +2032,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 0,
-            _sortAt: linkedTransaction?.acceptanceDate ?? client.createdAt,
+            basePriority: 0,
+            sortAt: linkedTransaction?.acceptanceDate ?? client.createdAt,
           },
         ];
       }
@@ -2050,8 +2065,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 1,
-            _sortAt: closingReferenceDate ?? client.createdAt,
+            basePriority: 1,
+            sortAt: closingReferenceDate ?? client.createdAt,
           },
         ];
       }
@@ -2084,8 +2099,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 2,
-            _sortAt: closingReferenceDate,
+            basePriority: 2,
+            sortAt: closingReferenceDate,
           },
         ];
       }
@@ -2119,8 +2134,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: leaseReminder.statusLabel === "Overdue" ? 3 : 4,
-            _sortAt: leaseReminder.reminderAt ?? client.createdAt,
+            basePriority: leaseReminder.statusLabel === "Overdue" ? 3 : 4,
+            sortAt: leaseReminder.reminderAt ?? client.createdAt,
           },
         ];
       }
@@ -2152,8 +2167,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 5,
-            _sortAt: latestAppointment.startsAt,
+            basePriority: 5,
+            sortAt: latestAppointment.startsAt,
           },
         ];
       }
@@ -2187,8 +2202,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 6,
-            _sortAt: latestSendRecord.sentAt,
+            basePriority: 6,
+            sortAt: latestSendRecord.sentAt,
           },
         ];
       }
@@ -2226,8 +2241,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 7,
-            _sortAt: latestSendRecord.lastOpenedAt ?? latestSendRecord.sentAt,
+            basePriority: 7,
+            sortAt: latestSendRecord.lastOpenedAt ?? latestSendRecord.sentAt,
           },
         ];
       }
@@ -2256,8 +2271,8 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 8,
-            _sortAt: client.createdAt,
+            basePriority: 8,
+            sortAt: client.createdAt,
           },
         ];
       }
@@ -2284,42 +2299,19 @@ export async function getFrontOfficeDashboardSnapshot(
             openDossierHref,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
-            _priority: 9,
-            _sortAt: client.createdAt,
+            basePriority: 9,
+            sortAt: client.createdAt,
           },
         ];
       }
 
       return [];
-    })
-    .map((candidate) => {
-      const insight = buildFrontOfficeAiSuggestionInsight({
-        historyIndex: aiHistoryIndex,
-        clientId: candidate.clientId,
-        suggestionKind: candidate.suggestionKind,
-      });
-
-      return {
-        ...candidate,
-        helperLabel: candidate.helperLabel,
-        whyNowSignals: candidate.helperLabel ? [candidate.helperLabel] : [],
-        rankingSignals: insight.historySignals,
-        allowsDirectFollowUpCreation:
-          !insight.suppressDirectFollowUpCreation,
-        openDossierHref: insight.suppressDirectFollowUpCreation
-          ? `/agent/clients/${candidate.clientId}#front-office-follow-up-form`
-          : candidate.openDossierHref,
-        _priority: candidate._priority + insight.priorityAdjustment,
-      };
-    })
-    .sort(
-      (left, right) =>
-        left._priority - right._priority ||
-        left._sortAt.getTime() - right._sortAt.getTime(),
-    );
+    }),
+    historyIndex: aiHistoryIndex,
+  });
   const aiQueueItems = aiQueueCandidates
     .slice(0, 4)
-    .map(({ _priority, _sortAt, ...item }) => item);
+    .map(({ basePriority, sortAt, priority, ...item }) => item);
   const aiSuggestionCount = aiQueueCandidates.length;
   const aiAcceptedActionBreakdown = buildFrontOfficeAiAcceptedActionBreakdown({
     historyIndex: aiHistoryIndex,
@@ -2327,6 +2319,21 @@ export async function getFrontOfficeDashboardSnapshot(
   }).map((item) => ({
     label: item.label,
     summary: item.summary,
+  }));
+  const aiAcceptedActionWindows = buildFrontOfficeAiAcceptedActionBreakdownWindows(
+    {
+      actions: aiLearningActions,
+      now,
+      limit: 3,
+      windows: [7, 90],
+    },
+  ).map((window) => ({
+    label: window.label,
+    summary: window.summary,
+    items: window.items.map((item) => ({
+      label: item.label,
+      summary: item.summary,
+    })),
   }));
   const aiAcceptedActionItems = recentAiAcceptedActionItems.map((action) => {
     const outcome = mapFrontOfficeAiAcceptedActionOutcome({
@@ -2713,6 +2720,7 @@ export async function getFrontOfficeDashboardSnapshot(
       acceptedCount: aiAcceptedActionCount,
       positiveOutcomeCount: aiPositiveOutcomeCount,
       breakdown: aiAcceptedActionBreakdown,
+      windows: aiAcceptedActionWindows,
       items: aiAcceptedActionItems,
     },
     backOffice: {

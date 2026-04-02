@@ -181,6 +181,8 @@ This keeps the handoff visible without pretending formal transaction creation al
   - the shared FO AI service now turns recent accepted-action outcomes into a reusable ranking signal, so dashboard queue order and dossier suggestion emphasis can promote suggestion kinds that recently led to completed follow-ups or tracked opens
   - the same history index now also adds safe escalation cues when a similar accepted action stalled, so Acre can elevate the review path without quietly auto-sending or auto-creating more work in the background
   - dashboard one-click follow-up creation now intentionally backs off when the latest similar AI-created follow-up is still overdue, pushing the agent back into the dossier review path instead of stacking a duplicate shared follow-up task
+  - dossier AI suggestions now separate `why now` from `what changed the priority`, so live record signals and history-driven ranking cues stop appearing as one mixed explanation string
+  - accepted AI outcomes now also expose compact `Last 7d` and `Last 90d` suggestion-kind summaries, so agents can see whether current behavior still matches recent conversion patterns instead of relying only on all-up totals
 
 ## Non-goals in this phase
 

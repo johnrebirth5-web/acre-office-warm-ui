@@ -105,6 +105,31 @@ export type FrontOfficeAiAcceptedActionBreakdownItem = {
   summary: string;
 };
 
+export type FrontOfficeAiAcceptedActionBreakdownWindow = {
+  label: string;
+  days: number;
+  summary: string;
+  items: FrontOfficeAiAcceptedActionBreakdownItem[];
+};
+
+export type FrontOfficeAiQueueHistoryCandidate = {
+  id: string;
+  clientId: string;
+  suggestionKind: FrontOfficeAiFollowUpKind;
+  helperLabel: string;
+  openDossierHref: string;
+  basePriority: number;
+  sortAt: Date;
+};
+
+export type FrontOfficeAiQueueHistoryDecoratedCandidate =
+  FrontOfficeAiQueueHistoryCandidate & {
+    whyNowSignals: string[];
+    rankingSignals: string[];
+    allowsDirectFollowUpCreation: boolean;
+    priority: number;
+  };
+
 function formatDateValue(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -138,6 +163,10 @@ function buildSuggestedFollowUpDate(now: Date, daysFromNow: number) {
   const target = new Date(now);
   target.setDate(target.getDate() + daysFromNow);
   return formatDateValue(target);
+}
+
+function buildFrontOfficeAiWindowStart(now: Date, days: number) {
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 }
 
 export function normalizeFrontOfficeAiFollowUpKind(
@@ -564,6 +593,41 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
   };
 }
 
+export function rankFrontOfficeAiQueueHistoryCandidates<T extends FrontOfficeAiQueueHistoryCandidate>(
+  input: {
+    candidates: T[];
+    historyIndex: FrontOfficeAiSuggestionHistoryIndex;
+  },
+): Array<
+  Omit<T, "basePriority" | "sortAt"> &
+    FrontOfficeAiQueueHistoryDecoratedCandidate
+> {
+  return input.candidates
+    .map((candidate) => {
+      const insight = buildFrontOfficeAiSuggestionInsight({
+        historyIndex: input.historyIndex,
+        clientId: candidate.clientId,
+        suggestionKind: candidate.suggestionKind,
+      });
+
+      return {
+        ...candidate,
+        whyNowSignals: candidate.helperLabel ? [candidate.helperLabel] : [],
+        rankingSignals: insight.historySignals,
+        allowsDirectFollowUpCreation: !insight.suppressDirectFollowUpCreation,
+        openDossierHref: insight.suppressDirectFollowUpCreation
+          ? `/agent/clients/${candidate.clientId}#front-office-follow-up-form`
+          : candidate.openDossierHref,
+        priority: candidate.basePriority + insight.priorityAdjustment,
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.priority - right.priority ||
+        left.sortAt.getTime() - right.sortAt.getTime(),
+    );
+}
+
 export function buildFrontOfficeAiAcceptedActionBreakdown(input: {
   historyIndex: FrontOfficeAiSuggestionHistoryIndex;
   limit?: number;
@@ -612,6 +676,58 @@ export function buildFrontOfficeAiAcceptedActionBreakdown(input: {
         left.label.localeCompare(right.label),
     )
     .slice(0, input.limit ?? 3);
+}
+
+export function buildFrontOfficeAiAcceptedActionBreakdownWindows(input: {
+  actions: FrontOfficeAiHistoryAction[];
+  now: Date;
+  limit?: number;
+  suggestionKinds?: FrontOfficeAiFollowUpKind[];
+  windows?: number[];
+}): FrontOfficeAiAcceptedActionBreakdownWindow[] {
+  const windows = input.windows ?? [7, 90];
+
+  return windows.map((days) => {
+    const windowActions = input.actions.filter(
+      (action) =>
+        action.createdAt.getTime() >=
+        buildFrontOfficeAiWindowStart(input.now, days).getTime(),
+    );
+    const historyIndex = buildFrontOfficeAiSuggestionHistoryIndex({
+      actions: windowActions,
+      now: input.now,
+    });
+    const items = buildFrontOfficeAiAcceptedActionBreakdown({
+      historyIndex,
+      limit: input.limit,
+      suggestionKinds: input.suggestionKinds,
+    });
+    const acceptedCount = items.reduce(
+      (total, item) => total + item.acceptedCount,
+      0,
+    );
+    const positiveCount = items.reduce(
+      (total, item) => total + item.positiveOutcomeCount,
+      0,
+    );
+    const stalledCount = items.reduce(
+      (total, item) => total + item.stalledCount,
+      0,
+    );
+
+    return {
+      label: `Last ${days}d`,
+      days,
+      summary: [
+        `${acceptedCount} accepted`,
+        `${positiveCount} positive`,
+        stalledCount > 0 ? `${stalledCount} stalled` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      items,
+    };
+  });
 }
 
 export async function recordFrontOfficeAiAcceptedAction(

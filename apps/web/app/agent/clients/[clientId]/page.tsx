@@ -724,6 +724,28 @@ export default async function AgentClientDetailPage(
                   </div>
                 ) : null}
 
+                {snapshot.aiAcceptedActions.windows.length ? (
+                  <div className="office-queue-list">
+                    {snapshot.aiAcceptedActions.windows.map((window) => (
+                      <article className="office-queue-item" key={window.label}>
+                        <strong>{window.label}</strong>
+                        <p>{window.summary}</p>
+                        {window.items.length ? (
+                          <div className="list-row-meta front-office-record-meta">
+                            {window.items.map((item) => (
+                              <span key={`${window.label}-${item.label}`}>
+                                {item.label} · {item.summary}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p>No accepted AI actions in this window yet.</p>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+
                 <div className="office-queue-list">
                   {snapshot.aiAcceptedActions.items.length ? (
                     snapshot.aiAcceptedActions.items.map((item) => (

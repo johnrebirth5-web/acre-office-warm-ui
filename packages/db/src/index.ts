@@ -214,6 +214,7 @@ export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
   buildFrontOfficeAiAcceptedActionBreakdown,
+  buildFrontOfficeAiAcceptedActionBreakdownWindows,
   buildFrontOfficeAiFollowUpAction,
   buildFrontOfficeAiSuggestionHistoryIndex,
   buildFrontOfficeAiSuggestionInsight,
@@ -222,7 +223,9 @@ export {
   formatFrontOfficeAiFollowUpKindLabel,
   formatFrontOfficeAiSourceSurfaceLabel,
   mapFrontOfficeAiAcceptedActionOutcome,
+  rankFrontOfficeAiQueueHistoryCandidates,
   type FrontOfficeAiAcceptedActionBreakdownItem,
+  type FrontOfficeAiAcceptedActionBreakdownWindow,
   normalizeFrontOfficeAiFollowUpKind,
   normalizeFrontOfficeAiSourceSurface,
   recordFrontOfficeAiAcceptedAction,
@@ -232,6 +235,8 @@ export {
   type FrontOfficeAiFollowUpKind,
   type FrontOfficeAiFollowUpAction,
   type FrontOfficeAiHistoryAction,
+  type FrontOfficeAiQueueHistoryCandidate,
+  type FrontOfficeAiQueueHistoryDecoratedCandidate,
   type FrontOfficeAiSourceSurface,
   type FrontOfficeAiSuggestionHistoryIndex,
   type FrontOfficeAiSuggestionHistoryStats,
