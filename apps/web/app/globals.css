@@ -13241,17 +13241,14 @@ body,
 .office-list-page-header-actions > a,
 .office-list-page-header-actions > button,
 .office-list-page-header-actions > [role="button"] {
-  min-height: 100%;
   flex: 0 0 auto;
 }
 
-.office-page-summary-grid .office-list-page-primary-action,
-.office-list-page-header-actions .office-list-page-primary-action {
-  width: auto;
-  min-width: max-content;
-  max-width: 100%;
+.office-page-summary-action {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
   margin-left: auto;
-  align-self: center;
 }
 
 .office-summary-chip,
@@ -14901,11 +14898,13 @@ body,
     justify-content: flex-start;
   }
 
-  .office-page-summary-grid .office-list-page-primary-action,
-  .office-list-page-header-actions .office-list-page-primary-action {
+  .office-page-summary-action {
     width: 100%;
-    max-width: 100%;
     margin-left: 0;
+  }
+
+  .office-page-summary-action > * {
+    width: 100%;
   }
 
   .office-user-permissions-columns {

@@ -864,13 +864,11 @@ export function TransactionsClient({
         tone="accent"
         value={summary.totalNetIncome}
       />
-      <Button
-        className="office-list-page-primary-action office-transactions-create"
-        onClick={() => setIsCreateModalOpen(true)}
-        type="button"
-      >
-        Create transaction
-      </Button>
+      <div className="office-page-summary-action">
+        <Button onClick={() => setIsCreateModalOpen(true)} type="button">
+          Create transaction
+        </Button>
+      </div>
     </>
   );
 

@@ -359,13 +359,11 @@ export function ContactsClient({
         tone="accent"
         value={currentStageLabel}
       />
-      <Button
-        className="office-list-page-primary-action"
-        onClick={() => setIsModalOpen(true)}
-        type="button"
-      >
-        New contact
-      </Button>
+      <div className="office-page-summary-action">
+        <Button onClick={() => setIsModalOpen(true)} type="button">
+          New contact
+        </Button>
+      </div>
     </>
   );
 
