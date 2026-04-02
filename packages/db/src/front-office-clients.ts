@@ -1884,6 +1884,9 @@ function buildFrontOfficeAiSuggestions(input: {
   if (selectedInsight.suppressDirectFollowUpCreation) {
     allowsDirectFollowUpCreation = false;
     helperText = `${helperText} Acre is holding back one-click follow-up creation here because a similar AI-created follow-up still needs review first.`;
+    primaryActionLabel = "Review existing follow-up";
+    primaryActionHref = "#front-office-follow-up-form";
+    primaryActionOpensInNewTab = false;
   }
 
   return {

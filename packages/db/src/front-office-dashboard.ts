@@ -2299,6 +2299,9 @@ export async function getFrontOfficeDashboardSnapshot(
           .join(" · "),
         allowsDirectFollowUpCreation:
           !insight.suppressDirectFollowUpCreation,
+        openDossierHref: insight.suppressDirectFollowUpCreation
+          ? `/agent/clients/${candidate.clientId}#front-office-follow-up-form`
+          : candidate.openDossierHref,
         _priority: candidate._priority + insight.priorityAdjustment,
       };
     })
