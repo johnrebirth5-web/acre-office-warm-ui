@@ -224,8 +224,8 @@ export function OfficeSignaturesClient({
         subtitle="Each row reflects the current envelope state, recipient coverage, and Drive archival outcome."
         title="Signature requests"
       >
-        <DataTable className="office-list-table office-list-table-reports">
-          <DataTableHeader className="office-list-table-header office-list-table-header-reports">
+        <DataTable className="office-list-table office-list-table-signatures">
+          <DataTableHeader className="office-list-table-header office-list-table-header-signatures">
             <span>Request</span>
             <span>Context</span>
             <span>Requested by</span>
@@ -237,31 +237,31 @@ export function OfficeSignaturesClient({
 
           <DataTableBody className="office-list-table-body">
             {workspace.rows.map((row) => (
-              <DataTableRow className="office-list-table-row office-list-table-row-reports" key={row.id}>
+              <DataTableRow className="office-list-table-row office-list-table-row-signatures" key={row.id}>
                 <div className="office-list-table-main">
                   <strong>{row.requestHref && canManageSignatures ? <Link href={row.requestHref}>{row.title}</Link> : row.title}</strong>
                   <p>{row.templateName ? `${row.templateName} · ${row.templateCategoryLabel}` : row.templateCategoryLabel}</p>
-                  <div className="office-list-table-main-meta">
-                    <span>{row.sentAt || "Not sent yet"}</span>
+                  <div className="office-signatures-request-meta">
+                    {row.sentAt ? <span>{`Sent ${row.sentAt}`}</span> : null}
                     <span>{row.completedAt ? `Completed ${row.completedAt}` : "In progress"}</span>
                   </div>
                 </div>
-                <div className="office-list-table-cell-stack">
+                <div className="office-list-table-cell-stack office-signatures-context-cell">
                   <strong>{row.contextLabel || "—"}</strong>
                   {row.transactionHref ? <p><Link href={row.transactionHref}>{row.transactionLabel}</Link></p> : null}
                 </div>
                 <span className="office-list-table-wrap-cell">{row.requestedByLabel}</span>
-                <div className="office-list-table-cell-stack">
-                  <strong>{row.recipientsLabel || "—"}</strong>
+                <div className="office-list-table-cell-stack office-signatures-recipients-cell">
+                  <strong className="office-signatures-recipients-primary">{row.recipientsLabel || "—"}</strong>
                   <p>{`${row.signersCount} signer · ${row.approversCount} approver · ${row.ccCount} CC`}</p>
                 </div>
                 <StatusBadge className="office-list-table-status" tone={getStatusTone(row.statusKey)}>
                   {row.status}
                 </StatusBadge>
-                <div className="office-list-table-cell-stack">
+                <div className="office-list-table-cell-stack office-signatures-drive-cell">
                   <StatusBadge tone={getDriveTone(row.driveSyncStatus)}>{row.driveSyncStatusLabel}</StatusBadge>
                   {row.completedDocumentHref ? (
-                    <div className="office-settings-actions">
+                    <div className="office-signatures-drive-actions">
                       <Link className="office-button-secondary office-button-sm" href={row.completedDocumentHref} target="_blank">
                         Signed PDF
                       </Link>
@@ -278,7 +278,7 @@ export function OfficeSignaturesClient({
                     </div>
                   ) : null}
                 </div>
-                <span>{row.updatedAt || "—"}</span>
+                <span className="office-signatures-updated-cell">{row.updatedAt || "—"}</span>
               </DataTableRow>
             ))}
 

@@ -5589,6 +5589,26 @@ a {
   gap: 12px;
 }
 
+.office-list-table-header-signatures,
+.office-list-table-row-signatures {
+  min-width: 1080px;
+  grid-template-columns:
+    minmax(220px, 1.72fr)
+    minmax(180px, 1.28fr)
+    minmax(140px, 0.92fr)
+    minmax(220px, 1.44fr)
+    minmax(112px, 0.74fr)
+    minmax(156px, 1.04fr)
+    minmax(118px, 0.78fr);
+  gap: 12px;
+}
+
+.office-list-table-row-signatures {
+  align-items: start;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
 .office-table-row-wide,
 .office-list-table-wide,
 .office-list-table-header-contacts,
@@ -6089,6 +6109,39 @@ a {
   line-height: 1.35;
 }
 
+.office-signatures-request-meta {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.office-signatures-request-meta span,
+.office-signatures-updated-cell {
+  color: var(--office-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.office-signatures-context-cell strong,
+.office-signatures-recipients-primary,
+.office-signatures-recipients-cell p {
+  overflow-wrap: anywhere;
+}
+
+.office-signatures-drive-cell {
+  gap: 8px;
+}
+
+.office-signatures-drive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.office-signatures-updated-cell {
+  align-items: flex-start;
+}
+
 .office-report-table-amounts strong {
   color: var(--office-text);
 }
@@ -6253,7 +6306,25 @@ a {
     :nth-child(6),
     :nth-child(7),
     :nth-child(8)
-  ) {
+  ),
+.office-list-table-header-signatures
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7)),
+.office-list-table-row-signatures
+  > :is(:nth-child(2), :nth-child(5), :nth-child(6), :nth-child(7))
+  {
+  white-space: nowrap;
+}
+
+.office-list-table-row-signatures > :nth-child(4) {
+  white-space: normal;
+}
+
+.office-list-table-row-signatures > :nth-child(7) {
+  justify-self: start;
+  text-align: left;
+}
+
+.office-list-table-row-signatures > :nth-child(3) {
   white-space: nowrap;
 }
 
