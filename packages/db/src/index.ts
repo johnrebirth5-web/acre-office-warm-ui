@@ -292,6 +292,8 @@ export {
   getFrontOfficeClientsSnapshot,
   getFrontOfficeListingsSnapshot,
   getFrontOfficeResourcesSnapshot,
+  type FrontOfficeActivityCleanupItem,
+  type FrontOfficeActivityCleanupMetric,
   type FrontOfficeActivityEventRecord,
   type FrontOfficeActivityNotificationRecord,
   type FrontOfficeActivitySnapshot,

@@ -5,9 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- `visible-scope CRM cleanup` is now live on top of the FO duplicate-review pass, so the next FO work should stay focused on deeper external writeback, OCR-style intake assists, and stronger unified activity / cleanup surfaces before any heavier background automation
+- `visible-scope CRM cleanup` and the first FO `activity + cleanup center` are now live, so the next FO work should stay focused on deeper external writeback, OCR-style intake assists, and broader office-wide cleanup depth before any heavier background automation
 
 ## Recently completed major work
+
+- 2026-04-02: `Front Office activity + cleanup center` is now live on top of the reminder / duplicate foundation instead of keeping activity, cleanup, and notices spread across separate FO surfaces:
+  - extended [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) so `getFrontOfficeActivitySnapshot(...)` now emits one FO cleanup queue combining due follow-up work, stale clients, tracked-send risk, near-term appointments, visible-scope duplicate review, and the existing notice / event stream instead of only returning notifications and events
+  - updated [apps/web/app/agent/notifications/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/notifications/page.tsx) so `/agent/notifications` now behaves as a true `Activity + Cleanup Center`, with the cleanup queue shown before the notice stream and the existing duplicate-merge surface mounted directly inside the same FO center
+  - this first pass stays honest about scope: it unifies the active FO execution pressure into one center, but it does not yet claim full office-wide cleanup management, OCR-assisted intake, or two-way external calendar / inbox sync
 
 - 2026-04-02: `Front Office visible-scope duplicate governance` is now live on top of the first dedupe pass instead of stopping at the current owner's queue:
   - updated [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) so `/agent/clients` duplicate candidates are now derived from the CRM records currently visible to the viewer through contact scope resolution, while the main FO list itself still stays intentionally self-scoped

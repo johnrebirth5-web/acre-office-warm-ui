@@ -206,14 +206,40 @@ export type FrontOfficeActivityEventRecord = {
   href: string;
 };
 
+export type FrontOfficeActivityCleanupMetric = {
+  label: string;
+  count: number;
+  tone: FrontOfficeTone;
+  helper: string;
+};
+
+export type FrontOfficeActivityCleanupItem = {
+  id: string;
+  kindLabel: string;
+  tone: FrontOfficeTone;
+  title: string;
+  description: string;
+  metaLabels: string[];
+  href: string;
+  actionLabel: string;
+};
+
 export type FrontOfficeActivitySnapshot = {
   summary: {
     actionableItemCount: number;
     upcomingEventCount: number;
     unreadNoticeCount: number;
+    cleanupItemCount: number;
+    duplicateReviewCount: number;
+    appointmentSoonCount: number;
   };
   notifications: FrontOfficeActivityNotificationRecord[];
   events: FrontOfficeActivityEventRecord[];
+  cleanup: {
+    metrics: FrontOfficeActivityCleanupMetric[];
+    items: FrontOfficeActivityCleanupItem[];
+    duplicatePairs: FrontOfficeClientDuplicatePair[];
+  };
 };
 
 const openFollowUpStatuses = ["queued", "in_progress"] as const;
@@ -345,6 +371,13 @@ function formatNextTouchLabel(input: {
   }
 
   return formatRelativeDueLabel(input.nextFollowUpAt, input.now, input.timeZone);
+}
+
+function buildElapsedDayCount(value: Date, now: Date, minimum = 1) {
+  return Math.max(
+    minimum,
+    Math.floor((now.getTime() - value.getTime()) / 86_400_000),
+  );
 }
 
 function mapClientStageTone(stage: string): FrontOfficeTone {
@@ -763,6 +796,45 @@ function formatAppointmentStatusLabel(status: AppointmentStatus) {
     .join(" ");
 }
 
+function formatFrontOfficeSendChannelLabel(channel: string) {
+  switch (channel.trim().toLowerCase()) {
+    case "sms":
+      return "SMS";
+    case "email":
+      return "Email";
+    default:
+      return "Direct link";
+  }
+}
+
+function formatSendRecordStageLabel(value: string | null | undefined) {
+  return value?.trim() || "Stage not captured";
+}
+
+function buildSendRecordAppointmentLabel(input: {
+  title: string | null | undefined;
+  startsAt: Date | null | undefined;
+  timeZone?: string | null;
+}) {
+  if (!input.title?.trim() && !input.startsAt) {
+    return "";
+  }
+
+  if (!input.startsAt) {
+    return input.title?.trim() || "Appointment context";
+  }
+
+  if (!input.title?.trim()) {
+    return `Appointment · ${formatDateTimeLabel(input.startsAt, {
+      timeZone: input.timeZone ?? null,
+    })}`;
+  }
+
+  return `${input.title.trim()} · ${formatDateTimeLabel(input.startsAt, {
+    timeZone: input.timeZone ?? null,
+  })}`;
+}
+
 function mapAppointmentStatusTone(status: AppointmentStatus): FrontOfficeTone {
   if (status === AppointmentStatus.completed) {
     return "success";
@@ -817,6 +889,11 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
   };
 }
 
+function isClosedClientStage(stage: string) {
+  const normalized = stage.trim().toLowerCase();
+  return normalized.includes("won") || normalized.includes("lost");
+}
+
 function buildVisibleEventWhere(
   input: FrontOfficeWorkspaceInput,
   startOfToday: Date,
@@ -859,19 +936,13 @@ function buildVisibleEventWhere(
   };
 }
 
-export async function getFrontOfficeClientsSnapshot(
-  input: FrontOfficeWorkspaceInput,
-): Promise<FrontOfficeClientsSnapshot> {
-  const now = new Date();
-  const startOfTomorrow = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-  );
-  const clientWhere: Prisma.ClientWhereInput = {
-    organizationId: input.organizationId,
-    ownerMembershipId: input.viewerMembershipId,
-  };
+async function getVisibleFrontOfficeDuplicatePairs(input: {
+  organizationId: string;
+  viewerMembershipId: string;
+  officeId?: string | null;
+  now: Date;
+  timeZone?: string | null;
+}) {
   const duplicateScope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.viewerMembershipId,
@@ -886,13 +957,83 @@ export async function getFrontOfficeClientsSnapshot(
       ...buildVisibleContactScopeWhere(duplicateScope, input.officeId ?? null),
     ],
   };
+  const duplicateCandidates = await prisma.client.findMany({
+    where: duplicateWhere,
+    orderBy: [{ updatedAt: "desc" }],
+    select: {
+      id: true,
+      fullName: true,
+      ownerMembershipId: true,
+      email: true,
+      phone: true,
+      source: true,
+      stage: true,
+      budgetMin: true,
+      budgetMax: true,
+      preferredAreas: true,
+      notes: true,
+      lastContactAt: true,
+      nextFollowUpAt: true,
+      leaseReminderAt: true,
+      updatedAt: true,
+      ownerMembership: {
+        select: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      },
+      _count: {
+        select: {
+          appointments: true,
+          frontOfficeSendRecords: true,
+          followUpTasks: true,
+          handoffDrafts: true,
+          transactionContacts: true,
+          stageHistory: true,
+        },
+      },
+    },
+  });
+
+  return buildFrontOfficeDuplicatePairs({
+    candidates: duplicateCandidates.map((candidate) => ({
+      ...candidate,
+      ownerLabel:
+        `${candidate.ownerMembership?.user.firstName ?? ""} ${candidate.ownerMembership?.user.lastName ?? ""}`.trim() ||
+        candidate.ownerMembership?.user.email ||
+        "Unassigned",
+    })),
+    viewerMembershipId: input.viewerMembershipId,
+    now: input.now,
+    timeZone: input.timeZone,
+  });
+}
+
+export async function getFrontOfficeClientsSnapshot(
+  input: FrontOfficeWorkspaceInput,
+): Promise<FrontOfficeClientsSnapshot> {
+  const now = new Date();
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  const clientWhere: Prisma.ClientWhereInput = {
+    organizationId: input.organizationId,
+    ownerMembershipId: input.viewerMembershipId,
+  };
 
   const [
     clients,
     stageGroups,
     followUpDueCount,
     overdueTaskCount,
-    duplicateCandidates,
+    duplicatePairs,
   ] = await Promise.all([
     prisma.client.findMany({
       where: clientWhere,
@@ -939,61 +1080,14 @@ export async function getFrontOfficeClientsSnapshot(
         },
       },
     }),
-    prisma.client.findMany({
-      where: duplicateWhere,
-      orderBy: [{ updatedAt: "desc" }],
-      select: {
-        id: true,
-        fullName: true,
-        ownerMembershipId: true,
-        email: true,
-        phone: true,
-        source: true,
-        stage: true,
-        budgetMin: true,
-        budgetMax: true,
-        preferredAreas: true,
-        notes: true,
-        lastContactAt: true,
-        nextFollowUpAt: true,
-        leaseReminderAt: true,
-        updatedAt: true,
-        ownerMembership: {
-          select: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            appointments: true,
-            frontOfficeSendRecords: true,
-            followUpTasks: true,
-            handoffDrafts: true,
-            transactionContacts: true,
-            stageHistory: true,
-          },
-        },
-      },
+    getVisibleFrontOfficeDuplicatePairs({
+      organizationId: input.organizationId,
+      viewerMembershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      now,
+      timeZone: input.timeZone,
     }),
   ]);
-  const duplicatePairs = buildFrontOfficeDuplicatePairs({
-    candidates: duplicateCandidates.map((candidate) => ({
-      ...candidate,
-      ownerLabel:
-        `${candidate.ownerMembership?.user.firstName ?? ""} ${candidate.ownerMembership?.user.lastName ?? ""}`.trim() ||
-        candidate.ownerMembership?.user.email ||
-        "Unassigned",
-    })),
-    viewerMembershipId: input.viewerMembershipId,
-    now,
-    timeZone: input.timeZone,
-  });
 
   return {
     summary: {
@@ -1507,12 +1601,55 @@ export async function getFrontOfficeActivitySnapshot(
     now.getMonth(),
     now.getDate(),
   );
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  const twoDaysFromNow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 2,
+  );
   const sevenDaysFromNow = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate() + 7,
   );
+  const threeDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 3,
+  );
+  const sevenDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 7,
+  );
+  const fifteenDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 15,
+  );
+  const thirtyDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 30,
+  );
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
+  const clientWhere: Prisma.ClientWhereInput = {
+    organizationId: input.organizationId,
+    ownerMembershipId: input.viewerMembershipId,
+  };
+  const sendRecordWhere: Prisma.FrontOfficeSendRecordWhereInput = {
+    organizationId: input.organizationId,
+    senderMembershipId: input.viewerMembershipId,
+    ...(input.officeId
+      ? {
+          officeId: input.officeId,
+        }
+      : {}),
+  };
   const notificationWhere: Prisma.NotificationWhereInput = {
     organizationId: input.organizationId,
     AND: [
@@ -1526,7 +1663,17 @@ export async function getFrontOfficeActivitySnapshot(
     ],
   };
 
-  const [notifications, unreadNoticeCount, events] = await Promise.all([
+  const [
+    notifications,
+    unreadNoticeCount,
+    events,
+    duplicatePairs,
+    dueFollowUpTasks,
+    dueFollowUpClients,
+    staleClients,
+    upcomingAppointments,
+    latestSendGroups,
+  ] = await Promise.all([
     prisma.notification.findMany({
       where: notificationWhere,
       orderBy: [{ createdAt: "desc" }],
@@ -1573,13 +1720,524 @@ export async function getFrontOfficeActivitySnapshot(
         },
       },
     }),
+    getVisibleFrontOfficeDuplicatePairs({
+      organizationId: input.organizationId,
+      viewerMembershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      now,
+      timeZone: input.timeZone,
+    }),
+    prisma.followUpTask.findMany({
+      where: {
+        organizationId: input.organizationId,
+        assigneeMemberId: input.viewerMembershipId,
+        status: {
+          in: [...openFollowUpStatuses],
+        },
+        dueAt: {
+          lt: startOfTomorrow,
+        },
+        clientId: {
+          not: null,
+        },
+      },
+      orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
+      take: 8,
+      select: {
+        id: true,
+        title: true,
+        dueAt: true,
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+            source: true,
+            stage: true,
+            lastContactAt: true,
+            nextFollowUpAt: true,
+            leaseReminderAt: true,
+          },
+        },
+      },
+    }),
+    prisma.client.findMany({
+      where: {
+        ...clientWhere,
+        nextFollowUpAt: {
+          lt: startOfTomorrow,
+        },
+      },
+      orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
+      take: 8,
+      select: {
+        id: true,
+        fullName: true,
+        source: true,
+        stage: true,
+        lastContactAt: true,
+        nextFollowUpAt: true,
+        leaseReminderAt: true,
+      },
+    }),
+    prisma.client.findMany({
+      where: {
+        ...clientWhere,
+        NOT: [
+          {
+            OR: [
+              { stage: { contains: "won", mode: "insensitive" } },
+              { stage: { contains: "lost", mode: "insensitive" } },
+            ],
+          },
+        ],
+        OR: [
+          {
+            lastContactAt: {
+              lt: fifteenDaysAgo,
+            },
+          },
+          {
+            lastContactAt: null,
+            createdAt: {
+              lt: fifteenDaysAgo,
+            },
+          },
+        ],
+      },
+      orderBy: [{ lastContactAt: "asc" }, { createdAt: "asc" }],
+      take: 8,
+      select: {
+        id: true,
+        fullName: true,
+        source: true,
+        stage: true,
+        lastContactAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.appointment.findMany({
+      where: {
+        organizationId: input.organizationId,
+        ownerMembershipId: input.viewerMembershipId,
+        status: AppointmentStatus.scheduled,
+        startsAt: {
+          gte: now,
+          lte: twoDaysFromNow,
+        },
+      },
+      orderBy: [{ startsAt: "asc" }],
+      take: 8,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        startsAt: true,
+        location: true,
+        meetingUrl: true,
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+            stage: true,
+          },
+        },
+      },
+    }),
+    prisma.frontOfficeSendRecord.groupBy({
+      by: ["clientId"],
+      where: {
+        ...sendRecordWhere,
+        sentAt: {
+          gte: thirtyDaysAgo,
+        },
+      },
+      _max: {
+        sentAt: true,
+      },
+    }),
   ]);
+
+  const latestSendRecordFilters = latestSendGroups.flatMap((group) =>
+    group._max.sentAt
+      ? [
+          {
+            clientId: group.clientId,
+            sentAt: group._max.sentAt,
+          },
+        ]
+      : [],
+  );
+  const latestSendRecords =
+    latestSendRecordFilters.length > 0
+      ? await prisma.frontOfficeSendRecord.findMany({
+          where: {
+            AND: [sendRecordWhere, { OR: latestSendRecordFilters }],
+          },
+          orderBy: [{ sentAt: "desc" }],
+          select: {
+            id: true,
+            clientId: true,
+            channel: true,
+            clientStageLabel: true,
+            appointmentTitle: true,
+            appointmentStartsAt: true,
+            sentAt: true,
+            lastOpenedAt: true,
+            openCount: true,
+            client: {
+              select: {
+                id: true,
+                fullName: true,
+                source: true,
+                stage: true,
+              },
+            },
+            listing: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        })
+      : [];
+
+  type CleanupCandidate = FrontOfficeActivityCleanupItem & {
+    _priority: number;
+    _sortAt: Date;
+    _clientId: string | null;
+  };
+
+  const dueTaskClientIds = new Set(
+    dueFollowUpTasks
+      .map((task) => task.client?.id ?? null)
+      .filter((clientId): clientId is string => Boolean(clientId)),
+  );
+  const dueFollowUpClientOnly = dueFollowUpClients.filter(
+    (client) => !dueTaskClientIds.has(client.id),
+  );
+  const appointmentSoonCount = upcomingAppointments.length;
+
+  const appointmentItems: CleanupCandidate[] = upcomingAppointments.map(
+    (appointment) => {
+      const startsAtTime = appointment.startsAt.getTime();
+      const tone: FrontOfficeTone =
+        startsAtTime <= now.getTime() + 2 * 60 * 60 * 1000
+          ? "danger"
+          : startsAtTime < startOfTomorrow.getTime()
+            ? "warning"
+            : "accent";
+      const priority =
+        tone === "danger" ? 1 : tone === "warning" ? 3 : 7;
+
+      return {
+        id: `appointment-${appointment.id}`,
+        kindLabel: "Appointment soon",
+        tone,
+        title: appointment.client?.fullName || appointment.title,
+        description: [
+          appointment.title,
+          formatAppointmentTypeLabel(appointment.type),
+          formatDateTimeLabel(appointment.startsAt, {
+            timeZone: input.timeZone ?? null,
+          }),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        metaLabels: [
+          appointment.client?.stage?.trim()
+            ? `Stage · ${appointment.client.stage.trim()}`
+            : "No client linked",
+          appointment.location?.trim() ||
+          appointment.meetingUrl?.trim() ||
+          "Location pending",
+        ],
+        href: `/agent/calendar?appointmentId=${appointment.id}`,
+        actionLabel: "Open calendar item",
+        _priority: priority,
+        _sortAt: appointment.startsAt,
+        _clientId: appointment.client?.id ?? null,
+      };
+    },
+  );
+  const dueTaskItems: CleanupCandidate[] = dueFollowUpTasks.flatMap((task) => {
+    if (!task.client || !task.dueAt) {
+      return [];
+    }
+
+    const isOverdue = task.dueAt.getTime() < startOfToday.getTime();
+
+    return [
+      {
+        id: `follow-up-task-${task.id}`,
+        kindLabel: "Follow-up task",
+        tone: isOverdue ? "danger" : "warning",
+        title: task.client.fullName,
+        description: [
+          task.title.trim() || "Scheduled follow-up",
+          task.client.stage.trim() || "Stage not captured",
+          formatRelativeDueLabel(task.dueAt, now, input.timeZone),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        metaLabels: [
+          task.client.source?.trim() || "Source not captured",
+          task.client.lastContactAt
+            ? `Last contact · ${formatDateLabel(
+                task.client.lastContactAt,
+                input.timeZone,
+              )}`
+            : "No contact logged yet",
+        ],
+        href: `/agent/clients/${task.client.id}`,
+        actionLabel: "Open client workspace",
+        _priority: isOverdue ? 0 : 2,
+        _sortAt: task.dueAt,
+        _clientId: task.client.id,
+      },
+    ];
+  });
+  const dueClientItems: CleanupCandidate[] = dueFollowUpClientOnly.map(
+    (client) => {
+      const nextTouchAt = client.nextFollowUpAt ?? client.leaseReminderAt ?? now;
+      const isOverdue = nextTouchAt.getTime() < startOfToday.getTime();
+
+      return {
+        id: `follow-up-client-${client.id}`,
+        kindLabel: "Follow-up due",
+        tone: isOverdue ? "danger" : "warning",
+        title: client.fullName,
+        description: [
+          client.stage.trim() || "Stage not captured",
+          formatNextTouchLabel({
+            nextFollowUpAt: client.nextFollowUpAt,
+            leaseReminderAt: client.leaseReminderAt,
+            now,
+            timeZone: input.timeZone,
+          }),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        metaLabels: [
+          client.source?.trim() || "Source not captured",
+          client.lastContactAt
+            ? `Last contact · ${formatDateLabel(
+                client.lastContactAt,
+                input.timeZone,
+              )}`
+            : "No contact logged yet",
+        ],
+        href: `/agent/clients/${client.id}`,
+        actionLabel: "Open client workspace",
+        _priority: isOverdue ? 0 : 2,
+        _sortAt: nextTouchAt,
+        _clientId: client.id,
+      };
+    },
+  );
+  const sendRiskItems: CleanupCandidate[] = latestSendRecords
+    .filter((record) => !isClosedClientStage(record.client.stage))
+    .flatMap<CleanupCandidate>((record) => {
+      if (record.openCount <= 0) {
+        if (record.sentAt.getTime() > threeDaysAgo.getTime()) {
+          return [];
+        }
+
+        const daysSinceSend = buildElapsedDayCount(record.sentAt, now, 3);
+
+        return [
+          {
+            id: `send-risk-${record.id}`,
+            kindLabel: "Send risk",
+            tone: "danger",
+            title: record.client.fullName,
+            description: [
+              record.listing?.title?.trim() || "Tracked Front Office send",
+              formatSendRecordStageLabel(
+                record.clientStageLabel || record.client.stage,
+              ),
+              buildSendRecordAppointmentLabel({
+                title: record.appointmentTitle,
+                startsAt: record.appointmentStartsAt,
+                timeZone: input.timeZone,
+              }),
+              `${daysSinceSend} day(s) since send with no tracked open.`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            metaLabels: [
+              `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
+              record.client.source?.trim() || "Source not captured",
+            ],
+            href: `/agent/clients/${record.client.id}`,
+            actionLabel: "Open send trail",
+            _priority: 4,
+            _sortAt: record.sentAt,
+            _clientId: record.client.id,
+          },
+        ];
+      }
+
+      const lastEngagementAt = record.lastOpenedAt ?? record.sentAt;
+
+      if (lastEngagementAt.getTime() > sevenDaysAgo.getTime()) {
+        return [];
+      }
+
+      const quietDays = buildElapsedDayCount(lastEngagementAt, now, 7);
+
+      return [
+        {
+          id: `send-risk-${record.id}`,
+          kindLabel: "Send risk",
+          tone: "warning",
+          title: record.client.fullName,
+          description: [
+            record.listing?.title?.trim() || "Tracked Front Office send",
+            formatSendRecordStageLabel(
+              record.clientStageLabel || record.client.stage,
+            ),
+            buildSendRecordAppointmentLabel({
+              title: record.appointmentTitle,
+              startsAt: record.appointmentStartsAt,
+              timeZone: input.timeZone,
+            }),
+            `${quietDays} day(s) since the last tracked open.`,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          metaLabels: [
+            `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
+            record.client.source?.trim() || "Source not captured",
+          ],
+          href: `/agent/clients/${record.client.id}`,
+          actionLabel: "Open send trail",
+          _priority: 5,
+          _sortAt: lastEngagementAt,
+          _clientId: record.client.id,
+        },
+      ];
+    });
+  const staleClientItems: CleanupCandidate[] = staleClients.map((client) => {
+    const staleSince = client.lastContactAt ?? client.createdAt;
+    const staleDays = buildElapsedDayCount(staleSince, now, 15);
+    const tone: FrontOfficeTone = staleDays >= 30 ? "danger" : "warning";
+
+    return {
+      id: `stale-client-${client.id}`,
+      kindLabel: "Stale client",
+      tone,
+      title: client.fullName,
+      description: [
+        client.stage.trim() || "Stage not captured",
+        `${staleDays} day(s) since ${
+          client.lastContactAt ? "last touch" : "record create"
+        }.`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      metaLabels: [
+        client.source?.trim() || "Source not captured",
+        client.lastContactAt
+          ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
+          : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
+      ],
+      href: `/agent/clients/${client.id}`,
+      actionLabel: "Open client workspace",
+      _priority: tone === "danger" ? 6 : 7,
+      _sortAt: staleSince,
+      _clientId: client.id,
+    };
+  });
+
+  const cleanupCandidates = [
+    ...dueTaskItems,
+    ...dueClientItems,
+    ...appointmentItems,
+    ...sendRiskItems,
+    ...staleClientItems,
+  ].sort(
+    (left, right) =>
+      left._priority - right._priority ||
+      left._sortAt.getTime() - right._sortAt.getTime(),
+  );
+  const seenCleanupClientIds = new Set<string>();
+  const cleanupItems: FrontOfficeActivityCleanupItem[] = [];
+
+  for (const item of cleanupCandidates) {
+    if (item._clientId && seenCleanupClientIds.has(item._clientId)) {
+      continue;
+    }
+
+    cleanupItems.push({
+      id: item.id,
+      kindLabel: item.kindLabel,
+      tone: item.tone,
+      title: item.title,
+      description: item.description,
+      metaLabels: item.metaLabels,
+      href: item.href,
+      actionLabel: item.actionLabel,
+    });
+
+    if (item._clientId) {
+      seenCleanupClientIds.add(item._clientId);
+    }
+
+    if (cleanupItems.length >= 12) {
+      break;
+    }
+  }
+
+  const followUpMetricCount = dueTaskItems.length + dueClientItems.length;
+  const sendRiskMetricCount = sendRiskItems.length;
+  const staleMetricCount = staleClientItems.length;
+  const cleanupMetrics: FrontOfficeActivityCleanupMetric[] = [
+    {
+      label: "Follow-up due",
+      count: followUpMetricCount,
+      tone: followUpMetricCount > 0 ? "warning" : "neutral",
+      helper:
+        "Scheduled follow-up work that should be touched today or is already overdue.",
+    },
+    {
+      label: "Appointments soon",
+      count: appointmentSoonCount,
+      tone: appointmentSoonCount > 0 ? "accent" : "neutral",
+      helper:
+        "Scheduled showings, consultations, or client meetings in the next two days.",
+    },
+    {
+      label: "Send risk",
+      count: sendRiskMetricCount,
+      tone: sendRiskMetricCount > 0 ? "warning" : "neutral",
+      helper:
+        "Tracked sends with no open after three days or no recent engagement after the last open.",
+    },
+    {
+      label: "Stale clients",
+      count: staleMetricCount,
+      tone: staleMetricCount > 0 ? "danger" : "neutral",
+      helper:
+        "Active dossiers that have gone 15+ days without a logged contact touch.",
+    },
+    {
+      label: "Potential dupes",
+      count: duplicatePairs.length,
+      tone: duplicatePairs.length > 0 ? "accent" : "neutral",
+      helper:
+        "Visible-scope duplicate review pairs that should be merged before the next touch.",
+    },
+  ];
+  const cleanupItemCount = cleanupItems.length + duplicatePairs.length;
 
   return {
     summary: {
-      actionableItemCount: notifications.length,
+      actionableItemCount: notifications.length + cleanupItemCount,
       upcomingEventCount: events.length,
       unreadNoticeCount,
+      cleanupItemCount,
+      duplicateReviewCount: duplicatePairs.length,
+      appointmentSoonCount,
     },
     notifications: notifications.map((notification) => ({
       id: notification.id,
@@ -1614,5 +2272,10 @@ export async function getFrontOfficeActivitySnapshot(
               : `${event._count.rsvps} RSVP(s)`,
       href: event.meetingUrl?.trim() || "/agent/notifications",
     })),
+    cleanup: {
+      metrics: cleanupMetrics,
+      items: cleanupItems,
+      duplicatePairs,
+    },
   };
 }

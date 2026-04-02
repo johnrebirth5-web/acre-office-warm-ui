@@ -75,7 +75,7 @@ Audit date:
 | `Listings and output` | `Live core` | Tracked private links, send records, opens, revisits, and listing-output workflow are live. |
 | `Agent material window` | `Partial / MVP` | Live beside listing output, but not yet the broader dynamic profile / landing-page vision. |
 | `Document center / training center / vendor pool` | `Partial / MVP` | Resources and vendor shortcuts are live, but not every target-state training or watch-progress behavior is complete. |
-| `Activity center` | `Partial / MVP` | Activity and notices exist across dashboard, notifications, and event flows, but not yet as one strongly unified FO activity center. |
+| `Activity center` | `Partial / MVP` | `/agent/notifications` now acts as a unified FO `Activity + Cleanup Center` for cleanup pressure, duplicate review, notices, and shared office events, but deeper office-wide cleanup depth and external writeback remain follow-up work. |
 | `Tracked links / send records / click data` | `Live core` | This `Phase 1.5` tracking layer is live and wired back into dossier and dashboard context. |
 | `Offer / negotiation bridge` | `Live core` | FO dossier can now point into the shared BO offer workspace and handoff state. |
 | `Inspection / contract-support bridge` | `Live core` | FO dossier exposes BO tasks, signatures, and incoming-update context when a formal file exists. |
@@ -90,7 +90,6 @@ Audit date:
 
 - `OCR-assisted intake from WeChat screenshots` is still not implemented
 - complete `external calendar / email systems` integration is still missing beyond the current export-style bridge
-- `Activity center` is still distributed across multiple surfaces instead of one strong center
 - duplicate cleanup no longer stops at the current agent-owned queue, but `/agent/clients` still is not yet a fully unified office-wide cleanup center
 - the later `Phase 3` line is still largely open:
   - automated content generation
@@ -104,7 +103,7 @@ The next FO implementation work should remain focused on:
 
 - deeper external calendar / email integration beyond the current export bridge
 - workflow hardening on top of the now-explainable AI layer
-- remaining CRM quality-of-life gaps such as OCR-assisted intake and a stronger unified cleanup center
+- remaining CRM quality-of-life gaps such as OCR-assisted intake and broader office-wide cleanup depth
 
 It should not jump straight to heavier background automation or auto-send behavior first.
 

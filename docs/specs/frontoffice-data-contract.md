@@ -136,6 +136,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - the shared notification contract now includes a formal `appointment_due_soon` reminder type keyed to the appointment record
   - loading `/agent/dashboard` or `/agent/notifications` now reconciles near-term scheduled appointments into the same activity stream as other FO reminders
   - `/agent/calendar` now shows a reminder badge on each appointment row so agents can see `today / within 2h / passed` pressure directly in the scheduling queue
+- `/agent/notifications` now also acts as the first unified `Activity + Cleanup Center` instead of staying a notice-only stream:
+  - the shared FO activity snapshot now combines due follow-up tasks, client-level next-touch pressure, stale-client cleanup, tracked-send risk, near-term appointment pressure, visible-scope duplicate review, unread notices, and shared office events in one route-level contract
+  - the center intentionally shows one highest-pressure cleanup signal per client first so the queue stays operational, while duplicate review remains a separate merge block because that action changes the record foundation itself
+  - this first center does not yet claim full office-wide cleanup management; it is the first unified FO surface on top of the current self-scoped queue plus visible-scope duplicate governance
 - send records now keep richer execution context instead of only `client + listing + channel`:
   - `FrontOfficeSendRecord` now also snapshots `clientStageLabel`, optional `appointmentId`, `appointmentTitle`, and `appointmentStartsAt`
   - `/agent/listings` now accepts appointment context in addition to client context, so sends can be recorded straight from a scheduled consultation/showing path
@@ -195,7 +199,7 @@ This keeps the handoff visible without pretending formal transaction creation al
   - Acre surfaces same-email / same-phone / same-name duplicate pairs in the active FO pipeline instead of only warning at create time
   - the merge action keeps one surviving FO dossier and moves shared FO workflow context such as appointments, follow-up tasks, tracked send history, AI accepted actions, handoff drafts, and transaction-contact links onto that surviving record
   - when the matched record belongs to the current viewer, review stays inside the FO dossier; when it is only visible through broader contact permissions, the review path intentionally opens the shared Office contact workspace instead of a FO-only route that would fail access
-  - this cleanup pass now extends beyond the current owner's queue, but a more unified office-wide cleanup center and OCR-assisted intake still remain follow-up work
+  - this cleanup pass now extends beyond the current owner's queue, and the first unified cleanup center now lives on `/agent/notifications`, but deeper office-wide cleanup depth and OCR-assisted intake still remain follow-up work
 - external calendar / email bridge now also lives on top of the same FO appointment foundation instead of remaining only a roadmap line:
   - scheduled appointments on `/agent/calendar` and `/agent/clients/[clientId]` now expose direct `Google Calendar`, `Outlook`, `Download ICS`, and `Email client` actions
   - the shared appointment service now generates those export links from the same FO appointment record instead of asking the agent to manually retype title, time, location, or meeting link into outside systems
@@ -211,4 +215,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 ## Expected next extensions
 
 - deeper calendar / inbox writeback on top of the current export bridge
-- broader CRM quality-of-life work such as a more unified cleanup center and future OCR-assisted intake
+- broader CRM quality-of-life work such as deeper office-wide cleanup depth and future OCR-assisted intake
