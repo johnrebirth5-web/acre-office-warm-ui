@@ -14823,6 +14823,12 @@ body,
     min-height: 100vh;
   }
 
+  .agent-backoffice-shell .app-grid,
+  .agent-backoffice-shell .acre-app-grid {
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+  }
+
   .sidebar,
   .office-dashboard-sidebar,
   .agent-sidebar {
@@ -16181,23 +16187,36 @@ body,
 .office-mobile-rail-current {
   grid-column: 1;
   min-width: 0;
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 8px;
 }
 
 .office-mobile-rail-current span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid rgba(194, 205, 220, 0.68);
+  border-radius: 999px;
+  background: rgba(244, 248, 255, 0.92);
   color: var(--office-text-soft);
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .office-mobile-rail-current strong {
+  min-width: 0;
+  max-width: 100%;
   color: var(--office-text);
-  font-size: 1rem;
-  line-height: 1.1;
-  letter-spacing: -0.04em;
+  font-size: 0.98rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -16436,5 +16455,15 @@ body,
   .public-signature-sidebar {
     border-right: 0;
     border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  }
+}
+
+@media (max-width: 640px) {
+  .office-mobile-rail-current span {
+    display: none;
+  }
+
+  .office-mobile-rail-current strong {
+    font-size: 0.94rem;
   }
 }
