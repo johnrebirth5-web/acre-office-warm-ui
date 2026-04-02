@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { OfficeCreateTransactionCommissionPreview } from "@acre/db";
-import { Button } from "@acre/ui";
+import { Button, FormField, TextareaInput } from "@acre/ui";
 import {
   createEmptyTransactionFinanceCalculatorValues,
   deriveTransactionFinanceCalculatorAmount,
@@ -223,14 +223,14 @@ export function TransactionFinanceCreateFields({
         </div>
 
         <div className="office-transaction-finance-calculator-footer">
-          <div className="office-transaction-finance-calculator-tip">
-            <span>Calculator note</span>
+          <div className="office-inline-callout">
+            <strong>Calculator note</strong>
             <p>
               For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
             </p>
           </div>
 
-          <div className={`office-transaction-finance-calculator-result${preview ? " is-active" : ""}`}>
+          <div className={`office-kpi-card office-transaction-finance-calculator-result${preview ? " office-kpi-card-accent is-active" : ""}`}>
             <span>Final Agent Net</span>
             <strong>{preview?.finalAgentNetLabel ?? "—"}</strong>
             <p>
@@ -251,15 +251,15 @@ export function TransactionFinanceCreateFields({
         </ul>
       ) : null}
 
-      <label className="office-transaction-finance-note-card">
-        <span>Note</span>
-        <textarea
+      <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label="Note">
+        <TextareaInput
+          className="office-transaction-finance-note-textarea"
           disabled={readOnly}
           onChange={(event) => setTextField("financeNotes", event.target.value)}
           rows={4}
           value={draft.financeNotes}
         />
-      </label>
+      </FormField>
     </section>
   );
 }

@@ -7,7 +7,7 @@ import type {
   OfficeTransactionFinanceFeeRecord,
   OfficeTransactionFinancePrerequisiteSnapshot
 } from "@acre/db";
-import { Button, StatCard } from "@acre/ui";
+import { Button, FormField, StatCard, TextareaInput } from "@acre/ui";
 import {
   deriveTransactionFinanceCalculatorAmount,
   deriveTransactionFinanceCalculatorRate,
@@ -353,14 +353,14 @@ export function TransactionFinanceForm({
           </div>
 
           <div className="office-transaction-finance-calculator-footer">
-            <div className="office-transaction-finance-calculator-tip">
-              <span>Calculator note</span>
+            <div className="office-inline-callout">
+              <strong>Calculator note</strong>
               <p>
                 For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
               </p>
             </div>
 
-            <div className="office-transaction-finance-calculator-result is-active">
+            <div className="office-kpi-card office-kpi-card-accent office-transaction-finance-calculator-result is-active">
               <span>Final Agent Net</span>
               <strong>{summary?.agentNetLabel ?? "$0"}</strong>
               <p>
@@ -376,23 +376,23 @@ export function TransactionFinanceForm({
           <p className="office-form-helper">Current reimbursement adjustment: {summary.reimbursementLabel}</p>
         ) : null}
 
-        <label className="office-transaction-finance-note-card">
-          <span>Note</span>
-          <textarea
+        <FormField className="office-detail-field office-detail-field-wide office-transaction-finance-note-field" label="Note">
+          <TextareaInput
+            className="office-transaction-finance-note-textarea"
             disabled={readOnly}
             onChange={(event) => setTopLevelField("financeNotes", event.target.value)}
             rows={4}
             value={formState.financeNotes}
           />
-        </label>
+        </FormField>
 
         {!readOnly && canAutoCalculateCommission ? (
-          <p className="office-transaction-finance-inline-note">
+          <p className="office-inline-note">
             Calculate will save finance changes first, then rerun the current commission rules for this transaction.
           </p>
         ) : null}
         {readOnly ? (
-          <p className="office-transaction-finance-inline-note">Financial details are read-only for your current access level.</p>
+          <p className="office-inline-note">Financial details are read-only for your current access level.</p>
         ) : null}
         {error ? <p className="office-form-error">{error}</p> : null}
       </section>
