@@ -1813,6 +1813,16 @@ select {
   gap: 12px;
 }
 
+.office-transaction-finance-calculator-shell {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.office-transaction-finance-calculator-intro {
+  max-width: min(100%, 72ch);
+}
+
 .office-transaction-finance-calculator-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
@@ -1899,6 +1909,19 @@ select {
   min-width: 160px;
   min-height: 44px;
   padding-inline: 20px;
+}
+
+.office-transaction-finance-calculator-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 14px 18px;
+  align-items: center;
+}
+
+.office-transaction-finance-calculator-helper {
+  margin: 0;
+  align-self: center;
+  max-width: 60ch;
 }
 
 .office-transaction-finance-calculator-result {
@@ -2095,6 +2118,10 @@ select {
 @media (max-width: 1280px) {
   .office-transaction-finance-grid,
   .office-transaction-finance-panel-head-split {
+    grid-template-columns: 1fr;
+  }
+
+  .office-transaction-finance-calculator-footer {
     grid-template-columns: 1fr;
   }
 

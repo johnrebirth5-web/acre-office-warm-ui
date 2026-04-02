@@ -161,76 +161,82 @@ export function TransactionFinanceCreateFields({
 
   return (
     <section className="office-transaction-finance-panel office-transaction-intake-finance-panel">
-      <div className="office-transaction-finance-panel-head">
-        <div>
-          <h4>Commission calculator</h4>
-          <p>Enter each deduction by amount or rate, calculate the final agent net, and keep one unified note for context.</p>
-        </div>
-      </div>
-
-      <div className="office-transaction-finance-calculator-grid">
-        <label className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-gross-field">
-          <span>Gross Commission</span>
-          <input
-            disabled={readOnly}
-            inputMode="decimal"
-            onChange={(event) => setTextField("grossCommission", event.target.value)}
-            placeholder="Required"
-            type="text"
-            value={draft.grossCommission}
-          />
-        </label>
-
-        {calculatorFieldDefinitions.map((field) => (
-          <div
-            className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-fee-field"
-            key={field.fieldKey}
-          >
-            <span>{field.feeTypeLabel}</span>
-            <div className="office-transaction-finance-calculator-pair">
-              <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                <span>Amount</span>
-                <input
-                  disabled={readOnly}
-                  inputMode="decimal"
-                  onChange={(event) => setCalculatorAmountField(field.fieldKey, event.target.value)}
-                  placeholder="0"
-                  type="text"
-                  value={draft.calculatorFields[field.fieldKey]}
-                />
-              </label>
-              <label className="office-form-field office-transaction-finance-calculator-mini-field">
-                <span>Rate %</span>
-                <input
-                  disabled={readOnly}
-                  inputMode="decimal"
-                  onChange={(event) => setCalculatorRateField(field.fieldKey, event.target.value)}
-                  placeholder="0"
-                  type="text"
-                  value={draft.calculatorRates[field.fieldKey]}
-                />
-              </label>
-            </div>
+      <div className="office-transaction-finance-calculator-shell">
+        <div className="office-transaction-finance-panel-head office-transaction-finance-calculator-intro">
+          <div>
+            <h4>Commission calculator</h4>
+            <p>Enter each deduction by amount or rate, calculate the final agent net, and keep one unified note for context.</p>
           </div>
-        ))}
-
-        <div className="office-transaction-finance-calculator-action">
-          <Button disabled={readOnly || isCalculating} onClick={handleCalculate} type="button">
-            {isCalculating ? "Calculating..." : "Calculate"}
-          </Button>
         </div>
-      </div>
 
-      <p className="office-form-helper">For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.</p>
+        <div className="office-transaction-finance-calculator-grid">
+          <label className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-gross-field">
+            <span>Gross Commission</span>
+            <input
+              disabled={readOnly}
+              inputMode="decimal"
+              onChange={(event) => setTextField("grossCommission", event.target.value)}
+              placeholder="Required"
+              type="text"
+              value={draft.grossCommission}
+            />
+          </label>
 
-      <div className={`office-transaction-finance-calculator-result${preview ? " is-active" : ""}`}>
-        <span>Final Agent Net</span>
-        <strong>{preview?.finalAgentNetLabel ?? "—"}</strong>
-        <p>
-          {preview
-            ? `Gross ${preview.grossCommissionLabel} · Pre-Split ${preview.preSplitTotalLabel} · Post-Split ${preview.postSplitTotalLabel}`
-            : "Click Calculate to preview the current commission result using the existing fee and split rules."}
-        </p>
+          {calculatorFieldDefinitions.map((field) => (
+            <div
+              className="office-detail-field office-transaction-finance-calculator-card office-transaction-finance-calculator-fee-field"
+              key={field.fieldKey}
+            >
+              <span>{field.feeTypeLabel}</span>
+              <div className="office-transaction-finance-calculator-pair">
+                <label className="office-form-field office-transaction-finance-calculator-mini-field">
+                  <span>Amount</span>
+                  <input
+                    disabled={readOnly}
+                    inputMode="decimal"
+                    onChange={(event) => setCalculatorAmountField(field.fieldKey, event.target.value)}
+                    placeholder="0"
+                    type="text"
+                    value={draft.calculatorFields[field.fieldKey]}
+                  />
+                </label>
+                <label className="office-form-field office-transaction-finance-calculator-mini-field">
+                  <span>Rate %</span>
+                  <input
+                    disabled={readOnly}
+                    inputMode="decimal"
+                    onChange={(event) => setCalculatorRateField(field.fieldKey, event.target.value)}
+                    placeholder="0"
+                    type="text"
+                    value={draft.calculatorRates[field.fieldKey]}
+                  />
+                </label>
+              </div>
+            </div>
+          ))}
+
+          <div className="office-transaction-finance-calculator-action">
+            <Button disabled={readOnly || isCalculating} onClick={handleCalculate} type="button">
+              {isCalculating ? "Calculating..." : "Calculate"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="office-transaction-finance-calculator-footer">
+          <p className="office-form-helper office-transaction-finance-calculator-helper">
+            For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
+          </p>
+
+          <div className={`office-transaction-finance-calculator-result${preview ? " is-active" : ""}`}>
+            <span>Final Agent Net</span>
+            <strong>{preview?.finalAgentNetLabel ?? "—"}</strong>
+            <p>
+              {preview
+                ? `Gross ${preview.grossCommissionLabel} · Pre-Split ${preview.preSplitTotalLabel} · Post-Split ${preview.postSplitTotalLabel}`
+                : "Click Calculate to preview the current commission result using the existing fee and split rules."}
+            </p>
+          </div>
+        </div>
       </div>
 
       {previewError ? <p className="office-form-error">{previewError}</p> : null}
