@@ -13231,7 +13231,7 @@ body,
 .office-list-page-header-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
+  align-items: flex-start;
   justify-content: flex-start;
 }
 
