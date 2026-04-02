@@ -116,8 +116,9 @@ Current implementation priority note:
 - the `inspection / contract-support bridge` is now also live on the client dossier, so the same FO record can point directly into BO tasks, signatures, and incoming-update review once a formal transaction file exists
 - `PDF export` is now also live off the same dossier, so agents can download a client-ready summary PDF without creating a second reporting module or exporting raw BO state directly
 - `closing / deal-win suggestions` are now also live on the client dossier, so the same FO record can turn shared BO outcome signals into post-close touches, referral timing, recap PDF suggestions, and respectful re-entry guidance without inventing a second “win board”
-- the next recommended build target is `Automation / AI next-touch suggestions`
-- prefer this next because the FO core execution trail now covers follow-up through post-close wrap-up, which means AI can finally ground its recommendations in live dossier, send, appointment, handoff, and transaction outcome signals instead of generic prompt scaffolding
+- `AI next-touch suggestions` are now also live on the client dossier for memberships with `ai:use`, so Acre can ground copyable call / text / email drafts in the live dossier trail without auto-sending anything or inventing a second recommendation layer
+- the next recommended build target is `dashboard-level AI queue + safe automation actions`
+- prefer this next because the first AI bridge is now grounded at the dossier level, and the best follow-through is to surface those opportunities on the dashboard and add safe agent-approved actions before moving into heavier generative automation
 
 ### Phase 2
 

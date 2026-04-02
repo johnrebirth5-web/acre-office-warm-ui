@@ -180,6 +180,35 @@ export type FrontOfficeClientDetailClosing = {
   suggestions: FrontOfficeClientDetailClosingItem[];
 };
 
+export type FrontOfficeClientDetailAiDraftChannel =
+  | "call"
+  | "sms"
+  | "email";
+
+export type FrontOfficeClientDetailAiDraft = {
+  id: string;
+  title: string;
+  channelKey: FrontOfficeClientDetailAiDraftChannel;
+  channelLabel: string;
+  tone: FrontOfficeClientDetailTone;
+  reasonLabel: string;
+  subjectLine: string;
+  body: string;
+};
+
+export type FrontOfficeClientDetailAiSuggestions = {
+  statusLabel: string;
+  statusTone: FrontOfficeClientDetailTone;
+  statusTitle: string;
+  summary: string;
+  helperText: string;
+  groundingSignals: string[];
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  primaryActionOpensInNewTab: boolean;
+  drafts: FrontOfficeClientDetailAiDraft[];
+};
+
 export type FrontOfficeClientDetailWorkflowSignal = {
   pressureLabel: string;
   pressureTone: FrontOfficeClientDetailTone;
@@ -263,6 +292,7 @@ export type FrontOfficeClientDetailSnapshot = {
   negotiation: FrontOfficeClientDetailNegotiation;
   inspection: FrontOfficeClientDetailInspection;
   closing: FrontOfficeClientDetailClosing;
+  aiSuggestions: FrontOfficeClientDetailAiSuggestions;
   workflow: FrontOfficeClientDetailWorkflowSignal;
   playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
@@ -1315,6 +1345,388 @@ function buildFrontOfficePlaybook(input: {
   };
 }
 
+function buildFrontOfficeAiSuggestions(input: {
+  clientId: string;
+  fullName: string;
+  stage: string;
+  intentLabel: string;
+  budgetLabel: string;
+  preferredAreasLabel: string;
+  sendCount: number;
+  openedSendCount: number;
+  revisitCount: number;
+  nextTouchLabel: string;
+  leaseReminder: FrontOfficeClientDetailLeaseReminder;
+  workflow: FrontOfficeClientDetailWorkflowSignal;
+  playbook: FrontOfficeClientDetailPlaybook;
+  latestAppointment:
+    | {
+        title: string;
+        startsAt: Date;
+        type: AppointmentType;
+      }
+    | null;
+  latestSendRecord:
+    | {
+        listingTitle: string;
+        sentAt: Date;
+        openCount: number;
+        lastOpenedAt: Date | null;
+      }
+    | null;
+  hasClosedTransaction: boolean;
+  hasCancelledTransaction: boolean;
+  hasLinkedTransaction: boolean;
+  isClosingSoon: boolean;
+  isReadyForBackOffice: boolean;
+  closingKeyDateLabel: string;
+  closingBoundaryLabel: string;
+  closingPrimaryActionLabel: string;
+  closingPrimaryActionHref: string;
+  closingPrimaryActionOpensInNewTab: boolean;
+  timeZone?: string | null;
+}): FrontOfficeClientDetailAiSuggestions {
+  const firstName = getClientFirstName(input.fullName);
+  const areaContext = hasMeaningfulAreasLabel(input.preferredAreasLabel)
+    ? input.preferredAreasLabel
+    : "the right neighborhoods";
+  const budgetContext = hasMeaningfulBudgetLabel(input.budgetLabel)
+    ? input.budgetLabel
+    : "the right budget";
+  const intentContext = hasMeaningfulIntentLabel(input.intentLabel)
+    ? input.intentLabel
+    : "this move";
+  const appointmentLabel = input.latestAppointment
+    ? `${input.latestAppointment.title} · ${formatDateTimeLabel(
+        input.latestAppointment.startsAt,
+        {
+          timeZone: input.timeZone ?? null,
+        },
+      )}`
+    : "";
+  const latestListingLabel =
+    input.latestSendRecord?.listingTitle.trim() || "the last shortlist";
+
+  const groundingSignals = [
+    `Stage · ${input.stage}`,
+    `Workflow · ${input.workflow.pressureLabel}`,
+    `Next touch · ${input.nextTouchLabel}`,
+    input.leaseReminder.statusLabel !== "No lease reminder"
+      ? `Lease · ${input.leaseReminder.statusLabel}`
+      : "",
+    appointmentLabel ? `Appointment · ${appointmentLabel}` : "",
+    input.sendCount > 0
+      ? `Engagement · ${input.openedSendCount}/${input.sendCount} send(s) opened`
+      : "",
+    input.hasLinkedTransaction &&
+    input.closingKeyDateLabel !== "No milestone date captured"
+      ? `Deal milestone · ${input.closingKeyDateLabel}`
+      : "",
+  ]
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const drafts: FrontOfficeClientDetailAiDraft[] = [];
+  const pushDraft = (draft: FrontOfficeClientDetailAiDraft) => {
+    drafts.push(draft);
+  };
+
+  let statusLabel = "Next touch ready";
+  let statusTone: FrontOfficeClientDetailTone = "accent";
+  let statusTitle = "Best next touch from the live dossier";
+  let summary =
+    "Acre can already ground the next touch in the live dossier instead of leaving the agent to guess the right opener.";
+  let helperText =
+    "These drafts are grounded in the appointment, send, follow-up, handoff, and transaction signals already on this record. Nothing auto-sends; edit before using.";
+  let primaryActionLabel = input.workflow.actionLabel;
+  let primaryActionHref = input.workflow.actionHref;
+  let primaryActionOpensInNewTab = false;
+
+  if (input.hasCancelledTransaction) {
+    statusLabel = "Re-entry";
+    statusTone = "warning";
+    statusTitle = "Use a respectful reopen touch, not a hard restart";
+    summary =
+      "The formal deal did not close, so the best next-touch should stay low-pressure and leave the door open for timing to restart.";
+    primaryActionLabel = "Create follow-up";
+    primaryActionHref = "#front-office-follow-up-form";
+
+    pushDraft({
+      id: "reentry-call",
+      title: "Soft re-entry opener",
+      channelKey: "call",
+      channelLabel: "Call opener",
+      tone: "warning",
+      reasonLabel: "Grounded by cancelled / lost formal outcome",
+      subjectLine: "",
+      body: `Hi ${firstName}, I wanted to check in without any pressure. If your timing opens back up or you want to revisit options, I can pick things up quickly from where we left off. What would make it useful for us to reconnect?`,
+    });
+    pushDraft({
+      id: "reentry-email",
+      title: "Respectful re-entry email",
+      channelKey: "email",
+      channelLabel: "Email draft",
+      tone: "neutral",
+      reasonLabel: "Keeps the relationship warm without forcing urgency",
+      subjectLine: "Checking in whenever the timing reopens",
+      body: `Hi ${firstName},\n\nI wanted to check in without any pressure. If your timing opens back up or you want to revisit options, I can restart quickly from where we left off instead of rebuilding the search from scratch.\n\nIf it helps, I can also tighten a smaller shortlist around ${areaContext} so the next step feels simpler.\n\nBest,\nAcre`,
+    });
+  } else if (input.hasClosedTransaction) {
+    statusLabel = "Post-close";
+    statusTone = "success";
+    statusTitle = "Keep the win warm with a human follow-up";
+    summary =
+      "The deal is already closed, so the next-touch should sound supportive, recap-oriented, and referral-aware rather than salesy.";
+    primaryActionLabel = input.closingPrimaryActionLabel;
+    primaryActionHref = input.closingPrimaryActionHref;
+    primaryActionOpensInNewTab = input.closingPrimaryActionOpensInNewTab;
+
+    pushDraft({
+      id: "postclose-text",
+      title: "Post-close check-in text",
+      channelKey: "sms",
+      channelLabel: "Text draft",
+      tone: "success",
+      reasonLabel:
+        input.closingKeyDateLabel !== "No milestone date captured"
+          ? input.closingKeyDateLabel
+          : "Grounded by closed formal transaction",
+      subjectLine: "",
+      body: `Hi ${firstName}, congratulations again on the close. I wanted to check that everything feels settled and see if you need anything as move-in continues. Once you are fully settled, I would also be glad to help anyone you send my way.`,
+    });
+    pushDraft({
+      id: "postclose-email",
+      title: "Support-first follow-up email",
+      channelKey: "email",
+      channelLabel: "Email draft",
+      tone: "accent",
+      reasonLabel: "Built for recap, support, and referral timing",
+      subjectLine: "Checking in after the close",
+      body: `Hi ${firstName},\n\nCongratulations again on the close. I wanted to check that everything feels settled and make sure there is nothing you need as move-in continues.\n\nIf it helps, I can also send a clean recap packet from our current dossier so you have the key details in one place. And once you are fully settled, I would love to help anyone you send my way.\n\nBest,\nAcre`,
+    });
+  } else if (input.isClosingSoon) {
+    statusLabel = "Closing support";
+    statusTone = "warning";
+    statusTitle = "Use the next touch to steady the closing window";
+    summary =
+      "A near-term closing or move-in date is already on the shared file, so the next-touch should reduce wrap-up confusion before the date slips by.";
+    primaryActionLabel = input.closingPrimaryActionLabel;
+    primaryActionHref = input.closingPrimaryActionHref;
+    primaryActionOpensInNewTab = input.closingPrimaryActionOpensInNewTab;
+
+    pushDraft({
+      id: "closing-text",
+      title: "Closing-week text",
+      channelKey: "sms",
+      channelLabel: "Text draft",
+      tone: "warning",
+      reasonLabel:
+        input.closingKeyDateLabel !== "No milestone date captured"
+          ? input.closingKeyDateLabel
+          : "Near-term closing support",
+      subjectLine: "",
+      body: `Hi ${firstName}, as we get closer to ${input.closingKeyDateLabel.toLowerCase()}, I want to make sure the wrap-up stays smooth. If anything changed around timing, logistics, or the final checklist, send it over and I will help keep the next steps clear.`,
+    });
+    pushDraft({
+      id: "closing-email",
+      title: "Closing recap email",
+      channelKey: "email",
+      channelLabel: "Email draft",
+      tone: "accent",
+      reasonLabel: "Good fit when you want one clean written recap",
+      subjectLine: "Quick check-in before the close",
+      body: `Hi ${firstName},\n\nAs we get closer to ${input.closingKeyDateLabel.toLowerCase()}, I want to make sure the wrap-up stays smooth and that nothing important is left fuzzy.\n\nIf it helps, I can send one clean recap and keep the first post-close follow-up visible now so there is no gap once the deal lands.\n\nBest,\nAcre`,
+    });
+  } else if (input.leaseReminder.needsAttention) {
+    statusLabel = "Lease timing";
+    statusTone = input.leaseReminder.statusTone;
+    statusTitle = "Use the next touch to clarify renewal or move timing";
+    summary =
+      "The lease reminder is already due or near due, so the next-touch should lock whether this is a renewal, remarketing, or move-planning conversation.";
+
+    pushDraft({
+      id: "lease-call",
+      title: "Lease-timing opener",
+      channelKey: "call",
+      channelLabel: "Call opener",
+      tone: input.leaseReminder.statusTone,
+      reasonLabel: input.leaseReminder.statusLabel,
+      subjectLine: "",
+      body: `Hi ${firstName}, I wanted to check in on your lease timing so we can stay ahead of the decision. Are you leaning more toward renewing, moving, or starting a fresh search?`,
+    });
+    pushDraft({
+      id: "lease-text",
+      title: "Lease follow-up text",
+      channelKey: "sms",
+      channelLabel: "Text draft",
+      tone: "accent",
+      reasonLabel: input.leaseReminder.helperText,
+      subjectLine: "",
+      body: `Hi ${firstName}, I wanted to check in on your lease timing so we can stay ahead of the next step. If you are leaning toward renewal, moving, or starting a new search, I can map the options now rather than waiting until it gets tight.`,
+    });
+  } else if (input.latestAppointment) {
+    statusLabel = "Appointment prep";
+    statusTone = "accent";
+    statusTitle = "Use the touch to tighten expectations before the meeting";
+    summary =
+      "There is already a scheduled appointment on the calendar, so the next-touch should sharpen logistics and expectations instead of reopening discovery from zero.";
+    primaryActionLabel = "Open calendar";
+    primaryActionHref = `/agent/calendar?clientId=${input.clientId}`;
+
+    pushDraft({
+      id: "appointment-text",
+      title: "Pre-appointment text",
+      channelKey: "sms",
+      channelLabel: "Text draft",
+      tone: "accent",
+      reasonLabel: appointmentLabel || "Upcoming appointment in Front Office",
+      subjectLine: "",
+      body: `Hi ${firstName}, looking forward to our ${input.latestAppointment.title} on ${formatDateTimeLabel(
+        input.latestAppointment.startsAt,
+        { timeZone: input.timeZone ?? null },
+      )}. I will have the key details and best-fit options ready so we can use the time well. If anything changed on budget, area, or timing, send it over and I will adjust before we meet.`,
+    });
+    pushDraft({
+      id: "appointment-email",
+      title: "Pre-appointment email",
+      channelKey: "email",
+      channelLabel: "Email draft",
+      tone: "neutral",
+      reasonLabel: "Best when the meeting needs one clear written setup",
+      subjectLine: `Quick setup before our ${input.latestAppointment.title}`,
+      body: `Hi ${firstName},\n\nLooking forward to our ${input.latestAppointment.title} on ${formatDateTimeLabel(
+        input.latestAppointment.startsAt,
+        { timeZone: input.timeZone ?? null },
+      )}.\n\nI will come in ready around ${intentContext}, ${budgetContext}, and ${areaContext}. If anything changed on timing or priorities, reply here and I will adjust before we meet.\n\nBest,\nAcre`,
+    });
+  } else if (input.latestSendRecord && input.latestSendRecord.openCount <= 0) {
+    statusLabel = "Content follow-up";
+    statusTone = "warning";
+    statusTitle = "Rescue the tracked send before it goes quiet";
+    summary =
+      "Material has already been sent, but there is no tracked open yet, so the next-touch should reduce friction and offer a smaller next step.";
+    primaryActionLabel = "Open listing output";
+    primaryActionHref = `/agent/listings?clientId=${input.clientId}`;
+
+    pushDraft({
+      id: "unopened-text",
+      title: "Shortlist rescue text",
+      channelKey: "sms",
+      channelLabel: "Text draft",
+      tone: "warning",
+      reasonLabel: `No tracked open on ${latestListingLabel}`,
+      subjectLine: "",
+      body: `Hi ${firstName}, just checking that you saw the options I sent over. I can narrow them down to the 2 or 3 best matches in ${areaContext} if that makes the next step easier. Want me to tighten the list or book a quick showing?`,
+    });
+    pushDraft({
+      id: "unopened-call",
+      title: "No-open follow-up opener",
+      channelKey: "call",
+      channelLabel: "Call opener",
+      tone: "accent",
+      reasonLabel: "Designed to restart momentum without sounding pushy",
+      subjectLine: "",
+      body: `Hi ${firstName}, I wanted to make this easier instead of sending another big batch. I can cut the shortlist down around ${areaContext} and ${budgetContext} so the next step feels obvious. Which direction would help most right now?`,
+    });
+  } else if (input.latestSendRecord && input.latestSendRecord.openCount > 0) {
+    statusLabel = "Warm engagement";
+    statusTone = input.revisitCount > 0 ? "success" : "accent";
+    statusTitle = "Follow the signal while the client is still engaged";
+    summary =
+      "The send trail already shows engagement, so the next-touch should turn interest into a clearer shortlist, feedback, or booked step.";
+    primaryActionLabel = "Create follow-up";
+    primaryActionHref = "#front-office-follow-up-form";
+
+    pushDraft({
+      id: "engaged-call",
+      title: "Engagement follow-up opener",
+      channelKey: "call",
+      channelLabel: "Call opener",
+      tone: input.revisitCount > 0 ? "success" : "accent",
+      reasonLabel:
+        input.revisitCount > 0
+          ? "Revisit signal on tracked content"
+          : "At least one tracked open is already recorded",
+      subjectLine: "",
+      body: `Hi ${firstName}, I wanted to follow up on the options we reviewed. Based on what stood out most, I can narrow the search and line up the next showing. Which one felt closest to the mark?`,
+    });
+    pushDraft({
+      id: "engaged-text",
+      title: "Warm-engagement text",
+      channelKey: "sms",
+      channelLabel: "Text draft",
+      tone: "accent",
+      reasonLabel: `Grounded by interest in ${latestListingLabel}`,
+      subjectLine: "",
+      body: `Hi ${firstName}, wanted to follow up on the options I sent over. If one or two stood out, I can narrow the list and line up the next step around ${areaContext}. Want me to tighten the shortlist or book a quick tour?`,
+    });
+  } else if (input.isReadyForBackOffice && !input.hasLinkedTransaction) {
+    statusLabel = "Formal handoff";
+    statusTone = "warning";
+    statusTitle = "Use the touch to align the client before the BO handoff";
+    summary =
+      "The dossier is BO-ready, but the formal file is not live yet, so the next-touch should confirm package, timing, and expectations before handoff.";
+    primaryActionLabel = input.closingPrimaryActionLabel;
+    primaryActionHref = input.closingPrimaryActionHref;
+    primaryActionOpensInNewTab = input.closingPrimaryActionOpensInNewTab;
+
+    pushDraft({
+      id: "handoff-call",
+      title: "Offer / application alignment opener",
+      channelKey: "call",
+      channelLabel: "Call opener",
+      tone: "warning",
+      reasonLabel: input.closingBoundaryLabel,
+      subjectLine: "",
+      body: `Hi ${firstName}, we are at the point where the next step should become formal, and I want to make sure timing, paperwork, and expectations stay clean. If we confirm the exact package today, I can keep the process moving without extra back-and-forth.`,
+    });
+    pushDraft({
+      id: "handoff-email",
+      title: "Formal-step email",
+      channelKey: "email",
+      channelLabel: "Email draft",
+      tone: "accent",
+      reasonLabel: "Best when the client needs one written recap before formal handoff",
+      subjectLine: "Confirming the next formal step",
+      body: `Hi ${firstName},\n\nWe are at the point where the next step should become formal, and I want to keep timing, paperwork, and expectations clean.\n\nIf we confirm the exact package today, I can move the file forward without extra back-and-forth and make sure the next milestone is clear.\n\nBest,\nAcre`,
+    });
+  } else {
+    pushDraft({
+      id: "next-call",
+      title: "Primary next-touch opener",
+      channelKey: "call",
+      channelLabel: "Call opener",
+      tone: input.workflow.nextStepTone,
+      reasonLabel: input.workflow.nextStepTitle,
+      subjectLine: "",
+      body: input.playbook.introScript,
+    });
+    pushDraft({
+      id: "next-text",
+      title: "Short next-step text",
+      channelKey: "sms",
+      channelLabel: "Text draft",
+      tone: "accent",
+      reasonLabel: "Built from current stage, budget, area, and timeline context",
+      subjectLine: "",
+      body: `Hi ${firstName}, I wanted to check in on ${intentContext}. I can tighten the next step around ${areaContext} and ${budgetContext} so it feels more actionable instead of broad. Would a quick call this week help us choose the next move?`,
+    });
+  }
+
+  return {
+    statusLabel,
+    statusTone,
+    statusTitle,
+    summary,
+    helperText,
+    groundingSignals,
+    primaryActionLabel,
+    primaryActionHref,
+    primaryActionOpensInNewTab,
+    drafts,
+  };
+}
+
 function mapHandoffTone(
   status: FrontOfficeHandoffStatus,
 ): FrontOfficeClientDetailTone {
@@ -2220,6 +2632,7 @@ export async function getFrontOfficeClientDetail(
     : "Areas not captured";
   const totalOpenCount = sendAggregate._sum.openCount ?? 0;
   const revisitCount = Math.max(totalOpenCount - openedSendCount, 0);
+  const nextTouchLabel = formatRelativeDueLabel(nextTouchAt, now, input.timeZone);
   const workflow = buildWorkflowSignal({
     clientId: client.id,
     stage: client.stage,
@@ -2240,6 +2653,15 @@ export async function getFrontOfficeClientDetail(
     linkedTransactionMoveInDate: inspectionTransactionRecord?.moveInDate ?? null,
     timeZone: input.timeZone,
     now,
+  });
+  const playbook = buildFrontOfficePlaybook({
+    fullName: client.fullName,
+    ownerLabel,
+    stage: client.stage,
+    intentLabel: client.intent?.trim() || "Intent not captured",
+    budgetLabel,
+    preferredAreasLabel,
+    upcomingAppointmentCount,
   });
   const negotiationOfferCount = negotiationOffersSnapshot?.offers.length ?? 0;
   const negotiationBoundaryLabel = negotiationTransactionId
@@ -2775,6 +3197,56 @@ export async function getFrontOfficeClientDetail(
               },
             ]
           : [];
+  const latestUpcomingAppointment =
+    client.appointments.find(
+      (appointment) =>
+        appointment.status === AppointmentStatus.scheduled &&
+        appointment.startsAt.getTime() >= now.getTime(),
+    ) ?? null;
+  const latestSendRecord = client.frontOfficeSendRecords[0]
+    ? {
+        listingTitle:
+          client.frontOfficeSendRecords[0].listing?.title?.trim() ||
+          "Front Office material send",
+        sentAt: client.frontOfficeSendRecords[0].sentAt,
+        openCount: client.frontOfficeSendRecords[0].openCount,
+        lastOpenedAt: client.frontOfficeSendRecords[0].lastOpenedAt,
+      }
+    : null;
+  const aiSuggestions = buildFrontOfficeAiSuggestions({
+    clientId: client.id,
+    fullName: client.fullName,
+    stage: client.stage,
+    intentLabel: client.intent?.trim() || "Intent not captured",
+    budgetLabel,
+    preferredAreasLabel,
+    sendCount,
+    openedSendCount,
+    revisitCount,
+    nextTouchLabel,
+    leaseReminder,
+    workflow,
+    playbook,
+    latestAppointment: latestUpcomingAppointment
+      ? {
+          title: latestUpcomingAppointment.title,
+          startsAt: latestUpcomingAppointment.startsAt,
+          type: latestUpcomingAppointment.type,
+        }
+      : null,
+    latestSendRecord,
+    hasClosedTransaction,
+    hasCancelledTransaction,
+    hasLinkedTransaction: Boolean(negotiationTransactionId),
+    isClosingSoon,
+    isReadyForBackOffice: isFrontOfficeStageReadyForBackOffice(client.stage),
+    closingKeyDateLabel,
+    closingBoundaryLabel,
+    closingPrimaryActionLabel,
+    closingPrimaryActionHref,
+    closingPrimaryActionOpensInNewTab,
+    timeZone: input.timeZone,
+  });
 
   return {
     id: client.id,
@@ -2792,7 +3264,7 @@ export async function getFrontOfficeClientDetail(
     lastTouchLabel: client.lastContactAt
       ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
       : "No contact logged yet",
-    nextTouchLabel: formatRelativeDueLabel(nextTouchAt, now, input.timeZone),
+    nextTouchLabel,
     summary: {
       openTaskCount,
       upcomingAppointmentCount,
@@ -2885,16 +3357,9 @@ export async function getFrontOfficeClientDetail(
       emptyStateDescription: closingEmptyStateDescription,
       suggestions: closingSuggestions,
     },
+    aiSuggestions,
     workflow,
-    playbook: buildFrontOfficePlaybook({
-      fullName: client.fullName,
-      ownerLabel,
-      stage: client.stage,
-      intentLabel: client.intent?.trim() || "Intent not captured",
-      budgetLabel,
-      preferredAreasLabel,
-      upcomingAppointmentCount,
-    }),
+    playbook,
     stageHistory: client.stageHistory.map((entry) => {
       const actorLabel =
         `${entry.membership?.user.firstName ?? ""} ${entry.membership?.user.lastName ?? ""}`.trim() ||

@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions` foundation, the recommended next implementation target is:
 
-- `Automation / AI next-touch suggestions rooted in the same dossier and live execution trail`
+- `dashboard-level AI queue + safe automation actions rooted in the same dossier and live execution trail`
 
 That means:
 
-- Front Office should now be able to use the fully linked dossier trail to suggest or generate the next concrete touch, instead of stopping at static workflow visibility
-- AI / automation should reuse the same dossier, negotiation bridge, inspection / contract-support bridge, closing suggestions, send trail, and appointment history instead of inventing a disconnected recommendation layer
+- Front Office should now lift grounded next-touch opportunities out of the dossier and into the agent's daily dashboard instead of hiding them only in the detail page
+- automation should stay safe and agent-approved first: copy drafts, suggested follow-up creation, or draft task titles before any true auto-send behavior
 - the module should keep the FO -> BO boundary explicit by grounding recommendations in formal BO status / outcome signals while FO still owns client-facing follow-up, recap, referral, renewal, or re-entry prompts
-- the goal is to build AI on top of the now-complete execution trail instead of asking models to operate on incomplete or placeholder workflow context
+- the goal is to extend the first grounded AI bridge into visible workflow actions without skipping straight to opaque background automation
 
 ## First real FO workflow models
 
@@ -160,6 +160,10 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/clients/[clientId]` now exposes a `Closing & win suggestions` section that makes the boundary explicit across `Pre-win prep`, `Ready for deal wrap`, `Formal deal in flight`, `Closing soon`, `Fresh win`, and `Post-close nurture`
   - when a linked transaction already exists, the dossier now reads the shared BO transaction status plus acceptance / closing / move-in dates directly and turns those signals into actionable FO suggestions such as confirming the close date, placing the first post-close touch, downloading the client recap PDF, or timing a referral / testimonial ask
   - when the formal deal is cancelled or has not started yet, the same section intentionally falls back to respectful future nurture, alternate listing output, or BO create-flow routing instead of pretending a second win-tracking database exists
+- AI next-touch suggestions now also live inside that same FO dossier instead of becoming an isolated “AI composer” page:
+  - `/agent/clients/[clientId]` now exposes an `AI next-touch suggestions` section for memberships with `ai:use`, and the suggestions are grounded in the same live dossier trail: workflow pressure, lease reminders, appointments, tracked send/open behavior, BO handoff state, and formal transaction milestones
+  - the dossier now emits a primary AI recommendation plus copyable call / text / email drafts that stay aligned to the current record state, while keeping the actual send decision with the agent
+  - the first AI bridge intentionally does not auto-send anything and does not require a standalone model service; it turns the existing execution trail into a grounded suggestion layer that future dashboard / automation work can reuse
 
 ## Non-goals in this phase
 
@@ -170,4 +174,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- Automation / AI next-touch suggestions rooted in the same dossier and live execution trail
+- dashboard-level AI queue + safe automation actions rooted in the same dossier and live execution trail

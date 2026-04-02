@@ -214,6 +214,9 @@ export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
   getFrontOfficeClientDetail,
+  type FrontOfficeClientDetailAiDraft,
+  type FrontOfficeClientDetailAiDraftChannel,
+  type FrontOfficeClientDetailAiSuggestions,
   type FrontOfficeClientDetailAppointmentItem,
   type FrontOfficeClientDetailHandoffItem,
   type FrontOfficeClientDetailPlaybook,

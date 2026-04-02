@@ -5,9 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- Current recommended FO next target after the live closing / deal-win suggestion bridge is `Automation / AI next-touch suggestions`, so future threads can build grounded AI on top of the now-visible FO -> BO execution trail instead of prompting against partial workflow context
+- Current recommended FO next target after the live dossier AI suggestion bridge is `dashboard-level AI queue + safe automation actions`, so future threads can pull grounded suggestions into the daily workbench before introducing heavier background automation
 
 ## Recently completed major work
+
+- 2026-04-02: `AI next-touch suggestions` are now live inside the FO client dossier instead of remaining only the next roadmap line:
+  - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now turns the live dossier trail into a grounded AI suggestion snapshot, combining workflow pressure, lease timing, appointments, tracked send/open behavior, BO handoff readiness, and formal transaction milestones into one recommended next touch plus copyable call / text / email drafts
+  - the first AI bridge intentionally stays agent-approved and non-destructive: the drafts are copyable and the primary CTA routes back into existing FO/BO actions, but Acre does not auto-send anything or invent a standalone model service
+  - [apps/web/app/agent/clients/[clientId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/page.tsx) and [front-office-client-ai-suggestions-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/front-office-client-ai-suggestions-client.tsx) now render an `AI next-touch suggestions` section for memberships with `ai:use`, so agents can copy grounded drafts straight from the same dossier that already carries follow-up, send history, negotiation, inspection, closing, and PDF context
 
 - 2026-04-01: `closing / deal-win suggestions` are now live inside the FO client dossier instead of remaining only the next roadmap line:
   - [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) now bridges the live dossier into shared BO transaction outcome signals, so each client can be read as `Pre-win prep`, `Ready for deal wrap`, `Formal deal in flight`, `Closing soon`, `Fresh win`, or `Post-close nurture` without inventing a second “closed wins” store

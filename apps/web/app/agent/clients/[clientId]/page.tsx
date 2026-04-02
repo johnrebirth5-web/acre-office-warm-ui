@@ -13,6 +13,7 @@ import { notFound, redirect } from "next/navigation";
 import { FrontOfficeLink } from "../../_components/front-office-link";
 import { FrontOfficePageTemplate } from "../../_components/front-office-page-template";
 import { FrontOfficeClientChatListClient } from "./front-office-client-chat-list-client";
+import { FrontOfficeClientAiSuggestionsClient } from "./front-office-client-ai-suggestions-client";
 import { FrontOfficeClientDossierClient } from "./front-office-client-dossier-client";
 import { FrontOfficeClientLeaseReminderClient } from "./front-office-client-lease-reminder-client";
 import {
@@ -37,6 +38,7 @@ export default async function AgentClientDetailPage(
 
   const { clientId } = await props.params;
   const access = getSessionAccess(context);
+  const canUseAi = can(context.currentMembership, "ai:use");
   const snapshot = await getFrontOfficeClientDetail({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -635,6 +637,35 @@ export default async function AgentClientDetailPage(
             </div>
           </SectionCard>
 
+          {canUseAi ? (
+            <SectionCard
+              actions={
+                snapshot.aiSuggestions.primaryActionOpensInNewTab ? (
+                  <a
+                    className="office-button-secondary"
+                    href={snapshot.aiSuggestions.primaryActionHref}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {snapshot.aiSuggestions.primaryActionLabel}
+                  </a>
+                ) : (
+                  <FrontOfficeLink
+                    className="office-button-secondary"
+                    href={snapshot.aiSuggestions.primaryActionHref}
+                  >
+                    {snapshot.aiSuggestions.primaryActionLabel}
+                  </FrontOfficeLink>
+                )
+              }
+              className="office-list-card"
+              subtitle="Acre now grounds the next-touch suggestion in the live dossier trail, but still leaves the final wording and send decision to the agent."
+              title="AI next-touch suggestions"
+            >
+              <FrontOfficeClientAiSuggestionsClient snapshot={snapshot} />
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             className="office-list-card"
             subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
@@ -828,6 +859,12 @@ export default async function AgentClientDetailPage(
             tone="accent"
             value={snapshot.closing.boundaryLabel}
           />
+          {canUseAi ? (
+            <SummaryChip
+              label="AI next touch"
+              value={snapshot.aiSuggestions.statusLabel}
+            />
+          ) : null}
         </>
       }
       title={snapshot.fullName}
