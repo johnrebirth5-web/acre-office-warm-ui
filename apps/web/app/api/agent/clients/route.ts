@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
   if (!skipDuplicateCheck) {
     const duplicateMatches = await findFrontOfficeLeadDuplicateMatches({
       organizationId: context.currentOrganization.id,
-      ownerMembershipId: context.currentMembership.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
       fullName,
       email,
       phone,
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Potential duplicate clients already exist in your Front Office queue. Review them first or confirm that you want to create a new lead anyway.",
+            "Potential duplicate clients already exist inside your visible Front Office CRM scope. Review them first or confirm that you want to create a new lead anyway.",
           duplicateMatches,
         },
         { status: 409 },

@@ -116,7 +116,7 @@ export default async function AgentClientsPage() {
               <StatCard hint="stages represented in the current list" label="Active stages" value={snapshot.summary.activeStages} />
               <StatCard hint="overdue or same-day follow-up markers in scope" label="Follow-up due" value={snapshot.summary.followUpDueCount} />
               <StatCard hint="scheduled follow-up tasks already overdue" label="Overdue tasks" value={snapshot.summary.overdueTaskCount} />
-              <StatCard hint="pairwise duplicate review suggestions ready now" label="Potential dupes" tone="accent" value={snapshot.summary.potentialDuplicateCount} />
+              <StatCard hint="pairwise duplicate review suggestions across the CRM records visible to you" label="Potential dupes" tone="accent" value={snapshot.summary.potentialDuplicateCount} />
               <StatCard hint="current role template in Front Office" label="Access" tone="accent" value={access.label} />
             </ListPageStatsGrid>
           </SectionCard>

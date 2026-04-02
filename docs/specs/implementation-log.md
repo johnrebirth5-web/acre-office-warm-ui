@@ -5,9 +5,14 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- `external calendar / email bridge` is now live on top of the FO appointment layer, so the next FO work should stay focused on broader CRM cleanup and deeper external writeback before any heavier background automation
+- `visible-scope CRM cleanup` is now live on top of the FO duplicate-review pass, so the next FO work should stay focused on deeper external writeback, OCR-style intake assists, and stronger unified activity / cleanup surfaces before any heavier background automation
 
 ## Recently completed major work
+
+- 2026-04-02: `Front Office visible-scope duplicate governance` is now live on top of the first dedupe pass instead of stopping at the current owner's queue:
+  - updated [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) so `/agent/clients` duplicate candidates are now derived from the CRM records currently visible to the viewer through contact scope resolution, while the main FO list itself still stays intentionally self-scoped
+  - extended [packages/db/src/contacts.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/contacts.ts), [apps/web/app/api/agent/clients/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/clients/route.ts), and [apps/web/app/api/agent/clients/merge/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/clients/merge/route.ts) so quick lead intake duplicate warnings and merge authorization both operate on that same visible CRM scope instead of only the current agent-owned queue
+  - updated [apps/web/app/agent/_components/front-office-lead-intake-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-lead-intake-card.tsx), [apps/web/app/agent/clients/front-office-client-duplicates-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/front-office-client-duplicates-card.tsx), and [apps/web/app/agent/clients/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/page.tsx) so the UI now tells the agent when a duplicate is in their own FO queue versus only visible through broader CRM permissions, and the review CTA routes to either the FO dossier or the Office contact workspace accordingly
 
 - 2026-04-02: a first `external calendar / email bridge` is now live on FO appointment surfaces instead of remaining only a spec bullet:
   - added [packages/db/src/front-office-calendar-links.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-calendar-links.ts) so Google Calendar, Outlook, ICS, and client-email draft links all derive from the same FO appointment data instead of each UI surface composing its own export logic

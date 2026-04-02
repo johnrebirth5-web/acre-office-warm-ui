@@ -7,6 +7,7 @@ import {
   ResourceType,
   UserRole,
 } from "@prisma/client";
+import { resolveOfficeDataScope } from "./access";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import { resolveLeaseReminderDates } from "./lease-reminders";
@@ -63,12 +64,15 @@ export type FrontOfficeClientDuplicateRecord = {
   id: string;
   fullName: string;
   href: string;
+  reviewLabel: string;
   stage: string;
   stageTone: FrontOfficeTone;
   sourceLabel: string;
   nextTouchLabel: string;
   detailLabel: string;
   lastUpdatedLabel: string;
+  ownerLabel: string;
+  scopeLabel: string;
 };
 
 export type FrontOfficeClientDuplicatePair = {
@@ -393,6 +397,8 @@ function normalizeDuplicatePhone(value: string | null | undefined) {
 type DuplicateCandidate = {
   id: string;
   fullName: string;
+  ownerMembershipId: string | null;
+  ownerLabel: string;
   email: string | null;
   phone: string | null;
   source: string;
@@ -414,6 +420,34 @@ type DuplicateCandidate = {
     stageHistory: number;
   };
 };
+
+function buildVisibleContactScopeWhere(
+  scope: Awaited<ReturnType<typeof resolveOfficeDataScope>>,
+  officeId: string | null | undefined,
+): Prisma.ClientWhereInput[] {
+  const whereConditions: Prisma.ClientWhereInput[] = [];
+
+  if (scope.visibleMembershipIds !== null) {
+    whereConditions.push({
+      ownerMembershipId: {
+        in:
+          scope.visibleMembershipIds.length > 0
+            ? scope.visibleMembershipIds
+            : [scope.viewerMembershipId],
+      },
+    });
+  }
+
+  if (officeId) {
+    whereConditions.push({
+      ownerMembership: {
+        officeId,
+      },
+    });
+  }
+
+  return whereConditions;
+}
 
 function buildDuplicateCandidateStrengthScore(candidate: DuplicateCandidate) {
   return (
@@ -492,13 +526,19 @@ function buildDuplicateRecommendationLabel(
 
 function buildDuplicateRecord(
   candidate: DuplicateCandidate,
+  viewerMembershipId: string,
   now: Date,
   timeZone?: string | null,
 ): FrontOfficeClientDuplicateRecord {
+  const isViewerOwned = candidate.ownerMembershipId === viewerMembershipId;
+
   return {
     id: candidate.id,
     fullName: candidate.fullName,
-    href: `/agent/clients/${candidate.id}`,
+    href: isViewerOwned
+      ? `/agent/clients/${candidate.id}`
+      : `/office/contacts/${candidate.id}`,
+    reviewLabel: isViewerOwned ? "Open FO dossier" : "Open office contact",
     stage: candidate.stage,
     stageTone: mapClientStageTone(candidate.stage),
     sourceLabel: candidate.source?.trim() || "Source not captured",
@@ -512,11 +552,16 @@ function buildDuplicateRecord(
     lastUpdatedLabel: `Updated ${formatDateTimeLabel(candidate.updatedAt, {
       timeZone: timeZone ?? null,
     })}`,
+    ownerLabel: candidate.ownerLabel,
+    scopeLabel: isViewerOwned
+      ? "In your FO queue"
+      : "Visible in office CRM scope",
   };
 }
 
 function buildFrontOfficeDuplicatePairs(input: {
   candidates: DuplicateCandidate[];
+  viewerMembershipId: string;
   now: Date;
   timeZone?: string | null;
 }) {
@@ -616,11 +661,13 @@ function buildFrontOfficeDuplicatePairs(input: {
         sortUpdatedAt: recommended.updatedAt.getTime(),
         recommendedClient: buildDuplicateRecord(
           recommended,
+          input.viewerMembershipId,
           input.now,
           input.timeZone,
         ),
         duplicateClient: buildDuplicateRecord(
           duplicate,
+          input.viewerMembershipId,
           input.now,
           input.timeZone,
         ),
@@ -825,87 +872,125 @@ export async function getFrontOfficeClientsSnapshot(
     organizationId: input.organizationId,
     ownerMembershipId: input.viewerMembershipId,
   };
+  const duplicateScope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null,
+    resource: "contacts",
+  });
+  const duplicateWhere: Prisma.ClientWhereInput = {
+    AND: [
+      {
+        organizationId: input.organizationId,
+      },
+      ...buildVisibleContactScopeWhere(duplicateScope, input.officeId ?? null),
+    ],
+  };
 
-  const [clients, stageGroups, followUpDueCount, overdueTaskCount, duplicateCandidates] =
-    await Promise.all([
-      prisma.client.findMany({
-        where: clientWhere,
-        orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
-        take: 24,
-        select: {
-          id: true,
-          fullName: true,
-          source: true,
-          stage: true,
-          intent: true,
-          budgetMin: true,
-          budgetMax: true,
-          preferredAreas: true,
-          lastContactAt: true,
-          nextFollowUpAt: true,
-          leaseReminderAt: true,
+  const [
+    clients,
+    stageGroups,
+    followUpDueCount,
+    overdueTaskCount,
+    duplicateCandidates,
+  ] = await Promise.all([
+    prisma.client.findMany({
+      where: clientWhere,
+      orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
+      take: 24,
+      select: {
+        id: true,
+        fullName: true,
+        source: true,
+        stage: true,
+        intent: true,
+        budgetMin: true,
+        budgetMax: true,
+        preferredAreas: true,
+        lastContactAt: true,
+        nextFollowUpAt: true,
+        leaseReminderAt: true,
+      },
+    }),
+    prisma.client.groupBy({
+      by: ["stage"],
+      where: clientWhere,
+      _count: {
+        _all: true,
+      },
+    }),
+    prisma.client.count({
+      where: {
+        ...clientWhere,
+        nextFollowUpAt: {
+          lt: startOfTomorrow,
         },
-      }),
-      prisma.client.groupBy({
-        by: ["stage"],
-        where: clientWhere,
-        _count: {
-          _all: true,
+      },
+    }),
+    prisma.followUpTask.count({
+      where: {
+        organizationId: input.organizationId,
+        assigneeMemberId: input.viewerMembershipId,
+        status: {
+          in: [...openFollowUpStatuses],
         },
-      }),
-      prisma.client.count({
-        where: {
-          ...clientWhere,
-          nextFollowUpAt: {
-            lt: startOfTomorrow,
-          },
+        dueAt: {
+          lt: now,
         },
-      }),
-      prisma.followUpTask.count({
-        where: {
-          organizationId: input.organizationId,
-          assigneeMemberId: input.viewerMembershipId,
-          status: {
-            in: [...openFollowUpStatuses],
-          },
-          dueAt: {
-            lt: now,
-          },
-        },
-      }),
-      prisma.client.findMany({
-        where: clientWhere,
-        orderBy: [{ updatedAt: "desc" }],
-        select: {
-          id: true,
-          fullName: true,
-          email: true,
-          phone: true,
-          source: true,
-          stage: true,
-          budgetMin: true,
-          budgetMax: true,
-          preferredAreas: true,
-          notes: true,
-          lastContactAt: true,
-          nextFollowUpAt: true,
-          leaseReminderAt: true,
-          updatedAt: true,
-          _count: {
-            select: {
-              appointments: true,
-              frontOfficeSendRecords: true,
-              followUpTasks: true,
-              handoffDrafts: true,
-              transactionContacts: true,
-              stageHistory: true,
+      },
+    }),
+    prisma.client.findMany({
+      where: duplicateWhere,
+      orderBy: [{ updatedAt: "desc" }],
+      select: {
+        id: true,
+        fullName: true,
+        ownerMembershipId: true,
+        email: true,
+        phone: true,
+        source: true,
+        stage: true,
+        budgetMin: true,
+        budgetMax: true,
+        preferredAreas: true,
+        notes: true,
+        lastContactAt: true,
+        nextFollowUpAt: true,
+        leaseReminderAt: true,
+        updatedAt: true,
+        ownerMembership: {
+          select: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
             },
           },
         },
-      }),
-    ]);
+        _count: {
+          select: {
+            appointments: true,
+            frontOfficeSendRecords: true,
+            followUpTasks: true,
+            handoffDrafts: true,
+            transactionContacts: true,
+            stageHistory: true,
+          },
+        },
+      },
+    }),
+  ]);
   const duplicatePairs = buildFrontOfficeDuplicatePairs({
-    candidates: duplicateCandidates,
+    candidates: duplicateCandidates.map((candidate) => ({
+      ...candidate,
+      ownerLabel:
+        `${candidate.ownerMembership?.user.firstName ?? ""} ${candidate.ownerMembership?.user.lastName ?? ""}`.trim() ||
+        candidate.ownerMembership?.user.email ||
+        "Unassigned",
+    })),
+    viewerMembershipId: input.viewerMembershipId,
     now,
     timeZone: input.timeZone,
   });

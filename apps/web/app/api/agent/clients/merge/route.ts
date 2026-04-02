@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await mergeFrontOfficeClients({
       organizationId: context.currentOrganization.id,
-      ownerMembershipId: context.currentMembership.id,
+      viewerMembershipId: context.currentMembership.id,
       actorMembershipId: context.currentMembership.id,
       actorOfficeId: context.currentOffice?.id ?? null,
       targetClientId,

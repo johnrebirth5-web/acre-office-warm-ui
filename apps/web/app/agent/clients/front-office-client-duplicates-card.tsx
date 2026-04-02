@@ -67,7 +67,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
   return (
     <SectionCard
       className="office-list-card"
-      subtitle="These records share the same exact name, phone, or email. Review both sides first, then merge the duplicate into the recommended keep record."
+      subtitle="These records share the same exact name, phone, or email across the Front Office CRM records you can currently see. Review both sides first, then merge the duplicate into the recommended keep record."
       title="Potential duplicates"
     >
       <div className="front-office-merge-list">
@@ -102,12 +102,14 @@ export function FrontOfficeClientDuplicatesCard(props: {
                   <div className="front-office-record-meta">
                     <span>{pair.recommendedClient.detailLabel}</span>
                     <span>{pair.recommendedClient.lastUpdatedLabel}</span>
+                    <span>{pair.recommendedClient.ownerLabel}</span>
+                    <span>{pair.recommendedClient.scopeLabel}</span>
                   </div>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
                     href={pair.recommendedClient.href}
                   >
-                    Review keep record
+                    {pair.recommendedClient.reviewLabel}
                   </FrontOfficeLink>
                 </div>
 
@@ -128,12 +130,14 @@ export function FrontOfficeClientDuplicatesCard(props: {
                   <div className="front-office-record-meta">
                     <span>{pair.duplicateClient.detailLabel}</span>
                     <span>{pair.duplicateClient.lastUpdatedLabel}</span>
+                    <span>{pair.duplicateClient.ownerLabel}</span>
+                    <span>{pair.duplicateClient.scopeLabel}</span>
                   </div>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
                     href={pair.duplicateClient.href}
                   >
-                    Review duplicate
+                    {pair.duplicateClient.reviewLabel}
                   </FrontOfficeLink>
                 </div>
               </div>

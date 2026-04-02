@@ -41,7 +41,9 @@ type DuplicateMatch = {
   stage: string;
   sourceLabel: string;
   nextTouchLabel: string;
+  ownerLabel: string;
   href: string;
+  reviewLabel: string;
   matchReasons: string[];
 };
 
@@ -145,7 +147,7 @@ export function FrontOfficeLeadIntakeCard(
         tone: "error",
         message:
           payload.error ??
-          "Potential duplicate clients were found. Review them first or create anyway if this is a new lead.",
+          "Potential duplicate clients were found inside your visible CRM scope. Review them first or create anyway if this is a new lead.",
       });
       return false;
     }
@@ -399,9 +401,9 @@ export function FrontOfficeLeadIntakeCard(
             <div className="front-office-duplicate-head">
               <strong>Potential duplicate leads</strong>
               <p>
-                Acre found existing client records in your queue that already
-                match this intake. Review them first if this might be the same
-                person.
+                Acre found existing client records in the CRM scope you can
+                currently see. Review them first if this might be the same
+                person before creating a second dossier.
               </p>
             </div>
 
@@ -415,12 +417,13 @@ export function FrontOfficeLeadIntakeCard(
                   <div className="front-office-record-meta">
                     <span>{match.matchReasons.join(" · ")}</span>
                     <span>{match.nextTouchLabel}</span>
+                    <span>{match.ownerLabel}</span>
                   </div>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
                     href={match.href}
                   >
-                    Review client
+                    {match.reviewLabel}
                   </FrontOfficeLink>
                 </article>
               ))}

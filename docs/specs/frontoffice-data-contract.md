@@ -19,14 +19,14 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking + quick lead intake + duplicate merge + ai explainability / boundary hardening + external calendar / email bridge` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking + quick lead intake + visible-scope duplicate merge + ai explainability / boundary hardening + external calendar / email bridge` foundation, the recommended next implementation target is:
 
 - `broader CRM quality-of-life + deeper external-system integration`
 
 That means:
 
 - Front Office should keep extending beyond Acre-only scheduling surfaces, moving from export-style bridges into stronger calendar / inbox writeback where it is truly supported
-- the next CRM pass should keep reducing first-call friction through stronger cleanup, broader duplicate governance, and future OCR-style intake assists
+- the next CRM pass should keep reducing first-call friction through stronger cleanup, OCR-style intake assists, and eventually a more unified cross-surface cleanup center
 - automation should still stay safe and agent-approved first: connect systems and improve operational reach before any true auto-send behavior
 - the goal is to extend the now-explainable FO execution layer into the tools agents actually live in day to day
 
@@ -190,11 +190,12 @@ This keeps the handoff visible without pretending formal transaction creation al
 - quick lead intake now also lives directly inside the active FO shell instead of forcing agents through Back Office contact admin first:
   - `/agent/dashboard` and `/agent/clients` now expose a lightweight lead-capture form that writes into the same shared `Client` record, `ClientStageHistory`, and `FollowUp` clock foundation used by the rest of Front Office
   - the intake path intentionally captures only first-touch essentials such as name, source, stage, intent, target areas, budget, notes, and next follow-up timing so the agent can keep moving during a live call or message thread
-  - before create, that path now performs a lightweight duplicate warning check against the current agent-owned queue for same-email, same-phone, or same-name records, pushing the user toward dossier review before creating a second FO record
-- `/agent/clients` now also exposes a pairwise duplicate review + merge surface for the current agent-owned queue:
+  - before create, that path now performs a lightweight duplicate warning check against the CRM records currently visible to the viewer for same-email, same-phone, or same-name matches, pushing the user toward dossier review before creating a second FO record
+- `/agent/clients` now also exposes a pairwise duplicate review + merge surface for the current visible CRM scope:
   - Acre surfaces same-email / same-phone / same-name duplicate pairs in the active FO pipeline instead of only warning at create time
   - the merge action keeps one surviving FO dossier and moves shared FO workflow context such as appointments, follow-up tasks, tracked send history, AI accepted actions, handoff drafts, and transaction-contact links onto that surviving record
-  - this first merge pass intentionally stays scoped to the current agent-owned queue; broader office-wide duplicate governance and OCR-assisted intake remain follow-up work
+  - when the matched record belongs to the current viewer, review stays inside the FO dossier; when it is only visible through broader contact permissions, the review path intentionally opens the shared Office contact workspace instead of a FO-only route that would fail access
+  - this cleanup pass now extends beyond the current owner's queue, but a more unified office-wide cleanup center and OCR-assisted intake still remain follow-up work
 - external calendar / email bridge now also lives on top of the same FO appointment foundation instead of remaining only a roadmap line:
   - scheduled appointments on `/agent/calendar` and `/agent/clients/[clientId]` now expose direct `Google Calendar`, `Outlook`, `Download ICS`, and `Email client` actions
   - the shared appointment service now generates those export links from the same FO appointment record instead of asking the agent to manually retype title, time, location, or meeting link into outside systems
@@ -210,4 +211,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 ## Expected next extensions
 
 - deeper calendar / inbox writeback on top of the current export bridge
-- broader CRM quality-of-life work such as office-wide duplicate governance and future OCR-assisted intake
+- broader CRM quality-of-life work such as a more unified cleanup center and future OCR-assisted intake

@@ -192,7 +192,9 @@ export type FrontOfficeLeadDuplicateMatch = {
   stage: string;
   sourceLabel: string;
   nextTouchLabel: string;
+  ownerLabel: string;
   href: string;
+  reviewLabel: string;
   matchReasons: string[];
 };
 
@@ -992,7 +994,8 @@ export async function createContact(
 
 export async function findFrontOfficeLeadDuplicateMatches(input: {
   organizationId: string;
-  ownerMembershipId: string;
+  viewerMembershipId: string;
+  officeId?: string | null;
   fullName: string;
   email?: string | null;
   phone?: string | null;
@@ -1010,35 +1013,48 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
     return [];
   }
 
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null,
+    resource: "contacts",
+  });
+
   const candidates = await prisma.client.findMany({
     where: {
-      organizationId: input.organizationId,
-      ownerMembershipId: input.ownerMembershipId,
-      OR: [
-        normalizedEmail
-          ? {
-              email: {
-                equals: normalizedEmail,
-                mode: "insensitive",
-              },
-            }
-          : undefined,
-        phoneNeedle
-          ? {
-              phone: {
-                contains: phoneNeedle,
-              },
-            }
-          : undefined,
-        normalizedName
-          ? {
-              fullName: {
-                equals: input.fullName.trim(),
-                mode: "insensitive",
-              },
-            }
-          : undefined,
-      ].filter(Boolean) as Prisma.ClientWhereInput[],
+      AND: [
+        {
+          organizationId: input.organizationId,
+        },
+        ...buildContactScopeWhere(scope, input.officeId ?? null),
+        {
+          OR: [
+            normalizedEmail
+              ? {
+                  email: {
+                    equals: normalizedEmail,
+                    mode: "insensitive",
+                  },
+                }
+              : undefined,
+            phoneNeedle
+              ? {
+                  phone: {
+                    contains: phoneNeedle,
+                  },
+                }
+              : undefined,
+            normalizedName
+              ? {
+                  fullName: {
+                    equals: input.fullName.trim(),
+                    mode: "insensitive",
+                  },
+                }
+              : undefined,
+          ].filter(Boolean) as Prisma.ClientWhereInput[],
+        },
+      ],
     },
     orderBy: [{ updatedAt: "desc" }],
     take: 6,
@@ -1051,6 +1067,18 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
       stage: true,
       nextFollowUpAt: true,
       leaseReminderAt: true,
+      ownerMembershipId: true,
+      ownerMembership: {
+        select: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -1086,6 +1114,8 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
         return null;
       }
 
+      const isViewerOwned = candidate.ownerMembershipId === input.viewerMembershipId;
+
       return {
         id: candidate.id,
         fullName: candidate.fullName,
@@ -1096,7 +1126,14 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
           leaseReminderAt: candidate.leaseReminderAt,
           timeZone: input.timeZone,
         }),
-        href: `/agent/clients/${candidate.id}`,
+        ownerLabel:
+          `${candidate.ownerMembership?.user.firstName ?? ""} ${candidate.ownerMembership?.user.lastName ?? ""}`.trim() ||
+          candidate.ownerMembership?.user.email ||
+          "Unassigned",
+        href: isViewerOwned
+          ? `/agent/clients/${candidate.id}`
+          : `/office/contacts/${candidate.id}`,
+        reviewLabel: isViewerOwned ? "Open FO dossier" : "Open office contact",
         matchReasons,
       } satisfies FrontOfficeLeadDuplicateMatch;
     })
@@ -1107,7 +1144,7 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
 
 export async function mergeFrontOfficeClients(input: {
   organizationId: string;
-  ownerMembershipId: string;
+  viewerMembershipId: string;
   targetClientId: string;
   sourceClientId: string;
   actorMembershipId: string;
@@ -1118,13 +1155,28 @@ export async function mergeFrontOfficeClients(input: {
   }
 
   return prisma.$transaction(async (tx) => {
+    const contactScope = await resolveOfficeDataScope(
+      {
+        organizationId: input.organizationId,
+        viewerMembershipId: input.viewerMembershipId,
+        officeId: input.actorOfficeId ?? null,
+        resource: "contacts",
+      },
+      tx,
+    );
     const clients = await tx.client.findMany({
       where: {
-        organizationId: input.organizationId,
-        ownerMembershipId: input.ownerMembershipId,
-        id: {
-          in: [input.targetClientId, input.sourceClientId],
-        },
+        AND: [
+          {
+            organizationId: input.organizationId,
+          },
+          ...buildContactScopeWhere(contactScope, input.actorOfficeId ?? null),
+          {
+            id: {
+              in: [input.targetClientId, input.sourceClientId],
+            },
+          },
+        ],
       },
       select: {
         id: true,
@@ -1155,7 +1207,7 @@ export async function mergeFrontOfficeClients(input: {
 
     if (!target || !source) {
       throw new Error(
-        "Both duplicate records must still exist in your Front Office queue before merging.",
+        "Both duplicate records must still exist inside your visible Front Office CRM scope before merging.",
       );
     }
 

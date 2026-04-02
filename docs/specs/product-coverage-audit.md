@@ -68,7 +68,7 @@ Audit date:
 | Module or capability | Current status | Notes |
 | --- | --- | --- |
 | `Dashboard` | `Live core` | Real `/agent/dashboard` with tasks, reminders, quick lead intake, send/click summary, AI queue, explainable next-touch rationale, vendor shortcuts, and FO/BO split context. |
-| `CRM / dossier center` | `Partial / MVP` | Real client dossier plus agent-owned duplicate review / merge are live, but broader office-wide cleanup tooling and OCR-assisted intake are still follow-up work. |
+| `CRM / dossier center` | `Partial / MVP` | Real client dossier plus visible-scope duplicate review / merge are live, but a more unified office-wide cleanup center and OCR-assisted intake are still follow-up work. |
 | `Status flow and reminders` | `Live core` | Stage history, reminder pressure, overdue visibility, lease reminders, and team-lead pressure queues are live. |
 | `Phone strategy / Chat List` | `Live core` | Embedded directly in the dossier as execution support. |
 | `Calendar / appointments` | `Partial / MVP` | Real appointments, notes, meeting links, in-app reminder pressure, and a first Google / Outlook / ICS / email export bridge are live; full external calendar sync is not. |
@@ -91,7 +91,7 @@ Audit date:
 - `OCR-assisted intake from WeChat screenshots` is still not implemented
 - complete `external calendar / email systems` integration is still missing beyond the current export-style bridge
 - `Activity center` is still distributed across multiple surfaces instead of one strong center
-- duplicate cleanup is still scoped to the current agent-owned queue instead of broader office-wide CRM governance
+- duplicate cleanup no longer stops at the current agent-owned queue, but `/agent/clients` still is not yet a fully unified office-wide cleanup center
 - the later `Phase 3` line is still largely open:
   - automated content generation
   - enterprise WeChat exploration
@@ -104,7 +104,7 @@ The next FO implementation work should remain focused on:
 
 - deeper external calendar / email integration beyond the current export bridge
 - workflow hardening on top of the now-explainable AI layer
-- remaining CRM quality-of-life gaps such as broader duplicate governance and OCR-assisted intake
+- remaining CRM quality-of-life gaps such as OCR-assisted intake and a stronger unified cleanup center
 
 It should not jump straight to heavier background automation or auto-send behavior first.
 
@@ -156,7 +156,7 @@ It should not jump straight to heavier background automation or auto-send behavi
 
 ### Highest-value next steps
 
-1. broader CRM cleanup plus OCR-assisted intake
+1. deeper external writeback plus OCR-assisted intake
 2. deeper FO calendar / inbox writeback beyond the current export bridge
 3. unified FO activity-center hardening on top of the current dashboard / notifications split
 4. BO generic eSignature create flow beyond transaction-first authoring
