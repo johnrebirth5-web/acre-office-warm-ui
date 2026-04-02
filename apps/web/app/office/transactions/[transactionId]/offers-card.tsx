@@ -936,6 +936,7 @@ export function TransactionOffersCard({
                         </FormField>
                         <FormField label="File">
                           <input
+                            className="office-file-input"
                             onChange={(event) =>
                               setSelectedFiles((current) => ({
                                 ...current,

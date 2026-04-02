@@ -491,7 +491,13 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
             {signatureMode === "upload" ? (
               <div className="public-signature-upload-panel">
-                <input accept="image/png,image/jpeg,image/jpg" key={uploadInputKey} onChange={handleUploadSignature} type="file" />
+                <input
+                  accept="image/png,image/jpeg,image/jpg"
+                  className="office-file-input"
+                  key={uploadInputKey}
+                  onChange={handleUploadSignature}
+                  type="file"
+                />
                 <div className="public-signature-modal-actions">
                   {hasActiveSignatureValue ? (
                     <Button onClick={clearActiveSignature} type="button" variant="ghost">

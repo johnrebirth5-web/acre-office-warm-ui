@@ -398,6 +398,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
                     <FormField className="office-mail-compose-field-wide" helper="Single file 10 MB max, 25 MB total per message." label="Attachments">
                       <TextInput
+                        className="office-file-input"
                         key={fileInputNonce}
                         multiple
                         onChange={(event) => setComposeFiles(Array.from(event.target.files ?? []))}
@@ -588,6 +589,7 @@ export function OfficeMailClient({ snapshot, scopeLabel }: OfficeMailClientProps
 
                   <FormField helper="Single file 10 MB max, 25 MB total per reply." label="Attachments">
                     <TextInput
+                      className="office-file-input"
                       key={replyFileInputNonce}
                       multiple
                       onChange={(event) => setReplyFiles(Array.from(event.target.files ?? []))}

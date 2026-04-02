@@ -833,7 +833,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
             <form className="office-modal-body office-library-modal-body" onSubmit={handleUpload}>
               <label className="office-form-field">
                 <span>File</span>
-                <input accept=".pdf,.doc,.docx,.txt,.rtf,.xlsx,.xls,.csv,image/*" name="file" required type="file" />
+                <input accept=".pdf,.doc,.docx,.txt,.rtf,.xlsx,.xls,.csv,image/*" className="office-file-input" name="file" required type="file" />
               </label>
 
               <label className="office-form-field">

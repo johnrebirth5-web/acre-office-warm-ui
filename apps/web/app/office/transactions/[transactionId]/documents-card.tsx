@@ -398,6 +398,7 @@ export function TransactionDocumentsCard({
           <div className="office-document-upload-grid">
             <FormField label="File">
               <input
+                className="office-file-input"
                 onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
                 type="file"
               />
