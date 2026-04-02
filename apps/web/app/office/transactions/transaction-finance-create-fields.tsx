@@ -223,9 +223,12 @@ export function TransactionFinanceCreateFields({
         </div>
 
         <div className="office-transaction-finance-calculator-footer">
-          <p className="office-form-helper office-transaction-finance-calculator-helper">
-            For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
-          </p>
+          <div className="office-transaction-finance-calculator-tip">
+            <span>Calculator note</span>
+            <p>
+              For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
+            </p>
+          </div>
 
           <div className={`office-transaction-finance-calculator-result${preview ? " is-active" : ""}`}>
             <span>Final Agent Net</span>
@@ -248,7 +251,7 @@ export function TransactionFinanceCreateFields({
         </ul>
       ) : null}
 
-      <label className="office-detail-field office-detail-field-wide">
+      <label className="office-transaction-finance-note-card">
         <span>Note</span>
         <textarea
           disabled={readOnly}

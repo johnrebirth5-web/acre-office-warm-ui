@@ -353,9 +353,12 @@ export function TransactionFinanceForm({
           </div>
 
           <div className="office-transaction-finance-calculator-footer">
-            <p className="office-form-helper office-transaction-finance-calculator-helper">
-              For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
-            </p>
+            <div className="office-transaction-finance-calculator-tip">
+              <span>Calculator note</span>
+              <p>
+                For each fee, you can enter either an amount or a rate. When gross commission is filled in, the paired value auto-fills.
+              </p>
+            </div>
 
             <div className="office-transaction-finance-calculator-result is-active">
               <span>Final Agent Net</span>
@@ -373,7 +376,7 @@ export function TransactionFinanceForm({
           <p className="office-form-helper">Current reimbursement adjustment: {summary.reimbursementLabel}</p>
         ) : null}
 
-        <label className="office-detail-field office-detail-field-wide">
+        <label className="office-transaction-finance-note-card">
           <span>Note</span>
           <textarea
             disabled={readOnly}
@@ -384,9 +387,13 @@ export function TransactionFinanceForm({
         </label>
 
         {!readOnly && canAutoCalculateCommission ? (
-          <p className="office-form-helper">Calculate will save finance changes first, then rerun the current commission rules for this transaction.</p>
+          <p className="office-transaction-finance-inline-note">
+            Calculate will save finance changes first, then rerun the current commission rules for this transaction.
+          </p>
         ) : null}
-        {readOnly ? <p className="office-form-helper">Financial details are read-only for your current access level.</p> : null}
+        {readOnly ? (
+          <p className="office-transaction-finance-inline-note">Financial details are read-only for your current access level.</p>
+        ) : null}
         {error ? <p className="office-form-error">{error}</p> : null}
       </section>
 
