@@ -5,9 +5,16 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- `AI explainability + FO / BO boundary hardening` are now live on top of the FO AI bridge, so the next FO work should stay focused on external calendar / email integration and broader CRM cleanup before any heavier background automation
+- `external calendar / email bridge` is now live on top of the FO appointment layer, so the next FO work should stay focused on broader CRM cleanup and deeper external writeback before any heavier background automation
 
 ## Recently completed major work
+
+- 2026-04-02: a first `external calendar / email bridge` is now live on FO appointment surfaces instead of remaining only a spec bullet:
+  - added [packages/db/src/front-office-calendar-links.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-calendar-links.ts) so Google Calendar, Outlook, ICS, and client-email draft links all derive from the same FO appointment data instead of each UI surface composing its own export logic
+  - extended [packages/db/src/front-office-appointments.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-appointments.ts) and [packages/db/src/front-office-clients.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-clients.ts) so both `/agent/calendar` and the client dossier expose those external bridge actions directly on scheduled appointments
+  - added [apps/web/app/api/agent/appointments/[appointmentId]/ics/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/appointments/[appointmentId]/ics/route.ts), so agents can download a real ICS file from the FO appointment record instead of re-entering event details by hand
+  - updated [apps/web/app/agent/calendar/front-office-calendar-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/calendar/front-office-calendar-client.tsx), [apps/web/app/agent/calendar/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/calendar/page.tsx), and [apps/web/app/agent/clients/[clientId]/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/clients/[clientId]/page.tsx), so agents can push scheduled appointments into Google Calendar / Outlook, download ICS, or send a client-facing schedule email without leaving the active FO shell
+  - this first pass stays intentionally honest about scope: it is an action-first export bridge, not a claimed two-way sync with external systems
 
 - 2026-04-02: `AI explainability + FO / BO boundary hardening` are now live across the dossier and dashboard instead of remaining only the next FO recommendation:
   - [packages/db/src/front-office-ai.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-ai.ts) now emits a shared execution-boundary contract, so grounded AI suggestions can explain whether the work should stay in Front Office, align to an already-live Back Office file, or move into a formal BO handoff next

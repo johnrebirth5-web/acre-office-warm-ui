@@ -1,0 +1,198 @@
+import { formatDateTimeLabel } from "./date-time";
+
+const defaultAppointmentDurationMs = 60 * 60 * 1000;
+
+export type FrontOfficeAppointmentExternalLinks = {
+  googleCalendarHref: string;
+  outlookCalendarHref: string;
+  icsHref: string;
+  emailBriefHref: string | null;
+};
+
+export type FrontOfficeAppointmentCalendarExport = {
+  fileName: string;
+  content: string;
+};
+
+type AppointmentExternalLinkInput = {
+  appointmentId: string;
+  title: string;
+  startsAt: Date;
+  endsAt?: Date | null;
+  location?: string | null;
+  meetingUrl?: string | null;
+  clientName?: string | null;
+  clientEmail?: string | null;
+  contactLabel?: string | null;
+  listingTitle?: string | null;
+  listingNeighborhood?: string | null;
+  listingCity?: string | null;
+  timeZone?: string | null;
+};
+
+function resolveAppointmentEndAt(startsAt: Date, endsAt?: Date | null) {
+  if (endsAt && endsAt.getTime() > startsAt.getTime()) {
+    return endsAt;
+  }
+
+  return new Date(startsAt.getTime() + defaultAppointmentDurationMs);
+}
+
+function formatCalendarTimestamp(value: Date) {
+  return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function escapeIcsValue(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\r?\n/g, "\\n")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,");
+}
+
+function sanitizeFileStem(value: string) {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized || "appointment";
+}
+
+function buildListingLabel(input: AppointmentExternalLinkInput) {
+  if (!input.listingTitle?.trim()) {
+    return "";
+  }
+
+  const area = [input.listingNeighborhood?.trim(), input.listingCity?.trim()]
+    .filter(Boolean)
+    .join(", ");
+
+  return area ? `${input.listingTitle.trim()} · ${area}` : input.listingTitle.trim();
+}
+
+function buildCalendarDescription(input: AppointmentExternalLinkInput) {
+  const lines = [
+    "Exported from Acre Front Office.",
+    input.clientName?.trim() ? `Client: ${input.clientName.trim()}` : "",
+    !input.clientName?.trim() && input.contactLabel?.trim()
+      ? `Contact: ${input.contactLabel.trim()}`
+      : "",
+    buildListingLabel(input) ? `Listing: ${buildListingLabel(input)}` : "",
+    input.meetingUrl?.trim() ? `Meeting link: ${input.meetingUrl.trim()}` : "",
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
+function getFirstName(value: string | null | undefined) {
+  const [firstName] = (value ?? "").trim().split(/\s+/);
+  return firstName?.trim() || "there";
+}
+
+function buildMailtoHref(to: string, subject: string, body: string) {
+  const params = new URLSearchParams({
+    subject,
+    body,
+  });
+
+  return `mailto:${to}?${params.toString()}`;
+}
+
+function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
+  const to = input.clientEmail?.trim();
+
+  if (!to) {
+    return null;
+  }
+
+  const appointmentTimeLabel = formatDateTimeLabel(input.startsAt, {
+    timeZone: input.timeZone ?? null,
+  });
+  const firstName = getFirstName(input.clientName);
+  const listingLabel = buildListingLabel(input);
+  const lines = [
+    `Hi ${firstName},`,
+    "",
+    `Looking forward to our ${input.title} on ${appointmentTimeLabel}.`,
+    input.location?.trim() ? `Location: ${input.location.trim()}` : "",
+    input.meetingUrl?.trim() ? `Meeting link: ${input.meetingUrl.trim()}` : "",
+    listingLabel ? `Listing context: ${listingLabel}` : "",
+    "",
+    "If anything changes before then, reply here and I will adjust the plan.",
+    "",
+    "Best,",
+    "Acre",
+  ].filter(Boolean);
+
+  return buildMailtoHref(
+    to,
+    `Appointment details: ${input.title}`,
+    lines.join("\n"),
+  );
+}
+
+export function buildFrontOfficeAppointmentExternalLinks(
+  input: AppointmentExternalLinkInput,
+): FrontOfficeAppointmentExternalLinks {
+  const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
+  const location = input.location?.trim() || input.meetingUrl?.trim() || "";
+  const details = buildCalendarDescription(input);
+  const googleParams = new URLSearchParams({
+    action: "TEMPLATE",
+    text: input.title,
+    dates: `${formatCalendarTimestamp(input.startsAt)}/${formatCalendarTimestamp(endsAt)}`,
+    details,
+    location,
+  });
+  const outlookParams = new URLSearchParams({
+    path: "/calendar/action/compose",
+    rru: "addevent",
+    subject: input.title,
+    startdt: input.startsAt.toISOString(),
+    enddt: endsAt.toISOString(),
+    body: details,
+    location,
+  });
+
+  return {
+    googleCalendarHref: `https://calendar.google.com/calendar/render?${googleParams.toString()}`,
+    outlookCalendarHref: `https://outlook.office.com/calendar/0/deeplink/compose?${outlookParams.toString()}`,
+    icsHref: `/api/agent/appointments/${input.appointmentId}/ics`,
+    emailBriefHref: buildEmailBriefHref(input),
+  };
+}
+
+export function buildFrontOfficeAppointmentCalendarExport(
+  input: AppointmentExternalLinkInput,
+): FrontOfficeAppointmentCalendarExport {
+  const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
+  const description = buildCalendarDescription(input);
+  const location = input.location?.trim() || input.meetingUrl?.trim() || "";
+  const fileName = `${sanitizeFileStem(input.title)}-${input.startsAt.toISOString().slice(0, 10)}.ics`;
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Acre//Front Office//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:acre-appointment-${escapeIcsValue(input.appointmentId)}@acresystem.us`,
+    `DTSTAMP:${formatCalendarTimestamp(new Date())}`,
+    `DTSTART:${formatCalendarTimestamp(input.startsAt)}`,
+    `DTEND:${formatCalendarTimestamp(endsAt)}`,
+    `SUMMARY:${escapeIcsValue(input.title)}`,
+    description ? `DESCRIPTION:${escapeIcsValue(description)}` : "",
+    location ? `LOCATION:${escapeIcsValue(location)}` : "",
+    input.meetingUrl?.trim() ? `URL:${escapeIcsValue(input.meetingUrl.trim())}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+    "",
+  ].filter(Boolean);
+
+  return {
+    fileName,
+    content: lines.join("\r\n"),
+  };
+}

@@ -216,12 +216,44 @@ export default async function AgentClientDetailPage(
                   snapshot.appointments.map((appointment) => (
                     <QueueItem
                       action={
-                        <FrontOfficeLink
-                          className="office-inline-link"
-                          href={appointment.listingOutputHref}
-                        >
-                          Open listing output
-                        </FrontOfficeLink>
+                        <>
+                          <FrontOfficeLink
+                            className="office-inline-link"
+                            href={appointment.listingOutputHref}
+                          >
+                            Open listing output
+                          </FrontOfficeLink>
+                          {appointment.statusLabel === "Scheduled" ? (
+                            <>
+                              <FrontOfficeLink
+                                className="office-inline-link"
+                                href={appointment.googleCalendarHref}
+                              >
+                                Google Calendar
+                              </FrontOfficeLink>
+                              <FrontOfficeLink
+                                className="office-inline-link"
+                                href={appointment.outlookCalendarHref}
+                              >
+                                Outlook
+                              </FrontOfficeLink>
+                              <a
+                                className="office-inline-link"
+                                href={appointment.icsHref}
+                              >
+                                Download ICS
+                              </a>
+                              {appointment.emailBriefHref ? (
+                                <FrontOfficeLink
+                                  className="office-inline-link"
+                                  href={appointment.emailBriefHref}
+                                >
+                                  Email client
+                                </FrontOfficeLink>
+                              ) : null}
+                            </>
+                          ) : null}
+                        </>
                       }
                       badgeLabel={appointment.typeLabel}
                       badgeTone={appointment.typeTone}

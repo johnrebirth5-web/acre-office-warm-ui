@@ -150,7 +150,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="These are the operating rules for the new FO calendar surface."
+            subtitle="These are the operating rules for the new FO calendar surface, including the first external calendar and email bridges."
             title="Current scope"
           >
             <div className="office-queue-list">
@@ -163,6 +163,11 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 badgeLabel="CRM"
                 description="Marking an appointment complete writes back into the client record by updating the last-contact signal."
                 title="Client context stays warm"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="Sync"
+                description="Scheduled appointments can now jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief without pretending Acre already owns a two-way sync."
+                title="External bridge is action-first"
               />
               <FrontOfficeRailItem
                 badgeLabel="BO"

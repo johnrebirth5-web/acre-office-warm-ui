@@ -402,6 +402,32 @@ export function FrontOfficeCalendarClient(
                         Open listing output
                       </FrontOfficeLink>
                     ) : null}
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={appointment.googleCalendarHref}
+                    >
+                      Google Calendar
+                    </FrontOfficeLink>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={appointment.outlookCalendarHref}
+                    >
+                      Outlook
+                    </FrontOfficeLink>
+                    <a
+                      className="office-inline-link front-office-inline-link"
+                      href={appointment.icsHref}
+                    >
+                      Download ICS
+                    </a>
+                    {appointment.emailBriefHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={appointment.emailBriefHref}
+                      >
+                        Email client
+                      </FrontOfficeLink>
+                    ) : null}
                     <button
                       className="office-button-secondary office-inline-action-sm"
                       disabled={isBusy}

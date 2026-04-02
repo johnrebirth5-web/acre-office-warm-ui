@@ -8,6 +8,11 @@ import {
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
+import {
+  buildFrontOfficeAppointmentCalendarExport,
+  buildFrontOfficeAppointmentExternalLinks,
+  type FrontOfficeAppointmentCalendarExport,
+} from "./front-office-calendar-links";
 import { buildFrontOfficeHandoffCreateHref } from "./front-office-contracts";
 
 export type FrontOfficeAppointmentTone =
@@ -38,6 +43,10 @@ export type FrontOfficeAppointmentRecord = {
   listingLabel: string;
   notesLabel: string;
   listingOutputHref: string | null;
+  googleCalendarHref: string;
+  outlookCalendarHref: string;
+  icsHref: string;
+  emailBriefHref: string | null;
 };
 
 export type FrontOfficeAppointmentHandoffItem = {
@@ -95,6 +104,12 @@ export type UpdateFrontOfficeAppointmentStatusInput = {
   officeId?: string | null;
 };
 
+export type GetFrontOfficeAppointmentCalendarExportInput = {
+  organizationId: string;
+  appointmentId: string;
+  ownerMembershipId: string;
+};
+
 const frontOfficeAppointmentTypeDefinitions = [
   { value: AppointmentType.showing, label: "Showing" },
   { value: AppointmentType.consultation, label: "Consultation" },
@@ -135,6 +150,7 @@ const appointmentSelect = Prisma.validator<Prisma.AppointmentSelect>()({
     select: {
       id: true,
       fullName: true,
+      email: true,
     },
   },
   listing: {
@@ -332,6 +348,21 @@ function mapAppointmentRecord(
     status: appointment.status,
     now,
   });
+  const externalLinks = buildFrontOfficeAppointmentExternalLinks({
+    appointmentId: appointment.id,
+    title: appointment.title,
+    startsAt: appointment.startsAt,
+    endsAt: appointment.endsAt,
+    location: appointment.location,
+    meetingUrl: appointment.meetingUrl,
+    clientName: appointment.client?.fullName,
+    clientEmail: appointment.client?.email,
+    contactLabel: appointment.contactLabel,
+    listingTitle: appointment.listing?.title,
+    listingNeighborhood: appointment.listing?.neighborhood,
+    listingCity: appointment.listing?.city,
+    timeZone,
+  });
 
   return {
     id: appointment.id,
@@ -353,6 +384,10 @@ function mapAppointmentRecord(
     listingOutputHref: appointment.client?.id
       ? `/agent/listings?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
       : null,
+    googleCalendarHref: externalLinks.googleCalendarHref,
+    outlookCalendarHref: externalLinks.outlookCalendarHref,
+    icsHref: externalLinks.icsHref,
+    emailBriefHref: externalLinks.emailBriefHref,
   };
 }
 
@@ -764,4 +799,36 @@ export async function updateFrontOfficeAppointmentStatus(
   });
 
   return mapAppointmentRecord(updated, new Date(), null);
+}
+
+export async function getFrontOfficeAppointmentCalendarExport(
+  input: GetFrontOfficeAppointmentCalendarExportInput,
+): Promise<FrontOfficeAppointmentCalendarExport | null> {
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      id: input.appointmentId,
+      organizationId: input.organizationId,
+      ownerMembershipId: input.ownerMembershipId,
+    },
+    select: appointmentSelect,
+  });
+
+  if (!appointment) {
+    return null;
+  }
+
+  return buildFrontOfficeAppointmentCalendarExport({
+    appointmentId: appointment.id,
+    title: appointment.title,
+    startsAt: appointment.startsAt,
+    endsAt: appointment.endsAt,
+    location: appointment.location,
+    meetingUrl: appointment.meetingUrl,
+    clientName: appointment.client?.fullName,
+    clientEmail: appointment.client?.email,
+    contactLabel: appointment.contactLabel,
+    listingTitle: appointment.listing?.title,
+    listingNeighborhood: appointment.listing?.neighborhood,
+    listingCity: appointment.listing?.city,
+  });
 }

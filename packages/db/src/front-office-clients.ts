@@ -28,6 +28,7 @@ import {
   type FrontOfficeAiSuggestionHistoryIndex,
 } from "./front-office-ai";
 import { formatDateTimeLabel } from "./date-time";
+import { buildFrontOfficeAppointmentExternalLinks } from "./front-office-calendar-links";
 import {
   defaultLeaseReminderLeadDays,
   resolveLeaseReminderDates,
@@ -60,6 +61,10 @@ export type FrontOfficeClientDetailAppointmentItem = {
   locationLabel: string;
   contextLabel: string;
   listingOutputHref: string;
+  googleCalendarHref: string;
+  outlookCalendarHref: string;
+  icsHref: string;
+  emailBriefHref: string | null;
 };
 
 export type FrontOfficeClientDetailTaskItem = {
@@ -2492,6 +2497,7 @@ export async function getFrontOfficeClientDetail(
           type: true,
           status: true,
           startsAt: true,
+          endsAt: true,
           location: true,
           meetingUrl: true,
           contactLabel: true,
@@ -3795,25 +3801,47 @@ export async function getFrontOfficeClientDetail(
         tone: mapClientStageTone(entry.toStage),
       };
     }),
-    appointments: client.appointments.map((appointment) => ({
-      id: appointment.id,
-      title: appointment.title,
-      typeLabel: formatAppointmentTypeLabel(appointment.type),
-      typeTone: mapAppointmentTypeTone(appointment.type),
-      statusLabel: formatAppointmentStatusLabel(appointment.status),
-      statusTone: mapAppointmentStatusTone(appointment.status),
-      startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
+    appointments: client.appointments.map((appointment) => {
+      const externalLinks = buildFrontOfficeAppointmentExternalLinks({
+        appointmentId: appointment.id,
+        title: appointment.title,
+        startsAt: appointment.startsAt,
+        endsAt: appointment.endsAt,
+        location: appointment.location,
+        meetingUrl: appointment.meetingUrl,
+        clientName: client.fullName,
+        clientEmail: client.email,
+        contactLabel: appointment.contactLabel,
+        listingTitle: appointment.listing?.title,
+        listingNeighborhood: appointment.listing?.neighborhood,
+        listingCity: appointment.listing?.city,
         timeZone: input.timeZone ?? null,
-      }),
-      locationLabel:
-        appointment.location?.trim() ||
-        appointment.meetingUrl?.trim() ||
-        "Location pending",
-      contextLabel: appointment.listing
-        ? `${appointment.listing.title} · ${appointment.listing.neighborhood}, ${appointment.listing.city}`
-        : appointment.contactLabel?.trim() || "Front Office appointment",
-      listingOutputHref: `/agent/listings?clientId=${client.id}&appointmentId=${appointment.id}`,
-    })),
+      });
+
+      return {
+        id: appointment.id,
+        title: appointment.title,
+        typeLabel: formatAppointmentTypeLabel(appointment.type),
+        typeTone: mapAppointmentTypeTone(appointment.type),
+        statusLabel: formatAppointmentStatusLabel(appointment.status),
+        statusTone: mapAppointmentStatusTone(appointment.status),
+        startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
+          timeZone: input.timeZone ?? null,
+        }),
+        locationLabel:
+          appointment.location?.trim() ||
+          appointment.meetingUrl?.trim() ||
+          "Location pending",
+        contextLabel: appointment.listing
+          ? `${appointment.listing.title} · ${appointment.listing.neighborhood}, ${appointment.listing.city}`
+          : appointment.contactLabel?.trim() || "Front Office appointment",
+        listingOutputHref: `/agent/listings?clientId=${client.id}&appointmentId=${appointment.id}`,
+        googleCalendarHref: externalLinks.googleCalendarHref,
+        outlookCalendarHref: externalLinks.outlookCalendarHref,
+        icsHref: externalLinks.icsHref,
+        emailBriefHref: externalLinks.emailBriefHref,
+      };
+    }),
     followUpTasks: client.followUpTasks.map((task) => ({
       id: task.id,
       title: task.title,

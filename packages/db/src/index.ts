@@ -265,6 +265,7 @@ export {
 } from "./front-office-clients";
 export {
   createFrontOfficeAppointment,
+  getFrontOfficeAppointmentCalendarExport,
   getFrontOfficeAppointmentsSnapshot,
   updateFrontOfficeAppointmentStatus,
   type FrontOfficeAppointmentHandoffItem,
