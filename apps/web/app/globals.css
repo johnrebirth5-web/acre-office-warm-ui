@@ -1275,24 +1275,6 @@ select {
   text-transform: lowercase;
 }
 
-.office-company-switcher {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 34px;
-  padding: 0 18px;
-  background: #ededed;
-  border-bottom: 1px solid #d6d6d6;
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: #303030;
-}
-
-.office-company-switcher strong {
-  font-size: 0.84rem;
-}
-
 .office-dashboard-main {
   gap: 0;
   padding: 22px 28px 34px;
@@ -3816,18 +3798,6 @@ a {
   width: 118px;
   height: auto;
   object-fit: contain;
-}
-
-.office-company-switcher {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 42px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--office-border);
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: var(--office-text);
 }
 
 .office-nav-groups {
@@ -12824,72 +12794,109 @@ body,
   color: inherit;
 }
 
-.office-company-switcher {
-  min-height: 46px;
-  padding: 0 18px;
+.office-company-switcher-shell {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid var(--office-border);
   background: rgba(245, 248, 252, 0.84);
-  font-size: 0.82rem;
-  letter-spacing: 0.08em;
+}
+
+.office-company-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid rgba(25, 44, 76, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.office-company-switcher:hover,
+.office-company-switcher:focus-visible,
+.office-company-switcher.is-open {
+  border-color: rgba(46, 83, 156, 0.24);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 24px rgba(27, 53, 95, 0.1);
 }
 
 .office-company-switcher-copy {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
-}
-
-.office-company-switcher-copy strong {
-  color: var(--office-text);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .office-company-switcher-copy span {
   color: var(--office-text-soft);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.office-company-switcher-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 12px;
-  border: 1px solid rgba(46, 83, 156, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--office-accent-strong);
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-decoration: none;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  transition:
-    transform 140ms ease,
-    border-color 140ms ease,
-    background-color 140ms ease,
-    color 140ms ease,
-    box-shadow 140ms ease;
 }
 
-.office-company-switcher-link:hover,
-.office-company-switcher-link:focus-visible {
-  border-color: rgba(46, 83, 156, 0.34);
-  background: rgba(236, 243, 255, 0.98);
-  color: var(--office-accent-strong);
-  box-shadow: 0 8px 20px rgba(46, 83, 156, 0.12);
-  transform: translateY(-1px);
+.office-company-switcher-copy strong {
+  color: var(--office-text);
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .office-company-switcher-caret {
   color: var(--office-text-soft);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.office-company-switcher-menu {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(25, 44, 76, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 32px rgba(27, 53, 95, 0.12);
+}
+
+.office-company-switcher-menu-item {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  color: var(--office-text);
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.office-company-switcher-menu-item strong {
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.office-company-switcher-menu-item span {
+  color: var(--office-text-soft);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.office-company-switcher-menu-item:not(.is-current):hover,
+.office-company-switcher-menu-item:not(.is-current):focus-visible {
+  background: rgba(238, 244, 255, 0.96);
+  transform: translateY(-1px);
+}
+
+.office-company-switcher-menu-item.is-current {
+  background: rgba(244, 247, 252, 0.96);
 }
 
 .office-nav-groups {

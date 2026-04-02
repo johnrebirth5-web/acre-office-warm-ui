@@ -184,14 +184,15 @@ export function OfficeNav({
 }: OfficeNavProps) {
   return (
     <WorkspaceNav
-      currentWorkspaceName={currentOfficeName}
+      currentWorkspaceName="Back Office"
       homeHref="/office/dashboard"
       navGroups={getNavGroups(currentAccess)}
       navigationLabel="Office navigation"
-      switcherLabel={currentOfficeName.toUpperCase()}
+      switcherLabel="Workspace"
       switcherShortcut={{
         href: "/agent/dashboard",
-        label: "Open Front Office",
+        label: "Front Office",
+        description: "Clients, outreach, calendar, and active follow-up",
       }}
     />
   );

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SiteReleaseBadge } from "../site-release-badge";
 
 type WorkspaceNavItem =
@@ -31,6 +31,7 @@ export type WorkspaceNavGroup = {
 type WorkspaceSwitchShortcut = {
   label: string;
   href: string;
+  description?: string;
 };
 
 type WorkspaceNavProps = {
@@ -93,6 +94,8 @@ export function WorkspaceNav({
     null,
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
+  const workspaceSwitcherRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
     function syncHash() {
@@ -129,16 +132,18 @@ export function WorkspaceNav({
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
+    setIsWorkspaceMenuOpen(false);
   }, [actualLocationKey]);
 
   useEffect(() => {
-    if (!isMobileMenuOpen) {
+    if (!isMobileMenuOpen && !isWorkspaceMenuOpen) {
       return;
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsMobileMenuOpen(false);
+        setIsWorkspaceMenuOpen(false);
       }
     }
 
@@ -146,7 +151,28 @@ export function WorkspaceNav({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isMobileMenuOpen]);
+  }, [isMobileMenuOpen, isWorkspaceMenuOpen]);
+
+  useEffect(() => {
+    if (!isWorkspaceMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!workspaceSwitcherRef.current) {
+        return;
+      }
+
+      if (!workspaceSwitcherRef.current.contains(event.target as Node)) {
+        setIsWorkspaceMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isWorkspaceMenuOpen]);
 
   function hasHashVariant(path: string) {
     return navGroups.some((group) =>
@@ -225,23 +251,58 @@ export function WorkspaceNav({
           className={cx("site-release-badge-office", releaseBadgeClassName)}
         />
 
-        <div className={cx("office-company-switcher", switcherClassName)}>
-          <div className="office-company-switcher-copy">
-            <strong>{switcherLabel}</strong>
-            <span>{currentWorkspaceName}</span>
-          </div>
-          {switcherShortcut ? (
-            <Link
-              className="office-company-switcher-link"
-              href={switcherShortcut.href}
-            >
-              {switcherShortcut.label}
-            </Link>
-          ) : (
+        <div
+          className={cx("office-company-switcher-shell", switcherClassName)}
+          ref={workspaceSwitcherRef}
+        >
+          <button
+            aria-expanded={switcherShortcut ? isWorkspaceMenuOpen : undefined}
+            aria-haspopup={switcherShortcut ? "menu" : undefined}
+            className={cx(
+              "office-company-switcher",
+              isWorkspaceMenuOpen && "is-open",
+            )}
+            onClick={() => {
+              if (!switcherShortcut) {
+                return;
+              }
+
+              setIsWorkspaceMenuOpen((open) => !open);
+            }}
+            type="button"
+          >
+            <div className="office-company-switcher-copy">
+              <span>{switcherLabel}</span>
+              <strong>{currentWorkspaceName}</strong>
+            </div>
             <span aria-hidden="true" className="office-company-switcher-caret">
-              ▾
+              {isWorkspaceMenuOpen ? "▴" : "▾"}
             </span>
-          )}
+          </button>
+
+          {switcherShortcut && isWorkspaceMenuOpen ? (
+            <div className="office-company-switcher-menu" role="menu">
+              <div
+                className="office-company-switcher-menu-item is-current"
+                role="presentation"
+              >
+                <strong>{currentWorkspaceName}</strong>
+                <span>Current workspace</span>
+              </div>
+              <Link
+                className="office-company-switcher-menu-item"
+                href={switcherShortcut.href}
+                onClick={() => setIsWorkspaceMenuOpen(false)}
+                role="menuitem"
+              >
+                <strong>{switcherShortcut.label}</strong>
+                <span>
+                  {switcherShortcut.description?.trim() ||
+                    "Open the other workspace"}
+                </span>
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div className="office-nav-groups">

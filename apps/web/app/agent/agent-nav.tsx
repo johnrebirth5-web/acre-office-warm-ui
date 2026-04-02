@@ -31,10 +31,11 @@ export function AgentNav() {
       releaseBadgeClassName="site-release-badge-agent-panel"
       sidebarClassName="agent-sidebar"
       switcherClassName="agent-company-switcher"
-      switcherLabel="FRONT OFFICE"
+      switcherLabel="Workspace"
       switcherShortcut={{
         href: "/office/dashboard",
-        label: "Open Back Office",
+        label: "Back Office",
+        description: "Transactions, signatures, accounting, and formal ops",
       }}
     />
   );
