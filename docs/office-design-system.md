@@ -244,6 +244,7 @@ Office 路由级 canonical 组合层：
 
 - `Tasks`、`Notifications`、`Approve docs` 这类“过滤 + 工作清单”页面也必须走 `ListPageSection + ListPageFilters + StatusBadge` 合同，不能继续保留单页私有 `bm-table-card` / `bm-create-button` / `bm-status-pill` 视觉
 - 页头右上角 summary/actions 统一通过 `PageHeaderSummary` 组织，不再手写一层又一层不同页面容器
+- 页头里的 summary/actions 不再右侧漂浮成一组散卡；统一落到标题下方的 full-width workbench 里，`SummaryChip`、scope、primary action 都在同一个 header strip 内排布
 - 桌面中间断点开始，如果页头或 section 右侧 action 会压缩标题说明，就应优先改成上下两行，不要让按钮覆盖说明文本
 - header / section actions 内的按钮必须允许在窄宽下自然换行或折成两行文案，不能靠固定 `nowrap` 把标题区挤坏
 

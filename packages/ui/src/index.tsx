@@ -103,7 +103,7 @@ export function PageHeader(props: {
         <h2>{props.title}</h2>
         {props.description ? <p>{props.description}</p> : null}
       </div>
-      {props.actions ? <div className="office-page-actions">{props.actions}</div> : null}
+      {props.actions ? <div className="office-page-supporting">{props.actions}</div> : null}
     </section>
   );
 }
@@ -112,7 +112,11 @@ export function PageHeaderSummary(props: {
   className?: string;
   children: ReactNode;
 }) {
-  return <div className={cx("office-page-actions office-list-page-header-actions", props.className)}>{props.children}</div>;
+  return (
+    <div className={cx("office-page-actions office-page-summary-grid office-list-page-header-actions", props.className)}>
+      {props.children}
+    </div>
+  );
 }
 
 export function OfficeListPageSummary(props: {
