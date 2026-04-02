@@ -13,6 +13,8 @@ type FrontOfficeListingsOutputClientProps = {
     title: string;
     subjectLine: string;
     body: string;
+    suggestionKind?: string | null;
+    suggestionLabel?: string | null;
     sourceLabel?: string | null;
   } | null;
 };
@@ -155,6 +157,18 @@ export function FrontOfficeListingsOutputClient(
             channel: action,
             clientId: props.snapshot.targetClient?.id ?? null,
             appointmentId: props.snapshot.targetAppointment?.id ?? null,
+            aiAcceptedAction:
+              action !== "direct" &&
+              props.draftAssist?.channel === action &&
+              props.draftAssist.suggestionKind &&
+              props.draftAssist.suggestionLabel
+                ? {
+                    sourceSurface: "listing_output",
+                    suggestionKind: props.draftAssist.suggestionKind,
+                    suggestionLabel: props.draftAssist.suggestionLabel,
+                    actionTitle: props.draftAssist.title,
+                  }
+                : null,
           }),
         },
       );

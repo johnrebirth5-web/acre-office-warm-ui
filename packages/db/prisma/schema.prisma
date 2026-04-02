@@ -133,6 +133,29 @@ enum FrontOfficeSendChannel {
   direct
 }
 
+enum FrontOfficeAiActionType {
+  follow_up_created
+  tracked_send_created
+}
+
+enum FrontOfficeAiSourceSurface {
+  client_dossier
+  dashboard_queue
+  listing_output
+}
+
+enum FrontOfficeAiSuggestionKind {
+  reentry
+  postclose
+  closing
+  lease
+  appointment
+  content_rescue
+  warm_engagement
+  handoff
+  generic
+}
+
 enum FrontOfficeSendMaterialType {
   listing_share
 }
@@ -587,6 +610,7 @@ model Organization {
   membershipNotificationPreferences     MembershipNotificationPreference[]
   listings                              Listing[]
   frontOfficeSendRecords                FrontOfficeSendRecord[]
+  frontOfficeAiAcceptedActions          FrontOfficeAiAcceptedAction[]
   clients                               Client[]
   appointments                          Appointment[]
   clientStageHistories                  ClientStageHistory[]
@@ -677,6 +701,7 @@ model Office {
   notifications                         Notification[]
   listings                              Listing[]
   frontOfficeSendRecords                FrontOfficeSendRecord[]
+  frontOfficeAiAcceptedActions          FrontOfficeAiAcceptedAction[]
   appointments                          Appointment[]
   clientStageHistories                  ClientStageHistory[]
   frontOfficeHandoffDrafts              FrontOfficeHandoffDraft[]
@@ -775,6 +800,7 @@ model Membership {
   notificationPreference                       MembershipNotificationPreference?
   listingsOwned                                Listing[]
   frontOfficeSendRecordsSent                   FrontOfficeSendRecord[]
+  frontOfficeAiAcceptedActions                 FrontOfficeAiAcceptedAction[]
   clientsOwned                                 Client[]
   appointmentsOwned                            Appointment[]
   clientStageHistoryEntries                    ClientStageHistory[]
@@ -1139,6 +1165,7 @@ model Listing {
   appointments      Appointment[]
   shareLinks        ListingShareLink[]
   frontOfficeSendRecords FrontOfficeSendRecord[]
+  frontOfficeAiAcceptedActions FrontOfficeAiAcceptedAction[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -1197,6 +1224,7 @@ model FrontOfficeSendRecord {
   listing            Listing?                    @relation(fields: [listingId], references: [id], onDelete: SetNull)
   appointment        Appointment?                @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   shareLink          ListingShareLink?           @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
+  aiAcceptedAction   FrontOfficeAiAcceptedAction?
 
   @@index([organizationId, senderMembershipId, sentAt])
   @@index([organizationId, officeId, sentAt])
@@ -1234,6 +1262,7 @@ model Client {
   ownerMembership     Membership?               @relation(fields: [ownerMembershipId], references: [id], onDelete: SetNull)
   appointments        Appointment[]
   frontOfficeSendRecords FrontOfficeSendRecord[]
+  frontOfficeAiAcceptedActions FrontOfficeAiAcceptedAction[]
   stageHistory        ClientStageHistory[]
   handoffDrafts       FrontOfficeHandoffDraft[]
   followUpTasks       FollowUpTask[]
@@ -1244,6 +1273,38 @@ model Client {
   @@index([organizationId, visibility])
   @@index([organizationId, nextFollowUpAt])
   @@index([organizationId, leaseReminderAt])
+}
+
+model FrontOfficeAiAcceptedAction {
+  id              String                    @id @default(cuid())
+  organizationId  String
+  officeId        String?
+  membershipId    String
+  clientId        String
+  listingId       String?
+  followUpTaskId  String?                   @unique
+  sendRecordId    String?                   @unique
+  actionType      FrontOfficeAiActionType
+  sourceSurface   FrontOfficeAiSourceSurface
+  suggestionKind  FrontOfficeAiSuggestionKind
+  suggestionLabel String
+  actionTitle     String
+  channel         FrontOfficeSendChannel?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  organization    Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office          Office?                   @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership      Membership                @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  client          Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  listing         Listing?                  @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  followUpTask    FollowUpTask?             @relation(fields: [followUpTaskId], references: [id], onDelete: SetNull)
+  sendRecord      FrontOfficeSendRecord?    @relation(fields: [sendRecordId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, membershipId, createdAt])
+  @@index([organizationId, clientId, createdAt])
+  @@index([organizationId, sourceSurface, createdAt])
+  @@index([organizationId, suggestionKind, createdAt])
+  @@index([organizationId, actionType, createdAt])
 }
 
 model Appointment {
@@ -1432,6 +1493,7 @@ model FollowUpTask {
   client             Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
   assigneeMembership Membership?    @relation(fields: [assigneeMemberId], references: [id], onDelete: SetNull)
   notifications      Notification[]
+  aiAcceptedAction   FrontOfficeAiAcceptedAction?
 
   @@index([organizationId, status])
   @@index([organizationId, dueAt])

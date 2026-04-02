@@ -119,8 +119,9 @@ Current implementation priority note:
 - `AI next-touch suggestions` are now also live on the client dossier for memberships with `ai:use`, so Acre can ground copyable call / text / email drafts in the live dossier trail without auto-sending anything or inventing a second recommendation layer
 - `dashboard-level AI queue + safe automation actions` are now also live, so the dashboard can surface grounded next-touch opportunities and route agents into prefilled follow-up forms without auto-creating or auto-sending anything
 - `agent-approved one-click follow-up creation + outbound draft assist` are now also live, so grounded AI suggestions can become real shared follow-up tasks from the dossier or dashboard, and copy-ready AI drafts can now enter the tracked listing-output surface without auto-sending anything
-- the next recommended build target is `accepted-action history + AI outcome tracking`
-- prefer this next because FO can now surface suggestions, create approved follow-up tasks, and hand drafts into tracked output, so the highest-value follow-through is measuring which accepted actions were used and what actually moved the client before heavier automation
+- `accepted-action history + AI outcome tracking` is now also live, so the dossier and dashboard can measure which AI suggestions actually became shared follow-up tasks or tracked sends, and whether those accepted actions produced a completed task or real engagement signal
+- the next recommended build target is `outcome-informed AI ranking + safe escalation rules`
+- prefer this next because FO now knows which grounded actions were accepted and which ones produced movement, so the highest-value follow-through is to improve suggestion ordering and escalation thresholds before introducing any heavier automation or auto-send behavior
 
 ### Phase 2
 

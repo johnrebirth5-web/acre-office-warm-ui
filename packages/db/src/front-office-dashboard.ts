@@ -14,7 +14,12 @@ import {
 } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
-import { buildFrontOfficeAiFollowUpAction } from "./front-office-ai";
+import {
+  buildFrontOfficeAiFollowUpAction,
+  formatFrontOfficeAiActionTypeLabel,
+  formatFrontOfficeAiSourceSurfaceLabel,
+  type FrontOfficeAiFollowUpKind,
+} from "./front-office-ai";
 import {
   buildFrontOfficeHandoffCreateHref,
   isFrontOfficeStageReadyForBackOffice,
@@ -170,6 +175,7 @@ export type FrontOfficeDashboardAiQueueItem = {
   id: string;
   clientId: string;
   clientName: string;
+  suggestionKind: FrontOfficeAiFollowUpKind;
   statusLabel: string;
   tone: FrontOfficeDashboardTone;
   description: string;
@@ -178,6 +184,20 @@ export type FrontOfficeDashboardAiQueueItem = {
   openDossierHref: string;
   followUpTitle: string;
   followUpDueAt: string;
+};
+
+export type FrontOfficeDashboardAiAcceptedActionItem = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  title: string;
+  statusLabel: string;
+  statusTone: FrontOfficeDashboardTone;
+  description: string;
+  contextLabel: string;
+  helperLabel: string;
+  href: string;
+  actionLabel: string;
 };
 
 type FrontOfficeDashboardLeadershipEngagementItem =
@@ -227,6 +247,11 @@ export type FrontOfficeDashboardSnapshot = {
   aiQueue: {
     suggestionCount: number;
     items: FrontOfficeDashboardAiQueueItem[];
+  };
+  aiAcceptedActions: {
+    acceptedCount: number;
+    positiveOutcomeCount: number;
+    items: FrontOfficeDashboardAiAcceptedActionItem[];
   };
   backOffice: {
     items: FrontOfficeDashboardBackOfficeItem[];
@@ -525,6 +550,129 @@ function buildFrontOfficeSendEngagementLabel(openCount: number) {
   }
 
   return `Revisited ${openCount} times`;
+}
+
+function mapAcceptedAiActionOutcome(input: {
+  actionType: "follow_up_created" | "tracked_send_created";
+  followUpTask:
+    | {
+        status: TaskStatus;
+        dueAt: Date | null;
+      }
+    | null
+    | undefined;
+  sendRecord:
+    | {
+        openCount: number;
+        lastOpenedAt: Date | null;
+        sentAt: Date;
+      }
+    | null
+    | undefined;
+  now: Date;
+  timeZone?: string | null;
+}) {
+  if (input.actionType === "follow_up_created") {
+    if (!input.followUpTask) {
+      return {
+        label: "Task no longer linked",
+        tone: "neutral" as const,
+        detail: "The accepted follow-up task is no longer available.",
+        positive: false,
+      };
+    }
+
+    if (input.followUpTask.status === TaskStatus.completed) {
+      return {
+        label: "Completed",
+        tone: "success" as const,
+        detail: "The accepted follow-up was completed.",
+        positive: true,
+      };
+    }
+
+    if (input.followUpTask.status === TaskStatus.canceled) {
+      return {
+        label: "Canceled",
+        tone: "neutral" as const,
+        detail: "The accepted follow-up was canceled.",
+        positive: false,
+      };
+    }
+
+    if (
+      input.followUpTask.dueAt &&
+      input.followUpTask.dueAt.getTime() < input.now.getTime()
+    ) {
+      return {
+        label: "Overdue",
+        tone: "danger" as const,
+        detail: `Due ${formatDateLabel(input.followUpTask.dueAt)}.`,
+        positive: false,
+      };
+    }
+
+    if (input.followUpTask.dueAt) {
+      return {
+        label: "Queued",
+        tone: "accent" as const,
+        detail: `Due ${formatDateLabel(input.followUpTask.dueAt)}.`,
+        positive: false,
+      };
+    }
+
+    return {
+      label: "Queued",
+      tone: "accent" as const,
+      detail: "No due date captured yet.",
+      positive: false,
+    };
+  }
+
+  if (!input.sendRecord) {
+    return {
+      label: "Send missing",
+      tone: "neutral" as const,
+      detail: "The accepted tracked send is no longer available.",
+      positive: false,
+    };
+  }
+
+  if (input.sendRecord.openCount > 0) {
+    return {
+      label: "Opened",
+      tone: "success" as const,
+      detail: input.sendRecord.lastOpenedAt
+        ? `Last opened ${formatDateTimeLabel(input.sendRecord.lastOpenedAt, {
+            timeZone: input.timeZone ?? null,
+          })}.`
+        : `Opened ${input.sendRecord.openCount} time(s).`,
+      positive: true,
+    };
+  }
+
+  return {
+    label: "Awaiting open",
+    tone:
+      input.sendRecord.sentAt.getTime() <
+      new Date(
+        input.now.getFullYear(),
+        input.now.getMonth(),
+        input.now.getDate() - 3,
+      ).getTime()
+        ? ("warning" as const)
+        : ("accent" as const),
+    detail:
+      input.sendRecord.sentAt.getTime() <
+      new Date(
+        input.now.getFullYear(),
+        input.now.getMonth(),
+        input.now.getDate() - 3,
+      ).getTime()
+        ? "No tracked open yet after three days."
+        : "Tracked send is still waiting for the first open.",
+    positive: false,
+  };
 }
 
 function formatSendRecordStageLabel(value: string | null | undefined) {
@@ -954,6 +1102,9 @@ export async function getFrontOfficeDashboardSnapshot(
     stageGroups,
     recentClients,
     aiSuggestionCandidates,
+    aiAcceptedActionCount,
+    aiPositiveOutcomeCount,
+    recentAiAcceptedActions,
     activeListingCount,
     recentListings,
     shareAggregate,
@@ -1153,6 +1304,79 @@ export async function getFrontOfficeDashboardSnapshot(
                 moveInDate: true,
               },
             },
+          },
+        },
+      },
+    }),
+    prisma.frontOfficeAiAcceptedAction.count({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.viewerMembershipId,
+      },
+    }),
+    prisma.frontOfficeAiAcceptedAction.count({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.viewerMembershipId,
+        OR: [
+          {
+            actionType: "follow_up_created",
+            followUpTask: {
+              is: {
+                status: TaskStatus.completed,
+              },
+            },
+          },
+          {
+            actionType: "tracked_send_created",
+            sendRecord: {
+              is: {
+                openCount: {
+                  gt: 0,
+                },
+              },
+            },
+          },
+        ],
+      },
+    }),
+    prisma.frontOfficeAiAcceptedAction.findMany({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: input.viewerMembershipId,
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        actionType: true,
+        sourceSurface: true,
+        suggestionLabel: true,
+        actionTitle: true,
+        channel: true,
+        createdAt: true,
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        listing: {
+          select: {
+            title: true,
+          },
+        },
+        followUpTask: {
+          select: {
+            status: true,
+            dueAt: true,
+          },
+        },
+        sendRecord: {
+          select: {
+            openCount: true,
+            lastOpenedAt: true,
+            sentAt: true,
           },
         },
       },
@@ -1870,6 +2094,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-reentry`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "reentry",
             statusLabel: "Re-entry",
             tone: "warning",
             description:
@@ -1897,6 +2122,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-postclose`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "postclose",
             statusLabel: "Post-close",
             tone: "success",
             description:
@@ -1929,6 +2155,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-closing`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "closing",
             statusLabel: "Closing support",
             tone: "warning",
             description: `A formal deal milestone is close: ${formatDateLabel(
@@ -1969,6 +2196,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-lease`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "lease",
             statusLabel: "Lease timing",
             tone: leaseReminder.tone,
             description:
@@ -1997,6 +2225,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-appointment`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "appointment",
             statusLabel: "Appointment prep",
             tone: "accent",
             description: `There is already a scheduled ${formatAppointmentTypeLabel(
@@ -2032,6 +2261,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-unopened-send`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "content_rescue",
             statusLabel: "Content follow-up",
             tone: "warning",
             description:
@@ -2067,6 +2297,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-warm-send`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "warm_engagement",
             statusLabel: "Warm engagement",
             tone: latestSendRecord.openCount > 1 ? "success" : "accent",
             description:
@@ -2100,6 +2331,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-handoff`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "handoff",
             statusLabel: "Formal handoff",
             tone: "warning",
             description:
@@ -2129,6 +2361,7 @@ export async function getFrontOfficeDashboardSnapshot(
             id: `ai-${client.id}-generic`,
             clientId: client.id,
             clientName: client.fullName,
+            suggestionKind: "generic",
             statusLabel: "Next touch",
             tone: "accent",
             description:
@@ -2155,6 +2388,40 @@ export async function getFrontOfficeDashboardSnapshot(
     .slice(0, 4)
     .map(({ _priority, _sortAt, ...item }) => item);
   const aiSuggestionCount = aiQueueCandidates.length;
+  const aiAcceptedActionItems = recentAiAcceptedActions.map((action) => {
+    const outcome = mapAcceptedAiActionOutcome({
+      actionType: action.actionType,
+      followUpTask: action.followUpTask,
+      sendRecord: action.sendRecord,
+      now,
+      timeZone: input.timeZone,
+    });
+
+    return {
+      id: action.id,
+      clientId: action.client.id,
+      clientName: action.client.fullName,
+      title: action.actionTitle.trim() || formatFrontOfficeAiActionTypeLabel(action.actionType),
+      statusLabel: outcome.label,
+      statusTone: outcome.tone,
+      description: outcome.detail,
+      contextLabel: `${action.suggestionLabel} · ${formatFrontOfficeAiSourceSurfaceLabel(action.sourceSurface)}`,
+      helperLabel: [
+        formatFrontOfficeAiActionTypeLabel(action.actionType),
+        action.channel ? `Channel · ${action.channel.toUpperCase()}` : null,
+        action.listing?.title?.trim()
+          ? `Listing · ${action.listing.title.trim()}`
+          : null,
+        `Accepted ${formatDateTimeLabel(action.createdAt, {
+          timeZone: input.timeZone ?? null,
+        })}`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      href: `/agent/clients/${action.client.id}#front-office-ai-outcomes`,
+      actionLabel: "Open AI history",
+    } satisfies FrontOfficeDashboardAiAcceptedActionItem;
+  });
   const todayEventCount = upcomingEvents.filter(
     (event) =>
       event.startsAt >= startOfToday && event.startsAt < startOfTomorrow,
@@ -2501,6 +2768,11 @@ export async function getFrontOfficeDashboardSnapshot(
     aiQueue: {
       suggestionCount: aiSuggestionCount,
       items: aiQueueItems,
+    },
+    aiAcceptedActions: {
+      acceptedCount: aiAcceptedActionCount,
+      positiveOutcomeCount: aiPositiveOutcomeCount,
+      items: aiAcceptedActionItems,
     },
     backOffice: {
       items: backOfficeItems,

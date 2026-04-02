@@ -54,6 +54,12 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           title: draftTitleValue || "AI outbound draft",
           subjectLine: draftSubjectValue,
           body: draftBodyValue,
+          suggestionKind:
+            readSearchParamValue(searchParams.draftSuggestionKind)?.trim() ||
+            null,
+          suggestionLabel:
+            readSearchParamValue(searchParams.draftSuggestionLabel)?.trim() ||
+            null,
           sourceLabel:
             readSearchParamValue(searchParams.draftSource) === "ai"
               ? "AI draft assist loaded below. Copying the matching channel now uses this draft and still appends a tracked listing link."

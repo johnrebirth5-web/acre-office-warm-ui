@@ -105,6 +105,12 @@ export function FrontOfficeClientAiSuggestionsClient(
           body: JSON.stringify({
             title: aiSuggestions.followUpSuggestion.title,
             dueAt: aiSuggestions.followUpSuggestion.dueAt,
+            aiAcceptedAction: {
+              sourceSurface: "client_dossier",
+              suggestionKind: aiSuggestions.suggestionKind,
+              suggestionLabel: aiSuggestions.statusLabel,
+              actionTitle: aiSuggestions.followUpSuggestion.title,
+            },
           }),
         },
       );
@@ -170,6 +176,8 @@ export function FrontOfficeClientAiSuggestionsClient(
       draftTitle: draft.title,
       draftBody: draft.body,
       draftSource: "ai",
+      draftSuggestionKind: aiSuggestions.suggestionKind,
+      draftSuggestionLabel: aiSuggestions.statusLabel,
     });
 
     if (draft.subjectLine.trim()) {

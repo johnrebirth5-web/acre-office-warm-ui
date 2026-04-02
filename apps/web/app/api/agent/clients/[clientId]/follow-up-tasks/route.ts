@@ -1,5 +1,9 @@
 import { can } from "@acre/auth";
-import { createFollowUpTask } from "@acre/db";
+import {
+  createFollowUpTask,
+  normalizeFrontOfficeAiFollowUpKind,
+  normalizeFrontOfficeAiSourceSurface,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
 
@@ -47,6 +51,43 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     );
   }
 
+  const acceptedAiActionValue =
+    body.aiAcceptedAction && typeof body.aiAcceptedAction === "object"
+      ? (body.aiAcceptedAction as Record<string, unknown>)
+      : null;
+  const acceptedAiAction =
+    acceptedAiActionValue &&
+    typeof acceptedAiActionValue.suggestionLabel === "string" &&
+    acceptedAiActionValue.suggestionLabel.trim()
+      ? {
+          sourceSurface: normalizeFrontOfficeAiSourceSurface(
+            typeof acceptedAiActionValue.sourceSurface === "string"
+              ? acceptedAiActionValue.sourceSurface
+              : null,
+          ),
+          suggestionKind: normalizeFrontOfficeAiFollowUpKind(
+            typeof acceptedAiActionValue.suggestionKind === "string"
+              ? acceptedAiActionValue.suggestionKind
+              : null,
+          ),
+          suggestionLabel: acceptedAiActionValue.suggestionLabel.trim(),
+          actionTitle:
+            typeof acceptedAiActionValue.actionTitle === "string"
+              ? acceptedAiActionValue.actionTitle.trim()
+              : null,
+        }
+      : null;
+
+  if (
+    acceptedAiAction &&
+    (!acceptedAiAction.sourceSurface || !acceptedAiAction.suggestionKind)
+  ) {
+    return NextResponse.json(
+      { error: "Unsupported AI action context." },
+      { status: 400 },
+    );
+  }
+
   const { clientId } = await params;
   const task = await createFollowUpTask({
     organizationId: context.currentOrganization.id,
@@ -57,6 +98,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     title,
     dueAt:
       typeof body.dueAt === "string" && body.dueAt.trim() ? body.dueAt : "",
+    acceptedAiAction:
+      acceptedAiAction &&
+      acceptedAiAction.sourceSurface &&
+      acceptedAiAction.suggestionKind
+        ? {
+            sourceSurface: acceptedAiAction.sourceSurface,
+            suggestionKind: acceptedAiAction.suggestionKind,
+            suggestionLabel: acceptedAiAction.suggestionLabel,
+            actionTitle: acceptedAiAction.actionTitle,
+          }
+        : null,
   });
 
   if (!task) {

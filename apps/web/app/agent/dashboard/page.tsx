@@ -99,6 +99,57 @@ export default async function AgentDashboardPage() {
             </SectionCard>
           ) : null}
 
+          {canUseAi ? (
+            <SectionCard
+              className="office-list-card"
+              subtitle="Accepted AI actions stay measured against the same shared follow-up and tracked-send trail, so Acre can show what actually moved after the suggestion was used."
+              title="AI accepted actions & outcomes"
+            >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="accepted AI follow-up or tracked-send actions in your current dashboard scope"
+                  label="Accepted actions"
+                  value={snapshot.aiAcceptedActions.acceptedCount}
+                />
+                <StatCard
+                  hint="accepted actions that already turned into a completed follow-up or tracked open"
+                  label="Positive outcomes"
+                  tone="accent"
+                  value={snapshot.aiAcceptedActions.positiveOutcomeCount}
+                />
+              </ListPageStatsGrid>
+
+              <div className="office-queue-list">
+                {snapshot.aiAcceptedActions.items.length ? (
+                  snapshot.aiAcceptedActions.items.map((item) => (
+                    <FrontOfficeRailItem
+                      action={
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={item.href}
+                        >
+                          {item.actionLabel}
+                        </FrontOfficeLink>
+                      }
+                      badgeLabel={item.statusLabel}
+                      badgeTone={item.statusTone}
+                      context={`${item.clientName} · ${item.contextLabel}`}
+                      description={item.description}
+                      key={item.id}
+                      meta={<span>{item.helperLabel}</span>}
+                      title={item.title}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    description="Once you accept dashboard or dossier AI suggestions, the resulting task and tracked-send outcomes will roll up here."
+                    title="No accepted AI actions yet"
+                  />
+                )}
+              </div>
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             className="office-list-card"
             subtitle="Light pipeline visibility for the agent workday. Formal transaction reporting still belongs in Back Office."

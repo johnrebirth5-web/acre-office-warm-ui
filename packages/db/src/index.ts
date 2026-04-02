@@ -213,6 +213,20 @@ export {
 export { getOfficeDashboardBusinessSnapshot } from "./dashboard";
 export { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard";
 export {
+  buildFrontOfficeAiFollowUpAction,
+  buildFrontOfficeSuggestedFollowUpHref,
+  formatFrontOfficeAiActionTypeLabel,
+  formatFrontOfficeAiSourceSurfaceLabel,
+  normalizeFrontOfficeAiFollowUpKind,
+  normalizeFrontOfficeAiSourceSurface,
+  recordFrontOfficeAiAcceptedAction,
+  type FrontOfficeAiAcceptedActionContext,
+  type FrontOfficeAiAcceptedActionType,
+  type FrontOfficeAiFollowUpKind,
+  type FrontOfficeAiFollowUpAction,
+  type FrontOfficeAiSourceSurface,
+} from "./front-office-ai";
+export {
   getFrontOfficeClientDetail,
   type FrontOfficeClientDetailAiDraft,
   type FrontOfficeClientDetailAiDraftChannel,

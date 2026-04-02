@@ -18,6 +18,8 @@ import {
   buildFrontOfficeHandoffSummary,
   isFrontOfficeStageReadyForBackOffice,
 } from "./front-office-contracts";
+import type { FrontOfficeAiAcceptedActionContext } from "./front-office-ai";
+import { recordFrontOfficeAiAcceptedAction } from "./front-office-ai";
 import { createNotificationsForMemberships } from "./notifications";
 import {
   type LinkTransactionContactInput,
@@ -170,6 +172,7 @@ export type CreateFollowUpTaskInput = {
   actorOfficeId?: string | null;
   title: string;
   dueAt?: string;
+  acceptedAiAction?: FrontOfficeAiAcceptedActionContext | null;
 };
 
 export type UpdateFollowUpTaskInput = {
@@ -1409,6 +1412,22 @@ export async function createFollowUpTask(
         : `${created.title} was assigned to your follow-up queue.`,
       actionUrl: `/office/contacts/${client.id}`,
     });
+
+    if (input.acceptedAiAction) {
+      await recordFrontOfficeAiAcceptedAction(tx, {
+        organizationId: input.organizationId,
+        officeId: input.actorOfficeId ?? null,
+        membershipId: input.actorMembershipId ?? input.assigneeMembershipId,
+        clientId: client.id,
+        followUpTaskId: created.id,
+        actionType: "follow_up_created",
+        sourceSurface: input.acceptedAiAction.sourceSurface,
+        suggestionKind: input.acceptedAiAction.suggestionKind,
+        suggestionLabel: input.acceptedAiAction.suggestionLabel,
+        actionTitle:
+          input.acceptedAiAction.actionTitle?.trim() || created.title,
+      });
+    }
 
     return created;
   });

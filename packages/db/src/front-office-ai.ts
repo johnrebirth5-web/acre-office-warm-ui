@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 export type FrontOfficeAiFollowUpKind =
   | "reentry"
   | "postclose"
@@ -8,6 +10,22 @@ export type FrontOfficeAiFollowUpKind =
   | "warm_engagement"
   | "handoff"
   | "generic";
+
+export type FrontOfficeAiSourceSurface =
+  | "client_dossier"
+  | "dashboard_queue"
+  | "listing_output";
+
+export type FrontOfficeAiAcceptedActionType =
+  | "follow_up_created"
+  | "tracked_send_created";
+
+export type FrontOfficeAiAcceptedActionContext = {
+  sourceSurface: FrontOfficeAiSourceSurface;
+  suggestionKind: FrontOfficeAiFollowUpKind;
+  suggestionLabel: string;
+  actionTitle?: string | null;
+};
 
 export type FrontOfficeAiFollowUpAction = {
   title: string;
@@ -22,6 +40,63 @@ function buildSuggestedFollowUpDate(now: Date, daysFromNow: number) {
   const target = new Date(now);
   target.setDate(target.getDate() + daysFromNow);
   return formatDateValue(target);
+}
+
+export function normalizeFrontOfficeAiFollowUpKind(
+  value: string | null | undefined,
+): FrontOfficeAiFollowUpKind | null {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  switch (normalized) {
+    case "reentry":
+    case "postclose":
+    case "closing":
+    case "lease":
+    case "appointment":
+    case "content_rescue":
+    case "warm_engagement":
+    case "handoff":
+    case "generic":
+      return normalized as FrontOfficeAiFollowUpKind;
+    default:
+      return null;
+  }
+}
+
+export function normalizeFrontOfficeAiSourceSurface(
+  value: string | null | undefined,
+): FrontOfficeAiSourceSurface | null {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  switch (normalized) {
+    case "client_dossier":
+    case "dashboard_queue":
+    case "listing_output":
+      return normalized as FrontOfficeAiSourceSurface;
+    default:
+      return null;
+  }
+}
+
+export function formatFrontOfficeAiSourceSurfaceLabel(
+  value: FrontOfficeAiSourceSurface,
+) {
+  switch (value) {
+    case "client_dossier":
+      return "Accepted in dossier";
+    case "dashboard_queue":
+      return "Accepted in dashboard";
+    default:
+      return "Accepted in listing output";
+  }
+}
+
+export function formatFrontOfficeAiActionTypeLabel(
+  value: FrontOfficeAiAcceptedActionType,
+) {
+  return value === "follow_up_created"
+    ? "Follow-up created"
+    : "Tracked send created";
 }
 
 export function buildFrontOfficeAiFollowUpAction(input: {
@@ -91,4 +166,41 @@ export function buildFrontOfficeSuggestedFollowUpHref(input: {
   });
 
   return `/agent/clients/${input.clientId}?${params.toString()}#front-office-follow-up-form`;
+}
+
+export async function recordFrontOfficeAiAcceptedAction(
+  tx: Prisma.TransactionClient,
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    membershipId: string;
+    clientId: string;
+    listingId?: string | null;
+    followUpTaskId?: string | null;
+    sendRecordId?: string | null;
+    actionType: FrontOfficeAiAcceptedActionType;
+    sourceSurface: FrontOfficeAiSourceSurface;
+    suggestionKind: FrontOfficeAiFollowUpKind;
+    suggestionLabel: string;
+    actionTitle: string;
+    channel?: "sms" | "email" | "direct" | null;
+  },
+) {
+  return tx.frontOfficeAiAcceptedAction.create({
+    data: {
+      organizationId: input.organizationId,
+      officeId: input.officeId ?? null,
+      membershipId: input.membershipId,
+      clientId: input.clientId,
+      listingId: input.listingId ?? null,
+      followUpTaskId: input.followUpTaskId ?? null,
+      sendRecordId: input.sendRecordId ?? null,
+      actionType: input.actionType,
+      sourceSurface: input.sourceSurface,
+      suggestionKind: input.suggestionKind,
+      suggestionLabel: input.suggestionLabel.trim(),
+      actionTitle: input.actionTitle.trim(),
+      channel: input.channel ?? null,
+    },
+  });
 }

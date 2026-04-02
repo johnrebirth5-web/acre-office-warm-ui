@@ -39,6 +39,12 @@ export function FrontOfficeDashboardAiQueueClient(
           body: JSON.stringify({
             title: item.followUpTitle,
             dueAt: item.followUpDueAt,
+            aiAcceptedAction: {
+              sourceSurface: "dashboard_queue",
+              suggestionKind: item.suggestionKind,
+              suggestionLabel: item.statusLabel,
+              actionTitle: item.followUpTitle,
+            },
           }),
         },
       );

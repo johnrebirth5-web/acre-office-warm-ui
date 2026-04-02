@@ -6,6 +6,8 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "./client";
+import type { FrontOfficeAiAcceptedActionContext } from "./front-office-ai";
+import { recordFrontOfficeAiAcceptedAction } from "./front-office-ai";
 
 const activeListingStatuses: ListingStatus[] = [
   ListingStatus.active,
@@ -77,6 +79,7 @@ export type CreateFrontOfficeListingShareLinkInput = {
   channel: string;
   clientId?: string | null;
   appointmentId?: string | null;
+  acceptedAiAction?: FrontOfficeAiAcceptedActionContext | null;
 };
 
 export type FrontOfficeListingShareLinkResult = {
@@ -210,9 +213,10 @@ export async function createFrontOfficeListingShareLink(
             id: true,
           },
         });
+        let createdSendRecordId: string | null = null;
 
         if (client) {
-          await transaction.frontOfficeSendRecord.create({
+          const createdSendRecord = await transaction.frontOfficeSendRecord.create({
             data: {
               organizationId: input.organizationId,
               officeId: input.officeId ?? null,
@@ -228,6 +232,34 @@ export async function createFrontOfficeListingShareLink(
               appointmentStartsAt: appointment?.startsAt ?? null,
               sentAt,
             },
+            select: {
+              id: true,
+            },
+          });
+          createdSendRecordId = createdSendRecord.id;
+        }
+
+        if (input.acceptedAiAction) {
+          if (!client?.id || !createdSendRecordId) {
+            throw new Error(
+              "AI tracked-send assist requires client-linked send context.",
+            );
+          }
+
+          await recordFrontOfficeAiAcceptedAction(transaction, {
+            organizationId: input.organizationId,
+            officeId: input.officeId ?? null,
+            membershipId: input.viewerMembershipId,
+            clientId: client.id,
+            listingId: listing.id,
+            sendRecordId: createdSendRecordId,
+            actionType: "tracked_send_created",
+            sourceSurface: input.acceptedAiAction.sourceSurface,
+            suggestionKind: input.acceptedAiAction.suggestionKind,
+            suggestionLabel: input.acceptedAiAction.suggestionLabel,
+            actionTitle:
+              input.acceptedAiAction.actionTitle?.trim() || listing.title,
+            channel: normalizedChannel,
           });
         }
 

@@ -693,6 +693,59 @@ export default async function AgentClientDetailPage(
             </div>
           ) : null}
 
+          {canUseAi ? (
+            <div id="front-office-ai-outcomes">
+              <SectionCard
+                className="office-list-card"
+                subtitle="Accepted AI actions stay tied to the same follow-up tasks and tracked sends, so the agent can see whether the suggestion actually moved execution."
+                title="Accepted AI actions & outcomes"
+              >
+                <ListPageStatsGrid>
+                  <StatCard
+                    hint="accepted follow-up or tracked-send actions tied to this dossier"
+                    label="Accepted actions"
+                    value={snapshot.aiAcceptedActions.acceptedCount}
+                  />
+                  <StatCard
+                    hint="accepted actions that already produced a completion or tracked open"
+                    label="Positive outcomes"
+                    tone="accent"
+                    value={snapshot.aiAcceptedActions.positiveOutcomeCount}
+                  />
+                </ListPageStatsGrid>
+
+                <div className="office-queue-list">
+                  {snapshot.aiAcceptedActions.items.length ? (
+                    snapshot.aiAcceptedActions.items.map((item) => (
+                      <QueueItem
+                        action={
+                          <FrontOfficeLink
+                            className="office-inline-link"
+                            href={item.href}
+                          >
+                            {item.actionLabel}
+                          </FrontOfficeLink>
+                        }
+                        badgeLabel={item.statusLabel}
+                        badgeTone={item.statusTone}
+                        context={item.contextLabel}
+                        description={item.description}
+                        key={item.id}
+                        meta={<span>{item.helperLabel}</span>}
+                        title={item.title}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState
+                      description="When you accept an AI follow-up or use AI draft assist to create a tracked send, Acre will show the resulting task or engagement outcome here."
+                      title="No accepted AI actions yet"
+                    />
+                  )}
+                </div>
+              </SectionCard>
+            </div>
+          ) : null}
+
           <SectionCard
             className="office-list-card"
             subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."

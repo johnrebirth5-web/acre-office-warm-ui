@@ -19,16 +19,16 @@ This file is the implementation-facing contract for the first real `Front Office
 
 ## Current recommended next target
 
-After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist` foundation, the recommended next implementation target is:
+After the current `appointment + dossier + tracked listing output + send record + client engagement + lease reminder + appointment reminder + send context + leadership engagement visibility + offer bridge + inspection bridge + pdf export + closing suggestions + dossier ai suggestions + dashboard ai queue + one-click follow-up + outbound draft assist + accepted-action history + ai outcome tracking` foundation, the recommended next implementation target is:
 
-- `accepted-action history + AI outcome tracking rooted in the same dossier and live execution trail`
+- `outcome-informed AI ranking + safe escalation rules`
 
 That means:
 
-- Front Office should now measure which grounded suggestions were accepted, converted into follow-up work, or used in tracked send surfaces instead of leaving that acceptance invisible
-- automation should still stay safe and agent-approved first: track accepted actions, draft-assist usage, and resulting engagement movement before any true auto-send behavior
-- the module should keep the FO -> BO boundary explicit by grounding recommendations in formal BO status / outcome signals while FO still owns client-facing follow-up, recap, referral, renewal, or re-entry prompts
-- the goal is to extend the grounded AI bridge into a measurable outcome loop before skipping straight to opaque background automation
+- Front Office should now use accepted-action and outcome history to rank which grounded suggestions deserve more prominence instead of treating every suggestion path as equally valuable forever
+- automation should still stay safe and agent-approved first: use measured completion / engagement outcomes to tune escalation thresholds, reminder order, and suggestion emphasis before any true auto-send behavior
+- the module should keep the FO -> BO boundary explicit by using formal BO status / outcome signals plus measured FO response history while FO still owns client-facing follow-up, recap, referral, renewal, or re-entry prompts
+- the goal is to turn the measurable AI bridge into a smarter recommendation loop before skipping straight to opaque background automation
 
 ## First real FO workflow models
 
@@ -172,6 +172,11 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/dashboard` AI queue items can now create shared FO follow-up tasks directly with one click, so the accepted suggestion lands in the same `FollowUpTask` store and client next-touch clock without retyping
   - `/agent/clients/[clientId]` AI suggestions can now also create the suggested follow-up task directly from the dossier, while still leaving the existing review path and other FO / BO actions available
   - AI text / email drafts from the dossier can now open `/agent/listings?clientId=...` with outbound draft assist loaded, so the agent can reuse grounded draft copy inside the tracked listing-output send surface and still generate the private tracked link / send record instead of bypassing the execution trail
+- accepted-action history + AI outcome tracking now also lives on top of that same grounded suggestion layer:
+  - added a dedicated `FrontOfficeAiAcceptedAction` record so accepted AI follow-up creation and AI-assisted tracked sends can be written into the same FO execution trail without inventing a second analytics silo
+  - `/agent/clients/[clientId]` now exposes an `Accepted AI actions & outcomes` section for memberships with `ai:use`, showing recent accepted actions, their source surface / suggestion context, and whether the resulting follow-up was completed or the tracked send was opened
+  - `/agent/dashboard` now also exposes `AI accepted actions & outcomes`, so the agent can see acceptance volume and positive outcomes across their current FO scope instead of reopening each dossier to understand whether the suggestions actually moved work
+  - dashboard one-click follow-up acceptance, dossier one-click follow-up acceptance, and dossier-to-listing-output draft assist now all send structured accepted-action metadata through the same API layer before the shared follow-up task or send record is created
 
 ## Non-goals in this phase
 
@@ -182,4 +187,4 @@ This keeps the handoff visible without pretending formal transaction creation al
 
 ## Expected next extensions
 
-- accepted-action history + AI outcome tracking rooted in the same dossier and live execution trail
+- outcome-informed AI ranking + safe escalation rules
