@@ -1412,6 +1412,44 @@ export async function markAllOfficeNotificationsRead(input: {
   return result.count;
 }
 
+export async function markOfficeNotificationsReadByIds(input: {
+  organizationId: string;
+  officeId?: string | null;
+  membershipId: string;
+  notificationIds: string[];
+}) {
+  const notificationIds = Array.from(
+    new Set(
+      input.notificationIds
+        .map((notificationId) => notificationId.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (!notificationIds.length) {
+    return 0;
+  }
+
+  const result = await prisma.notification.updateMany({
+    where: {
+      ...buildNotificationInboxWhere({
+        organizationId: input.organizationId,
+        officeId: input.officeId ?? null,
+        membershipId: input.membershipId,
+      }),
+      id: {
+        in: notificationIds,
+      },
+      readAt: null,
+    },
+    data: {
+      readAt: new Date(),
+    },
+  });
+
+  return result.count;
+}
+
 export async function openOfficeNotification(input: {
   organizationId: string;
   officeId?: string | null;
