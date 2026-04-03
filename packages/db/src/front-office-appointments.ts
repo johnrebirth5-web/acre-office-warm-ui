@@ -7,7 +7,10 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
-import { formatDateTimeLabel } from "./date-time";
+import {
+  formatDateTimeInputValue,
+  formatDateTimeLabel,
+} from "./date-time";
 import {
   buildFrontOfficeAppointmentCalendarExport,
   buildFrontOfficeAppointmentExternalLinks,
@@ -56,6 +59,9 @@ export type FrontOfficeAppointmentRecord = {
   externalStatusLabel: string;
   externalStatusTone: FrontOfficeAppointmentTone;
   externalStatusDetail: string;
+  externalNote: string;
+  externalNextActionAtLabel: string;
+  externalNextActionAtValue: string;
   bridgeStatusLabel: string;
   bridgeStatusDetail: string;
 };
@@ -87,6 +93,7 @@ export type GetFrontOfficeAppointmentsSnapshotInput = {
   viewerMembershipId: string;
   officeId?: string | null;
   timeZone?: string | null;
+  targetAppointmentId?: string | null;
 };
 
 export type CreateFrontOfficeAppointmentInput = {
@@ -114,6 +121,7 @@ export type UpdateFrontOfficeAppointmentStatusInput = {
   status?: string | null;
   externalStatus?: string | null;
   externalNote?: string | null;
+  externalNextActionAt?: string | null;
   officeId?: string | null;
 };
 
@@ -164,6 +172,10 @@ export type FrontOfficeAppointmentExternalWorkflowState = {
   label: string;
   tone: FrontOfficeAppointmentTone;
   detail: string;
+  note: string | null;
+  nextActionAt: Date | null;
+  nextActionAtLabel: string;
+  nextActionAtValue: string;
 };
 
 const frontOfficeAppointmentTypeDefinitions = [
@@ -203,6 +215,7 @@ const appointmentSelect = Prisma.validator<Prisma.AppointmentSelect>()({
   contactLabel: true,
   notes: true,
   metadata: true,
+  updatedAt: true,
   client: {
     select: {
       id: true,
@@ -409,6 +422,7 @@ function parseFrontOfficeAppointmentExternalWorkflowMetadata(
   status: FrontOfficeAppointmentExternalWorkflowStatus;
   updatedAt: Date | null;
   note: string | null;
+  nextActionAt: Date | null;
 } {
   const metadata = parseAppointmentMetadataRecord(value);
   const workflowValue = metadata[appointmentExternalWorkflowMetadataKey];
@@ -422,6 +436,7 @@ function parseFrontOfficeAppointmentExternalWorkflowMetadata(
       status: frontOfficeAppointmentExternalWorkflowStatuses.idle,
       updatedAt: null,
       note: null,
+      nextActionAt: null,
     };
   }
 
@@ -432,9 +447,15 @@ function parseFrontOfficeAppointmentExternalWorkflowMetadata(
   const updatedAtValue =
     "updatedAt" in workflowValue ? workflowValue.updatedAt : undefined;
   const noteValue = "note" in workflowValue ? workflowValue.note : undefined;
+  const nextActionAtValue =
+    "nextActionAt" in workflowValue ? workflowValue.nextActionAt : undefined;
   const updatedAt =
     typeof updatedAtValue === "string" && updatedAtValue.trim()
       ? new Date(updatedAtValue)
+      : null;
+  const nextActionAt =
+    typeof nextActionAtValue === "string" && nextActionAtValue.trim()
+      ? new Date(nextActionAtValue)
       : null;
 
   return {
@@ -444,6 +465,10 @@ function parseFrontOfficeAppointmentExternalWorkflowMetadata(
     updatedAt:
       updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
     note: typeof noteValue === "string" && noteValue.trim() ? noteValue.trim() : null,
+    nextActionAt:
+      nextActionAt && !Number.isNaN(nextActionAt.getTime())
+        ? nextActionAt
+        : null,
   };
 }
 
@@ -451,6 +476,7 @@ function buildFrontOfficeAppointmentExternalWorkflowDetail(input: {
   status: FrontOfficeAppointmentExternalWorkflowStatus;
   updatedAt: Date | null;
   note: string | null;
+  nextActionAt: Date | null;
   timeZone?: string | null;
 }) {
   if (input.status === frontOfficeAppointmentExternalWorkflowStatuses.idle) {
@@ -462,6 +488,12 @@ function buildFrontOfficeAppointmentExternalWorkflowDetail(input: {
         timeZone: input.timeZone ?? null,
       })}`
     : "";
+  const nextAction =
+    input.nextActionAt != null
+      ? `Next external touch ${formatDateTimeLabel(input.nextActionAt, {
+          timeZone: input.timeZone ?? null,
+        })}`
+      : "";
   const defaultSummary =
     input.status === frontOfficeAppointmentExternalWorkflowStatuses.confirmed
       ? "Client or counterpart confirmed the plan."
@@ -473,7 +505,9 @@ function buildFrontOfficeAppointmentExternalWorkflowDetail(input: {
           ? "The appointment needs a time change or reset."
           : "This appointment still needs active outreach or a fresh confirmation.";
 
-  return [timestamp, input.note, defaultSummary].filter(Boolean).join(" · ");
+  return [timestamp, nextAction, input.note, defaultSummary]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function getFrontOfficeAppointmentExternalWorkflowState(input: {
@@ -492,6 +526,17 @@ export function getFrontOfficeAppointmentExternalWorkflowState(input: {
       status: parsed.status,
       updatedAt: parsed.updatedAt,
       note: parsed.note,
+      nextActionAt: parsed.nextActionAt,
+      timeZone: input.timeZone ?? null,
+    }),
+    note: parsed.note,
+    nextActionAt: parsed.nextActionAt,
+    nextActionAtLabel: parsed.nextActionAt
+      ? formatDateTimeLabel(parsed.nextActionAt, {
+          timeZone: input.timeZone ?? null,
+        })
+      : "No next external touch set",
+    nextActionAtValue: formatDateTimeInputValue(parsed.nextActionAt, {
       timeZone: input.timeZone ?? null,
     }),
   };
@@ -502,6 +547,7 @@ function buildAppointmentMetadataWithExternalWorkflow(input: {
   status: FrontOfficeAppointmentExternalWorkflowStatus;
   updatedAt: Date;
   note?: string | null;
+  nextActionAt?: Date | null;
 }) {
   const metadataRecord = parseAppointmentMetadataRecord(input.existingMetadata);
 
@@ -512,6 +558,9 @@ function buildAppointmentMetadataWithExternalWorkflow(input: {
       status: input.status,
       updatedAt: input.updatedAt.toISOString(),
       ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+      ...(input.nextActionAt
+        ? { nextActionAt: input.nextActionAt.toISOString() }
+        : {}),
     };
   }
 
@@ -537,6 +586,23 @@ function parseOptionalDate(value: string | null | undefined) {
 
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseOptionalDateTimeInput(
+  value: string | null | undefined,
+  fieldLabel: string,
+) {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`${fieldLabel} is invalid.`);
+  }
+
+  return parsed;
 }
 
 function buildDefaultAppointmentTitle(
@@ -728,6 +794,9 @@ function mapAppointmentRecord(
     externalStatusLabel: externalWorkflow.label,
     externalStatusTone: externalWorkflow.tone,
     externalStatusDetail: externalWorkflow.detail,
+    externalNote: externalWorkflow.note ?? "",
+    externalNextActionAtLabel: externalWorkflow.nextActionAtLabel,
+    externalNextActionAtValue: externalWorkflow.nextActionAtValue,
     bridgeStatusLabel: resolvedBridgeStatus.label,
     bridgeStatusDetail: resolvedBridgeStatus.detail,
   };
@@ -768,6 +837,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
 
   const [
     appointments,
+    targetedAppointment,
     upcomingCount,
     todayCount,
     showingCount,
@@ -789,6 +859,16 @@ export async function getFrontOfficeAppointmentsSnapshot(
       take: 24,
       select: appointmentSelect,
     }),
+    input.targetAppointmentId?.trim()
+      ? prisma.appointment.findFirst({
+          where: {
+            id: input.targetAppointmentId.trim(),
+            organizationId: input.organizationId,
+            ownerMembershipId: input.viewerMembershipId,
+          },
+          select: appointmentSelect,
+        })
+      : Promise.resolve(null),
     prisma.appointment.count({
       where: {
         organizationId: input.organizationId,
@@ -904,10 +984,22 @@ export async function getFrontOfficeAppointmentsSnapshot(
       },
     }),
   ]);
+  const visibleAppointments = targetedAppointment
+    ? appointments.some((appointment) => appointment.id === targetedAppointment.id)
+      ? appointments
+      : [...appointments, targetedAppointment]
+    : appointments;
+  visibleAppointments.sort((left, right) => {
+    if (left.startsAt.getTime() !== right.startsAt.getTime()) {
+      return left.startsAt.getTime() - right.startsAt.getTime();
+    }
+
+    return right.updatedAt.getTime() - left.updatedAt.getTime();
+  });
   const appointmentBridgeStatusMap =
     await getFrontOfficeAppointmentBridgeStatusMap({
       organizationId: input.organizationId,
-      appointmentIds: appointments.map((appointment) => appointment.id),
+      appointmentIds: visibleAppointments.map((appointment) => appointment.id),
       timeZone: input.timeZone,
     });
 
@@ -930,7 +1022,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
       value: listing.id,
       label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
     })),
-    appointments: appointments.map((appointment) =>
+    appointments: visibleAppointments.map((appointment) =>
       mapAppointmentRecord(
         appointment,
         now,
@@ -1092,6 +1184,10 @@ export async function updateFrontOfficeAppointmentStatus(
     ? input.externalStatus
     : null;
   const nextExternalNote = input.externalNote?.trim() || null;
+  const nextExternalActionAt = parseOptionalDateTimeInput(
+    input.externalNextActionAt,
+    "Next external touch",
+  );
 
   if (!nextStatus && !nextExternalStatus) {
     throw new Error(
@@ -1120,7 +1216,9 @@ export async function updateFrontOfficeAppointmentStatus(
   const shouldUpdateExternalWorkflow = Boolean(
     nextExternalStatus &&
       (currentExternalWorkflow.status !== nextExternalStatus ||
-        currentExternalWorkflow.note !== nextExternalNote),
+        currentExternalWorkflow.note !== nextExternalNote ||
+        currentExternalWorkflow.nextActionAt?.getTime() !==
+          nextExternalActionAt?.getTime()),
   );
 
   if (!shouldUpdateStatus && !shouldUpdateExternalWorkflow) {
@@ -1142,6 +1240,7 @@ export async function updateFrontOfficeAppointmentStatus(
                 status: nextExternalStatus,
                 updatedAt: now,
                 note: nextExternalNote,
+                nextActionAt: nextExternalActionAt,
               }),
             }
           : {}),
@@ -1220,6 +1319,14 @@ export async function updateFrontOfficeAppointmentStatus(
             : []),
           ...(shouldUpdateExternalWorkflow && nextExternalNote
             ? [`Workflow note: ${nextExternalNote}`]
+            : []),
+          ...(shouldUpdateExternalWorkflow && nextExternalActionAt
+            ? [
+                `Next external touch: ${formatDateTimeLabel(
+                  nextExternalActionAt,
+                  { timeZone: null },
+                )}`,
+              ]
             : []),
         ],
       },

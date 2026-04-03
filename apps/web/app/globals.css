@@ -14531,10 +14531,23 @@ body,
 }
 
 .front-office-calendar-writeback {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(212, 221, 232, 0.78);
+  border-radius: 16px;
+  background: rgba(247, 250, 252, 0.78);
+}
+
+.front-office-calendar-writeback-head,
+.front-office-calendar-writeback-fields {
+  display: grid;
   gap: 8px;
+}
+
+.front-office-calendar-writeback-fields {
+  grid-template-columns: minmax(200px, 240px) minmax(200px, 240px) minmax(260px, 1fr) auto;
+  align-items: start;
 }
 
 .front-office-calendar-writeback-label {
@@ -14547,6 +14560,11 @@ body,
 
 .front-office-calendar-writeback-select {
   min-width: 220px;
+}
+
+.front-office-calendar-writeback-next-touch,
+.front-office-calendar-writeback-note {
+  min-width: 0;
 }
 
 .front-office-follow-up-actions {
@@ -14986,6 +15004,18 @@ body,
   border-color: rgba(43, 122, 85, 0.22);
   background: rgba(241, 251, 246, 0.94);
   color: #295f45;
+}
+
+@media (max-width: 1040px) {
+  .front-office-calendar-writeback-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .front-office-calendar-writeback-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .front-office-calendar-feedback.is-neutral {

@@ -206,6 +206,7 @@ This keeps the handoff visible without pretending formal transaction creation al
   - the shared appointment service now generates those export links from the same FO appointment record instead of asking the agent to manually retype title, time, location, or meeting link into outside systems
   - those bridge actions now also write back into the shared `AuditLog`, so the FO calendar and dossier can show the latest logged external action on each appointment without inventing a second sync-status store
   - FO appointments now also carry an explicit agent-managed external follow-up state, so confirmation, resend, and reschedule pressure can be surfaced in the calendar, dossier, and cleanup center even though Acre still does not own the outside system
+  - that same writeback layer now also supports an optional `next external touch` timestamp plus operator note, so cleanup priority can follow the promised outside follow-up window instead of only the appointment start time
   - this current layer intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path with lightweight writeback that preserves the existing FO appointment source of truth
 
 ## Non-goals in this phase

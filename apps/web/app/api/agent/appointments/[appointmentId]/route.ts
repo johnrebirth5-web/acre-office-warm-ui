@@ -54,6 +54,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       status: readOptionalString(body, "status"),
       externalStatus: readOptionalString(body, "externalStatus"),
       externalNote: readOptionalString(body, "externalNote"),
+      externalNextActionAt: readOptionalString(body, "externalNextActionAt"),
     });
 
     if (!appointment) {

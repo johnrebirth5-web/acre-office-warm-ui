@@ -41,6 +41,12 @@ type AppointmentFormState = {
   notes: string;
 };
 
+type AppointmentWritebackDraft = {
+  status: FrontOfficeAppointmentExternalWorkflowStatus;
+  note: string;
+  nextActionAt: string;
+};
+
 type FeedbackState = {
   tone: "success" | "error";
   message: string;
@@ -92,6 +98,27 @@ function toIsoDateTime(value: string) {
   return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
 }
 
+function buildWritebackDraft(
+  appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+): AppointmentWritebackDraft {
+  return {
+    status: appointment.externalStatusValue,
+    note: appointment.externalNote,
+    nextActionAt: appointment.externalNextActionAtValue,
+  };
+}
+
+function didWritebackChange(
+  appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+  draft: AppointmentWritebackDraft,
+) {
+  return (
+    draft.status !== appointment.externalStatusValue ||
+    draft.note.trim() !== appointment.externalNote ||
+    draft.nextActionAt !== appointment.externalNextActionAtValue
+  );
+}
+
 export function FrontOfficeCalendarClient(
   props: FrontOfficeCalendarClientProps,
 ) {
@@ -101,8 +128,8 @@ export function FrontOfficeCalendarClient(
   );
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [externalStatusDrafts, setExternalStatusDrafts] = useState<
-    Record<string, FrontOfficeAppointmentExternalWorkflowStatus>
+  const [writebackDrafts, setWritebackDrafts] = useState<
+    Record<string, AppointmentWritebackDraft>
   >({});
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending;
@@ -119,14 +146,28 @@ export function FrontOfficeCalendarClient(
     }));
   }
 
-  function handleExternalStatusDraftChange(
-    appointmentId: string,
-    value: FrontOfficeAppointmentExternalWorkflowStatus,
+  function handleWritebackDraftChange(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+    field: keyof AppointmentWritebackDraft,
+    value: string,
   ) {
-    setExternalStatusDrafts((current) => ({
-      ...current,
-      [appointmentId]: value,
-    }));
+    setWritebackDrafts((current) => {
+      const existing = current[appointment.id] ?? buildWritebackDraft(appointment);
+      const nextDraft: AppointmentWritebackDraft = {
+        ...existing,
+        [field]: value,
+      };
+
+      if (field === "status" && value === "idle") {
+        nextDraft.note = "";
+        nextDraft.nextActionAt = "";
+      }
+
+      return {
+        ...current,
+        [appointment.id]: nextDraft,
+      };
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -223,28 +264,26 @@ export function FrontOfficeCalendarClient(
     }
   }
 
-  async function handleExternalStatusUpdate(appointmentId: string) {
-    const appointment = props.snapshot.appointments.find(
-      (item) => item.id === appointmentId,
-    );
-    const nextExternalStatus =
-      externalStatusDrafts[appointmentId] ?? appointment?.externalStatusValue;
-
-    if (!appointment || !nextExternalStatus) {
-      return;
-    }
+  async function handleExternalStatusUpdate(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+  ) {
+    const draft = writebackDrafts[appointment.id] ?? buildWritebackDraft(appointment);
 
     setFeedback(null);
     setIsSaving(true);
 
     try {
-      const response = await fetch(`/api/agent/appointments/${appointmentId}`, {
+      const response = await fetch(`/api/agent/appointments/${appointment.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          externalStatus: nextExternalStatus,
+          externalStatus: draft.status,
+          externalNote: draft.note.trim(),
+          externalNextActionAt: draft.nextActionAt
+            ? toIsoDateTime(draft.nextActionAt)
+            : "",
         }),
       });
       const payload = (await response.json().catch(() => null)) as {
@@ -265,9 +304,9 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message: "Appointment external writeback updated.",
       });
-      setExternalStatusDrafts((current) => {
+      setWritebackDrafts((current) => {
         const next = { ...current };
-        delete next[appointmentId];
+        delete next[appointment.id];
         return next;
       });
       startTransition(() => {
@@ -448,158 +487,200 @@ export function FrontOfficeCalendarClient(
       >
         <div className="list-column front-office-record-list">
           {props.snapshot.appointments.length ? (
-            props.snapshot.appointments.map((appointment) => (
-              <article
-                className="list-row front-office-record"
-                key={appointment.id}
-              >
-                <div className="list-row-top front-office-record-head">
-                  <div>
-                    <strong>{appointment.title}</strong>
-                    <p>{appointment.startsAtLabel}</p>
-                  </div>
-                  <div className="front-office-calendar-badges">
-                    <Badge tone={appointment.typeTone}>
-                      {appointment.typeLabel}
-                    </Badge>
-                    <StatusBadge tone={appointment.statusTone}>
-                      {appointment.statusLabel}
-                    </StatusBadge>
-                    <Badge tone={appointment.reminderTone}>
-                      {appointment.reminderLabel}
-                    </Badge>
-                    <StatusBadge tone={appointment.externalStatusTone}>
-                      {appointment.externalStatusLabel}
-                    </StatusBadge>
-                  </div>
-                </div>
+            props.snapshot.appointments.map((appointment) => {
+              const writebackDraft =
+                writebackDrafts[appointment.id] ??
+                buildWritebackDraft(appointment);
+              const writebackChanged = didWritebackChange(
+                appointment,
+                writebackDraft,
+              );
 
-                <div className="list-row-meta front-office-record-meta">
-                  <span>{appointment.clientLabel}</span>
-                  <span>{appointment.listingLabel}</span>
-                  <span>{appointment.locationLabel}</span>
-                  <span>{appointment.bridgeStatusLabel}</span>
-                </div>
+              return (
+                <article
+                  className="list-row front-office-record"
+                  key={appointment.id}
+                >
+                    <div className="list-row-top front-office-record-head">
+                      <div>
+                        <strong>{appointment.title}</strong>
+                        <p>{appointment.startsAtLabel}</p>
+                      </div>
+                      <div className="front-office-calendar-badges">
+                        <Badge tone={appointment.typeTone}>
+                          {appointment.typeLabel}
+                        </Badge>
+                        <StatusBadge tone={appointment.statusTone}>
+                          {appointment.statusLabel}
+                        </StatusBadge>
+                        <Badge tone={appointment.reminderTone}>
+                          {appointment.reminderLabel}
+                        </Badge>
+                        <StatusBadge tone={appointment.externalStatusTone}>
+                          {appointment.externalStatusLabel}
+                        </StatusBadge>
+                      </div>
+                    </div>
 
-                <p>{appointment.notesLabel}</p>
-                <p className="front-office-record-supporting">
-                  {appointment.externalStatusDetail}
-                </p>
-                <p className="front-office-record-supporting">
-                  {appointment.bridgeStatusDetail}
-                </p>
+                    <div className="list-row-meta front-office-record-meta">
+                      <span>{appointment.clientLabel}</span>
+                      <span>{appointment.listingLabel}</span>
+                      <span>{appointment.locationLabel}</span>
+                      <span>{appointment.bridgeStatusLabel}</span>
+                    </div>
 
-                {appointment.statusLabel === "Scheduled" ? (
-                  <div className="front-office-calendar-actions">
-                    {appointment.listingOutputHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={appointment.listingOutputHref}
-                      >
-                        Open listing output
-                      </FrontOfficeLink>
+                    <p>{appointment.notesLabel}</p>
+                    <p className="front-office-record-supporting">
+                      {appointment.externalStatusDetail}
+                    </p>
+                    <p className="front-office-record-supporting">
+                      {appointment.bridgeStatusDetail}
+                    </p>
+
+                    {appointment.statusLabel === "Scheduled" ? (
+                      <div className="front-office-calendar-actions">
+                        {appointment.listingOutputHref ? (
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href={appointment.listingOutputHref}
+                          >
+                            Open listing output
+                          </FrontOfficeLink>
+                        ) : null}
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={appointment.googleCalendarHref}
+                        >
+                          Google Calendar
+                        </FrontOfficeLink>
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={appointment.outlookCalendarHref}
+                        >
+                          Outlook
+                        </FrontOfficeLink>
+                        <a
+                          className="office-inline-link front-office-inline-link"
+                          href={appointment.icsHref}
+                        >
+                          Download ICS
+                        </a>
+                        {appointment.emailBriefHref ? (
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href={appointment.emailBriefHref}
+                          >
+                            Email client
+                          </FrontOfficeLink>
+                        ) : null}
+                        <button
+                          className="office-button-secondary office-inline-action-sm"
+                          disabled={isBusy}
+                          onClick={() =>
+                            handleStatusUpdate(appointment.id, "completed")
+                          }
+                          type="button"
+                        >
+                          Mark complete
+                        </button>
+                        <button
+                          className="office-button-secondary office-inline-action-sm"
+                          disabled={isBusy}
+                          onClick={() =>
+                            handleStatusUpdate(appointment.id, "no_show")
+                          }
+                          type="button"
+                        >
+                          No-show
+                        </button>
+                        <button
+                          className="office-button-secondary office-inline-action-sm"
+                          disabled={isBusy}
+                          onClick={() =>
+                            handleStatusUpdate(appointment.id, "canceled")
+                          }
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     ) : null}
-                    <FrontOfficeLink
-                      className="office-inline-link front-office-inline-link"
-                      href={appointment.googleCalendarHref}
-                    >
-                      Google Calendar
-                    </FrontOfficeLink>
-                    <FrontOfficeLink
-                      className="office-inline-link front-office-inline-link"
-                      href={appointment.outlookCalendarHref}
-                    >
-                      Outlook
-                    </FrontOfficeLink>
-                    <a
-                      className="office-inline-link front-office-inline-link"
-                      href={appointment.icsHref}
-                    >
-                      Download ICS
-                    </a>
-                    {appointment.emailBriefHref ? (
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={appointment.emailBriefHref}
-                      >
-                        Email client
-                      </FrontOfficeLink>
-                    ) : null}
-                    <button
-                      className="office-button-secondary office-inline-action-sm"
-                      disabled={isBusy}
-                      onClick={() =>
-                        handleStatusUpdate(appointment.id, "completed")
-                      }
-                      type="button"
-                    >
-                      Mark complete
-                    </button>
-                    <button
-                      className="office-button-secondary office-inline-action-sm"
-                      disabled={isBusy}
-                      onClick={() =>
-                        handleStatusUpdate(appointment.id, "no_show")
-                      }
-                      type="button"
-                    >
-                      No-show
-                    </button>
-                    <button
-                      className="office-button-secondary office-inline-action-sm"
-                      disabled={isBusy}
-                      onClick={() =>
-                        handleStatusUpdate(appointment.id, "canceled")
-                      }
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : null}
 
-                {appointment.statusLabel === "Scheduled" ? (
-                  <div className="front-office-calendar-writeback">
-                    <span className="front-office-calendar-writeback-label">
-                      External writeback
-                    </span>
-                    <SelectInput
-                      className="front-office-calendar-writeback-select"
-                      onChange={(event) =>
-                        handleExternalStatusDraftChange(
-                          appointment.id,
-                          event.target
-                            .value as FrontOfficeAppointmentExternalWorkflowStatus,
-                        )
-                      }
-                      value={
-                        externalStatusDrafts[appointment.id] ??
-                        appointment.externalStatusValue
-                      }
-                    >
-                      {externalStatusOptions.map((option) => (
-                        <option key={`${appointment.id}-${option.value}`} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </SelectInput>
-                    <button
-                      className="office-button-secondary office-inline-action-sm"
-                      disabled={
-                        isBusy ||
-                        (externalStatusDrafts[appointment.id] ??
-                          appointment.externalStatusValue) ===
-                          appointment.externalStatusValue
-                      }
-                      onClick={() => handleExternalStatusUpdate(appointment.id)}
-                      type="button"
-                    >
-                      Save writeback
-                    </button>
-                  </div>
-                ) : null}
-              </article>
-            ))
+                    {appointment.statusLabel === "Scheduled" ? (
+                      <div className="front-office-calendar-writeback">
+                        <div className="front-office-calendar-writeback-head">
+                          <span className="front-office-calendar-writeback-label">
+                            External writeback
+                          </span>
+                          <p className="front-office-record-supporting">
+                            Keep the outside confirmation or reschedule trail readable
+                            here, including when you want the next external touch to
+                            come back before the appointment starts.
+                          </p>
+                        </div>
+                        <div className="front-office-calendar-writeback-fields">
+                          <SelectInput
+                            className="front-office-calendar-writeback-select"
+                            onChange={(event) =>
+                              handleWritebackDraftChange(
+                                appointment,
+                                "status",
+                                event.target.value,
+                              )
+                            }
+                            value={writebackDraft.status}
+                          >
+                            {externalStatusOptions.map((option) => (
+                              <option
+                                key={`${appointment.id}-${option.value}`}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </option>
+                            ))}
+                          </SelectInput>
+                          <TextInput
+                            className="front-office-calendar-writeback-next-touch"
+                            disabled={writebackDraft.status === "idle"}
+                            onChange={(event) =>
+                              handleWritebackDraftChange(
+                                appointment,
+                                "nextActionAt",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="Next external touch"
+                            type="datetime-local"
+                            value={writebackDraft.nextActionAt}
+                          />
+                          <TextareaInput
+                            className="front-office-calendar-writeback-note"
+                            disabled={writebackDraft.status === "idle"}
+                            onChange={(event) =>
+                              handleWritebackDraftChange(
+                                appointment,
+                                "note",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="What happened outside Acre, and what are you waiting on next?"
+                            rows={2}
+                            value={writebackDraft.note}
+                          />
+                          <button
+                            className="office-button-secondary office-inline-action-sm"
+                            disabled={isBusy || !writebackChanged}
+                            onClick={() => handleExternalStatusUpdate(appointment)}
+                            type="button"
+                          >
+                            Save writeback
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                </article>
+              );
+            })
           ) : (
             <EmptyState
               description="Schedule the first showing, consultation, or client meeting from the form above."

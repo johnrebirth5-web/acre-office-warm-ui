@@ -1640,6 +1640,11 @@ export async function getFrontOfficeActivitySnapshot(
     now.getMonth(),
     now.getDate() - 30,
   );
+  const thirtyDaysFromNow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 30,
+  );
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
   const clientWhere: Prisma.ClientWhereInput = {
     organizationId: input.organizationId,
@@ -1675,7 +1680,7 @@ export async function getFrontOfficeActivitySnapshot(
     dueFollowUpTasks,
     dueFollowUpClients,
     staleClients,
-    upcomingAppointments,
+    scheduledAppointments,
     latestSendGroups,
   ] = await Promise.all([
     prisma.notification.findMany({
@@ -1826,11 +1831,11 @@ export async function getFrontOfficeActivitySnapshot(
         status: AppointmentStatus.scheduled,
         startsAt: {
           gte: now,
-          lte: twoDaysFromNow,
+          lte: thirtyDaysFromNow,
         },
       },
       orderBy: [{ startsAt: "asc" }],
-      take: 8,
+      take: 24,
       select: {
         id: true,
         title: true,
@@ -1906,6 +1911,42 @@ export async function getFrontOfficeActivitySnapshot(
         })
       : [];
 
+  const upcomingAppointments = scheduledAppointments
+    .map((appointment) => ({
+      appointment,
+      externalWorkflow: getFrontOfficeAppointmentExternalWorkflowState({
+        metadata: appointment.metadata,
+        timeZone: input.timeZone ?? null,
+      }),
+    }))
+    .filter(({ appointment, externalWorkflow }) => {
+      if (appointment.startsAt.getTime() <= twoDaysFromNow.getTime()) {
+        return true;
+      }
+
+      return (
+        externalWorkflow.nextActionAt != null &&
+        externalWorkflow.nextActionAt.getTime() <= twoDaysFromNow.getTime()
+      );
+    })
+    .sort((left, right) => {
+      const leftSortAt =
+        left.externalWorkflow.nextActionAt != null &&
+        left.externalWorkflow.nextActionAt.getTime() <
+          left.appointment.startsAt.getTime()
+          ? left.externalWorkflow.nextActionAt.getTime()
+          : left.appointment.startsAt.getTime();
+      const rightSortAt =
+        right.externalWorkflow.nextActionAt != null &&
+        right.externalWorkflow.nextActionAt.getTime() <
+          right.appointment.startsAt.getTime()
+          ? right.externalWorkflow.nextActionAt.getTime()
+          : right.appointment.startsAt.getTime();
+
+      return leftSortAt - rightSortAt;
+    })
+    .slice(0, 8);
+
   type CleanupCandidate = FrontOfficeActivityCleanupItem & {
     _priority: number;
     _sortAt: Date;
@@ -1923,12 +1964,17 @@ export async function getFrontOfficeActivitySnapshot(
   const appointmentSoonCount = upcomingAppointments.length;
 
   const appointmentItems: CleanupCandidate[] = upcomingAppointments.map(
-    (appointment) => {
-      const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
-        metadata: appointment.metadata,
-        timeZone: input.timeZone ?? null,
-      });
+    ({ appointment, externalWorkflow }) => {
       const startsAtTime = appointment.startsAt.getTime();
+      const nextActionTime = externalWorkflow.nextActionAt?.getTime() ?? null;
+      const hasExternalDeadline =
+        nextActionTime != null && nextActionTime <= twoDaysFromNow.getTime();
+      const isExternalDeadlineOverdue =
+        nextActionTime != null && nextActionTime < now.getTime();
+      const isExternalDeadlineSoon =
+        nextActionTime != null &&
+        nextActionTime >= now.getTime() &&
+        nextActionTime <= now.getTime() + 12 * 60 * 60 * 1000;
       let tone: FrontOfficeTone =
         startsAtTime <= now.getTime() + 2 * 60 * 60 * 1000
           ? "danger"
@@ -1951,19 +1997,29 @@ export async function getFrontOfficeActivitySnapshot(
         frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp
       ) {
         tone =
+          isExternalDeadlineOverdue ||
           startsAtTime <= now.getTime() + 6 * 60 * 60 * 1000
             ? "danger"
-            : "warning";
-        priority = tone === "danger" ? 1 : 2;
-        kindLabel = "Appointment follow-up";
+            : hasExternalDeadline
+              ? "warning"
+              : tone;
+        priority =
+          tone === "danger" ? 1 : hasExternalDeadline ? 2 : priority;
+        kindLabel =
+          isExternalDeadlineOverdue || isExternalDeadlineSoon
+            ? "External touch due"
+            : "Appointment follow-up";
       } else if (
         externalWorkflow.value ===
           frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending &&
-        startsAtTime < startOfTomorrow.getTime()
+        (startsAtTime < startOfTomorrow.getTime() || hasExternalDeadline)
       ) {
-        tone = "warning";
-        priority = 3;
-        kindLabel = "Awaiting confirmation";
+        tone = isExternalDeadlineOverdue ? "danger" : "warning";
+        priority = isExternalDeadlineOverdue ? 1 : 3;
+        kindLabel =
+          isExternalDeadlineOverdue || isExternalDeadlineSoon
+            ? "Confirmation due"
+            : "Awaiting confirmation";
       }
 
       return {
@@ -1985,6 +2041,9 @@ export async function getFrontOfficeActivitySnapshot(
             ? `Stage · ${appointment.client.stage.trim()}`
             : "No client linked",
           externalWorkflow.label,
+          hasExternalDeadline
+            ? `Next touch · ${externalWorkflow.nextActionAtLabel}`
+            : "No next touch scheduled",
           appointment.location?.trim() ||
           appointment.meetingUrl?.trim() ||
           "Location pending",
@@ -1995,7 +2054,10 @@ export async function getFrontOfficeActivitySnapshot(
             ? "Open calendar item"
             : "Open calendar writeback",
         _priority: priority,
-        _sortAt: appointment.startsAt,
+        _sortAt:
+          nextActionTime != null && nextActionTime < startsAtTime
+            ? externalWorkflow.nextActionAt ?? appointment.startsAt
+            : appointment.startsAt,
         _clientId: appointment.client?.id ?? null,
       };
     },
@@ -2245,7 +2307,7 @@ export async function getFrontOfficeActivitySnapshot(
       count: appointmentSoonCount,
       tone: appointmentSoonCount > 0 ? "accent" : "neutral",
       helper:
-        "Scheduled showings, consultations, or client meetings in the next two days.",
+        "Scheduled appointments in the next two days, plus external confirmation or follow-up touches due in that same window.",
     },
     {
       label: "Send risk",

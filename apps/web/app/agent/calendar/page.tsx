@@ -44,6 +44,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
+    targetAppointmentId: readSearchParamValue(searchParams.appointmentId)?.trim(),
   });
   const requestedClientId = readSearchParamValue(searchParams.clientId)?.trim();
   const initialClientId = snapshot.clientOptions.some(
@@ -166,7 +167,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               />
               <FrontOfficeRailItem
                 badgeLabel="Sync"
-                description="Scheduled appointments can now jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief, and Acre records both the latest bridge action and the agent-managed external follow-up state without pretending it already owns a two-way sync."
+                description="Scheduled appointments can now jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief, and Acre records the latest bridge action, the agent-managed external follow-up state, and the next external touch timing without pretending it already owns a two-way sync."
                 title="External bridge is action-first"
               />
               <FrontOfficeRailItem
