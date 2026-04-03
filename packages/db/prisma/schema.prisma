@@ -47,6 +47,7 @@ enum NotificationType {
   event
   internal_message_received
   appointment_due_soon
+  appointment_external_touch_due
   task_review_requested
   task_second_review_requested
   task_rejected

@@ -109,7 +109,7 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
           label="Payout review"
           value={snapshot.summary.payoutReviewCount}
         />
-        <StatCard hint="Expiring, overdue, or near-due reminder notifications." label="Time-sensitive" value={snapshot.summary.timeSensitiveCount} />
+        <StatCard hint="Expiring, overdue, or near-due reminder notifications, including appointment external touch deadlines." label="Time-sensitive" value={snapshot.summary.timeSensitiveCount} />
         <StatCard hint="Count in the current filtered view." label="In view" value={snapshot.totalCount} />
       </section>
 

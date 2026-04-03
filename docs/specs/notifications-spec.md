@@ -80,6 +80,8 @@ Current preference model for the inbox is also explicit:
 
 Current user-facing inbox coverage is limited to real implemented workflow signals:
 
+- appointment due soon
+- appointment external touch due
 - task review requested
 - task second review requested
 - rejected task needing action
@@ -115,6 +117,8 @@ Notifications are currently written from real workflow services:
 
 Time-based reminders without a scheduler are currently reconciled when the inbox is loaded:
 
+- appointment due soon
+- appointment external touch due
 - offer expiring soon
 - follow-up overdue
 - onboarding due soon
@@ -141,6 +145,8 @@ Notifications currently link to the nearest real actionable page:
   - contact detail
 - onboarding:
   - agent onboarding anchor
+- appointments:
+  - `/agent/calendar?appointmentId=...`
 - payout statements:
   - `/office/payout-statements/[statementId]`
 
@@ -151,6 +157,7 @@ If the product does not yet have a more precise queue or sub-route, the notifica
 - no email / SMS / WeChat delivery
 - no dismiss / archive action yet
 - no background scheduler; time-based reminders are created during inbox reconciliation
+- appointment reminder reconciliation now also deletes stale appointment timing/writeback notifications when the appointment no longer matches the active reminder window
 - reviewer targeting still follows current permission-based queues, not explicit reviewer assignment models
 - onboarding notifications are most useful for office-role recipients because the current inbox route is office-only
 - preferences only control the in-app inbox and do not create email / SMS / push channels; the live payout review queue remains visible while a statement is still awaiting agent action

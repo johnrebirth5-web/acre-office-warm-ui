@@ -15,6 +15,10 @@ import {
   isOfficeRole
 } from "@acre/auth";
 import { prisma } from "./client";
+import {
+  frontOfficeAppointmentExternalWorkflowStatuses,
+  getFrontOfficeAppointmentExternalWorkflowState,
+} from "./front-office-appointments";
 
 type NotificationDbClient = Prisma.TransactionClient | typeof prisma;
 type NotificationPreferenceField =
@@ -119,11 +123,13 @@ export type CreateNotificationsForMembershipsInput = {
 
 export type EnsureNotificationForMembershipsInput = Omit<CreateNotificationsForMembershipsInput, "metadata"> & {
   metadata?: Prisma.InputJsonValue;
+  resetReadState?: boolean;
 };
 
 export const officeNotificationInboxTypes: NotificationType[] = [
   NotificationType.internal_message_received,
   NotificationType.appointment_due_soon,
+  NotificationType.appointment_external_touch_due,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
   NotificationType.task_rejected,
@@ -149,6 +155,7 @@ const notificationTypeLabelMap: Record<NotificationType, string> = {
   event: "Event",
   internal_message_received: "Internal message",
   appointment_due_soon: "Appointment due soon",
+  appointment_external_touch_due: "External touch due",
   task_review_requested: "Awaiting my review",
   task_second_review_requested: "Awaiting second review",
   task_rejected: "Rejected task",
@@ -188,6 +195,7 @@ const notificationSeverityLabelMap: Record<NotificationSeverity, string> = {
 const typeFilterOrder: NotificationType[] = [
   NotificationType.internal_message_received,
   NotificationType.appointment_due_soon,
+  NotificationType.appointment_external_touch_due,
   NotificationType.task_review_requested,
   NotificationType.task_second_review_requested,
   NotificationType.task_rejected,
@@ -242,6 +250,7 @@ function getNotificationPreferenceField(type: NotificationType): NotificationPre
 
   if (
     type === NotificationType.appointment_due_soon ||
+    type === NotificationType.appointment_external_touch_due ||
     type === NotificationType.follow_up_assigned ||
     type === NotificationType.follow_up_overdue ||
     type === NotificationType.onboarding_assigned ||
@@ -671,7 +680,7 @@ export async function upsertNotificationForMemberships(db: NotificationDbClient,
           title: input.title,
           body: input.body,
           actionUrl: getRelativeUrl(input.actionUrl) || null,
-          readAt: null
+          ...(input.resetReadState === false ? {} : { readAt: null })
         }
       });
     } else {
@@ -730,6 +739,74 @@ function buildAppointmentReminderBody(input: {
   return `${context} starts on ${formatDateTimeLabel(input.startsAt)}. ${input.locationLabel}.`;
 }
 
+function getAppointmentReminderScopeFilter(input: {
+  officeId?: string | null;
+}) {
+  if (!input.officeId) {
+    return undefined;
+  }
+
+  return {
+    OR: [{ officeId: input.officeId }, { officeId: null }],
+  };
+}
+
+function buildAppointmentExternalTouchReminderTitle(input: {
+  title: string;
+  externalStatus: ReturnType<
+    typeof getFrontOfficeAppointmentExternalWorkflowState
+  >["value"];
+  nextActionAt: Date;
+  now: Date;
+}) {
+  const isOverdue = input.nextActionAt.getTime() < input.now.getTime();
+
+  if (
+    input.externalStatus ===
+    frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending
+  ) {
+    return `${isOverdue ? "Confirmation overdue" : "Confirmation due"}: ${input.title}`;
+  }
+
+  if (
+    input.externalStatus ===
+    frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+  ) {
+    return `${isOverdue ? "Reschedule overdue" : "Reschedule follow-up due"}: ${input.title}`;
+  }
+
+  return `${isOverdue ? "External touch overdue" : "External touch due"}: ${input.title}`;
+}
+
+function buildAppointmentExternalTouchReminderBody(input: {
+  title: string;
+  nextActionAt: Date;
+  locationLabel: string;
+  externalStatusLabel: string;
+  note: string | null;
+  clientName?: string | null;
+  listingTitle?: string | null;
+  now: Date;
+}) {
+  const context = input.clientName?.trim()
+    ? `Client ${input.clientName.trim()}`
+    : input.listingTitle?.trim()
+      ? `Listing ${input.listingTitle.trim()}`
+      : "Front Office appointment";
+  const timingLabel =
+    input.nextActionAt.getTime() < input.now.getTime()
+      ? `was due on ${formatDateTimeLabel(input.nextActionAt)}`
+      : `is due by ${formatDateTimeLabel(input.nextActionAt)}`;
+
+  return [
+    `${context} still needs ${input.externalStatusLabel.toLowerCase()} and ${timingLabel}.`,
+    input.locationLabel,
+    input.note?.trim() ? `Note: ${input.note.trim()}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export async function reconcileOfficeNotificationReminders(input: {
   organizationId: string;
   officeId?: string | null;
@@ -746,6 +823,7 @@ export async function reconcileOfficeNotificationReminders(input: {
   await prisma.$transaction(async (tx) => {
     const [
       dueSoonAppointments,
+      dueExternalTouchAppointments,
       expiringOffers,
       overdueFollowUpTasks,
       dueSoonOnboardingItems
@@ -783,6 +861,38 @@ export async function reconcileOfficeNotificationReminders(input: {
             }
           }
         }
+      }),
+      tx.appointment.findMany({
+        where: {
+          organizationId: input.organizationId,
+          ownerMembershipId: input.membershipId,
+          status: "scheduled",
+          startsAt: {
+            gte: now,
+          },
+          ...(getAppointmentReminderScopeFilter({
+            officeId: input.officeId ?? null,
+          }) ?? {}),
+        },
+        select: {
+          id: true,
+          title: true,
+          officeId: true,
+          startsAt: true,
+          location: true,
+          meetingUrl: true,
+          metadata: true,
+          client: {
+            select: {
+              fullName: true,
+            },
+          },
+          listing: {
+            select: {
+              title: true,
+            },
+          },
+        },
       }),
       tx.offer.findMany({
         where: {
@@ -858,8 +968,82 @@ export async function reconcileOfficeNotificationReminders(input: {
       })
     ]);
 
+    const dueExternalTouchAppointmentRecords = dueExternalTouchAppointments
+      .map((appointment) => {
+        const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
+          metadata: appointment.metadata,
+        });
+
+        if (
+          !externalWorkflow.nextActionAt ||
+          externalWorkflow.nextActionAt.getTime() > appointmentCutoff.getTime()
+        ) {
+          return null;
+        }
+
+        if (
+          externalWorkflow.value !==
+            frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp &&
+          externalWorkflow.value !==
+            frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending &&
+          externalWorkflow.value !==
+            frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+        ) {
+          return null;
+        }
+
+        return {
+          appointment,
+          externalWorkflow,
+        };
+      })
+      .filter((value): value is NonNullable<typeof value> => Boolean(value));
+
+    const appointmentReminderScopeWhere = {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      entityType: NotificationEntityType.appointment,
+      ...(getAppointmentReminderScopeFilter({
+        officeId: input.officeId ?? null,
+      }) ?? {}),
+    };
+    const dueSoonAppointmentIds = new Set(
+      dueSoonAppointments.map((appointment) => appointment.id),
+    );
+    const dueExternalTouchAppointmentIds = new Set(
+      dueExternalTouchAppointmentRecords.map(({ appointment }) => appointment.id),
+    );
+
+    await tx.notification.deleteMany({
+      where: {
+        ...appointmentReminderScopeWhere,
+        type: NotificationType.appointment_due_soon,
+        ...(dueSoonAppointmentIds.size
+          ? {
+              entityId: {
+                notIn: [...dueSoonAppointmentIds],
+              },
+            }
+          : {}),
+      },
+    });
+
+    await tx.notification.deleteMany({
+      where: {
+        ...appointmentReminderScopeWhere,
+        type: NotificationType.appointment_external_touch_due,
+        ...(dueExternalTouchAppointmentIds.size
+          ? {
+              entityId: {
+                notIn: [...dueExternalTouchAppointmentIds],
+              },
+            }
+          : {}),
+      },
+    });
+
     for (const appointment of dueSoonAppointments) {
-      await ensureNotificationForMemberships(tx, {
+      await upsertNotificationForMemberships(tx, {
         organizationId: input.organizationId,
         officeId: appointment.officeId ?? input.officeId ?? null,
         membershipIds: [input.membershipId],
@@ -885,7 +1069,50 @@ export async function reconcileOfficeNotificationReminders(input: {
           clientName: appointment.client?.fullName,
           listingTitle: appointment.listing?.title
         }),
-        actionUrl: "/agent/calendar"
+        actionUrl: `/agent/calendar?appointmentId=${appointment.id}`,
+        resetReadState: false,
+      });
+    }
+
+    for (const { appointment, externalWorkflow } of dueExternalTouchAppointmentRecords) {
+      await upsertNotificationForMemberships(tx, {
+        organizationId: input.organizationId,
+        officeId: appointment.officeId ?? input.officeId ?? null,
+        membershipIds: [input.membershipId],
+        type: NotificationType.appointment_external_touch_due,
+        category: NotificationCategory.event,
+        severity:
+          externalWorkflow.nextActionAt &&
+          externalWorkflow.nextActionAt.getTime() < now.getTime()
+            ? NotificationSeverity.critical
+            : NotificationSeverity.warning,
+        entityType: NotificationEntityType.appointment,
+        entityId: appointment.id,
+        title: buildAppointmentExternalTouchReminderTitle({
+          title: appointment.title,
+          externalStatus: externalWorkflow.value,
+          nextActionAt: externalWorkflow.nextActionAt!,
+          now,
+        }),
+        body: buildAppointmentExternalTouchReminderBody({
+          title: appointment.title,
+          nextActionAt: externalWorkflow.nextActionAt!,
+          locationLabel:
+            appointment.location?.trim() ||
+            appointment.meetingUrl?.trim() ||
+            "Location pending",
+          externalStatusLabel: externalWorkflow.label,
+          note: externalWorkflow.note,
+          clientName: appointment.client?.fullName,
+          listingTitle: appointment.listing?.title,
+          now,
+        }),
+        actionUrl: `/agent/calendar?appointmentId=${appointment.id}`,
+        metadata: {
+          externalStatus: externalWorkflow.value,
+          nextActionAt: externalWorkflow.nextActionAt!.toISOString(),
+        },
+        resetReadState: false,
       });
     }
 
@@ -1106,6 +1333,7 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
       ).length,
       timeSensitiveCount: unreadNotifications.filter((notification) =>
         notification.type === NotificationType.appointment_due_soon ||
+        notification.type === NotificationType.appointment_external_touch_due ||
         notification.type === NotificationType.offer_expiring_soon ||
         notification.type === NotificationType.follow_up_overdue ||
         notification.type === NotificationType.onboarding_due_soon

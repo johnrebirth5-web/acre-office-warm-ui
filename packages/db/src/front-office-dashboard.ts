@@ -664,6 +664,10 @@ function buildElapsedDayCount(value: Date, now: Date, minimum = 1) {
 }
 
 function formatNotificationType(type: NotificationType) {
+  if (type === NotificationType.appointment_external_touch_due) {
+    return "External touch due";
+  }
+
   return type
     .split("_")
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
