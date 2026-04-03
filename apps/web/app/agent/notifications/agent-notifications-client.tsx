@@ -26,6 +26,12 @@ type AgentNotificationFilter =
   | "all"
   | FrontOfficeActivityNotificationRecord["groupKey"];
 
+type AgentActivityView =
+  | "all"
+  | "personal_cleanup"
+  | "team_cleanup"
+  | "appointment_reminders"
+  | "general_notices";
 type AgentNotificationReadState = "all" | "unread" | "read";
 type AgentLeadershipCleanupFilter =
   | "all"
@@ -33,11 +39,23 @@ type AgentLeadershipCleanupFilter =
 
 type AgentNotificationsClientProps = {
   snapshot: FrontOfficeActivitySnapshot;
+  initialActivityView: AgentActivityView;
   initialFilter: AgentNotificationFilter;
   initialReadState: AgentNotificationReadState;
   initialTeamCleanupFilter: AgentLeadershipCleanupFilter;
   leadershipQueue: FrontOfficeDashboardSnapshot["leadershipQueue"];
 };
+
+const activityViewOptions: Array<{
+  value: AgentActivityView;
+  label: string;
+}> = [
+  { value: "all", label: "Full activity center" },
+  { value: "personal_cleanup", label: "Personal cleanup" },
+  { value: "team_cleanup", label: "Team cleanup" },
+  { value: "appointment_reminders", label: "Appointment reminders" },
+  { value: "general_notices", label: "General notices" },
+];
 
 const notificationFilterOptions: Array<{
   value: AgentNotificationFilter;
@@ -90,13 +108,33 @@ function leadershipItemMatchesFilter(
   return filter === "all" || item.kindKey === filter;
 }
 
+function normalizeNotificationFilterForActivityView(
+  activityView: AgentActivityView,
+  filter: AgentNotificationFilter,
+): AgentNotificationFilter {
+  if (activityView === "general_notices") {
+    return "general_notice";
+  }
+
+  if (activityView === "appointment_reminders" && filter === "general_notice") {
+    return "all";
+  }
+
+  return filter;
+}
+
 function buildAgentNotificationsHref(input: {
   pathname: string;
+  activityView: AgentActivityView;
   filter: AgentNotificationFilter;
   readState: AgentNotificationReadState;
   leadershipFilter: AgentLeadershipCleanupFilter;
 }) {
   const params = new URLSearchParams();
+
+  if (input.activityView !== "all") {
+    params.set("activityView", input.activityView);
+  }
 
   if (input.filter !== "all") {
     params.set("noticeFilter", input.filter);
@@ -116,6 +154,7 @@ function buildAgentNotificationsHref(input: {
 
 export function AgentNotificationsClient({
   snapshot,
+  initialActivityView,
   initialFilter,
   initialReadState,
   initialTeamCleanupFilter,
@@ -123,6 +162,8 @@ export function AgentNotificationsClient({
 }: AgentNotificationsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const [activeActivityView, setActiveActivityView] =
+    useState<AgentActivityView>(initialActivityView);
   const [activeFilter, setActiveFilter] =
     useState<AgentNotificationFilter>(initialFilter);
   const [activeReadState, setActiveReadState] =
@@ -133,17 +174,25 @@ export function AgentNotificationsClient({
   const [error, setError] = useState("");
 
   function updateFilters(
+    nextActivityView: AgentActivityView,
     nextFilter: AgentNotificationFilter,
     nextReadState: AgentNotificationReadState,
     nextLeadershipFilter: AgentLeadershipCleanupFilter,
   ) {
-    setActiveFilter(nextFilter);
+    const resolvedFilter = normalizeNotificationFilterForActivityView(
+      nextActivityView,
+      nextFilter,
+    );
+
+    setActiveActivityView(nextActivityView);
+    setActiveFilter(resolvedFilter);
     setActiveReadState(nextReadState);
     setActiveLeadershipFilter(nextLeadershipFilter);
     router.replace(
       buildAgentNotificationsHref({
         pathname,
-        filter: nextFilter,
+        activityView: nextActivityView,
+        filter: resolvedFilter,
         readState: nextReadState,
         leadershipFilter: nextLeadershipFilter,
       }),
@@ -185,8 +234,46 @@ export function AgentNotificationsClient({
   const appointmentSoonNoticeCount = snapshot.notifications.filter(
     (card) => card.groupKey === "appointment_soon",
   ).length;
+  const personalCleanupCount =
+    snapshot.cleanup.items.length + snapshot.cleanup.duplicatePairs.length;
+  const appointmentReminderCount = snapshot.notifications.filter(
+    (card) => card.groupKey !== "general_notice",
+  ).length;
+  const generalNoticeCount = snapshot.notifications.filter(
+    (card) => card.groupKey === "general_notice",
+  ).length;
   const filteredLeadershipItems = leadershipQueue.items.filter((item) =>
     leadershipItemMatchesFilter(item, activeLeadershipFilter),
+  );
+  const showPersonalCleanupSection =
+    activeActivityView === "all" || activeActivityView === "personal_cleanup";
+  const showTeamCleanupSection =
+    leadershipQueue.visible &&
+    (activeActivityView === "all" || activeActivityView === "team_cleanup");
+  const showNotificationControls =
+    activeActivityView === "all" ||
+    activeActivityView === "appointment_reminders" ||
+    activeActivityView === "general_notices";
+  const showTeamCleanupControls =
+    leadershipQueue.visible &&
+    (activeActivityView === "all" || activeActivityView === "team_cleanup");
+  const showAppointmentReminderSection =
+    activeActivityView === "all" ||
+    activeActivityView === "appointment_reminders";
+  const showGeneralNoticeSection =
+    activeActivityView === "all" || activeActivityView === "general_notices";
+  const visibleNotificationFilterOptions = notificationFilterOptions.filter(
+    (option) => {
+      if (activeActivityView === "general_notices") {
+        return option.value === "general_notice";
+      }
+
+      if (activeActivityView === "appointment_reminders") {
+        return option.value !== "general_notice";
+      }
+
+      return true;
+    },
   );
 
   async function handleNotificationAction(
@@ -273,28 +360,35 @@ export function AgentNotificationsClient({
     <>
       <SectionCard
         className="office-list-card office-notification-toolbar"
-        subtitle="Use reminder type and read-state filters to isolate one slice of pressure, then clear unread state as you work through the queue."
-        title="Notice controls"
+        subtitle="Choose one focus area for the current pass, then narrow reminder or leadership pressure without leaving the same activity route."
+        title="Activity controls"
       >
         <FilterBar className="office-notification-filter-grid office-list-filters">
-          <FilterField label="Reminder filter">
+          <FilterField label="Focus area">
             <SelectInput
               onChange={(event) =>
                 updateFilters(
-                  event.currentTarget.value as AgentNotificationFilter,
+                  event.currentTarget.value as AgentActivityView,
+                  activeFilter,
                   activeReadState,
                   activeLeadershipFilter,
                 )
               }
-              value={activeFilter}
+              value={activeActivityView}
             >
-              {notificationFilterOptions.map((option) => {
+              {activityViewOptions.map((option) => {
                 const count =
                   option.value === "all"
-                    ? snapshot.notifications.length
-                    : snapshot.notifications.filter(
-                        (card) => card.groupKey === option.value,
-                      ).length;
+                    ? personalCleanupCount +
+                      (leadershipQueue.visible ? leadershipQueue.items.length : 0) +
+                      snapshot.notifications.length
+                    : option.value === "personal_cleanup"
+                      ? personalCleanupCount
+                      : option.value === "team_cleanup"
+                        ? leadershipQueue.items.length
+                        : option.value === "appointment_reminders"
+                          ? appointmentReminderCount
+                          : generalNoticeCount;
 
                 return (
                   <option key={option.value} value={option.value}>
@@ -305,28 +399,63 @@ export function AgentNotificationsClient({
             </SelectInput>
           </FilterField>
 
-          <FilterField label="Read state">
-            <SelectInput
-              onChange={(event) =>
-                updateFilters(
-                  activeFilter,
-                  event.currentTarget.value as AgentNotificationReadState,
-                  activeLeadershipFilter,
-                )
-              }
-              value={activeReadState}
-            >
-              <option value="all">All</option>
-              <option value="unread">Unread only</option>
-              <option value="read">Read only</option>
-            </SelectInput>
-          </FilterField>
+          {showNotificationControls ? (
+            <FilterField label="Reminder filter">
+              <SelectInput
+                onChange={(event) =>
+                  updateFilters(
+                    activeActivityView,
+                    event.currentTarget.value as AgentNotificationFilter,
+                    activeReadState,
+                    activeLeadershipFilter,
+                  )
+                }
+                value={activeFilter}
+              >
+                {visibleNotificationFilterOptions.map((option) => {
+                  const count =
+                    option.value === "all"
+                      ? snapshot.notifications.length
+                      : snapshot.notifications.filter(
+                          (card) => card.groupKey === option.value,
+                        ).length;
 
-          {leadershipQueue.visible ? (
+                  return (
+                    <option key={option.value} value={option.value}>
+                      {option.label} ({count})
+                    </option>
+                  );
+                })}
+              </SelectInput>
+            </FilterField>
+          ) : null}
+
+          {showNotificationControls ? (
+            <FilterField label="Read state">
+              <SelectInput
+                onChange={(event) =>
+                  updateFilters(
+                    activeActivityView,
+                    activeFilter,
+                    event.currentTarget.value as AgentNotificationReadState,
+                    activeLeadershipFilter,
+                  )
+                }
+                value={activeReadState}
+              >
+                <option value="all">All</option>
+                <option value="unread">Unread only</option>
+                <option value="read">Read only</option>
+              </SelectInput>
+            </FilterField>
+          ) : null}
+
+          {showTeamCleanupControls ? (
             <FilterField label="Team cleanup">
               <SelectInput
                 onChange={(event) =>
                   updateFilters(
+                    activeActivityView,
                     activeFilter,
                     activeReadState,
                     event.currentTarget.value as AgentLeadershipCleanupFilter,
@@ -353,34 +482,38 @@ export function AgentNotificationsClient({
           ) : null}
 
           <div className="office-notification-filter-actions">
+            {showNotificationControls ? (
+              <Button
+                disabled={
+                  pendingAction === "mark_all_read" ||
+                  unreadVisibleNotificationIds.length === 0
+                }
+                onClick={() => {
+                  void handleBulkReadStateAction("mark_all_read");
+                }}
+                type="button"
+                variant="secondary"
+              >
+                Mark all in view as read
+              </Button>
+            ) : null}
+            {showNotificationControls ? (
+              <Button
+                disabled={
+                  pendingAction === "mark_all_unread" ||
+                  readVisibleNotificationIds.length === 0
+                }
+                onClick={() => {
+                  void handleBulkReadStateAction("mark_all_unread");
+                }}
+                type="button"
+                variant="secondary"
+              >
+                Mark all in view as unread
+              </Button>
+            ) : null}
             <Button
-              disabled={
-                pendingAction === "mark_all_read" ||
-                unreadVisibleNotificationIds.length === 0
-              }
-              onClick={() => {
-                void handleBulkReadStateAction("mark_all_read");
-              }}
-              type="button"
-              variant="secondary"
-            >
-              Mark all in view as read
-            </Button>
-            <Button
-              disabled={
-                pendingAction === "mark_all_unread" ||
-                readVisibleNotificationIds.length === 0
-              }
-              onClick={() => {
-                void handleBulkReadStateAction("mark_all_unread");
-              }}
-              type="button"
-              variant="secondary"
-            >
-              Mark all in view as unread
-            </Button>
-            <Button
-              onClick={() => updateFilters("all", "all", "all")}
+              onClick={() => updateFilters("all", "all", "all", "all")}
               type="button"
               variant="secondary"
             >
@@ -392,66 +525,68 @@ export function AgentNotificationsClient({
 
       {error ? <p className="office-form-error">{error}</p> : null}
 
-      <SectionCard
-        className="office-list-card"
-        subtitle="This queue keeps the highest-pressure cleanup signal per client visible in one place, including appointment follow-up, confirmation, reschedule pressure, and now the next external touch deadline, while duplicate review stays as a separate block so agents can clean the dossier before the next touch."
-        title="Cleanup center"
-      >
-        <ListPageStatsGrid>
-          {snapshot.cleanup.metrics.map((metric) => (
-            <StatCard
-              hint={metric.helper}
-              key={metric.label}
-              label={metric.label}
-              tone={
-                metric.tone === "accent" ||
-                metric.tone === "warning" ||
-                metric.tone === "danger"
-                  ? "accent"
-                  : "default"
-              }
-              value={metric.count}
-            />
-          ))}
-        </ListPageStatsGrid>
+      {showPersonalCleanupSection ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="This queue keeps the highest-pressure cleanup signal per client visible in one place, including appointment follow-up, confirmation, reschedule pressure, and now the next external touch deadline, while duplicate review stays as a separate block so agents can clean the dossier before the next touch."
+          title="Cleanup center"
+        >
+          <ListPageStatsGrid>
+            {snapshot.cleanup.metrics.map((metric) => (
+              <StatCard
+                hint={metric.helper}
+                key={metric.label}
+                label={metric.label}
+                tone={
+                  metric.tone === "accent" ||
+                  metric.tone === "warning" ||
+                  metric.tone === "danger"
+                    ? "accent"
+                    : "default"
+                }
+                value={metric.count}
+              />
+            ))}
+          </ListPageStatsGrid>
 
-        <div className="list-column front-office-record-list">
-          {snapshot.cleanup.items.length ? (
-            snapshot.cleanup.items.map((item) => (
-              <article
-                className={`list-row front-office-record tone-${item.tone}`}
-                key={item.id}
-              >
-                <div className="list-row-top front-office-record-head">
-                  <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.description}</p>
-                  </div>
-                  <StatusBadge tone={item.tone}>{item.kindLabel}</StatusBadge>
-                </div>
-                <div className="list-row-meta front-office-record-meta">
-                  {item.metaLabels.map((label) => (
-                    <span key={`${item.id}-${label}`}>{label}</span>
-                  ))}
-                </div>
-                <FrontOfficeLink
-                  className="office-inline-link front-office-inline-link"
-                  href={item.href}
+          <div className="list-column front-office-record-list">
+            {snapshot.cleanup.items.length ? (
+              snapshot.cleanup.items.map((item) => (
+                <article
+                  className={`list-row front-office-record tone-${item.tone}`}
+                  key={item.id}
                 >
-                  {item.actionLabel}
-                </FrontOfficeLink>
-              </article>
-            ))
-          ) : (
-            <EmptyState
-              description="When follow-ups, tracked sends, appointments, external writeback deadlines, or duplicate review start applying pressure, the highest-priority cleanup items will stack here first."
-              title="No cleanup pressure right now"
-            />
-          )}
-        </div>
-      </SectionCard>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>{item.description}</p>
+                    </div>
+                    <StatusBadge tone={item.tone}>{item.kindLabel}</StatusBadge>
+                  </div>
+                  <div className="list-row-meta front-office-record-meta">
+                    {item.metaLabels.map((label) => (
+                      <span key={`${item.id}-${label}`}>{label}</span>
+                    ))}
+                  </div>
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={item.href}
+                  >
+                    {item.actionLabel}
+                  </FrontOfficeLink>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description="When follow-ups, tracked sends, appointments, external writeback deadlines, or duplicate review start applying pressure, the highest-priority cleanup items will stack here first."
+                title="No cleanup pressure right now"
+              />
+            )}
+          </div>
+        </SectionCard>
+      ) : null}
 
-      {leadershipQueue.visible ? (
+      {showTeamCleanupSection ? (
         <SectionCard
           className="office-list-card"
           id="team-cleanup-pressure"
@@ -519,201 +654,205 @@ export function AgentNotificationsClient({
         </SectionCard>
       ) : null}
 
-      {snapshot.cleanup.duplicatePairs.length ? (
+      {showPersonalCleanupSection && snapshot.cleanup.duplicatePairs.length ? (
         <FrontOfficeClientDuplicatesCard
           duplicatePairs={snapshot.cleanup.duplicatePairs}
         />
       ) : null}
 
-      <SectionCard
-        className="office-list-card"
-        subtitle="Calendar-linked reminder notices now stay separate from the broader notice stream, so confirmation, reschedule, external follow-up, and near-term appointment pressure can be scanned without mixing them into every other office notice."
-        title="Appointment reminder pressure"
-      >
-        <ListPageStatsGrid>
-          <StatCard
-            hint="Appointments waiting on an explicit client confirmation deadline."
-            label="Confirmation due"
-            tone={confirmationDueCount > 0 ? "accent" : "default"}
-            value={confirmationDueCount}
-          />
-          <StatCard
-            hint="Appointments where the client asked to reschedule and the next writeback touch is due."
-            label="Reschedule follow-up"
-            tone={rescheduleDueCount > 0 ? "accent" : "default"}
-            value={rescheduleDueCount}
-          />
-          <StatCard
-            hint="External follow-up deadlines driven by appointment writeback instead of the meeting start alone."
-            label="External touch due"
-            tone={externalTouchDueCount > 0 ? "accent" : "default"}
-            value={externalTouchDueCount}
-          />
-          <StatCard
-            hint="Near-term appointments that are surfacing because the meeting itself is coming up."
-            label="Appointment soon"
-            tone={appointmentSoonNoticeCount > 0 ? "accent" : "default"}
-            value={appointmentSoonNoticeCount}
-          />
-        </ListPageStatsGrid>
+      {showAppointmentReminderSection ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="Calendar-linked reminder notices now stay separate from the broader notice stream, so confirmation, reschedule, external follow-up, and near-term appointment pressure can be scanned without mixing them into every other office notice."
+          title="Appointment reminder pressure"
+        >
+          <ListPageStatsGrid>
+            <StatCard
+              hint="Appointments waiting on an explicit client confirmation deadline."
+              label="Confirmation due"
+              tone={confirmationDueCount > 0 ? "accent" : "default"}
+              value={confirmationDueCount}
+            />
+            <StatCard
+              hint="Appointments where the client asked to reschedule and the next writeback touch is due."
+              label="Reschedule follow-up"
+              tone={rescheduleDueCount > 0 ? "accent" : "default"}
+              value={rescheduleDueCount}
+            />
+            <StatCard
+              hint="External follow-up deadlines driven by appointment writeback instead of the meeting start alone."
+              label="External touch due"
+              tone={externalTouchDueCount > 0 ? "accent" : "default"}
+              value={externalTouchDueCount}
+            />
+            <StatCard
+              hint="Near-term appointments that are surfacing because the meeting itself is coming up."
+              label="Appointment soon"
+              tone={appointmentSoonNoticeCount > 0 ? "accent" : "default"}
+              value={appointmentSoonNoticeCount}
+            />
+          </ListPageStatsGrid>
 
-        <div className="office-notification-list">
-          {appointmentReminderCards.length ? (
-            appointmentReminderCards.map((card) => (
-              <article
-                className={[
-                  "office-notification-row",
-                  card.isUnread ? "is-unread" : "",
-                  card.tone === "danger" ? "is-critical" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                key={card.id}
-              >
-                <div className="office-notification-row-copy">
-                  <div className="office-notification-row-head">
-                    <div className="office-notification-row-title">
-                      <span
-                        aria-hidden={!card.isUnread}
-                        className="office-notification-unread-dot"
-                      />
-                      <strong>{card.title}</strong>
+          <div className="office-notification-list">
+            {appointmentReminderCards.length ? (
+              appointmentReminderCards.map((card) => (
+                <article
+                  className={[
+                    "office-notification-row",
+                    card.isUnread ? "is-unread" : "",
+                    card.tone === "danger" ? "is-critical" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  key={card.id}
+                >
+                  <div className="office-notification-row-copy">
+                    <div className="office-notification-row-head">
+                      <div className="office-notification-row-title">
+                        <span
+                          aria-hidden={!card.isUnread}
+                          className="office-notification-unread-dot"
+                        />
+                        <strong>{card.title}</strong>
+                      </div>
+
+                      <div className="office-notification-row-meta">
+                        <Badge tone={card.tone === "danger" ? "danger" : "warning"}>
+                          {card.groupLabel}
+                        </Badge>
+                        <span>{card.createdAtLabel}</span>
+                        <span>{card.typeLabel}</span>
+                        <span>{card.isUnread ? "Unread" : "In view"}</span>
+                      </div>
                     </div>
 
-                    <div className="office-notification-row-meta">
-                      <Badge tone={card.tone === "danger" ? "danger" : "warning"}>
-                        {card.groupLabel}
-                      </Badge>
-                      <span>{card.createdAtLabel}</span>
-                      <span>{card.typeLabel}</span>
-                      <span>{card.isUnread ? "Unread" : "In view"}</span>
-                    </div>
+                    <p>{card.body}</p>
                   </div>
 
-                  <p>{card.body}</p>
-                </div>
+                  <div className="office-notification-row-actions">
+                    <FrontOfficeLink className="office-button-secondary office-button-sm" href={card.href}>
+                      {card.actionLabel}
+                    </FrontOfficeLink>
+                    <Button
+                      disabled={
+                        pendingAction === `mark_read:${card.id}` ||
+                        pendingAction === `mark_unread:${card.id}`
+                      }
+                      onClick={() => {
+                        void handleNotificationAction(
+                          card.id,
+                          card.isUnread ? "mark_read" : "mark_unread",
+                        );
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {card.isUnread ? "Mark read" : "Mark unread"}
+                    </Button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description={
+                  activeFilter === "all" ||
+                  activeFilter === "general_notice"
+                    ? "Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters the inbox layer."
+                    : activeReadState === "all"
+                      ? "No appointment reminder notices match the current filter."
+                      : "No appointment reminder notices match the current reminder filter and read-state view."
+                }
+                title="No appointment reminder notices"
+              />
+            )}
+          </div>
+        </SectionCard>
+      ) : null}
 
-                <div className="office-notification-row-actions">
-                  <FrontOfficeLink className="office-button-secondary office-button-sm" href={card.href}>
-                    {card.actionLabel}
-                  </FrontOfficeLink>
-                  <Button
-                    disabled={
-                      pendingAction === `mark_read:${card.id}` ||
-                      pendingAction === `mark_unread:${card.id}`
-                    }
-                    onClick={() => {
-                      void handleNotificationAction(
-                        card.id,
-                        card.isUnread ? "mark_read" : "mark_unread",
-                      );
-                    }}
-                    size="sm"
-                    type="button"
-                    variant="secondary"
-                  >
-                    {card.isUnread ? "Mark read" : "Mark unread"}
-                  </Button>
-                </div>
-              </article>
-            ))
-          ) : (
-            <EmptyState
-              description={
-                activeFilter === "all" ||
-                activeFilter === "general_notice"
-                  ? "Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters the inbox layer."
-                  : activeReadState === "all"
-                    ? "No appointment reminder notices match the current filter."
-                    : "No appointment reminder notices match the current reminder filter and read-state view."
-              }
-              title="No appointment reminder notices"
-            />
-          )}
-        </div>
-      </SectionCard>
+      {showGeneralNoticeSection ? (
+        <SectionCard
+          className="office-list-card"
+          subtitle="This stream now stays focused on the remaining Front Office notices after appointment reminder pressure has been split into its own queue."
+          title="Notice stream"
+        >
+          <div className="office-notification-list">
+            {generalNoticeCards.length ? (
+              generalNoticeCards.map((card) => (
+                <article
+                  className={[
+                    "office-notification-row",
+                    card.isUnread ? "is-unread" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  key={card.id}
+                >
+                  <div className="office-notification-row-copy">
+                    <div className="office-notification-row-head">
+                      <div className="office-notification-row-title">
+                        <span
+                          aria-hidden={!card.isUnread}
+                          className="office-notification-unread-dot"
+                        />
+                        <strong>{card.title}</strong>
+                      </div>
 
-      <SectionCard
-        className="office-list-card"
-        subtitle="This stream now stays focused on the remaining Front Office notices after appointment reminder pressure has been split into its own queue."
-        title="Notice stream"
-      >
-        <div className="office-notification-list">
-          {generalNoticeCards.length ? (
-            generalNoticeCards.map((card) => (
-              <article
-                className={[
-                  "office-notification-row",
-                  card.isUnread ? "is-unread" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                key={card.id}
-              >
-                <div className="office-notification-row-copy">
-                  <div className="office-notification-row-head">
-                    <div className="office-notification-row-title">
-                      <span
-                        aria-hidden={!card.isUnread}
-                        className="office-notification-unread-dot"
-                      />
-                      <strong>{card.title}</strong>
+                      <div className="office-notification-row-meta">
+                        <Badge tone={card.isUnread ? "accent" : "neutral"}>
+                          {card.groupLabel}
+                        </Badge>
+                        <span>{card.typeLabel}</span>
+                        <span>{card.createdAtLabel}</span>
+                        <span>{card.actionLabel}</span>
+                      </div>
                     </div>
 
-                    <div className="office-notification-row-meta">
-                      <Badge tone={card.isUnread ? "accent" : "neutral"}>
-                        {card.groupLabel}
-                      </Badge>
-                      <span>{card.typeLabel}</span>
-                      <span>{card.createdAtLabel}</span>
-                      <span>{card.actionLabel}</span>
-                    </div>
+                    <p>{card.body}</p>
                   </div>
 
-                  <p>{card.body}</p>
-                </div>
-
-                <div className="office-notification-row-actions">
-                  <FrontOfficeLink
-                    className="office-button-secondary office-button-sm"
-                    href={card.href}
-                  >
-                    Open notice
-                  </FrontOfficeLink>
-                  <Button
-                    disabled={
-                      pendingAction === `mark_read:${card.id}` ||
-                      pendingAction === `mark_unread:${card.id}`
-                    }
-                    onClick={() => {
-                      void handleNotificationAction(
-                        card.id,
-                        card.isUnread ? "mark_read" : "mark_unread",
-                      );
-                    }}
-                    size="sm"
-                    type="button"
-                    variant="secondary"
-                  >
-                    {card.isUnread ? "Mark read" : "Mark unread"}
-                  </Button>
-                </div>
-              </article>
-            ))
-          ) : (
-            <EmptyState
-              description={
-                activeFilter === "all" || activeFilter === "general_notice"
-                  ? "Broader Front Office notices will appear here after appointment reminder pressure has been handled or when non-calendar notices are available."
-                  : activeReadState === "all"
-                    ? "No general notices match the current filter."
-                    : "No general notices match the current reminder filter and read-state view."
-              }
-              title="No general notices"
-            />
-          )}
-        </div>
-      </SectionCard>
+                  <div className="office-notification-row-actions">
+                    <FrontOfficeLink
+                      className="office-button-secondary office-button-sm"
+                      href={card.href}
+                    >
+                      Open notice
+                    </FrontOfficeLink>
+                    <Button
+                      disabled={
+                        pendingAction === `mark_read:${card.id}` ||
+                        pendingAction === `mark_unread:${card.id}`
+                      }
+                      onClick={() => {
+                        void handleNotificationAction(
+                          card.id,
+                          card.isUnread ? "mark_read" : "mark_unread",
+                        );
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {card.isUnread ? "Mark read" : "Mark unread"}
+                    </Button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description={
+                  activeFilter === "all" || activeFilter === "general_notice"
+                    ? "Broader Front Office notices will appear here after appointment reminder pressure has been handled or when non-calendar notices are available."
+                    : activeReadState === "all"
+                      ? "No general notices match the current filter."
+                      : "No general notices match the current reminder filter and read-state view."
+                }
+                title="No general notices"
+              />
+            )}
+          </div>
+        </SectionCard>
+      ) : null}
     </>
   );
 }

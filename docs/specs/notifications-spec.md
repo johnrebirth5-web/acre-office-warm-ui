@@ -158,6 +158,7 @@ Those Agent-side notice links now also open through a dedicated read-through pag
 The Agent-side reminder filter and read-state view now also persist in the route query string, so the current inbox slice can be refreshed or reopened without losing context.
 For team leads and office admins, `/agent/notifications` now also includes a dedicated team-cleanup section in the main activity stack, while the rail keeps a lighter leadership summary so team pressure is not trapped on `/agent/dashboard` only.
 That same route now also persists a team-cleanup filter in the query string, so leadership users can reopen the activity center directly into overdue-task, stale-client, or send-trail-risk pressure without resetting to the mixed queue.
+That same route now also persists an `activityView` focus state in the query string, so the page can reopen directly into personal cleanup, team cleanup, appointment reminders, or general notices instead of always rendering the full mixed center first.
 
 ## Current limitations
 

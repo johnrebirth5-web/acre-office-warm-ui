@@ -20,12 +20,20 @@ import { AgentNotificationsClient } from "./agent-notifications-client";
 
 type AgentNotificationsPageProps = {
   searchParams?: Promise<{
+    activityView?: string;
     noticeFilter?: string;
     readState?: string;
     teamCleanupFilter?: string;
   }>;
 };
 
+const allowedActivityViews = new Set([
+  "all",
+  "personal_cleanup",
+  "team_cleanup",
+  "appointment_reminders",
+  "general_notices",
+]);
 const allowedNoticeFilters = new Set([
   "all",
   "confirmation_due",
@@ -82,6 +90,16 @@ export default async function AgentNotificationsPage(
     }),
   ]);
   const searchParams = (await props.searchParams) ?? {};
+  const initialActivityView = allowedActivityViews.has(
+    searchParams.activityView ?? "",
+  )
+    ? (searchParams.activityView as
+        | "all"
+        | "personal_cleanup"
+        | "team_cleanup"
+        | "appointment_reminders"
+        | "general_notices")
+    : "all";
   const initialFilter = allowedNoticeFilters.has(searchParams.noticeFilter ?? "")
     ? (searchParams.noticeFilter as
         | "all"
@@ -109,6 +127,10 @@ export default async function AgentNotificationsPage(
   const filteredLeadershipItems = dashboardSnapshot.leadershipQueue.items.filter(
     (item) => leadershipItemMatchesFilter(item, initialTeamCleanupFilter),
   );
+  const leadershipQueueHref =
+    initialTeamCleanupFilter === "all"
+      ? "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure"
+      : `/agent/notifications?activityView=team_cleanup&teamCleanupFilter=${initialTeamCleanupFilter}#team-cleanup-pressure`;
 
   return (
     <FrontOfficePageTemplate
@@ -116,6 +138,7 @@ export default async function AgentNotificationsPage(
       eyebrow="Activity"
       main={
         <AgentNotificationsClient
+          initialActivityView={initialActivityView}
           initialFilter={initialFilter}
           initialReadState={initialReadState}
           initialTeamCleanupFilter={initialTeamCleanupFilter}
@@ -170,7 +193,7 @@ export default async function AgentNotificationsPage(
               actions={
                 <FrontOfficeLink
                   className="office-inline-link front-office-inline-link"
-                  href="#team-cleanup-pressure"
+                  href={leadershipQueueHref}
                 >
                   Open full queue
                 </FrontOfficeLink>

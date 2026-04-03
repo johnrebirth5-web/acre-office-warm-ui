@@ -138,6 +138,7 @@ Current implementation priority note:
 - those FO activity filters now also persist in the route URL, so reminder-type and read-state views can survive refreshes and be reopened in the same focused state instead of snapping back to the default stack every time
 - for team leads and office admins, that same FO activity route now also surfaces the existing leadership cleanup queue in both the main activity stack and a supporting rail summary, so overdue tasks, stale clients, and quiet send trails can be reviewed beside the personal cleanup stack instead of requiring a return trip to the dashboard
 - that same leadership cleanup layer can now also be focused by pressure type on the same route, so a lead or admin can reopen `/agent/notifications` directly into overdue tasks, stale dossiers, or send-trail risk instead of re-scanning the full mixed queue every time
+- that same activity route now also supports a route-persistent `focus area` view, so agents can reopen the page directly into personal cleanup, team cleanup, appointment reminders, or broader notices instead of always landing in the full mixed center first
 - keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
 
 ### Phase 2
