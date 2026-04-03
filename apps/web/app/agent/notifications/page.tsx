@@ -1,5 +1,8 @@
 import { getDefaultAppPath, hasAnyPermission } from "@acre/auth";
-import { getFrontOfficeActivitySnapshot } from "@acre/db";
+import {
+  getFrontOfficeActivitySnapshot,
+  getFrontOfficeDashboardSnapshot,
+} from "@acre/db";
 import { EmptyState, SectionCard, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
@@ -42,12 +45,21 @@ export default async function AgentNotificationsPage(
     redirect(getDefaultAppPath(context.currentMembership));
   }
 
-  const snapshot = await getFrontOfficeActivitySnapshot({
-    organizationId: context.currentOrganization.id,
-    viewerMembershipId: context.currentMembership.id,
-    officeId: context.currentOffice?.id ?? null,
-    timeZone: context.currentUser.timezone
-  });
+  const [snapshot, dashboardSnapshot] = await Promise.all([
+    getFrontOfficeActivitySnapshot({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
+    }),
+    getFrontOfficeDashboardSnapshot({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      viewerRole: context.currentMembership.role,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
+    }),
+  ]);
   const searchParams = (await props.searchParams) ?? {};
   const initialFilter = allowedNoticeFilters.has(searchParams.noticeFilter ?? "")
     ? (searchParams.noticeFilter as
@@ -117,6 +129,42 @@ export default async function AgentNotificationsPage(
             </div>
           </SectionCard>
 
+          {dashboardSnapshot.leadershipQueue.visible ? (
+            <SectionCard
+              className="office-list-card"
+              subtitle="Team leads and office admins should still be able to scan overdue tasks, stale clients, and quiet send trails from the same activity center they already use for personal cleanup."
+              title={dashboardSnapshot.leadershipQueue.scopeLabel}
+            >
+              <div className="office-queue-list">
+                {dashboardSnapshot.leadershipQueue.items.length ? (
+                  dashboardSnapshot.leadershipQueue.items.map((item) => (
+                    <FrontOfficeRailItem
+                      action={
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={item.href}
+                        >
+                          {item.actionLabel}
+                        </FrontOfficeLink>
+                      }
+                      badgeLabel={item.contextLabel}
+                      badgeTone={item.tone}
+                      description={item.description}
+                      key={item.id}
+                      title={item.title}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    className="front-office-inline-empty"
+                    description="No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
+                    title="Leadership queue is clear"
+                  />
+                )}
+              </div>
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             className="office-list-card"
             subtitle="The center should stay practical: clean the record, move the next touch, and keep formal ops in Back Office."
@@ -153,6 +201,13 @@ export default async function AgentNotificationsPage(
           <SummaryChip label="Appointments soon" value={snapshot.summary.appointmentSoonCount} />
           <SummaryChip label="Unread notices" value={snapshot.summary.unreadNoticeCount} />
           <SummaryChip label="Upcoming events" value={snapshot.summary.upcomingEventCount} />
+          {dashboardSnapshot.leadershipQueue.visible ? (
+            <SummaryChip
+              label="Leadership pressure"
+              tone="accent"
+              value={dashboardSnapshot.summary.leadershipPressureCount}
+            />
+          ) : null}
         </>
       }
       title="Activity & cleanup"
