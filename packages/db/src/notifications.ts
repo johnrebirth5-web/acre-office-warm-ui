@@ -1417,6 +1417,7 @@ export async function openOfficeNotification(input: {
   officeId?: string | null;
   membershipId: string;
   notificationId: string;
+  fallbackUrl?: string;
 }) {
   const notification = await prisma.notification.findFirst({
     where: buildNotificationScopedWhere(input),
@@ -1442,5 +1443,5 @@ export async function openOfficeNotification(input: {
     });
   }
 
-  return getRelativeUrl(notification.actionUrl) || "/office/notifications";
+  return getRelativeUrl(notification.actionUrl) || getRelativeUrl(input.fallbackUrl) || "/office/notifications";
 }

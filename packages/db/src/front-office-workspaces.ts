@@ -2485,7 +2485,7 @@ export async function getFrontOfficeActivitySnapshot(
           actionUrl: notification.actionUrl?.trim() || null,
           groupKey: group.groupKey,
         }),
-        href: notification.actionUrl?.trim() || "/agent/notifications",
+        href: `/agent/notifications/${notification.id}/open`,
         isUnread: notification.readAt == null,
       };
     }),

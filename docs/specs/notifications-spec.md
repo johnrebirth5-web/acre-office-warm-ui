@@ -153,6 +153,7 @@ Notifications currently link to the nearest real actionable page:
 If the product does not yet have a more precise queue or sub-route, the notification links to the closest practical page instead of faking a nonexistent destination.
 
 On `/agent/notifications`, appointment-linked reminders now render in a dedicated reminder-pressure block before the broader notice stream, so confirmation, reschedule, external follow-up, and near-term appointment pressure do not disappear inside a generic inbox list.
+Those Agent-side notice links now also open through a dedicated read-through page, so clicking a Front Office reminder marks it read before redirecting to the calendar, dossier, or nearest actionable route.
 
 ## Current limitations
 
