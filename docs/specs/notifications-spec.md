@@ -154,7 +154,7 @@ If the product does not yet have a more precise queue or sub-route, the notifica
 
 On `/agent/notifications`, appointment-linked reminders now render in a dedicated reminder-pressure block before the broader notice stream, so confirmation, reschedule, external follow-up, and near-term appointment pressure do not disappear inside a generic inbox list.
 Those Agent-side notice links now also open through a dedicated read-through page, so clicking a Front Office reminder marks it read before redirecting to the calendar, dossier, or nearest actionable route.
-`/agent/notifications` now also exposes a lightweight reminder filter plus read/unread actions for the visible notice stack, including a mark-all-read action scoped to the currently visible Agent-side cards.
+`/agent/notifications` now also exposes a lightweight reminder filter plus read/unread actions for the visible notice stack, including mark-all-read and mark-all-unread actions scoped to the currently visible Agent-side cards.
 The Agent-side reminder filter and read-state view now also persist in the route query string, so the current inbox slice can be refreshed or reopened without losing context.
 
 ## Current limitations

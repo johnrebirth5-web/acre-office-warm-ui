@@ -135,6 +135,9 @@ export function AgentNotificationsClient({
   const unreadVisibleNotificationIds = visibleNotificationCards
     .filter((card) => card.isUnread)
     .map((card) => card.id);
+  const readVisibleNotificationIds = visibleNotificationCards
+    .filter((card) => !card.isUnread)
+    .map((card) => card.id);
   const confirmationDueCount = snapshot.notifications.filter(
     (card) => card.groupKey === "confirmation_due",
   ).length;
@@ -183,8 +186,8 @@ export function AgentNotificationsClient({
     }
   }
 
-  async function handleMarkAllRead() {
-    setPendingAction("mark-all");
+  async function handleBulkReadStateAction(action: "mark_all_read" | "mark_all_unread") {
+    setPendingAction(action);
     setError("");
 
     try {
@@ -194,8 +197,11 @@ export function AgentNotificationsClient({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          action: "mark_all_read",
-          notificationIds: unreadVisibleNotificationIds,
+          action,
+          notificationIds:
+            action === "mark_all_read"
+              ? unreadVisibleNotificationIds
+              : readVisibleNotificationIds,
         }),
       });
 
@@ -203,7 +209,12 @@ export function AgentNotificationsClient({
         const body = (await response.json().catch(() => null)) as
           | { error?: string }
           | null;
-        throw new Error(body?.error ?? "Mark-all action failed.");
+        throw new Error(
+          body?.error ??
+            (action === "mark_all_read"
+              ? "Mark-all-read action failed."
+              : "Mark-all-unread action failed."),
+        );
       }
 
       router.refresh();
@@ -211,7 +222,9 @@ export function AgentNotificationsClient({
       setError(
         actionError instanceof Error
           ? actionError.message
-          : "Mark-all action failed.",
+          : action === "mark_all_read"
+            ? "Mark-all-read action failed."
+            : "Mark-all-unread action failed.",
       );
     } finally {
       setPendingAction(null);
@@ -272,16 +285,29 @@ export function AgentNotificationsClient({
           <div className="office-notification-filter-actions">
             <Button
               disabled={
-                pendingAction === "mark-all" ||
+                pendingAction === "mark_all_read" ||
                 unreadVisibleNotificationIds.length === 0
               }
               onClick={() => {
-                void handleMarkAllRead();
+                void handleBulkReadStateAction("mark_all_read");
               }}
               type="button"
               variant="secondary"
             >
               Mark all in view as read
+            </Button>
+            <Button
+              disabled={
+                pendingAction === "mark_all_unread" ||
+                readVisibleNotificationIds.length === 0
+              }
+              onClick={() => {
+                void handleBulkReadStateAction("mark_all_unread");
+              }}
+              type="button"
+              variant="secondary"
+            >
+              Mark all in view as unread
             </Button>
             <Button
               onClick={() => updateFilters("all", "all")}

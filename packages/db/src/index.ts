@@ -142,6 +142,7 @@ export {
   listOfficeNotifications,
   markAllOfficeNotificationsRead,
   markOfficeNotificationsReadByIds,
+  markOfficeNotificationsUnreadByIds,
   markOfficeNotificationRead,
   markOfficeNotificationUnread,
   openOfficeNotification,
