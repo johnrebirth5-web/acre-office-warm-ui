@@ -133,6 +133,7 @@ Current implementation priority note:
 - that writeback layer now also supports an explicit `next external touch` timestamp plus note, so appointment cleanup can rise on the promised confirmation / reschedule deadline instead of only the event start time
 - that same promised external touch deadline now also flows into the inbox reminder layer, so confirmation or reschedule pressure can reach the dashboard / notifications notice stream instead of staying cleanup-only
 - `/agent/notifications` now also acts as the first unified `Activity + Cleanup Center`, so due follow-up, stale clients, tracked-send risk, duplicate review, near-term appointments, notices, and shared office events can now be scanned from one FO route instead of staying split across dashboard-only and notice-only surfaces
+- that same FO activity route now also separates `appointment reminder pressure` from broader notices, so `confirmation due`, `reschedule follow-up`, `external touch due`, and `appointment soon` can be reviewed as a focused writeback queue instead of hiding inside one generic notice stream
 - keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
 
 ### Phase 2

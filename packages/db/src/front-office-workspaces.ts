@@ -2,6 +2,7 @@ import {
   AppointmentStatus,
   AppointmentType,
   ListingStatus,
+  NotificationSeverity,
   NotificationType,
   Prisma,
   ResourceType,
@@ -191,9 +192,19 @@ export type FrontOfficeResourcesSnapshot = {
 
 export type FrontOfficeActivityNotificationRecord = {
   id: string;
+  type: NotificationType;
   title: string;
   body: string;
   typeLabel: string;
+  groupKey:
+    | "appointment_soon"
+    | "confirmation_due"
+    | "reschedule_due"
+    | "external_touch_due"
+    | "general_notice";
+  groupLabel: string;
+  tone: FrontOfficeTone;
+  createdAtLabel: string;
   actionLabel: string;
   href: string;
   isUnread: boolean;
@@ -864,6 +875,105 @@ function formatNotificationType(type: NotificationType) {
     .split("_")
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
+}
+
+function mapNotificationSeverityTone(
+  severity: NotificationSeverity | null | undefined,
+): FrontOfficeTone {
+  if (severity === NotificationSeverity.critical) {
+    return "danger";
+  }
+
+  if (severity === NotificationSeverity.warning) {
+    return "warning";
+  }
+
+  return "accent";
+}
+
+function readNotificationMetadataString(
+  metadata: Prisma.JsonValue | null | undefined,
+  key: string,
+) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, Prisma.JsonValue>;
+  const value = record[key];
+
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getFrontOfficeNotificationGroup(input: {
+  type: NotificationType;
+  metadata: Prisma.JsonValue | null | undefined;
+}) {
+  if (input.type === NotificationType.appointment_due_soon) {
+    return {
+      groupKey: "appointment_soon" as const,
+      groupLabel: "Appointment soon",
+    };
+  }
+
+  if (input.type === NotificationType.appointment_external_touch_due) {
+    const externalStatus = readNotificationMetadataString(
+      input.metadata,
+      "externalStatus",
+    );
+
+    if (
+      externalStatus ===
+      frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending
+    ) {
+      return {
+        groupKey: "confirmation_due" as const,
+        groupLabel: "Confirmation due",
+      };
+    }
+
+    if (
+      externalStatus ===
+      frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+    ) {
+      return {
+        groupKey: "reschedule_due" as const,
+        groupLabel: "Reschedule follow-up",
+      };
+    }
+
+    return {
+      groupKey: "external_touch_due" as const,
+      groupLabel: "External touch due",
+    };
+  }
+
+  return {
+    groupKey: "general_notice" as const,
+    groupLabel: "General notice",
+  };
+}
+
+function getFrontOfficeNotificationActionLabel(input: {
+  type: NotificationType;
+  actionUrl: string | null;
+  groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+}) {
+  if (input.type === NotificationType.appointment_due_soon) {
+    return "Open calendar item";
+  }
+
+  if (input.type === NotificationType.appointment_external_touch_due) {
+    return input.groupKey === "confirmation_due"
+      ? "Open confirmation writeback"
+      : input.groupKey === "reschedule_due"
+        ? "Open reschedule writeback"
+        : "Open calendar writeback";
+  }
+
+  return input.actionUrl?.trim()
+    ? "Open notice"
+    : formatNotificationType(input.type);
 }
 
 function formatResourceType(type: ResourceType) {
@@ -1694,10 +1804,13 @@ export async function getFrontOfficeActivitySnapshot(
       select: {
         id: true,
         type: true,
+        severity: true,
+        metadata: true,
         title: true,
         body: true,
         actionUrl: true,
         readAt: true,
+        createdAt: true,
       },
     }),
     prisma.notification.count({
@@ -2346,17 +2459,36 @@ export async function getFrontOfficeActivitySnapshot(
       duplicateReviewCount: duplicatePairs.length,
       appointmentSoonCount,
     },
-    notifications: notifications.map((notification) => ({
-      id: notification.id,
-      title: notification.title,
-      body: notification.body,
-      typeLabel: formatNotificationType(notification.type),
-      actionLabel: notification.actionUrl?.trim()
-        ? "Open notice"
-        : formatNotificationType(notification.type),
-      href: notification.actionUrl?.trim() || "/agent/notifications",
-      isUnread: notification.readAt == null,
-    })),
+    notifications: notifications.map((notification) => {
+      const group = getFrontOfficeNotificationGroup({
+        type: notification.type,
+        metadata: notification.metadata,
+      });
+
+      return {
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        body: notification.body,
+        typeLabel: formatNotificationType(notification.type),
+        groupKey: group.groupKey,
+        groupLabel: group.groupLabel,
+        tone:
+          notification.type === NotificationType.appointment_due_soon
+            ? "accent"
+            : mapNotificationSeverityTone(notification.severity),
+        createdAtLabel: formatDateTimeLabel(notification.createdAt, {
+          timeZone: input.timeZone ?? null,
+        }),
+        actionLabel: getFrontOfficeNotificationActionLabel({
+          type: notification.type,
+          actionUrl: notification.actionUrl?.trim() || null,
+          groupKey: group.groupKey,
+        }),
+        href: notification.actionUrl?.trim() || "/agent/notifications",
+        isUnread: notification.readAt == null,
+      };
+    }),
     events: events.map((event) => ({
       id: event.id,
       title: event.title,

@@ -36,6 +36,24 @@ export default async function AgentNotificationsPage() {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone
   });
+  const appointmentReminderCards = snapshot.notifications.filter(
+    (card) => card.groupKey !== "general_notice",
+  );
+  const generalNoticeCards = snapshot.notifications.filter(
+    (card) => card.groupKey === "general_notice",
+  );
+  const confirmationDueCount = appointmentReminderCards.filter(
+    (card) => card.groupKey === "confirmation_due",
+  ).length;
+  const rescheduleDueCount = appointmentReminderCards.filter(
+    (card) => card.groupKey === "reschedule_due",
+  ).length;
+  const externalTouchDueCount = appointmentReminderCards.filter(
+    (card) => card.groupKey === "external_touch_due",
+  ).length;
+  const appointmentSoonNoticeCount = appointmentReminderCards.filter(
+    (card) => card.groupKey === "appointment_soon",
+  ).length;
 
   return (
     <FrontOfficePageTemplate
@@ -110,12 +128,77 @@ export default async function AgentNotificationsPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="This stream still keeps live notices and reminders readable, but it now sits underneath the cleanup queue instead of being the only activity surface."
+            subtitle="Calendar-linked reminder notices now stay separate from the broader notice stream, so confirmation, reschedule, external follow-up, and near-term appointment pressure can be scanned without mixing them into every other office notice."
+            title="Appointment reminder pressure"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="Appointments waiting on an explicit client confirmation deadline."
+                label="Confirmation due"
+                tone={confirmationDueCount > 0 ? "accent" : "default"}
+                value={confirmationDueCount}
+              />
+              <StatCard
+                hint="Appointments where the client asked to reschedule and the next writeback touch is due."
+                label="Reschedule follow-up"
+                tone={rescheduleDueCount > 0 ? "accent" : "default"}
+                value={rescheduleDueCount}
+              />
+              <StatCard
+                hint="External follow-up deadlines driven by appointment writeback instead of the meeting start alone."
+                label="External touch due"
+                tone={externalTouchDueCount > 0 ? "accent" : "default"}
+                value={externalTouchDueCount}
+              />
+              <StatCard
+                hint="Near-term appointments that are surfacing because the meeting itself is coming up."
+                label="Appointment soon"
+                tone={appointmentSoonNoticeCount > 0 ? "accent" : "default"}
+                value={appointmentSoonNoticeCount}
+              />
+            </ListPageStatsGrid>
+
+            <div className="list-column front-office-record-list">
+              {appointmentReminderCards.length ? (
+                appointmentReminderCards.map((card) => (
+                  <article className="list-row front-office-record" key={card.id}>
+                    <div className="list-row-top front-office-record-head">
+                      <div>
+                        <strong>{card.title}</strong>
+                        <p>{card.body}</p>
+                      </div>
+                      <StatusBadge tone={card.tone}>{card.groupLabel}</StatusBadge>
+                    </div>
+                    <div className="list-row-meta front-office-record-meta">
+                      <span>{card.createdAtLabel}</span>
+                      <span>{card.typeLabel}</span>
+                      <span>{card.isUnread ? "Unread" : "In view"}</span>
+                    </div>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={card.href}
+                    >
+                      {card.actionLabel}
+                    </FrontOfficeLink>
+                  </article>
+                ))
+              ) : (
+                <EmptyState
+                  description="Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters the inbox layer."
+                  title="No appointment reminder notices"
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="This stream now stays focused on the remaining Front Office notices after appointment reminder pressure has been split into its own queue."
             title="Notice stream"
           >
             <div className="list-column front-office-record-list">
-              {snapshot.notifications.length ? (
-                snapshot.notifications.map((card) => (
+              {generalNoticeCards.length ? (
+                generalNoticeCards.map((card) => (
                   <article className="list-row front-office-record" key={card.id}>
                     <div className="list-row-top front-office-record-head">
                       <div>
@@ -131,6 +214,7 @@ export default async function AgentNotificationsPage() {
                     </div>
                     <div className="list-row-meta front-office-record-meta">
                       <span>{card.typeLabel}</span>
+                      <span>{card.createdAtLabel}</span>
                       <span>{card.actionLabel}</span>
                     </div>
                     <FrontOfficeLink
@@ -143,8 +227,8 @@ export default async function AgentNotificationsPage() {
                 ))
               ) : (
                 <EmptyState
-                  description="Activity cards will show up here when Front Office notices and reminders are available."
-                  title="No activity items"
+                  description="Broader Front Office notices will appear here after appointment reminder pressure has been handled or when non-calendar notices are available."
+                  title="No general notices"
                 />
               )}
             </div>
@@ -224,6 +308,7 @@ export default async function AgentNotificationsPage() {
           <SummaryChip label="Actionable items" value={snapshot.summary.actionableItemCount} />
           <SummaryChip label="Cleanup items" tone="accent" value={snapshot.summary.cleanupItemCount} />
           <SummaryChip label="Potential dupes" tone="accent" value={snapshot.summary.duplicateReviewCount} />
+          <SummaryChip label="Reminder notices" tone="accent" value={appointmentReminderCards.length} />
           <SummaryChip label="Appointments soon" value={snapshot.summary.appointmentSoonCount} />
           <SummaryChip label="Unread notices" value={snapshot.summary.unreadNoticeCount} />
           <SummaryChip label="Upcoming events" value={snapshot.summary.upcomingEventCount} />

@@ -152,6 +152,8 @@ Notifications currently link to the nearest real actionable page:
 
 If the product does not yet have a more precise queue or sub-route, the notification links to the closest practical page instead of faking a nonexistent destination.
 
+On `/agent/notifications`, appointment-linked reminders now render in a dedicated reminder-pressure block before the broader notice stream, so confirmation, reschedule, external follow-up, and near-term appointment pressure do not disappear inside a generic inbox list.
+
 ## Current limitations
 
 - no email / SMS / WeChat delivery
