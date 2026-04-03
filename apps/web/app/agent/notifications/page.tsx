@@ -3,7 +3,13 @@ import {
   getFrontOfficeActivitySnapshot,
   getFrontOfficeDashboardSnapshot,
 } from "@acre/db";
-import { EmptyState, SectionCard, SummaryChip } from "@acre/ui";
+import {
+  EmptyState,
+  ListPageStatsGrid,
+  SectionCard,
+  StatCard,
+  SummaryChip,
+} from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
@@ -85,6 +91,7 @@ export default async function AgentNotificationsPage(
         <AgentNotificationsClient
           initialFilter={initialFilter}
           initialReadState={initialReadState}
+          leadershipQueue={dashboardSnapshot.leadershipQueue}
           snapshot={snapshot}
         />
       }
@@ -132,12 +139,38 @@ export default async function AgentNotificationsPage(
           {dashboardSnapshot.leadershipQueue.visible ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Team leads and office admins should still be able to scan overdue tasks, stale clients, and quiet send trails from the same activity center they already use for personal cleanup."
-              title={dashboardSnapshot.leadershipQueue.scopeLabel}
+              actions={
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href="#team-cleanup-pressure"
+                >
+                  Open full queue
+                </FrontOfficeLink>
+              }
+              subtitle="Team leads and office admins should still be able to scan overdue tasks, stale clients, and quiet send trails from the same activity center they already use for personal cleanup. The full queue now lives in the main activity stack below."
+              title={`${dashboardSnapshot.leadershipQueue.scopeLabel} overview`}
             >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="open shared follow-up tasks already overdue"
+                  label="Overdue tasks"
+                  value={dashboardSnapshot.leadershipQueue.overdueTaskCount}
+                />
+                <StatCard
+                  hint="active clients with 15+ days of inactivity"
+                  label="15+ day stale"
+                  value={dashboardSnapshot.leadershipQueue.staleClientCount}
+                />
+                <StatCard
+                  hint="latest tracked sends that were never opened or have gone quiet"
+                  label="Send-trail risk"
+                  value={dashboardSnapshot.leadershipQueue.engagementRiskCount}
+                />
+              </ListPageStatsGrid>
+
               <div className="office-queue-list">
                 {dashboardSnapshot.leadershipQueue.items.length ? (
-                  dashboardSnapshot.leadershipQueue.items.map((item) => (
+                  dashboardSnapshot.leadershipQueue.items.slice(0, 2).map((item) => (
                     <FrontOfficeRailItem
                       action={
                         <FrontOfficeLink

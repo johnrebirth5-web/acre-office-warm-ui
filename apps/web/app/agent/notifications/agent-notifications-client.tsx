@@ -5,6 +5,7 @@ import { useState } from "react";
 import type {
   FrontOfficeActivityNotificationRecord,
   FrontOfficeActivitySnapshot,
+  FrontOfficeDashboardSnapshot,
 } from "@acre/db";
 import {
   Badge,
@@ -31,6 +32,7 @@ type AgentNotificationsClientProps = {
   snapshot: FrontOfficeActivitySnapshot;
   initialFilter: AgentNotificationFilter;
   initialReadState: AgentNotificationReadState;
+  leadershipQueue: FrontOfficeDashboardSnapshot["leadershipQueue"];
 };
 
 const notificationFilterOptions: Array<{
@@ -90,6 +92,7 @@ export function AgentNotificationsClient({
   snapshot,
   initialFilter,
   initialReadState,
+  leadershipQueue,
 }: AgentNotificationsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -380,6 +383,70 @@ export function AgentNotificationsClient({
           )}
         </div>
       </SectionCard>
+
+      {leadershipQueue.visible ? (
+        <SectionCard
+          className="office-list-card"
+          id="team-cleanup-pressure"
+          subtitle="Leadership cleanup should be reviewable from the same route as personal cleanup. This section keeps overdue shared tasks, stale visible-scope dossiers, and quiet send trails together instead of hiding that pressure in the dashboard only."
+          title={leadershipQueue.scopeLabel}
+        >
+          <ListPageStatsGrid>
+            <StatCard
+              hint="open shared follow-up tasks already overdue inside your leadership scope"
+              label="Overdue tasks"
+              tone={leadershipQueue.overdueTaskCount > 0 ? "accent" : "default"}
+              value={leadershipQueue.overdueTaskCount}
+            />
+            <StatCard
+              hint="active visible-scope dossiers with 15+ days of inactivity"
+              label="15+ day stale"
+              tone={leadershipQueue.staleClientCount > 0 ? "accent" : "default"}
+              value={leadershipQueue.staleClientCount}
+            />
+            <StatCard
+              hint="tracked sends that were never opened or have gone quiet inside your leadership scope"
+              label="Send-trail risk"
+              tone={leadershipQueue.engagementRiskCount > 0 ? "accent" : "default"}
+              value={leadershipQueue.engagementRiskCount}
+            />
+          </ListPageStatsGrid>
+
+          <div className="list-column front-office-record-list">
+            {leadershipQueue.items.length ? (
+              leadershipQueue.items.map((item) => (
+                <article
+                  className={`list-row front-office-record tone-${item.tone}`}
+                  key={item.id}
+                >
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>{item.description}</p>
+                    </div>
+                    <StatusBadge tone={item.tone}>{item.contextLabel}</StatusBadge>
+                  </div>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>Team cleanup pressure</span>
+                    <span>{leadershipQueue.scopeLabel}</span>
+                  </div>
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={item.href}
+                  >
+                    {item.actionLabel}
+                  </FrontOfficeLink>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                description="No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
+                title="Leadership queue is clear"
+              />
+            )}
+          </div>
+        </SectionCard>
+      ) : null}
 
       {snapshot.cleanup.duplicatePairs.length ? (
         <FrontOfficeClientDuplicatesCard

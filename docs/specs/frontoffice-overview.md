@@ -136,7 +136,7 @@ Current implementation priority note:
 - that same FO activity route now also separates `appointment reminder pressure` from broader notices, so `confirmation due`, `reschedule follow-up`, `external touch due`, and `appointment soon` can be reviewed as a focused writeback queue instead of hiding inside one generic notice stream
 - that same FO activity route now also supports basic inbox controls for the visible notice stack, so agents can filter by reminder type, mark a notice read or unread, and clear all currently visible notices into either read or unread state without leaving the Front Office shell
 - those FO activity filters now also persist in the route URL, so reminder-type and read-state views can survive refreshes and be reopened in the same focused state instead of snapping back to the default stack every time
-- for team leads and office admins, that same FO activity route now also surfaces the existing leadership cleanup queue in the rail, so overdue tasks, stale clients, and quiet send trails can be reviewed beside the personal cleanup stack instead of requiring a return trip to the dashboard
+- for team leads and office admins, that same FO activity route now also surfaces the existing leadership cleanup queue in both the main activity stack and a supporting rail summary, so overdue tasks, stale clients, and quiet send trails can be reviewed beside the personal cleanup stack instead of requiring a return trip to the dashboard
 - keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
 
 ### Phase 2
@@ -288,6 +288,7 @@ Should support:
 - agent RSVP
 - reminder delivery
 - unified cleanup review for duplicate merge, overdue follow-up, send-risk rescue, and near-term appointment pressure
+- leader-visible team cleanup review for overdue shared work, stale visible-scope dossiers, and quiet send trails
 - roster and calendar writeback
 
 ## Tracking requirements

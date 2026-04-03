@@ -156,6 +156,7 @@ On `/agent/notifications`, appointment-linked reminders now render in a dedicate
 Those Agent-side notice links now also open through a dedicated read-through page, so clicking a Front Office reminder marks it read before redirecting to the calendar, dossier, or nearest actionable route.
 `/agent/notifications` now also exposes a lightweight reminder filter plus read/unread actions for the visible notice stack, including mark-all-read and mark-all-unread actions scoped to the currently visible Agent-side cards.
 The Agent-side reminder filter and read-state view now also persist in the route query string, so the current inbox slice can be refreshed or reopened without losing context.
+For team leads and office admins, `/agent/notifications` now also includes a dedicated team-cleanup section in the main activity stack, while the rail keeps a lighter leadership summary so team pressure is not trapped on `/agent/dashboard` only.
 
 ## Current limitations
 
