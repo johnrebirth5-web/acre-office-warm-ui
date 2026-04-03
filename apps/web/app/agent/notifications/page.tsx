@@ -8,7 +8,27 @@ import { FrontOfficePageTemplate } from "../_components/front-office-page-templa
 import { requireSessionContext } from "../../../lib/auth-session";
 import { AgentNotificationsClient } from "./agent-notifications-client";
 
-export default async function AgentNotificationsPage() {
+type AgentNotificationsPageProps = {
+  searchParams?: Promise<{
+    noticeFilter?: string;
+    readState?: string;
+  }>;
+};
+
+const allowedNoticeFilters = new Set([
+  "all",
+  "confirmation_due",
+  "reschedule_due",
+  "external_touch_due",
+  "appointment_soon",
+  "general_notice",
+]);
+
+const allowedReadStates = new Set(["all", "unread", "read"]);
+
+export default async function AgentNotificationsPage(
+  props: AgentNotificationsPageProps,
+) {
   const context = await requireSessionContext();
 
   if (
@@ -28,6 +48,19 @@ export default async function AgentNotificationsPage() {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone
   });
+  const searchParams = (await props.searchParams) ?? {};
+  const initialFilter = allowedNoticeFilters.has(searchParams.noticeFilter ?? "")
+    ? (searchParams.noticeFilter as
+        | "all"
+        | "confirmation_due"
+        | "reschedule_due"
+        | "external_touch_due"
+        | "appointment_soon"
+        | "general_notice")
+    : "all";
+  const initialReadState = allowedReadStates.has(searchParams.readState ?? "")
+    ? (searchParams.readState as "all" | "unread" | "read")
+    : "all";
   const appointmentReminderCards = snapshot.notifications.filter(
     (card) => card.groupKey !== "general_notice",
   );
@@ -36,7 +69,13 @@ export default async function AgentNotificationsPage() {
     <FrontOfficePageTemplate
       description="One Front Office center for reminders, cleanup pressure, duplicate review, and the notices that still need agent attention."
       eyebrow="Activity"
-      main={<AgentNotificationsClient snapshot={snapshot} />}
+      main={
+        <AgentNotificationsClient
+          initialFilter={initialFilter}
+          initialReadState={initialReadState}
+          snapshot={snapshot}
+        />
+      }
       rail={
         <>
           <SectionCard

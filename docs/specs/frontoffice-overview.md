@@ -135,6 +135,7 @@ Current implementation priority note:
 - `/agent/notifications` now also acts as the first unified `Activity + Cleanup Center`, so due follow-up, stale clients, tracked-send risk, duplicate review, near-term appointments, notices, and shared office events can now be scanned from one FO route instead of staying split across dashboard-only and notice-only surfaces
 - that same FO activity route now also separates `appointment reminder pressure` from broader notices, so `confirmation due`, `reschedule follow-up`, `external touch due`, and `appointment soon` can be reviewed as a focused writeback queue instead of hiding inside one generic notice stream
 - that same FO activity route now also supports basic inbox controls for the visible notice stack, so agents can filter by reminder type, mark a notice read or unread, and clear all currently visible unread notices without leaving the Front Office shell
+- those FO activity filters now also persist in the route URL, so reminder-type and read-state views can survive refreshes and be reopened in the same focused state instead of snapping back to the default stack every time
 - keep the next FO iteration focused on deeper external-system integration beyond the current bridge + writeback-state layer, stronger intake acceleration beyond this browser-side OCR beta, and broader office-wide cleanup depth before introducing any heavier automation or auto-send behavior
 
 ### Phase 2

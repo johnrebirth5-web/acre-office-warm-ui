@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import type {
   FrontOfficeActivityNotificationRecord,
@@ -25,8 +25,12 @@ type AgentNotificationFilter =
   | "all"
   | FrontOfficeActivityNotificationRecord["groupKey"];
 
+type AgentNotificationReadState = "all" | "unread" | "read";
+
 type AgentNotificationsClientProps = {
   snapshot: FrontOfficeActivitySnapshot;
+  initialFilter: AgentNotificationFilter;
+  initialReadState: AgentNotificationReadState;
 };
 
 const notificationFilterOptions: Array<{
@@ -48,25 +52,85 @@ function cardMatchesFilter(
   return filter === "all" || card.groupKey === filter;
 }
 
+function cardMatchesReadState(
+  card: FrontOfficeActivityNotificationRecord,
+  readState: AgentNotificationReadState,
+) {
+  if (readState === "unread") {
+    return card.isUnread;
+  }
+
+  if (readState === "read") {
+    return !card.isUnread;
+  }
+
+  return true;
+}
+
+function buildAgentNotificationsHref(input: {
+  pathname: string;
+  filter: AgentNotificationFilter;
+  readState: AgentNotificationReadState;
+}) {
+  const params = new URLSearchParams();
+
+  if (input.filter !== "all") {
+    params.set("noticeFilter", input.filter);
+  }
+
+  if (input.readState !== "all") {
+    params.set("readState", input.readState);
+  }
+
+  const query = params.toString();
+  return query ? `${input.pathname}?${query}` : input.pathname;
+}
+
 export function AgentNotificationsClient({
   snapshot,
+  initialFilter,
+  initialReadState,
 }: AgentNotificationsClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [activeFilter, setActiveFilter] =
-    useState<AgentNotificationFilter>("all");
+    useState<AgentNotificationFilter>(initialFilter);
+  const [activeReadState, setActiveReadState] =
+    useState<AgentNotificationReadState>(initialReadState);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  function updateFilters(
+    nextFilter: AgentNotificationFilter,
+    nextReadState: AgentNotificationReadState,
+  ) {
+    setActiveFilter(nextFilter);
+    setActiveReadState(nextReadState);
+    router.replace(
+      buildAgentNotificationsHref({
+        pathname,
+        filter: nextFilter,
+        readState: nextReadState,
+      }),
+      { scroll: false },
+    );
+  }
+
   const appointmentReminderCards = snapshot.notifications.filter(
     (card) =>
-      card.groupKey !== "general_notice" && cardMatchesFilter(card, activeFilter),
+      card.groupKey !== "general_notice" &&
+      cardMatchesFilter(card, activeFilter) &&
+      cardMatchesReadState(card, activeReadState),
   );
   const generalNoticeCards = snapshot.notifications.filter(
     (card) =>
-      card.groupKey === "general_notice" && cardMatchesFilter(card, activeFilter),
+      card.groupKey === "general_notice" &&
+      cardMatchesFilter(card, activeFilter) &&
+      cardMatchesReadState(card, activeReadState),
   );
   const visibleNotificationCards = snapshot.notifications.filter((card) =>
-    cardMatchesFilter(card, activeFilter),
+    cardMatchesFilter(card, activeFilter) &&
+    cardMatchesReadState(card, activeReadState),
   );
   const unreadVisibleNotificationIds = visibleNotificationCards
     .filter((card) => card.isUnread)
@@ -158,14 +222,17 @@ export function AgentNotificationsClient({
     <>
       <SectionCard
         className="office-list-card office-notification-toolbar"
-        subtitle="Use the reminder filter to isolate one pressure type, then clear read state as you work through the queue."
+        subtitle="Use reminder type and read-state filters to isolate one slice of pressure, then clear unread state as you work through the queue."
         title="Notice controls"
       >
         <FilterBar className="office-notification-filter-grid office-list-filters">
           <FilterField label="Reminder filter">
             <SelectInput
               onChange={(event) =>
-                setActiveFilter(event.currentTarget.value as AgentNotificationFilter)
+                updateFilters(
+                  event.currentTarget.value as AgentNotificationFilter,
+                  activeReadState,
+                )
               }
               value={activeFilter}
             >
@@ -186,6 +253,22 @@ export function AgentNotificationsClient({
             </SelectInput>
           </FilterField>
 
+          <FilterField label="Read state">
+            <SelectInput
+              onChange={(event) =>
+                updateFilters(
+                  activeFilter,
+                  event.currentTarget.value as AgentNotificationReadState,
+                )
+              }
+              value={activeReadState}
+            >
+              <option value="all">All</option>
+              <option value="unread">Unread only</option>
+              <option value="read">Read only</option>
+            </SelectInput>
+          </FilterField>
+
           <div className="office-notification-filter-actions">
             <Button
               disabled={
@@ -201,7 +284,7 @@ export function AgentNotificationsClient({
               Mark all in view as read
             </Button>
             <Button
-              onClick={() => setActiveFilter("all")}
+              onClick={() => updateFilters("all", "all")}
               type="button"
               variant="secondary"
             >
@@ -376,7 +459,9 @@ export function AgentNotificationsClient({
                 activeFilter === "all" ||
                 activeFilter === "general_notice"
                   ? "Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters the inbox layer."
-                  : "No appointment reminder notices match the current filter."
+                  : activeReadState === "all"
+                    ? "No appointment reminder notices match the current filter."
+                    : "No appointment reminder notices match the current reminder filter and read-state view."
               }
               title="No appointment reminder notices"
             />
@@ -456,7 +541,9 @@ export function AgentNotificationsClient({
               description={
                 activeFilter === "all" || activeFilter === "general_notice"
                   ? "Broader Front Office notices will appear here after appointment reminder pressure has been handled or when non-calendar notices are available."
-                  : "No general notices match the current filter."
+                  : activeReadState === "all"
+                    ? "No general notices match the current filter."
+                    : "No general notices match the current reminder filter and read-state view."
               }
               title="No general notices"
             />
