@@ -2,6 +2,7 @@ import { getDefaultAppPath, hasAnyPermission } from "@acre/auth";
 import {
   getFrontOfficeActivitySnapshot,
   getFrontOfficeDashboardSnapshot,
+  type FrontOfficeDashboardSnapshot,
 } from "@acre/db";
 import {
   EmptyState,
@@ -21,6 +22,7 @@ type AgentNotificationsPageProps = {
   searchParams?: Promise<{
     noticeFilter?: string;
     readState?: string;
+    teamCleanupFilter?: string;
   }>;
 };
 
@@ -34,6 +36,19 @@ const allowedNoticeFilters = new Set([
 ]);
 
 const allowedReadStates = new Set(["all", "unread", "read"]);
+const allowedTeamCleanupFilters = new Set([
+  "all",
+  "overdue_task",
+  "engagement_risk",
+  "stale_client",
+]);
+
+function leadershipItemMatchesFilter(
+  item: FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number],
+  filter: "all" | "overdue_task" | "engagement_risk" | "stale_client",
+) {
+  return filter === "all" || item.kindKey === filter;
+}
 
 export default async function AgentNotificationsPage(
   props: AgentNotificationsPageProps,
@@ -79,8 +94,20 @@ export default async function AgentNotificationsPage(
   const initialReadState = allowedReadStates.has(searchParams.readState ?? "")
     ? (searchParams.readState as "all" | "unread" | "read")
     : "all";
+  const initialTeamCleanupFilter = allowedTeamCleanupFilters.has(
+    searchParams.teamCleanupFilter ?? "",
+  )
+    ? (searchParams.teamCleanupFilter as
+        | "all"
+        | "overdue_task"
+        | "engagement_risk"
+        | "stale_client")
+    : "all";
   const appointmentReminderCards = snapshot.notifications.filter(
     (card) => card.groupKey !== "general_notice",
+  );
+  const filteredLeadershipItems = dashboardSnapshot.leadershipQueue.items.filter(
+    (item) => leadershipItemMatchesFilter(item, initialTeamCleanupFilter),
   );
 
   return (
@@ -91,6 +118,7 @@ export default async function AgentNotificationsPage(
         <AgentNotificationsClient
           initialFilter={initialFilter}
           initialReadState={initialReadState}
+          initialTeamCleanupFilter={initialTeamCleanupFilter}
           leadershipQueue={dashboardSnapshot.leadershipQueue}
           snapshot={snapshot}
         />
@@ -169,8 +197,8 @@ export default async function AgentNotificationsPage(
               </ListPageStatsGrid>
 
               <div className="office-queue-list">
-                {dashboardSnapshot.leadershipQueue.items.length ? (
-                  dashboardSnapshot.leadershipQueue.items.slice(0, 2).map((item) => (
+                {filteredLeadershipItems.length ? (
+                  filteredLeadershipItems.slice(0, 2).map((item) => (
                     <FrontOfficeRailItem
                       action={
                         <FrontOfficeLink
@@ -180,8 +208,9 @@ export default async function AgentNotificationsPage(
                           {item.actionLabel}
                         </FrontOfficeLink>
                       }
-                      badgeLabel={item.contextLabel}
+                      badgeLabel={item.kindLabel}
                       badgeTone={item.tone}
+                      context={item.contextLabel}
                       description={item.description}
                       key={item.id}
                       title={item.title}
@@ -190,7 +219,11 @@ export default async function AgentNotificationsPage(
                 ) : (
                   <EmptyState
                     className="front-office-inline-empty"
-                    description="No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
+                    description={
+                      initialTeamCleanupFilter === "all"
+                        ? "No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
+                        : "No team cleanup items match the current leadership-pressure filter."
+                    }
                     title="Leadership queue is clear"
                   />
                 )}

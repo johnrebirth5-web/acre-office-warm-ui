@@ -27,11 +27,15 @@ type AgentNotificationFilter =
   | FrontOfficeActivityNotificationRecord["groupKey"];
 
 type AgentNotificationReadState = "all" | "unread" | "read";
+type AgentLeadershipCleanupFilter =
+  | "all"
+  | FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number]["kindKey"];
 
 type AgentNotificationsClientProps = {
   snapshot: FrontOfficeActivitySnapshot;
   initialFilter: AgentNotificationFilter;
   initialReadState: AgentNotificationReadState;
+  initialTeamCleanupFilter: AgentLeadershipCleanupFilter;
   leadershipQueue: FrontOfficeDashboardSnapshot["leadershipQueue"];
 };
 
@@ -45,6 +49,16 @@ const notificationFilterOptions: Array<{
   { value: "external_touch_due", label: "External touch due" },
   { value: "appointment_soon", label: "Appointment soon" },
   { value: "general_notice", label: "General notices" },
+];
+
+const leadershipCleanupFilterOptions: Array<{
+  value: AgentLeadershipCleanupFilter;
+  label: string;
+}> = [
+  { value: "all", label: "All team pressure" },
+  { value: "overdue_task", label: "Overdue tasks" },
+  { value: "engagement_risk", label: "Send-trail risk" },
+  { value: "stale_client", label: "15+ day stale" },
 ];
 
 function cardMatchesFilter(
@@ -69,10 +83,18 @@ function cardMatchesReadState(
   return true;
 }
 
+function leadershipItemMatchesFilter(
+  item: FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number],
+  filter: AgentLeadershipCleanupFilter,
+) {
+  return filter === "all" || item.kindKey === filter;
+}
+
 function buildAgentNotificationsHref(input: {
   pathname: string;
   filter: AgentNotificationFilter;
   readState: AgentNotificationReadState;
+  leadershipFilter: AgentLeadershipCleanupFilter;
 }) {
   const params = new URLSearchParams();
 
@@ -84,6 +106,10 @@ function buildAgentNotificationsHref(input: {
     params.set("readState", input.readState);
   }
 
+  if (input.leadershipFilter !== "all") {
+    params.set("teamCleanupFilter", input.leadershipFilter);
+  }
+
   const query = params.toString();
   return query ? `${input.pathname}?${query}` : input.pathname;
 }
@@ -92,6 +118,7 @@ export function AgentNotificationsClient({
   snapshot,
   initialFilter,
   initialReadState,
+  initialTeamCleanupFilter,
   leadershipQueue,
 }: AgentNotificationsClientProps) {
   const router = useRouter();
@@ -100,20 +127,25 @@ export function AgentNotificationsClient({
     useState<AgentNotificationFilter>(initialFilter);
   const [activeReadState, setActiveReadState] =
     useState<AgentNotificationReadState>(initialReadState);
+  const [activeLeadershipFilter, setActiveLeadershipFilter] =
+    useState<AgentLeadershipCleanupFilter>(initialTeamCleanupFilter);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   function updateFilters(
     nextFilter: AgentNotificationFilter,
     nextReadState: AgentNotificationReadState,
+    nextLeadershipFilter: AgentLeadershipCleanupFilter,
   ) {
     setActiveFilter(nextFilter);
     setActiveReadState(nextReadState);
+    setActiveLeadershipFilter(nextLeadershipFilter);
     router.replace(
       buildAgentNotificationsHref({
         pathname,
         filter: nextFilter,
         readState: nextReadState,
+        leadershipFilter: nextLeadershipFilter,
       }),
       { scroll: false },
     );
@@ -153,6 +185,9 @@ export function AgentNotificationsClient({
   const appointmentSoonNoticeCount = snapshot.notifications.filter(
     (card) => card.groupKey === "appointment_soon",
   ).length;
+  const filteredLeadershipItems = leadershipQueue.items.filter((item) =>
+    leadershipItemMatchesFilter(item, activeLeadershipFilter),
+  );
 
   async function handleNotificationAction(
     notificationId: string,
@@ -248,6 +283,7 @@ export function AgentNotificationsClient({
                 updateFilters(
                   event.currentTarget.value as AgentNotificationFilter,
                   activeReadState,
+                  activeLeadershipFilter,
                 )
               }
               value={activeFilter}
@@ -275,6 +311,7 @@ export function AgentNotificationsClient({
                 updateFilters(
                   activeFilter,
                   event.currentTarget.value as AgentNotificationReadState,
+                  activeLeadershipFilter,
                 )
               }
               value={activeReadState}
@@ -284,6 +321,36 @@ export function AgentNotificationsClient({
               <option value="read">Read only</option>
             </SelectInput>
           </FilterField>
+
+          {leadershipQueue.visible ? (
+            <FilterField label="Team cleanup">
+              <SelectInput
+                onChange={(event) =>
+                  updateFilters(
+                    activeFilter,
+                    activeReadState,
+                    event.currentTarget.value as AgentLeadershipCleanupFilter,
+                  )
+                }
+                value={activeLeadershipFilter}
+              >
+                {leadershipCleanupFilterOptions.map((option) => {
+                  const count =
+                    option.value === "all"
+                      ? leadershipQueue.items.length
+                      : leadershipQueue.items.filter(
+                          (item) => item.kindKey === option.value,
+                        ).length;
+
+                  return (
+                    <option key={option.value} value={option.value}>
+                      {option.label} ({count})
+                    </option>
+                  );
+                })}
+              </SelectInput>
+            </FilterField>
+          ) : null}
 
           <div className="office-notification-filter-actions">
             <Button
@@ -313,7 +380,7 @@ export function AgentNotificationsClient({
               Mark all in view as unread
             </Button>
             <Button
-              onClick={() => updateFilters("all", "all")}
+              onClick={() => updateFilters("all", "all", "all")}
               type="button"
               variant="secondary"
             >
@@ -413,8 +480,8 @@ export function AgentNotificationsClient({
           </ListPageStatsGrid>
 
           <div className="list-column front-office-record-list">
-            {leadershipQueue.items.length ? (
-              leadershipQueue.items.map((item) => (
+            {filteredLeadershipItems.length ? (
+              filteredLeadershipItems.map((item) => (
                 <article
                   className={`list-row front-office-record tone-${item.tone}`}
                   key={item.id}
@@ -424,10 +491,10 @@ export function AgentNotificationsClient({
                       <strong>{item.title}</strong>
                       <p>{item.description}</p>
                     </div>
-                    <StatusBadge tone={item.tone}>{item.contextLabel}</StatusBadge>
+                    <StatusBadge tone={item.tone}>{item.kindLabel}</StatusBadge>
                   </div>
                   <div className="list-row-meta front-office-record-meta">
-                    <span>Team cleanup pressure</span>
+                    <span>{item.contextLabel}</span>
                     <span>{leadershipQueue.scopeLabel}</span>
                   </div>
                   <FrontOfficeLink
@@ -440,7 +507,11 @@ export function AgentNotificationsClient({
               ))
             ) : (
               <EmptyState
-                description="No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
+                description={
+                  activeLeadershipFilter === "all"
+                    ? "No overdue task, stale-client, or quiet send-trail pressure is visible inside your leadership scope right now."
+                    : "No team cleanup items match the current leadership-pressure filter."
+                }
                 title="Leadership queue is clear"
               />
             )}

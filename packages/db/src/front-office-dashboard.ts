@@ -169,6 +169,8 @@ export type FrontOfficeDashboardBackOfficeItem = {
 
 export type FrontOfficeDashboardLeadershipItem = {
   id: string;
+  kindKey: "overdue_task" | "engagement_risk" | "stale_client";
+  kindLabel: string;
   title: string;
   description: string;
   contextLabel: string;
@@ -1898,6 +1900,8 @@ export async function getFrontOfficeDashboardSnapshot(
           return [
             {
               id: `leadership-engagement-${record.id}`,
+              kindKey: "engagement_risk",
+              kindLabel: "Send-trail risk",
               title: record.client.fullName,
               description: [
                 listingLabel,
@@ -1934,6 +1938,8 @@ export async function getFrontOfficeDashboardSnapshot(
         return [
           {
             id: `leadership-engagement-${record.id}`,
+            kindKey: "engagement_risk",
+            kindLabel: "Send-trail risk",
             title: record.client.fullName,
             description: [
               listingLabel,
@@ -1967,6 +1973,8 @@ export async function getFrontOfficeDashboardSnapshot(
   const leadershipItems: FrontOfficeDashboardLeadershipItem[] = [
     ...leadershipOverdueTasks.slice(0, 2).map((task) => ({
       id: `leadership-task-${task.id}`,
+      kindKey: "overdue_task" as const,
+      kindLabel: "Overdue task",
       title: task.client?.fullName ?? task.title,
       description: `${task.title} · Due ${formatDateLabel(task.dueAt)}`,
       contextLabel: buildMembershipUserLabel(
@@ -1980,7 +1988,11 @@ export async function getFrontOfficeDashboardSnapshot(
         : "/office/contacts",
     })),
     ...leadershipEngagementItems.slice(0, 2).map(
-      ({ _priority, _sortAt, ...item }) => item,
+      ({ _priority, _sortAt, ...item }) => ({
+        ...item,
+        kindKey: "engagement_risk" as const,
+        kindLabel: "Send-trail risk",
+      }),
     ),
     ...filteredLeadershipStaleClients.slice(0, 2).map((client) => {
       const inactiveDays = Math.max(
@@ -1990,6 +2002,8 @@ export async function getFrontOfficeDashboardSnapshot(
 
       return {
         id: `leadership-client-${client.id}`,
+        kindKey: "stale_client" as const,
+        kindLabel: "Stale client",
         title: client.fullName,
         description: `${client.stage} · ${inactiveDays} day(s) since the last recorded touch.`,
         contextLabel: buildMembershipUserLabel(
