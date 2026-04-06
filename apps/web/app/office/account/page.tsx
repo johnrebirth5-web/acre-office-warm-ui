@@ -4,7 +4,10 @@ import { SummaryChip } from "@acre/ui";
 import { getOfficeAccountSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
-import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
+import {
+  OfficeListPageHeader,
+  OfficeListPageShell,
+} from "../_components/office-list-page-template";
 import { OfficeAccountClient } from "./account-client";
 
 export default async function OfficeAccountPage() {
@@ -12,7 +15,7 @@ export default async function OfficeAccountPage() {
   const snapshot = await getOfficeAccountSnapshot({
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
-    membershipId: context.currentMembership.id
+    membershipId: context.currentMembership.id,
   });
 
   if (!snapshot) {
@@ -23,7 +26,10 @@ export default async function OfficeAccountPage() {
     <OfficeListPageShell className="office-account-page">
       <OfficeListPageHeader
         actions={
-          <Link className="office-button-secondary office-button-sm" href="/office/notifications">
+          <Link
+            className="office-button-secondary office-button-sm"
+            href="/office/notifications"
+          >
             Open notifications
           </Link>
         }
@@ -31,15 +37,30 @@ export default async function OfficeAccountPage() {
         eyebrow="Account"
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Role" value={getRoleSummary(context.currentMembership).label} />
-            <SummaryChip label="Open tasks" tone="accent" value={snapshot.summary.openTaskCount} />
+            <SummaryChip
+              label="Office scope"
+              value={
+                context.currentOffice?.name ?? context.currentOrganization.name
+              }
+            />
+            <SummaryChip
+              label="Role"
+              value={getRoleSummary(context.currentMembership).label}
+            />
+            <SummaryChip
+              label="Open tasks"
+              tone="accent"
+              value={snapshot.summary.openTaskCount}
+            />
           </>
         }
         title="My profile"
       />
 
-      <OfficeAccountClient snapshot={snapshot} />
+      <OfficeAccountClient
+        currentMembershipId={context.currentMembership.id}
+        snapshot={snapshot}
+      />
     </OfficeListPageShell>
   );
 }
