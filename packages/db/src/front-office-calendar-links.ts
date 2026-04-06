@@ -96,8 +96,8 @@ function buildListingLabel(input: AppointmentExternalLinkInput) {
 function buildCalendarDescription(input: AppointmentExternalLinkInput) {
   const clientOrContact = input.clientName?.trim() || input.contactLabel?.trim() || "";
   const lines = [
-    "Exported from Acre Front Office.",
-    "Acre remains the source of truth for appointment status and writeback.",
+    "Manual export from Acre Front Office.",
+    "Acre remains the source of truth for appointment status and writeback. No provider sync is implied by this draft.",
     input.appointmentTypeLabel?.trim()
       ? `Appointment type: ${input.appointmentTypeLabel.trim()}`
       : "",

@@ -37,7 +37,9 @@ export type FrontOfficeAppointmentRecord = {
   title: string;
   clientId: string | null;
   clientHref: string | null;
+  typeValue: AppointmentType;
   statusValue: AppointmentStatus;
+  startsAtValue: string;
   typeLabel: string;
   typeTone: FrontOfficeAppointmentTone;
   statusLabel: string;
@@ -71,12 +73,21 @@ export type FrontOfficeAppointmentRecord = {
   coordinationNextStep: string;
   requiresExternalResponse: boolean;
   isExternalTouchDue: boolean;
+  needsNextTouchPlan: boolean;
+  followUpPlanLabel: string;
+  followUpPlanTone: FrontOfficeAppointmentTone;
+  followUpPlanDetail: string;
   bridgeStatusLabel: string;
   bridgeStatusDetail: string;
   bridgeStatusTone: FrontOfficeAppointmentTone;
   bridgeActionLabel: string;
   bridgeLoggedAtLabel: string;
   hasBridgeActivity: boolean;
+  hasWritebackHistory: boolean;
+  latestCoordinationLabel: string;
+  latestCoordinationDetail: string;
+  touchPresets: FrontOfficeAppointmentTouchPreset[];
+  coordinationHistory: FrontOfficeAppointmentCoordinationHistoryItem[];
   bridgeHistory: FrontOfficeAppointmentCoordinationHistoryItem[];
   writebackHistory: FrontOfficeAppointmentCoordinationHistoryItem[];
 };
@@ -88,7 +99,17 @@ export type FrontOfficeAppointmentCoordinationHistoryItem = {
   detail: string;
   actorLabel: string;
   createdAtLabel: string;
+  createdAtValue: string;
   tone: FrontOfficeAppointmentTone;
+};
+
+export type FrontOfficeAppointmentTouchPreset = {
+  id: string;
+  label: string;
+  detail: string;
+  suggestedStatus: FrontOfficeAppointmentExternalWorkflowStatus;
+  nextActionAtLabel: string;
+  nextActionAtValue: string;
 };
 
 export type FrontOfficeAppointmentHandoffItem = {
@@ -107,12 +128,14 @@ export type FrontOfficeAppointmentsSnapshot = {
     handoffReadyCount: number;
     awaitingReplyCount: number;
     touchDueCount: number;
+    missingTouchPlanCount: number;
     bridgedCount: number;
   };
   filteredSummary: {
     appointmentCount: number;
     awaitingReplyCount: number;
     touchDueCount: number;
+    missingTouchPlanCount: number;
     confirmedCount: number;
     bridgePendingCount: number;
   };
@@ -130,8 +153,10 @@ export type GetFrontOfficeAppointmentsSnapshotInput = {
   officeId?: string | null;
   timeZone?: string | null;
   clientId?: string | null;
+  type?: string | null;
   status?: string | null;
   coordination?: string | null;
+  followUp?: string | null;
   targetAppointmentId?: string | null;
 };
 
@@ -248,6 +273,18 @@ const frontOfficeAppointmentCoordinationFilters = {
 
 type FrontOfficeAppointmentCoordinationFilter =
   (typeof frontOfficeAppointmentCoordinationFilters)[keyof typeof frontOfficeAppointmentCoordinationFilters];
+
+const frontOfficeAppointmentFollowUpFilters = {
+  all: "all",
+  responseWaiting: "response_waiting",
+  touchDue: "touch_due",
+  nextTouchMissing: "next_touch_missing",
+  touchScheduled: "touch_scheduled",
+  confirmed: "confirmed",
+} as const;
+
+type FrontOfficeAppointmentFollowUpFilter =
+  (typeof frontOfficeAppointmentFollowUpFilters)[keyof typeof frontOfficeAppointmentFollowUpFilters];
 
 export type FrontOfficeAppointmentExternalWorkflowState = {
   value: FrontOfficeAppointmentExternalWorkflowStatus;
@@ -471,6 +508,14 @@ function isFrontOfficeAppointmentCoordinationFilter(
   );
 }
 
+function isFrontOfficeAppointmentFollowUpFilter(
+  value: string | null | undefined,
+): value is FrontOfficeAppointmentFollowUpFilter {
+  return Object.values(frontOfficeAppointmentFollowUpFilters).includes(
+    value as FrontOfficeAppointmentFollowUpFilter,
+  );
+}
+
 export function formatFrontOfficeAppointmentExternalWorkflowLabel(
   value: FrontOfficeAppointmentExternalWorkflowStatus,
 ) {
@@ -608,6 +653,273 @@ function buildFrontOfficeAppointmentExternalWorkflowDetail(input: {
   return [timestamp, nextAction, input.note, defaultSummary]
     .filter(Boolean)
     .join(" · ");
+}
+
+function buildFrontOfficeAppointmentFollowUpPlan(input: {
+  appointmentStatus: AppointmentStatus;
+  externalWorkflow: FrontOfficeAppointmentExternalWorkflowState;
+  bridgeStatus: FrontOfficeAppointmentBridgeStatus;
+  requiresExternalResponse: boolean;
+  isExternalTouchDue: boolean;
+}): {
+  label: string;
+  tone: FrontOfficeAppointmentTone;
+  detail: string;
+  needsNextTouchPlan: boolean;
+} {
+  if (input.appointmentStatus !== AppointmentStatus.scheduled) {
+    return {
+      label: "Closed in Acre",
+      tone: "neutral" as const,
+      detail:
+        "This appointment is no longer scheduled, so the coordination rhythm is read-only unless you create a new plan.",
+      needsNextTouchPlan: false,
+    };
+  }
+
+  if (input.isExternalTouchDue) {
+    return {
+      label: "Touch overdue",
+      tone: "danger" as const,
+      detail:
+        input.externalWorkflow.nextActionAtLabel === "No next external touch set"
+          ? "Acre expects another outside touch now, but the saved follow-up deadline is already overdue."
+          : `The saved next external touch is overdue since ${input.externalWorkflow.nextActionAtLabel}.`,
+      needsNextTouchPlan: false,
+    };
+  }
+
+  const hasNextTouch = Boolean(input.externalWorkflow.nextActionAt);
+  const needsNextTouchPlan =
+    input.requiresExternalResponse && !hasNextTouch;
+
+  if (needsNextTouchPlan) {
+    return {
+      label: "Missing next touch",
+      tone: "warning" as const,
+      detail:
+        "The appointment still needs outside confirmation or follow-up, but no next-touch deadline is saved yet.",
+      needsNextTouchPlan: true,
+    };
+  }
+
+  if (hasNextTouch) {
+    return {
+      label:
+        input.externalWorkflow.value ===
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmed
+          ? "Confirmed with guardrail"
+          : "Touch scheduled",
+      tone:
+        input.externalWorkflow.value ===
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmed
+          ? "success"
+          : "accent",
+      detail: `Next external touch is set for ${input.externalWorkflow.nextActionAtLabel}.`,
+      needsNextTouchPlan: false,
+    };
+  }
+
+  if (
+    input.externalWorkflow.value ===
+    frontOfficeAppointmentExternalWorkflowStatuses.confirmed
+  ) {
+    return {
+      label: "Confirmed and clear",
+      tone: "success" as const,
+      detail:
+        "Outside confirmation is already saved and there is no extra next-touch deadline on the record.",
+      needsNextTouchPlan: false,
+    };
+  }
+
+  if (input.bridgeStatus.hasBridgeActivity) {
+    return {
+      label: "Bridge opened, plan not written back",
+      tone: "warning" as const,
+      detail:
+        "A Google, Outlook, ICS, or email bridge was opened from Acre, but the follow-up rhythm still has not been written back.",
+      needsNextTouchPlan: false,
+    };
+  }
+
+  return {
+    label: "No follow-up rhythm saved",
+    tone: "neutral" as const,
+    detail:
+      "Acre has the appointment on the calendar, but there is still no explicit outside follow-up rhythm saved on the record.",
+    needsNextTouchPlan: false,
+  };
+}
+
+function pushFrontOfficeAppointmentTouchPreset(
+  presets: FrontOfficeAppointmentTouchPreset[],
+  input: {
+    id: string;
+    label: string;
+    detail: string;
+    suggestedStatus: FrontOfficeAppointmentExternalWorkflowStatus;
+    nextActionAt: Date;
+    now: Date;
+    timeZone?: string | null;
+  },
+) {
+  if (input.nextActionAt.getTime() <= input.now.getTime()) {
+    return;
+  }
+
+  const nextActionAtValue = formatDateTimeInputValue(input.nextActionAt, {
+    timeZone: input.timeZone ?? null,
+  });
+
+  if (!nextActionAtValue) {
+    return;
+  }
+
+  if (
+    presets.some(
+      (preset) =>
+        preset.suggestedStatus === input.suggestedStatus &&
+        preset.nextActionAtValue === nextActionAtValue,
+    )
+  ) {
+    return;
+  }
+
+  presets.push({
+    id: input.id,
+    label: input.label,
+    detail: input.detail,
+    suggestedStatus: input.suggestedStatus,
+    nextActionAtLabel: formatDateTimeLabel(input.nextActionAt, {
+      timeZone: input.timeZone ?? null,
+    }),
+    nextActionAtValue,
+  });
+}
+
+function buildFrontOfficeAppointmentTouchPresets(input: {
+  appointmentStatus: AppointmentStatus;
+  startsAt: Date;
+  externalWorkflow: FrontOfficeAppointmentExternalWorkflowState;
+  now: Date;
+  timeZone?: string | null;
+}) {
+  if (input.appointmentStatus !== AppointmentStatus.scheduled) {
+    return [] as FrontOfficeAppointmentTouchPreset[];
+  }
+
+  const twoHoursFromNow = new Date(input.now.getTime() + 2 * 60 * 60 * 1000);
+  const oneDayFromNow = new Date(input.now.getTime() + 24 * 60 * 60 * 1000);
+  const twoHoursBeforeStart = new Date(
+    input.startsAt.getTime() - 2 * 60 * 60 * 1000,
+  );
+  const oneDayBeforeStart = new Date(
+    input.startsAt.getTime() - 24 * 60 * 60 * 1000,
+  );
+  const presets: FrontOfficeAppointmentTouchPreset[] = [];
+
+  if (
+    input.externalWorkflow.value ===
+    frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+  ) {
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "reschedule-2h",
+      label: "Reschedule · +2h",
+      detail: "Keep the time-change conversation active in the next two hours.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested,
+      nextActionAt: twoHoursFromNow,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "reschedule-24h",
+      label: "Reschedule · +24h",
+      detail:
+        "Bring the time-change thread back tomorrow if the new slot is still unresolved.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested,
+      nextActionAt: oneDayFromNow,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+  } else if (
+    input.externalWorkflow.value ===
+    frontOfficeAppointmentExternalWorkflowStatuses.confirmed
+  ) {
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "confirmed-prestart",
+      label: "Confirmed · before start",
+      detail:
+        "Keep a light final check before the meeting starts without changing the confirmed state.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
+      nextActionAt: twoHoursBeforeStart,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "confirmed-day-before",
+      label: "Confirmed · day-before",
+      detail:
+        "Use a day-before reminder when you want one last soft touch on the record.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
+      nextActionAt: oneDayBeforeStart,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+  } else {
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "awaiting-2h",
+      label: "Awaiting reply · +2h",
+      detail: "Best when you expect a same-day confirmation reply.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
+      nextActionAt: twoHoursFromNow,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "awaiting-24h",
+      label: "Awaiting reply · +24h",
+      detail:
+        "Keeps the confirmation thread visible tomorrow if no one replies today.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
+      nextActionAt: oneDayFromNow,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "followup-prestart",
+      label: "Needs follow-up · before start",
+      detail:
+        "Use when you want one more outbound push shortly before the meeting starts.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp,
+      nextActionAt: twoHoursBeforeStart,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+  }
+
+  if (!presets.length) {
+    pushFrontOfficeAppointmentTouchPreset(presets, {
+      id: "followup-2h",
+      label: "Needs follow-up · +2h",
+      detail:
+        "Adds a fresh next-touch checkpoint without implying anything synced in the background.",
+      suggestedStatus:
+        frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp,
+      nextActionAt: twoHoursFromNow,
+      now: input.now,
+      timeZone: input.timeZone,
+    });
+  }
+
+  return presets.slice(0, 3);
 }
 
 export function getFrontOfficeAppointmentExternalWorkflowState(input: {
@@ -904,6 +1216,7 @@ function buildBridgeHistoryItem(input: {
       "Opened from the appointment record in Acre.",
     actorLabel: input.actorLabel,
     createdAtLabel,
+    createdAtValue: input.createdAt.toISOString(),
     tone: "accent",
   };
 }
@@ -938,6 +1251,7 @@ function buildWritebackHistoryItem(input: {
       .join(" · "),
     actorLabel: input.actorLabel,
     createdAtLabel,
+    createdAtValue: input.createdAt.toISOString(),
     tone: mapExternalWorkflowLabelTone(nextLabel),
   };
 }
@@ -1364,6 +1678,28 @@ function mapAppointmentRecord(
     externalWorkflow,
     bridgeStatus: resolvedBridgeStatus,
   });
+  const bridgeHistory = coordinationArtifacts?.bridgeHistory ?? [];
+  const writebackHistory = coordinationArtifacts?.writebackHistory ?? [];
+  const coordinationHistory = [...bridgeHistory, ...writebackHistory]
+    .sort((left, right) =>
+      right.createdAtValue.localeCompare(left.createdAtValue),
+    )
+    .slice(0, 6);
+  const latestCoordination = coordinationHistory[0] ?? null;
+  const followUpPlan = buildFrontOfficeAppointmentFollowUpPlan({
+    appointmentStatus: appointment.status,
+    externalWorkflow,
+    bridgeStatus: resolvedBridgeStatus,
+    requiresExternalResponse: coordination.requiresExternalResponse,
+    isExternalTouchDue: coordination.isExternalTouchDue,
+  });
+  const touchPresets = buildFrontOfficeAppointmentTouchPresets({
+    appointmentStatus: appointment.status,
+    startsAt: appointment.startsAt,
+    externalWorkflow,
+    now,
+    timeZone,
+  });
 
   return {
     id: appointment.id,
@@ -1372,7 +1708,9 @@ function mapAppointmentRecord(
     clientHref: appointment.client?.id
       ? `/agent/clients/${appointment.client.id}`
       : null,
+    typeValue: appointment.type,
     statusValue: appointment.status,
+    startsAtValue: appointment.startsAt.toISOString(),
     typeLabel,
     typeTone: mapAppointmentTypeTone(appointment.type),
     statusLabel,
@@ -1412,24 +1750,39 @@ function mapAppointmentRecord(
     coordinationNextStep: coordination.nextStep,
     requiresExternalResponse: coordination.requiresExternalResponse,
     isExternalTouchDue: coordination.isExternalTouchDue,
+    needsNextTouchPlan: followUpPlan.needsNextTouchPlan,
+    followUpPlanLabel: followUpPlan.label,
+    followUpPlanTone: followUpPlan.tone,
+    followUpPlanDetail: followUpPlan.detail,
     bridgeStatusLabel: resolvedBridgeStatus.label,
     bridgeStatusDetail: resolvedBridgeStatus.detail,
     bridgeStatusTone: resolvedBridgeStatus.tone,
     bridgeActionLabel: resolvedBridgeStatus.actionLabel,
     bridgeLoggedAtLabel: resolvedBridgeStatus.loggedAtLabel,
     hasBridgeActivity: resolvedBridgeStatus.hasBridgeActivity,
-    bridgeHistory: coordinationArtifacts?.bridgeHistory ?? [],
-    writebackHistory: coordinationArtifacts?.writebackHistory ?? [],
+    hasWritebackHistory: writebackHistory.length > 0,
+    latestCoordinationLabel:
+      latestCoordination?.label ?? "No coordination activity yet",
+    latestCoordinationDetail: latestCoordination
+      ? `${latestCoordination.actorLabel} · ${latestCoordination.createdAtLabel}`
+      : "Bridge opens and writeback saves will appear here once coordination begins.",
+    touchPresets,
+    coordinationHistory,
+    bridgeHistory,
+    writebackHistory,
   };
 }
 
 function appointmentMatchesSnapshotFilters(input: {
   appointment: FrontOfficeAppointmentRecord;
   clientId?: string | null;
+  type?: string | null;
   status?: string | null;
   coordination?: string | null;
+  followUp?: string | null;
 }) {
   const normalizedClientId = input.clientId?.trim() || null;
+  const normalizedType = isAppointmentType(input.type) ? input.type : null;
   const normalizedStatus = isFrontOfficeAppointmentListStatusFilter(
     input.status,
   )
@@ -1440,8 +1793,17 @@ function appointmentMatchesSnapshotFilters(input: {
   )
     ? input.coordination
     : frontOfficeAppointmentCoordinationFilters.all;
+  const normalizedFollowUp = isFrontOfficeAppointmentFollowUpFilter(
+    input.followUp,
+  )
+    ? input.followUp
+    : frontOfficeAppointmentFollowUpFilters.all;
 
   if (normalizedClientId && input.appointment.clientId !== normalizedClientId) {
+    return false;
+  }
+
+  if (normalizedType && input.appointment.typeValue !== normalizedType) {
     return false;
   }
 
@@ -1450,12 +1812,6 @@ function appointmentMatchesSnapshotFilters(input: {
     input.appointment.statusValue !== normalizedStatus
   ) {
     return false;
-  }
-
-  if (
-    normalizedCoordination === frontOfficeAppointmentCoordinationFilters.all
-  ) {
-    return true;
   }
 
   if (
@@ -1483,7 +1839,61 @@ function appointmentMatchesSnapshotFilters(input: {
     );
   }
 
-  return input.appointment.externalStatusValue === normalizedCoordination;
+  if (
+    normalizedCoordination !== frontOfficeAppointmentCoordinationFilters.all &&
+    input.appointment.externalStatusValue !== normalizedCoordination
+  ) {
+    return false;
+  }
+
+  if (normalizedFollowUp === frontOfficeAppointmentFollowUpFilters.all) {
+    return true;
+  }
+
+  if (
+    normalizedFollowUp === frontOfficeAppointmentFollowUpFilters.responseWaiting
+  ) {
+    return (
+      input.appointment.statusValue === AppointmentStatus.scheduled &&
+      input.appointment.requiresExternalResponse
+    );
+  }
+
+  if (
+    normalizedFollowUp === frontOfficeAppointmentFollowUpFilters.touchDue
+  ) {
+    return (
+      input.appointment.statusValue === AppointmentStatus.scheduled &&
+      input.appointment.isExternalTouchDue
+    );
+  }
+
+  if (
+    normalizedFollowUp ===
+    frontOfficeAppointmentFollowUpFilters.nextTouchMissing
+  ) {
+    return (
+      input.appointment.statusValue === AppointmentStatus.scheduled &&
+      input.appointment.needsNextTouchPlan
+    );
+  }
+
+  if (
+    normalizedFollowUp ===
+    frontOfficeAppointmentFollowUpFilters.touchScheduled
+  ) {
+    return (
+      input.appointment.statusValue === AppointmentStatus.scheduled &&
+      !input.appointment.isExternalTouchDue &&
+      input.appointment.externalNextActionAtValue !== ""
+    );
+  }
+
+  return (
+    input.appointment.statusValue === AppointmentStatus.scheduled &&
+    input.appointment.externalStatusValue ===
+      frontOfficeAppointmentExternalWorkflowStatuses.confirmed
+  );
 }
 
 export async function getFrontOfficeAppointmentsSnapshot(
@@ -1707,8 +2117,10 @@ export async function getFrontOfficeAppointmentsSnapshot(
     appointmentMatchesSnapshotFilters({
       appointment,
       clientId: input.clientId,
+      type: input.type,
       status: input.status,
       coordination: input.coordination,
+      followUp: input.followUp,
     }),
   );
   const awaitingReplyCount = mappedAppointmentRecords.filter(
@@ -1720,6 +2132,11 @@ export async function getFrontOfficeAppointmentsSnapshot(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.isExternalTouchDue,
+  ).length;
+  const missingTouchPlanCount = mappedAppointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.needsNextTouchPlan,
   ).length;
   const bridgedCount = mappedAppointmentRecords.filter(
     (appointment) => appointment.hasBridgeActivity,
@@ -1733,6 +2150,11 @@ export async function getFrontOfficeAppointmentsSnapshot(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.isExternalTouchDue,
+  ).length;
+  const filteredMissingTouchPlanCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.needsNextTouchPlan,
   ).length;
   const filteredConfirmedCount = appointmentRecords.filter(
     (appointment) =>
@@ -1754,12 +2176,14 @@ export async function getFrontOfficeAppointmentsSnapshot(
       handoffReadyCount,
       awaitingReplyCount,
       touchDueCount,
+      missingTouchPlanCount,
       bridgedCount,
     },
     filteredSummary: {
       appointmentCount: appointmentRecords.length,
       awaitingReplyCount: filteredAwaitingReplyCount,
       touchDueCount: filteredTouchDueCount,
+      missingTouchPlanCount: filteredMissingTouchPlanCount,
       confirmedCount: filteredConfirmedCount,
       bridgePendingCount: filteredBridgePendingCount,
     },

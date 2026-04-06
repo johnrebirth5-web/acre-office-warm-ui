@@ -45,8 +45,10 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
     clientId: readSearchParamValue(searchParams.clientId)?.trim(),
+    type: readSearchParamValue(searchParams.type)?.trim(),
     status: readSearchParamValue(searchParams.status)?.trim(),
     coordination: readSearchParamValue(searchParams.coordination)?.trim(),
+    followUp: readSearchParamValue(searchParams.followUp)?.trim(),
     targetAppointmentId: readSearchParamValue(
       searchParams.appointmentId,
     )?.trim(),
@@ -96,6 +98,12 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 hint="next external touches already due or overdue in the visible queue"
                 label="Touch due"
                 value={snapshot.summary.touchDueCount}
+              />
+              <StatCard
+                hint="appointments still waiting on outside coordination but missing a saved next-touch deadline"
+                label="Missing touch"
+                tone="accent"
+                value={snapshot.summary.missingTouchPlanCount}
               />
               <StatCard
                 hint="appointments with at least one Google / Outlook / ICS / email bridge logged"
@@ -203,6 +211,11 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
           <SummaryChip
             label="Touch due"
             value={snapshot.summary.touchDueCount}
+          />
+          <SummaryChip
+            label="Missing touch"
+            tone="accent"
+            value={snapshot.summary.missingTouchPlanCount}
           />
           <SummaryChip
             label="Bridged"
