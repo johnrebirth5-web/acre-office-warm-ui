@@ -34,6 +34,203 @@ export type FrontOfficeTone =
   | "warning"
   | "danger";
 
+const frontOfficeActivityNotificationGroupKeys = [
+  "appointment_soon",
+  "confirmation_due",
+  "reschedule_due",
+  "external_touch_due",
+  "general_notice",
+] as const;
+type FrontOfficeActivityNotificationGroupKey =
+  (typeof frontOfficeActivityNotificationGroupKeys)[number];
+
+const frontOfficeActivityNotificationStreamKeys = [
+  "front_office",
+  "back_office",
+  "shared_notice",
+  "reference",
+] as const;
+type FrontOfficeActivityNotificationStreamKey =
+  (typeof frontOfficeActivityNotificationStreamKeys)[number];
+
+const frontOfficeActivityNotificationOwnerKeys = [
+  "assigned_to_viewer",
+  "shared_office",
+] as const;
+type FrontOfficeActivityNotificationOwnerKey =
+  (typeof frontOfficeActivityNotificationOwnerKeys)[number];
+
+const frontOfficeActivityNotificationScopeKeys = [
+  "meeting_countdown",
+  "calendar_writeback",
+  "front_office_action",
+  "back_office_handoff",
+  "shared_office_notice",
+  "awareness_only",
+] as const;
+type FrontOfficeActivityNotificationScopeKey =
+  (typeof frontOfficeActivityNotificationScopeKeys)[number];
+
+const frontOfficeActivityNotificationPressureKeys = [
+  "confirmation_due",
+  "confirmation_overdue",
+  "reschedule_due",
+  "reschedule_overdue",
+  "touch_due",
+  "touch_overdue",
+  "starts_within_2h",
+  "starts_today",
+  "coming_up",
+  "shared_visibility",
+  "action_now",
+  "needs_review",
+  "new_notice",
+  "reviewed",
+] as const;
+type FrontOfficeActivityNotificationPressureKey =
+  (typeof frontOfficeActivityNotificationPressureKeys)[number];
+
+const frontOfficeActivityCleanupKindKeys = [
+  "follow_up",
+  "appointment_writeback",
+  "send_risk",
+  "stale_client",
+] as const;
+type FrontOfficeActivityCleanupKindKey =
+  (typeof frontOfficeActivityCleanupKindKeys)[number];
+
+const frontOfficeActivityCleanupFilterKeys = [
+  "all",
+  "follow_up",
+  "appointment_writeback",
+  "send_risk",
+  "stale_client",
+  "duplicate_review",
+] as const;
+type FrontOfficeActivityCleanupFilterKey =
+  (typeof frontOfficeActivityCleanupFilterKeys)[number];
+
+const frontOfficeActivityCleanupOwnerKeys = ["assigned_to_viewer"] as const;
+type FrontOfficeActivityCleanupOwnerKey =
+  (typeof frontOfficeActivityCleanupOwnerKeys)[number];
+
+const frontOfficeActivityCleanupScopeKeys = [
+  "meeting_countdown",
+  "calendar_writeback",
+  "follow_up_task",
+  "client_next_touch",
+  "tracked_send_rescue",
+  "client_freshness",
+] as const;
+type FrontOfficeActivityCleanupScopeKey =
+  (typeof frontOfficeActivityCleanupScopeKeys)[number];
+
+const frontOfficeActivityCleanupPressureKeys = [
+  "reschedule_requested",
+  "confirmation_due",
+  "confirmation_overdue",
+  "touch_due",
+  "touch_overdue",
+  "starts_within_2h",
+  "starts_today",
+  "coming_up",
+  "overdue",
+  "due_today",
+  "send_unopened_3_days",
+  "send_quiet_after_open",
+  "stale_15_days",
+  "stale_30_days",
+] as const;
+type FrontOfficeActivityCleanupPressureKey =
+  (typeof frontOfficeActivityCleanupPressureKeys)[number];
+
+const frontOfficeActivityNoticeFilterKeys = [
+  "all",
+  "appointment_soon",
+  "confirmation_due",
+  "reschedule_due",
+  "external_touch_due",
+  "general_notice",
+] as const;
+type FrontOfficeActivityNoticeFilterKey =
+  (typeof frontOfficeActivityNoticeFilterKeys)[number];
+
+const frontOfficeActivityNoticeStreamFilterKeys = [
+  "all",
+  "front_office",
+  "back_office",
+  "shared_notice",
+  "reference",
+] as const;
+type FrontOfficeActivityNoticeStreamFilterKey =
+  (typeof frontOfficeActivityNoticeStreamFilterKeys)[number];
+
+const frontOfficeActivityReadStateKeys = ["all", "unread", "read"] as const;
+type FrontOfficeActivityReadState =
+  (typeof frontOfficeActivityReadStateKeys)[number];
+
+type FrontOfficeActivityFilterOption<TValue extends string> = {
+  value: TValue;
+  label: string;
+  count: number;
+};
+
+type FrontOfficeActivityFilterContract<TValue extends string> = {
+  defaultValue: TValue;
+  paramKey: string;
+  options: FrontOfficeActivityFilterOption<TValue>[];
+};
+
+type FrontOfficeActivityNoticeFilterContract =
+  FrontOfficeActivityFilterContract<FrontOfficeActivityNoticeFilterKey> & {
+    activityViewRules: {
+      appointmentRemindersDisallow: "general_notice";
+      generalNoticesForce: "general_notice";
+    };
+  };
+
+type FrontOfficeActivityNoticeStreamFilterContract =
+  FrontOfficeActivityFilterContract<FrontOfficeActivityNoticeStreamFilterKey> & {
+    appliesToGroupKey: "general_notice";
+  };
+
+type FrontOfficeActivityReadStateFilterContract =
+  FrontOfficeActivityFilterContract<FrontOfficeActivityReadState> & {
+    sharedNoticeBehavior: "shared_notices_ignore_read_state";
+  };
+
+type FrontOfficeActivityCleanupMetricCountMode =
+  | "raw_pressure"
+  | "surfaced_items";
+
+type FrontOfficeActivityCounts = {
+  notifications: {
+    visibleCount: number;
+    personalVisibleCount: number;
+    mutableVisibleCount: number;
+    sharedVisibleCount: number;
+    unreadPersonalVisibleCount: number;
+    unreadPersonalTotalCount: number;
+    appointmentReminderVisibleCount: number;
+    generalNoticeVisibleCount: number;
+    byGroup: Record<FrontOfficeActivityNotificationGroupKey, number>;
+    generalByStream: Record<FrontOfficeActivityNotificationStreamKey, number>;
+  };
+  cleanup: {
+    surfacedCount: number;
+    surfacedItemCount: number;
+    duplicateReviewCount: number;
+    urgentSurfacedCount: number;
+    totalPressureCount: number;
+    visibleByKind: Record<FrontOfficeActivityCleanupKindKey, number>;
+    totalByKind: Record<FrontOfficeActivityCleanupKindKey, number>;
+    visibleByFilter: Record<FrontOfficeActivityCleanupFilterKey, number>;
+  };
+  events: {
+    visibleCount: number;
+  };
+};
+
 export type FrontOfficeClientRecord = {
   id: string;
   fullName: string;
@@ -196,18 +393,16 @@ export type FrontOfficeActivityNotificationRecord = {
   title: string;
   body: string;
   typeLabel: string;
-  groupKey:
-    | "appointment_soon"
-    | "confirmation_due"
-    | "reschedule_due"
-    | "external_touch_due"
-    | "general_notice";
+  groupKey: FrontOfficeActivityNotificationGroupKey;
   groupLabel: string;
-  streamKey: "front_office" | "back_office" | "shared_notice" | "reference";
+  streamKey: FrontOfficeActivityNotificationStreamKey;
   streamLabel: string;
   audienceLabel: "Personal notice" | "Shared office notice";
+  ownerKey: FrontOfficeActivityNotificationOwnerKey;
   ownerLabel: string;
+  scopeKey: FrontOfficeActivityNotificationScopeKey;
   scopeLabel: string;
+  pressureKey: FrontOfficeActivityNotificationPressureKey;
   pressureLabel: string;
   pressureTone: FrontOfficeTone;
   whyNowLabel: string;
@@ -232,27 +427,27 @@ export type FrontOfficeActivityEventRecord = {
 };
 
 export type FrontOfficeActivityCleanupMetric = {
-  key:
-    | "follow_up"
-    | "appointment_writeback"
-    | "send_risk"
-    | "stale_client"
-    | "duplicate_review";
+  key: FrontOfficeActivityCleanupFilterKey;
   label: string;
   count: number;
+  visibleCount: number;
+  countMode: FrontOfficeActivityCleanupMetricCountMode;
   tone: FrontOfficeTone;
   helper: string;
 };
 
 export type FrontOfficeActivityCleanupItem = {
   id: string;
-  kindKey: "follow_up" | "appointment_writeback" | "send_risk" | "stale_client";
+  kindKey: FrontOfficeActivityCleanupKindKey;
   kindLabel: string;
   tone: FrontOfficeTone;
   title: string;
   description: string;
+  ownerKey: FrontOfficeActivityCleanupOwnerKey;
   ownerLabel: string;
+  scopeKey: FrontOfficeActivityCleanupScopeKey;
   scopeLabel: string;
+  pressureKey: FrontOfficeActivityCleanupPressureKey;
   pressureLabel: string;
   whyNowLabel: string;
   sortLabel: string;
@@ -272,6 +467,13 @@ export type FrontOfficeActivitySnapshot = {
     sharedNoticeCount: number;
     urgentCleanupCount: number;
   };
+  counts: FrontOfficeActivityCounts;
+  filters: {
+    cleanup: FrontOfficeActivityFilterContract<FrontOfficeActivityCleanupFilterKey>;
+    notices: FrontOfficeActivityNoticeFilterContract;
+    noticeLanes: FrontOfficeActivityNoticeStreamFilterContract;
+    readState: FrontOfficeActivityReadStateFilterContract;
+  };
   notifications: FrontOfficeActivityNotificationRecord[];
   events: FrontOfficeActivityEventRecord[];
   cleanup: {
@@ -280,6 +482,89 @@ export type FrontOfficeActivitySnapshot = {
     duplicatePairs: FrontOfficeClientDuplicatePair[];
   };
 };
+
+const frontOfficeActivityCleanupFilterLabels: Record<
+  FrontOfficeActivityCleanupFilterKey,
+  string
+> = {
+  all: "All personal cleanup",
+  follow_up: "Follow-up due",
+  appointment_writeback: "Appointment writeback",
+  send_risk: "Send-trail risk",
+  stale_client: "Stale dossiers",
+  duplicate_review: "Duplicate review",
+};
+
+const frontOfficeActivityNoticeFilterLabels: Record<
+  FrontOfficeActivityNoticeFilterKey,
+  string
+> = {
+  all: "All notices",
+  appointment_soon: "Appointment soon",
+  confirmation_due: "Confirmation due",
+  reschedule_due: "Reschedule follow-up",
+  external_touch_due: "External touch due",
+  general_notice: "General notices",
+};
+
+const frontOfficeActivityNoticeStreamFilterLabels: Record<
+  FrontOfficeActivityNoticeStreamFilterKey,
+  string
+> = {
+  all: "All notice lanes",
+  front_office: "FO actions",
+  back_office: "BO handoff",
+  shared_notice: "Shared office notices",
+  reference: "Awareness only",
+};
+
+const frontOfficeActivityReadStateLabels: Record<
+  FrontOfficeActivityReadState,
+  string
+> = {
+  all: "All",
+  unread: "Unread only",
+  read: "Read only",
+};
+
+function buildNotificationGroupCountRecord() {
+  return {
+    appointment_soon: 0,
+    confirmation_due: 0,
+    reschedule_due: 0,
+    external_touch_due: 0,
+    general_notice: 0,
+  } satisfies Record<FrontOfficeActivityNotificationGroupKey, number>;
+}
+
+function buildNotificationStreamCountRecord() {
+  return {
+    front_office: 0,
+    back_office: 0,
+    shared_notice: 0,
+    reference: 0,
+  } satisfies Record<FrontOfficeActivityNotificationStreamKey, number>;
+}
+
+function buildCleanupKindCountRecord() {
+  return {
+    follow_up: 0,
+    appointment_writeback: 0,
+    send_risk: 0,
+    stale_client: 0,
+  } satisfies Record<FrontOfficeActivityCleanupKindKey, number>;
+}
+
+function buildCleanupFilterCountRecord() {
+  return {
+    all: 0,
+    follow_up: 0,
+    appointment_writeback: 0,
+    send_risk: 0,
+    stale_client: 0,
+    duplicate_review: 0,
+  } satisfies Record<FrontOfficeActivityCleanupFilterKey, number>;
+}
 
 const openFollowUpStatuses = ["queued", "in_progress"] as const;
 const activeListingStatuses: ListingStatus[] = [
@@ -1057,22 +1342,61 @@ function getFrontOfficeNotificationStream(input: {
 }
 
 function getFrontOfficeNotificationOwnerLabel(readStateMutable: boolean) {
-  return readStateMutable ? "Assigned to you" : "Shared office";
+  return readStateMutable
+    ? {
+        ownerKey: "assigned_to_viewer" as const,
+        ownerLabel: "Assigned to you",
+      }
+    : {
+        ownerKey: "shared_office" as const,
+        ownerLabel: "Shared office",
+      };
 }
 
 function getFrontOfficeNotificationScopeLabel(input: {
   groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+  streamKey: FrontOfficeActivityNotificationStreamKey;
   streamLabel: string;
 }) {
   if (input.groupKey === "appointment_soon") {
-    return "Meeting countdown";
+    return {
+      scopeKey: "meeting_countdown" as const,
+      scopeLabel: "Meeting countdown",
+    };
   }
 
   if (input.groupKey !== "general_notice") {
-    return "Calendar writeback";
+    return {
+      scopeKey: "calendar_writeback" as const,
+      scopeLabel: "Calendar writeback",
+    };
   }
 
-  return input.streamLabel;
+  if (input.streamKey === "front_office") {
+    return {
+      scopeKey: "front_office_action" as const,
+      scopeLabel: input.streamLabel,
+    };
+  }
+
+  if (input.streamKey === "back_office") {
+    return {
+      scopeKey: "back_office_handoff" as const,
+      scopeLabel: input.streamLabel,
+    };
+  }
+
+  if (input.streamKey === "shared_notice") {
+    return {
+      scopeKey: "shared_office_notice" as const,
+      scopeLabel: input.streamLabel,
+    };
+  }
+
+  return {
+    scopeKey: "awareness_only" as const,
+    scopeLabel: input.streamLabel,
+  };
 }
 
 function getFrontOfficeNotificationPressureState(input: {
@@ -1083,6 +1407,10 @@ function getFrontOfficeNotificationPressureState(input: {
 }) {
   if (input.groupKey === "confirmation_due") {
     return {
+      key:
+        input.notificationTone === "danger"
+          ? ("confirmation_overdue" as const)
+          : ("confirmation_due" as const),
       label:
         input.notificationTone === "danger"
           ? "Confirmation overdue"
@@ -1097,6 +1425,10 @@ function getFrontOfficeNotificationPressureState(input: {
 
   if (input.groupKey === "reschedule_due") {
     return {
+      key:
+        input.notificationTone === "danger"
+          ? ("reschedule_overdue" as const)
+          : ("reschedule_due" as const),
       label:
         input.notificationTone === "danger"
           ? "Reschedule overdue"
@@ -1111,6 +1443,10 @@ function getFrontOfficeNotificationPressureState(input: {
 
   if (input.groupKey === "external_touch_due") {
     return {
+      key:
+        input.notificationTone === "danger"
+          ? ("touch_overdue" as const)
+          : ("touch_due" as const),
       label:
         input.notificationTone === "danger" ? "Touch overdue" : "Touch due",
       tone: input.notificationTone,
@@ -1123,6 +1459,12 @@ function getFrontOfficeNotificationPressureState(input: {
 
   if (input.groupKey === "appointment_soon") {
     return {
+      key:
+        input.notificationTone === "danger"
+          ? ("starts_within_2h" as const)
+          : input.notificationTone === "warning"
+            ? ("starts_today" as const)
+            : ("coming_up" as const),
       label:
         input.notificationTone === "danger"
           ? "Starts within 2h"
@@ -1141,6 +1483,7 @@ function getFrontOfficeNotificationPressureState(input: {
 
   if (!input.readStateMutable) {
     return {
+      key: "shared_visibility" as const,
       label: "Shared visibility",
       tone: "neutral" as const,
       whyNowLabel:
@@ -1150,6 +1493,12 @@ function getFrontOfficeNotificationPressureState(input: {
 
   if (input.isUnread) {
     return {
+      key:
+        input.notificationTone === "danger"
+          ? ("action_now" as const)
+          : input.notificationTone === "warning"
+            ? ("needs_review" as const)
+            : ("new_notice" as const),
       label:
         input.notificationTone === "danger"
           ? "Action now"
@@ -1170,6 +1519,7 @@ function getFrontOfficeNotificationPressureState(input: {
   }
 
   return {
+    key: "reviewed" as const,
     label: "Reviewed",
     tone: "neutral" as const,
     whyNowLabel:
@@ -1205,6 +1555,77 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
 
   return {
     OR: [{ officeId }, { officeId: null }],
+  };
+}
+
+function buildFrontOfficeActivityCleanupFilterContract(
+  counts: FrontOfficeActivityCounts["cleanup"],
+): FrontOfficeActivitySnapshot["filters"]["cleanup"] {
+  return {
+    defaultValue: "all",
+    paramKey: "cleanupFilter",
+    options: frontOfficeActivityCleanupFilterKeys.map((value) => ({
+      value,
+      label: frontOfficeActivityCleanupFilterLabels[value],
+      count: counts.visibleByFilter[value],
+    })),
+  };
+}
+
+function buildFrontOfficeActivityNoticeFilterContract(
+  counts: FrontOfficeActivityCounts["notifications"],
+): FrontOfficeActivitySnapshot["filters"]["notices"] {
+  return {
+    defaultValue: "all",
+    paramKey: "noticeFilter",
+    options: frontOfficeActivityNoticeFilterKeys.map((value) => ({
+      value,
+      label: frontOfficeActivityNoticeFilterLabels[value],
+      count:
+        value === "all" ? counts.visibleCount : counts.byGroup[value],
+    })),
+    activityViewRules: {
+      appointmentRemindersDisallow: "general_notice",
+      generalNoticesForce: "general_notice",
+    },
+  };
+}
+
+function buildFrontOfficeActivityNoticeStreamFilterContract(
+  counts: FrontOfficeActivityCounts["notifications"],
+): FrontOfficeActivitySnapshot["filters"]["noticeLanes"] {
+  return {
+    defaultValue: "all",
+    paramKey: "noticeStreamFilter",
+    options: frontOfficeActivityNoticeStreamFilterKeys.map((value) => ({
+      value,
+      label: frontOfficeActivityNoticeStreamFilterLabels[value],
+      count:
+        value === "all"
+          ? counts.generalNoticeVisibleCount
+          : counts.generalByStream[value],
+    })),
+    appliesToGroupKey: "general_notice",
+  };
+}
+
+function buildFrontOfficeActivityReadStateFilterContract(
+  counts: FrontOfficeActivityCounts["notifications"],
+): FrontOfficeActivitySnapshot["filters"]["readState"] {
+  return {
+    defaultValue: "all",
+    paramKey: "readState",
+    options: frontOfficeActivityReadStateKeys.map((value) => ({
+      value,
+      label: frontOfficeActivityReadStateLabels[value],
+      count:
+        value === "all"
+          ? counts.visibleCount
+          : value === "unread"
+            ? counts.unreadPersonalVisibleCount
+            : counts.mutableVisibleCount - counts.unreadPersonalVisibleCount,
+    })),
+    sharedNoticeBehavior: "shared_notices_ignore_read_state",
   };
 }
 
@@ -2338,6 +2759,48 @@ export async function getFrontOfficeActivitySnapshot(
             ? "Confirmation due"
             : "Awaiting confirmation";
       }
+      const scopeKey =
+        kindLabel === "Appointment soon"
+          ? ("meeting_countdown" as const)
+          : ("calendar_writeback" as const);
+      const scopeLabel =
+        scopeKey === "meeting_countdown"
+          ? "Meeting countdown"
+          : "Calendar writeback";
+      const pressureKey =
+        kindLabel === "Reschedule requested"
+          ? ("reschedule_requested" as const)
+          : kindLabel === "Confirmation due" ||
+              kindLabel === "Awaiting confirmation"
+            ? isExternalDeadlineOverdue
+              ? ("confirmation_overdue" as const)
+              : ("confirmation_due" as const)
+            : kindLabel === "External touch due" ||
+                kindLabel === "Appointment follow-up"
+              ? isExternalDeadlineOverdue
+                ? ("touch_overdue" as const)
+                : ("touch_due" as const)
+              : tone === "danger"
+                ? ("starts_within_2h" as const)
+                : tone === "warning"
+                  ? ("starts_today" as const)
+                  : ("coming_up" as const);
+      const pressureLabel =
+        pressureKey === "reschedule_requested"
+          ? "Reschedule requested"
+          : pressureKey === "confirmation_overdue"
+            ? "Confirmation overdue"
+            : pressureKey === "confirmation_due"
+              ? "Confirmation due"
+              : pressureKey === "touch_overdue"
+                ? "Touch overdue"
+                : pressureKey === "touch_due"
+                  ? "Touch due"
+                  : pressureKey === "starts_within_2h"
+                    ? "Starts within 2h"
+                    : pressureKey === "starts_today"
+                      ? "Starts today"
+                      : "Coming up";
 
       return {
         id: `appointment-${appointment.id}`,
@@ -2354,29 +2817,12 @@ export async function getFrontOfficeActivitySnapshot(
         ]
           .filter(Boolean)
           .join(" · "),
+        ownerKey: "assigned_to_viewer",
         ownerLabel: "Assigned to you",
-        scopeLabel:
-          kindLabel === "Appointment soon"
-            ? "Meeting countdown"
-            : "Calendar writeback",
-        pressureLabel:
-          kindLabel === "Reschedule requested"
-            ? "Reschedule requested"
-            : kindLabel === "Confirmation due" ||
-                kindLabel === "Awaiting confirmation"
-              ? isExternalDeadlineOverdue
-                ? "Confirmation overdue"
-                : "Confirmation due"
-              : kindLabel === "External touch due" ||
-                  kindLabel === "Appointment follow-up"
-                ? isExternalDeadlineOverdue
-                  ? "Touch overdue"
-                  : "Touch due"
-                : tone === "danger"
-                  ? "Starts within 2h"
-                  : tone === "warning"
-                    ? "Starts today"
-                    : "Coming up",
+        scopeKey,
+        scopeLabel,
+        pressureKey,
+        pressureLabel,
         metaLabels: [
           appointment.client?.stage?.trim()
             ? `Stage · ${appointment.client.stage.trim()}`
@@ -2440,8 +2886,11 @@ export async function getFrontOfficeActivitySnapshot(
         ]
           .filter(Boolean)
           .join(" · "),
+        ownerKey: "assigned_to_viewer",
         ownerLabel: "Assigned to you",
+        scopeKey: "follow_up_task",
         scopeLabel: "Client follow-up task",
+        pressureKey: isOverdue ? "overdue" : "due_today",
         pressureLabel: isOverdue ? "Overdue" : "Due today",
         metaLabels: [
           task.client.source?.trim() || "Source not captured",
@@ -2487,8 +2936,11 @@ export async function getFrontOfficeActivitySnapshot(
         ]
           .filter(Boolean)
           .join(" · "),
+        ownerKey: "assigned_to_viewer",
         ownerLabel: "Assigned to you",
+        scopeKey: "client_next_touch",
         scopeLabel: "Client next touch",
+        pressureKey: isOverdue ? "overdue" : "due_today",
         pressureLabel: isOverdue ? "Overdue" : "Due today",
         metaLabels: [
           client.source?.trim() || "Source not captured",
@@ -2542,8 +2994,11 @@ export async function getFrontOfficeActivitySnapshot(
             ]
               .filter(Boolean)
               .join(" · "),
+            ownerKey: "assigned_to_viewer",
             ownerLabel: "Assigned to you",
+            scopeKey: "tracked_send_rescue",
             scopeLabel: "Tracked send rescue",
+            pressureKey: "send_unopened_3_days",
             pressureLabel: "Unopened 3+ days",
             metaLabels: [
               `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
@@ -2590,8 +3045,11 @@ export async function getFrontOfficeActivitySnapshot(
           ]
             .filter(Boolean)
             .join(" · "),
+          ownerKey: "assigned_to_viewer",
           ownerLabel: "Assigned to you",
+          scopeKey: "tracked_send_rescue",
           scopeLabel: "Tracked send rescue",
+          pressureKey: "send_quiet_after_open",
           pressureLabel: "Quiet after last open",
           metaLabels: [
             `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
@@ -2630,8 +3088,11 @@ export async function getFrontOfficeActivitySnapshot(
       ]
         .filter(Boolean)
         .join(" · "),
+      ownerKey: "assigned_to_viewer",
       ownerLabel: "Assigned to you",
+      scopeKey: "client_freshness",
       scopeLabel: "Client freshness",
+      pressureKey: tone === "danger" ? "stale_30_days" : "stale_15_days",
       pressureLabel: tone === "danger" ? "30+ days stale" : "15+ days stale",
       metaLabels: [
         client.source?.trim() || "Source not captured",
@@ -2677,8 +3138,11 @@ export async function getFrontOfficeActivitySnapshot(
       tone: item.tone,
       title: item.title,
       description: item.description,
+      ownerKey: item.ownerKey,
       ownerLabel: item.ownerLabel,
+      scopeKey: item.scopeKey,
       scopeLabel: item.scopeLabel,
+      pressureKey: item.pressureKey,
       pressureLabel: item.pressureLabel,
       whyNowLabel: item.whyNowLabel,
       sortLabel: item.sortLabel,
@@ -2699,11 +3163,42 @@ export async function getFrontOfficeActivitySnapshot(
   const followUpMetricCount = dueTaskItems.length + dueClientItems.length;
   const sendRiskMetricCount = sendRiskItems.length;
   const staleMetricCount = staleClientItems.length;
+  const totalCleanupByKind = buildCleanupKindCountRecord();
+  totalCleanupByKind.follow_up = followUpMetricCount;
+  totalCleanupByKind.appointment_writeback = appointmentSoonCount;
+  totalCleanupByKind.send_risk = sendRiskMetricCount;
+  totalCleanupByKind.stale_client = staleMetricCount;
+  const visibleCleanupByKind = buildCleanupKindCountRecord();
+
+  for (const item of cleanupItems) {
+    visibleCleanupByKind[item.kindKey] += 1;
+  }
+
+  const cleanupItemCount = cleanupItems.length + duplicatePairs.length;
+  const urgentCleanupCount = cleanupItems.filter(
+    (item) => item.tone === "danger",
+  ).length;
+  const totalCleanupPressureCount =
+    totalCleanupByKind.follow_up +
+    totalCleanupByKind.appointment_writeback +
+    totalCleanupByKind.send_risk +
+    totalCleanupByKind.stale_client +
+    duplicatePairs.length;
+  const visibleCleanupByFilter = buildCleanupFilterCountRecord();
+  visibleCleanupByFilter.all = cleanupItemCount;
+  visibleCleanupByFilter.follow_up = visibleCleanupByKind.follow_up;
+  visibleCleanupByFilter.appointment_writeback =
+    visibleCleanupByKind.appointment_writeback;
+  visibleCleanupByFilter.send_risk = visibleCleanupByKind.send_risk;
+  visibleCleanupByFilter.stale_client = visibleCleanupByKind.stale_client;
+  visibleCleanupByFilter.duplicate_review = duplicatePairs.length;
   const cleanupMetrics: FrontOfficeActivityCleanupMetric[] = [
     {
       key: "follow_up",
       label: "Follow-up due",
       count: followUpMetricCount,
+      visibleCount: visibleCleanupByKind.follow_up,
+      countMode: "raw_pressure",
       tone: followUpMetricCount > 0 ? "warning" : "neutral",
       helper:
         "Scheduled follow-up work that should be touched today or is already overdue.",
@@ -2712,6 +3207,8 @@ export async function getFrontOfficeActivitySnapshot(
       key: "appointment_writeback",
       label: "Appointment cleanup",
       count: appointmentSoonCount,
+      visibleCount: visibleCleanupByKind.appointment_writeback,
+      countMode: "raw_pressure",
       tone: appointmentSoonCount > 0 ? "accent" : "neutral",
       helper:
         "Calendar-owned meetings and promised external touches in the next two days that still need direct Front Office follow-through.",
@@ -2720,6 +3217,8 @@ export async function getFrontOfficeActivitySnapshot(
       key: "send_risk",
       label: "Send risk",
       count: sendRiskMetricCount,
+      visibleCount: visibleCleanupByKind.send_risk,
+      countMode: "raw_pressure",
       tone: sendRiskMetricCount > 0 ? "warning" : "neutral",
       helper:
         "Tracked sends with no open after three days or no recent engagement after the last open.",
@@ -2728,6 +3227,8 @@ export async function getFrontOfficeActivitySnapshot(
       key: "stale_client",
       label: "Stale clients",
       count: staleMetricCount,
+      visibleCount: visibleCleanupByKind.stale_client,
+      countMode: "raw_pressure",
       tone: staleMetricCount > 0 ? "danger" : "neutral",
       helper:
         "Active dossiers that have gone 15+ days without a logged contact touch.",
@@ -2736,93 +3237,165 @@ export async function getFrontOfficeActivitySnapshot(
       key: "duplicate_review",
       label: "Potential dupes",
       count: duplicatePairs.length,
+      visibleCount: duplicatePairs.length,
+      countMode: "surfaced_items",
       tone: duplicatePairs.length > 0 ? "accent" : "neutral",
       helper:
         "Visible-scope duplicate review pairs that should be merged before the next touch.",
     },
   ];
-  const cleanupItemCount = cleanupItems.length + duplicatePairs.length;
-  const sharedNoticeCount = notifications.filter(
-    (notification) => notification.membershipId == null,
-  ).length;
-  const urgentCleanupCount = cleanupItems.filter(
-    (item) => item.tone === "danger",
-  ).length;
+  const notificationCards = notifications.map((notification) => {
+    const group = getFrontOfficeNotificationGroup({
+      type: notification.type,
+      metadata: notification.metadata,
+    });
+    const stream = getFrontOfficeNotificationStream({
+      actionUrl: notification.actionUrl?.trim() || null,
+      membershipId: notification.membershipId,
+      groupKey: group.groupKey,
+    });
+    const owner = getFrontOfficeNotificationOwnerLabel(
+      notification.membershipId != null,
+    );
+    const scope = getFrontOfficeNotificationScopeLabel({
+      groupKey: group.groupKey,
+      streamKey: stream.streamKey,
+      streamLabel: stream.streamLabel,
+    });
+    const readStateMutable = notification.membershipId != null;
+    const isUnread = readStateMutable && notification.readAt == null;
+    const pressureTone = mapNotificationSeverityTone(notification.severity);
+    const pressureState = getFrontOfficeNotificationPressureState({
+      groupKey: group.groupKey,
+      notificationTone: pressureTone,
+      readStateMutable,
+      isUnread,
+    });
+
+    return {
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      body: notification.body,
+      typeLabel: formatNotificationType(notification.type),
+      groupKey: group.groupKey,
+      groupLabel: group.groupLabel,
+      streamKey: stream.streamKey,
+      streamLabel: stream.streamLabel,
+      audienceLabel: readStateMutable
+        ? "Personal notice"
+        : "Shared office notice",
+      ownerKey: owner.ownerKey,
+      ownerLabel: owner.ownerLabel,
+      scopeKey: scope.scopeKey,
+      scopeLabel: scope.scopeLabel,
+      pressureKey: pressureState.key,
+      pressureLabel: pressureState.label,
+      pressureTone: pressureState.tone,
+      whyNowLabel: pressureState.whyNowLabel,
+      tone:
+        notification.type === NotificationType.appointment_due_soon
+          ? "accent"
+          : mapNotificationSeverityTone(notification.severity),
+      createdAtLabel: formatDateTimeLabel(notification.createdAt, {
+        timeZone: input.timeZone ?? null,
+      }),
+      actionLabel: getFrontOfficeNotificationActionLabel({
+        type: notification.type,
+        actionUrl: notification.actionUrl?.trim() || null,
+        groupKey: group.groupKey,
+      }),
+      href: `/agent/notifications/${notification.id}/open`,
+      isUnread,
+      readStateLabel: !readStateMutable
+        ? "Shared notice"
+        : notification.readAt == null
+          ? "Unread"
+          : "Read",
+      readStateMutable,
+    } satisfies FrontOfficeActivityNotificationRecord;
+  });
+  const notificationGroupCounts = buildNotificationGroupCountRecord();
+  const notificationStreamCounts = buildNotificationStreamCountRecord();
+  let personalVisibleNoticeCount = 0;
+  let sharedVisibleNoticeCount = 0;
+  let unreadPersonalVisibleNoticeCount = 0;
+
+  for (const card of notificationCards) {
+    notificationGroupCounts[card.groupKey] += 1;
+
+    if (card.groupKey === "general_notice") {
+      notificationStreamCounts[card.streamKey] += 1;
+    }
+
+    if (card.readStateMutable) {
+      personalVisibleNoticeCount += 1;
+
+      if (card.isUnread) {
+        unreadPersonalVisibleNoticeCount += 1;
+      }
+    } else {
+      sharedVisibleNoticeCount += 1;
+    }
+  }
+
+  const counts: FrontOfficeActivityCounts = {
+    notifications: {
+      visibleCount: notificationCards.length,
+      personalVisibleCount: personalVisibleNoticeCount,
+      mutableVisibleCount: personalVisibleNoticeCount,
+      sharedVisibleCount: sharedVisibleNoticeCount,
+      unreadPersonalVisibleCount: unreadPersonalVisibleNoticeCount,
+      unreadPersonalTotalCount: unreadNoticeCount,
+      appointmentReminderVisibleCount:
+        notificationCards.length - notificationGroupCounts.general_notice,
+      generalNoticeVisibleCount: notificationGroupCounts.general_notice,
+      byGroup: notificationGroupCounts,
+      generalByStream: notificationStreamCounts,
+    },
+    cleanup: {
+      surfacedCount: cleanupItemCount,
+      surfacedItemCount: cleanupItems.length,
+      duplicateReviewCount: duplicatePairs.length,
+      urgentSurfacedCount: urgentCleanupCount,
+      totalPressureCount: totalCleanupPressureCount,
+      visibleByKind: visibleCleanupByKind,
+      totalByKind: totalCleanupByKind,
+      visibleByFilter: visibleCleanupByFilter,
+    },
+    events: {
+      visibleCount: events.length,
+    },
+  };
 
   return {
     summary: {
-      actionableItemCount: notifications.length + cleanupItemCount,
-      upcomingEventCount: events.length,
+      actionableItemCount:
+        counts.notifications.visibleCount + counts.cleanup.surfacedCount,
+      upcomingEventCount: counts.events.visibleCount,
       unreadNoticeCount,
-      cleanupItemCount,
-      duplicateReviewCount: duplicatePairs.length,
-      appointmentSoonCount,
-      sharedNoticeCount,
-      urgentCleanupCount,
+      cleanupItemCount: counts.cleanup.surfacedCount,
+      duplicateReviewCount: counts.cleanup.duplicateReviewCount,
+      appointmentSoonCount: counts.cleanup.totalByKind.appointment_writeback,
+      sharedNoticeCount: counts.notifications.sharedVisibleCount,
+      urgentCleanupCount: counts.cleanup.urgentSurfacedCount,
     },
-    notifications: notifications.map((notification) => {
-      const group = getFrontOfficeNotificationGroup({
-        type: notification.type,
-        metadata: notification.metadata,
-      });
-      const stream = getFrontOfficeNotificationStream({
-        actionUrl: notification.actionUrl?.trim() || null,
-        membershipId: notification.membershipId,
-        groupKey: group.groupKey,
-      });
-      const readStateMutable = notification.membershipId != null;
-      const isUnread = readStateMutable && notification.readAt == null;
-      const pressureTone = mapNotificationSeverityTone(notification.severity);
-      const pressureState = getFrontOfficeNotificationPressureState({
-        groupKey: group.groupKey,
-        notificationTone: pressureTone,
-        readStateMutable,
-        isUnread,
-      });
-
-      return {
-        id: notification.id,
-        type: notification.type,
-        title: notification.title,
-        body: notification.body,
-        typeLabel: formatNotificationType(notification.type),
-        groupKey: group.groupKey,
-        groupLabel: group.groupLabel,
-        streamKey: stream.streamKey,
-        streamLabel: stream.streamLabel,
-        audienceLabel: readStateMutable
-          ? "Personal notice"
-          : "Shared office notice",
-        ownerLabel: getFrontOfficeNotificationOwnerLabel(readStateMutable),
-        scopeLabel: getFrontOfficeNotificationScopeLabel({
-          groupKey: group.groupKey,
-          streamLabel: stream.streamLabel,
-        }),
-        pressureLabel: pressureState.label,
-        pressureTone: pressureState.tone,
-        whyNowLabel: pressureState.whyNowLabel,
-        tone:
-          notification.type === NotificationType.appointment_due_soon
-            ? "accent"
-            : mapNotificationSeverityTone(notification.severity),
-        createdAtLabel: formatDateTimeLabel(notification.createdAt, {
-          timeZone: input.timeZone ?? null,
-        }),
-        actionLabel: getFrontOfficeNotificationActionLabel({
-          type: notification.type,
-          actionUrl: notification.actionUrl?.trim() || null,
-          groupKey: group.groupKey,
-        }),
-        href: `/agent/notifications/${notification.id}/open`,
-        isUnread,
-        readStateLabel: !readStateMutable
-          ? "Shared notice"
-          : notification.readAt == null
-            ? "Unread"
-            : "Read",
-        readStateMutable,
-      };
-    }),
+    counts,
+    filters: {
+      cleanup: buildFrontOfficeActivityCleanupFilterContract(
+        counts.cleanup,
+      ),
+      notices: buildFrontOfficeActivityNoticeFilterContract(
+        counts.notifications,
+      ),
+      noticeLanes: buildFrontOfficeActivityNoticeStreamFilterContract(
+        counts.notifications,
+      ),
+      readState: buildFrontOfficeActivityReadStateFilterContract(
+        counts.notifications,
+      ),
+    },
+    notifications: notificationCards,
     events: events.map((event) => ({
       id: event.id,
       title: event.title,

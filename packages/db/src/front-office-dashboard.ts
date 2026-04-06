@@ -44,6 +44,40 @@ export type FrontOfficeDashboardTone =
   | "warning"
   | "danger";
 
+const frontOfficeDashboardLeadershipKindKeys = [
+  "overdue_task",
+  "engagement_risk",
+  "stale_client",
+] as const;
+type FrontOfficeDashboardLeadershipKindKey =
+  (typeof frontOfficeDashboardLeadershipKindKeys)[number];
+
+const frontOfficeDashboardLeadershipFilterKeys = [
+  "all",
+  "overdue_task",
+  "engagement_risk",
+  "stale_client",
+] as const;
+type FrontOfficeDashboardLeadershipFilterKey =
+  (typeof frontOfficeDashboardLeadershipFilterKeys)[number];
+
+type FrontOfficeDashboardLeadershipScopeKey =
+  | "team_execution_pressure"
+  | "office_execution_pressure"
+  | "none";
+
+type FrontOfficeDashboardFilterOption<TValue extends string> = {
+  value: TValue;
+  label: string;
+  count: number;
+};
+
+type FrontOfficeDashboardLeadershipFilterContract = {
+  defaultValue: "all";
+  paramKey: "teamCleanupFilter";
+  options: FrontOfficeDashboardFilterOption<FrontOfficeDashboardLeadershipFilterKey>[];
+};
+
 export type FrontOfficeDashboardSummary = {
   todayActionCount: number;
   followUpDueCount: number;
@@ -169,7 +203,7 @@ export type FrontOfficeDashboardBackOfficeItem = {
 
 export type FrontOfficeDashboardLeadershipItem = {
   id: string;
-  kindKey: "overdue_task" | "engagement_risk" | "stale_client";
+  kindKey: FrontOfficeDashboardLeadershipKindKey;
   kindLabel: string;
   title: string;
   description: string;
@@ -318,12 +352,37 @@ export type FrontOfficeDashboardSnapshot = {
   leadershipQueue: {
     visible: boolean;
     scopeLabel: string;
+    scopeKey: FrontOfficeDashboardLeadershipScopeKey;
     overdueTaskCount: number;
     staleClientCount: number;
     engagementRiskCount: number;
+    counts: {
+      surfacedCount: number;
+      totalSignalCount: number;
+      byKind: Record<FrontOfficeDashboardLeadershipKindKey, number>;
+    };
+    filters: FrontOfficeDashboardLeadershipFilterContract;
     items: FrontOfficeDashboardLeadershipItem[];
   };
 };
+
+const frontOfficeDashboardLeadershipFilterLabels: Record<
+  FrontOfficeDashboardLeadershipFilterKey,
+  string
+> = {
+  all: "All team pressure",
+  overdue_task: "Overdue tasks",
+  engagement_risk: "Send-trail risk",
+  stale_client: "15+ day stale",
+};
+
+function buildFrontOfficeDashboardLeadershipKindCountRecord() {
+  return {
+    overdue_task: 0,
+    engagement_risk: 0,
+    stale_client: 0,
+  } satisfies Record<FrontOfficeDashboardLeadershipKindKey, number>;
+}
 
 type GetFrontOfficeDashboardSnapshotInput = {
   organizationId: string;
@@ -841,6 +900,7 @@ async function getLeadershipScopeMembershipIds(input: {
 
     return {
       visible: true,
+      scopeKey: "team_execution_pressure" as const,
       scopeLabel: "Team execution pressure",
       membershipIds: [...membershipIds],
     };
@@ -867,6 +927,7 @@ async function getLeadershipScopeMembershipIds(input: {
 
     return {
       visible: true,
+      scopeKey: "office_execution_pressure" as const,
       scopeLabel: "Office execution pressure",
       membershipIds: memberships
         .map((membership) => membership.id)
@@ -876,6 +937,7 @@ async function getLeadershipScopeMembershipIds(input: {
 
   return {
     visible: false,
+    scopeKey: "none" as const,
     scopeLabel: "",
     membershipIds: [] as string[],
   };
@@ -2055,6 +2117,23 @@ export async function getFrontOfficeDashboardSnapshot(
       };
     }),
   ].slice(0, 4);
+  const leadershipCounts = buildFrontOfficeDashboardLeadershipKindCountRecord();
+  leadershipCounts.overdue_task = leadershipOverdueTaskCount;
+  leadershipCounts.engagement_risk = leadershipEngagementRiskCount;
+  leadershipCounts.stale_client = leadershipStaleClientCount;
+  const leadershipTotalSignalCount =
+    leadershipCounts.overdue_task +
+    leadershipCounts.engagement_risk +
+    leadershipCounts.stale_client;
+  const leadershipFilters: FrontOfficeDashboardLeadershipFilterContract = {
+    defaultValue: "all",
+    paramKey: "teamCleanupFilter",
+    options: frontOfficeDashboardLeadershipFilterKeys.map((value) => ({
+      value,
+      label: frontOfficeDashboardLeadershipFilterLabels[value],
+      count: value === "all" ? leadershipTotalSignalCount : leadershipCounts[value],
+    })),
+  };
   const aiQueueCandidates = rankFrontOfficeAiQueueHistoryCandidates({
     candidates:
       aiSuggestionCandidates.flatMap<FrontOfficeDashboardAiCandidateItem>(
@@ -2943,9 +3022,16 @@ export async function getFrontOfficeDashboardSnapshot(
     leadershipQueue: {
       visible: leadershipScope.visible,
       scopeLabel: leadershipScope.scopeLabel,
+      scopeKey: leadershipScope.scopeKey,
       overdueTaskCount: leadershipOverdueTaskCount,
       staleClientCount: leadershipStaleClientCount,
       engagementRiskCount: leadershipEngagementRiskCount,
+      counts: {
+        surfacedCount: leadershipItems.length,
+        totalSignalCount: leadershipTotalSignalCount,
+        byKind: leadershipCounts,
+      },
+      filters: leadershipFilters,
       items: leadershipItems,
     },
   };
