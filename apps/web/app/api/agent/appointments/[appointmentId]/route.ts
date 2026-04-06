@@ -10,7 +10,11 @@ type RouteContext = {
 };
 
 function readOptionalString(body: Record<string, unknown>, key: string) {
-  return typeof body[key] === "string" ? body[key] : null;
+  return typeof body[key] === "string" ? body[key].trim() : null;
+}
+
+function isJsonObjectBody(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
@@ -30,14 +34,40 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const body = (await request.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = await request.json().catch(() => null);
 
-  if (!body) {
+  if (!isJsonObjectBody(body)) {
     return NextResponse.json(
       { error: "A valid JSON body is required." },
+      { status: 400 },
+    );
+  }
+
+  const status = readOptionalString(body, "status");
+  const externalStatus = readOptionalString(body, "externalStatus");
+  const externalNote = readOptionalString(body, "externalNote");
+  const externalNextActionAt = readOptionalString(body, "externalNextActionAt");
+  const hasStatusUpdate = Boolean(status);
+  const hasExternalUpdate = Boolean(
+    externalStatus || externalNote || externalNextActionAt,
+  );
+
+  if (!hasStatusUpdate && !hasExternalUpdate) {
+    return NextResponse.json(
+      {
+        error:
+          "Provide either an appointment status update or an external coordination writeback.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (hasStatusUpdate && hasExternalUpdate) {
+    return NextResponse.json(
+      {
+        error:
+          "Submit either an appointment status update or an external coordination writeback, not both.",
+      },
       { status: 400 },
     );
   }
@@ -52,10 +82,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       actorMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
       timeZone: context.currentUser.timezone,
-      status: readOptionalString(body, "status"),
-      externalStatus: readOptionalString(body, "externalStatus"),
-      externalNote: readOptionalString(body, "externalNote"),
-      externalNextActionAt: readOptionalString(body, "externalNextActionAt"),
+      status,
+      externalStatus,
+      externalNote,
+      externalNextActionAt,
     });
 
     if (!appointment) {

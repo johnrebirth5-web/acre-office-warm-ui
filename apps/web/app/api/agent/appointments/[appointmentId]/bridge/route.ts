@@ -40,6 +40,13 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     );
   }
 
+  if (responseFormat && responseFormat !== "json") {
+    return NextResponse.json(
+      { error: "A valid bridge response format is required." },
+      { status: 400 },
+    );
+  }
+
   const { appointmentId } = await params;
 
   try {

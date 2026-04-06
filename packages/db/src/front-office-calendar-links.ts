@@ -51,6 +51,14 @@ type AppointmentExternalLinkInput = {
   timeZone?: string | null;
 };
 
+function normalizeBridgeText(value: string | null | undefined) {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function isLikelyEmailAddress(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function resolveAppointmentEndAt(startsAt: Date, endsAt?: Date | null) {
   if (endsAt && endsAt.getTime() > startsAt.getTime()) {
     return endsAt;
@@ -82,41 +90,55 @@ function sanitizeFileStem(value: string) {
 }
 
 function buildListingLabel(input: AppointmentExternalLinkInput) {
-  if (!input.listingTitle?.trim()) {
+  const listingTitle = normalizeBridgeText(input.listingTitle);
+
+  if (!listingTitle) {
     return "";
   }
 
-  const area = [input.listingNeighborhood?.trim(), input.listingCity?.trim()]
+  const area = [
+    normalizeBridgeText(input.listingNeighborhood),
+    normalizeBridgeText(input.listingCity),
+  ]
     .filter(Boolean)
     .join(", ");
 
-  return area ? `${input.listingTitle.trim()} · ${area}` : input.listingTitle.trim();
+  return area ? `${listingTitle} · ${area}` : listingTitle;
 }
 
 function buildCalendarDescription(input: AppointmentExternalLinkInput) {
-  const clientOrContact = input.clientName?.trim() || input.contactLabel?.trim() || "";
+  const clientOrContact =
+    normalizeBridgeText(input.clientName) ||
+    normalizeBridgeText(input.contactLabel) ||
+    "";
   const lines = [
     "Manual export from Acre Front Office.",
     "Acre remains the source of truth for appointment status and writeback. No provider sync is implied by this draft.",
-    input.appointmentTypeLabel?.trim()
-      ? `Appointment type: ${input.appointmentTypeLabel.trim()}`
+    normalizeBridgeText(input.appointmentTypeLabel)
+      ? `Appointment type: ${normalizeBridgeText(input.appointmentTypeLabel)}`
       : "",
-    input.appointmentStatusLabel?.trim()
-      ? `Acre status: ${input.appointmentStatusLabel.trim()}`
+    normalizeBridgeText(input.appointmentStatusLabel)
+      ? `Acre status: ${normalizeBridgeText(input.appointmentStatusLabel)}`
       : "",
     clientOrContact ? `Client / contact: ${clientOrContact}` : "",
-    input.clientEmail?.trim() ? `Client email: ${input.clientEmail.trim()}` : "",
+    normalizeBridgeText(input.clientEmail)
+      ? `Client email: ${normalizeBridgeText(input.clientEmail)}`
+      : "",
     buildListingLabel(input) ? `Listing: ${buildListingLabel(input)}` : "",
-    input.location?.trim() ? `Location: ${input.location.trim()}` : "",
-    input.meetingUrl?.trim() ? `Meeting link: ${input.meetingUrl.trim()}` : "",
-    input.externalStatusLabel?.trim()
-      ? `External coordination: ${input.externalStatusLabel.trim()}`
+    normalizeBridgeText(input.location)
+      ? `Location: ${normalizeBridgeText(input.location)}`
       : "",
-    input.externalNextActionAtLabel?.trim()
-      ? `Next external touch: ${input.externalNextActionAtLabel.trim()}`
+    normalizeBridgeText(input.meetingUrl)
+      ? `Meeting link: ${normalizeBridgeText(input.meetingUrl)}`
       : "",
-    input.externalNote?.trim()
-      ? `Writeback note: ${input.externalNote.trim()}`
+    normalizeBridgeText(input.externalStatusLabel)
+      ? `External coordination: ${normalizeBridgeText(input.externalStatusLabel)}`
+      : "",
+    normalizeBridgeText(input.externalNextActionAtLabel)
+      ? `Next external touch: ${normalizeBridgeText(input.externalNextActionAtLabel)}`
+      : "",
+    normalizeBridgeText(input.externalNote)
+      ? `Writeback note: ${normalizeBridgeText(input.externalNote)}`
       : "",
   ].filter(Boolean);
 
@@ -174,9 +196,9 @@ export function formatFrontOfficeAppointmentBridgeActionLabel(
 }
 
 function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
-  const to = input.clientEmail?.trim();
+  const to = normalizeBridgeText(input.clientEmail);
 
-  if (!to) {
+  if (!to || !isLikelyEmailAddress(to)) {
     return null;
   }
 
@@ -186,24 +208,28 @@ function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
   const firstName = getFirstName(input.clientName);
   const listingLabel = buildListingLabel(input);
   const isRescheduleRequest =
-    input.externalStatusLabel?.trim() === "Reschedule requested";
-  const isConfirmed = input.externalStatusLabel?.trim() === "Confirmed";
+    normalizeBridgeText(input.externalStatusLabel) === "Reschedule requested";
+  const isConfirmed =
+    normalizeBridgeText(input.externalStatusLabel) === "Confirmed";
+  const appointmentTitle = normalizeBridgeText(input.title) || "Appointment";
+  const location = normalizeBridgeText(input.location);
+  const meetingUrl = normalizeBridgeText(input.meetingUrl);
   const subject = isRescheduleRequest
-    ? `Reschedule request: ${input.title}`
+    ? `Reschedule request: ${appointmentTitle}`
     : isConfirmed
-      ? `Confirmed: ${input.title} on ${appointmentTimeLabel}`
-      : `Please confirm: ${input.title} on ${appointmentTimeLabel}`;
+      ? `Confirmed: ${appointmentTitle} on ${appointmentTimeLabel}`
+      : `Please confirm: ${appointmentTitle} on ${appointmentTimeLabel}`;
   const lines = [
     `Hi ${firstName},`,
     "",
     isRescheduleRequest
-      ? `It looks like we may need to move our ${input.title}.`
+      ? `It looks like we may need to move our ${appointmentTitle}.`
       : isConfirmed
-        ? `Sharing the details for our confirmed ${input.title}.`
-        : `I am sending the details for our ${input.title}. Please reply to confirm this time still works for you.`,
+        ? `Sharing the details for our confirmed ${appointmentTitle}.`
+        : `I am sending the details for our ${appointmentTitle}. Please reply to confirm this time still works for you.`,
     `Date & time: ${appointmentTimeLabel}`,
-    input.location?.trim() ? `Location: ${input.location.trim()}` : "",
-    input.meetingUrl?.trim() ? `Meeting link: ${input.meetingUrl.trim()}` : "",
+    location ? `Location: ${location}` : "",
+    meetingUrl ? `Meeting link: ${meetingUrl}` : "",
     listingLabel ? `Listing context: ${listingLabel}` : "",
     "",
     isRescheduleRequest
@@ -221,11 +247,15 @@ export function buildFrontOfficeAppointmentExternalTargets(
   input: AppointmentExternalLinkInput,
 ): FrontOfficeAppointmentExternalTargets {
   const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
-  const location = input.location?.trim() || input.meetingUrl?.trim() || "";
+  const title = normalizeBridgeText(input.title) || "Appointment";
+  const location =
+    normalizeBridgeText(input.location) ||
+    normalizeBridgeText(input.meetingUrl) ||
+    "";
   const details = buildCalendarDescription(input);
   const googleParams = new URLSearchParams({
     action: "TEMPLATE",
-    text: input.title,
+    text: title,
     dates: `${formatCalendarTimestamp(input.startsAt)}/${formatCalendarTimestamp(endsAt)}`,
     details,
     location,
@@ -233,7 +263,7 @@ export function buildFrontOfficeAppointmentExternalTargets(
   const outlookParams = new URLSearchParams({
     path: "/calendar/action/compose",
     rru: "addevent",
-    subject: input.title,
+    subject: title,
     startdt: input.startsAt.toISOString(),
     enddt: endsAt.toISOString(),
     body: details,
@@ -278,9 +308,13 @@ export function buildFrontOfficeAppointmentCalendarExport(
   input: AppointmentExternalLinkInput,
 ): FrontOfficeAppointmentCalendarExport {
   const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
+  const title = normalizeBridgeText(input.title) || "Appointment";
   const description = buildCalendarDescription(input);
-  const location = input.location?.trim() || input.meetingUrl?.trim() || "";
-  const fileName = `${sanitizeFileStem(input.title)}-${input.startsAt.toISOString().slice(0, 10)}.ics`;
+  const location =
+    normalizeBridgeText(input.location) ||
+    normalizeBridgeText(input.meetingUrl) ||
+    "";
+  const fileName = `${sanitizeFileStem(title)}-${input.startsAt.toISOString().slice(0, 10)}.ics`;
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -292,10 +326,12 @@ export function buildFrontOfficeAppointmentCalendarExport(
     `DTSTAMP:${formatCalendarTimestamp(new Date())}`,
     `DTSTART:${formatCalendarTimestamp(input.startsAt)}`,
     `DTEND:${formatCalendarTimestamp(endsAt)}`,
-    `SUMMARY:${escapeIcsValue(input.title)}`,
+    `SUMMARY:${escapeIcsValue(title)}`,
     description ? `DESCRIPTION:${escapeIcsValue(description)}` : "",
     location ? `LOCATION:${escapeIcsValue(location)}` : "",
-    input.meetingUrl?.trim() ? `URL:${escapeIcsValue(input.meetingUrl.trim())}` : "",
+    normalizeBridgeText(input.meetingUrl)
+      ? `URL:${escapeIcsValue(normalizeBridgeText(input.meetingUrl))}`
+      : "",
     "END:VEVENT",
     "END:VCALENDAR",
     "",

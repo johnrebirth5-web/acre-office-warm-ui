@@ -7,7 +7,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
 
 function readOptionalString(body: Record<string, unknown>, key: string) {
-  return typeof body[key] === "string" ? body[key] : null;
+  return typeof body[key] === "string" ? body[key].trim() : null;
+}
+
+function isJsonObjectBody(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export async function GET(request: NextRequest) {
@@ -60,12 +64,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = (await request.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = await request.json().catch(() => null);
 
-  if (!body) {
+  if (!isJsonObjectBody(body)) {
     return NextResponse.json(
       { error: "A valid JSON body is required." },
       { status: 400 },

@@ -1053,6 +1053,27 @@ type FrontOfficeAppointmentRelevantAuditChange = {
   nextValue: string;
 };
 
+type FrontOfficeAppointmentBridgePayloadSnapshot = {
+  action: FrontOfficeAppointmentBridgeAction;
+  actionLabel: string;
+  appointmentStatusLabel: string | null;
+  externalStatusLabel: string | null;
+  nextExternalTouchLabel: string | null;
+  externalNote: string | null;
+};
+
+type FrontOfficeAppointmentWritebackChangedField =
+  | "status"
+  | "note"
+  | "nextActionAt";
+
+type FrontOfficeAppointmentWritebackPayloadSnapshot = {
+  statusLabel: string | null;
+  note: string | null;
+  nextActionAtLabel: string | null;
+  changedFields: FrontOfficeAppointmentWritebackChangedField[];
+};
+
 const coordinationHistoryChangeLabels = new Set([
   "External follow-up",
   "External note",
@@ -1062,6 +1083,12 @@ const coordinationHistoryChangeLabels = new Set([
 function parseAppointmentBridgeActionFromPayload(
   payload: Prisma.JsonValue | null,
 ) {
+  const bridgeSnapshot = parseAppointmentBridgePayloadSnapshot(payload);
+
+  if (bridgeSnapshot) {
+    return bridgeSnapshot.action;
+  }
+
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return null;
   }
@@ -1089,6 +1116,94 @@ function parseAppointmentBridgeActionFromPayload(
 
 function parseAuditLogPayloadRecord(value: Prisma.JsonValue | null) {
   return parseAppointmentMetadataRecord(value);
+}
+
+function readTrimmedAuditLogString(
+  record: Record<string, Prisma.JsonValue> | null | undefined,
+  key: string,
+) {
+  const value = record?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function parseAppointmentBridgePayloadSnapshot(
+  payload: Prisma.JsonValue | null,
+): FrontOfficeAppointmentBridgePayloadSnapshot | null {
+  const record = parseAuditLogPayloadRecord(payload);
+  const rawSnapshot = record.coordinationBridge;
+
+  if (
+    !rawSnapshot ||
+    typeof rawSnapshot !== "object" ||
+    Array.isArray(rawSnapshot)
+  ) {
+    return null;
+  }
+
+  const snapshotRecord = rawSnapshot as Record<string, Prisma.JsonValue>;
+  const action = readTrimmedAuditLogString(snapshotRecord, "action");
+
+  if (!isFrontOfficeAppointmentBridgeAction(action)) {
+    return null;
+  }
+
+  return {
+    action,
+    actionLabel:
+      readTrimmedAuditLogString(snapshotRecord, "actionLabel") ??
+      formatFrontOfficeAppointmentBridgeActionLabel(action),
+    appointmentStatusLabel: readTrimmedAuditLogString(
+      snapshotRecord,
+      "appointmentStatusLabel",
+    ),
+    externalStatusLabel: readTrimmedAuditLogString(
+      snapshotRecord,
+      "externalStatusLabel",
+    ),
+    nextExternalTouchLabel: readTrimmedAuditLogString(
+      snapshotRecord,
+      "nextExternalTouchLabel",
+    ),
+    externalNote: readTrimmedAuditLogString(snapshotRecord, "externalNote"),
+  };
+}
+
+function parseAppointmentWritebackPayloadSnapshot(
+  payload: Prisma.JsonValue | null,
+): FrontOfficeAppointmentWritebackPayloadSnapshot | null {
+  const record = parseAuditLogPayloadRecord(payload);
+  const rawSnapshot = record.coordinationWriteback;
+
+  if (
+    !rawSnapshot ||
+    typeof rawSnapshot !== "object" ||
+    Array.isArray(rawSnapshot)
+  ) {
+    return null;
+  }
+
+  const snapshotRecord = rawSnapshot as Record<string, Prisma.JsonValue>;
+  const rawChangedFields = snapshotRecord.changedFields;
+  const changedFields = Array.isArray(rawChangedFields)
+    ? rawChangedFields.filter(
+        (field): field is FrontOfficeAppointmentWritebackChangedField =>
+          field === "status" || field === "note" || field === "nextActionAt",
+      )
+    : [];
+
+  if (!changedFields.length) {
+    return null;
+  }
+
+  return {
+    statusLabel: readTrimmedAuditLogString(snapshotRecord, "statusLabel"),
+    note: readTrimmedAuditLogString(snapshotRecord, "note"),
+    nextActionAtLabel: readTrimmedAuditLogString(
+      snapshotRecord,
+      "nextActionAtLabel",
+    ),
+    changedFields,
+  };
 }
 
 function parseRelevantAppointmentAuditChanges(
@@ -1199,6 +1314,7 @@ function buildBridgeHistoryItem(input: {
   const createdAtLabel = formatDateTimeLabel(input.createdAt, {
     timeZone: input.timeZone ?? null,
   });
+  const bridgeSnapshot = parseAppointmentBridgePayloadSnapshot(input.payload);
   const detailLines = parseAuditLogDetailLines(input.payload).filter(
     (detail) =>
       detail.startsWith("Acre status:") ||
@@ -1206,14 +1322,33 @@ function buildBridgeHistoryItem(input: {
       detail.startsWith("Next external touch:") ||
       detail.startsWith("Writeback note:"),
   );
+  const detailParts = bridgeSnapshot
+    ? [
+        bridgeSnapshot.appointmentStatusLabel
+          ? `Acre status: ${bridgeSnapshot.appointmentStatusLabel}`
+          : "",
+        bridgeSnapshot.externalStatusLabel
+          ? `External coordination: ${bridgeSnapshot.externalStatusLabel}`
+          : "External coordination: No writeback saved yet",
+        bridgeSnapshot.nextExternalTouchLabel
+          ? `Next external touch: ${bridgeSnapshot.nextExternalTouchLabel}`
+          : "",
+        bridgeSnapshot.externalNote
+          ? `Writeback note: ${bridgeSnapshot.externalNote}`
+          : "",
+      ]
+        .filter(Boolean)
+        .slice(0, 3)
+    : detailLines.slice(0, 3);
+  const actionLabel =
+    bridgeSnapshot?.actionLabel ??
+    formatFrontOfficeAppointmentBridgeActionLabel(input.action);
 
   return {
     id: input.id,
     kind: "bridge",
-    label: `${formatFrontOfficeAppointmentBridgeActionLabel(input.action)} opened`,
-    detail:
-      detailLines.slice(0, 3).join(" · ") ||
-      "Opened from the appointment record in Acre.",
+    label: `${actionLabel} opened`,
+    detail: detailParts.join(" · ") || "Opened from the appointment record in Acre.",
     actorLabel: input.actorLabel,
     createdAtLabel,
     createdAtValue: input.createdAt.toISOString(),
@@ -1228,32 +1363,193 @@ function buildWritebackHistoryItem(input: {
   payload: Prisma.JsonValue | null;
   timeZone?: string | null;
 }): FrontOfficeAppointmentCoordinationHistoryItem | null {
+  const writebackSnapshot = parseAppointmentWritebackPayloadSnapshot(
+    input.payload,
+  );
   const changes = parseRelevantAppointmentAuditChanges(input.payload);
 
-  if (!changes.length) {
+  if (!writebackSnapshot && !changes.length) {
     return null;
   }
 
   const createdAtLabel = formatDateTimeLabel(input.createdAt, {
     timeZone: input.timeZone ?? null,
   });
+  const detailParts = writebackSnapshot
+    ? [
+        writebackSnapshot.changedFields.includes("status") &&
+        writebackSnapshot.statusLabel
+          ? `External follow-up: ${writebackSnapshot.statusLabel}`
+          : "",
+        writebackSnapshot.changedFields.includes("note")
+          ? `External note: ${writebackSnapshot.note ?? "Cleared"}`
+          : "",
+        writebackSnapshot.changedFields.includes("nextActionAt")
+          ? `Next external touch: ${writebackSnapshot.nextActionAtLabel ?? "Cleared"}`
+          : "",
+      ].filter(Boolean)
+    : changes.map((change) => `${change.label}: ${change.nextValue}`);
   const statusChange = changes.find(
     (change) => change.label === "External follow-up",
   );
-  const nextLabel = statusChange?.nextValue?.trim();
+  const nextLabel =
+    writebackSnapshot?.statusLabel ?? statusChange?.nextValue?.trim() ?? null;
 
   return {
     id: input.id,
     kind: "writeback",
     label: nextLabel ? `Writeback saved: ${nextLabel}` : "Writeback updated",
-    detail: changes
-      .map((change) => `${change.label}: ${change.nextValue}`)
-      .join(" · "),
+    detail: detailParts.join(" · "),
     actorLabel: input.actorLabel,
     createdAtLabel,
     createdAtValue: input.createdAt.toISOString(),
     tone: mapExternalWorkflowLabelTone(nextLabel),
   };
+}
+
+function compareCoordinationHistoryItems(
+  left: FrontOfficeAppointmentCoordinationHistoryItem,
+  right: FrontOfficeAppointmentCoordinationHistoryItem,
+) {
+  if (left.createdAtValue !== right.createdAtValue) {
+    return right.createdAtValue.localeCompare(left.createdAtValue);
+  }
+
+  if (left.kind !== right.kind) {
+    return left.kind === "writeback" ? -1 : 1;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function parseAppointmentSortTimestamp(value: string) {
+  if (!value.trim()) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+}
+
+function getAppointmentRecordSortRank(
+  appointment: FrontOfficeAppointmentRecord,
+) {
+  if (appointment.statusValue !== AppointmentStatus.scheduled) {
+    switch (appointment.statusValue) {
+      case AppointmentStatus.completed:
+        return 50;
+      case AppointmentStatus.no_show:
+        return 51;
+      case AppointmentStatus.canceled:
+        return 52;
+      default:
+        return 53;
+    }
+  }
+
+  if (appointment.isExternalTouchDue) {
+    return 0;
+  }
+
+  if (appointment.needsNextTouchPlan) {
+    return 1;
+  }
+
+  if (
+    appointment.hasBridgeActivity &&
+    appointment.externalStatusValue ===
+      frontOfficeAppointmentExternalWorkflowStatuses.idle
+  ) {
+    return 2;
+  }
+
+  if (
+    appointment.requiresExternalResponse &&
+    appointment.externalNextActionAtValue !== ""
+  ) {
+    return 3;
+  }
+
+  if (appointment.requiresExternalResponse) {
+    return 4;
+  }
+
+  if (
+    appointment.externalStatusValue ===
+      frontOfficeAppointmentExternalWorkflowStatuses.confirmed &&
+    appointment.externalNextActionAtValue !== ""
+  ) {
+    return 5;
+  }
+
+  if (appointment.reminderLabel === "Starts within 2h") {
+    return 6;
+  }
+
+  if (appointment.reminderLabel === "Today") {
+    return 7;
+  }
+
+  return 8;
+}
+
+function getAppointmentRecordSortAnchor(
+  appointment: FrontOfficeAppointmentRecord,
+) {
+  const nextTouchTimestamp = parseAppointmentSortTimestamp(
+    appointment.externalNextActionAtValue,
+  );
+
+  if (
+    appointment.statusValue === AppointmentStatus.scheduled &&
+    nextTouchTimestamp !== Number.POSITIVE_INFINITY &&
+    (appointment.isExternalTouchDue ||
+      appointment.requiresExternalResponse ||
+      appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmed)
+  ) {
+    return nextTouchTimestamp;
+  }
+
+  return parseAppointmentSortTimestamp(appointment.startsAtValue);
+}
+
+function compareAppointmentRecords(
+  left: FrontOfficeAppointmentRecord,
+  right: FrontOfficeAppointmentRecord,
+) {
+  const leftRank = getAppointmentRecordSortRank(left);
+  const rightRank = getAppointmentRecordSortRank(right);
+
+  if (leftRank !== rightRank) {
+    return leftRank - rightRank;
+  }
+
+  const leftAnchor = getAppointmentRecordSortAnchor(left);
+  const rightAnchor = getAppointmentRecordSortAnchor(right);
+  const leftClosed = left.statusValue !== AppointmentStatus.scheduled;
+  const rightClosed = right.statusValue !== AppointmentStatus.scheduled;
+
+  if (leftAnchor !== rightAnchor) {
+    if (leftClosed && rightClosed) {
+      return rightAnchor - leftAnchor;
+    }
+
+    return leftAnchor - rightAnchor;
+  }
+
+  const leftStart = parseAppointmentSortTimestamp(left.startsAtValue);
+  const rightStart = parseAppointmentSortTimestamp(right.startsAtValue);
+
+  if (leftStart !== rightStart) {
+    if (leftClosed && rightClosed) {
+      return rightStart - leftStart;
+    }
+
+    return leftStart - rightStart;
+  }
+
+  return left.title.localeCompare(right.title);
 }
 
 function buildFrontOfficeAppointmentBridgeStatus(
@@ -1678,12 +1974,14 @@ function mapAppointmentRecord(
     externalWorkflow,
     bridgeStatus: resolvedBridgeStatus,
   });
-  const bridgeHistory = coordinationArtifacts?.bridgeHistory ?? [];
-  const writebackHistory = coordinationArtifacts?.writebackHistory ?? [];
+  const bridgeHistory = [...(coordinationArtifacts?.bridgeHistory ?? [])].sort(
+    compareCoordinationHistoryItems,
+  );
+  const writebackHistory = [
+    ...(coordinationArtifacts?.writebackHistory ?? []),
+  ].sort(compareCoordinationHistoryItems);
   const coordinationHistory = [...bridgeHistory, ...writebackHistory]
-    .sort((left, right) =>
-      right.createdAtValue.localeCompare(left.createdAtValue),
-    )
+    .sort(compareCoordinationHistoryItems)
     .slice(0, 6);
   const latestCoordination = coordinationHistory[0] ?? null;
   const followUpPlan = buildFrontOfficeAppointmentFollowUpPlan({
@@ -1833,6 +2131,7 @@ function appointmentMatchesSnapshotFilters(input: {
     frontOfficeAppointmentCoordinationFilters.writebackPending
   ) {
     return (
+      input.appointment.statusValue === AppointmentStatus.scheduled &&
       input.appointment.hasBridgeActivity &&
       input.appointment.externalStatusValue ===
         frontOfficeAppointmentExternalWorkflowStatuses.idle
@@ -1950,7 +2249,6 @@ export async function getFrontOfficeAppointmentsSnapshot(
         },
       },
       orderBy: [{ startsAt: "asc" }, { updatedAt: "desc" }],
-      take: 24,
       select: appointmentSelect,
     }),
     input.targetAppointmentId?.trim()
@@ -2123,6 +2421,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
       followUp: input.followUp,
     }),
   );
+  appointmentRecords.sort(compareAppointmentRecords);
   const awaitingReplyCount = mappedAppointmentRecords.filter(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
@@ -2158,11 +2457,13 @@ export async function getFrontOfficeAppointmentsSnapshot(
   ).length;
   const filteredConfirmedCount = appointmentRecords.filter(
     (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.externalStatusValue ===
       frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
   ).length;
   const filteredBridgePendingCount = appointmentRecords.filter(
     (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.hasBridgeActivity &&
       appointment.externalStatusValue ===
         frontOfficeAppointmentExternalWorkflowStatuses.idle,
@@ -2332,6 +2633,19 @@ export async function createFrontOfficeAppointment(
 export async function updateFrontOfficeAppointmentStatus(
   input: UpdateFrontOfficeAppointmentStatusInput,
 ): Promise<FrontOfficeAppointmentRecord | null> {
+  const hasStatusUpdateInput = Boolean(input.status?.trim());
+  const hasExternalUpdateInput = [
+    input.externalStatus,
+    input.externalNote,
+    input.externalNextActionAt,
+  ].some((value) => typeof value === "string" && value.trim().length > 0);
+
+  if (hasStatusUpdateInput && hasExternalUpdateInput) {
+    throw new Error(
+      "Submit either an appointment status update or an external coordination writeback, not both.",
+    );
+  }
+
   if (
     input.status != null &&
     input.status !== "" &&
@@ -2368,6 +2682,15 @@ export async function updateFrontOfficeAppointmentStatus(
     );
   }
 
+  if (
+    nextExternalStatus === frontOfficeAppointmentExternalWorkflowStatuses.idle &&
+    (nextExternalNote || nextExternalActionAt)
+  ) {
+    throw new Error(
+      "Clear the external note and next-touch deadline when the appointment is set back to idle.",
+    );
+  }
+
   const existing = await prisma.appointment.findFirst({
     where: {
       id: input.appointmentId,
@@ -2379,6 +2702,12 @@ export async function updateFrontOfficeAppointmentStatus(
 
   if (!existing) {
     return null;
+  }
+
+  if (nextExternalStatus && existing.status !== AppointmentStatus.scheduled) {
+    throw new Error(
+      "External coordination can only be updated while the appointment is still scheduled in Acre.",
+    );
   }
 
   const currentExternalWorkflow =
@@ -2523,7 +2852,7 @@ export async function updateFrontOfficeAppointmentStatus(
             : []),
           ...(shouldUpdateExternalWorkflow && nextExternalStatus
             ? [
-                `External workflow: ${formatFrontOfficeAppointmentExternalWorkflowLabel(
+                `External coordination: ${formatFrontOfficeAppointmentExternalWorkflowLabel(
                   nextExternalStatus,
                 )}`,
               ]
@@ -2601,6 +2930,12 @@ export async function getFrontOfficeAppointmentBridgeResult(
 
   if (!appointment) {
     return null;
+  }
+
+  if (appointment.status !== AppointmentStatus.scheduled) {
+    throw new Error(
+      "Only scheduled appointments can open the external bridge from Acre.",
+    );
   }
 
   const appointmentTypeLabel =
