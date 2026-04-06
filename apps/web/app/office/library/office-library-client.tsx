@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition, type FormEvent } from "react";
+import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { Button, ConfirmActionDialog, EmptyState, FilterBar, FilterField, SecondaryMetaList, SelectInput, TextInput, TextareaInput } from "@acre/ui";
 import type {
   OfficeLibraryDocument,
@@ -26,6 +26,26 @@ type DocumentResponse = {
   document: {
     id: string;
     folderId: string | null;
+  };
+};
+
+type PdfMetadata = {
+  pageCount: number | null;
+  title: string;
+  author: string;
+  subject: string;
+  keywords: string[];
+  creator: string;
+  producer: string;
+  creationDate: string;
+  modificationDate: string;
+};
+
+type PdfMetadataResponse = {
+  document: {
+    id: string;
+    isPdf: boolean;
+    pdfMetadata: PdfMetadata | null;
   };
 };
 
@@ -79,6 +99,23 @@ function getFolderSelection(documentFolderId: string | null) {
   return documentFolderId ?? "unfiled";
 }
 
+function hasPdfMetadataDetails(metadata: PdfMetadata | null) {
+  if (!metadata) {
+    return false;
+  }
+
+  return Boolean(
+    metadata.title ||
+      metadata.author ||
+      metadata.subject ||
+      metadata.creator ||
+      metadata.producer ||
+      metadata.creationDate ||
+      metadata.modificationDate ||
+      metadata.keywords.length
+  );
+}
+
 export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibraryClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -95,6 +132,8 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
   const [error, setError] = useState("");
   const [isRoutingPending, startRoutingTransition] = useTransition();
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const [pdfMetadata, setPdfMetadata] = useState<PdfMetadata | null>(null);
+  const [pdfMetadataStatus, setPdfMetadataStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
 
   function buildLibraryUrl(updates: Record<string, string | null>) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -317,6 +356,41 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
     }
   }
 
+  async function handleArchiveFolder() {
+    if (!snapshot.selectedFolder.id) {
+      return;
+    }
+
+    setPendingAction("archive-folder");
+    setError("");
+
+    try {
+      const response = await fetch(`/api/office/library/folders/${snapshot.selectedFolder.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          isActive: false
+        })
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Folder archive failed.");
+      }
+
+      refreshView({
+        folderId: snapshot.selectedFolder.parentFolderId,
+        documentId: null
+      });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Folder archive failed.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   const selectedDocument = snapshot.selectedDocument;
   const selectedFolderIsManaged =
     snapshot.selectedFolder.id !== null && snapshot.selectedFolder.key !== "all" && snapshot.selectedFolder.key !== "unfiled";
@@ -326,6 +400,54 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
     selectedDocument && selectedDocument.isPdf
       ? `${selectedDocument.previewUrl}#toolbar=0&navpanes=0&view=FitH`
       : selectedDocument?.previewUrl ?? "";
+  const selectedDocumentPageCount =
+    selectedDocument && selectedDocument.isPdf
+      ? pdfMetadata?.pageCount ?? selectedDocument.pageCount
+      : selectedDocument?.pageCount ?? null;
+  const selectedDocumentKeywordTags =
+    selectedDocument && selectedDocument.tags.length === 0 && pdfMetadata?.keywords.length
+      ? pdfMetadata.keywords
+      : selectedDocument?.tags ?? [];
+  const selectedDocumentHasEmbeddedPdfMetadata = hasPdfMetadataDetails(pdfMetadata);
+
+  useEffect(() => {
+    if (!selectedDocument?.isPdf) {
+      setPdfMetadata(null);
+      setPdfMetadataStatus("idle");
+      return;
+    }
+
+    const abortController = new AbortController();
+    setPdfMetadata(null);
+    setPdfMetadataStatus("loading");
+
+    void fetch(`/api/office/library/documents/${selectedDocument.id}`, {
+      method: "GET",
+      signal: abortController.signal
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("PDF metadata request failed.");
+        }
+
+        const payload = (await response.json()) as PdfMetadataResponse;
+        setPdfMetadata(payload.document.pdfMetadata);
+        setPdfMetadataStatus("ready");
+      })
+      .catch((requestError) => {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        console.error(requestError);
+        setPdfMetadata(null);
+        setPdfMetadataStatus("error");
+      });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [selectedDocument?.id, selectedDocument?.isPdf]);
 
   function renderVisibleDocuments(documents: OfficeLibraryDocument[]) {
     if (!documents.length) {
@@ -565,7 +687,9 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               items={[
                 { label: "Folder", value: snapshot.selectedFolder.name },
                 { label: "Scope", value: snapshot.selectedFolder.scopeLabel },
-                { label: "Files in view", value: String(snapshot.selectedFolder.documentCount) }
+                { label: "Files in view", value: String(snapshot.selectedFolder.documentCount) },
+                { label: "Active subfolders", value: String(snapshot.selectedFolder.childFolderCount) },
+                { label: "Status", value: snapshot.selectedFolder.isActive ? "Active" : "Archived" }
               ]}
             />
 
@@ -590,7 +714,32 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                   <Button disabled={pendingAction === "rename-folder"} size="sm" type="submit">
                     {pendingAction === "rename-folder" ? "Saving..." : "Save folder"}
                   </Button>
+                  <Button
+                    disabled={!snapshot.selectedFolder.canArchive || pendingAction === "archive-folder"}
+                    onClick={() =>
+                      setConfirmDialog({
+                        title: `Archive ${snapshot.selectedFolder.name}?`,
+                        description:
+                          "This removes the folder from the active library tree without deleting its audit history. Only empty folders can be archived.",
+                        confirmLabel: "Archive folder",
+                        onConfirm: () => {
+                          void handleArchiveFolder();
+                        }
+                      })
+                    }
+                    size="sm"
+                    type="button"
+                    variant="danger"
+                  >
+                    {pendingAction === "archive-folder" ? "Archiving..." : "Archive folder"}
+                  </Button>
                 </div>
+
+                {!snapshot.selectedFolder.canArchive ? (
+                  <p className="office-form-helper">{snapshot.selectedFolder.archiveReason}</p>
+                ) : (
+                  <p className="office-form-helper">Archive is safe here because the folder branch is empty.</p>
+                )}
               </form>
             ) : null}
           </section>
@@ -679,19 +828,54 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                         { label: "Category", value: selectedDocument.category || "General" },
                         { label: "Scope", value: selectedDocument.visibilityLabel },
                         { label: "Size", value: formatFileSize(selectedDocument.fileSizeBytes) },
-                        { label: "Pages", value: selectedDocument.pageCount ? String(selectedDocument.pageCount) : "Not indexed" },
+                        {
+                          label: "Pages",
+                          value:
+                            selectedDocumentPageCount !== null
+                              ? String(selectedDocumentPageCount)
+                              : pdfMetadataStatus === "loading"
+                                ? "Reading PDF"
+                                : "Not indexed"
+                        },
                         { label: "Uploaded by", value: selectedDocument.uploadedByName || "System" },
                         { label: "Updated", value: formatDateTime(selectedDocument.updatedAt) }
                       ]}
                     />
 
-                    {selectedDocument.tags.length ? (
+                    {selectedDocumentKeywordTags.length ? (
                       <div className="office-library-tag-list">
-                        {selectedDocument.tags.map((tag) => (
+                        {selectedDocumentKeywordTags.map((tag) => (
                           <span className="office-badge office-badge-neutral" key={tag}>
                             {tag}
                           </span>
                         ))}
+                      </div>
+                    ) : null}
+
+                    {selectedDocument.isPdf ? (
+                      <div className="office-library-preview-pdf-metadata">
+                        <strong>PDF metadata</strong>
+                        {pdfMetadataStatus === "loading" ? <p className="office-form-helper">Reading embedded PDF metadata...</p> : null}
+                        {pdfMetadataStatus === "error" || (pdfMetadataStatus === "ready" && pdfMetadata === null) ? (
+                          <p className="office-form-helper">Embedded PDF metadata could not be read for this file.</p>
+                        ) : null}
+                        {pdfMetadataStatus === "ready" && selectedDocumentHasEmbeddedPdfMetadata ? (
+                          <SecondaryMetaList
+                            className="office-library-meta-list"
+                            items={[
+                              ...(pdfMetadata?.title ? [{ label: "Embedded title", value: pdfMetadata.title }] : []),
+                              ...(pdfMetadata?.subject ? [{ label: "Subject", value: pdfMetadata.subject }] : []),
+                              ...(pdfMetadata?.author ? [{ label: "Author", value: pdfMetadata.author }] : []),
+                              ...(pdfMetadata?.creator ? [{ label: "Creator", value: pdfMetadata.creator }] : []),
+                              ...(pdfMetadata?.producer ? [{ label: "Producer", value: pdfMetadata.producer }] : []),
+                              ...(pdfMetadata?.creationDate ? [{ label: "Created", value: formatDateTime(pdfMetadata.creationDate) }] : []),
+                              ...(pdfMetadata?.modificationDate ? [{ label: "Modified", value: formatDateTime(pdfMetadata.modificationDate) }] : [])
+                            ]}
+                          />
+                        ) : null}
+                        {pdfMetadataStatus === "ready" && pdfMetadata !== null && !selectedDocumentHasEmbeddedPdfMetadata ? (
+                          <p className="office-form-helper">This PDF has no additional embedded metadata beyond its file structure.</p>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

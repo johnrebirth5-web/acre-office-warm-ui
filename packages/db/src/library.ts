@@ -67,6 +67,11 @@ export type OfficeLibrarySelectedFolder = {
   name: string;
   description: string;
   scopeLabel: string;
+  parentFolderId: string | null;
+  childFolderCount: number;
+  isActive: boolean;
+  canArchive: boolean;
+  archiveReason: string;
   documentCount: number;
 };
 
@@ -171,6 +176,10 @@ type LibraryDocumentRecord = Prisma.LibraryDocumentGetPayload<{
 }>;
 
 type LibraryWriter = Pick<typeof prisma, "libraryFolder" | "libraryDocument">;
+type FolderTreeItem = {
+  id: string;
+  parentFolderId: string | null;
+};
 
 const visibilityLabelMap: Record<LibraryDocumentVisibility, string> = {
   company_wide: "Company-wide",
@@ -402,8 +411,8 @@ function buildFolderPathById(folders: LibraryFolderRecord[]) {
   return pathById;
 }
 
-function buildFolderChildrenMap(folders: LibraryFolderRecord[]) {
-  const childrenByParentId = new Map<string | null, LibraryFolderRecord[]>();
+function buildFolderChildrenMap<T extends FolderTreeItem>(folders: T[], sort?: (a: T, b: T) => number) {
+  const childrenByParentId = new Map<string | null, T[]>();
 
   for (const folder of folders) {
     const key = folder.parentFolderId ?? null;
@@ -412,14 +421,16 @@ function buildFolderChildrenMap(folders: LibraryFolderRecord[]) {
     childrenByParentId.set(key, siblings);
   }
 
-  for (const siblings of childrenByParentId.values()) {
-    siblings.sort(sortFolders);
+  if (sort) {
+    for (const siblings of childrenByParentId.values()) {
+      siblings.sort(sort);
+    }
   }
 
   return childrenByParentId;
 }
 
-function collectDescendantFolderIds(folderId: string, childrenByParentId: Map<string | null, LibraryFolderRecord[]>) {
+function collectDescendantFolderIds<T extends FolderTreeItem>(folderId: string, childrenByParentId: Map<string | null, T[]>) {
   const ids = new Set<string>([folderId]);
   const stack = [folderId];
 
@@ -442,7 +453,7 @@ function buildFolderCounts(
   folders: LibraryFolderRecord[],
   documents: LibraryDocumentRecord[]
 ) {
-  const childrenByParentId = buildFolderChildrenMap(folders);
+  const childrenByParentId = buildFolderChildrenMap(folders, sortFolders);
   const directCounts = new Map<string, number>();
 
   for (const document of documents) {
@@ -519,6 +530,41 @@ function flattenFolderOptions(nodes: OfficeLibraryFolderNode[], depth = 0): Offi
   ]);
 }
 
+function buildFolderArchiveReason(documentCount: number, childFolderCount: number) {
+  if (documentCount > 0 && childFolderCount > 0) {
+    return "Move the remaining files out of this folder and archive its child folders first.";
+  }
+
+  if (documentCount > 0) {
+    return "Move the remaining files out of this folder before archiving it.";
+  }
+
+  if (childFolderCount > 0) {
+    return "Archive this folder's child folders first so the branch is empty.";
+  }
+
+  return "";
+}
+
+function getFolderSelectionDetails(
+  folder: LibraryFolderRecord,
+  folders: LibraryFolderRecord[],
+  totalCounts: Map<string, number>
+) {
+  const childFolderCount = folders.filter((entry) => entry.parentFolderId === folder.id).length;
+  const documentCount = totalCounts.get(folder.id) ?? 0;
+  const canArchive = childFolderCount === 0 && documentCount === 0;
+
+  return {
+    parentFolderId: folder.parentFolderId,
+    childFolderCount,
+    isActive: folder.isActive,
+    canArchive,
+    archiveReason: canArchive ? "" : buildFolderArchiveReason(documentCount, childFolderCount),
+    documentCount
+  };
+}
+
 function getSelectedFolder(
   folders: LibraryFolderRecord[],
   documents: LibraryDocumentRecord[],
@@ -531,6 +577,11 @@ function getSelectedFolder(
       name: "All files",
       description: "Company-wide and office-only files available in the current library scope.",
       scopeLabel: "Mixed scope",
+      parentFolderId: null,
+      childFolderCount: 0,
+      isActive: true,
+      canArchive: false,
+      archiveReason: "",
       documentCount: documents.length
     };
   }
@@ -542,6 +593,11 @@ function getSelectedFolder(
       name: "Unfiled documents",
       description: "Files stored in the library without an assigned folder.",
       scopeLabel: "Mixed scope",
+      parentFolderId: null,
+      childFolderCount: 0,
+      isActive: true,
+      canArchive: false,
+      archiveReason: "",
       documentCount: documents.filter((document) => !document.folderId).length
     };
   }
@@ -555,11 +611,17 @@ function getSelectedFolder(
       name: "All files",
       description: "Company-wide and office-only files available in the current library scope.",
       scopeLabel: "Mixed scope",
+      parentFolderId: null,
+      childFolderCount: 0,
+      isActive: true,
+      canArchive: false,
+      archiveReason: "",
       documentCount: documents.length
     };
   }
 
   const { totalCounts } = buildFolderCounts(folders, documents);
+  const details = getFolderSelectionDetails(folder, folders, totalCounts);
 
   return {
     id: folder.id,
@@ -567,7 +629,12 @@ function getSelectedFolder(
     name: folder.name,
     description: folder.description ?? "",
     scopeLabel: getScopeLabelForOfficeId(folder.officeId, folder.visibility),
-    documentCount: totalCounts.get(folder.id) ?? 0
+    parentFolderId: details.parentFolderId,
+    childFolderCount: details.childFolderCount,
+    isActive: details.isActive,
+    canArchive: details.canArchive,
+    archiveReason: details.archiveReason,
+    documentCount: details.documentCount
   };
 }
 
@@ -704,7 +771,7 @@ export async function getOfficeLibrarySnapshot(input: GetOfficeLibrarySnapshotIn
     folders.find((folder) => folder.id === effectiveSelectedFolderKey) ?? null;
   const descendantIds =
     selectedFolder && effectiveSelectedFolderKey !== "all" && effectiveSelectedFolderKey !== "unfiled"
-      ? collectDescendantFolderIds(selectedFolder.id, buildFolderChildrenMap(folders))
+      ? collectDescendantFolderIds(selectedFolder.id, buildFolderChildrenMap(folders, sortFolders))
       : null;
 
   const categoryOptions = [...new Set(scopeFilteredDocuments.map((document) => normalizeText(document.category)).filter(Boolean))].sort((a, b) =>
@@ -829,6 +896,36 @@ export async function updateLibraryFolder(input: UpdateLibraryFolderInput) {
     const nextDescription =
       input.description === undefined ? existing.description : normalizeOptionalText(input.description);
     const nextIsActive = input.isActive ?? existing.isActive;
+    const isArchiving = existing.isActive && input.isActive === false;
+
+    if (isArchiving) {
+      const activeFoldersInScope = await tx.libraryFolder.findMany({
+        where: {
+          organizationId: input.organizationId,
+          officeId: existing.officeId,
+          isActive: true
+        },
+        select: {
+          id: true,
+          parentFolderId: true
+        }
+      });
+      const descendants = collectDescendantFolderIds(existing.id, buildFolderChildrenMap(activeFoldersInScope));
+      const activeChildFolderCount = Math.max(descendants.size - 1, 0);
+      const descendantDocumentCount = await tx.libraryDocument.count({
+        where: {
+          organizationId: input.organizationId,
+          officeId: existing.officeId,
+          folderId: {
+            in: [...descendants]
+          }
+        }
+      });
+
+      if (activeChildFolderCount > 0 || descendantDocumentCount > 0) {
+        throw new Error(buildFolderArchiveReason(descendantDocumentCount, activeChildFolderCount));
+      }
+    }
 
     const saved = await tx.libraryFolder.update({
       where: {
@@ -844,10 +941,15 @@ export async function updateLibraryFolder(input: UpdateLibraryFolderInput) {
     const changes = [
       ...buildChanges(existing.name, saved.name, "Folder name"),
       ...buildChanges(existing.description ?? "", saved.description ?? "", "Description"),
-      ...buildChanges(existing.isActive ? "Active" : "Hidden", saved.isActive ? "Active" : "Hidden", "Status")
+      ...buildChanges(existing.isActive ? "Active" : "Archived", saved.isActive ? "Active" : "Archived", "Status")
     ];
 
     if (changes.length) {
+      const nextContextFolderId =
+        existing.isActive && !saved.isActive
+          ? existing.parentFolderId ?? "all"
+          : saved.id;
+
       await recordActivityLogEvent(tx, {
         organizationId: input.organizationId,
         membershipId: input.actorMembershipId ?? null,
@@ -858,7 +960,7 @@ export async function updateLibraryFolder(input: UpdateLibraryFolderInput) {
           officeId: saved.officeId,
           objectLabel: saved.name,
           changes,
-          contextHref: buildLibraryContextHref(saved.id)
+          contextHref: buildLibraryContextHref(nextContextFolderId)
         }
       });
     }

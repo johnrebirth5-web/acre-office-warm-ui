@@ -4,6 +4,7 @@ import { LibraryDocumentVisibility } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { deleteStoredFile, saveStoredLibraryFile } from "../../../../../lib/document-storage";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { extractPdfMetadata, isPdfFileLike } from "../_shared/pdf-metadata";
 
 export const runtime = "nodejs";
 
@@ -48,11 +49,20 @@ export async function POST(request: NextRequest) {
   }
 
   const visibility = parseScope(formData.get("visibility"));
+  const fileBytes = new Uint8Array(await fileEntry.arrayBuffer());
+  const mimeType = fileEntry.type || (isPdfFileLike(fileEntry.name, fileEntry.type) ? "application/pdf" : "application/octet-stream");
+  const extractedPdfMetadata = isPdfFileLike(fileEntry.name, mimeType)
+    ? await extractPdfMetadata(fileBytes)
+    : null;
+  const requestedTitle = String(formData.get("title") ?? "").trim();
+  const requestedSummary = String(formData.get("summary") ?? "").trim();
+  const requestedTags = parseTags(formData.get("tags"));
+
   const storedFile = await saveStoredLibraryFile({
     organizationId: context.currentOrganization.id,
     officeId: visibility === LibraryDocumentVisibility.office_only ? context.currentOffice?.id ?? null : null,
     fileName: fileEntry.name,
-    bytes: new Uint8Array(await fileEntry.arrayBuffer())
+    bytes: fileBytes
   });
 
   try {
@@ -61,14 +71,15 @@ export async function POST(request: NextRequest) {
       currentOfficeId: context.currentOffice?.id ?? null,
       actorMembershipId: context.currentMembership.id,
       folderId: String(formData.get("folderId") ?? "").trim() || null,
-      title: String(formData.get("title") ?? fileEntry.name),
+      title: requestedTitle || extractedPdfMetadata?.title || fileEntry.name,
       originalFileName: fileEntry.name,
-      mimeType: fileEntry.type || "application/octet-stream",
+      mimeType,
       fileSizeBytes: storedFile.fileSizeBytes,
       storageKey: storedFile.storageKey,
-      summary: String(formData.get("summary") ?? "").trim() || null,
+      pageCount: extractedPdfMetadata?.pageCount ?? null,
+      summary: requestedSummary || extractedPdfMetadata?.subject || null,
       category: String(formData.get("category") ?? "").trim() || null,
-      tags: parseTags(formData.get("tags")),
+      tags: requestedTags.length ? requestedTags : extractedPdfMetadata?.keywords ?? [],
       visibility
     });
 

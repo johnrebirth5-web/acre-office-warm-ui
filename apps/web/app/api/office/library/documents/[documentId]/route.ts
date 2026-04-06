@@ -1,9 +1,12 @@
-import { canManageOfficeLibrary } from "@acre/auth";
-import { deleteLibraryDocument, updateLibraryDocument } from "@acre/db";
+import { canManageOfficeLibrary, canViewOfficeLibrary } from "@acre/auth";
+import { deleteLibraryDocument, getLibraryDocumentStorageRecord, updateLibraryDocument } from "@acre/db";
 import { LibraryDocumentVisibility } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { deleteStoredFile } from "../../../../../../lib/document-storage";
+import { deleteStoredFile, readStoredFile } from "../../../../../../lib/document-storage";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import { extractPdfMetadata, isPdfFileLike } from "../../_shared/pdf-metadata";
+
+export const runtime = "nodejs";
 
 type RouteContext = {
   params: Promise<{
@@ -28,6 +31,60 @@ function parseVisibility(value: string | undefined) {
   return value === LibraryDocumentVisibility.office_only
     ? LibraryDocumentVisibility.office_only
     : LibraryDocumentVisibility.company_wide;
+}
+
+export async function GET(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!canViewOfficeLibrary(context.currentMembership)) {
+    return NextResponse.json({ error: "Library access required." }, { status: 403 });
+  }
+
+  const { documentId } = await params;
+  const document = await getLibraryDocumentStorageRecord(
+    context.currentOrganization.id,
+    context.currentOffice?.id ?? null,
+    documentId
+  );
+
+  if (!document) {
+    return NextResponse.json({ error: "Document not found." }, { status: 404 });
+  }
+
+  if (!isPdfFileLike(document.originalFileName, document.mimeType)) {
+    return NextResponse.json({
+      document: {
+        id: document.id,
+        isPdf: false,
+        pdfMetadata: null
+      }
+    });
+  }
+
+  try {
+    const storedFile = await readStoredFile(document.storageKey);
+    const pdfMetadata = await extractPdfMetadata(new Uint8Array(storedFile.fileBuffer));
+
+    return NextResponse.json({
+      document: {
+        id: document.id,
+        isPdf: true,
+        pdfMetadata
+      }
+    });
+  } catch {
+    return NextResponse.json({
+      document: {
+        id: document.id,
+        isPdf: true,
+        pdfMetadata: null
+      }
+    });
+  }
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
