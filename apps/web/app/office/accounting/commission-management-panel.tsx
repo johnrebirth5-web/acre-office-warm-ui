@@ -1156,6 +1156,7 @@ export function CommissionManagementPanel({
                       {(canManageCommissions || canApproveCommissions) ? (
                         <>
                           <SelectInput
+                            className="office-accounting-status-select office-commission-status-select"
                             disabled={pendingAction === `status:${row.id}`}
                             onChange={(event) =>
                               setStatusDrafts((current) => ({

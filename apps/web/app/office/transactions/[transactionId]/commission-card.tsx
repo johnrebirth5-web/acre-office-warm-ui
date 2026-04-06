@@ -779,6 +779,7 @@ export function TransactionCommissionCard({
                   {canManageOverride ? (
                     <>
                       <SelectInput
+                        className="office-accounting-status-select office-commission-status-select"
                         disabled={pendingAction === `status:${row.id}`}
                         onChange={(event) =>
                           setStatusDrafts((current) => ({

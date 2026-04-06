@@ -3235,6 +3235,12 @@ select {
   opacity: 0.78;
 }
 
+.office-commission-status-select {
+  width: auto;
+  min-width: 148px;
+  flex: 0 0 148px;
+}
+
 .office-1099-warning {
   display: grid;
   gap: 8px;
@@ -5746,7 +5752,7 @@ a {
     minmax(90px, 0.64fr)
     minmax(112px, 0.76fr)
     minmax(96px, 0.68fr)
-    minmax(156px, 0.9fr);
+    minmax(228px, 1.18fr);
 }
 
 .office-table-row-report-status,
