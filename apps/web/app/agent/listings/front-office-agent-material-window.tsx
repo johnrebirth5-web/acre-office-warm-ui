@@ -8,9 +8,11 @@ import type {
 } from "@acre/db";
 import { Button, EmptyState, QueueItem } from "@acre/ui";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import type { FrontOfficeListingsRouteState } from "./front-office-listings-route-state";
 
 type FrontOfficeAgentMaterialWindowProps = {
   material: FrontOfficeAgentMaterialSnapshot;
+  routeState: FrontOfficeListingsRouteState;
   targetClient?: FrontOfficeListingsTargetClient | null;
   targetAppointment?: FrontOfficeListingsTargetAppointment | null;
 };
@@ -139,6 +141,35 @@ function buildMaterialBundle(input: {
   };
 }
 
+function buildMaterialWindowStatus(props: FrontOfficeAgentMaterialWindowProps) {
+  if (props.targetClient && props.targetAppointment) {
+    return {
+      badgeLabel: "Appointment-linked",
+      badgeTone: "accent" as const,
+      title: `Bundle stays aligned to ${props.targetClient.fullName}`,
+      description: `Use the business card, intro copy, and proof package beside ${props.targetAppointment.title} so the send keeps both client identity and appointment continuity in one loop.`,
+    };
+  }
+
+  if (props.targetClient) {
+    return {
+      badgeLabel: "Client-linked",
+      badgeTone: "success" as const,
+      title: `Bundle stays aligned to ${props.targetClient.fullName}`,
+      description:
+        "Everything copied from this window should travel with the client-linked send trail instead of becoming detached profile material.",
+    };
+  }
+
+  return {
+    badgeLabel: "Tracked link",
+    badgeTone: "warning" as const,
+    title: "Generic outbound bundle",
+    description:
+      "Keep identity and proof ready here so the next tracked listing can turn into a client-linked package without rebuilding the copy from scratch.",
+  };
+}
+
 export function FrontOfficeAgentMaterialWindow(
   props: FrontOfficeAgentMaterialWindowProps,
 ) {
@@ -148,6 +179,7 @@ export function FrontOfficeAgentMaterialWindow(
     targetClient: props.targetClient,
     targetAppointment: props.targetAppointment,
   });
+  const materialStatus = buildMaterialWindowStatus(props);
 
   async function handleCopy(label: string, value: string) {
     try {
@@ -241,6 +273,68 @@ export function FrontOfficeAgentMaterialWindow(
             {feedback.message}
           </p>
         ) : null}
+      </div>
+
+      <div className="front-office-playbook-card">
+        <div className="front-office-playbook-card-head">
+          <strong>Bundle status</strong>
+          <span>
+            Keep the material package aligned with the current send mode so the
+            listing does not travel without identity or proof context.
+          </span>
+        </div>
+        <div className="office-queue-list">
+          <QueueItem
+            action={
+              <div className="front-office-playbook-actions">
+                {props.targetClient ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.targetClient.href}
+                  >
+                    Open client dossier
+                  </FrontOfficeLink>
+                ) : null}
+                {props.targetAppointment ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.targetAppointment.href}
+                  >
+                    Open appointment
+                  </FrontOfficeLink>
+                ) : null}
+                {props.routeState.hasDraftAssist ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.routeState.contextHref}
+                  >
+                    Clear draft assist
+                  </FrontOfficeLink>
+                ) : null}
+                {props.routeState.diagnostics.length ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.routeState.cleanHref}
+                  >
+                    Open clean route
+                  </FrontOfficeLink>
+                ) : null}
+              </div>
+            }
+            badgeLabel={materialStatus.badgeLabel}
+            badgeTone={materialStatus.badgeTone}
+            context={`${props.routeState.modeContextLabel} · ${props.routeState.draftStatusLabel}`}
+            description={materialStatus.description}
+            meta={
+              <span>
+                {props.material.featuredCaseCount > 0
+                  ? `${props.material.featuredCaseCount} featured case(s) ready`
+                  : "Proof package is still light"}
+              </span>
+            }
+            title={materialStatus.title}
+          />
+        </div>
       </div>
 
       <div className="front-office-placeholder-note front-office-playbook-surface">
@@ -360,6 +454,21 @@ export function FrontOfficeAgentMaterialWindow(
               ))
             ) : (
               <EmptyState
+                action={
+                  <Button
+                    onClick={() =>
+                      void handleCopy(
+                        "Business card",
+                        props.material.businessCardText,
+                      )
+                    }
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    Copy business card
+                  </Button>
+                }
                 description="Closed transactions will surface here as featured cases once this profile has recent wins to reference."
                 title="No featured cases yet"
               />

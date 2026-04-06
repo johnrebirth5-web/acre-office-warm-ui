@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition, type ComponentProps } from "react";
-import type { FrontOfficeListingsSnapshot } from "@acre/db";
+import type { FrontOfficeListingsSnapshot, FrontOfficeTone } from "@acre/db";
 import { Badge, Button, EmptyState, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import type { FrontOfficeListingsRouteState } from "./front-office-listings-route-state";
 
 type FrontOfficeListingsOutputClientProps = {
   snapshot: FrontOfficeListingsSnapshot;
+  routeState: FrontOfficeListingsRouteState;
   draftAssist?: {
     channel: "sms" | "email";
     title: string;
@@ -41,10 +43,6 @@ type ShareActionContext = {
   followUpCue?: string;
   materialCue?: string;
 };
-
-type SnapshotBadgeTone =
-  | NonNullable<FrontOfficeListingsSnapshot["targetClient"]>["stageTone"]
-  | NonNullable<FrontOfficeListingsSnapshot["targetAppointment"]>["statusTone"];
 
 type QueueItemBadgeTone = NonNullable<
   ComponentProps<typeof QueueItem>["badgeTone"]
@@ -107,18 +105,6 @@ function buildAssistedEmailTemplate(input: {
     : "";
 
   return `${subject}${input.body.trim()}${footer}`;
-}
-
-function buildContextModeSummary(snapshot: FrontOfficeListingsSnapshot) {
-  if (snapshot.targetClient && snapshot.targetAppointment) {
-    return `Tracked send is bound to ${snapshot.targetClient.fullName} and the selected appointment context.`;
-  }
-
-  if (snapshot.targetClient) {
-    return `Tracked send is bound to ${snapshot.targetClient.fullName}'s dossier.`;
-  }
-
-  return "This surface still creates private tracked links, but generic mode does not write a client-linked send record.";
 }
 
 function buildListingExecutionCue(
@@ -243,7 +229,7 @@ function buildRecordedContextDetail(context?: ShareActionContext | null) {
     context.materialCue?.trim() || null,
   ]
     .filter(Boolean)
-    .join(" ");
+    .join(" · ");
 
   return detail.length ? detail : null;
 }
@@ -265,7 +251,7 @@ function buildActionButtonLabel(input: {
   return "Copy private link";
 }
 
-function mapBadgeTone(value: SnapshotBadgeTone): QueueItemBadgeTone {
+function mapBadgeTone(value: FrontOfficeTone): QueueItemBadgeTone {
   switch (value) {
     case "neutral":
       return "neutral";
@@ -280,6 +266,32 @@ function mapBadgeTone(value: SnapshotBadgeTone): QueueItemBadgeTone {
     default:
       return "accent";
   }
+}
+
+function buildListingEmptyState(
+  props: FrontOfficeListingsOutputClientProps,
+): Pick<ComponentProps<typeof EmptyState>, "title" | "description"> {
+  if (props.snapshot.targetAppointment && props.snapshot.targetClient) {
+    return {
+      title: "No send-ready listings in this appointment context",
+      description:
+        "This appointment-linked route is ready to write back, but there is no listing inventory in scope right now. Keep the context if you are coming back after shortlist updates.",
+    };
+  }
+
+  if (props.snapshot.targetClient) {
+    return {
+      title: "No send-ready listings for this client context",
+      description:
+        "The client-linked send trail is ready, but there is no listing inventory to copy from yet. Reopen this route later and the same dossier context will still be valid.",
+    };
+  }
+
+  return {
+    title: "No listing inventory in scope",
+    description:
+      "Listings will appear here once send-ready inventory is available in the Front Office feed.",
+  };
 }
 
 export function FrontOfficeListingsOutputClient(
@@ -446,20 +458,17 @@ export function FrontOfficeListingsOutputClient(
       <div className="front-office-placeholder-note front-office-playbook-surface">
         <div className="front-office-playbook-header">
           <strong>
-            {props.snapshot.targetClient
-              ? `Tracked send surface for ${props.snapshot.targetClient.fullName}`
-              : "Tracked link surface"}
+            {props.routeState.mode === "appointment-linked"
+              ? `Appointment-linked send surface for ${props.snapshot.targetClient?.fullName || "current client"}`
+              : props.snapshot.targetClient
+                ? `Tracked send surface for ${props.snapshot.targetClient.fullName}`
+                : "Tracked link surface"}
           </strong>
-          <p>{buildContextModeSummary(props.snapshot)}</p>
+          <p>{props.routeState.modeDescription}</p>
         </div>
 
         <div className="list-row-meta front-office-record-meta">
-          <span>
-            Mode ·{" "}
-            {props.snapshot.targetClient
-              ? "Client-linked send"
-              : "Tracked link"}
-          </span>
+          <span>Mode · {props.routeState.modeLabel}</span>
           {props.snapshot.targetClient ? (
             <span>Stage · {props.snapshot.targetClient.stage}</span>
           ) : null}
@@ -472,6 +481,7 @@ export function FrontOfficeListingsOutputClient(
               {props.snapshot.targetAppointment.startsAtLabel}
             </span>
           ) : null}
+          {props.routeState.diagnostics.length ? <span>URL context adjusted</span> : null}
         </div>
 
         <div className="front-office-playbook-actions">
@@ -491,8 +501,47 @@ export function FrontOfficeListingsOutputClient(
               Open appointment
             </FrontOfficeLink>
           ) : null}
+          {props.routeState.hasDraftAssist ? (
+            <FrontOfficeLink
+              className="office-inline-link"
+              href={props.routeState.contextHref}
+            >
+              Dismiss draft assist
+            </FrontOfficeLink>
+          ) : null}
+          {props.routeState.diagnostics.length ? (
+            <FrontOfficeLink
+              className="office-inline-link"
+              href={props.routeState.cleanHref}
+            >
+              Open clean route
+            </FrontOfficeLink>
+          ) : null}
         </div>
       </div>
+
+      {props.routeState.diagnostics.length ? (
+        <div className="front-office-playbook-card">
+          <div className="front-office-playbook-card-head">
+            <strong>URL / deep-link adjustments</strong>
+            <span>
+              Acre kept the current route safe, but some incoming context was
+              trimmed or replaced before you started copying sends.
+            </span>
+          </div>
+          <div className="office-queue-list">
+            {props.routeState.diagnostics.map((diagnostic) => (
+              <QueueItem
+                badgeLabel={diagnostic.badgeLabel}
+                badgeTone={diagnostic.badgeTone}
+                description={diagnostic.description}
+                key={diagnostic.id}
+                title={diagnostic.title}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {props.draftAssist ? (
         <div
@@ -513,6 +562,15 @@ export function FrontOfficeListingsOutputClient(
             {props.draftAssist.subjectLine.trim() ? (
               <span>Subject · {props.draftAssist.subjectLine.trim()}</span>
             ) : null}
+            <span>{props.routeState.modeLabel}</span>
+          </div>
+          <div className="front-office-playbook-actions">
+            <FrontOfficeLink
+              className="office-inline-link"
+              href={props.routeState.contextHref}
+            >
+              Keep context, clear draft
+            </FrontOfficeLink>
           </div>
         </div>
       ) : null}
@@ -650,15 +708,7 @@ export function FrontOfficeListingsOutputClient(
                   <strong>{listing.title}</strong>
                   <p>{listing.areaLabel}</p>
                 </div>
-                <Badge
-                  tone={
-                    listing.statusTone === "danger"
-                      ? "danger"
-                      : listing.statusTone === "warning"
-                        ? "warning"
-                        : "success"
-                  }
-                >
+                <Badge tone={mapBadgeTone(listing.statusTone)}>
                   {listing.statusLabel}
                 </Badge>
               </div>
@@ -711,8 +761,52 @@ export function FrontOfficeListingsOutputClient(
           ))
         ) : (
           <EmptyState
-            description="Listings will appear here once send-ready inventory is available in the Front Office feed."
-            title="No listing inventory in scope"
+            action={
+              <div className="front-office-playbook-actions">
+                {props.snapshot.targetClient ? (
+                  <FrontOfficeLink
+                    className="office-button-secondary"
+                    href={props.snapshot.targetClient.href}
+                  >
+                    Back to client dossier
+                  </FrontOfficeLink>
+                ) : (
+                  <FrontOfficeLink
+                    className="office-button-secondary"
+                    href="/agent/dashboard"
+                  >
+                    Back to dashboard
+                  </FrontOfficeLink>
+                )}
+                {props.snapshot.targetAppointment ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.snapshot.targetAppointment.href}
+                  >
+                    Open appointment
+                  </FrontOfficeLink>
+                ) : null}
+                {(props.routeState.hasDraftAssist ||
+                  props.routeState.diagnostics.length) &&
+                props.routeState.contextHref !== props.routeState.cleanHref ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.routeState.contextHref}
+                  >
+                    Keep context, clear extras
+                  </FrontOfficeLink>
+                ) : null}
+                {props.routeState.diagnostics.length ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.routeState.cleanHref}
+                  >
+                    Open clean route
+                  </FrontOfficeLink>
+                ) : null}
+              </div>
+            }
+            {...buildListingEmptyState(props)}
           />
         )}
       </div>

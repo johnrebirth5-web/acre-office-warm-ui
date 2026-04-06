@@ -12,18 +12,25 @@ import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeAgentMaterialWindow } from "./front-office-agent-material-window";
 import { FrontOfficeListingsOutputClient } from "./front-office-listings-output-client";
+import {
+  buildFrontOfficeListingsRouteState,
+  readSearchParamValue,
+} from "./front-office-listings-route-state";
 import { requireSessionContext } from "../../../lib/auth-session";
 
 type AgentListingsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function readSearchParamValue(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return typeof value[0] === "string" ? value[0] : undefined;
+function buildMaterialStatusLabel(input: {
+  portraitReady: boolean;
+  featuredCaseCount: number;
+}) {
+  if (input.featuredCaseCount > 0) {
+    return "Proof-ready";
   }
 
-  return value;
+  return input.portraitReady ? "Identity-ready" : "Lean package";
 }
 
 export default async function AgentListingsPage(props: AgentListingsPageProps) {
@@ -46,6 +53,15 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
     readSearchParamValue(searchParams.draftSubject)?.trim() || "";
   const draftTitleValue =
     readSearchParamValue(searchParams.draftTitle)?.trim() || "";
+  const hasDraftAssistParams = Boolean(
+    draftChannelValue ||
+      draftBodyValue ||
+      draftSubjectValue ||
+      draftTitleValue ||
+      readSearchParamValue(searchParams.draftSource)?.trim() ||
+      readSearchParamValue(searchParams.draftSuggestionKind)?.trim() ||
+      readSearchParamValue(searchParams.draftSuggestionLabel)?.trim(),
+  );
   const draftChannel: "sms" | "email" | null =
     draftChannelValue === "sms" || draftChannelValue === "email"
       ? draftChannelValue
@@ -77,6 +93,18 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
     targetClientId,
     targetAppointmentId,
   });
+  const routeState = buildFrontOfficeListingsRouteState({
+    snapshot,
+    requestedClientId: targetClientId ?? null,
+    requestedAppointmentId: targetAppointmentId ?? null,
+    requestedDraftChannel: draftChannel,
+    hasDraftAssist: Boolean(draftAssist),
+    hasDraftAssistParams,
+  });
+  const materialStatusLabel = buildMaterialStatusLabel({
+    portraitReady: snapshot.agentMaterial.portraitReady,
+    featuredCaseCount: snapshot.agentMaterial.featuredCaseCount,
+  });
 
   return (
     <FrontOfficePageTemplate
@@ -90,6 +118,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
         >
           <FrontOfficeListingsOutputClient
             draftAssist={draftAssist}
+            routeState={routeState}
             snapshot={snapshot}
           />
         </SectionCard>
@@ -123,10 +152,26 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 value={snapshot.summary.trackedClicks}
               />
               <StatCard
-                hint="current view target"
-                label="Surface"
+                hint="current writeback mode for this route"
+                label="Mode"
                 tone="accent"
-                value="Send-ready"
+                value={routeState.modeLabel}
+              />
+              <StatCard
+                hint={
+                  draftAssist
+                    ? "deep-linked assisted copy is currently loaded"
+                    : hasDraftAssistParams
+                      ? "draft parameters arrived but Acre kept the standard templates"
+                      : "copy actions are using the standard listing templates"
+                }
+                label="Draft"
+                value={routeState.draftStatusLabel}
+              />
+              <StatCard
+                hint="how much identity / proof packaging is ready in the rail"
+                label="Materials"
+                value={materialStatusLabel}
               />
             </ListPageStatsGrid>
           </SectionCard>
@@ -138,13 +183,48 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
-                badgeLabel={
-                  snapshot.targetClient ? snapshot.targetClient.stage : "Mode"
+                action={
+                  <>
+                    {snapshot.targetClient ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={snapshot.targetClient.href}
+                      >
+                        Open client dossier
+                      </FrontOfficeLink>
+                    ) : null}
+                    {routeState.hasDraftAssist ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={routeState.contextHref}
+                      >
+                        Dismiss draft assist
+                      </FrontOfficeLink>
+                    ) : null}
+                    {routeState.diagnostics.length ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={routeState.cleanHref}
+                      >
+                        Open clean route
+                      </FrontOfficeLink>
+                    ) : null}
+                  </>
                 }
-                description={
-                  snapshot.targetClient
-                    ? `${snapshot.targetClient.nextTouchLabel}. Sends from this page will now be attributed back to this dossier${snapshot.targetAppointment ? " and to the selected appointment context." : "."}`
-                    : "Open listing output from a client dossier or appointment context to record who the send was for, which channel was used, and whether they opened it."
+                badgeLabel={routeState.modeLabel}
+                badgeTone={
+                  routeState.mode === "tracked-link" ? "warning" : "accent"
+                }
+                description={routeState.modeDescription}
+                meta={
+                  snapshot.targetClient ? (
+                    <>
+                      <span>{snapshot.targetClient.stage}</span>
+                      <span>{snapshot.targetClient.nextTouchLabel}</span>
+                    </>
+                  ) : (
+                    <span>Open from a dossier or appointment to start a send trail.</span>
+                  )
                 }
                 title={
                   snapshot.targetClient
@@ -168,6 +248,39 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                   title={`${snapshot.targetAppointment.title} · ${snapshot.targetAppointment.startsAtLabel}`}
                 />
               ) : null}
+              {draftAssist ? (
+                <FrontOfficeRailItem
+                  action={
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={routeState.contextHref}
+                    >
+                      Keep context, clear draft
+                    </FrontOfficeLink>
+                  }
+                  badgeLabel="AI draft"
+                  badgeTone="accent"
+                  description="A deep-linked draft is active here. Copying the matching channel will keep the assisted copy but still append a tracked private listing link."
+                  meta={
+                    <>
+                      <span>
+                        Channel · {draftAssist.channel === "sms" ? "SMS" : "Email"}
+                      </span>
+                      <span>{draftAssist.title}</span>
+                    </>
+                  }
+                  title="Deep-linked draft assist is in scope"
+                />
+              ) : null}
+              {routeState.diagnostics.map((diagnostic) => (
+                <FrontOfficeRailItem
+                  badgeLabel={diagnostic.badgeLabel}
+                  badgeTone={diagnostic.badgeTone}
+                  description={diagnostic.description}
+                  key={diagnostic.id}
+                  title={diagnostic.title}
+                />
+              ))}
             </div>
           </SectionCard>
 
@@ -178,6 +291,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           >
             <FrontOfficeAgentMaterialWindow
               material={snapshot.agentMaterial}
+              routeState={routeState}
               targetAppointment={snapshot.targetAppointment}
               targetClient={snapshot.targetClient}
             />
@@ -226,8 +340,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           />
           <SummaryChip
             label="Mode"
-            tone={snapshot.targetClient ? "accent" : "default"}
-            value={snapshot.targetClient ? "Client-linked" : "Tracked link"}
+            tone={routeState.mode === "tracked-link" ? "default" : "accent"}
+            value={routeState.modeLabel}
           />
           {snapshot.targetClient ? (
             <SummaryChip
@@ -242,7 +356,11 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               value={snapshot.targetAppointment.typeLabel}
             />
           ) : null}
-          <SummaryChip label="Surface" value="Outreach" />
+          <SummaryChip label="Draft" value={routeState.draftStatusLabel} />
+          <SummaryChip label="Materials" value={materialStatusLabel} />
+          {routeState.diagnostics.length ? (
+            <SummaryChip label="URL" value="Adjusted" />
+          ) : null}
         </>
       }
       title="Listing output"
