@@ -11,6 +11,7 @@ import {
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeLeadIntakeCard } from "../_components/front-office-lead-intake-card";
+import type { FrontOfficeLeadDuplicatePreviewCandidate } from "../_components/front-office-lead-intake-review";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeClientDuplicatesCard } from "./front-office-client-duplicates-card";
@@ -30,6 +31,16 @@ export default async function AgentClientsPage() {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone
   });
+  const duplicatePreviewCandidates: FrontOfficeLeadDuplicatePreviewCandidate[] =
+    snapshot.clients.map((client) => ({
+      id: client.id,
+      fullName: client.fullName,
+      stage: client.stage,
+      sourceLabel: client.sourceLabel,
+      nextTouchLabel: client.nextTouchLabel,
+      href: client.href,
+      areasLabel: client.areasLabel,
+    }));
 
   return (
     <FrontOfficePageTemplate
@@ -101,8 +112,9 @@ export default async function AgentClientsPage() {
           ) : null}
 
           <FrontOfficeLeadIntakeCard
+            initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
             sourceSurface="clients"
-            subtitle="Use this when the lead is still hot and you only have the essentials. Acre writes the real client record, stage timeline, and next-touch date without turning this into a heavy contact-admin workflow."
+            subtitle="Use this when the lead is still hot and you only have the essentials. Acre writes the real client record, stage timeline, and next-touch date without turning this into a heavy contact-admin workflow, and intake assist now stays review-first before it touches the live form."
             title="Capture a lead"
           />
 

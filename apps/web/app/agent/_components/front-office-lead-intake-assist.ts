@@ -13,13 +13,45 @@ export type FrontOfficeLeadIntakeAssistDraft = Partial<{
 
 export type FrontOfficeLeadIntakeAssistConfidence = "high" | "medium" | "low";
 
+export type FrontOfficeLeadIntakeAssistSuggestedAction =
+  | "safe_apply"
+  | "review_first"
+  | "preview_only";
+
+export type FrontOfficeLeadIntakeAssistProvenance =
+  | "explicit_line"
+  | "pattern_match"
+  | "conversation_inference"
+  | "assist_mode"
+  | "summary_preview";
+
+export type FrontOfficeLeadIntakeAssistRiskFlag =
+  | "multiple_people"
+  | "household_context"
+  | "contact_owner_unclear"
+  | "multiple_contact_values"
+  | "multiple_budget_values"
+  | "relative_timing"
+  | "preview_summary";
+
 export type FrontOfficeLeadIntakeAssistField = {
   field: keyof FrontOfficeLeadIntakeAssistDraft;
   label: string;
   value: string;
   confidence: FrontOfficeLeadIntakeAssistConfidence;
-  autoApply: boolean;
+  suggestedAction: FrontOfficeLeadIntakeAssistSuggestedAction;
   reasonLabel: string;
+  provenance: FrontOfficeLeadIntakeAssistProvenance;
+  provenanceLabel: string;
+  evidenceLabel: string;
+  cautionLabels: string[];
+};
+
+export type FrontOfficeLeadIntakeAssistSafetySummary = {
+  tone: "neutral" | "warning";
+  label: string;
+  detail: string;
+  cautionLabels: string[];
 };
 
 export type FrontOfficeLeadIntakeAssistResult = {
@@ -27,14 +59,36 @@ export type FrontOfficeLeadIntakeAssistResult = {
   draft: FrontOfficeLeadIntakeAssistDraft;
   fields: FrontOfficeLeadIntakeAssistField[];
   summaryLabel: string;
-  autoApplyFieldCount: number;
+  safeApplyFieldCount: number;
   reviewFieldCount: number;
+  previewOnlyFieldCount: number;
+  safetySummary: FrontOfficeLeadIntakeAssistSafetySummary;
 };
 
-type IntakeSourceMode = "image" | "text";
+type IntakeSourceMode = "image" | "text" | "hybrid";
+
+type ParsedAssistValue = {
+  value: string;
+  evidence: string;
+  provenance: FrontOfficeLeadIntakeAssistProvenance;
+  explicit: boolean;
+  riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[];
+};
+
+type ConversationContext = {
+  hasMultiplePeople: boolean;
+  hasHouseholdContext: boolean;
+  hasContactOwnerRisk: boolean;
+  riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[];
+  cautionLabels: string[];
+};
 
 const nameLinePattern =
   /^(?:name|client|lead|buyer|renter|seller|prospect|姓名|客户)\s*[:：-]\s*(.+)$/i;
+const phoneLinePattern =
+  /^(?:phone|mobile|cell|电话|手机号)\s*[:：-]\s*(.+)$/i;
+const emailLinePattern =
+  /^(?:email|e-mail|邮箱)\s*[:：-]\s*(.+)$/i;
 const stageLinePattern =
   /^(?:stage|status|客户阶段|阶段)\s*[:：-]\s*(.+)$/i;
 const intentLinePattern =
@@ -45,6 +99,12 @@ const areaLinePattern =
   /(?:areas?|neighbo(?:u)?rhoods?|location|locations|looking in|interested in|preferred areas?|target areas?|区域|地区|片区)\s*[:：-]?\s*(.+)$/i;
 const followUpLinePattern =
   /(?:follow-up|follow up|next touch|next step|callback|回访|跟进|下次联系)\s*[:：-]?\s*(.+)$/i;
+const familyContextPattern =
+  /(?:wife|husband|spouse|partner|fianc(?:e|ee|é|ée)|boyfriend|girlfriend|family|parents?|mom|mother|dad|father|son|daughter|kids?|children|brother|sister|roommate|roommates|夫妻|家人|家庭|老公|老婆|父母|爸妈|妈妈|爸爸|儿子|女儿|孩子|室友|男朋友|女朋友)/i;
+const multiPartyPattern =
+  /(?:\bwe\b|\bour\b|\bus\b|couple|together|group chat|joint|夫妻|一家|两位|一起|共同|双方)/i;
+const contactOwnerRiskPattern =
+  /(?:agent|broker|realtor|assistant|coworker|for my client|their client|经纪人|中介|助理|代发|转述|帮客户)/i;
 
 const stageLabelMap: Record<string, string> = {
   "Cold Lead": "Stage",
@@ -95,35 +155,8 @@ function addDays(input: Date, days: number) {
   return next;
 }
 
-function parseEmail(text: string) {
-  const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return match?.[0]?.trim() ?? "";
-}
-
-function formatPhone(value: string) {
-  const digits = value.replace(/\D/g, "");
-
-  if (digits.length === 11 && digits.startsWith("1")) {
-    return `+1 ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
-  }
-
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-
-  return value.trim();
-}
-
-function parsePhone(text: string) {
-  const match = text.match(
-    /(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]*)\d{3}[-.\s]*\d{4}/,
-  );
-
-  return match?.[0] ? formatPhone(match[0]) : "";
-}
-
-function normalizePhoneDigits(value: string | null | undefined) {
-  return value?.replace(/\D/g, "") || "";
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
 }
 
 function cleanPotentialName(value: string) {
@@ -157,31 +190,261 @@ function isLikelyName(value: string) {
   return parts.every((part) => /^[A-Za-z][A-Za-z'’-]*$/.test(part));
 }
 
-function parseName(lines: string[]) {
-  const labeledLine = lines.find((line) => nameLinePattern.test(line));
+function extractLikelyNameCandidates(value: string) {
+  const candidates = value
+    .split(/,|，|\/|;|；|\(|\)|、|&|\band\b|和|与|及/i)
+    .map((item) => cleanPotentialName(item))
+    .filter(isLikelyName);
 
-  if (labeledLine) {
-    const value = cleanPotentialName(
-      labeledLine.replace(nameLinePattern, "$1"),
+  return uniqueStrings(candidates);
+}
+
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 ${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  return value.trim();
+}
+
+function countMoneyMatches(value: string) {
+  return value.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g)?.length ?? 0;
+}
+
+function buildConversationContext(lines: string[], text: string): ConversationContext {
+  const riskFlags = new Set<FrontOfficeLeadIntakeAssistRiskFlag>();
+  const cautionLabels: string[] = [];
+
+  const labeledNameCandidates = uniqueStrings(
+    lines
+      .filter((line) => nameLinePattern.test(line))
+      .flatMap((line) => {
+        const match = line.match(nameLinePattern);
+        return match?.[1] ? extractLikelyNameCandidates(match[1]) : [];
+      }),
+  );
+  const openerNameCandidates = uniqueStrings(
+    lines.slice(0, 6).flatMap((line) => extractLikelyNameCandidates(line)),
+  );
+  const combinedNameCandidates = uniqueStrings([
+    ...labeledNameCandidates,
+    ...openerNameCandidates,
+  ]);
+
+  const hasMultiplePeople =
+    combinedNameCandidates.length > 1 ||
+    multiPartyPattern.test(text) ||
+    /(?:&|\/)/.test(text);
+  const hasHouseholdContext = familyContextPattern.test(text);
+  const hasContactOwnerRisk = contactOwnerRiskPattern.test(text);
+
+  if (hasMultiplePeople) {
+    riskFlags.add("multiple_people");
+    cautionLabels.push(
+      "Multiple people may be present in this conversation, so lead identity should be reviewed before applying.",
     );
+  }
 
-    if (isLikelyName(value)) {
-      return value;
+  if (hasHouseholdContext) {
+    riskFlags.add("household_context");
+    cautionLabels.push(
+      "Family or household context appears in the thread, so contact details may not belong to just one primary lead.",
+    );
+  }
+
+  if (hasContactOwnerRisk) {
+    riskFlags.add("contact_owner_unclear");
+    cautionLabels.push(
+      "Some contact details may belong to an agent, assistant, or relay contact instead of the primary lead.",
+    );
+  }
+
+  return {
+    hasMultiplePeople,
+    hasHouseholdContext,
+    hasContactOwnerRisk,
+    riskFlags: [...riskFlags],
+    cautionLabels,
+  };
+}
+
+function parseName(
+  lines: string[],
+  context: ConversationContext,
+): ParsedAssistValue | null {
+  for (const line of lines) {
+    const match = line.match(nameLinePattern);
+
+    if (!match?.[1]) {
+      continue;
     }
+
+    const rawValue = match[1].trim();
+    const candidates = extractLikelyNameCandidates(rawValue);
+    const ambiguousLine =
+      candidates.length > 1 ||
+      familyContextPattern.test(rawValue) ||
+      multiPartyPattern.test(rawValue);
+    const cleaned = cleanPotentialName(rawValue);
+    const selected = candidates[0] ?? cleaned;
+
+    if (!isLikelyName(selected)) {
+      continue;
+    }
+
+    const riskFlags = ambiguousLine
+      ? uniqueStrings([
+          ...context.riskFlags,
+          "multiple_people",
+          context.hasHouseholdContext ? "household_context" : "",
+        ]).filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[]
+      : [...context.riskFlags];
+
+    return {
+      value: selected,
+      evidence: line,
+      provenance: "explicit_line",
+      explicit: true,
+      riskFlags,
+    };
+  }
+
+  if (context.hasMultiplePeople || context.hasHouseholdContext) {
+    return null;
   }
 
   for (const line of lines.slice(0, 4)) {
-    const value = cleanPotentialName(line);
+    const cleaned = cleanPotentialName(line);
 
-    if (isLikelyName(value)) {
-      return value;
+    if (!isLikelyName(cleaned)) {
+      continue;
     }
+
+    return {
+      value: cleaned,
+      evidence: line,
+      provenance: "conversation_inference",
+      explicit: false,
+      riskFlags: [...context.riskFlags],
+    };
   }
 
-  return "";
+  return null;
 }
 
-function parseIntent(text: string) {
+function parseEmail(
+  lines: string[],
+  context: ConversationContext,
+): ParsedAssistValue | null {
+  const matches = uniqueStrings(
+    lines
+      .flatMap((line) => {
+        const lineMatches =
+          line.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
+
+        return lineMatches.map((match) => `${match}|||${line}`);
+      })
+      .filter(Boolean),
+  ).map((entry) => {
+    const [value, evidence] = entry.split("|||");
+    const explicit = emailLinePattern.test(evidence ?? "");
+    const riskFlags = [
+      ...context.riskFlags,
+      familyContextPattern.test(evidence ?? "") || contactOwnerRiskPattern.test(evidence ?? "")
+        ? "contact_owner_unclear"
+        : "",
+    ].filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[];
+
+    return {
+      value,
+      evidence: evidence ?? value,
+      explicit,
+      riskFlags,
+    };
+  });
+
+  if (!matches.length) {
+    return null;
+  }
+
+  const selected = [...matches].sort(
+    (left, right) => Number(right.explicit) - Number(left.explicit),
+  )[0];
+
+  return {
+    value: selected.value.trim(),
+    evidence: selected.evidence,
+    provenance: selected.explicit ? "explicit_line" : "pattern_match",
+    explicit: selected.explicit,
+    riskFlags: uniqueStrings([
+      ...selected.riskFlags,
+      matches.length > 1 ? "multiple_contact_values" : "",
+    ]).filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[],
+  };
+}
+
+function parsePhone(
+  lines: string[],
+  context: ConversationContext,
+): ParsedAssistValue | null {
+  const matches = uniqueStrings(
+    lines
+      .flatMap((line) => {
+        const lineMatches =
+          line.match(
+            /(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]*)\d{3}[-.\s]*\d{4}/g,
+          ) ?? [];
+
+        return lineMatches.map((match) => `${formatPhone(match)}|||${line}`);
+      })
+      .filter(Boolean),
+  ).map((entry) => {
+    const [value, evidence] = entry.split("|||");
+    const explicit = phoneLinePattern.test(evidence ?? "");
+    const riskFlags = [
+      ...context.riskFlags,
+      familyContextPattern.test(evidence ?? "") || contactOwnerRiskPattern.test(evidence ?? "")
+        ? "contact_owner_unclear"
+        : "",
+    ].filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[];
+
+    return {
+      value,
+      evidence: evidence ?? value,
+      explicit,
+      riskFlags,
+    };
+  });
+
+  if (!matches.length) {
+    return null;
+  }
+
+  const selected = [...matches].sort(
+    (left, right) => Number(right.explicit) - Number(left.explicit),
+  )[0];
+
+  return {
+    value: selected.value.trim(),
+    evidence: selected.evidence,
+    provenance: selected.explicit ? "explicit_line" : "pattern_match",
+    explicit: selected.explicit,
+    riskFlags: uniqueStrings([
+      ...selected.riskFlags,
+      matches.length > 1 ? "multiple_contact_values" : "",
+    ]).filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[],
+  };
+}
+
+function parseIntent(text: string, lines: string[]): ParsedAssistValue | null {
+  const explicitLine = lines.find((line) => intentLinePattern.test(line));
+
   const checks: Array<[RegExp, string]> = [
     [/\b(?:seller|selling|list my home|出售|卖房)\b/i, "Seller"],
     [/\b(?:landlord|lease out|出租)\b/i, "Landlord"],
@@ -191,15 +454,24 @@ function parseIntent(text: string) {
   ];
 
   for (const [pattern, label] of checks) {
-    if (pattern.test(text)) {
-      return label;
+    if (!pattern.test(text)) {
+      continue;
     }
+
+    return {
+      value: label,
+      evidence: explicitLine ?? label,
+      provenance: explicitLine ? "explicit_line" : "conversation_inference",
+      explicit: Boolean(explicitLine),
+      riskFlags: [],
+    };
   }
 
-  return "";
+  return null;
 }
 
-function parseStage(text: string) {
+function parseStage(text: string, lines: string[]): ParsedAssistValue | null {
+  const explicitLine = lines.find((line) => stageLinePattern.test(line));
   const checks: Array<[RegExp, string]> = [
     [/\b(?:won|closed won|成交)\b/i, "Won"],
     [/\b(?:lost|closed lost|流失)\b/i, "Lost"],
@@ -215,12 +487,20 @@ function parseStage(text: string) {
   ];
 
   for (const [pattern, label] of checks) {
-    if (pattern.test(text)) {
-      return label;
+    if (!pattern.test(text)) {
+      continue;
     }
+
+    return {
+      value: label,
+      evidence: explicitLine ?? label,
+      provenance: explicitLine ? "explicit_line" : "conversation_inference",
+      explicit: Boolean(explicitLine),
+      riskFlags: [],
+    };
   }
 
-  return "";
+  return null;
 }
 
 function parseMoneyToken(value: string) {
@@ -250,12 +530,8 @@ function parseMoneyToken(value: string) {
   return Math.round(numeric * multiplier);
 }
 
-function parseBudgetMax(lines: string[], text: string) {
-  const budgetLines = lines.filter((line) =>
-    /(?:budget|up to|max budget|max|under|price|rent|purchase|预算|租金|总价)/i.test(
-      line,
-    ),
-  );
+function parseBudgetMax(lines: string[], text: string): ParsedAssistValue | null {
+  const budgetLines = lines.filter((line) => budgetLinePattern.test(line));
   const sourceText = budgetLines.join(" \n ") || text;
   const matches = sourceText.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g) ?? [];
   const values = matches
@@ -263,24 +539,19 @@ function parseBudgetMax(lines: string[], text: string) {
     .filter((value): value is number => value !== null);
 
   if (!values.length) {
-    return "";
+    return null;
   }
 
-  return String(Math.max(...values));
-}
-
-function collectAreaCandidates(lines: string[]) {
-  const candidates: string[] = [];
-
-  for (const line of lines) {
-    const match = line.match(areaLinePattern);
-
-    if (match?.[1]) {
-      candidates.push(match[1].trim());
-    }
-  }
-
-  return candidates;
+  return {
+    value: String(Math.max(...values)),
+    evidence: budgetLines[0] ?? matches[0] ?? sourceText.slice(0, 80),
+    provenance: budgetLines.length ? "explicit_line" : "conversation_inference",
+    explicit: budgetLines.length > 0,
+    riskFlags:
+      values.length > 1 || countMoneyMatches(sourceText) > 1
+        ? ["multiple_budget_values"]
+        : [],
+  };
 }
 
 function cleanAreaToken(value: string) {
@@ -291,11 +562,19 @@ function cleanAreaToken(value: string) {
     .trim();
 }
 
-function parsePreferredAreas(lines: string[]) {
-  const rawCandidates = collectAreaCandidates(lines);
-  const tokens = rawCandidates.flatMap((candidate) =>
-    candidate.split(/,|\/|;|\band\b|，|、/i).map((item) => cleanAreaToken(item)),
-  );
+function parsePreferredAreas(lines: string[]): ParsedAssistValue | null {
+  const labeledLines = lines.filter((line) => areaLinePattern.test(line));
+  const tokens = labeledLines.flatMap((line) => {
+    const match = line.match(areaLinePattern);
+
+    if (!match?.[1]) {
+      return [];
+    }
+
+    return match[1]
+      .split(/,|\/|;|\band\b|，|、/i)
+      .map((item) => cleanAreaToken(item));
+  });
   const seen = new Set<string>();
   const unique = tokens.filter((token) => {
     const normalized = token.toLowerCase();
@@ -317,32 +596,54 @@ function parsePreferredAreas(lines: string[]) {
     return true;
   });
 
-  return unique.slice(0, 5).join(", ");
+  if (!unique.length) {
+    return null;
+  }
+
+  return {
+    value: unique.slice(0, 5).join(", "),
+    evidence: labeledLines[0] ?? unique[0],
+    provenance: labeledLines.length ? "explicit_line" : "conversation_inference",
+    explicit: labeledLines.length > 0,
+    riskFlags: [],
+  };
 }
 
-function parseNextFollowUpAt(text: string, now: Date) {
+function parseDateValue(text: string, now: Date) {
   if (/(?:tomorrow|明天)/i.test(text)) {
-    return formatIsoDate(addDays(now, 1));
+    return {
+      value: formatIsoDate(addDays(now, 1)),
+      relative: true,
+    };
   }
 
   if (/(?:next week|下周)/i.test(text)) {
-    return formatIsoDate(addDays(now, 7));
+    return {
+      value: formatIsoDate(addDays(now, 7)),
+      relative: true,
+    };
   }
 
   if (/(?:today|今天)/i.test(text)) {
-    return formatIsoDate(now);
+    return {
+      value: formatIsoDate(now),
+      relative: true,
+    };
   }
 
   const isoMatch = text.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
 
   if (isoMatch?.[1]) {
-    return isoMatch[1];
+    return {
+      value: isoMatch[1],
+      relative: false,
+    };
   }
 
   const usDateMatch = text.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
 
   if (!usDateMatch) {
-    return "";
+    return null;
   }
 
   const month = Number.parseInt(usDateMatch[1] ?? "", 10);
@@ -356,27 +657,97 @@ function parseNextFollowUpAt(text: string, now: Date) {
         : now.getFullYear();
 
   if (!month || !day || !year) {
-    return "";
+    return null;
   }
 
   const parsed = new Date(year, month - 1, day);
 
   if (Number.isNaN(parsed.getTime())) {
-    return "";
+    return null;
   }
 
-  return formatIsoDate(parsed);
+  return {
+    value: formatIsoDate(parsed),
+    relative: false,
+  };
+}
+
+function parseNextFollowUpAt(
+  lines: string[],
+  text: string,
+  now: Date,
+): ParsedAssistValue | null {
+  const explicitLine = lines.find((line) => followUpLinePattern.test(line));
+
+  if (explicitLine) {
+    const parsed = parseDateValue(explicitLine, now);
+
+    if (parsed) {
+      return {
+        value: parsed.value,
+        evidence: explicitLine,
+        provenance: "explicit_line",
+        explicit: true,
+        riskFlags: parsed.relative ? ["relative_timing"] : [],
+      };
+    }
+  }
+
+  const parsed = parseDateValue(text, now);
+
+  if (!parsed) {
+    return null;
+  }
+
+  return {
+    value: parsed.value,
+    evidence: parsed.relative ? "Relative timing found in the conversation." : parsed.value,
+    provenance: "conversation_inference",
+    explicit: false,
+    riskFlags: parsed.relative ? ["relative_timing"] : [],
+  };
 }
 
 function buildSourceLabel(mode: IntakeSourceMode, text: string) {
   if (/(?:wechat|we chat|微信)/i.test(text)) {
+    if (mode === "hybrid") {
+      return "WeChat screenshot + transcript assist";
+    }
+
     return mode === "image" ? "WeChat OCR import" : "WeChat transcript assist";
+  }
+
+  if (mode === "hybrid") {
+    return "Screenshot + transcript assist";
   }
 
   return mode === "image" ? "Screenshot OCR import" : "Transcript assist";
 }
 
-function buildNotes(lines: string[], rawText: string, sourceLabel: string) {
+function parseSource(mode: IntakeSourceMode, text: string): ParsedAssistValue {
+  const label = buildSourceLabel(mode, text);
+  const evidence =
+    mode === "hybrid"
+      ? "Derived from the uploaded screenshot plus pasted transcript."
+      : mode === "image"
+        ? "Derived from the uploaded screenshot."
+        : "Derived from the pasted transcript.";
+
+  return {
+    value: label,
+    evidence,
+    provenance: "assist_mode",
+    explicit: true,
+    riskFlags: [],
+  };
+}
+
+function buildNotes(
+  lines: string[],
+  rawText: string,
+  sourceLabel: string,
+  context: ConversationContext,
+): ParsedAssistValue | null {
   const candidates = lines.filter((line) => {
     if (!line || line.length < 8) {
       return false;
@@ -398,301 +769,245 @@ function buildNotes(lines: string[], rawText: string, sourceLabel: string) {
   });
 
   const noteBody = candidates.slice(0, 3).join(" ");
+  const cautionPrefix =
+    context.hasMultiplePeople || context.hasHouseholdContext
+      ? "Review household context before applying. "
+      : "";
+  const value = noteBody
+    ? `${sourceLabel}: ${cautionPrefix}${noteBody}`.slice(0, 400)
+    : `${sourceLabel}: ${cautionPrefix}${rawText.replace(/\s+/g, " ").slice(0, 320)}`.trim();
 
-  if (noteBody) {
-    return `${sourceLabel}: ${noteBody}`.slice(0, 400);
+  return {
+    value,
+    evidence: candidates[0] ?? sourceLabel,
+    provenance: "summary_preview",
+    explicit: false,
+    riskFlags: uniqueStrings([
+      ...context.riskFlags,
+      "preview_summary",
+    ]) as FrontOfficeLeadIntakeAssistRiskFlag[],
+  };
+}
+
+function buildProvenanceLabel(
+  provenance: FrontOfficeLeadIntakeAssistProvenance,
+) {
+  switch (provenance) {
+    case "explicit_line":
+      return "Explicit line in the extract";
+    case "pattern_match":
+      return "Pattern matched from extracted text";
+    case "conversation_inference":
+      return "Inferred from conversation context";
+    case "assist_mode":
+      return "Derived from assist input mode";
+    case "summary_preview":
+      return "Preview summary from extracted text";
+  }
+}
+
+function buildCautionLabels(riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[]) {
+  const labels: string[] = [];
+
+  if (riskFlags.includes("multiple_people")) {
+    labels.push("Multiple people may be involved");
   }
 
-  return `${sourceLabel}: ${rawText.replace(/\s+/g, " ").slice(0, 320)}`.trim();
-}
+  if (riskFlags.includes("household_context")) {
+    labels.push("Household or family context detected");
+  }
 
-function normalizeComparisonValue(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
+  if (riskFlags.includes("contact_owner_unclear")) {
+    labels.push("Contact ownership may be unclear");
+  }
 
-function countMoneyMatches(value: string) {
-  return value.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g)?.length ?? 0;
+  if (riskFlags.includes("multiple_contact_values")) {
+    labels.push("More than one contact value appeared");
+  }
+
+  if (riskFlags.includes("multiple_budget_values")) {
+    labels.push("More than one budget-like amount appeared");
+  }
+
+  if (riskFlags.includes("relative_timing")) {
+    labels.push("Relative timing should be confirmed");
+  }
+
+  if (riskFlags.includes("preview_summary")) {
+    labels.push("Preview summary only");
+  }
+
+  return labels;
 }
 
 function resolveFieldAssessment(input: {
   field: keyof FrontOfficeLeadIntakeAssistDraft;
-  value: string;
-  lines: string[];
-  text: string;
+  parsed: ParsedAssistValue;
+  context: ConversationContext;
 }) {
-  const normalizedValue = normalizeComparisonValue(input.value);
-  const budgetLines = input.lines.filter((line) => budgetLinePattern.test(line));
-  const hasLabeledArea = input.lines.some((line) => areaLinePattern.test(line));
-  const hasLabeledFollowUp = input.lines.some((line) =>
-    followUpLinePattern.test(line),
-  );
+  const cautionLabels = buildCautionLabels(input.parsed.riskFlags);
+  const hasIdentityRisk =
+    input.parsed.riskFlags.includes("multiple_people") ||
+    input.parsed.riskFlags.includes("household_context") ||
+    input.parsed.riskFlags.includes("contact_owner_unclear") ||
+    input.parsed.riskFlags.includes("multiple_contact_values");
 
   switch (input.field) {
-    case "fullName": {
-      const hasLabeledName = input.lines.some((line) => {
-        const match = line.match(nameLinePattern);
-
-        if (!match?.[1]) {
-          return false;
-        }
-
-        return (
-          normalizeComparisonValue(cleanPotentialName(match[1])) ===
-          normalizedValue
-        );
-      });
-
-      return hasLabeledName
+    case "fullName":
+      return input.parsed.explicit && !hasIdentityRisk
         ? {
             confidence: "high" as const,
-            autoApply: true,
-            reasonLabel: "Explicitly labeled in the transcript.",
+            suggestedAction: "safe_apply" as const,
+            reasonLabel: "A single lead name was explicitly labeled in the extract.",
+            cautionLabels,
           }
         : {
-            confidence: "medium" as const,
-            autoApply: false,
-            reasonLabel: "Inferred from the opening lines.",
+            confidence: input.parsed.explicit ? ("medium" as const) : ("low" as const),
+            suggestedAction: "review_first" as const,
+            reasonLabel:
+              "Lead identity needs review because the conversation may reference more than one person.",
+            cautionLabels,
           };
-    }
     case "phone":
-      return normalizePhoneDigits(input.value).length >= 10
+    case "email":
+      return !hasIdentityRisk
         ? {
             confidence: "high" as const,
-            autoApply: true,
-            reasonLabel: "Matched a full phone-number pattern.",
+            suggestedAction: "safe_apply" as const,
+            reasonLabel: `${input.field === "phone" ? "Phone" : "Email"} matched a clear contact pattern.`,
+            cautionLabels,
           }
         : {
             confidence: "medium" as const,
-            autoApply: false,
-            reasonLabel: "Looks like a phone number, but review it first.",
+            suggestedAction: "review_first" as const,
+            reasonLabel:
+              "Contact details were found, but they may belong to a family member, relay contact, or another participant.",
+            cautionLabels,
           };
-    case "email":
-      return {
-        confidence: "high" as const,
-        autoApply: true,
-        reasonLabel: "Matched a valid email pattern.",
-      };
     case "source":
       return {
         confidence: "high" as const,
-        autoApply: true,
-        reasonLabel: "Derived directly from the assist mode you used.",
+        suggestedAction: "safe_apply" as const,
+        reasonLabel: "Source comes directly from the assist mode you used.",
+        cautionLabels,
       };
     case "stage":
-      return input.lines.some((line) => stageLinePattern.test(line))
-        ? {
-            confidence: "high" as const,
-            autoApply: true,
-            reasonLabel: "Stage was explicitly labeled.",
-          }
-        : {
-            confidence: "medium" as const,
-            autoApply: false,
-            reasonLabel: "Stage was inferred from conversation keywords.",
-          };
     case "intent":
-      return input.lines.some((line) => intentLinePattern.test(line))
+      return input.parsed.explicit
         ? {
             confidence: "high" as const,
-            autoApply: true,
-            reasonLabel: "Intent was explicitly labeled.",
+            suggestedAction: "safe_apply" as const,
+            reasonLabel: `${input.field === "stage" ? "Stage" : "Intent"} was explicitly labeled.`,
+            cautionLabels,
           }
         : {
             confidence: "medium" as const,
-            autoApply: false,
-            reasonLabel: "Intent was inferred from housing keywords.",
+            suggestedAction: "review_first" as const,
+            reasonLabel: `${input.field === "stage" ? "Stage" : "Intent"} was inferred from conversation keywords.`,
+            cautionLabels,
           };
-    case "budgetMax": {
-      const budgetContext = budgetLines.join(" ");
-      const isSingleBudgetSignal =
-        budgetLines.length > 0 && countMoneyMatches(budgetContext) <= 1;
-
-      return budgetLines.length > 0 && isSingleBudgetSignal
+    case "budgetMax":
+      return input.parsed.riskFlags.includes("multiple_budget_values")
         ? {
-            confidence: "high" as const,
-            autoApply: true,
-            reasonLabel: "Budget came from a dedicated budget line.",
-          }
-        : {
-            confidence: budgetLines.length > 0 ? ("medium" as const) : ("low" as const),
-            autoApply: false,
+            confidence: "medium" as const,
+            suggestedAction: "review_first" as const,
             reasonLabel:
-              budgetLines.length > 0
-                ? "Multiple budget-like amounts were found, so review the suggestion."
-                : "Budget was inferred from general transcript text.",
-          };
-    }
-    case "preferredAreas":
-      return hasLabeledArea
-        ? {
-            confidence: "high" as const,
-            autoApply: true,
-            reasonLabel: "Areas came from a location line.",
+              "A budget signal was found, but multiple amounts appeared in the same extract.",
+            cautionLabels,
           }
         : {
-            confidence: "medium" as const,
-            autoApply: false,
-            reasonLabel: "Areas were inferred from freeform text.",
+            confidence: input.parsed.explicit ? ("high" as const) : ("medium" as const),
+            suggestedAction: input.parsed.explicit ? ("safe_apply" as const) : ("review_first" as const),
+            reasonLabel: input.parsed.explicit
+              ? "Budget came from a dedicated budget line."
+              : "Budget was inferred from the broader conversation.",
+            cautionLabels,
           };
+    case "preferredAreas":
+      return {
+        confidence: input.parsed.explicit ? ("high" as const) : ("medium" as const),
+        suggestedAction: input.parsed.explicit ? ("safe_apply" as const) : ("review_first" as const),
+        reasonLabel: input.parsed.explicit
+          ? "Areas came from a location line."
+          : "Areas were inferred from freeform text.",
+        cautionLabels,
+      };
     case "nextFollowUpAt":
-      if (hasLabeledFollowUp) {
-        return {
-          confidence: "high" as const,
-          autoApply: true,
-          reasonLabel: "Follow-up timing was explicitly labeled.",
-        };
-      }
-
-      if (/(?:tomorrow|明天|next week|下周|today|今天|\b20\d{2}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b)/i.test(input.text)) {
+      if (input.parsed.riskFlags.includes("relative_timing")) {
         return {
           confidence: "medium" as const,
-          autoApply: false,
-          reasonLabel: "Timing was inferred from relative or freeform date text.",
+          suggestedAction: "review_first" as const,
+          reasonLabel:
+            "Follow-up timing was detected, but relative dates should be confirmed before applying.",
+          cautionLabels,
         };
       }
 
       return {
-        confidence: "low" as const,
-        autoApply: false,
-        reasonLabel: "Date hint is too soft to auto-fill.",
+        confidence: input.parsed.explicit ? ("high" as const) : ("medium" as const),
+        suggestedAction: input.parsed.explicit ? ("safe_apply" as const) : ("review_first" as const),
+        reasonLabel: input.parsed.explicit
+          ? "Follow-up timing was explicitly labeled."
+          : "Follow-up timing was inferred from date text in the conversation.",
+        cautionLabels,
       };
     case "notes":
       return {
         confidence: "low" as const,
-        autoApply: false,
-        reasonLabel: "Preview summary only. Keep or rewrite it manually.",
+        suggestedAction: "preview_only" as const,
+        reasonLabel: "Notes stay as a conservative preview summary until you rewrite or paste them manually.",
+        cautionLabels,
       };
   }
 }
 
-function buildFields(
-  draft: FrontOfficeLeadIntakeAssistDraft,
-  lines: string[],
-  text: string,
-) {
-  const fields: FrontOfficeLeadIntakeAssistField[] = [];
-
-  if (draft.fullName) {
-    const assessment = resolveFieldAssessment({
-      field: "fullName",
-      value: draft.fullName,
-      lines,
-      text,
-    });
-    fields.push({
-      field: "fullName",
-      label: "Full name",
-      value: draft.fullName,
-      ...assessment,
-    });
+function buildField(
+  field: keyof FrontOfficeLeadIntakeAssistDraft,
+  label: string,
+  parsed: ParsedAssistValue | null,
+  context: ConversationContext,
+): FrontOfficeLeadIntakeAssistField | null {
+  if (!parsed?.value.trim()) {
+    return null;
   }
 
-  if (draft.phone) {
-    const assessment = resolveFieldAssessment({
-      field: "phone",
-      value: draft.phone,
-      lines,
-      text,
-    });
-    fields.push({ field: "phone", label: "Phone", value: draft.phone, ...assessment });
+  const assessment = resolveFieldAssessment({
+    field,
+    parsed,
+    context,
+  });
+
+  return {
+    field,
+    label,
+    value: parsed.value.trim(),
+    provenance: parsed.provenance,
+    provenanceLabel: buildProvenanceLabel(parsed.provenance),
+    evidenceLabel: parsed.evidence.trim(),
+    ...assessment,
+  };
+}
+
+function buildSafetySummary(
+  context: ConversationContext,
+): FrontOfficeLeadIntakeAssistSafetySummary {
+  if (!context.cautionLabels.length) {
+    return {
+      tone: "neutral",
+      label: "Single-lead parsing looks straightforward",
+      detail:
+        "Acre did not detect obvious household, group-chat, or relay-contact risk in this extract.",
+      cautionLabels: [],
+    };
   }
 
-  if (draft.email) {
-    const assessment = resolveFieldAssessment({
-      field: "email",
-      value: draft.email,
-      lines,
-      text,
-    });
-    fields.push({ field: "email", label: "Email", value: draft.email, ...assessment });
-  }
-
-  if (draft.source) {
-    const assessment = resolveFieldAssessment({
-      field: "source",
-      value: draft.source,
-      lines,
-      text,
-    });
-    fields.push({ field: "source", label: "Source", value: draft.source, ...assessment });
-  }
-
-  if (draft.stage && stageLabelMap[draft.stage]) {
-    const assessment = resolveFieldAssessment({
-      field: "stage",
-      value: draft.stage,
-      lines,
-      text,
-    });
-    fields.push({ field: "stage", label: "Stage", value: draft.stage, ...assessment });
-  }
-
-  if (draft.intent && intentLabelMap[draft.intent]) {
-    const assessment = resolveFieldAssessment({
-      field: "intent",
-      value: draft.intent,
-      lines,
-      text,
-    });
-    fields.push({ field: "intent", label: "Intent", value: draft.intent, ...assessment });
-  }
-
-  if (draft.budgetMax) {
-    const assessment = resolveFieldAssessment({
-      field: "budgetMax",
-      value: draft.budgetMax,
-      lines,
-      text,
-    });
-    fields.push({
-      field: "budgetMax",
-      label: "Budget up to",
-      value: draft.budgetMax,
-      ...assessment,
-    });
-  }
-
-  if (draft.preferredAreas) {
-    const assessment = resolveFieldAssessment({
-      field: "preferredAreas",
-      value: draft.preferredAreas,
-      lines,
-      text,
-    });
-    fields.push({
-      field: "preferredAreas",
-      label: "Preferred areas",
-      value: draft.preferredAreas,
-      ...assessment,
-    });
-  }
-
-  if (draft.nextFollowUpAt) {
-    const assessment = resolveFieldAssessment({
-      field: "nextFollowUpAt",
-      value: draft.nextFollowUpAt,
-      lines,
-      text,
-    });
-    fields.push({
-      field: "nextFollowUpAt",
-      label: "Next follow-up",
-      value: draft.nextFollowUpAt,
-      ...assessment,
-    });
-  }
-
-  if (draft.notes) {
-    const assessment = resolveFieldAssessment({
-      field: "notes",
-      value: draft.notes,
-      lines,
-      text,
-    });
-    fields.push({ field: "notes", label: "Notes", value: draft.notes, ...assessment });
-  }
-
-  return fields;
+  return {
+    tone: "warning",
+    label: "Review lead identity before applying suggestions",
+    detail:
+      "This extract may involve multiple people or indirect contact details, so Acre kept identity-sensitive fields conservative.",
+    cautionLabels: context.cautionLabels,
+  };
 }
 
 export function extractFrontOfficeLeadIntakeAssist(input: {
@@ -703,31 +1018,70 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
   const now = input.now ?? new Date();
   const normalizedText = normalizeWhitespace(input.rawText);
   const lines = splitMeaningfulLines(normalizedText);
-  const sourceLabel = buildSourceLabel(input.sourceMode, normalizedText);
+  const context = buildConversationContext(lines, normalizedText);
+  const source = parseSource(input.sourceMode, normalizedText);
+  const name = parseName(lines, context);
+  const phone = parsePhone(lines, context);
+  const email = parseEmail(lines, context);
+  const stage = parseStage(normalizedText, lines);
+  const intent = parseIntent(normalizedText, lines);
+  const budgetMax = parseBudgetMax(lines, normalizedText);
+  const preferredAreas = parsePreferredAreas(lines);
+  const nextFollowUpAt = parseNextFollowUpAt(lines, normalizedText, now);
+  const notes = buildNotes(lines, normalizedText, source.value, context);
+
   const draft: FrontOfficeLeadIntakeAssistDraft = {
-    fullName: parseName(lines),
-    phone: parsePhone(normalizedText),
-    email: parseEmail(normalizedText),
-    source: sourceLabel,
-    stage: parseStage(normalizedText),
-    intent: parseIntent(normalizedText),
-    budgetMax: parseBudgetMax(lines, normalizedText),
-    preferredAreas: parsePreferredAreas(lines),
-    nextFollowUpAt: parseNextFollowUpAt(normalizedText, now),
-    notes: buildNotes(lines, normalizedText, sourceLabel),
+    fullName: name?.value,
+    phone: phone?.value,
+    email: email?.value,
+    source: source.value,
+    stage: stage?.value,
+    intent: intent?.value,
+    budgetMax: budgetMax?.value,
+    preferredAreas: preferredAreas?.value,
+    nextFollowUpAt: nextFollowUpAt?.value,
+    notes: notes?.value,
   };
-  const fields = buildFields(draft, lines, normalizedText);
-  const autoApplyFieldCount = fields.filter((field) => field.autoApply).length;
-  const reviewFieldCount = fields.length - autoApplyFieldCount;
+
+  const fields = [
+    buildField("fullName", "Full name", name, context),
+    buildField("phone", "Phone", phone, context),
+    buildField("email", "Email", email, context),
+    buildField("source", "Source", source, context),
+    stage?.value && stageLabelMap[stage.value]
+      ? buildField("stage", "Stage", stage, context)
+      : null,
+    intent?.value && intentLabelMap[intent.value]
+      ? buildField("intent", "Intent", intent, context)
+      : null,
+    buildField("budgetMax", "Budget up to", budgetMax, context),
+    buildField("preferredAreas", "Preferred areas", preferredAreas, context),
+    buildField("nextFollowUpAt", "Next follow-up", nextFollowUpAt, context),
+    buildField("notes", "Notes", notes, context),
+  ].filter(
+    (field): field is FrontOfficeLeadIntakeAssistField => Boolean(field),
+  );
+
+  const safeApplyFieldCount = fields.filter(
+    (field) => field.suggestedAction === "safe_apply",
+  ).length;
+  const reviewFieldCount = fields.filter(
+    (field) => field.suggestedAction === "review_first",
+  ).length;
+  const previewOnlyFieldCount = fields.filter(
+    (field) => field.suggestedAction === "preview_only",
+  ).length;
 
   return {
     rawText: normalizedText,
     draft,
     fields,
     summaryLabel: fields.length
-      ? `Detected ${fields.length} intake field(s) · ${autoApplyFieldCount} ready to use`
+      ? `Detected ${fields.length} intake field(s) · ${safeApplyFieldCount} safe after review`
       : "No structured lead fields detected yet",
-    autoApplyFieldCount,
+    safeApplyFieldCount,
     reviewFieldCount,
+    previewOnlyFieldCount,
+    safetySummary: buildSafetySummary(context),
   } satisfies FrontOfficeLeadIntakeAssistResult;
 }

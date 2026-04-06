@@ -13,6 +13,7 @@ import {
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeLeadIntakeCard } from "../_components/front-office-lead-intake-card";
+import type { FrontOfficeLeadDuplicatePreviewCandidate } from "../_components/front-office-lead-intake-review";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeDashboardAiQueueClient } from "./front-office-dashboard-ai-queue-client";
@@ -37,6 +38,15 @@ export default async function AgentDashboardPage() {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
   });
+  const duplicatePreviewCandidates: FrontOfficeLeadDuplicatePreviewCandidate[] =
+    snapshot.pipeline.recentClients.map((client) => ({
+      id: client.id,
+      fullName: client.fullName,
+      stage: client.stage,
+      sourceLabel: client.source,
+      nextTouchLabel: client.nextTouchLabel,
+      href: client.href,
+    }));
 
   return (
     <FrontOfficePageTemplate
@@ -49,8 +59,10 @@ export default async function AgentDashboardPage() {
         <>
           <FrontOfficeLeadIntakeCard
             density="compact"
+            hydrateDuplicatePreviewCandidates
+            initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
             sourceSurface="dashboard"
-            subtitle="Capture a new lead the moment it comes in, keep the next follow-up dated, and let Front Office build the dossier before anything becomes a formal Back Office record."
+            subtitle="Capture a new lead the moment it comes in, keep the next follow-up dated, and let Front Office build the dossier before anything becomes a formal Back Office record. Intake assist now stays review-first before it touches the live form."
             title="Quick lead intake"
           />
 
