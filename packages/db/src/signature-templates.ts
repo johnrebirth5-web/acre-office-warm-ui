@@ -1,4 +1,9 @@
-import { SignatureFieldType, SignatureRecipientRole, SignatureTemplateCategory } from "@prisma/client";
+import {
+  SignatureFieldType,
+  SignatureRecipientRole,
+  SignatureRequestStatus,
+  SignatureTemplateCategory
+} from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
@@ -48,6 +53,24 @@ export type OfficeSignatureTemplate = {
   senderReplyTo: string;
   createdByLabel: string;
   updatedAt: string;
+  usage: {
+    totalCount: number;
+    draftCount: number;
+    inFlightCount: number;
+    completedCount: number;
+  };
+  latestRequest:
+    | {
+        id: string;
+        title: string;
+        statusKey: SignatureRequestStatus;
+        statusLabel: string;
+        updatedAt: string;
+        requestHref: string;
+        transactionHref: string;
+        transactionLabel: string;
+      }
+    | null;
   recipients: OfficeSignatureTemplateRecipient[];
   fields: OfficeSignatureTemplateField[];
 };
@@ -56,6 +79,10 @@ export type OfficeSignatureTemplateLibrarySnapshot = {
   summary: {
     totalCount: number;
     activeCount: number;
+    inactiveCount: number;
+    nonTransactionCount: number;
+    usedCount: number;
+    templatesWithLiveDraftsCount: number;
   };
   templates: OfficeSignatureTemplate[];
 };
@@ -115,6 +142,19 @@ const categoryLabelMap: Record<SignatureTemplateCategory, string> = {
   transaction: "Transaction"
 };
 
+const signatureRequestStatusLabelMap: Record<SignatureRequestStatus, string> = {
+  draft: "Draft",
+  pending_send: "Pending Send",
+  sent: "Sent",
+  viewed: "Viewed",
+  signed: "Signed",
+  completed: "Completed",
+  declined: "Declined",
+  canceled: "Void / Cancelled",
+  voided: "Void / Cancelled",
+  expired: "Expired"
+};
+
 function normalizeOptionalString(value: string | null | undefined) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -139,9 +179,36 @@ function formatMembershipLabel(
   return name || membership?.user?.email || "—";
 }
 
+function buildTemplateRequestTitle(
+  request: NonNullable<Awaited<ReturnType<typeof listSignatureTemplatesInternal>>[number]["signatureRequests"][number]>
+) {
+  return request.document?.title || request.form?.name || request.contextLabel || request.transaction?.title || "Signature request";
+}
+
+function buildTemplateUsage(
+  template: Awaited<ReturnType<typeof listSignatureTemplatesInternal>>[number]
+) {
+  const draftCount = template.signatureRequests.filter((request) =>
+    request.status === "draft" || request.status === "pending_send"
+  ).length;
+  const inFlightCount = template.signatureRequests.filter((request) =>
+    request.status === "sent" || request.status === "viewed" || request.status === "signed"
+  ).length;
+  const completedCount = template.signatureRequests.filter((request) => request.status === "completed").length;
+
+  return {
+    totalCount: template.signatureRequests.length,
+    draftCount,
+    inFlightCount,
+    completedCount
+  };
+}
+
 function mapTemplate(
   template: Awaited<ReturnType<typeof listSignatureTemplatesInternal>>[number]
 ): OfficeSignatureTemplate {
+  const latestRequest = template.signatureRequests[0] ?? null;
+
   return {
     id: template.id,
     name: template.name,
@@ -156,6 +223,19 @@ function mapTemplate(
     senderReplyTo: template.senderReplyTo ?? "",
     createdByLabel: formatMembershipLabel(template.createdByMembership),
     updatedAt: formatDateTimeLabel(template.updatedAt) || "",
+    usage: buildTemplateUsage(template),
+    latestRequest: latestRequest
+      ? {
+          id: latestRequest.id,
+          title: buildTemplateRequestTitle(latestRequest),
+          statusKey: latestRequest.status,
+          statusLabel: signatureRequestStatusLabelMap[latestRequest.status],
+          updatedAt: formatDateTimeLabel(latestRequest.updatedAt) || "",
+          requestHref: `/office/transactions/${latestRequest.transactionId}/signatures/${latestRequest.id}`,
+          transactionHref: `/office/transactions/${latestRequest.transactionId}`,
+          transactionLabel: latestRequest.transaction?.title || latestRequest.contextLabel || "Transaction"
+        }
+      : null,
     recipients: template.recipients.map((recipient) => ({
       id: recipient.id,
       roleKey: recipient.role,
@@ -221,10 +301,49 @@ async function listSignatureTemplatesInternal(input: {
       },
       fields: {
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      },
+      signatureRequests: {
+        select: {
+          id: true,
+          transactionId: true,
+          status: true,
+          contextLabel: true,
+          updatedAt: true,
+          transaction: {
+            select: {
+              id: true,
+              title: true
+            }
+          },
+          document: {
+            select: {
+              id: true,
+              title: true
+            }
+          },
+          form: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
       }
     },
     orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }]
   });
+}
+
+function buildLibrarySummary(templates: OfficeSignatureTemplate[]) {
+  return {
+    totalCount: templates.length,
+    activeCount: templates.filter((template) => template.isActive).length,
+    inactiveCount: templates.filter((template) => !template.isActive).length,
+    nonTransactionCount: templates.filter((template) => template.category !== "transaction").length,
+    usedCount: templates.filter((template) => template.usage.totalCount > 0).length,
+    templatesWithLiveDraftsCount: templates.filter((template) => template.usage.draftCount > 0).length
+  };
 }
 
 export async function getOfficeSignatureTemplateLibrarySnapshot(input: {
@@ -232,13 +351,11 @@ export async function getOfficeSignatureTemplateLibrarySnapshot(input: {
   officeId?: string | null;
 }): Promise<OfficeSignatureTemplateLibrarySnapshot> {
   const templates = await listSignatureTemplatesInternal(input);
+  const mappedTemplates = templates.map(mapTemplate);
 
   return {
-    summary: {
-      totalCount: templates.length,
-      activeCount: templates.filter((template) => template.isActive).length
-    },
-    templates: templates.map(mapTemplate)
+    summary: buildLibrarySummary(mappedTemplates),
+    templates: mappedTemplates
   };
 }
 
@@ -269,6 +386,34 @@ export async function getOfficeSignatureTemplate(input: {
       },
       fields: {
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+      },
+      signatureRequests: {
+        select: {
+          id: true,
+          transactionId: true,
+          status: true,
+          contextLabel: true,
+          updatedAt: true,
+          transaction: {
+            select: {
+              id: true,
+              title: true
+            }
+          },
+          document: {
+            select: {
+              id: true,
+              title: true
+            }
+          },
+          form: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
       }
     }
   });

@@ -6,7 +6,7 @@ import {
   canManageOfficeSignatureTemplates,
   canViewOfficeSignatures
 } from "@acre/auth";
-import { getOfficeSignaturesWorkspace } from "@acre/db";
+import { getOfficeSignatureDriveSettingsSnapshot, getOfficeSignaturesWorkspace } from "@acre/db";
 import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
@@ -54,23 +54,31 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
   }
 
   const searchParams = (await props.searchParams) ?? {};
-  const workspace = await getOfficeSignaturesWorkspace({
-    organizationId: context.currentOrganization.id,
-    officeId: context.currentOffice?.id ?? null,
-    viewerMembershipId: context.currentMembership.id,
-    viewerRole: context.currentMembership.role,
-    viewerEmail: context.currentUser.email,
-    status: readSearchParamValue(searchParams.status),
-    category: readSearchParamValue(searchParams.category),
-    requestedByMembershipId: readSearchParamValue(searchParams.requestedByMembershipId),
-    recipientQuery: readSearchParamValue(searchParams.recipientQuery),
-    subjectMembershipId: readSearchParamValue(searchParams.subjectMembershipId)
-  });
-  const exportHref = buildExportHref(searchParams);
   const canManageTemplateLibrary = canManageOfficeSignatureTemplates(context.currentMembership);
   const canManageDriveSettings = canManageOfficeSettings(context.currentMembership) || canManageTemplateLibrary;
   const canExportReports = canExportOfficeSignatureReports(context.currentMembership);
   const canManageSignatures = canManageOfficeSignatures(context.currentMembership);
+  const [workspace, driveSnapshot] = await Promise.all([
+    getOfficeSignaturesWorkspace({
+      organizationId: context.currentOrganization.id,
+      officeId: context.currentOffice?.id ?? null,
+      viewerMembershipId: context.currentMembership.id,
+      viewerRole: context.currentMembership.role,
+      viewerEmail: context.currentUser.email,
+      status: readSearchParamValue(searchParams.status),
+      category: readSearchParamValue(searchParams.category),
+      requestedByMembershipId: readSearchParamValue(searchParams.requestedByMembershipId),
+      recipientQuery: readSearchParamValue(searchParams.recipientQuery),
+      subjectMembershipId: readSearchParamValue(searchParams.subjectMembershipId)
+    }),
+    canManageDriveSettings
+      ? getOfficeSignatureDriveSettingsSnapshot({
+          organizationId: context.currentOrganization.id
+        })
+      : Promise.resolve(null)
+  ]);
+  const exportHref = buildExportHref(searchParams);
+  const scopeLabel = context.currentOffice?.name ?? context.currentOrganization.name;
 
   return (
     <OfficeListPageShell className="office-signatures-page">
@@ -94,14 +102,15 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
             ) : null}
           </>
         }
-        description="Unified envelope tracking, signer visibility, Drive sync state, and template entry points from a single Back Office workspace."
+        description="A Back Office signatures workspace for continuing drafts, reusing templates, monitoring sent envelopes, and making the non-transaction path more visible without changing the current transaction-first authoring foundation."
         eyebrow="Documents"
         summary={
           <>
-            <SummaryChip label="Requests" tone="accent" value={workspace.summary.totalCount} />
-            <SummaryChip label="Pending" value={workspace.summary.pendingCount} />
+            <SummaryChip label="Office scope" value={scopeLabel} />
+            <SummaryChip label="Drafts" tone="accent" value={workspace.summary.draftCount} />
+            <SummaryChip label="Needs follow-up" value={workspace.summary.pendingCount} />
             <SummaryChip label="Drive failures" value={workspace.summary.failedDriveCount} />
-            {canManageTemplateLibrary ? <SummaryChip label="Templates" value={workspace.summary.templateCount} /> : null}
+            {canManageTemplateLibrary ? <SummaryChip label="Active templates" value={workspace.summary.activeTemplateCount} /> : null}
           </>
         }
         title="Signatures"
@@ -111,6 +120,7 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
         canManageSignatures={canManageSignatures}
         canManageDriveSettings={canManageDriveSettings}
         canManageTemplateLibrary={canManageTemplateLibrary}
+        driveSnapshot={driveSnapshot}
         workspace={workspace}
       />
     </OfficeListPageShell>

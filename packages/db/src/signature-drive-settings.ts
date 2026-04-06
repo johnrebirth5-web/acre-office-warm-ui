@@ -21,6 +21,8 @@ export type OfficeSignatureDriveSettingsSnapshot = {
     statusTone: BadgeTone;
     canSyncNow: boolean;
     configuredFolderCount: number;
+    genericEnvelopeTargetLabel: string;
+    transactionEnvelopeTargetLabel: string;
   };
   settings: {
     source: "database" | "none";
@@ -219,6 +221,18 @@ function countConfiguredFolders(folderMappings: SignatureFolderMappings, rootFol
   return [rootFolderId, ...Object.values(folderMappings)].filter(Boolean).length;
 }
 
+function buildFolderTargetLabel(primaryFolderId: string, rootFolderId: string, primaryLabel: string) {
+  if (primaryFolderId) {
+    return primaryLabel;
+  }
+
+  if (rootFolderId) {
+    return "Root folder";
+  }
+
+  return "Not configured";
+}
+
 function buildSaveChanges(
   existing: OrganizationSignatureDriveSettingRecord,
   next: {
@@ -313,7 +327,9 @@ export async function getOfficeSignatureDriveSettingsSnapshot(input: {
       statusLabel: canSyncNow ? "Ready" : record?.isEnabled ? "Incomplete" : record ? "Disabled" : "Not configured",
       statusTone: canSyncNow ? "success" : record?.isEnabled ? "warning" : "neutral",
       canSyncNow,
-      configuredFolderCount: countConfiguredFolders(folderMappings, rootFolderId)
+      configuredFolderCount: countConfiguredFolders(folderMappings, rootFolderId),
+      genericEnvelopeTargetLabel: buildFolderTargetLabel(folderMappings.generic, rootFolderId, "Generic folder"),
+      transactionEnvelopeTargetLabel: buildFolderTargetLabel(folderMappings.transaction, rootFolderId, "Transaction folder")
     },
     settings: {
       source: record ? "database" : "none",

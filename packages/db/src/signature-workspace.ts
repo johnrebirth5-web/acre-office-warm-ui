@@ -1,5 +1,10 @@
 import type { UserRole } from "@acre/auth";
-import { SignatureDriveSyncStatus, SignatureRecipientRole, SignatureRequestStatus } from "@prisma/client";
+import {
+  SignatureDriveSyncStatus,
+  SignatureRecipientRole,
+  SignatureRequestStatus,
+  SignatureTemplateCategory
+} from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 
@@ -14,10 +19,13 @@ type WorkspaceVisibilityInput = {
 export type OfficeSignatureWorkspaceRow = {
   id: string;
   title: string;
+  contextType: string;
+  contextTypeLabel: string;
   transactionLabel: string;
   transactionHref: string;
   contextLabel: string;
   requestedByLabel: string;
+  subjectLabel: string;
   recipientsLabel: string;
   signersCount: number;
   approversCount: number;
@@ -33,6 +41,8 @@ export type OfficeSignatureWorkspaceRow = {
   completedAt: string;
   updatedAt: string;
   requestHref: string;
+  primaryActionHref: string;
+  primaryActionLabel: string;
   completedDocumentHref: string;
   subjectMembershipId: string;
 };
@@ -40,10 +50,16 @@ export type OfficeSignatureWorkspaceRow = {
 export type OfficeSignatureWorkspaceSnapshot = {
   summary: {
     totalCount: number;
+    draftCount: number;
+    readyToSendCount: number;
+    inFlightCount: number;
     pendingCount: number;
     completedCount: number;
     failedDriveCount: number;
     templateCount: number;
+    activeTemplateCount: number;
+    nonTransactionRequestCount: number;
+    nonTransactionTemplateCount: number;
   };
   filters: {
     status: string;
@@ -53,6 +69,10 @@ export type OfficeSignatureWorkspaceSnapshot = {
     subjectMembershipId: string;
   };
   requestedByOptions: Array<{
+    id: string;
+    label: string;
+  }>;
+  subjectOptions: Array<{
     id: string;
     label: string;
   }>;
@@ -101,7 +121,16 @@ const templateCategoryLabelMap: Record<string, string> = {
   hr: "HR",
   finance: "Finance",
   admin: "Admin",
-  transaction: "Transaction"
+  transaction: "Transaction",
+  generic: "Generic"
+};
+
+const contextTypeLabelMap: Record<string, string> = {
+  transaction: "Transaction",
+  membership: "HR / Membership",
+  finance_request: "Finance request",
+  admin_request: "Admin request",
+  generic: "Generic"
 };
 
 function buildVisibilityWhere(input: WorkspaceVisibilityInput) {
@@ -205,7 +234,43 @@ function normalizeTemplateCategory(
     return "transaction";
   }
 
+  if (request.contextType === "generic") {
+    return "generic";
+  }
+
   return "";
+}
+
+function buildPrimaryAction(snapshot: {
+  requestHref: string;
+  transactionHref: string;
+  statusKey: SignatureRequestStatus;
+}) {
+  if (snapshot.requestHref) {
+    if (snapshot.statusKey === "draft" || snapshot.statusKey === "pending_send") {
+      return {
+        href: snapshot.requestHref,
+        label: "Continue draft"
+      };
+    }
+
+    return {
+      href: snapshot.requestHref,
+      label: "Open request"
+    };
+  }
+
+  if (snapshot.transactionHref) {
+    return {
+      href: snapshot.transactionHref,
+      label: "Open transaction"
+    };
+  }
+
+  return {
+    href: "",
+    label: ""
+  };
 }
 
 function mapWorkspaceRow(
@@ -221,14 +286,24 @@ function mapWorkspaceRow(
     request.completedDocument?.title ||
     request.contextLabel ||
     "Signature request";
+  const transactionHref = request.transactionId ? `/office/transactions/${request.transactionId}` : "";
+  const requestHref = request.transactionId ? `/office/transactions/${request.transactionId}/signatures/${request.id}` : "";
+  const primaryAction = buildPrimaryAction({
+    requestHref,
+    transactionHref,
+    statusKey: request.status
+  });
 
   return {
     id: request.id,
     title,
+    contextType: request.contextType,
+    contextTypeLabel: contextTypeLabelMap[request.contextType] ?? "Generic",
     transactionLabel: request.transaction?.title || request.contextLabel || "—",
-    transactionHref: request.transactionId ? `/office/transactions/${request.transactionId}` : "",
+    transactionHref,
     contextLabel: request.contextLabel || request.transaction?.title || title,
     requestedByLabel: formatMembershipLabel(request.requestedByMembership),
+    subjectLabel: formatMembershipLabel(request.subjectMembership),
     recipientsLabel: buildRecipientsLabel(request),
     signersCount,
     approversCount,
@@ -243,7 +318,9 @@ function mapWorkspaceRow(
     sentAt: formatDateTimeLabel(request.sentAt ?? null) || "",
     completedAt: formatDateTimeLabel(request.completedAt ?? null) || "",
     updatedAt: formatDateTimeLabel(request.updatedAt ?? null) || "",
-    requestHref: request.transactionId ? `/office/transactions/${request.transactionId}/signatures/${request.id}` : "",
+    requestHref,
+    primaryActionHref: primaryAction.href,
+    primaryActionLabel: primaryAction.label,
     completedDocumentHref:
       request.transactionId && request.completedDocumentId
         ? `/api/office/transactions/${request.transactionId}/documents/${request.completedDocumentId}/file`
@@ -341,6 +418,18 @@ async function listSignatureRequestsForWorkspace(input: ListOfficeSignaturesInpu
           }
         }
       },
+      subjectMembership: {
+        select: {
+          id: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      },
       recipients: {
         select: {
           id: true,
@@ -358,12 +447,26 @@ async function listSignatureRequestsForWorkspace(input: ListOfficeSignaturesInpu
 export async function getOfficeSignaturesWorkspace(
   input: ListOfficeSignaturesInput
 ): Promise<OfficeSignatureWorkspaceSnapshot> {
-  const [requests, templateCount] = await Promise.all([
+  const templateWhere = {
+    organizationId: input.organizationId,
+    ...(input.officeId ? { officeId: input.officeId } : {})
+  };
+
+  const [requests, templateCount, activeTemplateCount, nonTransactionTemplateCount] = await Promise.all([
     listSignatureRequestsForWorkspace(input),
+    prisma.signatureTemplate.count({ where: templateWhere }),
     prisma.signatureTemplate.count({
       where: {
-        organizationId: input.organizationId,
-        ...(input.officeId ? { officeId: input.officeId } : {})
+        ...templateWhere,
+        isActive: true
+      }
+    }),
+    prisma.signatureTemplate.count({
+      where: {
+        ...templateWhere,
+        category: {
+          in: [SignatureTemplateCategory.hr, SignatureTemplateCategory.finance, SignatureTemplateCategory.admin]
+        }
       }
     })
   ]);
@@ -383,13 +486,33 @@ export async function getOfficeSignaturesWorkspace(
     ).values()
   ).sort((left, right) => left.label.localeCompare(right.label));
 
+  const subjectOptions = Array.from(
+    new Map(
+      requests
+        .filter((request) => request.subjectMembershipId)
+        .map((request) => ({
+          id: request.subjectMembershipId ?? "",
+          label: formatMembershipLabel(request.subjectMembership)
+        }))
+        .map((entry) => [entry.id, entry])
+    ).values()
+  ).sort((left, right) => left.label.localeCompare(right.label));
+
   return {
     summary: {
       totalCount: rows.length,
+      draftCount: rows.filter((row) => row.statusKey === "draft").length,
+      readyToSendCount: rows.filter((row) => row.statusKey === "pending_send").length,
+      inFlightCount: rows.filter((row) => ["sent", "viewed", "signed"].includes(row.statusKey)).length,
       pendingCount: rows.filter((row) => ["pending_send", "sent", "viewed", "signed"].includes(row.statusKey)).length,
       completedCount: rows.filter((row) => row.statusKey === "completed").length,
       failedDriveCount: rows.filter((row) => row.driveSyncStatus === SignatureDriveSyncStatus.failed).length,
-      templateCount
+      templateCount,
+      activeTemplateCount,
+      nonTransactionRequestCount: rows.filter(
+        (row) => row.templateCategory !== "" && row.templateCategory !== "transaction"
+      ).length,
+      nonTransactionTemplateCount
     },
     filters: {
       status: input.status?.trim() || "all",
@@ -399,6 +522,7 @@ export async function getOfficeSignaturesWorkspace(
       subjectMembershipId: input.subjectMembershipId?.trim() || ""
     },
     requestedByOptions,
+    subjectOptions,
     rows
   };
 }
