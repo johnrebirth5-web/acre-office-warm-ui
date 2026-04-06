@@ -64,6 +64,27 @@ function buildNextDueDateValue(currentValue: string) {
   return baseDate.toISOString().slice(0, 10);
 }
 
+function renderActionLink(
+  href: string,
+  label: string,
+  opensInNewTab = false,
+  className = "office-inline-link",
+) {
+  if (opensInNewTab) {
+    return (
+      <a className={className} href={href} rel="noreferrer" target="_blank">
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <FrontOfficeLink className={className} href={href}>
+      {label}
+    </FrontOfficeLink>
+  );
+}
+
 export function FrontOfficeClientDossierClient(
   props: FrontOfficeClientDossierClientProps,
 ) {
@@ -75,6 +96,9 @@ export function FrontOfficeClientDossierClient(
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending;
+  const currentRailItem =
+    props.snapshot.nextStepRail.items.find((item) => item.isCurrent) ??
+    props.snapshot.nextStepRail.items[0];
 
   useEffect(() => {
     setFormState(buildEmptyFormState(props.suggestedFollowUp));
@@ -196,25 +220,68 @@ export function FrontOfficeClientDossierClient(
     <div className="office-list-page-stack">
       <div className="office-queue-list">
         <QueueItem
+          action={renderActionLink(
+            props.snapshot.nextStepRail.primaryActionHref,
+            props.snapshot.nextStepRail.primaryActionLabel,
+            props.snapshot.nextStepRail.primaryActionOpensInNewTab,
+          )}
+          badgeLabel={props.snapshot.nextStepRail.decisionLabel}
+          badgeTone={props.snapshot.nextStepRail.decisionTone}
+          description={props.snapshot.nextStepRail.decisionDescription}
+          meta={<span>{props.snapshot.nextStepRail.decisionMetaLabel}</span>}
+          title={props.snapshot.nextStepRail.decisionTitle}
+        />
+        <QueueItem
           badgeLabel={props.snapshot.workflow.pressureLabel}
           badgeTone={props.snapshot.workflow.pressureTone}
           description={props.snapshot.workflow.pressureDescription}
           title="Workflow pressure"
         />
         <QueueItem
-          action={
-            <FrontOfficeLink
-              className="office-inline-link"
-              href={props.snapshot.workflow.actionHref}
-            >
-              {props.snapshot.workflow.actionLabel}
-            </FrontOfficeLink>
-          }
-          badgeLabel="Suggested next step"
-          badgeTone={props.snapshot.workflow.nextStepTone}
-          description={props.snapshot.workflow.nextStepDescription}
-          title={props.snapshot.workflow.nextStepTitle}
+          action={renderActionLink(
+            currentRailItem.actionHref,
+            currentRailItem.actionLabel,
+            currentRailItem.actionOpensInNewTab,
+          )}
+          badgeLabel={currentRailItem.statusLabel}
+          badgeTone={currentRailItem.statusTone}
+          context={`${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`}
+          description={currentRailItem.description}
+          meta={<span>Current focus · {currentRailItem.metaLabel}</span>}
+          title={currentRailItem.title}
         />
+      </div>
+
+      <div className="front-office-placeholder-note">
+        <strong>Execution chain</strong>
+        <p>
+          Follow the chain below to see which move still belongs in Front
+          Office and where the formal Back Office record should take over.
+        </p>
+
+        <div className="office-queue-list">
+          {props.snapshot.nextStepRail.items.map((item) => (
+            <QueueItem
+              action={renderActionLink(
+                item.actionHref,
+                item.actionLabel,
+                item.actionOpensInNewTab,
+              )}
+              badgeLabel={item.statusLabel}
+              badgeTone={item.statusTone}
+              context={`${item.stepLabel} · ${item.ownershipLabel}`}
+              description={item.description}
+              key={item.id}
+              meta={
+                <span>
+                  {item.isCurrent ? "Current focus · " : ""}
+                  {item.metaLabel}
+                </span>
+              }
+              title={item.title}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="front-office-placeholder-note">

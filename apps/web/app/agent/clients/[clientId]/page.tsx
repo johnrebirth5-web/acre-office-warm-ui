@@ -32,6 +32,27 @@ type AgentClientDetailPageProps = {
   }>;
 };
 
+function renderRailAction(
+  href: string,
+  label: string,
+  opensInNewTab = false,
+  className = "office-inline-link",
+) {
+  if (opensInNewTab) {
+    return (
+      <a className={className} href={href} rel="noreferrer" target="_blank">
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <FrontOfficeLink className={className} href={href}>
+      {label}
+    </FrontOfficeLink>
+  );
+}
+
 export default async function AgentClientDetailPage(
   props: AgentClientDetailPageProps,
 ) {
@@ -833,23 +854,49 @@ export default async function AgentClientDetailPage(
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="The dossier should help the agent act immediately, not only describe the record."
-            title="Next actions"
+            subtitle="This rail should make the daily decision obvious: keep moving inside Front Office, or cross into the formal Back Office record without duplicating anything."
+            title="Next-step rail"
           >
             <div className="office-queue-list">
               <QueueItem
-                action={
-                  <FrontOfficeLink
-                    className="office-inline-link"
-                    href={snapshot.workflow.actionHref}
-                  >
-                    {snapshot.workflow.actionLabel}
-                  </FrontOfficeLink>
-                }
+                action={renderRailAction(
+                  snapshot.nextStepRail.primaryActionHref,
+                  snapshot.nextStepRail.primaryActionLabel,
+                  snapshot.nextStepRail.primaryActionOpensInNewTab,
+                )}
+                badgeLabel={snapshot.nextStepRail.decisionLabel}
+                badgeTone={snapshot.nextStepRail.decisionTone}
+                description={snapshot.nextStepRail.decisionDescription}
+                meta={<span>{snapshot.nextStepRail.decisionMetaLabel}</span>}
+                title={snapshot.nextStepRail.decisionTitle}
+              />
+              {snapshot.nextStepRail.items.map((item) => (
+                <QueueItem
+                  action={renderRailAction(
+                    item.actionHref,
+                    item.actionLabel,
+                    item.actionOpensInNewTab,
+                  )}
+                  badgeLabel={item.statusLabel}
+                  badgeTone={item.statusTone}
+                  context={`${item.stepLabel} · ${item.ownershipLabel}`}
+                  description={item.description}
+                  key={item.id}
+                  meta={
+                    <span>
+                      {item.isCurrent ? "Current focus · " : ""}
+                      {item.metaLabel}
+                    </span>
+                  }
+                  title={item.title}
+                />
+              ))}
+              <QueueItem
                 badgeLabel={snapshot.workflow.pressureLabel}
                 badgeTone={snapshot.workflow.pressureTone}
-                description={snapshot.workflow.nextStepDescription}
-                title={snapshot.workflow.nextStepTitle}
+                description={snapshot.workflow.pressureDescription}
+                meta={<span>{snapshot.workflow.nextStepDescription}</span>}
+                title="Workflow pressure"
               />
               <QueueItem
                 action={
@@ -889,7 +936,7 @@ export default async function AgentClientDetailPage(
                 description={
                   primaryHandoff
                     ? primaryHandoff.summary
-                    : "This client has not yet reached a formal Back Office handoff stage."
+                    : "This client has not yet crossed into a formal Back Office handoff stage."
                 }
                 title={
                   primaryHandoff
@@ -977,7 +1024,12 @@ export default async function AgentClientDetailPage(
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip label="Stage" tone="accent" value={snapshot.stage} />
           <SummaryChip
-            label="Workflow"
+            label="Boundary"
+            tone="accent"
+            value={snapshot.nextStepRail.decisionLabel}
+          />
+          <SummaryChip
+            label="Pressure"
             value={snapshot.workflow.pressureLabel}
           />
           <SummaryChip

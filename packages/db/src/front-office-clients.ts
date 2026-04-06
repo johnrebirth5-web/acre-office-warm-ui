@@ -291,6 +291,34 @@ export type FrontOfficeClientDetailWorkflowSignal = {
   actionHref: string;
 };
 
+export type FrontOfficeClientDetailNextStepRailItem = {
+  id: string;
+  stepLabel: string;
+  statusLabel: string;
+  statusTone: FrontOfficeClientDetailTone;
+  ownershipLabel: string;
+  ownershipTone: FrontOfficeClientDetailTone;
+  title: string;
+  description: string;
+  metaLabel: string;
+  actionLabel: string;
+  actionHref: string;
+  actionOpensInNewTab: boolean;
+  isCurrent: boolean;
+};
+
+export type FrontOfficeClientDetailNextStepRail = {
+  decisionLabel: string;
+  decisionTone: FrontOfficeClientDetailTone;
+  decisionTitle: string;
+  decisionDescription: string;
+  decisionMetaLabel: string;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  primaryActionOpensInNewTab: boolean;
+  items: FrontOfficeClientDetailNextStepRailItem[];
+};
+
 export type FrontOfficeClientDetailLeaseReminder = {
   leaseEndDateValue: string;
   leaseEndDateLabel: string;
@@ -366,6 +394,7 @@ export type FrontOfficeClientDetailSnapshot = {
   aiSuggestions: FrontOfficeClientDetailAiSuggestions;
   aiAcceptedActions: FrontOfficeClientDetailAiAcceptedActions;
   workflow: FrontOfficeClientDetailWorkflowSignal;
+  nextStepRail: FrontOfficeClientDetailNextStepRail;
   playbook: FrontOfficeClientDetailPlaybook;
   stageHistory: FrontOfficeClientDetailStageHistoryItem[];
   appointments: FrontOfficeClientDetailAppointmentItem[];
@@ -2478,6 +2507,481 @@ function buildWorkflowSignal(input: {
   };
 }
 
+function buildNextStepRail(input: {
+  clientId: string;
+  stage: string;
+  now: Date;
+  timeZone?: string | null;
+  nextTouchAt: Date | null;
+  openTaskCount: number;
+  hasOverdueTask: boolean;
+  hasUpcomingAppointment: boolean;
+  latestUpcomingAppointment: {
+    title: string;
+    startsAt: Date;
+    externalStatusLabel: string;
+    externalStatusDetail: string;
+  } | null;
+  sendCount: number;
+  openedSendCount: number;
+  revisitCount: number;
+  latestSendRecord: {
+    listingTitle: string;
+    sentAt: Date;
+    openCount: number;
+    lastOpenedAt: Date | null;
+  } | null;
+  workflow: FrontOfficeClientDetailWorkflowSignal;
+  isReadyForBackOffice: boolean;
+  hasLinkedTransaction: boolean;
+  hasClosedTransaction: boolean;
+  hasCancelledTransaction: boolean;
+  isClosingSoon: boolean;
+  negotiation: Pick<
+    FrontOfficeClientDetailNegotiation,
+    | "boundaryLabel"
+    | "boundaryTitle"
+    | "boundaryDescription"
+    | "boundaryMetaLabel"
+    | "primaryActionLabel"
+    | "primaryActionHref"
+  >;
+  inspection: Pick<
+    FrontOfficeClientDetailInspection,
+    | "boundaryLabel"
+    | "boundaryTitle"
+    | "boundaryDescription"
+    | "boundaryMetaLabel"
+    | "primaryActionLabel"
+    | "primaryActionHref"
+    | "openTaskCount"
+    | "pendingSignatureCount"
+    | "pendingIncomingUpdateCount"
+  >;
+  closing: Pick<
+    FrontOfficeClientDetailClosing,
+    | "boundaryLabel"
+    | "boundaryTitle"
+    | "boundaryDescription"
+    | "boundaryMetaLabel"
+    | "primaryActionLabel"
+    | "primaryActionHref"
+    | "primaryActionOpensInNewTab"
+  >;
+}): FrontOfficeClientDetailNextStepRail {
+  const normalizedStage = input.stage.trim().toLowerCase();
+  const isViewingScheduled =
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("scheduled");
+  const isViewingCompleted =
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("completed");
+  const hasOverdueNextTouch = Boolean(
+    input.nextTouchAt && input.nextTouchAt.getTime() < input.now.getTime(),
+  );
+  const nextTouchDetail = input.nextTouchAt
+    ? formatRelativeDueLabel(input.nextTouchAt, input.now, input.timeZone)
+    : "No follow-up is scheduled yet.";
+
+  let decisionLabel = "Stay in Front Office";
+  let decisionTone: FrontOfficeClientDetailTone = "accent";
+  let decisionTitle =
+    "Daily execution still belongs in Front Office for now";
+  let decisionDescription =
+    "Keep the next call, appointment, and listing output here until the client crosses into formal offer or contract work. Do not open a Back Office record early just to hold a reminder.";
+  let decisionMetaLabel = `Current stage · ${input.stage}`;
+  let primaryActionLabel = input.workflow.actionLabel;
+  let primaryActionHref = input.workflow.actionHref;
+  let primaryActionOpensInNewTab = false;
+
+  if (input.hasClosedTransaction) {
+    decisionLabel = "Return to Front Office";
+    decisionTone = "success";
+    decisionTitle =
+      "The formal deal is closed, so the next daily work moves back to Front Office";
+    decisionDescription =
+      "Back Office remains the system of record for the finished transaction. Use this dossier for recap, referral, testimonial, and post-close care instead of creating a second closing tracker.";
+    decisionMetaLabel = input.closing.boundaryMetaLabel;
+    primaryActionLabel = input.closing.primaryActionLabel;
+    primaryActionHref = input.closing.primaryActionHref;
+    primaryActionOpensInNewTab = input.closing.primaryActionOpensInNewTab;
+  } else if (input.hasLinkedTransaction) {
+    decisionLabel = "Formal workflow is in Back Office";
+    decisionTone = "warning";
+    decisionTitle =
+      "Keep the formal record in Back Office and use Front Office for client-facing support";
+    decisionDescription =
+      "Offers, inspection work, signatures, and closing milestones now belong to the shared Back Office record. Keep this dossier focused on the next client touch, recap, and coordination around that formal file.";
+    decisionMetaLabel = input.inspection.boundaryMetaLabel;
+    primaryActionLabel = input.workflow.actionLabel;
+    primaryActionHref = input.workflow.actionHref;
+  } else if (input.isReadyForBackOffice) {
+    decisionLabel = "Move into Back Office now";
+    decisionTone = "warning";
+    decisionTitle =
+      "This dossier has crossed the FO / BO boundary and needs a formal file";
+    decisionDescription =
+      "Negotiation, application, or offer prep is now formal enough that the next record belongs in Back Office. Keep client-facing context here, but do not create a duplicate offer or inspection tracker inside Front Office.";
+    decisionMetaLabel = input.negotiation.boundaryMetaLabel;
+    primaryActionLabel = input.negotiation.primaryActionLabel;
+    primaryActionHref = input.negotiation.primaryActionHref;
+  }
+
+  let currentStepId: FrontOfficeClientDetailNextStepRailItem["id"] =
+    "follow_up";
+
+  if (
+    input.hasClosedTransaction ||
+    input.isClosingSoon ||
+    input.hasCancelledTransaction
+  ) {
+    currentStepId = "closing_suggestion";
+  } else if (
+    input.hasLinkedTransaction &&
+    (input.inspection.openTaskCount > 0 ||
+      input.inspection.pendingSignatureCount > 0 ||
+      input.inspection.pendingIncomingUpdateCount > 0 ||
+      input.inspection.boundaryLabel === "Inspection-era live" ||
+      input.inspection.boundaryLabel === "Contract file live")
+  ) {
+    currentStepId = "inspection_support";
+  } else if (input.hasLinkedTransaction || input.isReadyForBackOffice) {
+    currentStepId = "offer_prep";
+  } else if (input.hasOverdueTask || hasOverdueNextTouch) {
+    currentStepId = "follow_up";
+  } else if (input.hasUpcomingAppointment || isViewingScheduled) {
+    currentStepId = "appointment";
+  } else if (input.sendCount > 0) {
+    currentStepId = "listing_output";
+  }
+
+  const followUpStatusLabel = input.hasOverdueTask
+    ? "Due now"
+    : hasOverdueNextTouch
+      ? "Overdue"
+      : input.nextTouchAt || input.openTaskCount > 0
+        ? "On books"
+        : input.hasClosedTransaction
+          ? "Post-close needed"
+          : normalizedStage.includes("lost")
+            ? "Nurture next"
+            : "Needed";
+  const followUpStatusTone: FrontOfficeClientDetailTone = input.hasOverdueTask
+    ? "danger"
+    : hasOverdueNextTouch
+      ? "warning"
+      : input.nextTouchAt || input.openTaskCount > 0
+        ? "success"
+        : input.hasClosedTransaction
+          ? "accent"
+          : "warning";
+  const followUpOwnershipLabel = input.hasClosedTransaction
+    ? "FO owns the relationship"
+    : input.hasLinkedTransaction
+      ? "FO supports BO"
+      : input.isReadyForBackOffice
+        ? "FO until BO opens"
+        : "Stay in FO";
+  const followUpOwnershipTone: FrontOfficeClientDetailTone =
+    input.hasClosedTransaction
+      ? "success"
+      : input.hasLinkedTransaction
+        ? "accent"
+        : input.isReadyForBackOffice
+          ? "warning"
+          : "accent";
+  const followUpDescription = input.hasOverdueTask
+    ? "At least one follow-up task is already overdue. Close the loop or move the due date before the dossier stalls."
+    : hasOverdueNextTouch
+      ? `${nextTouchDetail} Move it forward or confirm that a different next touch now owns the client conversation.`
+      : input.nextTouchAt || input.openTaskCount > 0
+        ? `${nextTouchDetail} Keep the next touch explicit so the dossier stays live from one action to the next.`
+        : input.hasClosedTransaction
+          ? "The formal file is already closed, but the relationship still needs a post-close touch, support check-in, or referral ask."
+          : input.isReadyForBackOffice
+            ? "Client-facing follow-up still belongs here, but the formal offer / contract record should open in Back Office next."
+            : "No next touch is scheduled yet. Put the next call, text, or email on the books before leaving this dossier.";
+  const followUpMetaLabel = input.openTaskCount
+    ? `${input.openTaskCount} open follow-up task(s)`
+    : nextTouchDetail;
+
+  const appointmentStatusLabel = input.latestUpcomingAppointment
+    ? "Scheduled"
+    : isViewingCompleted
+      ? "Feedback due"
+      : isViewingScheduled
+        ? "Book / confirm"
+        : input.hasClosedTransaction
+          ? "Optional"
+          : "Standby";
+  const appointmentStatusTone: FrontOfficeClientDetailTone =
+    input.latestUpcomingAppointment
+      ? "accent"
+      : isViewingCompleted
+        ? "warning"
+        : isViewingScheduled
+          ? "accent"
+          : "neutral";
+  const appointmentOwnershipLabel =
+    input.hasLinkedTransaction && !input.hasClosedTransaction
+      ? "FO support"
+      : input.hasClosedTransaction
+        ? "Optional support"
+        : "Stay in FO";
+  const appointmentOwnershipTone: FrontOfficeClientDetailTone =
+    input.hasLinkedTransaction && !input.hasClosedTransaction
+      ? "accent"
+      : "neutral";
+  const appointmentTitle = input.latestUpcomingAppointment
+    ? `Prepare ${input.latestUpcomingAppointment.title}`
+    : isViewingCompleted
+      ? "Turn the completed showing into a decision"
+      : isViewingScheduled
+        ? "Make the showing logistics airtight"
+        : "Use appointments when the next touch needs live time";
+  const appointmentDescription = input.latestUpcomingAppointment
+    ? `${formatDateTimeLabel(input.latestUpcomingAppointment.startsAt, {
+        timeZone: input.timeZone ?? null,
+      })} · ${input.latestUpcomingAppointment.externalStatusDetail}`
+    : isViewingCompleted
+      ? "The tour already happened. Capture feedback, confirm the shortlist, and decide whether the next move is another showing, a send, or BO handoff."
+      : isViewingScheduled
+        ? "Use the calendar to confirm the time, address, access, and follow-up timing before the showing starts."
+        : input.hasLinkedTransaction
+          ? "Calendar stays useful for client coordination, but not as a second Back Office milestone tracker."
+          : "Use appointments for showings, consultations, and decision calls once the next touch is clear.";
+  const appointmentMetaLabel = input.latestUpcomingAppointment
+    ? `External state · ${input.latestUpcomingAppointment.externalStatusLabel}`
+    : "Open the shared Front Office calendar from this dossier";
+
+  const listingStatusLabel = input.latestSendRecord
+    ? input.latestSendRecord.openCount > 1
+      ? "Revisited"
+      : input.latestSendRecord.openCount === 1
+        ? "Opened"
+        : "Sent"
+    : input.hasClosedTransaction
+      ? "Optional"
+      : input.isReadyForBackOffice
+        ? "Support only"
+        : "Ready";
+  const listingStatusTone = input.latestSendRecord
+    ? mapFrontOfficeSendEngagementTone(input.latestSendRecord.openCount)
+    : input.isReadyForBackOffice
+      ? "neutral"
+      : "accent";
+  const listingOwnershipLabel = input.hasClosedTransaction
+    ? "Optional support"
+    : input.hasLinkedTransaction
+      ? "FO support"
+      : input.isReadyForBackOffice
+        ? "Support, not source of truth"
+        : "Stay in FO";
+  const listingOwnershipTone: FrontOfficeClientDetailTone =
+    input.hasLinkedTransaction
+      ? "accent"
+      : input.isReadyForBackOffice
+        ? "warning"
+        : "accent";
+  const listingTitle = input.latestSendRecord
+    ? input.latestSendRecord.openCount > 0
+      ? "Use engagement signals to sharpen the next option"
+      : "Follow up on the last listing send before sending more"
+    : input.hasClosedTransaction
+      ? "Listing output is no longer the main workflow"
+      : input.isReadyForBackOffice
+        ? "Use listing output only if it helps the handoff"
+        : "Send the shortlist or the next option set";
+  const listingDescription = input.latestSendRecord
+    ? input.latestSendRecord.lastOpenedAt
+      ? `${input.latestSendRecord.listingTitle} was last opened ${formatDateTimeLabel(
+          input.latestSendRecord.lastOpenedAt,
+          {
+            timeZone: input.timeZone ?? null,
+          },
+        )}. Use that signal to decide whether to book, send backups, or stop pushing.`
+      : `${input.latestSendRecord.listingTitle} was sent ${formatDateLabel(
+          input.latestSendRecord.sentAt,
+          input.timeZone,
+        )}. If the client is quiet, follow up before generating another send.`
+    : input.hasClosedTransaction
+      ? "Keep listing output for recap or future re-entry only. The live deal record is already finished."
+      : input.isReadyForBackOffice
+        ? "A tracked send can support the conversation, but it should not replace opening the formal Back Office file."
+        : "Tracked listing output keeps client interest measurable before you escalate into formal offer work.";
+  const listingMetaLabel = input.sendCount
+    ? `${input.sendCount} tracked send(s) · ${input.openedSendCount} opened · ${input.revisitCount} revisit(s)`
+    : "Open listing output from this dossier";
+
+  const offerOwnershipLabel = input.hasLinkedTransaction
+    ? "BO source of truth"
+    : input.isReadyForBackOffice
+      ? "Move to BO now"
+      : "Stay in FO";
+  const offerOwnershipTone: FrontOfficeClientDetailTone = input.hasLinkedTransaction
+    ? "success"
+    : input.isReadyForBackOffice
+      ? "warning"
+      : "accent";
+
+  const inspectionOwnershipLabel = input.hasLinkedTransaction
+    ? "BO source of truth"
+    : input.isReadyForBackOffice
+      ? "Needs BO first"
+      : "Not active yet";
+  const inspectionOwnershipTone: FrontOfficeClientDetailTone =
+    input.hasLinkedTransaction
+      ? "success"
+      : input.isReadyForBackOffice
+        ? "warning"
+        : "neutral";
+
+  const closingOwnershipLabel = input.hasClosedTransaction
+    ? "Return to FO"
+    : input.hasLinkedTransaction
+      ? "BO milestone"
+      : input.isReadyForBackOffice
+        ? "Needs BO first"
+        : "Not active yet";
+  const closingOwnershipTone: FrontOfficeClientDetailTone = input.hasClosedTransaction
+    ? "success"
+    : input.hasLinkedTransaction
+      ? "accent"
+      : input.isReadyForBackOffice
+        ? "warning"
+        : "neutral";
+
+  const items: FrontOfficeClientDetailNextStepRailItem[] = [
+    {
+      id: "follow_up",
+      stepLabel: "Follow-up",
+      statusLabel: followUpStatusLabel,
+      statusTone: followUpStatusTone,
+      ownershipLabel: followUpOwnershipLabel,
+      ownershipTone: followUpOwnershipTone,
+      title: input.hasClosedTransaction
+        ? "Keep the relationship moving after the deal"
+        : "Keep the next touch visible",
+      description: followUpDescription,
+      metaLabel: followUpMetaLabel,
+      actionLabel:
+        input.nextTouchAt || input.openTaskCount > 0
+          ? "Review follow-up queue"
+          : "Create follow-up",
+      actionHref: "#front-office-follow-up-form",
+      actionOpensInNewTab: false,
+      isCurrent: currentStepId === "follow_up",
+    },
+    {
+      id: "appointment",
+      stepLabel: "Appointment",
+      statusLabel: appointmentStatusLabel,
+      statusTone: appointmentStatusTone,
+      ownershipLabel: appointmentOwnershipLabel,
+      ownershipTone: appointmentOwnershipTone,
+      title: appointmentTitle,
+      description: appointmentDescription,
+      metaLabel: appointmentMetaLabel,
+      actionLabel: "Open calendar",
+      actionHref: `/agent/calendar?clientId=${input.clientId}`,
+      actionOpensInNewTab: false,
+      isCurrent: currentStepId === "appointment",
+    },
+    {
+      id: "listing_output",
+      stepLabel: "Listing output",
+      statusLabel: listingStatusLabel,
+      statusTone: listingStatusTone,
+      ownershipLabel: listingOwnershipLabel,
+      ownershipTone: listingOwnershipTone,
+      title: listingTitle,
+      description: listingDescription,
+      metaLabel: listingMetaLabel,
+      actionLabel:
+        input.latestSendRecord || input.sendCount > 0
+          ? "Open listing output"
+          : "Send first listing",
+      actionHref: `/agent/listings?clientId=${input.clientId}`,
+      actionOpensInNewTab: false,
+      isCurrent: currentStepId === "listing_output",
+    },
+    {
+      id: "offer_prep",
+      stepLabel: "Offer prep",
+      statusLabel: input.negotiation.boundaryLabel,
+      statusTone:
+        input.hasLinkedTransaction
+          ? "success"
+          : input.isReadyForBackOffice
+            ? "warning"
+            : "accent",
+      ownershipLabel: offerOwnershipLabel,
+      ownershipTone: offerOwnershipTone,
+      title: input.negotiation.boundaryTitle,
+      description: input.negotiation.boundaryDescription,
+      metaLabel: input.negotiation.boundaryMetaLabel,
+      actionLabel: input.negotiation.primaryActionLabel,
+      actionHref: input.negotiation.primaryActionHref,
+      actionOpensInNewTab: false,
+      isCurrent: currentStepId === "offer_prep",
+    },
+    {
+      id: "inspection_support",
+      stepLabel: "Inspection support",
+      statusLabel: input.inspection.boundaryLabel,
+      statusTone:
+        input.hasLinkedTransaction
+          ? "success"
+          : input.isReadyForBackOffice
+            ? "warning"
+            : "neutral",
+      ownershipLabel: inspectionOwnershipLabel,
+      ownershipTone: inspectionOwnershipTone,
+      title: input.inspection.boundaryTitle,
+      description: input.inspection.boundaryDescription,
+      metaLabel: input.inspection.boundaryMetaLabel,
+      actionLabel: input.inspection.primaryActionLabel,
+      actionHref: input.inspection.primaryActionHref,
+      actionOpensInNewTab: false,
+      isCurrent: currentStepId === "inspection_support",
+    },
+    {
+      id: "closing_suggestion",
+      stepLabel: "Closing suggestion",
+      statusLabel: input.closing.boundaryLabel,
+      statusTone:
+        input.hasClosedTransaction
+          ? "success"
+          : input.hasLinkedTransaction
+            ? "accent"
+            : input.isReadyForBackOffice
+              ? "warning"
+              : "neutral",
+      ownershipLabel: closingOwnershipLabel,
+      ownershipTone: closingOwnershipTone,
+      title: input.closing.boundaryTitle,
+      description: input.closing.boundaryDescription,
+      metaLabel: input.closing.boundaryMetaLabel,
+      actionLabel: input.closing.primaryActionLabel,
+      actionHref: input.closing.primaryActionHref,
+      actionOpensInNewTab: input.closing.primaryActionOpensInNewTab,
+      isCurrent: currentStepId === "closing_suggestion",
+    },
+  ];
+
+  return {
+    decisionLabel,
+    decisionTone,
+    decisionTitle,
+    decisionDescription,
+    decisionMetaLabel,
+    primaryActionLabel,
+    primaryActionHref,
+    primaryActionOpensInNewTab,
+    items,
+  };
+}
+
 export async function getFrontOfficeClientDetail(
   input: GetFrontOfficeClientDetailInput,
 ): Promise<FrontOfficeClientDetailSnapshot | null> {
@@ -3690,6 +4194,75 @@ export async function getFrontOfficeClientDetail(
         lastOpenedAt: client.frontOfficeSendRecords[0].lastOpenedAt,
       }
     : null;
+  const latestUpcomingAppointmentExternalWorkflow = latestUpcomingAppointment
+    ? getFrontOfficeAppointmentExternalWorkflowState({
+        metadata: latestUpcomingAppointment.metadata,
+        timeZone: input.timeZone ?? null,
+      })
+    : null;
+  const nextStepRail = buildNextStepRail({
+    clientId: client.id,
+    stage: client.stage,
+    now,
+    timeZone: input.timeZone,
+    nextTouchAt,
+    openTaskCount,
+    hasOverdueTask: client.followUpTasks.some(
+      (task) =>
+        task.status !== TaskStatus.completed &&
+        Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
+    ),
+    hasUpcomingAppointment: upcomingAppointmentCount > 0,
+    latestUpcomingAppointment: latestUpcomingAppointment
+      ? {
+          title: latestUpcomingAppointment.title,
+          startsAt: latestUpcomingAppointment.startsAt,
+          externalStatusLabel: latestUpcomingAppointmentExternalWorkflow?.label ??
+            "External follow-up not tracked",
+          externalStatusDetail:
+            latestUpcomingAppointmentExternalWorkflow?.detail ??
+            "No external follow-up state is captured yet.",
+        }
+      : null,
+    sendCount,
+    openedSendCount,
+    revisitCount,
+    latestSendRecord,
+    workflow,
+    isReadyForBackOffice: isFrontOfficeStageReadyForBackOffice(client.stage),
+    hasLinkedTransaction: Boolean(negotiationTransactionId),
+    hasClosedTransaction,
+    hasCancelledTransaction,
+    isClosingSoon,
+    negotiation: {
+      boundaryLabel: negotiationBoundaryLabel,
+      boundaryTitle: negotiationBoundaryTitle,
+      boundaryDescription: negotiationBoundaryDescription,
+      boundaryMetaLabel: negotiationBoundaryMetaLabel,
+      primaryActionLabel: negotiationPrimaryActionLabel,
+      primaryActionHref: negotiationPrimaryActionHref,
+    },
+    inspection: {
+      boundaryLabel: inspectionBoundaryLabel,
+      boundaryTitle: inspectionBoundaryTitle,
+      boundaryDescription: inspectionBoundaryDescription,
+      boundaryMetaLabel: inspectionBoundaryMetaLabel,
+      primaryActionLabel: inspectionPrimaryActionLabel,
+      primaryActionHref: inspectionPrimaryActionHref,
+      openTaskCount: inspectionOpenTaskCount,
+      pendingSignatureCount: inspectionPendingSignatureCount,
+      pendingIncomingUpdateCount: inspectionPendingIncomingUpdateCount,
+    },
+    closing: {
+      boundaryLabel: closingBoundaryLabel,
+      boundaryTitle: closingBoundaryTitle,
+      boundaryDescription: closingBoundaryDescription,
+      boundaryMetaLabel: closingBoundaryMetaLabel,
+      primaryActionLabel: closingPrimaryActionLabel,
+      primaryActionHref: closingPrimaryActionHref,
+      primaryActionOpensInNewTab: closingPrimaryActionOpensInNewTab,
+    },
+  });
   const aiSuggestions = buildFrontOfficeAiSuggestions({
     clientId: client.id,
     fullName: client.fullName,
@@ -3884,6 +4457,7 @@ export async function getFrontOfficeClientDetail(
     aiSuggestions,
     aiAcceptedActions,
     workflow,
+    nextStepRail,
     playbook,
     stageHistory: client.stageHistory.map((entry) => {
       const actorLabel =
