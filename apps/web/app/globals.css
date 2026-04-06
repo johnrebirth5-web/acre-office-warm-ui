@@ -11546,10 +11546,8 @@ a {
 }
 
 .office-pipeline-v2-history-head {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  gap: 4px;
 }
 
 .office-pipeline-v2-history-head-copy {
@@ -11564,9 +11562,11 @@ a {
   line-height: 1.5;
 }
 
-.office-pipeline-v2-history-head small {
+.office-pipeline-v2-history-range {
   color: var(--office-text-muted);
   font-size: 0.78rem;
+  line-height: 1;
+  padding-left: 2px;
   white-space: nowrap;
 }
 

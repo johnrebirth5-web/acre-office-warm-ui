@@ -275,8 +275,8 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 <span className="office-pipeline-v2-sidebar-label">Closed history</span>
                 <p>Recent monthly performance, kept visible even when a month is empty.</p>
               </div>
-              <small>Last 6 months</small>
             </div>
+            <small className="office-pipeline-v2-history-range">Last 6 months</small>
             <div className="office-pipeline-v2-history-list">
               {snapshot.historyMonths.map((month) => (
                 <Link
