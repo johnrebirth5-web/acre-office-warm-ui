@@ -250,6 +250,20 @@ function isRecipientRowComplete(recipient: SignatureRecipientDraft) {
   return Boolean(recipient.name.trim() && recipient.email.trim() && recipient.recipientRole.trim());
 }
 
+function getRecipientBindingSummary(recipient: SignatureRecipientDraft | null) {
+  if (!recipient) {
+    return {
+      badge: "Unassigned",
+      detail: "Select a signer or approver"
+    };
+  }
+
+  return {
+    badge: `${recipient.roleKey === "approver" ? "Approver" : "Signer"} · Step ${recipient.routingStep || "1"}`,
+    detail: recipient.name || recipient.email || recipient.recipientRole || "Recipient"
+  };
+}
+
 export function SignatureRequestEditor({
   transactionId,
   document,
@@ -286,6 +300,10 @@ export function SignatureRequestEditor({
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedFieldId) ?? null,
     [fields, selectedFieldId]
+  );
+  const recipientLookup = useMemo(
+    () => new Map(draftState.recipients.map((recipient) => [recipient.id, recipient])),
+    [draftState.recipients]
   );
 
   const actionableRecipients = draftState.recipients;
@@ -1211,31 +1229,41 @@ export function SignatureRequestEditor({
                     <img alt={`Document page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
                     {fields
                       .filter((field) => field.page === page.pageNumber)
-                      .map((field) => (
-                        <div
-                          className={`office-signature-field-token${selectedFieldId === field.id ? " is-selected" : ""}`}
-                          key={field.id}
-                          onClick={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => handleFieldPointerDown(field.id, page.pageNumber, event)}
-                          style={{
-                            left: `${field.x * 100}%`,
-                            top: `${field.y * 100}%`,
-                            width: `${field.width * 100}%`,
-                            height: `${field.height * 100}%`
-                          }}
-                        >
-                          <span>{field.label}</span>
-                          {selectedFieldId === field.id ? (
-                            <button
-                              aria-label={`Resize ${field.label}`}
-                              className="office-signature-field-resize-handle"
-                              onClick={(event) => event.stopPropagation()}
-                              onPointerDown={(event) => handleResizePointerDown(field.id, page.pageNumber, event)}
-                              type="button"
-                            />
-                          ) : null}
-                        </div>
-                      ))}
+                      .map((field) => {
+                        const assignedRecipient = field.assignedRecipientId ? recipientLookup.get(field.assignedRecipientId) ?? null : null;
+                        const bindingSummary = getRecipientBindingSummary(assignedRecipient);
+
+                        return (
+                          <div
+                            className={`office-signature-field-token${selectedFieldId === field.id ? " is-selected" : ""}`}
+                            key={field.id}
+                            onClick={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => handleFieldPointerDown(field.id, page.pageNumber, event)}
+                            style={{
+                              left: `${field.x * 100}%`,
+                              top: `${field.y * 100}%`,
+                              width: `${field.width * 100}%`,
+                              height: `${field.height * 100}%`
+                            }}
+                            title={`${bindingSummary.badge} · ${bindingSummary.detail}`}
+                          >
+                            <span className={`office-signature-field-assignee${assignedRecipient ? "" : " is-unassigned"}`}>
+                              {bindingSummary.badge}
+                            </span>
+                            <span className="office-signature-field-token-label">{field.label}</span>
+                            <span className="office-signature-field-token-detail">{bindingSummary.detail}</span>
+                            {selectedFieldId === field.id ? (
+                              <button
+                                aria-label={`Resize ${field.label}`}
+                                className="office-signature-field-resize-handle"
+                                onClick={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => handleResizePointerDown(field.id, page.pageNumber, event)}
+                                type="button"
+                              />
+                            ) : null}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               ))}

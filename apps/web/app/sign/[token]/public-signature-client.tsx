@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, FormField, TextInput } from "@acre/ui";
 import type { OfficeSignatureField, PublicSignatureRequestSnapshot } from "@acre/db";
 import { usePdfPreview } from "../../../components/signature/use-pdf-preview";
-import { canRecipientEditField, getRecipientEditableFields } from "../../../lib/public-signature-access";
+import { getRecipientEditableFields } from "../../../lib/public-signature-access";
 
 type PublicSignatureClientProps = {
   token: string;
@@ -347,7 +347,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         {statusMessage && !completed ? <p className="public-signature-alert">{statusMessage}</p> : null}
         {completed ? <p className="public-signature-success">The document has been signed successfully. You can close this page.</p> : null}
         {submitError ? <p className="public-signature-alert">{submitError}</p> : null}
-        {!completed && !statusMessage ? <p className="public-signature-helper">Only the fields assigned to you can be edited and submitted.</p> : null}
+        {!completed && !statusMessage ? <p className="public-signature-helper">Only the fields assigned to you are shown on the document.</p> : null}
 
         {!isReadOnly && !completed ? (
           <Button disabled={pendingSubmit} onClick={handleSubmit}>
@@ -366,11 +366,11 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
               <div className="public-signature-page-label">Page {page.pageNumber}</div>
               <div className="public-signature-page-frame">
                 <img alt={`Signable document page ${page.pageNumber}`} height={page.height} src={page.imageUrl} width={page.width} />
-                {snapshot.fields
+                {editableFields
                   .filter((field) => field.page === page.pageNumber)
                   .map((field) => {
                     const currentValue = values[field.id];
-                    const isEditable = canRecipientEditField(signatureAccessContext, field) && !isReadOnly;
+                    const isEditable = !isReadOnly;
 
                     return (
                       <div
