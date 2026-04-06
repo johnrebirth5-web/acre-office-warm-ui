@@ -39,6 +39,7 @@ export type FrontOfficeAppointmentRecord = {
   id: string;
   title: string;
   clientId: string | null;
+  statusValue: AppointmentStatus;
   typeLabel: string;
   typeTone: FrontOfficeAppointmentTone;
   statusLabel: string;
@@ -62,8 +63,18 @@ export type FrontOfficeAppointmentRecord = {
   externalNote: string;
   externalNextActionAtLabel: string;
   externalNextActionAtValue: string;
+  coordinationLabel: string;
+  coordinationTone: FrontOfficeAppointmentTone;
+  coordinationDetail: string;
+  coordinationNextStep: string;
+  requiresExternalResponse: boolean;
+  isExternalTouchDue: boolean;
   bridgeStatusLabel: string;
   bridgeStatusDetail: string;
+  bridgeStatusTone: FrontOfficeAppointmentTone;
+  bridgeActionLabel: string;
+  bridgeLoggedAtLabel: string;
+  hasBridgeActivity: boolean;
 };
 
 export type FrontOfficeAppointmentHandoffItem = {
@@ -80,6 +91,9 @@ export type FrontOfficeAppointmentsSnapshot = {
     todayCount: number;
     showingCount: number;
     handoffReadyCount: number;
+    awaitingReplyCount: number;
+    touchDueCount: number;
+    bridgedCount: number;
   };
   typeOptions: FrontOfficeAppointmentOption[];
   clientOptions: FrontOfficeAppointmentOption[];
@@ -123,6 +137,7 @@ export type UpdateFrontOfficeAppointmentStatusInput = {
   externalNote?: string | null;
   externalNextActionAt?: string | null;
   officeId?: string | null;
+  timeZone?: string | null;
 };
 
 export type GetFrontOfficeAppointmentCalendarExportInput = {
@@ -131,6 +146,7 @@ export type GetFrontOfficeAppointmentCalendarExportInput = {
   ownerMembershipId: string;
   actorMembershipId?: string | null;
   officeId?: string | null;
+  timeZone?: string | null;
 };
 
 export type GetFrontOfficeAppointmentBridgeResultInput = {
@@ -139,6 +155,7 @@ export type GetFrontOfficeAppointmentBridgeResultInput = {
   ownerMembershipId: string;
   actorMembershipId?: string | null;
   officeId?: string | null;
+  timeZone?: string | null;
   action: FrontOfficeAppointmentBridgeAction;
 };
 
@@ -154,6 +171,19 @@ export type FrontOfficeAppointmentBridgeResult =
 export type FrontOfficeAppointmentBridgeStatus = {
   label: string;
   detail: string;
+  tone: FrontOfficeAppointmentTone;
+  actionLabel: string;
+  loggedAtLabel: string;
+  hasBridgeActivity: boolean;
+};
+
+type FrontOfficeAppointmentCoordinationSummary = {
+  label: string;
+  tone: FrontOfficeAppointmentTone;
+  detail: string;
+  nextStep: string;
+  requiresExternalResponse: boolean;
+  isExternalTouchDue: boolean;
 };
 
 export const frontOfficeAppointmentExternalWorkflowStatuses = {
@@ -628,7 +658,15 @@ function parseAppointmentBridgeActionFromPayload(payload: Prisma.JsonValue | nul
     return null;
   }
 
+  const bridgeAction = "bridgeAction" in payload ? payload.bridgeAction : null;
   const workflowReason = "workflowReason" in payload ? payload.workflowReason : null;
+
+  if (
+    typeof bridgeAction === "string" &&
+    isFrontOfficeAppointmentBridgeAction(bridgeAction)
+  ) {
+    return bridgeAction;
+  }
 
   if (
     typeof workflowReason === "string" &&
@@ -646,17 +684,206 @@ function buildFrontOfficeAppointmentBridgeStatus(
 ): FrontOfficeAppointmentBridgeStatus {
   if (!latestAction) {
     return {
-      label: "External bridge idle",
-      detail: "No Google / Outlook / ICS / email action logged yet",
+      label: "No external bridge opened",
+      detail:
+        "Google Calendar, Outlook, ICS, or email has not been opened from Acre yet.",
+      tone: "neutral",
+      actionLabel: "No bridge logged",
+      loggedAtLabel: "No bridge logged",
+      hasBridgeActivity: false,
     };
   }
 
+  const actionLabel = formatFrontOfficeAppointmentBridgeActionLabel(
+    latestAction.action,
+  );
+  const loggedAtLabel = formatDateTimeLabel(latestAction.createdAt, {
+    timeZone: timeZone ?? null,
+  });
+
   return {
-    label: `Last bridge · ${formatFrontOfficeAppointmentBridgeActionLabel(latestAction.action)}`,
-    detail: `Logged ${formatDateTimeLabel(latestAction.createdAt, {
-      timeZone: timeZone ?? null,
-    })}`,
+    label: `${actionLabel} opened from Acre`,
+    detail: `Logged ${loggedAtLabel}`,
+    tone: "accent",
+    actionLabel,
+    loggedAtLabel,
+    hasBridgeActivity: true,
   };
+}
+
+function buildFrontOfficeAppointmentCoordinationSummary(input: {
+  appointmentStatus: AppointmentStatus;
+  appointmentStatusLabel: string;
+  appointmentStatusTone: FrontOfficeAppointmentTone;
+  now: Date;
+  externalWorkflow: FrontOfficeAppointmentExternalWorkflowState;
+  bridgeStatus: FrontOfficeAppointmentBridgeStatus;
+}): FrontOfficeAppointmentCoordinationSummary {
+  const isScheduled = input.appointmentStatus === AppointmentStatus.scheduled;
+  const isExternalTouchDue = Boolean(
+    isScheduled &&
+      input.externalWorkflow.nextActionAt &&
+      input.externalWorkflow.nextActionAt.getTime() <= input.now.getTime(),
+  );
+  const requiresExternalResponse =
+    isScheduled &&
+    (input.externalWorkflow.value ===
+      frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp ||
+      input.externalWorkflow.value ===
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending ||
+      input.externalWorkflow.value ===
+        frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested);
+  const bridgeSummary = input.bridgeStatus.hasBridgeActivity
+    ? `${input.bridgeStatus.actionLabel} opened ${input.bridgeStatus.loggedAtLabel}.`
+    : "No Google / Outlook / ICS / email bridge logged from Acre yet.";
+  const nextTouchSummary = input.externalWorkflow.nextActionAt
+    ? isExternalTouchDue
+      ? `Next external touch is overdue since ${input.externalWorkflow.nextActionAtLabel}.`
+      : `Next external touch is set for ${input.externalWorkflow.nextActionAtLabel}.`
+    : input.externalWorkflow.value !==
+          frontOfficeAppointmentExternalWorkflowStatuses.idle
+      ? "No next external touch deadline is saved yet."
+      : "";
+  const noteSummary = input.externalWorkflow.note
+    ? `Writeback note: ${input.externalWorkflow.note}.`
+    : "";
+
+  if (!isScheduled) {
+    return {
+      label: `${input.appointmentStatusLabel} in Acre`,
+      tone: input.appointmentStatusTone,
+      detail: [
+        `This appointment is already marked ${input.appointmentStatusLabel.toLowerCase()} in Acre.`,
+        input.bridgeStatus.hasBridgeActivity
+          ? bridgeSummary
+          : "No further external coordination is expected unless you reopen or replace the appointment.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      nextStep:
+        "No new external follow-up is required unless the plan changes and you create or reopen an appointment.",
+      requiresExternalResponse: false,
+      isExternalTouchDue: false,
+    };
+  }
+
+  if (isExternalTouchDue) {
+    return {
+      label: "External touch overdue",
+      tone: "danger",
+      detail: [
+        `${input.externalWorkflow.label} is still the saved writeback state.`,
+        nextTouchSummary,
+        bridgeSummary,
+        noteSummary,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      nextStep:
+        "Reach back out now, then update the writeback to confirmed, reschedule requested, or a new follow-up deadline.",
+      requiresExternalResponse,
+      isExternalTouchDue: true,
+    };
+  }
+
+  switch (input.externalWorkflow.value) {
+    case frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested:
+      return {
+        label: "Reschedule in motion",
+        tone: "danger",
+        detail: [
+          "The latest writeback says this appointment needs a time change.",
+          nextTouchSummary,
+          bridgeSummary,
+          noteSummary,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        nextStep:
+          "Use the note field to capture the new timing conversation, then save the next external touch until a replacement time is locked.",
+        requiresExternalResponse: true,
+        isExternalTouchDue: false,
+      };
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending:
+      return {
+        label: "Waiting on outside reply",
+        tone: "accent",
+        detail: [
+          "Acre is still waiting for a confirmation response outside the system.",
+          nextTouchSummary,
+          bridgeSummary,
+          noteSummary,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        nextStep:
+          "When the client or counterpart replies, write back whether the plan is confirmed or needs a reschedule.",
+        requiresExternalResponse: true,
+        isExternalTouchDue: false,
+      };
+    case frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp:
+      return {
+        label: "Follow-up still needed",
+        tone: "warning",
+        detail: [
+          "The current writeback says this appointment still needs an outbound touch.",
+          nextTouchSummary,
+          bridgeSummary,
+          noteSummary,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        nextStep:
+          "Use a bridge action or direct outreach, then save the next touch or confirmation outcome here.",
+        requiresExternalResponse: true,
+        isExternalTouchDue: false,
+      };
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmed:
+      return {
+        label: "Externally confirmed",
+        tone: "success",
+        detail: [
+          "The outside participant has already confirmed this appointment.",
+          nextTouchSummary,
+          bridgeSummary,
+          noteSummary,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        nextStep:
+          "Keep this record as-is unless the plan changes, or add a follow-up reminder if you want a last-touch check before start time.",
+        requiresExternalResponse: false,
+        isExternalTouchDue: false,
+      };
+    default:
+      if (input.bridgeStatus.hasBridgeActivity) {
+        return {
+          label: "Bridge opened, writeback pending",
+          tone: "warning",
+          detail: [
+            bridgeSummary,
+            "Acre has a bridge action on file, but no confirmation or reschedule writeback has been saved yet.",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          nextStep:
+            "After you hear back, save whether the appointment is awaiting confirmation, confirmed, or being rescheduled.",
+          requiresExternalResponse: false,
+          isExternalTouchDue: false,
+        };
+      }
+
+      return {
+        label: "No external coordination logged",
+        tone: "neutral",
+        detail:
+          "Acre has the appointment on the calendar, but there is no bridge activity or follow-up writeback saved yet.",
+        nextStep:
+          "Open Google, Outlook, ICS, or email from this record when the meeting needs outside calendar or email coordination.",
+        requiresExternalResponse: false,
+        isExternalTouchDue: false,
+      };
+  }
 }
 
 export async function getFrontOfficeAppointmentBridgeStatusMap(input: {
@@ -738,6 +965,11 @@ function mapAppointmentRecord(
     appointment.client?.fullName ??
     (appointment.contactLabel?.trim() || "No client linked");
   const notesLabel = appointment.notes?.trim() || "No internal note yet";
+  const typeLabel =
+    findAppointmentTypeDefinition(appointment.type)?.label ?? "Appointment";
+  const statusLabel =
+    findAppointmentStatusDefinition(appointment.status)?.label ?? "Scheduled";
+  const statusTone = mapAppointmentStatusTone(appointment.status);
   const reminder = buildAppointmentReminderState({
     startsAt: appointment.startsAt,
     status: appointment.status,
@@ -765,17 +997,24 @@ function mapAppointmentRecord(
   const resolvedBridgeStatus = bridgeStatus
     ? bridgeStatus
     : buildFrontOfficeAppointmentBridgeStatus(null, timeZone);
+  const coordination = buildFrontOfficeAppointmentCoordinationSummary({
+    appointmentStatus: appointment.status,
+    appointmentStatusLabel: statusLabel,
+    appointmentStatusTone: statusTone,
+    now,
+    externalWorkflow,
+    bridgeStatus: resolvedBridgeStatus,
+  });
 
   return {
     id: appointment.id,
     title: appointment.title,
     clientId: appointment.client?.id ?? null,
-    typeLabel:
-      findAppointmentTypeDefinition(appointment.type)?.label ?? "Appointment",
+    statusValue: appointment.status,
+    typeLabel,
     typeTone: mapAppointmentTypeTone(appointment.type),
-    statusLabel:
-      findAppointmentStatusDefinition(appointment.status)?.label ?? "Scheduled",
-    statusTone: mapAppointmentStatusTone(appointment.status),
+    statusLabel,
+    statusTone,
     reminderLabel: reminder.label,
     reminderTone: reminder.tone,
     startsAtLabel: formatDateTimeLabel(appointment.startsAt, { timeZone }),
@@ -797,8 +1036,18 @@ function mapAppointmentRecord(
     externalNote: externalWorkflow.note ?? "",
     externalNextActionAtLabel: externalWorkflow.nextActionAtLabel,
     externalNextActionAtValue: externalWorkflow.nextActionAtValue,
+    coordinationLabel: coordination.label,
+    coordinationTone: coordination.tone,
+    coordinationDetail: coordination.detail,
+    coordinationNextStep: coordination.nextStep,
+    requiresExternalResponse: coordination.requiresExternalResponse,
+    isExternalTouchDue: coordination.isExternalTouchDue,
     bridgeStatusLabel: resolvedBridgeStatus.label,
     bridgeStatusDetail: resolvedBridgeStatus.detail,
+    bridgeStatusTone: resolvedBridgeStatus.tone,
+    bridgeActionLabel: resolvedBridgeStatus.actionLabel,
+    bridgeLoggedAtLabel: resolvedBridgeStatus.loggedAtLabel,
+    hasBridgeActivity: resolvedBridgeStatus.hasBridgeActivity,
   };
 }
 
@@ -1002,6 +1251,27 @@ export async function getFrontOfficeAppointmentsSnapshot(
       appointmentIds: visibleAppointments.map((appointment) => appointment.id),
       timeZone: input.timeZone,
     });
+  const appointmentRecords = visibleAppointments.map((appointment) =>
+    mapAppointmentRecord(
+      appointment,
+      now,
+      input.timeZone,
+      appointmentBridgeStatusMap.get(appointment.id) ?? null,
+    ),
+  );
+  const awaitingReplyCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.requiresExternalResponse,
+  ).length;
+  const touchDueCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.isExternalTouchDue,
+  ).length;
+  const bridgedCount = appointmentRecords.filter(
+    (appointment) => appointment.hasBridgeActivity,
+  ).length;
 
   return {
     summary: {
@@ -1009,6 +1279,9 @@ export async function getFrontOfficeAppointmentsSnapshot(
       todayCount,
       showingCount,
       handoffReadyCount,
+      awaitingReplyCount,
+      touchDueCount,
+      bridgedCount,
     },
     typeOptions: frontOfficeAppointmentTypeDefinitions.map((option) => ({
       value: option.value,
@@ -1022,14 +1295,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
       value: listing.id,
       label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
     })),
-    appointments: visibleAppointments.map((appointment) =>
-      mapAppointmentRecord(
-        appointment,
-        now,
-        input.timeZone,
-        appointmentBridgeStatusMap.get(appointment.id) ?? null,
-      ),
-    ),
+    appointments: appointmentRecords,
     handoffs: handoffs.map((draft) => ({
       id: draft.id,
       clientName: draft.client.fullName,
@@ -1222,7 +1488,7 @@ export async function updateFrontOfficeAppointmentStatus(
   );
 
   if (!shouldUpdateStatus && !shouldUpdateExternalWorkflow) {
-    return mapAppointmentRecord(existing, new Date(), null);
+    return mapAppointmentRecord(existing, new Date(), input.timeZone ?? null);
   }
 
   const now = new Date();
@@ -1292,21 +1558,59 @@ export async function updateFrontOfficeAppointmentStatus(
             : []),
           ...(shouldUpdateExternalWorkflow && nextExternalStatus
             ? [
-                {
-                  label: "External follow-up",
-                  previousValue: formatFrontOfficeAppointmentExternalWorkflowLabel(
-                    currentExternalWorkflow.status,
-                  ),
-                  nextValue:
-                    formatFrontOfficeAppointmentExternalWorkflowLabel(
-                      nextExternalStatus,
-                    ),
-                },
+                ...(currentExternalWorkflow.status !== nextExternalStatus
+                  ? [
+                      {
+                        label: "External follow-up",
+                        previousValue:
+                          formatFrontOfficeAppointmentExternalWorkflowLabel(
+                            currentExternalWorkflow.status,
+                          ),
+                        nextValue:
+                          formatFrontOfficeAppointmentExternalWorkflowLabel(
+                            nextExternalStatus,
+                          ),
+                      },
+                    ]
+                  : []),
+                ...(currentExternalWorkflow.note !== nextExternalNote
+                  ? [
+                      {
+                        label: "External note",
+                        previousValue:
+                          currentExternalWorkflow.note?.trim() || "None",
+                        nextValue: nextExternalNote || "Cleared",
+                      },
+                    ]
+                  : []),
+                ...(currentExternalWorkflow.nextActionAt?.getTime() !==
+                nextExternalActionAt?.getTime()
+                  ? [
+                      {
+                        label: "Next external touch",
+                        previousValue: currentExternalWorkflow.nextActionAt
+                          ? formatDateTimeLabel(
+                              currentExternalWorkflow.nextActionAt,
+                              {
+                                timeZone: input.timeZone ?? null,
+                              },
+                            )
+                          : "None",
+                        nextValue: nextExternalActionAt
+                          ? formatDateTimeLabel(nextExternalActionAt, {
+                              timeZone: input.timeZone ?? null,
+                            })
+                          : "Cleared",
+                      },
+                    ]
+                  : []),
               ]
             : []),
         ],
         details: [
-          `Starts: ${formatDateTimeLabel(saved.startsAt, { timeZone: null })}`,
+          `Starts: ${formatDateTimeLabel(saved.startsAt, {
+            timeZone: input.timeZone ?? null,
+          })}`,
           ...(saved.location?.trim()
             ? [`Location: ${saved.location.trim()}`]
             : []),
@@ -1317,15 +1621,26 @@ export async function updateFrontOfficeAppointmentStatus(
                 )}`,
               ]
             : []),
-          ...(shouldUpdateExternalWorkflow && nextExternalNote
-            ? [`Workflow note: ${nextExternalNote}`]
-            : []),
-          ...(shouldUpdateExternalWorkflow && nextExternalActionAt
+          ...(shouldUpdateExternalWorkflow &&
+          currentExternalWorkflow.note !== nextExternalNote
             ? [
-                `Next external touch: ${formatDateTimeLabel(
-                  nextExternalActionAt,
-                  { timeZone: null },
-                )}`,
+                nextExternalNote
+                  ? `Workflow note: ${nextExternalNote}`
+                  : "Workflow note cleared",
+              ]
+            : []),
+          ...(shouldUpdateExternalWorkflow &&
+          currentExternalWorkflow.nextActionAt?.getTime() !==
+            nextExternalActionAt?.getTime()
+            ? [
+                nextExternalActionAt
+                  ? `Next external touch: ${formatDateTimeLabel(
+                      nextExternalActionAt,
+                      {
+                        timeZone: input.timeZone ?? null,
+                      },
+                    )}`
+                  : "Next external touch cleared",
               ]
             : []),
         ],
@@ -1335,7 +1650,7 @@ export async function updateFrontOfficeAppointmentStatus(
     return saved;
   });
 
-  return mapAppointmentRecord(updated, new Date(), null);
+  return mapAppointmentRecord(updated, new Date(), input.timeZone ?? null);
 }
 
 export async function getFrontOfficeAppointmentCalendarExport(
@@ -1347,6 +1662,7 @@ export async function getFrontOfficeAppointmentCalendarExport(
     ownerMembershipId: input.ownerMembershipId,
     actorMembershipId: input.actorMembershipId ?? input.ownerMembershipId,
     officeId: input.officeId ?? null,
+    timeZone: input.timeZone ?? null,
     action: frontOfficeAppointmentBridgeActions.icsDownload,
   });
 
@@ -1380,6 +1696,19 @@ export async function getFrontOfficeAppointmentBridgeResult(
     return null;
   }
 
+  const appointmentTypeLabel =
+    findAppointmentTypeDefinition(appointment.type)?.label ?? "Appointment";
+  const appointmentStatusLabel =
+    findAppointmentStatusDefinition(appointment.status)?.label ?? "Scheduled";
+  const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
+    metadata: appointment.metadata,
+    timeZone: input.timeZone ?? null,
+  });
+  const externalStatusLabel =
+    externalWorkflow.value === frontOfficeAppointmentExternalWorkflowStatuses.idle
+      ? null
+      : externalWorkflow.label;
+
   const externalTargets = buildFrontOfficeAppointmentExternalTargets({
     appointmentId: appointment.id,
     title: appointment.title,
@@ -1393,6 +1722,14 @@ export async function getFrontOfficeAppointmentBridgeResult(
     listingTitle: appointment.listing?.title,
     listingNeighborhood: appointment.listing?.neighborhood,
     listingCity: appointment.listing?.city,
+    appointmentTypeLabel,
+    appointmentStatusLabel,
+    externalStatusLabel,
+    externalNote: externalWorkflow.note,
+    externalNextActionAtLabel: externalWorkflow.nextActionAt
+      ? externalWorkflow.nextActionAtLabel
+      : null,
+    timeZone: input.timeZone ?? null,
   });
   const result: FrontOfficeAppointmentBridgeResult =
     input.action === frontOfficeAppointmentBridgeActions.googleCalendar
@@ -1431,6 +1768,14 @@ export async function getFrontOfficeAppointmentBridgeResult(
                 listingTitle: appointment.listing?.title,
                 listingNeighborhood: appointment.listing?.neighborhood,
                 listingCity: appointment.listing?.city,
+                appointmentTypeLabel,
+                appointmentStatusLabel,
+                externalStatusLabel,
+                externalNote: externalWorkflow.note,
+                externalNextActionAtLabel: externalWorkflow.nextActionAt
+                  ? externalWorkflow.nextActionAtLabel
+                  : null,
+                timeZone: input.timeZone ?? null,
               }),
             };
 
@@ -1455,9 +1800,25 @@ export async function getFrontOfficeAppointmentBridgeResult(
         workflowReason: input.action,
         details: [
           `Bridge target: ${formatFrontOfficeAppointmentBridgeActionLabel(input.action)}`,
-          `Starts: ${formatDateTimeLabel(appointment.startsAt, { timeZone: null })}`,
+          `Appointment type: ${appointmentTypeLabel}`,
+          `Acre status: ${appointmentStatusLabel}`,
+          `Starts: ${formatDateTimeLabel(appointment.startsAt, {
+            timeZone: input.timeZone ?? null,
+          })}`,
+          ...(externalStatusLabel
+            ? [`External coordination: ${externalStatusLabel}`]
+            : ["External coordination: No writeback saved yet"]),
+          ...(externalWorkflow.nextActionAt
+            ? [`Next external touch: ${externalWorkflow.nextActionAtLabel}`]
+            : []),
+          ...(externalWorkflow.note
+            ? [`Writeback note: ${externalWorkflow.note}`]
+            : []),
           ...(appointment.location?.trim()
             ? [`Location: ${appointment.location.trim()}`]
+            : []),
+          ...(appointment.meetingUrl?.trim()
+            ? [`Meeting link: ${appointment.meetingUrl.trim()}`]
             : []),
           ...(input.action === frontOfficeAppointmentBridgeActions.emailBrief &&
           appointment.client?.email?.trim()

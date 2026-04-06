@@ -51,6 +51,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       ownerMembershipId: context.currentMembership.id,
       actorMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
       status: readOptionalString(body, "status"),
       externalStatus: readOptionalString(body, "externalStatus"),
       externalNote: readOptionalString(body, "externalNote"),

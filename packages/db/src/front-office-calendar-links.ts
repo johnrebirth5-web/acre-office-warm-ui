@@ -43,6 +43,11 @@ type AppointmentExternalLinkInput = {
   listingTitle?: string | null;
   listingNeighborhood?: string | null;
   listingCity?: string | null;
+  appointmentTypeLabel?: string | null;
+  appointmentStatusLabel?: string | null;
+  externalStatusLabel?: string | null;
+  externalNote?: string | null;
+  externalNextActionAtLabel?: string | null;
   timeZone?: string | null;
 };
 
@@ -89,14 +94,30 @@ function buildListingLabel(input: AppointmentExternalLinkInput) {
 }
 
 function buildCalendarDescription(input: AppointmentExternalLinkInput) {
+  const clientOrContact = input.clientName?.trim() || input.contactLabel?.trim() || "";
   const lines = [
     "Exported from Acre Front Office.",
-    input.clientName?.trim() ? `Client: ${input.clientName.trim()}` : "",
-    !input.clientName?.trim() && input.contactLabel?.trim()
-      ? `Contact: ${input.contactLabel.trim()}`
+    "Acre remains the source of truth for appointment status and writeback.",
+    input.appointmentTypeLabel?.trim()
+      ? `Appointment type: ${input.appointmentTypeLabel.trim()}`
       : "",
+    input.appointmentStatusLabel?.trim()
+      ? `Acre status: ${input.appointmentStatusLabel.trim()}`
+      : "",
+    clientOrContact ? `Client / contact: ${clientOrContact}` : "",
+    input.clientEmail?.trim() ? `Client email: ${input.clientEmail.trim()}` : "",
     buildListingLabel(input) ? `Listing: ${buildListingLabel(input)}` : "",
+    input.location?.trim() ? `Location: ${input.location.trim()}` : "",
     input.meetingUrl?.trim() ? `Meeting link: ${input.meetingUrl.trim()}` : "",
+    input.externalStatusLabel?.trim()
+      ? `External coordination: ${input.externalStatusLabel.trim()}`
+      : "",
+    input.externalNextActionAtLabel?.trim()
+      ? `Next external touch: ${input.externalNextActionAtLabel.trim()}`
+      : "",
+    input.externalNote?.trim()
+      ? `Writeback note: ${input.externalNote.trim()}`
+      : "",
   ].filter(Boolean);
 
   return lines.join("\n");
@@ -164,25 +185,36 @@ function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
   });
   const firstName = getFirstName(input.clientName);
   const listingLabel = buildListingLabel(input);
+  const isRescheduleRequest =
+    input.externalStatusLabel?.trim() === "Reschedule requested";
+  const isConfirmed = input.externalStatusLabel?.trim() === "Confirmed";
+  const subject = isRescheduleRequest
+    ? `Reschedule request: ${input.title}`
+    : isConfirmed
+      ? `Confirmed: ${input.title} on ${appointmentTimeLabel}`
+      : `Please confirm: ${input.title} on ${appointmentTimeLabel}`;
   const lines = [
     `Hi ${firstName},`,
     "",
-    `Looking forward to our ${input.title} on ${appointmentTimeLabel}.`,
+    isRescheduleRequest
+      ? `It looks like we may need to move our ${input.title}.`
+      : isConfirmed
+        ? `Sharing the details for our confirmed ${input.title}.`
+        : `I am sending the details for our ${input.title}. Please reply to confirm this time still works for you.`,
+    `Date & time: ${appointmentTimeLabel}`,
     input.location?.trim() ? `Location: ${input.location.trim()}` : "",
     input.meetingUrl?.trim() ? `Meeting link: ${input.meetingUrl.trim()}` : "",
     listingLabel ? `Listing context: ${listingLabel}` : "",
     "",
-    "If anything changes before then, reply here and I will adjust the plan.",
+    isRescheduleRequest
+      ? "If you need to move it, reply with a few times that work better and I will update the plan."
+      : "If anything changes or you need to reschedule, reply here and I will adjust the plan.",
     "",
     "Best,",
     "Acre",
   ].filter(Boolean);
 
-  return buildMailtoHref(
-    to,
-    `Appointment details: ${input.title}`,
-    lines.join("\n"),
-  );
+  return buildMailtoHref(to, subject, lines.join("\n"));
 }
 
 export function buildFrontOfficeAppointmentExternalTargets(

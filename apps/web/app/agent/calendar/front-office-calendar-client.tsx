@@ -7,6 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import type {
+  FrontOfficeAppointmentBridgeAction,
   FrontOfficeAppointmentExternalWorkflowStatus,
   FrontOfficeAppointmentsSnapshot,
 } from "@acre/db";
@@ -51,6 +52,22 @@ type FeedbackState = {
   tone: "success" | "error";
   message: string;
 } | null;
+
+type BridgeActionResponse = {
+  action: FrontOfficeAppointmentBridgeAction;
+  actionLabel: string;
+  result:
+    | {
+        kind: "redirect";
+        href: string;
+      }
+    | {
+        kind: "calendar_export";
+        fileName: string;
+        content: string;
+      };
+  error?: string;
+};
 
 const externalStatusOptions: Array<{
   value: FrontOfficeAppointmentExternalWorkflowStatus;
@@ -119,6 +136,19 @@ function didWritebackChange(
   );
 }
 
+function downloadCalendarExport(fileName: string, content: string) {
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const downloadUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = downloadUrl;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(downloadUrl);
+}
+
 export function FrontOfficeCalendarClient(
   props: FrontOfficeCalendarClientProps,
 ) {
@@ -128,6 +158,10 @@ export function FrontOfficeCalendarClient(
   );
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [bridgeState, setBridgeState] = useState<{
+    appointmentId: string;
+    action: FrontOfficeAppointmentBridgeAction;
+  } | null>(null);
   const [writebackDrafts, setWritebackDrafts] = useState<
     Record<string, AppointmentWritebackDraft>
   >({});
@@ -322,6 +356,66 @@ export function FrontOfficeCalendarClient(
     }
   }
 
+  async function handleBridgeAction(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+    action: FrontOfficeAppointmentBridgeAction,
+  ) {
+    setFeedback(null);
+    setBridgeState({
+      appointmentId: appointment.id,
+      action,
+    });
+
+    try {
+      const response = await fetch(
+        `/api/agent/appointments/${appointment.id}/bridge?action=${action}&format=json`,
+        {
+          cache: "no-store",
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | BridgeActionResponse
+        | null;
+
+      if (!response.ok || !payload) {
+        setFeedback({
+          tone: "error",
+          message: payload?.error ?? "Could not open the external bridge.",
+        });
+        return;
+      }
+
+      if (payload.result.kind === "redirect") {
+        const opened = window.open(
+          payload.result.href,
+          "_blank",
+          "noopener,noreferrer",
+        );
+
+        if (!opened) {
+          window.location.assign(payload.result.href);
+        }
+      } else {
+        downloadCalendarExport(payload.result.fileName, payload.result.content);
+      }
+
+      setFeedback({
+        tone: "success",
+        message: `${payload.actionLabel} opened. Acre will refresh so the latest bridge trail stays visible on this appointment.`,
+      });
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Could not open the external bridge.",
+      });
+    } finally {
+      setBridgeState(null);
+    }
+  }
+
   return (
     <>
       <SectionCard
@@ -482,7 +576,7 @@ export function FrontOfficeCalendarClient(
 
       <SectionCard
         className="office-list-card"
-        subtitle="Upcoming items stay compact here so you can confirm, cancel, or close them without leaving the queue, while the reminder badge shows which appointments need near-term attention."
+        subtitle="Upcoming items stay compact here so you can see the latest bridge action, the current writeback read, and the next external touch without leaving the queue."
         title="Upcoming appointments"
       >
         <div className="list-column front-office-record-list">
@@ -495,189 +589,241 @@ export function FrontOfficeCalendarClient(
                 appointment,
                 writebackDraft,
               );
+              const isScheduled = appointment.statusValue === "scheduled";
+              const activeBridgeAction =
+                bridgeState?.appointmentId === appointment.id
+                  ? bridgeState.action
+                  : null;
 
               return (
                 <article
                   className="list-row front-office-record"
                   key={appointment.id}
                 >
-                    <div className="list-row-top front-office-record-head">
-                      <div>
-                        <strong>{appointment.title}</strong>
-                        <p>{appointment.startsAtLabel}</p>
-                      </div>
-                      <div className="front-office-calendar-badges">
-                        <Badge tone={appointment.typeTone}>
-                          {appointment.typeLabel}
-                        </Badge>
-                        <StatusBadge tone={appointment.statusTone}>
-                          {appointment.statusLabel}
-                        </StatusBadge>
-                        <Badge tone={appointment.reminderTone}>
-                          {appointment.reminderLabel}
-                        </Badge>
-                        <StatusBadge tone={appointment.externalStatusTone}>
-                          {appointment.externalStatusLabel}
-                        </StatusBadge>
-                      </div>
+                  <div className="list-row-top front-office-record-head">
+                    <div>
+                      <strong>{appointment.title}</strong>
+                      <p>{appointment.startsAtLabel}</p>
                     </div>
-
-                    <div className="list-row-meta front-office-record-meta">
-                      <span>{appointment.clientLabel}</span>
-                      <span>{appointment.listingLabel}</span>
-                      <span>{appointment.locationLabel}</span>
-                      <span>{appointment.bridgeStatusLabel}</span>
+                    <div className="front-office-calendar-badges">
+                      <Badge tone={appointment.typeTone}>
+                        {appointment.typeLabel}
+                      </Badge>
+                      <StatusBadge tone={appointment.statusTone}>
+                        {appointment.statusLabel}
+                      </StatusBadge>
+                      <Badge tone={appointment.reminderTone}>
+                        {appointment.reminderLabel}
+                      </Badge>
+                      <StatusBadge tone={appointment.externalStatusTone}>
+                        {appointment.externalStatusLabel}
+                      </StatusBadge>
+                      <Badge tone={appointment.bridgeStatusTone}>
+                        {appointment.bridgeActionLabel}
+                      </Badge>
                     </div>
+                  </div>
 
-                    <p>{appointment.notesLabel}</p>
-                    <p className="front-office-record-supporting">
-                      {appointment.externalStatusDetail}
-                    </p>
-                    <p className="front-office-record-supporting">
-                      {appointment.bridgeStatusDetail}
-                    </p>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{appointment.clientLabel}</span>
+                    <span>{appointment.listingLabel}</span>
+                    <span>{appointment.locationLabel}</span>
+                    <span>{appointment.externalNextActionAtLabel}</span>
+                    <span>{appointment.bridgeLoggedAtLabel}</span>
+                  </div>
 
-                    {appointment.statusLabel === "Scheduled" ? (
-                      <div className="front-office-calendar-actions">
-                        {appointment.listingOutputHref ? (
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={appointment.listingOutputHref}
-                          >
-                            Open listing output
-                          </FrontOfficeLink>
-                        ) : null}
+                  <p>{appointment.notesLabel}</p>
+                  <p className="front-office-record-supporting">
+                    {appointment.coordinationDetail}
+                  </p>
+                  <p className="front-office-record-supporting">
+                    Next step: {appointment.coordinationNextStep}
+                  </p>
+
+                  {isScheduled ? (
+                    <div className="front-office-calendar-actions">
+                      <p className="front-office-record-supporting">
+                        Open the outside draft or export in a new tab, then keep
+                        the confirmation trail readable here with the writeback
+                        fields below.
+                      </p>
+                      {appointment.listingOutputHref ? (
                         <FrontOfficeLink
                           className="office-inline-link front-office-inline-link"
-                          href={appointment.googleCalendarHref}
+                          href={appointment.listingOutputHref}
                         >
-                          Google Calendar
+                          Open listing output
                         </FrontOfficeLink>
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={appointment.outlookCalendarHref}
-                        >
-                          Outlook
-                        </FrontOfficeLink>
-                        <a
-                          className="office-inline-link front-office-inline-link"
-                          href={appointment.icsHref}
-                        >
-                          Download ICS
-                        </a>
-                        {appointment.emailBriefHref ? (
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={appointment.emailBriefHref}
-                          >
-                            Email client
-                          </FrontOfficeLink>
-                        ) : null}
+                      ) : null}
+                      <button
+                        className="office-button-secondary office-inline-action-sm"
+                        disabled={activeBridgeAction !== null}
+                        onClick={() =>
+                          handleBridgeAction(appointment, "google_calendar")
+                        }
+                        type="button"
+                      >
+                        {activeBridgeAction === "google_calendar"
+                          ? "Opening..."
+                          : "Open Google draft"}
+                      </button>
+                      <button
+                        className="office-button-secondary office-inline-action-sm"
+                        disabled={activeBridgeAction !== null}
+                        onClick={() =>
+                          handleBridgeAction(appointment, "outlook_calendar")
+                        }
+                        type="button"
+                      >
+                        {activeBridgeAction === "outlook_calendar"
+                          ? "Opening..."
+                          : "Open Outlook draft"}
+                      </button>
+                      <button
+                        className="office-button-secondary office-inline-action-sm"
+                        disabled={activeBridgeAction !== null}
+                        onClick={() =>
+                          handleBridgeAction(appointment, "ics_download")
+                        }
+                        type="button"
+                      >
+                        {activeBridgeAction === "ics_download"
+                          ? "Preparing..."
+                          : "Download ICS"}
+                      </button>
+                      {appointment.emailBriefHref ? (
                         <button
                           className="office-button-secondary office-inline-action-sm"
-                          disabled={isBusy}
+                          disabled={activeBridgeAction !== null}
                           onClick={() =>
-                            handleStatusUpdate(appointment.id, "completed")
+                            handleBridgeAction(appointment, "email_brief")
                           }
                           type="button"
                         >
-                          Mark complete
+                          {activeBridgeAction === "email_brief"
+                            ? "Opening..."
+                            : "Draft client email"}
                         </button>
-                        <button
-                          className="office-button-secondary office-inline-action-sm"
-                          disabled={isBusy}
-                          onClick={() =>
-                            handleStatusUpdate(appointment.id, "no_show")
-                          }
-                          type="button"
-                        >
-                          No-show
-                        </button>
-                        <button
-                          className="office-button-secondary office-inline-action-sm"
-                          disabled={isBusy}
-                          onClick={() =>
-                            handleStatusUpdate(appointment.id, "canceled")
-                          }
-                          type="button"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : null}
+                      ) : (
+                        <p className="front-office-record-supporting">
+                          Client email is missing, so the email brief is not
+                          available yet.
+                        </p>
+                      )}
+                      <button
+                        className="office-button-secondary office-inline-action-sm"
+                        disabled={isBusy}
+                        onClick={() =>
+                          handleStatusUpdate(appointment.id, "completed")
+                        }
+                        type="button"
+                      >
+                        Mark complete
+                      </button>
+                      <button
+                        className="office-button-secondary office-inline-action-sm"
+                        disabled={isBusy}
+                        onClick={() =>
+                          handleStatusUpdate(appointment.id, "no_show")
+                        }
+                        type="button"
+                      >
+                        No-show
+                      </button>
+                      <button
+                        className="office-button-secondary office-inline-action-sm"
+                        disabled={isBusy}
+                        onClick={() =>
+                          handleStatusUpdate(appointment.id, "canceled")
+                        }
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
 
-                    {appointment.statusLabel === "Scheduled" ? (
-                      <div className="front-office-calendar-writeback">
-                        <div className="front-office-calendar-writeback-head">
-                          <span className="front-office-calendar-writeback-label">
-                            External writeback
-                          </span>
-                          <p className="front-office-record-supporting">
-                            Keep the outside confirmation or reschedule trail readable
-                            here, including when you want the next external touch to
-                            come back before the appointment starts.
-                          </p>
+                  {isScheduled ? (
+                    <div className="front-office-calendar-writeback">
+                      <div className="front-office-calendar-writeback-head">
+                        <span className="front-office-calendar-writeback-label">
+                          Coordination writeback
+                        </span>
+                        <div className="front-office-calendar-badges">
+                          <StatusBadge tone={appointment.coordinationTone}>
+                            {appointment.coordinationLabel}
+                          </StatusBadge>
+                          <Badge tone={appointment.bridgeStatusTone}>
+                            {appointment.bridgeStatusLabel}
+                          </Badge>
                         </div>
-                        <div className="front-office-calendar-writeback-fields">
-                          <SelectInput
-                            className="front-office-calendar-writeback-select"
-                            onChange={(event) =>
-                              handleWritebackDraftChange(
-                                appointment,
-                                "status",
-                                event.target.value,
-                              )
-                            }
-                            value={writebackDraft.status}
-                          >
-                            {externalStatusOptions.map((option) => (
-                              <option
-                                key={`${appointment.id}-${option.value}`}
-                                value={option.value}
-                              >
-                                {option.label}
-                              </option>
-                            ))}
-                          </SelectInput>
-                          <TextInput
-                            className="front-office-calendar-writeback-next-touch"
-                            disabled={writebackDraft.status === "idle"}
-                            onChange={(event) =>
-                              handleWritebackDraftChange(
-                                appointment,
-                                "nextActionAt",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Next external touch"
-                            type="datetime-local"
-                            value={writebackDraft.nextActionAt}
-                          />
-                          <TextareaInput
-                            className="front-office-calendar-writeback-note"
-                            disabled={writebackDraft.status === "idle"}
-                            onChange={(event) =>
-                              handleWritebackDraftChange(
-                                appointment,
-                                "note",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="What happened outside Acre, and what are you waiting on next?"
-                            rows={2}
-                            value={writebackDraft.note}
-                          />
-                          <button
-                            className="office-button-secondary office-inline-action-sm"
-                            disabled={isBusy || !writebackChanged}
-                            onClick={() => handleExternalStatusUpdate(appointment)}
-                            type="button"
-                          >
-                            Save writeback
-                          </button>
-                        </div>
+                        <p className="front-office-record-supporting">
+                          This is still the same appointment record, not a
+                          separate sync layer. Save what happened outside Acre
+                          and when you want the next external touch to come back
+                          into view.
+                        </p>
                       </div>
-                    ) : null}
+                      <div className="front-office-calendar-writeback-fields">
+                        <SelectInput
+                          className="front-office-calendar-writeback-select"
+                          onChange={(event) =>
+                            handleWritebackDraftChange(
+                              appointment,
+                              "status",
+                              event.target.value,
+                            )
+                          }
+                          value={writebackDraft.status}
+                        >
+                          {externalStatusOptions.map((option) => (
+                            <option
+                              key={`${appointment.id}-${option.value}`}
+                              value={option.value}
+                            >
+                              {option.label}
+                            </option>
+                          ))}
+                        </SelectInput>
+                        <TextInput
+                          className="front-office-calendar-writeback-next-touch"
+                          disabled={writebackDraft.status === "idle"}
+                          onChange={(event) =>
+                            handleWritebackDraftChange(
+                              appointment,
+                              "nextActionAt",
+                              event.target.value,
+                            )
+                          }
+                          placeholder="Next external touch"
+                          type="datetime-local"
+                          value={writebackDraft.nextActionAt}
+                        />
+                        <TextareaInput
+                          className="front-office-calendar-writeback-note"
+                          disabled={writebackDraft.status === "idle"}
+                          onChange={(event) =>
+                            handleWritebackDraftChange(
+                              appointment,
+                              "note",
+                              event.target.value,
+                            )
+                          }
+                          placeholder="What happened outside Acre, and what are you waiting on next?"
+                          rows={2}
+                          value={writebackDraft.note}
+                        />
+                        <button
+                          className="office-button-secondary office-inline-action-sm"
+                          disabled={isBusy || !writebackChanged}
+                          onClick={() => handleExternalStatusUpdate(appointment)}
+                          type="button"
+                        >
+                          Save writeback
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </article>
               );
             })

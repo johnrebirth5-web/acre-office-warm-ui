@@ -1,5 +1,6 @@
 import { can } from "@acre/auth";
 import {
+  formatFrontOfficeAppointmentBridgeActionLabel,
   getFrontOfficeAppointmentBridgeResult,
   isFrontOfficeAppointmentBridgeAction,
 } from "@acre/db";
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   }
 
   const action = request.nextUrl.searchParams.get("action");
+  const responseFormat = request.nextUrl.searchParams.get("format");
 
   if (!isFrontOfficeAppointmentBridgeAction(action)) {
     return NextResponse.json(
@@ -47,6 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       ownerMembershipId: context.currentMembership.id,
       actorMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
       action,
     });
 
@@ -54,6 +57,22 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json(
         { error: "Appointment not found." },
         { status: 404 },
+      );
+    }
+
+    if (responseFormat === "json") {
+      return NextResponse.json(
+        {
+          action,
+          actionLabel: formatFrontOfficeAppointmentBridgeActionLabel(action),
+          result,
+        },
+        {
+          status: 200,
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        },
       );
     }
 

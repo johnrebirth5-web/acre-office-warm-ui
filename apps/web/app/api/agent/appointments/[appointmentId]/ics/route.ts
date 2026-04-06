@@ -33,6 +33,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     ownerMembershipId: context.currentMembership.id,
     actorMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
+    timeZone: context.currentUser.timezone,
   });
 
   if (!exportPayload) {

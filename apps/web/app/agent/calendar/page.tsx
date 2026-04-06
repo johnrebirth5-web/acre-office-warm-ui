@@ -55,7 +55,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Schedule showings, consultations, and client meetings inside Front Office, while keeping the next Back Office handoff visible on the same page."
+      description="Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback readability, and the next Back Office handoff visible on the same page."
       eyebrow="Calendar"
       main={
         <FrontOfficeCalendarClient
@@ -67,7 +67,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="A compact read on how much execution pressure is already committed on your calendar."
+            subtitle="A compact read on the live calendar queue, with the external coordination pressure derived from the same appointment records and bridge trail."
             title="Workflow signals"
           >
             <ListPageStatsGrid>
@@ -83,21 +83,26 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 value={snapshot.summary.todayCount}
               />
               <StatCard
-                hint="showings waiting in your queue"
-                label="Showings"
-                value={snapshot.summary.showingCount}
+                hint="appointments whose outside reply or reschedule still needs attention"
+                label="Awaiting reply"
+                value={snapshot.summary.awaitingReplyCount}
+              />
+              <StatCard
+                hint="next external touches already due or overdue in the visible queue"
+                label="Touch due"
+                value={snapshot.summary.touchDueCount}
+              />
+              <StatCard
+                hint="appointments with at least one Google / Outlook / ICS / email bridge logged"
+                label="Bridged"
+                tone="accent"
+                value={snapshot.summary.bridgedCount}
               />
               <StatCard
                 hint="formal transaction follow-through waiting in BO"
                 label="BO-ready"
                 tone="accent"
                 value={snapshot.summary.handoffReadyCount}
-              />
-              <StatCard
-                hint="current role template in Front Office"
-                label="Access"
-                tone="accent"
-                value={access.label}
               />
             </ListPageStatsGrid>
           </SectionCard>
@@ -151,7 +156,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="These are the operating rules for the new FO calendar surface, including the first external calendar and email bridges plus the new confirmation / reschedule writeback state."
+            subtitle="These are the operating rules for the current FO calendar surface, including action-first external bridge payloads, visible writeback, and appointment-level coordination guidance."
             title="Current scope"
           >
             <div className="office-queue-list">
@@ -167,7 +172,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               />
               <FrontOfficeRailItem
                 badgeLabel="Sync"
-                description="Scheduled appointments can now jump into Google Calendar, Outlook, downloadable ICS files, or a client-facing email brief, and Acre records the latest bridge action, the agent-managed external follow-up state, and the next external touch timing without pretending it already owns a two-way sync."
+                description="Scheduled appointments can now open richer Google / Outlook drafts, downloadable ICS exports, or a client-facing email brief, and Acre records the bridge trail plus the agent-managed writeback on the same appointment record without pretending it already owns a two-way sync."
                 title="External bridge is action-first"
               />
               <FrontOfficeRailItem
@@ -187,15 +192,17 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             value={snapshot.summary.upcomingCount}
           />
           <SummaryChip
-            label="Today"
-            tone="accent"
-            value={snapshot.summary.todayCount}
+            label="Awaiting reply"
+            value={snapshot.summary.awaitingReplyCount}
           />
-          <SummaryChip label="Showings" value={snapshot.summary.showingCount} />
           <SummaryChip
-            label="BO-ready"
+            label="Touch due"
+            value={snapshot.summary.touchDueCount}
+          />
+          <SummaryChip
+            label="Bridged"
             tone="accent"
-            value={snapshot.summary.handoffReadyCount}
+            value={snapshot.summary.bridgedCount}
           />
         </>
       }
