@@ -36,6 +36,7 @@ export type OfficeAgentBillingTransactionOption = {
 
 export type OfficeAgentBillingLedgerRow = {
   id: string;
+  statementPeriodId: string;
   accountingDate: string;
   dueDate: string;
   type: string;
@@ -790,6 +791,7 @@ function mapLedgerRow(transaction: AgentBillingTransactionRecord): OfficeAgentBi
 
   return {
     id: transaction.id,
+    statementPeriodId: buildStatementPeriodKey(transaction.accountingDate),
     accountingDate: formatDateValue(transaction.accountingDate),
     dueDate: formatDateValue(transaction.dueDate),
     type: accountingTypeLabelMap[transaction.type],
@@ -1567,7 +1569,7 @@ export async function getOfficeBillingSnapshot(input: GetOfficeBillingSnapshotIn
     notices.push({
       tone: "accent",
       title: "Monthly statement summaries available",
-      description: "Statements are generated live from the current billing ledger below. Downloadable PDFs are not implemented yet."
+      description: "Statements are generated live from the current billing ledger below. PDF downloads export the current live summary and do not create archived statement snapshots."
     });
   }
 
@@ -1636,7 +1638,7 @@ export async function getOfficeBillingSnapshot(input: GetOfficeBillingSnapshotIn
     recentActivity,
     limitations: [
       "Self-service checkout and ACH capture are not implemented. Payments are recorded through office accounting workflows.",
-      "Statements below are live on-screen monthly summaries. Downloadable PDFs are not available in this MVP.",
+      "Billing statement PDFs are live exports of the current ledger summary. They are not finalized or archived statement snapshots.",
       "Payment methods store only masked references and auto-pay flags. Raw card or bank credentials are never stored here."
     ]
   };

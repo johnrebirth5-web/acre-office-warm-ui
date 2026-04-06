@@ -395,7 +395,7 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
           </SectionCard>
 
           <SectionCard
-            subtitle="Live monthly statement summaries generated at view time from the current ledger. Downloadable PDFs are not available in this MVP."
+            subtitle="Live monthly statement summaries generated at view time from the current ledger. PDF downloads export the current live summary and do not create archived statement snapshots."
             title="Statements"
           >
             {snapshot.statements.length ? (
@@ -414,6 +414,15 @@ export function OfficeBillingClient({ snapshot }: OfficeBillingClientProps) {
                     <div className="office-table-primary">
                       <strong>{statement.periodLabel}</strong>
                       <p>{statement.entryCount} ledger item(s)</p>
+                      <p>
+                        <a
+                          aria-label={`Download ${statement.periodLabel} billing statement PDF`}
+                          className="office-inline-link"
+                          href={`/api/office/billing/statements/${statement.id}/pdf`}
+                        >
+                          Download PDF
+                        </a>
+                      </p>
                     </div>
                     <span>{statement.generatedAtLabel}</span>
                     <span>{statement.totalChargesLabel}</span>
