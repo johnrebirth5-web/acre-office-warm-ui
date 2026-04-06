@@ -33,7 +33,7 @@ export default async function AgentClientsPage() {
 
   return (
     <FrontOfficePageTemplate
-      description="Client work stays lean here: pipeline visibility, follow-up context, and the next conversation to move."
+      description="Client work stays lean here: fast intake, duplicate review, follow-up context, and the next conversation to move."
       eyebrow="Clients"
       main={
         <SectionCard
@@ -94,21 +94,21 @@ export default async function AgentClientsPage() {
       }
       rail={
         <>
-          <FrontOfficeLeadIntakeCard
-            sourceSurface="clients"
-            subtitle="Use this when the lead is still hot and you only have the essentials. Acre will write the real client record, stage timeline, and next-touch date for you."
-            title="Capture a lead"
-          />
-
           {snapshot.duplicatePairs.length ? (
             <FrontOfficeClientDuplicatesCard
               duplicatePairs={snapshot.duplicatePairs}
             />
           ) : null}
 
+          <FrontOfficeLeadIntakeCard
+            sourceSurface="clients"
+            subtitle="Use this when the lead is still hot and you only have the essentials. Acre writes the real client record, stage timeline, and next-touch date without turning this into a heavy contact-admin workflow."
+            title="Capture a lead"
+          />
+
           <SectionCard
             className="office-list-card"
-            subtitle="A compact read on how much active client pressure exists in this route."
+            subtitle="A compact read on intake pressure, follow-up pressure, and whether duplicate review needs attention in this route."
             title="Workflow signals"
           >
             <ListPageStatsGrid>

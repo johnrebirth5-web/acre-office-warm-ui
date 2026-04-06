@@ -11,10 +11,15 @@ export type FrontOfficeLeadIntakeAssistDraft = Partial<{
   notes: string;
 }>;
 
+export type FrontOfficeLeadIntakeAssistConfidence = "high" | "medium" | "low";
+
 export type FrontOfficeLeadIntakeAssistField = {
   field: keyof FrontOfficeLeadIntakeAssistDraft;
   label: string;
   value: string;
+  confidence: FrontOfficeLeadIntakeAssistConfidence;
+  autoApply: boolean;
+  reasonLabel: string;
 };
 
 export type FrontOfficeLeadIntakeAssistResult = {
@@ -22,9 +27,24 @@ export type FrontOfficeLeadIntakeAssistResult = {
   draft: FrontOfficeLeadIntakeAssistDraft;
   fields: FrontOfficeLeadIntakeAssistField[];
   summaryLabel: string;
+  autoApplyFieldCount: number;
+  reviewFieldCount: number;
 };
 
 type IntakeSourceMode = "image" | "text";
+
+const nameLinePattern =
+  /^(?:name|client|lead|buyer|renter|seller|prospect|姓名|客户)\s*[:：-]\s*(.+)$/i;
+const stageLinePattern =
+  /^(?:stage|status|客户阶段|阶段)\s*[:：-]\s*(.+)$/i;
+const intentLinePattern =
+  /^(?:intent|type|client type|business type|需求|客户类型)\s*[:：-]\s*(.+)$/i;
+const budgetLinePattern =
+  /(?:budget|up to|max budget|max|under|price|rent|purchase|预算|租金|总价)/i;
+const areaLinePattern =
+  /(?:areas?|neighbo(?:u)?rhoods?|location|locations|looking in|interested in|preferred areas?|target areas?|区域|地区|片区)\s*[:：-]?\s*(.+)$/i;
+const followUpLinePattern =
+  /(?:follow-up|follow up|next touch|next step|callback|回访|跟进|下次联系)\s*[:：-]?\s*(.+)$/i;
 
 const stageLabelMap: Record<string, string> = {
   "Cold Lead": "Stage",
@@ -102,6 +122,10 @@ function parsePhone(text: string) {
   return match?.[0] ? formatPhone(match[0]) : "";
 }
 
+function normalizePhoneDigits(value: string | null | undefined) {
+  return value?.replace(/\D/g, "") || "";
+}
+
 function cleanPotentialName(value: string) {
   return value
     .replace(/\b(?:phone|email|budget|area|areas|stage|intent|source)\b.*$/i, "")
@@ -134,15 +158,11 @@ function isLikelyName(value: string) {
 }
 
 function parseName(lines: string[]) {
-  const labeledLine = lines.find((line) =>
-    /^(?:name|client|lead|buyer|renter|seller|prospect|姓名|客户)\s*[:：-]/i.test(
-      line,
-    ),
-  );
+  const labeledLine = lines.find((line) => nameLinePattern.test(line));
 
   if (labeledLine) {
     const value = cleanPotentialName(
-      labeledLine.replace(/^(?:name|client|lead|buyer|renter|seller|prospect|姓名|客户)\s*[:：-]\s*/i, ""),
+      labeledLine.replace(nameLinePattern, "$1"),
     );
 
     if (isLikelyName(value)) {
@@ -253,9 +273,7 @@ function collectAreaCandidates(lines: string[]) {
   const candidates: string[] = [];
 
   for (const line of lines) {
-    const match = line.match(
-      /(?:areas?|neighbo(?:u)?rhoods?|location|locations|looking in|interested in|preferred areas?|target areas?|区域|地区|片区)\s*[:：-]?\s*(.+)$/i,
-    );
+    const match = line.match(areaLinePattern);
 
     if (match?.[1]) {
       candidates.push(match[1].trim());
@@ -388,55 +406,290 @@ function buildNotes(lines: string[], rawText: string, sourceLabel: string) {
   return `${sourceLabel}: ${rawText.replace(/\s+/g, " ").slice(0, 320)}`.trim();
 }
 
-function buildFields(draft: FrontOfficeLeadIntakeAssistDraft) {
+function normalizeComparisonValue(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function countMoneyMatches(value: string) {
+  return value.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g)?.length ?? 0;
+}
+
+function resolveFieldAssessment(input: {
+  field: keyof FrontOfficeLeadIntakeAssistDraft;
+  value: string;
+  lines: string[];
+  text: string;
+}) {
+  const normalizedValue = normalizeComparisonValue(input.value);
+  const budgetLines = input.lines.filter((line) => budgetLinePattern.test(line));
+  const hasLabeledArea = input.lines.some((line) => areaLinePattern.test(line));
+  const hasLabeledFollowUp = input.lines.some((line) =>
+    followUpLinePattern.test(line),
+  );
+
+  switch (input.field) {
+    case "fullName": {
+      const hasLabeledName = input.lines.some((line) => {
+        const match = line.match(nameLinePattern);
+
+        if (!match?.[1]) {
+          return false;
+        }
+
+        return (
+          normalizeComparisonValue(cleanPotentialName(match[1])) ===
+          normalizedValue
+        );
+      });
+
+      return hasLabeledName
+        ? {
+            confidence: "high" as const,
+            autoApply: true,
+            reasonLabel: "Explicitly labeled in the transcript.",
+          }
+        : {
+            confidence: "medium" as const,
+            autoApply: false,
+            reasonLabel: "Inferred from the opening lines.",
+          };
+    }
+    case "phone":
+      return normalizePhoneDigits(input.value).length >= 10
+        ? {
+            confidence: "high" as const,
+            autoApply: true,
+            reasonLabel: "Matched a full phone-number pattern.",
+          }
+        : {
+            confidence: "medium" as const,
+            autoApply: false,
+            reasonLabel: "Looks like a phone number, but review it first.",
+          };
+    case "email":
+      return {
+        confidence: "high" as const,
+        autoApply: true,
+        reasonLabel: "Matched a valid email pattern.",
+      };
+    case "source":
+      return {
+        confidence: "high" as const,
+        autoApply: true,
+        reasonLabel: "Derived directly from the assist mode you used.",
+      };
+    case "stage":
+      return input.lines.some((line) => stageLinePattern.test(line))
+        ? {
+            confidence: "high" as const,
+            autoApply: true,
+            reasonLabel: "Stage was explicitly labeled.",
+          }
+        : {
+            confidence: "medium" as const,
+            autoApply: false,
+            reasonLabel: "Stage was inferred from conversation keywords.",
+          };
+    case "intent":
+      return input.lines.some((line) => intentLinePattern.test(line))
+        ? {
+            confidence: "high" as const,
+            autoApply: true,
+            reasonLabel: "Intent was explicitly labeled.",
+          }
+        : {
+            confidence: "medium" as const,
+            autoApply: false,
+            reasonLabel: "Intent was inferred from housing keywords.",
+          };
+    case "budgetMax": {
+      const budgetContext = budgetLines.join(" ");
+      const isSingleBudgetSignal =
+        budgetLines.length > 0 && countMoneyMatches(budgetContext) <= 1;
+
+      return budgetLines.length > 0 && isSingleBudgetSignal
+        ? {
+            confidence: "high" as const,
+            autoApply: true,
+            reasonLabel: "Budget came from a dedicated budget line.",
+          }
+        : {
+            confidence: budgetLines.length > 0 ? ("medium" as const) : ("low" as const),
+            autoApply: false,
+            reasonLabel:
+              budgetLines.length > 0
+                ? "Multiple budget-like amounts were found, so review the suggestion."
+                : "Budget was inferred from general transcript text.",
+          };
+    }
+    case "preferredAreas":
+      return hasLabeledArea
+        ? {
+            confidence: "high" as const,
+            autoApply: true,
+            reasonLabel: "Areas came from a location line.",
+          }
+        : {
+            confidence: "medium" as const,
+            autoApply: false,
+            reasonLabel: "Areas were inferred from freeform text.",
+          };
+    case "nextFollowUpAt":
+      if (hasLabeledFollowUp) {
+        return {
+          confidence: "high" as const,
+          autoApply: true,
+          reasonLabel: "Follow-up timing was explicitly labeled.",
+        };
+      }
+
+      if (/(?:tomorrow|明天|next week|下周|today|今天|\b20\d{2}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b)/i.test(input.text)) {
+        return {
+          confidence: "medium" as const,
+          autoApply: false,
+          reasonLabel: "Timing was inferred from relative or freeform date text.",
+        };
+      }
+
+      return {
+        confidence: "low" as const,
+        autoApply: false,
+        reasonLabel: "Date hint is too soft to auto-fill.",
+      };
+    case "notes":
+      return {
+        confidence: "low" as const,
+        autoApply: false,
+        reasonLabel: "Preview summary only. Keep or rewrite it manually.",
+      };
+  }
+}
+
+function buildFields(
+  draft: FrontOfficeLeadIntakeAssistDraft,
+  lines: string[],
+  text: string,
+) {
   const fields: FrontOfficeLeadIntakeAssistField[] = [];
 
   if (draft.fullName) {
-    fields.push({ field: "fullName", label: "Full name", value: draft.fullName });
+    const assessment = resolveFieldAssessment({
+      field: "fullName",
+      value: draft.fullName,
+      lines,
+      text,
+    });
+    fields.push({
+      field: "fullName",
+      label: "Full name",
+      value: draft.fullName,
+      ...assessment,
+    });
   }
 
   if (draft.phone) {
-    fields.push({ field: "phone", label: "Phone", value: draft.phone });
+    const assessment = resolveFieldAssessment({
+      field: "phone",
+      value: draft.phone,
+      lines,
+      text,
+    });
+    fields.push({ field: "phone", label: "Phone", value: draft.phone, ...assessment });
   }
 
   if (draft.email) {
-    fields.push({ field: "email", label: "Email", value: draft.email });
+    const assessment = resolveFieldAssessment({
+      field: "email",
+      value: draft.email,
+      lines,
+      text,
+    });
+    fields.push({ field: "email", label: "Email", value: draft.email, ...assessment });
   }
 
   if (draft.source) {
-    fields.push({ field: "source", label: "Source", value: draft.source });
+    const assessment = resolveFieldAssessment({
+      field: "source",
+      value: draft.source,
+      lines,
+      text,
+    });
+    fields.push({ field: "source", label: "Source", value: draft.source, ...assessment });
   }
 
   if (draft.stage && stageLabelMap[draft.stage]) {
-    fields.push({ field: "stage", label: "Stage", value: draft.stage });
+    const assessment = resolveFieldAssessment({
+      field: "stage",
+      value: draft.stage,
+      lines,
+      text,
+    });
+    fields.push({ field: "stage", label: "Stage", value: draft.stage, ...assessment });
   }
 
   if (draft.intent && intentLabelMap[draft.intent]) {
-    fields.push({ field: "intent", label: "Intent", value: draft.intent });
+    const assessment = resolveFieldAssessment({
+      field: "intent",
+      value: draft.intent,
+      lines,
+      text,
+    });
+    fields.push({ field: "intent", label: "Intent", value: draft.intent, ...assessment });
   }
 
   if (draft.budgetMax) {
-    fields.push({ field: "budgetMax", label: "Budget up to", value: draft.budgetMax });
+    const assessment = resolveFieldAssessment({
+      field: "budgetMax",
+      value: draft.budgetMax,
+      lines,
+      text,
+    });
+    fields.push({
+      field: "budgetMax",
+      label: "Budget up to",
+      value: draft.budgetMax,
+      ...assessment,
+    });
   }
 
   if (draft.preferredAreas) {
+    const assessment = resolveFieldAssessment({
+      field: "preferredAreas",
+      value: draft.preferredAreas,
+      lines,
+      text,
+    });
     fields.push({
       field: "preferredAreas",
       label: "Preferred areas",
       value: draft.preferredAreas,
+      ...assessment,
     });
   }
 
   if (draft.nextFollowUpAt) {
+    const assessment = resolveFieldAssessment({
+      field: "nextFollowUpAt",
+      value: draft.nextFollowUpAt,
+      lines,
+      text,
+    });
     fields.push({
       field: "nextFollowUpAt",
       label: "Next follow-up",
       value: draft.nextFollowUpAt,
+      ...assessment,
     });
   }
 
   if (draft.notes) {
-    fields.push({ field: "notes", label: "Notes", value: draft.notes });
+    const assessment = resolveFieldAssessment({
+      field: "notes",
+      value: draft.notes,
+      lines,
+      text,
+    });
+    fields.push({ field: "notes", label: "Notes", value: draft.notes, ...assessment });
   }
 
   return fields;
@@ -463,14 +716,18 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
     nextFollowUpAt: parseNextFollowUpAt(normalizedText, now),
     notes: buildNotes(lines, normalizedText, sourceLabel),
   };
-  const fields = buildFields(draft);
+  const fields = buildFields(draft, lines, normalizedText);
+  const autoApplyFieldCount = fields.filter((field) => field.autoApply).length;
+  const reviewFieldCount = fields.length - autoApplyFieldCount;
 
   return {
     rawText: normalizedText,
     draft,
     fields,
     summaryLabel: fields.length
-      ? `Detected ${fields.length} intake field(s)`
+      ? `Detected ${fields.length} intake field(s) · ${autoApplyFieldCount} ready to use`
       : "No structured lead fields detected yet",
+    autoApplyFieldCount,
+    reviewFieldCount,
   } satisfies FrontOfficeLeadIntakeAssistResult;
 }

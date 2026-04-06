@@ -6,11 +6,19 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { Button, FormField, SectionCard, SelectInput, TextInput, TextareaInput } from "@acre/ui";
+import {
+  Button,
+  FormField,
+  SectionCard,
+  SelectInput,
+  StatusBadge,
+  TextInput,
+  TextareaInput,
+} from "@acre/ui";
 import { useRouter } from "next/navigation";
 import {
   extractFrontOfficeLeadIntakeAssist,
-  type FrontOfficeLeadIntakeAssistDraft,
+  type FrontOfficeLeadIntakeAssistField,
   type FrontOfficeLeadIntakeAssistResult,
 } from "./front-office-lead-intake-assist";
 import { FrontOfficeLink } from "./front-office-link";
@@ -47,8 +55,13 @@ type DuplicateMatch = {
   sourceLabel: string;
   nextTouchLabel: string;
   ownerLabel: string;
+  detailLabel: string;
+  scopeLabel: string;
+  confidenceLabel: string;
+  matchStrength: number;
   href: string;
   reviewLabel: string;
+  recommendedActionLabel: string;
   matchReasons: string[];
 };
 
@@ -85,19 +98,6 @@ const intentOptions = [
   "Unknown",
 ] as const;
 
-const assistMergeFields = [
-  "fullName",
-  "phone",
-  "email",
-  "source",
-  "stage",
-  "intent",
-  "budgetMax",
-  "preferredAreas",
-  "nextFollowUpAt",
-  "notes",
-] as const satisfies ReadonlyArray<keyof LeadFormState>;
-
 function buildDefaultNextFollowUpAt() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -119,9 +119,9 @@ function buildEmptyFormState(): LeadFormState {
   };
 }
 
-function mergeLeadFormStateWithAssistDraft(
+function mergeLeadFormStateWithAssistFields(
   current: LeadFormState,
-  draft: FrontOfficeLeadIntakeAssistDraft,
+  fields: FrontOfficeLeadIntakeAssistField[],
 ) {
   const defaults = buildEmptyFormState();
   const nextState = {
@@ -129,10 +129,15 @@ function mergeLeadFormStateWithAssistDraft(
   };
   const appliedFields: Array<keyof LeadFormState> = [];
 
-  for (const field of assistMergeFields) {
-    const suggestedValue = draft[field];
+  for (const assistField of fields) {
+    if (!assistField.autoApply) {
+      continue;
+    }
 
-    if (typeof suggestedValue !== "string" || !suggestedValue.trim()) {
+    const field = assistField.field as keyof LeadFormState;
+    const suggestedValue = assistField.value.trim();
+
+    if (!suggestedValue) {
       continue;
     }
 
@@ -151,11 +156,60 @@ function mergeLeadFormStateWithAssistDraft(
   };
 }
 
+function getAssistFieldBadge(field: FrontOfficeLeadIntakeAssistField) {
+  if (field.confidence === "high") {
+    return "High confidence";
+  }
+
+  if (field.confidence === "medium") {
+    return "Review suggestion";
+  }
+
+  return "Preview only";
+}
+
+function getAssistFieldStatus(input: {
+  field: FrontOfficeLeadIntakeAssistField;
+  formState: LeadFormState;
+  autoAppliedFields: Array<keyof LeadFormState>;
+}) {
+  const currentValue = input.formState[input.field.field as keyof LeadFormState].trim();
+  const suggestedValue = input.field.value.trim();
+  const defaultValue =
+    buildEmptyFormState()[input.field.field as keyof LeadFormState].trim();
+  const matchesSuggestion = currentValue === suggestedValue;
+  const wasAutoApplied =
+    matchesSuggestion &&
+    input.autoAppliedFields.includes(input.field.field as keyof LeadFormState);
+
+  if (wasAutoApplied) {
+    return "Applied into form";
+  }
+
+  if (matchesSuggestion) {
+    return "Using this suggestion";
+  }
+
+  if (!currentValue || currentValue === defaultValue) {
+    return input.field.autoApply ? "Ready if needed" : "Review before using";
+  }
+
+  return "Kept your typed value";
+}
+
 export function FrontOfficeLeadIntakeCard(
   props: FrontOfficeLeadIntakeCardProps,
 ) {
   const router = useRouter();
   const density = props.density ?? "default";
+  const duplicateReviewHref =
+    props.sourceSurface === "clients"
+      ? "#duplicate-review"
+      : "/agent/clients#duplicate-review";
+  const duplicateReviewLabel =
+    props.sourceSurface === "clients"
+      ? "Open duplicate review lane"
+      : "Open duplicate review queue";
   const [formState, setFormState] = useState<LeadFormState>(buildEmptyFormState);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
@@ -167,6 +221,9 @@ export function FrontOfficeLeadIntakeCard(
   const [assistInputResetKey, setAssistInputResetKey] = useState(0);
   const [assistResult, setAssistResult] =
     useState<FrontOfficeLeadIntakeAssistResult | null>(null);
+  const [assistAutoAppliedFields, setAssistAutoAppliedFields] = useState<
+    Array<keyof LeadFormState>
+  >([]);
   const [assistFeedback, setAssistFeedback] =
     useState<AssistFeedbackState>(null);
   const [assistProgressMessage, setAssistProgressMessage] = useState("");
@@ -177,6 +234,7 @@ export function FrontOfficeLeadIntakeCard(
 
   function clearAssistOutput() {
     setAssistResult(null);
+    setAssistAutoAppliedFields([]);
     setAssistFeedback(null);
     setAssistProgressMessage("");
   }
@@ -196,6 +254,22 @@ export function FrontOfficeLeadIntakeCard(
       ...current,
       [name]: value,
     }));
+  }
+
+  function handleApplyAssistField(field: FrontOfficeLeadIntakeAssistField) {
+    const targetField = field.field as keyof LeadFormState;
+
+    setFormState((current) => ({
+      ...current,
+      [targetField]: field.value,
+    }));
+    setAssistAutoAppliedFields((current) =>
+      current.includes(targetField) ? current : [...current, targetField],
+    );
+    setAssistFeedback({
+      tone: field.confidence === "high" ? "success" : "neutral",
+      message: `${field.label} was placed into the intake form. Keep reviewing before you capture the lead.`,
+    });
   }
 
   function handleAssistTranscriptChange(
@@ -270,9 +344,9 @@ export function FrontOfficeLeadIntakeCard(
         rawText: combinedText,
         sourceMode: assistImage ? "image" : "text",
       });
-      const mergeOutcome = mergeLeadFormStateWithAssistDraft(
+      const mergeOutcome = mergeLeadFormStateWithAssistFields(
         formState,
-        result.draft,
+        result.fields,
       );
       const feedbackParts: string[] = [];
 
@@ -292,7 +366,17 @@ export function FrontOfficeLeadIntakeCard(
 
       if (mergeOutcome.appliedFields.length) {
         feedbackParts.push(
-          `${mergeOutcome.appliedFields.length} empty/default field(s) were filled into the live intake form.`,
+          `${mergeOutcome.appliedFields.length} high-confidence empty/default field(s) were filled into the live intake form.`,
+        );
+      } else if (result.autoApplyFieldCount > 0) {
+        feedbackParts.push(
+          "High-confidence suggestions were found, but Acre kept your typed values in place.",
+        );
+      }
+
+      if (result.reviewFieldCount > 0) {
+        feedbackParts.push(
+          `${result.reviewFieldCount} suggestion(s) stayed in preview so you can review them manually.`,
         );
       } else if (result.fields.length) {
         feedbackParts.push(
@@ -307,6 +391,7 @@ export function FrontOfficeLeadIntakeCard(
       }
 
       setAssistResult(result);
+      setAssistAutoAppliedFields(mergeOutcome.appliedFields);
       setFormState(mergeOutcome.nextState);
       setAssistProgressMessage("");
       setAssistFeedback({
@@ -351,7 +436,7 @@ export function FrontOfficeLeadIntakeCard(
         tone: "error",
         message:
           payload.error ??
-          "Potential duplicate clients were found inside your visible CRM scope. Review them first or create anyway if this is a new lead.",
+          "Potential duplicate clients were found inside your visible CRM scope. Review the closest existing record first, or create anyway if this is truly a new lead.",
       });
       return false;
     }
@@ -443,11 +528,13 @@ export function FrontOfficeLeadIntakeCard(
               <strong>OCR / transcript assist beta</strong>
               <p>
                 Drop in a WeChat screenshot or paste the chat thread. Acre reads
-                it in the browser, extracts what it can, and only fills
-                empty/default intake fields for review.
+                it in the browser, keeps low-confidence guesses in preview, and
+                only fills empty/default intake fields when the signal looks
+                strong enough.
               </p>
               <div className="front-office-record-meta">
                 <span>Browser-side extraction only</span>
+                <span>High-confidence assist only</span>
                 <span>No auto-create or auto-send</span>
                 <span>Review before capture</span>
               </div>
@@ -533,22 +620,67 @@ export function FrontOfficeLeadIntakeCard(
                 <div className="front-office-lead-intake-assist-head">
                   <strong>{assistResult.summaryLabel}</strong>
                   <p>
-                    Acre keeps the raw extract as a preview only. Review the
-                    suggested fields below before saving the real lead.
+                    Acre keeps the raw extract as a preview. Safe suggestions
+                    can land in the form, while softer guesses stay here until
+                    you choose to use them.
                   </p>
+                  <div className="front-office-record-meta">
+                    <span>{assistResult.autoApplyFieldCount} ready-to-use</span>
+                    <span>{assistResult.reviewFieldCount} review-only</span>
+                    <span>Manual entry always wins</span>
+                  </div>
                 </div>
 
                 <div className="front-office-lead-intake-assist-field-list">
                   {assistResult.fields.length ? (
-                    assistResult.fields.map((field) => (
-                      <article
-                        className="front-office-lead-intake-assist-field"
-                        key={`${field.field}-${field.value}`}
-                      >
-                        <span>{field.label}</span>
-                        <strong>{field.value}</strong>
-                      </article>
-                    ))
+                    assistResult.fields.map((field) => {
+                      const currentValue =
+                        formState[field.field as keyof LeadFormState].trim();
+                      const matchesSuggestion =
+                        currentValue === field.value.trim();
+                      const canApplySuggestion =
+                        field.confidence !== "low" && !matchesSuggestion;
+
+                      return (
+                        <article
+                          className="front-office-lead-intake-assist-field"
+                          key={`${field.field}-${field.value}`}
+                        >
+                          <span>
+                            {field.label} · {getAssistFieldBadge(field)}
+                          </span>
+                          <strong>{field.value}</strong>
+                          <div className="front-office-record-meta">
+                            <span>{field.reasonLabel}</span>
+                            <span>
+                              {getAssistFieldStatus({
+                                field,
+                                formState,
+                                autoAppliedFields: assistAutoAppliedFields,
+                              })}
+                            </span>
+                          </div>
+                          {canApplySuggestion ? (
+                            <div className="front-office-merge-actions">
+                              <Button
+                                onClick={() => {
+                                  handleApplyAssistField(field);
+                                }}
+                                size="sm"
+                                type="button"
+                                variant={
+                                  field.autoApply ? "secondary" : "ghost"
+                                }
+                              >
+                                {currentValue
+                                  ? "Use suggestion instead"
+                                  : "Use suggestion"}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                    })
                   ) : (
                     <article className="front-office-lead-intake-assist-field is-empty">
                       <span>Detected fields</span>
@@ -735,30 +867,48 @@ export function FrontOfficeLeadIntakeCard(
             <div className="front-office-duplicate-head">
               <strong>Potential duplicate leads</strong>
               <p>
-                Acre found existing client records in the CRM scope you can
-                currently see. Review them first if this might be the same
-                person before creating a second dossier.
+                Acre found existing records in the CRM scope you can currently
+                see. Start with the closest match below, then jump into the
+                duplicate review lane if this should merge instead of creating a
+                second dossier.
               </p>
             </div>
 
             <div className="office-queue-list">
               {duplicateMatches.map((match) => (
                 <article className="office-queue-item" key={match.id}>
-                  <strong>{match.fullName}</strong>
+                  <div className="office-queue-item-top">
+                    <strong>{match.fullName}</strong>
+                    <StatusBadge
+                      tone={match.matchStrength >= 2 ? "warning" : "accent"}
+                    >
+                      {match.confidenceLabel}
+                    </StatusBadge>
+                  </div>
                   <p>
-                    {match.stage} · {match.sourceLabel}
+                    {match.stage} · {match.sourceLabel} · {match.detailLabel}
                   </p>
                   <div className="front-office-record-meta">
                     <span>{match.matchReasons.join(" · ")}</span>
                     <span>{match.nextTouchLabel}</span>
                     <span>{match.ownerLabel}</span>
+                    <span>{match.scopeLabel}</span>
                   </div>
-                  <FrontOfficeLink
-                    className="office-inline-link front-office-inline-link"
-                    href={match.href}
-                  >
-                    {match.reviewLabel}
-                  </FrontOfficeLink>
+                  <div className="front-office-merge-actions">
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={match.href}
+                    >
+                      {match.reviewLabel}
+                    </FrontOfficeLink>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={duplicateReviewHref}
+                    >
+                      {duplicateReviewLabel}
+                    </FrontOfficeLink>
+                  </div>
+                  <p>{match.recommendedActionLabel}</p>
                 </article>
               ))}
             </div>

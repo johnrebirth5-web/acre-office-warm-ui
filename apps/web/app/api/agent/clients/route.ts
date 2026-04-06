@@ -12,10 +12,26 @@ function readBoolean(body: Record<string, unknown>, key: string) {
 }
 
 function parsePreferredAreas(value: string) {
+  const seen = new Set<string>();
+
   return value
-    .split(",")
+    .split(/,|，|\/|;|；|\n|、/)
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter((item) => {
+      if (!item) {
+        return false;
+      }
+
+      const normalized = item.toLowerCase();
+
+      if (seen.has(normalized)) {
+        return false;
+      }
+
+      seen.add(normalized);
+      return true;
+    })
+    .slice(0, 6);
 }
 
 export async function POST(request: NextRequest) {
@@ -84,7 +100,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Potential duplicate clients already exist inside your visible Front Office CRM scope. Review them first or confirm that you want to create a new lead anyway.",
+            "Potential duplicate clients already exist inside your visible Front Office CRM scope. Review the closest record first, then create anyway only if this really needs a separate Front Office dossier.",
           duplicateMatches,
         },
         { status: 409 },

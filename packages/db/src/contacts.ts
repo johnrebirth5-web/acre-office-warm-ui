@@ -193,8 +193,13 @@ export type FrontOfficeLeadDuplicateMatch = {
   sourceLabel: string;
   nextTouchLabel: string;
   ownerLabel: string;
+  detailLabel: string;
+  scopeLabel: string;
+  confidenceLabel: string;
+  matchStrength: number;
   href: string;
   reviewLabel: string;
+  recommendedActionLabel: string;
   matchReasons: string[];
 };
 
@@ -398,6 +403,54 @@ function formatFrontOfficeDuplicateNextTouchLabel(input: {
   }
 
   return "No follow-up scheduled";
+}
+
+function buildFrontOfficeLeadDuplicateDetailLabel(input: {
+  email: string | null;
+  phone: string | null;
+}) {
+  const parts = [input.email?.trim() || "", input.phone?.trim() || ""].filter(
+    Boolean,
+  );
+
+  return parts.length ? parts.join(" · ") : "No direct contact detail";
+}
+
+function buildFrontOfficeLeadDuplicateConfidenceLabel(matchReasons: string[]) {
+  if (matchReasons.length >= 3) {
+    return "Strong duplicate signal";
+  }
+
+  if (matchReasons.length >= 2) {
+    return "Likely same lead";
+  }
+
+  if (
+    matchReasons.includes("Same email") ||
+    matchReasons.includes("Same phone")
+  ) {
+    return "Direct contact match";
+  }
+
+  return "Name-only review";
+}
+
+function buildFrontOfficeLeadDuplicateActionLabel(input: {
+  isViewerOwned: boolean;
+  matchReasons: string[];
+}) {
+  const ownerScope = input.isViewerOwned
+    ? "this dossier"
+    : "this shared record";
+
+  if (
+    input.matchReasons.includes("Same email") ||
+    input.matchReasons.includes("Same phone")
+  ) {
+    return `Open ${ownerScope} first. If this is the same person, keep working there instead of creating a second FO lead.`;
+  }
+
+  return `Names overlap, so review ${ownerScope} before deciding whether a new lead is really needed.`;
 }
 
 function normalizeLeaseReminderInput(input: {
@@ -1057,7 +1110,7 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
       ],
     },
     orderBy: [{ updatedAt: "desc" }],
-    take: 6,
+    take: 12,
     select: {
       id: true,
       fullName: true,
@@ -1068,6 +1121,7 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
       nextFollowUpAt: true,
       leaseReminderAt: true,
       ownerMembershipId: true,
+      updatedAt: true,
       ownerMembership: {
         select: {
           user: {
@@ -1130,16 +1184,58 @@ export async function findFrontOfficeLeadDuplicateMatches(input: {
           `${candidate.ownerMembership?.user.firstName ?? ""} ${candidate.ownerMembership?.user.lastName ?? ""}`.trim() ||
           candidate.ownerMembership?.user.email ||
           "Unassigned",
+        detailLabel: buildFrontOfficeLeadDuplicateDetailLabel({
+          email: candidate.email,
+          phone: candidate.phone,
+        }),
+        scopeLabel: isViewerOwned
+          ? "Your Front Office dossier"
+          : "Shared office contact",
+        confidenceLabel: buildFrontOfficeLeadDuplicateConfidenceLabel(
+          matchReasons,
+        ),
+        matchStrength: matchReasons.length,
         href: isViewerOwned
           ? `/agent/clients/${candidate.id}`
           : `/office/contacts/${candidate.id}`,
         reviewLabel: isViewerOwned ? "Open FO dossier" : "Open office contact",
+        recommendedActionLabel: buildFrontOfficeLeadDuplicateActionLabel({
+          isViewerOwned,
+          matchReasons,
+        }),
         matchReasons,
-      } satisfies FrontOfficeLeadDuplicateMatch;
+        isViewerOwned,
+        updatedAt: candidate.updatedAt.getTime(),
+      } satisfies FrontOfficeLeadDuplicateMatch & {
+        isViewerOwned: boolean;
+        updatedAt: number;
+      };
     })
-    .filter((candidate): candidate is FrontOfficeLeadDuplicateMatch =>
-      Boolean(candidate),
-    );
+    .filter(
+      (
+        candidate,
+      ): candidate is FrontOfficeLeadDuplicateMatch & {
+        isViewerOwned: boolean;
+        updatedAt: number;
+      } => Boolean(candidate),
+    )
+    .sort((left, right) => {
+      const matchDelta = right.matchStrength - left.matchStrength;
+
+      if (matchDelta !== 0) {
+        return matchDelta;
+      }
+
+      const ownershipDelta = Number(right.isViewerOwned) - Number(left.isViewerOwned);
+
+      if (ownershipDelta !== 0) {
+        return ownershipDelta;
+      }
+
+      return right.updatedAt - left.updatedAt;
+    })
+    .slice(0, 6)
+    .map(({ isViewerOwned: _isViewerOwned, updatedAt: _updatedAt, ...candidate }) => candidate);
 }
 
 export async function mergeFrontOfficeClients(input: {
