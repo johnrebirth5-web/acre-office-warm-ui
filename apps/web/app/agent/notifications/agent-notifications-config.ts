@@ -1,0 +1,288 @@
+import type {
+  FrontOfficeActivityCleanupItem,
+  FrontOfficeActivityNotificationRecord,
+  FrontOfficeDashboardSnapshot,
+} from "@acre/db";
+
+export type AgentNotificationFilter =
+  | "all"
+  | FrontOfficeActivityNotificationRecord["groupKey"];
+
+export type AgentCleanupFilter =
+  | "all"
+  | FrontOfficeActivityCleanupItem["kindKey"]
+  | "duplicate_review";
+
+export type AgentNotificationStreamFilter =
+  | "all"
+  | FrontOfficeActivityNotificationRecord["streamKey"];
+
+export type AgentActivityView =
+  | "all"
+  | "personal_cleanup"
+  | "team_cleanup"
+  | "appointment_reminders"
+  | "general_notices";
+
+export type AgentNotificationReadState = "all" | "unread" | "read";
+
+export type AgentLeadershipCleanupFilter =
+  | "all"
+  | FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number]["kindKey"];
+
+export const activityViewOptions: Array<{
+  value: AgentActivityView;
+  label: string;
+}> = [
+  { value: "all", label: "Full activity center" },
+  { value: "personal_cleanup", label: "Personal cleanup" },
+  { value: "team_cleanup", label: "Team cleanup" },
+  { value: "appointment_reminders", label: "Appointment reminders" },
+  { value: "general_notices", label: "General notices" },
+];
+
+export const cleanupFilterOptions: Array<{
+  value: AgentCleanupFilter;
+  label: string;
+}> = [
+  { value: "all", label: "All personal cleanup" },
+  { value: "follow_up", label: "Follow-up due" },
+  { value: "appointment_writeback", label: "Appointment writeback" },
+  { value: "send_risk", label: "Send-trail risk" },
+  { value: "stale_client", label: "Stale dossiers" },
+  { value: "duplicate_review", label: "Duplicate review" },
+];
+
+export const notificationFilterOptions: Array<{
+  value: AgentNotificationFilter;
+  label: string;
+}> = [
+  { value: "all", label: "All notices" },
+  { value: "confirmation_due", label: "Confirmation due" },
+  { value: "reschedule_due", label: "Reschedule follow-up" },
+  { value: "external_touch_due", label: "External touch due" },
+  { value: "appointment_soon", label: "Appointment soon" },
+  { value: "general_notice", label: "General notices" },
+];
+
+export const noticeStreamFilterOptions: Array<{
+  value: AgentNotificationStreamFilter;
+  label: string;
+}> = [
+  { value: "all", label: "All notice lanes" },
+  { value: "front_office", label: "FO actions" },
+  { value: "back_office", label: "BO handoff" },
+  { value: "shared_notice", label: "Shared office notices" },
+  { value: "reference", label: "Awareness only" },
+];
+
+export const leadershipCleanupFilterOptions: Array<{
+  value: AgentLeadershipCleanupFilter;
+  label: string;
+}> = [
+  { value: "all", label: "All team pressure" },
+  { value: "overdue_task", label: "Overdue tasks" },
+  { value: "engagement_risk", label: "Send-trail risk" },
+  { value: "stale_client", label: "15+ day stale" },
+];
+
+export const readStateOptions: Array<{
+  value: AgentNotificationReadState;
+  label: string;
+}> = [
+  { value: "all", label: "All" },
+  { value: "unread", label: "Unread only" },
+  { value: "read", label: "Read only" },
+];
+
+export const appointmentReminderGroupConfig: Array<{
+  key: Exclude<AgentNotificationFilter, "all" | "general_notice">;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "confirmation_due",
+    label: "Confirmation due",
+    description: "Appointments waiting on an explicit confirmation deadline.",
+  },
+  {
+    key: "reschedule_due",
+    label: "Reschedule follow-up",
+    description:
+      "Clients asked to move the meeting and now need the next writeback touch.",
+  },
+  {
+    key: "external_touch_due",
+    label: "External touch due",
+    description:
+      "Follow-up pressure is coming from the promised next touch, not just the meeting start.",
+  },
+  {
+    key: "appointment_soon",
+    label: "Appointment soon",
+    description:
+      "Near-term meetings surfacing because the calendar commitment itself is approaching.",
+  },
+];
+
+export const generalNoticeLaneConfig: Array<{
+  key: Exclude<AgentNotificationStreamFilter, "all">;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "front_office",
+    label: "Front Office actions",
+    description:
+      "Use these when the next step still belongs in agent-side execution.",
+  },
+  {
+    key: "back_office",
+    label: "Back Office handoff",
+    description:
+      "Use these when the next action belongs in formal transaction or operations workflows.",
+  },
+  {
+    key: "shared_notice",
+    label: "Shared office notices",
+    description:
+      "These keep office-wide visibility close without turning them into personal inbox mutations.",
+  },
+  {
+    key: "reference",
+    label: "Awareness only",
+    description:
+      "These are meant to stay visible and informative, not force a read-state workflow.",
+  },
+];
+
+export const teamCleanupGroupConfig: Array<{
+  key: Exclude<AgentLeadershipCleanupFilter, "all">;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "overdue_task",
+    label: "Overdue tasks",
+    description:
+      "Shared follow-up tasks that have already slipped past the promised due time.",
+  },
+  {
+    key: "engagement_risk",
+    label: "Send-trail risk",
+    description:
+      "Tracked sends that stayed unopened or opened once and then went quiet.",
+  },
+  {
+    key: "stale_client",
+    label: "15+ day stale dossiers",
+    description:
+      "Visible-scope dossiers with enough inactivity to need leadership attention.",
+  },
+];
+
+export function resolveOptionValue<T extends string>(
+  rawValue: string | null | undefined,
+  options: Array<{
+    value: T;
+  }>,
+  fallback: T,
+) {
+  return options.some((option) => option.value === rawValue)
+    ? (rawValue as T)
+    : fallback;
+}
+
+export function normalizeNotificationFilterForActivityView(
+  activityView: AgentActivityView,
+  filter: AgentNotificationFilter,
+): AgentNotificationFilter {
+  if (activityView === "general_notices") {
+    return "general_notice";
+  }
+
+  if (activityView === "appointment_reminders" && filter === "general_notice") {
+    return "all";
+  }
+
+  return filter;
+}
+
+export function buildAgentNotificationsHref(input: {
+  pathname: string;
+  activityView: AgentActivityView;
+  cleanupFilter: AgentCleanupFilter;
+  filter: AgentNotificationFilter;
+  noticeStreamFilter: AgentNotificationStreamFilter;
+  readState: AgentNotificationReadState;
+  leadershipFilter: AgentLeadershipCleanupFilter;
+  anchor?: string;
+}) {
+  const params = new URLSearchParams();
+  const showPersonalCleanupControls =
+    input.activityView === "all" || input.activityView === "personal_cleanup";
+  const showNotificationControls =
+    input.activityView === "all" ||
+    input.activityView === "appointment_reminders" ||
+    input.activityView === "general_notices";
+  const showGeneralNoticeControls =
+    input.activityView === "all" || input.activityView === "general_notices";
+  const showTeamCleanupControls =
+    input.activityView === "all" || input.activityView === "team_cleanup";
+
+  if (input.activityView !== "all") {
+    params.set("activityView", input.activityView);
+  }
+
+  if (showPersonalCleanupControls && input.cleanupFilter !== "all") {
+    params.set("cleanupFilter", input.cleanupFilter);
+  }
+
+  if (
+    showNotificationControls &&
+    input.filter !== "all" &&
+    !(
+      input.activityView === "general_notices" &&
+      input.filter === "general_notice"
+    )
+  ) {
+    params.set("noticeFilter", input.filter);
+  }
+
+  if (showGeneralNoticeControls && input.noticeStreamFilter !== "all") {
+    params.set("noticeStreamFilter", input.noticeStreamFilter);
+  }
+
+  if (showNotificationControls && input.readState !== "all") {
+    params.set("readState", input.readState);
+  }
+
+  if (showTeamCleanupControls && input.leadershipFilter !== "all") {
+    params.set("teamCleanupFilter", input.leadershipFilter);
+  }
+
+  const query = params.toString();
+  const baseHref = query ? `${input.pathname}?${query}` : input.pathname;
+
+  return input.anchor ? `${baseHref}${input.anchor}` : baseHref;
+}
+
+export function getActivityViewAnchor(activityView: AgentActivityView) {
+  if (activityView === "personal_cleanup") {
+    return "#cleanup-center";
+  }
+
+  if (activityView === "team_cleanup") {
+    return "#team-cleanup-pressure";
+  }
+
+  if (activityView === "appointment_reminders") {
+    return "#appointment-reminder-pressure";
+  }
+
+  if (activityView === "general_notices") {
+    return "#notice-stream";
+  }
+
+  return "";
+}

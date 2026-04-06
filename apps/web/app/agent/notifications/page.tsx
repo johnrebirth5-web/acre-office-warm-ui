@@ -16,6 +16,15 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { requireSessionContext } from "../../../lib/auth-session";
+import {
+  activityViewOptions,
+  cleanupFilterOptions,
+  leadershipCleanupFilterOptions,
+  noticeStreamFilterOptions,
+  notificationFilterOptions,
+  readStateOptions,
+  resolveOptionValue,
+} from "./agent-notifications-config";
 import { AgentNotificationsClient } from "./agent-notifications-client";
 
 type AgentNotificationsPageProps = {
@@ -28,45 +37,6 @@ type AgentNotificationsPageProps = {
     teamCleanupFilter?: string;
   }>;
 };
-
-const allowedActivityViews = new Set([
-  "all",
-  "personal_cleanup",
-  "team_cleanup",
-  "appointment_reminders",
-  "general_notices",
-]);
-const allowedNoticeFilters = new Set([
-  "all",
-  "confirmation_due",
-  "reschedule_due",
-  "external_touch_due",
-  "appointment_soon",
-  "general_notice",
-]);
-const allowedCleanupFilters = new Set([
-  "all",
-  "follow_up",
-  "appointment_writeback",
-  "send_risk",
-  "stale_client",
-  "duplicate_review",
-]);
-const allowedNoticeStreamFilters = new Set([
-  "all",
-  "front_office",
-  "back_office",
-  "shared_notice",
-  "reference",
-]);
-
-const allowedReadStates = new Set(["all", "unread", "read"]);
-const allowedTeamCleanupFilters = new Set([
-  "all",
-  "overdue_task",
-  "engagement_risk",
-  "stale_client",
-]);
 
 function leadershipItemMatchesFilter(
   item: FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number],
@@ -107,60 +77,36 @@ export default async function AgentNotificationsPage(
     }),
   ]);
   const searchParams = (await props.searchParams) ?? {};
-  const initialActivityView = allowedActivityViews.has(
-    searchParams.activityView ?? "",
-  )
-    ? (searchParams.activityView as
-        | "all"
-        | "personal_cleanup"
-        | "team_cleanup"
-        | "appointment_reminders"
-        | "general_notices")
-    : "all";
-  const initialFilter = allowedNoticeFilters.has(
-    searchParams.noticeFilter ?? "",
-  )
-    ? (searchParams.noticeFilter as
-        | "all"
-        | "confirmation_due"
-        | "reschedule_due"
-        | "external_touch_due"
-        | "appointment_soon"
-        | "general_notice")
-    : "all";
-  const initialCleanupFilter = allowedCleanupFilters.has(
-    searchParams.cleanupFilter ?? "",
-  )
-    ? (searchParams.cleanupFilter as
-        | "all"
-        | "follow_up"
-        | "appointment_writeback"
-        | "send_risk"
-        | "stale_client"
-        | "duplicate_review")
-    : "all";
-  const initialNoticeStreamFilter = allowedNoticeStreamFilters.has(
-    searchParams.noticeStreamFilter ?? "",
-  )
-    ? (searchParams.noticeStreamFilter as
-        | "all"
-        | "front_office"
-        | "back_office"
-        | "shared_notice"
-        | "reference")
-    : "all";
-  const initialReadState = allowedReadStates.has(searchParams.readState ?? "")
-    ? (searchParams.readState as "all" | "unread" | "read")
-    : "all";
-  const initialTeamCleanupFilter = allowedTeamCleanupFilters.has(
-    searchParams.teamCleanupFilter ?? "",
-  )
-    ? (searchParams.teamCleanupFilter as
-        | "all"
-        | "overdue_task"
-        | "engagement_risk"
-        | "stale_client")
-    : "all";
+  const initialActivityView = resolveOptionValue(
+    searchParams.activityView,
+    activityViewOptions,
+    "all",
+  );
+  const initialFilter = resolveOptionValue(
+    searchParams.noticeFilter,
+    notificationFilterOptions,
+    "all",
+  );
+  const initialCleanupFilter = resolveOptionValue(
+    searchParams.cleanupFilter,
+    cleanupFilterOptions,
+    "all",
+  );
+  const initialNoticeStreamFilter = resolveOptionValue(
+    searchParams.noticeStreamFilter,
+    noticeStreamFilterOptions,
+    "all",
+  );
+  const initialReadState = resolveOptionValue(
+    searchParams.readState,
+    readStateOptions,
+    "all",
+  );
+  const initialTeamCleanupFilter = resolveOptionValue(
+    searchParams.teamCleanupFilter,
+    leadershipCleanupFilterOptions,
+    "all",
+  );
   const appointmentReminderCards = snapshot.notifications.filter(
     (card) => card.groupKey !== "general_notice",
   );
