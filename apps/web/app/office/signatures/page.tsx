@@ -102,7 +102,7 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
             ) : null}
           </>
         }
-        description="A Back Office signatures workspace for continuing drafts, reusing templates, monitoring sent envelopes, and making the non-transaction path more visible without changing the current transaction-first authoring foundation."
+        description="A Back Office signatures workspace for continuing real drafts, reusing templates, monitoring sent envelopes, and exposing the current schema blockers that still prevent a true non-transaction create flow from starting here."
         eyebrow="Documents"
         summary={
           <>
@@ -110,6 +110,7 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
             <SummaryChip label="Drafts" tone="accent" value={workspace.summary.draftCount} />
             <SummaryChip label="Needs follow-up" value={workspace.summary.pendingCount} />
             <SummaryChip label="Drive failures" value={workspace.summary.failedDriveCount} />
+            <SummaryChip label="Center create" value={workspace.createSupport.canStartNonTransactionDraft ? "Available" : "Blocked"} />
             {canManageTemplateLibrary ? <SummaryChip label="Active templates" value={workspace.summary.activeTemplateCount} /> : null}
           </>
         }

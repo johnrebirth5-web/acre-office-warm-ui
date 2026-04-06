@@ -270,6 +270,7 @@ export function SignatureTemplatesClient({
 
       setCurrentSnapshot({
         summary: buildSnapshotSummary(nextTemplates),
+        capabilities: currentSnapshot.capabilities,
         templates: nextTemplates
       });
       setEditorState({
@@ -296,13 +297,17 @@ export function SignatureTemplatesClient({
       <ListPageStatsGrid>
         <StatCard hint="Active templates available for the next authoring session." label="Active" tone="accent" value={currentSnapshot.summary.activeCount} />
         <StatCard hint="Templates intentionally parked but still retained in the library." label="Inactive" value={currentSnapshot.summary.inactiveCount} />
-        <StatCard hint="HR, finance, and admin templates that read less transaction-specific." label="Non-transaction" value={currentSnapshot.summary.nonTransactionCount} />
+        <StatCard
+          hint="HR, finance, and admin templates currently available outside the pure transaction lane. Generic still remains request-level context only."
+          label="HR / finance / admin"
+          value={currentSnapshot.summary.nonTransactionCount}
+        />
         <StatCard hint="Templates that already have at least one request in circulation or history." label="Used at least once" value={currentSnapshot.summary.usedCount} />
         <StatCard hint="Templates that currently have a draft or pending-send request you can continue." label="Live drafts" value={currentSnapshot.summary.templatesWithLiveDraftsCount} />
       </ListPageStatsGrid>
 
       <ListPageSection
-        subtitle="Filter the template library by name, category, operational status, or whether a template already has a live draft in motion."
+        subtitle="Filter the template library by name, category, operational status, or whether a template already has a live draft in motion. This library still feeds the current transaction-PDF authoring path."
         title="Library controls"
       >
         <div className="office-form-grid">
@@ -371,13 +376,14 @@ export function SignatureTemplatesClient({
         </div>
 
         <p className="office-form-helper">
-          Showing <strong>{filteredTemplates.length}</strong> of <strong>{currentSnapshot.summary.totalCount}</strong> templates.
+          {currentSnapshot.capabilities.genericTemplateCategoryNote} Showing <strong>{filteredTemplates.length}</strong> of{" "}
+          <strong>{currentSnapshot.summary.totalCount}</strong> templates.
         </p>
       </ListPageSection>
 
       <ListPageTableSection
         className="office-list-card"
-        subtitle="Templates remain reusable blueprints, but this library now surfaces whether each one already has a live draft or recent request that operations can continue from the center."
+        subtitle="Templates remain reusable blueprints inside the existing transaction-PDF signature flow, while this library surfaces whether each one already has a live draft or recent request operations can continue from the center."
         title="Template library"
       >
         <DataTable className="office-list-table office-list-table-reports">
@@ -445,7 +451,7 @@ export function SignatureTemplatesClient({
 
       {selectedTemplate ? (
         <ListPageSection
-          subtitle="The template library remains the place to maintain reusable metadata and delivery defaults, while the latest live request link brings you back into real authoring when that template is already in motion."
+          subtitle="The template library remains the place to maintain reusable metadata and delivery defaults, while the latest live request link brings you back into the real transaction-backed editor when that template is already in motion."
           title="Selected template"
         >
           {error ? <p className="office-inline-error">{error}</p> : null}
@@ -459,8 +465,8 @@ export function SignatureTemplatesClient({
           </ListPageStatsGrid>
 
           <p className="office-form-helper">
-            Templates still apply on top of a source PDF in the real request editor. This page centralizes upkeep and gives you a direct way back
-            to the latest live request when one already exists.
+            Templates still apply on top of a source PDF in the real request editor. This page centralizes upkeep, keeps category support truthful,
+            and gives you a direct way back to the latest live request when one already exists.
           </p>
 
           <SecondaryMetaList
@@ -468,6 +474,14 @@ export function SignatureTemplatesClient({
               {
                 label: "Category",
                 value: selectedTemplate.categoryLabel
+              },
+              {
+                label: "Supported template categories",
+                value: currentSnapshot.capabilities.supportedCategories.map((category) => category.label).join(" · ")
+              },
+              {
+                label: "Generic category",
+                value: currentSnapshot.capabilities.genericTemplateCategoryNote
               },
               {
                 label: "Created by",

@@ -29,14 +29,15 @@ export default async function OfficeSignatureTemplatesPage() {
             Back to signatures
           </Link>
         }
-        description="Maintain the reusable signature library from one place, track which templates already have live drafts, and route people back into the real request editor when a template is already in motion."
+        description="Maintain the reusable signature library from one place, track which templates already have live drafts, and keep the library honest about the current transaction-PDF authoring model."
         eyebrow="Documents"
         summary={
           <>
             <SummaryChip label="Office scope" value={scopeLabel} />
             <SummaryChip label="Templates" tone="accent" value={snapshot.summary.totalCount} />
             <SummaryChip label="Active" value={snapshot.summary.activeCount} />
-            <SummaryChip label="Non-transaction" value={snapshot.summary.nonTransactionCount} />
+            <SummaryChip label="HR / finance / admin" value={snapshot.summary.nonTransactionCount} />
+            <SummaryChip label="Generic category" value={snapshot.capabilities.supportsGenericTemplateCategory ? "Available" : "Schema pending"} />
             <SummaryChip label="Live drafts" value={snapshot.summary.templatesWithLiveDraftsCount} />
           </>
         }

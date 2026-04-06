@@ -61,6 +61,15 @@ export type OfficeSignatureWorkspaceSnapshot = {
     nonTransactionRequestCount: number;
     nonTransactionTemplateCount: number;
   };
+  createSupport: {
+    canStartNonTransactionDraft: boolean;
+    currentAuthoringPathLabel: string;
+    blockers: Array<{
+      code: string;
+      title: string;
+      detail: string;
+    }>;
+  };
   filters: {
     status: string;
     category: string;
@@ -132,6 +141,39 @@ const contextTypeLabelMap: Record<string, string> = {
   admin_request: "Admin request",
   generic: "Generic"
 };
+
+function buildNonTransactionCreateSupport() {
+  return {
+    canStartNonTransactionDraft: false,
+    currentAuthoringPathLabel: "Transaction PDF -> recipients and delivery -> PDF field placement",
+    blockers: [
+      {
+        code: "signature-request-transaction-required",
+        title: "Request row still requires a transaction",
+        detail:
+          "The current schema keeps `SignatureRequest.transactionId` required, so the center cannot save a standalone HR, finance, admin, or generic signature draft."
+      },
+      {
+        code: "signature-recipient-field-transaction-required",
+        title: "Recipients and fields are also transaction-scoped",
+        detail:
+          "Both `SignatureRecipient` and `SignatureField` still store `transactionId`, so routing ownership and field placement cannot exist outside a transaction context."
+      },
+      {
+        code: "signature-editor-needs-transaction-pdf",
+        title: "The editor only opens on a transaction PDF",
+        detail:
+          "The current request editor resolves through `TransactionDocument` and returns no snapshot when a signature request does not have a transaction-backed PDF source."
+      },
+      {
+        code: "generic-template-category-missing",
+        title: "Generic is not a template category yet",
+        detail:
+          "The template enum still supports only transaction, HR, finance, and admin. `generic` can be tracked as request context metadata, but it cannot be saved as a reusable template category."
+      }
+    ]
+  };
+}
 
 function buildVisibilityWhere(input: WorkspaceVisibilityInput) {
   const officeScope = input.officeId ? { officeId: input.officeId } : {};
@@ -514,6 +556,7 @@ export async function getOfficeSignaturesWorkspace(
       ).length,
       nonTransactionTemplateCount
     },
+    createSupport: buildNonTransactionCreateSupport(),
     filters: {
       status: input.status?.trim() || "all",
       category: input.category?.trim() || "all",

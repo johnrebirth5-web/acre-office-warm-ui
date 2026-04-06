@@ -284,8 +284,8 @@ export function OfficeSignaturesClient({
         <StatCard hint="Envelopes already in recipient hands or partially completed." label="In flight" value={workspace.summary.inFlightCount} />
         <StatCard hint="Finished requests in the current filtered center view." label="Completed" value={workspace.summary.completedCount} />
         <StatCard
-          hint="HR, finance, admin, and generic requests visible here even though authoring still starts on a source PDF."
-          label="Non-transaction"
+          hint="HR, finance, admin, and generic requests can be tracked here after they already exist, but brand-new non-transaction drafts still cannot start from this center."
+          label="Non-transaction tracked"
           value={workspace.summary.nonTransactionRequestCount}
         />
         {canManageTemplateLibrary ? (
@@ -306,8 +306,8 @@ export function OfficeSignaturesClient({
 
       <ListPageSplit>
         <ListPageSection
-          subtitle="This center can reopen saved drafts, surface sent envelopes that still need attention, and let operations retry Drive sync without backing into a transaction detail page first."
-          title="Start / continue from center"
+          subtitle="This center can continue saved drafts, surface sent envelopes that still need attention, and let operations retry Drive sync without backing into transaction detail first."
+          title="Continue from center"
         >
           {centerQueue.length > 0 ? (
             <div className="office-queue-list">
@@ -338,54 +338,50 @@ export function OfficeSignaturesClient({
                   </Link>
                 ) : null
               }
-              description="No drafts, in-flight envelopes, or Drive retries are currently bubbling to the top of the center."
+              description="No existing drafts, in-flight envelopes, or Drive retries are currently bubbling to the top of the center."
               title="Nothing urgent in the signatures workspace"
             />
           )}
         </ListPageSection>
 
         <ListPageSection
-          subtitle="The center now makes the create-anywhere path clearer, while staying honest about the current transaction-backed editor and storage model."
-          title="Operating path"
+          subtitle="This page now reflects the actual platform state: non-transaction tracking is live here, but center-originated generic, HR, finance, and admin drafts are still blocked underneath the UI."
+          title="Center create status"
         >
           <div className="office-queue-list">
             <QueueItem
-              badgeLabel="Reusable"
-              badgeTone="accent"
-              description={
-                canManageTemplateLibrary
-                  ? `${workspace.summary.activeTemplateCount} active templates are ready to prefill recipients, routing, copy, and field placements once a source PDF is chosen.`
-                  : "Templates still govern the reusable recipient, routing, and field-placement defaults for this workspace."
-              }
+              badgeLabel={workspace.createSupport.canStartNonTransactionDraft ? "Available" : "Blocked"}
+              badgeTone={workspace.createSupport.canStartNonTransactionDraft ? "success" : "danger"}
+              description="A true standalone non-transaction signature draft cannot be persisted from `/office/signatures` yet. The blockers below are schema and editor constraints, not missing button wiring."
               meta={
                 <SecondaryMetaList
-                  items={[
-                    {
-                      label: "Library scope",
-                      value: canManageTemplateLibrary ? `${workspace.summary.templateCount} total templates` : "Managed by template admins"
-                    },
-                    {
-                      label: "Non-transaction templates",
-                      value: canManageTemplateLibrary ? workspace.summary.nonTransactionTemplateCount : "Available in the shared library"
-                    }
-                  ]}
+                  items={workspace.createSupport.blockers.map((blocker) => ({
+                    label: blocker.title,
+                    value: blocker.detail
+                  }))}
                 />
               }
-              title="Templates now read like a shared signature library, not just a transaction side effect."
+              title="A true non-transaction create flow is still blocked below this page."
             />
 
             <QueueItem
-              badgeLabel="Truthful"
-              description="Actual request authoring still lands on a real transaction PDF. This center deepens visibility, draft continuation, and template reuse without pretending a new schema-level generic create flow already exists."
+              badgeLabel="Current path"
+              description="What still works today: pick a transaction PDF, optionally prefill from a template, save the draft, then continue or monitor the request from this center."
               meta={
                 <SecondaryMetaList
                   items={[
                     {
                       label: "Current authoring path",
-                      value: "Transaction PDF -> optional template prefill -> save draft -> continue here"
+                      value: workspace.createSupport.currentAuthoringPathLabel
                     },
                     {
-                      label: "Requests visible here",
+                      label: "Template reuse",
+                      value: canManageTemplateLibrary
+                        ? `${workspace.summary.activeTemplateCount} active templates, including ${workspace.summary.nonTransactionTemplateCount} HR / finance / admin templates`
+                        : "Managed through the shared template library"
+                    },
+                    {
+                      label: "Requests tracked here",
                       value:
                         categoryBreakdown.length > 0
                           ? categoryBreakdown.map((entry) => `${entry.label} ${entry.count}`).join(" · ")
@@ -394,14 +390,14 @@ export function OfficeSignaturesClient({
                   ]}
                 />
               }
-              title="The signatures center is a real workspace now, even before schema-level generic create lands."
+              title="Existing drafts and transaction-backed context requests remain fully usable."
             />
 
             {driveSnapshot ? (
               <QueueItem
                 badgeLabel={driveSnapshot.summary.statusLabel}
                 badgeTone={driveSnapshot.summary.canSyncNow ? "success" : "neutral"}
-                description="Drive routing stays visible from the center so operations can see how completed signature packets will archive for transaction and non-transaction work."
+                description="Drive routing stays visible from the center so operations can see how completed signature packets will archive for both transaction-backed and context-labeled requests."
                 meta={
                   <SecondaryMetaList
                     items={[
@@ -430,7 +426,7 @@ export function OfficeSignaturesClient({
       </ListPageSplit>
 
       <ListPageSection
-        subtitle="Filter the signatures center by lifecycle, category, sender, internal subject, or signer/recipient so the workspace can serve both transaction and non-transaction operations."
+        subtitle="Filter existing signature requests by lifecycle, category, sender, internal subject, or signer/recipient. This narrows the live queue; it does not create a new standalone draft."
         title="Live queue filters"
       >
         <form className="office-form-grid" onSubmit={applyFilters}>
@@ -521,7 +517,7 @@ export function OfficeSignaturesClient({
 
       <ListPageTableSection
         className="office-list-card"
-        subtitle="Every row is reachable from the signatures center so operations can continue drafts, review live envelopes, and confirm archive state without relying on a reverse jump from transaction detail."
+        subtitle="Every row here is a real existing request. Use this table to continue drafts, review live envelopes, and confirm archive state while the actual new-request path remains transaction-PDF based."
         title="Signature requests"
       >
         <DataTable className="office-list-table office-list-table-signatures">
@@ -599,7 +595,7 @@ export function OfficeSignaturesClient({
                     </Link>
                   ) : null
                 }
-                description="Clear a filter, continue an existing draft, or start from a transaction PDF and let the request return here once it becomes a live envelope."
+                description="Clear a filter, continue an existing draft, or start from a transaction PDF and let the request return here once it becomes a real live envelope."
                 title="No signature requests matched the current filters"
               />
             ) : null}

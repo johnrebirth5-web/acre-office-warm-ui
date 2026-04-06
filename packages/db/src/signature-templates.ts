@@ -85,6 +85,14 @@ export type OfficeSignatureTemplateLibrarySnapshot = {
     usedCount: number;
     templatesWithLiveDraftsCount: number;
   };
+  capabilities: {
+    supportsGenericTemplateCategory: boolean;
+    supportedCategories: Array<{
+      key: SignatureTemplateCategory;
+      label: string;
+    }>;
+    genericTemplateCategoryNote: string;
+  };
   templates: OfficeSignatureTemplate[];
 };
 
@@ -366,6 +374,18 @@ function buildLibrarySummary(templates: OfficeSignatureTemplate[]) {
   };
 }
 
+function buildTemplateLibraryCapabilities() {
+  return {
+    supportsGenericTemplateCategory: false,
+    supportedCategories: Object.entries(categoryLabelMap).map(([key, label]) => ({
+      key: key as SignatureTemplateCategory,
+      label
+    })),
+    genericTemplateCategoryNote:
+      "The current schema only allows transaction, HR, finance, and admin template categories. `generic` still exists only as request context metadata."
+  };
+}
+
 export async function getOfficeSignatureTemplateLibrarySnapshot(input: {
   organizationId: string;
   officeId?: string | null;
@@ -375,6 +395,7 @@ export async function getOfficeSignatureTemplateLibrarySnapshot(input: {
 
   return {
     summary: buildLibrarySummary(mappedTemplates),
+    capabilities: buildTemplateLibraryCapabilities(),
     templates: mappedTemplates
   };
 }
