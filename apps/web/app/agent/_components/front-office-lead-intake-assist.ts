@@ -28,6 +28,7 @@ export type FrontOfficeLeadIntakeAssistProvenance =
 export type FrontOfficeLeadIntakeAssistRiskFlag =
   | "multiple_people"
   | "household_context"
+  | "speaker_switching"
   | "contact_owner_unclear"
   | "multiple_contact_values"
   | "multiple_budget_values"
@@ -39,7 +40,9 @@ export type FrontOfficeLeadIntakeAssistField = {
   label: string;
   value: string;
   confidence: FrontOfficeLeadIntakeAssistConfidence;
+  confidenceLabel: string;
   suggestedAction: FrontOfficeLeadIntakeAssistSuggestedAction;
+  suggestedActionLabel: string;
   reasonLabel: string;
   provenance: FrontOfficeLeadIntakeAssistProvenance;
   provenanceLabel: string;
@@ -79,18 +82,17 @@ type ConversationContext = {
   hasMultiplePeople: boolean;
   hasHouseholdContext: boolean;
   hasContactOwnerRisk: boolean;
+  hasSpeakerSwitching: boolean;
   riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[];
   cautionLabels: string[];
+  speakerNameCandidates: string[];
 };
 
 const nameLinePattern =
   /^(?:name|client|lead|buyer|renter|seller|prospect|姓名|客户)\s*[:：-]\s*(.+)$/i;
-const phoneLinePattern =
-  /^(?:phone|mobile|cell|电话|手机号)\s*[:：-]\s*(.+)$/i;
-const emailLinePattern =
-  /^(?:email|e-mail|邮箱)\s*[:：-]\s*(.+)$/i;
-const stageLinePattern =
-  /^(?:stage|status|客户阶段|阶段)\s*[:：-]\s*(.+)$/i;
+const phoneLinePattern = /^(?:phone|mobile|cell|电话|手机号)\s*[:：-]\s*(.+)$/i;
+const emailLinePattern = /^(?:email|e-mail|邮箱)\s*[:：-]\s*(.+)$/i;
+const stageLinePattern = /^(?:stage|status|客户阶段|阶段)\s*[:：-]\s*(.+)$/i;
 const intentLinePattern =
   /^(?:intent|type|client type|business type|需求|客户类型)\s*[:：-]\s*(.+)$/i;
 const budgetLinePattern =
@@ -99,12 +101,16 @@ const areaLinePattern =
   /(?:areas?|neighbo(?:u)?rhoods?|location|locations|looking in|interested in|preferred areas?|target areas?|区域|地区|片区)\s*[:：-]?\s*(.+)$/i;
 const followUpLinePattern =
   /(?:follow-up|follow up|next touch|next step|callback|回访|跟进|下次联系)\s*[:：-]?\s*(.+)$/i;
+const speakerPrefixPattern =
+  /^([A-Za-z][A-Za-z'’.-]*(?:\s+[A-Za-z][A-Za-z'’.-]*){0,2}|[\u4e00-\u9fff]{2,6})\s*[:：]\s*/;
 const familyContextPattern =
   /(?:wife|husband|spouse|partner|fianc(?:e|ee|é|ée)|boyfriend|girlfriend|family|parents?|mom|mother|dad|father|son|daughter|kids?|children|brother|sister|roommate|roommates|夫妻|家人|家庭|老公|老婆|父母|爸妈|妈妈|爸爸|儿子|女儿|孩子|室友|男朋友|女朋友)/i;
 const multiPartyPattern =
   /(?:\bwe\b|\bour\b|\bus\b|couple|together|group chat|joint|夫妻|一家|两位|一起|共同|双方)/i;
 const contactOwnerRiskPattern =
   /(?:agent|broker|realtor|assistant|coworker|for my client|their client|经纪人|中介|助理|代发|转述|帮客户)/i;
+const signatureContactPattern =
+  /(?:best|thanks|regards|sincerely|call me|text me|reach me|联系我|给我打电话|给我发短信)/i;
 
 const stageLabelMap: Record<string, string> = {
   "Cold Lead": "Stage",
@@ -161,7 +167,10 @@ function uniqueStrings(values: string[]) {
 
 function cleanPotentialName(value: string) {
   return value
-    .replace(/\b(?:phone|email|budget|area|areas|stage|intent|source)\b.*$/i, "")
+    .replace(
+      /\b(?:phone|email|budget|area|areas|stage|intent|source)\b.*$/i,
+      "",
+    )
     .replace(/\d{1,2}:\d{2}.*$/, "")
     .replace(/[|•·]+/g, " ")
     .replace(/\s{2,}/g, " ")
@@ -199,6 +208,27 @@ function extractLikelyNameCandidates(value: string) {
   return uniqueStrings(candidates);
 }
 
+function extractSpeakerNameCandidates(lines: string[]) {
+  return uniqueStrings(
+    lines.slice(0, 12).flatMap((line) => {
+      if (
+        nameLinePattern.test(line) ||
+        phoneLinePattern.test(line) ||
+        emailLinePattern.test(line) ||
+        stageLinePattern.test(line) ||
+        intentLinePattern.test(line)
+      ) {
+        return [];
+      }
+
+      const match = line.match(speakerPrefixPattern);
+      const candidate = cleanPotentialName(match?.[1] ?? "");
+
+      return isLikelyName(candidate) ? [candidate] : [];
+    }),
+  );
+}
+
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "");
 
@@ -217,7 +247,10 @@ function countMoneyMatches(value: string) {
   return value.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g)?.length ?? 0;
 }
 
-function buildConversationContext(lines: string[], text: string): ConversationContext {
+function buildConversationContext(
+  lines: string[],
+  text: string,
+): ConversationContext {
   const riskFlags = new Set<FrontOfficeLeadIntakeAssistRiskFlag>();
   const cautionLabels: string[] = [];
 
@@ -232,9 +265,11 @@ function buildConversationContext(lines: string[], text: string): ConversationCo
   const openerNameCandidates = uniqueStrings(
     lines.slice(0, 6).flatMap((line) => extractLikelyNameCandidates(line)),
   );
+  const speakerNameCandidates = extractSpeakerNameCandidates(lines);
   const combinedNameCandidates = uniqueStrings([
     ...labeledNameCandidates,
     ...openerNameCandidates,
+    ...speakerNameCandidates,
   ]);
 
   const hasMultiplePeople =
@@ -242,7 +277,9 @@ function buildConversationContext(lines: string[], text: string): ConversationCo
     multiPartyPattern.test(text) ||
     /(?:&|\/)/.test(text);
   const hasHouseholdContext = familyContextPattern.test(text);
-  const hasContactOwnerRisk = contactOwnerRiskPattern.test(text);
+  const hasSpeakerSwitching = speakerNameCandidates.length > 1;
+  const hasContactOwnerRisk =
+    contactOwnerRiskPattern.test(text) || signatureContactPattern.test(text);
 
   if (hasMultiplePeople) {
     riskFlags.add("multiple_people");
@@ -258,6 +295,13 @@ function buildConversationContext(lines: string[], text: string): ConversationCo
     );
   }
 
+  if (hasSpeakerSwitching) {
+    riskFlags.add("speaker_switching");
+    cautionLabels.push(
+      "More than one named speaker appears in the transcript, so identity-sensitive fields stay review-first.",
+    );
+  }
+
   if (hasContactOwnerRisk) {
     riskFlags.add("contact_owner_unclear");
     cautionLabels.push(
@@ -269,8 +313,10 @@ function buildConversationContext(lines: string[], text: string): ConversationCo
     hasMultiplePeople,
     hasHouseholdContext,
     hasContactOwnerRisk,
+    hasSpeakerSwitching,
     riskFlags: [...riskFlags],
     cautionLabels,
+    speakerNameCandidates,
   };
 }
 
@@ -299,11 +345,11 @@ function parseName(
     }
 
     const riskFlags = ambiguousLine
-      ? uniqueStrings([
+      ? (uniqueStrings([
           ...context.riskFlags,
           "multiple_people",
           context.hasHouseholdContext ? "household_context" : "",
-        ]).filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[]
+        ]).filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[])
       : [...context.riskFlags];
 
     return {
@@ -356,7 +402,9 @@ function parseEmail(
     const explicit = emailLinePattern.test(evidence ?? "");
     const riskFlags = [
       ...context.riskFlags,
-      familyContextPattern.test(evidence ?? "") || contactOwnerRiskPattern.test(evidence ?? "")
+      familyContextPattern.test(evidence ?? "") ||
+      contactOwnerRiskPattern.test(evidence ?? "") ||
+      signatureContactPattern.test(evidence ?? "")
         ? "contact_owner_unclear"
         : "",
     ].filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[];
@@ -409,7 +457,9 @@ function parsePhone(
     const explicit = phoneLinePattern.test(evidence ?? "");
     const riskFlags = [
       ...context.riskFlags,
-      familyContextPattern.test(evidence ?? "") || contactOwnerRiskPattern.test(evidence ?? "")
+      familyContextPattern.test(evidence ?? "") ||
+      contactOwnerRiskPattern.test(evidence ?? "") ||
+      signatureContactPattern.test(evidence ?? "")
         ? "contact_owner_unclear"
         : "",
     ].filter(Boolean) as FrontOfficeLeadIntakeAssistRiskFlag[];
@@ -475,10 +525,19 @@ function parseStage(text: string, lines: string[]): ParsedAssistValue | null {
   const checks: Array<[RegExp, string]> = [
     [/\b(?:won|closed won|成交)\b/i, "Won"],
     [/\b(?:lost|closed lost|流失)\b/i, "Lost"],
-    [/\b(?:application|offer|contract|申请|报价|合同)\b/i, "Application / Offer"],
+    [
+      /\b(?:application|offer|contract|申请|报价|合同)\b/i,
+      "Application / Offer",
+    ],
     [/\b(?:negotiation|counter|谈判)\b/i, "Negotiation"],
-    [/\b(?:viewing completed|tour completed|看过|已看房)\b/i, "Viewing Completed"],
-    [/\b(?:viewing scheduled|showing scheduled|tour scheduled|预约看房|带看)\b/i, "Viewing Scheduled"],
+    [
+      /\b(?:viewing completed|tour completed|看过|已看房)\b/i,
+      "Viewing Completed",
+    ],
+    [
+      /\b(?:viewing scheduled|showing scheduled|tour scheduled|预约看房|带看)\b/i,
+      "Viewing Scheduled",
+    ],
     [/\b(?:follow-up|follow up|callback|跟进|回访)\b/i, "Needs Follow-up"],
     [/\b(?:contacted|reached|联系过)\b/i, "Contacted"],
     [/\b(?:warm|hot lead|意向较强)\b/i, "Warm Lead"],
@@ -530,10 +589,14 @@ function parseMoneyToken(value: string) {
   return Math.round(numeric * multiplier);
 }
 
-function parseBudgetMax(lines: string[], text: string): ParsedAssistValue | null {
+function parseBudgetMax(
+  lines: string[],
+  text: string,
+): ParsedAssistValue | null {
   const budgetLines = lines.filter((line) => budgetLinePattern.test(line));
   const sourceText = budgetLines.join(" \n ") || text;
-  const matches = sourceText.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g) ?? [];
+  const matches =
+    sourceText.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g) ?? [];
   const values = matches
     .map((match) => parseMoneyToken(match))
     .filter((value): value is number => value !== null);
@@ -557,7 +620,10 @@ function parseBudgetMax(lines: string[], text: string): ParsedAssistValue | null
 function cleanAreaToken(value: string) {
   return value
     .replace(/^[\s:：-]+/, "")
-    .replace(/\b(?:budget|price|stage|intent|source|follow-up|follow up)\b.*$/i, "")
+    .replace(
+      /\b(?:budget|price|stage|intent|source|follow-up|follow up)\b.*$/i,
+      "",
+    )
     .replace(/[()]/g, "")
     .trim();
 }
@@ -603,7 +669,9 @@ function parsePreferredAreas(lines: string[]): ParsedAssistValue | null {
   return {
     value: unique.slice(0, 5).join(", "),
     evidence: labeledLines[0] ?? unique[0],
-    provenance: labeledLines.length ? "explicit_line" : "conversation_inference",
+    provenance: labeledLines.length
+      ? "explicit_line"
+      : "conversation_inference",
     explicit: labeledLines.length > 0,
     riskFlags: [],
   };
@@ -701,7 +769,9 @@ function parseNextFollowUpAt(
 
   return {
     value: parsed.value,
-    evidence: parsed.relative ? "Relative timing found in the conversation." : parsed.value,
+    evidence: parsed.relative
+      ? "Relative timing found in the conversation."
+      : parsed.value,
     provenance: "conversation_inference",
     explicit: false,
     riskFlags: parsed.relative ? ["relative_timing"] : [],
@@ -806,6 +876,32 @@ function buildProvenanceLabel(
   }
 }
 
+function buildConfidenceLabel(
+  confidence: FrontOfficeLeadIntakeAssistConfidence,
+) {
+  switch (confidence) {
+    case "high":
+      return "High confidence";
+    case "medium":
+      return "Medium confidence";
+    case "low":
+      return "Low confidence";
+  }
+}
+
+function buildSuggestedActionLabel(
+  action: FrontOfficeLeadIntakeAssistSuggestedAction,
+) {
+  switch (action) {
+    case "safe_apply":
+      return "Can apply after review";
+    case "review_first":
+      return "Review before applying";
+    case "preview_only":
+      return "Preview only";
+  }
+}
+
 function buildCautionLabels(riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[]) {
   const labels: string[] = [];
 
@@ -815,6 +911,10 @@ function buildCautionLabels(riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[]) {
 
   if (riskFlags.includes("household_context")) {
     labels.push("Household or family context detected");
+  }
+
+  if (riskFlags.includes("speaker_switching")) {
+    labels.push("More than one speaker appears in the transcript");
   }
 
   if (riskFlags.includes("contact_owner_unclear")) {
@@ -840,6 +940,16 @@ function buildCautionLabels(riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[]) {
   return labels;
 }
 
+function truncateEvidenceLabel(value: string) {
+  const flattened = value.replace(/\s+/g, " ").trim();
+
+  if (flattened.length <= 180) {
+    return flattened;
+  }
+
+  return `${flattened.slice(0, 177)}...`;
+}
+
 function resolveFieldAssessment(input: {
   field: keyof FrontOfficeLeadIntakeAssistDraft;
   parsed: ParsedAssistValue;
@@ -849,6 +959,7 @@ function resolveFieldAssessment(input: {
   const hasIdentityRisk =
     input.parsed.riskFlags.includes("multiple_people") ||
     input.parsed.riskFlags.includes("household_context") ||
+    input.parsed.riskFlags.includes("speaker_switching") ||
     input.parsed.riskFlags.includes("contact_owner_unclear") ||
     input.parsed.riskFlags.includes("multiple_contact_values");
 
@@ -858,11 +969,14 @@ function resolveFieldAssessment(input: {
         ? {
             confidence: "high" as const,
             suggestedAction: "safe_apply" as const,
-            reasonLabel: "A single lead name was explicitly labeled in the extract.",
+            reasonLabel:
+              "A single lead name was explicitly labeled in the extract.",
             cautionLabels,
           }
         : {
-            confidence: input.parsed.explicit ? ("medium" as const) : ("low" as const),
+            confidence: input.parsed.explicit
+              ? ("medium" as const)
+              : ("low" as const),
             suggestedAction: "review_first" as const,
             reasonLabel:
               "Lead identity needs review because the conversation may reference more than one person.",
@@ -916,8 +1030,12 @@ function resolveFieldAssessment(input: {
             cautionLabels,
           }
         : {
-            confidence: input.parsed.explicit ? ("high" as const) : ("medium" as const),
-            suggestedAction: input.parsed.explicit ? ("safe_apply" as const) : ("review_first" as const),
+            confidence: input.parsed.explicit
+              ? ("high" as const)
+              : ("medium" as const),
+            suggestedAction: input.parsed.explicit
+              ? ("safe_apply" as const)
+              : ("review_first" as const),
             reasonLabel: input.parsed.explicit
               ? "Budget came from a dedicated budget line."
               : "Budget was inferred from the broader conversation.",
@@ -925,8 +1043,12 @@ function resolveFieldAssessment(input: {
           };
     case "preferredAreas":
       return {
-        confidence: input.parsed.explicit ? ("high" as const) : ("medium" as const),
-        suggestedAction: input.parsed.explicit ? ("safe_apply" as const) : ("review_first" as const),
+        confidence: input.parsed.explicit
+          ? ("high" as const)
+          : ("medium" as const),
+        suggestedAction: input.parsed.explicit
+          ? ("safe_apply" as const)
+          : ("review_first" as const),
         reasonLabel: input.parsed.explicit
           ? "Areas came from a location line."
           : "Areas were inferred from freeform text.",
@@ -944,8 +1066,12 @@ function resolveFieldAssessment(input: {
       }
 
       return {
-        confidence: input.parsed.explicit ? ("high" as const) : ("medium" as const),
-        suggestedAction: input.parsed.explicit ? ("safe_apply" as const) : ("review_first" as const),
+        confidence: input.parsed.explicit
+          ? ("high" as const)
+          : ("medium" as const),
+        suggestedAction: input.parsed.explicit
+          ? ("safe_apply" as const)
+          : ("review_first" as const),
         reasonLabel: input.parsed.explicit
           ? "Follow-up timing was explicitly labeled."
           : "Follow-up timing was inferred from date text in the conversation.",
@@ -955,7 +1081,8 @@ function resolveFieldAssessment(input: {
       return {
         confidence: "low" as const,
         suggestedAction: "preview_only" as const,
-        reasonLabel: "Notes stay as a conservative preview summary until you rewrite or paste them manually.",
+        reasonLabel:
+          "Notes stay as a conservative preview summary until you rewrite or paste them manually.",
         cautionLabels,
       };
   }
@@ -983,7 +1110,9 @@ function buildField(
     value: parsed.value.trim(),
     provenance: parsed.provenance,
     provenanceLabel: buildProvenanceLabel(parsed.provenance),
-    evidenceLabel: parsed.evidence.trim(),
+    confidenceLabel: buildConfidenceLabel(assessment.confidence),
+    suggestedActionLabel: buildSuggestedActionLabel(assessment.suggestedAction),
+    evidenceLabel: truncateEvidenceLabel(parsed.evidence),
     ...assessment,
   };
 }
@@ -1058,8 +1187,8 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
     buildField("preferredAreas", "Preferred areas", preferredAreas, context),
     buildField("nextFollowUpAt", "Next follow-up", nextFollowUpAt, context),
     buildField("notes", "Notes", notes, context),
-  ].filter(
-    (field): field is FrontOfficeLeadIntakeAssistField => Boolean(field),
+  ].filter((field): field is FrontOfficeLeadIntakeAssistField =>
+    Boolean(field),
   );
 
   const safeApplyFieldCount = fields.filter(

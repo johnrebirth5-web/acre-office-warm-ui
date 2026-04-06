@@ -6,7 +6,7 @@ import {
   SectionCard,
   StatCard,
   StatusBadge,
-  SummaryChip
+  SummaryChip,
 } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
@@ -15,7 +15,10 @@ import type { FrontOfficeLeadDuplicatePreviewCandidate } from "../_components/fr
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeClientDuplicatesCard } from "./front-office-client-duplicates-card";
-import { getSessionAccess, requireSessionContext } from "../../../lib/auth-session";
+import {
+  getSessionAccess,
+  requireSessionContext,
+} from "../../../lib/auth-session";
 
 export default async function AgentClientsPage() {
   const context = await requireSessionContext();
@@ -29,7 +32,7 @@ export default async function AgentClientsPage() {
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
-    timeZone: context.currentUser.timezone
+    timeZone: context.currentUser.timezone,
   });
   const duplicatePreviewCandidates: FrontOfficeLeadDuplicatePreviewCandidate[] =
     snapshot.clients.map((client) => ({
@@ -59,7 +62,11 @@ export default async function AgentClientsPage() {
                   hint="clients in this stage"
                   key={metric.label}
                   label={metric.label}
-                  tone={metric.tone === "accent" || metric.tone === "success" ? "accent" : "default"}
+                  tone={
+                    metric.tone === "accent" || metric.tone === "success"
+                      ? "accent"
+                      : "default"
+                  }
                   value={metric.count}
                 />
               ))
@@ -75,13 +82,20 @@ export default async function AgentClientsPage() {
           <div className="list-column front-office-record-list">
             {snapshot.clients.length ? (
               snapshot.clients.map((client) => (
-                <article className="list-row front-office-record" key={client.id}>
+                <article
+                  className="list-row front-office-record"
+                  key={client.id}
+                >
                   <div className="list-row-top front-office-record-head">
                     <div>
                       <strong>{client.fullName}</strong>
-                      <p>{client.intentLabel} · {client.budgetLabel}</p>
+                      <p>
+                        {client.intentLabel} · {client.budgetLabel}
+                      </p>
                     </div>
-                    <StatusBadge tone={client.stageTone}>{client.stage}</StatusBadge>
+                    <StatusBadge tone={client.stageTone}>
+                      {client.stage}
+                    </StatusBadge>
                   </div>
                   <p>{client.areasLabel}</p>
                   <div className="list-row-meta front-office-record-meta">
@@ -89,7 +103,10 @@ export default async function AgentClientsPage() {
                     <span>{client.lastTouchLabel}</span>
                     <span>{client.nextTouchLabel}</span>
                   </div>
-                  <FrontOfficeLink className="office-inline-link front-office-inline-link" href={client.href}>
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={client.href}
+                  >
                     Open client workspace
                   </FrontOfficeLink>
                 </article>
@@ -114,7 +131,7 @@ export default async function AgentClientsPage() {
           <FrontOfficeLeadIntakeCard
             initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
             sourceSurface="clients"
-            subtitle="Use this when the lead is still hot and you only have the essentials. Acre writes the real client record, stage timeline, and next-touch date without turning this into a heavy contact-admin workflow, and intake assist now stays review-first before it touches the live form."
+            subtitle="Use this when the lead is still hot and you only have the essentials. Acre writes the real client record, stage timeline, and next-touch date without turning this into a heavy contact-admin workflow, while intake assist stays conservative with field-level confidence, provenance, safer household parsing, and review-first duplicate warnings before it touches the live form."
             title="Capture a lead"
           />
 
@@ -124,12 +141,38 @@ export default async function AgentClientsPage() {
             title="Workflow signals"
           >
             <ListPageStatsGrid>
-              <StatCard hint="records visible in this scope" label="Live contacts" value={snapshot.summary.liveContacts} />
-              <StatCard hint="stages represented in the current list" label="Active stages" value={snapshot.summary.activeStages} />
-              <StatCard hint="overdue or same-day follow-up markers in scope" label="Follow-up due" value={snapshot.summary.followUpDueCount} />
-              <StatCard hint="scheduled follow-up tasks already overdue" label="Overdue tasks" value={snapshot.summary.overdueTaskCount} />
-              <StatCard hint="pairwise duplicate review suggestions across the CRM records visible to you" label="Potential dupes" tone="accent" value={snapshot.summary.potentialDuplicateCount} />
-              <StatCard hint="current role template in Front Office" label="Access" tone="accent" value={access.label} />
+              <StatCard
+                hint="records visible in this scope"
+                label="Live contacts"
+                value={snapshot.summary.liveContacts}
+              />
+              <StatCard
+                hint="stages represented in the current list"
+                label="Active stages"
+                value={snapshot.summary.activeStages}
+              />
+              <StatCard
+                hint="overdue or same-day follow-up markers in scope"
+                label="Follow-up due"
+                value={snapshot.summary.followUpDueCount}
+              />
+              <StatCard
+                hint="scheduled follow-up tasks already overdue"
+                label="Overdue tasks"
+                value={snapshot.summary.overdueTaskCount}
+              />
+              <StatCard
+                hint="pairwise duplicate review suggestions across the CRM records visible to you"
+                label="Potential dupes"
+                tone="accent"
+                value={snapshot.summary.potentialDuplicateCount}
+              />
+              <StatCard
+                hint="current role template in Front Office"
+                label="Access"
+                tone="accent"
+                value={access.label}
+              />
             </ListPageStatsGrid>
           </SectionCard>
 
@@ -161,11 +204,28 @@ export default async function AgentClientsPage() {
       summary={
         <>
           <SummaryChip label="Access" value={access.label} />
-          <SummaryChip label="Live contacts" value={snapshot.summary.liveContacts} />
-          <SummaryChip label="Follow-up due" tone="accent" value={snapshot.summary.followUpDueCount} />
-          <SummaryChip label="Stages in view" value={snapshot.summary.activeStages} />
-          <SummaryChip label="Potential dupes" tone="accent" value={snapshot.summary.potentialDuplicateCount} />
-          <SummaryChip label="Overdue tasks" value={snapshot.summary.overdueTaskCount} />
+          <SummaryChip
+            label="Live contacts"
+            value={snapshot.summary.liveContacts}
+          />
+          <SummaryChip
+            label="Follow-up due"
+            tone="accent"
+            value={snapshot.summary.followUpDueCount}
+          />
+          <SummaryChip
+            label="Stages in view"
+            value={snapshot.summary.activeStages}
+          />
+          <SummaryChip
+            label="Potential dupes"
+            tone="accent"
+            value={snapshot.summary.potentialDuplicateCount}
+          />
+          <SummaryChip
+            label="Overdue tasks"
+            value={snapshot.summary.overdueTaskCount}
+          />
         </>
       }
       title="Client pipeline"

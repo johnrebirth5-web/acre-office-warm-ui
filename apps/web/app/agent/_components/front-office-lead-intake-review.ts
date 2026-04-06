@@ -44,6 +44,56 @@ function normalizeLoose(value: string) {
     .trim();
 }
 
+function buildNameTokens(value: string) {
+  return normalizeLoose(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+}
+
+function scoreNameMatch(candidateName: string, needleName: string) {
+  const candidateCompact = normalizeCompact(candidateName);
+  const needleCompact = normalizeCompact(needleName);
+
+  if (!candidateCompact || !needleCompact) {
+    return null;
+  }
+
+  if (candidateCompact === needleCompact) {
+    return {
+      score: 4,
+      reason: "Same normalized name",
+    };
+  }
+
+  const candidateTokens = buildNameTokens(candidateName);
+  const needleTokens = buildNameTokens(needleName);
+
+  if (!candidateTokens.length || !needleTokens.length) {
+    return null;
+  }
+
+  const overlappingTokens = needleTokens.filter((token) =>
+    candidateTokens.includes(token),
+  );
+  const smallerTokenCount = Math.min(
+    candidateTokens.length,
+    needleTokens.length,
+  );
+
+  if (
+    smallerTokenCount >= 2 &&
+    overlappingTokens.length === smallerTokenCount
+  ) {
+    return {
+      score: 3,
+      reason: "Same name tokens in a different order",
+    };
+  }
+
+  return null;
+}
+
 function buildAreaTokens(value: string | undefined) {
   if (!value) {
     return new Set<string>();
@@ -55,7 +105,9 @@ function buildAreaTokens(value: string | undefined) {
       .map((item) => normalizeLoose(item))
       .filter(
         (item) =>
-          item.length >= 2 && !item.includes("not captured") && item !== "unknown",
+          item.length >= 2 &&
+          !item.includes("not captured") &&
+          item !== "unknown",
       ),
   );
 }
@@ -67,6 +119,18 @@ function buildMeaningfulSource(value: string | undefined) {
     return "";
   }
 
+  if (normalized.includes("wechat")) {
+    return "wechat";
+  }
+
+  if (normalized.includes("referral")) {
+    return "referral";
+  }
+
+  if (normalized.includes("open house")) {
+    return "open house";
+  }
+
   return normalized;
 }
 
@@ -74,15 +138,17 @@ function scoreCandidateMatch(input: {
   candidate: FrontOfficeLeadDuplicatePreviewCandidate;
   needle: FrontOfficeLeadDuplicatePreviewNeedle;
 }) {
-  const candidateCompact = normalizeCompact(input.candidate.fullName);
-  const needleCompact = normalizeCompact(input.needle.fullName);
+  const nameMatch = scoreNameMatch(
+    input.candidate.fullName,
+    input.needle.fullName,
+  );
 
-  if (!candidateCompact || !needleCompact || candidateCompact !== needleCompact) {
+  if (!nameMatch) {
     return null;
   }
 
-  const reasons = [`Same name as ${input.needle.sourceLabel}`];
-  let score = 2;
+  const reasons = [`${nameMatch.reason} from ${input.needle.sourceLabel}`];
+  let score = nameMatch.score;
 
   const needleAreas = buildAreaTokens(input.needle.preferredAreas);
   const candidateAreas = buildAreaTokens(input.candidate.areasLabel);
@@ -113,15 +179,19 @@ function scoreCandidateMatch(input: {
 }
 
 function buildConfidenceLabel(score: number) {
+  if (score >= 6) {
+    return "High visible duplicate risk";
+  }
+
+  if (score >= 5) {
+    return "Strong visible duplicate";
+  }
+
   if (score >= 4) {
-    return "Strong visible match";
+    return "Likely visible duplicate";
   }
 
-  if (score >= 3) {
-    return "Likely visible match";
-  }
-
-  return "Visible name match";
+  return "Visible name collision";
 }
 
 export function buildFrontOfficeLeadDuplicatePreview(input: {

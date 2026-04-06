@@ -62,7 +62,7 @@ export default async function AgentDashboardPage() {
             hydrateDuplicatePreviewCandidates
             initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
             sourceSurface="dashboard"
-            subtitle="Capture a new lead the moment it comes in, keep the next follow-up dated, and let Front Office build the dossier before anything becomes a formal Back Office record. Intake assist now stays review-first before it touches the live form."
+            subtitle="Capture a new lead the moment it comes in, keep the next follow-up dated, and let Front Office build the dossier before anything becomes a formal Back Office record. Intake assist now shows field-level confidence and provenance, stays safer around household or multi-party threads, and keeps duplicate warnings review-first before anything touches the live form."
             title="Quick lead intake"
           />
 
@@ -116,7 +116,9 @@ export default async function AgentDashboardPage() {
                 />
               </ListPageStatsGrid>
 
-              <FrontOfficeDashboardAiQueueClient items={snapshot.aiQueue.items} />
+              <FrontOfficeDashboardAiQueueClient
+                items={snapshot.aiQueue.items}
+              />
             </SectionCard>
           ) : null}
 
