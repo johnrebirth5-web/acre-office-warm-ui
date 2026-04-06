@@ -926,7 +926,7 @@ export async function getOfficePerformanceWorkspace(
           },
           {
             id: "visible-people",
-            label: "Visible people",
+            label: "Active Users",
             value: String(tableRows.length),
             hint: getScopeLabel(scope),
             tone: "default"
