@@ -117,7 +117,9 @@ export default async function AgentNotificationsPage(
         | "appointment_reminders"
         | "general_notices")
     : "all";
-  const initialFilter = allowedNoticeFilters.has(searchParams.noticeFilter ?? "")
+  const initialFilter = allowedNoticeFilters.has(
+    searchParams.noticeFilter ?? "",
+  )
     ? (searchParams.noticeFilter as
         | "all"
         | "confirmation_due"
@@ -167,9 +169,15 @@ export default async function AgentNotificationsPage(
   );
   const personalCleanupCount =
     snapshot.cleanup.items.length + snapshot.cleanup.duplicatePairs.length;
-  const filteredLeadershipItems = dashboardSnapshot.leadershipQueue.items.filter(
-    (item) => leadershipItemMatchesFilter(item, initialTeamCleanupFilter),
-  );
+  const visibleTeamCleanupCount = dashboardSnapshot.leadershipQueue.visible
+    ? dashboardSnapshot.leadershipQueue.items.length
+    : 0;
+  const visibleRouteItemCount =
+    snapshot.summary.actionableItemCount + visibleTeamCleanupCount;
+  const filteredLeadershipItems =
+    dashboardSnapshot.leadershipQueue.items.filter((item) =>
+      leadershipItemMatchesFilter(item, initialTeamCleanupFilter),
+    );
   const leadershipQueueHref =
     initialTeamCleanupFilter === "all"
       ? "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure"
@@ -177,7 +185,7 @@ export default async function AgentNotificationsPage(
 
   return (
     <FrontOfficePageTemplate
-      description="One Front Office center for personal cleanup, team cleanup, appointment reminder pressure, and the general notices that still need attention."
+      description="A clearer Front Office cleanup surface for self-owned execution drift, visible-scope team pressure, appointment reminder writeback, and broader notice follow-through."
       eyebrow="Activity"
       main={
         <AgentNotificationsClient
@@ -203,7 +211,10 @@ export default async function AgentNotificationsPage(
                 snapshot.events.map((event) => (
                   <FrontOfficeRailItem
                     action={
-                      <FrontOfficeLink className="office-inline-link front-office-inline-link" href={event.href}>
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={event.href}
+                      >
                         Open event
                       </FrontOfficeLink>
                     }
@@ -308,7 +319,7 @@ export default async function AgentNotificationsPage(
 
           <SectionCard
             className="office-list-card"
-            subtitle="The center should stay practical: clean the record, move the next touch, and keep formal ops in Back Office."
+            subtitle="The center should stay practical: reopen a shareable slice, clean the record, move the next touch, and keep formal ops in Back Office."
             title="How to use this center"
           >
             <div className="office-queue-list">
@@ -329,6 +340,12 @@ export default async function AgentNotificationsPage(
                 description="This route should clean execution drift inside Front Office, then send formal transaction, signature, or accounting work back into Back Office instead of duplicating it here."
                 title="Keep the FO and BO boundary honest"
               />
+              <FrontOfficeRailItem
+                badgeLabel="URL"
+                badgeTone="accent"
+                description="Focus area, lane filter, and read-state now persist in the route URL so the same cleanup pass can be reopened directly after refresh or from a copied link."
+                title="Reopen the same slice without re-filtering"
+              />
             </div>
           </SectionCard>
         </>
@@ -336,40 +353,56 @@ export default async function AgentNotificationsPage(
       summary={
         <>
           <SummaryChip
-            label="Personal center items"
-            value={snapshot.summary.actionableItemCount}
+            label="Visible route items"
+            value={visibleRouteItemCount}
           />
           <SummaryChip
             label="Personal cleanup"
             tone="accent"
             value={personalCleanupCount}
           />
+          {dashboardSnapshot.leadershipQueue.visible ? (
+            <SummaryChip
+              label="Team cleanup signals"
+              tone="accent"
+              value={dashboardSnapshot.summary.leadershipPressureCount}
+            />
+          ) : null}
           <SummaryChip
-            label="Urgent cleanup"
+            label="Urgent personal cleanup"
             tone="accent"
             value={snapshot.summary.urgentCleanupCount}
           />
-          <SummaryChip label="Potential dupes" tone="accent" value={snapshot.summary.duplicateReviewCount} />
+          <SummaryChip
+            label="Potential dupes"
+            tone="accent"
+            value={snapshot.summary.duplicateReviewCount}
+          />
           <SummaryChip
             label="Appointment reminders"
             tone="accent"
             value={appointmentReminderCards.length}
           />
-          <SummaryChip label="General notices" value={generalNoticeCards.length} />
-          <SummaryChip label="Appointments soon" value={snapshot.summary.appointmentSoonCount} />
+          <SummaryChip
+            label="Appointment cleanup"
+            value={snapshot.summary.appointmentSoonCount}
+          />
+          <SummaryChip
+            label="General notices"
+            value={generalNoticeCards.length}
+          />
           <SummaryChip
             label="Unread personal notices"
             value={snapshot.summary.unreadNoticeCount}
           />
-          <SummaryChip label="Shared notices" value={snapshot.summary.sharedNoticeCount} />
-          <SummaryChip label="Upcoming events" value={snapshot.summary.upcomingEventCount} />
-          {dashboardSnapshot.leadershipQueue.visible ? (
-            <SummaryChip
-              label="Leadership pressure"
-              tone="accent"
-              value={dashboardSnapshot.summary.leadershipPressureCount}
-            />
-          ) : null}
+          <SummaryChip
+            label="Shared notices"
+            value={snapshot.summary.sharedNoticeCount}
+          />
+          <SummaryChip
+            label="Upcoming events"
+            value={snapshot.summary.upcomingEventCount}
+          />
         </>
       }
       title="Activity & cleanup"

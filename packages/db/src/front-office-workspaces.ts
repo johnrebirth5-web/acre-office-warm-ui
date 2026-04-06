@@ -203,11 +203,7 @@ export type FrontOfficeActivityNotificationRecord = {
     | "external_touch_due"
     | "general_notice";
   groupLabel: string;
-  streamKey:
-    | "front_office"
-    | "back_office"
-    | "shared_notice"
-    | "reference";
+  streamKey: "front_office" | "back_office" | "shared_notice" | "reference";
   streamLabel: string;
   audienceLabel: "Personal notice" | "Shared office notice";
   ownerLabel: string;
@@ -236,6 +232,12 @@ export type FrontOfficeActivityEventRecord = {
 };
 
 export type FrontOfficeActivityCleanupMetric = {
+  key:
+    | "follow_up"
+    | "appointment_writeback"
+    | "send_risk"
+    | "stale_client"
+    | "duplicate_review";
   label: string;
   count: number;
   tone: FrontOfficeTone;
@@ -244,11 +246,7 @@ export type FrontOfficeActivityCleanupMetric = {
 
 export type FrontOfficeActivityCleanupItem = {
   id: string;
-  kindKey:
-    | "follow_up"
-    | "appointment_writeback"
-    | "send_risk"
-    | "stale_client";
+  kindKey: "follow_up" | "appointment_writeback" | "send_risk" | "stale_client";
   kindLabel: string;
   tone: FrontOfficeTone;
   title: string;
@@ -411,7 +409,11 @@ function formatNextTouchLabel(input: {
     return `Lease reminder · ${formatDateLabel(leaseReminder.leaseReminderAt, input.timeZone)}`;
   }
 
-  return formatRelativeDueLabel(input.nextFollowUpAt, input.now, input.timeZone);
+  return formatRelativeDueLabel(
+    input.nextFollowUpAt,
+    input.now,
+    input.timeZone,
+  );
 }
 
 function buildElapsedDayCount(value: Date, now: Date, minimum = 1) {
@@ -649,21 +651,30 @@ function buildFrontOfficeDuplicatePairs(input: {
     if (emailKey) {
       bucketMap.set(`email:${emailKey}`, {
         reason: "Same email",
-        clientIds: [...(bucketMap.get(`email:${emailKey}`)?.clientIds ?? []), candidate.id],
+        clientIds: [
+          ...(bucketMap.get(`email:${emailKey}`)?.clientIds ?? []),
+          candidate.id,
+        ],
       });
     }
 
     if (phoneKey) {
       bucketMap.set(`phone:${phoneKey}`, {
         reason: "Same phone",
-        clientIds: [...(bucketMap.get(`phone:${phoneKey}`)?.clientIds ?? []), candidate.id],
+        clientIds: [
+          ...(bucketMap.get(`phone:${phoneKey}`)?.clientIds ?? []),
+          candidate.id,
+        ],
       });
     }
 
     if (nameKey) {
       bucketMap.set(`name:${nameKey}`, {
         reason: "Same name",
-        clientIds: [...(bucketMap.get(`name:${nameKey}`)?.clientIds ?? []), candidate.id],
+        clientIds: [
+          ...(bucketMap.get(`name:${nameKey}`)?.clientIds ?? []),
+          candidate.id,
+        ],
       });
     }
   }
@@ -684,7 +695,11 @@ function buildFrontOfficeDuplicatePairs(input: {
     const uniqueIds = Array.from(new Set(bucket.clientIds));
 
     for (let index = 0; index < uniqueIds.length - 1; index += 1) {
-      for (let compareIndex = index + 1; compareIndex < uniqueIds.length; compareIndex += 1) {
+      for (
+        let compareIndex = index + 1;
+        compareIndex < uniqueIds.length;
+        compareIndex += 1
+      ) {
         const leftId = uniqueIds[index];
         const rightId = uniqueIds[compareIndex];
         const pairKey = [leftId, rightId].sort().join(":");
@@ -1097,9 +1112,7 @@ function getFrontOfficeNotificationPressureState(input: {
   if (input.groupKey === "external_touch_due") {
     return {
       label:
-        input.notificationTone === "danger"
-          ? "Touch overdue"
-          : "Touch due",
+        input.notificationTone === "danger" ? "Touch overdue" : "Touch due",
       tone: input.notificationTone,
       whyNowLabel:
         input.notificationTone === "danger"
@@ -1719,9 +1732,7 @@ export async function getFrontOfficeListingsSnapshot(
       ? {
           id: resolvedTargetAppointment.id,
           title: resolvedTargetAppointment.title,
-          typeLabel: formatAppointmentTypeLabel(
-            resolvedTargetAppointment.type,
-          ),
+          typeLabel: formatAppointmentTypeLabel(resolvedTargetAppointment.type),
           statusLabel: formatAppointmentStatusLabel(
             resolvedTargetAppointment.status,
           ),
@@ -2289,8 +2300,7 @@ export async function getFrontOfficeActivitySnapshot(
           : startsAtTime < startOfTomorrow.getTime()
             ? "warning"
             : "accent";
-      let priority =
-        tone === "danger" ? 1 : tone === "warning" ? 3 : 7;
+      let priority = tone === "danger" ? 1 : tone === "warning" ? 3 : 7;
       let kindLabel = "Appointment soon";
 
       if (
@@ -2311,8 +2321,7 @@ export async function getFrontOfficeActivitySnapshot(
             : hasExternalDeadline
               ? "warning"
               : tone;
-        priority =
-          tone === "danger" ? 1 : hasExternalDeadline ? 2 : priority;
+        priority = tone === "danger" ? 1 : hasExternalDeadline ? 2 : priority;
         kindLabel =
           isExternalDeadlineOverdue || isExternalDeadlineSoon
             ? "External touch due"
@@ -2377,8 +2386,8 @@ export async function getFrontOfficeActivitySnapshot(
             ? `Next touch · ${externalWorkflow.nextActionAtLabel}`
             : "No next touch scheduled",
           appointment.location?.trim() ||
-          appointment.meetingUrl?.trim() ||
-          "Location pending",
+            appointment.meetingUrl?.trim() ||
+            "Location pending",
         ],
         whyNowLabel:
           kindLabel === "Reschedule requested"
@@ -2404,7 +2413,7 @@ export async function getFrontOfficeActivitySnapshot(
         _priority: priority,
         _sortAt:
           nextActionTime != null && nextActionTime < startsAtTime
-            ? externalWorkflow.nextActionAt ?? appointment.startsAt
+            ? (externalWorkflow.nextActionAt ?? appointment.startsAt)
             : appointment.startsAt,
         _clientId: appointment.client?.id ?? null,
       };
@@ -2457,7 +2466,8 @@ export async function getFrontOfficeActivitySnapshot(
   });
   const dueClientItems: CleanupCandidate[] = dueFollowUpClientOnly.map(
     (client) => {
-      const nextTouchAt = client.nextFollowUpAt ?? client.leaseReminderAt ?? now;
+      const nextTouchAt =
+        client.nextFollowUpAt ?? client.leaseReminderAt ?? now;
       const isOverdue = nextTouchAt.getTime() < startOfToday.getTime();
 
       return {
@@ -2691,6 +2701,7 @@ export async function getFrontOfficeActivitySnapshot(
   const staleMetricCount = staleClientItems.length;
   const cleanupMetrics: FrontOfficeActivityCleanupMetric[] = [
     {
+      key: "follow_up",
       label: "Follow-up due",
       count: followUpMetricCount,
       tone: followUpMetricCount > 0 ? "warning" : "neutral",
@@ -2698,13 +2709,15 @@ export async function getFrontOfficeActivitySnapshot(
         "Scheduled follow-up work that should be touched today or is already overdue.",
     },
     {
-      label: "Appointments soon",
+      key: "appointment_writeback",
+      label: "Appointment cleanup",
       count: appointmentSoonCount,
       tone: appointmentSoonCount > 0 ? "accent" : "neutral",
       helper:
-        "Scheduled appointments in the next two days, plus external confirmation or follow-up touches due in that same window.",
+        "Calendar-owned meetings and promised external touches in the next two days that still need direct Front Office follow-through.",
     },
     {
+      key: "send_risk",
       label: "Send risk",
       count: sendRiskMetricCount,
       tone: sendRiskMetricCount > 0 ? "warning" : "neutral",
@@ -2712,6 +2725,7 @@ export async function getFrontOfficeActivitySnapshot(
         "Tracked sends with no open after three days or no recent engagement after the last open.",
     },
     {
+      key: "stale_client",
       label: "Stale clients",
       count: staleMetricCount,
       tone: staleMetricCount > 0 ? "danger" : "neutral",
@@ -2719,6 +2733,7 @@ export async function getFrontOfficeActivitySnapshot(
         "Active dossiers that have gone 15+ days without a logged contact touch.",
     },
     {
+      key: "duplicate_review",
       label: "Potential dupes",
       count: duplicatePairs.length,
       tone: duplicatePairs.length > 0 ? "accent" : "neutral",
