@@ -210,6 +210,11 @@ export type FrontOfficeActivityNotificationRecord = {
     | "reference";
   streamLabel: string;
   audienceLabel: "Personal notice" | "Shared office notice";
+  ownerLabel: string;
+  scopeLabel: string;
+  pressureLabel: string;
+  pressureTone: FrontOfficeTone;
+  whyNowLabel: string;
   tone: FrontOfficeTone;
   createdAtLabel: string;
   actionLabel: string;
@@ -248,6 +253,9 @@ export type FrontOfficeActivityCleanupItem = {
   tone: FrontOfficeTone;
   title: string;
   description: string;
+  ownerLabel: string;
+  scopeLabel: string;
+  pressureLabel: string;
   whyNowLabel: string;
   sortLabel: string;
   metaLabels: string[];
@@ -1030,6 +1038,129 @@ function getFrontOfficeNotificationStream(input: {
   return {
     streamKey: "reference" as const,
     streamLabel: "Awareness only",
+  };
+}
+
+function getFrontOfficeNotificationOwnerLabel(readStateMutable: boolean) {
+  return readStateMutable ? "Assigned to you" : "Shared office";
+}
+
+function getFrontOfficeNotificationScopeLabel(input: {
+  groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+  streamLabel: string;
+}) {
+  if (input.groupKey === "appointment_soon") {
+    return "Meeting countdown";
+  }
+
+  if (input.groupKey !== "general_notice") {
+    return "Calendar writeback";
+  }
+
+  return input.streamLabel;
+}
+
+function getFrontOfficeNotificationPressureState(input: {
+  groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+  notificationTone: FrontOfficeTone;
+  readStateMutable: boolean;
+  isUnread: boolean;
+}) {
+  if (input.groupKey === "confirmation_due") {
+    return {
+      label:
+        input.notificationTone === "danger"
+          ? "Confirmation overdue"
+          : "Confirmation due",
+      tone: input.notificationTone,
+      whyNowLabel:
+        input.notificationTone === "danger"
+          ? "The promised confirmation window already slipped, so this appointment now needs a writeback pass before the meeting can stay trustworthy."
+          : "The meeting is approaching without an explicit client confirmation in place.",
+    };
+  }
+
+  if (input.groupKey === "reschedule_due") {
+    return {
+      label:
+        input.notificationTone === "danger"
+          ? "Reschedule overdue"
+          : "Reschedule due",
+      tone: input.notificationTone,
+      whyNowLabel:
+        input.notificationTone === "danger"
+          ? "The client already asked to reschedule and the follow-up window has passed."
+          : "The client already asked to reschedule, so this writeback needs a fresh touch before the appointment drifts.",
+    };
+  }
+
+  if (input.groupKey === "external_touch_due") {
+    return {
+      label:
+        input.notificationTone === "danger"
+          ? "Touch overdue"
+          : "Touch due",
+      tone: input.notificationTone,
+      whyNowLabel:
+        input.notificationTone === "danger"
+          ? "A promised external touch is already overdue, so the appointment now needs active intervention."
+          : "A promised external touch is now due before the appointment can safely stay on track.",
+    };
+  }
+
+  if (input.groupKey === "appointment_soon") {
+    return {
+      label:
+        input.notificationTone === "danger"
+          ? "Starts within 2h"
+          : input.notificationTone === "warning"
+            ? "Starts today"
+            : "Coming up",
+      tone: input.notificationTone,
+      whyNowLabel:
+        input.notificationTone === "danger"
+          ? "The meeting start is now close enough that it belongs in the live reminder stack."
+          : input.notificationTone === "warning"
+            ? "This appointment is on today's clock and should stay visible in the active reminder pass."
+            : "The meeting is close enough to keep on the agent's short-range reminder horizon.",
+    };
+  }
+
+  if (!input.readStateMutable) {
+    return {
+      label: "Shared visibility",
+      tone: "neutral" as const,
+      whyNowLabel:
+        "This notice is shared for office awareness, so it stays visible here without a personal read-state toggle.",
+    };
+  }
+
+  if (input.isUnread) {
+    return {
+      label:
+        input.notificationTone === "danger"
+          ? "Action now"
+          : input.notificationTone === "warning"
+            ? "Needs review"
+            : "New notice",
+      tone:
+        input.notificationTone === "neutral"
+          ? "accent"
+          : input.notificationTone,
+      whyNowLabel:
+        input.notificationTone === "danger"
+          ? "This personal notice is still unread and is carrying active pressure."
+          : input.notificationTone === "warning"
+            ? "This personal notice is still unread and should be reviewed in the current pass."
+            : "This personal notice has not been reviewed yet.",
+    };
+  }
+
+  return {
+    label: "Reviewed",
+    tone: "neutral" as const,
+    whyNowLabel:
+      "This notice was already reviewed, but it stays in the stream so the current filter slice remains stable.",
   };
 }
 
@@ -2214,6 +2345,29 @@ export async function getFrontOfficeActivitySnapshot(
         ]
           .filter(Boolean)
           .join(" · "),
+        ownerLabel: "Assigned to you",
+        scopeLabel:
+          kindLabel === "Appointment soon"
+            ? "Meeting countdown"
+            : "Calendar writeback",
+        pressureLabel:
+          kindLabel === "Reschedule requested"
+            ? "Reschedule requested"
+            : kindLabel === "Confirmation due" ||
+                kindLabel === "Awaiting confirmation"
+              ? isExternalDeadlineOverdue
+                ? "Confirmation overdue"
+                : "Confirmation due"
+              : kindLabel === "External touch due" ||
+                  kindLabel === "Appointment follow-up"
+                ? isExternalDeadlineOverdue
+                  ? "Touch overdue"
+                  : "Touch due"
+                : tone === "danger"
+                  ? "Starts within 2h"
+                  : tone === "warning"
+                    ? "Starts today"
+                    : "Coming up",
         metaLabels: [
           appointment.client?.stage?.trim()
             ? `Stage · ${appointment.client.stage.trim()}`
@@ -2277,6 +2431,9 @@ export async function getFrontOfficeActivitySnapshot(
         ]
           .filter(Boolean)
           .join(" · "),
+        ownerLabel: "Assigned to you",
+        scopeLabel: "Client follow-up task",
+        pressureLabel: isOverdue ? "Overdue" : "Due today",
         metaLabels: [
           task.client.source?.trim() || "Source not captured",
           task.client.lastContactAt
@@ -2320,6 +2477,9 @@ export async function getFrontOfficeActivitySnapshot(
         ]
           .filter(Boolean)
           .join(" · "),
+        ownerLabel: "Assigned to you",
+        scopeLabel: "Client next touch",
+        pressureLabel: isOverdue ? "Overdue" : "Due today",
         metaLabels: [
           client.source?.trim() || "Source not captured",
           client.lastContactAt
@@ -2372,6 +2532,9 @@ export async function getFrontOfficeActivitySnapshot(
             ]
               .filter(Boolean)
               .join(" · "),
+            ownerLabel: "Assigned to you",
+            scopeLabel: "Tracked send rescue",
+            pressureLabel: "Unopened 3+ days",
             metaLabels: [
               `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
               record.client.source?.trim() || "Source not captured",
@@ -2417,6 +2580,9 @@ export async function getFrontOfficeActivitySnapshot(
           ]
             .filter(Boolean)
             .join(" · "),
+          ownerLabel: "Assigned to you",
+          scopeLabel: "Tracked send rescue",
+          pressureLabel: "Quiet after last open",
           metaLabels: [
             `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
             record.client.source?.trim() || "Source not captured",
@@ -2454,6 +2620,9 @@ export async function getFrontOfficeActivitySnapshot(
       ]
         .filter(Boolean)
         .join(" · "),
+      ownerLabel: "Assigned to you",
+      scopeLabel: "Client freshness",
+      pressureLabel: tone === "danger" ? "30+ days stale" : "15+ days stale",
       metaLabels: [
         client.source?.trim() || "Source not captured",
         client.lastContactAt
@@ -2498,6 +2667,9 @@ export async function getFrontOfficeActivitySnapshot(
       tone: item.tone,
       title: item.title,
       description: item.description,
+      ownerLabel: item.ownerLabel,
+      scopeLabel: item.scopeLabel,
+      pressureLabel: item.pressureLabel,
       whyNowLabel: item.whyNowLabel,
       sortLabel: item.sortLabel,
       metaLabels: item.metaLabels,
@@ -2584,6 +2756,14 @@ export async function getFrontOfficeActivitySnapshot(
         groupKey: group.groupKey,
       });
       const readStateMutable = notification.membershipId != null;
+      const isUnread = readStateMutable && notification.readAt == null;
+      const pressureTone = mapNotificationSeverityTone(notification.severity);
+      const pressureState = getFrontOfficeNotificationPressureState({
+        groupKey: group.groupKey,
+        notificationTone: pressureTone,
+        readStateMutable,
+        isUnread,
+      });
 
       return {
         id: notification.id,
@@ -2598,6 +2778,14 @@ export async function getFrontOfficeActivitySnapshot(
         audienceLabel: readStateMutable
           ? "Personal notice"
           : "Shared office notice",
+        ownerLabel: getFrontOfficeNotificationOwnerLabel(readStateMutable),
+        scopeLabel: getFrontOfficeNotificationScopeLabel({
+          groupKey: group.groupKey,
+          streamLabel: stream.streamLabel,
+        }),
+        pressureLabel: pressureState.label,
+        pressureTone: pressureState.tone,
+        whyNowLabel: pressureState.whyNowLabel,
         tone:
           notification.type === NotificationType.appointment_due_soon
             ? "accent"
@@ -2611,7 +2799,7 @@ export async function getFrontOfficeActivitySnapshot(
           groupKey: group.groupKey,
         }),
         href: `/agent/notifications/${notification.id}/open`,
-        isUnread: readStateMutable && notification.readAt == null,
+        isUnread,
         readStateLabel: !readStateMutable
           ? "Shared notice"
           : notification.readAt == null

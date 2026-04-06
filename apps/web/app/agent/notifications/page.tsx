@@ -162,6 +162,11 @@ export default async function AgentNotificationsPage(
   const appointmentReminderCards = snapshot.notifications.filter(
     (card) => card.groupKey !== "general_notice",
   );
+  const generalNoticeCards = snapshot.notifications.filter(
+    (card) => card.groupKey === "general_notice",
+  );
+  const personalCleanupCount =
+    snapshot.cleanup.items.length + snapshot.cleanup.duplicatePairs.length;
   const filteredLeadershipItems = dashboardSnapshot.leadershipQueue.items.filter(
     (item) => leadershipItemMatchesFilter(item, initialTeamCleanupFilter),
   );
@@ -172,7 +177,7 @@ export default async function AgentNotificationsPage(
 
   return (
     <FrontOfficePageTemplate
-      description="One Front Office center for reminders, cleanup pressure, duplicate review, and the notices that still need agent attention."
+      description="One Front Office center for personal cleanup, team cleanup, appointment reminder pressure, and the general notices that still need attention."
       eyebrow="Activity"
       main={
         <AgentNotificationsClient
@@ -273,9 +278,16 @@ export default async function AgentNotificationsPage(
                       }
                       badgeLabel={item.kindLabel}
                       badgeTone={item.tone}
-                      context={item.contextLabel}
-                      description={item.description}
+                      context={item.ownerLabel}
+                      description={item.whyNowLabel}
                       key={item.id}
+                      meta={
+                        <>
+                          <span>{item.pressureLabel}</span>
+                          <span>{item.scopeLabel}</span>
+                          <span>{item.description}</span>
+                        </>
+                      }
                       title={item.title}
                     />
                   ))
@@ -323,13 +335,32 @@ export default async function AgentNotificationsPage(
       }
       summary={
         <>
-          <SummaryChip label="Actionable items" value={snapshot.summary.actionableItemCount} />
-          <SummaryChip label="Cleanup items" tone="accent" value={snapshot.summary.cleanupItemCount} />
-          <SummaryChip label="Urgent cleanup" tone="accent" value={snapshot.summary.urgentCleanupCount} />
+          <SummaryChip
+            label="Personal center items"
+            value={snapshot.summary.actionableItemCount}
+          />
+          <SummaryChip
+            label="Personal cleanup"
+            tone="accent"
+            value={personalCleanupCount}
+          />
+          <SummaryChip
+            label="Urgent cleanup"
+            tone="accent"
+            value={snapshot.summary.urgentCleanupCount}
+          />
           <SummaryChip label="Potential dupes" tone="accent" value={snapshot.summary.duplicateReviewCount} />
-          <SummaryChip label="Reminder notices" tone="accent" value={appointmentReminderCards.length} />
+          <SummaryChip
+            label="Appointment reminders"
+            tone="accent"
+            value={appointmentReminderCards.length}
+          />
+          <SummaryChip label="General notices" value={generalNoticeCards.length} />
           <SummaryChip label="Appointments soon" value={snapshot.summary.appointmentSoonCount} />
-          <SummaryChip label="Unread notices" value={snapshot.summary.unreadNoticeCount} />
+          <SummaryChip
+            label="Unread personal notices"
+            value={snapshot.summary.unreadNoticeCount}
+          />
           <SummaryChip label="Shared notices" value={snapshot.summary.sharedNoticeCount} />
           <SummaryChip label="Upcoming events" value={snapshot.summary.upcomingEventCount} />
           {dashboardSnapshot.leadershipQueue.visible ? (

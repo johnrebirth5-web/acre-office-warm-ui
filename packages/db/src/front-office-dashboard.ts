@@ -174,6 +174,10 @@ export type FrontOfficeDashboardLeadershipItem = {
   title: string;
   description: string;
   contextLabel: string;
+  ownerLabel: string;
+  scopeLabel: string;
+  pressureLabel: string;
+  whyNowLabel: string;
   tone: FrontOfficeDashboardTone;
   actionLabel: string;
   href: string;
@@ -1893,16 +1897,23 @@ export async function getFrontOfficeDashboardSnapshot(
     [...leadershipLatestSendByClient.values()]
       .filter((record) => !isClosedClientStage(record.client.stage))
       .flatMap<FrontOfficeDashboardLeadershipEngagementItem>((record) => {
-      const appointmentLabel = buildSendRecordAppointmentLabel({
-        title: record.appointmentTitle,
-        startsAt: record.appointmentStartsAt,
-        timeZone: input.timeZone,
-      });
-      const stageLabel = formatSendRecordStageLabel(
-        record.clientStageLabel || record.client.stage,
-      );
-      const listingLabel =
-        record.listing?.title?.trim() || "Tracked Front Office send";
+        const appointmentLabel = buildSendRecordAppointmentLabel({
+          title: record.appointmentTitle,
+          startsAt: record.appointmentStartsAt,
+          timeZone: input.timeZone,
+        });
+        const stageLabel = formatSendRecordStageLabel(
+          record.clientStageLabel || record.client.stage,
+        );
+        const listingLabel =
+          record.listing?.title?.trim() || "Tracked Front Office send";
+        const ownerLabel = buildMembershipUserLabel(
+          record.senderMembership.user,
+          buildMembershipUserLabel(
+            record.client.ownerMembership?.user,
+            "Assigned owner",
+          ),
+        );
 
         if (record.openCount <= 0) {
           if (record.sentAt.getTime() > threeDaysAgo.getTime()) {
@@ -1925,13 +1936,12 @@ export async function getFrontOfficeDashboardSnapshot(
               ]
                 .filter(Boolean)
                 .join(" · "),
-              contextLabel: buildMembershipUserLabel(
-                record.senderMembership.user,
-                buildMembershipUserLabel(
-                  record.client.ownerMembership?.user,
-                  "Assigned owner",
-                ),
-              ),
+              contextLabel: ownerLabel,
+              ownerLabel,
+              scopeLabel: leadershipScope.scopeLabel,
+              pressureLabel: "Unopened 3+ days",
+              whyNowLabel:
+                "A tracked send inside this leadership scope is still unopened after the initial wait window.",
               tone: "danger",
               actionLabel: "Open office contact",
               href: `/office/contacts/${record.client.id}`,
@@ -1963,13 +1973,12 @@ export async function getFrontOfficeDashboardSnapshot(
             ]
               .filter(Boolean)
               .join(" · "),
-            contextLabel: buildMembershipUserLabel(
-              record.senderMembership.user,
-              buildMembershipUserLabel(
-                record.client.ownerMembership?.user,
-                "Assigned owner",
-              ),
-            ),
+            contextLabel: ownerLabel,
+            ownerLabel,
+            scopeLabel: leadershipScope.scopeLabel,
+            pressureLabel: "Quiet after last open",
+            whyNowLabel:
+              "The last tracked open inside this leadership scope has gone quiet long enough to warrant a leadership rescue pass.",
             tone: "warning",
             actionLabel: "Open office contact",
             href: `/office/contacts/${record.client.id}`,
@@ -1995,6 +2004,14 @@ export async function getFrontOfficeDashboardSnapshot(
         task.assigneeMembership?.user,
         "Assigned team member",
       ),
+      ownerLabel: buildMembershipUserLabel(
+        task.assigneeMembership?.user,
+        "Assigned team member",
+      ),
+      scopeLabel: leadershipScope.scopeLabel,
+      pressureLabel: "Task overdue",
+      whyNowLabel:
+        "A shared follow-up inside this leadership scope is already overdue and needs an operator-level follow-through.",
       tone: "danger" as const,
       actionLabel: "Open office contact",
       href: task.clientId
@@ -2024,6 +2041,14 @@ export async function getFrontOfficeDashboardSnapshot(
           client.ownerMembership?.user,
           "Assigned owner",
         ),
+        ownerLabel: buildMembershipUserLabel(
+          client.ownerMembership?.user,
+          "Assigned owner",
+        ),
+        scopeLabel: leadershipScope.scopeLabel,
+        pressureLabel:
+          inactiveDays >= 30 ? "30+ days stale" : "15+ days stale",
+        whyNowLabel: `No logged touch has landed on this visible-scope dossier for ${inactiveDays} day(s).`,
         tone: "warning" as const,
         actionLabel: "Open office contact",
         href: `/office/contacts/${client.id}`,

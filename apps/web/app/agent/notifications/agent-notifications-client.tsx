@@ -268,6 +268,31 @@ function streamBadgeTone(
   return "neutral";
 }
 
+function toneToBadgeTone(
+  tone:
+    | FrontOfficeActivityNotificationRecord["pressureTone"]
+    | FrontOfficeActivityCleanupItem["tone"]
+    | FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number]["tone"],
+) {
+  if (tone === "danger") {
+    return "danger";
+  }
+
+  if (tone === "warning") {
+    return "warning";
+  }
+
+  if (tone === "success") {
+    return "success";
+  }
+
+  if (tone === "accent") {
+    return "accent";
+  }
+
+  return "neutral";
+}
+
 export function AgentNotificationsClient({
   snapshot,
   initialActivityView,
@@ -424,6 +449,13 @@ export function AgentNotificationsClient({
     activeActivityView === "appointment_reminders";
   const showGeneralNoticeSection =
     activeActivityView === "all" || activeActivityView === "general_notices";
+  const teamCleanupCount = leadershipQueue.visible ? leadershipQueue.items.length : 0;
+  const notificationFilterFieldLabel =
+    activeActivityView === "appointment_reminders"
+      ? "Reminder type"
+      : activeActivityView === "general_notices"
+        ? "Notice type"
+        : "Notice filter";
   const visibleNotificationFilterOptions = notificationFilterOptions.filter(
     (option) => {
       if (activeActivityView === "general_notices") {
@@ -444,6 +476,20 @@ export function AgentNotificationsClient({
     noticeStreamFilterOptions.find(
       (option) => option.value === activeNoticeStreamFilter,
     )?.label ?? "current notice lane";
+  const activeLeadershipFilterLabel =
+    leadershipCleanupFilterOptions.find(
+      (option) => option.value === activeLeadershipFilter,
+    )?.label ?? "current leadership filter";
+  const currentPassSummaryLabel =
+    activeActivityView === "all"
+      ? "Scanning personal cleanup, team cleanup, appointment reminders, and general notices together."
+      : activeActivityView === "personal_cleanup"
+        ? "Focused on self-owned cleanup pressure only."
+        : activeActivityView === "team_cleanup"
+          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only.`
+          : activeActivityView === "appointment_reminders"
+            ? "Focused on inbox-backed appointment writeback only."
+            : "Focused on non-calendar notice lanes only.";
   const currentFocusCount =
     activeActivityView === "all"
       ? filteredCleanupItems.length +
@@ -635,21 +681,27 @@ export function AgentNotificationsClient({
             </div>
 
             <div className="office-notification-row-meta">
-              <Badge tone={card.tone === "danger" ? "danger" : "warning"}>
+              <Badge tone={toneToBadgeTone(card.pressureTone)}>
+                {card.pressureLabel}
+              </Badge>
+              <Badge tone={toneToBadgeTone(card.tone)}>
                 {card.groupLabel}
               </Badge>
               {card.groupKey === "general_notice" ? (
                 <Badge tone={streamBadgeTone(card.streamKey)}>
-                  {card.streamLabel}
+                  {card.scopeLabel}
                 </Badge>
-              ) : null}
+              ) : (
+                <span>{card.scopeLabel}</span>
+              )}
+              <span>{card.ownerLabel}</span>
               <span>{card.createdAtLabel}</span>
-              <span>{card.typeLabel}</span>
               <span>{card.readStateLabel}</span>
             </div>
           </div>
 
           <p>{card.body}</p>
+          <p className="front-office-record-supporting">{card.whyNowLabel}</p>
         </div>
 
         <div className="office-notification-row-actions">
@@ -698,9 +750,58 @@ export function AgentNotificationsClient({
     <>
       <SectionCard
         className="office-list-card office-notification-toolbar"
-        subtitle="Choose one focus area for the current pass, then narrow the cleanup or notice lane without leaving the same activity route."
+        subtitle="Keep the four activity layers stable on one route: self-owned cleanup, visible-scope team cleanup, inbox-backed appointment reminders, and broader general notices."
         title="Activity controls"
       >
+        <ListPageStatsGrid>
+          <StatCard
+            hint="Self-owned cleanup items, plus duplicate review, that still need direct agent follow-through."
+            label="Personal cleanup"
+            tone={
+              activeActivityView === "all" ||
+              activeActivityView === "personal_cleanup"
+                ? "accent"
+                : "default"
+            }
+            value={personalCleanupCount}
+          />
+          {leadershipQueue.visible ? (
+            <StatCard
+              hint="Visible-scope overdue tasks, stale dossiers, and send-trail risk for leads or office admins."
+              label="Team cleanup"
+              tone={
+                activeActivityView === "all" ||
+                activeActivityView === "team_cleanup"
+                  ? "accent"
+                  : "default"
+              }
+              value={teamCleanupCount}
+            />
+          ) : null}
+          <StatCard
+            hint="Calendar-linked reminder notices for confirmation, reschedule, external follow-up, and near-term appointments."
+            label="Appointment reminders"
+            tone={
+              activeActivityView === "all" ||
+              activeActivityView === "appointment_reminders"
+                ? "accent"
+                : "default"
+            }
+            value={appointmentReminderCount}
+          />
+          <StatCard
+            hint="The remaining notice lane after appointment reminders are split out."
+            label="General notices"
+            tone={
+              activeActivityView === "all" ||
+              activeActivityView === "general_notices"
+                ? "accent"
+                : "default"
+            }
+            value={generalNoticeCount}
+          />
+        </ListPageStatsGrid>
+
         <FilterBar className="office-notification-filter-grid office-list-filters">
           <FilterField label="Focus area">
             <SelectInput
@@ -720,12 +821,12 @@ export function AgentNotificationsClient({
                 const count =
                   option.value === "all"
                     ? personalCleanupCount +
-                      (leadershipQueue.visible ? leadershipQueue.items.length : 0) +
+                      teamCleanupCount +
                       snapshot.notifications.length
                     : option.value === "personal_cleanup"
                       ? personalCleanupCount
-                      : option.value === "team_cleanup"
-                        ? leadershipQueue.items.length
+                    : option.value === "team_cleanup"
+                        ? teamCleanupCount
                         : option.value === "appointment_reminders"
                           ? appointmentReminderCount
                           : generalNoticeCount;
@@ -775,7 +876,7 @@ export function AgentNotificationsClient({
           ) : null}
 
           {showNotificationControls ? (
-            <FilterField label="Reminder filter">
+            <FilterField label={notificationFilterFieldLabel}>
               <SelectInput
                 onChange={(event) =>
                   updateFilters(
@@ -884,7 +985,7 @@ export function AgentNotificationsClient({
                 {leadershipCleanupFilterOptions.map((option) => {
                   const count =
                     option.value === "all"
-                      ? leadershipQueue.items.length
+                      ? teamCleanupCount
                       : leadershipQueue.items.filter(
                           (item) => item.kindKey === option.value,
                         ).length;
@@ -982,6 +1083,7 @@ export function AgentNotificationsClient({
 
         <div className="list-row-meta front-office-record-meta">
           <span>{currentFocusCount} item(s) in the current pass</span>
+          <span>{currentPassSummaryLabel}</span>
           {showNotificationControls ? (
             <span>
               {mutableVisibleNotificationIds.length} personal notice(s) support
@@ -1012,8 +1114,8 @@ export function AgentNotificationsClient({
         <SectionCard
           className="office-list-card"
           id="cleanup-center"
-          subtitle="This queue stays opinionated: surface the loudest cleanup issue per client first, then let you reopen the same center directly into follow-up, writeback, send-risk, stale-dossier, or duplicate-review work."
-          title="Cleanup center"
+          subtitle="Personal cleanup stays self-owned. Surface the loudest issue per client first, then reopen the same center directly into follow-up, writeback, send rescue, stale-dossier cleanup, or duplicate review."
+          title="Personal cleanup"
         >
           <ListPageStatsGrid>
             {snapshot.cleanup.metrics.map((metric) => (
@@ -1034,6 +1136,13 @@ export function AgentNotificationsClient({
             ))}
           </ListPageStatsGrid>
 
+          <div className="list-row-meta front-office-record-meta">
+            <span>Owner-assigned Front Office cleanup only</span>
+            {activeCleanupFilter !== "all" ? (
+              <span>{activeCleanupFilterLabel} focus applied</span>
+            ) : null}
+          </div>
+
           <div className="list-column front-office-record-list">
             {filteredCleanupItems.length ? (
               filteredCleanupItems.map((item) => (
@@ -1046,9 +1155,14 @@ export function AgentNotificationsClient({
                       <strong>{item.title}</strong>
                       <p>{item.description}</p>
                     </div>
-                    <StatusBadge tone={item.tone}>{item.kindLabel}</StatusBadge>
+                    <StatusBadge tone={item.tone}>
+                      {item.pressureLabel}
+                    </StatusBadge>
                   </div>
                   <div className="list-row-meta front-office-record-meta">
+                    <span>{item.kindLabel}</span>
+                    <span>{item.ownerLabel}</span>
+                    <span>{item.scopeLabel}</span>
                     <span>{item.sortLabel}</span>
                     {item.metaLabels.map((label) => (
                       <span key={`${item.id}-${label}`}>{label}</span>
@@ -1083,8 +1197,8 @@ export function AgentNotificationsClient({
         <SectionCard
           className="office-list-card"
           id="team-cleanup-pressure"
-          subtitle="Leadership cleanup should be reviewable from the same route as personal cleanup. This section keeps overdue shared tasks, stale visible-scope dossiers, and quiet send trails together instead of hiding that pressure in the dashboard only."
-          title={leadershipQueue.scopeLabel}
+          subtitle="Leadership cleanup stays visible-scope, not owner-blind. This section keeps overdue shared tasks, stale dossiers, and quiet send trails together so leads and office admins can decide where to intervene next."
+          title="Team cleanup"
         >
           <ListPageStatsGrid>
             <StatCard
@@ -1107,6 +1221,13 @@ export function AgentNotificationsClient({
             />
           </ListPageStatsGrid>
 
+          <div className="list-row-meta front-office-record-meta">
+            <span>{leadershipQueue.scopeLabel}</span>
+            {activeLeadershipFilter !== "all" ? (
+              <span>{activeLeadershipFilterLabel} focus applied</span>
+            ) : null}
+          </div>
+
           <div className="list-column front-office-record-list">
             {filteredLeadershipItems.length ? (
               filteredLeadershipItems.map((item) => (
@@ -1119,12 +1240,16 @@ export function AgentNotificationsClient({
                       <strong>{item.title}</strong>
                       <p>{item.description}</p>
                     </div>
-                    <StatusBadge tone={item.tone}>{item.kindLabel}</StatusBadge>
+                    <StatusBadge tone={item.tone}>
+                      {item.pressureLabel}
+                    </StatusBadge>
                   </div>
                   <div className="list-row-meta front-office-record-meta">
-                    <span>{item.contextLabel}</span>
-                    <span>{leadershipQueue.scopeLabel}</span>
+                    <span>{item.kindLabel}</span>
+                    <span>{item.ownerLabel}</span>
+                    <span>{item.scopeLabel}</span>
                   </div>
+                  <p className="front-office-record-supporting">{item.whyNowLabel}</p>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
                     href={item.href}
@@ -1169,7 +1294,7 @@ export function AgentNotificationsClient({
         <SectionCard
           className="office-list-card"
           id="appointment-reminder-pressure"
-          subtitle="Calendar-linked reminder notices now stay separate from the broader notice stream, so confirmation, reschedule, external follow-up, and near-term appointment pressure can be scanned without mixing them into every other office notice."
+          subtitle="Appointment reminders stay inbox-backed but separate from broader notices, so confirmation, reschedule, external follow-up, and near-term meeting pressure can be worked as one calendar-owned slice."
           title="Appointment reminder pressure"
         >
           <ListPageStatsGrid>
@@ -1224,8 +1349,8 @@ export function AgentNotificationsClient({
         <SectionCard
           className="office-list-card"
           id="notice-stream"
-          subtitle="This stream stays focused on the remaining Front Office notices after appointment reminder pressure has been split out, and now it can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or pure awareness only."
-          title="Notice stream"
+          subtitle="General notices stay separate from calendar pressure and can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or awareness only."
+          title="General notices"
         >
           <div className="list-row-meta front-office-record-meta">
             <span>{generalNoticeCards.length} notice(s) in this lane</span>
@@ -1237,7 +1362,12 @@ export function AgentNotificationsClient({
           <div className="office-notification-list">
             {generalNoticeCards.length ? (
               generalNoticeCards.map((card) =>
-                renderNotificationCard(card, "Open notice"),
+                renderNotificationCard(
+                  card,
+                  card.actionLabel === card.typeLabel
+                    ? "Review notice"
+                    : card.actionLabel,
+                ),
               )
             ) : (
               <EmptyState
