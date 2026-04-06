@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ComponentProps } from "react";
 import type { FrontOfficeListingsSnapshot } from "@acre/db";
 import { Badge, Button, EmptyState, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
@@ -41,6 +41,14 @@ type ShareActionContext = {
   followUpCue?: string;
   materialCue?: string;
 };
+
+type SnapshotBadgeTone =
+  | NonNullable<FrontOfficeListingsSnapshot["targetClient"]>["stageTone"]
+  | NonNullable<FrontOfficeListingsSnapshot["targetAppointment"]>["statusTone"];
+
+type QueueItemBadgeTone = NonNullable<
+  ComponentProps<typeof QueueItem>["badgeTone"]
+>;
 
 async function copyTextToClipboard(value: string) {
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
@@ -257,14 +265,12 @@ function buildActionButtonLabel(input: {
   return "Copy private link";
 }
 
-function mapBadgeTone(
-  value: FrontOfficeListingsSnapshot["targetClient"] extends {
-    stageTone: infer Tone;
-  }
-    ? Tone
-    : "accent",
-) {
+function mapBadgeTone(value: SnapshotBadgeTone): QueueItemBadgeTone {
   switch (value) {
+    case "neutral":
+      return "neutral";
+    case "accent":
+      return "accent";
     case "danger":
       return "danger";
     case "warning":

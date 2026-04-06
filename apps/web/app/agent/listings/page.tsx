@@ -226,7 +226,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           />
           <SummaryChip
             label="Mode"
-            tone={snapshot.targetClient ? "success" : "warning"}
+            tone={snapshot.targetClient ? "accent" : "default"}
             value={snapshot.targetClient ? "Client-linked" : "Tracked link"}
           />
           {snapshot.targetClient ? (
