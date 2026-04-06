@@ -1,6 +1,9 @@
-import Link from "next/link";
 import { can, getDefaultAppPath } from "@acre/auth";
-import { getFrontOfficeDashboardSnapshot } from "@acre/db";
+import Link from "next/link";
+import {
+  getFrontOfficeClientsSnapshot,
+  getFrontOfficeDashboardSnapshot,
+} from "@acre/db";
 import {
   Badge,
   EmptyState,
@@ -22,6 +25,53 @@ import {
   requireSessionContext,
 } from "../../../lib/auth-session";
 
+const intakeReviewStages = new Set([
+  "Cold Lead",
+  "Warm Lead",
+  "Contacted",
+  "Needs Follow-up",
+  "Pending",
+]);
+
+function getClientReviewActionLabel(stage: string) {
+  return intakeReviewStages.has(stage)
+    ? "Continue intake review"
+    : "Open client workspace";
+}
+
+function getDashboardQueueAction(input: {
+  actionId: string;
+  href: string;
+  actionLabel: string;
+  canViewClients: boolean;
+}) {
+  if (!input.canViewClients) {
+    return {
+      href: input.href,
+      label: input.actionLabel,
+    };
+  }
+
+  if (input.actionId === "follow-up") {
+    return {
+      href: "/agent/clients#client-pipeline",
+      label: "Review client queue",
+    };
+  }
+
+  if (input.actionId === "lease-reminders") {
+    return {
+      href: "/agent/clients#client-pipeline",
+      label: "Open client reminders",
+    };
+  }
+
+  return {
+    href: input.href,
+    label: input.actionLabel,
+  };
+}
+
 export default async function AgentDashboardPage() {
   const context = await requireSessionContext();
 
@@ -31,13 +81,24 @@ export default async function AgentDashboardPage() {
 
   const access = getSessionAccess(context);
   const canUseAi = can(context.currentMembership, "ai:use");
-  const snapshot = await getFrontOfficeDashboardSnapshot({
-    organizationId: context.currentOrganization.id,
-    viewerMembershipId: context.currentMembership.id,
-    viewerRole: context.currentMembership.role,
-    officeId: context.currentOffice?.id ?? null,
-    timeZone: context.currentUser.timezone,
-  });
+  const canViewClients = can(context.currentMembership, "clients:view");
+  const [snapshot, clientsSnapshot] = await Promise.all([
+    getFrontOfficeDashboardSnapshot({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
+      viewerRole: context.currentMembership.role,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
+    }),
+    canViewClients
+      ? getFrontOfficeClientsSnapshot({
+          organizationId: context.currentOrganization.id,
+          viewerMembershipId: context.currentMembership.id,
+          officeId: context.currentOffice?.id ?? null,
+          timeZone: context.currentUser.timezone,
+        })
+      : Promise.resolve(null),
+  ]);
   const duplicatePreviewCandidates: FrontOfficeLeadDuplicatePreviewCandidate[] =
     snapshot.pipeline.recentClients.map((client) => ({
       id: client.id,
@@ -57,14 +118,162 @@ export default async function AgentDashboardPage() {
       summaryClassName="front-office-dashboard-summary"
       main={
         <>
-          <FrontOfficeLeadIntakeCard
-            density="compact"
-            hydrateDuplicatePreviewCandidates
-            initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
-            sourceSurface="dashboard"
-            subtitle="Capture a new lead the moment it comes in, keep the next follow-up dated, and let Front Office build the dossier before anything becomes a formal Back Office record. Intake assist now shows field-level confidence and provenance, stays safer around household or multi-party threads, and keeps duplicate warnings review-first before anything touches the live form."
-            title="Quick lead intake"
-          />
+          {clientsSnapshot ? (
+            <SectionCard
+              className="office-list-card"
+              subtitle="Use the dashboard as the launch pad: start a new intake, reopen pending assist review inside the card below, or jump straight into duplicate review and the live client queue."
+              title="Intake launch & review"
+            >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="live Front Office dossiers visible in your current client scope"
+                  label="Live contacts"
+                  value={clientsSnapshot.summary.liveContacts}
+                />
+                <StatCard
+                  hint="same-day or overdue next-touch markers already visible in the client queue"
+                  label="Follow-up due"
+                  tone="accent"
+                  value={clientsSnapshot.summary.followUpDueCount}
+                />
+                <StatCard
+                  hint="pairwise duplicate review suggestions currently waiting in the client list"
+                  label="Duplicate review"
+                  tone="accent"
+                  value={clientsSnapshot.summary.potentialDuplicateCount}
+                />
+                <StatCard
+                  hint="scheduled follow-up tasks already overdue in your current scope"
+                  label="Overdue tasks"
+                  value={clientsSnapshot.summary.overdueTaskCount}
+                />
+              </ListPageStatsGrid>
+
+              <div className="office-queue-list">
+                <FrontOfficeRailItem
+                  action={
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href="#dashboard-intake-launch"
+                    >
+                      Open intake assist
+                    </FrontOfficeLink>
+                  }
+                  badgeLabel="Assist"
+                  badgeTone="accent"
+                  context="Dashboard launch"
+                  description="Start a new capture here or reopen the assist card below to finish any screenshot or transcript suggestions that are still pending review before create."
+                  meta={<span>Create only uses the live form values.</span>}
+                  title="Continue intake assist review"
+                />
+                <FrontOfficeRailItem
+                  action={
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href="/agent/clients#client-pipeline"
+                    >
+                      Open client pipeline
+                    </FrontOfficeLink>
+                  }
+                  badgeLabel="Clients"
+                  badgeTone="accent"
+                  context={`${clientsSnapshot.summary.liveContacts} live contact(s)`}
+                  description="Jump into the full client list when you need the stage view, next-touch ordering, and the real queue for continuing review across existing dossiers."
+                  meta={
+                    <span>
+                      {clientsSnapshot.summary.followUpDueCount} follow-up item(s)
+                      are already due there.
+                    </span>
+                  }
+                  title="Review the live client queue"
+                />
+                <FrontOfficeRailItem
+                  action={
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href="/agent/clients#duplicate-review"
+                    >
+                      Open duplicate review
+                    </FrontOfficeLink>
+                  }
+                  badgeLabel={
+                    clientsSnapshot.summary.potentialDuplicateCount > 0
+                      ? "Review"
+                      : "Clear"
+                  }
+                  badgeTone={
+                    clientsSnapshot.summary.potentialDuplicateCount > 0
+                      ? "warning"
+                      : "neutral"
+                  }
+                  context={
+                    clientsSnapshot.summary.potentialDuplicateCount > 0
+                      ? `${clientsSnapshot.summary.potentialDuplicateCount} pair(s) waiting`
+                      : "No pairwise duplicates in view"
+                  }
+                  description="Keep create-time duplicate warnings review-first: the dedicated lane in the client list is still the place to compare dossiers before you merge anything."
+                  meta={<span>Duplicate review stays in the client queue.</span>}
+                  title="Follow the duplicate cue"
+                />
+              </div>
+
+              {clientsSnapshot.duplicatePairs.length ? (
+                <div className="office-queue-list">
+                  {clientsSnapshot.duplicatePairs
+                    .slice(0, 2)
+                    .map((pair) => (
+                      <FrontOfficeRailItem
+                        action={
+                          <>
+                            <FrontOfficeLink
+                              className="office-inline-link front-office-inline-link"
+                              href={pair.recommendedClient.href}
+                            >
+                              Review keep record
+                            </FrontOfficeLink>
+                            <FrontOfficeLink
+                              className="office-inline-link front-office-inline-link"
+                              href="/agent/clients#duplicate-review"
+                            >
+                              Open duplicate lane
+                            </FrontOfficeLink>
+                          </>
+                        }
+                        badgeLabel={
+                          pair.matchReasons.length >= 2
+                            ? "High overlap"
+                            : "Review first"
+                        }
+                        badgeTone={
+                          pair.matchReasons.length >= 2 ? "warning" : "accent"
+                        }
+                        context={pair.matchReasons.join(" · ")}
+                        description={pair.rationaleLabel}
+                        key={pair.id}
+                        meta={
+                          <>
+                            <span>{pair.recommendedClient.nextTouchLabel}</span>
+                            <span>{pair.duplicateClient.nextTouchLabel}</span>
+                          </>
+                        }
+                        title={`${pair.recommendedClient.fullName} <> ${pair.duplicateClient.fullName}`}
+                      />
+                    ))}
+                </div>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
+          <div id="dashboard-intake-launch">
+            <FrontOfficeLeadIntakeCard
+              density="compact"
+              hydrateDuplicatePreviewCandidates
+              initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
+              sourceSurface="dashboard"
+              subtitle="Launch a new lead or reopen a screenshot / transcript extract that still needs review. The same card keeps field-level confidence, provenance, review-pending suggestions, and duplicate warnings visible before anything touches the live form."
+              title="Launch intake assist"
+            />
+          </div>
 
           <SectionCard
             className="office-list-card"
@@ -72,32 +281,41 @@ export default async function AgentDashboardPage() {
             title="Today action queue"
           >
             <div className="list-column front-office-record-list">
-              {snapshot.actionQueue.map((item) => (
-                <article
-                  className={`list-row front-office-record tone-${item.tone}`}
-                  key={item.id}
-                >
-                  <div className="list-row-top front-office-record-head">
-                    <div>
-                      <strong>{item.label}</strong>
-                      <p>{item.description}</p>
-                    </div>
-                    <StatusBadge tone={item.tone}>
-                      {item.tone === "neutral" ? "In view" : "Active"}
-                    </StatusBadge>
-                  </div>
-                  <div className="list-row-meta front-office-record-meta">
-                    <span>{item.count} item(s)</span>
-                    <span>{item.helper}</span>
-                  </div>
-                  <FrontOfficeLink
-                    className="office-inline-link front-office-inline-link"
-                    href={item.href}
+              {snapshot.actionQueue.map((item) => {
+                const action = getDashboardQueueAction({
+                  actionId: item.id,
+                  href: item.href,
+                  actionLabel: item.actionLabel,
+                  canViewClients,
+                });
+
+                return (
+                  <article
+                    className={`list-row front-office-record tone-${item.tone}`}
+                    key={item.id}
                   >
-                    {item.actionLabel}
-                  </FrontOfficeLink>
-                </article>
-              ))}
+                    <div className="list-row-top front-office-record-head">
+                      <div>
+                        <strong>{item.label}</strong>
+                        <p>{item.description}</p>
+                      </div>
+                      <StatusBadge tone={item.tone}>
+                        {item.tone === "neutral" ? "In view" : "Active"}
+                      </StatusBadge>
+                    </div>
+                    <div className="list-row-meta front-office-record-meta">
+                      <span>{item.count} item(s)</span>
+                      <span>{item.helper}</span>
+                    </div>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={action.href}
+                    >
+                      {action.label}
+                    </FrontOfficeLink>
+                  </article>
+                );
+              })}
             </div>
           </SectionCard>
 
@@ -207,6 +425,24 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
+            actions={
+              canViewClients ? (
+                <>
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href="/agent/clients#client-pipeline"
+                  >
+                    Open client list
+                  </FrontOfficeLink>
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href="/agent/clients#duplicate-review"
+                  >
+                    Review duplicates
+                  </FrontOfficeLink>
+                </>
+              ) : undefined
+            }
             subtitle="Light pipeline visibility for the agent workday. Formal transaction reporting still belongs in Back Office."
             title="Client pipeline snapshot"
           >
@@ -259,7 +495,7 @@ export default async function AgentDashboardPage() {
                       className="office-inline-link front-office-inline-link"
                       href={client.href}
                     >
-                      Open client workspace
+                      {getClientReviewActionLabel(client.stage)}
                     </FrontOfficeLink>
                   </article>
                 ))
@@ -770,10 +1006,23 @@ export default async function AgentDashboardPage() {
             tone="accent"
             value={snapshot.summary.todayActionCount}
           />
+          {clientsSnapshot ? (
+            <SummaryChip
+              label="Live contacts"
+              value={clientsSnapshot.summary.liveContacts}
+            />
+          ) : null}
           <SummaryChip
             label="Follow-up due"
             value={snapshot.summary.followUpDueCount}
           />
+          {clientsSnapshot ? (
+            <SummaryChip
+              label="Duplicate review"
+              tone="accent"
+              value={clientsSnapshot.summary.potentialDuplicateCount}
+            />
+          ) : null}
           <SummaryChip
             label="Lease reminders"
             tone="accent"

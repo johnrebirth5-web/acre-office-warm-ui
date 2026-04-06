@@ -20,6 +20,20 @@ import {
   requireSessionContext,
 } from "../../../lib/auth-session";
 
+const intakeReviewStages = new Set([
+  "Cold Lead",
+  "Warm Lead",
+  "Contacted",
+  "Needs Follow-up",
+  "Pending",
+]);
+
+function getClientReviewActionLabel(stage: string) {
+  return intakeReviewStages.has(stage)
+    ? "Continue intake review"
+    : "Open client workspace";
+}
+
 export default async function AgentClientsPage() {
   const context = await requireSessionContext();
 
@@ -47,97 +61,204 @@ export default async function AgentClientsPage() {
 
   return (
     <FrontOfficePageTemplate
-      description="Client work stays lean here: fast intake, duplicate review, follow-up context, and the next conversation to move."
+      description="Client work stays lean here: launch intake assist, keep pending review obvious, catch duplicate cues early, and continue the next client conversation without leaving the list."
       eyebrow="Clients"
       main={
-        <SectionCard
-          className="office-list-card"
-          subtitle="Front Office keeps the active client list readable and action-oriented instead of forcing agents through a heavy CRM workflow."
-          title="Active client pipeline"
-        >
-          <ListPageStatsGrid>
-            {snapshot.stageMetrics.length ? (
-              snapshot.stageMetrics.map((metric) => (
-                <StatCard
-                  hint="clients in this stage"
-                  key={metric.label}
-                  label={metric.label}
-                  tone={
-                    metric.tone === "accent" || metric.tone === "success"
-                      ? "accent"
-                      : "default"
-                  }
-                  value={metric.count}
-                />
-              ))
-            ) : (
-              <EmptyState
-                className="front-office-inline-empty"
-                description="Client stage distribution will appear here once Front Office starts managing live CRM records in this scope."
-                title="No stages in view"
-              />
-            )}
-          </ListPageStatsGrid>
-
-          <div className="list-column front-office-record-list">
-            {snapshot.clients.length ? (
-              snapshot.clients.map((client) => (
-                <article
-                  className="list-row front-office-record"
-                  key={client.id}
-                >
-                  <div className="list-row-top front-office-record-head">
-                    <div>
-                      <strong>{client.fullName}</strong>
-                      <p>
-                        {client.intentLabel} · {client.budgetLabel}
-                      </p>
-                    </div>
-                    <StatusBadge tone={client.stageTone}>
-                      {client.stage}
-                    </StatusBadge>
-                  </div>
-                  <p>{client.areasLabel}</p>
-                  <div className="list-row-meta front-office-record-meta">
-                    <span>{client.sourceLabel}</span>
-                    <span>{client.lastTouchLabel}</span>
-                    <span>{client.nextTouchLabel}</span>
-                  </div>
-                  <FrontOfficeLink
-                    className="office-inline-link front-office-inline-link"
-                    href={client.href}
-                  >
-                    Open client workspace
-                  </FrontOfficeLink>
-                </article>
-              ))
-            ) : (
-              <EmptyState
-                description="When Front Office starts using the shared CRM as the active client queue, records will appear here."
-                title="No live client records"
-              />
-            )}
-          </div>
-        </SectionCard>
-      }
-      rail={
         <>
+          <div id="clients-intake-launch">
+            <FrontOfficeLeadIntakeCard
+              initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
+              sourceSurface="clients"
+              subtitle="Start a new lead or reopen a screenshot / transcript extract that still has review-pending suggestions. The card below keeps field-level confidence, provenance, and review-first duplicate warnings visible before anything is written into the live dossier."
+              title="Start or continue intake review"
+            />
+          </div>
+
           {snapshot.duplicatePairs.length ? (
             <FrontOfficeClientDuplicatesCard
               duplicatePairs={snapshot.duplicatePairs}
             />
-          ) : null}
+          ) : (
+            <SectionCard
+              id="duplicate-review"
+              className="office-list-card"
+              subtitle="This anchor stays stable even when Acre does not see any pairwise duplicates right now, so launch surfaces can always send you back here if a create-time warning tells you to review before merge."
+              title="Duplicate review"
+            >
+              <EmptyState
+                description="No pairwise duplicate suggestions are visible in this client scope right now."
+                title="Duplicate lane is clear"
+              />
+            </SectionCard>
+          )}
 
-          <FrontOfficeLeadIntakeCard
-            initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
-            sourceSurface="clients"
-            subtitle="Use this when the lead is still hot and you only have the essentials. Acre writes the real client record, stage timeline, and next-touch date without turning this into a heavy contact-admin workflow, while intake assist stays conservative with field-level confidence, provenance, safer household parsing, and review-first duplicate warnings before it touches the live form."
-            title="Capture a lead"
-          />
+          <SectionCard
+            id="client-pipeline"
+            actions={
+              <>
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href="#clients-intake-launch"
+                >
+                  Open intake assist
+                </FrontOfficeLink>
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href="#duplicate-review"
+                >
+                  Review duplicates
+                </FrontOfficeLink>
+              </>
+            }
+            className="office-list-card"
+            subtitle="Front Office keeps the active client list readable and action-oriented, so an agent can continue intake review, scan next-touch pressure, and only hand off once work becomes formal."
+            title="Client pipeline review"
+          >
+            <ListPageStatsGrid>
+              {snapshot.stageMetrics.length ? (
+                snapshot.stageMetrics.map((metric) => (
+                  <StatCard
+                    hint="clients in this stage"
+                    key={metric.label}
+                    label={metric.label}
+                    tone={
+                      metric.tone === "accent" || metric.tone === "success"
+                        ? "accent"
+                        : "default"
+                    }
+                    value={metric.count}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  className="front-office-inline-empty"
+                  description="Client stage distribution will appear here once Front Office starts managing live CRM records in this scope."
+                  title="No stages in view"
+                />
+              )}
+            </ListPageStatsGrid>
+
+            <div className="list-column front-office-record-list">
+              {snapshot.clients.length ? (
+                snapshot.clients.map((client) => (
+                  <article
+                    className="list-row front-office-record"
+                    key={client.id}
+                  >
+                    <div className="list-row-top front-office-record-head">
+                      <div>
+                        <strong>{client.fullName}</strong>
+                        <p>
+                          {client.intentLabel} · {client.budgetLabel}
+                        </p>
+                      </div>
+                      <StatusBadge tone={client.stageTone}>
+                        {client.stage}
+                      </StatusBadge>
+                    </div>
+                    <p>{client.areasLabel}</p>
+                    <div className="list-row-meta front-office-record-meta">
+                      <span>{client.sourceLabel}</span>
+                      <span>{client.lastTouchLabel}</span>
+                      <span>{client.nextTouchLabel}</span>
+                    </div>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={client.href}
+                    >
+                      {getClientReviewActionLabel(client.stage)}
+                    </FrontOfficeLink>
+                  </article>
+                ))
+              ) : (
+                <EmptyState
+                  description="When Front Office starts using the shared CRM as the active client queue, records will appear here."
+                  title="No live client records"
+                />
+              )}
+            </div>
+          </SectionCard>
+        </>
+      }
+      rail={
+        <>
+          <SectionCard
+            className="office-list-card"
+            subtitle="The client list should make launch and continuation obvious: jump back into intake assist, reopen duplicate review, or scan the live queue without hunting for the right surface."
+            title="Launch & continue review"
+          >
+            <div className="office-queue-list">
+              <FrontOfficeRailItem
+                action={
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href="#clients-intake-launch"
+                  >
+                    Jump to intake assist
+                  </FrontOfficeLink>
+                }
+                badgeLabel="Assist"
+                badgeTone="accent"
+                context="Start or continue"
+                description="Reopen the intake card above whenever OCR or transcript suggestions are still pending review. Create only uses the live form values, so unfinished review stays visible in one place."
+                meta={<span>Review-pending assist stays in the card above.</span>}
+                title="Continue intake assist review"
+              />
+              <FrontOfficeRailItem
+                action={
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href="#duplicate-review"
+                  >
+                    Open duplicate review
+                  </FrontOfficeLink>
+                }
+                badgeLabel={
+                  snapshot.summary.potentialDuplicateCount > 0
+                    ? "Review"
+                    : "Clear"
+                }
+                badgeTone={
+                  snapshot.summary.potentialDuplicateCount > 0
+                    ? "warning"
+                    : "neutral"
+                }
+                context={
+                  snapshot.summary.potentialDuplicateCount > 0
+                    ? `${snapshot.summary.potentialDuplicateCount} pair(s) waiting`
+                    : "No duplicate pairs in view"
+                }
+                description="Keep the duplicate cue close to intake. If Acre flags a collision during create, this lane is where you compare records before a merge."
+                meta={<span>Duplicate review stays review-first.</span>}
+                title="Follow the duplicate cue"
+              />
+              <FrontOfficeRailItem
+                action={
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href="#client-pipeline"
+                  >
+                    Jump to client queue
+                  </FrontOfficeLink>
+                }
+                badgeLabel="Queue"
+                badgeTone="accent"
+                context={`${snapshot.summary.liveContacts} live contact(s)`}
+                description="Stay in the list when you need the active dossier queue, stage context, and next-touch ordering to continue review across existing clients."
+                meta={
+                  <span>
+                    {snapshot.summary.followUpDueCount} follow-up item(s) are due
+                    in this view.
+                  </span>
+                }
+                title="Review the live client list"
+              />
+            </div>
+          </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="A compact read on intake pressure, follow-up pressure, and whether duplicate review needs attention in this route."
+            subtitle="A compact read on intake pressure, follow-up pressure, and whether duplicate review needs attention before the next client touch."
             title="Workflow signals"
           >
             <ListPageStatsGrid>
@@ -203,22 +324,13 @@ export default async function AgentClientsPage() {
       }
       summary={
         <>
-          <SummaryChip label="Access" value={access.label} />
-          <SummaryChip
-            label="Live contacts"
-            value={snapshot.summary.liveContacts}
-          />
           <SummaryChip
             label="Follow-up due"
             tone="accent"
             value={snapshot.summary.followUpDueCount}
           />
           <SummaryChip
-            label="Stages in view"
-            value={snapshot.summary.activeStages}
-          />
-          <SummaryChip
-            label="Potential dupes"
+            label="Duplicate review"
             tone="accent"
             value={snapshot.summary.potentialDuplicateCount}
           />
@@ -226,9 +338,18 @@ export default async function AgentClientsPage() {
             label="Overdue tasks"
             value={snapshot.summary.overdueTaskCount}
           />
+          <SummaryChip
+            label="Live contacts"
+            value={snapshot.summary.liveContacts}
+          />
+          <SummaryChip
+            label="Stages in view"
+            value={snapshot.summary.activeStages}
+          />
+          <SummaryChip label="Access" value={access.label} />
         </>
       }
-      title="Client pipeline"
+      title="Client intake & pipeline"
     />
   );
 }
