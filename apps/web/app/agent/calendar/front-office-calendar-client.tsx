@@ -482,16 +482,20 @@ function resolveFocusState(
     };
   }
 
+  const lockedAppointment = snapshot.appointments.find(
+    (appointment) => appointment.id === filterState.appointmentId,
+  );
+
+  if (lockedAppointment) {
+    return {
+      appointment: lockedAppointment,
+      mode: "locked_in_queue",
+    };
+  }
+
   return {
-    appointment:
-      snapshot.appointments.find(
-        (appointment) => appointment.id === filterState.appointmentId,
-      ) ?? null,
-    mode: snapshot.appointments.some(
-      (appointment) => appointment.id === filterState.appointmentId,
-    )
-      ? "locked_in_queue"
-      : "missing",
+    appointment: null,
+    mode: "missing",
   };
 }
 
