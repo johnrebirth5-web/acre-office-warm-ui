@@ -104,6 +104,18 @@ function getLatestRequestActionLabel(template: OfficeSignatureTemplate) {
   return "Open latest request";
 }
 
+function getReuseActionLabel(template: OfficeSignatureTemplate) {
+  if (!template.latestRequest?.reuseHref) {
+    return "";
+  }
+
+  if (template.usage.totalCount > 0) {
+    return "Reuse on latest source PDF";
+  }
+
+  return "Use template";
+}
+
 export function SignatureTemplatesClient({
   snapshot,
   canManageSignatures
@@ -398,6 +410,13 @@ export function SignatureTemplatesClient({
                         </Link>
                       </span>
                     ) : null}
+                    {canManageSignatures && template.latestRequest?.reuseHref ? (
+                      <span>
+                        <Link className="office-toggle-link" href={template.latestRequest.reuseHref}>
+                          {getReuseActionLabel(template)}
+                        </Link>
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <span>{template.categoryLabel}</span>
@@ -495,6 +514,11 @@ export function SignatureTemplatesClient({
             {canManageSignatures && selectedTemplate.latestRequest?.requestHref ? (
               <Link className="office-button-secondary" href={selectedTemplate.latestRequest.requestHref}>
                 {getLatestRequestActionLabel(selectedTemplate)}
+              </Link>
+            ) : null}
+            {canManageSignatures && selectedTemplate.latestRequest?.reuseHref ? (
+              <Link className="office-button-secondary" href={selectedTemplate.latestRequest.reuseHref}>
+                {getReuseActionLabel(selectedTemplate)}
               </Link>
             ) : null}
             {selectedTemplate.latestRequest?.transactionHref ? (

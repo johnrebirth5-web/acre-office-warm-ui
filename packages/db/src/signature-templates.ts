@@ -69,6 +69,7 @@ export type OfficeSignatureTemplate = {
         requestHref: string;
         transactionHref: string;
         transactionLabel: string;
+        reuseHref: string;
       }
     | null;
   recipients: OfficeSignatureTemplateRecipient[];
@@ -204,10 +205,24 @@ function buildTemplateUsage(
   };
 }
 
+function resolveTemplateLatestRequest(
+  template: Awaited<ReturnType<typeof listSignatureTemplatesInternal>>[number]
+) {
+  return (
+    template.signatureRequests.find((request) =>
+      request.status === "draft" ||
+      request.status === "pending_send" ||
+      request.status === "sent" ||
+      request.status === "viewed" ||
+      request.status === "signed"
+    ) ?? template.signatureRequests[0] ?? null
+  );
+}
+
 function mapTemplate(
   template: Awaited<ReturnType<typeof listSignatureTemplatesInternal>>[number]
 ): OfficeSignatureTemplate {
-  const latestRequest = template.signatureRequests[0] ?? null;
+  const latestRequest = resolveTemplateLatestRequest(template);
 
   return {
     id: template.id,
@@ -233,7 +248,11 @@ function mapTemplate(
           updatedAt: formatDateTimeLabel(latestRequest.updatedAt) || "",
           requestHref: `/office/transactions/${latestRequest.transactionId}/signatures/${latestRequest.id}`,
           transactionHref: `/office/transactions/${latestRequest.transactionId}`,
-          transactionLabel: latestRequest.transaction?.title || latestRequest.contextLabel || "Transaction"
+          transactionLabel: latestRequest.transaction?.title || latestRequest.contextLabel || "Transaction",
+          reuseHref:
+            latestRequest.documentId
+              ? `/office/transactions/${latestRequest.transactionId}/signatures/new?documentId=${latestRequest.documentId}&templateId=${template.id}`
+              : ""
         }
       : null,
     recipients: template.recipients.map((recipient) => ({
@@ -306,6 +325,7 @@ async function listSignatureTemplatesInternal(input: {
         select: {
           id: true,
           transactionId: true,
+          documentId: true,
           status: true,
           contextLabel: true,
           updatedAt: true,
@@ -391,6 +411,7 @@ export async function getOfficeSignatureTemplate(input: {
         select: {
           id: true,
           transactionId: true,
+          documentId: true,
           status: true,
           contextLabel: true,
           updatedAt: true,
