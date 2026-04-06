@@ -7,6 +7,7 @@ import {
   SummaryChip,
 } from "@acre/ui";
 import { redirect } from "next/navigation";
+import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeAgentMaterialWindow } from "./front-office-agent-material-window";
