@@ -37,7 +37,9 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
   const targetAppointmentId = readSearchParamValue(
     searchParams.appointmentId,
   )?.trim();
-  const draftChannelValue = readSearchParamValue(searchParams.draftChannel)?.trim();
+  const draftChannelValue = readSearchParamValue(
+    searchParams.draftChannel,
+  )?.trim();
   const draftBodyValue = readSearchParamValue(searchParams.draftBody)?.trim();
   const draftSubjectValue =
     readSearchParamValue(searchParams.draftSubject)?.trim() || "";
@@ -77,13 +79,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Listings in Front Office are about recommendation, outreach, and content output, not back-office inventory administration."
+      description="Listings in Front Office are about tracked recommendation, outreach context, and follow-up visibility, not back-office inventory administration."
       eyebrow="Listings"
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this list as the send-ready inventory surface for active client outreach."
-          title="Send-ready inventory"
+          subtitle="Use this list as the tracked listing output surface for live client outreach, appointment prep, and send-trail rescue."
+          title="Tracked listing output"
         >
           <FrontOfficeListingsOutputClient
             draftAssist={draftAssist}
@@ -130,7 +132,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Client-linked sends are the current Front Office priority because they close the execution loop."
+            subtitle="Client-linked sends are the current Front Office priority because they close the execution loop and keep appointment pressure visible."
             title="Send context"
           >
             <div className="office-queue-list">
@@ -151,10 +153,17 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               />
               {snapshot.targetAppointment ? (
                 <FrontOfficeRailItem
-                  action={null}
+                  action={
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={snapshot.targetAppointment.href}
+                    >
+                      Open appointment
+                    </FrontOfficeLink>
+                  }
                   badgeLabel={snapshot.targetAppointment.statusLabel}
                   badgeTone={snapshot.targetAppointment.statusTone}
-                  description={`${snapshot.targetAppointment.typeLabel} · ${snapshot.targetAppointment.locationLabel}`}
+                  description={`${snapshot.targetAppointment.typeLabel} · ${snapshot.targetAppointment.locationLabel}. Sends from this page now stay tied to the appointment loop instead of becoming detached outreach.`}
                   title={`${snapshot.targetAppointment.title} · ${snapshot.targetAppointment.startsAtLabel}`}
                 />
               ) : null}
@@ -163,32 +172,36 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Business card, profile assets, recent closings, and send-ready intro copy should stay beside listing output."
+            subtitle="Business card, profile assets, intro copy, and proof package should stay beside listing output so the agent can build a send bundle instead of hunting for assets."
             title="Agent material window"
           >
-            <FrontOfficeAgentMaterialWindow material={snapshot.agentMaterial} />
+            <FrontOfficeAgentMaterialWindow
+              material={snapshot.agentMaterial}
+              targetAppointment={snapshot.targetAppointment}
+              targetClient={snapshot.targetClient}
+            />
           </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="This route should feel like an output terminal, not an admin inventory console."
-            title="Output modes"
+            subtitle="This route should feel like an output terminal with writeback signals, not an admin inventory console."
+            title="Writeback behavior"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
-                badgeLabel="Links"
-                description="Use listing-level links to connect outreach back to click behavior without leaving Front Office."
-                title="Tracked share link"
+                badgeLabel="Trail"
+                description="Tracked share links stay private, feed click behavior back into Front Office, and become send records when launched from a dossier or appointment."
+                title="Tracked send trail"
               />
               <FrontOfficeRailItem
-                badgeLabel="Media"
-                description="Generate presentation-ready listing output with agent identity and compliant property framing."
-                title="Poster export"
+                badgeLabel="Cue"
+                description="Unopened sends and quiet-after-open behavior should rise back into the same cleanup loop instead of living as invisible clipboard history."
+                title="Follow-up rescue cues"
               />
               <FrontOfficeRailItem
-                badgeLabel="Notes"
-                description="Add client-specific framing or local insight without turning this route into a full listing-admin workflow."
-                title="Custom notes"
+                badgeLabel="Bundle"
+                description="Agent materials stay beside the listing so each send can carry identity, intro copy, and proof without becoming a portal or auto-send system."
+                title="Material package pairing"
               />
             </div>
           </SectionCard>
@@ -209,6 +222,11 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             label="Tracked clicks"
             tone="accent"
             value={snapshot.summary.trackedClicks}
+          />
+          <SummaryChip
+            label="Mode"
+            tone={snapshot.targetClient ? "success" : "warning"}
+            value={snapshot.targetClient ? "Client-linked" : "Tracked link"}
           />
           {snapshot.targetClient ? (
             <SummaryChip
