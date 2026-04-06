@@ -14,6 +14,60 @@ const activeListingStatuses: ListingStatus[] = [
   ListingStatus.hot,
 ];
 
+const TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS = 3;
+const TRACKED_SEND_QUIET_AFTER_OPEN_DAYS = 7;
+
+type FrontOfficeListingShareBindingMode =
+  | "generic_tracked_link"
+  | "client_dossier_context"
+  | "client_appointment_context";
+
+type FrontOfficeListingShareFollowUpKind =
+  | "generic_context"
+  | "client_context"
+  | "appointment_context";
+
+type FrontOfficeListingShareWritebackMode =
+  | "tracked_link_only"
+  | "tracked_send_recorded";
+
+type FrontOfficeListingShareResolvedClient = {
+  id: string;
+  fullName: string;
+  stageLabel: string | null;
+  bindingSource: "explicit_client" | "appointment_context";
+};
+
+type FrontOfficeListingShareResolvedAppointment = {
+  id: string;
+  title: string;
+  startsAt: Date | null;
+};
+
+class FrontOfficeListingShareLinkError extends Error {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(input: { code: string; message: string; status: number }) {
+    super(input.message);
+    this.name = "FrontOfficeListingShareLinkError";
+    this.code = input.code;
+    this.status = input.status;
+  }
+}
+
+function createFrontOfficeListingShareLinkError(input: {
+  code: string;
+  message: string;
+  status?: number;
+}) {
+  return new FrontOfficeListingShareLinkError({
+    code: input.code,
+    message: input.message,
+    status: input.status ?? 400,
+  });
+}
+
 function buildOfficeScopeFilter(officeId: string | null | undefined) {
   if (!officeId) {
     return undefined;
@@ -54,16 +108,25 @@ function buildShareCode() {
   return randomBytes(9).toString("base64url");
 }
 
-function normalizeFrontOfficeSendChannel(
-  channel: string,
-): FrontOfficeSendChannel {
-  switch (channel.trim().toLowerCase()) {
+function normalizeOptionalText(value: string | null | undefined) {
+  const normalized = value?.trim();
+
+  return normalized && normalized.length ? normalized : null;
+}
+
+function parseFrontOfficeSendChannel(channel: string): FrontOfficeSendChannel {
+  switch (normalizeOptionalText(channel)?.toLowerCase()) {
     case "sms":
       return FrontOfficeSendChannel.sms;
     case "email":
       return FrontOfficeSendChannel.email;
-    default:
+    case "direct":
       return FrontOfficeSendChannel.direct;
+    default:
+      throw createFrontOfficeListingShareLinkError({
+        code: "unsupported_share_channel",
+        message: "Unsupported share channel.",
+      });
   }
 }
 
@@ -71,10 +134,8 @@ export function buildFrontOfficeListingSharePath(code: string) {
   return `/share/listings/${code}`;
 }
 
-function normalizeClientStageLabel(value: string | null | undefined) {
-  const stage = value?.trim();
-
-  return stage && stage.length ? stage : "Stage not captured";
+function buildClientStageDisplayLabel(value: string | null | undefined) {
+  return normalizeOptionalText(value) ?? "Stage not captured";
 }
 
 function buildStageKeywordMatch(
@@ -86,13 +147,16 @@ function buildStageKeywordMatch(
   return keywords.some((keyword) => normalizedValue.includes(keyword));
 }
 
-function buildAppointmentWindowLabel(value: Date | null | undefined) {
+function buildAppointmentWindowLabel(
+  value: Date | null | undefined,
+  referenceAt: Date,
+) {
   if (!value) {
     return null;
   }
 
   const minutesUntilStart = Math.round(
-    (value.getTime() - Date.now()) / (1000 * 60),
+    (value.getTime() - referenceAt.getTime()) / (1000 * 60),
   );
 
   if (minutesUntilStart <= -120) {
@@ -110,45 +174,81 @@ function buildAppointmentWindowLabel(value: Date | null | undefined) {
   return "in the appointment prep window";
 }
 
+function resolveFrontOfficeListingShareBindingMode(input: {
+  client: FrontOfficeListingShareResolvedClient | null;
+  appointment: FrontOfficeListingShareResolvedAppointment | null;
+}): FrontOfficeListingShareBindingMode {
+  if (input.client && input.appointment) {
+    return "client_appointment_context";
+  }
+
+  if (input.client) {
+    return "client_dossier_context";
+  }
+
+  return "generic_tracked_link";
+}
+
+function buildShareModeLabel(mode: FrontOfficeListingShareBindingMode) {
+  if (mode === "client_appointment_context") {
+    return "Client + appointment context";
+  }
+
+  if (mode === "client_dossier_context") {
+    return "Client dossier context";
+  }
+
+  return "Generic tracked link";
+}
+
 function buildShareTrackingLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
   clientName: string | null;
   appointmentTitle: string | null;
 }) {
-  if (input.clientName && input.appointmentTitle) {
-    return `Send record saved to ${input.clientName} and linked to ${input.appointmentTitle}.`;
+  if (input.mode === "client_appointment_context") {
+    return `Send record saved to ${input.clientName || "the selected client"} and linked to ${input.appointmentTitle || "the selected appointment"}.`;
   }
 
-  if (input.clientName) {
-    return `Send record saved to ${input.clientName}'s Front Office trail.`;
-  }
-
-  if (input.appointmentTitle) {
-    return `Tracked link created in the ${input.appointmentTitle} appointment context.`;
+  if (input.mode === "client_dossier_context") {
+    return `Send record saved to ${input.clientName || "the selected client"}'s Front Office trail.`;
   }
 
   return "Tracked link created without client-linked send attribution.";
 }
 
-function buildShareFollowUpCue(input: {
-  clientStageLabel: string | null;
-  appointmentTitle: string | null;
-}) {
-  if (input.appointmentTitle) {
-    return "Use the appointment record for confirmation or reschedule notes, and rescue the send from the client trail if it stays unopened after 3 days.";
+function buildShareFollowUpSnapshot(mode: FrontOfficeListingShareBindingMode) {
+  if (mode === "client_appointment_context") {
+    return {
+      kind: "appointment_context" as const,
+      cue: `Use the appointment record for confirmation or reschedule notes, rescue the send from the client trail if it stays unopened after ${TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS} days, and reopen the shortlist if it goes quiet for a week after the first open.`,
+      unopenedAfterDays: TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS,
+      quietAfterOpenAfterDays: TRACKED_SEND_QUIET_AFTER_OPEN_DAYS,
+    };
   }
 
-  if (input.clientStageLabel) {
-    return "If the send stays unopened for 3 days, reopen the dossier with a tighter follow-up. If it opens and then goes quiet for a week, send the next option from the same trail.";
+  if (mode === "client_dossier_context") {
+    return {
+      kind: "client_context" as const,
+      cue: `If the send stays unopened for ${TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS} days, reopen the dossier with a tighter follow-up. If it opens and then goes quiet for a week, send the next option from the same trail.`,
+      unopenedAfterDays: TRACKED_SEND_UNOPENED_FOLLOW_UP_DAYS,
+      quietAfterOpenAfterDays: TRACKED_SEND_QUIET_AFTER_OPEN_DAYS,
+    };
   }
 
-  return "This link is still tracked, but it will not enter a client engagement trail until you reopen listing output from a dossier or appointment context.";
+  return {
+    kind: "generic_context" as const,
+    cue: "This link is still tracked, but it will not enter a client engagement trail until you reopen listing output from a dossier or appointment context.",
+    unopenedAfterDays: null,
+    quietAfterOpenAfterDays: null,
+  };
 }
 
 function buildShareMaterialCue(input: {
+  mode: FrontOfficeListingShareBindingMode;
   clientStageLabel: string | null;
-  appointmentTitle: string | null;
 }) {
-  if (input.appointmentTitle) {
+  if (input.mode === "client_appointment_context") {
     return "Pair this listing with the intro text and one recent closing so the client sees both meeting context and agent proof.";
   }
 
@@ -180,50 +280,19 @@ function buildShareMaterialCue(input: {
   return "Pair the listing with the business card and one proof point so the share carries identity, not just a link.";
 }
 
-function buildShareContext(input: {
-  client: {
-    id: string;
-    fullName: string;
-    stage: string | null;
-  } | null;
-  appointment: {
-    id: string;
-    title: string;
-    startsAt: Date | null;
-  } | null;
-  inheritedClientFromAppointment: boolean;
+function buildShareWritebackLabel(input: {
+  sendRecordId: string | null;
+  aiAcceptedActionRecorded: boolean;
 }) {
-  const clientStageLabel = input.client
-    ? normalizeClientStageLabel(input.client.stage)
-    : null;
-  const appointmentTitle = input.appointment?.title?.trim() || null;
+  if (input.sendRecordId && input.aiAcceptedActionRecorded) {
+    return "Tracked link, send record, and AI acceptance trail saved.";
+  }
 
-  return {
-    modeLabel: input.client
-      ? appointmentTitle
-        ? "Client + appointment context"
-        : "Client dossier context"
-      : "Generic tracked link",
-    trackingLabel: buildShareTrackingLabel({
-      clientName: input.client?.fullName ?? null,
-      appointmentTitle,
-    }),
-    clientLabel: input.client?.fullName ?? null,
-    clientStageLabel,
-    appointmentLabel: appointmentTitle,
-    appointmentWindowLabel: buildAppointmentWindowLabel(
-      input.appointment?.startsAt,
-    ),
-    inheritedClientFromAppointment: input.inheritedClientFromAppointment,
-    followUpCue: buildShareFollowUpCue({
-      clientStageLabel,
-      appointmentTitle,
-    }),
-    materialCue: buildShareMaterialCue({
-      clientStageLabel,
-      appointmentTitle,
-    }),
-  };
+  if (input.sendRecordId) {
+    return "Tracked link and send record saved.";
+  }
+
+  return "Tracked link saved without client-linked writeback.";
 }
 
 export type CreateFrontOfficeListingShareLinkInput = {
@@ -241,19 +310,88 @@ export type FrontOfficeListingShareLinkResult = {
   id: string;
   listingId: string;
   listingTitle: string;
-  channel: string;
+  channel: FrontOfficeSendChannel;
   sharePath: string;
   sendRecordId: string | null;
   context: {
+    mode: FrontOfficeListingShareBindingMode;
     modeLabel: string;
     trackingLabel: string;
+    trackingStatus: FrontOfficeListingShareWritebackMode;
+    clientId: string | null;
+    clientBindingSource:
+      | FrontOfficeListingShareResolvedClient["bindingSource"]
+      | null;
     clientLabel: string | null;
     clientStageLabel: string | null;
+    clientStageDisplayLabel: string | null;
+    appointmentId: string | null;
     appointmentLabel: string | null;
+    appointmentStartsAt: string | null;
     appointmentWindowLabel: string | null;
     inheritedClientFromAppointment: boolean;
+    followUpKind: FrontOfficeListingShareFollowUpKind;
     followUpCue: string;
+    followUpUnopenedAfterDays: number | null;
+    quietAfterOpenAfterDays: number | null;
     materialCue: string;
+    shareLinkId: string;
+    shareCode: string;
+    channel: FrontOfficeSendChannel;
+    sentAt: string;
+    writebackLabel: string;
+  };
+  snapshot: {
+    shareLink: {
+      id: string;
+      code: string;
+      sharePath: string;
+      channel: FrontOfficeSendChannel;
+      createdAt: string;
+    };
+    binding: {
+      mode: FrontOfficeListingShareBindingMode;
+      inheritedClientFromAppointment: boolean;
+      client: {
+        id: string;
+        fullName: string;
+        stageLabel: string | null;
+        bindingSource: FrontOfficeListingShareResolvedClient["bindingSource"];
+      } | null;
+      appointment: {
+        id: string;
+        title: string;
+        startsAt: string | null;
+        windowLabel: string | null;
+      } | null;
+    };
+    trackedSend: {
+      id: string | null;
+      status: FrontOfficeListingShareWritebackMode;
+      sentAt: string;
+      channel: FrontOfficeSendChannel;
+      materialType: FrontOfficeSendMaterialType;
+      clientStageLabel: string | null;
+      appointmentId: string | null;
+      appointmentTitle: string | null;
+      appointmentStartsAt: string | null;
+    };
+    followUp: {
+      kind: FrontOfficeListingShareFollowUpKind;
+      cue: string;
+      materialCue: string;
+      unopenedAfterDays: number | null;
+      quietAfterOpenAfterDays: number | null;
+    };
+    writeback: {
+      shareLinkCreated: true;
+      sendRecordCreated: boolean;
+      sendRecordId: string | null;
+      aiAcceptedActionRecorded: boolean;
+      clientBound: boolean;
+      appointmentBound: boolean;
+      label: string;
+    };
   };
 };
 
@@ -272,15 +410,178 @@ export type FrontOfficeListingSharePageSnapshot = {
   organizationLabel: string;
 };
 
+function buildShareResultSnapshot(input: {
+  shareLinkId: string;
+  shareCode: string;
+  sharePath: string;
+  shareLinkCreatedAt: Date;
+  channel: FrontOfficeSendChannel;
+  client: FrontOfficeListingShareResolvedClient | null;
+  appointment: FrontOfficeListingShareResolvedAppointment | null;
+  inheritedClientFromAppointment: boolean;
+  sentAt: Date;
+  sendRecordId: string | null;
+  aiAcceptedActionRecorded: boolean;
+}) {
+  const mode = resolveFrontOfficeListingShareBindingMode({
+    client: input.client,
+    appointment: input.appointment,
+  });
+  const clientStageLabel = input.client?.stageLabel ?? null;
+  const appointmentTitle = input.appointment?.title ?? null;
+  const appointmentStartsAt = input.appointment?.startsAt ?? null;
+  const appointmentStartsAtIso = appointmentStartsAt?.toISOString() || null;
+  const appointmentWindowLabel = buildAppointmentWindowLabel(
+    appointmentStartsAt,
+    input.sentAt,
+  );
+  const sentAtIso = input.sentAt.toISOString();
+  const trackingStatus: FrontOfficeListingShareWritebackMode =
+    input.sendRecordId ? "tracked_send_recorded" : "tracked_link_only";
+  const followUp = buildShareFollowUpSnapshot(mode);
+  const materialCue = buildShareMaterialCue({
+    mode,
+    clientStageLabel,
+  });
+  const writebackLabel = buildShareWritebackLabel({
+    sendRecordId: input.sendRecordId,
+    aiAcceptedActionRecorded: input.aiAcceptedActionRecorded,
+  });
+
+  return {
+    context: {
+      mode,
+      modeLabel: buildShareModeLabel(mode),
+      trackingLabel: buildShareTrackingLabel({
+        mode,
+        clientName: input.client?.fullName ?? null,
+        appointmentTitle,
+      }),
+      trackingStatus,
+      clientId: input.client?.id ?? null,
+      clientBindingSource: input.client?.bindingSource ?? null,
+      clientLabel: input.client?.fullName ?? null,
+      clientStageLabel,
+      clientStageDisplayLabel: input.client
+        ? buildClientStageDisplayLabel(clientStageLabel)
+        : null,
+      appointmentId: input.appointment?.id ?? null,
+      appointmentLabel: appointmentTitle,
+      appointmentStartsAt: appointmentStartsAtIso,
+      appointmentWindowLabel,
+      inheritedClientFromAppointment: input.inheritedClientFromAppointment,
+      followUpKind: followUp.kind,
+      followUpCue: followUp.cue,
+      followUpUnopenedAfterDays: followUp.unopenedAfterDays,
+      quietAfterOpenAfterDays: followUp.quietAfterOpenAfterDays,
+      materialCue,
+      shareLinkId: input.shareLinkId,
+      shareCode: input.shareCode,
+      channel: input.channel,
+      sentAt: sentAtIso,
+      writebackLabel,
+    },
+    snapshot: {
+      shareLink: {
+        id: input.shareLinkId,
+        code: input.shareCode,
+        sharePath: input.sharePath,
+        channel: input.channel,
+        createdAt: input.shareLinkCreatedAt.toISOString(),
+      },
+      binding: {
+        mode,
+        inheritedClientFromAppointment: input.inheritedClientFromAppointment,
+        client: input.client
+          ? {
+              id: input.client.id,
+              fullName: input.client.fullName,
+              stageLabel: clientStageLabel,
+              bindingSource: input.client.bindingSource,
+            }
+          : null,
+        appointment: input.appointment
+          ? {
+              id: input.appointment.id,
+              title: appointmentTitle || "Appointment context",
+              startsAt: appointmentStartsAtIso,
+              windowLabel: appointmentWindowLabel,
+            }
+          : null,
+      },
+      trackedSend: {
+        id: input.sendRecordId,
+        status: trackingStatus,
+        sentAt: sentAtIso,
+        channel: input.channel,
+        materialType: FrontOfficeSendMaterialType.listing_share,
+        clientStageLabel,
+        appointmentId: input.appointment?.id ?? null,
+        appointmentTitle,
+        appointmentStartsAt: appointmentStartsAtIso,
+      },
+      followUp: {
+        kind: followUp.kind,
+        cue: followUp.cue,
+        materialCue,
+        unopenedAfterDays: followUp.unopenedAfterDays,
+        quietAfterOpenAfterDays: followUp.quietAfterOpenAfterDays,
+      },
+      writeback: {
+        shareLinkCreated: true as const,
+        sendRecordCreated: Boolean(input.sendRecordId),
+        sendRecordId: input.sendRecordId,
+        aiAcceptedActionRecorded: input.aiAcceptedActionRecorded,
+        clientBound: Boolean(input.client),
+        appointmentBound: Boolean(input.appointment),
+        label: writebackLabel,
+      },
+    },
+  };
+}
+
 export async function createFrontOfficeListingShareLink(
   input: CreateFrontOfficeListingShareLinkInput,
 ): Promise<FrontOfficeListingShareLinkResult> {
+  const listingId = normalizeOptionalText(input.listingId);
+
+  if (!listingId) {
+    throw createFrontOfficeListingShareLinkError({
+      code: "listing_id_required",
+      message: "Listing id is required.",
+    });
+  }
+
+  const clientId = normalizeOptionalText(input.clientId ?? null);
+  const appointmentId = normalizeOptionalText(input.appointmentId ?? null);
+  const acceptedAiAction =
+    input.acceptedAiAction &&
+    normalizeOptionalText(input.acceptedAiAction.suggestionLabel)
+      ? {
+          sourceSurface: input.acceptedAiAction.sourceSurface,
+          suggestionKind: input.acceptedAiAction.suggestionKind,
+          suggestionLabel: normalizeOptionalText(
+            input.acceptedAiAction.suggestionLabel,
+          )!,
+          actionTitle: normalizeOptionalText(
+            input.acceptedAiAction.actionTitle ?? null,
+          ),
+        }
+      : null;
+
+  if (input.acceptedAiAction && !acceptedAiAction) {
+    throw createFrontOfficeListingShareLinkError({
+      code: "ai_action_label_required",
+      message: "AI tracked-send assist requires a suggestion label.",
+    });
+  }
+
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
-  const normalizedChannel = normalizeFrontOfficeSendChannel(input.channel);
+  const normalizedChannel = parseFrontOfficeSendChannel(input.channel);
   const [listing, explicitClient, appointment] = await Promise.all([
     prisma.listing.findFirst({
       where: {
-        id: input.listingId,
+        id: listingId,
         organizationId: input.organizationId,
         status: {
           in: activeListingStatuses,
@@ -292,10 +593,10 @@ export async function createFrontOfficeListingShareLink(
         title: true,
       },
     }),
-    input.clientId?.trim()
+    clientId
       ? prisma.client.findFirst({
           where: {
-            id: input.clientId.trim(),
+            id: clientId,
             organizationId: input.organizationId,
             ownerMembershipId: input.viewerMembershipId,
           },
@@ -306,12 +607,13 @@ export async function createFrontOfficeListingShareLink(
           },
         })
       : Promise.resolve(null),
-    input.appointmentId?.trim()
+    appointmentId
       ? prisma.appointment.findFirst({
           where: {
-            id: input.appointmentId.trim(),
+            id: appointmentId,
             organizationId: input.organizationId,
             ownerMembershipId: input.viewerMembershipId,
+            ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
           },
           select: {
             id: true,
@@ -330,21 +632,35 @@ export async function createFrontOfficeListingShareLink(
   ]);
 
   if (!listing) {
-    throw new Error("Listing not found in the current Front Office scope.");
+    throw createFrontOfficeListingShareLinkError({
+      code: "listing_not_found",
+      message: "Listing not found in the current Front Office scope.",
+      status: 404,
+    });
   }
 
-  if (input.clientId?.trim() && !explicitClient) {
-    throw new Error("Client not found in the current Front Office scope.");
+  if (clientId && !explicitClient) {
+    throw createFrontOfficeListingShareLinkError({
+      code: "client_not_found",
+      message: "Client not found in the current Front Office scope.",
+      status: 404,
+    });
   }
 
-  if (input.appointmentId?.trim() && !appointment) {
-    throw new Error("Appointment not found in the current Front Office scope.");
+  if (appointmentId && !appointment) {
+    throw createFrontOfficeListingShareLinkError({
+      code: "appointment_not_found",
+      message: "Appointment not found in the current Front Office scope.",
+      status: 404,
+    });
   }
 
   if (appointment && !appointment.client?.id) {
-    throw new Error(
-      "Only client-linked appointments can be used as send context.",
-    );
+    throw createFrontOfficeListingShareLinkError({
+      code: "appointment_requires_client",
+      message: "Only client-linked appointments can be used as send context.",
+      status: 409,
+    });
   }
 
   if (
@@ -352,13 +668,38 @@ export async function createFrontOfficeListingShareLink(
     appointment?.client?.id &&
     appointment.client.id !== explicitClient.id
   ) {
-    throw new Error("Appointment context does not match the selected client.");
+    throw createFrontOfficeListingShareLinkError({
+      code: "appointment_client_mismatch",
+      message: "Appointment context does not match the selected client.",
+      status: 409,
+    });
   }
 
-  const client = explicitClient ?? appointment?.client ?? null;
-  const inheritedClientFromAppointment = Boolean(
-    appointment?.client?.id && !explicitClient,
-  );
+  const client: FrontOfficeListingShareResolvedClient | null = explicitClient
+    ? {
+        id: explicitClient.id,
+        fullName: explicitClient.fullName,
+        stageLabel: normalizeOptionalText(explicitClient.stage),
+        bindingSource: "explicit_client",
+      }
+    : appointment?.client
+      ? {
+          id: appointment.client.id,
+          fullName: appointment.client.fullName,
+          stageLabel: normalizeOptionalText(appointment.client.stage),
+          bindingSource: "appointment_context",
+        }
+      : null;
+  const resolvedAppointment: FrontOfficeListingShareResolvedAppointment | null =
+    appointment
+      ? {
+          id: appointment.id,
+          title: appointment.title.trim(),
+          startsAt: appointment.startsAt ?? null,
+        }
+      : null;
+  const inheritedClientFromAppointment =
+    client?.bindingSource === "appointment_context";
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = buildShareCode();
@@ -366,88 +707,106 @@ export async function createFrontOfficeListingShareLink(
     const sentAt = new Date();
 
     try {
-      const shareLink = await prisma.$transaction(async (transaction) => {
-        const createdShareLink = await transaction.listingShareLink.create({
-          data: {
-            listingId: listing.id,
-            membershipId: input.viewerMembershipId,
-            channel: normalizedChannel,
-            code,
-            targetUrl: sharePath,
-          },
-          select: {
-            id: true,
-          },
-        });
-        let createdSendRecordId: string | null = null;
+      const transactionResult = await prisma.$transaction(
+        async (transaction) => {
+          const createdShareLink = await transaction.listingShareLink.create({
+            data: {
+              listingId: listing.id,
+              membershipId: input.viewerMembershipId,
+              channel: normalizedChannel,
+              code,
+              targetUrl: sharePath,
+            },
+            select: {
+              id: true,
+              code: true,
+              targetUrl: true,
+              createdAt: true,
+            },
+          });
+          const createdSendRecord = client
+            ? await transaction.frontOfficeSendRecord.create({
+                data: {
+                  organizationId: input.organizationId,
+                  officeId: input.officeId ?? null,
+                  senderMembershipId: input.viewerMembershipId,
+                  clientId: client.id,
+                  listingId: listing.id,
+                  appointmentId: resolvedAppointment?.id ?? null,
+                  shareLinkId: createdShareLink.id,
+                  channel: normalizedChannel,
+                  materialType: FrontOfficeSendMaterialType.listing_share,
+                  clientStageLabel: client.stageLabel,
+                  appointmentTitle: resolvedAppointment?.title ?? null,
+                  appointmentStartsAt: resolvedAppointment?.startsAt ?? null,
+                  sentAt,
+                },
+                select: {
+                  id: true,
+                  sentAt: true,
+                },
+              })
+            : null;
+          let aiAcceptedActionRecorded = false;
 
-        if (client) {
-          const createdSendRecord =
-            await transaction.frontOfficeSendRecord.create({
-              data: {
-                organizationId: input.organizationId,
-                officeId: input.officeId ?? null,
-                senderMembershipId: input.viewerMembershipId,
-                clientId: client.id,
-                listingId: listing.id,
-                appointmentId: appointment?.id ?? null,
-                shareLinkId: createdShareLink.id,
-                channel: normalizedChannel,
-                materialType: FrontOfficeSendMaterialType.listing_share,
-                clientStageLabel: client.stage?.trim() || null,
-                appointmentTitle: appointment?.title?.trim() || null,
-                appointmentStartsAt: appointment?.startsAt ?? null,
-                sentAt,
-              },
-              select: {
-                id: true,
-              },
+          if (acceptedAiAction) {
+            if (!client?.id || !createdSendRecord?.id) {
+              throw createFrontOfficeListingShareLinkError({
+                code: "ai_action_requires_client_context",
+                message:
+                  "AI tracked-send assist requires client-linked send context.",
+                status: 409,
+              });
+            }
+
+            await recordFrontOfficeAiAcceptedAction(transaction, {
+              organizationId: input.organizationId,
+              officeId: input.officeId ?? null,
+              membershipId: input.viewerMembershipId,
+              clientId: client.id,
+              listingId: listing.id,
+              sendRecordId: createdSendRecord.id,
+              actionType: "tracked_send_created",
+              sourceSurface: acceptedAiAction.sourceSurface,
+              suggestionKind: acceptedAiAction.suggestionKind,
+              suggestionLabel: acceptedAiAction.suggestionLabel,
+              actionTitle: acceptedAiAction.actionTitle || listing.title,
+              channel: normalizedChannel,
             });
-          createdSendRecordId = createdSendRecord.id;
-        }
-
-        if (input.acceptedAiAction) {
-          if (!client?.id || !createdSendRecordId) {
-            throw new Error(
-              "AI tracked-send assist requires client-linked send context.",
-            );
+            aiAcceptedActionRecorded = true;
           }
 
-          await recordFrontOfficeAiAcceptedAction(transaction, {
-            organizationId: input.organizationId,
-            officeId: input.officeId ?? null,
-            membershipId: input.viewerMembershipId,
-            clientId: client.id,
-            listingId: listing.id,
-            sendRecordId: createdSendRecordId,
-            actionType: "tracked_send_created",
-            sourceSurface: input.acceptedAiAction.sourceSurface,
-            suggestionKind: input.acceptedAiAction.suggestionKind,
-            suggestionLabel: input.acceptedAiAction.suggestionLabel,
-            actionTitle:
-              input.acceptedAiAction.actionTitle?.trim() || listing.title,
-            channel: normalizedChannel,
-          });
-        }
+          return {
+            createdShareLink,
+            createdSendRecord,
+            aiAcceptedActionRecorded,
+          };
+        },
+      );
 
-        return {
-          id: createdShareLink.id,
-          sendRecordId: createdSendRecordId,
-        };
+      const shareSnapshot = buildShareResultSnapshot({
+        shareLinkId: transactionResult.createdShareLink.id,
+        shareCode: transactionResult.createdShareLink.code,
+        sharePath: transactionResult.createdShareLink.targetUrl,
+        shareLinkCreatedAt: transactionResult.createdShareLink.createdAt,
+        channel: normalizedChannel,
+        client,
+        appointment: resolvedAppointment,
+        inheritedClientFromAppointment,
+        sentAt: transactionResult.createdSendRecord?.sentAt ?? sentAt,
+        sendRecordId: transactionResult.createdSendRecord?.id ?? null,
+        aiAcceptedActionRecorded: transactionResult.aiAcceptedActionRecorded,
       });
 
       return {
-        id: shareLink.id,
+        id: transactionResult.createdShareLink.id,
         listingId: listing.id,
         listingTitle: listing.title,
         channel: normalizedChannel,
-        sharePath,
-        sendRecordId: shareLink.sendRecordId ?? null,
-        context: buildShareContext({
-          client,
-          appointment,
-          inheritedClientFromAppointment,
-        }),
+        sharePath: transactionResult.createdShareLink.targetUrl,
+        sendRecordId: transactionResult.createdSendRecord?.id ?? null,
+        context: shareSnapshot.context,
+        snapshot: shareSnapshot.snapshot,
       };
     } catch (error) {
       if (
@@ -461,7 +820,11 @@ export async function createFrontOfficeListingShareLink(
     }
   }
 
-  throw new Error("Could not create a unique listing share link.");
+  throw createFrontOfficeListingShareLinkError({
+    code: "share_link_code_conflict",
+    message: "Could not create a unique listing share link.",
+    status: 409,
+  });
 }
 
 export async function getFrontOfficeListingSharePageSnapshot(
