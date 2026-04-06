@@ -15,6 +15,7 @@ import {
   respondToAgentPayoutStatement,
   sendAgentPayoutStatementToAgent,
   summarizeAgentPayoutStatementRows,
+  updateAgentPayoutStatementReviewStatus,
   updateAgentPayoutStatementManualLineItems
 } from "./agent-payout-statements.ts";
 import { getOfficeDashboardBusinessSnapshot } from "./dashboard.ts";
@@ -1332,6 +1333,101 @@ test("agent payout statements move through internal send, revision, resend, and 
     });
 
     assert.equal(confirmedDashboard.commission.payoutReviewQueue.count, 0);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("office admin can mark payout statements paid and roll them back into agent review", async () => {
+  const context = await createStatementTestContext();
+
+  try {
+    await context.createCommissionRow({
+      invoiceNumber: "INV-REVIEW-PAID-100",
+      transactionName: "Paid Workflow Invoice",
+      address: "122 Review Ave",
+      status: "statement_ready",
+      calculatedAt: "2026-03-30T00:00:00.000Z",
+      statementAmount: "2200"
+    });
+
+    const statement = await createAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id,
+      invoiceNumbers: ["INV-REVIEW-PAID-100"],
+      commissionCalculationIds: [],
+      actorMembershipId: context.adminMembership.id
+    });
+
+    await sendAgentPayoutStatementToAgent({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      actorMembershipId: context.adminMembership.id,
+      message: "Please review this paid workflow statement in Acre."
+    });
+
+    await respondToAgentPayoutStatement({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      actorMembershipId: context.agentMembership.id,
+      response: "confirm",
+      message: "Confirmed before payout."
+    });
+
+    await updateAgentPayoutStatementReviewStatus({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      reviewStatus: "paid",
+      actorMembershipId: context.adminMembership.id
+    });
+
+    let savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: statement.statementId
+      }
+    });
+
+    assert.equal(savedStatement?.reviewStatus, "paid");
+    assert.ok(savedStatement?.confirmedAt);
+
+    const paidDashboard = await getOfficeDashboardBusinessSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      viewerMembershipId: context.agentMembership.id
+    });
+
+    assert.equal(paidDashboard.commission.payoutReviewQueue.count, 0);
+    assert.equal(paidDashboard.commission.statements[0]?.reviewStatus, "paid");
+
+    await updateAgentPayoutStatementReviewStatus({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      statementId: statement.statementId,
+      reviewStatus: "awaiting_agent",
+      actorMembershipId: context.adminMembership.id
+    });
+
+    savedStatement = await prisma.agentPayoutStatement.findUnique({
+      where: {
+        id: statement.statementId
+      }
+    });
+
+    assert.equal(savedStatement?.reviewStatus, "awaiting_agent");
+    assert.equal(savedStatement?.confirmedAt, null);
+
+    const rolledBackInbox = await listOfficeNotifications({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      membershipId: context.agentMembership.id
+    });
+
+    assert.equal(rolledBackInbox.summary.payoutReviewCount, 1);
+    assert.equal(rolledBackInbox.payoutReviewQueue[0]?.statementId, statement.statementId);
   } finally {
     await context.cleanup();
   }

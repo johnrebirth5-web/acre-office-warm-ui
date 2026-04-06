@@ -224,6 +224,7 @@ export {
   getOfficeAgentPayoutStatementsWorkspaceSnapshot,
   respondToAgentPayoutStatement,
   sendAgentPayoutStatementToAgent,
+  updateAgentPayoutStatementReviewStatus,
   updateAgentPayoutStatementManualLineItems,
 } from "./agent-payout-statements";
 export {
@@ -636,6 +637,7 @@ export type {
   OfficeAgentPayoutStatementsWorkspaceSnapshot,
   RespondToAgentPayoutStatementInput,
   SendAgentPayoutStatementToAgentInput,
+  UpdateAgentPayoutStatementReviewStatusInput,
   UpdateAgentPayoutStatementManualLineItemInput,
   UpdateAgentPayoutStatementManualLineItemsInput,
 } from "./agent-payout-statements";

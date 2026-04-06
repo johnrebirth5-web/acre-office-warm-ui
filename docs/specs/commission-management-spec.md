@@ -192,6 +192,7 @@ Provide a durable commission automation MVP inside Back Office, with a default s
     - new statements begin as `draft`
     - finance/admin must explicitly send a statement to the agent before it becomes self-service visible
     - the agent can respond only inside the BO system by either `confirming` or `requesting revision`
+    - finance/admin can manually reclassify the saved review status from the accounting history table, including rolling a `confirmed` statement back into another state and marking a completed payout as `paid`
     - finance/admin can resend with an internal response note, and the statement timeline preserves all send/reply events for audit
     - if finance edits statement-level manual adjustments after a statement was already sent or confirmed, the review lifecycle is reset back to `draft` until finance resends it
 - history remains visible for audit/review but is not double-counted in payout summaries

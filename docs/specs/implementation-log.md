@@ -241,6 +241,10 @@
   - `/office/dashboard` now exposes only sent payout statements to the owning membership, and each row links into a dedicated `/office/payout-statements/[statementId]` self-service review page
   - agents can now confirm a statement or submit a revision request with a required message inside the system, and both actions emit in-app notifications plus accounting activity-log entries
   - editing statement-level manual adjustments after a send now resets the statement back to `draft`, forcing finance to resend the updated statement before the agent can review it again
+- 2026-04-06: `/office/accounting` statement history status is now admin-editable instead of being locked after agent confirmation:
+  - `AgentPayoutStatement.reviewStatus` now adds `paid` on top of the existing `draft / awaiting_agent / revision_requested / confirmed` states
+  - finance/admin can change the saved statement review status inline from the history table, including rolling a previously `confirmed` statement back into another review state
+  - member-facing payout statement lists and badges now surface the new `paid` label while keeping the review queue limited to `awaiting_agent`
 - 2026-03-31: `/agent/dashboard` was rebuilt from the old `Agent OS` mock landing page into a real `Front Office` action homepage:
   - the route now reads from new `@acre/db` `getFrontOfficeDashboardSnapshot(...)` service instead of `@acre/backoffice` demo snapshot data
   - the new snapshot aggregates real `Client`, `FollowUpTask`, `Listing`, `ListingShareLink`, `Event`, `Notification`, `Resource`, `Vendor`, `Transaction`, and `SignatureRequest` data into one action-first FO surface

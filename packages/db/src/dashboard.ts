@@ -130,6 +130,10 @@ function formatStatementReviewStatusLabel(value: AgentPayoutStatementReviewStatu
     return "Confirmed";
   }
 
+  if (value === "paid") {
+    return "Paid";
+  }
+
   return "Draft";
 }
 
@@ -341,7 +345,7 @@ export async function getOfficeDashboardBusinessSnapshot(
           organizationId: input.organizationId,
           membershipId: scope.viewerMembershipId,
           reviewStatus: {
-            in: ["awaiting_agent", "revision_requested", "confirmed"]
+            in: ["awaiting_agent", "revision_requested", "confirmed", "paid"]
           }
         },
         select: {

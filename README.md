@@ -349,6 +349,7 @@
     - 生成 durable payout statement snapshot
     - 在已保存 statement detail 中新增 / 编辑 / 删除 manual adjustment items（`Memo + signed Amount`）
     - 下载 PDF
+    - 在 `Statement history` 里直接下拉维护 payout statement review status；admin 现在可以把已 `confirmed` 的 statement 回滚到其他 review status，并新增最终 `paid` 状态
     - 在已保存 statement detail / PDF 中显示当前 member profile 上保存的 bank information
     - statement detail / PDF 的 invoice 明细表现在会按 `Creation date / Invoice number / Owner / Building name / Unit / Gross / Pre split / Commission rate / Post split / Net commission` 输出，并为更宽的 statement PDF 使用横版布局
     - statement detail / PDF 现在会额外显示 `Manual Adjustment Items`

@@ -31,7 +31,7 @@ type StatementBankField = {
 function getReviewStatusTone(
   status: OfficeAgentPayoutStatementDetail["reviewStatus"],
 ) {
-  if (status === "confirmed") {
+  if (status === "confirmed" || status === "paid") {
     return "success" as const;
   }
 

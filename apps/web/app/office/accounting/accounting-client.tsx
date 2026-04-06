@@ -18,6 +18,7 @@ import {
   ListPageSection,
   ListPageStack,
   ListPageStatsGrid,
+  SelectInput,
   StatCard,
   StatusBadge,
   TextInput,
@@ -36,6 +37,7 @@ type FilterState = {
 
 type AgentOption = OfficeAgentPayoutStatementsWorkspaceSnapshot["filters"]["memberOptions"][number];
 type SelectedStatementDetail = NonNullable<OfficeAgentPayoutStatementsWorkspaceSnapshot["selectedStatement"]>;
+type StatementReviewStatus = SelectedStatementDetail["reviewStatus"];
 type StatementBankField = {
   label: string;
   value: string;
@@ -47,6 +49,17 @@ type EditableManualLineItem = {
   memo: string;
   amount: string;
 };
+
+const statementReviewStatusOptions: Array<{
+  value: StatementReviewStatus;
+  label: string;
+}> = [
+  { value: "draft", label: "Draft" },
+  { value: "awaiting_agent", label: "Awaiting agent" },
+  { value: "revision_requested", label: "Revision requested" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "paid", label: "Paid" }
+];
 
 function buildAccountingHref(
   pathname: string,
@@ -94,23 +107,27 @@ function getStatementStatusTone(status: string) {
   return "warning" as const;
 }
 
-function getReviewStatusTone(status: string) {
-  if (status === "Confirmed") {
+function getReviewStatusTone(status: StatementReviewStatus) {
+  if (status === "confirmed" || status === "paid") {
     return "success" as const;
   }
 
-  if (status === "Awaiting agent") {
+  if (status === "awaiting_agent") {
     return "accent" as const;
   }
 
-  if (status === "Revision requested") {
+  if (status === "revision_requested") {
     return "warning" as const;
   }
 
   return "neutral" as const;
 }
 
-function getSendButtonLabel(reviewStatus: SelectedStatementDetail["reviewStatus"], isSending: boolean) {
+function getStatementStatusSelectClassName(status: StatementReviewStatus) {
+  return `office-accounting-status-select office-accounting-status-select-${getReviewStatusTone(status)}`;
+}
+
+function getSendButtonLabel(reviewStatus: StatementReviewStatus, isSending: boolean) {
   if (isSending) {
     return "Sending...";
   }
@@ -124,6 +141,10 @@ function getSendButtonLabel(reviewStatus: SelectedStatementDetail["reviewStatus"
   }
 
   if (reviewStatus === "confirmed") {
+    return "Send revision";
+  }
+
+  if (reviewStatus === "paid") {
     return "Send revision";
   }
 
@@ -312,6 +333,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const candidateRowKey = snapshot.candidateRows.map((row) => row.id).join("|");
   const snapshotInvoiceSelectionKey = buildInvoiceSelectionKey(snapshot.filters.invoiceNumbers);
   const previewContextKey = `${snapshot.filters.membershipId}:${snapshotInvoiceSelectionKey}`;
+  const historyStatusKey = snapshot.history.map((statement) => `${statement.id}:${statement.reviewStatus}`).join("|");
   const [filterState, setFilterState] = useState<FilterState>({
     membershipId: snapshot.filters.membershipId,
     invoiceNumbers: snapshot.filters.invoiceNumbers
@@ -331,11 +353,14 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
   const [isSavingManualLineItems, setIsSavingManualLineItems] = useState(false);
   const [isSendingStatement, setIsSendingStatement] = useState(false);
   const [quickSendingStatementId, setQuickSendingStatementId] = useState("");
+  const [updatingStatementStatusId, setUpdatingStatementStatusId] = useState("");
+  const [pendingStatementStatuses, setPendingStatementStatuses] = useState<Record<string, StatementReviewStatus>>({});
   const [filterError, setFilterError] = useState("");
   const [generationError, setGenerationError] = useState("");
   const [manualSaveError, setManualSaveError] = useState("");
   const [sendError, setSendError] = useState("");
   const [historySendError, setHistorySendError] = useState("");
+  const [historyStatusError, setHistoryStatusError] = useState("");
   const [sendMessage, setSendMessage] = useState("");
   const normalizedAgentSearchValue = normalizeSearchValue(deferredAgentSearchValue);
   const filteredAgentOptions = snapshot.filters.memberOptions
@@ -372,6 +397,10 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     setIsAgentPickerOpen(false);
     setHighlightedAgentIndex(0);
   }, [snapshot.filters.memberOptions, snapshot.filters.membershipId]);
+
+  useEffect(() => {
+    setPendingStatementStatuses({});
+  }, [historyStatusKey]);
 
   useEffect(() => {
     const eligibleIds = snapshot.candidateRows.filter((row) => row.isGenerateEligible).map((row) => row.id);
@@ -887,6 +916,58 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
     }
   }
 
+  async function handleUpdateStatementStatus(
+    statement: OfficeAgentPayoutStatementsWorkspaceSnapshot["history"][number],
+    nextStatus: StatementReviewStatus
+  ) {
+    if (nextStatus === statement.reviewStatus) {
+      return;
+    }
+
+    if (selectedStatement?.id === statement.id && hasManualLineItemChanges) {
+      setHistoryStatusError("Save the current manual adjustment changes before updating this statement status.");
+      return;
+    }
+
+    setUpdatingStatementStatusId(statement.id);
+    setHistoryStatusError("");
+    setHistorySendError("");
+    setPendingStatementStatuses((current) => ({
+      ...current,
+      [statement.id]: nextStatus
+    }));
+
+    try {
+      const response = await fetch(`/api/office/accounting/statements/${statement.id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          reviewStatus: nextStatus
+        })
+      });
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Failed to update the payout statement status.");
+      }
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      setPendingStatementStatuses((current) => {
+        const nextState = { ...current };
+        delete nextState[statement.id];
+        return nextState;
+      });
+      setHistoryStatusError(error instanceof Error ? error.message : "Failed to update the payout statement status.");
+    } finally {
+      setUpdatingStatementStatusId("");
+    }
+  }
+
   return (
     <ListPageStack className="office-accounting-statements-stack">
       <ListPageSection
@@ -1216,6 +1297,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
         title="Statement history"
       >
         {historySendError ? <p className="office-inline-error">{historySendError}</p> : null}
+        {historyStatusError ? <p className="office-inline-error">{historyStatusError}</p> : null}
         {snapshot.history.length > 0 ? (
           <HorizontalScrollArea>
             <DataTable className="office-table">
@@ -1230,60 +1312,76 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
                 <span>Actions</span>
               </DataTableHeader>
               <DataTableBody>
-                {snapshot.history.map((statement) => (
-                  <DataTableRow className="office-table-row office-table-row-accounting-statement-history" key={statement.id}>
-                    <span>
-                      <LocalDateTime fallbackLabel={statement.generatedAtLabel} value={statement.generatedAt} />
-                    </span>
-                    <strong>{statement.agentLabel}</strong>
-                    <span>
-                      <StatusBadge tone={getReviewStatusTone(statement.reviewStatusLabel)}>{statement.reviewStatusLabel}</StatusBadge>
-                    </span>
-                    <span>{statement.periodLabel}</span>
-                    <span>{statement.periodBasisLabel}</span>
-                    <span>{statement.lineItemCount}</span>
-                    <span>{statement.totalStatementAmountLabel}</span>
-                    <div className="office-accounting-inline-actions office-accounting-statement-history-actions">
-                      <Button
-                        className="office-inline-action-sm"
-                        disabled={quickSendingStatementId.length > 0 || (selectedStatement?.id === statement.id && hasManualLineItemChanges)}
-                        onClick={() => void handleQuickSendStatement(statement)}
-                        size="sm"
-                        type="button"
-                      >
-                        {getSendButtonLabel(statement.reviewStatus, quickSendingStatementId === statement.id)}
-                      </Button>
-                      <Button
-                        className="office-inline-action-sm"
-                        onClick={() =>
-                          startTransition(() => {
-                            router.push(
-                              buildAccountingHref(pathname, {
-                                membershipId: statement.membershipId,
-                                invoiceNumbers:
-                                  snapshot.filters.membershipId === statement.membershipId ? snapshot.filters.invoiceNumbers : [],
-                                statementId: statement.id
-                              })
-                            );
-                          })
-                        }
-                        size="sm"
-                        type="button"
-                        variant="secondary"
-                      >
-                        Open
-                      </Button>
-                      <a
-                        className="office-inline-action-sm"
-                        href={`/api/office/accounting/statements/${statement.id}/pdf`}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        PDF
-                      </a>
-                    </div>
-                  </DataTableRow>
-                ))}
+                {snapshot.history.map((statement) => {
+                  const displayedReviewStatus = pendingStatementStatuses[statement.id] ?? statement.reviewStatus;
+
+                  return (
+                    <DataTableRow className="office-table-row office-table-row-accounting-statement-history" key={statement.id}>
+                      <span>
+                        <LocalDateTime fallbackLabel={statement.generatedAtLabel} value={statement.generatedAt} />
+                      </span>
+                      <strong>{statement.agentLabel}</strong>
+                      <span>
+                        <SelectInput
+                          aria-label={`Update payout statement status for ${statement.agentLabel}`}
+                          className={getStatementStatusSelectClassName(displayedReviewStatus)}
+                          disabled={updatingStatementStatusId === statement.id}
+                          onChange={(event) => void handleUpdateStatementStatus(statement, event.target.value as StatementReviewStatus)}
+                          value={displayedReviewStatus}
+                        >
+                          {statementReviewStatusOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </SelectInput>
+                      </span>
+                      <span>{statement.periodLabel}</span>
+                      <span>{statement.periodBasisLabel}</span>
+                      <span>{statement.lineItemCount}</span>
+                      <span>{statement.totalStatementAmountLabel}</span>
+                      <div className="office-accounting-inline-actions office-accounting-statement-history-actions">
+                        <Button
+                          className="office-inline-action-sm"
+                          disabled={quickSendingStatementId.length > 0 || (selectedStatement?.id === statement.id && hasManualLineItemChanges)}
+                          onClick={() => void handleQuickSendStatement(statement)}
+                          size="sm"
+                          type="button"
+                        >
+                          {getSendButtonLabel(statement.reviewStatus, quickSendingStatementId === statement.id)}
+                        </Button>
+                        <Button
+                          className="office-inline-action-sm"
+                          onClick={() =>
+                            startTransition(() => {
+                              router.push(
+                                buildAccountingHref(pathname, {
+                                  membershipId: statement.membershipId,
+                                  invoiceNumbers:
+                                    snapshot.filters.membershipId === statement.membershipId ? snapshot.filters.invoiceNumbers : [],
+                                  statementId: statement.id
+                                })
+                              );
+                            })
+                          }
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          Open
+                        </Button>
+                        <a
+                          className="office-inline-action-sm"
+                          href={`/api/office/accounting/statements/${statement.id}/pdf`}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          PDF
+                        </a>
+                      </div>
+                    </DataTableRow>
+                  );
+                })}
               </DataTableBody>
             </DataTable>
           </HorizontalScrollArea>
@@ -1318,7 +1416,7 @@ export function OfficeAccountingClient({ snapshot }: OfficeAccountingClientProps
               </span>
               <span>Generated by: {selectedStatement.generatedByLabel}</span>
               <span>
-                Status: <StatusBadge tone={getReviewStatusTone(selectedStatement.reviewStatusLabel)}>{selectedStatement.reviewStatusLabel}</StatusBadge>
+                Status: <StatusBadge tone={getReviewStatusTone(selectedStatement.reviewStatus)}>{selectedStatement.reviewStatusLabel}</StatusBadge>
               </span>
               {selectedStatement.lastSharedAtLabel ? (
                 <span>

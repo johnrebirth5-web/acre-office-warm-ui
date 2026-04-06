@@ -557,6 +557,7 @@ enum AgentPayoutStatementReviewStatus {
   awaiting_agent
   revision_requested
   confirmed
+  paid
 }
 
 enum AgentPayoutStatementMessageType {

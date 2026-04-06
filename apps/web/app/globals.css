@@ -3127,7 +3127,7 @@ select {
   grid-template-columns:
     128px
     minmax(188px, 1.12fr)
-    132px
+    152px
     minmax(132px, 0.88fr)
     minmax(144px, 0.96fr)
     76px
@@ -3220,6 +3220,19 @@ select {
 .office-accounting-statement-history-actions
   > :is(.office-button, .office-button-secondary) {
   flex: 0 0 auto;
+}
+
+.office-accounting-status-select {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.office-accounting-status-select:disabled {
+  cursor: progress;
+  opacity: 0.78;
 }
 
 .office-1099-warning {
@@ -5655,7 +5668,7 @@ a {
 }
 
 .office-table-row-accounting-statement-history {
-  min-width: 1160px;
+  min-width: 1180px;
 }
 
 .office-table-row-emd {
@@ -13607,6 +13620,30 @@ body,
 .office-status-badge-danger {
   background: var(--office-danger-soft);
   color: var(--office-danger);
+}
+
+.office-accounting-status-select-neutral {
+  background: rgba(236, 241, 247, 0.92);
+  border-color: rgba(194, 205, 220, 0.48);
+  color: #42556c;
+}
+
+.office-accounting-status-select-accent {
+  background: rgba(32, 74, 149, 0.12);
+  border-color: rgba(32, 74, 149, 0.22);
+  color: var(--office-accent-strong);
+}
+
+.office-accounting-status-select-success {
+  background: var(--office-success-soft);
+  border-color: color-mix(in srgb, var(--office-success) 24%, #ffffff);
+  color: var(--office-success);
+}
+
+.office-accounting-status-select-warning {
+  background: var(--office-warning-soft);
+  border-color: color-mix(in srgb, var(--office-warning) 22%, #ffffff);
+  color: var(--office-warning);
 }
 
 .office-button,

@@ -57,7 +57,9 @@ Provide a durable Back Office accounting foundation focused on transaction-side 
     - `awaiting_agent`
     - `revision_requested`
     - `confirmed`
+    - `paid`
   - admins must explicitly `Send to agent` from `/office/accounting` before a saved statement becomes visible for agent review
+  - office admins can now override the saved statement review status directly from the `/office/accounting` history table, including rolling a previously `confirmed` statement back into another review state or marking it `paid`
   - the current membership can open only their own non-`draft` statement at `/office/payout-statements/[statementId]`
   - the current membership can download only their own sent/saved payout statement PDFs
   - the current membership can confirm the statement in-system or submit an in-system revision request with a required message

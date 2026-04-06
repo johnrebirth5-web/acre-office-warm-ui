@@ -329,7 +329,8 @@ export default async function OfficeDashboardPage() {
                       </span>
                       <StatusBadge
                         tone={
-                          statement.reviewStatus === "confirmed"
+                          statement.reviewStatus === "confirmed" ||
+                          statement.reviewStatus === "paid"
                             ? "success"
                             : statement.reviewStatus === "revision_requested"
                               ? "warning"

@@ -301,6 +301,14 @@ export type UpdateAgentPayoutStatementManualLineItemsInput = {
   actorMembershipId: string;
 };
 
+export type UpdateAgentPayoutStatementReviewStatusInput = {
+  organizationId: string;
+  officeId?: string | null;
+  statementId: string;
+  reviewStatus: AgentPayoutStatementReviewStatus;
+  actorMembershipId: string;
+};
+
 export type SendAgentPayoutStatementToAgentInput = {
   organizationId: string;
   officeId?: string | null;
@@ -366,7 +374,8 @@ const statementReviewStatusLabelMap: Record<AgentPayoutStatementReviewStatus, st
   draft: "Draft",
   awaiting_agent: "Awaiting agent",
   revision_requested: "Revision requested",
-  confirmed: "Confirmed"
+  confirmed: "Confirmed",
+  paid: "Paid"
 };
 
 const statementMessageTypeLabelMap: Record<AgentPayoutStatementMessageType, string> = {
@@ -1074,6 +1083,22 @@ function buildAgentPayoutStatementSelfServiceHref(statementId: string) {
 
 function normalizeStatementMessage(value: string | null | undefined) {
   return value?.trim() ?? "";
+}
+
+function reviewStatusKeepsConfirmation(status: AgentPayoutStatementReviewStatus) {
+  return status === "confirmed" || status === "paid";
+}
+
+function deriveStatementConfirmedAt(
+  previousStatus: AgentPayoutStatementReviewStatus,
+  nextStatus: AgentPayoutStatementReviewStatus,
+  confirmedAt: Date | null
+) {
+  if (!reviewStatusKeepsConfirmation(nextStatus)) {
+    return null;
+  }
+
+  return reviewStatusKeepsConfirmation(previousStatus) ? confirmedAt : null;
 }
 
 function resolveStatementAdminNotificationMembershipIds(input: {
@@ -1979,6 +2004,88 @@ export async function respondToAgentPayoutStatement(input: RespondToAgentPayoutS
   });
 }
 
+export async function updateAgentPayoutStatementReviewStatus(input: UpdateAgentPayoutStatementReviewStatusInput) {
+  const statementId = input.statementId.trim();
+
+  if (!statementId) {
+    throw new Error("Statement is required.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const statement = await tx.agentPayoutStatement.findFirst({
+      where: {
+        id: statementId,
+        organizationId: input.organizationId,
+        ...(buildOfficeOrGlobalStatementWhere(input.officeId) ?? {})
+      },
+      include: {
+        membership: {
+          include: {
+            user: true
+          }
+        },
+        lineItems: {
+          select: {
+            invoiceNumber: true
+          }
+        }
+      }
+    });
+
+    if (!statement) {
+      return null;
+    }
+
+    if (statement.reviewStatus === input.reviewStatus) {
+      return {
+        statementId: statement.id
+      };
+    }
+
+    const invoiceNumbers = normalizeAgentPayoutStatementInvoiceNumbers(
+      statement.lineItems.map((lineItem) => lineItem.invoiceNumber)
+    );
+    const nextConfirmedAt = deriveStatementConfirmedAt(statement.reviewStatus, input.reviewStatus, statement.confirmedAt);
+
+    await tx.agentPayoutStatement.update({
+      where: {
+        id: statement.id
+      },
+      data: {
+        reviewStatus: input.reviewStatus,
+        confirmedAt: nextConfirmedAt
+      }
+    });
+
+    const changes = [
+      buildActivityLogChange("Review status", statementReviewStatusLabelMap[statement.reviewStatus], statementReviewStatusLabelMap[input.reviewStatus])
+    ].filter((change): change is ActivityLogChange => Boolean(change));
+
+    await recordActivityLogEvent(tx, {
+      organizationId: input.organizationId,
+      membershipId: input.actorMembershipId,
+      entityType: "agent_payout_statement",
+      entityId: statement.id,
+      action: activityLogActions.agentPayoutStatementAdjusted,
+      payload: {
+        officeId: statement.officeId,
+        objectLabel: `${formatMembershipLabel(statement.membership)} payout statement`,
+        contextHref: buildAgentPayoutStatementWorkspaceHref({
+          membershipId: statement.membershipId,
+          invoiceNumbers,
+          statementId: statement.id
+        }),
+        details: [`Review status: ${statementReviewStatusLabelMap[input.reviewStatus]}`],
+        changes
+      }
+    });
+
+    return {
+      statementId: statement.id
+    };
+  });
+}
+
 export async function updateAgentPayoutStatementManualLineItems(input: UpdateAgentPayoutStatementManualLineItemsInput) {
   const statementId = input.statementId.trim();
 
@@ -2097,7 +2204,7 @@ export async function updateAgentPayoutStatementManualLineItems(input: UpdateAge
         lineItemCount: nextSummary.lineItemCount,
         totalStatementAmount: nextSummary.finalPayoutTotal,
         reviewStatus: nextReviewStatus,
-        confirmedAt: nextReviewStatus === "confirmed" ? statement.confirmedAt : null
+        confirmedAt: deriveStatementConfirmedAt(statement.reviewStatus, nextReviewStatus, statement.confirmedAt)
       }
     });
 
