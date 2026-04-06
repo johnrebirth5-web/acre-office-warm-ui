@@ -2,6 +2,8 @@ import {
   AppointmentStatus,
   AppointmentType,
   FrontOfficeHandoffStatus,
+  FrontOfficeSendChannel,
+  FrontOfficeSendMaterialType,
   IncomingUpdateStatus,
   SignatureRequestStatus,
   TaskStatus,
@@ -32,6 +34,8 @@ import { buildFrontOfficeAppointmentExternalLinks } from "./front-office-calenda
 import {
   getFrontOfficeAppointmentBridgeStatusMap,
   getFrontOfficeAppointmentExternalWorkflowState,
+  type FrontOfficeAppointmentBridgeStatus,
+  type FrontOfficeAppointmentExternalWorkflowStatus,
 } from "./front-office-appointments";
 import {
   defaultLeaseReminderLeadDays,
@@ -46,6 +50,218 @@ export type FrontOfficeClientDetailTone =
   | "warning"
   | "danger";
 
+export const frontOfficeClientDetailNextStepIds = {
+  followUp: "follow_up",
+  appointment: "appointment",
+  listingOutput: "listing_output",
+  offerPrep: "offer_prep",
+  inspectionSupport: "inspection_support",
+  closingSuggestion: "closing_suggestion",
+} as const;
+
+export type FrontOfficeClientDetailNextStepId =
+  (typeof frontOfficeClientDetailNextStepIds)[keyof typeof frontOfficeClientDetailNextStepIds];
+
+export const frontOfficeClientDetailActionTargets = {
+  frontOfficeFollowUp: "front_office_follow_up",
+  frontOfficeCalendar: "front_office_calendar",
+  frontOfficeListingOutput: "front_office_listing_output",
+  backOfficeCreate: "back_office_create",
+  backOfficeTransaction: "back_office_transaction",
+  backOfficeOffers: "back_office_offers",
+  backOfficeTasks: "back_office_tasks",
+  backOfficeSignatures: "back_office_signatures",
+  backOfficeIncomingUpdates: "back_office_incoming_updates",
+  clientPdf: "client_pdf",
+  externalGoogleCalendar: "external_google_calendar",
+  externalOutlookCalendar: "external_outlook_calendar",
+  externalIcs: "external_ics",
+  externalEmailBrief: "external_email_brief",
+} as const;
+
+export type FrontOfficeClientDetailActionTarget =
+  (typeof frontOfficeClientDetailActionTargets)[keyof typeof frontOfficeClientDetailActionTargets];
+
+export const frontOfficeClientDetailActionKinds = {
+  createFollowUp: "create_follow_up",
+  reviewFollowUpQueue: "review_follow_up_queue",
+  openCalendar: "open_calendar",
+  openListingOutput: "open_listing_output",
+  openBackOfficeCreate: "open_back_office_create",
+  openBackOfficeRecord: "open_back_office_record",
+  openBackOfficeOffers: "open_back_office_offers",
+  openBackOfficeTasks: "open_back_office_tasks",
+  openBackOfficeSignatures: "open_back_office_signatures",
+  openBackOfficeIncomingUpdates: "open_back_office_incoming_updates",
+  openTransaction: "open_transaction",
+  downloadClientPdf: "download_client_pdf",
+  openGoogleCalendar: "open_google_calendar",
+  openOutlookCalendar: "open_outlook_calendar",
+  downloadIcs: "download_ics",
+  openEmailBrief: "open_email_brief",
+} as const;
+
+export type FrontOfficeClientDetailActionKind =
+  (typeof frontOfficeClientDetailActionKinds)[keyof typeof frontOfficeClientDetailActionKinds];
+
+export const frontOfficeClientDetailOwnershipKeys = {
+  frontOffice: "front_office",
+  frontOfficeSupportsBackOffice: "front_office_supports_back_office",
+  moveToBackOffice: "move_to_back_office",
+  backOffice: "back_office",
+  returnToFrontOffice: "return_to_front_office",
+  inactive: "inactive",
+} as const;
+
+export type FrontOfficeClientDetailOwnershipKey =
+  (typeof frontOfficeClientDetailOwnershipKeys)[keyof typeof frontOfficeClientDetailOwnershipKeys];
+
+export const frontOfficeClientDetailDecisionKeys = {
+  stayInFrontOffice: "stay_in_front_office",
+  moveToBackOffice: "move_to_back_office",
+  formalWorkflowInBackOffice: "formal_workflow_in_back_office",
+  returnToFrontOffice: "return_to_front_office",
+} as const;
+
+export type FrontOfficeClientDetailDecisionKey =
+  (typeof frontOfficeClientDetailDecisionKeys)[keyof typeof frontOfficeClientDetailDecisionKeys];
+
+export const frontOfficeClientDetailBoundaryStates = {
+  frontOfficeActive: "front_office_active",
+  readyForBackOffice: "ready_for_back_office",
+  backOfficeLive: "back_office_live",
+  postCloseFrontOffice: "post_close_front_office",
+  cancelledReentry: "cancelled_reentry",
+} as const;
+
+export type FrontOfficeClientDetailBoundaryState =
+  (typeof frontOfficeClientDetailBoundaryStates)[keyof typeof frontOfficeClientDetailBoundaryStates];
+
+export const frontOfficeClientDetailFollowUpCueKeys = {
+  overdueTask: "overdue_task",
+  leaseReminderDue: "lease_reminder_due",
+  staleActiveClient: "stale_active_client",
+  overdueNextTouch: "overdue_next_touch",
+  missingNextTouch: "missing_next_touch",
+  viewingScheduled: "viewing_scheduled",
+  viewingFeedbackDue: "viewing_feedback_due",
+  lostNurture: "lost_nurture",
+  postCloseFollowUp: "post_close_follow_up",
+  backOfficeTransition: "back_office_transition",
+  pendingBlocker: "pending_blocker",
+  healthyTouch: "healthy_touch",
+  defaultFollowUp: "default_follow_up",
+} as const;
+
+export type FrontOfficeClientDetailFollowUpCueKey =
+  (typeof frontOfficeClientDetailFollowUpCueKeys)[keyof typeof frontOfficeClientDetailFollowUpCueKeys];
+
+export const frontOfficeClientDetailWorkflowPressureKeys = {
+  healthy: "healthy",
+  overdueFollowUp: "overdue_follow_up",
+  leaseReminderDue: "lease_reminder_due",
+  staleActiveClient: "stale_active_client",
+  overdueNextTouch: "overdue_next_touch",
+  missingNextTouch: "missing_next_touch",
+} as const;
+
+export type FrontOfficeClientDetailWorkflowPressureKey =
+  (typeof frontOfficeClientDetailWorkflowPressureKeys)[keyof typeof frontOfficeClientDetailWorkflowPressureKeys];
+
+export const frontOfficeClientDetailWorkflowNextStepKeys = {
+  postCloseFollowUp: "post_close_follow_up",
+  workFromBackOfficeRecord: "work_from_back_office_record",
+  moveIntoBackOffice: "move_into_back_office",
+  confirmShowingLogistics: "confirm_showing_logistics",
+  captureShowingFeedback: "capture_showing_feedback",
+  placeNurtureReminder: "place_nurture_reminder",
+  clarifyPendingBlocker: "clarify_pending_blocker",
+  startLeaseFollowUp: "start_lease_follow_up",
+  scheduleNextTouch: "schedule_next_touch",
+  trackSharedTransaction: "track_shared_transaction",
+} as const;
+
+export type FrontOfficeClientDetailWorkflowNextStepKey =
+  (typeof frontOfficeClientDetailWorkflowNextStepKeys)[keyof typeof frontOfficeClientDetailWorkflowNextStepKeys];
+
+export const frontOfficeClientDetailSendEngagementKeys = {
+  notOpened: "not_opened",
+  opened: "opened",
+  revisited: "revisited",
+} as const;
+
+export type FrontOfficeClientDetailSendEngagementKey =
+  (typeof frontOfficeClientDetailSendEngagementKeys)[keyof typeof frontOfficeClientDetailSendEngagementKeys];
+
+export const frontOfficeClientDetailBridgeActivityStates = {
+  idle: "idle",
+  logged: "logged",
+} as const;
+
+export type FrontOfficeClientDetailBridgeActivityState =
+  (typeof frontOfficeClientDetailBridgeActivityStates)[keyof typeof frontOfficeClientDetailBridgeActivityStates];
+
+export const frontOfficeClientDetailHandoffStates = {
+  none: "none",
+  draft: FrontOfficeHandoffStatus.draft,
+  ready: FrontOfficeHandoffStatus.ready,
+  committed: FrontOfficeHandoffStatus.committed,
+} as const;
+
+export type FrontOfficeClientDetailHandoffState =
+  | FrontOfficeHandoffStatus
+  | (typeof frontOfficeClientDetailHandoffStates)["none"];
+
+export type FrontOfficeClientDetailAction = {
+  label: string;
+  href: string;
+  opensInNewTab: boolean;
+  kind: FrontOfficeClientDetailActionKind;
+  target: FrontOfficeClientDetailActionTarget;
+};
+
+export type FrontOfficeClientDetailOutputHandoff = {
+  source: "appointment" | "send_record" | "dossier";
+  clientId: string;
+  appointmentId: string | null;
+  hasAppointmentContext: boolean;
+  hasListingContext: boolean;
+  action: FrontOfficeClientDetailAction;
+};
+
+export type FrontOfficeClientDetailFollowUpCue = {
+  key: FrontOfficeClientDetailFollowUpCueKey;
+  tone: FrontOfficeClientDetailTone;
+  label: string;
+  description: string;
+  dueLabel: string;
+  dueAtValue: string;
+  ownershipKey: FrontOfficeClientDetailOwnershipKey;
+  targetStepId: FrontOfficeClientDetailNextStepId;
+  action: FrontOfficeClientDetailAction;
+};
+
+export type FrontOfficeClientDetailBackOfficeHandoff = {
+  state: FrontOfficeClientDetailHandoffState;
+  isReadyForBackOffice: boolean;
+  hasLinkedTransaction: boolean;
+  hasOpenDraft: boolean;
+  hasCommittedRecord: boolean;
+  committedTransactionId: string | null;
+  summary: string;
+  destinationTarget: FrontOfficeClientDetailActionTarget | null;
+  action: FrontOfficeClientDetailAction | null;
+};
+
+export type FrontOfficeClientDetailContract = {
+  boundaryState: FrontOfficeClientDetailBoundaryState;
+  decisionKey: FrontOfficeClientDetailDecisionKey;
+  currentStepId: FrontOfficeClientDetailNextStepId;
+  primaryAction: FrontOfficeClientDetailAction;
+  followUpCue: FrontOfficeClientDetailFollowUpCue;
+  handoff: FrontOfficeClientDetailBackOfficeHandoff;
+};
+
 export type FrontOfficeClientDetailStageHistoryItem = {
   id: string;
   title: string;
@@ -57,23 +273,39 @@ export type FrontOfficeClientDetailStageHistoryItem = {
 export type FrontOfficeClientDetailAppointmentItem = {
   id: string;
   title: string;
+  typeValue: AppointmentType;
   typeLabel: string;
   typeTone: FrontOfficeClientDetailTone;
+  statusValue: AppointmentStatus;
   statusLabel: string;
   statusTone: FrontOfficeClientDetailTone;
+  externalStatusValue: FrontOfficeAppointmentExternalWorkflowStatus;
   externalStatusLabel: string;
   externalStatusTone: FrontOfficeClientDetailTone;
   externalStatusDetail: string;
+  externalNextActionAtValue: string;
+  externalNextActionAtLabel: string;
+  startsAtValue: string;
   startsAtLabel: string;
   locationLabel: string;
   contextLabel: string;
+  outputHandoff: FrontOfficeClientDetailOutputHandoff;
   listingOutputHref: string;
+  googleCalendarAction: FrontOfficeClientDetailAction;
   googleCalendarHref: string;
+  outlookCalendarAction: FrontOfficeClientDetailAction;
   outlookCalendarHref: string;
+  icsAction: FrontOfficeClientDetailAction;
   icsHref: string;
+  emailBriefAction: FrontOfficeClientDetailAction | null;
   emailBriefHref: string | null;
+  bridgeActivityState: FrontOfficeClientDetailBridgeActivityState;
   bridgeStatusLabel: string;
   bridgeStatusDetail: string;
+  bridgeStatusTone: FrontOfficeClientDetailTone;
+  bridgeActionLabel: string;
+  bridgeLoggedAtLabel: string;
+  hasBridgeActivity: boolean;
 };
 
 export type FrontOfficeClientDetailTaskItem = {
@@ -90,22 +322,33 @@ export type FrontOfficeClientDetailTaskItem = {
 export type FrontOfficeClientDetailSendRecordItem = {
   id: string;
   title: string;
+  channelValue: FrontOfficeSendChannel;
   channelLabel: string;
+  materialTypeValue: FrontOfficeSendMaterialType;
   stageLabel: string;
+  appointmentId: string | null;
   appointmentLabel: string;
+  sentAtValue: string;
   sentAtLabel: string;
+  engagementKey: FrontOfficeClientDetailSendEngagementKey;
+  openCount: number;
   engagementLabel: string;
   engagementTone: FrontOfficeClientDetailTone;
   lastActivityLabel: string;
+  outputHandoff: FrontOfficeClientDetailOutputHandoff;
   href: string;
 };
 
 export type FrontOfficeClientDetailHandoffItem = {
   id: string;
   stageLabel: string;
+  statusValue: FrontOfficeHandoffStatus;
   statusLabel: string;
   tone: FrontOfficeClientDetailTone;
   summary: string;
+  committedTransactionId: string | null;
+  destinationTarget: FrontOfficeClientDetailActionTarget;
+  action: FrontOfficeClientDetailAction;
   updatedAtLabel: string;
   href: string;
 };
@@ -281,26 +524,31 @@ export type FrontOfficeClientDetailAiSuggestions = {
 };
 
 export type FrontOfficeClientDetailWorkflowSignal = {
+  pressureKey: FrontOfficeClientDetailWorkflowPressureKey;
   pressureLabel: string;
   pressureTone: FrontOfficeClientDetailTone;
   pressureDescription: string;
+  nextStepKey: FrontOfficeClientDetailWorkflowNextStepKey;
   nextStepTitle: string;
   nextStepTone: FrontOfficeClientDetailTone;
   nextStepDescription: string;
+  action: FrontOfficeClientDetailAction;
   actionLabel: string;
   actionHref: string;
 };
 
 export type FrontOfficeClientDetailNextStepRailItem = {
-  id: string;
+  id: FrontOfficeClientDetailNextStepId;
   stepLabel: string;
   statusLabel: string;
   statusTone: FrontOfficeClientDetailTone;
+  ownershipKey: FrontOfficeClientDetailOwnershipKey;
   ownershipLabel: string;
   ownershipTone: FrontOfficeClientDetailTone;
   title: string;
   description: string;
   metaLabel: string;
+  action: FrontOfficeClientDetailAction;
   actionLabel: string;
   actionHref: string;
   actionOpensInNewTab: boolean;
@@ -308,11 +556,14 @@ export type FrontOfficeClientDetailNextStepRailItem = {
 };
 
 export type FrontOfficeClientDetailNextStepRail = {
+  decisionKey: FrontOfficeClientDetailDecisionKey;
   decisionLabel: string;
   decisionTone: FrontOfficeClientDetailTone;
   decisionTitle: string;
   decisionDescription: string;
   decisionMetaLabel: string;
+  currentStepId: FrontOfficeClientDetailNextStepId;
+  primaryAction: FrontOfficeClientDetailAction;
   primaryActionLabel: string;
   primaryActionHref: string;
   primaryActionOpensInNewTab: boolean;
@@ -393,6 +644,8 @@ export type FrontOfficeClientDetailSnapshot = {
   closing: FrontOfficeClientDetailClosing;
   aiSuggestions: FrontOfficeClientDetailAiSuggestions;
   aiAcceptedActions: FrontOfficeClientDetailAiAcceptedActions;
+  followUpCue: FrontOfficeClientDetailFollowUpCue;
+  contract: FrontOfficeClientDetailContract;
   workflow: FrontOfficeClientDetailWorkflowSignal;
   nextStepRail: FrontOfficeClientDetailNextStepRail;
   playbook: FrontOfficeClientDetailPlaybook;
@@ -469,6 +722,30 @@ function formatDateValue(value: Date | null | undefined) {
   }
 
   return value.toISOString().slice(0, 10);
+}
+
+function formatDateTimeValue(value: Date | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.toISOString();
+}
+
+function buildClientAction(input: {
+  label: string;
+  href: string;
+  kind: FrontOfficeClientDetailActionKind;
+  target: FrontOfficeClientDetailActionTarget;
+  opensInNewTab?: boolean;
+}): FrontOfficeClientDetailAction {
+  return {
+    label: input.label,
+    href: input.href,
+    opensInNewTab: input.opensInNewTab ?? false,
+    kind: input.kind,
+    target: input.target,
+  };
 }
 
 function pickEarliestDate(...values: Array<Date | null | undefined>) {
@@ -610,6 +887,28 @@ function formatRelativeDueLabel(
   }
 
   return `Next follow-up · ${formatDateLabel(value, timeZone)}`;
+}
+
+function mapSendEngagementKey(
+  openCount: number,
+): FrontOfficeClientDetailSendEngagementKey {
+  if (openCount <= 0) {
+    return frontOfficeClientDetailSendEngagementKeys.notOpened;
+  }
+
+  if (openCount === 1) {
+    return frontOfficeClientDetailSendEngagementKeys.opened;
+  }
+
+  return frontOfficeClientDetailSendEngagementKeys.revisited;
+}
+
+function mapBridgeActivityState(
+  bridgeStatus: FrontOfficeAppointmentBridgeStatus | null | undefined,
+): FrontOfficeClientDetailBridgeActivityState {
+  return bridgeStatus?.hasBridgeActivity
+    ? frontOfficeClientDetailBridgeActivityStates.logged
+    : frontOfficeClientDetailBridgeActivityStates.idle;
 }
 
 function mapClientStageTone(stage: string): FrontOfficeClientDetailTone {
@@ -2272,6 +2571,313 @@ function getDayDifferenceFromToday(value: Date, now: Date) {
   return Math.round((startOfTarget - startOfToday) / 86_400_000);
 }
 
+function buildFrontOfficeFollowUpAction(input: {
+  hasScheduledTouch: boolean;
+}): FrontOfficeClientDetailAction {
+  return input.hasScheduledTouch
+    ? buildClientAction({
+        label: "Review follow-up queue",
+        href: "#front-office-follow-up-form",
+        kind: frontOfficeClientDetailActionKinds.reviewFollowUpQueue,
+        target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+      })
+    : buildClientAction({
+        label: "Create follow-up",
+        href: "#front-office-follow-up-form",
+        kind: frontOfficeClientDetailActionKinds.createFollowUp,
+        target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+      });
+}
+
+function buildFollowUpCue(input: {
+  clientId: string;
+  stage: string;
+  lastContactAt: Date | null;
+  nextTouchAt: Date | null;
+  leaseReminderAt: Date | null;
+  leaseReminderNeedsAttention: boolean;
+  hasOverdueTask: boolean;
+  openTaskCount: number;
+  activeHandoff: {
+    status: FrontOfficeHandoffStatus;
+    href: string;
+    committedTransactionId: string | null;
+  } | null;
+  linkedTransactionStatus?: TransactionStatus | null;
+  linkedTransactionHref: string | null;
+  timeZone?: string | null;
+  now: Date;
+}): FrontOfficeClientDetailFollowUpCue {
+  const normalizedStage = input.stage.trim().toLowerCase();
+  const hasScheduledTouch = Boolean(input.nextTouchAt || input.openTaskCount > 0);
+  const defaultDueLabel = input.nextTouchAt
+    ? formatRelativeDueLabel(input.nextTouchAt, input.now, input.timeZone)
+    : "No follow-up scheduled";
+  const defaultDueAtValue = formatDateTimeValue(input.nextTouchAt);
+
+  if (input.linkedTransactionStatus === TransactionStatus.closed) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.postCloseFollowUp,
+      tone: "success",
+      label: input.nextTouchAt ? "Post-close touch on books" : "Post-close touch needed",
+      description: input.nextTouchAt
+        ? `${defaultDueLabel} Keep the relationship warm after close while the client is still engaged.`
+        : "The formal deal is closed, but the next relationship touch is not yet scheduled.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.returnToFrontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({
+        hasScheduledTouch: Boolean(input.nextTouchAt),
+      }),
+    };
+  }
+
+  if (isFrontOfficeStageReadyForBackOffice(input.stage)) {
+    const hasCommittedRecord =
+      input.activeHandoff?.status === FrontOfficeHandoffStatus.committed;
+    const target =
+      hasCommittedRecord
+        ? frontOfficeClientDetailActionTargets.backOfficeTransaction
+        : input.activeHandoff
+          ? frontOfficeClientDetailActionTargets.backOfficeCreate
+          : input.linkedTransactionHref
+            ? frontOfficeClientDetailActionTargets.backOfficeTransaction
+            : frontOfficeClientDetailActionTargets.backOfficeCreate;
+
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.backOfficeTransition,
+      tone: hasCommittedRecord ? "success" : "warning",
+      label: hasCommittedRecord
+        ? "Formal file already opened"
+        : "Open the Back Office file now",
+      description: hasCommittedRecord
+        ? "Formal workflow is already live in Back Office. Keep Front Office follow-up supportive, not duplicative."
+        : "This dossier is far enough along that the formal offer or contract record should open in Back Office next.",
+      dueLabel: hasCommittedRecord
+        ? "Formal workflow already linked"
+        : defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: hasCommittedRecord
+        ? frontOfficeClientDetailOwnershipKeys.backOffice
+        : frontOfficeClientDetailOwnershipKeys.moveToBackOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.offerPrep,
+      action: buildClientAction({
+        label: hasCommittedRecord
+          ? "Open Back Office record"
+          : "Open Back Office create flow",
+        href:
+          input.activeHandoff?.href ??
+          input.linkedTransactionHref ??
+          "/office/transactions",
+        kind: hasCommittedRecord
+          ? frontOfficeClientDetailActionKinds.openBackOfficeRecord
+          : frontOfficeClientDetailActionKinds.openBackOfficeCreate,
+        target,
+      }),
+    };
+  }
+
+  if (input.hasOverdueTask) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.overdueTask,
+      tone: "danger",
+      label: "Overdue follow-up",
+      description:
+        "At least one follow-up task is already overdue. Close it or move the due date before the dossier stalls.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({ hasScheduledTouch: true }),
+    };
+  }
+
+  if (input.leaseReminderNeedsAttention && input.leaseReminderAt) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.leaseReminderDue,
+      tone:
+        input.leaseReminderAt.getTime() < input.now.getTime()
+          ? "danger"
+          : "warning",
+      label: "Lease reminder due",
+      description: `Lease-related follow-up is due by ${formatDateLabel(
+        input.leaseReminderAt,
+        input.timeZone,
+      )}. Confirm renewal, move timing, or remarketing next steps now.`,
+      dueLabel: `Lease reminder · ${formatDateLabel(
+        input.leaseReminderAt,
+        input.timeZone,
+      )}`,
+      dueAtValue: formatDateTimeValue(input.leaseReminderAt),
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({
+        hasScheduledTouch: Boolean(input.nextTouchAt),
+      }),
+    };
+  }
+
+  const isClosedStage =
+    normalizedStage.includes("won") || normalizedStage.includes("lost");
+  const isActiveOpportunity = Boolean(normalizedStage) && !isClosedStage;
+  const daysSinceLastTouch = input.lastContactAt
+    ? Math.floor(
+        (input.now.getTime() - input.lastContactAt.getTime()) / 86_400_000,
+      )
+    : null;
+
+  if (
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("scheduled")
+  ) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.viewingScheduled,
+      tone: "accent",
+      label: "Showing logistics next",
+      description:
+        "Use the calendar and listing output context to tighten the appointment before the showing starts.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.appointment,
+      action: buildClientAction({
+        label: "Open calendar",
+        href: `/agent/calendar?clientId=${input.clientId}`,
+        kind: frontOfficeClientDetailActionKinds.openCalendar,
+        target: frontOfficeClientDetailActionTargets.frontOfficeCalendar,
+      }),
+    };
+  }
+
+  if (
+    normalizedStage.includes("viewing") &&
+    normalizedStage.includes("completed")
+  ) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.viewingFeedbackDue,
+      tone: "accent",
+      label: "Showing feedback next",
+      description:
+        "The viewing already happened. Capture feedback quickly and turn it into the next follow-up or shortlist move.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({
+        hasScheduledTouch: hasScheduledTouch,
+      }),
+    };
+  }
+
+  if (normalizedStage.includes("lost")) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.lostNurture,
+      tone: "neutral",
+      label: "Nurture reminder next",
+      description:
+        "This opportunity is marked lost, but the dossier should still carry a respectful future touch.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({
+        hasScheduledTouch: hasScheduledTouch,
+      }),
+    };
+  }
+
+  if (normalizedStage.includes("pending")) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.pendingBlocker,
+      tone: "warning",
+      label: "Pending blocker needs owner",
+      description:
+        "Pending stages still need an owner and next date. Convert the blocker into a scheduled follow-up instead of waiting passively.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({
+        hasScheduledTouch: hasScheduledTouch,
+      }),
+    };
+  }
+
+  if (input.nextTouchAt && input.nextTouchAt.getTime() < input.now.getTime()) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.overdueNextTouch,
+      tone: "warning",
+      label: "Next touch overdue",
+      description: `${defaultDueLabel} Move it forward or confirm which newer touch now owns the conversation.`,
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({ hasScheduledTouch: true }),
+    };
+  }
+
+  if (isActiveOpportunity && daysSinceLastTouch !== null && daysSinceLastTouch >= 15) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.staleActiveClient,
+      tone: "warning",
+      label: "15+ day pressure",
+      description: `No contact has been logged for ${daysSinceLastTouch} days while the opportunity is still active.`,
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({
+        hasScheduledTouch: hasScheduledTouch,
+      }),
+    };
+  }
+
+  if (!input.nextTouchAt && input.openTaskCount === 0) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.missingNextTouch,
+      tone: "warning",
+      label: "No next touch scheduled",
+      description:
+        "This dossier is still active, but no call, text, or email is on the books yet.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({ hasScheduledTouch: false }),
+    };
+  }
+
+  if (hasScheduledTouch) {
+    return {
+      key: frontOfficeClientDetailFollowUpCueKeys.healthyTouch,
+      tone: "success",
+      label: "Next touch is scheduled",
+      description:
+        "The dossier already has a future touch or task on the books, so the conversation still has a clear owner.",
+      dueLabel: defaultDueLabel,
+      dueAtValue: defaultDueAtValue,
+      ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+      targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+      action: buildFrontOfficeFollowUpAction({ hasScheduledTouch: true }),
+    };
+  }
+
+  return {
+    key: frontOfficeClientDetailFollowUpCueKeys.defaultFollowUp,
+    tone: "accent",
+    label: "Set the next touch",
+    description:
+      "Use Front Office to keep the next call, text, or showing visible before the dossier cools down.",
+    dueLabel: defaultDueLabel,
+    dueAtValue: defaultDueAtValue,
+    ownershipKey: frontOfficeClientDetailOwnershipKeys.frontOffice,
+    targetStepId: frontOfficeClientDetailNextStepIds.followUp,
+    action: buildFrontOfficeFollowUpAction({ hasScheduledTouch: false }),
+  };
+}
+
 function buildWorkflowSignal(input: {
   clientId: string;
   stage: string;
@@ -2306,6 +2912,8 @@ function buildWorkflowSignal(input: {
     input.nextTouchAt && input.nextTouchAt.getTime() < input.now.getTime(),
   );
 
+  let pressureKey: FrontOfficeClientDetailWorkflowPressureKey =
+    frontOfficeClientDetailWorkflowPressureKeys.healthy;
   let pressureLabel = "Workflow healthy";
   let pressureTone: FrontOfficeClientDetailTone = "success";
   let pressureDescription =
@@ -2314,11 +2922,13 @@ function buildWorkflowSignal(input: {
       : "Recent activity is still fresh, but the next touch should be scheduled before the client goes quiet.";
 
   if (input.hasOverdueTask) {
+    pressureKey = frontOfficeClientDetailWorkflowPressureKeys.overdueFollowUp;
     pressureLabel = "Overdue follow-up";
     pressureTone = "danger";
     pressureDescription =
       "At least one follow-up task is already past due. Close the loop or reschedule it today so the client does not slip.";
   } else if (input.leaseReminderNeedsAttention && input.leaseReminderAt) {
+    pressureKey = frontOfficeClientDetailWorkflowPressureKeys.leaseReminderDue;
     pressureLabel = "Lease reminder due";
     pressureTone =
       input.leaseReminderAt.getTime() < input.now.getTime()
@@ -2330,10 +2940,12 @@ function buildWorkflowSignal(input: {
     daysSinceLastTouch !== null &&
     daysSinceLastTouch >= 15
   ) {
+    pressureKey = frontOfficeClientDetailWorkflowPressureKeys.staleActiveClient;
     pressureLabel = "15+ day pressure";
     pressureTone = "warning";
     pressureDescription = `No contact has been logged for ${daysSinceLastTouch} days while this opportunity is still active. The system should push the next action now.`;
   } else if (hasOverdueNextTouch) {
+    pressureKey = frontOfficeClientDetailWorkflowPressureKeys.overdueNextTouch;
     pressureLabel = "Next touch overdue";
     pressureTone = "warning";
     pressureDescription = `The scheduled next touch slipped past ${formatDateLabel(input.nextTouchAt, input.timeZone)}. Move it forward or create a new follow-up.`;
@@ -2342,6 +2954,7 @@ function buildWorkflowSignal(input: {
     !input.nextTouchAt &&
     input.openTaskCount === 0
   ) {
+    pressureKey = frontOfficeClientDetailWorkflowPressureKeys.missingNextTouch;
     pressureLabel = "No next touch scheduled";
     pressureTone = "warning";
     pressureDescription =
@@ -2351,46 +2964,71 @@ function buildWorkflowSignal(input: {
   if (input.linkedTransactionStatus === TransactionStatus.closed) {
     const closingReferenceDate =
       input.linkedTransactionMoveInDate ?? input.linkedTransactionClosingDate;
+    const action = buildClientAction({
+      label: "Create follow-up",
+      href: "#front-office-follow-up-form",
+      kind: frontOfficeClientDetailActionKinds.createFollowUp,
+      target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+    });
 
     return {
+      pressureKey,
       pressureLabel,
       pressureTone,
       pressureDescription,
+      nextStepKey: frontOfficeClientDetailWorkflowNextStepKeys.postCloseFollowUp,
       nextStepTitle: "Place the post-close follow-up",
       nextStepTone: "success",
       nextStepDescription: closingReferenceDate
         ? `The formal deal already closed around ${formatDateLabel(closingReferenceDate, input.timeZone)}. Use Front Office to keep the referral, testimonial, or retention touch visible while the win is still fresh.`
         : "The formal deal is already closed. Use Front Office to keep the referral, testimonial, or retention touch visible while the win is still fresh.",
-      actionLabel: "Create follow-up",
-      actionHref: "#front-office-follow-up-form",
+      action,
+      actionLabel: action.label,
+      actionHref: action.href,
     };
   }
 
   if (isFrontOfficeStageReadyForBackOffice(input.stage)) {
-    return {
-      pressureLabel,
-      pressureTone,
-      pressureDescription,
-      nextStepTitle:
-        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
-          ? "Work from the Back Office record"
-          : "Move this client into Back Office",
-      nextStepTone:
-        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
-          ? "success"
-          : "warning",
-      nextStepDescription:
-        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
-          ? "Formal transaction workflow has already started. Keep execution aligned from the linked Back Office record."
-          : "Negotiation, application, or offer work is now formal enough that the shared Back Office workflow should take over.",
-      actionLabel:
-        input.activeHandoff?.status === FrontOfficeHandoffStatus.committed
-          ? "Open Back Office record"
-          : "Open Back Office create flow",
-      actionHref:
+    const hasCommittedRecord =
+      input.activeHandoff?.status === FrontOfficeHandoffStatus.committed;
+    const action = buildClientAction({
+      label: hasCommittedRecord
+        ? "Open Back Office record"
+        : "Open Back Office create flow",
+      href:
         input.activeHandoff?.href ??
         input.linkedTransactionHref ??
         "/office/transactions",
+      kind: hasCommittedRecord
+        ? frontOfficeClientDetailActionKinds.openBackOfficeRecord
+        : frontOfficeClientDetailActionKinds.openBackOfficeCreate,
+      target: hasCommittedRecord
+        ? frontOfficeClientDetailActionTargets.backOfficeTransaction
+        : input.activeHandoff
+          ? frontOfficeClientDetailActionTargets.backOfficeCreate
+          : input.linkedTransactionHref
+            ? frontOfficeClientDetailActionTargets.backOfficeTransaction
+            : frontOfficeClientDetailActionTargets.backOfficeCreate,
+    });
+
+    return {
+      pressureKey,
+      pressureLabel,
+      pressureTone,
+      pressureDescription,
+      nextStepKey: hasCommittedRecord
+        ? frontOfficeClientDetailWorkflowNextStepKeys.workFromBackOfficeRecord
+        : frontOfficeClientDetailWorkflowNextStepKeys.moveIntoBackOffice,
+      nextStepTitle: hasCommittedRecord
+        ? "Work from the Back Office record"
+        : "Move this client into Back Office",
+      nextStepTone: hasCommittedRecord ? "success" : "warning",
+      nextStepDescription: hasCommittedRecord
+        ? "Formal transaction workflow has already started. Keep execution aligned from the linked Back Office record."
+        : "Negotiation, application, or offer work is now formal enough that the shared Back Office workflow should take over.",
+      action,
+      actionLabel: action.label,
+      actionHref: action.href,
     };
   }
 
@@ -2398,16 +3036,27 @@ function buildWorkflowSignal(input: {
     normalizedStage.includes("viewing") &&
     normalizedStage.includes("scheduled")
   ) {
+    const action = buildClientAction({
+      label: "Open calendar",
+      href: `/agent/calendar?clientId=${input.clientId}`,
+      kind: frontOfficeClientDetailActionKinds.openCalendar,
+      target: frontOfficeClientDetailActionTargets.frontOfficeCalendar,
+    });
+
     return {
+      pressureKey,
       pressureLabel,
       pressureTone,
       pressureDescription,
+      nextStepKey:
+        frontOfficeClientDetailWorkflowNextStepKeys.confirmShowingLogistics,
       nextStepTitle: "Confirm the showing logistics",
       nextStepTone: "accent",
       nextStepDescription:
         "Use the calendar to confirm the address, access notes, contact, and reminder timing before the appointment happens.",
-      actionLabel: "Open calendar",
-      actionHref: `/agent/calendar?clientId=${input.clientId}`,
+      action,
+      actionLabel: action.label,
+      actionHref: action.href,
     };
   }
 
@@ -2415,58 +3064,102 @@ function buildWorkflowSignal(input: {
     normalizedStage.includes("viewing") &&
     normalizedStage.includes("completed")
   ) {
+    const action = buildClientAction({
+      label: "Create follow-up",
+      href: "#front-office-follow-up-form",
+      kind: frontOfficeClientDetailActionKinds.createFollowUp,
+      target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+    });
+
     return {
+      pressureKey,
       pressureLabel,
       pressureTone,
       pressureDescription,
+      nextStepKey:
+        frontOfficeClientDetailWorkflowNextStepKeys.captureShowingFeedback,
       nextStepTitle: "Capture feedback and set the next follow-up",
       nextStepTone: "accent",
       nextStepDescription:
         "Log the client reaction, narrow the shortlist, and place the next call or message on the calendar now.",
-      actionLabel: "Create follow-up",
-      actionHref: "#front-office-follow-up-form",
+      action,
+      actionLabel: action.label,
+      actionHref: action.href,
     };
   }
 
   if (normalizedStage.includes("lost")) {
+    const action = buildClientAction({
+      label: "Create follow-up",
+      href: "#front-office-follow-up-form",
+      kind: frontOfficeClientDetailActionKinds.createFollowUp,
+      target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+    });
+
     return {
+      pressureKey,
       pressureLabel,
       pressureTone,
       pressureDescription,
+      nextStepKey:
+        frontOfficeClientDetailWorkflowNextStepKeys.placeNurtureReminder,
       nextStepTitle: "Place a nurture reminder",
       nextStepTone: "neutral",
       nextStepDescription:
         "This opportunity is marked lost, but the dossier should still carry a future check-in instead of disappearing.",
-      actionLabel: "Create follow-up",
-      actionHref: "#front-office-follow-up-form",
+      action,
+      actionLabel: action.label,
+      actionHref: action.href,
     };
   }
 
   if (normalizedStage.includes("won") && input.linkedTransactionHref) {
+    const action = buildClientAction({
+      label: "Open transaction",
+      href: input.linkedTransactionHref,
+      kind: frontOfficeClientDetailActionKinds.openTransaction,
+      target: frontOfficeClientDetailActionTargets.backOfficeTransaction,
+    });
+
     return {
+      pressureKey,
       pressureLabel,
       pressureTone,
       pressureDescription,
+      nextStepKey:
+        frontOfficeClientDetailWorkflowNextStepKeys.trackSharedTransaction,
       nextStepTitle: "Track progress from the shared transaction record",
       nextStepTone: "success",
       nextStepDescription:
         "The client is already won. Keep milestone updates aligned from the linked Back Office transaction instead of duplicating workflow here.",
-      actionLabel: "Open transaction",
-      actionHref: input.linkedTransactionHref,
+      action,
+      actionLabel: action.label,
+      actionHref: action.href,
     };
   }
 
   if (normalizedStage.includes("pending")) {
+    const action = buildClientAction({
+      label: "Create follow-up",
+      href: "#front-office-follow-up-form",
+      kind: frontOfficeClientDetailActionKinds.createFollowUp,
+      target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+    });
+
     return {
+      pressureKey,
       pressureLabel,
       pressureTone,
       pressureDescription,
+      nextStepKey:
+        frontOfficeClientDetailWorkflowNextStepKeys.clarifyPendingBlocker,
       nextStepTitle: "Clarify the blocker and owner",
       nextStepTone: "warning",
       nextStepDescription:
         "Pending stages should still have an explicit owner, due date, and unblock plan so the record does not sit quietly.",
-      actionLabel: "Create follow-up",
-      actionHref: "#front-office-follow-up-form",
+      action,
+      actionLabel: action.label,
+      actionHref: action.href,
     };
   }
 
@@ -2480,30 +3173,51 @@ function buildWorkflowSignal(input: {
       ).getTime();
 
     if (leaseReminderSoon) {
+      const action = buildClientAction({
+        label: "Create follow-up",
+        href: "#front-office-follow-up-form",
+        kind: frontOfficeClientDetailActionKinds.createFollowUp,
+        target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+      });
+
       return {
+        pressureKey,
         pressureLabel,
         pressureTone,
         pressureDescription,
+        nextStepKey:
+          frontOfficeClientDetailWorkflowNextStepKeys.startLeaseFollowUp,
         nextStepTitle: "Start renewal or remarketing follow-up",
         nextStepTone: input.leaseReminderNeedsAttention ? "warning" : "accent",
         nextStepDescription:
           "Use the lease window to confirm whether this client is renewing, moving, or needs a fresh listing / tour plan before the date passes quietly.",
-        actionLabel: "Create follow-up",
-        actionHref: "#front-office-follow-up-form",
+        action,
+        actionLabel: action.label,
+        actionHref: action.href,
       };
     }
   }
 
+  const action = buildClientAction({
+    label: "Create follow-up",
+    href: "#front-office-follow-up-form",
+    kind: frontOfficeClientDetailActionKinds.createFollowUp,
+    target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+  });
+
   return {
+    pressureKey,
     pressureLabel,
     pressureTone,
     pressureDescription,
+    nextStepKey: frontOfficeClientDetailWorkflowNextStepKeys.scheduleNextTouch,
     nextStepTitle: "Set the next call, text, or showing",
     nextStepTone: "accent",
     nextStepDescription:
       "Front Office should keep the next touch visible by default. Create a follow-up or book the next appointment before leaving this dossier.",
-    actionLabel: "Create follow-up",
-    actionHref: "#front-office-follow-up-form",
+    action,
+    actionLabel: action.label,
+    actionHref: action.href,
   };
 }
 
@@ -2543,31 +3257,30 @@ function buildNextStepRail(input: {
     | "boundaryTitle"
     | "boundaryDescription"
     | "boundaryMetaLabel"
-    | "primaryActionLabel"
-    | "primaryActionHref"
-  >;
+  > & {
+    primaryAction: FrontOfficeClientDetailAction;
+  };
   inspection: Pick<
     FrontOfficeClientDetailInspection,
     | "boundaryLabel"
     | "boundaryTitle"
     | "boundaryDescription"
     | "boundaryMetaLabel"
-    | "primaryActionLabel"
-    | "primaryActionHref"
     | "openTaskCount"
     | "pendingSignatureCount"
     | "pendingIncomingUpdateCount"
-  >;
+  > & {
+    primaryAction: FrontOfficeClientDetailAction;
+  };
   closing: Pick<
     FrontOfficeClientDetailClosing,
     | "boundaryLabel"
     | "boundaryTitle"
     | "boundaryDescription"
     | "boundaryMetaLabel"
-    | "primaryActionLabel"
-    | "primaryActionHref"
-    | "primaryActionOpensInNewTab"
-  >;
+  > & {
+    primaryAction: FrontOfficeClientDetailAction;
+  };
 }): FrontOfficeClientDetailNextStepRail {
   const normalizedStage = input.stage.trim().toLowerCase();
   const isViewingScheduled =
@@ -2583,6 +3296,8 @@ function buildNextStepRail(input: {
     ? formatRelativeDueLabel(input.nextTouchAt, input.now, input.timeZone)
     : "No follow-up is scheduled yet.";
 
+  let decisionKey: FrontOfficeClientDetailDecisionKey =
+    frontOfficeClientDetailDecisionKeys.stayInFrontOffice;
   let decisionLabel = "Stay in Front Office";
   let decisionTone: FrontOfficeClientDetailTone = "accent";
   let decisionTitle =
@@ -2590,11 +3305,10 @@ function buildNextStepRail(input: {
   let decisionDescription =
     "Keep the next call, appointment, and listing output here until the client crosses into formal offer or contract work. Do not open a Back Office record early just to hold a reminder.";
   let decisionMetaLabel = `Current stage · ${input.stage}`;
-  let primaryActionLabel = input.workflow.actionLabel;
-  let primaryActionHref = input.workflow.actionHref;
-  let primaryActionOpensInNewTab = false;
+  let primaryAction = input.workflow.action;
 
   if (input.hasClosedTransaction) {
+    decisionKey = frontOfficeClientDetailDecisionKeys.returnToFrontOffice;
     decisionLabel = "Return to Front Office";
     decisionTone = "success";
     decisionTitle =
@@ -2602,10 +3316,10 @@ function buildNextStepRail(input: {
     decisionDescription =
       "Back Office remains the system of record for the finished transaction. Use this dossier for recap, referral, testimonial, and post-close care instead of creating a second closing tracker.";
     decisionMetaLabel = input.closing.boundaryMetaLabel;
-    primaryActionLabel = input.closing.primaryActionLabel;
-    primaryActionHref = input.closing.primaryActionHref;
-    primaryActionOpensInNewTab = input.closing.primaryActionOpensInNewTab;
+    primaryAction = input.closing.primaryAction;
   } else if (input.hasLinkedTransaction) {
+    decisionKey =
+      frontOfficeClientDetailDecisionKeys.formalWorkflowInBackOffice;
     decisionLabel = "Formal workflow is in Back Office";
     decisionTone = "warning";
     decisionTitle =
@@ -2613,9 +3327,9 @@ function buildNextStepRail(input: {
     decisionDescription =
       "Offers, inspection work, signatures, and closing milestones now belong to the shared Back Office record. Keep this dossier focused on the next client touch, recap, and coordination around that formal file.";
     decisionMetaLabel = input.inspection.boundaryMetaLabel;
-    primaryActionLabel = input.workflow.actionLabel;
-    primaryActionHref = input.workflow.actionHref;
+    primaryAction = input.workflow.action;
   } else if (input.isReadyForBackOffice) {
+    decisionKey = frontOfficeClientDetailDecisionKeys.moveToBackOffice;
     decisionLabel = "Move into Back Office now";
     decisionTone = "warning";
     decisionTitle =
@@ -2623,19 +3337,18 @@ function buildNextStepRail(input: {
     decisionDescription =
       "Negotiation, application, or offer prep is now formal enough that the next record belongs in Back Office. Keep client-facing context here, but do not create a duplicate offer or inspection tracker inside Front Office.";
     decisionMetaLabel = input.negotiation.boundaryMetaLabel;
-    primaryActionLabel = input.negotiation.primaryActionLabel;
-    primaryActionHref = input.negotiation.primaryActionHref;
+    primaryAction = input.negotiation.primaryAction;
   }
 
-  let currentStepId: FrontOfficeClientDetailNextStepRailItem["id"] =
-    "follow_up";
+  let currentStepId: FrontOfficeClientDetailNextStepId =
+    frontOfficeClientDetailNextStepIds.followUp;
 
   if (
     input.hasClosedTransaction ||
     input.isClosingSoon ||
     input.hasCancelledTransaction
   ) {
-    currentStepId = "closing_suggestion";
+    currentStepId = frontOfficeClientDetailNextStepIds.closingSuggestion;
   } else if (
     input.hasLinkedTransaction &&
     (input.inspection.openTaskCount > 0 ||
@@ -2644,15 +3357,15 @@ function buildNextStepRail(input: {
       input.inspection.boundaryLabel === "Inspection-era live" ||
       input.inspection.boundaryLabel === "Contract file live")
   ) {
-    currentStepId = "inspection_support";
+    currentStepId = frontOfficeClientDetailNextStepIds.inspectionSupport;
   } else if (input.hasLinkedTransaction || input.isReadyForBackOffice) {
-    currentStepId = "offer_prep";
+    currentStepId = frontOfficeClientDetailNextStepIds.offerPrep;
   } else if (input.hasOverdueTask || hasOverdueNextTouch) {
-    currentStepId = "follow_up";
+    currentStepId = frontOfficeClientDetailNextStepIds.followUp;
   } else if (input.hasUpcomingAppointment || isViewingScheduled) {
-    currentStepId = "appointment";
+    currentStepId = frontOfficeClientDetailNextStepIds.appointment;
   } else if (input.sendCount > 0) {
-    currentStepId = "listing_output";
+    currentStepId = frontOfficeClientDetailNextStepIds.listingOutput;
   }
 
   const followUpStatusLabel = input.hasOverdueTask
@@ -2675,6 +3388,13 @@ function buildNextStepRail(input: {
         : input.hasClosedTransaction
           ? "accent"
           : "warning";
+  const followUpOwnershipKey = input.hasClosedTransaction
+    ? frontOfficeClientDetailOwnershipKeys.returnToFrontOffice
+    : input.hasLinkedTransaction
+      ? frontOfficeClientDetailOwnershipKeys.frontOfficeSupportsBackOffice
+      : input.isReadyForBackOffice
+        ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
+        : frontOfficeClientDetailOwnershipKeys.frontOffice;
   const followUpOwnershipLabel = input.hasClosedTransaction
     ? "FO owns the relationship"
     : input.hasLinkedTransaction
@@ -2722,6 +3442,12 @@ function buildNextStepRail(input: {
         : isViewingScheduled
           ? "accent"
           : "neutral";
+  const appointmentOwnershipKey =
+    input.hasLinkedTransaction && !input.hasClosedTransaction
+      ? frontOfficeClientDetailOwnershipKeys.frontOfficeSupportsBackOffice
+      : input.hasClosedTransaction
+        ? frontOfficeClientDetailOwnershipKeys.inactive
+        : frontOfficeClientDetailOwnershipKeys.frontOffice;
   const appointmentOwnershipLabel =
     input.hasLinkedTransaction && !input.hasClosedTransaction
       ? "FO support"
@@ -2770,6 +3496,13 @@ function buildNextStepRail(input: {
     : input.isReadyForBackOffice
       ? "neutral"
       : "accent";
+  const listingOwnershipKey = input.hasClosedTransaction
+    ? frontOfficeClientDetailOwnershipKeys.inactive
+    : input.hasLinkedTransaction
+      ? frontOfficeClientDetailOwnershipKeys.frontOfficeSupportsBackOffice
+      : input.isReadyForBackOffice
+        ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
+        : frontOfficeClientDetailOwnershipKeys.frontOffice;
   const listingOwnershipLabel = input.hasClosedTransaction
     ? "Optional support"
     : input.hasLinkedTransaction
@@ -2813,6 +3546,11 @@ function buildNextStepRail(input: {
     ? `${input.sendCount} tracked send(s) · ${input.openedSendCount} opened · ${input.revisitCount} revisit(s)`
     : "Open listing output from this dossier";
 
+  const offerOwnershipKey = input.hasLinkedTransaction
+    ? frontOfficeClientDetailOwnershipKeys.backOffice
+    : input.isReadyForBackOffice
+      ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
+      : frontOfficeClientDetailOwnershipKeys.frontOffice;
   const offerOwnershipLabel = input.hasLinkedTransaction
     ? "BO source of truth"
     : input.isReadyForBackOffice
@@ -2824,6 +3562,11 @@ function buildNextStepRail(input: {
       ? "warning"
       : "accent";
 
+  const inspectionOwnershipKey = input.hasLinkedTransaction
+    ? frontOfficeClientDetailOwnershipKeys.backOffice
+    : input.isReadyForBackOffice
+      ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
+      : frontOfficeClientDetailOwnershipKeys.inactive;
   const inspectionOwnershipLabel = input.hasLinkedTransaction
     ? "BO source of truth"
     : input.isReadyForBackOffice
@@ -2836,6 +3579,13 @@ function buildNextStepRail(input: {
         ? "warning"
         : "neutral";
 
+  const closingOwnershipKey = input.hasClosedTransaction
+    ? frontOfficeClientDetailOwnershipKeys.returnToFrontOffice
+    : input.hasLinkedTransaction
+      ? frontOfficeClientDetailOwnershipKeys.backOffice
+      : input.isReadyForBackOffice
+        ? frontOfficeClientDetailOwnershipKeys.moveToBackOffice
+        : frontOfficeClientDetailOwnershipKeys.inactive;
   const closingOwnershipLabel = input.hasClosedTransaction
     ? "Return to FO"
     : input.hasLinkedTransaction
@@ -2851,12 +3601,32 @@ function buildNextStepRail(input: {
         ? "warning"
         : "neutral";
 
+  const followUpAction = buildFrontOfficeFollowUpAction({
+    hasScheduledTouch: Boolean(input.nextTouchAt || input.openTaskCount > 0),
+  });
+  const appointmentAction = buildClientAction({
+    label: "Open calendar",
+    href: `/agent/calendar?clientId=${input.clientId}`,
+    kind: frontOfficeClientDetailActionKinds.openCalendar,
+    target: frontOfficeClientDetailActionTargets.frontOfficeCalendar,
+  });
+  const listingAction = buildClientAction({
+    label:
+      input.latestSendRecord || input.sendCount > 0
+        ? "Open listing output"
+        : "Send first listing",
+    href: `/agent/listings?clientId=${input.clientId}`,
+    kind: frontOfficeClientDetailActionKinds.openListingOutput,
+    target: frontOfficeClientDetailActionTargets.frontOfficeListingOutput,
+  });
+
   const items: FrontOfficeClientDetailNextStepRailItem[] = [
     {
-      id: "follow_up",
+      id: frontOfficeClientDetailNextStepIds.followUp,
       stepLabel: "Follow-up",
       statusLabel: followUpStatusLabel,
       statusTone: followUpStatusTone,
+      ownershipKey: followUpOwnershipKey,
       ownershipLabel: followUpOwnershipLabel,
       ownershipTone: followUpOwnershipTone,
       title: input.hasClosedTransaction
@@ -2864,49 +3634,50 @@ function buildNextStepRail(input: {
         : "Keep the next touch visible",
       description: followUpDescription,
       metaLabel: followUpMetaLabel,
-      actionLabel:
-        input.nextTouchAt || input.openTaskCount > 0
-          ? "Review follow-up queue"
-          : "Create follow-up",
-      actionHref: "#front-office-follow-up-form",
-      actionOpensInNewTab: false,
-      isCurrent: currentStepId === "follow_up",
+      action: followUpAction,
+      actionLabel: followUpAction.label,
+      actionHref: followUpAction.href,
+      actionOpensInNewTab: followUpAction.opensInNewTab,
+      isCurrent: currentStepId === frontOfficeClientDetailNextStepIds.followUp,
     },
     {
-      id: "appointment",
+      id: frontOfficeClientDetailNextStepIds.appointment,
       stepLabel: "Appointment",
       statusLabel: appointmentStatusLabel,
       statusTone: appointmentStatusTone,
+      ownershipKey: appointmentOwnershipKey,
       ownershipLabel: appointmentOwnershipLabel,
       ownershipTone: appointmentOwnershipTone,
       title: appointmentTitle,
       description: appointmentDescription,
       metaLabel: appointmentMetaLabel,
-      actionLabel: "Open calendar",
-      actionHref: `/agent/calendar?clientId=${input.clientId}`,
-      actionOpensInNewTab: false,
-      isCurrent: currentStepId === "appointment",
+      action: appointmentAction,
+      actionLabel: appointmentAction.label,
+      actionHref: appointmentAction.href,
+      actionOpensInNewTab: appointmentAction.opensInNewTab,
+      isCurrent:
+        currentStepId === frontOfficeClientDetailNextStepIds.appointment,
     },
     {
-      id: "listing_output",
+      id: frontOfficeClientDetailNextStepIds.listingOutput,
       stepLabel: "Listing output",
       statusLabel: listingStatusLabel,
       statusTone: listingStatusTone,
+      ownershipKey: listingOwnershipKey,
       ownershipLabel: listingOwnershipLabel,
       ownershipTone: listingOwnershipTone,
       title: listingTitle,
       description: listingDescription,
       metaLabel: listingMetaLabel,
-      actionLabel:
-        input.latestSendRecord || input.sendCount > 0
-          ? "Open listing output"
-          : "Send first listing",
-      actionHref: `/agent/listings?clientId=${input.clientId}`,
-      actionOpensInNewTab: false,
-      isCurrent: currentStepId === "listing_output",
+      action: listingAction,
+      actionLabel: listingAction.label,
+      actionHref: listingAction.href,
+      actionOpensInNewTab: listingAction.opensInNewTab,
+      isCurrent:
+        currentStepId === frontOfficeClientDetailNextStepIds.listingOutput,
     },
     {
-      id: "offer_prep",
+      id: frontOfficeClientDetailNextStepIds.offerPrep,
       stepLabel: "Offer prep",
       statusLabel: input.negotiation.boundaryLabel,
       statusTone:
@@ -2915,18 +3686,20 @@ function buildNextStepRail(input: {
           : input.isReadyForBackOffice
             ? "warning"
             : "accent",
+      ownershipKey: offerOwnershipKey,
       ownershipLabel: offerOwnershipLabel,
       ownershipTone: offerOwnershipTone,
       title: input.negotiation.boundaryTitle,
       description: input.negotiation.boundaryDescription,
       metaLabel: input.negotiation.boundaryMetaLabel,
-      actionLabel: input.negotiation.primaryActionLabel,
-      actionHref: input.negotiation.primaryActionHref,
-      actionOpensInNewTab: false,
-      isCurrent: currentStepId === "offer_prep",
+      action: input.negotiation.primaryAction,
+      actionLabel: input.negotiation.primaryAction.label,
+      actionHref: input.negotiation.primaryAction.href,
+      actionOpensInNewTab: input.negotiation.primaryAction.opensInNewTab,
+      isCurrent: currentStepId === frontOfficeClientDetailNextStepIds.offerPrep,
     },
     {
-      id: "inspection_support",
+      id: frontOfficeClientDetailNextStepIds.inspectionSupport,
       stepLabel: "Inspection support",
       statusLabel: input.inspection.boundaryLabel,
       statusTone:
@@ -2935,18 +3708,21 @@ function buildNextStepRail(input: {
           : input.isReadyForBackOffice
             ? "warning"
             : "neutral",
+      ownershipKey: inspectionOwnershipKey,
       ownershipLabel: inspectionOwnershipLabel,
       ownershipTone: inspectionOwnershipTone,
       title: input.inspection.boundaryTitle,
       description: input.inspection.boundaryDescription,
       metaLabel: input.inspection.boundaryMetaLabel,
-      actionLabel: input.inspection.primaryActionLabel,
-      actionHref: input.inspection.primaryActionHref,
-      actionOpensInNewTab: false,
-      isCurrent: currentStepId === "inspection_support",
+      action: input.inspection.primaryAction,
+      actionLabel: input.inspection.primaryAction.label,
+      actionHref: input.inspection.primaryAction.href,
+      actionOpensInNewTab: input.inspection.primaryAction.opensInNewTab,
+      isCurrent:
+        currentStepId === frontOfficeClientDetailNextStepIds.inspectionSupport,
     },
     {
-      id: "closing_suggestion",
+      id: frontOfficeClientDetailNextStepIds.closingSuggestion,
       stepLabel: "Closing suggestion",
       statusLabel: input.closing.boundaryLabel,
       statusTone:
@@ -2957,28 +3733,116 @@ function buildNextStepRail(input: {
             : input.isReadyForBackOffice
               ? "warning"
               : "neutral",
+      ownershipKey: closingOwnershipKey,
       ownershipLabel: closingOwnershipLabel,
       ownershipTone: closingOwnershipTone,
       title: input.closing.boundaryTitle,
       description: input.closing.boundaryDescription,
       metaLabel: input.closing.boundaryMetaLabel,
-      actionLabel: input.closing.primaryActionLabel,
-      actionHref: input.closing.primaryActionHref,
-      actionOpensInNewTab: input.closing.primaryActionOpensInNewTab,
-      isCurrent: currentStepId === "closing_suggestion",
+      action: input.closing.primaryAction,
+      actionLabel: input.closing.primaryAction.label,
+      actionHref: input.closing.primaryAction.href,
+      actionOpensInNewTab: input.closing.primaryAction.opensInNewTab,
+      isCurrent:
+        currentStepId === frontOfficeClientDetailNextStepIds.closingSuggestion,
     },
   ];
 
   return {
+    decisionKey,
     decisionLabel,
     decisionTone,
     decisionTitle,
     decisionDescription,
     decisionMetaLabel,
-    primaryActionLabel,
-    primaryActionHref,
-    primaryActionOpensInNewTab,
+    currentStepId,
+    primaryAction,
+    primaryActionLabel: primaryAction.label,
+    primaryActionHref: primaryAction.href,
+    primaryActionOpensInNewTab: primaryAction.opensInNewTab,
     items,
+  };
+}
+
+function buildDossierContract(input: {
+  stage: string;
+  nextStepRail: FrontOfficeClientDetailNextStepRail;
+  followUpCue: FrontOfficeClientDetailFollowUpCue;
+  activeHandoffDraft: {
+    status: FrontOfficeHandoffStatus;
+    stageLabel: string;
+    summary: string | null;
+    committedTransactionId: string | null;
+    id: string;
+  } | null;
+  activeHandoffHref: string | null;
+  clientFullName: string;
+  hasLinkedTransaction: boolean;
+  hasClosedTransaction: boolean;
+  hasCancelledTransaction: boolean;
+  isReadyForBackOffice: boolean;
+}): FrontOfficeClientDetailContract {
+  const handoffState: FrontOfficeClientDetailHandoffState = input.activeHandoffDraft
+    ? input.activeHandoffDraft.status
+    : frontOfficeClientDetailHandoffStates.none;
+  const hasCommittedRecord =
+    input.activeHandoffDraft?.status === FrontOfficeHandoffStatus.committed;
+  const handoffAction =
+    input.activeHandoffDraft && input.activeHandoffHref
+      ? buildClientAction({
+          label: hasCommittedRecord
+            ? "Open Back Office record"
+            : "Open Back Office create flow",
+          href: input.activeHandoffHref,
+          kind: hasCommittedRecord
+            ? frontOfficeClientDetailActionKinds.openBackOfficeRecord
+            : frontOfficeClientDetailActionKinds.openBackOfficeCreate,
+          target: hasCommittedRecord
+            ? frontOfficeClientDetailActionTargets.backOfficeTransaction
+            : frontOfficeClientDetailActionTargets.backOfficeCreate,
+        })
+      : null;
+
+  let boundaryState: FrontOfficeClientDetailBoundaryState =
+    frontOfficeClientDetailBoundaryStates.frontOfficeActive;
+  if (input.hasCancelledTransaction) {
+    boundaryState = frontOfficeClientDetailBoundaryStates.cancelledReentry;
+  } else if (input.hasClosedTransaction) {
+    boundaryState = frontOfficeClientDetailBoundaryStates.postCloseFrontOffice;
+  } else if (input.hasLinkedTransaction) {
+    boundaryState = frontOfficeClientDetailBoundaryStates.backOfficeLive;
+  } else if (input.isReadyForBackOffice) {
+    boundaryState = frontOfficeClientDetailBoundaryStates.readyForBackOffice;
+  }
+
+  return {
+    boundaryState,
+    decisionKey: input.nextStepRail.decisionKey,
+    currentStepId: input.nextStepRail.currentStepId,
+    primaryAction: input.nextStepRail.primaryAction,
+    followUpCue: input.followUpCue,
+    handoff: {
+      state: handoffState,
+      isReadyForBackOffice: input.isReadyForBackOffice,
+      hasLinkedTransaction: input.hasLinkedTransaction,
+      hasOpenDraft: Boolean(
+        input.activeHandoffDraft &&
+          input.activeHandoffDraft.status !== FrontOfficeHandoffStatus.committed,
+      ),
+      hasCommittedRecord,
+      committedTransactionId:
+        input.activeHandoffDraft?.committedTransactionId ?? null,
+      summary:
+        input.activeHandoffDraft?.summary?.trim() ||
+        (input.activeHandoffDraft
+          ? buildFrontOfficeHandoffSummary(
+              input.activeHandoffDraft.stageLabel,
+              input.clientFullName,
+            )
+          : `Current stage · ${input.stage}`),
+      destinationTarget: handoffAction?.target ?? null,
+      action: handoffAction,
+    },
   };
 }
 
@@ -3214,6 +4078,11 @@ export async function getFrontOfficeClientDetail(
   const openTaskCount = client.followUpTasks.filter(
     (task) => task.status !== TaskStatus.completed,
   ).length;
+  const hasOverdueTask = client.followUpTasks.some(
+    (task) =>
+      task.status !== TaskStatus.completed &&
+      Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
+  );
   const earliestOpenTaskDueAt = client.followUpTasks.reduce<Date | null>(
     (earliest, task) => {
       if (task.status === TaskStatus.completed || !task.dueAt) {
@@ -3621,17 +4490,28 @@ export async function getFrontOfficeClientDetail(
     nextTouchAt,
     leaseReminderAt: client.leaseReminderAt,
     leaseReminderNeedsAttention: leaseReminder.needsAttention,
-    hasOverdueTask: client.followUpTasks.some(
-      (task) =>
-        task.status !== TaskStatus.completed &&
-        Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
-    ),
+    hasOverdueTask,
     openTaskCount,
     activeHandoff,
     linkedTransactionHref,
     linkedTransactionStatus: inspectionTransactionRecord?.status ?? null,
     linkedTransactionClosingDate: inspectionTransactionRecord?.closingDate ?? null,
     linkedTransactionMoveInDate: inspectionTransactionRecord?.moveInDate ?? null,
+    timeZone: input.timeZone,
+    now,
+  });
+  const followUpCue = buildFollowUpCue({
+    clientId: client.id,
+    stage: client.stage,
+    lastContactAt: client.lastContactAt,
+    nextTouchAt,
+    leaseReminderAt: client.leaseReminderAt,
+    leaseReminderNeedsAttention: leaseReminder.needsAttention,
+    hasOverdueTask,
+    openTaskCount,
+    activeHandoff,
+    linkedTransactionStatus: inspectionTransactionRecord?.status ?? null,
+    linkedTransactionHref,
     timeZone: input.timeZone,
     now,
   });
@@ -3668,6 +4548,21 @@ export async function getFrontOfficeClientDetail(
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? activeHandoff?.href ?? "/office/transactions"
       : workflow.actionHref;
+  const negotiationPrimaryAction = negotiationTransactionId
+    ? buildClientAction({
+        label: negotiationPrimaryActionLabel,
+        href: negotiationPrimaryActionHref,
+        kind: frontOfficeClientDetailActionKinds.openBackOfficeOffers,
+        target: frontOfficeClientDetailActionTargets.backOfficeOffers,
+      })
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? buildClientAction({
+          label: negotiationPrimaryActionLabel,
+          href: negotiationPrimaryActionHref,
+          kind: frontOfficeClientDetailActionKinds.openBackOfficeCreate,
+          target: frontOfficeClientDetailActionTargets.backOfficeCreate,
+        })
+      : workflow.action;
   const negotiationBoundaryTitle = negotiationTransactionId
     ? "Formal offer workspace is now the source of truth"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
@@ -3790,6 +4685,44 @@ export async function getFrontOfficeClientDetail(
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? activeHandoff?.href ?? "/office/transactions"
       : workflow.actionHref;
+  const inspectionPrimaryAction = negotiationTransactionId
+    ? inspectionOverdueTaskCount > 0 || inspectionOpenTaskCount > 0
+      ? buildClientAction({
+          label: inspectionPrimaryActionLabel,
+          href: inspectionPrimaryActionHref,
+          kind: frontOfficeClientDetailActionKinds.openBackOfficeTasks,
+          target: frontOfficeClientDetailActionTargets.backOfficeTasks,
+        })
+      : inspectionPendingSignatureCount > 0
+        ? buildClientAction({
+            label: inspectionPrimaryActionLabel,
+            href: inspectionPrimaryActionHref,
+            kind: frontOfficeClientDetailActionKinds.openBackOfficeSignatures,
+            target: frontOfficeClientDetailActionTargets.backOfficeSignatures,
+          })
+        : inspectionPendingIncomingUpdateCount > 0
+          ? buildClientAction({
+              label: inspectionPrimaryActionLabel,
+              href: inspectionPrimaryActionHref,
+              kind:
+                frontOfficeClientDetailActionKinds.openBackOfficeIncomingUpdates,
+              target:
+                frontOfficeClientDetailActionTargets.backOfficeIncomingUpdates,
+            })
+          : buildClientAction({
+              label: inspectionPrimaryActionLabel,
+              href: inspectionPrimaryActionHref,
+              kind: frontOfficeClientDetailActionKinds.openTransaction,
+              target: frontOfficeClientDetailActionTargets.backOfficeTransaction,
+            })
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? buildClientAction({
+          label: inspectionPrimaryActionLabel,
+          href: inspectionPrimaryActionHref,
+          kind: frontOfficeClientDetailActionKinds.openBackOfficeCreate,
+          target: frontOfficeClientDetailActionTargets.backOfficeCreate,
+        })
+      : workflow.action;
   const inspectionEmptyStateTitle = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
       ? "No inspection pressure right now"
@@ -4009,6 +4942,28 @@ export async function getFrontOfficeClientDetail(
         ? activeHandoff?.href ?? "/office/transactions"
         : workflow.actionHref;
   const closingPrimaryActionOpensInNewTab = false;
+  const closingPrimaryAction = hasClosedTransaction
+    ? buildClientAction({
+        label: closingPrimaryActionLabel,
+        href: closingPrimaryActionHref,
+        kind: frontOfficeClientDetailActionKinds.createFollowUp,
+        target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
+      })
+    : negotiationTransactionId
+      ? buildClientAction({
+          label: closingPrimaryActionLabel,
+          href: closingPrimaryActionHref,
+          kind: frontOfficeClientDetailActionKinds.openTransaction,
+          target: frontOfficeClientDetailActionTargets.backOfficeTransaction,
+        })
+      : isFrontOfficeStageReadyForBackOffice(client.stage)
+        ? buildClientAction({
+            label: closingPrimaryActionLabel,
+            href: closingPrimaryActionHref,
+            kind: frontOfficeClientDetailActionKinds.openBackOfficeCreate,
+            target: frontOfficeClientDetailActionTargets.backOfficeCreate,
+          })
+        : workflow.action;
   const closingEmptyStateTitle = hasCancelledTransaction
     ? "No closing guidance is active"
     : hasClosedTransaction
@@ -4207,11 +5162,7 @@ export async function getFrontOfficeClientDetail(
     timeZone: input.timeZone,
     nextTouchAt,
     openTaskCount,
-    hasOverdueTask: client.followUpTasks.some(
-      (task) =>
-        task.status !== TaskStatus.completed &&
-        Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
-    ),
+    hasOverdueTask,
     hasUpcomingAppointment: upcomingAppointmentCount > 0,
     latestUpcomingAppointment: latestUpcomingAppointment
       ? {
@@ -4239,16 +5190,14 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: negotiationBoundaryTitle,
       boundaryDescription: negotiationBoundaryDescription,
       boundaryMetaLabel: negotiationBoundaryMetaLabel,
-      primaryActionLabel: negotiationPrimaryActionLabel,
-      primaryActionHref: negotiationPrimaryActionHref,
+      primaryAction: negotiationPrimaryAction,
     },
     inspection: {
       boundaryLabel: inspectionBoundaryLabel,
       boundaryTitle: inspectionBoundaryTitle,
       boundaryDescription: inspectionBoundaryDescription,
       boundaryMetaLabel: inspectionBoundaryMetaLabel,
-      primaryActionLabel: inspectionPrimaryActionLabel,
-      primaryActionHref: inspectionPrimaryActionHref,
+      primaryAction: inspectionPrimaryAction,
       openTaskCount: inspectionOpenTaskCount,
       pendingSignatureCount: inspectionPendingSignatureCount,
       pendingIncomingUpdateCount: inspectionPendingIncomingUpdateCount,
@@ -4258,10 +5207,20 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: closingBoundaryTitle,
       boundaryDescription: closingBoundaryDescription,
       boundaryMetaLabel: closingBoundaryMetaLabel,
-      primaryActionLabel: closingPrimaryActionLabel,
-      primaryActionHref: closingPrimaryActionHref,
-      primaryActionOpensInNewTab: closingPrimaryActionOpensInNewTab,
+      primaryAction: closingPrimaryAction,
     },
+  });
+  const contract = buildDossierContract({
+    stage: client.stage,
+    nextStepRail,
+    followUpCue,
+    activeHandoffDraft,
+    activeHandoffHref: activeHandoff?.href ?? null,
+    clientFullName: client.fullName,
+    hasLinkedTransaction: Boolean(negotiationTransactionId),
+    hasClosedTransaction,
+    hasCancelledTransaction,
+    isReadyForBackOffice: isFrontOfficeStageReadyForBackOffice(client.stage),
   });
   const aiSuggestions = buildFrontOfficeAiSuggestions({
     clientId: client.id,
@@ -4456,6 +5415,8 @@ export async function getFrontOfficeClientDetail(
     },
     aiSuggestions,
     aiAcceptedActions,
+    followUpCue,
+    contract,
     workflow,
     nextStepRail,
     playbook,
@@ -4485,6 +5446,7 @@ export async function getFrontOfficeClientDetail(
         metadata: appointment.metadata,
         timeZone: input.timeZone ?? null,
       });
+      const bridgeStatus = appointmentBridgeStatusMap.get(appointment.id) ?? null;
       const externalLinks = buildFrontOfficeAppointmentExternalLinks({
         appointmentId: appointment.id,
         title: appointment.title,
@@ -4500,17 +5462,59 @@ export async function getFrontOfficeClientDetail(
         listingCity: appointment.listing?.city,
         timeZone: input.timeZone ?? null,
       });
+      const outputHandoffAction = buildClientAction({
+        label: "Open listing output",
+        href: `/agent/listings?clientId=${client.id}&appointmentId=${appointment.id}`,
+        kind: frontOfficeClientDetailActionKinds.openListingOutput,
+        target: frontOfficeClientDetailActionTargets.frontOfficeListingOutput,
+      });
+      const googleCalendarAction = buildClientAction({
+        label: "Open Google Calendar",
+        href: externalLinks.googleCalendarHref,
+        kind: frontOfficeClientDetailActionKinds.openGoogleCalendar,
+        target: frontOfficeClientDetailActionTargets.externalGoogleCalendar,
+        opensInNewTab: true,
+      });
+      const outlookCalendarAction = buildClientAction({
+        label: "Open Outlook",
+        href: externalLinks.outlookCalendarHref,
+        kind: frontOfficeClientDetailActionKinds.openOutlookCalendar,
+        target: frontOfficeClientDetailActionTargets.externalOutlookCalendar,
+        opensInNewTab: true,
+      });
+      const icsAction = buildClientAction({
+        label: "Download ICS",
+        href: externalLinks.icsHref,
+        kind: frontOfficeClientDetailActionKinds.downloadIcs,
+        target: frontOfficeClientDetailActionTargets.externalIcs,
+        opensInNewTab: true,
+      });
+      const emailBriefAction = externalLinks.emailBriefHref
+        ? buildClientAction({
+            label: "Open email brief",
+            href: externalLinks.emailBriefHref,
+            kind: frontOfficeClientDetailActionKinds.openEmailBrief,
+            target: frontOfficeClientDetailActionTargets.externalEmailBrief,
+            opensInNewTab: true,
+          })
+        : null;
 
       return {
         id: appointment.id,
         title: appointment.title,
+        typeValue: appointment.type,
         typeLabel: formatAppointmentTypeLabel(appointment.type),
         typeTone: mapAppointmentTypeTone(appointment.type),
+        statusValue: appointment.status,
         statusLabel: formatAppointmentStatusLabel(appointment.status),
         statusTone: mapAppointmentStatusTone(appointment.status),
+        externalStatusValue: externalWorkflow.value,
         externalStatusLabel: externalWorkflow.label,
         externalStatusTone: externalWorkflow.tone,
         externalStatusDetail: externalWorkflow.detail,
+        externalNextActionAtValue: externalWorkflow.nextActionAtValue,
+        externalNextActionAtLabel: externalWorkflow.nextActionAtLabel,
+        startsAtValue: formatDateTimeValue(appointment.startsAt),
         startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
           timeZone: input.timeZone ?? null,
         }),
@@ -4521,17 +5525,31 @@ export async function getFrontOfficeClientDetail(
         contextLabel: appointment.listing
           ? `${appointment.listing.title} · ${appointment.listing.neighborhood}, ${appointment.listing.city}`
           : appointment.contactLabel?.trim() || "Front Office appointment",
-        listingOutputHref: `/agent/listings?clientId=${client.id}&appointmentId=${appointment.id}`,
+        outputHandoff: {
+          source: "appointment",
+          clientId: client.id,
+          appointmentId: appointment.id,
+          hasAppointmentContext: true,
+          hasListingContext: Boolean(appointment.listing),
+          action: outputHandoffAction,
+        },
+        listingOutputHref: outputHandoffAction.href,
+        googleCalendarAction,
         googleCalendarHref: externalLinks.googleCalendarHref,
+        outlookCalendarAction,
         outlookCalendarHref: externalLinks.outlookCalendarHref,
+        icsAction,
         icsHref: externalLinks.icsHref,
+        emailBriefAction,
         emailBriefHref: externalLinks.emailBriefHref,
-        bridgeStatusLabel:
-          appointmentBridgeStatusMap.get(appointment.id)?.label ??
-          "External bridge idle",
+        bridgeActivityState: mapBridgeActivityState(bridgeStatus),
+        bridgeStatusLabel: bridgeStatus?.label ?? "External bridge idle",
         bridgeStatusDetail:
-          appointmentBridgeStatusMap.get(appointment.id)?.detail ??
-          "No Google / Outlook / ICS / email action logged yet",
+          bridgeStatus?.detail ?? "No Google / Outlook / ICS / email action logged yet",
+        bridgeStatusTone: bridgeStatus?.tone ?? "neutral",
+        bridgeActionLabel: bridgeStatus?.actionLabel ?? "No bridge action logged",
+        bridgeLoggedAtLabel: bridgeStatus?.loggedAtLabel ?? "No bridge activity yet",
+        hasBridgeActivity: bridgeStatus?.hasBridgeActivity ?? false,
       };
     }),
     followUpTasks: client.followUpTasks.map((task) => ({
@@ -4554,16 +5572,22 @@ export async function getFrontOfficeClientDetail(
         (record.materialType === "listing_share"
           ? "Listing share"
           : "Front Office material"),
+      channelValue: record.channel,
       channelLabel: formatFrontOfficeSendChannelLabel(record.channel),
+      materialTypeValue: record.materialType,
       stageLabel: formatSendRecordStageLabel(record.clientStageLabel),
+      appointmentId: record.appointmentId,
       appointmentLabel: buildSendRecordAppointmentLabel({
         title: record.appointmentTitle,
         startsAt: record.appointmentStartsAt,
         timeZone: input.timeZone,
       }),
+      sentAtValue: formatDateTimeValue(record.sentAt),
       sentAtLabel: formatDateTimeLabel(record.sentAt, {
         timeZone: input.timeZone ?? null,
       }),
+      engagementKey: mapSendEngagementKey(record.openCount),
+      openCount: record.openCount,
       engagementLabel: buildFrontOfficeSendEngagementLabel(record.openCount),
       engagementTone: mapFrontOfficeSendEngagementTone(record.openCount),
       lastActivityLabel:
@@ -4572,6 +5596,21 @@ export async function getFrontOfficeClientDetail(
               timeZone: input.timeZone ?? null,
             })}`
           : "No open recorded yet",
+      outputHandoff: {
+        source: "send_record",
+        clientId: client.id,
+        appointmentId: record.appointmentId,
+        hasAppointmentContext: Boolean(record.appointmentId),
+        hasListingContext: Boolean(record.listing),
+        action: buildClientAction({
+          label: "Open listing output",
+          href: record.appointmentId
+            ? `/agent/listings?clientId=${client.id}&appointmentId=${record.appointmentId}`
+            : `/agent/listings?clientId=${client.id}`,
+          kind: frontOfficeClientDetailActionKinds.openListingOutput,
+          target: frontOfficeClientDetailActionTargets.frontOfficeListingOutput,
+        }),
+      },
       href: record.appointmentId
         ? `/agent/listings?clientId=${client.id}&appointmentId=${record.appointmentId}`
         : `/agent/listings?clientId=${client.id}`,
@@ -4579,11 +5618,40 @@ export async function getFrontOfficeClientDetail(
     handoffs: client.handoffDrafts.map((draft) => ({
       id: draft.id,
       stageLabel: draft.stageLabel,
+      statusValue: draft.status,
       statusLabel: formatHandoffStatusLabel(draft.status),
       tone: mapHandoffTone(draft.status),
       summary:
         draft.summary?.trim() ||
         buildFrontOfficeHandoffSummary(draft.stageLabel, client.fullName),
+      committedTransactionId: draft.committedTransactionId,
+      destinationTarget:
+        draft.status === FrontOfficeHandoffStatus.committed &&
+        draft.committedTransactionId
+          ? frontOfficeClientDetailActionTargets.backOfficeTransaction
+          : frontOfficeClientDetailActionTargets.backOfficeCreate,
+      action: buildClientAction({
+        label:
+          draft.status === FrontOfficeHandoffStatus.committed &&
+          draft.committedTransactionId
+            ? "Open Back Office record"
+            : "Open Back Office create flow",
+        href:
+          draft.status === FrontOfficeHandoffStatus.committed &&
+          draft.committedTransactionId
+            ? `/office/transactions/${draft.committedTransactionId}`
+            : buildFrontOfficeHandoffCreateHref(draft.id),
+        kind:
+          draft.status === FrontOfficeHandoffStatus.committed &&
+          draft.committedTransactionId
+            ? frontOfficeClientDetailActionKinds.openBackOfficeRecord
+            : frontOfficeClientDetailActionKinds.openBackOfficeCreate,
+        target:
+          draft.status === FrontOfficeHandoffStatus.committed &&
+          draft.committedTransactionId
+            ? frontOfficeClientDetailActionTargets.backOfficeTransaction
+            : frontOfficeClientDetailActionTargets.backOfficeCreate,
+      }),
       updatedAtLabel: formatDateTimeLabel(
         draft.committedAt ?? draft.updatedAt ?? draft.createdAt,
         { timeZone: input.timeZone ?? null },
