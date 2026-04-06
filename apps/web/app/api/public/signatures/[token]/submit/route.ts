@@ -1,6 +1,7 @@
 import { createTransactionDocument, getPublicSignatureDocumentStorageRecord, getPublicSignatureRequestSnapshot, updateSignatureRequest } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
+import { validateRecipientFieldSubmission } from "../../../../../../lib/public-signature-access";
 import { attemptSignatureDriveSync } from "../../../../../../lib/signature-drive-sync";
 import { buildSignedPdf, type SubmittedSignatureFieldValue } from "../../../../../../lib/signature-pdf";
 import { sendSignatureCompletionEmail, sendSignatureRequestEmail } from "../../../../../../lib/signature-email";
@@ -69,15 +70,29 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   try {
-    const actionableRecipients = snapshot.request.recipients.filter((recipient) => recipient.roleKey !== "cc");
-    const allowUnassignedFields = actionableRecipients.length <= 1;
-    const editableFieldIds = new Set(
-      snapshot.fields
-        .filter((field) => !field.assignedRecipientId || allowUnassignedFields || field.assignedRecipientId === snapshot.currentRecipient.id)
-        .map((field) => field.id)
-    );
+    const submissionValidation = validateRecipientFieldSubmission({
+      fields: snapshot.fields,
+      recipients: snapshot.request.recipients,
+      currentRecipientId: snapshot.currentRecipient.id,
+      submittedValues: body.values
+    });
+
+    if (submissionValidation.unauthorizedFieldIds.length > 0) {
+      return NextResponse.json({ error: "You can only complete fields assigned to your signing step." }, { status: 400 });
+    }
+
+    if (submissionValidation.missingRequiredFieldLabels.length > 0) {
+      const fieldLabelList = submissionValidation.missingRequiredFieldLabels.slice(0, 3).join(", ");
+      const suffix = submissionValidation.missingRequiredFieldLabels.length > 3 ? ", and more" : "";
+
+      return NextResponse.json(
+        { error: `Complete every required field assigned to you before submitting. Missing: ${fieldLabelList}${suffix}.` },
+        { status: 400 }
+      );
+    }
+
     const submittedValues = body.values
-      .filter((value) => editableFieldIds.has(value.fieldId))
+      .filter((value) => submissionValidation.editableFieldIds.has(value.fieldId))
       .map((value) => ({
         ...value,
         recipientId: snapshot.currentRecipient.id

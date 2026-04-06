@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, FormField, TextInput } from "@acre/ui";
 import type { OfficeSignatureField, PublicSignatureRequestSnapshot } from "@acre/db";
 import { usePdfPreview } from "../../../components/signature/use-pdf-preview";
+import { canRecipientEditField, getRecipientEditableFields } from "../../../lib/public-signature-access";
 
 type PublicSignatureClientProps = {
   token: string;
@@ -18,17 +19,6 @@ type SignatureValueMap = Record<
     imageDataUrl?: string;
   }
 >;
-
-function canCurrentRecipientEditField(snapshot: PublicSignatureRequestSnapshot, field: OfficeSignatureField) {
-  const actionableRecipients = snapshot.request.recipients.filter((recipient) => recipient.roleKey !== "cc");
-  const allowUnassignedField = actionableRecipients.length <= 1;
-
-  if (!field.assignedRecipientId) {
-    return allowUnassignedField;
-  }
-
-  return field.assignedRecipientId === snapshot.currentRecipient.id;
-}
 
 function buildInitialValues(snapshot: PublicSignatureRequestSnapshot): SignatureValueMap {
   const today = new Date().toISOString().slice(0, 10);
@@ -129,7 +119,16 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const statusMessage = buildStatusMessage(snapshot);
-  const editableFieldCount = snapshot.fields.filter((field) => canCurrentRecipientEditField(snapshot, field)).length;
+  const signatureAccessContext = useMemo(
+    () => ({
+      fields: snapshot.fields,
+      recipients: snapshot.request.recipients,
+      currentRecipientId: snapshot.currentRecipient.id
+    }),
+    [snapshot.currentRecipient.id, snapshot.fields, snapshot.request.recipients]
+  );
+  const editableFields = useMemo(() => getRecipientEditableFields(signatureAccessContext), [signatureAccessContext]);
+  const editableFieldCount = editableFields.length;
   const isReadOnly =
     completed ||
     ["completed", "declined", "canceled", "voided", "expired"].includes(snapshot.request.statusKey) ||
@@ -160,14 +159,14 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
 
   const completionPayload = useMemo(
     () =>
-      snapshot.fields.map((field) => ({
+      editableFields.map((field) => ({
         fieldId: field.id,
         fieldType: field.fieldType,
         textValue: values[field.id]?.textValue,
         signatureMode: values[field.id]?.signatureMode,
         imageDataUrl: values[field.id]?.imageDataUrl
       })),
-    [snapshot.fields, values]
+    [editableFields, values]
   );
 
   function updateFieldValue(fieldId: string, nextValue: SignatureValueMap[string]) {
@@ -348,6 +347,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
         {statusMessage && !completed ? <p className="public-signature-alert">{statusMessage}</p> : null}
         {completed ? <p className="public-signature-success">The document has been signed successfully. You can close this page.</p> : null}
         {submitError ? <p className="public-signature-alert">{submitError}</p> : null}
+        {!completed && !statusMessage ? <p className="public-signature-helper">Only the fields assigned to you can be edited and submitted.</p> : null}
 
         {!isReadOnly && !completed ? (
           <Button disabled={pendingSubmit} onClick={handleSubmit}>
@@ -370,7 +370,7 @@ export function PublicSignatureClient({ token, snapshot }: PublicSignatureClient
                   .filter((field) => field.page === page.pageNumber)
                   .map((field) => {
                     const currentValue = values[field.id];
-                    const isEditable = canCurrentRecipientEditField(snapshot, field) && !isReadOnly;
+                    const isEditable = canRecipientEditField(signatureAccessContext, field) && !isReadOnly;
 
                     return (
                       <div
