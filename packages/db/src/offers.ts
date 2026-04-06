@@ -5,8 +5,10 @@ import {
   NotificationType,
   OfferStatus,
   Prisma,
-  SignatureRequestStatus
+  SignatureRequestStatus,
+  TransactionStatus
 } from "@prisma/client";
+import { buildTransactionVisibilityWhere, resolveOfficeDataScope } from "./access";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
 import { createNotificationsForMemberships } from "./notifications";
@@ -106,6 +108,81 @@ export type OfficeTransactionOffersSnapshot = {
   acceptedOfferId: string;
   acceptedOfferLabel: string;
   expiringSoonCount: number;
+};
+
+export type OfficeOffersQueueStatusFilter = "all" | OfferStatus;
+export type OfficeOffersQueueTimingFilter = "all" | "expiring_soon";
+export type OfficeOffersQueueContextFilter = "all" | "primary" | "accepted";
+
+export type OfficeOfferQueueRow = {
+  id: string;
+  transactionId: string;
+  transactionHref: string;
+  offerHref: string;
+  transactionTitle: string;
+  transactionAddress: string;
+  transactionStatus: string;
+  ownerName: string;
+  title: string;
+  offeringPartyName: string;
+  buyerName: string;
+  status: string;
+  statusValue: OfferStatus;
+  price: string;
+  earnestMoneyAmount: string;
+  financingType: string;
+  closingDateOffered: string;
+  expirationAt: string;
+  expirationLabel: string;
+  isExpiringSoon: boolean;
+  isPrimaryOffer: boolean;
+  isAcceptedOffer: boolean;
+  acceptedAt: string;
+  acceptedAtLabel: string;
+  transactionAcceptedOfferId: string;
+  transactionAcceptedOfferLabel: string;
+  transactionPrimaryOfferId: string;
+  transactionPrimaryOfferLabel: string;
+  updatedAt: string;
+  updatedAtLabel: string;
+  createdAt: string;
+  createdAtLabel: string;
+};
+
+export type OfficeOffersQueueSummary = {
+  totalCount: number;
+  expiringSoonCount: number;
+  primaryCount: number;
+  acceptedCount: number;
+};
+
+export type OfficeOffersQueueFilters = {
+  q: string;
+  status: OfficeOffersQueueStatusFilter;
+  timing: OfficeOffersQueueTimingFilter;
+  context: OfficeOffersQueueContextFilter;
+};
+
+export type OfficeOffersQueueSnapshot = {
+  filters: OfficeOffersQueueFilters;
+  summary: OfficeOffersQueueSummary;
+  rows: OfficeOfferQueueRow[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+};
+
+export type ListOfficeOffersQueueInput = {
+  organizationId: string;
+  viewerMembershipId: string;
+  officeId?: string | null;
+  q?: string;
+  status?: string;
+  timing?: string;
+  context?: string;
+  page?: number;
+  pageSize?: number;
 };
 
 export type CreateOfferInput = {
@@ -259,6 +336,14 @@ const signatureStatusLabelMap: Record<SignatureRequestStatus, string> = {
   expired: "Expired"
 };
 
+const transactionStatusLabelMap: Record<TransactionStatus, string> = {
+  opportunity: "Opportunity",
+  active: "Active",
+  pending: "Pending",
+  closed: "Closed",
+  cancelled: "Cancelled"
+};
+
 const offerTransitionMap: Record<OfferStatus, TransitionOfferAction[]> = {
   draft: ["submit", "receive", "withdraw"],
   submitted: ["receive", "counter", "reject", "withdraw", "expire"],
@@ -270,6 +355,8 @@ const offerTransitionMap: Record<OfferStatus, TransitionOfferAction[]> = {
   withdrawn: [],
   expired: []
 };
+
+const terminalOfferStatuses: OfferStatus[] = ["accepted", "rejected", "withdrawn", "expired"];
 
 function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
   if (value === null || value === undefined || value === "") {
@@ -287,6 +374,18 @@ function formatCurrency(value: Prisma.Decimal | number | string | null | undefin
 
 function formatDateValue(date: Date | null) {
   return date ? date.toISOString().slice(0, 10) : "";
+}
+
+function formatDateLabel(date: Date | null) {
+  if (!date) {
+    return "";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
 }
 
 function formatDateTimeValue(date: Date | null) {
@@ -351,6 +450,10 @@ function buildOfferHref(transactionId: string, offerId: string) {
   return `/office/transactions/${transactionId}#offer-${offerId}`;
 }
 
+function buildTransactionHref(transactionId: string) {
+  return `/office/transactions/${transactionId}`;
+}
+
 function buildOfferChange(label: string, previousValue: string | null | undefined, nextValue: string | null | undefined) {
   const previousText = previousValue?.trim() || "—";
   const nextText = nextValue?.trim() || "—";
@@ -368,6 +471,51 @@ function buildOfferChange(label: string, previousValue: string | null | undefine
 
 function getSignaturePendingCount(statuses: SignatureRequestStatus[]) {
   return statuses.filter((status) => status === "draft" || status === "sent" || status === "viewed").length;
+}
+
+function buildOfferExpiringSoonWhere(now: Date): Prisma.OfferWhereInput {
+  return {
+    expirationAt: {
+      gte: now,
+      lte: new Date(now.getTime() + 72 * 60 * 60 * 1000)
+    },
+    status: {
+      notIn: terminalOfferStatuses
+    }
+  };
+}
+
+function isOfferExpiringSoon(
+  offer: {
+    expirationAt: Date | null;
+    status: OfferStatus;
+  },
+  now: Date
+) {
+  if (!offer.expirationAt || terminalOfferStatuses.includes(offer.status)) {
+    return false;
+  }
+
+  const diff = offer.expirationAt.getTime() - now.getTime();
+  return diff >= 0 && diff <= 72 * 60 * 60 * 1000;
+}
+
+function parseOfferQueueStatusFilter(value: string | undefined): OfficeOffersQueueStatusFilter {
+  const trimmed = value?.trim();
+
+  if (trimmed && trimmed in offerStatusLabelMap) {
+    return trimmed as OfferStatus;
+  }
+
+  return "all";
+}
+
+function parseOfferQueueTimingFilter(value: string | undefined): OfficeOffersQueueTimingFilter {
+  return value === "expiring_soon" ? "expiring_soon" : "all";
+}
+
+function parseOfferQueueContextFilter(value: string | undefined): OfficeOffersQueueContextFilter {
+  return value === "primary" || value === "accepted" ? value : "all";
 }
 
 function getOfferSignatureReadiness(offer: OfferRecord) {
@@ -488,6 +636,202 @@ function mapOfferRecord(record: OfferRecord): OfficeOfferRecord {
       createdAt: formatDateTimeValue(comment.createdAt)
     })),
     comparison
+  };
+}
+
+type OfferQueueRecord = Prisma.OfferGetPayload<{
+  include: {
+    transaction: {
+      select: {
+        id: true;
+        title: true;
+        address: true;
+        city: true;
+        state: true;
+        status: true;
+        acceptanceDate: true;
+        ownerMembership: {
+          select: {
+            user: {
+              select: {
+                firstName: true;
+                lastName: true;
+              };
+            };
+          };
+        };
+        offers: {
+          where: {
+            OR: [{ status: "accepted" }, { isPrimaryOffer: true }];
+          };
+          select: {
+            id: true;
+            title: true;
+            offeringPartyName: true;
+            status: true;
+            isPrimaryOffer: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+function mapOfferQueueRow(record: OfferQueueRecord, now: Date): OfficeOfferQueueRow {
+  const acceptedTransactionOffer =
+    record.transaction.offers.find((offer) => offer.status === OfferStatus.accepted) ?? null;
+  const primaryTransactionOffer =
+    record.transaction.offers.find((offer) => offer.isPrimaryOffer) ?? acceptedTransactionOffer;
+  const ownerName = record.transaction.ownerMembership
+    ? `${record.transaction.ownerMembership.user.firstName} ${record.transaction.ownerMembership.user.lastName}`.trim()
+    : "";
+  const transactionAddress = [record.transaction.address, record.transaction.city, record.transaction.state]
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+    .join(", ");
+
+  return {
+    id: record.id,
+    transactionId: record.transactionId,
+    transactionHref: buildTransactionHref(record.transactionId),
+    offerHref: buildOfferHref(record.transactionId, record.id),
+    transactionTitle: record.transaction.title,
+    transactionAddress,
+    transactionStatus: transactionStatusLabelMap[record.transaction.status],
+    ownerName,
+    title: record.title,
+    offeringPartyName: record.offeringPartyName,
+    buyerName: record.buyerName ?? "",
+    status: offerStatusLabelMap[record.status],
+    statusValue: record.status,
+    price: formatCurrency(record.price),
+    earnestMoneyAmount: formatCurrency(record.earnestMoneyAmount),
+    financingType: record.financingType ?? "",
+    closingDateOffered: formatDateValue(record.closingDateOffered),
+    expirationAt: formatDateValue(record.expirationAt),
+    expirationLabel: record.expirationAt ? formatDateLabel(record.expirationAt) : "",
+    isExpiringSoon: isOfferExpiringSoon(record, now),
+    isPrimaryOffer: record.isPrimaryOffer,
+    isAcceptedOffer: record.status === OfferStatus.accepted,
+    acceptedAt: formatDateTimeValue(record.acceptedAt),
+    acceptedAtLabel: formatDateLabel(record.acceptedAt),
+    transactionAcceptedOfferId: acceptedTransactionOffer?.id ?? "",
+    transactionAcceptedOfferLabel: acceptedTransactionOffer
+      ? `${acceptedTransactionOffer.title} · ${acceptedTransactionOffer.offeringPartyName}`
+      : "",
+    transactionPrimaryOfferId: primaryTransactionOffer?.id ?? "",
+    transactionPrimaryOfferLabel: primaryTransactionOffer
+      ? `${primaryTransactionOffer.title} · ${primaryTransactionOffer.offeringPartyName}`
+      : "",
+    updatedAt: formatDateTimeValue(record.updatedAt),
+    updatedAtLabel: formatDateLabel(record.updatedAt),
+    createdAt: formatDateTimeValue(record.createdAt),
+    createdAtLabel: formatDateLabel(record.createdAt)
+  };
+}
+
+function buildOfferQueueWhere(
+  input: ListOfficeOffersQueueInput,
+  filters: OfficeOffersQueueFilters,
+  now: Date,
+  scope: Awaited<ReturnType<typeof resolveOfficeDataScope>>
+): Prisma.OfferWhereInput {
+  const whereConditions: Prisma.OfferWhereInput[] = [
+    {
+      organizationId: input.organizationId
+    },
+    {
+      transaction: buildTransactionVisibilityWhere(scope)
+    }
+  ];
+
+  if (input.officeId) {
+    whereConditions.push({
+      transaction: {
+        officeId: input.officeId
+      }
+    });
+  }
+
+  if (filters.q) {
+    whereConditions.push({
+      OR: [
+        {
+          title: {
+            contains: filters.q,
+            mode: "insensitive"
+          }
+        },
+        {
+          offeringPartyName: {
+            contains: filters.q,
+            mode: "insensitive"
+          }
+        },
+        {
+          buyerName: {
+            contains: filters.q,
+            mode: "insensitive"
+          }
+        },
+        {
+          transaction: {
+            OR: [
+              {
+                title: {
+                  contains: filters.q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                address: {
+                  contains: filters.q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                city: {
+                  contains: filters.q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                state: {
+                  contains: filters.q,
+                  mode: "insensitive"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    });
+  }
+
+  if (filters.status !== "all") {
+    whereConditions.push({
+      status: filters.status
+    });
+  }
+
+  if (filters.timing === "expiring_soon") {
+    whereConditions.push(buildOfferExpiringSoonWhere(now));
+  }
+
+  if (filters.context === "primary") {
+    whereConditions.push({
+      isPrimaryOffer: true
+    });
+  }
+
+  if (filters.context === "accepted") {
+    whereConditions.push({
+      status: OfferStatus.accepted
+    });
+  }
+
+  return {
+    AND: whereConditions
   };
 }
 
@@ -639,20 +983,112 @@ export async function listTransactionOffersSnapshot(
   const mappedOffers = offers.map(mapOfferRecord);
   const acceptedOffer = mappedOffers.find((offer) => offer.statusValue === "accepted") ?? mappedOffers.find((offer) => offer.isPrimaryOffer) ?? null;
   const now = new Date();
-  const expiringSoonCount = offers.filter((offer) => {
-    if (!offer.expirationAt || ["accepted", "rejected", "withdrawn", "expired"].includes(offer.status)) {
-      return false;
-    }
-
-    const diff = offer.expirationAt.getTime() - now.getTime();
-    return diff >= 0 && diff <= 72 * 60 * 60 * 1000;
-  }).length;
+  const expiringSoonCount = offers.filter((offer) => isOfferExpiringSoon(offer, now)).length;
 
   return {
     offers: mappedOffers,
     acceptedOfferId: acceptedOffer?.id ?? "",
     acceptedOfferLabel: acceptedOffer ? `${acceptedOffer.title} · ${acceptedOffer.offeringPartyName}` : "",
     expiringSoonCount
+  };
+}
+
+export async function listOfficeOffersQueue(
+  input: ListOfficeOffersQueueInput
+): Promise<OfficeOffersQueueSnapshot> {
+  const page = Math.max(1, input.page ?? 1);
+  const pageSize = Math.min(Math.max(input.pageSize ?? 20, 1), 100);
+  const now = new Date();
+  const filters = {
+    q: input.q?.trim() ?? "",
+    status: parseOfferQueueStatusFilter(input.status),
+    timing: parseOfferQueueTimingFilter(input.timing),
+    context: parseOfferQueueContextFilter(input.context)
+  } satisfies OfficeOffersQueueFilters;
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.viewerMembershipId,
+    officeId: input.officeId ?? null,
+    resource: "transactions"
+  });
+  const where = buildOfferQueueWhere(input, filters, now, scope);
+  const expiringSoonWhere = {
+    AND: [where, buildOfferExpiringSoonWhere(now)]
+  } satisfies Prisma.OfferWhereInput;
+  const orderBy =
+    filters.timing === "expiring_soon"
+      ? [{ expirationAt: "asc" as const }, { isPrimaryOffer: "desc" as const }, { updatedAt: "desc" as const }]
+      : [{ isPrimaryOffer: "desc" as const }, { updatedAt: "desc" as const }, { createdAt: "desc" as const }];
+
+  const [totalCount, expiringSoonCount, primaryCount, acceptedCount, offers] = await Promise.all([
+    prisma.offer.count({ where }),
+    prisma.offer.count({ where: expiringSoonWhere }),
+    prisma.offer.count({
+      where: {
+        AND: [where, { isPrimaryOffer: true }]
+      }
+    }),
+    prisma.offer.count({
+      where: {
+        AND: [where, { status: OfferStatus.accepted }]
+      }
+    }),
+    prisma.offer.findMany({
+      where,
+      include: {
+        transaction: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            city: true,
+            state: true,
+            status: true,
+            acceptanceDate: true,
+            ownerMembership: {
+              select: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true
+                  }
+                }
+              }
+            },
+            offers: {
+              where: {
+                OR: [{ status: OfferStatus.accepted }, { isPrimaryOffer: true }]
+              },
+              select: {
+                id: true,
+                title: true,
+                offeringPartyName: true,
+                status: true,
+                isPrimaryOffer: true
+              }
+            }
+          }
+        }
+      },
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    })
+  ]);
+
+  return {
+    filters,
+    summary: {
+      totalCount,
+      expiringSoonCount,
+      primaryCount,
+      acceptedCount
+    },
+    rows: offers.map((offer) => mapOfferQueueRow(offer, now)),
+    totalCount,
+    totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+    page,
+    pageSize
   };
 }
 

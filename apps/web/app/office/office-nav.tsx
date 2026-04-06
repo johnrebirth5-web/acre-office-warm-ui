@@ -18,6 +18,7 @@ import {
   canViewOfficeContacts,
   canViewOfficeFields,
   canViewOfficeLibrary,
+  canViewOfficeOffers,
   canViewOfficeReports,
   canViewOfficeSignatures,
   canViewOfficeTeams,
@@ -49,6 +50,11 @@ function getNavGroups(
           label: "Transactions",
           href: "/office/transactions",
           isVisible: canViewOfficeTransactions,
+        },
+        {
+          label: "Offers",
+          href: "/office/offers",
+          isVisible: canViewOfficeOffers,
         },
         {
           label: "Contacts",
