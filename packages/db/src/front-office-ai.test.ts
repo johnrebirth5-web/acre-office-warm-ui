@@ -43,6 +43,25 @@ test("unopened tracked sends become stalled after the safe threshold", () => {
   assert.equal(outcome.tone, "warning");
   assert.equal(outcome.positive, false);
   assert.equal(outcome.stalled, true);
+  assert.equal(outcome.requiresReview, true);
+  assert.equal(outcome.blocksDirectFollowUpCreation, false);
+});
+
+test("queued AI-created follow-up blocks duplicate one-click creation until it is resolved", () => {
+  const outcome = mapFrontOfficeAiAcceptedActionOutcome({
+    actionType: "follow_up_created",
+    followUpTask: {
+      status: TaskStatus.queued,
+      dueAt: new Date("2026-04-05T12:00:00.000Z"),
+    },
+    sendRecord: null,
+    now: new Date("2026-04-02T12:00:00.000Z"),
+  });
+
+  assert.equal(outcome.label, "Live follow-up");
+  assert.equal(outcome.stalled, false);
+  assert.equal(outcome.requiresReview, false);
+  assert.equal(outcome.blocksDirectFollowUpCreation, true);
 });
 
 test("history insight boosts proven kinds and suppresses duplicate follow-up creation when the latest accepted task stalled", () => {
@@ -111,6 +130,46 @@ test("history insight boosts proven kinds and suppresses duplicate follow-up cre
     appointmentInsight.historySignals.some((signal) =>
       signal.startsWith("Escalation"),
     ),
+  );
+  assert.match(
+    appointmentInsight.oneClickReasonOverride ?? "",
+    /One-click follow-up is paused/,
+  );
+});
+
+test("history insight holds queued duplicate follow-up creation behind the live task", () => {
+  const historyIndex = buildFrontOfficeAiSuggestionHistoryIndex({
+    actions: [
+      {
+        clientId: "client-1",
+        suggestionKind: "generic",
+        actionType: "follow_up_created",
+        createdAt: new Date("2026-04-01T12:00:00.000Z"),
+        actionTitle: "Set next touch with Jamie Lee",
+        followUpTask: {
+          status: TaskStatus.queued,
+          dueAt: new Date("2026-04-05T12:00:00.000Z"),
+        },
+        sendRecord: null,
+      },
+    ],
+    now: new Date("2026-04-02T12:00:00.000Z"),
+  });
+
+  const insight = buildFrontOfficeAiSuggestionInsight({
+    historyIndex,
+    clientId: "client-1",
+    suggestionKind: "generic",
+  });
+
+  assert.ok(insight.priorityAdjustment > 0);
+  assert.equal(insight.suppressDirectFollowUpCreation, true);
+  assert.ok(
+    insight.historySignals.some((signal) => signal.startsWith("Guardrail")),
+  );
+  assert.match(
+    insight.primaryActionReasonOverride ?? "",
+    /review, not creation/i,
   );
 });
 
@@ -265,9 +324,10 @@ test("queue ranking promotes stronger outcomes and adds review guard explainabil
   assert.deepEqual(ranked[0]?.whyNowSignals, ["Overdue · lease reminder"]);
   assert.equal(ranked[0]?.allowsDirectFollowUpCreation, false);
   assert.equal(
-    ranked[0]?.openDossierHref,
+    ranked[0]?.primaryActionHref,
     "/agent/clients/client-2#front-office-follow-up-form",
   );
+  assert.equal(ranked[0]?.primaryActionLabel, "Review existing follow-up");
   assert.ok(
     ranked[0]?.rankingSignals.some((signal) =>
       signal.startsWith("Escalation"),

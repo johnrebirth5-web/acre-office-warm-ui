@@ -1532,26 +1532,29 @@ function buildFrontOfficeAiSuggestions(input: {
     priorityAdjustment: 0,
     historySignals: [],
     suppressDirectFollowUpCreation: false,
+    primaryActionReasonOverride: null,
+    oneClickReasonOverride: null,
   };
 
-  const groundingSignals = [
+  const workflowGroundingSignals = [
     `Stage · ${input.stage}`,
-    `Workflow · ${input.workflow.pressureLabel}`,
-    `Next touch · ${input.nextTouchLabel}`,
+    `Workflow pressure · ${input.workflow.pressureLabel}`,
+    `Current touch window · ${input.nextTouchLabel}`,
+  ];
+  let groundingSignals = [
+    ...workflowGroundingSignals,
     input.leaseReminder.statusLabel !== "No lease reminder"
-      ? `Lease · ${input.leaseReminder.statusLabel}`
+      ? `Lease reminder · ${input.leaseReminder.statusLabel}`
       : "",
     appointmentLabel ? `Appointment · ${appointmentLabel}` : "",
     input.sendCount > 0
-      ? `Engagement · ${input.openedSendCount}/${input.sendCount} send(s) opened`
+      ? `Tracked engagement · ${input.openedSendCount}/${input.sendCount} send(s) opened`
       : "",
     input.hasLinkedTransaction &&
     input.closingKeyDateLabel !== "No milestone date captured"
       ? `Deal milestone · ${input.closingKeyDateLabel}`
       : "",
-  ]
-    .filter(Boolean)
-    .slice(0, 5);
+  ].filter(Boolean);
 
   const drafts: FrontOfficeClientDetailAiDraft[] = [];
   const pushDraft = (draft: FrontOfficeClientDetailAiDraft) => {
@@ -1918,10 +1921,90 @@ function buildFrontOfficeAiSuggestions(input: {
     });
   }
 
+  const suggestionGroundingSignals = (() => {
+    switch (suggestionKind) {
+      case "reentry":
+        return [
+          "Formal deal outcome · cancelled or lost",
+          "Execution boundary · relationship reset belongs in Front Office before any new formal workflow",
+        ];
+      case "postclose":
+        return [
+          input.closingKeyDateLabel !== "No milestone date captured"
+            ? `Closed milestone · ${input.closingKeyDateLabel}`
+            : "Formal deal outcome · closed",
+          "Execution boundary · keep the touch client-facing while Back Office remains the system of record",
+        ];
+      case "closing":
+        return [
+          input.closingKeyDateLabel !== "No milestone date captured"
+            ? `Shared milestone · ${input.closingKeyDateLabel}`
+            : "Shared file milestone is approaching",
+          "Execution boundary · steady the client touch without duplicating Back Office execution",
+        ];
+      case "lease":
+        return [
+          `Lease reminder · ${input.leaseReminder.statusLabel}`,
+          input.leaseReminder.helperText,
+        ];
+      case "appointment":
+        return input.latestAppointment
+          ? [
+              `Appointment · ${input.latestAppointment.title}`,
+              `Starts ${formatDateTimeLabel(input.latestAppointment.startsAt, {
+                timeZone: input.timeZone ?? null,
+              })}`,
+            ]
+          : [];
+      case "content_rescue":
+        return [
+          input.latestSendRecord?.listingTitle.trim()
+            ? `Tracked send · no open on ${input.latestSendRecord.listingTitle.trim()}`
+            : "Tracked send · still no open",
+          input.latestSendRecord
+            ? `Sent ${formatDateTimeLabel(input.latestSendRecord.sentAt, {
+                timeZone: input.timeZone ?? null,
+              })}`
+            : "",
+        ];
+      case "warm_engagement":
+        return [
+          input.latestSendRecord?.lastOpenedAt
+            ? `Tracked engagement · last open ${formatDateTimeLabel(
+                input.latestSendRecord.lastOpenedAt,
+                {
+                  timeZone: input.timeZone ?? null,
+                },
+              )}`
+            : `Tracked engagement · ${input.latestSendRecord?.openCount ?? 0} open(s) recorded`,
+          input.latestSendRecord?.listingTitle.trim()
+            ? `Listing · ${input.latestSendRecord.listingTitle.trim()}`
+            : "",
+        ];
+      case "handoff":
+        return [
+          "Execution boundary · Front Office is ready for formal workflow",
+          input.closingBoundaryLabel,
+        ];
+      default:
+        return [
+          `Stage · ${input.stage}`,
+          "No future touch is currently scheduled on this active record.",
+        ];
+    }
+  })();
+  groundingSignals = Array.from(
+    new Set(
+      [...suggestionGroundingSignals, ...workflowGroundingSignals].filter(
+        Boolean,
+      ),
+    ),
+  ).slice(0, 5);
+
   if (selectedInsight.suppressDirectFollowUpCreation) {
     allowsDirectFollowUpCreation = false;
     directFollowUpState = "suppressed_by_history";
-    helperText = `${helperText} Acre is holding back one-click follow-up creation here because a similar AI-created follow-up still needs review first.`;
+    helperText = `${helperText} ${selectedInsight.oneClickReasonOverride ?? "Acre is holding back one-click follow-up creation here because a similar AI-created follow-up still needs review first."}`;
     primaryActionLabel = "Review existing follow-up";
     primaryActionHref = "#front-office-follow-up-form";
     primaryActionOpensInNewTab = false;
@@ -1934,6 +2017,8 @@ function buildFrontOfficeAiSuggestions(input: {
     hasClosedTransaction: input.hasClosedTransaction,
     hasCancelledTransaction: input.hasCancelledTransaction,
     directFollowUpState,
+    primaryActionReasonOverride: selectedInsight.primaryActionReasonOverride,
+    oneClickReasonOverride: selectedInsight.oneClickReasonOverride,
   });
 
   return {
@@ -1943,7 +2028,7 @@ function buildFrontOfficeAiSuggestions(input: {
     statusTitle,
     summary,
     helperText,
-    groundingSignals: groundingSignals.slice(0, 7),
+    groundingSignals,
     rankingSignals: selectedInsight.historySignals,
     boundaryLabel: boundaryContract.boundaryLabel,
     boundaryTone: boundaryContract.boundaryTone,
@@ -2955,6 +3040,9 @@ export async function getFrontOfficeClientDetail(
         suggestionKind: true,
         actionType: true,
         createdAt: true,
+        actionTitle: true,
+        suggestionLabel: true,
+        sourceSurface: true,
         followUpTask: {
           select: {
             status: true,
@@ -3660,6 +3748,7 @@ export async function getFrontOfficeClientDetail(
         description: outcome.detail,
         contextLabel: `${action.suggestionLabel} · ${formatFrontOfficeAiSourceSurfaceLabel(action.sourceSurface)}`,
         helperLabel: [
+          "Agent-approved",
           formatFrontOfficeAiActionTypeLabel(action.actionType),
           action.channel ? `Channel · ${action.channel.toUpperCase()}` : null,
           action.listing?.title?.trim()

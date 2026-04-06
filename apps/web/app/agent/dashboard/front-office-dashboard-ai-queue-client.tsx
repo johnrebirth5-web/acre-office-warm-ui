@@ -65,7 +65,7 @@ export function FrontOfficeDashboardAiQueueClient(
 
       setFeedback({
         tone: "success",
-        message: `Suggested follow-up created for ${item.clientName}. The dashboard will refresh with the updated queue.`,
+        message: `Suggested follow-up created for ${item.clientName}. Acre did not send anything automatically, and the dashboard will refresh with the updated queue.`,
       });
       startTransition(() => {
         router.refresh();
@@ -108,7 +108,11 @@ export function FrontOfficeDashboardAiQueueClient(
                         ? "Working..."
                         : "Create follow-up"}
                     </Button>
-                  ) : null}
+                  ) : (
+                    <Button disabled size="sm" type="button" variant="secondary">
+                      One-click paused
+                    </Button>
+                  )}
                   {item.primaryActionOpensInNewTab ? (
                     <a
                       className="office-inline-link front-office-inline-link"

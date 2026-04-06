@@ -45,6 +45,8 @@ export type FrontOfficeAiAcceptedActionOutcome = {
   detail: string;
   positive: boolean;
   stalled: boolean;
+  requiresReview: boolean;
+  blocksDirectFollowUpCreation: boolean;
 };
 
 export type FrontOfficeAiHistoryAction = {
@@ -52,6 +54,9 @@ export type FrontOfficeAiHistoryAction = {
   suggestionKind: FrontOfficeAiFollowUpKind;
   actionType: FrontOfficeAiAcceptedActionType;
   createdAt: Date;
+  actionTitle?: string | null;
+  suggestionLabel?: string | null;
+  sourceSurface?: FrontOfficeAiSourceSurface | null;
   followUpTask:
     | {
         status: TaskStatus;
@@ -85,6 +90,9 @@ export type FrontOfficeAiSuggestionHistoryIndex = {
     {
       actionType: FrontOfficeAiAcceptedActionType;
       createdAt: Date;
+      actionTitle: string | null;
+      suggestionLabel: string | null;
+      sourceSurface: FrontOfficeAiSourceSurface | null;
       outcome: FrontOfficeAiAcceptedActionOutcome;
     }
   >;
@@ -94,6 +102,8 @@ export type FrontOfficeAiSuggestionInsight = {
   priorityAdjustment: number;
   historySignals: string[];
   suppressDirectFollowUpCreation: boolean;
+  primaryActionReasonOverride: string | null;
+  oneClickReasonOverride: string | null;
 };
 
 export type FrontOfficeAiDirectFollowUpState =
@@ -130,6 +140,7 @@ export type FrontOfficeAiQueueHistoryCandidate = {
   clientId: string;
   suggestionKind: FrontOfficeAiFollowUpKind;
   helperLabel: string;
+  whyNowSignals?: string[];
   openDossierHref: string;
   primaryActionLabel?: string;
   primaryActionHref?: string;
@@ -152,6 +163,8 @@ export type FrontOfficeAiQueueHistoryDecoratedCandidate =
     rankingSignals: string[];
     allowsDirectFollowUpCreation: boolean;
     directFollowUpState: FrontOfficeAiDirectFollowUpState;
+    primaryActionReasonOverride: string | null;
+    oneClickReasonOverride: string | null;
     primaryActionLabel: string;
     primaryActionHref: string;
     primaryActionOpensInNewTab: boolean;
@@ -195,6 +208,19 @@ function buildSuggestedFollowUpDate(now: Date, daysFromNow: number) {
 
 function buildFrontOfficeAiWindowStart(now: Date, days: number) {
   return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
+function trimFrontOfficeAiCopy(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function formatFrontOfficeAiActionReference(
+  actionTitle: string | null | undefined,
+  fallback: string,
+) {
+  const normalized = trimFrontOfficeAiCopy(actionTitle);
+  return normalized ? `"${normalized}"` : fallback;
 }
 
 export function normalizeFrontOfficeAiFollowUpKind(
@@ -372,11 +398,14 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
   if (input.actionType === "follow_up_created") {
     if (!input.followUpTask) {
       return {
-        label: "Task no longer linked",
+        label: "Needs review",
         tone: "neutral",
-        detail: "The accepted follow-up task is no longer available.",
+        detail:
+          "The accepted AI-created follow-up is no longer linked to a live task. Review the follow-up queue before creating another one.",
         positive: false,
         stalled: false,
+        requiresReview: true,
+        blocksDirectFollowUpCreation: true,
       };
     }
 
@@ -384,9 +413,12 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
       return {
         label: "Completed",
         tone: "success",
-        detail: "The accepted follow-up was completed.",
+        detail:
+          "This accepted AI-created follow-up already turned into a completed task.",
         positive: true,
         stalled: false,
+        requiresReview: false,
+        blocksDirectFollowUpCreation: false,
       };
     }
 
@@ -394,9 +426,12 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
       return {
         label: "Canceled",
         tone: "neutral",
-        detail: "The accepted follow-up was canceled.",
+        detail:
+          "This accepted AI-created follow-up was canceled, so Acre is not treating it as the active next step anymore.",
         positive: false,
         stalled: false,
+        requiresReview: false,
+        blocksDirectFollowUpCreation: false,
       };
     }
 
@@ -407,38 +442,54 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
       return {
         label: "Overdue",
         tone: "danger",
-        detail: `Due ${formatDisplayDate(input.followUpTask.dueAt, input.timeZone)}.`,
+        detail: `The AI-created follow-up is still open and was due ${formatDisplayDate(
+          input.followUpTask.dueAt,
+          input.timeZone,
+        )}. Review or resolve it before creating another one.`,
         positive: false,
         stalled: true,
+        requiresReview: true,
+        blocksDirectFollowUpCreation: true,
       };
     }
 
     if (input.followUpTask.dueAt) {
       return {
-        label: "Queued",
+        label: "Live follow-up",
         tone: "accent",
-        detail: `Due ${formatDisplayDate(input.followUpTask.dueAt, input.timeZone)}.`,
+        detail: `The AI-created follow-up is already queued for ${formatDisplayDate(
+          input.followUpTask.dueAt,
+          input.timeZone,
+        )}. Acre pauses duplicate one-click creation until that task is resolved.`,
         positive: false,
         stalled: false,
+        requiresReview: false,
+        blocksDirectFollowUpCreation: true,
       };
     }
 
     return {
-      label: "Queued",
+      label: "Live follow-up",
       tone: "accent",
-      detail: "No due date captured yet.",
+      detail:
+        "The AI-created follow-up is already queued without a due date. Review that task before creating another one.",
       positive: false,
       stalled: false,
+      requiresReview: false,
+      blocksDirectFollowUpCreation: true,
     };
   }
 
   if (!input.sendRecord) {
     return {
-      label: "Send missing",
+      label: "Needs review",
       tone: "neutral",
-      detail: "The accepted tracked send is no longer available.",
+      detail:
+        "The accepted tracked send is no longer linked. Review listing output before using this suggestion as a new trigger.",
       positive: false,
       stalled: false,
+      requiresReview: true,
+      blocksDirectFollowUpCreation: false,
     };
   }
 
@@ -447,10 +498,15 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
       label: "Opened",
       tone: "success",
       detail: input.sendRecord.lastOpenedAt
-        ? `Last opened ${formatDisplayDateTime(input.sendRecord.lastOpenedAt, input.timeZone)}.`
-        : `Opened ${input.sendRecord.openCount} time(s).`,
+        ? `This accepted tracked send produced engagement on ${formatDisplayDateTime(
+            input.sendRecord.lastOpenedAt,
+            input.timeZone,
+          )}.`
+        : `This accepted tracked send was opened ${input.sendRecord.openCount} time(s).`,
       positive: true,
       stalled: false,
+      requiresReview: false,
+      blocksDirectFollowUpCreation: false,
     };
   }
 
@@ -462,18 +518,28 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
     return {
       label: "Still unopened",
       tone: "warning",
-      detail: `Sent ${formatDisplayDate(input.sendRecord.sentAt, input.timeZone)} and still has no tracked open.`,
+      detail: `The tracked send went out ${formatDisplayDate(
+        input.sendRecord.sentAt,
+        input.timeZone,
+      )} and still has no recorded open. Treat this as a rescue cue, not an auto-send repeat.`,
       positive: false,
       stalled: true,
+      requiresReview: true,
+      blocksDirectFollowUpCreation: false,
     };
   }
 
   return {
     label: "Awaiting open",
     tone: "accent",
-    detail: `Sent ${formatDisplayDate(input.sendRecord.sentAt, input.timeZone)}.`,
+    detail: `The tracked send went out ${formatDisplayDate(
+      input.sendRecord.sentAt,
+      input.timeZone,
+    )} and is still waiting on the first tracked open.`,
     positive: false,
     stalled: false,
+    requiresReview: false,
+    blocksDirectFollowUpCreation: false,
   };
 }
 
@@ -484,6 +550,8 @@ export function buildFrontOfficeAiBoundaryContract(input: {
   hasClosedTransaction: boolean;
   hasCancelledTransaction: boolean;
   directFollowUpState: FrontOfficeAiDirectFollowUpState;
+  primaryActionReasonOverride?: string | null;
+  oneClickReasonOverride?: string | null;
 }): FrontOfficeAiBoundaryContract {
   let boundaryLabel = "Stay in Front Office";
   let boundaryTone: FrontOfficeAiTone = "accent";
@@ -526,10 +594,22 @@ export function buildFrontOfficeAiBoundaryContract(input: {
       "The primary action should keep client communication aligned with the linked Back Office record instead of creating a parallel Front Office workflow.";
   }
 
+  if (
+    input.directFollowUpState === "suppressed_by_history" &&
+    input.primaryActionReasonOverride
+  ) {
+    primaryActionReason = input.primaryActionReasonOverride;
+  } else if (input.directFollowUpState === "suppressed_by_history") {
+    primaryActionReason =
+      "The primary action is review, not creation, because Acre already turned a similar suggestion into a live follow-up that still needs resolution.";
+  }
+
   let oneClickReason =
     "One-click follow-up is available because no unresolved AI-created follow-up is blocking this touch pattern.";
 
-  if (input.directFollowUpState === "suppressed_by_history") {
+  if (input.oneClickReasonOverride) {
+    oneClickReason = input.oneClickReasonOverride;
+  } else if (input.directFollowUpState === "suppressed_by_history") {
     oneClickReason =
       "One-click follow-up is paused because a similar AI-created follow-up is still unresolved, so Acre is sending you back to review that existing task first.";
   } else if (input.directFollowUpState === "suppressed_by_boundary") {
@@ -621,6 +701,9 @@ export function buildFrontOfficeAiSuggestionHistoryIndex(input: {
       latestByClientAndKind[clientKindKey] = {
         actionType: action.actionType,
         createdAt: action.createdAt,
+        actionTitle: trimFrontOfficeAiCopy(action.actionTitle),
+        suggestionLabel: trimFrontOfficeAiCopy(action.suggestionLabel),
+        sourceSurface: action.sourceSurface ?? null,
         outcome,
       };
     }
@@ -640,27 +723,62 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
   const historySignals: string[] = [];
   let priorityAdjustment = 0;
   let suppressDirectFollowUpCreation = false;
+  let primaryActionReasonOverride: string | null = null;
+  let oneClickReasonOverride: string | null = null;
   const kindStats = input.historyIndex.byKind[input.suggestionKind] ?? null;
   const latestClientAction =
     input.historyIndex.latestByClientAndKind[
       buildFrontOfficeAiClientKindKey(input.clientId, input.suggestionKind)
     ] ?? null;
 
-  if (latestClientAction?.outcome.stalled) {
+  if (
+    latestClientAction?.actionType === "follow_up_created" &&
+    latestClientAction.outcome.blocksDirectFollowUpCreation
+  ) {
+    const actionReference = formatFrontOfficeAiActionReference(
+      latestClientAction.actionTitle,
+      "the last AI-created follow-up",
+    );
+
+    suppressDirectFollowUpCreation = true;
+    primaryActionReasonOverride =
+      latestClientAction.outcome.stalled || latestClientAction.outcome.requiresReview
+        ? `The primary action is review, not creation, because Acre already turned this suggestion into ${actionReference} and that task still needs agent review.`
+        : `The primary action is review, not creation, because Acre already turned this suggestion into ${actionReference} and that live task is still on the queue.`;
+    oneClickReasonOverride =
+      latestClientAction.outcome.stalled || latestClientAction.outcome.requiresReview
+        ? `One-click follow-up is paused because Acre already created ${actionReference} and it still needs review. Resolve that task before adding another AI-created follow-up.`
+        : `One-click follow-up is paused because Acre already created ${actionReference} and it is still active. Acre keeps duplicate follow-up creation behind that live task.`;
+
+    if (latestClientAction.outcome.stalled) {
+      priorityAdjustment -= 2;
+      historySignals.push(
+        `Escalation · ${actionReference} is overdue, so Acre promotes review before any new duplicate follow-up.`,
+      );
+    } else if (latestClientAction.outcome.requiresReview) {
+      priorityAdjustment -= 1;
+      historySignals.push(
+        `Review guard · ${actionReference} can no longer be confirmed from history, so Acre pauses duplicate one-click creation until you review it.`,
+      );
+    } else {
+      priorityAdjustment += 2;
+      historySignals.push(
+        `Guardrail · ${actionReference} is already active, so Acre keeps stronger unresolved work ahead of a duplicate follow-up.`,
+      );
+    }
+  } else if (latestClientAction?.outcome.stalled) {
     priorityAdjustment -= 2;
     historySignals.push(
-      latestClientAction.actionType === "follow_up_created"
-        ? "Escalation · the last accepted follow-up of this kind is still overdue or stalled"
-        : "Escalation · the last accepted tracked send of this kind is still unopened",
+      latestClientAction.actionType === "tracked_send_created"
+        ? "Escalation · the last accepted tracked send of this kind is still unopened, so Acre promotes a rescue-style review now"
+        : "Escalation · the last accepted action of this kind is still stalled and needs review",
     );
-    suppressDirectFollowUpCreation =
-      latestClientAction.actionType === "follow_up_created";
   } else if (latestClientAction?.outcome.positive) {
     priorityAdjustment -= 1;
     historySignals.push(
       latestClientAction.actionType === "follow_up_created"
-        ? "Momentum · the last accepted follow-up of this kind was completed"
-        : "Momentum · the last accepted tracked send of this kind was opened",
+        ? "Momentum · the last accepted follow-up of this kind was completed cleanly"
+        : "Momentum · the last accepted tracked send of this kind produced a tracked open",
     );
   }
 
@@ -672,8 +790,8 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
       priorityAdjustment -= 1;
       historySignals.push(
         kindStats.positiveCount >= 2
-          ? "Outcome signal · similar suggestions have produced repeated positive outcomes lately"
-          : "Outcome signal · this suggestion kind recently produced a positive outcome",
+          ? `Outcome signal · similar suggestions of this kind produced ${kindStats.positiveCount} positive outcomes versus ${kindStats.stalledCount} stalls lately`
+          : "Outcome signal · this suggestion kind recently produced a positive outcome without adding more stalls",
       );
     } else if (
       kindStats.acceptedCount >= 2 &&
@@ -681,15 +799,17 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
     ) {
       priorityAdjustment += 1;
       historySignals.push(
-        "Outcome signal · similar suggestions have stalled more often lately, so Acre keeps stronger signals ahead of this one",
+        `Outcome signal · similar suggestions of this kind stalled ${kindStats.stalledCount} time(s) versus ${kindStats.positiveCount} positive outcomes, so Acre keeps stronger signals ahead of this one`,
       );
     }
   }
 
   return {
     priorityAdjustment,
-    historySignals: Array.from(new Set(historySignals)).slice(0, 2),
+    historySignals: Array.from(new Set(historySignals)).slice(0, 3),
     suppressDirectFollowUpCreation,
+    primaryActionReasonOverride,
+    oneClickReasonOverride,
   };
 }
 
@@ -725,12 +845,19 @@ export function rankFrontOfficeAiQueueHistoryCandidates<T extends FrontOfficeAiQ
 
       return {
         ...candidate,
-        whyNowSignals: candidate.helperLabel ? [candidate.helperLabel] : [],
+        whyNowSignals:
+          candidate.whyNowSignals?.length
+            ? candidate.whyNowSignals
+            : candidate.helperLabel
+              ? [candidate.helperLabel]
+              : [],
         rankingSignals: insight.historySignals,
         allowsDirectFollowUpCreation:
           candidate.defaultAllowsDirectFollowUpCreation !== false &&
           !insight.suppressDirectFollowUpCreation,
         directFollowUpState,
+        primaryActionReasonOverride: insight.primaryActionReasonOverride,
+        oneClickReasonOverride: insight.oneClickReasonOverride,
         primaryActionLabel: insight.suppressDirectFollowUpCreation
           ? "Review existing follow-up"
           : candidate.primaryActionLabel ?? "Open AI dossier",

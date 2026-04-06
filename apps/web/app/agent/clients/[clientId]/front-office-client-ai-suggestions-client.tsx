@@ -138,7 +138,7 @@ export function FrontOfficeClientAiSuggestionsClient(
       setFeedback({
         tone: "success",
         message:
-          "Suggested follow-up created. The dossier will refresh with the accepted next touch.",
+          "Suggested follow-up created. Acre did not send anything automatically, and the dossier will refresh with the accepted next touch.",
       });
       startTransition(() => {
         router.refresh();
@@ -212,7 +212,11 @@ export function FrontOfficeClientAiSuggestionsClient(
                     ? "Working..."
                     : "Create suggested follow-up"}
                 </Button>
-              ) : null}
+              ) : (
+                <Button disabled size="sm" type="button" variant="secondary">
+                  One-click paused
+                </Button>
+              )}
               {aiSuggestions.primaryActionOpensInNewTab ? (
                 <a
                   className="office-inline-link"

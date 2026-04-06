@@ -7,6 +7,23 @@ type ExplainabilityTone =
   | "warning"
   | "danger";
 
+function ExplainabilitySignals(props: {
+  emptyMessage: string;
+  signals: string[];
+}) {
+  if (!props.signals.length) {
+    return <p>{props.emptyMessage}</p>;
+  }
+
+  return (
+    <div className="list-row-meta front-office-record-meta">
+      {props.signals.map((signal) => (
+        <span key={signal}>{signal}</span>
+      ))}
+    </div>
+  );
+}
+
 export function FrontOfficeAiExplainabilitySurface(props: {
   helperText?: string;
   whyNowSignals: string[];
@@ -37,25 +54,21 @@ export function FrontOfficeAiExplainabilitySurface(props: {
       <div className="front-office-ai-explainability-grid">
         <article className="front-office-ai-explainability-card">
           <span className="front-office-ai-explainability-kicker">Why now</span>
-          <div className="list-row-meta front-office-record-meta">
-            {props.whyNowSignals.map((signal) => (
-              <span key={signal}>{signal}</span>
-            ))}
-          </div>
+          <ExplainabilitySignals
+            emptyMessage="Acre is grounding this suggestion in the live dossier and current workflow timing."
+            signals={props.whyNowSignals}
+          />
         </article>
 
-        {props.rankingSignals.length ? (
-          <article className="front-office-ai-explainability-card">
-            <span className="front-office-ai-explainability-kicker">
-              What changed the priority
-            </span>
-            <div className="list-row-meta front-office-record-meta">
-              {props.rankingSignals.map((signal) => (
-                <span key={signal}>{signal}</span>
-              ))}
-            </div>
-          </article>
-        ) : null}
+        <article className="front-office-ai-explainability-card">
+          <span className="front-office-ai-explainability-kicker">
+            What changed the priority
+          </span>
+          <ExplainabilitySignals
+            emptyMessage="No accepted-action history is changing this ranking yet, so Acre is leaning on the live record state instead."
+            signals={props.rankingSignals}
+          />
+        </article>
 
         <article className="front-office-ai-explainability-card">
           <div className="front-office-ai-explainability-head">
@@ -79,7 +92,7 @@ export function FrontOfficeAiExplainabilitySurface(props: {
         <article className="front-office-ai-explainability-card">
           <span className="front-office-ai-explainability-kicker">
             {props.allowsDirectFollowUpCreation
-              ? "One-click policy"
+              ? "Why one-click is allowed"
               : "Why one-click is paused"}
           </span>
           <p>{props.oneClickReason}</p>
