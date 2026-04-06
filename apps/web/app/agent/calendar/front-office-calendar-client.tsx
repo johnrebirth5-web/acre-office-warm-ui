@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  useEffect,
+  useRef,
   useState,
   useTransition,
   type ChangeEvent,
@@ -86,9 +88,20 @@ type FilterState = {
   coordination: string;
   followUp: string;
   appointmentId: string;
+  returnTo: string;
 };
 
 type FilterUpdate = Partial<FilterState>;
+
+type FocusState =
+  | {
+      mode: "default" | "locked_in_queue" | "locked_outside_queue";
+      appointment: FrontOfficeAppointmentsSnapshot["appointments"][number];
+    }
+  | {
+      mode: "missing" | "empty";
+      appointment: null;
+    };
 
 const externalStatusOptions: Array<{
   value: FrontOfficeAppointmentExternalWorkflowStatus;
@@ -128,6 +141,16 @@ const followUpFilterOptions = [
   { value: "touch_scheduled", label: "Touch scheduled" },
   { value: "confirmed", label: "Confirmed" },
 ];
+
+const statusFilterValueSet = new Set(
+  statusFilterOptions.map((option) => option.value),
+);
+const coordinationFilterValueSet = new Set(
+  coordinationFilterOptions.map((option) => option.value),
+);
+const followUpFilterValueSet = new Set(
+  followUpFilterOptions.map((option) => option.value),
+);
 
 const quickWritebackActions: Array<{
   value: FrontOfficeAppointmentExternalWorkflowStatus;
@@ -290,18 +313,28 @@ function buildCalendarHref(
     }
   }
 
+  const nextReturnTo = update.returnTo;
+  if (nextReturnTo !== undefined) {
+    if (nextReturnTo) {
+      params.set("returnTo", nextReturnTo);
+    } else {
+      params.delete("returnTo");
+    }
+  }
+
   const query = params.toString();
   return query ? `${pathname}?${query}` : pathname;
 }
 
 function readFilterState(searchParams: ReadonlyURLSearchParams): FilterState {
   return {
-    clientId: searchParams.get("clientId") ?? "",
-    type: searchParams.get("type") ?? "",
-    status: searchParams.get("status") ?? "all",
-    coordination: searchParams.get("coordination") ?? "all",
-    followUp: searchParams.get("followUp") ?? "all",
-    appointmentId: searchParams.get("appointmentId") ?? "",
+    clientId: searchParams.get("clientId")?.trim() ?? "",
+    type: searchParams.get("type")?.trim() ?? "",
+    status: searchParams.get("status")?.trim() ?? "all",
+    coordination: searchParams.get("coordination")?.trim() ?? "all",
+    followUp: searchParams.get("followUp")?.trim() ?? "all",
+    appointmentId: searchParams.get("appointmentId")?.trim() ?? "",
+    returnTo: searchParams.get("returnTo")?.trim() ?? "",
   };
 }
 
@@ -312,27 +345,154 @@ function readWritebackDraft(
   return drafts[appointment.id] ?? buildWritebackDraft(appointment);
 }
 
-function focusAppointmentFromSnapshot(
+function sanitizeScopedValue(
+  value: string,
+  options: Array<{ value: string }>,
+) {
+  return options.some((option) => option.value === value) ? value : "";
+}
+
+function sanitizeEnumValue(
+  value: string,
+  allowedValues: Set<string>,
+  fallbackValue: string,
+) {
+  return allowedValues.has(value) ? value : fallbackValue;
+}
+
+function sanitizeReturnTo(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed || !trimmed.startsWith("/") || trimmed.startsWith("//")) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(trimmed, "http://acre.local");
+    const isAgentPath =
+      parsed.pathname === "/agent" || parsed.pathname.startsWith("/agent/");
+    const isOfficePath =
+      parsed.pathname === "/office" || parsed.pathname.startsWith("/office/");
+
+    if (!isAgentPath && !isOfficePath) {
+      return "";
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "";
+  }
+}
+
+function normalizeFilterState(
+  rawFilterState: FilterState,
+  snapshot: FrontOfficeAppointmentsSnapshot,
+): FilterState {
+  return {
+    clientId: rawFilterState.clientId,
+    type: sanitizeScopedValue(rawFilterState.type, snapshot.typeOptions),
+    status: sanitizeEnumValue(rawFilterState.status, statusFilterValueSet, "all"),
+    coordination: sanitizeEnumValue(
+      rawFilterState.coordination,
+      coordinationFilterValueSet,
+      "all",
+    ),
+    followUp: sanitizeEnumValue(
+      rawFilterState.followUp,
+      followUpFilterValueSet,
+      "all",
+    ),
+    appointmentId: rawFilterState.appointmentId,
+    returnTo: sanitizeReturnTo(rawFilterState.returnTo),
+  };
+}
+
+function readOptionLabel(
+  options: Array<{ value: string; label: string }>,
+  value: string,
+) {
+  return options.find((option) => option.value === value)?.label ?? value;
+}
+
+function readReturnToLabel(returnTo: string) {
+  if (!returnTo) {
+    return "";
+  }
+
+  const pathname = returnTo.split("?")[0]?.split("#")[0] ?? returnTo;
+
+  if (pathname.startsWith("/agent/clients/")) {
+    return "Return to client dossier";
+  }
+
+  if (pathname.startsWith("/agent/listings")) {
+    return "Return to listing output";
+  }
+
+  if (pathname.startsWith("/agent/notifications")) {
+    return "Return to activity center";
+  }
+
+  if (pathname.startsWith("/agent/dashboard")) {
+    return "Return to dashboard";
+  }
+
+  if (pathname.startsWith("/office/transactions")) {
+    return "Return to Back Office";
+  }
+
+  return "Return to previous view";
+}
+
+function hasActiveQueueFilters(filterState: FilterState) {
+  return Boolean(
+    filterState.clientId ||
+      filterState.type ||
+      filterState.status !== "all" ||
+      filterState.coordination !== "all" ||
+      filterState.followUp !== "all",
+  );
+}
+
+function resolveFocusState(
   snapshot: FrontOfficeAppointmentsSnapshot,
   filterState: FilterState,
-) {
+): FocusState {
   if (snapshot.selectedAppointment) {
-    return snapshot.selectedAppointment;
+    return {
+      appointment: snapshot.selectedAppointment,
+      mode: snapshot.appointments.some(
+        (appointment) => appointment.id === snapshot.selectedAppointment?.id,
+      )
+        ? "locked_in_queue"
+        : "locked_outside_queue",
+    };
   }
 
   if (!snapshot.appointments.length) {
-    return null;
+    return filterState.appointmentId
+      ? { appointment: null, mode: "missing" }
+      : { appointment: null, mode: "empty" };
   }
 
   if (!filterState.appointmentId) {
-    return snapshot.appointments[0];
+    return {
+      appointment: snapshot.appointments[0],
+      mode: "default",
+    };
   }
 
-  return (
-    snapshot.appointments.find(
+  return {
+    appointment:
+      snapshot.appointments.find(
+        (appointment) => appointment.id === filterState.appointmentId,
+      ) ?? null,
+    mode: snapshot.appointments.some(
       (appointment) => appointment.id === filterState.appointmentId,
-    ) ?? snapshot.appointments[0]
-  );
+    )
+      ? "locked_in_queue"
+      : "missing",
+  };
 }
 
 export function FrontOfficeCalendarClient(
@@ -341,13 +501,17 @@ export function FrontOfficeCalendarClient(
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const filterState = readFilterState(searchParams);
-  const focusedAppointment = focusAppointmentFromSnapshot(
-    props.snapshot,
-    filterState,
-  );
+  const rawFilterState = readFilterState(searchParams);
+  const filterState = normalizeFilterState(rawFilterState, props.snapshot);
+  const focusState = resolveFocusState(props.snapshot, filterState);
+  const focusedAppointment = focusState.appointment;
+  const currentSearch = searchParams.toString();
+  const currentHref = currentSearch ? `${pathname}?${currentSearch}` : pathname;
+  const normalizedHref = buildCalendarHref(pathname, searchParams, filterState);
+  const defaultClientId = props.initialClientId || "";
+  const defaultClientIdRef = useRef(defaultClientId);
   const [formState, setFormState] = useState<AppointmentFormState>(() =>
-    buildEmptyFormState(props.initialClientId),
+    buildEmptyFormState(defaultClientId),
   );
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -365,6 +529,100 @@ export function FrontOfficeCalendarClient(
     : null;
   const latestBridgeHistory = focusedAppointment?.bridgeHistory[0] ?? null;
   const latestWritebackHistory = focusedAppointment?.writebackHistory[0] ?? null;
+  const selectedClientOption = props.snapshot.clientOptions.find(
+    (option) => option.value === filterState.clientId,
+  );
+  const selectedClientLabel = filterState.clientId
+    ? selectedClientOption?.label ??
+      (focusedAppointment?.clientId === filterState.clientId
+        ? focusedAppointment.clientLabel
+        : "Scoped client outside quick list")
+    : "";
+  const selectedTypeLabel = filterState.type
+    ? readOptionLabel(props.snapshot.typeOptions, filterState.type)
+    : "";
+  const selectedStatusLabel =
+    filterState.status !== "all"
+      ? readOptionLabel(statusFilterOptions, filterState.status)
+      : "";
+  const selectedCoordinationLabel =
+    filterState.coordination !== "all"
+      ? readOptionLabel(coordinationFilterOptions, filterState.coordination)
+      : "";
+  const selectedFollowUpLabel =
+    filterState.followUp !== "all"
+      ? readOptionLabel(followUpFilterOptions, filterState.followUp)
+      : "";
+  const hasQueueFilters = hasActiveQueueFilters(filterState);
+  const returnToLabel = readReturnToLabel(filterState.returnTo);
+  const routeStateMeta = [
+    selectedClientLabel ? `Client · ${selectedClientLabel}` : "Client · all visible",
+    selectedTypeLabel ? `Type · ${selectedTypeLabel}` : "Type · all visible",
+    selectedStatusLabel ? `Acre · ${selectedStatusLabel}` : null,
+    selectedCoordinationLabel
+      ? `Coordination · ${selectedCoordinationLabel}`
+      : null,
+    selectedFollowUpLabel ? `Follow-up · ${selectedFollowUpLabel}` : null,
+    filterState.appointmentId
+      ? `Focus · ${
+          focusedAppointment?.title ??
+          (focusState.mode === "missing"
+            ? "requested appointment missing"
+            : "locked appointment")
+        }`
+      : "Focus · auto",
+    returnToLabel ? `Return · ${returnToLabel}` : null,
+  ].filter(Boolean) as string[];
+  const routeStateHeading =
+    focusState.mode === "missing"
+      ? "The route still carries an appointment deep link that Acre can no longer resolve."
+      : focusState.mode === "locked_outside_queue"
+        ? "A pinned appointment is being kept readable even though the queue filters hide it."
+        : filterState.appointmentId
+          ? "This route keeps a specific appointment pinned while the queue stays visible below."
+        : hasQueueFilters
+          ? "This calendar slice is pinned by route filters and will reopen in the same state."
+          : "This route is showing the full visible Front Office calendar queue.";
+  const routeStateDescriptionParts = [
+    selectedClientLabel
+      ? `Client context is scoped to ${selectedClientLabel}.`
+      : "Client context is not narrowed yet.",
+    focusState.mode === "missing"
+      ? "Clear the focus lock or return to the source page if this deep link is stale."
+      : filterState.appointmentId
+        ? "The appointment focus stays in the URL so the same record can reopen below."
+        : "The detail panel defaults to the next visible appointment until you lock a specific record.",
+    returnToLabel
+      ? `${returnToLabel} stays preserved while you adjust filters inside this shell.`
+      : "If another page sends you here with a relative return path, Acre will preserve it while the shell state changes.",
+  ];
+
+  useEffect(() => {
+    if (normalizedHref !== currentHref) {
+      router.replace(normalizedHref, { scroll: false });
+    }
+  }, [currentHref, normalizedHref, router]);
+
+  useEffect(() => {
+    const previousDefaultClientId = defaultClientIdRef.current;
+
+    if (previousDefaultClientId === defaultClientId) {
+      return;
+    }
+
+    setFormState((current) => {
+      if (!current.clientId || current.clientId === previousDefaultClientId) {
+        return {
+          ...current,
+          clientId: defaultClientId,
+        };
+      }
+
+      return current;
+    });
+
+    defaultClientIdRef.current = defaultClientId;
+  }, [defaultClientId]);
 
   function navigateWithFilters(update: FilterUpdate) {
     startTransition(() => {
@@ -443,6 +701,33 @@ export function FrontOfficeCalendarClient(
     });
   }
 
+  function resetForm() {
+    setFeedback(null);
+    setFormState(buildEmptyFormState(defaultClientId));
+  }
+
+  function clearFocusLock() {
+    navigateWithFilters({
+      appointmentId: "",
+    });
+  }
+
+  function clearQueueFilters() {
+    navigateWithFilters({
+      clientId: "",
+      type: "",
+      status: "all",
+      coordination: "all",
+      followUp: "all",
+    });
+  }
+
+  function scrollToScheduleForm() {
+    document
+      .getElementById("calendar-schedule-form")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback(null);
@@ -478,7 +763,7 @@ export function FrontOfficeCalendarClient(
         message:
           "Appointment scheduled. Your dashboard and calendar will refresh now.",
       });
-      setFormState(buildEmptyFormState(props.initialClientId));
+      setFormState(buildEmptyFormState(defaultClientId));
       startTransition(() => {
         router.refresh();
         setIsSaving(false);
@@ -784,7 +1069,11 @@ export function FrontOfficeCalendarClient(
         subtitle="Schedule showings, consultations, and client meetings without leaving Front Office. Shared office events still remain visible on the dashboard."
         title="Schedule appointment"
       >
-        <form className="front-office-calendar-form" onSubmit={handleSubmit}>
+        <form
+          className="front-office-calendar-form"
+          id="calendar-schedule-form"
+          onSubmit={handleSubmit}
+        >
           <div className="office-form-grid">
             <FormField
               className="office-form-grid-span-2"
@@ -923,10 +1212,7 @@ export function FrontOfficeCalendarClient(
             <button
               className="office-button-secondary"
               disabled={isBusy}
-              onClick={() => {
-                setFeedback(null);
-                setFormState(buildEmptyFormState(props.initialClientId));
-              }}
+              onClick={resetForm}
               type="button"
             >
               Reset form
@@ -952,6 +1238,11 @@ export function FrontOfficeCalendarClient(
               value={filterState.clientId}
             >
               <option value="">All visible clients</option>
+              {filterState.clientId && !selectedClientOption ? (
+                <option value={filterState.clientId}>
+                  {selectedClientLabel}
+                </option>
+              ) : null}
               {props.snapshot.clientOptions.map((option) => (
                 <option key={`filter-${option.value}`} value={option.value}>
                   {option.label}
@@ -1032,6 +1323,64 @@ export function FrontOfficeCalendarClient(
               ))}
             </SelectInput>
           </FormField>
+        </div>
+
+        <div className="front-office-ai-explainability is-compact">
+          <div className="front-office-ai-explainability-block">
+            <span className="front-office-ai-explainability-kicker">
+              Route state
+            </span>
+            <strong>{routeStateHeading}</strong>
+            <p>{routeStateDescriptionParts.join(" ")}</p>
+            <div className="front-office-record-meta">
+              {routeStateMeta.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          </div>
+          <div className="front-office-ai-explainability-card">
+            <span className="front-office-ai-explainability-kicker">
+              Deep link shell
+            </span>
+            <strong>
+              {returnToLabel || "No return path is currently attached"}
+            </strong>
+            <p>
+              Appointment focus and active filters stay in the URL. If a safe
+              relative <code>returnTo</code> comes in from another Front Office
+              page, this shell keeps it while you refine the queue.
+            </p>
+            <div className="front-office-calendar-actions">
+              {filterState.returnTo ? (
+                <FrontOfficeLink
+                  className="office-button-secondary office-inline-action-sm"
+                  href={filterState.returnTo}
+                >
+                  {returnToLabel}
+                </FrontOfficeLink>
+              ) : null}
+              {filterState.appointmentId ? (
+                <Button
+                  disabled={isBusy}
+                  onClick={clearFocusLock}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Clear focus lock
+                </Button>
+              ) : null}
+              {hasQueueFilters ? (
+                <Button
+                  disabled={isBusy}
+                  onClick={clearQueueFilters}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Clear queue filters
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <div className="front-office-calendar-badges">
@@ -1137,25 +1486,8 @@ export function FrontOfficeCalendarClient(
         <div className="office-form-actions">
           <button
             className="office-button-secondary"
-            disabled={
-              isBusy ||
-              !filterState.clientId &&
-              !filterState.type &&
-              filterState.status === "all" &&
-              filterState.coordination === "all" &&
-              filterState.followUp === "all" &&
-              !filterState.appointmentId
-            }
-            onClick={() =>
-              navigateWithFilters({
-                clientId: "",
-                type: "",
-                status: "all",
-                coordination: "all",
-                followUp: "all",
-                appointmentId: "",
-              })
-            }
+            disabled={isBusy || !hasQueueFilters}
+            onClick={clearQueueFilters}
             type="button"
           >
             Clear filters
@@ -1170,6 +1502,77 @@ export function FrontOfficeCalendarClient(
       >
         {focusedAppointment ? (
           <>
+            <div className="front-office-ai-explainability is-compact">
+              <div className="front-office-ai-explainability-block">
+                <span className="front-office-ai-explainability-kicker">
+                  Focus context
+                </span>
+                <strong>
+                  {focusState.mode === "default"
+                    ? "The detail panel is following the next visible appointment by default."
+                    : focusState.mode === "locked_outside_queue"
+                      ? "This appointment is pinned from the route even though the current queue slice hides it."
+                      : "This appointment is pinned directly in the route state."}
+                </strong>
+                <p>
+                  {selectedClientLabel
+                    ? `Client scope is currently ${selectedClientLabel}. `
+                    : "The client scope is still broad. "}
+                  {filterState.appointmentId
+                    ? "The appointmentId remains in the URL until you clear the focus lock."
+                    : "Lock a specific appointment to create a durable deep link back to this same detail panel."}
+                </p>
+                <div className="front-office-record-meta">
+                  <span>{focusedAppointment.clientLabel}</span>
+                  <span>{focusedAppointment.typeLabel}</span>
+                  <span>{focusedAppointment.startsAtLabel}</span>
+                </div>
+              </div>
+              <div className="front-office-ai-explainability-card">
+                <span className="front-office-ai-explainability-kicker">
+                  Navigation shell
+                </span>
+                <strong>
+                  {returnToLabel || "No upstream return path was supplied"}
+                </strong>
+                <p>
+                  {returnToLabel
+                    ? "Use the preserved return path to step back without losing the calendar slice you reopened here."
+                    : "Direct visits can still move through the client dossier, listing output, or a new route-locked focus link from this shell."}
+                </p>
+                <div className="front-office-calendar-actions">
+                  {filterState.returnTo ? (
+                    <FrontOfficeLink
+                      className="office-button-secondary office-inline-action-sm"
+                      href={filterState.returnTo}
+                    >
+                      {returnToLabel}
+                    </FrontOfficeLink>
+                  ) : null}
+                  {filterState.appointmentId ? (
+                    <Button
+                      disabled={isBusy}
+                      onClick={clearFocusLock}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      Clear focus lock
+                    </Button>
+                  ) : null}
+                  {hasQueueFilters ? (
+                    <Button
+                      disabled={isBusy}
+                      onClick={clearQueueFilters}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      Clear queue filters
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
             <article className="list-row front-office-record tone-accent">
               <div className="list-row-top front-office-record-head">
                 <div>
@@ -1259,23 +1662,55 @@ export function FrontOfficeCalendarClient(
                 </FrontOfficeLink>
               ) : null}
               {filterState.appointmentId ? (
-                <button
-                  className="office-button-secondary office-inline-action-sm"
+                <Button
                   disabled={isBusy}
-                  onClick={() =>
-                    navigateWithFilters({
-                      appointmentId: "",
-                    })
-                  }
-                  type="button"
+                  onClick={clearFocusLock}
+                  size="sm"
+                  variant="secondary"
                 >
                   Clear focus lock
-                </button>
+                </Button>
               ) : null}
             </div>
 
             {focusedAppointment.statusValue === "scheduled" ? (
               <>
+                <div className="front-office-ai-explainability is-compact">
+                  <div className="front-office-ai-explainability-card">
+                    <span className="front-office-ai-explainability-kicker">
+                      Bridge shell
+                    </span>
+                    <strong>{focusedAppointment.bridgeActionLabel}</strong>
+                    <p>
+                      Google, Outlook, ICS, and email actions only open drafts
+                      or exports from this appointment and log that bridge trail
+                      here. Acre is not claiming provider-owned sync.
+                    </p>
+                    <div className="front-office-record-meta">
+                      <span>{focusedAppointment.bridgeStatusLabel}</span>
+                      <span>{focusedAppointment.bridgeLoggedAtLabel}</span>
+                    </div>
+                  </div>
+                  <div className="front-office-ai-explainability-card">
+                    <span className="front-office-ai-explainability-kicker">
+                      Writeback shell
+                    </span>
+                    <strong>{focusedAppointment.externalStatusLabel}</strong>
+                    <p>
+                      Quick coordination actions and saved writebacks only update
+                      Acre&apos;s readable coordination record. They do not
+                      auto-send email, create background jobs, or schedule
+                      provider events for you.
+                    </p>
+                    <div className="front-office-record-meta">
+                      <span>{focusedAppointment.followUpPlanLabel}</span>
+                      <span>
+                        {focusedAppointment.externalNextActionAtLabel}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="front-office-calendar-actions">
                   <p className="front-office-record-supporting">
                     Bridge actions open a draft or export in a new tab. The
@@ -1645,8 +2080,55 @@ export function FrontOfficeCalendarClient(
           </>
         ) : (
           <EmptyState
-            description="Pick an appointment from the queue below, or clear filters if the current slice is empty."
-            title="No focused appointment"
+            action={
+              <div className="front-office-calendar-actions">
+                {focusState.mode === "missing" ? (
+                  <Button
+                    disabled={isBusy}
+                    onClick={clearFocusLock}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    Clear focus lock
+                  </Button>
+                ) : null}
+                {hasQueueFilters ? (
+                  <Button
+                    disabled={isBusy}
+                    onClick={clearQueueFilters}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    Clear queue filters
+                  </Button>
+                ) : null}
+                <Button onClick={scrollToScheduleForm} size="sm" variant="secondary">
+                  Jump to schedule form
+                </Button>
+                {filterState.returnTo ? (
+                  <FrontOfficeLink
+                    className="office-button-secondary office-inline-action-sm"
+                    href={filterState.returnTo}
+                  >
+                    {returnToLabel}
+                  </FrontOfficeLink>
+                ) : null}
+              </div>
+            }
+            description={
+              focusState.mode === "missing"
+                ? "The URL still carries an appointmentId, but Acre can no longer resolve that record in your visible Front Office scope. Clear the focus lock or step back to the source page."
+                : selectedClientLabel
+                  ? `No appointment is currently in focus for ${selectedClientLabel}. Use the schedule form above to create the first showing, consultation, or meeting in this client context.`
+                  : "Pick an appointment from the queue below, or use the schedule form above if this slice is still empty."
+            }
+            title={
+              focusState.mode === "missing"
+                ? "Focused appointment could not be resolved"
+                : selectedClientLabel
+                  ? `No focused appointment for ${selectedClientLabel}`
+                  : "No focused appointment"
+            }
           />
         )}
       </SectionCard>
@@ -1763,7 +2245,7 @@ export function FrontOfficeCalendarClient(
                         }
                         type="button"
                       >
-                        Confirm
+                        Confirm in Acre
                       </button>
                     ) : null}
                     {appointment.statusValue === "scheduled" &&
@@ -1789,12 +2271,55 @@ export function FrontOfficeCalendarClient(
             })
           ) : (
             <EmptyState
-              description={
-                focusedAppointment
-                  ? "The current filters hide the queue, but the focused appointment stays readable above."
-                  : "Schedule the first showing, consultation, or client meeting from the form above."
+              action={
+                <div className="front-office-calendar-actions">
+                  {hasQueueFilters ? (
+                    <Button
+                      disabled={isBusy}
+                      onClick={clearQueueFilters}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      Clear queue filters
+                    </Button>
+                  ) : null}
+                  {filterState.appointmentId ? (
+                    <Button
+                      disabled={isBusy}
+                      onClick={clearFocusLock}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      Clear focus lock
+                    </Button>
+                  ) : null}
+                  <Button onClick={scrollToScheduleForm} size="sm" variant="secondary">
+                    Jump to schedule form
+                  </Button>
+                  {filterState.returnTo ? (
+                    <FrontOfficeLink
+                      className="office-button-secondary office-inline-action-sm"
+                      href={filterState.returnTo}
+                    >
+                      {returnToLabel}
+                    </FrontOfficeLink>
+                  ) : null}
+                </div>
               }
-              title="No appointments in this queue"
+              description={
+                focusState.mode === "locked_outside_queue"
+                  ? "The appointment pinned above is still readable, but the current queue filters leave this list empty."
+                  : selectedClientLabel
+                    ? `There are no visible appointments for ${selectedClientLabel} in this route slice yet.`
+                    : hasQueueFilters
+                      ? "The current route filters do not match any visible appointments right now."
+                      : "Schedule the first showing, consultation, or client meeting from the form above."
+              }
+              title={
+                selectedClientLabel && !props.snapshot.appointments.length
+                  ? `No appointments queued for ${selectedClientLabel}`
+                  : "No appointments in this queue"
+              }
             />
           )}
         </div>
