@@ -10,7 +10,11 @@ import {
 import type { FrontOfficeClientDetailSnapshot } from "@acre/db";
 import { Button, EmptyState, FormField, QueueItem, TextInput } from "@acre/ui";
 import { useRouter } from "next/navigation";
-import { FrontOfficeLink } from "../../_components/front-office-link";
+import {
+  FrontOfficeClientActionGroup,
+  frontOfficeClientDossierSectionIds,
+  getFrontOfficeClientDossierSectionHref,
+} from "./front-office-client-dossier-shared";
 
 type FrontOfficeClientDossierClientProps = {
   snapshot: FrontOfficeClientDetailSnapshot;
@@ -64,27 +68,6 @@ function buildNextDueDateValue(currentValue: string) {
   return baseDate.toISOString().slice(0, 10);
 }
 
-function renderActionLink(
-  href: string,
-  label: string,
-  opensInNewTab = false,
-  className = "office-inline-link",
-) {
-  if (opensInNewTab) {
-    return (
-      <a className={className} href={href} rel="noreferrer" target="_blank">
-        {label}
-      </a>
-    );
-  }
-
-  return (
-    <FrontOfficeLink className={className} href={href}>
-      {label}
-    </FrontOfficeLink>
-  );
-}
-
 export function FrontOfficeClientDossierClient(
   props: FrontOfficeClientDossierClientProps,
 ) {
@@ -99,6 +82,17 @@ export function FrontOfficeClientDossierClient(
   const currentRailItem =
     props.snapshot.nextStepRail.items.find((item) => item.isCurrent) ??
     props.snapshot.nextStepRail.items[0];
+  const primaryRailActions = [
+    {
+      href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
+      label: "Open next-step rail",
+    },
+    {
+      href: props.snapshot.nextStepRail.primaryActionHref,
+      label: props.snapshot.nextStepRail.primaryActionLabel,
+      opensInNewTab: props.snapshot.nextStepRail.primaryActionOpensInNewTab,
+    },
+  ];
 
   useEffect(() => {
     setFormState(buildEmptyFormState(props.suggestedFollowUp));
@@ -218,78 +212,69 @@ export function FrontOfficeClientDossierClient(
 
   return (
     <div className="office-list-page-stack">
-      <div className="office-queue-list">
-        <QueueItem
-          action={renderActionLink(
-            props.snapshot.nextStepRail.primaryActionHref,
-            props.snapshot.nextStepRail.primaryActionLabel,
-            props.snapshot.nextStepRail.primaryActionOpensInNewTab,
-          )}
-          badgeLabel={props.snapshot.nextStepRail.decisionLabel}
-          badgeTone={props.snapshot.nextStepRail.decisionTone}
-          description={props.snapshot.nextStepRail.decisionDescription}
-          meta={<span>{props.snapshot.nextStepRail.decisionMetaLabel}</span>}
-          title={props.snapshot.nextStepRail.decisionTitle}
-        />
-        <QueueItem
-          badgeLabel={props.snapshot.workflow.pressureLabel}
-          badgeTone={props.snapshot.workflow.pressureTone}
-          description={props.snapshot.workflow.pressureDescription}
-          title="Workflow pressure"
-        />
-        <QueueItem
-          action={renderActionLink(
-            currentRailItem.actionHref,
-            currentRailItem.actionLabel,
-            currentRailItem.actionOpensInNewTab,
-          )}
-          badgeLabel={currentRailItem.statusLabel}
-          badgeTone={currentRailItem.statusTone}
-          context={`${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`}
-          description={currentRailItem.description}
-          meta={<span>Current focus · {currentRailItem.metaLabel}</span>}
-          title={currentRailItem.title}
-        />
+      <div className="front-office-placeholder-note">
+        <strong>{props.snapshot.nextStepRail.decisionTitle}</strong>
+        <p>
+          {props.snapshot.nextStepRail.decisionDescription}
+        </p>
+        <div className="list-row-meta front-office-record-meta">
+          <span>{props.snapshot.nextStepRail.decisionLabel}</span>
+          <span>{currentRailItem.stepLabel} · {currentRailItem.ownershipLabel}</span>
+          <span>{props.snapshot.workflow.pressureLabel}</span>
+          <span>{props.snapshot.nextStepRail.decisionMetaLabel}</span>
+        </div>
+        <FrontOfficeClientActionGroup actions={primaryRailActions} />
       </div>
 
       <div className="front-office-placeholder-note">
         <strong>Execution chain</strong>
         <p>
-          Follow the chain below to see which move still belongs in Front
-          Office and where the formal Back Office record should take over.
+          Review the matching dossier block first, then use the second jump
+          only when the work needs calendar scheduling, listing output, or the
+          shared Back Office record.
         </p>
+      </div>
 
-        <div className="office-queue-list">
-          {props.snapshot.nextStepRail.items.map((item) => (
-            <QueueItem
-              action={renderActionLink(
-                item.actionHref,
-                item.actionLabel,
-                item.actionOpensInNewTab,
-              )}
-              badgeLabel={item.statusLabel}
-              badgeTone={item.statusTone}
-              context={`${item.stepLabel} · ${item.ownershipLabel}`}
-              description={item.description}
-              key={item.id}
-              meta={
-                <span>
-                  {item.isCurrent ? "Current focus · " : ""}
-                  {item.metaLabel}
-                </span>
-              }
-              title={item.title}
-            />
-          ))}
-        </div>
+      <div className="office-queue-list">
+        {props.snapshot.nextStepRail.items.map((item) => (
+          <QueueItem
+            action={
+              <FrontOfficeClientActionGroup
+                actions={[
+                  {
+                    href: getFrontOfficeClientDossierSectionHref(item.id),
+                    label: "Review dossier block",
+                  },
+                  {
+                    href: item.actionHref,
+                    label: item.actionLabel,
+                    opensInNewTab: item.actionOpensInNewTab,
+                  },
+                ]}
+              />
+            }
+            badgeLabel={item.statusLabel}
+            badgeTone={item.statusTone}
+            context={`${item.stepLabel} · ${item.ownershipLabel}`}
+            description={item.description}
+            key={item.id}
+            meta={
+              <span>
+                {item.isCurrent ? "Current focus · " : ""}
+                {item.metaLabel}
+              </span>
+            }
+            title={item.title}
+          />
+        ))}
       </div>
 
       <div className="front-office-placeholder-note">
         <strong>Create follow-up</strong>
         <p>
-          This writes into the shared follow-up queue and keeps the
-          dossier&apos;s next-touch signal current for Front Office and Back
-          Office views.
+          This stays in Front Office even when a Back Office file already
+          exists. Use it to keep the next client touch explicit without
+          inventing a second formal transaction checklist.
         </p>
         {props.suggestedFollowUp?.sourceLabel ? (
           <p className="front-office-calendar-feedback is-success">
