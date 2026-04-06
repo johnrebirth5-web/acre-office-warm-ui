@@ -345,14 +345,14 @@ export function OfficeSignaturesClient({
         </ListPageSection>
 
         <ListPageSection
-          subtitle="This page now reflects the actual platform state: non-transaction tracking is live here, but center-originated generic, HR, finance, and admin drafts are still blocked underneath the UI."
-          title="Center create status"
+          subtitle="Use this workspace to track requests, templates, delivery status, and follow-up. Starting a brand-new HR, finance, admin, or generic request directly from here is not available yet."
+          title="Direct create from center"
         >
           <div className="office-queue-list">
             <QueueItem
-              badgeLabel={workspace.createSupport.canStartNonTransactionDraft ? "Available" : "Blocked"}
+              badgeLabel={workspace.createSupport.canStartNonTransactionDraft ? "Available" : "Coming soon"}
               badgeTone={workspace.createSupport.canStartNonTransactionDraft ? "success" : "danger"}
-              description="A true standalone non-transaction signature draft cannot be persisted from `/office/signatures` yet. The blockers below are schema and editor constraints, not missing button wiring."
+              description="You can manage and monitor requests here today, but standalone HR, finance, admin, and generic signature requests still need additional platform support before they can start from `/office/signatures`."
               meta={
                 <SecondaryMetaList
                   items={workspace.createSupport.blockers.map((blocker) => ({
@@ -361,12 +361,12 @@ export function OfficeSignaturesClient({
                   }))}
                 />
               }
-              title="A true non-transaction create flow is still blocked below this page."
+              title="Direct non-transaction creation is not available yet."
             />
 
             <QueueItem
-              badgeLabel="Current path"
-              description="What still works today: pick a transaction PDF, optionally prefill from a template, save the draft, then continue or monitor the request from this center."
+              badgeLabel="Available today"
+              description="For now, start from a transaction PDF, optionally prefill from a template, save the draft, then return here to continue, send, or monitor the request."
               meta={
                 <SecondaryMetaList
                   items={[

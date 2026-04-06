@@ -149,27 +149,27 @@ function buildNonTransactionCreateSupport() {
     blockers: [
       {
         code: "signature-request-transaction-required",
-        title: "Request row still requires a transaction",
+        title: "New requests still need a transaction source",
         detail:
-          "The current schema keeps `SignatureRequest.transactionId` required, so the center cannot save a standalone HR, finance, admin, or generic signature draft."
+          "Standalone HR, finance, admin, and generic requests cannot be started from the center yet because new signature drafts still begin from a transaction-linked request."
       },
       {
         code: "signature-recipient-field-transaction-required",
-        title: "Recipients and fields are also transaction-scoped",
+        title: "Recipients and fields are still set up inside that flow",
         detail:
-          "Both `SignatureRecipient` and `SignatureField` still store `transactionId`, so routing ownership and field placement cannot exist outside a transaction context."
+          "Signer routing, recipient ownership, and field placement are still configured through the current transaction-based authoring flow."
       },
       {
         code: "signature-editor-needs-transaction-pdf",
-        title: "The editor only opens on a transaction PDF",
+        title: "The editor still opens from a transaction PDF",
         detail:
-          "The current request editor resolves through `TransactionDocument` and returns no snapshot when a signature request does not have a transaction-backed PDF source."
+          "The current editor expects a transaction PDF as its starting document, so there is not yet a blank standalone authoring path for non-transaction requests."
       },
       {
         code: "generic-template-category-missing",
-        title: "Generic is not a template category yet",
+        title: "Generic templates are not fully reusable yet",
         detail:
-          "The template enum still supports only transaction, HR, finance, and admin. `generic` can be tracked as request context metadata, but it cannot be saved as a reusable template category."
+          "Templates already cover transaction, HR, finance, and admin use cases, but generic standalone templates are not fully supported yet."
       }
     ]
   };
