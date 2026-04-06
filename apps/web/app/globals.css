@@ -16044,12 +16044,14 @@ body,
   display: grid;
   gap: 24px;
   grid-template-columns: minmax(0, 1.75fr) minmax(320px, 0.95fr);
+  align-items: start;
 }
 
 .office-signature-editor-main,
 .office-signature-editor-side {
   display: grid;
   gap: 24px;
+  align-content: start;
 }
 
 .office-signature-editor-main .office-detail-card,
