@@ -18,6 +18,7 @@ type ReportsTableFooterProps = {
   page: number;
   pageSize: number;
   selectedFieldKeys: OfficeTransactionReportSearchFieldKey[];
+  sortSummary: string;
   totalCount: number;
   totalPages: number;
 };
@@ -72,7 +73,7 @@ export function ReportsTableFooter(props: ReportsTableFooterProps) {
           totalPages={props.totalPages}
         />
       }
-      summary={`Showing ${pageStart}–${pageEnd} of ${props.totalCount} transaction rows`}
+      summary={`Showing ${pageStart}–${pageEnd} of ${props.totalCount} transaction rows | Sorted by ${props.sortSummary}`}
     />
   );
 }

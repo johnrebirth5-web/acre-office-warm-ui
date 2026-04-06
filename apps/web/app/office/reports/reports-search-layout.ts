@@ -42,6 +42,24 @@ export type ReportSearchFilterState = {
   sortDirection: OfficeTransactionReportsFilters["sortDirection"];
 };
 
+export type ReportSortOption = {
+  value: ReportSearchFilterState["sortBy"];
+  label: string;
+};
+
+export type ReportSortDirectionOption = {
+  value: ReportSearchFilterState["sortDirection"];
+  label: string;
+};
+
+const reportSortOptions: ReportSortOption[] = [
+  { value: "created_at", label: "Creation Date" },
+  { value: "asking_price", label: "Asking Price" },
+  { value: "purchased_price", label: "Purchased Price" },
+  { value: "gross_commission", label: "Gross Commission" },
+  { value: "status", label: "Status" }
+];
+
 function appendValue(searchParams: URLSearchParams, key: string, value: string) {
   const normalized = value.trim();
 
@@ -62,6 +80,58 @@ function appendArrayValues(searchParams: URLSearchParams, key: string, values: s
 
     searchParams.append(key, normalized);
   }
+}
+
+export function getReportSortOptions() {
+  return reportSortOptions;
+}
+
+export function getDefaultReportSortDirection(
+  sortBy: ReportSearchFilterState["sortBy"]
+): ReportSearchFilterState["sortDirection"] {
+  return sortBy === "status" ? "asc" : "desc";
+}
+
+export function getReportSortDirectionOptions(
+  sortBy: ReportSearchFilterState["sortBy"]
+): ReportSortDirectionOption[] {
+  if (sortBy === "created_at") {
+    return [
+      { value: "desc", label: "Newest first" },
+      { value: "asc", label: "Oldest first" }
+    ];
+  }
+
+  if (sortBy === "status") {
+    return [
+      { value: "asc", label: "Workflow order" },
+      { value: "desc", label: "Reverse workflow order" }
+    ];
+  }
+
+  return [
+    { value: "desc", label: "Highest first" },
+    { value: "asc", label: "Lowest first" }
+  ];
+}
+
+export function getReportSortSummary(
+  sortBy: ReportSearchFilterState["sortBy"],
+  sortDirection: ReportSearchFilterState["sortDirection"]
+) {
+  const sortLabel =
+    reportSortOptions.find((option) => option.value === sortBy)?.label ?? "Creation Date";
+  const directionLabel =
+    getReportSortDirectionOptions(sortBy).find((option) => option.value === sortDirection)?.label ??
+    getReportSortDirectionOptions(sortBy)[0]?.label ??
+    "Newest first";
+
+  return {
+    sortLabel,
+    directionLabel,
+    shortLabel: `${sortLabel} · ${directionLabel}`,
+    sentenceLabel: `${sortLabel} (${directionLabel})`
+  };
 }
 
 export function cloneReportSearchFilterState(
@@ -103,15 +173,12 @@ export function cloneReportSearchFilterState(
   };
 }
 
-export function buildReportsHref(
-  pathname: string,
-  input: {
-    selectedFieldKeys: OfficeTransactionReportSearchFieldKey[];
-    filters: ReportSearchFilterState;
-    page?: number | string;
-    pageSize?: number | string;
-  }
-) {
+function buildReportsSearchParams(input: {
+  selectedFieldKeys: OfficeTransactionReportSearchFieldKey[];
+  filters: ReportSearchFilterState;
+  page?: number | string;
+  pageSize?: number | string;
+}) {
   const searchParams = new URLSearchParams();
   const selectedFieldKeySet = new Set(input.selectedFieldKeys);
 
@@ -206,10 +273,27 @@ export function buildReportsHref(
     searchParams.set("page", String(normalizedPage));
   }
 
-  if (Number.isFinite(normalizedPageSize) && normalizedPageSize > 0 && normalizedPageSize !== defaultReportsPageSize) {
+  if (
+    Number.isFinite(normalizedPageSize) &&
+    normalizedPageSize > 0 &&
+    normalizedPageSize !== defaultReportsPageSize
+  ) {
     searchParams.set("pageSize", String(normalizedPageSize));
   }
 
+  return searchParams;
+}
+
+export function buildReportsHref(
+  pathname: string,
+  input: {
+    selectedFieldKeys: OfficeTransactionReportSearchFieldKey[];
+    filters: ReportSearchFilterState;
+    page?: number | string;
+    pageSize?: number | string;
+  }
+) {
+  const searchParams = buildReportsSearchParams(input);
   const query = searchParams.toString();
   return query ? `${pathname}?${query}` : pathname;
 }

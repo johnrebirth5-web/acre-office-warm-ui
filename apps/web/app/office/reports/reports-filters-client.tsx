@@ -20,6 +20,9 @@ import {
   buildReportsHref,
   cloneReportSearchFilterState,
   defaultReportsPage,
+  getDefaultReportSortDirection,
+  getReportSortDirectionOptions,
+  getReportSortOptions,
   type ReportSearchFilterState
 } from "./reports-search-layout";
 
@@ -947,6 +950,8 @@ export function ReportsFiltersClient({
   const wideSelectedFields = orderedSelectedFields.filter((field) =>
     isWideReportSearchField(field.key)
   );
+  const sortOptions = getReportSortOptions();
+  const sortDirectionOptions = getReportSortDirectionOptions(searchFilters.sortBy);
 
   function updateFilters(updater: (current: ReportSearchFilterState) => ReportSearchFilterState) {
     setSearchFilters((current) => updater(current));
@@ -1410,18 +1415,23 @@ export function ReportsFiltersClient({
           <FilterField className="office-report-search-field office-report-search-field-sort" label="Sort By">
             <SelectInput
               onChange={(event) =>
-                updateFilters((current) => ({
-                  ...current,
-                  sortBy: event.target.value as ReportSearchFilterState["sortBy"]
-                }))
+                updateFilters((current) => {
+                  const nextSortBy = event.target.value as ReportSearchFilterState["sortBy"];
+
+                  return {
+                    ...current,
+                    sortBy: nextSortBy,
+                    sortDirection: getDefaultReportSortDirection(nextSortBy)
+                  };
+                })
               }
               value={searchFilters.sortBy}
             >
-              <option value="created_at">Creation Date</option>
-              <option value="asking_price">Asking Price</option>
-              <option value="purchased_price">Purchased Price</option>
-              <option value="gross_commission">Gross Commission</option>
-              <option value="status">Status</option>
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </SelectInput>
           </FilterField>
 
@@ -1435,8 +1445,11 @@ export function ReportsFiltersClient({
               }
               value={searchFilters.sortDirection}
             >
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
+              {sortDirectionOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </SelectInput>
           </FilterField>
 

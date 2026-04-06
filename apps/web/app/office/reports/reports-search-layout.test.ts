@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildReportsHref, type ReportSearchFilterState } from "./reports-search-layout";
+import {
+  buildReportsHref,
+  getDefaultReportSortDirection,
+  getReportSortDirectionOptions,
+  getReportSortSummary,
+  type ReportSearchFilterState
+} from "./reports-search-layout";
 
 function createFilterState(): ReportSearchFilterState {
   return {
@@ -69,4 +75,21 @@ test("buildReportsHref preserves selected composite financial filters", () => {
     href,
     "/office/reports?commissionOperator=range&commissionMin=1000&commissionMax=2500&companyReferral=yes&sortBy=created_at&sortDirection=desc"
   );
+});
+
+test("status sort defaults to workflow order", () => {
+  assert.equal(getDefaultReportSortDirection("status"), "asc");
+  assert.deepEqual(getReportSortDirectionOptions("status"), [
+    { value: "asc", label: "Workflow order" },
+    { value: "desc", label: "Reverse workflow order" }
+  ]);
+});
+
+test("report sort summary exposes user-facing labels", () => {
+  assert.deepEqual(getReportSortSummary("gross_commission", "desc"), {
+    sortLabel: "Gross Commission",
+    directionLabel: "Highest first",
+    shortLabel: "Gross Commission · Highest first",
+    sentenceLabel: "Gross Commission (Highest first)"
+  });
 });

@@ -972,8 +972,17 @@ function normalizeSortBy(value: string | undefined): OfficeTransactionReportSort
     : "created_at";
 }
 
-function normalizeSortDirection(value: string | undefined): OfficeTransactionReportSortDirection {
-  return value === "asc" ? "asc" : "desc";
+function getDefaultReportSortDirection(
+  sortBy: OfficeTransactionReportSortBy
+): OfficeTransactionReportSortDirection {
+  return sortBy === "status" ? "asc" : "desc";
+}
+
+function normalizeSortDirection(
+  value: string | undefined,
+  sortBy: OfficeTransactionReportSortBy
+): OfficeTransactionReportSortDirection {
+  return value === "asc" || value === "desc" ? value : getDefaultReportSortDirection(sortBy);
 }
 
 function normalizeStringList(values: string[] | undefined) {
@@ -1617,6 +1626,7 @@ function areTransactionReportSearchFieldKeysEqual(
 function buildTransactionReportFilters(
   input: GetOfficeTransactionReportsWorkspaceInput,
   options: {
+    selectedFieldKeys: Set<OfficeTransactionReportSearchFieldKey>;
     ownerOptions: OfficeTransactionReportOption[];
     departmentOptions: OfficeTransactionReportOption[];
     teamLeaderInfo: LoadedTeamLeaderInfo;
@@ -1625,46 +1635,110 @@ function buildTransactionReportFilters(
     representingOptions: OfficeTransactionReportOption[];
   }
 ) {
-  const rawOwnerMembershipId = getRawReportValue(input, "ownerMembershipId") ?? input.ownerMembershipId;
-  const rawCreatedAtOperator = getRawReportValue(input, "createdAtOperator") ?? input.createdAtOperator;
-  const rawCreatedAtValue = getRawReportValue(input, "createdAtValue") ?? input.createdAtValue;
-  const rawCreatedAtFrom = getRawReportValue(input, "createdAtFrom") ?? input.createdAtFrom;
-  const rawCreatedAtTo = getRawReportValue(input, "createdAtTo") ?? input.createdAtTo;
-  const rawBuyerTenant = getRawReportValue(input, "buyerTenant") ?? input.buyerTenant;
-  const rawClosingMoveInOperator =
-    getRawReportValue(input, "closingMoveInOperator") ?? input.closingMoveInOperator;
-  const rawClosingMoveInValue = getRawReportValue(input, "closingMoveInValue") ?? input.closingMoveInValue;
-  const rawClosingMoveInFrom = getRawReportValue(input, "closingMoveInFrom") ?? input.closingMoveInFrom;
-  const rawClosingMoveInTo = getRawReportValue(input, "closingMoveInTo") ?? input.closingMoveInTo;
-  const rawCommissionOperator = getRawReportValue(input, "commissionOperator") ?? input.commissionOperator;
-  const rawCommissionValue = getRawReportValue(input, "commissionValue") ?? input.commissionValue;
-  const rawCommissionMin = getRawReportValue(input, "commissionMin") ?? input.commissionMin;
-  const rawCommissionMax = getRawReportValue(input, "commissionMax") ?? input.commissionMax;
-  const rawAskingPriceOperator = getRawReportValue(input, "askingPriceOperator") ?? input.askingPriceOperator;
-  const rawAskingPriceValue = getRawReportValue(input, "askingPriceValue") ?? input.askingPriceValue;
-  const rawAskingPriceMin = getRawReportValue(input, "askingPriceMin") ?? input.askingPriceMin;
-  const rawAskingPriceMax = getRawReportValue(input, "askingPriceMax") ?? input.askingPriceMax;
-  const rawPurchasedPriceOperator =
-    getRawReportValue(input, "purchasedPriceOperator") ?? input.purchasedPriceOperator;
-  const rawPurchasedPriceValue = getRawReportValue(input, "purchasedPriceValue") ?? input.purchasedPriceValue;
-  const rawPurchasedPriceMin = getRawReportValue(input, "purchasedPriceMin") ?? input.purchasedPriceMin;
-  const rawPurchasedPriceMax = getRawReportValue(input, "purchasedPriceMax") ?? input.purchasedPriceMax;
-  const rawTransactionStatuses = input.searchParams
-    ? getRawReportArray(input, "transactionStatuses")
-    : input.transactionStatuses ?? [];
-  const rawInvoiceNumber = getRawReportValue(input, "invoiceNumber") ?? input.invoiceNumber;
-  const rawDepartmentIds = input.searchParams ? getRawReportArray(input, "departmentIds") : input.departmentIds ?? [];
-  const rawTeamLeaderMembershipIds = input.searchParams
-    ? getRawReportArray(input, "teamLeaderMembershipIds")
-    : input.teamLeaderMembershipIds ?? [];
-  const rawTransactionTypes = input.searchParams
-    ? getRawReportArray(input, "transactionTypes")
-    : input.transactionTypes ?? [];
-  const rawRepresentingSides = input.searchParams
-    ? getRawReportArray(input, "representingSides")
-    : input.representingSides ?? [];
-  const rawLayouts = input.searchParams ? getRawReportArray(input, "layouts") : input.layouts ?? [];
-  const rawCompanyReferral = getRawReportValue(input, "companyReferral") ?? input.companyReferral;
+  const isFieldSelected = (fieldKey: OfficeTransactionReportSearchFieldKey) =>
+    options.selectedFieldKeys.has(fieldKey);
+  const readSelectedValue = <
+    SearchParamKey extends keyof NonNullable<GetOfficeTransactionReportsWorkspaceInput["searchParams"]>
+  >(
+    fieldKey: OfficeTransactionReportSearchFieldKey,
+    searchParamKey: SearchParamKey,
+    fallback: string | undefined
+  ) => (isFieldSelected(fieldKey) ? getRawReportValue(input, searchParamKey) ?? fallback : undefined);
+  const readSelectedArray = <
+    SearchParamKey extends keyof NonNullable<GetOfficeTransactionReportsWorkspaceInput["searchParams"]>
+  >(
+    fieldKey: OfficeTransactionReportSearchFieldKey,
+    searchParamKey: SearchParamKey,
+    fallback: string[] | undefined
+  ) =>
+    isFieldSelected(fieldKey)
+      ? input.searchParams
+        ? getRawReportArray(input, searchParamKey)
+        : fallback ?? []
+      : [];
+
+  const rawOwnerMembershipId = readSelectedValue("owner", "ownerMembershipId", input.ownerMembershipId);
+  const rawCreatedAtOperator = readSelectedValue("created_at", "createdAtOperator", input.createdAtOperator);
+  const rawCreatedAtValue = readSelectedValue("created_at", "createdAtValue", input.createdAtValue);
+  const rawCreatedAtFrom = readSelectedValue("created_at", "createdAtFrom", input.createdAtFrom);
+  const rawCreatedAtTo = readSelectedValue("created_at", "createdAtTo", input.createdAtTo);
+  const rawBuyerTenant = readSelectedValue("buyer_tenant", "buyerTenant", input.buyerTenant);
+  const rawClosingMoveInOperator = readSelectedValue(
+    "closing_move_in",
+    "closingMoveInOperator",
+    input.closingMoveInOperator
+  );
+  const rawClosingMoveInValue = readSelectedValue(
+    "closing_move_in",
+    "closingMoveInValue",
+    input.closingMoveInValue
+  );
+  const rawClosingMoveInFrom = readSelectedValue(
+    "closing_move_in",
+    "closingMoveInFrom",
+    input.closingMoveInFrom
+  );
+  const rawClosingMoveInTo = readSelectedValue("closing_move_in", "closingMoveInTo", input.closingMoveInTo);
+  const rawCommissionOperator = readSelectedValue("commission", "commissionOperator", input.commissionOperator);
+  const rawCommissionValue = readSelectedValue("commission", "commissionValue", input.commissionValue);
+  const rawCommissionMin = readSelectedValue("commission", "commissionMin", input.commissionMin);
+  const rawCommissionMax = readSelectedValue("commission", "commissionMax", input.commissionMax);
+  const rawAskingPriceOperator = readSelectedValue(
+    "asking_price",
+    "askingPriceOperator",
+    input.askingPriceOperator
+  );
+  const rawAskingPriceValue = readSelectedValue("asking_price", "askingPriceValue", input.askingPriceValue);
+  const rawAskingPriceMin = readSelectedValue("asking_price", "askingPriceMin", input.askingPriceMin);
+  const rawAskingPriceMax = readSelectedValue("asking_price", "askingPriceMax", input.askingPriceMax);
+  const rawPurchasedPriceOperator = readSelectedValue(
+    "purchased_price",
+    "purchasedPriceOperator",
+    input.purchasedPriceOperator
+  );
+  const rawPurchasedPriceValue = readSelectedValue(
+    "purchased_price",
+    "purchasedPriceValue",
+    input.purchasedPriceValue
+  );
+  const rawPurchasedPriceMin = readSelectedValue(
+    "purchased_price",
+    "purchasedPriceMin",
+    input.purchasedPriceMin
+  );
+  const rawPurchasedPriceMax = readSelectedValue(
+    "purchased_price",
+    "purchasedPriceMax",
+    input.purchasedPriceMax
+  );
+  const rawTransactionStatuses = readSelectedArray(
+    "transaction_status",
+    "transactionStatuses",
+    input.transactionStatuses
+  );
+  const rawInvoiceNumber = readSelectedValue("invoice_number", "invoiceNumber", input.invoiceNumber);
+  const rawDepartmentIds = readSelectedArray("department", "departmentIds", input.departmentIds);
+  const rawTeamLeaderMembershipIds = readSelectedArray(
+    "team_leader",
+    "teamLeaderMembershipIds",
+    input.teamLeaderMembershipIds
+  );
+  const rawTransactionTypes = readSelectedArray(
+    "transaction_type",
+    "transactionTypes",
+    input.transactionTypes
+  );
+  const rawRepresentingSides = readSelectedArray(
+    "representing_side",
+    "representingSides",
+    input.representingSides
+  );
+  const rawLayouts = readSelectedArray("layout", "layouts", input.layouts);
+  const rawCompanyReferral = readSelectedValue(
+    "company_referral",
+    "companyReferral",
+    input.companyReferral
+  );
   const rawSortBy = getRawReportValue(input, "sortBy") ?? input.sortBy;
   const rawSortDirection = getRawReportValue(input, "sortDirection") ?? input.sortDirection;
 
@@ -1692,7 +1766,7 @@ function buildTransactionReportFilters(
   const askingPriceOperator = normalizeNumericOperator(rawAskingPriceOperator);
   const purchasedPriceOperator = normalizeNumericOperator(rawPurchasedPriceOperator);
   const sortBy = normalizeSortBy(rawSortBy);
-  const sortDirection = normalizeSortDirection(rawSortDirection);
+  const sortDirection = normalizeSortDirection(rawSortDirection, sortBy);
 
   return {
     ownerMembershipId: rawOwnerMembershipId?.trim() ?? "",
@@ -1879,7 +1953,9 @@ async function loadReportSearchData(
     availableFields,
     savedLayout
   });
+  const selectedFieldKeys = new Set(searchLayout.selectedFields.map((field) => field.key));
   const filters = buildTransactionReportFilters(input, {
+    selectedFieldKeys,
     ownerOptions,
     departmentOptions,
     teamLeaderInfo,

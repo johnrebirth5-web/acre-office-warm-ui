@@ -23,8 +23,11 @@ import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office
 import { ReportsFiltersClient } from "./reports-filters-client";
 import { ReportsTableFooter } from "./reports-table-footer";
 import {
+  buildReportsHref,
+  cloneReportSearchFilterState,
   defaultReportsPage,
   defaultReportsPageSize,
+  getReportSortSummary,
   maxReportsPageSize
 } from "./reports-search-layout";
 
@@ -67,31 +70,6 @@ function getStatusTone(status: OfficeReportStatus) {
   return "neutral" as const;
 }
 
-function buildExportHref(searchParams: Record<string, string | string[] | undefined>) {
-  const query = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (key === "page" || key === "pageSize") {
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (item.trim()) {
-          query.append(key, item.trim());
-        }
-      }
-      continue;
-    }
-
-    if (typeof value === "string" && value.trim()) {
-      query.set(key, value.trim());
-    }
-  }
-
-  return `/api/office/reports/export${query.size ? `?${query.toString()}` : ""}`;
-}
-
 const reportListColumnLabels = [
   "Transaction",
   "Created",
@@ -122,7 +100,15 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
     pageSize,
     searchParams
   });
-  const exportHref = buildExportHref(searchParams);
+  const selectedFieldKeys = workspace.searchLayout.selectedFields.map((field) => field.key);
+  const exportHref = buildReportsHref("/api/office/reports/export", {
+    selectedFieldKeys,
+    filters: cloneReportSearchFilterState(workspace.filters)
+  });
+  const sortSummary = getReportSortSummary(
+    workspace.filters.sortBy,
+    workspace.filters.sortDirection
+  );
 
   return (
     <OfficeListPageShell className="office-reports-list-page">
@@ -139,6 +125,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
             <SummaryChip label="Matching transactions" tone="accent" value={workspace.totalCount} />
             <SummaryChip label="Purchased volume" value={workspace.summary.totalPurchasedPrice} />
             <SummaryChip label="Gross commission" value={workspace.summary.totalGrossCommission} />
+            <SummaryChip label="Sort" value={sortSummary.shortLabel} />
           </>
         }
         title="Reports"
@@ -157,7 +144,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
       </ListPageSection>
 
       <ListPageSection
-        subtitle="Summary values update from the same filtered transaction set shown in the table and export."
+        subtitle={`Summary values update from the same filtered transaction set. Rows and CSV export both use ${sortSummary.sentenceLabel}.`}
         title="Transaction performance"
       >
         <ListPageStatsGrid className="office-reports-kpi-grid">
@@ -178,12 +165,13 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
             filters={workspace.filters}
             page={workspace.page}
             pageSize={workspace.pageSize}
-            selectedFieldKeys={workspace.searchLayout.selectedFields.map((field) => field.key)}
+            selectedFieldKeys={selectedFieldKeys}
+            sortSummary={sortSummary.sentenceLabel}
             totalCount={workspace.totalCount}
             totalPages={workspace.totalPages}
           />
         }
-        subtitle="The on-screen table highlights key operating columns, while CSV export keeps the full report schema."
+        subtitle={`The on-screen table highlights key operating columns, while CSV export keeps the full report schema and the same ${sortSummary.sentenceLabel} row order.`}
         title="Filtered transactions"
       >
         <DataTable className="office-list-table office-list-table-reports">
