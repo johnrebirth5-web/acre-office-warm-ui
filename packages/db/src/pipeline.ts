@@ -69,9 +69,12 @@ export type OfficePipelineWorkspaceSnapshot = {
     metricOptions: OfficePipelineMetricOption[];
     view: OfficePipelineView;
     historyMonth: string;
+    historyYear: string;
   };
   metricModeLabel: string;
   metricModeDescription: string;
+  historyYearOptions: number[];
+  currentMonthHistory: OfficePipelineHistoryMonth | null;
   selection: {
     kind: OfficePipelineView;
     label: string;
@@ -102,6 +105,7 @@ export type GetOfficePipelineWorkspaceInput = {
   stage?: string;
   historyStatus?: string;
   historyMonth?: string;
+  historyYear?: string;
 };
 
 type PipelineWorkspaceTransaction = {
@@ -251,6 +255,14 @@ function normalizeHistoryMonth(value: string | undefined) {
   return /^\d{4}-\d{2}$/.test(value) ? value : "";
 }
 
+function normalizeHistoryYear(value: string | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return /^\d{4}$/.test(value) ? value : "";
+}
+
 export function canViewOfficePipelineMetrics(role: UserRole) {
   return role === "owner" || role === "office_admin";
 }
@@ -342,6 +354,22 @@ export function buildPipelineHistoryMonthKeys(now: Date = new Date()) {
   return keys;
 }
 
+export function buildPipelineYearHistoryMonthKeys(year: number) {
+  return Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
+}
+
+export function buildPipelineHistoryYearOptions(now: Date = new Date(), oldestClosedYear?: number | null) {
+  const currentYear = Number(now.toISOString().slice(0, 4));
+  const floorYear = oldestClosedYear && oldestClosedYear < currentYear ? oldestClosedYear : currentYear;
+  const years: number[] = [];
+
+  for (let year = currentYear; year >= floorYear; year -= 1) {
+    years.push(year);
+  }
+
+  return years;
+}
+
 function formatCurrency(value: Prisma.Decimal | number | string | null | undefined) {
   const numericValue = Number(value ?? 0);
 
@@ -367,6 +395,14 @@ function formatMonthLabel(monthKey: string) {
     month: "long",
     year: "numeric"
   });
+}
+
+function getMonthKeyFromDate(date: Date) {
+  return date.toISOString().slice(0, 7);
+}
+
+function getYearFromDate(date: Date) {
+  return Number(date.toISOString().slice(0, 4));
 }
 
 function isMyMetricMode(metricMode: OfficePipelineMetricMode) {
@@ -417,7 +453,7 @@ function getMonthlyRollupDate(transaction: Pick<PipelineWorkspaceTransaction, "c
 }
 
 function getMonthlyRollupKey(transaction: Pick<PipelineWorkspaceTransaction, "closingDate" | "updatedAt">) {
-  return getMonthlyRollupDate(transaction).toISOString().slice(0, 7);
+  return getMonthKeyFromDate(getMonthlyRollupDate(transaction));
 }
 
 function getHistoryMonthDateRange(monthKey: string) {
@@ -436,8 +472,9 @@ function buildHistoryWindowWhere(
   historyMonthKeys: string[],
   metricScopeWhere: Prisma.TransactionWhereInput | null
 ): Prisma.TransactionWhereInput {
-  const oldestMonth = historyMonthKeys[historyMonthKeys.length - 1];
-  const newestMonth = historyMonthKeys[0];
+  const sortedMonthKeys = [...historyMonthKeys].sort();
+  const oldestMonth = sortedMonthKeys[0];
+  const newestMonth = sortedMonthKeys[sortedMonthKeys.length - 1];
   const oldestRange = getHistoryMonthDateRange(oldestMonth);
   const newestRange = getHistoryMonthDateRange(newestMonth);
 
@@ -469,6 +506,21 @@ function buildHistoryWindowWhere(
             ]
           }
         ]
+      },
+      ...(metricScopeWhere ? [metricScopeWhere] : [])
+    ]
+  };
+}
+
+function buildClosedBaseWhere(
+  baseWhere: Prisma.TransactionWhereInput,
+  metricScopeWhere: Prisma.TransactionWhereInput | null
+): Prisma.TransactionWhereInput {
+  return {
+    AND: [
+      baseWhere,
+      {
+        status: "closed"
       },
       ...(metricScopeWhere ? [metricScopeWhere] : [])
     ]
@@ -647,7 +699,7 @@ export function resolveDefaultOfficePipelineSelection(historyMonths: OfficePipel
   view: OfficePipelineView;
   historyMonth: string;
 } {
-  const currentMonth = historyMonths[0];
+  const currentMonth = historyMonths.find((month) => month.isCurrentMonth);
 
   if (currentMonth && currentMonth.count > 0) {
     return {
@@ -656,12 +708,14 @@ export function resolveDefaultOfficePipelineSelection(historyMonths: OfficePipel
     };
   }
 
-  const firstMonthWithClosed = historyMonths.find((month) => month.count > 0);
+  const latestMonthWithClosed = historyMonths
+    .filter((month) => month.count > 0)
+    .sort((left, right) => right.monthKey.localeCompare(left.monthKey))[0];
 
-  if (firstMonthWithClosed) {
+  if (latestMonthWithClosed) {
     return {
       view: "history",
-      historyMonth: firstMonthWithClosed.monthKey
+      historyMonth: latestMonthWithClosed.monthKey
     };
   }
 
@@ -721,9 +775,10 @@ function buildHistoryMonths(
   transactions: PipelineMetricTransaction[],
   historyMonthKeys: string[],
   metricMode: OfficePipelineMetricMode,
-  membershipIds: string[]
+  membershipIds: string[],
+  currentMonthKey: string
 ) {
-  return historyMonthKeys.map((monthKey, index) => {
+  return historyMonthKeys.map((monthKey) => {
     const monthTransactions = transactions.filter((transaction) => getMonthlyRollupKey(transaction) === monthKey);
     const totalMetric = monthTransactions.reduce(
       (sum, transaction) => sum + getTransactionMetricValue(transaction, metricMode, membershipIds),
@@ -735,9 +790,58 @@ function buildHistoryMonths(
       label: formatMonthLabel(monthKey),
       count: monthTransactions.length,
       metricLabel: formatCurrency(totalMetric),
-      isCurrentMonth: index === 0
+      isCurrentMonth: monthKey === currentMonthKey
     } satisfies OfficePipelineHistoryMonth;
   });
+}
+
+async function resolveOldestClosedHistoryYear(input: {
+  baseWhere: Prisma.TransactionWhereInput;
+  metricScopeWhere: Prisma.TransactionWhereInput | null;
+}) {
+  const closedBaseWhere = buildClosedBaseWhere(input.baseWhere, input.metricScopeWhere);
+  const [earliestClosingTransaction, earliestFallbackTransaction] = await Promise.all([
+    prisma.transaction.findFirst({
+      where: {
+        AND: [
+          closedBaseWhere,
+          {
+            closingDate: {
+              not: null
+            }
+          }
+        ]
+      },
+      orderBy: [{ closingDate: "asc" }, { updatedAt: "asc" }],
+      select: {
+        closingDate: true
+      }
+    }),
+    prisma.transaction.findFirst({
+      where: {
+        AND: [
+          closedBaseWhere,
+          {
+            closingDate: null
+          }
+        ]
+      },
+      orderBy: [{ updatedAt: "asc" }],
+      select: {
+        updatedAt: true
+      }
+    })
+  ]);
+  const candidates = [earliestClosingTransaction?.closingDate, earliestFallbackTransaction?.updatedAt].filter(
+    (value): value is Date => value instanceof Date
+  );
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const earliestDate = candidates.sort((left, right) => left.getTime() - right.getTime())[0];
+  return getYearFromDate(earliestDate);
 }
 
 async function loadPipelineMetricTransactions(input: {
@@ -779,6 +883,8 @@ async function loadPipelineRowsByIds(input: {
 export async function getOfficePipelineWorkspaceSnapshot(
   input: GetOfficePipelineWorkspaceInput
 ): Promise<OfficePipelineWorkspaceSnapshot> {
+  const now = new Date();
+  const currentMonthKey = buildPipelineHistoryMonthKeys(now)[0];
   const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.viewerMembershipId,
@@ -791,33 +897,51 @@ export async function getOfficePipelineWorkspaceSnapshot(
   const metricOptions = getOfficePipelineMetricOptions(canViewOfficeMetrics);
   const metricMembershipIds = isMyMetricMode(metricMode) ? getMyPipelineVisibleMembershipIds(scope) : [];
   const metricScopeWhere = buildPipelineMetricScopeWhere(scope.viewerMembershipId, metricMode);
+  const requestedHistoryYear = normalizeHistoryYear(input.historyYear);
   const requestedSelection = normalizeOfficePipelineSelectionInput({
     view: input.view,
     stage: input.stage,
     historyStatus: input.historyStatus,
     historyMonth: input.historyMonth
   });
-  const historyMonthKeys = buildPipelineHistoryMonthKeys();
   const baseWhere = buildTopLevelWhere(input, representing, scope);
   const pendingWhere = buildPendingWhere(baseWhere, metricScopeWhere);
-  const historyWhere = buildHistoryWindowWhere(baseWhere, historyMonthKeys, metricScopeWhere);
-  const [pendingTransactions, closedHistoryTransactions] = await Promise.all([
+  const currentMonthWhere = buildHistoryWindowWhere(baseWhere, [currentMonthKey], metricScopeWhere);
+  const [pendingTransactions, oldestClosedHistoryYear, currentMonthTransactions] = await Promise.all([
     loadPipelineMetricTransactions({
       where: pendingWhere,
       membershipIds: metricMembershipIds,
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
     }),
+    resolveOldestClosedHistoryYear({
+      baseWhere,
+      metricScopeWhere
+    }),
     loadPipelineMetricTransactions({
-      where: historyWhere,
+      where: currentMonthWhere,
       membershipIds: metricMembershipIds
     })
   ]);
+  const historyYearOptions = buildPipelineHistoryYearOptions(now, oldestClosedHistoryYear);
+  const selectedHistoryYear =
+    requestedHistoryYear && historyYearOptions.includes(Number(requestedHistoryYear)) ? requestedHistoryYear : "";
+  const historyMonthKeys = selectedHistoryYear
+    ? buildPipelineYearHistoryMonthKeys(Number(selectedHistoryYear))
+    : buildPipelineHistoryMonthKeys(now);
+  const historyWhere = buildHistoryWindowWhere(baseWhere, historyMonthKeys, metricScopeWhere);
+  const closedHistoryTransactions = await loadPipelineMetricTransactions({
+    where: historyWhere,
+    membershipIds: metricMembershipIds
+  });
   const historyMonths = buildHistoryMonths(
     closedHistoryTransactions,
     historyMonthKeys,
     metricMode,
-    metricMembershipIds
+    metricMembershipIds,
+    currentMonthKey
   );
+  const currentMonthHistory =
+    buildHistoryMonths(currentMonthTransactions, [currentMonthKey], metricMode, metricMembershipIds, currentMonthKey)[0] ?? null;
   const selectionFilters = resolveSelection(requestedSelection, historyMonths);
   const selectedMetricTransactions =
     selectionFilters.view === "pending"
@@ -856,10 +980,13 @@ export async function getOfficePipelineWorkspaceSnapshot(
       metricMode,
       metricOptions,
       view: selectionFilters.view,
-      historyMonth: selectionFilters.historyMonth
+      historyMonth: selectionFilters.historyMonth,
+      historyYear: selectedHistoryYear
     },
     metricModeLabel: metricModeLabels[metricMode],
     metricModeDescription: buildMetricModeDescription(metricMode),
+    historyYearOptions,
+    currentMonthHistory,
     selection: {
       kind: selectionFilters.view,
       label: selectionFilters.view === "pending" ? "Pending" : `${selectedHistoryMonth?.label ?? "Closed"} closed`,

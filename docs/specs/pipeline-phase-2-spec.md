@@ -6,7 +6,7 @@ Evolve `/office/pipeline` into a stronger BoldTrail/Brokermint-style management 
 
 ## Current implemented foundation
 
-- dual-column pipeline workspace with a `Pending` summary card and fixed six-month `Closed` history rail
+- dual-column pipeline workspace with a `Pending` summary card and a `Closed` history rail that defaults to the latest six months but can switch to a full calendar year (`Jan` through `Dec`)
 - right-side transaction list driven by the current `Pending` or monthly `Closed` selection
 - default landing selection now prefers the current month's `Closed` bucket, then the most recent month with closed records, then `Pending`
 - the current snapshot service now reads pipeline data through dedicated `pending metrics`, `closed history metrics`, and `selected rows` queries instead of loading the full visible transaction set and slicing it in memory
@@ -30,7 +30,7 @@ Evolve `/office/pipeline` into a stronger BoldTrail/Brokermint-style management 
 ## Current gaps
 
 - still lighter than full target-product parity
-- historical drilldown is intentionally limited to six recent months
+- historical drilldown currently supports either the default six-month window or one selected calendar year at a time
 - no automation or drag/drop behavior
 - no deeper analytics layers
 

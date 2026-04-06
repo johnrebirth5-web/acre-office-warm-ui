@@ -3,6 +3,8 @@ import test from "node:test";
 import type { OfficeDataScope } from "./access.ts";
 import {
   buildPipelineHistoryMonthKeys,
+  buildPipelineHistoryYearOptions,
+  buildPipelineYearHistoryMonthKeys,
   canViewOfficePipelineMetrics,
   getMyPipelineVisibleMembershipIds,
   getOfficePipelineMetricOptions,
@@ -26,13 +28,13 @@ function buildScope(overrides: Partial<OfficeDataScope>): OfficeDataScope {
   };
 }
 
-function buildHistoryMonth(monthKey: string, count: number): OfficePipelineHistoryMonth {
+function buildHistoryMonth(monthKey: string, count: number, isCurrentMonth = false): OfficePipelineHistoryMonth {
   return {
     monthKey,
     label: monthKey,
     count,
     metricLabel: "$0",
-    isCurrentMonth: false
+    isCurrentMonth
   };
 }
 
@@ -95,10 +97,29 @@ test("history month helper always returns the most recent six months", () => {
   ]);
 });
 
+test("year history helpers expose full january to december buckets and descending year options", () => {
+  assert.deepEqual(buildPipelineYearHistoryMonthKeys(2025), [
+    "2025-01",
+    "2025-02",
+    "2025-03",
+    "2025-04",
+    "2025-05",
+    "2025-06",
+    "2025-07",
+    "2025-08",
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12"
+  ]);
+  assert.deepEqual(buildPipelineHistoryYearOptions(new Date("2026-04-06T12:00:00Z"), 2024), [2026, 2025, 2024]);
+  assert.deepEqual(buildPipelineHistoryYearOptions(new Date("2026-04-06T12:00:00Z"), null), [2026]);
+});
+
 test("default selection prefers current month closed, then latest closed month, then pending", () => {
   assert.deepEqual(
     resolveDefaultOfficePipelineSelection([
-      buildHistoryMonth("2026-03", 4),
+      buildHistoryMonth("2026-03", 4, true),
       buildHistoryMonth("2026-02", 0),
       buildHistoryMonth("2026-01", 2)
     ]),
@@ -111,6 +132,15 @@ test("default selection prefers current month closed, then latest closed month, 
       buildHistoryMonth("2026-01", 1)
     ]),
     { view: "history", historyMonth: "2026-02" }
+  );
+  assert.deepEqual(
+    resolveDefaultOfficePipelineSelection([
+      buildHistoryMonth("2026-01", 0),
+      buildHistoryMonth("2026-02", 3),
+      buildHistoryMonth("2026-03", 0, true),
+      buildHistoryMonth("2026-04", 1)
+    ]),
+    { view: "history", historyMonth: "2026-04" }
   );
   assert.deepEqual(
     resolveDefaultOfficePipelineSelection([

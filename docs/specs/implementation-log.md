@@ -311,6 +311,10 @@
   - pending summary, six-month closed history, and selected working-list rows now come from separate query paths
   - `my_*` metric scope is pushed into relation-aware database predicates instead of post-query membership filtering
   - page URL semantics and UI layout remain unchanged while the service path is materially lighter for larger datasets
+- 2026-04-06: `/office/pipeline` closed-history rail now supports a year switch without losing the default recent view:
+  - the sidebar still defaults to `Last 6 months`, but now adds a year dropdown so users can switch to a full `Jan-Dec` view for any available year
+  - year mode keeps empty months visible, so annual review still shows all 12 buckets even when some months have `0` transactions
+  - `Closed This Month` remains anchored to the actual current month through a separate current-month summary query, so the stage card still works even when the history rail is focused on an older year
 - 2026-03-26: transaction commission detail and saved payout statements now surface named post-split fee detail instead of leaving `External Referral` and `Company Referral` hidden behind one merged company adjustment:
   - transaction `Commission` now shows one combined allocation table where those active fee rows appear as separate rows beneath the stakeholder rows, while saved statement detail / PDF still retain named fee lines
   - generated `AgentPayoutStatementLine` snapshots now persist fee-breakdown JSON so saved statement detail / PDF can keep showing the named post-split breakdown even after later recalculation

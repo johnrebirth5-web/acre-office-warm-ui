@@ -320,7 +320,7 @@ Trade-off：
   - office-level metrics 仅对 `owner / office_admin` 可见；my metrics 复用现有 office scope 作为 self / branch 可见范围
   - `Office gross` 当前使用 transaction finance 上已存储的 `grossCommission`，缺失值按 `0` 处理
   - `My gross commission` 同样使用 transaction finance 上已存储的 `grossCommission`，但只统计当前 self / branch scope 内可见的 transaction
-  - pipeline 的月度历史当前只主展示 `Closed`，并优先使用 `closingDate`，没有时回退到 `updatedAt`
+  - pipeline 的月度历史当前只主展示 `Closed`，并优先使用 `closingDate`，没有时回退到 `updatedAt`；默认展示最近 6 个月，但支持切换到某个自然年的 `1-12 月` 完整 bucket
   - transaction list/detail/create/status update 已经切到 Prisma
   - transaction finance 先用 `Transaction` 上的 5 个可空字段落地，而不是单独 finance model
   - contact list/detail/create/edit/follow-up task / transaction link 已经切到 Prisma

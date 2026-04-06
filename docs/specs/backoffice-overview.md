@@ -30,14 +30,14 @@ This file is the high-level product map for the current `Office / Back Office` s
 ### Pipeline
 
 - What it is for:
-  - management-oriented pipeline workspace focused on the pending queue, six months of closed history, scoped metric switching, and a query-driven working transaction list.
+  - management-oriented pipeline workspace focused on the pending queue, default six-month closed history, optional full-year monthly review, scoped metric switching, and a query-driven working transaction list.
 - Current maturity:
   - `MVP / refined`
 - Current notable behavior:
-  - the left rail now exposes only `Pending` plus fixed `Closed` monthly history, instead of the earlier full-stage funnel.
+  - the left rail now exposes only `Pending` plus `Closed` monthly history, instead of the earlier full-stage funnel; the history rail defaults to the latest six months and also supports per-year `Jan` through `Dec` buckets from a year dropdown.
   - top-right metric switching now separates office metrics from personal metrics and enforces role-based visibility for office-level financials.
   - monthly history selection and right-side working list stay URL-driven and scoped to the current office/org context.
-  - the current snapshot service now reads pending metrics, six-month closed-history metrics, and selected list rows through separate queries instead of loading the whole visible transaction portfolio into memory first.
+  - the current snapshot service now reads pending metrics, range-specific closed-history metrics, and selected list rows through separate queries instead of loading the whole visible transaction portfolio into memory first.
 - Follow-up work:
   - deeper analytics drilldowns
   - more advanced owner/team slicing

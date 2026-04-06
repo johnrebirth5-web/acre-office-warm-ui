@@ -15,6 +15,7 @@ type PipelinePageSearchParams = {
   stage?: string;
   historyStatus?: string;
   historyMonth?: string;
+  historyYear?: string;
 };
 
 type PipelinePageProps = {
@@ -49,6 +50,7 @@ function buildPipelineHref(
     metricMode: string;
     view: string;
     historyMonth: string;
+    historyYear: string;
   },
   overrides: Partial<Record<keyof PipelinePageSearchParams, string | null>>
 ) {
@@ -94,6 +96,24 @@ function getRepresentingLabel(value: string) {
   return "Any side";
 }
 
+function getHistoryRangeLabel(historyYear: string) {
+  return historyYear ? historyYear : "Last 6 months";
+}
+
+function getHistoryRangeNote(historyYear: string) {
+  return historyYear ? `January - December ${historyYear}` : "Showing the latest 6 monthly buckets";
+}
+
+function getHistoryYearForCurrentMonth(currentHistoryYear: string, monthKey: string) {
+  const monthYear = monthKey.slice(0, 4);
+
+  if (!currentHistoryYear || currentHistoryYear === monthYear) {
+    return currentHistoryYear;
+  }
+
+  return monthYear;
+}
+
 function getKeyDateCopy(row: {
   keyDateTypeLabel: string;
   keyDateLabel: string;
@@ -125,7 +145,8 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
     view: searchParams.view,
     stage: searchParams.stage,
     historyStatus: searchParams.historyStatus,
-    historyMonth: searchParams.historyMonth
+    historyMonth: searchParams.historyMonth,
+    historyYear: searchParams.historyYear
   });
 
   const hrefBaseFilters = {
@@ -134,12 +155,15 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
     ownerMembershipId: snapshot.filters.ownerMembershipId,
     metricMode: snapshot.filters.metricMode,
     view: snapshot.filters.view,
-    historyMonth: snapshot.filters.historyMonth
+    historyMonth: snapshot.filters.historyMonth,
+    historyYear: snapshot.filters.historyYear
   };
   const officeMetricOptions = snapshot.filters.metricOptions.filter((option) => option.scope === "office");
   const myMetricOptions = snapshot.filters.metricOptions.filter((option) => option.scope === "my");
   const transactionCountLabel = new Intl.NumberFormat("en-US").format(snapshot.summary.totalCount);
-  const currentMonthClosed = snapshot.historyMonths.find((month) => month.isCurrentMonth) ?? snapshot.historyMonths[0] ?? null;
+  const currentMonthClosed = snapshot.currentMonthHistory;
+  const historyRangeLabel = getHistoryRangeLabel(snapshot.filters.historyYear);
+  const historyRangeNote = getHistoryRangeNote(snapshot.filters.historyYear);
 
   return (
     <OfficeListPageShell className="office-pipeline-page office-pipeline-v2-page">
@@ -235,37 +259,38 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
             </div>
 
             <div className="office-pipeline-v2-stage-grid">
-            <Link
-              className={`office-pipeline-v2-stage-card office-pipeline-v2-stage-card-pending ${
-                snapshot.selection.kind === "pending" ? "is-active" : ""
-              }`}
-              href={buildPipelineHref(hrefBaseFilters, {
-                view: "pending",
-                historyMonth: null
-              })}
-            >
-              <span className="office-pipeline-v2-stage-card-label">Pending</span>
-              <strong>{snapshot.pendingSummary.count}</strong>
-              <em>{snapshot.pendingSummary.metricLabel}</em>
-              <small>Deals still in motion</small>
-            </Link>
-
-            {currentMonthClosed ? (
               <Link
-                className={`office-pipeline-v2-stage-card office-pipeline-v2-stage-card-closed ${
-                  snapshot.selection.kind === "history" && snapshot.filters.historyMonth === currentMonthClosed.monthKey ? "is-active" : ""
+                className={`office-pipeline-v2-stage-card office-pipeline-v2-stage-card-pending ${
+                  snapshot.selection.kind === "pending" ? "is-active" : ""
                 }`}
                 href={buildPipelineHref(hrefBaseFilters, {
-                  view: "history",
-                  historyMonth: currentMonthClosed.monthKey
+                  view: "pending",
+                  historyMonth: null
                 })}
               >
-                <span className="office-pipeline-v2-stage-card-label">Closed This Month</span>
-                <strong>{currentMonthClosed.count}</strong>
-                <em>{currentMonthClosed.metricLabel}</em>
-                <small>{currentMonthClosed.label}</small>
+                <span className="office-pipeline-v2-stage-card-label">Pending</span>
+                <strong>{snapshot.pendingSummary.count}</strong>
+                <em>{snapshot.pendingSummary.metricLabel}</em>
+                <small>Deals still in motion</small>
               </Link>
-            ) : null}
+
+              {currentMonthClosed ? (
+                <Link
+                  className={`office-pipeline-v2-stage-card office-pipeline-v2-stage-card-closed ${
+                    snapshot.selection.kind === "history" && snapshot.filters.historyMonth === currentMonthClosed.monthKey ? "is-active" : ""
+                  }`}
+                  href={buildPipelineHref(hrefBaseFilters, {
+                    view: "history",
+                    historyMonth: currentMonthClosed.monthKey,
+                    historyYear: getHistoryYearForCurrentMonth(snapshot.filters.historyYear, currentMonthClosed.monthKey) || null
+                  })}
+                >
+                  <span className="office-pipeline-v2-stage-card-label">Closed This Month</span>
+                  <strong>{currentMonthClosed.count}</strong>
+                  <em>{currentMonthClosed.metricLabel}</em>
+                  <small>{currentMonthClosed.label}</small>
+                </Link>
+              ) : null}
             </div>
           </section>
 
@@ -275,8 +300,34 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 <span className="office-pipeline-v2-sidebar-label">Closed history</span>
                 <p>Recent monthly performance, kept visible even when a month is empty.</p>
               </div>
+              <details className="office-pipeline-v2-menu office-pipeline-v2-history-menu">
+                <summary className="office-pipeline-v2-menu-trigger office-pipeline-v2-history-trigger">{historyRangeLabel}</summary>
+                <div className="office-pipeline-v2-menu-popover office-pipeline-v2-history-popover">
+                  <Link
+                    className={`office-pipeline-v2-menu-item ${snapshot.filters.historyYear === "" ? "is-active" : ""}`}
+                    href={buildPipelineHref(hrefBaseFilters, {
+                      historyYear: null
+                    })}
+                  >
+                    <span>Last 6 months</span>
+                  </Link>
+                  <div className="office-pipeline-v2-menu-divider" />
+                  <div className="office-pipeline-v2-menu-group-label">Years</div>
+                  {snapshot.historyYearOptions.map((year) => (
+                    <Link
+                      className={`office-pipeline-v2-menu-item ${snapshot.filters.historyYear === String(year) ? "is-active" : ""}`}
+                      href={buildPipelineHref(hrefBaseFilters, {
+                        historyYear: String(year)
+                      })}
+                      key={year}
+                    >
+                      <span>{year}</span>
+                    </Link>
+                  ))}
+                </div>
+              </details>
             </div>
-            <small className="office-pipeline-v2-history-range">Last 6 months</small>
+            <small className="office-pipeline-v2-history-range">{historyRangeNote}</small>
             <div className="office-pipeline-v2-history-list">
               {snapshot.historyMonths.map((month) => (
                 <Link
