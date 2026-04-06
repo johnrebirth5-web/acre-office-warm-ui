@@ -7,10 +7,7 @@ import {
 } from "@prisma/client";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 import { prisma } from "./client";
-import {
-  formatDateTimeInputValue,
-  formatDateTimeLabel,
-} from "./date-time";
+import { formatDateTimeInputValue, formatDateTimeLabel } from "./date-time";
 import {
   buildFrontOfficeAppointmentCalendarExport,
   buildFrontOfficeAppointmentExternalLinks,
@@ -39,6 +36,7 @@ export type FrontOfficeAppointmentRecord = {
   id: string;
   title: string;
   clientId: string | null;
+  clientHref: string | null;
   statusValue: AppointmentStatus;
   typeLabel: string;
   typeTone: FrontOfficeAppointmentTone;
@@ -47,10 +45,14 @@ export type FrontOfficeAppointmentRecord = {
   reminderLabel: string;
   reminderTone: FrontOfficeAppointmentTone;
   startsAtLabel: string;
+  endsAtLabel: string;
   locationLabel: string;
   clientLabel: string;
+  clientEmailLabel: string;
+  contactLabel: string;
   listingLabel: string;
   notesLabel: string;
+  meetingUrlLabel: string;
   listingOutputHref: string | null;
   googleCalendarHref: string;
   outlookCalendarHref: string;
@@ -75,6 +77,18 @@ export type FrontOfficeAppointmentRecord = {
   bridgeActionLabel: string;
   bridgeLoggedAtLabel: string;
   hasBridgeActivity: boolean;
+  bridgeHistory: FrontOfficeAppointmentCoordinationHistoryItem[];
+  writebackHistory: FrontOfficeAppointmentCoordinationHistoryItem[];
+};
+
+export type FrontOfficeAppointmentCoordinationHistoryItem = {
+  id: string;
+  kind: "bridge" | "writeback";
+  label: string;
+  detail: string;
+  actorLabel: string;
+  createdAtLabel: string;
+  tone: FrontOfficeAppointmentTone;
 };
 
 export type FrontOfficeAppointmentHandoffItem = {
@@ -95,10 +109,18 @@ export type FrontOfficeAppointmentsSnapshot = {
     touchDueCount: number;
     bridgedCount: number;
   };
+  filteredSummary: {
+    appointmentCount: number;
+    awaitingReplyCount: number;
+    touchDueCount: number;
+    confirmedCount: number;
+    bridgePendingCount: number;
+  };
   typeOptions: FrontOfficeAppointmentOption[];
   clientOptions: FrontOfficeAppointmentOption[];
   listingOptions: FrontOfficeAppointmentOption[];
   appointments: FrontOfficeAppointmentRecord[];
+  selectedAppointment: FrontOfficeAppointmentRecord | null;
   handoffs: FrontOfficeAppointmentHandoffItem[];
 };
 
@@ -107,6 +129,9 @@ export type GetFrontOfficeAppointmentsSnapshotInput = {
   viewerMembershipId: string;
   officeId?: string | null;
   timeZone?: string | null;
+  clientId?: string | null;
+  status?: string | null;
+  coordination?: string | null;
   targetAppointmentId?: string | null;
 };
 
@@ -197,6 +222,33 @@ export const frontOfficeAppointmentExternalWorkflowStatuses = {
 export type FrontOfficeAppointmentExternalWorkflowStatus =
   (typeof frontOfficeAppointmentExternalWorkflowStatuses)[keyof typeof frontOfficeAppointmentExternalWorkflowStatuses];
 
+const frontOfficeAppointmentListStatusFilters = {
+  all: "all",
+  scheduled: AppointmentStatus.scheduled,
+  completed: AppointmentStatus.completed,
+  canceled: AppointmentStatus.canceled,
+  noShow: AppointmentStatus.no_show,
+} as const;
+
+type FrontOfficeAppointmentListStatusFilter =
+  (typeof frontOfficeAppointmentListStatusFilters)[keyof typeof frontOfficeAppointmentListStatusFilters];
+
+const frontOfficeAppointmentCoordinationFilters = {
+  all: "all",
+  needsFollowUp: frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp,
+  confirmationPending:
+    frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
+  confirmed: frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
+  rescheduleRequested:
+    frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested,
+  touchDue: "touch_due",
+  bridgeLogged: "bridge_logged",
+  writebackPending: "writeback_pending",
+} as const;
+
+type FrontOfficeAppointmentCoordinationFilter =
+  (typeof frontOfficeAppointmentCoordinationFilters)[keyof typeof frontOfficeAppointmentCoordinationFilters];
+
 export type FrontOfficeAppointmentExternalWorkflowState = {
   value: FrontOfficeAppointmentExternalWorkflowStatus;
   label: string;
@@ -263,8 +315,7 @@ const appointmentSelect = Prisma.validator<Prisma.AppointmentSelect>()({
   },
 });
 
-const appointmentExternalWorkflowMetadataKey =
-  "frontOfficeExternalWorkflow";
+const appointmentExternalWorkflowMetadataKey = "frontOfficeExternalWorkflow";
 
 function buildOfficeScopeFilter(officeId: string | null | undefined) {
   if (!officeId) {
@@ -396,11 +447,27 @@ function isAppointmentStatus(
   );
 }
 
+function isFrontOfficeAppointmentListStatusFilter(
+  value: string | null | undefined,
+): value is FrontOfficeAppointmentListStatusFilter {
+  return Object.values(frontOfficeAppointmentListStatusFilters).includes(
+    value as FrontOfficeAppointmentListStatusFilter,
+  );
+}
+
 function isFrontOfficeAppointmentExternalWorkflowStatus(
   value: string | null | undefined,
 ): value is FrontOfficeAppointmentExternalWorkflowStatus {
   return Object.values(frontOfficeAppointmentExternalWorkflowStatuses).includes(
     value as FrontOfficeAppointmentExternalWorkflowStatus,
+  );
+}
+
+function isFrontOfficeAppointmentCoordinationFilter(
+  value: string | null | undefined,
+): value is FrontOfficeAppointmentCoordinationFilter {
+  return Object.values(frontOfficeAppointmentCoordinationFilters).includes(
+    value as FrontOfficeAppointmentCoordinationFilter,
   );
 }
 
@@ -494,7 +561,10 @@ function parseFrontOfficeAppointmentExternalWorkflowMetadata(
       : frontOfficeAppointmentExternalWorkflowStatuses.idle,
     updatedAt:
       updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
-    note: typeof noteValue === "string" && noteValue.trim() ? noteValue.trim() : null,
+    note:
+      typeof noteValue === "string" && noteValue.trim()
+        ? noteValue.trim()
+        : null,
     nextActionAt:
       nextActionAt && !Number.isNaN(nextActionAt.getTime())
         ? nextActionAt
@@ -653,13 +723,40 @@ type FrontOfficeAppointmentLatestBridgeAction = {
   createdAt: Date;
 };
 
-function parseAppointmentBridgeActionFromPayload(payload: Prisma.JsonValue | null) {
+type FrontOfficeAppointmentCoordinationArtifacts = {
+  bridgeStatusMap: Map<string, FrontOfficeAppointmentBridgeStatus>;
+  bridgeHistoryMap: Map<
+    string,
+    FrontOfficeAppointmentCoordinationHistoryItem[]
+  >;
+  writebackHistoryMap: Map<
+    string,
+    FrontOfficeAppointmentCoordinationHistoryItem[]
+  >;
+};
+
+type FrontOfficeAppointmentRelevantAuditChange = {
+  label: string;
+  previousValue: string;
+  nextValue: string;
+};
+
+const coordinationHistoryChangeLabels = new Set([
+  "External follow-up",
+  "External note",
+  "Next external touch",
+]);
+
+function parseAppointmentBridgeActionFromPayload(
+  payload: Prisma.JsonValue | null,
+) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return null;
   }
 
   const bridgeAction = "bridgeAction" in payload ? payload.bridgeAction : null;
-  const workflowReason = "workflowReason" in payload ? payload.workflowReason : null;
+  const workflowReason =
+    "workflowReason" in payload ? payload.workflowReason : null;
 
   if (
     typeof bridgeAction === "string" &&
@@ -676,6 +773,173 @@ function parseAppointmentBridgeActionFromPayload(payload: Prisma.JsonValue | nul
   }
 
   return null;
+}
+
+function parseAuditLogPayloadRecord(value: Prisma.JsonValue | null) {
+  return parseAppointmentMetadataRecord(value);
+}
+
+function parseRelevantAppointmentAuditChanges(
+  payload: Prisma.JsonValue | null,
+): FrontOfficeAppointmentRelevantAuditChange[] {
+  const record = parseAuditLogPayloadRecord(payload);
+  const rawChanges = record.changes;
+
+  if (!Array.isArray(rawChanges)) {
+    return [];
+  }
+
+  const changes: FrontOfficeAppointmentRelevantAuditChange[] = [];
+
+  for (const rawChange of rawChanges) {
+    if (
+      !rawChange ||
+      typeof rawChange !== "object" ||
+      Array.isArray(rawChange)
+    ) {
+      continue;
+    }
+
+    const label = "label" in rawChange ? rawChange.label : null;
+    const previousValue =
+      "previousValue" in rawChange ? rawChange.previousValue : null;
+    const nextValue = "nextValue" in rawChange ? rawChange.nextValue : null;
+
+    if (
+      typeof label !== "string" ||
+      !coordinationHistoryChangeLabels.has(label) ||
+      typeof previousValue !== "string" ||
+      typeof nextValue !== "string"
+    ) {
+      continue;
+    }
+
+    changes.push({
+      label,
+      previousValue,
+      nextValue,
+    });
+  }
+
+  return changes;
+}
+
+function parseAuditLogDetailLines(payload: Prisma.JsonValue | null) {
+  const record = parseAuditLogPayloadRecord(payload);
+  const rawDetails = record.details;
+
+  if (!Array.isArray(rawDetails)) {
+    return [];
+  }
+
+  return rawDetails
+    .filter((detail): detail is string => typeof detail === "string")
+    .map((detail) => detail.trim())
+    .filter(Boolean);
+}
+
+function formatAuditActorLabel(
+  membership:
+    | {
+        user: {
+          firstName: string;
+          lastName: string;
+          email: string;
+        };
+      }
+    | null
+    | undefined,
+) {
+  if (!membership?.user) {
+    return "Acre user";
+  }
+
+  const fullName =
+    `${membership.user.firstName} ${membership.user.lastName}`.trim();
+  return fullName || membership.user.email || "Acre user";
+}
+
+function mapExternalWorkflowLabelTone(
+  label: string | null | undefined,
+): FrontOfficeAppointmentTone {
+  switch (label?.trim()) {
+    case "Confirmed":
+      return "success";
+    case "Reschedule requested":
+      return "danger";
+    case "Needs follow-up":
+      return "warning";
+    case "Awaiting confirmation":
+      return "accent";
+    default:
+      return "accent";
+  }
+}
+
+function buildBridgeHistoryItem(input: {
+  id: string;
+  createdAt: Date;
+  action: FrontOfficeAppointmentBridgeAction;
+  actorLabel: string;
+  payload: Prisma.JsonValue | null;
+  timeZone?: string | null;
+}): FrontOfficeAppointmentCoordinationHistoryItem {
+  const createdAtLabel = formatDateTimeLabel(input.createdAt, {
+    timeZone: input.timeZone ?? null,
+  });
+  const detailLines = parseAuditLogDetailLines(input.payload).filter(
+    (detail) =>
+      detail.startsWith("Acre status:") ||
+      detail.startsWith("External coordination:") ||
+      detail.startsWith("Next external touch:") ||
+      detail.startsWith("Writeback note:"),
+  );
+
+  return {
+    id: input.id,
+    kind: "bridge",
+    label: `${formatFrontOfficeAppointmentBridgeActionLabel(input.action)} opened`,
+    detail:
+      detailLines.slice(0, 3).join(" · ") ||
+      "Opened from the appointment record in Acre.",
+    actorLabel: input.actorLabel,
+    createdAtLabel,
+    tone: "accent",
+  };
+}
+
+function buildWritebackHistoryItem(input: {
+  id: string;
+  createdAt: Date;
+  actorLabel: string;
+  payload: Prisma.JsonValue | null;
+  timeZone?: string | null;
+}): FrontOfficeAppointmentCoordinationHistoryItem | null {
+  const changes = parseRelevantAppointmentAuditChanges(input.payload);
+
+  if (!changes.length) {
+    return null;
+  }
+
+  const createdAtLabel = formatDateTimeLabel(input.createdAt, {
+    timeZone: input.timeZone ?? null,
+  });
+  const statusChange = changes.find(
+    (change) => change.label === "External follow-up",
+  );
+  const nextLabel = statusChange?.nextValue?.trim();
+
+  return {
+    id: input.id,
+    kind: "writeback",
+    label: nextLabel ? `Writeback saved: ${nextLabel}` : "Writeback updated",
+    detail: changes
+      .map((change) => `${change.label}: ${change.nextValue}`)
+      .join(" · "),
+    actorLabel: input.actorLabel,
+    createdAtLabel,
+    tone: mapExternalWorkflowLabelTone(nextLabel),
+  };
 }
 
 function buildFrontOfficeAppointmentBridgeStatus(
@@ -722,8 +986,8 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
   const isScheduled = input.appointmentStatus === AppointmentStatus.scheduled;
   const isExternalTouchDue = Boolean(
     isScheduled &&
-      input.externalWorkflow.nextActionAt &&
-      input.externalWorkflow.nextActionAt.getTime() <= input.now.getTime(),
+    input.externalWorkflow.nextActionAt &&
+    input.externalWorkflow.nextActionAt.getTime() <= input.now.getTime(),
   );
   const requiresExternalResponse =
     isScheduled &&
@@ -741,7 +1005,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       ? `Next external touch is overdue since ${input.externalWorkflow.nextActionAtLabel}.`
       : `Next external touch is set for ${input.externalWorkflow.nextActionAtLabel}.`
     : input.externalWorkflow.value !==
-          frontOfficeAppointmentExternalWorkflowStatuses.idle
+        frontOfficeAppointmentExternalWorkflowStatuses.idle
       ? "No next external touch deadline is saved yet."
       : "";
   const noteSummary = input.externalWorkflow.note
@@ -886,64 +1150,155 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
   }
 }
 
-export async function getFrontOfficeAppointmentBridgeStatusMap(input: {
+async function getFrontOfficeAppointmentCoordinationArtifacts(input: {
   organizationId: string;
   appointmentIds: string[];
   timeZone?: string | null;
-}) {
-  const uniqueAppointmentIds = [...new Set(input.appointmentIds.filter(Boolean))];
+}): Promise<FrontOfficeAppointmentCoordinationArtifacts> {
+  const uniqueAppointmentIds = [
+    ...new Set(input.appointmentIds.filter(Boolean)),
+  ];
 
   if (!uniqueAppointmentIds.length) {
-    return new Map<string, FrontOfficeAppointmentBridgeStatus>();
+    return {
+      bridgeStatusMap: new Map<string, FrontOfficeAppointmentBridgeStatus>(),
+      bridgeHistoryMap: new Map<
+        string,
+        FrontOfficeAppointmentCoordinationHistoryItem[]
+      >(),
+      writebackHistoryMap: new Map<
+        string,
+        FrontOfficeAppointmentCoordinationHistoryItem[]
+      >(),
+    };
   }
 
-  const bridgeLogs = await prisma.auditLog.findMany({
+  const logs = await prisma.auditLog.findMany({
     where: {
       organizationId: input.organizationId,
       entityType: "appointment",
       entityId: {
         in: uniqueAppointmentIds,
       },
-      action: activityLogActions.appointmentBridgeOpened,
+      action: {
+        in: [
+          activityLogActions.appointmentBridgeOpened,
+          activityLogActions.appointmentUpdated,
+        ],
+      },
     },
     orderBy: [{ createdAt: "desc" }],
     select: {
+      id: true,
       entityId: true,
+      action: true,
       createdAt: true,
       payload: true,
+      membership: {
+        select: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      },
     },
   });
   const latestBridgeActionMap = new Map<
     string,
     FrontOfficeAppointmentLatestBridgeAction
   >();
+  const bridgeHistoryMap = new Map<
+    string,
+    FrontOfficeAppointmentCoordinationHistoryItem[]
+  >();
+  const writebackHistoryMap = new Map<
+    string,
+    FrontOfficeAppointmentCoordinationHistoryItem[]
+  >();
 
-  for (const log of bridgeLogs) {
-    if (latestBridgeActionMap.has(log.entityId)) {
+  for (const log of logs) {
+    const actorLabel = formatAuditActorLabel(log.membership);
+
+    if (log.action === activityLogActions.appointmentBridgeOpened) {
+      const action = parseAppointmentBridgeActionFromPayload(log.payload);
+
+      if (!action) {
+        continue;
+      }
+
+      if (!latestBridgeActionMap.has(log.entityId)) {
+        latestBridgeActionMap.set(log.entityId, {
+          action,
+          createdAt: log.createdAt,
+        });
+      }
+
+      const existingBridgeHistory = bridgeHistoryMap.get(log.entityId) ?? [];
+
+      if (existingBridgeHistory.length < 5) {
+        existingBridgeHistory.push(
+          buildBridgeHistoryItem({
+            id: log.id,
+            createdAt: log.createdAt,
+            action,
+            actorLabel,
+            payload: log.payload,
+            timeZone: input.timeZone,
+          }),
+        );
+        bridgeHistoryMap.set(log.entityId, existingBridgeHistory);
+      }
+
       continue;
     }
 
-    const action = parseAppointmentBridgeActionFromPayload(log.payload);
-
-    if (!action) {
-      continue;
-    }
-
-    latestBridgeActionMap.set(log.entityId, {
-      action,
+    const writebackHistoryItem = buildWritebackHistoryItem({
+      id: log.id,
       createdAt: log.createdAt,
+      actorLabel,
+      payload: log.payload,
+      timeZone: input.timeZone,
     });
+
+    if (!writebackHistoryItem) {
+      continue;
+    }
+
+    const existingWritebackHistory =
+      writebackHistoryMap.get(log.entityId) ?? [];
+
+    if (existingWritebackHistory.length < 5) {
+      existingWritebackHistory.push(writebackHistoryItem);
+      writebackHistoryMap.set(log.entityId, existingWritebackHistory);
+    }
   }
 
-  return new Map(
-    uniqueAppointmentIds.map((appointmentId) => [
-      appointmentId,
-      buildFrontOfficeAppointmentBridgeStatus(
-        latestBridgeActionMap.get(appointmentId),
-        input.timeZone,
-      ),
-    ]),
-  );
+  return {
+    bridgeStatusMap: new Map(
+      uniqueAppointmentIds.map((appointmentId) => [
+        appointmentId,
+        buildFrontOfficeAppointmentBridgeStatus(
+          latestBridgeActionMap.get(appointmentId),
+          input.timeZone,
+        ),
+      ]),
+    ),
+    bridgeHistoryMap,
+    writebackHistoryMap,
+  };
+}
+
+export async function getFrontOfficeAppointmentBridgeStatusMap(input: {
+  organizationId: string;
+  appointmentIds: string[];
+  timeZone?: string | null;
+}) {
+  const artifacts = await getFrontOfficeAppointmentCoordinationArtifacts(input);
+  return artifacts.bridgeStatusMap;
 }
 
 function mapAppointmentRecord(
@@ -952,7 +1307,11 @@ function mapAppointmentRecord(
   }>,
   now: Date,
   timeZone?: string | null,
-  bridgeStatus?: FrontOfficeAppointmentBridgeStatus | null,
+  coordinationArtifacts?: {
+    bridgeStatus?: FrontOfficeAppointmentBridgeStatus | null;
+    bridgeHistory?: FrontOfficeAppointmentCoordinationHistoryItem[];
+    writebackHistory?: FrontOfficeAppointmentCoordinationHistoryItem[];
+  } | null,
 ): FrontOfficeAppointmentRecord {
   const meetingOrLocation =
     appointment.location?.trim() ||
@@ -994,8 +1353,8 @@ function mapAppointmentRecord(
     listingCity: appointment.listing?.city,
     timeZone,
   });
-  const resolvedBridgeStatus = bridgeStatus
-    ? bridgeStatus
+  const resolvedBridgeStatus = coordinationArtifacts?.bridgeStatus
+    ? coordinationArtifacts.bridgeStatus
     : buildFrontOfficeAppointmentBridgeStatus(null, timeZone);
   const coordination = buildFrontOfficeAppointmentCoordinationSummary({
     appointmentStatus: appointment.status,
@@ -1010,6 +1369,9 @@ function mapAppointmentRecord(
     id: appointment.id,
     title: appointment.title,
     clientId: appointment.client?.id ?? null,
+    clientHref: appointment.client?.id
+      ? `/agent/clients/${appointment.client.id}`
+      : null,
     statusValue: appointment.status,
     typeLabel,
     typeTone: mapAppointmentTypeTone(appointment.type),
@@ -1018,10 +1380,18 @@ function mapAppointmentRecord(
     reminderLabel: reminder.label,
     reminderTone: reminder.tone,
     startsAtLabel: formatDateTimeLabel(appointment.startsAt, { timeZone }),
+    endsAtLabel: appointment.endsAt
+      ? formatDateTimeLabel(appointment.endsAt, { timeZone })
+      : "No end time set",
     locationLabel: meetingOrLocation,
     clientLabel,
+    clientEmailLabel:
+      appointment.client?.email?.trim() || "No client email saved",
+    contactLabel:
+      appointment.contactLabel?.trim() || "No external contact noted",
     listingLabel,
     notesLabel,
+    meetingUrlLabel: appointment.meetingUrl?.trim() || "No meeting link saved",
     listingOutputHref: appointment.client?.id
       ? `/agent/listings?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
       : null,
@@ -1048,7 +1418,72 @@ function mapAppointmentRecord(
     bridgeActionLabel: resolvedBridgeStatus.actionLabel,
     bridgeLoggedAtLabel: resolvedBridgeStatus.loggedAtLabel,
     hasBridgeActivity: resolvedBridgeStatus.hasBridgeActivity,
+    bridgeHistory: coordinationArtifacts?.bridgeHistory ?? [],
+    writebackHistory: coordinationArtifacts?.writebackHistory ?? [],
   };
+}
+
+function appointmentMatchesSnapshotFilters(input: {
+  appointment: FrontOfficeAppointmentRecord;
+  clientId?: string | null;
+  status?: string | null;
+  coordination?: string | null;
+}) {
+  const normalizedClientId = input.clientId?.trim() || null;
+  const normalizedStatus = isFrontOfficeAppointmentListStatusFilter(
+    input.status,
+  )
+    ? input.status
+    : frontOfficeAppointmentListStatusFilters.all;
+  const normalizedCoordination = isFrontOfficeAppointmentCoordinationFilter(
+    input.coordination,
+  )
+    ? input.coordination
+    : frontOfficeAppointmentCoordinationFilters.all;
+
+  if (normalizedClientId && input.appointment.clientId !== normalizedClientId) {
+    return false;
+  }
+
+  if (
+    normalizedStatus !== frontOfficeAppointmentListStatusFilters.all &&
+    input.appointment.statusValue !== normalizedStatus
+  ) {
+    return false;
+  }
+
+  if (
+    normalizedCoordination === frontOfficeAppointmentCoordinationFilters.all
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedCoordination ===
+    frontOfficeAppointmentCoordinationFilters.touchDue
+  ) {
+    return input.appointment.isExternalTouchDue;
+  }
+
+  if (
+    normalizedCoordination ===
+    frontOfficeAppointmentCoordinationFilters.bridgeLogged
+  ) {
+    return input.appointment.hasBridgeActivity;
+  }
+
+  if (
+    normalizedCoordination ===
+    frontOfficeAppointmentCoordinationFilters.writebackPending
+  ) {
+    return (
+      input.appointment.hasBridgeActivity &&
+      input.appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.idle
+    );
+  }
+
+  return input.appointment.externalStatusValue === normalizedCoordination;
 }
 
 export async function getFrontOfficeAppointmentsSnapshot(
@@ -1234,7 +1669,9 @@ export async function getFrontOfficeAppointmentsSnapshot(
     }),
   ]);
   const visibleAppointments = targetedAppointment
-    ? appointments.some((appointment) => appointment.id === targetedAppointment.id)
+    ? appointments.some(
+        (appointment) => appointment.id === targetedAppointment.id,
+      )
       ? appointments
       : [...appointments, targetedAppointment]
     : appointments;
@@ -1245,32 +1682,68 @@ export async function getFrontOfficeAppointmentsSnapshot(
 
     return right.updatedAt.getTime() - left.updatedAt.getTime();
   });
-  const appointmentBridgeStatusMap =
-    await getFrontOfficeAppointmentBridgeStatusMap({
+  const coordinationArtifacts =
+    await getFrontOfficeAppointmentCoordinationArtifacts({
       organizationId: input.organizationId,
       appointmentIds: visibleAppointments.map((appointment) => appointment.id),
       timeZone: input.timeZone,
     });
-  const appointmentRecords = visibleAppointments.map((appointment) =>
-    mapAppointmentRecord(
-      appointment,
-      now,
-      input.timeZone,
-      appointmentBridgeStatusMap.get(appointment.id) ?? null,
-    ),
+  const mappedAppointmentRecords = visibleAppointments.map((appointment) =>
+    mapAppointmentRecord(appointment, now, input.timeZone, {
+      bridgeStatus:
+        coordinationArtifacts.bridgeStatusMap.get(appointment.id) ?? null,
+      bridgeHistory:
+        coordinationArtifacts.bridgeHistoryMap.get(appointment.id) ?? [],
+      writebackHistory:
+        coordinationArtifacts.writebackHistoryMap.get(appointment.id) ?? [],
+    }),
   );
-  const awaitingReplyCount = appointmentRecords.filter(
+  const selectedAppointment = input.targetAppointmentId?.trim()
+    ? (mappedAppointmentRecords.find(
+        (appointment) => appointment.id === input.targetAppointmentId?.trim(),
+      ) ?? null)
+    : null;
+  const appointmentRecords = mappedAppointmentRecords.filter((appointment) =>
+    appointmentMatchesSnapshotFilters({
+      appointment,
+      clientId: input.clientId,
+      status: input.status,
+      coordination: input.coordination,
+    }),
+  );
+  const awaitingReplyCount = mappedAppointmentRecords.filter(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.requiresExternalResponse,
   ).length;
-  const touchDueCount = appointmentRecords.filter(
+  const touchDueCount = mappedAppointmentRecords.filter(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.isExternalTouchDue,
   ).length;
-  const bridgedCount = appointmentRecords.filter(
+  const bridgedCount = mappedAppointmentRecords.filter(
     (appointment) => appointment.hasBridgeActivity,
+  ).length;
+  const filteredAwaitingReplyCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.requiresExternalResponse,
+  ).length;
+  const filteredTouchDueCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.isExternalTouchDue,
+  ).length;
+  const filteredConfirmedCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.externalStatusValue ===
+      frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
+  ).length;
+  const filteredBridgePendingCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.hasBridgeActivity &&
+      appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.idle,
   ).length;
 
   return {
@@ -1282,6 +1755,13 @@ export async function getFrontOfficeAppointmentsSnapshot(
       awaitingReplyCount,
       touchDueCount,
       bridgedCount,
+    },
+    filteredSummary: {
+      appointmentCount: appointmentRecords.length,
+      awaitingReplyCount: filteredAwaitingReplyCount,
+      touchDueCount: filteredTouchDueCount,
+      confirmedCount: filteredConfirmedCount,
+      bridgePendingCount: filteredBridgePendingCount,
     },
     typeOptions: frontOfficeAppointmentTypeDefinitions.map((option) => ({
       value: option.value,
@@ -1296,6 +1776,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
       label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
     })),
     appointments: appointmentRecords,
+    selectedAppointment,
     handoffs: handoffs.map((draft) => ({
       id: draft.id,
       clientName: draft.client.fullName,
@@ -1440,7 +1921,9 @@ export async function updateFrontOfficeAppointmentStatus(
     input.externalStatus !== "" &&
     !isFrontOfficeAppointmentExternalWorkflowStatus(input.externalStatus)
   ) {
-    throw new Error("A valid appointment external workflow status is required.");
+    throw new Error(
+      "A valid appointment external workflow status is required.",
+    );
   }
 
   const nextStatus = isAppointmentStatus(input.status) ? input.status : null;
@@ -1481,10 +1964,10 @@ export async function updateFrontOfficeAppointmentStatus(
   );
   const shouldUpdateExternalWorkflow = Boolean(
     nextExternalStatus &&
-      (currentExternalWorkflow.status !== nextExternalStatus ||
-        currentExternalWorkflow.note !== nextExternalNote ||
-        currentExternalWorkflow.nextActionAt?.getTime() !==
-          nextExternalActionAt?.getTime()),
+    (currentExternalWorkflow.status !== nextExternalStatus ||
+      currentExternalWorkflow.note !== nextExternalNote ||
+      currentExternalWorkflow.nextActionAt?.getTime() !==
+        nextExternalActionAt?.getTime()),
   );
 
   if (!shouldUpdateStatus && !shouldUpdateExternalWorkflow) {
@@ -1705,7 +2188,8 @@ export async function getFrontOfficeAppointmentBridgeResult(
     timeZone: input.timeZone ?? null,
   });
   const externalStatusLabel =
-    externalWorkflow.value === frontOfficeAppointmentExternalWorkflowStatuses.idle
+    externalWorkflow.value ===
+    frontOfficeAppointmentExternalWorkflowStatuses.idle
       ? null
       : externalWorkflow.label;
 

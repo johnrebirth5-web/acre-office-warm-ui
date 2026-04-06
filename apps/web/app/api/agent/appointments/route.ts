@@ -33,6 +33,10 @@ export async function GET(request: NextRequest) {
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
       timeZone: context.currentUser.timezone,
+      clientId: request.nextUrl.searchParams.get("clientId"),
+      status: request.nextUrl.searchParams.get("status"),
+      coordination: request.nextUrl.searchParams.get("coordination"),
+      targetAppointmentId: request.nextUrl.searchParams.get("appointmentId"),
     }),
   });
 }

@@ -44,7 +44,12 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     viewerMembershipId: context.currentMembership.id,
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
-    targetAppointmentId: readSearchParamValue(searchParams.appointmentId)?.trim(),
+    clientId: readSearchParamValue(searchParams.clientId)?.trim(),
+    status: readSearchParamValue(searchParams.status)?.trim(),
+    coordination: readSearchParamValue(searchParams.coordination)?.trim(),
+    targetAppointmentId: readSearchParamValue(
+      searchParams.appointmentId,
+    )?.trim(),
   });
   const requestedClientId = readSearchParamValue(searchParams.clientId)?.trim();
   const initialClientId = snapshot.clientOptions.some(
@@ -55,7 +60,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback readability, and the next Back Office handoff visible on the same page."
+      description="Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback history, detail focus, and the next Back Office handoff visible on the same page."
       eyebrow="Calendar"
       main={
         <FrontOfficeCalendarClient
@@ -67,7 +72,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="A compact read on the live calendar queue, with the external coordination pressure derived from the same appointment records and bridge trail."
+            subtitle="A compact read on the live calendar queue, with external coordination pressure still derived from the same appointment records and bridge trail rather than a fake provider sync layer."
             title="Workflow signals"
           >
             <ListPageStatsGrid>
