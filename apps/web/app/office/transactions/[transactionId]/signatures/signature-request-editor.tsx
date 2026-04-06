@@ -1097,7 +1097,7 @@ export function SignatureRequestEditor({
                 </FormField>
                 <FormField
                   className="office-form-grid-span-2"
-                  helper="Replies to the invitation email and the finalized signed PDF notification will go to this address."
+                  helper="Replies to the invitation email go to this address, and the finalized signed PDF notification is also copied here alongside all signature participants."
                   label="Reply-to email"
                 >
                   <TextInput onChange={(event) => updateDraftField("senderReplyTo", event.target.value)} type="email" value={draftState.senderReplyTo} />

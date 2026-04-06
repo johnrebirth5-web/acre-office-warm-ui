@@ -2,10 +2,11 @@ import { createTransactionDocument, getPublicSignatureDocumentStorageRecord, get
 import { NextRequest, NextResponse } from "next/server";
 import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
 import { getAppBaseUrl } from "../../../../../../lib/request-origin";
+import { listSignatureCompletionRecipients } from "../../../../../../lib/signature-completion-recipients";
 import { validateRecipientFieldSubmission } from "../../../../../../lib/public-signature-access";
 import { attemptSignatureDriveSync } from "../../../../../../lib/signature-drive-sync";
 import { buildSignedPdf, type SubmittedSignatureFieldValue } from "../../../../../../lib/signature-pdf";
-import { sendSignatureCompletionEmail, sendSignatureRequestEmail } from "../../../../../../lib/signature-email";
+import { sendSignatureCompletionEmails, sendSignatureRequestEmail } from "../../../../../../lib/signature-email";
 import { createSignatureToken } from "../../../../../../lib/signature-token";
 
 type RouteContext = {
@@ -237,9 +238,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     try {
-      await sendSignatureCompletionEmail({
+      await sendSignatureCompletionEmails({
         organizationId: documentRecord.organizationId,
-        to: refreshedSnapshot.request.senderReplyTo || null,
+        recipients: listSignatureCompletionRecipients(refreshedSnapshot.request),
         documentTitle: refreshedSnapshot.document.title,
         signerName: snapshot.currentRecipient.name,
         signerEmail: snapshot.currentRecipient.email,

@@ -38,7 +38,7 @@ Provide a real document workflow with structured documents, unsorted docs, inter
   - no-login public signing page with fixed field overlays, prefilled values, and signer-specific locking
   - signature capture by draw / typed signature / uploaded signature image
   - signed PDF generation and archive back into transaction documents
-  - completion email delivery to the configured reply-to inbox, including the finalized signed PDF as an attachment
+  - completion email delivery to every signature participant plus the configured reply-to inbox, including the finalized signed PDF as an attachment
   - immediate Google Drive sync attempt for original + signed copy, with visible failure state and manual retry
   - signature audit timeline alongside internal `Activity Log`
 - signature requests now support statuses:

@@ -18,7 +18,7 @@ type SignatureEmailInput = {
 
 type SignatureCompletionEmailInput = {
   organizationId: string;
-  to?: string | null;
+  to: string;
   documentTitle: string;
   signerName: string;
   signerEmail: string;
@@ -326,10 +326,7 @@ export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
 
 export async function sendSignatureCompletionEmail(input: SignatureCompletionEmailInput) {
   const context = await resolveSignatureMailerContext(input.organizationId);
-  const recipient =
-    input.to?.trim() ||
-    (context.provider === "resend" ? context.profile.defaultReplyTo : context.config.defaultReplyTo) ||
-    "";
+  const recipient = input.to.trim();
 
   if (!recipient) {
     return false;
@@ -373,4 +370,38 @@ export async function sendSignatureCompletionEmail(input: SignatureCompletionEma
   });
 
   return true;
+}
+
+type SignatureCompletionBatchEmailInput = Omit<SignatureCompletionEmailInput, "to"> & {
+  recipients: string[];
+};
+
+export async function sendSignatureCompletionEmails(input: SignatureCompletionBatchEmailInput) {
+  const recipients = [...new Set(input.recipients.map((recipient) => recipient.trim()).filter(Boolean))];
+
+  if (!recipients.length) {
+    return { deliveredCount: 0 };
+  }
+
+  const failures: string[] = [];
+  let deliveredCount = 0;
+
+  for (const recipient of recipients) {
+    try {
+      await sendSignatureCompletionEmail({
+        ...input,
+        to: recipient
+      });
+      deliveredCount += 1;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "unknown error";
+      failures.push(`${recipient}: ${detail}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`Signature completion email failed for ${failures.join("; ")}`);
+  }
+
+  return { deliveredCount };
 }
