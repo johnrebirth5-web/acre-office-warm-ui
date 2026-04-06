@@ -1,5 +1,5 @@
 import { canAccessOfficeNotifications } from "@acre/auth";
-import { markAllOfficeNotificationsRead } from "@acre/db";
+import { markAllOfficeNotificationsRead, markOfficeNotificationsReadByIds } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRequestOfficeSession } from "../../../../lib/auth-session";
 
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as
     | {
         action?: string;
+        notificationIds?: string[];
         type?: string;
         category?: string;
       }
@@ -26,13 +27,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A valid notification action is required." }, { status: 400 });
   }
 
-  const count = await markAllOfficeNotificationsRead({
-    organizationId: context.currentOrganization.id,
-    officeId: context.currentOffice?.id ?? null,
-    membershipId: context.currentMembership.id,
-    type: body.type,
-    category: body.category
-  });
+  const count = Array.isArray(body.notificationIds)
+    ? await markOfficeNotificationsReadByIds({
+        organizationId: context.currentOrganization.id,
+        officeId: context.currentOffice?.id ?? null,
+        membershipId: context.currentMembership.id,
+        notificationIds: body.notificationIds
+      })
+    : await markAllOfficeNotificationsRead({
+        organizationId: context.currentOrganization.id,
+        officeId: context.currentOffice?.id ?? null,
+        membershipId: context.currentMembership.id,
+        type: body.type,
+        category: body.category
+      });
 
   return NextResponse.json({ updatedCount: count });
 }

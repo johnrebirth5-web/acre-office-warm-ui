@@ -3,9 +3,9 @@ import {
   NotificationEntityType,
   NotificationSeverity,
   NotificationType,
+  Prisma,
   TaskStatus,
   type OfferStatus,
-  type Prisma,
   type UserRole
 } from "@prisma/client";
 import {
@@ -28,12 +28,14 @@ type NotificationPreferenceField =
   | "messageAlertsEnabled";
 
 export type OfficeNotificationReadFilter = "all" | "unread" | "read";
+export type OfficeNotificationView = "inbox" | "archived";
 export type OfficeNotificationPermissionGroup = "task_reviewers" | "secondary_task_reviewers" | "incoming_update_reviewers";
 
 export type ListOfficeNotificationsInput = {
   organizationId: string;
   officeId?: string | null;
   membershipId: string;
+  view?: string;
   type?: string;
   category?: string;
   readState?: string;
@@ -41,6 +43,8 @@ export type ListOfficeNotificationsInput = {
 
 export type OfficeNotificationSummary = {
   totalCount: number;
+  activeCount: number;
+  archivedCount: number;
   unreadCount: number;
   reviewCount: number;
   timeSensitiveCount: number;
@@ -48,6 +52,7 @@ export type OfficeNotificationSummary = {
 };
 
 export type OfficeNotificationFilterState = {
+  view: OfficeNotificationView;
   type: string;
   category: string;
   readState: OfficeNotificationReadFilter;
@@ -72,7 +77,9 @@ export type OfficeNotificationItem = {
   actionUrl: string;
   openHref: string;
   isUnread: boolean;
+  isArchived: boolean;
   createdAtLabel: string;
+  inboxStateLabel: "Inbox" | "Archived";
   readStateLabel: "Unread" | "Read";
 };
 
@@ -226,6 +233,28 @@ const categoryFilterOrder: NotificationCategory[] = [
 ];
 
 const readStateOptions: OfficeNotificationReadFilter[] = ["all", "unread", "read"];
+const notificationViewOptions: OfficeNotificationView[] = ["inbox", "archived"];
+const officeNotificationInboxStateKey = "officeInboxState";
+const officeNotificationArchivedAtKey = "archivedAt";
+
+type NotificationMetadataValue = Prisma.JsonValue | Prisma.InputJsonValue | null | undefined;
+
+type OfficeNotificationListRecord = {
+  id: string;
+  type: NotificationType;
+  category: NotificationCategory | null;
+  severity: NotificationSeverity | null;
+  title: string;
+  body: string;
+  actionUrl: string | null;
+  readAt: Date | null;
+  createdAt: Date;
+  metadata: Prisma.JsonValue | null;
+};
+
+type DecoratedOfficeNotificationRecord = OfficeNotificationListRecord & {
+  isArchived: boolean;
+};
 
 function getNotificationPreferenceField(type: NotificationType): NotificationPreferenceField | null {
   if (
@@ -344,6 +373,14 @@ function normalizeReadState(value: string | undefined): OfficeNotificationReadFi
   return "all";
 }
 
+function normalizeNotificationView(value: string | undefined): OfficeNotificationView {
+  if (notificationViewOptions.includes(value as OfficeNotificationView)) {
+    return value as OfficeNotificationView;
+  }
+
+  return "inbox";
+}
+
 function formatDateLabel(date: Date) {
   return date.toLocaleDateString("en-US", {
     month: "short",
@@ -373,6 +410,84 @@ function getRelativeUrl(value: string | null | undefined) {
 
   const trimmed = value.trim();
   return trimmed.startsWith("/") ? trimmed : "";
+}
+
+function getJsonObject(value: NotificationMetadataValue) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, Prisma.InputJsonValue>;
+}
+
+function buildOfficeNotificationMetadata(input: {
+  metadata: NotificationMetadataValue;
+  archivedAt: Date | null;
+}): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  const nextMetadata = { ...(getJsonObject(input.metadata) ?? {}) };
+  const existingInboxState = getJsonObject(nextMetadata[officeNotificationInboxStateKey]);
+
+  if (input.archivedAt) {
+    nextMetadata[officeNotificationInboxStateKey] = {
+      ...(existingInboxState ?? {}),
+      [officeNotificationArchivedAtKey]: input.archivedAt.toISOString()
+    };
+    return nextMetadata;
+  }
+
+  if (existingInboxState) {
+    const nextInboxState = { ...existingInboxState };
+    delete nextInboxState[officeNotificationArchivedAtKey];
+
+    if (Object.keys(nextInboxState).length > 0) {
+      nextMetadata[officeNotificationInboxStateKey] = nextInboxState;
+    } else {
+      delete nextMetadata[officeNotificationInboxStateKey];
+    }
+  }
+
+  return Object.keys(nextMetadata).length > 0 ? nextMetadata : Prisma.JsonNull;
+}
+
+function getOfficeNotificationArchivedAt(metadata: Prisma.JsonValue | null) {
+  const inboxState = getJsonObject(getJsonObject(metadata)?.[officeNotificationInboxStateKey]);
+  const archivedAt = inboxState?.[officeNotificationArchivedAtKey];
+
+  return typeof archivedAt === "string" && archivedAt.trim().length > 0 ? archivedAt : "";
+}
+
+function isOfficeNotificationArchived(metadata: Prisma.JsonValue | null) {
+  return getOfficeNotificationArchivedAt(metadata).length > 0;
+}
+
+function matchesNotificationReadState(
+  notification: { readAt: Date | null },
+  readState: OfficeNotificationReadFilter
+) {
+  if (readState === "unread") {
+    return notification.readAt == null;
+  }
+
+  if (readState === "read") {
+    return notification.readAt != null;
+  }
+
+  return true;
+}
+
+function compareOfficeNotifications(
+  left: { readAt: Date | null; createdAt: Date },
+  right: { readAt: Date | null; createdAt: Date }
+) {
+  if (left.readAt == null && right.readAt != null) {
+    return -1;
+  }
+
+  if (left.readAt != null && right.readAt == null) {
+    return 1;
+  }
+
+  return right.createdAt.getTime() - left.createdAt.getTime();
 }
 
 function buildNotificationInboxWhere(input: {
@@ -691,7 +806,8 @@ export async function upsertNotificationForMemberships(db: NotificationDbClient,
         entityId: input.entityId ?? null
       },
       select: {
-        id: true
+        id: true,
+        metadata: true
       }
     });
 
@@ -706,7 +822,10 @@ export async function upsertNotificationForMemberships(db: NotificationDbClient,
           eventId: input.eventId ?? null,
           category: input.category ?? null,
           severity: input.severity ?? null,
-          metadata: input.metadata,
+          metadata: buildOfficeNotificationMetadata({
+            metadata: input.metadata ?? existing.metadata,
+            archivedAt: null
+          }),
           title: input.title,
           body: input.body,
           actionUrl: getRelativeUrl(input.actionUrl) || null,
@@ -1207,21 +1326,14 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
     membershipId: input.membershipId
   });
 
+  const selectedView = normalizeNotificationView(input.view);
   const selectedType = normalizeNotificationType(input.type);
   const selectedCategory = normalizeNotificationCategory(input.category);
   const readState = normalizeReadState(input.readState);
   const baseWhere = buildNotificationInboxWhere({
     organizationId: input.organizationId,
     officeId: input.officeId ?? null,
-    membershipId: input.membershipId
-  });
-  const filteredWhere = buildNotificationInboxWhere({
-    organizationId: input.organizationId,
-    officeId: input.officeId ?? null,
     membershipId: input.membershipId,
-    type: selectedType,
-    category: selectedCategory,
-    readState
   });
 
   const payoutStatementWhere: Prisma.AgentPayoutStatementWhereInput = {
@@ -1235,20 +1347,10 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
       : {})
   };
 
-  const [allNotifications, filteredNotifications, payoutReviewCount, payoutReviewStatements] = await Promise.all([
+  const [notificationRecords, payoutReviewCount, payoutReviewStatements] = await Promise.all([
     prisma.notification.findMany({
       where: baseWhere,
-      select: {
-        id: true,
-        type: true,
-        category: true,
-        severity: true,
-        readAt: true
-      }
-    }),
-    prisma.notification.findMany({
-      where: filteredWhere,
-      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      orderBy: [{ createdAt: "desc" }],
       select: {
         id: true,
         type: true,
@@ -1258,7 +1360,8 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
         body: true,
         actionUrl: true,
         readAt: true,
-        createdAt: true
+        createdAt: true,
+        metadata: true
       }
     }),
     prisma.agentPayoutStatement.count({
@@ -1278,11 +1381,24 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
     })
   ]);
 
-  const unreadNotifications = allNotifications.filter((notification) => !notification.readAt);
+  const allNotifications: DecoratedOfficeNotificationRecord[] = notificationRecords.map((notification) => ({
+    ...notification,
+    isArchived: isOfficeNotificationArchived(notification.metadata)
+  }));
+  const activeNotifications = allNotifications.filter((notification) => !notification.isArchived);
+  const archivedNotifications = allNotifications.filter((notification) => notification.isArchived);
+  const notificationsInSelectedView = (selectedView === "archived" ? archivedNotifications : activeNotifications).filter(
+    (notification) =>
+      (!selectedType || notification.type === selectedType) &&
+      (!selectedCategory || notification.category === selectedCategory) &&
+      matchesNotificationReadState(notification, readState)
+  );
+  const filteredNotifications = [...notificationsInSelectedView].sort(compareOfficeNotifications);
+  const activeUnreadNotifications = activeNotifications.filter((notification) => !notification.readAt);
   const typeCounts = new Map<NotificationType, number>();
   const categoryCounts = new Map<NotificationCategory, number>();
 
-  for (const notification of allNotifications) {
+  for (const notification of selectedView === "archived" ? archivedNotifications : activeNotifications) {
     typeCounts.set(notification.type, (typeCounts.get(notification.type) ?? 0) + 1);
 
     if (notification.category) {
@@ -1312,7 +1428,9 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
       actionUrl: getRelativeUrl(notification.actionUrl),
       openHref: `/office/notifications/${notification.id}/open`,
       isUnread: !notification.readAt,
+      isArchived: notification.isArchived,
       createdAtLabel: formatDateTimeLabel(notification.createdAt),
+      inboxStateLabel: notification.isArchived ? "Archived" : "Inbox",
       readStateLabel: notification.readAt ? "Read" : "Unread"
     });
 
@@ -1349,19 +1467,22 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
 
   return {
     filters: {
+      view: selectedView,
       type: selectedType,
       category: selectedCategory,
       readState
     },
     summary: {
       totalCount: allNotifications.length,
-      unreadCount: unreadNotifications.length,
-      reviewCount: unreadNotifications.filter((notification) =>
+      activeCount: activeNotifications.length,
+      archivedCount: archivedNotifications.length,
+      unreadCount: activeUnreadNotifications.length,
+      reviewCount: activeUnreadNotifications.filter((notification) =>
         notification.type === NotificationType.task_review_requested ||
         notification.type === NotificationType.task_second_review_requested ||
         notification.type === NotificationType.incoming_update_pending_review
       ).length,
-      timeSensitiveCount: unreadNotifications.filter((notification) =>
+      timeSensitiveCount: activeUnreadNotifications.filter((notification) =>
         notification.type === NotificationType.appointment_due_soon ||
         notification.type === NotificationType.appointment_external_touch_due ||
         notification.type === NotificationType.offer_expiring_soon ||
@@ -1412,6 +1533,66 @@ export async function markOfficeNotificationUnread(input: {
   });
 
   return result.count > 0;
+}
+
+async function updateOfficeNotificationArchiveState(
+  input: {
+    organizationId: string;
+    officeId?: string | null;
+    membershipId: string;
+    notificationId: string;
+  },
+  archivedAt: Date | null
+) {
+  const notification = await prisma.notification.findFirst({
+    where: buildNotificationScopedWhere(input),
+    select: {
+      id: true,
+      metadata: true,
+      readAt: true
+    }
+  });
+
+  if (!notification) {
+    return false;
+  }
+
+  await prisma.notification.update({
+    where: {
+      id: notification.id
+    },
+    data: {
+      metadata: buildOfficeNotificationMetadata({
+        metadata: notification.metadata,
+        archivedAt
+      }),
+      ...(archivedAt && !notification.readAt
+        ? {
+            readAt: archivedAt
+          }
+        : {})
+    }
+  });
+
+  return true;
+}
+
+export async function archiveOfficeNotification(input: {
+  organizationId: string;
+  officeId?: string | null;
+  membershipId: string;
+  notificationId: string;
+}) {
+  return updateOfficeNotificationArchiveState(input, new Date());
+}
+
+export async function unarchiveOfficeNotification(input: {
+  organizationId: string;
+  officeId?: string | null;
+  membershipId: string;
+  notificationId: string;
+}) {
+  return updateOfficeNotificationArchiveState(input, null);
 }
 
 export async function markAllOfficeNotificationsRead(input: {

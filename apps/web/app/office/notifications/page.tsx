@@ -9,6 +9,7 @@ import { OfficeNotificationsClient } from "./notifications-client";
 
 type OfficeNotificationsPageProps = {
   searchParams?: Promise<{
+    view?: string;
     type?: string;
     category?: string;
     readState?: string;
@@ -27,6 +28,7 @@ export default async function OfficeNotificationsPage(props: OfficeNotifications
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
     membershipId: context.currentMembership.id,
+    view: searchParams.view,
     type: searchParams.type,
     category: searchParams.category,
     readState: searchParams.readState
@@ -40,12 +42,14 @@ export default async function OfficeNotificationsPage(props: OfficeNotifications
             Open activity log
           </Link>
         }
-        description="Personal inbox for payout review, review work, follow-ups, offer changes, signatures, and incoming updates. Activity log remains the audited system-wide record."
+        description="Personal inbox for payout review, review work, follow-ups, offer changes, signatures, and incoming updates. Archive hides finished items from the default inbox, while payout review stays pinned from live statement status."
         eyebrow="Notifications"
         summary={
           <>
             <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
             <SummaryChip label="Unread" tone="accent" value={snapshot.summary.unreadCount} />
+            <SummaryChip label="Inbox" value={snapshot.summary.activeCount} />
+            <SummaryChip label="Archived" value={snapshot.summary.archivedCount} />
             <SummaryChip label="Review queue" value={snapshot.summary.reviewCount} />
             <SummaryChip label="Payout review" tone="accent" value={snapshot.summary.payoutReviewCount} />
           </>

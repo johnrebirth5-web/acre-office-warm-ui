@@ -1,6 +1,7 @@
 import { canAccessOfficeNotifications } from "@acre/auth";
 import { markOfficeNotificationRead, markOfficeNotificationUnread } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
+import { archiveOfficeNotification, unarchiveOfficeNotification } from "../../../../../../../packages/db/src/notifications";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
 
 type RouteContext = {
@@ -23,24 +24,31 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const { notificationId } = await params;
   const body = (await request.json().catch(() => null)) as { action?: string } | null;
 
-  if (!body?.action || (body.action !== "mark_read" && body.action !== "mark_unread")) {
+  if (
+    !body?.action ||
+    (body.action !== "mark_read" &&
+      body.action !== "mark_unread" &&
+      body.action !== "archive" &&
+      body.action !== "unarchive")
+  ) {
     return NextResponse.json({ error: "A valid notification action is required." }, { status: 400 });
   }
 
+  const scopedInput = {
+    organizationId: context.currentOrganization.id,
+    officeId: context.currentOffice?.id ?? null,
+    membershipId: context.currentMembership.id,
+    notificationId
+  };
+
   const updated =
     body.action === "mark_read"
-      ? await markOfficeNotificationRead({
-          organizationId: context.currentOrganization.id,
-          officeId: context.currentOffice?.id ?? null,
-          membershipId: context.currentMembership.id,
-          notificationId
-        })
-      : await markOfficeNotificationUnread({
-          organizationId: context.currentOrganization.id,
-          officeId: context.currentOffice?.id ?? null,
-          membershipId: context.currentMembership.id,
-          notificationId
-        });
+      ? await markOfficeNotificationRead(scopedInput)
+      : body.action === "mark_unread"
+        ? await markOfficeNotificationUnread(scopedInput)
+        : body.action === "archive"
+          ? await archiveOfficeNotification(scopedInput)
+          : await unarchiveOfficeNotification(scopedInput);
 
   if (!updated) {
     return NextResponse.json({ error: "Notification not found." }, { status: 404 });

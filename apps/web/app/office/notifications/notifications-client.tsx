@@ -38,12 +38,24 @@ function getNotificationActionLabel(notification: OfficeNotificationItem) {
   return "Open record";
 }
 
+function getArchiveActionLabel(notification: OfficeNotificationItem) {
+  if (notification.isArchived) {
+    return "Restore";
+  }
+
+  return notification.isUnread ? "Dismiss" : "Archive";
+}
+
 export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClientProps) {
   const router = useRouter();
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const visibleNotificationIds = snapshot.groups.flatMap((group) => group.notifications.map((notification) => notification.id));
 
-  async function handleNotificationAction(notificationId: string, action: "mark_read" | "mark_unread") {
+  async function handleNotificationAction(
+    notificationId: string,
+    action: "mark_read" | "mark_unread" | "archive" | "unarchive"
+  ) {
     setPendingAction(`${action}:${notificationId}`);
     setError("");
 
@@ -74,6 +86,11 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
     setError("");
 
     try {
+      if (!visibleNotificationIds.length) {
+        setPendingAction(null);
+        return;
+      }
+
       const response = await fetch("/api/office/notifications", {
         method: "POST",
         headers: {
@@ -81,8 +98,7 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
         },
         body: JSON.stringify({
           action: "mark_all_read",
-          type: snapshot.filters.type,
-          category: snapshot.filters.category
+          notificationIds: visibleNotificationIds
         })
       });
 
@@ -110,7 +126,7 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
           value={snapshot.summary.payoutReviewCount}
         />
         <StatCard hint="Expiring, overdue, or near-due reminder notifications, including appointment external touch deadlines." label="Time-sensitive" value={snapshot.summary.timeSensitiveCount} />
-        <StatCard hint="Count in the current filtered view." label="In view" value={snapshot.totalCount} />
+        <StatCard hint="Notifications intentionally shelved out of the default inbox until you restore them." label="Archived" value={snapshot.summary.archivedCount} />
       </section>
 
       {snapshot.payoutReviewQueue.length ? (
@@ -156,10 +172,17 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
 
       <SectionCard
         className="office-list-card office-notification-toolbar"
-        subtitle="Unread-first sorting stays on by default."
+        subtitle="Inbox hides archived items by default. Payout review stays live even when inbox rows are archived."
         title="Filters"
       >
         <FilterBar as="form" className="office-notification-filter-grid office-list-filters" method="get">
+          <FilterField label="View">
+            <SelectInput defaultValue={snapshot.filters.view} name="view">
+              <option value="inbox">Inbox</option>
+              <option value="archived">Archived</option>
+            </SelectInput>
+          </FilterField>
+
           <FilterField label="Category">
             <SelectInput defaultValue={snapshot.filters.category} name="category">
               <option value="">All categories</option>
@@ -213,8 +236,12 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
 
       <SectionCard
         className="office-list-card office-notification-list-card"
-        subtitle={`${snapshot.totalCount} items in the current view`}
-        title="All notifications"
+        subtitle={
+          snapshot.filters.view === "archived"
+            ? `${snapshot.totalCount} archived items in the current view`
+            : `${snapshot.totalCount} items in the current inbox view`
+        }
+        title={snapshot.filters.view === "archived" ? "Archived notifications" : "Inbox notifications"}
       >
         {snapshot.groups.length ? (
           <div className="office-notification-groups">
@@ -247,6 +274,9 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
                           <div className="office-notification-row-meta">
                             <Badge tone={getSeverityTone(notification)}>{notification.severityLabel}</Badge>
                             <Badge tone="neutral">{notification.categoryLabel}</Badge>
+                            <StatusBadge tone={notification.isArchived ? "warning" : "success"}>
+                              {notification.inboxStateLabel}
+                            </StatusBadge>
                             <span>{notification.typeLabel}</span>
                             <span>{notification.createdAtLabel}</span>
                             <span>{notification.readStateLabel}</span>
@@ -263,7 +293,11 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
                           </Link>
                         ) : null}
                         <Button
-                          disabled={pendingAction === `mark_read:${notification.id}` || pendingAction === `mark_unread:${notification.id}`}
+                          disabled={Boolean(
+                            pendingAction &&
+                              pendingAction.endsWith(`:${notification.id}`) &&
+                              (pendingAction.startsWith("mark_read:") || pendingAction.startsWith("mark_unread:"))
+                          )}
                           onClick={() =>
                             handleNotificationAction(notification.id, notification.isUnread ? "mark_read" : "mark_unread")
                           }
@@ -272,6 +306,21 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
                           variant="secondary"
                         >
                           {notification.isUnread ? "Mark read" : "Mark unread"}
+                        </Button>
+                        <Button
+                          disabled={Boolean(
+                            pendingAction &&
+                              pendingAction.endsWith(`:${notification.id}`) &&
+                              (pendingAction.startsWith("archive:") || pendingAction.startsWith("unarchive:"))
+                          )}
+                          onClick={() =>
+                            handleNotificationAction(notification.id, notification.isArchived ? "unarchive" : "archive")
+                          }
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          {getArchiveActionLabel(notification)}
                         </Button>
                       </div>
                     </article>
@@ -282,8 +331,12 @@ export function OfficeNotificationsClient({ snapshot }: OfficeNotificationsClien
           </div>
         ) : (
           <EmptyState
-            description="No notifications match the current filters yet."
-            title="No notifications in this view"
+            description={
+              snapshot.filters.view === "archived"
+                ? "No archived notifications match the current filters yet."
+                : "No inbox notifications match the current filters yet."
+            }
+            title={snapshot.filters.view === "archived" ? "No archived notifications" : "No notifications in this inbox view"}
           />
         )}
       </SectionCard>
