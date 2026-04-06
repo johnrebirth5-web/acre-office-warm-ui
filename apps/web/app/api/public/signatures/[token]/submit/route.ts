@@ -1,6 +1,7 @@
 import { createTransactionDocument, getPublicSignatureDocumentStorageRecord, getPublicSignatureRequestSnapshot, updateSignatureRequest } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { readStoredFile, saveStoredFile } from "../../../../../../lib/document-storage";
+import { getAppBaseUrl } from "../../../../../../lib/request-origin";
 import { validateRecipientFieldSubmission } from "../../../../../../lib/public-signature-access";
 import { attemptSignatureDriveSync } from "../../../../../../lib/signature-drive-sync";
 import { buildSignedPdf, type SubmittedSignatureFieldValue } from "../../../../../../lib/signature-pdf";
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       currentActiveRecipients.every((recipient) => recipient.statusKey === "pending" || recipient.statusKey === "draft");
 
     if (shouldAdvanceStep) {
-      const baseUrl = new URL(request.url).origin;
+      const baseUrl = getAppBaseUrl(request);
       const senderDisplayName = latestSnapshot.request.senderDisplayName || "Acre Signatures";
       const subject = latestSnapshot.request.emailSubject || `Signature requested: ${latestSnapshot.document.title}`;
       const message =
