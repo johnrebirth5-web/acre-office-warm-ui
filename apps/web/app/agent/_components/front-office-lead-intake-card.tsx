@@ -54,6 +54,8 @@ type LeadFormState = {
   notes: string;
 };
 
+type LeadFormFieldKey = keyof LeadFormState;
+
 type FeedbackState = {
   tone: "success" | "error";
   message: string;
@@ -171,19 +173,73 @@ function getAssistFieldConfidenceTone(field: FrontOfficeLeadIntakeAssistField) {
   return "neutral" as const;
 }
 
+function getAssistFieldProvenanceTone(field: FrontOfficeLeadIntakeAssistField) {
+  switch (field.provenance) {
+    case "explicit_line":
+      return "success" as const;
+    case "pattern_match":
+      return "accent" as const;
+    case "conversation_inference":
+      return "warning" as const;
+    case "assist_mode":
+      return "neutral" as const;
+    case "summary_preview":
+      return "neutral" as const;
+  }
+}
+
+function isBlankOrUntouchedDefaultField(input: {
+  fieldKey: LeadFormFieldKey;
+  currentValue: string;
+  defaultFormState: LeadFormState;
+  manuallyEditedFields: LeadFormFieldKey[];
+}) {
+  if (!input.currentValue.trim()) {
+    return true;
+  }
+
+  const defaultValue = input.defaultFormState[input.fieldKey].trim();
+
+  return (
+    !input.manuallyEditedFields.includes(input.fieldKey) &&
+    normalizeCompactValue(input.currentValue) ===
+      normalizeCompactValue(defaultValue)
+  );
+}
+
+function liveFieldNeedsReplaceConfirmation(input: {
+  fieldKey: LeadFormFieldKey;
+  currentValue: string;
+  defaultFormState: LeadFormState;
+  manuallyEditedFields: LeadFormFieldKey[];
+}) {
+  return (
+    Boolean(input.currentValue.trim()) &&
+    !isBlankOrUntouchedDefaultField(input)
+  );
+}
+
 function getAssistFieldStatus(input: {
   field: FrontOfficeLeadIntakeAssistField;
   formState: LeadFormState;
-  appliedFields: Array<keyof LeadFormState>;
+  defaultFormState: LeadFormState;
+  appliedFields: LeadFormFieldKey[];
+  manuallyEditedFields: LeadFormFieldKey[];
+  replaceConfirmationFieldKey: string | null;
   reviewedFieldKeys: string[];
 }) {
-  const fieldKey = input.field.field as keyof LeadFormState;
+  const fieldKey = input.field.field as LeadFormFieldKey;
   const currentValue = input.formState[fieldKey].trim();
   const suggestedValue = input.field.value.trim();
-  const defaultValue = buildEmptyFormState()[fieldKey].trim();
   const isReviewed = input.reviewedFieldKeys.includes(
     getAssistFieldReviewKey(input.field),
   );
+  const needsReplaceConfirmation = liveFieldNeedsReplaceConfirmation({
+    fieldKey,
+    currentValue,
+    defaultFormState: input.defaultFormState,
+    manuallyEditedFields: input.manuallyEditedFields,
+  });
   const matchesSuggestion =
     normalizeCompactValue(currentValue) ===
     normalizeCompactValue(suggestedValue);
@@ -204,29 +260,47 @@ function getAssistFieldStatus(input: {
     return isReviewed ? "Reviewed preview only" : "Preview stays manual";
   }
 
-  if (isReviewed) {
-    return !currentValue || currentValue === defaultValue
-      ? "Reviewed and ready to apply"
-      : "Reviewed, but current typed value still wins";
+  if (
+    input.replaceConfirmationFieldKey === getAssistFieldReviewKey(input.field)
+  ) {
+    return "Awaiting replace confirmation before the live value changes";
   }
 
-  if (!currentValue || currentValue === defaultValue) {
+  if (needsReplaceConfirmation) {
+    return isReviewed
+      ? "Reviewed, but the live form still keeps your current value"
+      : "Review pending. The live form still keeps your current value";
+  }
+
+  if (isReviewed) {
+    return "Reviewed and ready to fill the live form";
+  }
+
+  if (
+    isBlankOrUntouchedDefaultField({
+      fieldKey,
+      currentValue,
+      defaultFormState: input.defaultFormState,
+      manuallyEditedFields: input.manuallyEditedFields,
+    })
+  ) {
     return "Review pending before apply";
   }
 
-  return "Current form keeps your typed value until review";
+  return "Current form keeps your live value until review";
 }
 
 function mergeLeadFormStateWithReviewedAssistFields(
   current: LeadFormState,
   fields: FrontOfficeLeadIntakeAssistField[],
+  defaultFormState: LeadFormState,
+  manuallyEditedFields: LeadFormFieldKey[],
   reviewedFieldKeys: string[],
 ) {
-  const defaults = buildEmptyFormState();
   const nextState = {
     ...current,
   };
-  const appliedFields: Array<keyof LeadFormState> = [];
+  const appliedFields: LeadFormFieldKey[] = [];
   const skippedFieldLabels: string[] = [];
 
   for (const assistField of fields) {
@@ -237,7 +311,7 @@ function mergeLeadFormStateWithReviewedAssistFields(
       continue;
     }
 
-    const field = assistField.field as keyof LeadFormState;
+    const field = assistField.field as LeadFormFieldKey;
     const suggestedValue = assistField.value.trim();
 
     if (!suggestedValue) {
@@ -245,9 +319,15 @@ function mergeLeadFormStateWithReviewedAssistFields(
     }
 
     const currentValue = current[field].trim();
-    const defaultValue = defaults[field].trim();
 
-    if (!currentValue || currentValue === defaultValue) {
+    if (
+      isBlankOrUntouchedDefaultField({
+        fieldKey: field,
+        currentValue,
+        defaultFormState,
+        manuallyEditedFields,
+      })
+    ) {
       nextState[field] = suggestedValue;
       appliedFields.push(field);
       continue;
@@ -261,6 +341,20 @@ function mergeLeadFormStateWithReviewedAssistFields(
     appliedFields,
     skippedFieldLabels: [...new Set(skippedFieldLabels)],
   };
+}
+
+function getReviewedAssistFieldValue(input: {
+  assistResult: FrontOfficeLeadIntakeAssistResult | null;
+  reviewedFieldKeys: string[];
+  fieldKey: keyof FrontOfficeLeadIntakeAssistResult["draft"];
+}) {
+  const match = input.assistResult?.fields.find(
+    (field) =>
+      field.field === input.fieldKey &&
+      input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
+  );
+
+  return match?.value.trim() ? match.value.trim() : undefined;
 }
 
 function buildDuplicatePreviewNeedles(input: {
@@ -303,21 +397,25 @@ function buildDuplicatePreviewNeedles(input: {
 
   const assistNameField = input.assistResult?.fields.find(
     (field) =>
-      field.field === "fullName" && field.suggestedAction !== "preview_only",
+      field.field === "fullName" &&
+      field.suggestedAction !== "preview_only" &&
+      input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
   );
 
   if (assistNameField?.value.trim()) {
-    const assistSourceLabel = input.reviewedFieldKeys.includes(
-      getAssistFieldReviewKey(assistNameField),
-    )
-      ? "the reviewed assist suggestion"
-      : "the assist suggestion";
-
     appendNeedle(
       assistNameField.value,
-      assistSourceLabel,
-      input.assistResult?.draft.preferredAreas,
-      input.assistResult?.draft.source,
+      "the reviewed assist suggestion",
+      getReviewedAssistFieldValue({
+        assistResult: input.assistResult,
+        reviewedFieldKeys: input.reviewedFieldKeys,
+        fieldKey: "preferredAreas",
+      }),
+      getReviewedAssistFieldValue({
+        assistResult: input.assistResult,
+        reviewedFieldKeys: input.reviewedFieldKeys,
+        fieldKey: "source",
+      }),
     );
   }
 
@@ -441,8 +539,16 @@ export function FrontOfficeLeadIntakeCard(
     props.sourceSurface === "clients"
       ? "Open duplicate review lane"
       : "Open duplicate review queue";
-  const [formState, setFormState] =
-    useState<LeadFormState>(buildEmptyFormState);
+  const initialFormDefaultsRef = useRef<LeadFormState>(buildEmptyFormState());
+  const [formDefaults, setFormDefaults] = useState<LeadFormState>(
+    initialFormDefaultsRef.current,
+  );
+  const [formState, setFormState] = useState<LeadFormState>(
+    initialFormDefaultsRef.current,
+  );
+  const [manuallyEditedFields, setManuallyEditedFields] = useState<
+    LeadFormFieldKey[]
+  >([]);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>(
     [],
@@ -459,8 +565,10 @@ export function FrontOfficeLeadIntakeCard(
     string[]
   >([]);
   const [assistAppliedFields, setAssistAppliedFields] = useState<
-    Array<keyof LeadFormState>
+    LeadFormFieldKey[]
   >([]);
+  const [assistReplaceConfirmationFieldKey, setAssistReplaceConfirmationFieldKey] =
+    useState<string | null>(null);
   const [assistFeedback, setAssistFeedback] =
     useState<AssistFeedbackState>(null);
   const [assistProgressMessage, setAssistProgressMessage] = useState("");
@@ -479,11 +587,20 @@ export function FrontOfficeLeadIntakeCard(
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending || isExtractingAssist;
 
+  function resetLiveForm() {
+    const nextDefaults = buildEmptyFormState();
+    setFormDefaults(nextDefaults);
+    setFormState(nextDefaults);
+    setManuallyEditedFields([]);
+    setAssistReplaceConfirmationFieldKey(null);
+  }
+
   function clearAssistOutput() {
     assistRunIdRef.current += 1;
     setAssistResult(null);
     setAssistReviewedFieldKeys([]);
     setAssistAppliedFields([]);
+    setAssistReplaceConfirmationFieldKey(null);
     setAssistFeedback(null);
     setAssistProgressMessage("");
     setIsExtractingAssist(false);
@@ -502,12 +619,16 @@ export function FrontOfficeLeadIntakeCard(
     >,
   ) {
     const { name, value } = event.target;
-    const fieldKey = name as keyof LeadFormState;
+    const fieldKey = name as LeadFormFieldKey;
 
     setFormState((current) => ({
       ...current,
       [fieldKey]: value,
     }));
+    setManuallyEditedFields((current) =>
+      current.includes(fieldKey) ? current : [...current, fieldKey],
+    );
+    setAssistReplaceConfirmationFieldKey(null);
 
     setAssistAppliedFields((current) => {
       if (!current.includes(fieldKey)) {
@@ -527,11 +648,25 @@ export function FrontOfficeLeadIntakeCard(
         ? current
         : current.filter((entry) => entry !== fieldKey);
     });
+
+    if (
+      fieldKey === "fullName" ||
+      fieldKey === "phone" ||
+      fieldKey === "email"
+    ) {
+      setDuplicateMatches([]);
+      setFeedback((current) =>
+        current?.tone === "error" ? null : current,
+      );
+    }
   }
 
   function toggleAssistFieldReviewed(field: FrontOfficeLeadIntakeAssistField) {
     const reviewKey = getAssistFieldReviewKey(field);
 
+    setAssistReplaceConfirmationFieldKey((current) =>
+      current === reviewKey ? null : current,
+    );
     setAssistReviewedFieldKeys((current) =>
       current.includes(reviewKey)
         ? current.filter((entry) => entry !== reviewKey)
@@ -586,8 +721,28 @@ export function FrontOfficeLeadIntakeCard(
       return;
     }
 
-    const targetField = field.field as keyof LeadFormState;
+    const targetField = field.field as LeadFormFieldKey;
+    const currentValue = formState[targetField].trim();
+    const needsReplaceConfirmation = liveFieldNeedsReplaceConfirmation({
+      fieldKey: targetField,
+      currentValue,
+      defaultFormState: formDefaults,
+      manuallyEditedFields,
+    });
 
+    if (
+      needsReplaceConfirmation &&
+      assistReplaceConfirmationFieldKey !== reviewKey
+    ) {
+      setAssistReplaceConfirmationFieldKey(reviewKey);
+      setAssistFeedback({
+        tone: "neutral",
+        message: `${field.label} already has a live form value. Click apply once more only if you want to replace that current value with the reviewed assist suggestion.`,
+      });
+      return;
+    }
+
+    setAssistReplaceConfirmationFieldKey(null);
     setFormState((current) => ({
       ...current,
       [targetField]: field.value,
@@ -595,9 +750,14 @@ export function FrontOfficeLeadIntakeCard(
     setAssistAppliedFields((current) =>
       current.includes(targetField) ? current : [...current, targetField],
     );
+    setManuallyEditedFields((current) =>
+      current.filter((entry) => entry !== targetField),
+    );
     setAssistFeedback({
       tone: "success",
-      message: `${field.label} was copied into the intake form from a reviewed assist suggestion.`,
+      message: needsReplaceConfirmation
+        ? `${field.label} replaced the previous live value after explicit confirmation.`
+        : `${field.label} was copied into the intake form from a reviewed assist suggestion.`,
     });
   }
 
@@ -609,6 +769,8 @@ export function FrontOfficeLeadIntakeCard(
     const mergeOutcome = mergeLeadFormStateWithReviewedAssistFields(
       formState,
       assistResult.fields,
+      formDefaults,
+      manuallyEditedFields,
       assistReviewedFieldKeys,
     );
 
@@ -624,9 +786,13 @@ export function FrontOfficeLeadIntakeCard(
     }
 
     setFormState(mergeOutcome.nextState);
+    setManuallyEditedFields((current) =>
+      current.filter((field) => !mergeOutcome.appliedFields.includes(field)),
+    );
     setAssistAppliedFields((current) => [
       ...new Set([...current, ...mergeOutcome.appliedFields]),
     ]);
+    setAssistReplaceConfirmationFieldKey(null);
     setAssistFeedback({
       tone: "success",
       message: `${mergeOutcome.appliedFields.length} reviewed suggestion(s) were copied into blank or default form fields.${mergeOutcome.skippedFieldLabels.length ? ` ${mergeOutcome.skippedFieldLabels.join(", ")} stayed untouched because the live form already has a value.` : ""}`,
@@ -852,7 +1018,7 @@ export function FrontOfficeLeadIntakeCard(
       message:
         "Lead captured. Front Office will refresh now so the queue and stage counts stay current.",
     });
-    setFormState(buildEmptyFormState());
+    resetLiveForm();
     resetAssistComposer();
     startTransition(() => {
       router.refresh();
@@ -908,6 +1074,49 @@ export function FrontOfficeLeadIntakeCard(
       }),
     [assistResult, assistReviewedFieldKeys, formState],
   );
+  const pendingDuplicateIdentityAssistCount = useMemo(
+    () =>
+      assistResult?.fields.filter((field) => {
+        if (
+          field.suggestedAction === "preview_only" ||
+          (field.field !== "fullName" &&
+            field.field !== "phone" &&
+            field.field !== "email")
+        ) {
+          return false;
+        }
+
+        const currentValue = formState[field.field as LeadFormFieldKey].trim();
+
+        if (
+          normalizeCompactValue(currentValue) ===
+          normalizeCompactValue(field.value)
+        ) {
+          return false;
+        }
+
+        return !assistReviewedFieldKeys.includes(getAssistFieldReviewKey(field));
+      }).length ?? 0,
+    [assistResult, assistReviewedFieldKeys, formState],
+  );
+  const duplicatePreviewSourceSummary = useMemo(() => {
+    const hasLiveFormNeedle = duplicatePreviewNeedles.some(
+      (needle) => needle.sourceLabel === "the current form",
+    );
+    const hasReviewedAssistNeedle = duplicatePreviewNeedles.some(
+      (needle) => needle.sourceLabel === "the reviewed assist suggestion",
+    );
+
+    if (hasLiveFormNeedle && hasReviewedAssistNeedle) {
+      return "the live form plus reviewed assist values";
+    }
+
+    if (hasReviewedAssistNeedle) {
+      return "reviewed assist values";
+    }
+
+    return "the live form";
+  }, [duplicatePreviewNeedles]);
   const pendingReviewableAssistCount = useMemo(
     () =>
       assistResult?.fields.filter((field) => {
@@ -916,7 +1125,7 @@ export function FrontOfficeLeadIntakeCard(
         }
 
         const reviewKey = getAssistFieldReviewKey(field);
-        const fieldKey = field.field as keyof LeadFormState;
+        const fieldKey = field.field as LeadFormFieldKey;
         const currentValue = formState[fieldKey].trim();
 
         return (
@@ -1152,7 +1361,11 @@ export function FrontOfficeLeadIntakeCard(
                     <span>
                       {pendingReviewableAssistCount} still waiting on review
                     </span>
-                    <span>Manual entry always wins</span>
+                    <span>{reviewedReviewableAssistCount} reviewed</span>
+                    <span>
+                      Live form values stay in control until replace is
+                      confirmed
+                    </span>
                   </div>
                 </div>
 
@@ -1181,6 +1394,15 @@ export function FrontOfficeLeadIntakeCard(
                       <span key={label}>{label}</span>
                     ))}
                   </div>
+                ) : null}
+
+                {pendingDuplicateIdentityAssistCount > 0 ? (
+                  <p className="front-office-calendar-feedback is-neutral">
+                    {pendingDuplicateIdentityAssistCount} identity suggestion(s)
+                    are still pending review, so duplicate preview and save-time
+                    duplicate checks ignore them until you move them into the
+                    live form.
+                  </p>
                 ) : null}
 
                 {assistResult.fields.some(
@@ -1243,18 +1465,26 @@ export function FrontOfficeLeadIntakeCard(
                               >
                                 {getAssistFieldBadge(field)}
                               </StatusBadge>
+                              <StatusBadge
+                                tone={getAssistFieldProvenanceTone(field)}
+                              >
+                                {field.provenanceLabel}
+                              </StatusBadge>
                             </div>
                           </div>
                           <p>{field.value}</p>
                           <div className="front-office-record-meta">
                             <span>{field.reasonLabel}</span>
-                            <span>{field.provenanceLabel}</span>
                             <span>{field.suggestedActionLabel}</span>
                             <span>
                               {getAssistFieldStatus({
                                 field,
                                 formState,
+                                defaultFormState: formDefaults,
                                 appliedFields: assistAppliedFields,
+                                manuallyEditedFields,
+                                replaceConfirmationFieldKey:
+                                  assistReplaceConfirmationFieldKey,
                                 reviewedFieldKeys: assistReviewedFieldKeys,
                               })}
                             </span>
@@ -1298,11 +1528,36 @@ export function FrontOfficeLeadIntakeCard(
                                     : "ghost"
                                 }
                               >
-                                {currentValue
-                                  ? "Apply reviewed suggestion"
-                                  : "Apply reviewed field"}
+                                {liveFieldNeedsReplaceConfirmation({
+                                  fieldKey: field.field as LeadFormFieldKey,
+                                  currentValue,
+                                  defaultFormState: formDefaults,
+                                  manuallyEditedFields,
+                                })
+                                  ? assistReplaceConfirmationFieldKey ===
+                                    getAssistFieldReviewKey(field)
+                                    ? "Confirm replace live value"
+                                    : "Replace current value"
+                                  : currentValue
+                                    ? "Apply reviewed suggestion"
+                                    : "Apply reviewed field"}
                               </Button>
                             </div>
+                          ) : null}
+                          {!matchesSuggestion &&
+                          field.suggestedAction !== "preview_only" &&
+                          liveFieldNeedsReplaceConfirmation({
+                            fieldKey: field.field as LeadFormFieldKey,
+                            currentValue,
+                            defaultFormState: formDefaults,
+                            manuallyEditedFields,
+                          }) ? (
+                            <p>
+                              {assistReplaceConfirmationFieldKey ===
+                              getAssistFieldReviewKey(field)
+                                ? "A second click is now required before Acre replaces the current live form value."
+                                : "This suggestion is reviewed, but the live form still keeps the current value until you explicitly confirm a replace."}
+                            </p>
                           ) : null}
                           {!matchesSuggestion &&
                           field.suggestedAction === "preview_only" ? (
@@ -1337,11 +1592,11 @@ export function FrontOfficeLeadIntakeCard(
               <div className="front-office-duplicate-head">
                 <strong>Early duplicate preview</strong>
                 <p>
-                  Acre sees visible-scope collisions from your current form or
-                  reviewed assist suggestions now, then the formal create-time
-                  duplicate gate still runs on save. Suggested phone or email
-                  values stay out of that formal gate until you review them into
-                  the live form.
+                  Acre checks visible-scope name collisions from{" "}
+                  {duplicatePreviewSourceSummary} now, then the formal
+                  create-time duplicate gate still runs on save from the live
+                  form only. Suggested phone or email values stay out of both
+                  checks until you review them into the live form.
                 </p>
               </div>
 
@@ -1529,7 +1784,7 @@ export function FrontOfficeLeadIntakeCard(
             <Button
               disabled={isBusy}
               onClick={() => {
-                setFormState(buildEmptyFormState());
+                resetLiveForm();
                 setFeedback(null);
                 setDuplicateMatches([]);
                 setCreatedClient(null);

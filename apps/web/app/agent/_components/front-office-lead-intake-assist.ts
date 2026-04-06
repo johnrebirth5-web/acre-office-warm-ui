@@ -107,6 +107,8 @@ const familyContextPattern =
   /(?:wife|husband|spouse|partner|fianc(?:e|ee|é|ée)|boyfriend|girlfriend|family|parents?|mom|mother|dad|father|son|daughter|kids?|children|brother|sister|roommate|roommates|夫妻|家人|家庭|老公|老婆|父母|爸妈|妈妈|爸爸|儿子|女儿|孩子|室友|男朋友|女朋友)/i;
 const multiPartyPattern =
   /(?:\bwe\b|\bour\b|\bus\b|couple|together|group chat|joint|夫妻|一家|两位|一起|共同|双方)/i;
+const joinedNamePattern =
+  /(?:[\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z'’.-]{1,}(?:\s+[A-Za-z][A-Za-z'’.-]{1,}){0,2})\s*(?:\/|&)\s*(?:[\u4e00-\u9fff]{2,4}|[A-Za-z][A-Za-z'’.-]{1,}(?:\s+[A-Za-z][A-Za-z'’.-]{1,}){0,2})/;
 const contactOwnerRiskPattern =
   /(?:agent|broker|realtor|assistant|coworker|for my client|their client|经纪人|中介|助理|代发|转述|帮客户)/i;
 const signatureContactPattern =
@@ -229,6 +231,17 @@ function extractSpeakerNameCandidates(lines: string[]) {
   );
 }
 
+function extractExplicitNameCandidates(lines: string[]) {
+  return uniqueStrings(
+    lines
+      .filter((line) => nameLinePattern.test(line))
+      .flatMap((line) => {
+        const match = line.match(nameLinePattern);
+        return match?.[1] ? extractLikelyNameCandidates(match[1]) : [];
+      }),
+  );
+}
+
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "");
 
@@ -254,14 +267,7 @@ function buildConversationContext(
   const riskFlags = new Set<FrontOfficeLeadIntakeAssistRiskFlag>();
   const cautionLabels: string[] = [];
 
-  const labeledNameCandidates = uniqueStrings(
-    lines
-      .filter((line) => nameLinePattern.test(line))
-      .flatMap((line) => {
-        const match = line.match(nameLinePattern);
-        return match?.[1] ? extractLikelyNameCandidates(match[1]) : [];
-      }),
-  );
+  const labeledNameCandidates = extractExplicitNameCandidates(lines);
   const openerNameCandidates = uniqueStrings(
     lines.slice(0, 6).flatMap((line) => extractLikelyNameCandidates(line)),
   );
@@ -275,7 +281,7 @@ function buildConversationContext(
   const hasMultiplePeople =
     combinedNameCandidates.length > 1 ||
     multiPartyPattern.test(text) ||
-    /(?:&|\/)/.test(text);
+    joinedNamePattern.test(text);
   const hasHouseholdContext = familyContextPattern.test(text);
   const hasSpeakerSwitching = speakerNameCandidates.length > 1;
   const hasContactOwnerRisk =
@@ -324,6 +330,12 @@ function parseName(
   lines: string[],
   context: ConversationContext,
 ): ParsedAssistValue | null {
+  const explicitNameCandidates = extractExplicitNameCandidates(lines);
+
+  if (explicitNameCandidates.length > 1) {
+    return null;
+  }
+
   for (const line of lines) {
     const match = line.match(nameLinePattern);
 
@@ -334,11 +346,13 @@ function parseName(
     const rawValue = match[1].trim();
     const candidates = extractLikelyNameCandidates(rawValue);
     const ambiguousLine =
-      candidates.length > 1 ||
-      familyContextPattern.test(rawValue) ||
-      multiPartyPattern.test(rawValue);
+      familyContextPattern.test(rawValue) || multiPartyPattern.test(rawValue);
     const cleaned = cleanPotentialName(rawValue);
     const selected = candidates[0] ?? cleaned;
+
+    if (candidates.length > 1) {
+      return null;
+    }
 
     if (!isLikelyName(selected)) {
       continue;
@@ -864,15 +878,15 @@ function buildProvenanceLabel(
 ) {
   switch (provenance) {
     case "explicit_line":
-      return "Explicit line in the extract";
+      return "Explicitly labeled in the extract";
     case "pattern_match":
-      return "Pattern matched from extracted text";
+      return "Matched from a structured pattern";
     case "conversation_inference":
       return "Inferred from conversation context";
     case "assist_mode":
-      return "Derived from assist input mode";
+      return "Derived from assist input mode only";
     case "summary_preview":
-      return "Preview summary from extracted text";
+      return "Preview-only summary from the extract";
   }
 }
 
@@ -894,9 +908,9 @@ function buildSuggestedActionLabel(
 ) {
   switch (action) {
     case "safe_apply":
-      return "Can apply after review";
+      return "Ready once reviewed";
     case "review_first":
-      return "Review before applying";
+      return "Review required before apply";
     case "preview_only":
       return "Preview only";
   }
@@ -984,6 +998,16 @@ function resolveFieldAssessment(input: {
           };
     case "phone":
     case "email":
+      if (input.parsed.riskFlags.includes("multiple_contact_values")) {
+        return {
+          confidence: "low" as const,
+          suggestedAction: "review_first" as const,
+          reasonLabel:
+            "More than one contact value appeared, so Acre will not treat a single match as reliable until you confirm it.",
+          cautionLabels,
+        };
+      }
+
       return !hasIdentityRisk
         ? {
             confidence: "high" as const,
