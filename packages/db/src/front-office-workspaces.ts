@@ -203,11 +203,20 @@ export type FrontOfficeActivityNotificationRecord = {
     | "external_touch_due"
     | "general_notice";
   groupLabel: string;
+  streamKey:
+    | "front_office"
+    | "back_office"
+    | "shared_notice"
+    | "reference";
+  streamLabel: string;
+  audienceLabel: "Personal notice" | "Shared office notice";
   tone: FrontOfficeTone;
   createdAtLabel: string;
   actionLabel: string;
   href: string;
   isUnread: boolean;
+  readStateLabel: "Unread" | "Read" | "Shared notice";
+  readStateMutable: boolean;
 };
 
 export type FrontOfficeActivityEventRecord = {
@@ -230,10 +239,17 @@ export type FrontOfficeActivityCleanupMetric = {
 
 export type FrontOfficeActivityCleanupItem = {
   id: string;
+  kindKey:
+    | "follow_up"
+    | "appointment_writeback"
+    | "send_risk"
+    | "stale_client";
   kindLabel: string;
   tone: FrontOfficeTone;
   title: string;
   description: string;
+  whyNowLabel: string;
+  sortLabel: string;
   metaLabels: string[];
   href: string;
   actionLabel: string;
@@ -247,6 +263,8 @@ export type FrontOfficeActivitySnapshot = {
     cleanupItemCount: number;
     duplicateReviewCount: number;
     appointmentSoonCount: number;
+    sharedNoticeCount: number;
+    urgentCleanupCount: number;
   };
   notifications: FrontOfficeActivityNotificationRecord[];
   events: FrontOfficeActivityEventRecord[];
@@ -974,6 +992,45 @@ function getFrontOfficeNotificationActionLabel(input: {
   return input.actionUrl?.trim()
     ? "Open notice"
     : formatNotificationType(input.type);
+}
+
+function getFrontOfficeNotificationStream(input: {
+  actionUrl: string | null;
+  membershipId: string | null;
+  groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+}) {
+  if (input.groupKey !== "general_notice") {
+    return {
+      streamKey: "front_office" as const,
+      streamLabel: "Front Office action",
+    };
+  }
+
+  if (!input.membershipId) {
+    return {
+      streamKey: "shared_notice" as const,
+      streamLabel: "Shared office notice",
+    };
+  }
+
+  if (input.actionUrl?.startsWith("/agent")) {
+    return {
+      streamKey: "front_office" as const,
+      streamLabel: "Front Office action",
+    };
+  }
+
+  if (input.actionUrl?.startsWith("/office")) {
+    return {
+      streamKey: "back_office" as const,
+      streamLabel: "Back Office handoff",
+    };
+  }
+
+  return {
+    streamKey: "reference" as const,
+    streamLabel: "Awareness only",
+  };
 }
 
 function formatResourceType(type: ResourceType) {
@@ -1803,6 +1860,7 @@ export async function getFrontOfficeActivitySnapshot(
       take: 24,
       select: {
         id: true,
+        membershipId: true,
         type: true,
         severity: true,
         metadata: true,
@@ -1815,7 +1873,9 @@ export async function getFrontOfficeActivitySnapshot(
     }),
     prisma.notification.count({
       where: {
-        ...notificationWhere,
+        organizationId: input.organizationId,
+        membershipId: input.viewerMembershipId,
+        ...(officeScopeFilter ?? {}),
         readAt: null,
       },
     }),
@@ -2141,6 +2201,7 @@ export async function getFrontOfficeActivitySnapshot(
 
       return {
         id: `appointment-${appointment.id}`,
+        kindKey: "appointment_writeback",
         kindLabel,
         tone,
         title: appointment.client?.fullName || appointment.title,
@@ -2165,6 +2226,22 @@ export async function getFrontOfficeActivitySnapshot(
           appointment.meetingUrl?.trim() ||
           "Location pending",
         ],
+        whyNowLabel:
+          kindLabel === "Reschedule requested"
+            ? "The client already asked to reschedule, so the writeback commitment is louder than the appointment start."
+            : kindLabel === "Confirmation due" ||
+                kindLabel === "Awaiting confirmation"
+              ? "The appointment is approaching without an explicit client confirmation in place."
+              : kindLabel === "External touch due" ||
+                  kindLabel === "Appointment follow-up"
+                ? "The next promised external touch is due before this appointment can safely stay on track."
+                : "The meeting start itself is now the highest-pressure calendar commitment for this client.",
+        sortLabel:
+          nextActionTime != null && nextActionTime < startsAtTime
+            ? `Next touch · ${externalWorkflow.nextActionAtLabel}`
+            : `Starts · ${formatDateTimeLabel(appointment.startsAt, {
+                timeZone: input.timeZone ?? null,
+              })}`,
         href: `/agent/calendar?appointmentId=${appointment.id}`,
         actionLabel:
           kindLabel === "Appointment soon"
@@ -2189,6 +2266,7 @@ export async function getFrontOfficeActivitySnapshot(
     return [
       {
         id: `follow-up-task-${task.id}`,
+        kindKey: "follow_up",
         kindLabel: "Follow-up task",
         tone: isOverdue ? "danger" : "warning",
         title: task.client.fullName,
@@ -2208,6 +2286,10 @@ export async function getFrontOfficeActivitySnapshot(
               )}`
             : "No contact logged yet",
         ],
+        whyNowLabel: isOverdue
+          ? "The scheduled follow-up task is already overdue."
+          : "This follow-up task lands in today's working set.",
+        sortLabel: `Due · ${formatDateLabel(task.dueAt, input.timeZone)}`,
         href: `/agent/clients/${task.client.id}`,
         actionLabel: "Open client workspace",
         _priority: isOverdue ? 0 : 2,
@@ -2223,6 +2305,7 @@ export async function getFrontOfficeActivitySnapshot(
 
       return {
         id: `follow-up-client-${client.id}`,
+        kindKey: "follow_up",
         kindLabel: "Follow-up due",
         tone: isOverdue ? "danger" : "warning",
         title: client.fullName,
@@ -2246,6 +2329,10 @@ export async function getFrontOfficeActivitySnapshot(
               )}`
             : "No contact logged yet",
         ],
+        whyNowLabel: isOverdue
+          ? "The next planned follow-up date has already slipped."
+          : "This client's next touch is due today and should stay in the active pass.",
+        sortLabel: `Next touch · ${formatDateLabel(nextTouchAt, input.timeZone)}`,
         href: `/agent/clients/${client.id}`,
         actionLabel: "Open client workspace",
         _priority: isOverdue ? 0 : 2,
@@ -2267,6 +2354,7 @@ export async function getFrontOfficeActivitySnapshot(
         return [
           {
             id: `send-risk-${record.id}`,
+            kindKey: "send_risk",
             kindLabel: "Send risk",
             tone: "danger",
             title: record.client.fullName,
@@ -2288,6 +2376,9 @@ export async function getFrontOfficeActivitySnapshot(
               `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
               record.client.source?.trim() || "Source not captured",
             ],
+            whyNowLabel:
+              "The tracked send is still unopened after the initial wait window.",
+            sortLabel: `Sent · ${formatDateLabel(record.sentAt, input.timeZone)}`,
             href: `/agent/clients/${record.client.id}`,
             actionLabel: "Open send trail",
             _priority: 4,
@@ -2308,6 +2399,7 @@ export async function getFrontOfficeActivitySnapshot(
       return [
         {
           id: `send-risk-${record.id}`,
+          kindKey: "send_risk",
           kindLabel: "Send risk",
           tone: "warning",
           title: record.client.fullName,
@@ -2329,6 +2421,12 @@ export async function getFrontOfficeActivitySnapshot(
             `Channel · ${formatFrontOfficeSendChannelLabel(record.channel)}`,
             record.client.source?.trim() || "Source not captured",
           ],
+          whyNowLabel:
+            "The last tracked open has gone quiet long enough to warrant a fresh follow-up pass.",
+          sortLabel: `Last open · ${formatDateLabel(
+            lastEngagementAt,
+            input.timeZone,
+          )}`,
           href: `/agent/clients/${record.client.id}`,
           actionLabel: "Open send trail",
           _priority: 5,
@@ -2344,6 +2442,7 @@ export async function getFrontOfficeActivitySnapshot(
 
     return {
       id: `stale-client-${client.id}`,
+      kindKey: "stale_client",
       kindLabel: "Stale client",
       tone,
       title: client.fullName,
@@ -2361,6 +2460,10 @@ export async function getFrontOfficeActivitySnapshot(
           ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
           : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
       ],
+      whyNowLabel: `No logged touch has landed on this dossier for ${staleDays} day(s).`,
+      sortLabel: client.lastContactAt
+        ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
+        : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
       href: `/agent/clients/${client.id}`,
       actionLabel: "Open client workspace",
       _priority: tone === "danger" ? 6 : 7,
@@ -2390,10 +2493,13 @@ export async function getFrontOfficeActivitySnapshot(
 
     cleanupItems.push({
       id: item.id,
+      kindKey: item.kindKey,
       kindLabel: item.kindLabel,
       tone: item.tone,
       title: item.title,
       description: item.description,
+      whyNowLabel: item.whyNowLabel,
+      sortLabel: item.sortLabel,
       metaLabels: item.metaLabels,
       href: item.href,
       actionLabel: item.actionLabel,
@@ -2449,6 +2555,12 @@ export async function getFrontOfficeActivitySnapshot(
     },
   ];
   const cleanupItemCount = cleanupItems.length + duplicatePairs.length;
+  const sharedNoticeCount = notifications.filter(
+    (notification) => notification.membershipId == null,
+  ).length;
+  const urgentCleanupCount = cleanupItems.filter(
+    (item) => item.tone === "danger",
+  ).length;
 
   return {
     summary: {
@@ -2458,12 +2570,20 @@ export async function getFrontOfficeActivitySnapshot(
       cleanupItemCount,
       duplicateReviewCount: duplicatePairs.length,
       appointmentSoonCount,
+      sharedNoticeCount,
+      urgentCleanupCount,
     },
     notifications: notifications.map((notification) => {
       const group = getFrontOfficeNotificationGroup({
         type: notification.type,
         metadata: notification.metadata,
       });
+      const stream = getFrontOfficeNotificationStream({
+        actionUrl: notification.actionUrl?.trim() || null,
+        membershipId: notification.membershipId,
+        groupKey: group.groupKey,
+      });
+      const readStateMutable = notification.membershipId != null;
 
       return {
         id: notification.id,
@@ -2473,6 +2593,11 @@ export async function getFrontOfficeActivitySnapshot(
         typeLabel: formatNotificationType(notification.type),
         groupKey: group.groupKey,
         groupLabel: group.groupLabel,
+        streamKey: stream.streamKey,
+        streamLabel: stream.streamLabel,
+        audienceLabel: readStateMutable
+          ? "Personal notice"
+          : "Shared office notice",
         tone:
           notification.type === NotificationType.appointment_due_soon
             ? "accent"
@@ -2486,7 +2611,13 @@ export async function getFrontOfficeActivitySnapshot(
           groupKey: group.groupKey,
         }),
         href: `/agent/notifications/${notification.id}/open`,
-        isUnread: notification.readAt == null,
+        isUnread: readStateMutable && notification.readAt == null,
+        readStateLabel: !readStateMutable
+          ? "Shared notice"
+          : notification.readAt == null
+            ? "Unread"
+            : "Read",
+        readStateMutable,
       };
     }),
     events: events.map((event) => ({

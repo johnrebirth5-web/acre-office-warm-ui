@@ -21,7 +21,9 @@ import { AgentNotificationsClient } from "./agent-notifications-client";
 type AgentNotificationsPageProps = {
   searchParams?: Promise<{
     activityView?: string;
+    cleanupFilter?: string;
     noticeFilter?: string;
+    noticeStreamFilter?: string;
     readState?: string;
     teamCleanupFilter?: string;
   }>;
@@ -41,6 +43,21 @@ const allowedNoticeFilters = new Set([
   "external_touch_due",
   "appointment_soon",
   "general_notice",
+]);
+const allowedCleanupFilters = new Set([
+  "all",
+  "follow_up",
+  "appointment_writeback",
+  "send_risk",
+  "stale_client",
+  "duplicate_review",
+]);
+const allowedNoticeStreamFilters = new Set([
+  "all",
+  "front_office",
+  "back_office",
+  "shared_notice",
+  "reference",
 ]);
 
 const allowedReadStates = new Set(["all", "unread", "read"]);
@@ -109,6 +126,27 @@ export default async function AgentNotificationsPage(
         | "appointment_soon"
         | "general_notice")
     : "all";
+  const initialCleanupFilter = allowedCleanupFilters.has(
+    searchParams.cleanupFilter ?? "",
+  )
+    ? (searchParams.cleanupFilter as
+        | "all"
+        | "follow_up"
+        | "appointment_writeback"
+        | "send_risk"
+        | "stale_client"
+        | "duplicate_review")
+    : "all";
+  const initialNoticeStreamFilter = allowedNoticeStreamFilters.has(
+    searchParams.noticeStreamFilter ?? "",
+  )
+    ? (searchParams.noticeStreamFilter as
+        | "all"
+        | "front_office"
+        | "back_office"
+        | "shared_notice"
+        | "reference")
+    : "all";
   const initialReadState = allowedReadStates.has(searchParams.readState ?? "")
     ? (searchParams.readState as "all" | "unread" | "read")
     : "all";
@@ -139,7 +177,9 @@ export default async function AgentNotificationsPage(
       main={
         <AgentNotificationsClient
           initialActivityView={initialActivityView}
+          initialCleanupFilter={initialCleanupFilter}
           initialFilter={initialFilter}
+          initialNoticeStreamFilter={initialNoticeStreamFilter}
           initialReadState={initialReadState}
           initialTeamCleanupFilter={initialTeamCleanupFilter}
           leadershipQueue={dashboardSnapshot.leadershipQueue}
@@ -285,10 +325,12 @@ export default async function AgentNotificationsPage(
         <>
           <SummaryChip label="Actionable items" value={snapshot.summary.actionableItemCount} />
           <SummaryChip label="Cleanup items" tone="accent" value={snapshot.summary.cleanupItemCount} />
+          <SummaryChip label="Urgent cleanup" tone="accent" value={snapshot.summary.urgentCleanupCount} />
           <SummaryChip label="Potential dupes" tone="accent" value={snapshot.summary.duplicateReviewCount} />
           <SummaryChip label="Reminder notices" tone="accent" value={appointmentReminderCards.length} />
           <SummaryChip label="Appointments soon" value={snapshot.summary.appointmentSoonCount} />
           <SummaryChip label="Unread notices" value={snapshot.summary.unreadNoticeCount} />
+          <SummaryChip label="Shared notices" value={snapshot.summary.sharedNoticeCount} />
           <SummaryChip label="Upcoming events" value={snapshot.summary.upcomingEventCount} />
           {dashboardSnapshot.leadershipQueue.visible ? (
             <SummaryChip

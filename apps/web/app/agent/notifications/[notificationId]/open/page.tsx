@@ -7,10 +7,14 @@ type AgentNotificationOpenPageProps = {
   params: Promise<{
     notificationId: string;
   }>;
+  searchParams?: Promise<{
+    returnTo?: string;
+  }>;
 };
 
 export default async function AgentNotificationOpenPage({
   params,
+  searchParams,
 }: AgentNotificationOpenPageProps) {
   const context = await requireSessionContext();
 
@@ -26,12 +30,13 @@ export default async function AgentNotificationOpenPage({
   }
 
   const { notificationId } = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
   const actionUrl = await openOfficeNotification({
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
     membershipId: context.currentMembership.id,
     notificationId,
-    fallbackUrl: "/agent/notifications",
+    fallbackUrl: resolvedSearchParams.returnTo || "/agent/notifications",
   });
 
   redirect(actionUrl || "/agent/notifications");

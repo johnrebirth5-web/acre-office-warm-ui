@@ -410,6 +410,36 @@ function buildNotificationInboxWhere(input: {
   return where;
 }
 
+function buildVisibleNotificationWhere(input: {
+  organizationId: string;
+  officeId?: string | null;
+  membershipId: string;
+  notificationId?: string;
+}): Prisma.NotificationWhereInput {
+  const officeScopeOr = input.officeId
+    ? [{ officeId: input.officeId }, { officeId: null }]
+    : undefined;
+
+  return {
+    organizationId: input.organizationId,
+    ...(input.notificationId
+      ? {
+          id: input.notificationId,
+        }
+      : {}),
+    AND: [
+      officeScopeOr
+        ? {
+            OR: officeScopeOr,
+          }
+        : {},
+      {
+        OR: [{ membershipId: input.membershipId }, { membershipId: null }],
+      },
+    ],
+  };
+}
+
 function buildNotificationScopedWhere(input: {
   organizationId: string;
   officeId?: string | null;
@@ -1498,9 +1528,15 @@ export async function openOfficeNotification(input: {
   fallbackUrl?: string;
 }) {
   const notification = await prisma.notification.findFirst({
-    where: buildNotificationScopedWhere(input),
+    where: buildVisibleNotificationWhere({
+      organizationId: input.organizationId,
+      officeId: input.officeId,
+      membershipId: input.membershipId,
+      notificationId: input.notificationId,
+    }),
     select: {
       id: true,
+      membershipId: true,
       readAt: true,
       actionUrl: true
     }
@@ -1510,7 +1546,7 @@ export async function openOfficeNotification(input: {
     return "";
   }
 
-  if (!notification.readAt) {
+  if (!notification.readAt && notification.membershipId) {
     await prisma.notification.update({
       where: {
         id: notification.id
