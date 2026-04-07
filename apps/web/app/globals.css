@@ -17952,6 +17952,63 @@ body,
   margin-top: 16px;
 }
 
+.listing-studio-install-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.listing-studio-install-copy,
+.listing-studio-install-actions,
+.listing-studio-install-fallback {
+  display: grid;
+  gap: 10px;
+}
+
+.listing-studio-install-actions {
+  padding: 18px;
+  border: 1px solid rgba(20, 74, 119, 0.1);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(20, 74, 119, 0.06), rgba(20, 74, 119, 0.02)),
+    rgba(255, 255, 255, 0.94);
+}
+
+.listing-studio-install-fallback {
+  padding: 2px 0 8px;
+}
+
+.listing-studio-install-copy p,
+.listing-studio-install-fallback p,
+.listing-studio-install-step p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.listing-studio-install-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.listing-studio-install-step {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid rgba(22, 39, 60, 0.08);
+  border-radius: 16px;
+  background: rgba(20, 74, 119, 0.04);
+}
+
+.listing-studio-install-step span {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
 @media (max-width: 1180px) {
   .listing-studio-detail-layout,
   .listing-studio-share-hero {
@@ -17962,6 +18019,10 @@ body,
 @media (max-width: 960px) {
   .listing-studio-filter-bar,
   .listing-studio-section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .listing-studio-install-layout {
     grid-template-columns: 1fr;
   }
 }

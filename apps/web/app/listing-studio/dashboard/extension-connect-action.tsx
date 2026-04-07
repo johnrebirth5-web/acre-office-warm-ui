@@ -9,6 +9,7 @@ const REQUEST_TYPE = "ACRE_LISTING_STUDIO_EXTENSION_REQUEST";
 const RESPONSE_TYPE = "ACRE_LISTING_STUDIO_EXTENSION_RESPONSE";
 const READY_TYPE = "ACRE_LISTING_STUDIO_BRIDGE_READY";
 const BRIDGE_READY_TIMEOUT_MS = 1200;
+const INSTALL_ROUTE = "/listing-studio/extension/install";
 
 type ExtensionConnectActionProps = {
   serverHasActiveToken: boolean;
@@ -201,7 +202,7 @@ export function ListingStudioExtensionConnectAction(
 
   function handleClick() {
     if (browserConnectionState === "not_installed") {
-      window.location.reload();
+      window.location.href = INSTALL_ROUTE;
       return;
     }
 
@@ -260,7 +261,7 @@ export function ListingStudioExtensionConnectAction(
     badgeClassName = "office-status-badge office-status-badge-neutral";
     badgeLabel = "Extension missing";
     panelMessage =
-      "If you just installed or reloaded the extension, refresh this dashboard first. Then you can connect this browser.";
+      "Install the Acre extension on this browser first. After Chrome adds it, come back here to connect.";
   }
 
   let actionLabel = "Connect Chrome extension";
@@ -269,7 +270,7 @@ export function ListingStudioExtensionConnectAction(
   } else if (browserConnectionState === "pending" || isConnecting) {
     actionLabel = "Connecting...";
   } else if (browserConnectionState === "not_installed") {
-    actionLabel = "Refresh after install";
+    actionLabel = "Install Chrome extension";
   }
 
   return (
