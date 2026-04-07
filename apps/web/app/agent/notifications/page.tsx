@@ -22,7 +22,7 @@ import {
   cleanupFilterOptions,
   leadershipCleanupFilterOptions,
   noticeStreamFilterOptions,
-  notificationFilterOptions,
+  resolveReminderFilterValue,
   readStateOptions,
   resolveOptionValue,
 } from "./agent-notifications-config";
@@ -31,6 +31,7 @@ import { AgentNotificationsClient } from "./agent-notifications-client";
 type AgentNotificationsPageProps = {
   searchParams?: Promise<{
     activityView?: string;
+    appointmentFilter?: string;
     cleanupFilter?: string;
     noticeFilter?: string;
     noticeStreamFilter?: string;
@@ -83,9 +84,9 @@ export default async function AgentNotificationsPage(
     activityViewOptions,
     "all",
   );
-  const initialFilter = resolveOptionValue(
+  const initialFilter = resolveReminderFilterValue(
+    searchParams.appointmentFilter,
     searchParams.noticeFilter,
-    notificationFilterOptions,
     "all",
   );
   const initialCleanupFilter = resolveOptionValue(

@@ -36,10 +36,17 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const { notificationId } = await params;
-  const body = (await request.json().catch(() => null)) as
-    | { action?: string }
-    | null;
+  const notificationId = (await params).notificationId?.trim() ?? "";
+  const body = (await request.json().catch(() => null)) as {
+    action?: string;
+  } | null;
+
+  if (!notificationId) {
+    return NextResponse.json(
+      { error: "A valid notification id is required." },
+      { status: 400 },
+    );
+  }
 
   if (
     !body?.action ||

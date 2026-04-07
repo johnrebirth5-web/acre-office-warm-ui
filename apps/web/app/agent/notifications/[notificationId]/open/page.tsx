@@ -2,23 +2,38 @@ import { getDefaultAppPath, hasAnyPermission } from "@acre/auth";
 import { openOfficeNotification } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireSessionContext } from "../../../../../lib/auth-session";
+import {
+  resolveNoticeFeedback,
+  sanitizeNotificationReturnTo,
+} from "../../agent-notifications-config";
 
 type AgentNotificationOpenPageProps = {
   params: Promise<{
     notificationId: string;
   }>;
   searchParams?: Promise<{
+    feedback?: string;
     returnTo?: string;
   }>;
 };
 
-function appendNoticeFeedback(href: string, notificationId: string) {
-  const [baseHref, hash = ""] = href.split("#", 2);
+function appendNoticeFeedback(input: {
+  href: string;
+  feedback: string | null;
+  notificationId: string;
+}) {
+  const sanitizedHref =
+    sanitizeNotificationReturnTo(input.href) || "/agent/notifications";
+  const [baseHref, hash = ""] = sanitizedHref.split("#", 2);
   const [pathname, query = ""] = baseHref.split("?", 2);
   const params = new URLSearchParams(query);
 
-  params.set("noticeFeedback", "opened_from_center");
-  params.set("openedNoticeId", notificationId);
+  if (input.feedback) {
+    params.set("noticeFeedback", input.feedback);
+  } else {
+    params.delete("noticeFeedback");
+  }
+  params.set("openedNoticeId", input.notificationId);
 
   const nextQuery = params.toString();
 
@@ -44,10 +59,13 @@ export default async function AgentNotificationOpenPage({
 
   const { notificationId } = await params;
   const resolvedSearchParams = (await searchParams) ?? {};
-  const fallbackUrl = appendNoticeFeedback(
-    resolvedSearchParams.returnTo || "/agent/notifications",
+  const fallbackUrl = appendNoticeFeedback({
+    href:
+      sanitizeNotificationReturnTo(resolvedSearchParams.returnTo) ||
+      "/agent/notifications",
+    feedback: resolveNoticeFeedback(resolvedSearchParams.feedback),
     notificationId,
-  );
+  });
   const actionUrl = await openOfficeNotification({
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,

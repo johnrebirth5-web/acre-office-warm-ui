@@ -8,6 +8,11 @@ export type AgentNotificationFilter =
   | "all"
   | FrontOfficeActivityNotificationRecord["groupKey"];
 
+export type AgentReminderFilter = Exclude<
+  AgentNotificationFilter,
+  "general_notice"
+>;
+
 export type AgentCleanupFilter =
   | "all"
   | FrontOfficeActivityCleanupItem["kindKey"]
@@ -25,6 +30,11 @@ export type AgentActivityView =
   | "general_notices";
 
 export type AgentNotificationReadState = "all" | "unread" | "read";
+
+export type AgentNotificationFeedback =
+  | "opened_marked_read"
+  | "reopened_notice"
+  | "opened_shared_notice";
 
 export type AgentLeadershipCleanupFilter =
   | "all"
@@ -65,6 +75,14 @@ export const notificationFilterOptions: Array<{
   { value: "general_notice", label: "General notices" },
 ];
 
+export const reminderFilterOptions: Array<{
+  value: AgentReminderFilter;
+  label: string;
+}> = notificationFilterOptions.filter(
+  (option): option is { value: AgentReminderFilter; label: string } =>
+    option.value !== "general_notice",
+);
+
 export const noticeStreamFilterOptions: Array<{
   value: AgentNotificationStreamFilter;
   label: string;
@@ -96,7 +114,7 @@ export const readStateOptions: Array<{
 ];
 
 export const appointmentReminderGroupConfig: Array<{
-  key: Exclude<AgentNotificationFilter, "all" | "general_notice">;
+  key: Exclude<AgentReminderFilter, "all">;
   label: string;
   description: string;
 }> = [
@@ -193,32 +211,71 @@ export function resolveOptionValue<T extends string>(
     : fallback;
 }
 
-export function normalizeNotificationFilterForActivityView(
-  activityView: AgentActivityView,
-  filter: AgentNotificationFilter,
-): AgentNotificationFilter {
-  if (activityView === "general_notices") {
-    return "general_notice";
+export function resolveReminderFilterValue(
+  rawReminderFilter: string | null | undefined,
+  rawNotificationFilter: string | null | undefined,
+  fallback: AgentReminderFilter,
+) {
+  return resolveOptionValue(
+    rawReminderFilter && rawReminderFilter !== "general_notice"
+      ? rawReminderFilter
+      : rawNotificationFilter && rawNotificationFilter !== "general_notice"
+        ? rawNotificationFilter
+        : null,
+    reminderFilterOptions,
+    fallback,
+  );
+}
+
+export function resolveNoticeFeedback(rawValue: string | null | undefined) {
+  const allowedValues = new Set<AgentNotificationFeedback>([
+    "opened_marked_read",
+    "reopened_notice",
+    "opened_shared_notice",
+  ]);
+
+  return rawValue && allowedValues.has(rawValue as AgentNotificationFeedback)
+    ? (rawValue as AgentNotificationFeedback)
+    : null;
+}
+
+export function sanitizeNotificationReturnTo(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed || !trimmed.startsWith("/") || trimmed.startsWith("//")) {
+    return "";
   }
 
-  if (activityView === "appointment_reminders" && filter === "general_notice") {
-    return "all";
-  }
+  try {
+    const parsed = new URL(trimmed, "http://acre.local");
+    const isAgentPath =
+      parsed.pathname === "/agent" || parsed.pathname.startsWith("/agent/");
+    const isOfficePath =
+      parsed.pathname === "/office" || parsed.pathname.startsWith("/office/");
 
-  return filter;
+    if (!isAgentPath && !isOfficePath) {
+      return "";
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "";
+  }
 }
 
 export function buildAgentNotificationsHref(input: {
   pathname: string;
   activityView: AgentActivityView;
   cleanupFilter: AgentCleanupFilter;
-  filter: AgentNotificationFilter;
+  filter: AgentReminderFilter;
   noticeStreamFilter: AgentNotificationStreamFilter;
   readState: AgentNotificationReadState;
   leadershipFilter: AgentLeadershipCleanupFilter;
   anchor?: string;
 }) {
   const params = new URLSearchParams();
+  const routeNoticeFilter =
+    input.activityView === "general_notices" ? "general_notice" : input.filter;
 
   if (input.activityView !== "all") {
     params.set("activityView", input.activityView);
@@ -229,7 +286,11 @@ export function buildAgentNotificationsHref(input: {
   }
 
   if (input.filter !== "all") {
-    params.set("noticeFilter", input.filter);
+    params.set("appointmentFilter", input.filter);
+  }
+
+  if (routeNoticeFilter !== "all") {
+    params.set("noticeFilter", routeNoticeFilter);
   }
 
   if (input.noticeStreamFilter !== "all") {
