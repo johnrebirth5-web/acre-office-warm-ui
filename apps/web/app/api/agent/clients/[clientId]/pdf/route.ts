@@ -27,7 +27,7 @@ function buildPdfFileName(fullName: string, generatedAt: Date) {
       .replace(/^-+|-+$/g, "") || "client";
   const dateStamp = generatedAt.toISOString().slice(0, 10);
 
-  return `${safeName}-client-summary-${dateStamp}.pdf`;
+  return `${safeName}-coordination-summary-${dateStamp}.pdf`;
 }
 
 export async function GET(

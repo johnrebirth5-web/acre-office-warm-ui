@@ -76,6 +76,10 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     marginBottom: 7,
   },
+  sectionIntro: {
+    color: "#64748b",
+    marginBottom: 7,
+  },
   cardGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -140,95 +144,200 @@ function normalizeValue(value: string) {
   return trimmed || "Not captured";
 }
 
-function buildNegotiationSummary(snapshot: FrontOfficeClientDetailSnapshot): SummaryBlock {
+function buildFormalWorkflowSummary(
+  snapshot: FrontOfficeClientDetailSnapshot,
+): SummaryBlock {
+  switch (snapshot.contract.boundaryState) {
+    case "back_office_live":
+      return {
+        title: "Formal paperwork is active",
+        description:
+          "The shared transaction record is already carrying the formal offer, contract, signature, or milestone work. Client-facing coordination can still continue, but the auditable paperwork now lives in that formal file.",
+      };
+    case "ready_for_back_office":
+      return {
+        title: "Formal paperwork should open next",
+        description:
+          "Search feedback, timing, and decision readiness are aligned enough that the next formal step should start from the shared transaction record instead of a duplicate note.",
+      };
+    case "post_close_front_office":
+      return {
+        title: "The formal transaction is already complete",
+        description:
+          "The next work is relationship-driven: move support, recap, referrals, testimonials, and the next future planning conversation.",
+      };
+    case "cancelled_reentry":
+      return {
+        title: "The current opportunity is paused, but future planning stays open",
+        description:
+          "The formal file is no longer the active lane. A respectful re-entry or future planning touch can still happen from the live client record.",
+      };
+    default:
+      return {
+        title: "We are still in planning and coordination",
+        description:
+          "The current focus is still follow-up, showings, shortlist feedback, and decision support before any formal paperwork is needed.",
+      };
+  }
+}
+
+function buildNegotiationSummary(
+  snapshot: FrontOfficeClientDetailSnapshot,
+): SummaryBlock {
   switch (snapshot.negotiation.boundaryLabel) {
     case "BO workspace live":
       return {
-        title: "Formal offer or application steps are already active",
+        title: "Offer or application work is already active",
         description:
           snapshot.negotiation.offerCount > 0
-            ? `${snapshot.negotiation.offerCount} formal offer or application record(s) are already active, and the current primary status is ${snapshot.negotiation.acceptedOfferLabel}.`
-            : "A formal record is already active, so pricing, terms, and paperwork now move from the shared transaction workspace.",
+            ? `${snapshot.negotiation.offerCount} formal offer or application record(s) are already active, and the current primary state is ${snapshot.negotiation.acceptedOfferLabel}.`
+            : "A formal record is already active, so pricing, terms, and document control are now managed from the shared transaction workspace.",
       };
     case "Ready for BO handoff":
       return {
-        title: "The client is ready for the formal next step",
+        title: "The client is ready for a formal next step",
         description:
-          "Search feedback, timing, and decision readiness are aligned enough that the next move is to open the formal transaction workflow.",
+          "Search direction, timing, and decision-making are aligned enough that the next record should be a formal offer, application, or transaction setup.",
       };
     default:
       return {
         title: "Decision-making is still being narrowed",
         description:
-          "We are still using showings, shortlist feedback, and follow-up to clarify the best fit before opening any formal offer or application record.",
+          "Showings, shortlist feedback, and follow-up are still doing the work of clarifying the best option before formal terms are opened.",
       };
   }
 }
 
-function buildInspectionSummary(snapshot: FrontOfficeClientDetailSnapshot): SummaryBlock {
+function buildInspectionSummary(
+  snapshot: FrontOfficeClientDetailSnapshot,
+): SummaryBlock {
   switch (snapshot.inspection.boundaryLabel) {
     case "Inspection-era live":
       return {
         title: "Contract support and milestone follow-through are active",
         description:
-          "The shared formal transaction record is already carrying active checklist work, signatures, and review items for this client.",
+          "Checklist work, signatures, and incoming transaction updates are already moving in the shared formal record.",
       };
     case "Contract file live":
       return {
         title: "The formal contract file is open",
         description:
-          "The shared record is live and carrying the next contract step, even if final acceptance-era details are still settling.",
+          "The shared transaction record is already carrying the live contract lane, even if next-step details are still settling.",
       };
     case "Ready for contract file":
       return {
         title: "Formal contract setup is the next move",
         description:
-          "This dossier has advanced to the point where the next contract or application step should start from the formal shared record.",
+          "This client has advanced far enough that the next contract or application step should start in the formal record.",
       };
     default:
       return {
         title: "Formal contract support has not started yet",
         description:
-          "The current work is still focused on follow-up, showings, shortlist decisions, and early client coordination.",
+          "The current work is still centered on follow-up, showings, shortlist decisions, and early coordination.",
       };
   }
 }
 
 function buildSearchSummaryLines(snapshot: FrontOfficeClientDetailSnapshot) {
   return [
-    `Search or move intent: ${normalizeValue(snapshot.intentLabel)}`,
-    `Budget: ${normalizeValue(snapshot.budgetLabel)}`,
+    `Search or move goal: ${normalizeValue(snapshot.intentLabel)}`,
+    `Budget range: ${normalizeValue(snapshot.budgetLabel)}`,
     `Preferred areas: ${normalizeValue(snapshot.preferredAreasLabel)}`,
     `Current stage: ${snapshot.stage}`,
   ];
 }
 
-function buildLeaseTimingText(snapshot: FrontOfficeClientDetailSnapshot) {
-  if (
-    snapshot.leaseReminder.leaseEndDateLabel === "No lease end date captured" &&
-    snapshot.leaseReminder.statusLabel === "No lease reminder"
-  ) {
-    return "No lease-driven timing is currently recorded on this dossier.";
-  }
-
+function buildContactSummaryLines(snapshot: FrontOfficeClientDetailSnapshot) {
   return [
-    `Lease end: ${snapshot.leaseReminder.leaseEndDateLabel}`,
-    `Reminder timing: ${snapshot.leaseReminder.reminderAtLabel}`,
-    snapshot.leaseReminder.helperText,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    `Email: ${normalizeValue(snapshot.email || "")}`,
+    `Phone: ${normalizeValue(snapshot.phone || "")}`,
+    `Prepared from the live client record, owned by ${snapshot.ownerLabel}.`,
+  ];
 }
 
-function buildCurrentPlanLines(snapshot: FrontOfficeClientDetailSnapshot) {
-  const lines = [
-    `${snapshot.workflow.nextStepTitle}: ${snapshot.workflow.nextStepDescription}`,
-    `Next planned touch: ${snapshot.followUpCue.dueLabel}`,
-    `Workflow pressure: ${snapshot.workflow.pressureLabel}`,
-  ];
+function buildImportantDatesLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const lines = [`Next planned touch: ${snapshot.followUpCue.dueLabel}`];
+
+  if (snapshot.appointments.length) {
+    const nextAppointment = snapshot.appointments[0];
+    lines.push(`Next appointment: ${nextAppointment.startsAtLabel}`);
+  } else {
+    lines.push("Next appointment: Not scheduled yet");
+  }
 
   if (snapshot.leaseReminder.statusLabel !== "No lease reminder") {
-    lines.push(`Lease timing: ${snapshot.leaseReminder.statusLabel}`);
+    lines.push(`Lease timing: ${snapshot.leaseReminder.reminderAtLabel}`);
+  }
+
+  if (snapshot.closing.keyDateLabel !== "No key date captured") {
+    lines.push(`Formal milestone date: ${snapshot.closing.keyDateLabel}`);
+  }
+
+  return lines;
+}
+
+function buildWorkingPlanLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const lines = [
+    `${snapshot.workflow.nextStepTitle}: ${snapshot.workflow.nextStepDescription}`,
+    `Workflow pressure: ${snapshot.workflow.pressureLabel}`,
+    `Current execution lane: ${snapshot.nextStepRail.decisionLabel}`,
+  ];
+
+  if (snapshot.summary.openTaskCount > 0) {
+    lines.push(
+      `${snapshot.summary.openTaskCount} active follow-up task(s) are already keeping the next move visible.`,
+    );
+  }
+
+  return lines;
+}
+
+function buildWhatHappensNextLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const lines = [
+    `${snapshot.workflow.nextStepTitle} | ${snapshot.workflow.nextStepDescription}`,
+    `Next touch | ${snapshot.followUpCue.dueLabel}`,
+  ];
+
+  if (snapshot.appointments.length) {
+    lines.push(
+      ...snapshot.appointments.slice(0, 2).map((appointment) =>
+        [
+          "Appointment",
+          appointment.title,
+          appointment.startsAtLabel,
+          appointment.locationLabel,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+      ),
+    );
+  }
+
+  if (snapshot.leaseReminder.statusLabel !== "No lease reminder") {
+    lines.push(
+      [
+        "Lease timing",
+        snapshot.leaseReminder.statusLabel,
+        snapshot.leaseReminder.reminderAtLabel,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
+  }
+
+  if (snapshot.sendRecords.length) {
+    const latestSend = snapshot.sendRecords[0];
+    lines.push(
+      [
+        "Most recent option set",
+        latestSend.title,
+        latestSend.sentAtLabel,
+        latestSend.engagementLabel,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
   }
 
   return lines;
@@ -256,7 +365,7 @@ function buildUpcomingCoordinationLines(snapshot: FrontOfficeClientDetailSnapsho
 function buildMaterialsLines(snapshot: FrontOfficeClientDetailSnapshot) {
   if (!snapshot.sendRecords.length) {
     return [
-      "No listing packet or tracked resource has been shared from this dossier yet.",
+      "No tracked listing packet or resource share has been recorded yet from this client record.",
     ];
   }
 
@@ -273,12 +382,14 @@ function buildMaterialsLines(snapshot: FrontOfficeClientDetailSnapshot) {
 }
 
 function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const formalWorkflow = buildFormalWorkflowSummary(snapshot);
   const negotiationSummary = buildNegotiationSummary(snapshot);
   const inspectionSummary = buildInspectionSummary(snapshot);
   const lines = [
+    `${formalWorkflow.title} | ${formalWorkflow.description}`,
     `${negotiationSummary.title} | ${negotiationSummary.description}`,
     `${inspectionSummary.title} | ${inspectionSummary.description}`,
-    `Current closing or milestone view: ${snapshot.closing.boundaryLabel} | ${snapshot.closing.keyDateLabel}`,
+    `Closing or milestone view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.keyDateLabel}`,
   ];
 
   if (snapshot.negotiation.offers.length) {
@@ -301,32 +412,27 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
 
 function buildRecentProgressLines(snapshot: FrontOfficeClientDetailSnapshot) {
   const lines = [
-    ...snapshot.stageHistory.slice(0, 3).map((entry) =>
+    ...snapshot.followUpTasks.slice(0, 3).map((task) =>
+      [task.timelineAtLabel, task.timelineTitle].filter(Boolean).join(" | "),
+    ),
+    ...snapshot.stageHistory.slice(0, 2).map((entry) =>
       [entry.changedAtLabel, entry.title].filter(Boolean).join(" | "),
     ),
     ...snapshot.sendRecords.slice(0, 2).map((record) =>
-      [
-        record.sentAtLabel,
-        `Shared ${record.title}`,
-        record.engagementLabel,
-      ]
+      [record.sentAtLabel, `Shared ${record.title}`, record.engagementLabel]
         .filter(Boolean)
         .join(" | "),
     ),
     ...snapshot.handoffs.slice(0, 2).map((handoff) =>
-      [
-        handoff.updatedAtLabel,
-        handoff.stageLabel,
-        handoff.statusLabel,
-      ]
+      [handoff.updatedAtLabel, handoff.stageLabel, handoff.statusLabel]
         .filter(Boolean)
         .join(" | "),
     ),
   ].filter(Boolean);
 
   return lines.length
-    ? lines.slice(0, 6)
-    : ["No recent progress has been logged on this dossier yet."];
+    ? lines.slice(0, 7)
+    : ["No recent progress has been logged on this client record yet."];
 }
 
 function HeroCard(props: {
@@ -349,7 +455,9 @@ function InfoCard(props: {
   fullWidth?: boolean;
 }) {
   return (
-    <View style={props.fullWidth ? [styles.infoCard, styles.fullCard] : styles.infoCard}>
+    <View
+      style={props.fullWidth ? [styles.infoCard, styles.fullCard] : styles.infoCard}
+    >
       <Text style={styles.infoCardTitle}>{props.title}</Text>
       <Text style={styles.infoCardBody}>{props.body}</Text>
     </View>
@@ -371,6 +479,7 @@ function BulletList(props: { lines: string[] }) {
 export function FrontOfficeClientSummaryPdfDocument(
   props: FrontOfficeClientSummaryPdfProps,
 ) {
+  const formalWorkflow = buildFormalWorkflowSummary(props.snapshot);
   const negotiationSummary = buildNegotiationSummary(props.snapshot);
   const inspectionSummary = buildInspectionSummary(props.snapshot);
 
@@ -379,12 +488,11 @@ export function FrontOfficeClientSummaryPdfDocument(
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.organization}>{props.organizationLabel}</Text>
-          <Text style={styles.eyebrow}>Client progress summary</Text>
+          <Text style={styles.eyebrow}>Client coordination summary</Text>
           <Text style={styles.title}>{props.snapshot.fullName}</Text>
           <Text style={styles.subtitle}>
-            Prepared {props.generatedAtLabel} by {props.agentLabel}. This
-            summary reflects the live Acre client dossier at the moment it was
-            generated.
+            Prepared {props.generatedAtLabel} by {props.agentLabel}. This recap
+            reflects the live Acre client record at the moment it was generated.
           </Text>
         </View>
 
@@ -395,103 +503,99 @@ export function FrontOfficeClientSummaryPdfDocument(
             detail={props.snapshot.workflow.pressureDescription}
           />
           <HeroCard
+            label="Search goal"
+            value={props.snapshot.intentLabel}
+            detail={`Budget ${normalizeValue(props.snapshot.budgetLabel)} · Areas ${normalizeValue(props.snapshot.preferredAreasLabel)}`}
+          />
+          <HeroCard
             label="Next planned touch"
             value={props.snapshot.followUpCue.dueLabel}
             detail={props.snapshot.followUpCue.description}
           />
           <HeroCard
-            label="Upcoming appointments"
-            value={props.snapshot.summary.upcomingAppointmentCount}
-            detail={
-              props.snapshot.summary.upcomingAppointmentCount
-                ? "Appointments are already on the calendar for this dossier."
-                : "The next move is still being driven by follow-up and shortlist work."
-            }
-          />
-          <HeroCard
-            label="Formal workflow status"
-            value={props.snapshot.nextStepRail.decisionLabel}
-            detail={props.snapshot.nextStepRail.decisionDescription}
+            label="Formal paperwork"
+            value={formalWorkflow.title}
+            detail={formalWorkflow.description}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Search summary</Text>
+          <Text style={styles.sectionTitle}>Client goals and working context</Text>
+          <Text style={styles.sectionIntro}>
+            The recap below is organized for active coordination, shortlist
+            alignment, and clean follow-through after calls or meetings.
+          </Text>
           <View style={styles.cardGrid}>
             <InfoCard
-              title="What we are solving"
+              title="Search or move goals"
               body={buildSearchSummaryLines(props.snapshot).join("\n")}
             />
             <InfoCard
-              title="Client contact"
-              body={[
-                `Email: ${normalizeValue(props.snapshot.email || "")}`,
-                `Phone: ${normalizeValue(props.snapshot.phone || "")}`,
-              ].join("\n")}
+              title="Contact details on file"
+              body={buildContactSummaryLines(props.snapshot).join("\n")}
+            />
+            <InfoCard
+              title="Important dates"
+              body={buildImportantDatesLines(props.snapshot).join("\n")}
             />
             <InfoCard
               title="Current working plan"
-              body={buildCurrentPlanLines(props.snapshot).join("\n")}
-            />
-            <InfoCard
-              title="Lease timing"
-              body={buildLeaseTimingText(props.snapshot)}
+              body={buildWorkingPlanLines(props.snapshot).join("\n")}
             />
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming coordination</Text>
+          <Text style={styles.sectionTitle}>What happens next</Text>
+          <BulletList lines={buildWhatHappensNextLines(props.snapshot)} />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Upcoming appointments and coordination</Text>
           <BulletList lines={buildUpcomingCoordinationLines(props.snapshot)} />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Formal workflow view</Text>
-          <View style={styles.cardGrid}>
-            <InfoCard
-              title={negotiationSummary.title}
-              body={negotiationSummary.description}
-            />
-            <InfoCard
-              title={inspectionSummary.title}
-              body={inspectionSummary.description}
-            />
-          </View>
         </View>
       </Page>
 
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.organization}>{props.organizationLabel}</Text>
-          <Text style={styles.eyebrow}>Client progress summary</Text>
-          <Text style={styles.title}>Activity and milestones</Text>
+          <Text style={styles.eyebrow}>Client coordination summary</Text>
+          <Text style={styles.title}>Shared materials and milestone view</Text>
           <Text style={styles.subtitle}>
-            Recent coordination, shared materials, and formal milestone context
-            pulled from the live dossier.
+            This page captures what has already been shared, where formal
+            paperwork stands, and the most recent movement on the client record.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Materials and shortlist activity</Text>
+          <Text style={styles.sectionTitle}>Shared options and materials</Text>
           <BulletList lines={buildMaterialsLines(props.snapshot)} />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Formal milestones</Text>
-          <BulletList lines={buildFormalMilestoneLines(props.snapshot)} />
+          <Text style={styles.sectionTitle}>Formal paperwork and milestone view</Text>
+          <View style={styles.cardGrid}>
+            <InfoCard title={formalWorkflow.title} body={formalWorkflow.description} />
+            <InfoCard title={negotiationSummary.title} body={negotiationSummary.description} />
+            <InfoCard title={inspectionSummary.title} body={inspectionSummary.description} />
+            <InfoCard
+              title="Milestone snapshot"
+              body={buildFormalMilestoneLines(props.snapshot).join("\n")}
+            />
+          </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent progress</Text>
+          <Text style={styles.sectionTitle}>Recent progress highlights</Text>
           <BulletList lines={buildRecentProgressLines(props.snapshot)} />
         </View>
 
         <View style={styles.footer}>
           <Text>
-            This summary is meant for client-facing coordination and recap.
-            Formal transaction records, signatures, accounting, and archival
-            documents continue to live in Acre&apos;s shared formal transaction
-            workspace.
+            This summary is intended for coordination, recap, and client-facing
+            follow-through. Final contracts, signatures, accounting, and archive
+            documents continue to live in Acre&apos;s formal transaction record
+            when that paperwork is active.
           </Text>
         </View>
       </Page>
