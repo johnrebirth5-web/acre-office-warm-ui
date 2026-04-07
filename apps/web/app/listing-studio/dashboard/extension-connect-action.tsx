@@ -251,27 +251,40 @@ export function ListingStudioExtensionConnectAction(
     badgeLabel = "Not installed";
   }
 
+  let actionLabel = "Connect Chrome extension";
+  if (browserConnectionState === "connected") {
+    actionLabel = "Connected in this browser";
+  } else if (browserConnectionState === "pending" || isConnecting) {
+    actionLabel = "Connecting...";
+  }
+
   return (
     <div className="listing-studio-banner-grid">
       <div className="listing-studio-banner-copy">
+        <span className="listing-studio-banner-kicker">Current browser</span>
         <strong>{heading}</strong>
         <p>{description}</p>
         {statusMessage ? (
           <p className="listing-studio-status-message">{statusMessage}</p>
         ) : null}
       </div>
-      <div className="listing-studio-banner-status">
-        <span className={badgeClassName}>{badgeLabel}</span>
-        <span className="listing-studio-banner-meta">
-          Supported sources: StreetEasy, Zillow
-        </span>
+      <div className="listing-studio-banner-panel">
+        <div className="listing-studio-banner-status">
+          <span className={badgeClassName}>{badgeLabel}</span>
+          <span className="listing-studio-banner-source-pill">
+            StreetEasy + Zillow
+          </span>
+        </div>
+        <p className="listing-studio-banner-meta">
+          Connect this browser to save listings directly from supported pages.
+        </p>
         <div className="listing-studio-connect-action">
           <Button
             disabled={browserConnectionState === "connected" || isConnecting}
             onClick={handleClick}
             variant="primary"
           >
-            {isConnecting ? "Connecting..." : "Connect Chrome extension"}
+            {actionLabel}
           </Button>
         </div>
       </div>

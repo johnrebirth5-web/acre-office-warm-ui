@@ -17344,21 +17344,31 @@ body,
 }
 
 .listing-studio-banner-grid {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.85fr);
+  gap: 18px;
+  align-items: stretch;
 }
 
 .listing-studio-banner-copy {
   display: grid;
-  gap: 8px;
-  max-width: 720px;
+  align-content: start;
+  gap: 10px;
+  max-width: 760px;
+  padding: 6px 4px 6px 0;
+}
+
+.listing-studio-banner-kicker {
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .listing-studio-banner-copy strong {
-  font-size: 1.05rem;
+  font-size: 1.28rem;
+  line-height: 1.2;
 }
 
 .listing-studio-banner-copy p,
@@ -17367,10 +17377,45 @@ body,
   color: var(--muted);
 }
 
-.listing-studio-banner-status {
+.listing-studio-banner-panel {
   display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(20, 74, 119, 0.1);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(20, 74, 119, 0.06), rgba(20, 74, 119, 0.02)),
+    rgba(255, 255, 255, 0.92);
+}
+
+.listing-studio-banner-status {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  justify-items: end;
+  align-items: center;
+}
+
+.listing-studio-banner-source-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(20, 74, 119, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--accent);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.listing-studio-connect-action {
+  display: flex;
+}
+
+.listing-studio-connect-action .office-button {
+  width: 100%;
+  justify-content: center;
 }
 
 .listing-studio-card-grid {
@@ -17728,6 +17773,17 @@ body,
   margin: 0;
   color: var(--accent);
   font-size: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .listing-studio-banner-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .listing-studio-banner-copy {
+    max-width: none;
+    padding-right: 0;
+  }
 }
 
 .listing-studio-share-shell {
