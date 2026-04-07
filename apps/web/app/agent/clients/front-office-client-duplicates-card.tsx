@@ -20,26 +20,38 @@ type FeedbackAction = {
   label: string;
 };
 
-type FeedbackState =
-  | {
-      tone: "success" | "error";
-      title: string;
-      message: string;
-      detail?: string;
-      nextStep?: string;
-      actions?: FeedbackAction[];
-    }
-  | null;
+type FeedbackState = {
+  tone: "success" | "error";
+  title: string;
+  message: string;
+  detail?: string;
+  nextStep?: string;
+  actions?: FeedbackAction[];
+} | null;
 
 type MergeApiPayload = {
   error?: string;
   detail?: string;
   nextStep?: string;
   code?: string;
+  keepReason?: string;
+  boundary?: string;
   result?: FrontOfficeClientMergeResult;
 };
 
-function buildMergeCountsSummary(result: FrontOfficeClientMergeResult["movedCounts"]) {
+function buildDuplicatePairAnchorId(pairId: string) {
+  const sanitized = pairId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `duplicate-pair-${sanitized || "record"}`;
+}
+
+function buildMergeCountsSummary(
+  result: FrontOfficeClientMergeResult["movedCounts"],
+) {
   const parts = [
     result.appointments > 0 ? `${result.appointments} appointment(s)` : null,
     result.followUpTasks > 0
@@ -106,11 +118,23 @@ function buildMergeRisk(pair: FrontOfficeClientDuplicatePair) {
   }
 
   return {
-    label: "High-confidence pair",
+    label: "Ready after review",
     tone: "success" as const,
     description:
       "Multiple exact-match signals point to one surviving dossier, so the merge should mostly consolidate attached history.",
   };
+}
+
+function buildKeepSummary(pair: FrontOfficeClientDuplicatePair) {
+  return `${pair.rationaleLabel} Current keep dossier snapshot: ${pair.recommendedClient.detailLabel}.`;
+}
+
+function buildMergeCarryForwardSummary(pair: FrontOfficeClientDuplicatePair) {
+  return `${pair.recommendedClient.fullName} stays as the only Front Office dossier. If ${pair.duplicateClient.fullName} still owns linked appointments, follow-up tasks, tracked sends, AI action history, handoff drafts, or Back Office contact pointers, Acre moves that history onto the surviving dossier before removing the duplicate record.`;
+}
+
+function buildMergeFailureDetail(pair: FrontOfficeClientDuplicatePair) {
+  return `Why Acre was keeping ${pair.recommendedClient.fullName}: ${pair.rationaleLabel}`;
 }
 
 export function FrontOfficeClientDuplicatesCard(props: {
@@ -137,27 +161,35 @@ export function FrontOfficeClientDuplicatesCard(props: {
         sourceClientId: pair.duplicateClient.id,
       }),
     });
-    const payload = (await response.json().catch(() => null)) as MergeApiPayload | null;
+    const payload = (await response
+      .json()
+      .catch(() => null)) as MergeApiPayload | null;
 
     if (!response.ok || !payload?.result) {
       setFeedback({
         tone: "error",
         title: payload?.error ?? "Could not merge these FO dossiers",
-        message:
+        message: [
           payload?.detail ??
-          "Acre stopped before removing the duplicate record, so both dossiers are still intact.",
-        detail: `Why Acre was keeping ${pair.recommendedClient.fullName}: ${pair.rationaleLabel}`,
+            "Acre stopped before removing the duplicate dossier, so both dossiers are still intact.",
+          "Both dossiers are still intact.",
+        ].join(" "),
+        detail: buildMergeFailureDetail(pair),
         nextStep:
           payload?.nextStep ??
           "Refresh duplicate review, reopen both dossiers, and confirm the keep choice before trying again.",
         actions: [
           {
+            href: `#${buildDuplicatePairAnchorId(pair.id)}`,
+            label: "Jump back to this pair",
+          },
+          {
             href: pair.recommendedClient.href,
-            label: pair.recommendedClient.reviewLabel,
+            label: `Open ${pair.recommendedClient.fullName}`,
           },
           {
             href: pair.duplicateClient.href,
-            label: pair.duplicateClient.reviewLabel,
+            label: `Open ${pair.duplicateClient.fullName}`,
           },
         ],
       });
@@ -168,15 +200,17 @@ export function FrontOfficeClientDuplicatesCard(props: {
     setFeedback({
       tone: "success",
       title: `Merged into ${payload.result.targetFullName}`,
-      message: `${payload.result.sourceFullName} is no longer a separate FO dossier. Why Acre kept ${payload.result.targetFullName}: ${pair.rationaleLabel}`,
+      message: `Why Acre kept ${payload.result.targetFullName}: ${pair.rationaleLabel} ${payload.result.sourceFullName} is no longer a separate FO dossier.`,
       detail: [
         buildMergeCountsSummary(payload.result.movedCounts),
+        payload.keepReason,
         payload.detail,
+        payload.boundary,
       ]
         .filter(Boolean)
         .join(" "),
       nextStep:
-        payload.nextStep ??
+        payload?.nextStep ??
         "Open the surviving dossier if you want to re-check stage, next touch, or the FO -> BO boundary.",
       actions: [
         {
@@ -184,14 +218,14 @@ export function FrontOfficeClientDuplicatesCard(props: {
           label: `Open ${pair.recommendedClient.fullName}`,
         },
         {
-          href: "#duplicate-review",
-          label: "Stay in duplicate lane",
+          href: "#client-execution-queue",
+          label: "Back to queue",
         },
       ],
     });
+    setActivePairId(null);
     startTransition(() => {
       router.refresh();
-      setActivePairId(null);
     });
   }
 
@@ -203,127 +237,6 @@ export function FrontOfficeClientDuplicatesCard(props: {
         subtitle="Review both sides first, keep one surviving dossier on purpose, and merge only when you are comfortable with Acre's keep recommendation. This lane consolidates FO history and BO contact pointers only; it does not create a transaction or hide automation."
         title="Duplicate review lane"
       >
-        <div className="front-office-merge-list">
-          {props.duplicatePairs.map((pair) => {
-            const isBusy = activePairId === pair.id || isPending;
-            const mergeRisk = buildMergeRisk(pair);
-            const reviewBadgeLabel =
-              pair.matchReasons.length >= 2 ? "High overlap" : "Review first";
-
-            return (
-              <article className="front-office-merge-pair" key={pair.id}>
-                <div className="front-office-merge-pair-head">
-                  <div>
-                    <strong>{pair.matchReasons.join(" · ")}</strong>
-                    <p>
-                      Why Acre keeps {pair.recommendedClient.fullName}:{" "}
-                      {pair.rationaleLabel}
-                    </p>
-                  </div>
-                  <StatusBadge tone="warning">{reviewBadgeLabel}</StatusBadge>
-                </div>
-
-                <div className="front-office-merge-columns">
-                  <div className="front-office-merge-column is-recommended">
-                    <span className="front-office-merge-column-label">
-                      Keep this dossier
-                    </span>
-                    <div className="front-office-merge-column-head">
-                      <strong>{pair.recommendedClient.fullName}</strong>
-                      <StatusBadge tone={pair.recommendedClient.stageTone}>
-                        {pair.recommendedClient.stage}
-                      </StatusBadge>
-                    </div>
-                    <p>
-                      {pair.recommendedClient.sourceLabel} ·{" "}
-                      {pair.recommendedClient.nextTouchLabel}
-                    </p>
-                    <div className="front-office-record-meta">
-                      <span>{pair.recommendedClient.detailLabel}</span>
-                      <span>{pair.recommendedClient.lastUpdatedLabel}</span>
-                      <span>{pair.recommendedClient.ownerLabel}</span>
-                      <span>{pair.recommendedClient.scopeLabel}</span>
-                    </div>
-                    <FrontOfficeLink
-                      className="office-inline-link front-office-inline-link"
-                      href={pair.recommendedClient.href}
-                    >
-                      {pair.recommendedClient.reviewLabel}
-                    </FrontOfficeLink>
-                  </div>
-
-                  <div className="front-office-merge-column">
-                    <span className="front-office-merge-column-label">
-                      Merge this duplicate in
-                    </span>
-                    <div className="front-office-merge-column-head">
-                      <strong>{pair.duplicateClient.fullName}</strong>
-                      <StatusBadge tone={pair.duplicateClient.stageTone}>
-                        {pair.duplicateClient.stage}
-                      </StatusBadge>
-                    </div>
-                    <p>
-                      {pair.duplicateClient.sourceLabel} ·{" "}
-                      {pair.duplicateClient.nextTouchLabel}
-                    </p>
-                    <div className="front-office-record-meta">
-                      <span>{pair.duplicateClient.detailLabel}</span>
-                      <span>{pair.duplicateClient.lastUpdatedLabel}</span>
-                      <span>{pair.duplicateClient.ownerLabel}</span>
-                      <span>{pair.duplicateClient.scopeLabel}</span>
-                    </div>
-                    <FrontOfficeLink
-                      className="office-inline-link front-office-inline-link"
-                      href={pair.duplicateClient.href}
-                    >
-                      {pair.duplicateClient.reviewLabel}
-                    </FrontOfficeLink>
-                  </div>
-                </div>
-
-                <div className="office-queue-list">
-                  <QueueItem
-                    badgeLabel="Keep reason"
-                    badgeTone="accent"
-                    description={pair.recommendedClient.detailLabel}
-                    meta={
-                      <>
-                        <span>{pair.recommendedClient.lastUpdatedLabel}</span>
-                        <span>{pair.recommendedClient.scopeLabel}</span>
-                      </>
-                    }
-                    title={`Why ${pair.recommendedClient.fullName} survives`}
-                  />
-                  <QueueItem
-                    badgeLabel={mergeRisk.label}
-                    badgeTone={mergeRisk.tone}
-                    description={mergeRisk.description}
-                    meta={
-                      <>
-                        <span>{pair.duplicateClient.detailLabel}</span>
-                        <span>{pair.duplicateClient.scopeLabel}</span>
-                      </>
-                    }
-                    title="Merge risk to review"
-                  />
-                </div>
-
-                <div className="front-office-merge-actions">
-                  <Button
-                    disabled={isBusy}
-                    onClick={() => {
-                      setConfirmPair(pair);
-                    }}
-                    type="button"
-                  >
-                    {isBusy ? "Merging duplicate..." : "Merge after review"}
-                  </Button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-
         {feedback ? (
           <div
             className={`front-office-calendar-feedback ${
@@ -349,6 +262,146 @@ export function FrontOfficeClientDuplicatesCard(props: {
             ) : null}
           </div>
         ) : null}
+
+        <div className="front-office-merge-list">
+          {props.duplicatePairs.map((pair) => {
+            const isBusy = activePairId === pair.id || isPending;
+            const mergeRisk = buildMergeRisk(pair);
+
+            return (
+              <article
+                className="front-office-merge-pair"
+                id={buildDuplicatePairAnchorId(pair.id)}
+                key={pair.id}
+              >
+                <div className="front-office-merge-pair-head">
+                  <div>
+                    <strong>{pair.matchReasons.join(" · ")}</strong>
+                    <p>
+                      Keep {pair.recommendedClient.fullName} and merge{" "}
+                      {pair.duplicateClient.fullName} only after review.{" "}
+                      {pair.rationaleLabel}
+                    </p>
+                  </div>
+                  <StatusBadge tone={mergeRisk.tone}>
+                    {mergeRisk.label}
+                  </StatusBadge>
+                </div>
+
+                <div className="front-office-merge-columns">
+                  <div className="front-office-merge-column is-recommended">
+                    <span className="front-office-merge-column-label">
+                      Keep this dossier
+                    </span>
+                    <div className="front-office-merge-column-head">
+                      <strong>{pair.recommendedClient.fullName}</strong>
+                      <StatusBadge tone={pair.recommendedClient.stageTone}>
+                        {pair.recommendedClient.stage}
+                      </StatusBadge>
+                    </div>
+                    <p>
+                      {pair.recommendedClient.sourceLabel} ·{" "}
+                      {pair.recommendedClient.nextTouchLabel}
+                    </p>
+                    <div className="front-office-record-meta">
+                      <span>{pair.recommendedClient.detailLabel}</span>
+                      <span>{pair.recommendedClient.lastUpdatedLabel}</span>
+                      <span>{pair.recommendedClient.ownerLabel}</span>
+                      <span>{pair.recommendedClient.scopeLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="front-office-merge-column">
+                    <span className="front-office-merge-column-label">
+                      Merge this duplicate in
+                    </span>
+                    <div className="front-office-merge-column-head">
+                      <strong>{pair.duplicateClient.fullName}</strong>
+                      <StatusBadge tone={pair.duplicateClient.stageTone}>
+                        {pair.duplicateClient.stage}
+                      </StatusBadge>
+                    </div>
+                    <p>
+                      {pair.duplicateClient.sourceLabel} ·{" "}
+                      {pair.duplicateClient.nextTouchLabel}
+                    </p>
+                    <div className="front-office-record-meta">
+                      <span>{pair.duplicateClient.detailLabel}</span>
+                      <span>{pair.duplicateClient.lastUpdatedLabel}</span>
+                      <span>{pair.duplicateClient.ownerLabel}</span>
+                      <span>{pair.duplicateClient.scopeLabel}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="office-queue-list">
+                  <QueueItem
+                    badgeLabel="Why keep this dossier"
+                    badgeTone="accent"
+                    description={buildKeepSummary(pair)}
+                    meta={
+                      <>
+                        <span>{pair.recommendedClient.detailLabel}</span>
+                        <span>{pair.recommendedClient.lastUpdatedLabel}</span>
+                        <span>{pair.recommendedClient.scopeLabel}</span>
+                      </>
+                    }
+                    title={`Keep ${pair.recommendedClient.fullName}`}
+                  />
+                  <QueueItem
+                    badgeLabel="What merge carries forward"
+                    badgeTone="neutral"
+                    description={buildMergeCarryForwardSummary(pair)}
+                    meta={
+                      <>
+                        <span>{pair.duplicateClient.detailLabel}</span>
+                        <span>{pair.duplicateClient.ownerLabel}</span>
+                        <span>{pair.duplicateClient.scopeLabel}</span>
+                      </>
+                    }
+                    title={`Merge ${pair.duplicateClient.fullName} into ${pair.recommendedClient.fullName}`}
+                  />
+                  <QueueItem
+                    badgeLabel={mergeRisk.label}
+                    badgeTone={mergeRisk.tone}
+                    description={mergeRisk.description}
+                    meta={
+                      <>
+                        <span>{pair.matchReasons.join(" · ")}</span>
+                        <span>{pair.duplicateClient.scopeLabel}</span>
+                      </>
+                    }
+                    title="Risk to review before merge"
+                  />
+                </div>
+
+                <div className="front-office-merge-actions">
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={pair.recommendedClient.href}
+                  >
+                    Open keep dossier
+                  </FrontOfficeLink>
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={pair.duplicateClient.href}
+                  >
+                    Open duplicate record
+                  </FrontOfficeLink>
+                  <Button
+                    disabled={isBusy}
+                    onClick={() => {
+                      setConfirmPair(pair);
+                    }}
+                    type="button"
+                  >
+                    {isBusy ? "Merging duplicate..." : "Merge after review"}
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </SectionCard>
 
       <ConfirmActionDialog
@@ -358,7 +411,11 @@ export function FrontOfficeClientDuplicatesCard(props: {
             ? `Merge into ${confirmPair.recommendedClient.fullName}`
             : "Merge now"
         }
-        description="Acre will move linked Front Office history and reconcile related Back Office contact links where possible, then remove the duplicate dossier. It will not auto-send anything, create a transaction, or pretend an outside sync already happened."
+        description={
+          confirmPair
+            ? `${confirmPair.recommendedClient.fullName} will stay as the surviving dossier. ${confirmPair.duplicateClient.fullName} will disappear as a separate record only after Acre moves linked history safely.`
+            : "Acre will keep one surviving dossier and move linked history safely before removing the duplicate."
+        }
         isOpen={Boolean(confirmPair)}
         onCancel={() => setConfirmPair(null)}
         onConfirm={() => {
@@ -381,7 +438,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
             <QueueItem
               badgeLabel="Keep"
               badgeTone="accent"
-              description={confirmPair.rationaleLabel}
+              description={buildKeepSummary(confirmPair)}
               meta={
                 <>
                   <span>{confirmPair.recommendedClient.detailLabel}</span>
@@ -394,11 +451,11 @@ export function FrontOfficeClientDuplicatesCard(props: {
             <QueueItem
               badgeLabel="Merge in"
               badgeTone="warning"
-              description={confirmPair.duplicateClient.detailLabel}
+              description={buildMergeCarryForwardSummary(confirmPair)}
               meta={
                 <>
+                  <span>{confirmPair.duplicateClient.detailLabel}</span>
                   <span>{confirmPair.duplicateClient.nextTouchLabel}</span>
-                  <span>{confirmPair.duplicateClient.ownerLabel}</span>
                   <span>{confirmPair.duplicateClient.scopeLabel}</span>
                 </>
               }
@@ -414,7 +471,7 @@ export function FrontOfficeClientDuplicatesCard(props: {
               badgeLabel="Boundary"
               badgeTone="neutral"
               description="This action only consolidates the FO dossier and BO contact pointers that already exist. It does not create or edit a formal transaction file, sync an outside provider, or auto-send follow-up."
-              title="What this merge will and will not do"
+              title="What this merge will not do"
             />
           </div>
         ) : null}
