@@ -33,6 +33,41 @@ enum ListingStatus {
   sold
 }
 
+enum StudioListingSourceSite {
+  streeteasy
+  zillow
+}
+
+enum StudioListingImportStatus {
+  received
+  parsing
+  downloading_assets
+  ready
+  failed
+}
+
+enum StudioListingAssetKind {
+  hero
+  gallery
+  floor_plan
+  map
+  other
+}
+
+enum StudioListingPackStatus {
+  draft
+  ready
+  shared
+  archived
+}
+
+enum StudioExtensionChallengeStatus {
+  pending
+  approved
+  consumed
+  expired
+}
+
 enum TaskStatus {
   queued
   in_progress
@@ -693,6 +728,13 @@ model Organization {
   officeMailParticipants                OfficeMailParticipant[]
   officeMailMessages                    OfficeMailMessage[]
   officeMailAttachments                 OfficeMailAttachment[]
+  studioListingImports                  StudioListingImport[]
+  studioListingSnapshots                StudioListingSnapshot[]
+  studioListingAssets                   StudioListingAsset[]
+  studioListingPacks                    StudioListingPack[]
+  studioListingShareEvents              StudioListingShareEvent[]
+  studioListingExtensionTokens          StudioListingExtensionToken[]
+  studioListingExtensionChallenges      StudioListingExtensionChallenge[]
 }
 
 model Office {
@@ -771,6 +813,11 @@ model Office {
   checklistTemplateItems                ChecklistTemplateItem[]
   transactionSearchLayouts              TransactionSearchLayout[]
   transactionReportSearchLayouts        TransactionReportSearchLayout[]
+  studioListingImports                  StudioListingImport[]
+  studioListingSnapshots                StudioListingSnapshot[]
+  studioListingPacks                    StudioListingPack[]
+  studioListingExtensionTokens          StudioListingExtensionToken[]
+  studioListingExtensionChallenges      StudioListingExtensionChallenge[]
   @@unique([organizationId, slug])
 }
 
@@ -881,6 +928,10 @@ model Membership {
   createdOfficeMailThreads                     OfficeMailThread[]                     @relation("OfficeMailThreadCreatedBy")
   officeMailParticipants                       OfficeMailParticipant[]
   sentOfficeMailMessages                       OfficeMailMessage[]                    @relation("OfficeMailMessageSender")
+  studioListingImportsCreated                  StudioListingImport[]                  @relation("StudioListingImportCreatedBy")
+  studioListingPacksUpdated                    StudioListingPack[]                    @relation("StudioListingPackUpdatedBy")
+  studioListingExtensionTokens                 StudioListingExtensionToken[]          @relation("StudioListingExtensionTokenMembership")
+  approvedStudioListingExtensionChallenges     StudioListingExtensionChallenge[]      @relation("StudioListingExtensionChallengeApprovedBy")
 
   @@unique([organizationId, userId])
 }
@@ -1244,6 +1295,192 @@ model FrontOfficeSendRecord {
   @@index([organizationId, appointmentId, sentAt])
   @@index([organizationId, clientStageLabel, sentAt])
   @@index([organizationId, lastOpenedAt])
+}
+
+model StudioListingImport {
+  id                    String                    @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  createdByMembershipId String
+  sourceSite            StudioListingSourceSite
+  sourceUrl             String
+  sourceListingId       String?
+  status                StudioListingImportStatus @default(received)
+  failureReason         String?
+  diagnosticsJson       Json?
+  rawHtmlStorageKey     String?
+  rawJsonStorageKey     String?
+  completedAt           DateTime?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  organization          Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                   @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  createdByMembership   Membership                @relation("StudioListingImportCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Cascade)
+  snapshot              StudioListingSnapshot?
+
+  @@index([organizationId, createdByMembershipId, createdAt])
+  @@index([organizationId, sourceSite, status, createdAt])
+}
+
+model StudioListingSnapshot {
+  id                  String                  @id @default(cuid())
+  organizationId      String
+  officeId            String?
+  importId            String                  @unique
+  sourceSite          StudioListingSourceSite
+  sourceUrl           String
+  sourceListingId     String?
+  title               String
+  listingType         String?
+  statusLabel         String?
+  price               Decimal?                @db.Decimal(12, 2)
+  priceLabel          String?
+  currency            String                  @default("USD")
+  streetAddress       String?
+  unit                String?
+  city                String?
+  state               String?
+  postalCode          String?
+  borough             String?
+  neighborhood        String?
+  buildingName        String?
+  bedrooms            Decimal?                @db.Decimal(4, 1)
+  bathrooms           Decimal?                @db.Decimal(4, 1)
+  rooms               Decimal?                @db.Decimal(4, 1)
+  sqft                Int?
+  availabilityLabel   String?
+  descriptionText     String?
+  heroFactsJson       Json?
+  amenitiesJson       Json?
+  transitJson         Json?
+  floorPlanJson       Json?
+  propertyHistoryJson Json?
+  rawParsedJson       Json?
+  latitude            Decimal?                @db.Decimal(10, 7)
+  longitude           Decimal?                @db.Decimal(10, 7)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office              Office?                 @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  import              StudioListingImport     @relation(fields: [importId], references: [id], onDelete: Cascade)
+  assets              StudioListingAsset[]
+  pack                StudioListingPack?
+
+  @@index([organizationId, sourceSite, createdAt])
+  @@index([organizationId, city, neighborhood])
+}
+
+model StudioListingAsset {
+  id             String                 @id @default(cuid())
+  organizationId String
+  snapshotId     String
+  kind           StudioListingAssetKind @default(gallery)
+  label          String?
+  originalUrl    String?
+  storageKey     String
+  mimeType       String?
+  fileName       String
+  fileSizeBytes  Int
+  width          Int?
+  height         Int?
+  sortOrder      Int                    @default(0)
+  createdAt      DateTime               @default(now())
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  snapshot       StudioListingSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, snapshotId, sortOrder])
+  @@index([organizationId, kind, createdAt])
+}
+
+model StudioListingPack {
+  id                    String                 @id @default(cuid())
+  organizationId        String
+  officeId              String?
+  snapshotId            String                 @unique
+  updatedByMembershipId String?
+  status                StudioListingPackStatus @default(draft)
+  headline              String?
+  summary               String?
+  bulletPointsJson      Json?
+  selectedAssetIdsJson  Json?
+  coverAssetId          String?
+  shareEnabled          Boolean                @default(false)
+  shareCode             String?                @unique
+  agentNote             String?
+  contactName           String?
+  contactTitle          String?
+  contactPhone          String?
+  contactEmail          String?
+  pdfStorageKey         String?
+  pdfGeneratedAt        DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office                Office?                @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  snapshot              StudioListingSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  updatedByMembership   Membership?            @relation("StudioListingPackUpdatedBy", fields: [updatedByMembershipId], references: [id], onDelete: SetNull)
+  shareEvents           StudioListingShareEvent[]
+
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, shareEnabled, updatedAt])
+}
+
+model StudioListingShareEvent {
+  id                String            @id @default(cuid())
+  organizationId    String
+  packId            String
+  shareCode         String
+  viewerFingerprint String?
+  referrer          String?
+  userAgent         String?
+  ipAddressHash     String?
+  openedAt          DateTime          @default(now())
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pack              StudioListingPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, packId, openedAt])
+  @@index([organizationId, shareCode, openedAt])
+}
+
+model StudioListingExtensionToken {
+  id             String       @id @default(cuid())
+  organizationId String
+  officeId       String?
+  membershipId   String
+  tokenHash      String       @unique
+  tokenPrefix    String
+  label          String?
+  lastUsedAt     DateTime?
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  office         Office?      @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  membership     Membership   @relation("StudioListingExtensionTokenMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, membershipId, createdAt])
+  @@index([organizationId, expiresAt, revokedAt])
+}
+
+model StudioListingExtensionChallenge {
+  id                     String                         @id @default(cuid())
+  organizationId         String?
+  officeId               String?
+  approvedByMembershipId String?
+  tokenHash              String                         @unique
+  status                 StudioExtensionChallengeStatus @default(pending)
+  expiresAt              DateTime
+  approvedAt             DateTime?
+  consumedAt             DateTime?
+  createdAt              DateTime                       @default(now())
+  updatedAt              DateTime                       @updatedAt
+  organization           Organization?                  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  office                 Office?                        @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  approvedByMembership   Membership?                    @relation("StudioListingExtensionChallengeApprovedBy", fields: [approvedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([status, expiresAt])
+  @@index([organizationId, createdAt])
 }
 
 model Client {

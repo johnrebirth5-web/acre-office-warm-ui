@@ -32,11 +32,18 @@ export function AgentNav() {
       sidebarClassName="agent-sidebar"
       switcherClassName="agent-company-switcher"
       switcherLabel="Workspace"
-      switcherShortcut={{
-        href: "/office/dashboard",
-        label: "Back Office",
-        description: "Transactions, signatures, accounting, and formal ops",
-      }}
+      switcherShortcuts={[
+        {
+          href: "/listing-studio/dashboard",
+          label: "Listing Studio",
+          description: "Capture StreetEasy and Zillow listings for client-ready packets",
+        },
+        {
+          href: "/office/dashboard",
+          label: "Back Office",
+          description: "Transactions, signatures, accounting, and formal ops",
+        },
+      ]}
     />
   );
 }

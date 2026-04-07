@@ -4,6 +4,7 @@
 
 - `Agent`：一线经纪人，使用 listings、轻 CRM、活动通知、资源库、AI 工具
 - `Office Team`：运营/管理人员，当前重点是 `Back Office`，参考 `Brokermint` 的 `Dashboard / Pipeline / Transactions / Contacts / Reports / Mail / Notifications / Account / Billing / Activity / Library / Accounting`
+- `Listing Studio`：面向 agent 的外部房源采集与客户材料工作台，通过 Chrome Extension 从 `StreetEasy / Zillow` 房源页一键保存进 Acre
 
 这不是客户前台网站。客户前台后续会是独立 surface，复用这里的 listings 和后台数据能力。
 
@@ -27,9 +28,23 @@
 当前已经实现：
 
 - 一个 `Next.js` 响应式 Web 应用，支持桌面和手机浏览器
-- 两套工作台入口：
+- 三套工作台入口：
   - `Agent Workspace`
   - `Office Console / Back Office`
+  - `Listing Studio`
+- 一个独立的 `Chrome Extension` 应用：
+  - 目录：`apps/extension`
+  - 当前支持 `StreetEasy` 和 `Zillow`
+  - 在支持的房源详情页右下角注入 `Save to Acre` 浮层卡片
+  - 点击后会直接抓取当前页面的标题、地址、价格、facts、缩略图、原始 HTML、结构化字段和图片 URL，并直存到 `Listing Studio`
+- `Listing Studio` 当前已落地 `v1` 主链路：
+  - `/listing-studio/dashboard`
+  - `/listing-studio/listings`
+  - `/listing-studio/listings/[packId]`
+  - `/share/packs/[code]`
+  - `/api/listing-studio/*`
+  - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
+  - 扩展认证使用 Acre challenge + extension token，不借网页登录 cookie
 - `Office Console` 已经按 `Brokermint` 的后台信息架构重做第一轮：
   - 左侧分组导航
   - `Dashboard`
@@ -1128,6 +1143,7 @@ npm run db:seed
 ```text
 acre/
   apps/
+    extension/              # Listing Studio Chrome Extension (MV3)
     web/                    # Next.js Web 应用
       app/                  # App Router 页面和 API routes
   packages/
@@ -1143,7 +1159,8 @@ acre/
 
 更具体一点：
 
-- [apps/web](./apps/web) 是当前唯一运行中的应用
+- [apps/web](./apps/web) 是当前主 Web 应用
+- [apps/extension](./apps/extension) 是当前 `Listing Studio` 的 Chrome Extension 应用
 - [apps/web/app](./apps/web/app) 同时包含页面和 API route
 - [packages/backoffice/src/index.ts](./packages/backoffice/src/index.ts) 是当前最核心的业务入口文件
 - [packages/auth/src/index.ts](./packages/auth/src/index.ts) 定义角色和权限
@@ -1151,12 +1168,15 @@ acre/
 - [packages/db/src/client.ts](./packages/db/src/client.ts) 是可复用 Prisma client 入口
 - [packages/db/src/bootstrap.ts](./packages/db/src/bootstrap.ts) 是当前最小数据库读取 utility
 - [packages/db/src/transactions.ts](./packages/db/src/transactions.ts) 是当前 transaction 持久化 service 入口
+- [packages/db/src/studio-listings.ts](./packages/db/src/studio-listings.ts) 是当前 `Listing Studio` 持久化 service 入口
 - `/office/transactions` 页面现在会通过一个共享 server snapshot 同时解析 search layout 和 paginated list result，避免同一请求里重复解析 scope / teams / filter options
 - `/office/transactions` 列表 summary 现在会按 viewer scope 只跑必要的 net-income aggregate，并在空结果时直接短路返回，避免无意义的额外查询
 - [packages/db/src/contacts.ts](./packages/db/src/contacts.ts) 是当前 contact / follow-up task 持久化 service 入口
 - [packages/db/src/commissions.ts](./packages/db/src/commissions.ts) 是当前 commission plan / calculation / statement service 入口
 - [apps/web/lib/auth-session.ts](./apps/web/lib/auth-session.ts) 是当前本地 session 和 server-side auth context 入口
+- [apps/web/lib/listing-studio.ts](./apps/web/lib/listing-studio.ts) 是当前 `Listing Studio` 扩展认证与存储绑定入口
 - [apps/web/app/office/dashboard/page.tsx](./apps/web/app/office/dashboard/page.tsx)、[apps/web/app/office/pipeline/page.tsx](./apps/web/app/office/pipeline/page.tsx)、[apps/web/app/office/transactions/page.tsx](./apps/web/app/office/transactions/page.tsx) 是当前 `Back Office` UI 的主要入口
+- [apps/web/app/listing-studio/dashboard/page.tsx](./apps/web/app/listing-studio/dashboard/page.tsx)、[apps/web/app/listing-studio/listings/page.tsx](./apps/web/app/listing-studio/listings/page.tsx)、[apps/web/app/listing-studio/listings/[packId]/page.tsx](./apps/web/app/listing-studio/listings/[packId]/page.tsx) 是当前 `Listing Studio` UI 的主要入口
 - [apps/web/app/office/transactions/[transactionId]/page.tsx](./apps/web/app/office/transactions/[transactionId]/page.tsx) 是当前 transaction detail 入口
 - [apps/web/app/office/contacts/page.tsx](./apps/web/app/office/contacts/page.tsx) 和 [apps/web/app/office/contacts/[contactId]/page.tsx](./apps/web/app/office/contacts/[contactId]/page.tsx) 是当前 contact list/detail 入口
 

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acre Listing Studio</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <img alt="Acre" class="popup-logo" src="icons/icon48.png" />
+        <div>
+          <span class="popup-eyebrow">Acre</span>
+          <h1>Listing Studio</h1>
+        </div>
+      </header>
+
+      <label class="popup-field">
+        <span>Acre base URL</span>
+        <input id="baseUrl" placeholder="https://acresystem.us" type="url" />
+      </label>
+
+      <section class="popup-card">
+        <div class="popup-card-head">
+          <strong>Connection</strong>
+          <span id="connectionBadge" class="popup-badge">Checking…</span>
+        </div>
+        <p id="connectionCopy" class="popup-copy">
+          Connect the extension to Acre to start saving supported listings.
+        </p>
+        <div class="popup-actions">
+          <button id="connectButton" class="popup-button primary" type="button">
+            Connect to Acre
+          </button>
+          <button id="disconnectButton" class="popup-button secondary" type="button">
+            Disconnect
+          </button>
+        </div>
+      </section>
+
+      <section class="popup-card">
+        <div class="popup-card-head">
+          <strong>Last save</strong>
+        </div>
+        <p id="saveCopy" class="popup-copy">
+          No listing has been saved from the extension yet.
+        </p>
+        <div class="popup-actions">
+          <button id="openLastButton" class="popup-button secondary" type="button">
+            Open last packet
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

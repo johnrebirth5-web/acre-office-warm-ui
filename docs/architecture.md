@@ -2,7 +2,7 @@
 
 ## 概览
 
-当前项目是一个 `monorepo`，目标是承载 `Acre Agent OS`。它目前是一个“前端可运行、后端骨架已落、数据库 runtime 已经初始化，主线 `Office / Front Office` 页面已大幅切到真实 Prisma 数据，但仍保留少量 legacy demo helper”的阶段。
+当前项目是一个 `monorepo`，目标是承载 `Acre Agent OS`。它目前是一个“前端可运行、后端骨架已落、数据库 runtime 已经初始化，主线 `Office / Front Office / Listing Studio` 页面已大幅切到真实 Prisma 数据，但仍保留少量 legacy demo helper”的阶段。
 
 更准确地说：
 
@@ -49,6 +49,10 @@
   - 共享组件在 [packages/ui/src/index.tsx](../packages/ui/src/index.tsx)
   - 规则文档在 [docs/office-design-system.md](./office-design-system.md)
 - 页面主要是服务端组件 + 少量客户端导航组件
+- 仓库现在同时包含一个独立 `Chrome Extension` 应用：
+  - `apps/extension`
+  - 使用 `Manifest V3`
+  - 负责在 `StreetEasy / Zillow` 房源详情页注入右下角 `Save to Acre` 浮层，并把抓取结果提交给 `Listing Studio` API
 - 当前 `Back Office` 最接近真实参考的页面是：
   - [apps/web/app/office/dashboard/page.tsx](../apps/web/app/office/dashboard/page.tsx)
   - [apps/web/app/office/pipeline/page.tsx](../apps/web/app/office/pipeline/page.tsx)
@@ -64,6 +68,7 @@
 说明：
 
 - 当前 API 已包含最小读写路径：
+  - `Listing Studio`：extension connect challenge、extension-token auth、listing import、listing pack detail/update、public share、PDF export、asset streaming
   - `Transactions`：list / detail / create / status update
   - `Contacts`：list / detail / create / edit / follow-up task create / transaction link
   - `Account`：current-membership profile update、notification preference save、self summary snapshot
@@ -224,6 +229,20 @@
     - `AgentPaymentMethod` 做 masked payment-method reference foundation
     - `AuditLog` 做 billing-related recent activity
 - 当前 statements 是 live-generated monthly summaries，不是 durable statement snapshots，也没有 PDF download
+- 当前 `Listing Studio` 已通过 Prisma service 和 route handlers 落地到：
+  - `/listing-studio/dashboard`
+  - `/listing-studio/listings`
+  - `/listing-studio/listings/[packId]`
+  - `/share/packs/[code]`
+  - `/api/listing-studio/*`
+  - 核心复用：
+    - `StudioListingImport / Snapshot / Asset / Pack / ShareEvent`
+    - `StudioListingExtensionToken / StudioListingExtensionChallenge`
+    - 现有 `document-storage` 适配器保存 raw HTML、raw JSON、下载图片和 PDF
+  - 设计原则：
+    - `Snapshot` 是原始事实层，只读
+    - `Pack` 是客户版整理层，可编辑
+    - 扩展保存动作在源站页面内完成，不要求用户先跳回 Acre 确认
 - 当前 `Office Accounting` 页面已经从旧 ledger/billing/EMD 工作台收口为 `office_admin` 专属的 `Agent Statements` 工作台：
   - `/office/accounting`
   - 只允许 `office_admin`
@@ -240,6 +259,10 @@
 - 当前 transaction documents 和 office library documents 都使用本地文件系统 storage adapter，metadata 和 workflow 放在 Prisma
 - 当前单 Droplet 生产默认 document storage root 是 `/var/lib/acre/documents`，新写入的 storage key 以该 root 下的相对路径保存
 - 当前没有 worker、queue、cron
+- `Listing Studio` 的导入链路当前仍是同步 route-handler 流程：
+  - 扩展直接提交当前页面抓取结果
+  - 服务端当场归一化字段、落 raw files、下载图片并创建 pack
+  - 还没有独立后台 job runner 或批量重抓机制
 
 ### 数据库
 

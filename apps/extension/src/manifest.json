@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Acre Listing Studio",
+  "description": "Save StreetEasy and Zillow listings into Acre Listing Studio from the page itself.",
+  "version": "1.0.0",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://streeteasy.com/*",
+    "https://*.streeteasy.com/*",
+    "https://zillow.com/*",
+    "https://*.zillow.com/*",
+    "https://acresystem.us/*",
+    "http://localhost:3105/*",
+    "http://127.0.0.1:3105/*",
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Acre Listing Studio",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://streeteasy.com/*",
+        "https://*.streeteasy.com/*",
+        "https://zillow.com/*",
+        "https://*.zillow.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -31,7 +31,7 @@ export type WorkspaceNavGroup = {
   items: WorkspaceNavItem[];
 };
 
-type WorkspaceSwitchShortcut = {
+export type WorkspaceSwitchShortcut = {
   label: string;
   href: string;
   description?: string;
@@ -48,6 +48,7 @@ type WorkspaceNavProps = {
   releaseBadgeClassName?: string;
   switcherClassName?: string;
   switcherShortcut?: WorkspaceSwitchShortcut;
+  switcherShortcuts?: WorkspaceSwitchShortcut[];
 };
 
 type WorkspaceLocation = {
@@ -99,6 +100,7 @@ export function WorkspaceNav({
   releaseBadgeClassName,
   switcherClassName,
   switcherShortcut,
+  switcherShortcuts,
 }: WorkspaceNavProps) {
   const pathname = usePathname();
   const [currentHash, setCurrentHash] = useState("");
@@ -242,6 +244,13 @@ export function WorkspaceNav({
   const mobileCurrentGroup =
     mobileActiveEntry?.group.title ?? currentWorkspaceName;
   const mobileMenuPanelId = `${navigationLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-panel`;
+  const resolvedSwitcherShortcuts =
+    switcherShortcuts && switcherShortcuts.length > 0
+      ? switcherShortcuts
+      : switcherShortcut
+        ? [switcherShortcut]
+        : [];
+  const hasSwitcherMenu = resolvedSwitcherShortcuts.length > 0;
 
   return (
     <>
@@ -268,14 +277,14 @@ export function WorkspaceNav({
           ref={workspaceSwitcherRef}
         >
           <button
-            aria-expanded={switcherShortcut ? isWorkspaceMenuOpen : undefined}
-            aria-haspopup={switcherShortcut ? "menu" : undefined}
+            aria-expanded={hasSwitcherMenu ? isWorkspaceMenuOpen : undefined}
+            aria-haspopup={hasSwitcherMenu ? "menu" : undefined}
             className={cx(
               "office-company-switcher",
               isWorkspaceMenuOpen && "is-open",
             )}
             onClick={() => {
-              if (!switcherShortcut) {
+              if (!hasSwitcherMenu) {
                 return;
               }
 
@@ -292,7 +301,7 @@ export function WorkspaceNav({
             </span>
           </button>
 
-          {switcherShortcut && isWorkspaceMenuOpen ? (
+          {hasSwitcherMenu && isWorkspaceMenuOpen ? (
             <div className="office-company-switcher-menu" role="menu">
               <div
                 className="office-company-switcher-menu-item is-current"
@@ -301,18 +310,21 @@ export function WorkspaceNav({
                 <strong>{currentWorkspaceName}</strong>
                 <span>Current workspace</span>
               </div>
-              <Link
-                className="office-company-switcher-menu-item"
-                href={switcherShortcut.href}
-                onClick={() => setIsWorkspaceMenuOpen(false)}
-                role="menuitem"
-              >
-                <strong>{switcherShortcut.label}</strong>
-                <span>
-                  {switcherShortcut.description?.trim() ||
-                    "Open the other workspace"}
-                </span>
-              </Link>
+              {resolvedSwitcherShortcuts.map((shortcut) => (
+                <Link
+                  className="office-company-switcher-menu-item"
+                  href={shortcut.href}
+                  key={shortcut.href}
+                  onClick={() => setIsWorkspaceMenuOpen(false)}
+                  role="menuitem"
+                >
+                  <strong>{shortcut.label}</strong>
+                  <span>
+                    {shortcut.description?.trim() ||
+                      "Open another workspace"}
+                  </span>
+                </Link>
+              ))}
             </div>
           ) : null}
         </div>
@@ -429,19 +441,24 @@ export function WorkspaceNav({
             />
 
             <div className="office-mobile-menu-panel" id={mobileMenuPanelId}>
-              {switcherShortcut ? (
+              {hasSwitcherMenu ? (
                 <div className="office-mobile-workspace-bridge">
                   <div className="office-mobile-workspace-bridge-copy">
                     <span>{switcherLabel}</span>
                     <strong>{currentWorkspaceName}</strong>
                   </div>
-                  <Link
-                    className="office-mobile-workspace-bridge-link"
-                    href={switcherShortcut.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {switcherShortcut.label}
-                  </Link>
+                  <div className="office-mobile-workspace-bridge-links">
+                    {resolvedSwitcherShortcuts.map((shortcut) => (
+                      <Link
+                        className="office-mobile-workspace-bridge-link"
+                        href={shortcut.href}
+                        key={shortcut.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {shortcut.label}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               ) : null}
 

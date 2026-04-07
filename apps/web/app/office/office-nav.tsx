@@ -259,11 +259,18 @@ export function OfficeNav({
       navGroups={getNavGroups(currentAccess, mailUnreadCount)}
       navigationLabel="Office navigation"
       switcherLabel="Workspace"
-      switcherShortcut={{
-        href: "/agent/dashboard",
-        label: "Front Office",
-        description: "Clients, outreach, calendar, and active follow-up",
-      }}
+      switcherShortcuts={[
+        {
+          href: "/agent/dashboard",
+          label: "Front Office",
+          description: "Clients, outreach, calendar, and active follow-up",
+        },
+        {
+          href: "/listing-studio/dashboard",
+          label: "Listing Studio",
+          description: "Imported listing packets, sharing, and PDF exports",
+        },
+      ]}
     />
   );
 }

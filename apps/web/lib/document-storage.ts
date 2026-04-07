@@ -31,6 +31,22 @@ type SaveStoredMailFileInput = {
   bytes: Uint8Array;
 };
 
+type SaveStoredListingStudioFileInput = {
+  organizationId: string;
+  importId: string;
+  bucket: "raw" | "assets" | "pack";
+  fileName: string;
+  bytes: Uint8Array;
+};
+
+type SaveStoredListingStudioTextInput = {
+  organizationId: string;
+  importId: string;
+  bucket: "raw" | "pack";
+  fileName: string;
+  content: string;
+};
+
 const DEV_DOCUMENT_STORAGE_ROOT = path.join(process.cwd(), ".local-storage", "documents");
 const PRODUCTION_DOCUMENT_STORAGE_ROOT = "/var/lib/acre/documents";
 
@@ -120,6 +136,30 @@ export async function saveStoredMailFile(input: SaveStoredMailFileInput): Promis
     scopeSegments: ["mail", input.threadId, input.messageId],
     fileName: input.fileName,
     bytes: input.bytes
+  });
+}
+
+export async function saveStoredListingStudioFile(
+  input: SaveStoredListingStudioFileInput,
+): Promise<StoredDocumentFile> {
+  return saveScopedFile({
+    organizationId: input.organizationId,
+    scopeSegments: ["listing-studio", `import-${input.importId}`, input.bucket],
+    fileName: input.fileName,
+    bytes: input.bytes,
+  });
+}
+
+export async function saveStoredListingStudioText(
+  input: SaveStoredListingStudioTextInput,
+): Promise<StoredDocumentFile> {
+  const bytes = Buffer.from(input.content, "utf8");
+  return saveStoredListingStudioFile({
+    organizationId: input.organizationId,
+    importId: input.importId,
+    bucket: input.bucket,
+    fileName: input.fileName,
+    bytes,
   });
 }
 

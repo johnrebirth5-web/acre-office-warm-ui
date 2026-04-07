@@ -96,6 +96,10 @@ export type PermissionKey =
   | "listings:view"
   | "listings:manage"
   | "listings:publish"
+  | "listing_studio:view"
+  | "listing_studio:create"
+  | "listing_studio:edit"
+  | "listing_studio:share"
   | "clients:view"
   | "clients:manage"
   | "events:view"
@@ -133,6 +137,7 @@ export type PermissionGroupKey =
   | "offers"
   | "tasks"
   | "listings"
+  | "listing_studio"
   | "clients"
   | "events"
   | "resources"
@@ -998,6 +1003,41 @@ const permissionCatalog: PermissionDefinition[] = [
     scopeBehavior: "company"
   },
   {
+    key: "listing_studio:view",
+    label: "Can view Listing Studio",
+    description: "Open Listing Studio and review imported listing packs.",
+    group: "listing_studio",
+    sortOrder: 193,
+    scopeBehavior: "company"
+  },
+  {
+    key: "listing_studio:create",
+    label: "Can create Listing Studio imports",
+    description: "Save supported StreetEasy and Zillow listings into Listing Studio.",
+    group: "listing_studio",
+    parentKey: "listing_studio:view",
+    sortOrder: 194,
+    scopeBehavior: "company"
+  },
+  {
+    key: "listing_studio:edit",
+    label: "Can edit Listing Studio packs",
+    description: "Edit customer-facing copy, selected media, and share configuration in Listing Studio.",
+    group: "listing_studio",
+    parentKey: "listing_studio:create",
+    sortOrder: 195,
+    scopeBehavior: "company"
+  },
+  {
+    key: "listing_studio:share",
+    label: "Can share Listing Studio packs",
+    description: "Generate public share links and export PDF materials from Listing Studio.",
+    group: "listing_studio",
+    parentKey: "listing_studio:edit",
+    sortOrder: 196,
+    scopeBehavior: "company"
+  },
+  {
     key: "clients:view",
     label: "Can view clients",
     description: "View client records.",
@@ -1176,6 +1216,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "commissions:approve",
     "offers:view",
     "offers:view:company",
+    "listing_studio:view",
     "tasks:view",
     "notifications:view",
     "mail:view",
@@ -1208,6 +1249,7 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "commissions:view:company",
     "offers:view",
     "offers:view:company",
+    "listing_studio:view",
     "tasks:view",
     "notifications:view",
     "mail:view",
@@ -1232,6 +1274,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "documents:view",
     "signatures:view",
     "offers:view",
+    "listing_studio:view",
+    "listing_studio:create",
+    "listing_studio:edit",
+    "listing_studio:share",
     "tasks:view",
     "accounting:billing:view",
     "commissions:view",
@@ -1255,6 +1301,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "documents:view",
     "signatures:view",
     "offers:view",
+    "listing_studio:view",
+    "listing_studio:create",
+    "listing_studio:edit",
+    "listing_studio:share",
     "tasks:view",
     "accounting:billing:view",
     "commissions:view",
@@ -1325,6 +1375,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "listings:view",
     "listings:manage",
     "listings:publish",
+    "listing_studio:view",
+    "listing_studio:create",
+    "listing_studio:edit",
+    "listing_studio:share",
     "events:view",
     "events:manage",
     "resources:view",
@@ -1352,6 +1406,10 @@ const systemRoleTemplatePermissions: Record<UserRole, PermissionKey[]> = {
     "signatures:view",
     "offers:view",
     "offers:view:company",
+    "listing_studio:view",
+    "listing_studio:create",
+    "listing_studio:edit",
+    "listing_studio:share",
     "tasks:view",
     "accounting:view",
     "accounting:billing:view",
@@ -1729,6 +1787,22 @@ export function canViewOfficeCommissionSelfServiceSummary(subject: PermissionSub
 
 export function canViewOfficeOffers(subject: PermissionSubject): boolean {
   return can(subject, "offers:view");
+}
+
+export function canAccessListingStudio(subject: PermissionSubject): boolean {
+  return can(subject, "listing_studio:view");
+}
+
+export function canCreateListingStudio(subject: PermissionSubject): boolean {
+  return can(subject, "listing_studio:create");
+}
+
+export function canEditListingStudio(subject: PermissionSubject): boolean {
+  return can(subject, "listing_studio:edit");
+}
+
+export function canShareListingStudio(subject: PermissionSubject): boolean {
+  return can(subject, "listing_studio:share");
 }
 
 export function canManageOfficeOffers(subject: PermissionSubject): boolean {

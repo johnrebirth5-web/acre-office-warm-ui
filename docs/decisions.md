@@ -135,6 +135,54 @@ Trade-off：
 - 其他模块现在看起来相对轻
 - 这是因为 listings 会成为后续很多功能的上游数据源
 
+## 关键决策 6.5：`Listing Studio` 作为第三个 workspace 独立出来，而不是塞进现有 FO / BO listings
+
+原因：
+
+- 用户要的主体验是“在 `StreetEasy / Zillow` 页面内一键保存到 Acre”，而不是在现有 FO `/agent/listings` 或 BO `/office/listings` 里手动贴链接导入
+- `Listing Studio` 处理的是“外部房源抓取、原始页面快照、客户版整理材料”，语义上不同于当前 FO curated listing 和 BO internal listing admin
+- 如果直接复用现有 listing 表和页面，会把“外部抓取事实层”和“内部可编辑 marketing listing”混在一起，后续很难收敛
+
+影响：
+
+- 当前新增第三个 workspace：`/listing-studio/*`
+- 数据层新增独立模型：
+  - `StudioListingImport`
+  - `StudioListingSnapshot`
+  - `StudioListingAsset`
+  - `StudioListingPack`
+  - `StudioListingShareEvent`
+- 对客分享页走 `/share/packs/[code]`，不复用旧的 listing share contract
+
+Trade-off：
+
+- 导航、权限、数据模型都比“复用已有 listing 模块”更重
+- 但这样能把源站抓取事实、客户版 pack、公开分享和未来 `Poster Studio / Collections` 的边界一次理顺
+
+## 关键决策 6.6：Chrome Extension 使用 Acre challenge + extension token，不借网页登录 cookie
+
+原因：
+
+- 扩展运行在第三方房源站点页面上，直接借用 Acre 网页 cookie 会把认证边界和浏览器站点权限绑在一起，稳定性和安全性都差
+- `Save to Acre` 需要在用户停留在源站页面时直接完成导入，因此扩展必须有自己的长期调用凭证
+- 一次性 challenge + 后续 token 的模式更适合 popup、background worker 和 content script 之间的状态管理
+
+影响：
+
+- 当前增加扩展连接流程：
+  - 用户在扩展或 Acre 中发起连接
+  - Acre 生成 challenge token
+  - 已登录用户在 `/listing-studio/extension/connect/[challengeToken]` 完成批准
+  - 扩展拿到长期 token，后续直接调用 `/api/listing-studio/imports`
+- `Listing Studio` API 同时支持两类认证：
+  - 正常 Web session
+  - extension bearer token
+
+Trade-off：
+
+- 比直接共用 cookie 多了一层连接与轮询状态机
+- 但换来更清晰的权限边界，也避免未来浏览器跨站策略变化时把扩展体验打断
+
 ## 关键决策 7：当前 UI 不引入重型组件库，但建立内部 Back Office 设计系统
 
 原因：
