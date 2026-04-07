@@ -11,10 +11,16 @@ type RouteContext = {
 
 function mapAppointmentIcsErrorStatus(message: string) {
   if (message.includes("Only scheduled appointments")) {
-    return 409;
+    return {
+      status: 409,
+      hint: "ICS export only stays available while the appointment is still scheduled in Acre.",
+    };
   }
 
-  return 400;
+  return {
+    status: 400,
+    hint: null,
+  };
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -66,10 +72,14 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       error instanceof Error
         ? error.message
         : "Could not open the appointment ICS export.";
+    const mappedError = mapAppointmentIcsErrorStatus(message);
 
     return NextResponse.json(
-      { error: message },
-      { status: mapAppointmentIcsErrorStatus(message) },
+      {
+        error: message,
+        ...(mappedError.hint ? { hint: mappedError.hint } : {}),
+      },
+      { status: mappedError.status },
     );
   }
 }

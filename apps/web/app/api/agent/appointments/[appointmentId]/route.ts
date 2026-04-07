@@ -22,10 +22,34 @@ function mapAppointmentUpdateErrorStatus(message: string) {
     message.includes("still scheduled") ||
     message.includes("only be updated while the appointment is still scheduled")
   ) {
-    return 409;
+    return {
+      status: 409,
+      hint: "This record is already closed in Acre. Create or reopen a fresh appointment instead of writing back to the closed one.",
+    };
   }
 
-  return 400;
+  if (message.includes("Clear the external note")) {
+    return {
+      status: 422,
+      hint: "When coordination is reset to idle, clear the saved note and next-touch deadline in the same save.",
+    };
+  }
+
+  if (
+    message.includes("valid appointment status") ||
+    message.includes("valid appointment external workflow status") ||
+    message.includes("Next external touch")
+  ) {
+    return {
+      status: 422,
+      hint: "Check the selected status and next-touch value, then try again.",
+    };
+  }
+
+  return {
+    status: 400,
+    hint: null,
+  };
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
@@ -112,10 +136,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       error instanceof Error
         ? error.message
         : "Could not update the appointment.";
+    const mappedError = mapAppointmentUpdateErrorStatus(message);
 
     return NextResponse.json(
-      { error: message },
-      { status: mapAppointmentUpdateErrorStatus(message) },
+      {
+        error: message,
+        ...(mappedError.hint ? { hint: mappedError.hint } : {}),
+      },
+      { status: mappedError.status },
     );
   }
 }

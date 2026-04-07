@@ -14,6 +14,54 @@ function isJsonObjectBody(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function mapAppointmentCreateErrorResponse(message: string) {
+  if (message.includes("not available in your Front Office scope")) {
+    return {
+      status: 404,
+      hint: "Refresh the calendar context and pick a visible client before saving.",
+    };
+  }
+
+  if (message.includes("not available in the current office scope")) {
+    return {
+      status: 404,
+      hint: "Refresh the listing context or switch back to the office where this listing is visible.",
+    };
+  }
+
+  if (message.includes("Meeting link must be a valid http(s) URL")) {
+    return {
+      status: 422,
+      hint: "Paste a full Zoom / Meet / Teams URL, or use a host like meet.google.com/abc so Acre can normalize it.",
+    };
+  }
+
+  if (
+    message.includes("Link a client") ||
+    message.includes("Link a listing")
+  ) {
+    return {
+      status: 422,
+      hint: "Showing and meeting coordination works best when Acre can keep a client, listing, or outside contact attached to the record.",
+    };
+  }
+
+  if (
+    message.includes("Start time") ||
+    message.includes("End time")
+  ) {
+    return {
+      status: 422,
+      hint: "Check the start/end fields and try again.",
+    };
+  }
+
+  return {
+    status: 400,
+    hint: null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   const context = await getRequestSessionContext(request);
 
@@ -94,14 +142,18 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ appointment }, { status: 201 });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not create the appointment.";
+    const mappedError = mapAppointmentCreateErrorResponse(message);
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not create the appointment.",
+        error: message,
+        ...(mappedError.hint ? { hint: mappedError.hint } : {}),
       },
-      { status: 400 },
+      { status: mappedError.status },
     );
   }
 }
