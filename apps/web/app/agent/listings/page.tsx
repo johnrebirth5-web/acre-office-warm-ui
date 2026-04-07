@@ -68,12 +68,12 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Front Office listings are a manual outbound workspace: package the send, keep tracked-link context visible, and push the next touch back into the FO trail without pretending Acre already auto-sends anything."
+      description="Work the outbound desk here: choose the send lane, package the agent materials, keep tracked-link context visible, and manually push the next touch back into Front Office without pretending Acre auto-sends anything."
       eyebrow="Listings"
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this as the agent outbound send desk for listing recommendations, appointment follow-up, send-trail rescue, and manual outreach packaging."
+          subtitle="Use this as the real manual send desk for listing recommendations, appointment follow-up, tracked-link rescue, and agent-material packaging."
           title="Outbound listing workspace"
         >
           <FrontOfficeListingsOutputClient
@@ -125,32 +125,38 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               />
               <StatCard
                 hint={
-                  draftAssist
-                    ? "deep-linked assisted copy is currently loaded into the matching send lane"
-                    : parsedSearch.hasDraftAssistParams
-                      ? "draft parameters arrived but Acre kept the standard manual templates"
-                      : "copy actions are using the standard listing templates"
+                  routeState.draftStatusDescription
                 }
                 label="Draft"
                 value={routeState.draftStatusLabel}
               />
               <StatCard
-                hint="how much identity / proof packaging is ready in the rail"
-                label="Materials"
-                value={materialStatusLabel}
+                hint={routeState.preferredSupportLaneDescription}
+                label="Package lane"
+                value={routeState.preferredSupportLaneLabel}
               />
             </ListPageStatsGrid>
           </SectionCard>
 
           <SectionCard
             className="office-list-card"
-            subtitle="Keep the active recipient, appointment loop, draft lane, and route health visible before the listing leaves this page."
+            subtitle="Keep recipient binding, appointment loop, draft lane, route hygiene, and package pairing visible before the listing leaves this desk."
             title="Workspace context"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
                 action={
                   <>
+                    {(routeState.hasDraftAssist ||
+                      routeState.diagnostics.length) &&
+                    routeState.stableHref !== routeState.contextHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={routeState.stableHref}
+                      >
+                        Open stable workspace link
+                      </FrontOfficeLink>
+                    ) : null}
                     {snapshot.targetClient ? (
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
@@ -187,9 +193,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     <>
                       <span>{snapshot.targetClient.stage}</span>
                       <span>{snapshot.targetClient.nextTouchLabel}</span>
+                      <span>Package · {routeState.preferredSupportLaneLabel}</span>
                     </>
                   ) : (
-                    <span>Open from a dossier or appointment to start a send trail.</span>
+                    <span>
+                      Open from a dossier or appointment to turn the tracked
+                      link desk into a real send trail.
+                    </span>
                   )
                 }
                 title={
@@ -217,6 +227,16 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               <FrontOfficeRailItem
                 action={
                   <>
+                    {(routeState.hasDraftAssist ||
+                      routeState.diagnostics.length) &&
+                    routeState.stableHref !== routeState.contextHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={routeState.stableHref}
+                      >
+                        Open stable workspace link
+                      </FrontOfficeLink>
+                    ) : null}
                     {routeState.hasDraftAssist ? (
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
@@ -237,14 +257,41 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 }
                 badgeLabel={routeState.routeStatusLabel}
                 badgeTone={routeState.diagnostics.length ? "warning" : "accent"}
-                description={routeState.routeStatusDescription}
+                description={routeState.draftStatusDescription}
                 meta={
                   <>
                     <span>{routeState.draftStatusLabel}</span>
-                    <span>Manual send only</span>
+                    <span>{routeState.routeStatusDescription}</span>
                   </>
                 }
-                title="Route health and draft lane"
+                title="Route hygiene and draft lane"
+              />
+              <FrontOfficeRailItem
+                action={
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={`${routeState.stableHref}#agent-send-package`}
+                  >
+                    Open send package
+                  </FrontOfficeLink>
+                }
+                badgeLabel={routeState.preferredSupportLaneLabel}
+                badgeTone={
+                  routeState.preferredSupportLane === "mixed"
+                    ? "warning"
+                    : "accent"
+                }
+                description={routeState.preferredSupportLaneDescription}
+                meta={
+                  <>
+                    <span>{materialStatusLabel}</span>
+                    <span>
+                      {snapshot.agentMaterial.featuredCaseCount} proof point(s)
+                      ready
+                    </span>
+                  </>
+                }
+                title="Companion package lane"
               />
               {draftAssist ? (
                 <FrontOfficeRailItem
@@ -283,6 +330,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           </SectionCard>
 
           <SectionCard
+            id="agent-send-package"
             className="office-list-card"
             subtitle="Business card, intro copy, and proof points stay here as send support so each listing can leave with identity and context, not as a separate profile toy."
             title="Agent send package"
@@ -356,6 +404,10 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             />
           ) : null}
           <SummaryChip label="Draft" value={routeState.draftStatusLabel} />
+          <SummaryChip
+            label="Package"
+            value={routeState.preferredSupportLaneLabel}
+          />
           <SummaryChip label="Materials" value={materialStatusLabel} />
         </>
       }

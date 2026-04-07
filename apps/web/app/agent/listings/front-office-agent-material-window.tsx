@@ -224,53 +224,56 @@ function buildProofAddOnPackage(material: FrontOfficeAgentMaterialSnapshot) {
 }
 
 function buildSupportPackageStatus(props: FrontOfficeAgentMaterialWindowProps) {
-  if (props.routeState.requestedDraftChannel === "sms") {
+  if (props.routeState.preferredSupportLane === "sms") {
     return {
-      badgeLabel: "SMS support",
+      badgeLabel: "SMS companion",
       badgeTone: "accent" as const,
-      title: "SMS support package is the preferred companion",
-      description:
-        "A draft-assisted SMS lane is active, so the fastest clean support move is to keep the intro text, business card, and one proof point ready for that manual text send.",
+      title: "SMS support package is the active companion",
+      description: props.routeState.preferredSupportLaneDescription,
     };
   }
 
-  if (props.routeState.requestedDraftChannel === "email") {
+  if (props.routeState.preferredSupportLane === "email") {
     return {
-      badgeLabel: "Email support",
+      badgeLabel: "Email companion",
       badgeTone: "accent" as const,
-      title: "Email support package is the preferred companion",
-      description:
-        "A draft-assisted email lane is active, so the cleanest support move is to keep the longer intro, business card, and proof point ready for that manual email send.",
-    };
-  }
-
-  if (props.targetAppointment) {
-    return {
-      badgeLabel: "Appointment send",
-      badgeTone: "success" as const,
-      title: "SMS support package is usually the first move here",
-      description:
-        "Appointment-linked sends usually need a faster reaction path, so keep the text intro and one proof point ready before the listing goes out.",
-    };
-  }
-
-  if (props.targetClient) {
-    return {
-      badgeLabel: "Client send",
-      badgeTone: "success" as const,
-      title: "Email support package is usually the first move here",
-      description:
-        "Client-linked sends usually benefit from a little more framing, so the email support package is the safest default unless the conversation already has momentum.",
+      title: "Email support package is the active companion",
+      description: props.routeState.preferredSupportLaneDescription,
     };
   }
 
   return {
-    badgeLabel: "Generic send",
+    badgeLabel: "Keep both ready",
     badgeTone: "warning" as const,
     title: "Keep both support packages ready",
-    description:
-      "Generic tracked-link mode can still turn into a real outbound touch, but you need the support package ready so the next client-linked send does not start from scratch.",
+    description: props.routeState.preferredSupportLaneDescription,
   };
+}
+
+function buildPreferredSupportPackage(input: {
+  routeState: FrontOfficeListingsRouteState;
+  smsSupportPackage: string;
+  emailSupportPackage: string;
+}) {
+  if (input.routeState.preferredSupportLane === "sms") {
+    return {
+      label: "Preferred companion",
+      copyLabel: "Copy preferred package",
+      title: "SMS companion package",
+      value: input.smsSupportPackage,
+    };
+  }
+
+  if (input.routeState.preferredSupportLane === "email") {
+    return {
+      label: "Preferred companion",
+      copyLabel: "Copy preferred package",
+      title: "Email companion package",
+      value: input.emailSupportPackage,
+    };
+  }
+
+  return null;
 }
 
 function buildMaterialCopyDetail(props: FrontOfficeAgentMaterialWindowProps) {
@@ -307,6 +310,11 @@ export function FrontOfficeAgentMaterialWindow(
     targetAppointment: props.targetAppointment,
   });
   const proofAddOnPackage = buildProofAddOnPackage(props.material);
+  const preferredSupportPackage = buildPreferredSupportPackage({
+    routeState: props.routeState,
+    smsSupportPackage,
+    emailSupportPackage,
+  });
 
   async function handleCopy(label: string, value: string) {
     try {
@@ -363,13 +371,28 @@ export function FrontOfficeAgentMaterialWindow(
         </div>
 
         <div className="front-office-agent-material-actions">
+          {preferredSupportPackage ? (
+            <Button
+              onClick={() =>
+                void handleCopy(
+                  preferredSupportPackage.title,
+                  preferredSupportPackage.value,
+                )
+              }
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              {preferredSupportPackage.copyLabel}
+            </Button>
+          ) : null}
           <Button
             onClick={() =>
               void handleCopy("SMS support package", smsSupportPackage)
             }
             size="sm"
             type="button"
-            variant="secondary"
+            variant={preferredSupportPackage ? "ghost" : "secondary"}
           >
             Copy SMS support
           </Button>
@@ -407,10 +430,10 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Bundle status</strong>
+          <strong>Current send companion</strong>
           <span>
-            Keep the material package aligned with the current send mode so the
-            listing does not travel without identity or proof context.
+            Keep the material package aligned with the active listing lane so
+            the send does not leave this page without identity or proof context.
           </span>
         </div>
         <div className="office-queue-list">
@@ -441,12 +464,22 @@ export function FrontOfficeAgentMaterialWindow(
                     Clear draft assist
                   </FrontOfficeLink>
                 ) : null}
-                {props.routeState.diagnostics.length ? (
+                {props.routeState.hasDraftAssist ||
+                props.routeState.diagnostics.length ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.routeState.stableHref}
+                  >
+                    Open stable workspace link
+                  </FrontOfficeLink>
+                ) : null}
+                {props.routeState.diagnostics.length ||
+                props.routeState.contextHref !== props.routeState.cleanHref ? (
                   <FrontOfficeLink
                     className="office-inline-link"
                     href={props.routeState.cleanHref}
                   >
-                    Open clean route
+                    Reset workspace
                   </FrontOfficeLink>
                 ) : null}
               </div>
@@ -464,6 +497,30 @@ export function FrontOfficeAgentMaterialWindow(
             }
             title={materialStatus.title}
           />
+          {preferredSupportPackage ? (
+            <QueueItem
+              action={
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      preferredSupportPackage.title,
+                      preferredSupportPackage.value,
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {preferredSupportPackage.copyLabel}
+                </Button>
+              }
+              badgeLabel={preferredSupportPackage.label}
+              badgeTone="accent"
+              context={props.routeState.draftStatusLabel}
+              description={props.routeState.preferredSupportLaneDescription}
+              title={preferredSupportPackage.title}
+            />
+          ) : null}
           <QueueItem
             badgeLabel={supportPackageStatus.badgeLabel}
             badgeTone={supportPackageStatus.badgeTone}
@@ -476,10 +533,11 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Send support packages</strong>
+          <strong>Companion packages for listing lanes</strong>
           <span>
             These packages are meant to travel with the tracked listing send, so
-            the message leaves this page with identity, context, and proof.
+            the copied lane leaves this workspace with identity, context, and
+            proof.
           </span>
         </div>
         <div className="office-queue-list">
@@ -492,8 +550,7 @@ export function FrontOfficeAgentMaterialWindow(
                 size="sm"
                 type="button"
                 variant={
-                  supportPackageStatus.badgeLabel === "SMS support" ||
-                  supportPackageStatus.badgeLabel === "Appointment send"
+                  props.routeState.preferredSupportLane === "sms"
                     ? "secondary"
                     : "ghost"
                 }
@@ -515,8 +572,7 @@ export function FrontOfficeAgentMaterialWindow(
                 size="sm"
                 type="button"
                 variant={
-                  supportPackageStatus.badgeLabel === "Email support" ||
-                  supportPackageStatus.badgeLabel === "Client send"
+                  props.routeState.preferredSupportLane === "email"
                     ? "secondary"
                     : "ghost"
                 }
@@ -694,7 +750,7 @@ export function FrontOfficeAgentMaterialWindow(
         <div className="front-office-playbook-card-head">
           <strong>Underlying copy pieces</strong>
           <span>
-            Edit from these raw pieces when the support package needs a custom
+            Use these raw pieces only when the companion package needs a custom
             tone for the live conversation.
           </span>
         </div>
