@@ -10,6 +10,9 @@ const RESPONSE_TYPE = "ACRE_LISTING_STUDIO_EXTENSION_RESPONSE";
 const READY_TYPE = "ACRE_LISTING_STUDIO_BRIDGE_READY";
 const BRIDGE_READY_TIMEOUT_MS = 1200;
 const INSTALL_ROUTE = "/listing-studio/extension/install";
+const STORE_INSTALL_URL =
+  process.env.NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL?.trim() || "";
+const POST_INSTALL_STORAGE_KEY = "acre-listing-studio-post-install-connect";
 
 type ExtensionConnectActionProps = {
   serverHasActiveToken: boolean;
@@ -51,6 +54,29 @@ export function ListingStudioExtensionConnectAction(
   const responseTimeoutRef = useRef<number | null>(null);
   const bridgeReadyTimeoutRef = useRef<number | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
+  const hasPendingPostInstallConnectRef = useRef(false);
+  const hasTriggeredAutoConnectRef = useRef(false);
+  const hasReloadedForPostInstallRef = useRef(false);
+
+  function setPostInstallConnectPending() {
+    try {
+      window.localStorage.setItem(POST_INSTALL_STORAGE_KEY, "1");
+    } catch {}
+
+    hasPendingPostInstallConnectRef.current = true;
+    hasTriggeredAutoConnectRef.current = false;
+    hasReloadedForPostInstallRef.current = false;
+  }
+
+  function clearPostInstallConnectPending() {
+    try {
+      window.localStorage.removeItem(POST_INSTALL_STORAGE_KEY);
+    } catch {}
+
+    hasPendingPostInstallConnectRef.current = false;
+    hasTriggeredAutoConnectRef.current = false;
+    hasReloadedForPostInstallRef.current = false;
+  }
 
   function clearResponseTimeout() {
     if (responseTimeoutRef.current !== null) {
@@ -104,6 +130,13 @@ export function ListingStudioExtensionConnectAction(
   }
 
   useEffect(() => {
+    try {
+      hasPendingPostInstallConnectRef.current =
+        window.localStorage.getItem(POST_INSTALL_STORAGE_KEY) === "1";
+    } catch {
+      hasPendingPostInstallConnectRef.current = false;
+    }
+
     bridgeReadyTimeoutRef.current = window.setTimeout(() => {
       if (bridgeReadyRef.current) {
         return;
@@ -157,6 +190,7 @@ export function ListingStudioExtensionConnectAction(
       if (payload.connectionState === "connected" && payload.extensionToken) {
         setIsConnecting(false);
         stopPolling();
+        clearPostInstallConnectPending();
         setBrowserConnectionState("connected");
         setStatusMessage("Chrome extension connected in this browser.");
         return;
@@ -192,16 +226,59 @@ export function ListingStudioExtensionConnectAction(
 
     window.addEventListener("message", handleMessage);
 
+    function handleVisibilityOrFocus() {
+      if (
+        !hasPendingPostInstallConnectRef.current ||
+        hasReloadedForPostInstallRef.current ||
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+
+      hasReloadedForPostInstallRef.current = true;
+      window.location.reload();
+    }
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
     return () => {
       window.removeEventListener("message", handleMessage);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
       clearResponseTimeout();
       clearBridgeTimeout();
       stopPolling();
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      !bridgeReady ||
+      browserConnectionState !== "disconnected" ||
+      !hasPendingPostInstallConnectRef.current ||
+      hasTriggeredAutoConnectRef.current
+    ) {
+      return;
+    }
+
+    hasTriggeredAutoConnectRef.current = true;
+    setIsConnecting(true);
+    setStatusMessage("Chrome extension detected. Connecting this browser...");
+    sendExtensionRequest("START_CONNECT");
+  }, [bridgeReady, browserConnectionState]);
+
   function handleClick() {
     if (browserConnectionState === "not_installed") {
+      if (STORE_INSTALL_URL) {
+        setPostInstallConnectPending();
+        setStatusMessage(
+          "Install Acre Listing Studio from the Chrome Web Store, then come back to this tab. Acre will continue connecting automatically.",
+        );
+        window.open(STORE_INSTALL_URL, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       window.location.href = INSTALL_ROUTE;
       return;
     }
@@ -254,14 +331,18 @@ export function ListingStudioExtensionConnectAction(
     panelMessage = "Connect this browser to save listings directly from supported pages.";
   } else if (browserConnectionState === "not_installed") {
     heading = "Extension not detected on this page";
-    description =
-      props.serverHasActiveToken && props.serverActiveTokenCount > 0
+    description = STORE_INSTALL_URL
+      ? props.serverHasActiveToken && props.serverActiveTokenCount > 0
+        ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else. Install Acre Listing Studio in this browser, then come back to this tab and Acre will finish connecting automatically.`
+        : "Install Acre Listing Studio in this browser from the Chrome Web Store. When you return to this tab, Acre will finish connecting automatically."
+      : props.serverHasActiveToken && props.serverActiveTokenCount > 0
         ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else, but this browser still needs the Acre Chrome extension installed or reloaded.`
         : "Install or reload the Acre Chrome extension in this browser, then refresh this dashboard to continue.";
     badgeClassName = "office-status-badge office-status-badge-neutral";
-    badgeLabel = "Extension missing";
-    panelMessage =
-      "Install the Acre extension on this browser first. After Chrome adds it, come back here to connect.";
+    badgeLabel = STORE_INSTALL_URL ? "Add to Chrome" : "Extension missing";
+    panelMessage = STORE_INSTALL_URL
+      ? "Open the Chrome Web Store, add Acre Listing Studio, then return to this tab. Acre will pick up the install and continue the connect flow."
+      : "Install the Acre extension on this browser first. After Chrome adds it, come back here to connect.";
   }
 
   let actionLabel = "Connect Chrome extension";
@@ -270,7 +351,9 @@ export function ListingStudioExtensionConnectAction(
   } else if (browserConnectionState === "pending" || isConnecting) {
     actionLabel = "Connecting...";
   } else if (browserConnectionState === "not_installed") {
-    actionLabel = "Install Chrome extension";
+    actionLabel = STORE_INSTALL_URL
+      ? "Add to Chrome"
+      : "Install Chrome extension";
   }
 
   return (

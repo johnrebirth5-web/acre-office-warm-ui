@@ -14,8 +14,8 @@ export default function ListingStudioExtensionInstallPage() {
           <span className="office-eyebrow">Listing Studio</span>
           <h2>Install the Chrome extension</h2>
           <p>
-            Add Acre Listing Studio to this browser, then come back to the
-            dashboard and connect it to your account.
+            Add Acre Listing Studio to this browser, then return to Listing
+            Studio and Acre will finish the browser connection flow.
           </p>
         </div>
       </section>
@@ -30,9 +30,9 @@ export default function ListingStudioExtensionInstallPage() {
             <div className="listing-studio-install-copy">
               <strong>Install on this browser first</strong>
               <p>
-                After the extension is installed, return to the Listing Studio
-                dashboard and click Connect Chrome extension. Acre will finish
-                the approval flow automatically.
+                After the extension is installed, return to your Listing Studio
+                tab. Acre will detect the extension and continue the browser
+                connection flow automatically.
               </p>
             </div>
             <div className="listing-studio-install-actions">
@@ -81,16 +81,16 @@ export default function ListingStudioExtensionInstallPage() {
               <span>02</span>
               <strong>Return to the Listing Studio dashboard</strong>
               <p>
-                Open the same Acre account on this browser after the extension
-                is available.
+                Go back to the same Listing Studio tab after Chrome adds the
+                extension.
               </p>
             </div>
             <div className="listing-studio-install-step">
               <span>03</span>
-              <strong>Click Connect Chrome extension</strong>
+              <strong>Acre finishes the browser connection</strong>
               <p>
-                Acre will open the approval page and bind this browser to your
-                Listing Studio workspace.
+                The dashboard will detect the extension, refresh once if
+                needed, and continue the connection flow.
               </p>
             </div>
           </div>

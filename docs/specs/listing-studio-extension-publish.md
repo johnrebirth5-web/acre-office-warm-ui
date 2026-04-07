@@ -116,6 +116,12 @@ NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.co
 
 都会自动切到真实 `Add to Chrome` 链接。
 
+并且：
+
+- `dashboard` 未安装状态下点击主按钮会直接打开 Chrome Web Store
+- Acre 会记住当前 tab 正在等待安装
+- 用户安装完成后回到原来的 `Listing Studio dashboard` 标签页，页面会自动刷新并继续浏览器连接流程
+
 ## Recommended rollout order
 
 1. 打包发布 zip
