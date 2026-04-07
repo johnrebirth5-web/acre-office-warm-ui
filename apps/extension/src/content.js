@@ -4,9 +4,10 @@
   let currentUrl = "";
   let currentPayload = null;
   let currentConfig = null;
+  const MINIMIZED_ICON_URL = chrome.runtime.getURL("icons/icon32.png");
   let panelState = {
     collapsed: false,
-    dismissed: false,
+    minimized: false,
     mode: "idle",
     message: "",
     detailUrl: null,
@@ -436,7 +437,7 @@
   }
 
   function renderPanel() {
-    if (panelState.dismissed || !currentPayload) {
+    if (!currentPayload) {
       const existing = document.getElementById(PANEL_ID);
       if (existing) {
         existing.remove();
@@ -467,6 +468,39 @@
           `<img alt="" src="${src.replace(/"/g, "&quot;")}" />`,
       )
       .join("");
+
+    if (panelState.minimized) {
+      shadowRoot.innerHTML = `
+        <style>
+          .acre-launcher {
+            width: 56px;
+            height: 56px;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(20, 74, 119, 0.14);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 18px 48px rgba(22, 36, 51, 0.18);
+            cursor: pointer;
+          }
+          .acre-launcher img {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            display: block;
+          }
+        </style>
+        <button class="acre-launcher" data-action="restore" type="button" aria-label="Open Acre Listing Studio">
+          <img alt="Acre" src="${MINIMIZED_ICON_URL}" />
+        </button>
+      `;
+
+      shadowRoot.querySelector('[data-action="restore"]')?.addEventListener("click", () => {
+        panelState.minimized = false;
+        renderPanel();
+      });
+      return;
+    }
 
     shadowRoot.innerHTML = `
       <style>
@@ -600,7 +634,7 @@
           </div>
           <div class="acre-controls">
             <button class="acre-icon-button" data-action="collapse" type="button">${panelState.collapsed ? "+" : "–"}</button>
-            <button class="acre-icon-button" data-action="dismiss" type="button">×</button>
+            <button class="acre-icon-button" data-action="minimize" type="button">×</button>
           </div>
         </div>
         <div class="acre-status">${statusText}</div>
@@ -633,8 +667,8 @@
       </section>
     `;
 
-    shadowRoot.querySelector('[data-action="dismiss"]')?.addEventListener("click", () => {
-      panelState.dismissed = true;
+    shadowRoot.querySelector('[data-action="minimize"]')?.addEventListener("click", () => {
+      panelState.minimized = true;
       renderPanel();
     });
     shadowRoot.querySelector('[data-action="collapse"]')?.addEventListener("click", () => {
@@ -682,10 +716,6 @@
   }
 
   async function refresh() {
-    if (panelState.dismissed) {
-      return;
-    }
-
     const payload = buildPayload();
     if (!payload) {
       currentPayload = null;
@@ -706,7 +736,7 @@
         currentUrl = location.href;
         panelState = {
           collapsed: false,
-          dismissed: false,
+          minimized: false,
           mode: "idle",
           message: "",
           detailUrl: null,
