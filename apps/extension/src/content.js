@@ -6,7 +6,6 @@
   let currentConfig = null;
   const MINIMIZED_ICON_URL = chrome.runtime.getURL("icons/icon32.png");
   let panelState = {
-    collapsed: false,
     minimized: false,
     mode: "idle",
     message: "",
@@ -516,9 +515,6 @@
           color: #162433;
           font-family: Arial, sans-serif;
         }
-        .acre-panel.is-collapsed {
-          width: 164px;
-        }
         .acre-header {
           display: flex;
           align-items: center;
@@ -577,7 +573,7 @@
           line-height: 1.4;
         }
         .acre-body {
-          display: ${panelState.collapsed ? "none" : "grid"};
+          display: grid;
           gap: 12px;
         }
         .acre-preview {
@@ -626,15 +622,14 @@
           color: #144a77;
         }
       </style>
-      <section class="acre-panel${panelState.collapsed ? " is-collapsed" : ""}">
+      <section class="acre-panel">
         <div class="acre-header">
           <div class="acre-brand">
             <span>Acre</span>
             <strong>Listing Studio</strong>
           </div>
           <div class="acre-controls">
-            <button class="acre-icon-button" data-action="collapse" type="button">${panelState.collapsed ? "+" : "–"}</button>
-            <button class="acre-icon-button" data-action="minimize" type="button">×</button>
+            <button class="acre-icon-button" data-action="minimize" type="button">–</button>
           </div>
         </div>
         <div class="acre-status">${statusText}</div>
@@ -669,10 +664,6 @@
 
     shadowRoot.querySelector('[data-action="minimize"]')?.addEventListener("click", () => {
       panelState.minimized = true;
-      renderPanel();
-    });
-    shadowRoot.querySelector('[data-action="collapse"]')?.addEventListener("click", () => {
-      panelState.collapsed = !panelState.collapsed;
       renderPanel();
     });
     shadowRoot.querySelector('[data-action="connect"]')?.addEventListener("click", async () => {
@@ -735,7 +726,6 @@
       if (location.href !== currentUrl) {
         currentUrl = location.href;
         panelState = {
-          collapsed: false,
           minimized: false,
           mode: "idle",
           message: "",
