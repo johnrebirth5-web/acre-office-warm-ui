@@ -162,11 +162,16 @@ If Prisma schema changed, also run:
 
 When the user explicitly asks for multi-thread or parallel concurrent implementation work, switch from the default single-branch workflow above to this coordinated parallel workflow:
 
+- keep one dedicated coordinating thread that stays on `main`
+- use that coordinating thread only for planning, branch collection, acceptance review, merge decisions, and final merge/push handling
+- do not use the coordinating thread for feature implementation work once parallel execution has started
 - first split the work into clearly bounded thread plans before implementation starts
 - assign each thread a disjoint `owned files` list whenever possible
 - define compatibility boundaries up front for any shared snapshot, API contract, or route-state shape that another thread already consumes
 - each parallel thread should work on its own git branch
 - prefer a separate git worktree or separate checkout per thread so concurrent work does not fight over branch checkout state in one working tree
+- each implementation thread should stay on its own assigned feature branch for the duration of that thread's work
+- before sending new instructions in the coordinating thread, verify that the thread is still pointed at `main`; if the UI or workspace context has drifted to a feature branch, switch it back to `main` before continuing
 - each thread should receive a copy-ready prompt that includes:
   - the task goal
   - the exact `owned files`
