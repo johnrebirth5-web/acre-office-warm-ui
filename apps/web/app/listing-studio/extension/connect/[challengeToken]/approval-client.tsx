@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { Button } from "@acre/ui";
 
 export function ListingStudioExtensionApprovalClient(props: {
@@ -8,6 +8,7 @@ export function ListingStudioExtensionApprovalClient(props: {
 }) {
   const [status, setStatus] = useState<"idle" | "submitting" | "approved" | "error">("idle");
   const [message, setMessage] = useState("");
+  const hasAttemptedRef = useRef(false);
 
   function approve() {
     setStatus("submitting");
@@ -31,7 +32,13 @@ export function ListingStudioExtensionApprovalClient(props: {
         }
 
         setStatus("approved");
-        setMessage("Extension approved. You can return to Chrome and the popup will complete the connection automatically.");
+        setMessage("Extension connected. You can return to Acre.");
+        try {
+          window.localStorage.setItem(
+            "acre-listing-studio-extension-approved-at",
+            Date.now().toString(),
+          );
+        } catch {}
       } catch (error) {
         setStatus("error");
         setMessage(error instanceof Error ? error.message : "Approval failed.");
@@ -39,10 +46,19 @@ export function ListingStudioExtensionApprovalClient(props: {
     });
   }
 
+  useEffect(() => {
+    if (hasAttemptedRef.current) {
+      return;
+    }
+
+    hasAttemptedRef.current = true;
+    approve();
+  }, []);
+
   return (
     <div className="listing-studio-approval-actions">
       <Button onClick={approve} variant="primary">
-        {status === "submitting" ? "Approving..." : "Approve extension"}
+        {status === "submitting" ? "Approving..." : status === "approved" ? "Approved" : "Approve extension"}
       </Button>
       {message ? <p className="listing-studio-status-message">{message}</p> : null}
     </div>

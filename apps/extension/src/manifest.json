@@ -32,6 +32,15 @@
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://acresystem.us/listing-studio/*",
+        "http://localhost:3105/listing-studio/*",
+        "http://127.0.0.1:3105/listing-studio/*"
+      ],
+      "js": ["app-bridge.js"],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [

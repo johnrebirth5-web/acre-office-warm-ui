@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getListingStudioDashboard } from "@acre/db";
-import { Button, ListPageStatsGrid, SectionCard, StatCard } from "@acre/ui";
+import { ListPageStatsGrid, SectionCard, StatCard } from "@acre/ui";
 import { requireSessionContext } from "../../../lib/auth-session";
+import { ListingStudioExtensionConnectAction } from "./extension-connect-action";
 
 function formatConnectedAtLabel(value: string | null) {
   if (!value) {
@@ -46,15 +47,12 @@ export default async function ListingStudioDashboardPage() {
       <div className="office-list-page-stack listing-studio-stack">
         <SectionCard
           className="listing-studio-banner-card"
-          subtitle="The extension runs from StreetEasy and Zillow listing detail pages. It injects the bottom-right save card and sends captured HTML, facts, and images straight into Acre."
+          subtitle="Connect the Chrome extension here, then save StreetEasy and Zillow listings straight into Acre."
           title="Chrome extension"
           actions={
-            <a
-              className="office-button office-button-primary"
-              href="/listing-studio/listings"
-            >
-              Review saved packets
-            </a>
+            <ListingStudioExtensionConnectAction
+              initialConnected={snapshot.extension.hasActiveToken}
+            />
           }
         >
           <div className="listing-studio-banner-grid">
@@ -62,12 +60,12 @@ export default async function ListingStudioDashboardPage() {
               <strong>
                 {snapshot.extension.hasActiveToken
                   ? "Extension connected"
-                  : "Connect the extension from the popup"}
+                  : "Connect the extension from this dashboard"}
               </strong>
               <p>
                 {snapshot.extension.hasActiveToken
                   ? `This account already has ${snapshot.extension.activeTokenCount} active connection${snapshot.extension.activeTokenCount === 1 ? "" : "s"}. Latest link: ${formatConnectedAtLabel(snapshot.extension.latestConnectedAt)}.`
-                  : "Open the Acre extension popup, choose your Acre base URL, and click Connect to Acre. The approval page will issue the long-lived token automatically."}
+                  : "Click Connect Chrome extension and Acre will open the approval page automatically. Once approved, the extension is ready to save listings."}
               </p>
             </div>
             <div className="listing-studio-banner-status">

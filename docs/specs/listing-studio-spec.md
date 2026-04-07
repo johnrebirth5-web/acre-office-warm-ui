@@ -84,6 +84,7 @@
 ### Dashboard
 
 - extension connected 状态
+- connect Chrome extension 按钮
 - 最近导入 listing
 - ready-to-share 数量
 - public share views
@@ -154,10 +155,12 @@
 
 连接流程：
 
-1. 扩展请求 `/api/listing-studio/extension/connect/start`
-2. 服务端生成 challenge token
-3. 用户在已登录 Acre 页面批准 challenge
-4. 扩展轮询状态直至拿到长期 token
+1. 用户可从 dashboard 直接点击 `Connect Chrome extension`
+2. dashboard 通过扩展 bridge 把当前 Acre base URL 发给扩展
+3. 扩展请求 `/api/listing-studio/extension/connect/start`
+4. 服务端生成 challenge token
+5. 扩展打开已登录 Acre 的批准页并自动批准 challenge
+6. dashboard 轮询扩展状态，扩展拿到长期 token 后完成绑定
 
 ## Permissions
 

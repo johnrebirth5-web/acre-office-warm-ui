@@ -15,6 +15,7 @@ async function ensureFile(filePath) {
 async function run() {
   await ensureFile(path.join(srcDir, "manifest.json"));
   await ensureFile(path.join(srcDir, "background.js"));
+  await ensureFile(path.join(srcDir, "app-bridge.js"));
   await ensureFile(path.join(srcDir, "content.js"));
   await ensureFile(path.join(srcDir, "popup.html"));
   await ensureFile(path.join(srcDir, "popup.js"));
