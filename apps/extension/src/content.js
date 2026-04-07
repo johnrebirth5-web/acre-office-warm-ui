@@ -96,8 +96,19 @@
     const seen = new Set();
     const results = [];
     for (const value of values) {
-      const normalized = trimText(value);
-      if (!normalized || normalized.startsWith("data:")) {
+      const trimmed = trimText(value);
+      if (!trimmed || trimmed.startsWith("data:")) {
+        continue;
+      }
+
+      let normalized = trimmed;
+      try {
+        normalized = new URL(trimmed, location.href).toString();
+      } catch {
+        continue;
+      }
+
+      if (!/^https?:/i.test(normalized)) {
         continue;
       }
       if (seen.has(normalized)) {
@@ -127,11 +138,17 @@
       });
 
     const domImages = [...document.images]
+      .filter((image) => {
+        const src = image.currentSrc || image.src;
+        if (!src || /logo|avatar|icon|sprite/i.test(src)) {
+          return false;
+        }
+        return (image.naturalWidth || 0) >= 80 && (image.naturalHeight || 0) >= 80;
+      })
       .map((image) => image.currentSrc || image.src)
-      .filter(Boolean)
-      .filter((src) => !/logo|avatar|icon|sprite/i.test(src));
+      .filter(Boolean);
 
-    return collectUniqueUrls([...ldImages, ...domImages]).slice(0, 16);
+    return collectUniqueUrls([...domImages, ...ldImages]).slice(0, 16);
   }
 
   function collectFloorPlans() {
