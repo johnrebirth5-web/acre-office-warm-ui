@@ -63,6 +63,37 @@ export function getFrontOfficeClientDossierSectionHref(stepId: string) {
   }
 }
 
+export function buildFrontOfficeClientFollowUpHref(input: {
+  clientId: string;
+  title?: string | null;
+  dueAt?: string | null;
+  source?: string | null;
+}) {
+  const params = new URLSearchParams();
+  const title = input.title?.trim();
+  const dueAt =
+    typeof input.dueAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.dueAt)
+      ? input.dueAt
+      : "";
+  const source = input.source?.trim();
+
+  if (title) {
+    params.set("followUpTitle", title);
+  }
+
+  if (dueAt) {
+    params.set("followUpDueAt", dueAt);
+  }
+
+  if (source) {
+    params.set("followUpSource", source);
+  }
+
+  const query = params.toString();
+
+  return `/agent/clients/${input.clientId}${query ? `?${query}` : ""}#front-office-follow-up-form`;
+}
+
 export function FrontOfficeClientActionLink(
   props: FrontOfficeClientActionDescriptor,
 ) {

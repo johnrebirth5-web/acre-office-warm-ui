@@ -324,6 +324,15 @@ export type FrontOfficeClientDetailTaskItem = {
   assigneeLabel: string;
   needsAttention: boolean;
   isResolved: boolean;
+  createdAtLabel: string;
+  createdAtValue: string;
+  updatedAtLabel: string;
+  updatedAtValue: string;
+  timelineAtLabel: string;
+  timelineAtValue: string;
+  timelineTitle: string;
+  timelineDescription: string;
+  timelineContext: string;
 };
 
 export type FrontOfficeClientDetailSendRecordItem = {
@@ -588,6 +597,10 @@ export type FrontOfficeClientDetailLeaseReminder = {
   helperText: string;
   isAutoScheduled: boolean;
   needsAttention: boolean;
+  timelineAtLabel: string;
+  timelineAtValue: string;
+  timelineTitle: string;
+  timelineDescription: string;
 };
 
 export type FrontOfficeClientDetailPlaybookItem = {
@@ -638,6 +651,8 @@ export type FrontOfficeClientDetailSnapshot = {
     openTaskCount: number;
     overdueTaskCount: number;
     completedTaskCount: number;
+    attentionTaskCount: number;
+    dueSoonTaskCount: number;
     upcomingAppointmentCount: number;
     stageHistoryCount: number;
     openHandoffCount: number;
@@ -842,8 +857,11 @@ function buildLeaseReminderSnapshot(input: {
   );
 
   if (!leaseDates.leaseReminderAt) {
+    const helperText =
+      "Add the lease end date and reminder date when this client needs renewal, remarketing, or move planning to stay visible in Front Office.";
+
     return {
-      leaseEndDateValue: "",
+      leaseEndDateValue: formatDateValue(leaseDates.leaseEndDate),
       leaseEndDateLabel: leaseDates.leaseEndDate
         ? formatDateLabel(leaseDates.leaseEndDate, input.timeZone)
         : "No lease end date captured",
@@ -851,10 +869,15 @@ function buildLeaseReminderSnapshot(input: {
       reminderAtLabel: "Not scheduled",
       statusLabel: "No lease reminder",
       statusTone: "neutral",
-      helperText:
-        "Add the lease end date and reminder date when this client needs renewal, remarketing, or move planning to stay visible in Front Office.",
+      helperText,
       isAutoScheduled: false,
       needsAttention: false,
+      timelineAtLabel: "No reminder on calendar",
+      timelineAtValue: "",
+      timelineTitle: leaseDates.leaseEndDate
+        ? "Lease timing captured but follow-up is not scheduled"
+        : "No lease timing is scheduled yet",
+      timelineDescription: helperText,
     };
   }
 
@@ -895,6 +918,19 @@ function buildLeaseReminderSnapshot(input: {
     helperText = `${helperText} Acre auto-scheduled this reminder ${defaultLeaseReminderLeadDays} days before the lease end date.`;
   }
 
+  const timelineTitle = needsAttention
+    ? "Lease renewal follow-up is in the live execution lane"
+    : "Lease timing is already on the calendar";
+  const timelineDescription = leaseDates.leaseEndDate
+    ? `Reminder ${formatDateLabel(
+        leaseDates.leaseReminderAt,
+        input.timeZone,
+      )} supports the lease ending ${formatDateLabel(
+        leaseDates.leaseEndDate,
+        input.timeZone,
+      )}. ${helperText}`
+    : helperText;
+
   return {
     leaseEndDateValue: formatDateValue(leaseDates.leaseEndDate),
     leaseEndDateLabel: leaseDates.leaseEndDate
@@ -907,6 +943,14 @@ function buildLeaseReminderSnapshot(input: {
     helperText,
     isAutoScheduled: leaseDates.isAutoScheduled,
     needsAttention,
+    timelineAtLabel: formatRelativeDueLabel(
+      leaseDates.leaseReminderAt,
+      input.now,
+      input.timeZone,
+    ),
+    timelineAtValue: formatDateTimeValue(leaseDates.leaseReminderAt),
+    timelineTitle,
+    timelineDescription,
   };
 }
 
@@ -1134,6 +1178,82 @@ function buildTaskHelperLabel(input: {
   }
 
   return details.join(" · ");
+}
+
+function buildTaskTimelineTitle(input: {
+  title: string;
+  status: TaskStatus;
+  needsAttention: boolean;
+  dueAt: Date | null;
+}) {
+  if (input.status === TaskStatus.completed) {
+    return `Resolved follow-up · ${input.title}`;
+  }
+
+  if (input.status === TaskStatus.canceled) {
+    return `Canceled follow-up · ${input.title}`;
+  }
+
+  if (input.status === TaskStatus.in_progress) {
+    return `In-progress follow-up · ${input.title}`;
+  }
+
+  if (input.needsAttention) {
+    return `Follow-up due now · ${input.title}`;
+  }
+
+  if (input.dueAt) {
+    return `Scheduled follow-up · ${input.title}`;
+  }
+
+  return `Undated follow-up · ${input.title}`;
+}
+
+function buildTaskTimelineDescription(input: {
+  status: TaskStatus;
+  dueAt: Date | null;
+  assigneeLabel: string;
+  now: Date;
+  timeZone?: string | null;
+}) {
+  const details: string[] = [];
+
+  if (input.status === TaskStatus.completed) {
+    details.push("Completed in the shared Front Office follow-up queue.");
+  } else if (input.status === TaskStatus.canceled) {
+    details.push("Canceled out of the shared Front Office follow-up queue.");
+  } else if (input.status === TaskStatus.in_progress) {
+    details.push("Already being worked in the shared Front Office follow-up queue.");
+  }
+
+  if (input.dueAt) {
+    details.push(`Due ${formatTaskDueLabel(input.dueAt, input.now, input.timeZone)}`);
+  } else if (input.status !== TaskStatus.completed && input.status !== TaskStatus.canceled) {
+    details.push(
+      "No due date is attached yet, so the follow-up still needs a visible next-touch date.",
+    );
+  }
+
+  details.push(`Owner · ${input.assigneeLabel}`);
+
+  return details.join(" · ");
+}
+
+function buildTaskTimelineContext(input: {
+  status: TaskStatus;
+  queueLabel: string;
+  statusLabel: string;
+  needsAttention: boolean;
+}) {
+  if (input.status === TaskStatus.completed || input.status === TaskStatus.canceled) {
+    return input.statusLabel;
+  }
+
+  if (input.needsAttention) {
+    return "Needs action now";
+  }
+
+  return input.queueLabel;
 }
 
 function formatFrontOfficeSendChannelLabel(channel: string) {
@@ -3993,6 +4113,8 @@ export async function getFrontOfficeClientDetail(
           title: true,
           status: true,
           dueAt: true,
+          createdAt: true,
+          updatedAt: true,
           assigneeMembership: {
             select: {
               user: {
@@ -5404,6 +5526,27 @@ export async function getFrontOfficeClientDetail(
       };
     }),
   };
+  const attentionTaskCount = client.followUpTasks.filter((task) => {
+    const isResolved =
+      task.status === TaskStatus.completed || task.status === TaskStatus.canceled;
+
+    if (isResolved || !task.dueAt) {
+      return false;
+    }
+
+    return getCalendarDayDifference(task.dueAt, now) <= 0;
+  }).length;
+  const dueSoonTaskCount = client.followUpTasks.filter((task) => {
+    const isResolved =
+      task.status === TaskStatus.completed || task.status === TaskStatus.canceled;
+
+    if (isResolved || !task.dueAt) {
+      return false;
+    }
+
+    const dayDifference = getCalendarDayDifference(task.dueAt, now);
+    return dayDifference > 0 && dayDifference <= 7;
+  }).length;
 
   return {
     id: client.id,
@@ -5426,6 +5569,8 @@ export async function getFrontOfficeClientDetail(
       openTaskCount,
       overdueTaskCount,
       completedTaskCount,
+      attentionTaskCount,
+      dueSoonTaskCount,
       upcomingAppointmentCount,
       stageHistoryCount: client.stageHistory.length,
       openHandoffCount,
@@ -5670,6 +5815,14 @@ export async function getFrontOfficeClientDetail(
       const needsAttention =
         !isResolved &&
         Boolean(task.dueAt && getCalendarDayDifference(task.dueAt, now) <= 0);
+      const timelineAt =
+        isResolved || !task.dueAt ? task.updatedAt : task.dueAt;
+      const createdAtLabel = formatDateTimeLabel(task.createdAt, {
+        timeZone: input.timeZone ?? null,
+      });
+      const updatedAtLabel = formatDateTimeLabel(task.updatedAt, {
+        timeZone: input.timeZone ?? null,
+      });
 
       return {
         id: task.id,
@@ -5689,6 +5842,34 @@ export async function getFrontOfficeClientDetail(
         assigneeLabel,
         needsAttention,
         isResolved,
+        createdAtLabel,
+        createdAtValue: formatDateTimeValue(task.createdAt),
+        updatedAtLabel,
+        updatedAtValue: formatDateTimeValue(task.updatedAt),
+        timelineAtLabel:
+          isResolved || !task.dueAt
+            ? `Updated ${updatedAtLabel}`
+            : `Due ${formatTaskDueLabel(task.dueAt, now, input.timeZone)}`,
+        timelineAtValue: formatDateTimeValue(timelineAt),
+        timelineTitle: buildTaskTimelineTitle({
+          title: task.title,
+          status: task.status,
+          needsAttention,
+          dueAt: task.dueAt,
+        }),
+        timelineDescription: buildTaskTimelineDescription({
+          status: task.status,
+          dueAt: task.dueAt,
+          assigneeLabel,
+          now,
+          timeZone: input.timeZone,
+        }),
+        timelineContext: buildTaskTimelineContext({
+          status: task.status,
+          queueLabel: buildTaskQueueLabel(task.status, task.dueAt, now),
+          statusLabel: formatTaskStatusLabel(task.status),
+          needsAttention,
+        }),
       };
     }),
     sendRecords: client.frontOfficeSendRecords.map((record) => ({

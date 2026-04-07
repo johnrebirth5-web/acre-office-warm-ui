@@ -18,6 +18,7 @@ import { FrontOfficeClientDossierClient } from "./front-office-client-dossier-cl
 import {
   FrontOfficeClientActionGroup,
   FrontOfficeClientGuidanceQueue,
+  buildFrontOfficeClientFollowUpHref,
   frontOfficeClientDossierSectionIds,
   getFrontOfficeClientDossierSectionHref,
 } from "./front-office-client-dossier-shared";
@@ -37,6 +38,49 @@ type AgentClientDetailPageProps = {
     followUpSource?: string;
   }>;
 };
+
+function getClientFirstName(fullName: string) {
+  const [firstName] = fullName.trim().split(/\s+/);
+  return firstName?.trim() || "Client";
+}
+
+function buildWorkflowFollowUpTitle(snapshot: Awaited<ReturnType<typeof getFrontOfficeClientDetail>>) {
+  if (!snapshot) {
+    return "Create the next follow-up";
+  }
+
+  const firstName = getClientFirstName(snapshot.fullName);
+
+  switch (snapshot.workflow.nextStepKey) {
+    case "capture_showing_feedback":
+      return `Capture ${firstName}'s showing feedback`;
+    case "start_lease_follow_up":
+      return `Check ${firstName}'s lease renewal or move timing`;
+    case "clarify_pending_blocker":
+      return `Clarify the blocker for ${firstName}`;
+    case "post_close_follow_up":
+      return `Send ${firstName} a post-close check-in`;
+    case "place_nurture_reminder":
+      return `Place a future nurture touch for ${firstName}`;
+    default:
+      return `Follow up with ${firstName}`;
+  }
+}
+
+function getSuggestedFollowUpSourceLabel(source: string | undefined) {
+  switch (source) {
+    case "ai":
+      return "AI suggestion loaded into the follow-up form below.";
+    case "lease":
+      return "Lease reminder loaded into the follow-up form below.";
+    case "workflow":
+      return "Workflow pressure loaded into the follow-up form below.";
+    case "timeline":
+      return "Timeline action loaded into the follow-up form below.";
+    default:
+      return source ? "Suggested follow-up loaded into the form below." : null;
+  }
+}
 
 export default async function AgentClientDetailPage(
   props: AgentClientDetailPageProps,
@@ -61,10 +105,7 @@ export default async function AgentClientDetailPage(
     ? {
         title: suggestedFollowUpTitle,
         dueAt: suggestedFollowUpDueAt,
-        sourceLabel:
-          searchParams.followUpSource === "ai"
-            ? "AI suggestion loaded into the follow-up form below."
-            : null,
+        sourceLabel: getSuggestedFollowUpSourceLabel(searchParams.followUpSource),
       }
     : null;
   const snapshot = await getFrontOfficeClientDetail({
@@ -102,6 +143,32 @@ export default async function AgentClientDetailPage(
   const overviewSectionHref = "#front-office-client-overview";
   const timelineSectionHref = "#front-office-client-execution-timeline";
   const leaseReminderSectionHref = "#front-office-client-lease-reminder";
+  const firstName = getClientFirstName(snapshot.fullName);
+  const workflowFollowUpHref = buildFrontOfficeClientFollowUpHref({
+    clientId: snapshot.id,
+    title: buildWorkflowFollowUpTitle(snapshot),
+    dueAt:
+      snapshot.followUpCue.dueAtValue.slice(0, 10) ||
+      snapshot.leaseReminder.reminderAtValue,
+    source: "workflow",
+  });
+  const leaseFollowUpHref = buildFrontOfficeClientFollowUpHref({
+    clientId: snapshot.id,
+    title: `Check ${firstName}'s lease renewal or move timing`,
+    dueAt:
+      snapshot.leaseReminder.reminderAtValue ||
+      snapshot.followUpCue.dueAtValue.slice(0, 10),
+    source: "lease",
+  });
+  const followUpPrimaryAction = snapshot.summary.openTaskCount
+    ? {
+        href: "#front-office-follow-up-queue",
+        label: "Review follow-up queue",
+      }
+    : {
+        href: workflowFollowUpHref,
+        label: "Create follow-up",
+      };
   const primaryHandoffAction = primaryHandoff
     ? {
         href: primaryHandoff.href,
@@ -114,7 +181,80 @@ export default async function AgentClientDetailPage(
         href: backOfficeContextHref,
         label: "Review handoff rules",
       };
+  const workflowAction =
+    snapshot.workflow.actionHref.startsWith("#front-office-follow-up")
+      ? followUpPrimaryAction
+      : {
+          href: snapshot.workflow.actionHref,
+          label: snapshot.workflow.actionLabel,
+          opensInNewTab: snapshot.workflow.action.opensInNewTab,
+        };
+  const followUpCueAction =
+    snapshot.followUpCue.action.href.startsWith("#front-office-follow-up")
+      ? followUpPrimaryAction
+      : {
+          href: snapshot.followUpCue.action.href,
+          label: snapshot.followUpCue.action.label,
+          opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
+        };
   const executionTimelineItems = [
+    ...(snapshot.leaseReminder.timelineAtValue
+      ? [
+          {
+            id: "lease-reminder",
+            title: snapshot.leaseReminder.timelineTitle,
+            badgeLabel: "Lease",
+            badgeTone: snapshot.leaseReminder.statusTone,
+            context: snapshot.leaseReminder.statusLabel,
+            description: snapshot.leaseReminder.timelineDescription,
+            metaLabel: snapshot.leaseReminder.timelineAtLabel,
+            sortAt: snapshot.leaseReminder.timelineAtValue,
+            priority: snapshot.leaseReminder.needsAttention ? 0 : 1,
+            sortDirection: "asc" as const,
+            actions: [
+              {
+                href: leaseReminderSectionHref,
+                label: "Review lease reminder",
+              },
+              {
+                href: leaseFollowUpHref,
+                label: "Load renewal follow-up",
+              },
+            ],
+          },
+        ]
+      : []),
+    ...snapshot.followUpTasks.map((task) => ({
+      id: `follow-up-${task.id}`,
+      title: task.timelineTitle,
+      badgeLabel: "Follow-up",
+      badgeTone: task.tone,
+      context: task.timelineContext,
+      description: task.timelineDescription,
+      metaLabel: task.timelineAtLabel,
+      sortAt: task.timelineAtValue,
+      priority:
+        !task.isResolved && (task.needsAttention || !task.dueAtValue)
+          ? 0
+          : task.isResolved
+            ? 2
+            : 1,
+      sortDirection: task.isResolved ? ("desc" as const) : ("asc" as const),
+      actions: [
+        {
+          href: "#front-office-follow-up-queue",
+          label: "Review queue",
+        },
+        ...(!task.isResolved
+          ? [
+              {
+                href: workflowFollowUpHref,
+                label: "Create another follow-up",
+              },
+            ]
+          : []),
+      ],
+    })),
     ...snapshot.stageHistory.map((entry) => ({
       id: `stage-${entry.id}`,
       title: entry.title,
@@ -125,9 +265,14 @@ export default async function AgentClientDetailPage(
         entry.noteLabel || "Stage updated in the Front Office dossier.",
       metaLabel: entry.changedAtLabel,
       sortAt: entry.changedAtValue,
-      actionHref: overviewSectionHref,
-      actionLabel: "Review overview",
-      opensInNewTab: false,
+      priority: 2,
+      sortDirection: "desc" as const,
+      actions: [
+        {
+          href: overviewSectionHref,
+          label: "Review overview",
+        },
+      ],
     })),
     ...snapshot.appointments.map((appointment) => ({
       id: `appointment-${appointment.id}`,
@@ -138,9 +283,22 @@ export default async function AgentClientDetailPage(
       description: `${appointment.startsAtLabel} · ${appointment.locationLabel}`,
       metaLabel: appointment.contextLabel,
       sortAt: appointment.startsAtValue,
-      actionHref: `/agent/calendar?clientId=${snapshot.id}`,
-      actionLabel: "Open calendar",
-      opensInNewTab: false,
+      priority:
+        appointment.statusValue === "scheduled" &&
+        new Date(appointment.startsAtValue).getTime() >= Date.now()
+          ? 1
+          : 2,
+      sortDirection:
+        appointment.statusValue === "scheduled" &&
+        new Date(appointment.startsAtValue).getTime() >= Date.now()
+          ? ("asc" as const)
+          : ("desc" as const),
+      actions: [
+        {
+          href: `/agent/calendar?clientId=${snapshot.id}`,
+          label: "Open calendar",
+        },
+      ],
     })),
     ...snapshot.sendRecords.map((record) => ({
       id: `send-${record.id}`,
@@ -153,9 +311,14 @@ export default async function AgentClientDetailPage(
         .join(" · "),
       metaLabel: record.lastActivityLabel,
       sortAt: record.sentAtValue,
-      actionHref: record.href,
-      actionLabel: "Open listing output",
-      opensInNewTab: false,
+      priority: 2,
+      sortDirection: "desc" as const,
+      actions: [
+        {
+          href: record.href,
+          label: "Open listing output",
+        },
+      ],
     })),
     ...snapshot.handoffs.map((handoff) => ({
       id: `handoff-${handoff.id}`,
@@ -166,19 +329,35 @@ export default async function AgentClientDetailPage(
       description: handoff.summary,
       metaLabel: handoff.updatedAtLabel,
       sortAt: handoff.updatedAtValue,
-      actionHref: handoff.href,
-      actionLabel:
-        handoff.statusLabel === "Committed"
-          ? "Open transaction"
-          : "Open create flow",
-      opensInNewTab: false,
+      priority: 2,
+      sortDirection: "desc" as const,
+      actions: [
+        {
+          href: handoff.href,
+          label:
+            handoff.statusLabel === "Committed"
+              ? "Open transaction"
+              : "Open create flow",
+        },
+      ],
     })),
   ]
     .filter((item) => item.sortAt)
-    .sort(
-      (left, right) =>
-        new Date(right.sortAt).getTime() - new Date(left.sortAt).getTime(),
-    )
+    .sort((left, right) => {
+      if (left.priority !== right.priority) {
+        return left.priority - right.priority;
+      }
+
+      if (left.sortDirection !== right.sortDirection) {
+        return left.sortDirection === "asc" ? -1 : 1;
+      }
+
+      const leftTime = new Date(left.sortAt).getTime();
+      const rightTime = new Date(right.sortAt).getTime();
+      return left.sortDirection === "asc"
+        ? leftTime - rightTime
+        : rightTime - leftTime;
+    })
     .slice(0, 12);
 
   function buildRailItemActions(
@@ -207,12 +386,7 @@ export default async function AgentClientDetailPage(
             actions={
               <FrontOfficeClientActionGroup
                 actions={[
-                  {
-                    href: "#front-office-follow-up-form",
-                    label: snapshot.summary.openTaskCount
-                      ? "Review follow-up queue"
-                      : "Create follow-up",
-                  },
+                  followUpPrimaryAction,
                   {
                     href: timelineSectionHref,
                     label: "Review timeline",
@@ -267,22 +441,24 @@ export default async function AgentClientDetailPage(
                 value={snapshot.summary.openTaskCount}
               />
               <StatCard
-                hint="tasks that already need action or re-dating"
-                label="Overdue follow-up"
+                hint="tasks that already need action, re-dating, or a real due date"
+                label="Needs action now"
                 tone={
-                  snapshot.summary.overdueTaskCount > 0 ? "accent" : "default"
+                  snapshot.summary.attentionTaskCount > 0
+                    ? "accent"
+                    : "default"
                 }
-                value={snapshot.summary.overdueTaskCount}
+                value={snapshot.summary.attentionTaskCount}
+              />
+              <StatCard
+                hint="active follow-up tasks due in the next 7 days"
+                label="Due this week"
+                value={snapshot.summary.dueSoonTaskCount}
               />
               <StatCard
                 hint="scheduled appointments from now forward"
                 label="Upcoming appointments"
                 value={snapshot.summary.upcomingAppointmentCount}
-              />
-              <StatCard
-                hint="recent stage changes captured on this client"
-                label="Stage history"
-                value={snapshot.summary.stageHistoryCount}
               />
               <StatCard
                 hint="draft or ready Back Office handoffs"
@@ -302,12 +478,7 @@ export default async function AgentClientDetailPage(
                   description: snapshot.workflow.nextStepDescription,
                   context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
                   meta: <span>{snapshot.workflow.pressureDescription}</span>,
-                  actions: [
-                    {
-                      href: snapshot.workflow.actionHref,
-                      label: snapshot.workflow.actionLabel,
-                    },
-                  ],
+                  actions: [workflowAction],
                 },
                 {
                   key: "next-touch",
@@ -318,11 +489,15 @@ export default async function AgentClientDetailPage(
                   context: snapshot.followUpCue.dueLabel,
                   meta: <span>{snapshot.nextTouchLabel}</span>,
                   actions: [
-                    {
-                      href: snapshot.followUpCue.action.href,
-                      label: snapshot.followUpCue.action.label,
-                      opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
-                    },
+                    followUpCueAction,
+                    ...(snapshot.leaseReminder.reminderAtValue
+                      ? [
+                          {
+                            href: leaseFollowUpHref,
+                            label: "Load renewal follow-up",
+                          },
+                        ]
+                      : []),
                   ],
                 },
                 {
@@ -333,6 +508,22 @@ export default async function AgentClientDetailPage(
                   description: snapshot.nextStepRail.decisionDescription,
                   meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
                   actions: [primaryHandoffAction],
+                },
+                {
+                  key: "pdf",
+                  label: "Client-ready PDF",
+                  tone: "neutral",
+                  title: "Export a recap that mirrors the live dossier",
+                  description:
+                    "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work.",
+                  meta: <span>PDF export stays client-facing; formal transaction documents still live separately.</span>,
+                  actions: [
+                    {
+                      href: `/api/agent/clients/${snapshot.id}/pdf`,
+                      label: "Download client PDF",
+                      opensInNewTab: true,
+                    },
+                  ],
                 },
               ]}
             />
@@ -414,10 +605,7 @@ export default async function AgentClientDetailPage(
             actions={
               <FrontOfficeClientActionGroup
                 actions={[
-                  {
-                    href: "#front-office-follow-up-form",
-                    label: "Create follow-up",
-                  },
+                  followUpPrimaryAction,
                   {
                     href: backOfficeContextHref,
                     label: "Review BO boundary",
@@ -427,23 +615,23 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id="front-office-client-execution-timeline"
-            subtitle="Read the latest stage moves, sends, appointments, and handoff moments in one place so the dossier feels like a live execution workspace instead of a static profile."
+            subtitle="Action items surface first, then scheduled work, then recent history so the dossier reads like a live execution chain instead of a static profile."
             title="Execution timeline"
           >
+            <div className="front-office-placeholder-note">
+              <strong>Action-first timeline</strong>
+              <p>
+                Urgent follow-up and lease items rise to the top, upcoming
+                coordination stays in the middle, and recent stage / send / BO
+                history stays below for context.
+              </p>
+            </div>
             <div className="office-queue-list">
               {executionTimelineItems.length ? (
                 executionTimelineItems.map((item) => (
                   <QueueItem
                     action={
-                      <FrontOfficeClientActionGroup
-                        actions={[
-                          {
-                            href: item.actionHref,
-                            label: item.actionLabel,
-                            opensInNewTab: item.opensInNewTab,
-                          },
-                        ]}
-                      />
+                      <FrontOfficeClientActionGroup actions={item.actions} />
                     }
                     badgeLabel={item.badgeLabel}
                     badgeTone={item.badgeTone}
@@ -523,10 +711,7 @@ export default async function AgentClientDetailPage(
                       </span>
                     ),
                     actions: [
-                      {
-                        href: "#front-office-follow-up-form",
-                        label: "Open follow-up form",
-                      },
+                      followUpPrimaryAction,
                       {
                         href: `/agent/calendar?clientId=${snapshot.id}`,
                         label: "Open calendar",
@@ -1314,14 +1499,34 @@ export default async function AgentClientDetailPage(
                   description: snapshot.followUpCue.description,
                   meta: <span>{snapshot.nextTouchLabel}</span>,
                   actions: [
-                    {
-                      href: snapshot.followUpCue.action.href,
-                      label: snapshot.followUpCue.action.label,
-                      opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
-                    },
+                    followUpCueAction,
                     {
                       href: leaseReminderSectionHref,
                       label: "Lease reminder",
+                    },
+                    ...(snapshot.leaseReminder.reminderAtValue
+                      ? [
+                          {
+                            href: leaseFollowUpHref,
+                            label: "Load renewal follow-up",
+                          },
+                        ]
+                      : []),
+                  ],
+                },
+                {
+                  key: "pdf",
+                  label: "Client recap",
+                  tone: "neutral",
+                  title: "Export the same execution story as a client-facing PDF",
+                  description:
+                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without copying admin work back into Front Office.",
+                  meta: <span>Use it for recap, alignment, and post-meeting follow-through.</span>,
+                  actions: [
+                    {
+                      href: `/api/agent/clients/${snapshot.id}/pdf`,
+                      label: "Download client PDF",
+                      opensInNewTab: true,
                     },
                   ],
                 },
@@ -1383,13 +1588,7 @@ export default async function AgentClientDetailPage(
               <QueueItem
                 action={
                   <FrontOfficeClientActionGroup
-                    actions={[
-                      {
-                        href: snapshot.followUpCue.action.href,
-                        label: snapshot.followUpCue.action.label,
-                        opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
-                      },
-                    ]}
+                    actions={[followUpCueAction]}
                   />
                 }
                 badgeLabel={snapshot.followUpCue.label}
@@ -1461,6 +1660,17 @@ export default async function AgentClientDetailPage(
                     "Use this rail to see when the client is still in FO follow-up versus when the next step needs a formal, auditable BO record.",
                   meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
                   actions: [primaryHandoffAction],
+                },
+                {
+                  key: "fo-follow-up",
+                  label: snapshot.followUpCue.label,
+                  tone: snapshot.followUpCue.tone,
+                  title: "Client-facing next touches still stay in Front Office",
+                  description: primaryHandoff
+                    ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this dossier."
+                    : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and queue-based next touches still belong here until the work becomes formal.",
+                  meta: <span>{snapshot.contract.handoff.summary}</span>,
+                  actions: [followUpPrimaryAction],
                 },
               ]}
             />

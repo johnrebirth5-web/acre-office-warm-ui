@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useState,
   useTransition,
   type ChangeEvent,
@@ -9,6 +10,7 @@ import {
 import type { FrontOfficeClientDetailSnapshot } from "@acre/db";
 import { Button, FormField, QueueItem, TextInput } from "@acre/ui";
 import { useRouter } from "next/navigation";
+import { buildFrontOfficeClientFollowUpHref } from "./front-office-client-dossier-shared";
 
 type FrontOfficeClientLeaseReminderClientProps = {
   snapshot: FrontOfficeClientDetailSnapshot;
@@ -50,6 +52,11 @@ function buildDateValueWithOffset(currentValue: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function getClientFirstName(fullName: string) {
+  const [firstName] = fullName.trim().split(/\s+/);
+  return firstName?.trim() || "Client";
+}
+
 export function FrontOfficeClientLeaseReminderClient(
   props: FrontOfficeClientLeaseReminderClientProps,
 ) {
@@ -61,6 +68,23 @@ export function FrontOfficeClientLeaseReminderClient(
   const [isSaving, setIsSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending;
+  const firstName = getClientFirstName(props.snapshot.fullName);
+  const leaseFollowUpHref = buildFrontOfficeClientFollowUpHref({
+    clientId: props.snapshot.id,
+    title: `Check ${firstName}'s lease renewal or move timing`,
+    dueAt:
+      props.snapshot.leaseReminder.reminderAtValue ||
+      props.snapshot.followUpCue.dueAtValue.slice(0, 10),
+    source: "lease",
+  });
+
+  useEffect(() => {
+    setFormState(buildInitialFormState(props.snapshot));
+  }, [
+    props.snapshot.id,
+    props.snapshot.leaseReminder.leaseEndDateValue,
+    props.snapshot.leaseReminder.reminderAtValue,
+  ]);
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
@@ -130,14 +154,45 @@ export function FrontOfficeClientLeaseReminderClient(
         <QueueItem
           badgeLabel={props.snapshot.leaseReminder.statusLabel}
           badgeTone={props.snapshot.leaseReminder.statusTone}
-          description={props.snapshot.leaseReminder.helperText}
+          description={props.snapshot.leaseReminder.timelineDescription}
           meta={
             <span>
               Lease end: {props.snapshot.leaseReminder.leaseEndDateLabel} ·
-              Reminder: {props.snapshot.leaseReminder.reminderAtLabel}
+              Reminder: {props.snapshot.leaseReminder.reminderAtLabel} ·{" "}
+              {props.snapshot.leaseReminder.timelineAtLabel}
             </span>
           }
-          title="Renewal / remarketing window"
+          title={props.snapshot.leaseReminder.timelineTitle}
+        />
+        <QueueItem
+          action={
+            <>
+              <a className="office-inline-link" href={leaseFollowUpHref}>
+                Load renewal follow-up
+              </a>
+              {props.snapshot.summary.openTaskCount ? (
+                <a
+                  className="office-inline-link"
+                  href="#front-office-follow-up-queue"
+                >
+                  Review queue
+                </a>
+              ) : null}
+            </>
+          }
+          badgeLabel={props.snapshot.followUpCue.label}
+          badgeTone={props.snapshot.followUpCue.tone}
+          description={
+            props.snapshot.leaseReminder.needsAttention
+              ? "This lease window is now part of the active execution pressure. Turn it into a dated follow-up so the renewal or move conversation has a real owner."
+              : "Load a renewal follow-up into the shared FO form whenever this lease timing needs a concrete call, text, or email task."
+          }
+          meta={
+            <span>
+              Suggested task · Check {firstName}&apos;s lease renewal or move timing
+            </span>
+          }
+          title="Turn lease timing into a shared follow-up"
         />
         <QueueItem
           badgeLabel={props.snapshot.nextStepRail.decisionLabel}
@@ -157,9 +212,17 @@ export function FrontOfficeClientLeaseReminderClient(
           follow-up instead of assuming Acre will send something automatically.
         </p>
         <div className="list-row-meta front-office-record-meta">
+          <a className="office-inline-link" href={leaseFollowUpHref}>
+            Load renewal follow-up
+          </a>
           <a className="office-inline-link" href={`#${FRONT_OFFICE_FOLLOW_UP_FORM_ID}`}>
             Open follow-up form
           </a>
+          {props.snapshot.summary.openTaskCount ? (
+            <a className="office-inline-link" href="#front-office-follow-up-queue">
+              Review queue
+            </a>
+          ) : null}
           <button
             className="office-inline-link"
             onClick={() => applyLeaseReminderPreset(45)}
