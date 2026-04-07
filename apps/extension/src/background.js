@@ -215,56 +215,60 @@ async function saveListing(payload) {
   return result;
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
-  const state = await getState();
-  if (!state.baseUrl) {
-    await setBaseUrl(DEFAULT_BASE_URL);
-  }
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  void (async () => {
-    try {
-      switch (message?.type) {
-        case "GET_CONFIG": {
-          sendResponse(await getState());
-          return;
-        }
-        case "SET_BASE_URL": {
-          const baseUrl = await setBaseUrl(message.baseUrl);
-          sendResponse({ ok: true, baseUrl });
-          return;
-        }
-        case "START_CONNECT": {
-          sendResponse(await startConnectFlow());
-          return;
-        }
-        case "CHECK_CONNECTION_STATUS": {
-          sendResponse(await checkConnectionStatus());
-          return;
-        }
-        case "DISCONNECT": {
-          sendResponse(await disconnect());
-          return;
-        }
-        case "SAVE_LISTING": {
-          sendResponse(await saveListing(message.payload));
-          return;
-        }
-        default: {
-          sendResponse({ ok: false, error: "Unknown extension action." });
-        }
-      }
-    } catch (error) {
-      sendResponse({
-        ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unexpected Acre extension error.",
-      });
+if (chrome?.runtime?.onInstalled?.addListener) {
+  chrome.runtime.onInstalled.addListener(async () => {
+    const state = await getState();
+    if (!state.baseUrl) {
+      await setBaseUrl(DEFAULT_BASE_URL);
     }
-  })();
+  });
+}
 
-  return true;
-});
+if (chrome?.runtime?.onMessage?.addListener) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    void (async () => {
+      try {
+        switch (message?.type) {
+          case "GET_CONFIG": {
+            sendResponse(await getState());
+            return;
+          }
+          case "SET_BASE_URL": {
+            const baseUrl = await setBaseUrl(message.baseUrl);
+            sendResponse({ ok: true, baseUrl });
+            return;
+          }
+          case "START_CONNECT": {
+            sendResponse(await startConnectFlow());
+            return;
+          }
+          case "CHECK_CONNECTION_STATUS": {
+            sendResponse(await checkConnectionStatus());
+            return;
+          }
+          case "DISCONNECT": {
+            sendResponse(await disconnect());
+            return;
+          }
+          case "SAVE_LISTING": {
+            sendResponse(await saveListing(message.payload));
+            return;
+          }
+          default: {
+            sendResponse({ ok: false, error: "Unknown extension action." });
+          }
+        }
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unexpected Acre extension error.",
+        });
+      }
+    })();
+
+    return true;
+  });
+}

@@ -415,7 +415,33 @@
   }
 
   async function sendMessage(message) {
-    return chrome.runtime.sendMessage(message);
+    if (!chrome?.runtime?.id) {
+      return {
+        ok: false,
+        errorCode: "EXTENSION_CONTEXT_INVALIDATED",
+        error: "The Acre extension reloaded. Refresh this page and try again.",
+        connectionState: "disconnected",
+      };
+    }
+
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : String(error || "");
+      if (
+        messageText.includes("Extension context invalidated") ||
+        messageText.includes("Receiving end does not exist")
+      ) {
+        return {
+          ok: false,
+          errorCode: "EXTENSION_CONTEXT_INVALIDATED",
+          error: "The Acre extension reloaded. Refresh this page and try again.",
+          connectionState: "disconnected",
+        };
+      }
+      throw error;
+    }
   }
 
   function createShadowPanel() {

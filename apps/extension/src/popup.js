@@ -9,7 +9,35 @@ const elements = {
 };
 
 async function sendMessage(message) {
-  return chrome.runtime.sendMessage(message);
+  if (!chrome?.runtime?.id) {
+    return {
+      ok: false,
+      connectionState: "disconnected",
+      connectionError: "The Acre extension reloaded. Close and reopen the popup.",
+      lastSaveResult: null,
+      baseUrl: elements.baseUrl?.value || "",
+    };
+  }
+
+  try {
+    return await chrome.runtime.sendMessage(message);
+  } catch (error) {
+    const messageText =
+      error instanceof Error ? error.message : String(error || "");
+    if (
+      messageText.includes("Extension context invalidated") ||
+      messageText.includes("Receiving end does not exist")
+    ) {
+      return {
+        ok: false,
+        connectionState: "disconnected",
+        connectionError: "The Acre extension reloaded. Close and reopen the popup.",
+        lastSaveResult: null,
+        baseUrl: elements.baseUrl?.value || "",
+      };
+    }
+    throw error;
+  }
 }
 
 function setBadge(label, tone) {
