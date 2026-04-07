@@ -58,6 +58,24 @@ function normalizeBridgeText(value: string | null | undefined) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }
 
+function normalizeBridgeUrl(value: string | null | undefined) {
+  const normalized = normalizeBridgeText(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(normalized)) {
+    return normalized;
+  }
+
+  if (/^[^\s/]+\.[^\s]+(?:\/.*)?$/i.test(normalized)) {
+    return `https://${normalized}`;
+  }
+
+  return normalized;
+}
+
 function isLikelyEmailAddress(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -142,6 +160,7 @@ function buildCalendarDescription(input: AppointmentExternalLinkInput) {
     clientEmail: input.clientEmail,
     contactLabel: input.contactLabel,
   });
+  const meetingUrl = normalizeBridgeUrl(input.meetingUrl);
   const clientOrContact =
     normalizeBridgeText(input.clientName) ||
     normalizeBridgeText(input.contactLabel) ||
@@ -161,9 +180,7 @@ function buildCalendarDescription(input: AppointmentExternalLinkInput) {
     normalizeBridgeText(input.location)
       ? `Location: ${normalizeBridgeText(input.location)}`
       : "",
-    normalizeBridgeText(input.meetingUrl)
-      ? `Meeting link: ${normalizeBridgeText(input.meetingUrl)}`
-      : "",
+    meetingUrl ? `Meeting link: ${meetingUrl}` : "",
     normalizeBridgeText(input.externalStatusLabel)
       ? `External coordination: ${normalizeBridgeText(input.externalStatusLabel)}`
       : "",
@@ -258,7 +275,7 @@ function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
     normalizeBridgeText(input.externalStatusLabel) === "Confirmed";
   const appointmentTitle = normalizeBridgeText(input.title) || "Appointment";
   const location = normalizeBridgeText(input.location);
-  const meetingUrl = normalizeBridgeText(input.meetingUrl);
+  const meetingUrl = normalizeBridgeUrl(input.meetingUrl);
   const subject = isRescheduleRequest
     ? `Reschedule request: ${appointmentTitle}`
     : isConfirmed
@@ -294,9 +311,10 @@ export function buildFrontOfficeAppointmentExternalTargets(
 ): FrontOfficeAppointmentExternalTargets {
   const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
   const title = normalizeBridgeText(input.title) || "Appointment";
+  const meetingUrl = normalizeBridgeUrl(input.meetingUrl);
   const location =
     normalizeBridgeText(input.location) ||
-    normalizeBridgeText(input.meetingUrl) ||
+    meetingUrl ||
     "";
   const details = buildCalendarDescription(input);
   const googleParams = new URLSearchParams({
@@ -356,9 +374,10 @@ export function buildFrontOfficeAppointmentCalendarExport(
   const endsAt = resolveAppointmentEndAt(input.startsAt, input.endsAt);
   const title = normalizeBridgeText(input.title) || "Appointment";
   const description = buildCalendarDescription(input);
+  const meetingUrl = normalizeBridgeUrl(input.meetingUrl);
   const location =
     normalizeBridgeText(input.location) ||
-    normalizeBridgeText(input.meetingUrl) ||
+    meetingUrl ||
     "";
   const fileName = `${sanitizeFileStem(title)}-${input.startsAt.toISOString().slice(0, 10)}.ics`;
   const lines = [
@@ -375,9 +394,7 @@ export function buildFrontOfficeAppointmentCalendarExport(
     `SUMMARY:${escapeIcsValue(title)}`,
     description ? `DESCRIPTION:${escapeIcsValue(description)}` : "",
     location ? `LOCATION:${escapeIcsValue(location)}` : "",
-    normalizeBridgeText(input.meetingUrl)
-      ? `URL:${escapeIcsValue(normalizeBridgeText(input.meetingUrl))}`
-      : "",
+    meetingUrl ? `URL:${escapeIcsValue(meetingUrl)}` : "",
     "END:VEVENT",
     "END:VCALENDAR",
     "",

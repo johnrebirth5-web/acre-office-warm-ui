@@ -69,7 +69,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback history, detail focus, and the next Back Office handoff visible on the same page."
+      description="Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page."
       eyebrow="Calendar"
       main={
         <FrontOfficeCalendarClient
@@ -124,6 +124,11 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 label="Reschedule"
                 tone="accent"
                 value={snapshot.summary.rescheduleRequestedCount}
+              />
+              <StatCard
+                hint="appointments that already opened Google, Outlook, ICS, or email from Acre"
+                label="Bridge opened"
+                value={snapshot.summary.bridgedCount}
               />
               <StatCard
                 hint="formal transaction follow-through waiting in BO"

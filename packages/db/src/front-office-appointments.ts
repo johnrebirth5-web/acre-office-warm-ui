@@ -37,6 +37,7 @@ export type FrontOfficeAppointmentRecord = {
   id: string;
   title: string;
   clientId: string | null;
+  listingId: string | null;
   clientHref: string | null;
   typeValue: AppointmentType;
   statusValue: AppointmentStatus;
@@ -215,14 +216,31 @@ export type GetFrontOfficeAppointmentBridgeResultInput = {
   action: FrontOfficeAppointmentBridgeAction;
 };
 
-export type FrontOfficeAppointmentBridgeResult =
+export type FrontOfficeAppointmentBridgeWritebackSuggestion = {
+  status: FrontOfficeAppointmentExternalWorkflowStatus;
+  label: string;
+  detail: string;
+  nextActionAtLabel: string;
+  nextActionAtValue: string;
+};
+
+export type FrontOfficeAppointmentBridgeGuidance = {
+  manualOnlyDetail: string;
+  followUpDetail: string;
+  suggestedWriteback: FrontOfficeAppointmentBridgeWritebackSuggestion | null;
+};
+
+export type FrontOfficeAppointmentBridgeResult = (
   | {
       kind: "redirect";
       href: string;
     }
   | ({
       kind: "calendar_export";
-    } & FrontOfficeAppointmentCalendarExport);
+    } & FrontOfficeAppointmentCalendarExport)
+) & {
+  guidance: FrontOfficeAppointmentBridgeGuidance;
+};
 
 export type FrontOfficeAppointmentBridgeStatus = {
   label: string;
@@ -367,6 +385,22 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
 
   return {
     OR: [{ officeId }, { officeId: null }],
+  };
+}
+
+function buildScopedWhereInput(
+  where: Prisma.AppointmentWhereInput,
+  officeId: string | null | undefined,
+) {
+  const officeScopeFilter = buildOfficeScopeFilter(officeId);
+
+  if (!officeScopeFilter) {
+    return where;
+  }
+
+  return {
+    ...where,
+    AND: [...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []), officeScopeFilter],
   };
 }
 
@@ -947,6 +981,58 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
   return presets.slice(0, 3);
 }
 
+function buildFrontOfficeAppointmentBridgeGuidance(input: {
+  appointmentStatus: AppointmentStatus;
+  startsAt: Date;
+  externalWorkflow: FrontOfficeAppointmentExternalWorkflowState;
+  now: Date;
+  timeZone?: string | null;
+}): FrontOfficeAppointmentBridgeGuidance {
+  const manualOnlyDetail =
+    "Acre only logs that the bridge was opened here. Google, Outlook, ICS, and email still need a manual save or send outside the system.";
+
+  if (input.appointmentStatus !== AppointmentStatus.scheduled) {
+    return {
+      manualOnlyDetail,
+      followUpDetail:
+        "This appointment is no longer scheduled in Acre, so any outside follow-up should happen on a replacement or reopened plan instead.",
+      suggestedWriteback: null,
+    };
+  }
+
+  const touchPresets = buildFrontOfficeAppointmentTouchPresets(input);
+  const preferredStatus =
+    input.externalWorkflow.value ===
+    frontOfficeAppointmentExternalWorkflowStatuses.idle
+      ? frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending
+      : input.externalWorkflow.value;
+  const suggestedPreset =
+    touchPresets.find((preset) => preset.suggestedStatus === preferredStatus) ??
+    touchPresets[0] ??
+    null;
+
+  return {
+    manualOnlyDetail,
+    followUpDetail:
+      input.externalWorkflow.value ===
+      frontOfficeAppointmentExternalWorkflowStatuses.confirmed
+        ? "If the outside plan changes after this export, write back whether it is still confirmed or needs to be rescheduled."
+        : input.externalWorkflow.value ===
+            frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
+          ? "After you use the bridge, keep the time-change conversation visible by saving the next reschedule checkpoint in Acre."
+          : "After you use the bridge, write back whether you are now awaiting confirmation, confirmed, or still need another follow-up touch.",
+    suggestedWriteback: suggestedPreset
+      ? {
+          status: suggestedPreset.suggestedStatus,
+          label: suggestedPreset.label,
+          detail: suggestedPreset.detail,
+          nextActionAtLabel: suggestedPreset.nextActionAtLabel,
+          nextActionAtValue: suggestedPreset.nextActionAtValue,
+        }
+      : null,
+  };
+}
+
 export function getFrontOfficeAppointmentExternalWorkflowState(input: {
   metadata: Prisma.JsonValue | null;
   timeZone?: string | null;
@@ -1042,6 +1128,35 @@ function parseOptionalDateTimeInput(
   return parsed;
 }
 
+function normalizeOptionalHttpUrlInput(
+  value: string | null | undefined,
+  fieldLabel: string,
+) {
+  const normalized = value?.trim() ?? "";
+
+  if (!normalized) {
+    return null;
+  }
+
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(normalized)
+    ? normalized
+    : /^[^\s/]+\.[^\s]+(?:\/.*)?$/i.test(normalized)
+      ? `https://${normalized}`
+      : normalized;
+
+  try {
+    const parsed = new URL(candidate);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error();
+    }
+
+    return parsed.toString();
+  } catch {
+    throw new Error(`${fieldLabel} must be a valid http(s) URL.`);
+  }
+}
+
 function buildDefaultAppointmentTitle(
   type: AppointmentType,
   clientName: string | null | undefined,
@@ -1053,6 +1168,44 @@ function buildDefaultAppointmentTitle(
     .join(" · ");
 
   return context ? `${typeLabel} · ${context}` : typeLabel;
+}
+
+function validateFrontOfficeAppointmentCoordinationContext(input: {
+  type: AppointmentType;
+  clientId?: string | null;
+  listingId?: string | null;
+  contactLabel?: string | null;
+}) {
+  const hasClient = Boolean(input.clientId?.trim());
+  const hasListing = Boolean(input.listingId?.trim());
+  const hasExternalContact = Boolean(input.contactLabel?.trim());
+
+  switch (input.type) {
+    case AppointmentType.showing:
+      if (!hasClient && !hasListing && !hasExternalContact) {
+        throw new Error(
+          "Link a client, listing, or external contact before scheduling this showing.",
+        );
+      }
+      return;
+    case AppointmentType.consultation:
+    case AppointmentType.client_meeting:
+      if (!hasClient && !hasExternalContact) {
+        throw new Error(
+          "Link a client or external contact before scheduling this meeting.",
+        );
+      }
+      return;
+    case AppointmentType.open_house:
+      if (!hasListing) {
+        throw new Error(
+          "Link a listing before scheduling an open house appointment.",
+        );
+      }
+      return;
+    default:
+      return;
+  }
 }
 
 type FrontOfficeAppointmentLatestBridgeAction = {
@@ -2032,6 +2185,7 @@ function mapAppointmentRecord(
     id: appointment.id,
     title: appointment.title,
     clientId: appointment.client?.id ?? null,
+    listingId: appointment.listing?.id ?? null,
     clientHref: appointment.client?.id
       ? `/agent/clients/${appointment.client.id}`
       : null,
@@ -2102,12 +2256,14 @@ function mapAppointmentRecord(
 function appointmentMatchesSnapshotFilters(input: {
   appointment: FrontOfficeAppointmentRecord;
   clientId?: string | null;
+  listingId?: string | null;
   type?: string | null;
   status?: string | null;
   coordination?: string | null;
   followUp?: string | null;
 }) {
   const normalizedClientId = input.clientId?.trim() || null;
+  const normalizedListingId = input.listingId?.trim() || null;
   const normalizedType = isAppointmentType(input.type) ? input.type : null;
   const normalizedStatus = isFrontOfficeAppointmentListStatusFilter(
     input.status,
@@ -2126,6 +2282,13 @@ function appointmentMatchesSnapshotFilters(input: {
     : frontOfficeAppointmentFollowUpFilters.all;
 
   if (normalizedClientId && input.appointment.clientId !== normalizedClientId) {
+    return false;
+  }
+
+  if (
+    normalizedListingId &&
+    input.appointment.listingId !== normalizedListingId
+  ) {
     return false;
   }
 
@@ -2270,58 +2433,73 @@ export async function getFrontOfficeAppointmentsSnapshot(
     handoffs,
   ] = await Promise.all([
     prisma.appointment.findMany({
-      where: {
-        organizationId: input.organizationId,
-        ownerMembershipId: input.viewerMembershipId,
-        startsAt: {
-          gte: sevenDaysAgo,
-          lte: fourteenDaysFromNow,
+      where: buildScopedWhereInput(
+        {
+          organizationId: input.organizationId,
+          ownerMembershipId: input.viewerMembershipId,
+          startsAt: {
+            gte: sevenDaysAgo,
+            lte: fourteenDaysFromNow,
+          },
         },
-      },
+        input.officeId ?? null,
+      ),
       orderBy: [{ startsAt: "asc" }, { updatedAt: "desc" }],
       select: appointmentSelect,
     }),
     input.targetAppointmentId?.trim()
       ? prisma.appointment.findFirst({
-          where: {
-            id: input.targetAppointmentId.trim(),
-            organizationId: input.organizationId,
-            ownerMembershipId: input.viewerMembershipId,
-          },
+          where: buildScopedWhereInput(
+            {
+              id: input.targetAppointmentId.trim(),
+              organizationId: input.organizationId,
+              ownerMembershipId: input.viewerMembershipId,
+            },
+            input.officeId ?? null,
+          ),
           select: appointmentSelect,
         })
       : Promise.resolve(null),
     prisma.appointment.count({
-      where: {
-        organizationId: input.organizationId,
-        ownerMembershipId: input.viewerMembershipId,
-        status: AppointmentStatus.scheduled,
-        startsAt: {
-          gte: now,
+      where: buildScopedWhereInput(
+        {
+          organizationId: input.organizationId,
+          ownerMembershipId: input.viewerMembershipId,
+          status: AppointmentStatus.scheduled,
+          startsAt: {
+            gte: now,
+          },
         },
-      },
+        input.officeId ?? null,
+      ),
     }),
     prisma.appointment.count({
-      where: {
-        organizationId: input.organizationId,
-        ownerMembershipId: input.viewerMembershipId,
-        status: AppointmentStatus.scheduled,
-        startsAt: {
-          gte: startOfToday,
-          lt: startOfTomorrow,
+      where: buildScopedWhereInput(
+        {
+          organizationId: input.organizationId,
+          ownerMembershipId: input.viewerMembershipId,
+          status: AppointmentStatus.scheduled,
+          startsAt: {
+            gte: startOfToday,
+            lt: startOfTomorrow,
+          },
         },
-      },
+        input.officeId ?? null,
+      ),
     }),
     prisma.appointment.count({
-      where: {
-        organizationId: input.organizationId,
-        ownerMembershipId: input.viewerMembershipId,
-        status: AppointmentStatus.scheduled,
-        type: AppointmentType.showing,
-        startsAt: {
-          gte: now,
+      where: buildScopedWhereInput(
+        {
+          organizationId: input.organizationId,
+          ownerMembershipId: input.viewerMembershipId,
+          status: AppointmentStatus.scheduled,
+          type: AppointmentType.showing,
+          startsAt: {
+            gte: now,
+          },
         },
-      },
+        input.officeId ?? null,
+      ),
     }),
     prisma.client.findMany({
       where: {
@@ -2473,6 +2651,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
     appointmentMatchesSnapshotFilters({
       appointment,
       clientId: input.clientId,
+      listingId: input.listingId,
       type: input.type,
       status: input.status,
       coordination: input.coordination,
@@ -2616,11 +2795,22 @@ export async function createFrontOfficeAppointment(
     : AppointmentType.showing;
   const startsAt = parseRequiredDate(input.startsAt, "Start time");
   const endsAt = parseOptionalDate(input.endsAt);
+  const meetingUrl = normalizeOptionalHttpUrlInput(
+    input.meetingUrl,
+    "Meeting link",
+  );
   const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
 
   if (endsAt && endsAt.getTime() < startsAt.getTime()) {
     throw new Error("End time cannot be earlier than start time.");
   }
+
+  validateFrontOfficeAppointmentCoordinationContext({
+    type,
+    clientId: input.clientId,
+    listingId: input.listingId,
+    contactLabel: input.contactLabel,
+  });
 
   const [client, listing] = await Promise.all([
     input.clientId
@@ -2682,7 +2872,7 @@ export async function createFrontOfficeAppointment(
         startsAt,
         endsAt,
         location: input.location?.trim() || null,
-        meetingUrl: input.meetingUrl?.trim() || null,
+        meetingUrl,
         contactLabel: input.contactLabel?.trim() || null,
         notes: input.notes?.trim() || null,
         metadata: Prisma.JsonNull,
@@ -2786,11 +2976,14 @@ export async function updateFrontOfficeAppointmentStatus(
   }
 
   const existing = await prisma.appointment.findFirst({
-    where: {
-      id: input.appointmentId,
-      organizationId: input.organizationId,
-      ownerMembershipId: input.ownerMembershipId,
-    },
+    where: buildScopedWhereInput(
+      {
+        id: input.appointmentId,
+        organizationId: input.organizationId,
+        ownerMembershipId: input.ownerMembershipId,
+      },
+      input.officeId ?? null,
+    ),
     select: appointmentSelect,
   });
 
@@ -2822,6 +3015,21 @@ export async function updateFrontOfficeAppointmentStatus(
   }
 
   const now = new Date();
+  const changedWritebackFields: FrontOfficeAppointmentWritebackChangedField[] =
+    shouldUpdateExternalWorkflow && nextExternalStatus
+      ? [
+          ...(currentExternalWorkflow.status !== nextExternalStatus
+            ? (["status"] as const)
+            : []),
+          ...(currentExternalWorkflow.note !== nextExternalNote
+            ? (["note"] as const)
+            : []),
+          ...(currentExternalWorkflow.nextActionAt?.getTime() !==
+          nextExternalActionAt?.getTime()
+            ? (["nextActionAt"] as const)
+            : []),
+        ]
+      : [];
   const updated = await prisma.$transaction(async (tx) => {
     const saved = await tx.appointment.update({
       where: {
@@ -2872,6 +3080,23 @@ export async function updateFrontOfficeAppointmentStatus(
           ? { contactName: saved.client.fullName }
           : {}),
         objectLabel: `${saved.title}${saved.client?.fullName ? ` · ${saved.client.fullName}` : ""}`,
+        ...(shouldUpdateExternalWorkflow && nextExternalStatus
+          ? {
+              coordinationWriteback: {
+                statusLabel:
+                  formatFrontOfficeAppointmentExternalWorkflowLabel(
+                    nextExternalStatus,
+                  ),
+                note: nextExternalNote,
+                nextActionAtLabel: nextExternalActionAt
+                  ? formatDateTimeLabel(nextExternalActionAt, {
+                      timeZone: input.timeZone ?? null,
+                    })
+                  : null,
+                changedFields: changedWritebackFields,
+              },
+            }
+          : {}),
         changes: [
           ...(shouldUpdateStatus && nextStatus
             ? [
@@ -2955,8 +3180,8 @@ export async function updateFrontOfficeAppointmentStatus(
           currentExternalWorkflow.note !== nextExternalNote
             ? [
                 nextExternalNote
-                  ? `Workflow note: ${nextExternalNote}`
-                  : "Workflow note cleared",
+                  ? `Writeback note: ${nextExternalNote}`
+                  : "Writeback note cleared",
               ]
             : []),
           ...(shouldUpdateExternalWorkflow &&
@@ -3014,11 +3239,14 @@ export async function getFrontOfficeAppointmentBridgeResult(
   }
 
   const appointment = await prisma.appointment.findFirst({
-    where: {
-      id: input.appointmentId,
-      organizationId: input.organizationId,
-      ownerMembershipId: input.ownerMembershipId,
-    },
+    where: buildScopedWhereInput(
+      {
+        id: input.appointmentId,
+        organizationId: input.organizationId,
+        ownerMembershipId: input.ownerMembershipId,
+      },
+      input.officeId ?? null,
+    ),
     select: appointmentSelect,
   });
 
@@ -3072,22 +3300,32 @@ export async function getFrontOfficeAppointmentBridgeResult(
       : null,
     timeZone: input.timeZone ?? null,
   });
+  const guidance = buildFrontOfficeAppointmentBridgeGuidance({
+    appointmentStatus: appointment.status,
+    startsAt: appointment.startsAt,
+    externalWorkflow,
+    now: new Date(),
+    timeZone: input.timeZone ?? null,
+  });
   const result: FrontOfficeAppointmentBridgeResult =
     input.action === frontOfficeAppointmentBridgeActions.googleCalendar
       ? {
           kind: "redirect",
           href: externalTargets.googleCalendarHref,
+          guidance,
         }
       : input.action === frontOfficeAppointmentBridgeActions.outlookCalendar
         ? {
             kind: "redirect",
             href: externalTargets.outlookCalendarHref,
+            guidance,
           }
         : input.action === frontOfficeAppointmentBridgeActions.emailBrief
           ? externalTargets.emailBriefHref
             ? {
                 kind: "redirect",
                 href: externalTargets.emailBriefHref,
+                guidance,
               }
             : (() => {
                 throw new Error(
@@ -3118,6 +3356,7 @@ export async function getFrontOfficeAppointmentBridgeResult(
                   : null,
                 timeZone: input.timeZone ?? null,
               }),
+              guidance,
             };
 
   await prisma.$transaction(async (tx) => {
@@ -3136,9 +3375,27 @@ export async function getFrontOfficeAppointmentBridgeResult(
         objectLabel: `${appointment.title}${appointment.client?.fullName ? ` · ${appointment.client.fullName}` : ""}`,
         contextHref: appointment.client?.id
           ? `/agent/clients/${appointment.client.id}`
+          : appointment.listing?.id
+            ? `/agent/listings?listingId=${appointment.listing.id}&appointmentId=${appointment.id}`
           : "/agent/calendar",
         actionSource: "front_office_appointment_bridge",
         workflowReason: input.action,
+        ...(input.action
+          ? {
+              coordinationBridge: {
+                action: input.action,
+                actionLabel: formatFrontOfficeAppointmentBridgeActionLabel(
+                  input.action,
+                ),
+                appointmentStatusLabel,
+                externalStatusLabel,
+                nextExternalTouchLabel: externalWorkflow.nextActionAt
+                  ? externalWorkflow.nextActionAtLabel
+                  : null,
+                externalNote: externalWorkflow.note,
+              },
+            }
+          : {}),
         details: [
           `Bridge target: ${formatFrontOfficeAppointmentBridgeActionLabel(input.action)}`,
           `Appointment type: ${appointmentTypeLabel}`,

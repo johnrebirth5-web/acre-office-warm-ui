@@ -18,10 +18,18 @@ function mapAppointmentBridgeErrorStatus(message: string) {
     message.includes("Only scheduled appointments") ||
     message.includes("email target is required")
   ) {
-    return 409;
+    return {
+      status: 409,
+      hint: message.includes("email target is required")
+        ? "Add a client email or include an email address in the appointment's external contact before opening the email brief."
+        : "This appointment is no longer scheduled in Acre, so the bridge can only reopen from a fresh scheduled record.",
+    };
   }
 
-  return 400;
+  return {
+    status: 400,
+    hint: null,
+  };
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -83,6 +91,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         {
           action,
           actionLabel: formatFrontOfficeAppointmentBridgeActionLabel(action),
+          manualOnlyDetail: result.guidance.manualOnlyDetail,
+          followUpDetail: result.guidance.followUpDetail,
+          suggestedWriteback: result.guidance.suggestedWriteback,
           result,
         },
         {
@@ -117,10 +128,14 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       error instanceof Error
         ? error.message
         : "Could not open the appointment bridge.";
+    const mappedError = mapAppointmentBridgeErrorStatus(message);
 
     return NextResponse.json(
-      { error: message },
-      { status: mapAppointmentBridgeErrorStatus(message) },
+      {
+        error: message,
+        ...(mappedError.hint ? { hint: mappedError.hint } : {}),
+      },
+      { status: mappedError.status },
     );
   }
 }
