@@ -386,11 +386,11 @@ export function AgentNotificationsClient({
     setStatusMessage(
       feedbackToken === "opened_marked_read"
         ? activeReadState === "unread"
-          ? "Opened a notice from the activity center. It was marked read and dropped out of the unread-only slice."
-          : "Opened a notice from the activity center and marked it read automatically."
+          ? "Opened a notice from the activity center. It was marked read, dropped out of the unread-only slice, and you can reopen this same pass from the current slice link."
+          : "Opened a notice from the activity center and marked it read automatically. The current slice link still brings you back to this same filtered pass."
         : feedbackToken === "reopened_notice"
-          ? "Reopened a previously reviewed notice from the activity center."
-          : "Opened a shared notice from the activity center. Shared notices stay open-only and do not change read state.",
+          ? "Reopened a previously reviewed notice from the activity center and kept the same filtered pass ready to reopen."
+          : "Opened a shared notice from the activity center. Shared notices stay open-only, keep their read state unchanged, and return to the same filtered pass.",
     );
   }, [activeReadState, feedbackToken, openedNoticeId]);
 
@@ -840,6 +840,11 @@ export function AgentNotificationsClient({
     readState: activeReadState,
     leadershipFilter: activeLeadershipFilter,
   });
+  const currentSliceHref = `${currentRouteHref}${
+    activeActivityView === "all"
+      ? ""
+      : getActivityViewAnchor(activeActivityView)
+  }`;
 
   function getNoticeOpenFeedback(
     card: FrontOfficeActivityNotificationRecord,
@@ -1274,6 +1279,29 @@ export function AgentNotificationsClient({
     );
   }
 
+  async function handleCopyCurrentSliceLink() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}${currentSliceHref}`,
+      );
+      setError("");
+      setStatusMessage(
+        "Copied the current activity slice link. Reopening it later will restore this same route view and filter state.",
+      );
+    } catch (copyError) {
+      setStatusMessage("");
+      setError(
+        copyError instanceof Error
+          ? copyError.message
+          : "Could not copy the current activity slice link.",
+      );
+    }
+  }
+
   async function handleNotificationAction(
     notificationId: string,
     action: "mark_read" | "mark_unread",
@@ -1681,6 +1709,25 @@ export function AgentNotificationsClient({
                 {selectedVisibleNotificationIds.length} notice(s) selected
               </span>
             ) : null}
+          </div>
+          <div className={styles.bulkPanelActions}>
+            <FrontOfficeLink
+              className="office-button-secondary office-button-sm"
+              href={currentSliceHref}
+            >
+              Open current slice
+            </FrontOfficeLink>
+            <Button
+              disabled={controlsBusy}
+              onClick={() => {
+                void handleCopyCurrentSliceLink();
+              }}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              Copy slice link
+            </Button>
           </div>
           {primaryAction ? (
             <div className="list-column front-office-record-list">

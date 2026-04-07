@@ -62,6 +62,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!notificationIds.length) {
+    return NextResponse.json(
+      { error: "At least one valid notification ID is required." },
+      { status: 400 },
+    );
+  }
+
   const updatedCount = isMarkReadAction
     ? await markOfficeNotificationsReadByIds({
         organizationId: context.currentOrganization.id,
