@@ -28,17 +28,16 @@ export default async function ListingStudioDashboardPage() {
       <section className="office-page-header listing-studio-header">
         <div className="office-page-heading">
           <span className="office-eyebrow">Listing Studio</span>
-          <h2>Capture supported listings and turn them into client-ready packets.</h2>
+          <h2>Save listings and share them fast.</h2>
           <p>
-            Save a StreetEasy or Zillow page from the Chrome extension, then come
-            back here to review the gallery, refine your client copy, and export
-            the share page or PDF.
+            Use the Chrome extension to save a StreetEasy or Zillow listing, then
+            come back here to edit, share, or export it.
           </p>
         </div>
         <div className="office-page-supporting">
           <div className="office-page-actions office-page-summary-grid listing-studio-header-actions">
             <Link className="office-button office-button-secondary" href="/listing-studio/listings">
-              Open saved listings
+              View listings
             </Link>
           </div>
         </div>
