@@ -11,9 +11,7 @@
     "https://*.zillow.com/*",
     "https://acresystem.us/*",
     "http://localhost:3105/*",
-    "http://127.0.0.1:3105/*",
-    "https://*/*",
-    "http://*/*"
+    "http://127.0.0.1:3105/*"
   ],
   "background": {
     "service_worker": "background.js"

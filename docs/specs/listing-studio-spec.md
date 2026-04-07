@@ -85,6 +85,7 @@
 
 - extension connected 状态
 - connect Chrome extension 按钮
+- install Chrome extension 入口
 - 最近导入 listing
 - ready-to-share 数量
 - public share views
@@ -155,12 +156,14 @@
 
 连接流程：
 
-1. 用户可从 dashboard 直接点击 `Connect Chrome extension`
-2. dashboard 通过扩展 bridge 把当前 Acre base URL 发给扩展
-3. 扩展请求 `/api/listing-studio/extension/connect/start`
-4. 服务端生成 challenge token
-5. 扩展打开已登录 Acre 的批准页并自动批准 challenge
-6. dashboard 轮询扩展状态，扩展拿到长期 token 后完成绑定
+1. 如果当前浏览器尚未检测到扩展，dashboard 会先引导用户进入 `/listing-studio/extension/install`
+2. 安装页若已配置 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`，则显示真实 `Add to Chrome`
+3. 当前浏览器检测到扩展后，用户可从 dashboard 点击 `Connect Chrome extension`
+4. dashboard 通过扩展 bridge 把当前 Acre base URL 发给扩展
+5. 扩展请求 `/api/listing-studio/extension/connect/start`
+6. 服务端生成 challenge token
+7. 扩展打开已登录 Acre 的批准页并自动批准 challenge
+8. dashboard 轮询扩展状态，扩展拿到长期 token 后完成绑定
 
 ## Permissions
 
@@ -215,3 +218,4 @@
 - 导入是同步 route-handler 处理，暂时没有后台 job queue
 - PDF 每次按当前 pack 实时生成
 - public asset 访问当前通过 `shareCode` 参数做分享态校验，还不是签名 URL 模式
+- dashboard 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布与 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`

@@ -21,6 +21,12 @@
 
 未来随着 auth、storage、AI、第三方集成接入，这个文件需要同步扩展。
 
+另外，`Listing Studio` 的 Chrome Web Store 安装入口现在支持前端公开链接配置：
+
+- `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
+
+这个值只影响前端安装页与 dashboard 安装按钮，不参与扩展鉴权或数据写入。
+
 ## 当前环境变量清单
 
 ### `DATABASE_URL`
@@ -157,6 +163,31 @@ ACRE_BASE_URL="https://acresystem.us"
 - 脚本仍可运行
 - 但 invite URL 会按默认生产域名拼接
 - 外部签署邮件在缺少可信 request origin 的场景下，也会回退到默认生产域名拼接链接
+
+### `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
+
+用途：
+
+- 为 `Listing Studio` 的安装页提供真实 `Chrome Web Store` 链接
+- 当前由 `/listing-studio/extension/install` 读取
+- 当前也会影响 dashboard 中“未安装扩展”状态下的安装入口
+
+是否必填：
+
+- 不是必填
+- 只有在 `Acre Listing Studio` 扩展已经发布到 `Chrome Web Store` 后才应该配置
+
+示例格式：
+
+```env
+NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.com/detail/<extension-id>"
+```
+
+缺失后的影响：
+
+- `Listing Studio` 安装页仍可访问
+- 但只会显示安装说明，不会显示真正的 `Add to Chrome`
+- dashboard 也只能引导用户先完成扩展安装，无法直接跳商店安装
 
 ### `ACRE_SETTINGS_ENCRYPTION_SECRET`
 

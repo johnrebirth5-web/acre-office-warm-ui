@@ -34,6 +34,9 @@
   - `Listing Studio`
 - 一个独立的 `Chrome Extension` 应用：
   - 目录：`apps/extension`
+  - 当前可用：
+    - `npm run build --workspace=@acre/extension`
+    - `npm run package --workspace=@acre/extension`
   - 当前支持 `StreetEasy` 和 `Zillow`
   - 在支持的房源详情页右下角注入 `Save to Acre` 浮层卡片
   - 点击后会直接抓取当前页面的标题、地址、价格、facts、缩略图、原始 HTML、结构化字段和图片 URL，并直存到 `Listing Studio`
@@ -50,6 +53,9 @@
   - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
   - 扩展认证使用 Acre challenge + extension token，不借网页登录 cookie
   - dashboard 里的 Chrome extension 按钮可以直接触发扩展连接，不需要先在 popup 里填写 `Base URL`
+  - 当前安装页：
+    - `/listing-studio/extension/install`
+    - 如果未来配置 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`，该页面可直接跳到 Chrome Web Store 的 `Add to Chrome`
   - detail 页已支持删除本地保存的 listing packet，并同步清理导入快照、下载资产、share 事件和生成的 PDF 缓存
 - `Office Console` 已经按 `Brokermint` 的后台信息架构重做第一轮：
   - 左侧分组导航

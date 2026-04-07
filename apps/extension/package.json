@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
+    "package": "node build.mjs --package",
     "lint": "node build.mjs --check",
     "typecheck": "node build.mjs --check"
   }
