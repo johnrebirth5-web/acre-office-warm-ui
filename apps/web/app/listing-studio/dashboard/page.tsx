@@ -35,13 +35,6 @@ export default async function ListingStudioDashboardPage() {
             come back here to edit, share, or export it.
           </p>
         </div>
-        <div className="office-page-supporting">
-          <div className="office-page-actions office-page-summary-grid listing-studio-header-actions">
-            <Link className="office-button office-button-secondary" href="/listing-studio/listings">
-              View listings
-            </Link>
-          </div>
-        </div>
       </section>
 
       <div className="office-list-page-stack listing-studio-stack">
@@ -50,9 +43,11 @@ export default async function ListingStudioDashboardPage() {
           subtitle="Connect the Chrome extension here, then save StreetEasy and Zillow listings straight into Acre."
           title="Chrome extension"
           actions={
-            <ListingStudioExtensionConnectAction
-              initialConnected={snapshot.extension.hasActiveToken}
-            />
+            snapshot.extension.hasActiveToken ? null : (
+              <ListingStudioExtensionConnectAction
+                initialConnected={snapshot.extension.hasActiveToken}
+              />
+            )
           }
         >
           <div className="listing-studio-banner-grid">

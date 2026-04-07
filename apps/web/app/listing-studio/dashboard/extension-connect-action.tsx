@@ -138,8 +138,7 @@ export function ListingStudioExtensionConnectAction(
   }, [router]);
 
   function handleClick() {
-    if (props.initialConnected && !isConnecting) {
-      router.push("/listing-studio/listings");
+    if (props.initialConnected) {
       return;
     }
 
@@ -153,11 +152,7 @@ export function ListingStudioExtensionConnectAction(
   return (
     <div className="listing-studio-connect-action">
       <Button onClick={handleClick} variant="primary">
-        {props.initialConnected
-          ? "View listings"
-          : isConnecting
-            ? "Connecting..."
-            : "Connect Chrome extension"}
+        {isConnecting ? "Connecting..." : "Connect Chrome extension"}
       </Button>
       {statusMessage ? (
         <p className="listing-studio-status-message">{statusMessage}</p>
