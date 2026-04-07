@@ -1,4 +1,5 @@
-import { FrontOfficeHandoffStatus } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { FrontOfficeHandoffStatus, Prisma } from "@prisma/client";
 import { prisma } from "./client";
 
 export const frontOfficeHandoffStagePatterns = [
@@ -41,9 +42,18 @@ type FrontOfficeHandoffPrefillReadySnapshot = FrontOfficeHandoffPrefillBase & {
   initialValues: Record<string, string>;
   issues: FrontOfficeHandoffPrefillIssue[];
   isComplete: boolean;
+  requiresAcknowledgement: boolean;
+  acknowledgementLabel?: string;
   feedbackTitle: string;
   feedbackDescription: string;
 };
+
+type FrontOfficeHandoffPrefillSubmittingSnapshot =
+  FrontOfficeHandoffPrefillBase & {
+    kind: "submitting";
+    feedbackTitle: string;
+    feedbackDescription: string;
+  };
 
 type FrontOfficeHandoffPrefillCommittedSnapshot =
   FrontOfficeHandoffPrefillBase & {
@@ -71,28 +81,54 @@ type FrontOfficeHandoffPrefillMissingSnapshot = {
 
 export type FrontOfficeHandoffPrefillSnapshot =
   | FrontOfficeHandoffPrefillReadySnapshot
+  | FrontOfficeHandoffPrefillSubmittingSnapshot
   | FrontOfficeHandoffPrefillCommittedSnapshot
   | FrontOfficeHandoffPrefillUnavailableSnapshot
   | FrontOfficeHandoffPrefillMissingSnapshot;
 
+export type FrontOfficeHandoffCommitMode = "claim" | "commit" | "release";
+
 export type FrontOfficeHandoffCommitResult =
   | {
       ok: true;
+      mode: FrontOfficeHandoffCommitMode;
       handoffDraftId: string;
-      reason: "committed" | "already_committed";
-      committedTransactionId: string;
+      reason:
+        | "claimed"
+        | "already_claimed"
+        | "released"
+        | "release_not_needed"
+        | "committed"
+        | "already_committed";
+      committedTransactionId: string | null;
+      claimToken: string | null;
     }
   | {
       ok: false;
+      mode: FrontOfficeHandoffCommitMode;
       handoffDraftId: string;
       reason:
         | "missing"
         | "canceled"
         | "already_committed"
         | "committed_to_other_transaction"
-        | "unsupported_target";
+        | "unsupported_target"
+        | "submission_in_progress"
+        | "claim_required"
+        | "claim_mismatch";
       committedTransactionId: string | null;
+      claimToken: string | null;
     };
+
+type FrontOfficeHandoffSubmissionClaim = {
+  actorMembershipId: string;
+  claimedAt: string;
+  expiresAt: string;
+  token: string;
+};
+
+const frontOfficeCreateClaimMetadataKey = "backOfficeCreateClaim";
+const frontOfficeCreateClaimTtlMs = 10 * 60 * 1000;
 
 function buildOfficeScopeFilter(officeId: string | null | undefined) {
   if (!officeId) {
@@ -269,6 +305,97 @@ function buildOwnerLabel(handoff: {
   );
 }
 
+function normalizeFrontOfficeHandoffMetadata(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return {} as Prisma.JsonObject;
+  }
+
+  return { ...(metadata as Prisma.JsonObject) };
+}
+
+function readFrontOfficeCreateClaim(
+  metadata: unknown,
+): FrontOfficeHandoffSubmissionClaim | null {
+  const normalizedMetadata = normalizeFrontOfficeHandoffMetadata(metadata);
+  const rawClaim = normalizedMetadata[frontOfficeCreateClaimMetadataKey];
+
+  if (!rawClaim || typeof rawClaim !== "object" || Array.isArray(rawClaim)) {
+    return null;
+  }
+
+  const claimRecord = rawClaim as Record<string, unknown>;
+  const actorMembershipId =
+    typeof claimRecord.actorMembershipId === "string"
+      ? claimRecord.actorMembershipId.trim()
+      : "";
+  const claimedAt =
+    typeof claimRecord.claimedAt === "string" ? claimRecord.claimedAt : "";
+  const expiresAt =
+    typeof claimRecord.expiresAt === "string" ? claimRecord.expiresAt : "";
+  const token = typeof claimRecord.token === "string" ? claimRecord.token : "";
+
+  if (!actorMembershipId || !claimedAt || !expiresAt || !token) {
+    return null;
+  }
+
+  return {
+    actorMembershipId,
+    claimedAt,
+    expiresAt,
+    token,
+  };
+}
+
+function isFrontOfficeCreateClaimActive(
+  claim: FrontOfficeHandoffSubmissionClaim | null,
+  now = new Date(),
+) {
+  if (!claim) {
+    return false;
+  }
+
+  const expiryTime = Date.parse(claim.expiresAt);
+
+  if (!Number.isFinite(expiryTime)) {
+    return false;
+  }
+
+  return expiryTime > now.getTime();
+}
+
+function buildFrontOfficeCreateClaim(actorMembershipId: string, now = new Date()) {
+  return {
+    actorMembershipId,
+    claimedAt: now.toISOString(),
+    expiresAt: new Date(
+      now.getTime() + frontOfficeCreateClaimTtlMs,
+    ).toISOString(),
+    token: randomUUID(),
+  } satisfies FrontOfficeHandoffSubmissionClaim;
+}
+
+function withFrontOfficeCreateClaim(
+  metadata: unknown,
+  claim: FrontOfficeHandoffSubmissionClaim,
+) {
+  const normalizedMetadata = normalizeFrontOfficeHandoffMetadata(metadata);
+
+  return {
+    ...normalizedMetadata,
+    [frontOfficeCreateClaimMetadataKey]: claim,
+  } as Prisma.InputJsonObject;
+}
+
+function withoutFrontOfficeCreateClaim(metadata: unknown) {
+  const normalizedMetadata = normalizeFrontOfficeHandoffMetadata(metadata);
+
+  delete normalizedMetadata[frontOfficeCreateClaimMetadataKey];
+
+  return Object.keys(normalizedMetadata).length > 0
+    ? (normalizedMetadata as Prisma.InputJsonObject)
+    : Prisma.JsonNull;
+}
+
 function buildPrefillIssues(input: {
   budgetLabel: string;
   clientEmail: string | null;
@@ -345,6 +472,7 @@ export async function getFrontOfficeHandoffPrefill(input: {
       targetWorkflow: true,
       stageLabel: true,
       summary: true,
+      metadata: true,
       ownerMembershipId: true,
       committedTransactionId: true,
       client: {
@@ -458,6 +586,18 @@ export async function getFrontOfficeHandoffPrefill(input: {
     };
   }
 
+  const activeCreateClaim = readFrontOfficeCreateClaim(handoff.metadata);
+
+  if (isFrontOfficeCreateClaimActive(activeCreateClaim)) {
+    return {
+      ...baseSnapshot,
+      kind: "submitting",
+      feedbackTitle: "Front Office handoff is already being submitted",
+      feedbackDescription:
+        "A Back Office create request is already finalizing this handoff. Wait a moment and reload this page before trying again so the formal transaction record does not get duplicated.",
+    };
+  }
+
   const issues = buildPrefillIssues({
     budgetLabel,
     clientEmail: handoff.client.email,
@@ -486,6 +626,11 @@ export async function getFrontOfficeHandoffPrefill(input: {
     },
     issues,
     isComplete: issues.length === 0,
+    requiresAcknowledgement: issues.length > 0,
+    acknowledgementLabel:
+      issues.length > 0
+        ? "I reviewed the missing or inferred Front Office details and still want to create the formal Back Office transaction."
+        : undefined,
     feedbackTitle:
       issues.length === 0
         ? "Front Office handoff ready for formal create"
@@ -500,8 +645,12 @@ export async function getFrontOfficeHandoffPrefill(input: {
 export async function commitFrontOfficeHandoffDraft(input: {
   organizationId: string;
   handoffDraftId: string;
-  transactionId: string;
+  transactionId?: string;
+  actorMembershipId?: string;
+  claimToken?: string;
+  mode?: FrontOfficeHandoffCommitMode;
 }) {
+  const mode = input.mode ?? "commit";
   const existing = await prisma.frontOfficeHandoffDraft.findFirst({
     where: {
       id: input.handoffDraftId,
@@ -512,81 +661,331 @@ export async function commitFrontOfficeHandoffDraft(input: {
       status: true,
       targetWorkflow: true,
       committedTransactionId: true,
+      metadata: true,
+      updatedAt: true,
     },
   });
 
+  const buildResult = <T extends Omit<FrontOfficeHandoffCommitResult, "handoffDraftId">>(
+    result: T,
+  ) =>
+    ({
+      handoffDraftId: existing?.id ?? input.handoffDraftId,
+      ...result,
+    }) as FrontOfficeHandoffCommitResult;
+
+  if (mode === "release" && !existing) {
+    return buildResult({
+      ok: true,
+      mode,
+      reason: "release_not_needed",
+      committedTransactionId: null,
+      claimToken: null,
+    });
+  }
+
   if (!existing) {
-    return {
+    return buildResult({
       ok: false,
-      handoffDraftId: input.handoffDraftId,
+      mode,
       reason: "missing",
       committedTransactionId: null,
-    } satisfies FrontOfficeHandoffCommitResult;
+      claimToken: null,
+    });
+  }
+
+  const currentClaim = readFrontOfficeCreateClaim(existing.metadata);
+  const hasActiveClaim = isFrontOfficeCreateClaimActive(currentClaim);
+
+  if (mode === "release") {
+    if (
+      existing.targetWorkflow !== "transaction" ||
+      existing.status === FrontOfficeHandoffStatus.canceled ||
+      existing.status === FrontOfficeHandoffStatus.committed ||
+      (!hasActiveClaim && existing.status !== FrontOfficeHandoffStatus.draft)
+    ) {
+      return buildResult({
+        ok: true,
+        mode,
+        reason: "release_not_needed",
+        committedTransactionId: existing.committedTransactionId,
+        claimToken: null,
+      });
+    }
+
+    if (hasActiveClaim && input.claimToken && currentClaim?.token !== input.claimToken) {
+      return buildResult({
+        ok: false,
+        mode,
+        reason: "claim_mismatch",
+        committedTransactionId: existing.committedTransactionId,
+        claimToken: currentClaim?.token ?? null,
+      });
+    }
+
+    await prisma.frontOfficeHandoffDraft.updateMany({
+      where: {
+        id: existing.id,
+        organizationId: input.organizationId,
+        updatedAt: existing.updatedAt,
+        status: {
+          in: [FrontOfficeHandoffStatus.draft, FrontOfficeHandoffStatus.ready],
+        },
+      },
+      data: {
+        status: FrontOfficeHandoffStatus.ready,
+        metadata: withoutFrontOfficeCreateClaim(existing.metadata),
+      },
+    });
+
+    return buildResult({
+      ok: true,
+      mode,
+      reason: "released",
+      committedTransactionId: existing.committedTransactionId,
+      claimToken: null,
+    });
   }
 
   if (existing.targetWorkflow !== "transaction") {
-    return {
+    return buildResult({
       ok: false,
-      handoffDraftId: existing.id,
+      mode,
       reason: "unsupported_target",
       committedTransactionId: existing.committedTransactionId,
-    } satisfies FrontOfficeHandoffCommitResult;
+      claimToken: null,
+    });
   }
 
   if (existing.status === FrontOfficeHandoffStatus.canceled) {
-    return {
+    return buildResult({
       ok: false,
-      handoffDraftId: existing.id,
+      mode,
       reason: "canceled",
       committedTransactionId: existing.committedTransactionId,
-    } satisfies FrontOfficeHandoffCommitResult;
+      claimToken: null,
+    });
   }
 
   if (existing.status === FrontOfficeHandoffStatus.committed) {
-    if (existing.committedTransactionId === input.transactionId) {
-      return {
+    if (mode === "commit" && existing.committedTransactionId === input.transactionId) {
+      return buildResult({
         ok: true,
-        handoffDraftId: existing.id,
+        mode,
         reason: "already_committed",
-        committedTransactionId: input.transactionId,
-      } satisfies FrontOfficeHandoffCommitResult;
+        committedTransactionId: input.transactionId ?? existing.committedTransactionId,
+        claimToken: null,
+      });
     }
 
-    return {
+    return buildResult({
       ok: false,
-      handoffDraftId: existing.id,
+      mode,
       reason: "already_committed",
       committedTransactionId: existing.committedTransactionId,
-    } satisfies FrontOfficeHandoffCommitResult;
+      claimToken: null,
+    });
+  }
+
+  if (mode === "claim") {
+    const actorMembershipId = input.actorMembershipId?.trim() ?? "";
+
+    if (!actorMembershipId) {
+      return buildResult({
+        ok: false,
+        mode,
+        reason: "claim_required",
+        committedTransactionId: existing.committedTransactionId,
+        claimToken: null,
+      });
+    }
+
+    if (hasActiveClaim) {
+      if (currentClaim?.actorMembershipId === actorMembershipId) {
+        return buildResult({
+          ok: true,
+          mode,
+          reason: "already_claimed",
+          committedTransactionId: existing.committedTransactionId,
+          claimToken: currentClaim.token,
+        });
+      }
+
+      return buildResult({
+        ok: false,
+        mode,
+        reason: "submission_in_progress",
+        committedTransactionId: existing.committedTransactionId,
+        claimToken: currentClaim?.token ?? null,
+      });
+    }
+
+    const nextClaim = buildFrontOfficeCreateClaim(actorMembershipId);
+    const claimResult = await prisma.frontOfficeHandoffDraft.updateMany({
+      where: {
+        id: existing.id,
+        organizationId: input.organizationId,
+        updatedAt: existing.updatedAt,
+        status: {
+          in: [FrontOfficeHandoffStatus.ready, FrontOfficeHandoffStatus.draft],
+        },
+        committedTransactionId: null,
+      },
+      data: {
+        status: FrontOfficeHandoffStatus.draft,
+        metadata: withFrontOfficeCreateClaim(existing.metadata, nextClaim),
+      },
+    });
+
+    if (claimResult.count === 0) {
+      const refreshed = await prisma.frontOfficeHandoffDraft.findFirst({
+        where: {
+          id: existing.id,
+          organizationId: input.organizationId,
+        },
+        select: {
+          status: true,
+          committedTransactionId: true,
+          metadata: true,
+        },
+      });
+      const refreshedClaim = readFrontOfficeCreateClaim(refreshed?.metadata);
+
+      if (refreshed?.status === FrontOfficeHandoffStatus.committed) {
+        return buildResult({
+          ok: false,
+          mode,
+          reason: "already_committed",
+          committedTransactionId: refreshed.committedTransactionId,
+          claimToken: null,
+        });
+      }
+
+      return buildResult({
+        ok: false,
+        mode,
+        reason: isFrontOfficeCreateClaimActive(refreshedClaim)
+          ? "submission_in_progress"
+          : "claim_mismatch",
+        committedTransactionId: refreshed?.committedTransactionId ?? null,
+        claimToken: refreshedClaim?.token ?? null,
+      });
+    }
+
+    return buildResult({
+      ok: true,
+      mode,
+      reason: "claimed",
+      committedTransactionId: existing.committedTransactionId,
+      claimToken: nextClaim.token,
+    });
+  }
+
+  const transactionId = input.transactionId?.trim() ?? "";
+
+  if (!transactionId) {
+    return buildResult({
+      ok: false,
+      mode,
+      reason: "claim_required",
+      committedTransactionId: existing.committedTransactionId,
+      claimToken: currentClaim?.token ?? null,
+    });
   }
 
   if (
     existing.committedTransactionId &&
-    existing.committedTransactionId !== input.transactionId
+    existing.committedTransactionId !== transactionId
   ) {
-    return {
+    return buildResult({
       ok: false,
-      handoffDraftId: existing.id,
+      mode,
       reason: "committed_to_other_transaction",
       committedTransactionId: existing.committedTransactionId,
-    } satisfies FrontOfficeHandoffCommitResult;
+      claimToken: currentClaim?.token ?? null,
+    });
   }
 
-  await prisma.frontOfficeHandoffDraft.update({
+  if (input.claimToken) {
+    if (!currentClaim || currentClaim.token !== input.claimToken) {
+      return buildResult({
+        ok: false,
+        mode,
+        reason: "claim_mismatch",
+        committedTransactionId: existing.committedTransactionId,
+        claimToken: currentClaim?.token ?? null,
+      });
+    }
+  } else if (hasActiveClaim) {
+    return buildResult({
+      ok: false,
+      mode,
+      reason: "submission_in_progress",
+      committedTransactionId: existing.committedTransactionId,
+      claimToken: currentClaim?.token ?? null,
+    });
+  }
+
+  const commitResult = await prisma.frontOfficeHandoffDraft.updateMany({
     where: {
       id: existing.id,
+      organizationId: input.organizationId,
+      status: {
+        in: [FrontOfficeHandoffStatus.ready, FrontOfficeHandoffStatus.draft],
+      },
+      committedTransactionId: null,
+      targetWorkflow: "transaction",
     },
     data: {
       status: FrontOfficeHandoffStatus.committed,
-      committedTransactionId: input.transactionId,
+      committedTransactionId: transactionId,
       committedAt: new Date(),
+      metadata: withoutFrontOfficeCreateClaim(existing.metadata),
     },
   });
 
-  return {
+  if (commitResult.count === 0) {
+    const refreshed = await prisma.frontOfficeHandoffDraft.findFirst({
+      where: {
+        id: existing.id,
+        organizationId: input.organizationId,
+      },
+      select: {
+        status: true,
+        committedTransactionId: true,
+      },
+    });
+
+    if (
+      refreshed?.status === FrontOfficeHandoffStatus.committed &&
+      refreshed.committedTransactionId === transactionId
+    ) {
+      return buildResult({
+        ok: true,
+        mode,
+        reason: "already_committed",
+        committedTransactionId: transactionId,
+        claimToken: null,
+      });
+    }
+
+    return buildResult({
+      ok: false,
+      mode,
+      reason:
+        refreshed?.status === FrontOfficeHandoffStatus.committed
+          ? "already_committed"
+          : "claim_mismatch",
+      committedTransactionId: refreshed?.committedTransactionId ?? null,
+      claimToken: null,
+    });
+  }
+
+  return buildResult({
     ok: true,
-    handoffDraftId: existing.id,
+    mode,
     reason: "committed",
-    committedTransactionId: input.transactionId,
-  } satisfies FrontOfficeHandoffCommitResult;
+    committedTransactionId: transactionId,
+    claimToken: null,
+  });
 }

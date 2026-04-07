@@ -57,6 +57,10 @@ function buildPageTitle(handoffPrefill: FrontOfficeHandoffPrefillState | null) {
     return "Front Office handoff already committed";
   }
 
+  if (handoffPrefill.kind === "submitting") {
+    return "Front Office handoff submitting";
+  }
+
   if (handoffPrefill.kind === "unsupported_target") {
     return "Front Office handoff unavailable";
   }
@@ -81,36 +85,19 @@ function buildPageDescription(
 function buildCreateLeadIn(
   handoffPrefill: FrontOfficeHandoffPrefillState | null,
 ): TransactionCreateLeadIn | undefined {
-  if (!handoffPrefill) {
+  if (!handoffPrefill || handoffPrefill.kind !== "available") {
     return undefined;
   }
 
-  if (handoffPrefill.kind === "available") {
-    return {
-      badgeLabel: "Front Office handoff",
-      badgeTone: handoffPrefill.isComplete ? "accent" : "warning",
-      title: handoffPrefill.feedbackTitle,
-      description: handoffPrefill.feedbackDescription,
-      items: handoffPrefill.issues.map(
-        (issue) => `${issue.label}: ${issue.description}`,
-      ),
-    };
-  }
-
-  if (handoffPrefill.kind === "canceled" || handoffPrefill.kind === "missing") {
-    return {
-      badgeLabel: "Manual create only",
-      badgeTone: "warning" as const,
-      title: handoffPrefill.feedbackTitle,
-      description: handoffPrefill.feedbackDescription,
-      items: [
-        "This page can still create a Back Office transaction manually.",
-        "No Front Office draft will be marked committed from this screen unless the handoff is still active and prefill-backed.",
-      ],
-    };
-  }
-
-  return undefined;
+  return {
+    badgeLabel: "Front Office handoff",
+    badgeTone: handoffPrefill.isComplete ? "accent" : "warning",
+    title: handoffPrefill.feedbackTitle,
+    description: handoffPrefill.feedbackDescription,
+    items: handoffPrefill.issues.map(
+      (issue) => `${issue.label}: ${issue.description}`,
+    ),
+  };
 }
 
 function buildHandoffSummaryValue(
@@ -121,6 +108,8 @@ function buildHandoffSummaryValue(
       return handoffPrefill.stageLabel;
     case "committed":
       return "Committed";
+    case "submitting":
+      return "Submitting";
     case "canceled":
       return "Canceled";
     case "unsupported_target":
@@ -171,10 +160,7 @@ export default async function OfficeTransactionCreatePage(
     ]);
 
   const shouldShowCreateForm =
-    !handoffPrefill ||
-    handoffPrefill.kind === "available" ||
-    handoffPrefill.kind === "missing" ||
-    handoffPrefill.kind === "canceled";
+    !handoffPrefill || handoffPrefill.kind === "available";
   const createLeadIn = buildCreateLeadIn(handoffPrefill);
   const clientWorkspaceHref =
     handoffPrefill && handoffPrefill.kind !== "missing"
@@ -244,6 +230,17 @@ export default async function OfficeTransactionCreatePage(
       {shouldShowCreateForm ? (
         <TransactionCreatePageClient
           canManageFields={canManageFields}
+          handoffPrefill={
+            handoffPrefill?.kind === "available"
+              ? {
+                  handoffDraftId: handoffPrefill.handoffDraftId,
+                  requiresAcknowledgement:
+                    handoffPrefill.requiresAcknowledgement,
+                  acknowledgementLabel:
+                    handoffPrefill.acknowledgementLabel,
+                }
+              : undefined
+          }
           initialFieldModule={fieldSettingsSnapshot.currentModule}
           initialOwnerMembershipId={
             handoffPrefill?.kind === "available"
@@ -261,17 +258,27 @@ export default async function OfficeTransactionCreatePage(
           statusFieldPolicy={getCreateTransactionStatusFieldPolicy(
             canManageTransactionStatus,
           )}
-          submissionExtras={
-            handoffPrefill?.kind === "available"
-              ? {
-                  frontOfficeClientId: handoffPrefill.clientId,
-                  handoffDraftId: handoffPrefill.handoffDraftId,
-                }
-              : undefined
-          }
         />
       ) : handoffPrefill ? (
         <SectionCard
+          actions={
+            <>
+              <Link
+                className="office-button-secondary office-button-sm"
+                href="/office/transactions/new"
+              >
+                Start manual create
+              </Link>
+              {clientWorkspaceHref ? (
+                <Link
+                  className="office-button-secondary office-button-sm"
+                  href={clientWorkspaceHref}
+                >
+                  Reopen Front Office dossier
+                </Link>
+              ) : null}
+            </>
+          }
           className="office-new-transaction-card office-new-transaction-live-card"
           title={handoffPrefill.feedbackTitle}
           subtitle={handoffPrefill.feedbackDescription}
@@ -279,7 +286,9 @@ export default async function OfficeTransactionCreatePage(
           <p>
             {handoffPrefill.kind === "committed"
               ? "Front Office has already handed this record off. Continue the formal transaction workflow in the linked Back Office record instead of creating a second file from this URL."
-              : "This Front Office handoff is not routed into the Back Office transaction create flow. Continue from the client dossier so the next formal workspace stays explicit."}
+              : handoffPrefill.kind === "submitting"
+                ? "This handoff is already in the middle of a Back Office create request. Wait for that request to settle, then reload before deciding whether anything else is needed."
+                : "This handoff is not currently usable for the Back Office create flow. Reopen the client dossier if you need to refresh the handoff, or start a clearly manual create without this handoff link."}
           </p>
         </SectionCard>
       ) : null}

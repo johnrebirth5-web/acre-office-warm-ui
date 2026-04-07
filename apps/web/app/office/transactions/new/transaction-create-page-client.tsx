@@ -25,6 +25,11 @@ type TransactionCreatePageLeadIn = {
 type TransactionCreatePageClientProps = {
   afterSubmit?: "refresh" | "go-detail";
   canManageFields: boolean;
+  handoffPrefill?: {
+    handoffDraftId: string;
+    requiresAcknowledgement: boolean;
+    acknowledgementLabel?: string;
+  };
   initialSchema: OfficeTransactionIntakeSchema;
   initialFieldModule?: OfficeFieldModuleSettingsSnapshot;
   initialOwnerMembershipId?: string;
@@ -150,6 +155,7 @@ function buildEmbeddedFieldSettingsSnapshot(
 export function TransactionCreatePageClient({
   afterSubmit = "go-detail",
   canManageFields,
+  handoffPrefill,
   initialFieldModule,
   initialOwnerMembershipId,
   initialSchema,
@@ -176,6 +182,8 @@ export function TransactionCreatePageClient({
   );
   const [schema, setSchema] = useState(initialSchema);
   const [isFieldEditorOpen, setIsFieldEditorOpen] = useState(false);
+  const [acknowledgeIncompleteHandoffPrefill, setAcknowledgeIncompleteHandoffPrefill] =
+    useState(() => !handoffPrefill?.requiresAcknowledgement);
 
   useEffect(() => {
     if (!isFieldEditorOpen) {
@@ -190,9 +198,36 @@ export function TransactionCreatePageClient({
     };
   }, [isFieldEditorOpen]);
 
+  useEffect(() => {
+    setAcknowledgeIncompleteHandoffPrefill(
+      !handoffPrefill?.requiresAcknowledgement,
+    );
+  }, [handoffPrefill?.handoffDraftId, handoffPrefill?.requiresAcknowledgement]);
+
   const embeddedFieldSettingsSnapshot = useMemo(
     () => buildEmbeddedFieldSettingsSnapshot(fieldModule),
     [fieldModule],
+  );
+  const resolvedSubmissionExtras = useMemo(
+    () => ({
+      ...(submissionExtras ?? {}),
+      ...(handoffPrefill
+        ? {
+            handoffDraftId: handoffPrefill.handoffDraftId,
+          }
+        : {}),
+      ...(handoffPrefill?.requiresAcknowledgement
+        ? {
+            acknowledgeIncompleteHandoffPrefill:
+              acknowledgeIncompleteHandoffPrefill,
+          }
+        : {}),
+    }),
+    [
+      acknowledgeIncompleteHandoffPrefill,
+      handoffPrefill,
+      submissionExtras,
+    ],
   );
 
   function openFieldEditor() {
@@ -258,7 +293,7 @@ export function TransactionCreatePageClient({
       }
       initialOwnerMembershipId={initialOwnerMembershipId}
       initialValues={initialValues}
-      submissionExtras={submissionExtras}
+      submissionExtras={resolvedSubmissionExtras}
     />
   );
 
@@ -282,6 +317,31 @@ export function TransactionCreatePageClient({
               <div>
                 <h4>{leadIn.title}</h4>
                 <p>{leadIn.description}</p>
+                {handoffPrefill?.requiresAcknowledgement ? (
+                  <label className="office-transaction-create-confirmation">
+                    <input
+                      checked={acknowledgeIncompleteHandoffPrefill}
+                      onChange={(event) =>
+                        setAcknowledgeIncompleteHandoffPrefill(
+                          event.target.checked,
+                        )
+                      }
+                      type="checkbox"
+                    />
+                    <span>
+                      {handoffPrefill.acknowledgementLabel ??
+                        "I reviewed the Front Office handoff gaps and still want to create the Back Office transaction."}
+                    </span>
+                  </label>
+                ) : null}
+                {handoffPrefill?.requiresAcknowledgement &&
+                !acknowledgeIncompleteHandoffPrefill ? (
+                  <p className="office-form-helper">
+                    Review the items below and confirm before submitting. The
+                    API will block create until this handoff review is
+                    acknowledged.
+                  </p>
+                ) : null}
                 {leadIn.items?.length ? (
                   <ul>
                     {leadIn.items.map((item) => (

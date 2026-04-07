@@ -6,6 +6,7 @@ import {
 import {
   commitFrontOfficeHandoffDraft,
   createTransaction,
+  getFrontOfficeHandoffPrefill,
   getOfficeTransactionIntakeSchema,
   getOfficeTransactionOwnerAssignment,
   linkContactToTransaction,
@@ -28,6 +29,95 @@ const transactionStatusOptions = [
 const defaultTransactionsPage = 1;
 const defaultTransactionsPageSize = 20;
 const maxTransactionsPageSize = 100;
+
+function buildHandoffPrefillError(
+  handoffPrefill: Awaited<ReturnType<typeof getFrontOfficeHandoffPrefill>>,
+) {
+  switch (handoffPrefill.kind) {
+    case "missing":
+      return {
+        error:
+          "This Front Office handoff is no longer available from your current scope. Reopen the create flow from the client dossier before creating a Back Office transaction.",
+        status: 404,
+      };
+    case "canceled":
+      return {
+        error:
+          "This Front Office handoff is no longer active. Reconfirm the client dossier before starting a new Back Office transaction.",
+        status: 409,
+      };
+    case "unsupported_target":
+      return {
+        error:
+          "This Front Office handoff points to another workflow, not the Back Office transaction create flow. Continue from the client dossier instead.",
+        status: 409,
+      };
+    case "committed":
+      return {
+        error: handoffPrefill.committedTransactionHref
+          ? "This Front Office handoff has already been committed. Open the existing Back Office transaction instead of creating another one from this handoff."
+          : "This Front Office handoff has already been committed. Review the client dossier or transaction list before creating anything new.",
+        status: 409,
+      };
+    case "submitting":
+      return {
+        error:
+          "A Back Office create request is already finalizing this handoff. Wait a moment, reload, and only retry if the handoff still shows as available.",
+        status: 409,
+      };
+    default:
+      return {
+        error: "This Front Office handoff cannot be used for Back Office create.",
+        status: 409,
+      };
+  }
+}
+
+function buildHandoffClaimError(
+  result: Awaited<ReturnType<typeof commitFrontOfficeHandoffDraft>>,
+) {
+  switch (result.reason) {
+    case "missing":
+      return {
+        error:
+          "This Front Office handoff could not be claimed for create because it is no longer available.",
+        status: 404,
+      };
+    case "unsupported_target":
+      return {
+        error:
+          "This Front Office handoff is routed to another workflow and cannot be committed into a Back Office transaction.",
+        status: 409,
+      };
+    case "canceled":
+      return {
+        error:
+          "This Front Office handoff was canceled before create could begin. Reconfirm the dossier before trying again.",
+        status: 409,
+      };
+    case "already_committed":
+    case "committed_to_other_transaction":
+      return {
+        error:
+          "This Front Office handoff has already been committed to a Back Office transaction. Reopen the existing record instead of creating a duplicate.",
+        status: 409,
+      };
+    case "submission_in_progress":
+      return {
+        error:
+          "Another Back Office create request is already using this handoff. Wait a moment, reload, and retry only if the handoff becomes available again.",
+        status: 409,
+      };
+    case "claim_required":
+    case "claim_mismatch":
+    default:
+      return {
+        error:
+          "This Front Office handoff could not be secured for create. Reload the page and try again from the handoff entry point.",
+        status: 409,
+      };
+  }
+}
 
 function applyCreateTransactionStatusRules(
   schema: Awaited<ReturnType<typeof getOfficeTransactionIntakeSchema>>,
@@ -171,6 +261,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const handoffDraftId =
+    typeof body.handoffDraftId === "string" ? body.handoffDraftId.trim() : "";
+  const allowIncompleteHandoffPrefill =
+    body.acknowledgeIncompleteHandoffPrefill === true;
+  let handoffClaimToken = "";
+  let linkedFrontOfficeClientId =
+    typeof body.frontOfficeClientId === "string"
+      ? body.frontOfficeClientId.trim()
+      : "";
+
   try {
     const canManageTransactionStatus = canManageOfficeTransactionStatus(
       context.currentMembership,
@@ -186,6 +286,61 @@ export async function POST(request: NextRequest) {
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
     });
+    if (handoffDraftId) {
+      const handoffPrefill = await getFrontOfficeHandoffPrefill({
+        organizationId: context.currentOrganization.id,
+        handoffDraftId,
+        officeId: context.currentOffice?.id ?? null,
+      });
+
+      if (handoffPrefill.kind !== "available") {
+        const handoffError = buildHandoffPrefillError(handoffPrefill);
+
+        return NextResponse.json(
+          { error: handoffError.error },
+          { status: handoffError.status },
+        );
+      }
+
+      if (
+        handoffPrefill.requiresAcknowledgement &&
+        !allowIncompleteHandoffPrefill
+      ) {
+        const issueLabels = handoffPrefill.issues
+          .map((issue) => issue.label)
+          .join(", ");
+
+        return NextResponse.json(
+          {
+            error: issueLabels
+              ? `Review the Front Office handoff warnings before creating the Back Office transaction. Confirm these items first: ${issueLabels}.`
+              : "Review the Front Office handoff warnings before creating the Back Office transaction.",
+          },
+          { status: 409 },
+        );
+      }
+
+      linkedFrontOfficeClientId = handoffPrefill.clientId;
+
+      const claimResult = await commitFrontOfficeHandoffDraft({
+        organizationId: context.currentOrganization.id,
+        handoffDraftId,
+        actorMembershipId: context.currentMembership.id,
+        mode: "claim",
+      });
+
+      if (!claimResult.ok) {
+        const claimError = buildHandoffClaimError(claimResult);
+
+        return NextResponse.json(
+          { error: claimError.error },
+          { status: claimError.status },
+        );
+      }
+
+      handoffClaimToken = claimResult.claimToken ?? "";
+    }
+
     const submission = prepareTransactionIntakeSubmission({
       schema,
       payload: canManageTransactionStatus
@@ -296,17 +451,10 @@ export async function POST(request: NextRequest) {
       additionalFields: submission.additionalFields,
     });
 
-    const handoffDraftId =
-      typeof body.handoffDraftId === "string" ? body.handoffDraftId.trim() : "";
-    const frontOfficeClientId =
-      typeof body.frontOfficeClientId === "string"
-        ? body.frontOfficeClientId.trim()
-        : "";
-
-    if (frontOfficeClientId) {
+    if (linkedFrontOfficeClientId) {
       await linkContactToTransaction(
         context.currentOrganization.id,
-        frontOfficeClientId,
+        linkedFrontOfficeClientId,
         transaction.id,
         {
           actorMembershipId: context.currentMembership.id,
@@ -316,15 +464,45 @@ export async function POST(request: NextRequest) {
     }
 
     if (handoffDraftId) {
-      await commitFrontOfficeHandoffDraft({
+      const handoffCommitResult = await commitFrontOfficeHandoffDraft({
         organizationId: context.currentOrganization.id,
         handoffDraftId,
         transactionId: transaction.id,
+        claimToken: handoffClaimToken,
+        mode: "commit",
       });
+
+      return NextResponse.json(
+        {
+          transaction,
+          handoff:
+            handoffCommitResult.ok
+              ? {
+                  ok: true,
+                  reason: handoffCommitResult.reason,
+                }
+              : {
+                  ok: false,
+                  reason: handoffCommitResult.reason,
+                  warning:
+                    "The Back Office transaction was created, but the Front Office handoff did not finalize cleanly. Review the client dossier and transaction record before retrying the handoff.",
+                },
+        },
+        { status: 201 },
+      );
     }
 
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (error) {
+    if (handoffDraftId && handoffClaimToken) {
+      await commitFrontOfficeHandoffDraft({
+        organizationId: context.currentOrganization.id,
+        handoffDraftId,
+        claimToken: handoffClaimToken,
+        mode: "release",
+      }).catch(() => null);
+    }
+
     return NextResponse.json(
       {
         error:
