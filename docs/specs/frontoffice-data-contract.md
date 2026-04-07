@@ -139,6 +139,7 @@ This keeps the handoff visible without pretending formal transaction creation al
 - `/agent/notifications` now also acts as the first unified `Activity + Cleanup Center` instead of staying a notice-only stream:
   - the shared FO activity snapshot now combines due follow-up tasks, client-level next-touch pressure, stale-client cleanup, tracked-send risk, near-term appointment pressure, visible-scope duplicate review, unread notices, and shared office events in one route-level contract
   - the center intentionally shows one highest-pressure cleanup signal per client first so the queue stays operational, while duplicate review remains a separate merge block because that action changes the record foundation itself
+  - focused personal-cleanup, team-cleanup, appointment-reminder, and general-notice lanes now also expose section-level drill-down links that reopen the route directly into the requested pressure track while preserving the existing `activityView`, `cleanupFilter`, `teamCleanupFilter`, `appointmentFilter`, `noticeStreamFilter`, and `readState` query-string contract
   - this first center does not yet claim full office-wide cleanup management; it is the first unified FO surface on top of the current self-scoped queue plus visible-scope duplicate governance
 - send records now keep richer execution context instead of only `client + listing + channel`:
   - `FrontOfficeSendRecord` now also snapshots `clientStageLabel`, optional `appointmentId`, `appointmentTitle`, and `appointmentStartsAt`
@@ -148,6 +149,7 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/dashboard` leadership scope now combines overdue tasks, 15+ day stale clients, and quiet tracked-send risk in one queue
   - the latest send per client is evaluated for `3+ day no open` and `7+ day quiet after last tracked open`, so management can see where tracked outreach exists but momentum has stalled
   - stage and appointment context captured on `FrontOfficeSendRecord` now appears directly in those leadership items, so oversight reflects the actual execution path rather than generic CRM aging text
+  - `/agent/dashboard` still keeps that queue preview-sized, but `/agent/notifications` now receives a deeper notifications-only drill-down item set so team leads and office admins can work beyond the first few summary rows without changing the dashboard card density
 - offer / negotiation bridge now also lives inside the same FO dossier instead of becoming a second offer database:
   - `/agent/clients/[clientId]` now exposes an `Offer & negotiation` section that makes the boundary explicit across `Front Office prep`, `Ready for BO handoff`, and `BO workspace live`
   - when a linked transaction already exists, the dossier now reads the shared Back Office offers snapshot directly and surfaces offer count, expiring-soon count, accepted / primary state, and direct links into the BO offers workspace

@@ -78,6 +78,11 @@ type FrontOfficeDashboardLeadershipFilterContract = {
   options: FrontOfficeDashboardFilterOption<FrontOfficeDashboardLeadershipFilterKey>[];
 };
 
+const frontOfficeDashboardLeadershipPreviewPerKind = 2;
+const frontOfficeDashboardLeadershipPreviewTotal = 4;
+const frontOfficeDashboardLeadershipWorkbenchPerKind = 6;
+const frontOfficeDashboardLeadershipTaskFetchLimit = 8;
+
 export type FrontOfficeDashboardSummary = {
   todayActionCount: number;
   followUpDueCount: number;
@@ -363,6 +368,7 @@ export type FrontOfficeDashboardSnapshot = {
     };
     filters: FrontOfficeDashboardLeadershipFilterContract;
     items: FrontOfficeDashboardLeadershipItem[];
+    activityCenterItems: FrontOfficeDashboardLeadershipItem[];
   };
 };
 
@@ -1704,7 +1710,7 @@ export async function getFrontOfficeDashboardSnapshot(
             },
           },
           orderBy: [{ dueAt: "asc" }, { updatedAt: "asc" }],
-          take: 3,
+          take: frontOfficeDashboardLeadershipTaskFetchLimit,
           select: {
             id: true,
             title: true,
@@ -2055,39 +2061,47 @@ export async function getFrontOfficeDashboardSnapshot(
           left._sortAt.getTime() - right._sortAt.getTime(),
       );
   const leadershipEngagementRiskCount = leadershipEngagementItems.length;
-  const leadershipItems: FrontOfficeDashboardLeadershipItem[] = [
-    ...leadershipOverdueTasks.slice(0, 2).map((task) => ({
-      id: `leadership-task-${task.id}`,
-      kindKey: "overdue_task" as const,
-      kindLabel: "Overdue task",
-      title: task.client?.fullName ?? task.title,
-      description: `${task.title} · Due ${formatDateLabel(task.dueAt)}`,
-      contextLabel: buildMembershipUserLabel(
-        task.assigneeMembership?.user,
-        "Assigned team member",
-      ),
-      ownerLabel: buildMembershipUserLabel(
-        task.assigneeMembership?.user,
-        "Assigned team member",
-      ),
-      scopeLabel: leadershipScope.scopeLabel,
-      pressureLabel: "Task overdue",
-      whyNowLabel:
-        "A shared follow-up inside this leadership scope is already overdue and needs an operator-level follow-through.",
-      tone: "danger" as const,
-      actionLabel: "Open office contact",
-      href: task.clientId
-        ? `/office/contacts/${task.clientId}`
-        : "/office/contacts",
-    })),
-    ...leadershipEngagementItems.slice(0, 2).map(
-      ({ _priority, _sortAt, ...item }) => ({
-        ...item,
-        kindKey: "engagement_risk" as const,
-        kindLabel: "Send-trail risk",
-      }),
-    ),
-    ...filteredLeadershipStaleClients.slice(0, 2).map((client) => {
+  const leadershipOverdueTaskItems: FrontOfficeDashboardLeadershipItem[] =
+    leadershipOverdueTasks.map((task) => {
+      const dueAt = task.dueAt ?? now;
+      const overdueDays = buildElapsedDayCount(dueAt, now, 1);
+
+      return {
+        id: `leadership-task-${task.id}`,
+        kindKey: "overdue_task" as const,
+        kindLabel: "Overdue task",
+        title: task.client?.fullName ?? task.title,
+        description: `${task.title} · Due ${formatDateLabel(dueAt)}`,
+        contextLabel: buildMembershipUserLabel(
+          task.assigneeMembership?.user,
+          "Assigned team member",
+        ),
+        ownerLabel: buildMembershipUserLabel(
+          task.assigneeMembership?.user,
+          "Assigned team member",
+        ),
+        scopeLabel: leadershipScope.scopeLabel,
+        pressureLabel:
+          overdueDays >= 3 ? `${overdueDays} day(s) overdue` : "Task overdue",
+        whyNowLabel:
+          overdueDays >= 3
+            ? `This shared follow-up has been overdue for ${overdueDays} day(s) inside the visible leadership scope and needs an operator-level recovery pass.`
+            : "A shared follow-up inside this leadership scope is already overdue and needs an operator-level follow-through.",
+        tone: "danger" as const,
+        actionLabel: "Open office contact",
+        href: task.clientId
+          ? `/office/contacts/${task.clientId}`
+          : "/office/contacts",
+      };
+    });
+  const leadershipEngagementWorkbenchItems: FrontOfficeDashboardLeadershipItem[] =
+    leadershipEngagementItems.map(({ _priority, _sortAt, ...item }) => ({
+      ...item,
+      kindKey: "engagement_risk" as const,
+      kindLabel: "Send-trail risk",
+    }));
+  const leadershipStaleClientItems: FrontOfficeDashboardLeadershipItem[] =
+    filteredLeadershipStaleClients.map((client) => {
       const inactiveDays = Math.max(
         15,
         buildElapsedDayCount(client.lastContactAt ?? client.createdAt, now, 15),
@@ -2115,8 +2129,35 @@ export async function getFrontOfficeDashboardSnapshot(
         actionLabel: "Open office contact",
         href: `/office/contacts/${client.id}`,
       };
-    }),
-  ].slice(0, 4);
+    });
+  const leadershipWorkbenchItems: FrontOfficeDashboardLeadershipItem[] = [
+    ...leadershipOverdueTaskItems.slice(
+      0,
+      frontOfficeDashboardLeadershipWorkbenchPerKind,
+    ),
+    ...leadershipEngagementWorkbenchItems.slice(
+      0,
+      frontOfficeDashboardLeadershipWorkbenchPerKind,
+    ),
+    ...leadershipStaleClientItems.slice(
+      0,
+      frontOfficeDashboardLeadershipWorkbenchPerKind,
+    ),
+  ];
+  const leadershipItems: FrontOfficeDashboardLeadershipItem[] = [
+    ...leadershipOverdueTaskItems.slice(
+      0,
+      frontOfficeDashboardLeadershipPreviewPerKind,
+    ),
+    ...leadershipEngagementWorkbenchItems.slice(
+      0,
+      frontOfficeDashboardLeadershipPreviewPerKind,
+    ),
+    ...leadershipStaleClientItems.slice(
+      0,
+      frontOfficeDashboardLeadershipPreviewPerKind,
+    ),
+  ].slice(0, frontOfficeDashboardLeadershipPreviewTotal);
   const leadershipCounts = buildFrontOfficeDashboardLeadershipKindCountRecord();
   leadershipCounts.overdue_task = leadershipOverdueTaskCount;
   leadershipCounts.engagement_risk = leadershipEngagementRiskCount;
@@ -2772,7 +2813,10 @@ export async function getFrontOfficeDashboardSnapshot(
   const leadingLeaseReminderItem = leaseReminderItems[0] ?? null;
   const leadingSendRecord = recentSendRecords[0] ?? null;
   const leadingBackOfficeItem = backOfficeItems[0] ?? null;
-  const leadingLeadershipItem = leadershipItems[0] ?? null;
+  const leadingLeadershipItem = leadershipWorkbenchItems[0] ?? null;
+  const leadershipNotificationsHref = leadingLeadershipItem
+    ? `/agent/notifications?activityView=team_cleanup&teamCleanupFilter=${leadingLeadershipItem.kindKey}#team-cleanup-pressure`
+    : "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure";
   const sendSignalCount =
     recentSendRecords.length > 0 ? recentSendRecords.length : activeListingCount;
   const leadingSendListingLabel =
@@ -2922,7 +2966,7 @@ export async function getFrontOfficeDashboardSnapshot(
           helper: leadingLeadershipItem
             ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope.`
             : "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
-          href: "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
+          href: leadershipNotificationsHref,
           actionLabel:
             input.viewerRole === "team_lead"
               ? "Open team cleanup"
@@ -3102,12 +3146,13 @@ export async function getFrontOfficeDashboardSnapshot(
       staleClientCount: leadershipStaleClientCount,
       engagementRiskCount: leadershipEngagementRiskCount,
       counts: {
-        surfacedCount: leadershipItems.length,
+        surfacedCount: leadershipWorkbenchItems.length,
         totalSignalCount: leadershipTotalSignalCount,
         byKind: leadershipCounts,
       },
       filters: leadershipFilters,
       items: leadershipItems,
+      activityCenterItems: leadershipWorkbenchItems,
     },
   };
 }

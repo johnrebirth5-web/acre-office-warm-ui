@@ -31,6 +31,7 @@ import {
   getActivityViewAnchor,
   leadershipCleanupFilterOptions,
   noticeStreamFilterOptions,
+  personalCleanupTrackConfig,
   readStateOptions,
   reminderFilterOptions,
   resolveNoticeFeedback,
@@ -79,6 +80,17 @@ type ActivityPrimaryAction = {
   ctaLabel: string;
 };
 
+type ActivityWorkbenchCard = {
+  key: string;
+  label: string;
+  description: string;
+  count: number;
+  tone: ActivityLaneTone;
+  href: string;
+  actionLabel: string;
+  meta: string[];
+};
+
 type AgentNotificationsClientProps = {
   snapshot: FrontOfficeActivitySnapshot;
   initialActivityView: AgentActivityView;
@@ -89,6 +101,9 @@ type AgentNotificationsClientProps = {
   initialTeamCleanupFilter: AgentLeadershipCleanupFilter;
   leadershipQueue: FrontOfficeDashboardSnapshot["leadershipQueue"];
 };
+
+type LeadershipWorkbenchItem =
+  FrontOfficeDashboardSnapshot["leadershipQueue"]["activityCenterItems"][number];
 
 function cardMatchesReminderFilter(
   card: FrontOfficeActivityNotificationRecord,
@@ -143,7 +158,7 @@ function cleanupItemMatchesFilter(
 }
 
 function leadershipItemMatchesFilter(
-  item: FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number],
+  item: LeadershipWorkbenchItem,
   filter: AgentLeadershipCleanupFilter,
 ) {
   return filter === "all" || item.kindKey === filter;
@@ -178,7 +193,7 @@ function toneToBadgeTone(
   tone:
     | FrontOfficeActivityNotificationRecord["pressureTone"]
     | FrontOfficeActivityCleanupItem["tone"]
-    | FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number]["tone"],
+    | LeadershipWorkbenchItem["tone"],
 ) {
   if (tone === "danger") {
     return "danger";
@@ -197,6 +212,13 @@ function toneToBadgeTone(
   }
 
   return "neutral";
+}
+
+function getCountDrivenTone(
+  count: number,
+  activeTone: Exclude<ActivityLaneTone, "neutral">,
+): ActivityLaneTone {
+  return count > 0 ? activeTone : "neutral";
 }
 
 function getLocalGeneralNoticePressureState(
@@ -450,6 +472,10 @@ export function AgentNotificationsClient({
   const filteredCleanupItems = snapshot.cleanup.items.filter((item) =>
     cleanupItemMatchesFilter(item, activeCleanupFilter),
   );
+  const leadershipWorkbenchItems =
+    leadershipQueue.activityCenterItems.length > 0
+      ? leadershipQueue.activityCenterItems
+      : leadershipQueue.items;
   const visibleDuplicatePairs =
     activeCleanupFilter === "all" || activeCleanupFilter === "duplicate_review"
       ? snapshot.cleanup.duplicatePairs
@@ -543,7 +569,7 @@ export function AgentNotificationsClient({
     (card) =>
       card.groupKey !== "general_notice" && card.pressureTone === "danger",
   ).length;
-  const filteredLeadershipItems = leadershipQueue.items.filter((item) =>
+  const filteredLeadershipItems = leadershipWorkbenchItems.filter((item) =>
     leadershipItemMatchesFilter(item, activeLeadershipFilter),
   );
   const showPersonalCleanupSection =
@@ -567,12 +593,10 @@ export function AgentNotificationsClient({
   const showGeneralNoticeSection =
     activeActivityView === "all" || activeActivityView === "general_notices";
   const teamCleanupCount = leadershipQueue.visible
-    ? leadershipQueue.items.length
+    ? leadershipWorkbenchItems.length
     : 0;
   const totalTeamCleanupSignals = leadershipQueue.visible
-    ? leadershipQueue.overdueTaskCount +
-      leadershipQueue.staleClientCount +
-      leadershipQueue.engagementRiskCount
+    ? leadershipQueue.counts.totalSignalCount
     : 0;
   const notificationFilterFieldLabel = "Reminder type";
   const visibleReminderFilterOptions = reminderFilterOptions;
@@ -1038,6 +1062,212 @@ export function AgentNotificationsClient({
       }),
     },
   ].filter((shortcut) => shortcut.count > 0);
+  const personalCleanupWorkbenchCards: ActivityWorkbenchCard[] =
+    personalCleanupTrackConfig.map((track) => {
+      const matchingItems =
+        track.key === "duplicate_review"
+          ? []
+          : snapshot.cleanup.items.filter((item) => item.kindKey === track.key);
+      const count =
+        track.key === "duplicate_review"
+          ? snapshot.cleanup.duplicatePairs.length
+          : matchingItems.length;
+      const nextDuplicatePair = snapshot.cleanup.duplicatePairs[0] ?? null;
+      const nextLabel =
+        track.key === "duplicate_review"
+          ? nextDuplicatePair
+            ? `Next · ${nextDuplicatePair.recommendedClient.fullName} / ${nextDuplicatePair.duplicateClient.fullName}`
+            : "Route stays ready for future duplicate review"
+          : matchingItems[0]
+            ? `Next · ${matchingItems[0].title}`
+            : "Route stays ready for future cleanup";
+
+      return {
+        key: track.key,
+        label: track.label,
+        description: track.description,
+        count,
+        tone:
+          activeActivityView === "personal_cleanup" &&
+          activeCleanupFilter === track.key
+            ? "accent"
+            : getCountDrivenTone(
+                count,
+                track.key === "send_risk" || track.key === "follow_up"
+                  ? "warning"
+                  : "accent",
+              ),
+        href: buildAgentNotificationsHref({
+          pathname,
+          activityView: "personal_cleanup",
+          cleanupFilter: track.key,
+          filter: activeReminderFilter,
+          noticeStreamFilter: activeNoticeStreamFilter,
+          readState: activeReadState,
+          leadershipFilter: activeLeadershipFilter,
+          anchor: "#cleanup-center",
+        }),
+        actionLabel:
+          activeActivityView === "personal_cleanup" &&
+          activeCleanupFilter === track.key
+            ? "Stay on this cleanup focus"
+            : "Open this cleanup focus",
+        meta: [
+          `${count} item(s) in scope`,
+          nextLabel,
+          activeCleanupFilter === track.key
+            ? "Current cleanup focus"
+            : "URL remembers this cleanup filter",
+        ],
+      };
+    });
+  const teamCleanupWorkbenchCards: ActivityWorkbenchCard[] =
+    teamCleanupGroupConfig.map((group) => {
+      const matchingItems = leadershipWorkbenchItems.filter(
+        (item) => item.kindKey === group.key,
+      );
+      const count = leadershipQueue.counts.byKind[group.key];
+      const nextItem = matchingItems[0] ?? null;
+
+      return {
+        key: group.key,
+        label: group.label,
+        description: group.description,
+        count,
+        tone:
+          activeActivityView === "team_cleanup" &&
+          activeLeadershipFilter === group.key
+            ? "accent"
+            : nextItem?.tone ?? getCountDrivenTone(count, "warning"),
+        href: buildAgentNotificationsHref({
+          pathname,
+          activityView: "team_cleanup",
+          cleanupFilter: activeCleanupFilter,
+          filter: activeReminderFilter,
+          noticeStreamFilter: activeNoticeStreamFilter,
+          readState: activeReadState,
+          leadershipFilter: group.key,
+          anchor: "#team-cleanup-pressure",
+        }),
+        actionLabel:
+          activeActivityView === "team_cleanup" &&
+          activeLeadershipFilter === group.key
+            ? "Stay on this team focus"
+            : "Open this team focus",
+        meta: [
+          count > matchingItems.length && matchingItems.length > 0
+            ? `${count} signal(s) in scope · showing ${matchingItems.length}`
+            : `${count} signal(s) in scope`,
+          nextItem
+            ? `Next · ${nextItem.title} · ${nextItem.ownerLabel}`
+            : "Route stays ready for future team cleanup",
+          activeLeadershipFilter === group.key
+            ? "Current team focus"
+            : "URL remembers this team filter",
+        ],
+      };
+    });
+  const appointmentReminderWorkbenchCards: ActivityWorkbenchCard[] =
+    appointmentReminderGroupConfig.map((group) => {
+      const matchingCards = localNotifications.filter(
+        (card) =>
+          card.groupKey === group.key &&
+          cardMatchesReadState(card, activeReadState),
+      );
+      const nextCard = matchingCards[0] ?? null;
+      const hasUrgentPressure = matchingCards.some(
+        (card) => card.pressureTone === "danger",
+      );
+
+      return {
+        key: group.key,
+        label: group.label,
+        description: group.description,
+        count: matchingCards.length,
+        tone:
+          activeActivityView === "appointment_reminders" &&
+          activeReminderFilter === group.key
+            ? "accent"
+            : hasUrgentPressure
+              ? "danger"
+              : getCountDrivenTone(matchingCards.length, "warning"),
+        href: buildAgentNotificationsHref({
+          pathname,
+          activityView: "appointment_reminders",
+          cleanupFilter: activeCleanupFilter,
+          filter: group.key,
+          noticeStreamFilter: activeNoticeStreamFilter,
+          readState: activeReadState,
+          leadershipFilter: activeLeadershipFilter,
+          anchor: "#appointment-reminder-pressure",
+        }),
+        actionLabel:
+          activeActivityView === "appointment_reminders" &&
+          activeReminderFilter === group.key
+            ? "Stay on this reminder focus"
+            : "Open this reminder focus",
+        meta: [
+          `${matchingCards.length} notice(s) in scope`,
+          nextCard
+            ? `Next · ${nextCard.title}`
+            : "Route stays ready for future reminder pressure",
+          activeReminderFilter === group.key
+            ? "Current reminder focus"
+            : "URL remembers this reminder filter",
+        ],
+      };
+    });
+  const generalNoticeWorkbenchCards: ActivityWorkbenchCard[] =
+    generalNoticeLaneConfig.map((group) => {
+      const matchingCards = localNotifications.filter(
+        (card) =>
+          card.groupKey === "general_notice" &&
+          card.streamKey === group.key &&
+          cardMatchesReadState(card, activeReadState),
+      );
+      const nextCard = matchingCards[0] ?? null;
+      const unreadCount = matchingCards.filter(
+        (card) => card.readStateMutable && card.isUnread,
+      ).length;
+
+      return {
+        key: group.key,
+        label: group.label,
+        description: group.description,
+        count: matchingCards.length,
+        tone:
+          activeActivityView === "general_notices" &&
+          activeNoticeStreamFilter === group.key
+            ? "accent"
+            : unreadCount > 0
+              ? "warning"
+              : getCountDrivenTone(matchingCards.length, "accent"),
+        href: buildAgentNotificationsHref({
+          pathname,
+          activityView: "general_notices",
+          cleanupFilter: activeCleanupFilter,
+          filter: activeReminderFilter,
+          noticeStreamFilter: group.key,
+          readState: activeReadState,
+          leadershipFilter: activeLeadershipFilter,
+          anchor: "#notice-stream",
+        }),
+        actionLabel:
+          activeActivityView === "general_notices" &&
+          activeNoticeStreamFilter === group.key
+            ? "Stay on this notice lane"
+            : "Open this notice lane",
+        meta: [
+          `${matchingCards.length} notice(s) in scope`,
+          nextCard
+            ? `Next · ${nextCard.title}`
+            : "Route stays ready for future notice follow-through",
+          activeNoticeStreamFilter === group.key
+            ? "Current notice-lane focus"
+            : "URL remembers this lane filter",
+        ],
+      };
+    });
   const primaryAction: ActivityPrimaryAction | null =
     activeActivityView === "personal_cleanup"
       ? nextPersonalCleanupItem
@@ -1534,6 +1764,38 @@ export function AgentNotificationsClient({
           ) : null}
         </div>
       </article>
+    );
+  }
+
+  function renderWorkbenchCards(cards: ActivityWorkbenchCard[]) {
+    return (
+      <div className="list-column front-office-record-list">
+        {cards.map((card) => (
+          <article
+            className={`list-row front-office-record tone-${card.tone}`}
+            key={card.key}
+          >
+            <div className="list-row-top front-office-record-head">
+              <div>
+                <strong>{card.label}</strong>
+                <p>{card.description}</p>
+              </div>
+              <StatusBadge tone={card.tone}>{card.count}</StatusBadge>
+            </div>
+            <div className="list-row-meta front-office-record-meta">
+              {card.meta.map((metaLabel) => (
+                <span key={`${card.key}-${metaLabel}`}>{metaLabel}</span>
+              ))}
+            </div>
+            <FrontOfficeLink
+              className="office-inline-link front-office-inline-link"
+              href={card.href}
+            >
+              {card.actionLabel}
+            </FrontOfficeLink>
+          </article>
+        ))}
+      </div>
     );
   }
 
@@ -2247,6 +2509,11 @@ export function AgentNotificationsClient({
             ) : null}
           </div>
 
+          {!isOverviewMode &&
+          (personalCleanupCount > 0 || activeCleanupFilter !== "all")
+            ? renderWorkbenchCards(personalCleanupWorkbenchCards)
+            : null}
+
           <div className="list-column front-office-record-list">
             {displayedCleanupItems.length ? (
               displayedCleanupItems.map((item) => (
@@ -2375,6 +2642,12 @@ export function AgentNotificationsClient({
             {activeLeadershipFilter !== "all" ? (
               <span>{activeLeadershipFilterLabel} focus applied</span>
             ) : null}
+            {!isOverviewMode && teamCleanupCount < totalTeamCleanupSignals ? (
+              <span>
+                Surfacing {teamCleanupCount} highest-pressure record(s) across{" "}
+                {totalTeamCleanupSignals} total signal(s)
+              </span>
+            ) : null}
             {isOverviewMode && hiddenLeadershipItemCount > 0 ? (
               <span>
                 Previewing {displayedLeadershipItems.length} of{" "}
@@ -2382,6 +2655,11 @@ export function AgentNotificationsClient({
               </span>
             ) : null}
           </div>
+
+          {!isOverviewMode &&
+          (teamCleanupCount > 0 || activeLeadershipFilter !== "all")
+            ? renderWorkbenchCards(teamCleanupWorkbenchCards)
+            : null}
 
           {displayedLeadershipItems.length ? (
             <div className="office-notification-groups">
@@ -2562,6 +2840,13 @@ export function AgentNotificationsClient({
             ) : null}
           </div>
 
+          {!isOverviewMode &&
+          (appointmentReminderCount > 0 ||
+            activeReminderFilter !== "all" ||
+            activeReadState !== "all")
+            ? renderWorkbenchCards(appointmentReminderWorkbenchCards)
+            : null}
+
           {displayedAppointmentReminderCards.length ? (
             <div className="office-notification-groups">
               {appointmentReminderGroups.map((group) => (
@@ -2658,6 +2943,13 @@ export function AgentNotificationsClient({
               </span>
             ) : null}
           </div>
+
+          {!isOverviewMode &&
+          (generalNoticeCount > 0 ||
+            activeNoticeStreamFilter !== "all" ||
+            activeReadState !== "all")
+            ? renderWorkbenchCards(generalNoticeWorkbenchCards)
+            : null}
 
           {displayedGeneralNoticeCards.length ? (
             <div className="office-notification-groups">

@@ -63,6 +63,43 @@ export const cleanupFilterOptions: Array<{
   { value: "duplicate_review", label: "Duplicate review" },
 ];
 
+export const personalCleanupTrackConfig: Array<{
+  key: Exclude<AgentCleanupFilter, "all">;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "follow_up",
+    label: "Follow-up due",
+    description:
+      "Client-owned next touches that have already become due inside your personal FO queue.",
+  },
+  {
+    key: "appointment_writeback",
+    label: "Appointment writeback",
+    description:
+      "Confirmation, reschedule, and promised external-touch cleanup that still needs owner follow-through.",
+  },
+  {
+    key: "send_risk",
+    label: "Send-trail risk",
+    description:
+      "Tracked sends in your own queue that never opened or went quiet after the last signal.",
+  },
+  {
+    key: "stale_client",
+    label: "Stale dossiers",
+    description:
+      "Self-owned dossiers that have gone stale enough to need an explicit recovery pass.",
+  },
+  {
+    key: "duplicate_review",
+    label: "Duplicate review",
+    description:
+      "Foundation cleanup that should be resolved before the next send, task, or appointment touches the wrong dossier.",
+  },
+];
+
 export const notificationFilterOptions: Array<{
   value: AgentNotificationFilter;
   label: string;

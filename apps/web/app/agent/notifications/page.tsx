@@ -41,7 +41,7 @@ type AgentNotificationsPageProps = {
 };
 
 function leadershipItemMatchesFilter(
-  item: FrontOfficeDashboardSnapshot["leadershipQueue"]["items"][number],
+  item: FrontOfficeDashboardSnapshot["leadershipQueue"]["activityCenterItems"][number],
   filter: "all" | "overdue_task" | "engagement_risk" | "stale_client",
 ) {
   return filter === "all" || item.kindKey === filter;
@@ -117,15 +117,12 @@ export default async function AgentNotificationsPage(
   );
   const personalCleanupCount =
     snapshot.cleanup.items.length + snapshot.cleanup.duplicatePairs.length;
-  const visibleTeamCleanupCount = dashboardSnapshot.leadershipQueue.visible
-    ? dashboardSnapshot.leadershipQueue.items.length
-    : 0;
-  const visibleRouteItemCount =
-    snapshot.summary.actionableItemCount + visibleTeamCleanupCount;
   const filteredLeadershipItems =
-    dashboardSnapshot.leadershipQueue.items.filter((item) =>
+    dashboardSnapshot.leadershipQueue.activityCenterItems.filter((item) =>
       leadershipItemMatchesFilter(item, initialTeamCleanupFilter),
     );
+  const visibleRouteItemCount =
+    snapshot.summary.actionableItemCount + filteredLeadershipItems.length;
   const leadershipQueueHref = buildAgentNotificationsHref({
     pathname: "/agent/notifications",
     activityView: "team_cleanup",
