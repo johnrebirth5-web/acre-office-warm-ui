@@ -70,6 +70,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
     <FrontOfficePageTemplate
       description="Work the outbound desk here: choose the send lane, package the agent materials, keep tracked-link context visible, and manually push the next touch back into Front Office without pretending Acre auto-sends anything."
       eyebrow="Listings"
+      layoutClassName="front-office-listings-layout"
       main={
         <SectionCard
           className="office-list-card"
@@ -90,40 +91,47 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             subtitle="Quick read on how ready this workspace is for tracked outbound send work right now."
             title="Outbound signals"
           >
-            <ListPageStatsGrid>
+            <ListPageStatsGrid className="front-office-listings-rail-stats">
               <StatCard
+                className="front-office-listings-rail-stat"
                 hint="inventory visible to agents"
                 label="Listings"
                 value={snapshot.summary.listingCount}
               />
               <StatCard
+                className="front-office-listings-rail-stat"
                 hint="currently marked public-ready"
                 label="Public-ready"
                 value={snapshot.summary.publicReadyCount}
               />
               <StatCard
+                className="front-office-listings-rail-stat"
                 hint="sum of tracked links already created by you"
                 label="Tracked links"
                 value={snapshot.summary.trackedLinks}
               />
               <StatCard
+                className="front-office-listings-rail-stat"
                 hint="sum of tracked clicks in your feed"
                 label="Tracked clicks"
                 value={snapshot.summary.trackedClicks}
               />
               <StatCard
+                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint={routeState.routeStatusDescription}
                 label="Route"
                 tone={routeState.diagnostics.length ? "default" : "accent"}
                 value={routeState.routeStatusLabel}
               />
               <StatCard
+                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint="current writeback mode for this route"
                 label="Mode"
                 tone="accent"
                 value={routeState.modeLabel}
               />
               <StatCard
+                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint={
                   routeState.draftStatusDescription
                 }
@@ -131,6 +139,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 value={routeState.draftStatusLabel}
               />
               <StatCard
+                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint={routeState.preferredSupportLaneDescription}
                 label="Package lane"
                 value={routeState.preferredSupportLaneLabel}
@@ -368,6 +377,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           </SectionCard>
         </>
       }
+      pageClassName="front-office-listings-page"
       summary={
         <>
           <SummaryChip label="Listings" value={snapshot.summary.listingCount} />

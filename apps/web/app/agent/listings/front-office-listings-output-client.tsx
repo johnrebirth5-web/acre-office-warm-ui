@@ -855,7 +855,7 @@ export function FrontOfficeListingsOutputClient(
         </div>
       ) : null}
 
-      <div className="front-office-playbook-grid">
+      <div className="front-office-playbook-grid front-office-listings-overview-grid">
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
             <strong>Outbound send plan</strong>

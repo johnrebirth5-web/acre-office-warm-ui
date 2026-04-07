@@ -13912,6 +13912,25 @@ body,
   gap: 18px;
 }
 
+.front-office-listings-layout {
+  grid-template-columns: minmax(0, 1.72fr) minmax(300px, 0.78fr);
+  gap: 16px;
+}
+
+.front-office-listings-page .front-office-template-main {
+  gap: 16px;
+}
+
+.front-office-listings-page .front-office-template-rail {
+  gap: 14px;
+}
+
+@media (max-width: 1480px) {
+  .front-office-listings-layout {
+    grid-template-columns: minmax(0, 1.68fr) minmax(280px, 0.78fr);
+  }
+}
+
 .front-office-dashboard-layout {
   grid-template-columns: minmax(0, 1.68fr) minmax(290px, 0.78fr);
   gap: 16px;
@@ -14770,6 +14789,15 @@ body,
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
+.front-office-listings-overview-grid {
+  grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.92fr);
+  align-items: start;
+}
+
+.front-office-listings-overview-grid > :first-child {
+  grid-row: span 2;
+}
+
 .front-office-playbook-card {
   display: grid;
   gap: 12px;
@@ -14838,6 +14866,32 @@ body,
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.front-office-listings-rail-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.front-office-listings-rail-stat {
+  gap: 5px;
+  padding: 12px 13px;
+  border-radius: 16px;
+}
+
+.front-office-listings-rail-stat strong {
+  font-size: 1.22rem;
+  line-height: 1.02;
+}
+
+.front-office-listings-rail-stat p {
+  max-width: none;
+  font-size: 0.8rem;
+  line-height: 1.42;
+}
+
+.front-office-listings-rail-stat-detail {
+  grid-column: 1 / -1;
 }
 
 .front-office-agent-material-card {
@@ -15215,6 +15269,17 @@ body,
   .front-office-template-layout,
   .front-office-dashboard-layout {
     grid-template-columns: 1fr;
+  }
+
+  .front-office-listings-layout,
+  .front-office-listings-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .front-office-listings-overview-grid > :first-child,
+  .front-office-listings-rail-stat-detail {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .office-page-header,
