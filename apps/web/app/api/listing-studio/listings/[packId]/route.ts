@@ -3,11 +3,13 @@ import {
   canEditListingStudio,
 } from "@acre/auth";
 import {
+  deleteStudioListingPack,
   getStudioListingPackDetail,
   updateStudioListingPack,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { ensureListingStudioStorageConfigured } from "../../../../../lib/listing-studio";
 
 export const runtime = "nodejs";
 
@@ -97,4 +99,38 @@ export async function PATCH(
   }
 
   return NextResponse.json(detail);
+}
+
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ packId: string }> },
+) {
+  const context = await getRequestSessionContext(request);
+
+  if (!context) {
+    return NextResponse.json(
+      { error: "Authentication required." },
+      { status: 401 },
+    );
+  }
+
+  if (!canEditListingStudio(context.currentMembership)) {
+    return NextResponse.json(
+      { error: "Listing Studio edit access required." },
+      { status: 403 },
+    );
+  }
+
+  const { packId } = await props.params;
+  ensureListingStudioStorageConfigured();
+  const deleted = await deleteStudioListingPack({
+    organizationId: context.currentOrganization.id,
+    packId,
+  });
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Packet not found." }, { status: 404 });
+  }
+
+  return NextResponse.json(deleted);
 }

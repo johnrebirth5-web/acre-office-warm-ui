@@ -119,6 +119,7 @@ export {
   configureStudioListingFileHelpers,
   createStudioListingExtensionChallenge,
   createStudioListingImport,
+  deleteStudioListingPack,
   getListingStudioDashboard,
   getStudioListingAssetRecord,
   getStudioListingImportStatus,

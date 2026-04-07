@@ -25,6 +25,7 @@ export default async function ListingStudioListingsPage(
   const query = readSearchParam(searchParams, "q");
   const sourceSite = readSearchParam(searchParams, "source") as StudioListingSourceSite | "";
   const listingType = readSearchParam(searchParams, "type");
+  const deleted = readSearchParam(searchParams, "deleted");
   const items = await listStudioListingPacks({
     organizationId: context.currentOrganization.id,
     search: query || null,
@@ -46,6 +47,11 @@ export default async function ListingStudioListingsPage(
       </section>
 
       <div className="office-list-page-stack listing-studio-stack">
+        {deleted ? (
+          <div className="listing-studio-status-message">
+            Listing deleted from Listing Studio.
+          </div>
+        ) : null}
         <SectionCard
           className="office-list-card"
           subtitle="Search by address, building, neighborhood, or title. Filters stay lightweight in v1 so the save flow remains the priority."

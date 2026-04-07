@@ -32,6 +32,7 @@
   - selected assets
   - cover asset
   - agent note
+  - delete saved packet
 - 客户分享页：
   - `/share/packs/[code]`
 - PDF 导出：
@@ -111,6 +112,7 @@
 - client-copy edit panel
 - share action
 - PDF export action
+- delete listing action
 
 ## Data model
 
@@ -178,6 +180,7 @@
 - `GET /api/listing-studio/listings`
 - `GET /api/listing-studio/listings/[packId]`
 - `PATCH /api/listing-studio/listings/[packId]`
+- `DELETE /api/listing-studio/listings/[packId]`
 - `POST /api/listing-studio/listings/[packId]/share`
 - `GET /api/listing-studio/listings/[packId]/pdf`
 - `GET /api/listing-studio/assets/[assetId]`
@@ -190,6 +193,11 @@
   - `organization/listing-studio/import-{id}/assets`
 - 原始 snapshot 与客户版 pack 必须分层保存
 - 不允许直接修改 snapshot 来实现客户版编辑
+- 删除 saved packet 时，需要同时清理：
+  - `StudioListingImport -> Snapshot -> Pack -> Asset -> ShareEvent` 关联记录
+  - raw source files
+  - downloaded assets
+  - generated PDF cache
 
 ## UI contract
 

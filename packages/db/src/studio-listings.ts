@@ -194,6 +194,7 @@ type ListingStudioFileHelpers = {
     fileName: string;
     bytes: Uint8Array;
   }) => Promise<{ storageKey: string; fileName: string; fileSizeBytes: number }>;
+  deleteFile?: (storageKey: string) => Promise<void>;
 };
 
 let fileHelpers: ListingStudioFileHelpers | null = null;
@@ -1449,6 +1450,54 @@ export async function publishStudioListingPack(input: {
 
   return {
     shareCode,
+  };
+}
+
+export async function deleteStudioListingPack(input: {
+  organizationId: string;
+  packId: string;
+}) {
+  const existing = await prisma.studioListingPack.findFirst({
+    where: {
+      id: input.packId,
+      organizationId: input.organizationId,
+    },
+    include: {
+      snapshot: {
+        include: {
+          import: true,
+          assets: {
+            select: {
+              storageKey: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const storageKeys = [
+    existing.snapshot.import.rawHtmlStorageKey,
+    existing.snapshot.import.rawJsonStorageKey,
+    existing.pdfStorageKey,
+    ...existing.snapshot.assets.map((asset) => asset.storageKey),
+  ].filter((value): value is string => Boolean(trimString(value)));
+
+  await prisma.studioListingImport.delete({
+    where: { id: existing.snapshot.import.id },
+  });
+
+  const deleteFile = getFileHelpers().deleteFile;
+  if (storageKeys.length && deleteFile) {
+    await Promise.all(storageKeys.map((storageKey) => deleteFile(storageKey).catch(() => null)));
+  }
+
+  return {
+    deleted: true,
   };
 }
 

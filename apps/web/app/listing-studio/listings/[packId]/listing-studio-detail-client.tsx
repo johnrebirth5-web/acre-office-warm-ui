@@ -1,8 +1,9 @@
 "use client";
 
 import { startTransition, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { StudioListingDetailSnapshot } from "@acre/db";
-import { Button, SectionCard, TextareaInput, TextInput } from "@acre/ui";
+import { Button, ConfirmActionDialog, SectionCard, TextareaInput, TextInput } from "@acre/ui";
 
 type ListingStudioDetailClientProps = {
   detail: StudioListingDetailSnapshot;
@@ -15,6 +16,7 @@ function buildShareUrl(shareCode: string | null) {
 export function ListingStudioDetailClient({
   detail,
 }: ListingStudioDetailClientProps) {
+  const router = useRouter();
   const [headline, setHeadline] = useState(detail.pack.headline);
   const [summary, setSummary] = useState(detail.pack.summary);
   const [agentNote, setAgentNote] = useState(detail.pack.agentNote);
@@ -28,6 +30,8 @@ export function ListingStudioDetailClient({
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [shareCode, setShareCode] = useState(detail.pack.shareCode);
   const [shareEnabled, setShareEnabled] = useState(detail.pack.shareEnabled);
 
@@ -138,9 +142,39 @@ export function ListingStudioDetailClient({
     setStatusMessage("Share URL copied.");
   }
 
+  function deleteListing() {
+    if (isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setStatusMessage("");
+
+    startTransition(async () => {
+      try {
+        const response = await fetch(`/api/listing-studio/listings/${detail.packId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error || "Unable to delete the listing.");
+        }
+
+        router.push("/listing-studio/listings?deleted=1");
+        router.refresh();
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Unable to delete the listing.");
+        setIsDeleting(false);
+        setIsDeleteDialogOpen(false);
+      }
+    });
+  }
+
   return (
-    <div className="listing-studio-detail-layout">
-      <div className="listing-studio-detail-main">
+    <>
+      <div className="listing-studio-detail-layout">
+        <div className="listing-studio-detail-main">
         <SectionCard
           className="listing-studio-hero-card"
           subtitle={detail.locationLine ?? "Imported listing packet"}
@@ -359,79 +393,80 @@ export function ListingStudioDetailClient({
         </SectionCard>
       </div>
 
-      <div className="listing-studio-detail-rail">
-        <SectionCard
-          className="office-list-card"
-          subtitle="These fields only affect the customer-facing packet. The imported snapshot stays unchanged."
-          title="Packet editor"
-        >
-          <div className="listing-studio-editor-form">
-            <label className="listing-studio-filter-field">
-              <span>Headline</span>
-              <TextInput value={headline} onChange={(event) => setHeadline(event.target.value)} />
-            </label>
-            <label className="listing-studio-filter-field">
-              <span>Summary</span>
-              <TextareaInput
-                rows={5}
-                value={summary}
-                onChange={(event) => setSummary(event.target.value)}
-              />
-            </label>
-            <label className="listing-studio-filter-field">
-              <span>Bullet points</span>
-              <TextareaInput
-                rows={6}
-                value={bulletText}
-                onChange={(event) => setBulletText(event.target.value)}
-              />
-            </label>
-            <label className="listing-studio-filter-field">
-              <span>Agent note</span>
-              <TextareaInput
-                rows={5}
-                value={agentNote}
-                onChange={(event) => setAgentNote(event.target.value)}
-              />
-            </label>
-            <div className="listing-studio-editor-actions">
-              <Button onClick={savePack} variant="primary">
-                {isSaving ? "Saving..." : "Save packet"}
-              </Button>
-              <Button
-                onClick={publishShare}
-                variant="secondary"
-              >
-                {isSharing ? "Publishing..." : shareEnabled ? "Refresh share link" : "Publish share"}
-              </Button>
-              <a
-                className="office-button office-button-ghost"
-                href={`/api/listing-studio/listings/${detail.packId}/pdf`}
-                target="_blank"
-              >
-                Export PDF
-              </a>
-              {shareUrl ? (
-                <>
-                  <a
-                    className="office-button office-button-ghost"
-                    href={shareUrl}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    Open share page
-                  </a>
-                  <Button onClick={copyShareUrl} variant="ghost">
-                    Copy share link
-                  </Button>
-                </>
+        <div className="listing-studio-detail-rail">
+          <SectionCard
+            className="office-list-card"
+            subtitle="These fields only affect the customer-facing packet. The imported snapshot stays unchanged."
+            title="Packet editor"
+          >
+            <div className="listing-studio-editor-form">
+              <label className="listing-studio-filter-field">
+                <span>Headline</span>
+                <TextInput value={headline} onChange={(event) => setHeadline(event.target.value)} />
+              </label>
+              <label className="listing-studio-filter-field">
+                <span>Summary</span>
+                <TextareaInput
+                  rows={5}
+                  value={summary}
+                  onChange={(event) => setSummary(event.target.value)}
+                />
+              </label>
+              <label className="listing-studio-filter-field">
+                <span>Bullet points</span>
+                <TextareaInput
+                  rows={6}
+                  value={bulletText}
+                  onChange={(event) => setBulletText(event.target.value)}
+                />
+              </label>
+              <label className="listing-studio-filter-field">
+                <span>Agent note</span>
+                <TextareaInput
+                  rows={5}
+                  value={agentNote}
+                  onChange={(event) => setAgentNote(event.target.value)}
+                />
+              </label>
+              <div className="listing-studio-editor-actions">
+                <Button disabled={isDeleting} onClick={savePack} variant="primary">
+                  {isSaving ? "Saving..." : "Save packet"}
+                </Button>
+                <Button
+                  disabled={isDeleting}
+                  onClick={publishShare}
+                  variant="secondary"
+                >
+                  {isSharing ? "Publishing..." : shareEnabled ? "Refresh share link" : "Publish share"}
+                </Button>
+                <a
+                  className="office-button office-button-ghost"
+                  href={`/api/listing-studio/listings/${detail.packId}/pdf`}
+                  target="_blank"
+                >
+                  Export PDF
+                </a>
+                {shareUrl ? (
+                  <>
+                    <a
+                      className="office-button office-button-ghost"
+                      href={shareUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open share page
+                    </a>
+                    <Button disabled={isDeleting} onClick={copyShareUrl} variant="ghost">
+                      Copy share link
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+              {statusMessage ? (
+                <p className="listing-studio-status-message">{statusMessage}</p>
               ) : null}
             </div>
-            {statusMessage ? (
-              <p className="listing-studio-status-message">{statusMessage}</p>
-            ) : null}
-          </div>
-        </SectionCard>
+          </SectionCard>
 
         {detail.floorPlans.length ? (
           <SectionCard
@@ -458,21 +493,59 @@ export function ListingStudioDetailClient({
           </SectionCard>
         ) : null}
 
-        <SectionCard
-          className="office-list-card"
-          subtitle="The import source stays visible so the packet always keeps attribution and an audit trail."
-          title="Source"
-        >
-          <div className="listing-studio-source-card">
-            <span className="office-status-badge office-status-badge-neutral">
-              {detail.sourceSite}
-            </span>
-            <a href={detail.sourceUrl} rel="noreferrer" target="_blank">
-              Open original listing
-            </a>
-          </div>
-        </SectionCard>
+          <SectionCard
+            className="office-list-card"
+            subtitle="The import source stays visible so the packet always keeps attribution and an audit trail."
+            title="Source"
+          >
+            <div className="listing-studio-source-card">
+              <span className="office-status-badge office-status-badge-neutral">
+                {detail.sourceSite}
+              </span>
+              <a href={detail.sourceUrl} rel="noreferrer" target="_blank">
+                Open original listing
+              </a>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle="Delete the saved packet, downloaded files, and share history from Listing Studio."
+            title="Danger zone"
+          >
+            <div className="listing-studio-editor-form">
+              <p className="listing-studio-muted">
+                This only deletes the local Listing Studio record. The source StreetEasy or Zillow page is untouched.
+              </p>
+              <Button
+                disabled={isDeleting}
+                onClick={() => setIsDeleteDialogOpen(true)}
+                variant="danger"
+              >
+                {isDeleting ? "Deleting..." : "Delete listing"}
+              </Button>
+            </div>
+          </SectionCard>
+        </div>
       </div>
-    </div>
+      <ConfirmActionDialog
+        cancelLabel="Keep listing"
+        confirmLabel={isDeleting ? "Deleting..." : "Delete listing"}
+        confirmVariant="danger"
+        description="This permanently removes the imported packet, downloaded images, raw source files, share events, and generated PDF for this listing."
+        isOpen={isDeleteDialogOpen}
+        onCancel={() => {
+          if (!isDeleting) {
+            setIsDeleteDialogOpen(false);
+          }
+        }}
+        onConfirm={deleteListing}
+        title="Delete this listing?"
+      >
+        <p className="listing-studio-muted">
+          You can always save the source page again later, but this current packet will be gone.
+        </p>
+      </ConfirmActionDialog>
+    </>
   );
 }

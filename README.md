@@ -49,6 +49,7 @@
   - `/api/listing-studio/*`
   - 原始抓取快照、下载图片和客户版 pack 已经分层持久化
   - 扩展认证使用 Acre challenge + extension token，不借网页登录 cookie
+  - detail 页已支持删除本地保存的 listing packet，并同步清理导入快照、下载资产、share 事件和生成的 PDF 缓存
 - `Office Console` 已经按 `Brokermint` 的后台信息架构重做第一轮：
   - 左侧分组导航
   - `Dashboard`

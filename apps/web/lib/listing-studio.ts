@@ -4,6 +4,7 @@ import {
 } from "@acre/db";
 import type { NextRequest } from "next/server";
 import {
+  deleteStoredFile,
   saveStoredListingStudioFile,
   saveStoredListingStudioText,
 } from "./document-storage";
@@ -18,6 +19,7 @@ export function ensureListingStudioStorageConfigured() {
   configureStudioListingFileHelpers({
     saveText: saveStoredListingStudioText,
     saveFile: saveStoredListingStudioFile,
+    deleteFile: deleteStoredFile,
   });
   listingStudioStorageConfigured = true;
 }
