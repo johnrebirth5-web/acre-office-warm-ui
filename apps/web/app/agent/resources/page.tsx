@@ -1,8 +1,10 @@
 import type { CSSProperties } from "react";
 import { can, getDefaultAppPath } from "@acre/auth";
+import { getFrontOfficeResourcesSnapshot } from "@acre/db";
 import {
   EmptyState,
   ListPageStatsGrid,
+  QueueItem,
   SectionCard,
   StatCard,
   SummaryChip,
@@ -13,13 +15,117 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { requireSessionContext } from "../../../lib/auth-session";
-import { getFrontOfficeResourcesSnapshot } from "@acre/db";
+
+type ResourcesSnapshot = Awaited<
+  ReturnType<typeof getFrontOfficeResourcesSnapshot>
+>;
+type ResourceLane = ResourcesSnapshot["resourceTypes"][number];
+type ResourceRecord = ResourcesSnapshot["resources"][number];
+type VendorRecord = ResourcesSnapshot["vendors"][number];
+type VendorCategory = ResourcesSnapshot["vendorCategories"][number];
+
+const laneGridStyle: CSSProperties = {
+  display: "grid",
+  gap: "12px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+};
+
+const laneCardStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.8rem",
+  padding: "1rem",
+  borderRadius: "20px",
+  border: "1px solid rgba(18, 53, 104, 0.08)",
+  background:
+    "linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 248, 252, 0.92) 100%)",
+  boxShadow: "0 18px 36px rgba(18, 53, 104, 0.06)",
+};
+
+const laneHeaderStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+  flexWrap: "wrap",
+};
+
+const lanePreviewStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.35rem",
+  color: "#58708a",
+  fontSize: "0.85rem",
+  lineHeight: 1.45,
+};
+
+const laneActionRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "8px 12px",
+};
+
+const libraryLaneStackStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "1rem",
+};
+
+const libraryLaneStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "1rem",
+  padding: "1rem",
+  borderRadius: "20px",
+  border: "1px solid rgba(18, 53, 104, 0.08)",
+  background: "rgba(250, 252, 255, 0.92)",
+};
+
+const subsectionHeaderStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+  flexWrap: "wrap",
+};
+
+const subsectionIntroStyle: CSSProperties = {
+  margin: "0.25rem 0 0",
+  color: "#5a7089",
+  fontSize: "0.92rem",
+  lineHeight: 1.45,
+};
+
+const resourceCardStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.75rem",
+  padding: "1rem",
+  borderRadius: "18px",
+  border: "1px solid rgba(18, 53, 104, 0.08)",
+  background: "#ffffff",
+};
+
+const resourceCardHeaderStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+};
+
+const resourceMetaRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "8px 12px",
+  color: "#667c93",
+  fontSize: "0.82rem",
+  lineHeight: 1.35,
+};
 
 const resourceTagRowStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
   gap: "8px",
-  marginTop: "0.7rem",
 };
 
 const resourceTagStyle: CSSProperties = {
@@ -33,7 +139,7 @@ const resourceTagStyle: CSSProperties = {
 };
 
 const resourceHintStyle: CSSProperties = {
-  margin: "0.55rem 0 0",
+  margin: 0,
   color: "#556a83",
   fontSize: "0.9rem",
   lineHeight: 1.45,
@@ -43,11 +149,207 @@ const resourceActionRowStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
   gap: "8px 12px",
-  marginTop: "0.85rem",
+};
+
+const vendorDeskGridStyle: CSSProperties = {
+  display: "grid",
+  gap: "1rem",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  alignItems: "start",
+  marginTop: "1rem",
+};
+
+const vendorColumnStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "1rem",
+};
+
+const vendorCategoryGridStyle: CSSProperties = {
+  display: "grid",
+  gap: "10px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+};
+
+const vendorCategoryCardStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.55rem",
+  padding: "0.95rem",
+  borderRadius: "18px",
+  border: "1px solid rgba(18, 53, 104, 0.08)",
+  background:
+    "linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(246, 249, 253, 0.96) 100%)",
+};
+
+const categoryMetaStyle: CSSProperties = {
+  color: "#5a7089",
+  fontSize: "0.84rem",
+  lineHeight: 1.4,
+};
+
+const compactQueueStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.75rem",
 };
 
 function pluralize(value: number, singular: string, plural = `${singular}s`) {
   return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function buildResourceLaneMap(resources: ResourceRecord[]) {
+  const lanes = new Map<ResourceRecord["typeKey"], ResourceRecord[]>();
+
+  for (const resource of resources) {
+    const existing = lanes.get(resource.typeKey) ?? [];
+    existing.push(resource);
+    lanes.set(resource.typeKey, existing);
+  }
+
+  return lanes;
+}
+
+function renderVendorActions(vendor: VendorRecord) {
+  return (
+    <>
+      {vendor.phoneHref ? (
+        <FrontOfficeLink
+          className="office-inline-link front-office-inline-link"
+          href={vendor.phoneHref}
+        >
+          Call
+        </FrontOfficeLink>
+      ) : null}
+      {vendor.emailHref ? (
+        <FrontOfficeLink
+          className="office-inline-link front-office-inline-link"
+          href={vendor.emailHref}
+        >
+          Email
+        </FrontOfficeLink>
+      ) : null}
+      {vendor.websiteHref ? (
+        <FrontOfficeLink
+          className="office-inline-link front-office-inline-link"
+          href={vendor.websiteHref}
+        >
+          Open site
+        </FrontOfficeLink>
+      ) : null}
+      {!vendor.phoneHref &&
+      !vendor.emailHref &&
+      !vendor.websiteHref &&
+      vendor.href ? (
+        <FrontOfficeLink
+          className="office-inline-link front-office-inline-link"
+          href={vendor.href}
+        >
+          {vendor.actionLabel}
+        </FrontOfficeLink>
+      ) : null}
+    </>
+  );
+}
+
+function ResourceRecordCard(props: {
+  resource: ResourceRecord;
+  supportingLinkHref?: string;
+  supportingLinkLabel?: string;
+}) {
+  const { resource, supportingLinkHref, supportingLinkLabel } = props;
+
+  return (
+    <article style={resourceCardStyle}>
+      <div style={resourceCardHeaderStyle}>
+        <div>
+          <strong>{resource.title}</strong>
+          <p style={resourceHintStyle}>{resource.summary}</p>
+        </div>
+        <StatusBadge tone={resource.typeTone}>{resource.typeLabel}</StatusBadge>
+      </div>
+
+      <p style={resourceHintStyle}>{resource.detailLabel}</p>
+
+      <div style={resourceMetaRowStyle}>
+        <span>{resource.laneLabel}</span>
+        <span>{resource.freshnessLabel}</span>
+        <span>
+          {resource.tagCount > 0
+            ? `${pluralize(resource.tagCount, "tag")} published`
+            : "No tags published"}
+        </span>
+      </div>
+
+      {resource.tags.length ? (
+        <div style={resourceTagRowStyle}>
+          {resource.tags.map((tag) => (
+            <span key={tag} style={resourceTagStyle}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div style={resourceActionRowStyle}>
+        <FrontOfficeLink
+          className="office-inline-link front-office-inline-link"
+          href={resource.href}
+        >
+          {resource.actionLabel}
+        </FrontOfficeLink>
+        {supportingLinkHref && supportingLinkLabel ? (
+          <FrontOfficeLink
+            className="office-inline-link front-office-inline-link"
+            href={supportingLinkHref}
+          >
+            {supportingLinkLabel}
+          </FrontOfficeLink>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function VendorShortcutCard(props: { vendor: VendorRecord }) {
+  const { vendor } = props;
+
+  return (
+    <FrontOfficeRailItem
+      action={renderVendorActions(vendor)}
+      badgeLabel={vendor.categoryLabel}
+      badgeTone={vendor.isFeatured ? "accent" : vendor.categoryTone}
+      context={vendor.isFeatured ? "Shared go-to" : vendor.quickActionLabel}
+      description={vendor.headline}
+      meta={
+        <>
+          <span>{vendor.coverageLabel}</span>
+          <span>{vendor.contactLabel}</span>
+          <span>
+            {vendor.isFeatured ? "Featured partner" : "Published vendor card"}
+          </span>
+        </>
+      }
+      title={vendor.name}
+    />
+  );
+}
+
+function VendorCategoryCard(props: { category: VendorCategory }) {
+  const { category } = props;
+
+  return (
+    <article style={vendorCategoryCardStyle}>
+      <div style={laneHeaderStyle}>
+        <StatusBadge tone={category.tone}>{category.label}</StatusBadge>
+        <span style={categoryMetaStyle}>
+          {pluralize(category.count, "vendor")} published
+        </span>
+      </div>
+      <strong>{category.label} coverage</strong>
+      <p style={resourceHintStyle}>{category.description}</p>
+    </article>
+  );
 }
 
 export default async function AgentResourcesPage() {
@@ -64,58 +366,115 @@ export default async function AgentResourcesPage() {
     timeZone: context.currentUser.timezone,
   });
 
+  const resourceLanes = buildResourceLaneMap(snapshot.resources);
+  const libraryLanes = snapshot.resourceTypes.filter(
+    (lane) => lane.key !== "vendor_card",
+  );
+  const populatedLibraryLanes = libraryLanes.filter(
+    (lane) => (resourceLanes.get(lane.key)?.length ?? 0) > 0,
+  );
+  const vendorSupportResources = resourceLanes.get("vendor_card") ?? [];
+  const readyNowVendors = snapshot.vendors.filter(
+    (vendor) => vendor.quickActionCount > 0,
+  );
+  const referenceOnlyVendors = snapshot.vendors.filter(
+    (vendor) => vendor.quickActionCount === 0,
+  );
+  const playbookCount =
+    snapshot.resourceTypes.find((lane) => lane.key === "playbook")?.count ?? 0;
+  const templateCount =
+    snapshot.resourceTypes.find((lane) => lane.key === "template")?.count ?? 0;
+  const documentCount =
+    snapshot.resourceTypes.find((lane) => lane.key === "document")?.count ?? 0;
+  const trainingCount =
+    snapshot.resourceTypes.find((lane) => lane.key === "training_video")?.count ??
+    0;
+
   return (
     <FrontOfficePageTemplate
-      description="Keep playbooks, templates, shared documents, and vendor quick actions inside one Front Office hub so agents can finish the next step without bouncing into a second workspace."
+      description="Open the right playbook, template, form, or vendor partner by the job you are trying to finish now, so Front Office execution stays fast without pretending the Back Office record moved."
       eyebrow="Resources"
       main={
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="High-value material should surface by the job the agent is trying to finish right now, not by raw storage order alone."
-            title="Open by execution lane"
+            subtitle="Agents should be able to start from the task at hand: get the right script, send kit, form, refresher, or vendor partner without scanning a raw storage list."
+            title="Start from the job at hand"
           >
-            <div className="office-queue-list">
-              {snapshot.resourceTypes.length ? (
-                snapshot.resourceTypes.map((resourceType) => (
-                  <FrontOfficeRailItem
-                    action={
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={
-                          resourceType.key === "vendor_card"
-                            ? "#vendor-hub"
-                            : "#published-tool-library"
-                        }
-                      >
-                        {resourceType.key === "vendor_card"
-                          ? "Open vendor hub"
-                          : "Open library"}
-                      </FrontOfficeLink>
-                    }
-                    badgeLabel={resourceType.label}
-                    badgeTone={resourceType.tone}
-                    context={`${pluralize(resourceType.count, "item")} published`}
-                    description={resourceType.description}
-                    key={resourceType.key}
-                    meta={
-                      <span>
-                        {resourceType.key === "vendor_card"
-                          ? "Use this lane when the job needs a partner, not a new module."
-                          : "Open the matching material, finish the task, then stay in the FO workflow."}
-                      </span>
-                    }
-                    title={`${resourceType.label} lane`}
-                  />
-                ))
-              ) : (
-                <EmptyState
-                  className="front-office-inline-empty"
-                  description="Once shared material is published, Acre will group it here by the execution job it helps an agent finish."
-                  title="No execution lanes published yet"
-                />
-              )}
-            </div>
+            {snapshot.resourceTypes.length ? (
+              <div style={laneGridStyle}>
+                {snapshot.resourceTypes.map((lane) => {
+                  const laneResources = resourceLanes.get(lane.key) ?? [];
+                  const previewLabels =
+                    lane.key === "vendor_card"
+                      ? snapshot.vendorCategories
+                          .slice(0, 2)
+                          .map((category) => category.label)
+                      : laneResources.slice(0, 2).map((resource) => resource.title);
+
+                  return (
+                    <article key={lane.key} style={laneCardStyle}>
+                      <div style={laneHeaderStyle}>
+                        <StatusBadge tone={lane.tone}>{lane.label}</StatusBadge>
+                        <span style={categoryMetaStyle}>
+                          {pluralize(lane.count, "item")} published
+                        </span>
+                      </div>
+
+                      <div>
+                        <strong>
+                          {lane.key === "vendor_card"
+                            ? "Partner lookup & handoff"
+                            : lane.label}
+                        </strong>
+                        <p style={subsectionIntroStyle}>{lane.description}</p>
+                      </div>
+
+                      <div style={lanePreviewStyle}>
+                        {previewLabels.length ? (
+                          previewLabels.map((label) => (
+                            <span key={label}>- {label}</span>
+                          ))
+                        ) : (
+                          <span>
+                            {lane.key === "vendor_card"
+                              ? "Vendor categories will surface here once cards are published."
+                              : "This lane will list the first practical materials once published."}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={laneActionRowStyle}>
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={
+                            lane.key === "vendor_card"
+                              ? "#vendor-hub"
+                              : `#lane-${lane.key}`
+                          }
+                        >
+                          {lane.actionLabel}
+                        </FrontOfficeLink>
+                        {lane.key !== "vendor_card" ? (
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href="#published-tool-library"
+                          >
+                            Open lane library
+                          </FrontOfficeLink>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                className="front-office-inline-empty"
+                description="Once shared material is published, Acre will organize it here by the execution job it helps an agent finish."
+                title="No execution lanes published yet"
+              />
+            )}
           </SectionCard>
 
           <SectionCard
@@ -125,86 +484,70 @@ export default async function AgentResourcesPage() {
                 className="office-inline-link front-office-inline-link"
                 href="#vendor-hub"
               >
-                Jump to vendor hub
+                Jump to vendor desk
               </FrontOfficeLink>
             }
             className="office-list-card"
-            subtitle="This stays a practical FO library: find the right playbook, form, template, or training item fast, then return to live client execution."
-            title="Published tool library"
+            subtitle="The library stays execution-first: open the right material, finish the next move, and return to live client work without drifting into a second admin surface."
+            title="Library by execution lane"
           >
-            <div className="list-column front-office-record-list">
-              {snapshot.resources.length ? (
-                snapshot.resources.map((resource) => (
-                  <article
-                    className="list-row front-office-record"
-                    key={resource.id}
-                  >
-                    <div className="list-row-top front-office-record-head">
-                      <div>
-                        <strong>{resource.title}</strong>
-                        <p>{resource.summary}</p>
-                      </div>
-                      <StatusBadge tone={resource.typeTone}>
-                        {resource.typeLabel}
-                      </StatusBadge>
-                    </div>
+            {populatedLibraryLanes.length ? (
+              <div style={libraryLaneStackStyle}>
+                {populatedLibraryLanes.map((lane) => {
+                  const laneResources = resourceLanes.get(lane.key) ?? [];
 
-                    <p style={resourceHintStyle}>{resource.detailLabel}</p>
-
-                    <div className="list-row-meta front-office-record-meta">
-                      <span>{resource.freshnessLabel}</span>
-                      <span>{resource.actionLabel}</span>
-                      <span>
-                        {resource.tags.length
-                          ? `${pluralize(resource.tags.length, "tag")}`
-                          : "No tags published"}
-                      </span>
-                    </div>
-
-                    {resource.tags.length ? (
-                      <div style={resourceTagRowStyle}>
-                        {resource.tags.map((tag) => (
-                          <span key={tag} style={resourceTagStyle}>
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <div style={resourceActionRowStyle}>
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={resource.href}
-                      >
-                        {resource.actionLabel}
-                      </FrontOfficeLink>
-                      {resource.typeKey === "vendor_card" ? (
+                  return (
+                    <article
+                      id={`lane-${lane.key}`}
+                      key={lane.key}
+                      style={libraryLaneStyle}
+                    >
+                      <div style={subsectionHeaderStyle}>
+                        <div>
+                          <strong>{lane.label}</strong>
+                          <p style={subsectionIntroStyle}>{lane.description}</p>
+                        </div>
                         <FrontOfficeLink
                           className="office-inline-link front-office-inline-link"
                           href="#vendor-hub"
                         >
-                          Open vendor hub lane
+                          Keep vendor desk close
                         </FrontOfficeLink>
-                      ) : null}
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <EmptyState
-                  description="Shared playbooks, templates, forms, and training items will appear here once the Front Office library is populated."
-                  title="No published tools yet"
-                />
-              )}
-            </div>
+                      </div>
+
+                      <div style={compactQueueStyle}>
+                        {laneResources.map((resource) => (
+                          <ResourceRecordCard
+                            key={resource.id}
+                            resource={resource}
+                          />
+                        ))}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                action={
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href="#vendor-hub"
+                  >
+                    Open vendor desk
+                  </FrontOfficeLink>
+                }
+                description="Shared playbooks, templates, forms, and refreshers will appear here once the Front Office library is populated."
+                title="No published tools in the library yet"
+              />
+            )}
           </SectionCard>
-        </>
-      }
-      rail={
-        <>
+
           <SectionCard
+            id="vendor-hub"
             className="office-list-card"
-            subtitle="The vendor hub should tell the agent whether the shared support network is actually ready to use right now."
-            title="Vendor hub pulse"
+            subtitle="The vendor desk should answer two questions fast: which partner is ready to contact now, and which service lane is already covered well enough to support today’s execution."
+            title="Vendor desk"
           >
             <ListPageStatsGrid>
               <StatCard
@@ -218,119 +561,274 @@ export default async function AgentResourcesPage() {
                 value={snapshot.summary.featuredVendorCount}
               />
               <StatCard
-                hint="vendors with phone, email, or site quick actions"
-                label="Quick contact"
+                hint="vendors with phone, email, or site actions ready now"
+                label="Ready now"
                 tone="accent"
                 value={snapshot.summary.quickContactVendorCount}
               />
               <StatCard
-                hint="distinct service categories in the hub"
-                label="Categories"
-                value={snapshot.summary.vendorCategoryCount}
+                hint="published vendors that still act more like reference cards"
+                label="Reference only"
+                value={Math.max(
+                  snapshot.summary.vendorCount -
+                    snapshot.summary.quickContactVendorCount,
+                  0,
+                )}
+              />
+            </ListPageStatsGrid>
+
+            <div style={vendorDeskGridStyle}>
+              <div style={vendorColumnStyle}>
+                <div style={subsectionHeaderStyle}>
+                  <div>
+                    <strong>Ready-now partners</strong>
+                    <p style={subsectionIntroStyle}>
+                      Featured and quick-contact vendors stay at the front so an
+                      agent can call, email, or open a site without breaking the
+                      FO flow.
+                    </p>
+                  </div>
+                  {snapshot.vendors.length ? (
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href="#full-vendor-directory"
+                    >
+                      Open full directory
+                    </FrontOfficeLink>
+                  ) : null}
+                </div>
+
+                <div className="office-queue-list">
+                  {readyNowVendors.length ? (
+                    readyNowVendors.slice(0, 8).map((vendor) => (
+                      <VendorShortcutCard key={vendor.id} vendor={vendor} />
+                    ))
+                  ) : (
+                    <EmptyState
+                      className="front-office-inline-empty"
+                      description="Published vendor cards are visible, but none of them currently expose a phone, email, or site shortcut."
+                      title="No quick-contact partners yet"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div style={vendorColumnStyle}>
+                <div style={subsectionHeaderStyle}>
+                  <div>
+                    <strong>Coverage lanes & support cards</strong>
+                    <p style={subsectionIntroStyle}>
+                      Category coverage and support cards keep vendor lookup
+                      grounded in the same execution lane instead of feeling like
+                      a detached marketplace.
+                    </p>
+                  </div>
+                </div>
+
+                {snapshot.vendorCategories.length ? (
+                  <div style={vendorCategoryGridStyle}>
+                    {snapshot.vendorCategories.map((category) => (
+                      <VendorCategoryCard
+                        category={category}
+                        key={category.category}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    className="front-office-inline-empty"
+                    description="Service-lane coverage will appear here as soon as the office publishes category-backed vendor cards."
+                    title="No vendor categories yet"
+                  />
+                )}
+
+                {vendorSupportResources.length ? (
+                  <div style={compactQueueStyle}>
+                    {vendorSupportResources.slice(0, 4).map((resource) => (
+                      <QueueItem
+                        action={
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href={resource.href}
+                          >
+                            {resource.actionLabel}
+                          </FrontOfficeLink>
+                        }
+                        badgeLabel={resource.typeLabel}
+                        badgeTone={resource.typeTone}
+                        context={resource.freshnessLabel}
+                        description={resource.detailLabel}
+                        key={resource.id}
+                        meta={
+                          <>
+                            <span>{resource.laneLabel}</span>
+                            <span>
+                              {resource.tagCount > 0
+                                ? `${pluralize(resource.tagCount, "tag")} published`
+                                : "No tags published"}
+                            </span>
+                          </>
+                        }
+                        title={resource.title}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+
+                {referenceOnlyVendors.length ? (
+                  <div className="office-queue-list">
+                    {referenceOnlyVendors.slice(0, 4).map((vendor) => (
+                      <VendorShortcutCard key={vendor.id} vendor={vendor} />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {snapshot.vendors.length > 8 ? (
+              <div
+                id="full-vendor-directory"
+                style={{ ...vendorColumnStyle, marginTop: "1.25rem" }}
+              >
+                <div style={subsectionHeaderStyle}>
+                  <div>
+                    <strong>Full published directory</strong>
+                    <p style={subsectionIntroStyle}>
+                      The full directory stays below the ready-now stack so
+                      agents can still browse every published partner when the
+                      situation needs a wider bench.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="office-queue-list">
+                  {snapshot.vendors.map((vendor) => (
+                    <VendorShortcutCard key={vendor.id} vendor={vendor} />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </SectionCard>
+        </>
+      }
+      rail={
+        <>
+          <SectionCard
+            className="office-list-card"
+            subtitle="This rail is the quick read: which library lanes are healthy, and how much vendor support is actually contact-ready right now."
+            title="Hub pulse"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="script and workflow guidance"
+                label="Playbooks"
+                value={playbookCount}
+              />
+              <StatCard
+                hint="copy-ready send structures"
+                label="Templates"
+                tone="accent"
+                value={templateCount}
+              />
+              <StatCard
+                hint="forms and reference docs"
+                label="Documents"
+                value={documentCount}
+              />
+              <StatCard
+                hint="refreshers and onboarding clips"
+                label="Training"
+                value={trainingCount}
               />
             </ListPageStatsGrid>
 
             <div className="office-queue-list" style={{ marginTop: "1rem" }}>
-              {snapshot.vendorCategories.length ? (
-                snapshot.vendorCategories.slice(0, 4).map((category) => (
-                  <FrontOfficeRailItem
-                    badgeLabel={category.label}
-                    badgeTone="neutral"
-                    description={`${pluralize(
-                      category.count,
-                      "vendor",
-                    )} published in this lane.`}
-                    key={category.category}
-                    title={`${category.label} coverage`}
+              {snapshot.resources.length ? (
+                snapshot.resources.slice(0, 3).map((resource) => (
+                  <QueueItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={resource.href}
+                      >
+                        {resource.actionLabel}
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={resource.typeLabel}
+                    badgeTone={resource.typeTone}
+                    context={resource.freshnessLabel}
+                    description={resource.summary}
+                    key={resource.id}
+                    meta={
+                      <>
+                        <span>{resource.laneLabel}</span>
+                        <span>{resource.detailLabel}</span>
+                      </>
+                    }
+                    title={resource.title}
                   />
                 ))
               ) : (
                 <EmptyState
                   className="front-office-inline-empty"
-                  description="Category coverage will appear here when the shared vendor pool is populated."
-                  title="No vendor categories yet"
+                  description="The newest library updates will surface here once resources are published."
+                  title="No recent library updates"
                 />
               )}
             </div>
           </SectionCard>
 
           <SectionCard
-            id="vendor-hub"
             className="office-list-card"
-            subtitle="Phone, email, and site actions stay close to the rest of the FO workflow, so vendor lookup feels like part of the same execution surface."
-            title="Vendor hub"
+            subtitle="Resources should reduce execution friction, not become a second system to manage."
+            title="Use it during live work"
           >
             <div className="office-queue-list">
-              {snapshot.vendors.length ? (
-                snapshot.vendors.map((vendor) => (
-                  <FrontOfficeRailItem
-                    action={
-                      <>
-                        {vendor.phoneHref ? (
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={vendor.phoneHref}
-                          >
-                            Call
-                          </FrontOfficeLink>
-                        ) : null}
-                        {vendor.emailHref ? (
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={vendor.emailHref}
-                          >
-                            Email
-                          </FrontOfficeLink>
-                        ) : null}
-                        {vendor.websiteHref ? (
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={vendor.websiteHref}
-                          >
-                            Open site
-                          </FrontOfficeLink>
-                        ) : null}
-                        {!vendor.phoneHref &&
-                        !vendor.emailHref &&
-                        !vendor.websiteHref &&
-                        vendor.href ? (
-                          <FrontOfficeLink
-                            className="office-inline-link front-office-inline-link"
-                            href={vendor.href}
-                          >
-                            {vendor.actionLabel}
-                          </FrontOfficeLink>
-                        ) : null}
-                      </>
-                    }
-                    badgeLabel={vendor.categoryLabel}
-                    badgeTone={vendor.isFeatured ? "accent" : vendor.categoryTone}
-                    context={
-                      vendor.isFeatured ? "Featured vendor" : vendor.coverageLabel
-                    }
-                    description={vendor.headline}
-                    key={vendor.id}
-                    meta={
-                      <>
-                        <span>{vendor.coverageLabel}</span>
-                        <span>{vendor.contactLabel}</span>
-                        <span>
-                          {vendor.isFeatured
-                            ? "Shared go-to option"
-                            : "Published vendor card"}
-                        </span>
-                      </>
-                    }
-                    title={vendor.name}
-                  />
-                ))
-              ) : (
-                <EmptyState
-                  className="front-office-inline-empty"
-                  description="Shared vendor cards will appear here once the office publishes a real support bench for live agent work."
-                  title="No vendor shortcuts yet"
-                />
-              )}
+              <FrontOfficeRailItem
+                badgeLabel="Call prep"
+                badgeTone="accent"
+                description="Open a playbook when the next move is a live call, objection response, showing prep, or FO-to-BO handoff checklist."
+                meta={
+                  <>
+                    <span>{pluralize(playbookCount, "playbook")} published</span>
+                    <span>Keep the next step explicit</span>
+                  </>
+                }
+                title="Guide the next conversation"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="Send kit"
+                badgeTone="success"
+                description="Use templates and documents when the structure already exists and the agent only needs to personalize the final send or reference."
+                meta={
+                  <>
+                    <span>
+                      {pluralize(templateCount + documentCount, "resource")} in
+                      the send + reference lanes
+                    </span>
+                    <span>Stay manual and reviewable</span>
+                  </>
+                }
+                title="Package the next outbound move"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="Vendor"
+                badgeTone="warning"
+                description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module."
+                meta={
+                  <>
+                    <span>
+                      {pluralize(
+                        snapshot.summary.quickContactVendorCount,
+                        "quick-contact vendor",
+                      )}{" "}
+                      ready now
+                    </span>
+                    <span>Keep the partner bench visible</span>
+                  </>
+                }
+                title="Bring in the right outside support"
+              />
             </div>
           </SectionCard>
 
@@ -374,7 +872,7 @@ export default async function AgentResourcesPage() {
           />
           <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
           <SummaryChip
-            label="Quick contacts"
+            label="Ready-now vendors"
             tone="accent"
             value={snapshot.summary.quickContactVendorCount}
           />

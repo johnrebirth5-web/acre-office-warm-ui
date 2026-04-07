@@ -365,9 +365,11 @@ export type FrontOfficeResourceRecord = {
   detailLabel: string;
   freshnessLabel: string;
   actionLabel: string;
+  laneLabel: string;
   typeKey: ResourceType;
   typeLabel: string;
   typeTone: FrontOfficeTone;
+  tagCount: number;
   tags: string[];
   href: string;
 };
@@ -386,6 +388,8 @@ export type FrontOfficeVendorRecord = {
   websiteHref: string | null;
   phoneHref: string | null;
   emailHref: string | null;
+  quickActionCount: number;
+  quickActionLabel: string;
   isFeatured: boolean;
   href: string | null;
 };
@@ -405,11 +409,14 @@ export type FrontOfficeResourcesSnapshot = {
     count: number;
     tone: FrontOfficeTone;
     description: string;
+    actionLabel: string;
   }>;
   vendorCategories: Array<{
     category: string;
     label: string;
     count: number;
+    tone: FrontOfficeTone;
+    description: string;
   }>;
   resources: FrontOfficeResourceRecord[];
   vendors: FrontOfficeVendorRecord[];
@@ -662,6 +669,41 @@ function formatLooseTitleLabel(value: string | null | undefined) {
     .join(" ");
 }
 
+function formatCountLabel(
+  value: number,
+  singular: string,
+  plural = `${singular}s`,
+) {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function formatClientIntentLabel(value: string | null | undefined) {
+  return formatLooseTitleLabel(value) || "Intent not captured";
+}
+
+function formatSourceLabel(value: string | null | undefined) {
+  return formatLooseTitleLabel(value) || "Source not captured";
+}
+
+function formatAreaSummaryLabel(
+  values: Array<string | null | undefined>,
+  emptyLabel: string,
+) {
+  const cleanedValues = cleanStringList(values);
+
+  if (cleanedValues.length === 0) {
+    return emptyLabel;
+  }
+
+  if (cleanedValues.length <= 2) {
+    return cleanedValues.join(" · ");
+  }
+
+  return `${cleanedValues.slice(0, 2).join(" · ")} · +${
+    cleanedValues.length - 2
+  } more`;
+}
+
 function formatDateLabel(
   value: Date | null | undefined,
   timeZone?: string | null,
@@ -675,6 +717,47 @@ function formatDateLabel(
     day: "numeric",
     timeZone: timeZone ?? undefined,
   });
+}
+
+function formatElapsedDayLabel(value: number) {
+  return formatCountLabel(value, "day");
+}
+
+function buildFreshnessLabel(
+  value: Date,
+  now: Date,
+  timeZone?: string | null,
+) {
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const startOfYesterday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 1,
+  ).getTime();
+  const updatedAt = value.getTime();
+
+  if (updatedAt >= startOfToday) {
+    return "Updated today";
+  }
+
+  if (updatedAt >= startOfYesterday) {
+    return "Updated yesterday";
+  }
+
+  const ageInDays = Math.max(
+    1,
+    Math.floor((startOfToday - updatedAt) / 86_400_000),
+  );
+
+  if (ageInDays < 7) {
+    return `Updated ${formatElapsedDayLabel(ageInDays)} ago`;
+  }
+
+  return `Updated ${formatDateLabel(value, timeZone)}`;
 }
 
 function formatRelativeDueLabel(
@@ -1862,9 +1945,9 @@ function getResourceTypePriority(type: ResourceType) {
       return 1;
     case ResourceType.document:
       return 2;
-    case ResourceType.training_video:
-      return 3;
     case ResourceType.vendor_card:
+      return 3;
+    case ResourceType.training_video:
       return 4;
     default:
       return 5;
@@ -1887,35 +1970,65 @@ function getResourceTypeTone(type: ResourceType): FrontOfficeTone {
 function getResourceTypeDescription(type: ResourceType) {
   switch (type) {
     case ResourceType.playbook:
-      return "Step-by-step operating guidance for live calls, follow-up, and handoff prep.";
+      return "Step-by-step guidance for live calls, next-touch recovery, showings, and FO-to-BO handoff prep.";
     case ResourceType.template:
-      return "Copy-ready structure that keeps repeat client communication fast and consistent.";
+      return "Copy-ready structure for intros, follow-up, appointment coordination, and shortlist sends.";
     case ResourceType.document:
-      return "Shared forms, contracts, and internal reference documents that agents reach for often.";
+      return "Shared forms, reference sheets, and canonical docs that support the active FO execution pass.";
     case ResourceType.training_video:
-      return "Short training material for process refreshers and office onboarding.";
+      return "Short coaching clips for refreshers, onboarding, and fast workflow recovery between live tasks.";
     case ResourceType.vendor_card:
-      return "Vendor reference material that supports the wider Front Office execution loop.";
+      return "Partner shortcuts that help agents line up financing, legal, inspection, repair, and move support fast.";
     default:
       return "Published Front Office material ready to open.";
+  }
+}
+
+function getResourceTypeLaneLabel(type: ResourceType) {
+  switch (type) {
+    case ResourceType.playbook:
+      return "Call & workflow guides";
+    case ResourceType.template:
+      return "Copy & send kits";
+    case ResourceType.document:
+      return "Forms & references";
+    case ResourceType.training_video:
+      return "Coaching refreshers";
+    case ResourceType.vendor_card:
+      return "Vendor support cards";
+    default:
+      return formatResourceType(type);
   }
 }
 
 function getResourceTypeDetailLabel(type: ResourceType) {
   switch (type) {
     case ResourceType.playbook:
-      return "Best opened when an agent needs the next call step, objection path, or handoff checklist immediately.";
+      return "Best opened when an agent needs the next call step, objection path, or handoff checklist right now.";
     case ResourceType.template:
-      return "Use this lane when the structure should already exist and the agent only needs to personalize the final message.";
+      return "Use this lane when the structure should already exist and the agent only needs to personalize the final send.";
     case ResourceType.document:
-      return "Keep the canonical form or reference close without turning this page into a second formal records module.";
+      return "Keep the canonical form or reference close without turning this page into a second formal records system.";
     case ResourceType.training_video:
-      return "Use for quick refreshers and coaching moments, not for background automation or hidden progress tricks.";
+      return "Use for quick refreshers and coaching moments, not as a background automation or hidden progress layer.";
     case ResourceType.vendor_card:
-      return "Use this lane when the job needs a real outside partner and a direct next action.";
+      return "Use this lane when the job needs a real outside partner, a quick action, and a clear next owner.";
     default:
       return "Published Front Office material that can be opened directly from the live workflow.";
   }
+}
+
+function buildResourceDetailLabel(input: {
+  type: ResourceType;
+  tags: string[];
+}) {
+  const cleanedTags = cleanStringList(input.tags, 3);
+
+  if (cleanedTags.length > 0) {
+    return `Best for ${cleanedTags.join(" · ")}.`;
+  }
+
+  return getResourceTypeDetailLabel(input.type);
 }
 
 function getResourceActionLabel(type: ResourceType) {
@@ -1924,10 +2037,12 @@ function getResourceActionLabel(type: ResourceType) {
       return "Open playbook";
     case ResourceType.template:
       return "Open template";
+    case ResourceType.document:
+      return "Open document";
     case ResourceType.training_video:
       return "Watch training";
     case ResourceType.vendor_card:
-      return "Open vendor card";
+      return "Open vendor hub";
     default:
       return "Open resource";
   }
@@ -1969,16 +2084,53 @@ function buildListingSummaryLabel(input: {
     .join(" · ");
 
   if (layoutLabel) {
-    return `${layoutLabel} match ready to review.`;
+    return input.isPublic
+      ? `${layoutLabel} · Public-ready send package.`
+      : `${layoutLabel} · Internal shortlist candidate.`;
   }
 
   return input.isPublic
-    ? "Published listing ready to review."
-    : "Curated listing ready to review.";
+    ? "Public-ready send package."
+    : "Internal shortlist candidate.";
 }
 
 function formatVendorCategoryLabel(category: string | null | undefined) {
   return formatLooseTitleLabel(category) || "Vendor";
+}
+
+function getVendorCategoryPriority(category: string | null | undefined) {
+  const normalized = category?.trim().toLowerCase() || "";
+
+  if (
+    normalized.includes("mortgage") ||
+    normalized.includes("loan") ||
+    normalized.includes("lender") ||
+    normalized.includes("finance")
+  ) {
+    return 0;
+  }
+
+  if (
+    normalized.includes("attorney") ||
+    normalized.includes("legal") ||
+    normalized.includes("title") ||
+    normalized.includes("closing") ||
+    normalized.includes("escrow")
+  ) {
+    return 1;
+  }
+
+  if (
+    normalized.includes("inspection") ||
+    normalized.includes("repair") ||
+    normalized.includes("contractor") ||
+    normalized.includes("insurance") ||
+    normalized.includes("moving")
+  ) {
+    return 2;
+  }
+
+  return 3;
 }
 
 function mapVendorCategoryTone(category: string | null | undefined) {
@@ -2023,11 +2175,15 @@ function buildVendorCoverageLabel(neighborhoods: string[]) {
     return "Office-wide coverage";
   }
 
-  if (cleanedNeighborhoods.length <= 2) {
-    return cleanedNeighborhoods.join(" · ");
+  if (cleanedNeighborhoods.length === 1) {
+    return `Covers ${cleanedNeighborhoods[0]}`;
   }
 
-  return `${cleanedNeighborhoods.slice(0, 2).join(" · ")} · +${
+  if (cleanedNeighborhoods.length === 2) {
+    return `Covers ${cleanedNeighborhoods.join(" · ")}`;
+  }
+
+  return `Covers ${cleanedNeighborhoods.slice(0, 2).join(" · ")} · +${
     cleanedNeighborhoods.length - 2
   } more`;
 }
@@ -2072,6 +2228,22 @@ function buildVendorContactLabel(input: {
   phone: string | null;
   email: string | null;
 }) {
+  const quickActionCount = countVendorQuickActions(input);
+
+  if (quickActionCount >= 3) {
+    return "Phone, email, and site ready";
+  }
+
+  if (quickActionCount === 2) {
+    const readyLabels = [
+      input.phone?.trim() ? "phone" : null,
+      input.email?.trim() ? "email" : null,
+      input.website?.trim() ? "site" : null,
+    ].filter((value): value is string => Boolean(value));
+
+    return `${readyLabels.join(" + ")} ready`;
+  }
+
   if (input.phone?.trim()) {
     return `Call ${input.phone.trim()}`;
   }
@@ -2085,6 +2257,74 @@ function buildVendorContactLabel(input: {
   }
 
   return "No quick contact published";
+}
+
+function buildVendorQuickActionLabel(count: number) {
+  return count > 0
+    ? `${formatCountLabel(count, "quick action")} ready`
+    : "Reference only";
+}
+
+function buildVendorCategoryDescription(category: string | null | undefined) {
+  const normalized = category?.trim().toLowerCase() || "";
+
+  if (
+    normalized.includes("mortgage") ||
+    normalized.includes("loan") ||
+    normalized.includes("lender") ||
+    normalized.includes("finance")
+  ) {
+    return "Use when pre-approval, affordability, or financing questions need a trusted next contact.";
+  }
+
+  if (
+    normalized.includes("attorney") ||
+    normalized.includes("legal") ||
+    normalized.includes("title") ||
+    normalized.includes("closing") ||
+    normalized.includes("escrow")
+  ) {
+    return "Use when formal contract, title, or closing coordination needs a grounded vendor handoff.";
+  }
+
+  if (
+    normalized.includes("inspection") ||
+    normalized.includes("repair") ||
+    normalized.includes("contractor") ||
+    normalized.includes("insurance") ||
+    normalized.includes("moving")
+  ) {
+    return "Use when property condition, move logistics, or post-tour prep needs a fast outside partner.";
+  }
+
+  return `Shared ${formatVendorCategoryLabel(category).toLowerCase()} support for day-to-day Front Office execution.`;
+}
+
+function buildVendorHeadline(input: {
+  category: string | null;
+  headline: string | null;
+  notes: string | null;
+  neighborhoods: string[];
+  quickActionCount: number;
+}) {
+  if (input.headline?.trim()) {
+    return input.headline.trim();
+  }
+
+  if (input.notes?.trim()) {
+    return input.notes.trim();
+  }
+
+  const coverageLabel = buildVendorCoverageLabel(input.neighborhoods);
+  const categoryLabel = formatVendorCategoryLabel(input.category);
+
+  if (input.quickActionCount > 0) {
+    return `${categoryLabel} partner with ${buildVendorQuickActionLabel(
+      input.quickActionCount,
+    ).toLowerCase()} and ${coverageLabel}.`;
+  }
+
+  return `${categoryLabel} partner card ready for ${coverageLabel}.`;
 }
 
 function countVendorQuickActions(input: {
@@ -2425,6 +2665,7 @@ export async function getFrontOfficeClientsSnapshot(
       potentialDuplicateCount: duplicatePairs.length,
     },
     stageMetrics: stageGroups
+      .slice()
       .sort(
         (left, right) =>
           compareClientStageLabels(left.stage, right.stage) ||
@@ -2441,12 +2682,13 @@ export async function getFrontOfficeClientsSnapshot(
       fullName: client.fullName,
       stage: client.stage,
       stageTone: mapClientStageTone(client.stage),
-      intentLabel: client.intent?.trim() || "Intent not captured",
+      intentLabel: formatClientIntentLabel(client.intent),
       budgetLabel: formatBudgetRange(client.budgetMin, client.budgetMax),
-      areasLabel: client.preferredAreas.length
-        ? client.preferredAreas.join(", ")
-        : "Areas not captured",
-      sourceLabel: client.source?.trim() || "Source not captured",
+      areasLabel: formatAreaSummaryLabel(
+        client.preferredAreas,
+        "Areas not captured",
+      ),
+      sourceLabel: formatSourceLabel(client.source),
       lastTouchLabel: client.lastContactAt
         ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
         : "No contact logged yet",
@@ -2672,14 +2914,6 @@ export async function getFrontOfficeListingsSnapshot(
         return publicReadyDelta;
       }
 
-      const statusDelta =
-        getListingStatusSortRank(left.status) -
-        getListingStatusSortRank(right.status);
-
-      if (statusDelta !== 0) {
-        return statusDelta;
-      }
-
       const clickDelta =
         (rightShares?.clicks ?? 0) - (leftShares?.clicks ?? 0);
 
@@ -2692,6 +2926,14 @@ export async function getFrontOfficeListingsSnapshot(
 
       if (trackedLinkDelta !== 0) {
         return trackedLinkDelta;
+      }
+
+      const statusDelta =
+        getListingStatusSortRank(left.status) -
+        getListingStatusSortRank(right.status);
+
+      if (statusDelta !== 0) {
+        return statusDelta;
       }
 
       if (left.updatedAt.getTime() !== right.updatedAt.getTime()) {
@@ -2957,6 +3199,14 @@ export async function getFrontOfficeResourcesSnapshot(
         return priorityDelta;
       }
 
+      const summaryDelta =
+        Number(Boolean(right.summary?.trim())) -
+        Number(Boolean(left.summary?.trim()));
+
+      if (summaryDelta !== 0) {
+        return summaryDelta;
+      }
+
       const tagDelta =
         cleanStringList(right.tags).length - cleanStringList(left.tags).length;
 
@@ -2987,9 +3237,18 @@ export async function getFrontOfficeResourcesSnapshot(
         return rightQuickActionCount - leftQuickActionCount;
       }
 
-      const categoryDelta = formatVendorCategoryLabel(left.category).localeCompare(
-        formatVendorCategoryLabel(right.category),
-      );
+      const categoryPriorityDelta =
+        getVendorCategoryPriority(left.category) -
+        getVendorCategoryPriority(right.category);
+
+      if (categoryPriorityDelta !== 0) {
+        return categoryPriorityDelta;
+      }
+
+      const categoryDelta =
+        formatVendorCategoryLabel(left.category).localeCompare(
+          formatVendorCategoryLabel(right.category),
+        );
 
       if (categoryDelta !== 0) {
         return categoryDelta;
@@ -3018,6 +3277,8 @@ export async function getFrontOfficeResourcesSnapshot(
         (left, right) =>
           getResourceTypePriority(left.type) -
             getResourceTypePriority(right.type) ||
+          Number(left.type === ResourceType.training_video) -
+            Number(right.type === ResourceType.training_video) ||
           right._count._all - left._count._all,
       )
       .map((group) => ({
@@ -3026,11 +3287,14 @@ export async function getFrontOfficeResourcesSnapshot(
         count: group._count._all,
         tone: getResourceTypeTone(group.type),
         description: getResourceTypeDescription(group.type),
+        actionLabel: getResourceActionLabel(group.type),
       })),
     vendorCategories: vendorCategoryGroups
       .slice()
       .sort(
         (left, right) =>
+          getVendorCategoryPriority(left.category) -
+            getVendorCategoryPriority(right.category) ||
           right._count._all - left._count._all ||
           formatVendorCategoryLabel(left.category).localeCompare(
             formatVendorCategoryLabel(right.category),
@@ -3040,18 +3304,29 @@ export async function getFrontOfficeResourcesSnapshot(
         category: group.category,
         label: formatVendorCategoryLabel(group.category),
         count: group._count._all,
+        tone: mapVendorCategoryTone(group.category),
+        description: buildVendorCategoryDescription(group.category),
       })),
     resources: sortedResources.map((resource) => ({
       id: resource.id,
       title: resource.title,
       summary:
         resource.summary?.trim() || getResourceTypeDescription(resource.type),
-      detailLabel: getResourceTypeDetailLabel(resource.type),
-      freshnessLabel: `Updated ${formatDateLabel(resource.updatedAt, input.timeZone)}`,
+      detailLabel: buildResourceDetailLabel({
+        type: resource.type,
+        tags: resource.tags,
+      }),
+      freshnessLabel: buildFreshnessLabel(
+        resource.updatedAt,
+        new Date(),
+        input.timeZone,
+      ),
       actionLabel: getResourceActionLabel(resource.type),
+      laneLabel: getResourceTypeLaneLabel(resource.type),
       typeKey: resource.type,
       typeLabel: formatResourceType(resource.type),
       typeTone: getResourceTypeTone(resource.type),
+      tagCount: cleanStringList(resource.tags).length,
       tags: cleanStringList(resource.tags, 4),
       href: resource.url,
     })),
@@ -3062,27 +3337,33 @@ export async function getFrontOfficeResourcesSnapshot(
         ? `mailto:${vendor.email.trim()}`
         : null;
       const coverageLabel = buildVendorCoverageLabel(vendor.neighborhoods);
+      const quickActionCount = countVendorQuickActions(vendor);
 
       return {
-      id: vendor.id,
-      name: vendor.name,
-      category: vendor.category,
-      categoryLabel: formatVendorCategoryLabel(vendor.category),
-      categoryTone: mapVendorCategoryTone(vendor.category),
-      headline:
-        vendor.headline?.trim() ||
-        vendor.notes?.trim() ||
-        `${formatVendorCategoryLabel(vendor.category)} support available through the shared Front Office vendor hub.`,
-      neighborhoodsLabel: coverageLabel,
-      coverageLabel,
-      contactLabel: buildVendorContactLabel(vendor),
-      actionLabel: buildVendorPrimaryActionLabel(vendor),
-      websiteHref,
-      phoneHref,
-      emailHref,
-      isFeatured: vendor.isFeatured,
-      href: buildVendorPrimaryHref(vendor),
-    };
+        id: vendor.id,
+        name: vendor.name,
+        category: vendor.category,
+        categoryLabel: formatVendorCategoryLabel(vendor.category),
+        categoryTone: mapVendorCategoryTone(vendor.category),
+        headline: buildVendorHeadline({
+          category: vendor.category,
+          headline: vendor.headline,
+          notes: vendor.notes,
+          neighborhoods: vendor.neighborhoods,
+          quickActionCount,
+        }),
+        neighborhoodsLabel: coverageLabel,
+        coverageLabel,
+        contactLabel: buildVendorContactLabel(vendor),
+        actionLabel: buildVendorPrimaryActionLabel(vendor),
+        websiteHref,
+        phoneHref,
+        emailHref,
+        quickActionCount,
+        quickActionLabel: buildVendorQuickActionLabel(quickActionCount),
+        isFeatured: vendor.isFeatured,
+        href: buildVendorPrimaryHref(vendor),
+      };
     }),
   };
 }
@@ -3470,9 +3751,23 @@ export async function getFrontOfficeActivitySnapshot(
       .map((task) => task.client?.id ?? null)
       .filter((clientId): clientId is string => Boolean(clientId)),
   );
-  const dueFollowUpClientOnly = dueFollowUpClients.filter(
-    (client) => !dueTaskClientIds.has(client.id),
-  );
+  const dueFollowUpClientOnly = dueFollowUpClients
+    .filter((client) => !dueTaskClientIds.has(client.id))
+    .sort((left, right) => {
+      const leftNextTouchAt =
+        resolveClientNextTouchAt(left)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const rightNextTouchAt =
+        resolveClientNextTouchAt(right)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftNextTouchAt !== rightNextTouchAt) {
+        return leftNextTouchAt - rightNextTouchAt;
+      }
+
+      return (
+        compareClientStageLabels(left.stage, right.stage) ||
+        left.fullName.localeCompare(right.fullName)
+      );
+    });
   const appointmentSoonCount = upcomingAppointments.length;
 
   const appointmentItems: CleanupCandidate[] = upcomingAppointments.map(
@@ -3761,7 +4056,7 @@ export async function getFrontOfficeActivitySnapshot(
                 startsAt: record.appointmentStartsAt,
                 timeZone: input.timeZone,
               }),
-              `${daysSinceSend} day(s) since send with no tracked open.`,
+              `No tracked open after ${formatElapsedDayLabel(daysSinceSend)}.`,
             ]
               .filter(Boolean)
               .join(" · "),
@@ -3812,7 +4107,9 @@ export async function getFrontOfficeActivitySnapshot(
               startsAt: record.appointmentStartsAt,
               timeZone: input.timeZone,
             }),
-            `${quietDays} day(s) since the last tracked open.`,
+            `Quiet for ${formatElapsedDayLabel(
+              quietDays,
+            )} since the last tracked open.`,
           ]
             .filter(Boolean)
             .join(" · "),
@@ -3853,7 +4150,7 @@ export async function getFrontOfficeActivitySnapshot(
       title: client.fullName,
       description: [
         client.stage.trim() || "Stage not captured",
-        `${staleDays} day(s) since ${
+        `${formatElapsedDayLabel(staleDays)} since ${
           client.lastContactAt ? "last touch" : "record create"
         }.`,
       ]
@@ -3871,7 +4168,9 @@ export async function getFrontOfficeActivitySnapshot(
           ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
           : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
       ],
-      whyNowLabel: `No logged touch has landed on this dossier for ${staleDays} day(s).`,
+      whyNowLabel: `No logged touch has landed on this dossier for ${formatElapsedDayLabel(
+        staleDays,
+      )}.`,
       sortLabel: client.lastContactAt
         ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
         : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
@@ -4222,7 +4521,7 @@ export async function getFrontOfficeActivitySnapshot(
             ? "You RSVP'd maybe"
             : event.rsvps[0]?.status === "declined"
               ? "You declined"
-              : `${event._count.rsvps} RSVP(s)`,
+              : formatCountLabel(event._count.rsvps, "RSVP"),
       href: event.meetingUrl?.trim() || "/agent/notifications",
     })),
     cleanup: {
