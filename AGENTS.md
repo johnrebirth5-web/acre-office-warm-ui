@@ -158,6 +158,31 @@ If Prisma schema changed, also run:
 - Do not run `vercel`, do not trigger Vercel deployments or redeploys, and do not use Vercel as a delivery target in Codex tasks.
 - If historical Vercel integrations still exist, treat them as legacy-only; they are not the default delivery path for this workspace.
 
+## Parallel multi-thread workflow rules
+
+When the user explicitly asks for multi-thread or parallel concurrent implementation work, switch from the default single-branch workflow above to this coordinated parallel workflow:
+
+- first split the work into clearly bounded thread plans before implementation starts
+- assign each thread a disjoint `owned files` list whenever possible
+- define compatibility boundaries up front for any shared snapshot, API contract, or route-state shape that another thread already consumes
+- each parallel thread should work on its own git branch
+- prefer a separate git worktree or separate checkout per thread so concurrent work does not fight over branch checkout state in one working tree
+- each thread should receive a copy-ready prompt that includes:
+  - the task goal
+  - the exact `owned files`
+  - explicit non-goals
+  - compatibility constraints
+  - validation expectations
+  - a rule to stop and report blockers instead of editing another thread's files
+- unless the user explicitly asks otherwise, each thread should finish with exactly one final commit on its own branch
+- each thread should push its completed branch to GitHub for review before anything is merged into `main`
+- the coordinating Codex thread should review and accept each branch independently before merge
+- do not merge a parallel thread branch into `main` until that thread has passed acceptance review
+- after acceptance, merge the approved branches into `main` one at a time in a controlled order, then push `main`
+- if a thread discovers that it must edit another thread's owned files or break an agreed compatibility contract, it must stop and report a blocker instead of crossing the boundary
+
+Use this parallel workflow for future multi-thread tasks in this workspace whenever the user asks for concurrent implementation and separate acceptance/merge handling.
+
 ## Documentation rules
 
 When major features, routes, permissions, schema, environment variables, or Back Office UI behavior change, update the relevant docs in the same task:
