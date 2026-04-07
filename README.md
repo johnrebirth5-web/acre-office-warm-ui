@@ -56,6 +56,8 @@
   - 当前安装页：
     - `/listing-studio/extension/install`
     - 如果未来配置 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`，该页面可直接跳到 Chrome Web Store 的 `Add to Chrome`
+  - 当前公开隐私页：
+    - `/legal/listing-studio-extension-privacy`
   - detail 页已支持删除本地保存的 listing packet，并同步清理导入快照、下载资产、share 事件和生成的 PDF 缓存
 - `Office Console` 已经按 `Brokermint` 的后台信息架构重做第一轮：
   - 左侧分组导航

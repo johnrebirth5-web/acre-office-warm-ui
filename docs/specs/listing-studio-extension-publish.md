@@ -74,6 +74,10 @@ npm run package --workspace=@acre/extension
 - screenshots
 - promo tile / marquee assets（如果需要）
 
+建议直接使用：
+
+- [docs/specs/listing-studio-extension-store-listing.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/listing-studio-extension-store-listing.md)
+
 ### 4. Privacy section
 
 需要明确填写：
@@ -82,6 +86,12 @@ npm run package --workspace=@acre/extension
 - 是否出售或共享数据
 - 数据用途
 - 单独的隐私政策 URL（建议正式提供）
+
+当前仓库已提供公开隐私页：
+
+- `https://acresystem.us/legal/listing-studio-extension-privacy`
+- 本地开发：
+  - `http://localhost:3105/legal/listing-studio-extension-privacy`
 
 ### 5. Distribution
 
