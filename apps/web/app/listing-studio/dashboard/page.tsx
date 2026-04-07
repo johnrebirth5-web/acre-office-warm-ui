@@ -42,36 +42,14 @@ export default async function ListingStudioDashboardPage() {
           className="listing-studio-banner-card"
           subtitle="Connect the Chrome extension here, then save StreetEasy and Zillow listings straight into Acre."
           title="Chrome extension"
-          actions={
-            snapshot.extension.hasActiveToken ? null : (
-              <ListingStudioExtensionConnectAction
-                initialConnected={snapshot.extension.hasActiveToken}
-              />
-            )
-          }
         >
-          <div className="listing-studio-banner-grid">
-            <div className="listing-studio-banner-copy">
-              <strong>
-                {snapshot.extension.hasActiveToken
-                  ? "Extension connected"
-                  : "Connect the extension from this dashboard"}
-              </strong>
-              <p>
-                {snapshot.extension.hasActiveToken
-                  ? `This account already has ${snapshot.extension.activeTokenCount} active connection${snapshot.extension.activeTokenCount === 1 ? "" : "s"}. Latest link: ${formatConnectedAtLabel(snapshot.extension.latestConnectedAt)}.`
-                  : "Click Connect Chrome extension and Acre will open the approval page automatically. Once approved, the extension is ready to save listings."}
-              </p>
-            </div>
-            <div className="listing-studio-banner-status">
-              <span className={`office-status-badge ${snapshot.extension.hasActiveToken ? "office-status-badge-success" : "office-status-badge-warning"}`}>
-                {snapshot.extension.hasActiveToken ? "Connected" : "Awaiting connection"}
-              </span>
-              <span className="listing-studio-banner-meta">
-                Supported sources: StreetEasy, Zillow
-              </span>
-            </div>
-          </div>
+          <ListingStudioExtensionConnectAction
+            serverActiveTokenCount={snapshot.extension.activeTokenCount}
+            serverHasActiveToken={snapshot.extension.hasActiveToken}
+            serverLatestConnectedAtLabel={formatConnectedAtLabel(
+              snapshot.extension.latestConnectedAt,
+            )}
+          />
         </SectionCard>
 
         <SectionCard
