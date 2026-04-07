@@ -84,7 +84,9 @@ export type FrontOfficeAiSuggestionHistoryStats = {
 };
 
 export type FrontOfficeAiSuggestionHistoryIndex = {
-  byKind: Partial<Record<FrontOfficeAiFollowUpKind, FrontOfficeAiSuggestionHistoryStats>>;
+  byKind: Partial<
+    Record<FrontOfficeAiFollowUpKind, FrontOfficeAiSuggestionHistoryStats>
+  >;
   latestByClientAndKind: Record<
     string,
     {
@@ -150,26 +152,31 @@ export type FrontOfficeAiQueueHistoryCandidate = {
   sortAt: Date;
 };
 
-export type FrontOfficeAiQueueHistoryDecoratedCandidate =
-  Omit<
-    FrontOfficeAiQueueHistoryCandidate,
-    | "basePriority"
-    | "sortAt"
-    | "primaryActionLabel"
-    | "primaryActionHref"
-    | "primaryActionOpensInNewTab"
-  > & {
-    whyNowSignals: string[];
-    rankingSignals: string[];
-    allowsDirectFollowUpCreation: boolean;
-    directFollowUpState: FrontOfficeAiDirectFollowUpState;
-    primaryActionReasonOverride: string | null;
-    oneClickReasonOverride: string | null;
-    primaryActionLabel: string;
-    primaryActionHref: string;
-    primaryActionOpensInNewTab: boolean;
-    priority: number;
-  };
+export type FrontOfficeAiQueueHistoryDecoratedCandidate = Omit<
+  FrontOfficeAiQueueHistoryCandidate,
+  | "basePriority"
+  | "sortAt"
+  | "primaryActionLabel"
+  | "primaryActionHref"
+  | "primaryActionOpensInNewTab"
+> & {
+  whyNowSignals: string[];
+  rankingSignals: string[];
+  allowsDirectFollowUpCreation: boolean;
+  directFollowUpState: FrontOfficeAiDirectFollowUpState;
+  primaryActionReasonOverride: string | null;
+  oneClickReasonOverride: string | null;
+  primaryActionLabel: string;
+  primaryActionHref: string;
+  primaryActionOpensInNewTab: boolean;
+  priority: number;
+};
+
+function formatFrontOfficeAiOutcomeLabelForSentence(
+  value: FrontOfficeAiAcceptedActionOutcome["label"],
+) {
+  return value.trim().toLowerCase();
+}
 
 function formatDateValue(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -428,7 +435,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
         label: "Needs review",
         tone: "neutral",
         detail:
-          "The accepted AI-created follow-up is no longer linked to a live shared task, so Acre cannot prove whether it was completed, canceled, or replaced. Review the follow-up queue before creating another one.",
+          "Acre can still see that an agent accepted this AI suggestion, but the resulting shared task is no longer linked to a live record. The acceptance is auditable; the execution result is not. Review the follow-up queue before treating this as completed, replaced, or safe to duplicate.",
         positive: false,
         stalled: false,
         requiresReview: true,
@@ -441,7 +448,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
         label: "Completed",
         tone: "success",
         detail:
-          "This accepted AI-created follow-up turned into a completed shared task. Acre treats that as a positive execution outcome, but the actual touch still required agent follow-through.",
+          "Acre can prove this accepted AI suggestion became a completed shared follow-up task. That is a positive execution outcome for ranking, but it still does not prove what the client said or whether another touch is now needed.",
         positive: true,
         stalled: false,
         requiresReview: false,
@@ -454,7 +461,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
         label: "Canceled",
         tone: "neutral",
         detail:
-          "This accepted AI-created follow-up was canceled or intentionally replaced, so Acre is not treating it as the active next step anymore.",
+          "The suggestion was accepted, but the resulting shared follow-up was later canceled or intentionally replaced. Acre keeps the acceptance in history, but it does not treat that canceled task as the active next step anymore.",
         positive: false,
         stalled: false,
         requiresReview: false,
@@ -472,7 +479,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
         detail: `The AI-created follow-up is still open and was due ${formatDisplayDate(
           input.followUpTask.dueAt,
           input.timeZone,
-        )}. Review or resolve it before creating another one. Acre will not stack a second AI-created reminder behind an overdue task.`,
+        )}. Acre treats that accepted action as unresolved work, escalates review, and blocks another duplicate AI-created follow-up until someone resolves or reschedules the live task.`,
         positive: false,
         stalled: true,
         requiresReview: true,
@@ -487,7 +494,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
         detail: `The AI-created follow-up is already queued for ${formatDisplayDate(
           input.followUpTask.dueAt,
           input.timeZone,
-        )}. Acre pauses duplicate one-click creation until that task is resolved so the current plan can be reviewed before another follow-up is added.`,
+        )}. Acre keeps that accepted action as the current plan and pauses duplicate one-click creation until the shared task is resolved, rescheduled, or intentionally replaced.`,
         positive: false,
         stalled: false,
         requiresReview: false,
@@ -499,7 +506,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
       label: "Live follow-up",
       tone: "accent",
       detail:
-        "The AI-created follow-up is already queued without a due date. Review that live task before creating another one so Acre does not stack duplicate reminders without confirmation.",
+        "The AI-created follow-up is already queued without a due date. Acre keeps that accepted action on review and will not stack another reminder until the live task is clarified by a human.",
       positive: false,
       stalled: false,
       requiresReview: false,
@@ -512,7 +519,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
       label: "Needs review",
       tone: "neutral",
       detail:
-        "The accepted tracked send is no longer linked to a live send record, so Acre cannot confirm delivery or engagement from history alone. Review listing output before using this suggestion as a new trigger.",
+        "Acre can still see that an agent accepted this tracked-send suggestion, but the linked send record is missing. The acceptance is auditable; delivery and engagement are not. Review listing output before using this history as a new trigger.",
       positive: false,
       stalled: false,
       requiresReview: true,
@@ -528,8 +535,8 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
         ? `This accepted tracked send produced engagement on ${formatDisplayDateTime(
             input.sendRecord.lastOpenedAt,
             input.timeZone,
-          )}. Acre treats that as a positive signal, but the next reply still needs agent judgment.`
-        : `This accepted tracked send was opened ${input.sendRecord.openCount} time(s). Acre treats that as a positive signal, not an auto-reply.`,
+          )}. Acre treats that as a positive measured signal for ranking, not proof of intent, reply, or readiness. A human still decides the next touch.`
+        : `This accepted tracked send was opened ${input.sendRecord.openCount} time(s). Acre treats that as a positive measured signal, not an automatic reply or next-step commitment.`,
       positive: true,
       stalled: false,
       requiresReview: false,
@@ -548,7 +555,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
       detail: `The tracked send went out ${formatDisplayDate(
         input.sendRecord.sentAt,
         input.timeZone,
-      )} and still has no recorded open. Treat this as a rescue cue for manual review, not an auto-send repeat.`,
+      )} and still has no recorded open. Acre treats that accepted action as stalled evidence and surfaces rescue review, not an automatic resend.`,
       positive: false,
       stalled: true,
       requiresReview: true,
@@ -562,7 +569,7 @@ export function mapFrontOfficeAiAcceptedActionOutcome(input: {
     detail: `The tracked send went out ${formatDisplayDate(
       input.sendRecord.sentAt,
       input.timeZone,
-    )} and is still waiting on the first tracked open. Acre is holding this as a watchpoint only; a human still decides if or when to send anything else.`,
+    )} and is still waiting on the first tracked open. Acre keeps this as a watchpoint in the audit trail only; a human still decides if or when anything else should be sent.`,
     positive: false,
     stalled: false,
     requiresReview: false,
@@ -583,17 +590,17 @@ export function buildFrontOfficeAiBoundaryContract(input: {
   let boundaryLabel = "Stay in Front Office";
   let boundaryTone: FrontOfficeAiTone = "accent";
   let boundaryDescription =
-    "The next move is still client-facing outreach, prep, or follow-up in Front Office. Acre can stage tasks and drafts here, but the formal record still starts only when the work moves into Back Office.";
+    "The live record still points to client-facing outreach, prep, or follow-up in Front Office. Acre can stage a shared task or draft here, but it will not open a formal Back Office file, change BO milestones, or hide work in the background.";
   let primaryActionReason =
-    "The primary action stays in Front Office because the next best move is still a client-facing touch or prep step, not formal transaction execution.";
+    "Acre recommends the next Front Office step because the execution gap is still client communication or prep. That keeps the move reversible and grounded before anything becomes a formal Back Office obligation.";
 
   if (input.hasCancelledTransaction) {
     boundaryLabel = "Return to Front Office";
     boundaryTone = "warning";
     boundaryDescription =
-      "The formal file is no longer the driver. Rebuild timing, trust, and intent in Front Office before any new Back Office handoff starts.";
+      "The formal file is no longer driving the next move. Rebuild timing, trust, and client intent in Front Office first, then reopen Back Office only if the relationship truly becomes active again.";
     primaryActionReason =
-      "The primary action stays on re-entry follow-up because this relationship needs a calm restart, not another formal workflow jump.";
+      "Acre recommends a calm re-entry touch because the last formal path ended, and the safest next step is to confirm renewed intent before restarting any formal workflow.";
   } else if (
     input.suggestionKind === "handoff" &&
     input.isReadyForBackOffice &&
@@ -602,23 +609,23 @@ export function buildFrontOfficeAiBoundaryContract(input: {
     boundaryLabel = "Move into Back Office";
     boundaryTone = "warning";
     boundaryDescription =
-      "Use Front Office only to confirm package, timing, and client expectations. The next auditable record should open in Back Office rather than becoming another Front Office-only workflow.";
+      "The dossier is BO-ready now. Front Office can still align package, timing, and client expectations, but the next auditable system-of-record step should open in Back Office instead of becoming another Front Office-only workflow.";
     primaryActionReason =
-      "The primary action should move into Back Office now because the record has crossed from prep into offer, application, or contract-style work that needs a formal system of record.";
+      "Acre recommends the formal handoff path because the record now depends on offer, application, or contract-style execution. Another Front Office reminder would blur ownership instead of moving the work into the correct system of record.";
   } else if (input.hasClosedTransaction) {
     boundaryLabel = "Back Office record stays primary";
     boundaryTone = "success";
     boundaryDescription =
-      "The deal is already formal and closed. Keep this touch client-facing in Front Office, but let milestones, money, signatures, and archival truth stay in Back Office.";
+      "The formal transaction is already closed. Keep support, recap, and referral touches client-facing in Front Office, while milestones, money, signatures, and archive truth remain anchored to Back Office.";
     primaryActionReason =
-      "The primary action stays tied to recap, support, or referral timing because the formal milestone already exists in Back Office.";
+      "Acre recommends a post-close or support touch because the formal transaction already exists and the current value is client follow-through, not reopening execution inside Back Office.";
   } else if (input.hasLinkedTransaction) {
     boundaryLabel = "Client-facing touch, BO file live";
     boundaryTone = "accent";
     boundaryDescription =
-      "Use Front Office for communication and reminder framing only. Deadlines, signatures, checklist work, and formal status should keep living in the linked Back Office file.";
+      "A Back Office file is already live. Use Front Office for reminder framing and client communication only; deadlines, signatures, checklist work, and formal status should keep living inside the linked file.";
     primaryActionReason =
-      "The primary action should keep client communication aligned with the linked Back Office record instead of creating a parallel Front Office workflow.";
+      "Acre recommends a client-facing coordination step because the formal record already exists. The goal is to support the live file, not create a parallel Front Office workflow.";
   }
 
   if (
@@ -632,19 +639,19 @@ export function buildFrontOfficeAiBoundaryContract(input: {
   }
 
   let oneClickReason =
-    "One-click follow-up is available because Acre will only create a shared Front Office task here. It will not auto-send outreach, update an external system, or replace your judgment on timing.";
+    "One-click is allowed because Acre will only create a shared Front Office follow-up task from this state. It records the acceptance, but it does not auto-send outreach, launch hidden automation, or update any Back Office record for you.";
 
   if (input.oneClickReasonOverride) {
     oneClickReason = input.oneClickReasonOverride;
   } else if (input.directFollowUpState === "suppressed_by_history") {
     oneClickReason =
-      "One-click follow-up is paused because a similar AI-created follow-up is still unresolved. Acre sends you back to that live task first so you do not stack duplicates without review.";
+      "One-click is paused because a similar agent-approved AI follow-up is still live or unresolved. Acre keeps the audit trail on that accepted action first instead of stacking a second reminder.";
   } else if (input.directFollowUpState === "suppressed_by_boundary") {
     oneClickReason =
-      "One-click follow-up is intentionally paused because the next auditable move is a formal Back Office transition, not another Front Office reminder.";
+      "One-click is paused because the next auditable move belongs in Back Office, not in another Front Office task. Acre is deliberately protecting the FO -> BO boundary instead of creating a shadow workflow.";
   } else if (input.hasLinkedTransaction) {
     oneClickReason =
-      "One-click follow-up is still safe for this client-facing touch because it creates a Front Office reminder only. It does not update the linked Back Office checklist, deadline, or milestone for you.";
+      "One-click is still safe for this client-facing touch because it only creates a Front Office reminder. It does not change the linked Back Office checklist, deadline, milestone, or formal status for you.";
   }
 
   return {
@@ -775,46 +782,51 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
       latestClientAction.actionTitle,
       "the last AI-created follow-up",
     );
+    const outcomeLabel = formatFrontOfficeAiOutcomeLabelForSentence(
+      latestClientAction.outcome.label,
+    );
 
     suppressDirectFollowUpCreation = true;
     primaryActionReasonOverride =
-      latestClientAction.outcome.stalled || latestClientAction.outcome.requiresReview
-        ? `The primary action is review, not creation, because Acre already turned this suggestion into ${actionReference}${latestAcceptedSuffix} and that task still needs agent review.`
-        : `The primary action is review, not creation, because Acre already turned this suggestion into ${actionReference}${latestAcceptedSuffix} and that live task is still on the queue.`;
+      latestClientAction.outcome.stalled ||
+      latestClientAction.outcome.requiresReview
+        ? `Acre recommends review, not new creation, because it already turned this suggestion into ${actionReference}${latestAcceptedSuffix}, and that accepted action is currently marked ${outcomeLabel}. Resolve or replace the live task before adding another reminder.`
+        : `Acre recommends review of the existing follow-up because it already turned this suggestion into ${actionReference}${latestAcceptedSuffix}, and that accepted action is still marked ${outcomeLabel}.`;
     oneClickReasonOverride =
-      latestClientAction.outcome.stalled || latestClientAction.outcome.requiresReview
-        ? `One-click follow-up is paused because Acre already created ${actionReference}${latestAcceptedSuffix} and it still needs review. Resolve that task before adding another AI-created follow-up.`
-        : `One-click follow-up is paused because Acre already created ${actionReference}${latestAcceptedSuffix} and it is still active. Acre keeps duplicate follow-up creation behind that live task.`;
+      latestClientAction.outcome.stalled ||
+      latestClientAction.outcome.requiresReview
+        ? `One-click is paused because Acre already created ${actionReference}${latestAcceptedSuffix}, and that accepted action is currently marked ${outcomeLabel}. Review or resolve it before creating another AI follow-up.`
+        : `One-click is paused because Acre already created ${actionReference}${latestAcceptedSuffix}, and that accepted action is still marked ${outcomeLabel}. Acre keeps duplicate follow-up creation behind the live task.`;
 
     if (latestClientAction.outcome.stalled) {
       priorityAdjustment -= 2;
       historySignals.push(
-        `Escalation · ${actionReference}${latestAcceptedSuffix} is overdue, so Acre promotes review before any new duplicate follow-up.`,
+        `Accepted outcome · ${actionReference}${latestAcceptedSuffix} is currently marked ${outcomeLabel}, so Acre promotes review ahead of any duplicate follow-up.`,
       );
     } else if (latestClientAction.outcome.requiresReview) {
       priorityAdjustment -= 1;
       historySignals.push(
-        `Review guard · ${actionReference}${latestAcceptedSuffix} can no longer be confirmed from history, so Acre pauses duplicate one-click creation until you review it.`,
+        `Accepted outcome · ${actionReference}${latestAcceptedSuffix} is currently marked ${outcomeLabel}, so Acre pauses duplicate one-click creation until you review the live record.`,
       );
     } else {
       priorityAdjustment += 2;
       historySignals.push(
-        `Guardrail · ${actionReference}${latestAcceptedSuffix} is already active, so Acre keeps stronger unresolved work ahead of a duplicate follow-up.`,
+        `Accepted outcome · ${actionReference}${latestAcceptedSuffix} is still marked ${outcomeLabel}, so Acre keeps unresolved accepted work ahead of a duplicate reminder.`,
       );
     }
   } else if (latestClientAction?.outcome.stalled) {
     priorityAdjustment -= 2;
     historySignals.push(
       latestClientAction.actionType === "tracked_send_created"
-        ? `Escalation · the last accepted tracked send of this kind is still unopened${latestAcceptedSuffix}, so Acre promotes a rescue-style review now`
-        : `Escalation · the last accepted action of this kind is still stalled${latestAcceptedSuffix} and needs review`,
+        ? `Accepted outcome · the last accepted tracked send of this kind is still marked ${formatFrontOfficeAiOutcomeLabelForSentence(latestClientAction.outcome.label)}${latestAcceptedSuffix}, so Acre promotes rescue review while the signal is still recoverable`
+        : `Accepted outcome · the last accepted action of this kind is still marked ${formatFrontOfficeAiOutcomeLabelForSentence(latestClientAction.outcome.label)}${latestAcceptedSuffix}, so Acre promotes review before treating this pattern as reliable`,
     );
   } else if (latestClientAction?.outcome.positive) {
     priorityAdjustment -= 1;
     historySignals.push(
       latestClientAction.actionType === "follow_up_created"
-        ? `Momentum · the last accepted follow-up of this kind was completed cleanly${latestAcceptedSuffix}, so Acre trusts this play more than an unproven path`
-        : `Momentum · the last accepted tracked send of this kind produced a tracked open${latestAcceptedSuffix}, so Acre trusts this play more than an unproven path`,
+        ? `Accepted outcome · the last accepted follow-up of this kind is currently marked ${formatFrontOfficeAiOutcomeLabelForSentence(latestClientAction.outcome.label)}${latestAcceptedSuffix}, so Acre gives this play a modest lift over an unproven path`
+        : `Accepted outcome · the last accepted tracked send of this kind is currently marked ${formatFrontOfficeAiOutcomeLabelForSentence(latestClientAction.outcome.label)}${latestAcceptedSuffix}, so Acre gives this play a modest lift over an unproven path`,
     );
   }
 
@@ -826,8 +838,8 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
       priorityAdjustment -= 1;
       historySignals.push(
         kindStats.positiveCount >= 2
-          ? `Outcome signal · similar suggestions of this kind produced ${kindStats.positiveCount} positive outcomes versus ${kindStats.stalledCount} stalls in accepted history, so Acre lets the more reliable pattern rise`
-          : "Outcome signal · this suggestion kind recently produced a positive outcome without adding more stalls, so Acre gives it a modest ranking lift",
+          ? `Accepted history · this suggestion kind produced ${kindStats.positiveCount} positive outcomes versus ${kindStats.stalledCount} stalls in accepted history, so Acre lets the more reliable pattern rise`
+          : "Accepted history · this suggestion kind recently produced a positive measured outcome without adding more stalls, so Acre gives it a modest ranking lift",
       );
     } else if (
       kindStats.acceptedCount >= 2 &&
@@ -835,7 +847,7 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
     ) {
       priorityAdjustment += 1;
       historySignals.push(
-        `Outcome signal · similar suggestions of this kind stalled ${kindStats.stalledCount} time(s) versus ${kindStats.positiveCount} positive outcomes, so Acre keeps stronger live-record signals ahead of this one`,
+        `Accepted history · this suggestion kind stalled ${kindStats.stalledCount} time(s) versus ${kindStats.positiveCount} positive outcomes, so Acre keeps stronger live-record signals ahead of this one`,
       );
     }
   }
@@ -849,12 +861,12 @@ export function buildFrontOfficeAiSuggestionInsight(input: {
   };
 }
 
-export function rankFrontOfficeAiQueueHistoryCandidates<T extends FrontOfficeAiQueueHistoryCandidate>(
-  input: {
-    candidates: T[];
-    historyIndex: FrontOfficeAiSuggestionHistoryIndex;
-  },
-): Array<
+export function rankFrontOfficeAiQueueHistoryCandidates<
+  T extends FrontOfficeAiQueueHistoryCandidate,
+>(input: {
+  candidates: T[];
+  historyIndex: FrontOfficeAiSuggestionHistoryIndex;
+}): Array<
   Omit<
     T,
     | "basePriority"
@@ -881,12 +893,11 @@ export function rankFrontOfficeAiQueueHistoryCandidates<T extends FrontOfficeAiQ
 
       return {
         ...candidate,
-        whyNowSignals:
-          candidate.whyNowSignals?.length
-            ? candidate.whyNowSignals
-            : candidate.helperLabel
-              ? [candidate.helperLabel]
-              : [],
+        whyNowSignals: candidate.whyNowSignals?.length
+          ? candidate.whyNowSignals
+          : candidate.helperLabel
+            ? [candidate.helperLabel]
+            : [],
         rankingSignals: insight.historySignals,
         allowsDirectFollowUpCreation:
           candidate.defaultAllowsDirectFollowUpCreation !== false &&
@@ -896,13 +907,13 @@ export function rankFrontOfficeAiQueueHistoryCandidates<T extends FrontOfficeAiQ
         oneClickReasonOverride: insight.oneClickReasonOverride,
         primaryActionLabel: insight.suppressDirectFollowUpCreation
           ? "Review existing follow-up"
-          : candidate.primaryActionLabel ?? "Open AI dossier",
+          : (candidate.primaryActionLabel ?? "Open AI dossier"),
         primaryActionHref: insight.suppressDirectFollowUpCreation
           ? `/agent/clients/${candidate.clientId}#front-office-follow-up-form`
-          : candidate.primaryActionHref ?? candidate.openDossierHref,
+          : (candidate.primaryActionHref ?? candidate.openDossierHref),
         primaryActionOpensInNewTab: insight.suppressDirectFollowUpCreation
           ? false
-          : candidate.primaryActionOpensInNewTab ?? false,
+          : (candidate.primaryActionOpensInNewTab ?? false),
         priority: candidate.basePriority + insight.priorityAdjustment,
       };
     })
