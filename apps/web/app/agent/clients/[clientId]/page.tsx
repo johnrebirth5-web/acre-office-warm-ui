@@ -99,6 +99,9 @@ export default async function AgentClientDetailPage(
     ) ?? currentRailItem;
   const railSectionHref = `#${frontOfficeClientDossierSectionIds.nextStepRail}`;
   const backOfficeContextHref = `#${frontOfficeClientDossierSectionIds.backOfficeContext}`;
+  const overviewSectionHref = "#front-office-client-overview";
+  const timelineSectionHref = "#front-office-client-execution-timeline";
+  const leaseReminderSectionHref = "#front-office-client-lease-reminder";
   const primaryHandoffAction = primaryHandoff
     ? {
         href: primaryHandoff.href,
@@ -111,6 +114,72 @@ export default async function AgentClientDetailPage(
         href: backOfficeContextHref,
         label: "Review handoff rules",
       };
+  const executionTimelineItems = [
+    ...snapshot.stageHistory.map((entry) => ({
+      id: `stage-${entry.id}`,
+      title: entry.title,
+      badgeLabel: "Stage",
+      badgeTone: entry.tone,
+      context: entry.actorLabel,
+      description:
+        entry.noteLabel || "Stage updated in the Front Office dossier.",
+      metaLabel: entry.changedAtLabel,
+      sortAt: entry.changedAtValue,
+      actionHref: overviewSectionHref,
+      actionLabel: "Review overview",
+      opensInNewTab: false,
+    })),
+    ...snapshot.appointments.map((appointment) => ({
+      id: `appointment-${appointment.id}`,
+      title: appointment.title,
+      badgeLabel: "Appointment",
+      badgeTone: appointment.statusTone,
+      context: `${appointment.statusLabel} · ${appointment.externalStatusLabel}`,
+      description: `${appointment.startsAtLabel} · ${appointment.locationLabel}`,
+      metaLabel: appointment.contextLabel,
+      sortAt: appointment.startsAtValue,
+      actionHref: `/agent/calendar?clientId=${snapshot.id}`,
+      actionLabel: "Open calendar",
+      opensInNewTab: false,
+    })),
+    ...snapshot.sendRecords.map((record) => ({
+      id: `send-${record.id}`,
+      title: record.title,
+      badgeLabel: "Send",
+      badgeTone: record.engagementTone,
+      context: `${record.channelLabel} · ${record.engagementLabel}`,
+      description: [`Sent ${record.sentAtLabel}`, record.stageLabel, record.appointmentLabel]
+        .filter(Boolean)
+        .join(" · "),
+      metaLabel: record.lastActivityLabel,
+      sortAt: record.sentAtValue,
+      actionHref: record.href,
+      actionLabel: "Open listing output",
+      opensInNewTab: false,
+    })),
+    ...snapshot.handoffs.map((handoff) => ({
+      id: `handoff-${handoff.id}`,
+      title: handoff.stageLabel,
+      badgeLabel: "BO boundary",
+      badgeTone: handoff.tone,
+      context: handoff.statusLabel,
+      description: handoff.summary,
+      metaLabel: handoff.updatedAtLabel,
+      sortAt: handoff.updatedAtValue,
+      actionHref: handoff.href,
+      actionLabel:
+        handoff.statusLabel === "Committed"
+          ? "Open transaction"
+          : "Open create flow",
+      opensInNewTab: false,
+    })),
+  ]
+    .filter((item) => item.sortAt)
+    .sort(
+      (left, right) =>
+        new Date(right.sortAt).getTime() - new Date(left.sortAt).getTime(),
+    )
+    .slice(0, 12);
 
   function buildRailItemActions(
     item: typeof currentRailItem,
@@ -136,25 +205,74 @@ export default async function AgentClientDetailPage(
         <>
           <SectionCard
             actions={
-              <a
-                className="office-button-secondary"
-                href={`/api/agent/clients/${snapshot.id}/pdf`}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Download client PDF
-              </a>
+              <FrontOfficeClientActionGroup
+                actions={[
+                  {
+                    href: "#front-office-follow-up-form",
+                    label: snapshot.summary.openTaskCount
+                      ? "Review follow-up queue"
+                      : "Create follow-up",
+                  },
+                  {
+                    href: timelineSectionHref,
+                    label: "Review timeline",
+                  },
+                  {
+                    href: `/api/agent/clients/${snapshot.id}/pdf`,
+                    label: "Download client PDF",
+                    opensInNewTab: true,
+                  },
+                ]}
+              />
             }
             className="office-list-card"
+            id="front-office-client-overview"
             subtitle="Core FO context stays readable here so the next call, showing, or handoff does not require opening a full admin form."
             title="Overview"
           >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="current workflow pressure driving the active dossier"
+                label="Workflow pressure"
+                tone="accent"
+                value={snapshot.workflow.pressureLabel}
+              />
+              <StatCard
+                hint="the current next-touch cue this dossier is surfacing"
+                label="Follow-up cue"
+                tone="accent"
+                value={snapshot.followUpCue.label}
+              />
+              <StatCard
+                hint="renewal or remarketing timing currently attached to this client"
+                label="Lease reminder"
+                tone={
+                  snapshot.leaseReminder.needsAttention ? "accent" : "default"
+                }
+                value={snapshot.leaseReminder.statusLabel}
+              />
+              <StatCard
+                hint="where the record sits across FO execution and BO formal work"
+                label="FO / BO boundary"
+                tone="accent"
+                value={snapshot.nextStepRail.decisionLabel}
+              />
+            </ListPageStatsGrid>
+
             <ListPageStatsGrid>
               <StatCard
                 hint="open or in-progress follow-up tasks"
                 label="Open follow-up"
                 tone="accent"
                 value={snapshot.summary.openTaskCount}
+              />
+              <StatCard
+                hint="tasks that already need action or re-dating"
+                label="Overdue follow-up"
+                tone={
+                  snapshot.summary.overdueTaskCount > 0 ? "accent" : "default"
+                }
+                value={snapshot.summary.overdueTaskCount}
               />
               <StatCard
                 hint="scheduled appointments from now forward"
@@ -174,7 +292,68 @@ export default async function AgentClientDetailPage(
               />
             </ListPageStatsGrid>
 
+            <FrontOfficeClientGuidanceQueue
+              items={[
+                {
+                  key: "workflow",
+                  label: snapshot.workflow.pressureLabel,
+                  tone: snapshot.workflow.pressureTone,
+                  title: snapshot.workflow.nextStepTitle,
+                  description: snapshot.workflow.nextStepDescription,
+                  context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
+                  meta: <span>{snapshot.workflow.pressureDescription}</span>,
+                  actions: [
+                    {
+                      href: snapshot.workflow.actionHref,
+                      label: snapshot.workflow.actionLabel,
+                    },
+                  ],
+                },
+                {
+                  key: "next-touch",
+                  label: snapshot.followUpCue.label,
+                  tone: snapshot.followUpCue.tone,
+                  title: "The next touch is the live execution anchor",
+                  description: snapshot.followUpCue.description,
+                  context: snapshot.followUpCue.dueLabel,
+                  meta: <span>{snapshot.nextTouchLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.followUpCue.action.href,
+                      label: snapshot.followUpCue.action.label,
+                      opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
+                    },
+                  ],
+                },
+                {
+                  key: "boundary",
+                  label: snapshot.nextStepRail.decisionLabel,
+                  tone: snapshot.nextStepRail.decisionTone,
+                  title: snapshot.nextStepRail.decisionTitle,
+                  description: snapshot.nextStepRail.decisionDescription,
+                  meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
+                },
+              ]}
+            />
+
             <div className="office-detail-grid">
+              <div className="office-detail-field">
+                <span>Current focus</span>
+                <strong>{currentRailItem.title}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Next touch</span>
+                <strong>{snapshot.followUpCue.dueLabel}</strong>
+              </div>
+              <div className="office-detail-field">
+                <span>Formal lane</span>
+                <strong>
+                  {primaryHandoff
+                    ? `${primaryHandoff.stageLabel} · ${primaryHandoff.statusLabel}`
+                    : "Front Office only for now"}
+                </strong>
+              </div>
               <div className="office-detail-field">
                 <span>Source</span>
                 <strong>{snapshot.sourceLabel}</strong>
@@ -198,10 +377,6 @@ export default async function AgentClientDetailPage(
               <div className="office-detail-field">
                 <span>Last touch</span>
                 <strong>{snapshot.lastTouchLabel}</strong>
-              </div>
-              <div className="office-detail-field">
-                <span>Next touch</span>
-                <strong>{snapshot.nextTouchLabel}</strong>
               </div>
               <div className="office-detail-field">
                 <span>Lease end</span>
@@ -228,6 +403,7 @@ export default async function AgentClientDetailPage(
 
           <SectionCard
             className="office-list-card"
+            id="front-office-client-lease-reminder"
             subtitle="Lease renewal and remarketing dates should live beside the live client dossier, not inside a separate spreadsheet."
             title="Lease-date reminder"
           >
@@ -235,25 +411,53 @@ export default async function AgentClientDetailPage(
           </SectionCard>
 
           <SectionCard
+            actions={
+              <FrontOfficeClientActionGroup
+                actions={[
+                  {
+                    href: "#front-office-follow-up-form",
+                    label: "Create follow-up",
+                  },
+                  {
+                    href: backOfficeContextHref,
+                    label: "Review BO boundary",
+                  },
+                ]}
+              />
+            }
             className="office-list-card"
-            subtitle="Stage changes are now durable FO records instead of hidden CRM mutations."
-            title="Stage timeline"
+            id="front-office-client-execution-timeline"
+            subtitle="Read the latest stage moves, sends, appointments, and handoff moments in one place so the dossier feels like a live execution workspace instead of a static profile."
+            title="Execution timeline"
           >
             <div className="office-queue-list">
-              {snapshot.stageHistory.length ? (
-                snapshot.stageHistory.map((entry) => (
+              {executionTimelineItems.length ? (
+                executionTimelineItems.map((item) => (
                   <QueueItem
-                    badgeLabel={entry.changedAtLabel}
-                    badgeTone={entry.tone}
-                    description={entry.description}
-                    key={entry.id}
-                    title={entry.title}
+                    action={
+                      <FrontOfficeClientActionGroup
+                        actions={[
+                          {
+                            href: item.actionHref,
+                            label: item.actionLabel,
+                            opensInNewTab: item.opensInNewTab,
+                          },
+                        ]}
+                      />
+                    }
+                    badgeLabel={item.badgeLabel}
+                    badgeTone={item.badgeTone}
+                    context={item.context}
+                    description={item.description}
+                    key={item.id}
+                    meta={<span>{item.metaLabel}</span>}
+                    title={item.title}
                   />
                 ))
               ) : (
                 <EmptyState
-                  description="Stage changes will appear here as this client moves through Front Office."
-                  title="No stage history yet"
+                  description="Stage moves, sends, appointments, and BO handoff events will appear here as this dossier keeps moving."
+                  title="No execution timeline yet"
                 />
               )}
             </div>
@@ -1102,6 +1306,26 @@ export default async function AgentClientDetailPage(
                   actions: buildRailItemActions(currentRailItem),
                 },
                 {
+                  key: "follow-up-cue",
+                  label: snapshot.followUpCue.label,
+                  tone: snapshot.followUpCue.tone,
+                  title: "Follow-up stays at the center of the rail",
+                  context: snapshot.followUpCue.dueLabel,
+                  description: snapshot.followUpCue.description,
+                  meta: <span>{snapshot.nextTouchLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.followUpCue.action.href,
+                      label: snapshot.followUpCue.action.label,
+                      opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
+                    },
+                    {
+                      href: leaseReminderSectionHref,
+                      label: "Lease reminder",
+                    },
+                  ],
+                },
+                {
                   key: "bo-status",
                   label: primaryHandoff
                     ? primaryHandoff.statusLabel
@@ -1157,6 +1381,25 @@ export default async function AgentClientDetailPage(
                 />
               ))}
               <QueueItem
+                action={
+                  <FrontOfficeClientActionGroup
+                    actions={[
+                      {
+                        href: snapshot.followUpCue.action.href,
+                        label: snapshot.followUpCue.action.label,
+                        opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
+                      },
+                    ]}
+                  />
+                }
+                badgeLabel={snapshot.followUpCue.label}
+                badgeTone={snapshot.followUpCue.tone}
+                context={snapshot.followUpCue.dueLabel}
+                description={snapshot.followUpCue.description}
+                meta={<span>{snapshot.nextTouchLabel}</span>}
+                title="Follow-up cue"
+              />
+              <QueueItem
                 badgeLabel={snapshot.workflow.pressureLabel}
                 badgeTone={snapshot.workflow.pressureTone}
                 description={snapshot.workflow.pressureDescription}
@@ -1191,10 +1434,11 @@ export default async function AgentClientDetailPage(
                 badgeLabel="Contact"
                 badgeTone="neutral"
                 description={
-                  snapshot.phone
-                    ? `Phone on record: ${snapshot.phone}`
-                    : "No direct phone on record yet."
+                  [snapshot.phone ? `Phone: ${snapshot.phone}` : "", snapshot.email ? `Email: ${snapshot.email}` : ""]
+                    .filter(Boolean)
+                    .join(" · ") || "No direct contact info on record yet."
                 }
+                meta={<span>{snapshot.lastTouchLabel}</span>}
                 title="Use the latest contact info"
               />
             </div>
@@ -1206,6 +1450,21 @@ export default async function AgentClientDetailPage(
             subtitle="Once formal transaction work starts, Front Office should point into the shared BO record instead of duplicating it."
             title="Back Office context"
           >
+            <FrontOfficeClientGuidanceQueue
+              items={[
+                {
+                  key: "boundary",
+                  label: snapshot.nextStepRail.decisionLabel,
+                  tone: snapshot.nextStepRail.decisionTone,
+                  title: "Front Office stays execution-first; Back Office stays formal",
+                  description:
+                    "Use this rail to see when the client is still in FO follow-up versus when the next step needs a formal, auditable BO record.",
+                  meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
+                },
+              ]}
+            />
+
             <div className="office-queue-list">
               {snapshot.handoffs.length ? (
                 snapshot.handoffs.map((handoff) => (
@@ -1285,6 +1544,11 @@ export default async function AgentClientDetailPage(
           <SummaryChip
             label="Pressure"
             value={snapshot.workflow.pressureLabel}
+          />
+          <SummaryChip
+            label="Follow-up cue"
+            tone="accent"
+            value={snapshot.followUpCue.label}
           />
           <SummaryChip
             label="Lease reminder"

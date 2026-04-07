@@ -5,6 +5,19 @@ export type FrontOfficeListingsRouteMode =
   | "client-linked"
   | "appointment-linked";
 
+export type FrontOfficeListingsDraftAssistSource = "ai";
+
+export type FrontOfficeListingsDraftAssist = {
+  channel: "sms" | "email";
+  title: string;
+  subjectLine: string;
+  body: string;
+  suggestionKind: string | null;
+  suggestionLabel: string | null;
+  sourceKey: FrontOfficeListingsDraftAssistSource | null;
+  sourceLabel: string | null;
+};
+
 export type FrontOfficeListingsRouteDiagnostic = {
   id: "client" | "appointment" | "draft";
   badgeLabel: string;
@@ -26,7 +39,22 @@ export type FrontOfficeListingsRouteState = {
   modeLabel: string;
   modeDescription: string;
   modeContextLabel: string;
+  routeStatusLabel: string;
+  routeStatusDescription: string;
   draftStatusLabel: string;
+};
+
+export type FrontOfficeListingsSearchParams = Record<
+  string,
+  string | string[] | undefined
+>;
+
+export type FrontOfficeListingsSearchState = {
+  requestedClientId: string | null;
+  requestedAppointmentId: string | null;
+  requestedDraftChannel: "sms" | "email" | null;
+  hasDraftAssistParams: boolean;
+  draftAssist: FrontOfficeListingsDraftAssist | null;
 };
 
 type BuildFrontOfficeListingsRouteStateInput = {
@@ -34,7 +62,7 @@ type BuildFrontOfficeListingsRouteStateInput = {
   requestedClientId: string | null;
   requestedAppointmentId: string | null;
   requestedDraftChannel: "sms" | "email" | null;
-  hasDraftAssist: boolean;
+  draftAssist: FrontOfficeListingsDraftAssist | null;
   hasDraftAssistParams: boolean;
 };
 
@@ -44,6 +72,83 @@ export function readSearchParamValue(value: string | string[] | undefined) {
   }
 
   return value;
+}
+
+function readNormalizedSearchParamValue(value: string | string[] | undefined) {
+  const normalized = readSearchParamValue(value)?.trim();
+
+  return normalized && normalized.length ? normalized : null;
+}
+
+function buildDraftAssistSourceLabel(
+  sourceKey: FrontOfficeListingsDraftAssistSource | null,
+) {
+  if (sourceKey === "ai") {
+    return "AI draft assist is loaded below. Copying the matching send lane still keeps the action manual and appends a tracked private listing link.";
+  }
+
+  return null;
+}
+
+export function parseFrontOfficeListingsSearchParams(
+  searchParams: FrontOfficeListingsSearchParams,
+): FrontOfficeListingsSearchState {
+  const draftKeys = [
+    "draftChannel",
+    "draftBody",
+    "draftSubject",
+    "draftTitle",
+    "draftSource",
+    "draftSuggestionKind",
+    "draftSuggestionLabel",
+  ] as const;
+  const hasDraftAssistParams = draftKeys.some(
+    (key) => key in searchParams && readSearchParamValue(searchParams[key]),
+  );
+  const requestedDraftChannelValue =
+    readNormalizedSearchParamValue(searchParams.draftChannel)?.toLowerCase() ??
+    null;
+  const requestedDraftChannel: "sms" | "email" | null =
+    requestedDraftChannelValue === "sms" ||
+    requestedDraftChannelValue === "email"
+      ? requestedDraftChannelValue
+      : null;
+  const draftBody = readNormalizedSearchParamValue(searchParams.draftBody);
+  const draftSourceValue =
+    readNormalizedSearchParamValue(searchParams.draftSource)?.toLowerCase() ??
+    null;
+  const draftSourceKey: FrontOfficeListingsDraftAssistSource | null =
+    draftSourceValue === "ai" ? "ai" : null;
+  const draftAssist =
+    requestedDraftChannel && draftBody
+      ? {
+          channel: requestedDraftChannel,
+          title:
+            readNormalizedSearchParamValue(searchParams.draftTitle) ||
+            "Outbound draft assist",
+          subjectLine:
+            requestedDraftChannel === "email"
+              ? readNormalizedSearchParamValue(searchParams.draftSubject) || ""
+              : "",
+          body: draftBody,
+          suggestionKind:
+            readNormalizedSearchParamValue(searchParams.draftSuggestionKind),
+          suggestionLabel:
+            readNormalizedSearchParamValue(searchParams.draftSuggestionLabel),
+          sourceKey: draftSourceKey,
+          sourceLabel: buildDraftAssistSourceLabel(draftSourceKey),
+        }
+      : null;
+
+  return {
+    requestedClientId: readNormalizedSearchParamValue(searchParams.clientId),
+    requestedAppointmentId: readNormalizedSearchParamValue(
+      searchParams.appointmentId,
+    ),
+    requestedDraftChannel,
+    hasDraftAssistParams,
+    draftAssist,
+  };
 }
 
 export function buildAgentListingsHref(input: {
@@ -84,18 +189,18 @@ export function buildFrontOfficeListingsRouteState(
   let mode: FrontOfficeListingsRouteMode = "tracked-link";
   let modeLabel = "Tracked link";
   let modeDescription =
-    "Private tracked links still work here, but nothing writes back to a client trail until you reopen the page from a dossier or appointment.";
+    "Private tracked links still work here, but Acre only copies manual outbound content here. Nothing writes back to a client trail until you reopen the page from a dossier or appointment.";
   let modeContextLabel = "Generic output terminal";
 
   if (input.snapshot.targetAppointment && input.snapshot.targetClient) {
     mode = "appointment-linked";
     modeLabel = "Appointment-linked";
-    modeDescription = `Sends from this route stay attached to ${input.snapshot.targetClient.fullName} and the selected appointment, so the next follow-up does not lose the meeting context.`;
+    modeDescription = `Manual sends from this route stay attached to ${input.snapshot.targetClient.fullName} and the selected appointment, so the next follow-up does not lose the meeting context.`;
     modeContextLabel = `${input.snapshot.targetAppointment.typeLabel} follow-up`;
   } else if (input.snapshot.targetClient) {
     mode = "client-linked";
     modeLabel = "Client-linked";
-    modeDescription = `Sends from this route write back into ${input.snapshot.targetClient.fullName}'s dossier, including the current client stage and send trail.`;
+    modeDescription = `Manual sends from this route write back into ${input.snapshot.targetClient.fullName}'s dossier, including the current client stage and send trail.`;
     modeContextLabel = `${input.snapshot.targetClient.stage} stage`;
   }
 
@@ -110,10 +215,10 @@ export function buildFrontOfficeListingsRouteState(
           : "Requested client context did not load",
       description:
         mode === "appointment-linked"
-          ? "The URL asked for a different or unavailable client, so Acre kept the appointment-linked client that could still write back safely."
+          ? "The incoming URL asked for a different or unavailable client, so Acre kept the appointment-linked client that could still write back safely."
           : mode === "client-linked"
-            ? "The URL did not resolve the requested client exactly, so the page stayed on the currently available client-linked context."
-            : "The URL requested a client context that is no longer available here, so the page fell back to tracked-link mode.",
+            ? "The incoming URL did not resolve the requested client exactly, so the page stayed on the currently available client-linked context."
+            : "The incoming URL requested a client context that is no longer available here, so the page fell back to tracked-link mode.",
     });
   }
 
@@ -128,22 +233,33 @@ export function buildFrontOfficeListingsRouteState(
           : "Appointment writeback is not attached",
       description:
         mode === "client-linked"
-          ? "The requested appointment could not be attached to this recipient, so sends will write back to the client trail only."
-          : "The requested appointment did not resolve into the current send context, so the page is not carrying appointment writeback right now.",
+          ? "The incoming appointment could not be attached to this recipient, so sends will write back to the client trail only."
+          : "The incoming appointment did not resolve into the current send context, so the page is not carrying appointment writeback right now.",
     });
   }
 
-  if (input.hasDraftAssistParams && !input.hasDraftAssist) {
+  if (input.hasDraftAssistParams && !input.draftAssist) {
     diagnostics.push({
       id: "draft",
       badgeLabel: "Draft URL",
       badgeTone: "accent",
       title: "Draft assist did not load",
       description: input.requestedDraftChannel
-        ? `The URL carried ${input.requestedDraftChannel.toUpperCase()} draft parameters, but the body or required context was incomplete, so Acre stayed on the standard copy templates.`
-        : "The URL carried draft-related parameters, but not enough valid data to open assisted copy, so Acre stayed on the standard templates.",
+        ? `The URL carried ${input.requestedDraftChannel.toUpperCase()} draft parameters, but the body or required context was incomplete, so Acre stayed on the standard manual templates.`
+        : "The URL carried draft-related parameters, but not enough valid data to open assisted copy, so Acre stayed on the standard manual templates.",
     });
   }
+
+  const routeStatusLabel = diagnostics.length
+    ? "Adjusted route"
+    : input.draftAssist
+      ? "Deep-linked draft"
+      : "Clean route";
+  const routeStatusDescription = diagnostics.length
+    ? "Acre trimmed or replaced part of the incoming URL so the workspace could stay on a safe manual-send path."
+    : input.draftAssist
+      ? "A valid draft assist is loaded on top of the current send context, and the send remains fully manual."
+      : "The route is carrying only the current send context, with no extra draft or stale deep-link baggage.";
 
   return {
     cleanHref: "/agent/listings",
@@ -151,15 +267,19 @@ export function buildFrontOfficeListingsRouteState(
     requestedClientId: input.requestedClientId,
     requestedAppointmentId: input.requestedAppointmentId,
     requestedDraftChannel: input.requestedDraftChannel,
-    hasDraftAssist: input.hasDraftAssist,
+    hasDraftAssist: Boolean(input.draftAssist),
     hasDraftAssistParams: input.hasDraftAssistParams,
     diagnostics,
     mode,
     modeLabel,
     modeDescription,
     modeContextLabel,
-    draftStatusLabel: input.hasDraftAssist
-      ? "AI draft loaded"
+    routeStatusLabel,
+    routeStatusDescription,
+    draftStatusLabel: input.draftAssist
+      ? input.draftAssist.sourceKey === "ai"
+        ? "AI draft loaded"
+        : "Draft loaded"
       : input.hasDraftAssistParams
         ? "Draft adjusted"
         : "Manual templates",

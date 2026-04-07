@@ -51,12 +51,43 @@ type AppointmentExternalLinkInput = {
   timeZone?: string | null;
 };
 
+const emailAddressPattern =
+  /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i;
+
 function normalizeBridgeText(value: string | null | undefined) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }
 
 function isLikelyEmailAddress(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function extractFirstEmailAddress(value: string | null | undefined) {
+  const emailAddress = value?.match(emailAddressPattern)?.[1]?.trim() ?? "";
+  return isLikelyEmailAddress(emailAddress) ? emailAddress : "";
+}
+
+function stripEmailAddressFromContactLabel(value: string | null | undefined) {
+  return normalizeBridgeText(
+    (value ?? "")
+      .replace(emailAddressPattern, " ")
+      .replace(/[<>()[\],;|]+/g, " ")
+      .replace(/\s+·\s+/g, " ")
+      .replace(/\s+-\s+/g, " "),
+  );
+}
+
+export function extractFrontOfficeAppointmentEmailRecipient(input: {
+  clientEmail?: string | null;
+  contactLabel?: string | null;
+}) {
+  const clientEmail = normalizeBridgeText(input.clientEmail);
+
+  if (clientEmail && isLikelyEmailAddress(clientEmail)) {
+    return clientEmail;
+  }
+
+  return extractFirstEmailAddress(input.contactLabel) || null;
 }
 
 function resolveAppointmentEndAt(startsAt: Date, endsAt?: Date | null) {
@@ -107,6 +138,10 @@ function buildListingLabel(input: AppointmentExternalLinkInput) {
 }
 
 function buildCalendarDescription(input: AppointmentExternalLinkInput) {
+  const emailRecipient = extractFrontOfficeAppointmentEmailRecipient({
+    clientEmail: input.clientEmail,
+    contactLabel: input.contactLabel,
+  });
   const clientOrContact =
     normalizeBridgeText(input.clientName) ||
     normalizeBridgeText(input.contactLabel) ||
@@ -121,9 +156,7 @@ function buildCalendarDescription(input: AppointmentExternalLinkInput) {
       ? `Acre status: ${normalizeBridgeText(input.appointmentStatusLabel)}`
       : "",
     clientOrContact ? `Client / contact: ${clientOrContact}` : "",
-    normalizeBridgeText(input.clientEmail)
-      ? `Client email: ${normalizeBridgeText(input.clientEmail)}`
-      : "",
+    emailRecipient ? `Email target: ${emailRecipient}` : "",
     buildListingLabel(input) ? `Listing: ${buildListingLabel(input)}` : "",
     normalizeBridgeText(input.location)
       ? `Location: ${normalizeBridgeText(input.location)}`
@@ -196,16 +229,28 @@ export function formatFrontOfficeAppointmentBridgeActionLabel(
 }
 
 function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
-  const to = normalizeBridgeText(input.clientEmail);
+  const to = extractFrontOfficeAppointmentEmailRecipient({
+    clientEmail: input.clientEmail,
+    contactLabel: input.contactLabel,
+  });
 
-  if (!to || !isLikelyEmailAddress(to)) {
+  if (!to) {
     return null;
   }
 
   const appointmentTimeLabel = formatDateTimeLabel(input.startsAt, {
     timeZone: input.timeZone ?? null,
   });
-  const firstName = getFirstName(input.clientName);
+  const appointmentEndLabel = formatDateTimeLabel(
+    resolveAppointmentEndAt(input.startsAt, input.endsAt),
+    {
+      timeZone: input.timeZone ?? null,
+    },
+  );
+  const firstName = getFirstName(
+    normalizeBridgeText(input.clientName) ||
+      stripEmailAddressFromContactLabel(input.contactLabel),
+  );
   const listingLabel = buildListingLabel(input);
   const isRescheduleRequest =
     normalizeBridgeText(input.externalStatusLabel) === "Reschedule requested";
@@ -228,6 +273,7 @@ function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
         ? `Sharing the details for our confirmed ${appointmentTitle}.`
         : `I am sending the details for our ${appointmentTitle}. Please reply to confirm this time still works for you.`,
     `Date & time: ${appointmentTimeLabel}`,
+    `Expected end: ${appointmentEndLabel}`,
     location ? `Location: ${location}` : "",
     meetingUrl ? `Meeting link: ${meetingUrl}` : "",
     listingLabel ? `Listing context: ${listingLabel}` : "",

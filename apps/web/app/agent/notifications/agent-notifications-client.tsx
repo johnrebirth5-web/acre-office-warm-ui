@@ -58,6 +58,24 @@ type ActivityLaneCard = {
   href?: string;
 };
 
+type ActivityShortcut = {
+  key: string;
+  label: string;
+  count: number;
+  href: string;
+};
+
+type ActivityPrimaryAction = {
+  key: string;
+  label: string;
+  description: string;
+  href: string;
+  tone: ActivityLaneTone;
+  badgeLabel: string;
+  meta: string[];
+  ctaLabel: string;
+};
+
 type AgentNotificationsClientProps = {
   snapshot: FrontOfficeActivitySnapshot;
   initialActivityView: AgentActivityView;
@@ -178,6 +196,74 @@ function toneToBadgeTone(
   return "neutral";
 }
 
+function getLocalGeneralNoticePressureState(
+  card: FrontOfficeActivityNotificationRecord,
+  isUnread: boolean,
+): Pick<
+  FrontOfficeActivityNotificationRecord,
+  "pressureKey" | "pressureLabel" | "pressureTone" | "whyNowLabel"
+> {
+  if (card.groupKey !== "general_notice" || !card.readStateMutable) {
+    return {
+      pressureKey: card.pressureKey,
+      pressureLabel: card.pressureLabel,
+      pressureTone: card.pressureTone,
+      whyNowLabel: card.whyNowLabel,
+    };
+  }
+
+  if (isUnread) {
+    return {
+      pressureKey:
+        card.tone === "danger"
+          ? ("action_now" as const)
+          : card.tone === "warning"
+            ? ("needs_review" as const)
+            : ("new_notice" as const),
+      pressureLabel:
+        card.tone === "danger"
+          ? "Action now"
+          : card.tone === "warning"
+            ? "Needs review"
+            : "New notice",
+      pressureTone:
+        card.tone === "neutral"
+          ? ("accent" as const)
+          : card.tone,
+      whyNowLabel:
+        card.tone === "danger"
+          ? "This personal notice is still unread and is carrying active pressure."
+          : card.tone === "warning"
+            ? "This personal notice is still unread and should be reviewed in the current pass."
+            : "This personal notice has not been reviewed yet.",
+    };
+  }
+
+  return {
+    pressureKey: "reviewed" as const,
+    pressureLabel: "Reviewed",
+    pressureTone: "neutral" as const,
+    whyNowLabel:
+      "This notice was already reviewed, but it stays in the stream so the current filter slice remains stable.",
+  };
+}
+
+function getNotificationOpenLabel(card: FrontOfficeActivityNotificationRecord) {
+  if (!card.readStateMutable) {
+    return card.actionLabel === card.typeLabel ? "Review notice" : card.actionLabel;
+  }
+
+  if (card.isUnread && card.actionLabel === card.typeLabel) {
+    return "Open & mark read";
+  }
+
+  if (!card.isUnread && card.actionLabel === card.typeLabel) {
+    return "Open again";
+  }
+
+  return card.actionLabel;
+}
+
 function groupItemsByConfig<TItem, TKey extends string>(input: {
   items: TItem[];
   config: Array<{
@@ -209,6 +295,7 @@ export function AgentNotificationsClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isRouteTransitionPending, startRouteTransition] = useTransition();
+  const feedbackToken = searchParams.get("noticeFeedback");
   const rawActivityView = resolveOptionValue(
     searchParams.get("activityView"),
     activityViewOptions,
@@ -223,13 +310,14 @@ export function AgentNotificationsClient({
     cleanupFilterOptions,
     initialCleanupFilter,
   );
+  const rawNotificationFilter = resolveOptionValue(
+    searchParams.get("noticeFilter"),
+    notificationFilterOptions,
+    initialFilter,
+  );
   const activeFilter = normalizeNotificationFilterForActivityView(
     activeActivityView,
-    resolveOptionValue(
-      searchParams.get("noticeFilter"),
-      notificationFilterOptions,
-      initialFilter,
-    ),
+    rawNotificationFilter,
   );
   const activeNoticeStreamFilter = resolveOptionValue(
     searchParams.get("noticeStreamFilter"),
@@ -249,6 +337,9 @@ export function AgentNotificationsClient({
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<
     string[]
   >([]);
+  const [localNotifications, setLocalNotifications] = useState(
+    snapshot.notifications,
+  );
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
@@ -256,7 +347,7 @@ export function AgentNotificationsClient({
   const activeRouteSliceKey = [
     activeActivityView,
     activeCleanupFilter,
-    activeFilter,
+    rawNotificationFilter,
     activeNoticeStreamFilter,
     activeReadState,
     activeLeadershipFilter,
@@ -265,7 +356,7 @@ export function AgentNotificationsClient({
     pathname,
     activityView: activeActivityView,
     cleanupFilter: activeCleanupFilter,
-    filter: activeFilter,
+    filter: rawNotificationFilter,
     noticeStreamFilter: activeNoticeStreamFilter,
     readState: activeReadState,
     leadershipFilter: activeLeadershipFilter,
@@ -277,6 +368,21 @@ export function AgentNotificationsClient({
     setError("");
     setStatusMessage("");
   }, [activeRouteSliceKey]);
+
+  useEffect(() => {
+    setLocalNotifications(snapshot.notifications);
+  }, [snapshot.notifications]);
+
+  useEffect(() => {
+    if (feedbackToken !== "opened_from_center") {
+      return;
+    }
+
+    setError("");
+    setStatusMessage(
+      "Opened a notice from the activity center. Personal notices mark themselves read automatically when you open them.",
+    );
+  }, [feedbackToken]);
 
   useEffect(() => {
     const currentQuery = searchParams.toString();
@@ -302,15 +408,15 @@ export function AgentNotificationsClient({
     nextNoticeStreamFilter: AgentNotificationStreamFilter,
     nextReadState: AgentNotificationReadState,
     nextLeadershipFilter: AgentLeadershipCleanupFilter,
+    options?: {
+      anchor?: string;
+      scroll?: boolean;
+    },
   ) {
     const resolvedActivityView =
       !leadershipQueue.visible && nextActivityView === "team_cleanup"
         ? "all"
         : nextActivityView;
-    const resolvedFilter = normalizeNotificationFilterForActivityView(
-      resolvedActivityView,
-      nextFilter,
-    );
     setSelectedNotificationIds([]);
     setError("");
     setStatusMessage("");
@@ -320,12 +426,13 @@ export function AgentNotificationsClient({
           pathname,
           activityView: resolvedActivityView,
           cleanupFilter: nextCleanupFilter,
-          filter: resolvedFilter,
+          filter: nextFilter,
           noticeStreamFilter: nextNoticeStreamFilter,
           readState: nextReadState,
           leadershipFilter: nextLeadershipFilter,
+          anchor: options?.anchor,
         }),
-        { scroll: false },
+        { scroll: options?.scroll ?? false },
       );
     });
   }
@@ -337,7 +444,7 @@ export function AgentNotificationsClient({
     activeCleanupFilter === "all" || activeCleanupFilter === "duplicate_review"
       ? snapshot.cleanup.duplicatePairs
       : [];
-  const visibleNotificationCards = snapshot.notifications.filter(
+  const visibleNotificationCards = localNotifications.filter(
     (card) =>
       cardMatchesFilter(card, activeFilter) &&
       cardMatchesStreamFilter(card, activeNoticeStreamFilter) &&
@@ -387,36 +494,36 @@ export function AgentNotificationsClient({
   const sharedVisibleNotificationCount = visibleNotificationCards.filter(
     (card) => !card.readStateMutable,
   ).length;
-  const confirmationDueCount = snapshot.notifications.filter(
+  const confirmationDueCount = localNotifications.filter(
     (card) => card.groupKey === "confirmation_due",
   ).length;
-  const rescheduleDueCount = snapshot.notifications.filter(
+  const rescheduleDueCount = localNotifications.filter(
     (card) => card.groupKey === "reschedule_due",
   ).length;
-  const externalTouchDueCount = snapshot.notifications.filter(
+  const externalTouchDueCount = localNotifications.filter(
     (card) => card.groupKey === "external_touch_due",
   ).length;
-  const appointmentSoonNoticeCount = snapshot.notifications.filter(
+  const appointmentSoonNoticeCount = localNotifications.filter(
     (card) => card.groupKey === "appointment_soon",
   ).length;
   const personalCleanupCount =
     snapshot.cleanup.items.length + snapshot.cleanup.duplicatePairs.length;
-  const appointmentReminderCount = snapshot.notifications.filter(
+  const appointmentReminderCount = localNotifications.filter(
     (card) => card.groupKey !== "general_notice",
   ).length;
-  const generalNoticeCount = snapshot.notifications.filter(
+  const generalNoticeCount = localNotifications.filter(
     (card) => card.groupKey === "general_notice",
   ).length;
-  const unreadGeneralNoticeCount = snapshot.notifications.filter(
+  const unreadGeneralNoticeCount = localNotifications.filter(
     (card) =>
       card.groupKey === "general_notice" &&
       card.readStateMutable &&
       card.isUnread,
   ).length;
-  const sharedGeneralNoticeCount = snapshot.notifications.filter(
+  const sharedGeneralNoticeCount = localNotifications.filter(
     (card) => card.groupKey === "general_notice" && !card.readStateMutable,
   ).length;
-  const urgentAppointmentReminderCount = snapshot.notifications.filter(
+  const urgentAppointmentReminderCount = localNotifications.filter(
     (card) =>
       card.groupKey !== "general_notice" && card.pressureTone === "danger",
   ).length;
@@ -432,6 +539,9 @@ export function AgentNotificationsClient({
     activeActivityView === "all" ||
     activeActivityView === "appointment_reminders" ||
     activeActivityView === "general_notices";
+  const showNotificationTypeControl =
+    activeActivityView === "all" ||
+    activeActivityView === "appointment_reminders";
   const showTeamCleanupControls =
     leadershipQueue.visible &&
     (activeActivityView === "all" || activeActivityView === "team_cleanup");
@@ -451,9 +561,7 @@ export function AgentNotificationsClient({
   const notificationFilterFieldLabel =
     activeActivityView === "appointment_reminders"
       ? "Reminder type"
-      : activeActivityView === "general_notices"
-        ? "Notice type"
-        : "Notice filter";
+      : "Notice filter";
   const visibleNotificationFilterOptions = notificationFilterOptions.filter(
     (option) => {
       if (activeActivityView === "general_notices") {
@@ -480,14 +588,14 @@ export function AgentNotificationsClient({
     )?.label ?? "current leadership filter";
   const currentPassSummaryLabel =
     activeActivityView === "all"
-      ? "Scanning personal cleanup, team cleanup, appointment reminders, and general notices together."
+      ? "Working one inbox pass across personal cleanup, team pressure, appointment reminders, and broader notices."
       : activeActivityView === "personal_cleanup"
         ? "Focused on self-owned cleanup pressure only."
         : activeActivityView === "team_cleanup"
           ? `${leadershipQueue.scopeLabel || "Leadership scope"} only.`
           : activeActivityView === "appointment_reminders"
             ? "Focused on inbox-backed appointment writeback only."
-            : "Focused on non-calendar notice lanes only.";
+            : "Focused on broader notice follow-through without mixing in calendar pressure.";
   const currentFocusCount =
     activeActivityView === "all"
       ? filteredCleanupItems.length +
@@ -546,7 +654,7 @@ export function AgentNotificationsClient({
         pathname,
         activityView: "personal_cleanup",
         cleanupFilter: activeCleanupFilter,
-        filter: activeFilter,
+        filter: rawNotificationFilter,
         noticeStreamFilter: activeNoticeStreamFilter,
         readState: activeReadState,
         leadershipFilter: activeLeadershipFilter,
@@ -575,7 +683,7 @@ export function AgentNotificationsClient({
               pathname,
               activityView: "team_cleanup",
               cleanupFilter: activeCleanupFilter,
-              filter: activeFilter,
+              filter: rawNotificationFilter,
               noticeStreamFilter: activeNoticeStreamFilter,
               readState: activeReadState,
               leadershipFilter: activeLeadershipFilter,
@@ -604,7 +712,7 @@ export function AgentNotificationsClient({
         pathname,
         activityView: "appointment_reminders",
         cleanupFilter: activeCleanupFilter,
-        filter: activeFilter,
+        filter: rawNotificationFilter,
         noticeStreamFilter: activeNoticeStreamFilter,
         readState: activeReadState,
         leadershipFilter: activeLeadershipFilter,
@@ -633,7 +741,7 @@ export function AgentNotificationsClient({
         pathname,
         activityView: "general_notices",
         cleanupFilter: activeCleanupFilter,
-        filter: "general_notice",
+        filter: rawNotificationFilter,
         noticeStreamFilter: activeNoticeStreamFilter,
         readState: activeReadState,
         leadershipFilter: activeLeadershipFilter,
@@ -644,9 +752,9 @@ export function AgentNotificationsClient({
   const activityLaneTabs: ActivityLaneCard[] = [
     {
       key: "all" as const,
-      label: "Full activity center",
+      label: "Inbox overview",
       description:
-        "Keep personal cleanup, team pressure, appointment reminders, and general notices visible on one stable route.",
+        "Keep personal cleanup, team pressure, appointment reminders, and broader notices visible on one stable route.",
       count:
         personalCleanupCount +
         teamCleanupCount +
@@ -694,8 +802,17 @@ export function AgentNotificationsClient({
     ? `${selectedVisibleNotificationIds.length} personal notice(s) selected for bulk actions`
     : `${mutableVisibleNotificationIds.length} personal notice(s) in the current slice can change read state`;
   const bulkSelectionDetail = selectionActive
-    ? "Bulk actions apply only to the current selection until you clear it."
-    : "When nothing is selected, bulk read and unread actions apply to the full visible personal slice.";
+    ? "Bulk actions apply only to the current selection until you clear it. Opening one of those personal notices will still mark it read automatically."
+    : "When nothing is selected, bulk read and unread actions apply to the full visible personal slice. Opening any personal notice also marks it read automatically.";
+  const currentRouteHref = buildAgentNotificationsHref({
+    pathname,
+    activityView: activeActivityView,
+    cleanupFilter: activeCleanupFilter,
+    filter: rawNotificationFilter,
+    noticeStreamFilter: activeNoticeStreamFilter,
+    readState: activeReadState,
+    leadershipFilter: activeLeadershipFilter,
+  });
 
   function buildNotificationOpenHref(
     card: FrontOfficeActivityNotificationRecord,
@@ -704,18 +821,330 @@ export function AgentNotificationsClient({
       card.groupKey === "general_notice"
         ? "#notice-stream"
         : "#appointment-reminder-pressure";
-    const returnTo = `${buildAgentNotificationsHref({
-      pathname,
-      activityView: activeActivityView,
-      cleanupFilter: activeCleanupFilter,
-      filter: activeFilter,
-      noticeStreamFilter: activeNoticeStreamFilter,
-      readState: activeReadState,
-      leadershipFilter: activeLeadershipFilter,
-    })}${anchor}`;
+    const returnTo = `${currentRouteHref}${anchor}`;
 
     return `${card.href}?returnTo=${encodeURIComponent(returnTo)}`;
   }
+
+  function applyLocalNotificationReadState(
+    notificationIds: string[],
+    nextUnread: boolean,
+  ) {
+    if (!notificationIds.length) {
+      return;
+    }
+
+    const notificationIdSet = new Set(notificationIds);
+
+    setLocalNotifications((current) =>
+      current.map((card) => {
+        if (!notificationIdSet.has(card.id) || !card.readStateMutable) {
+          return card;
+        }
+
+        const nextPressure = getLocalGeneralNoticePressureState(
+          card,
+          nextUnread,
+        );
+
+        return {
+          ...card,
+          ...nextPressure,
+          isUnread: nextUnread,
+          readStateLabel: nextUnread ? "Unread" : "Read",
+        };
+      }),
+    );
+  }
+
+  const duplicateReviewHref = buildAgentNotificationsHref({
+    pathname,
+    activityView: "personal_cleanup",
+    cleanupFilter: "duplicate_review",
+    filter: rawNotificationFilter,
+    noticeStreamFilter: activeNoticeStreamFilter,
+    readState: activeReadState,
+    leadershipFilter: activeLeadershipFilter,
+    anchor: "#duplicate-review",
+  });
+  const nextPersonalCleanupItem = filteredCleanupItems[0] ?? null;
+  const nextTeamCleanupItem = filteredLeadershipItems[0] ?? null;
+  const nextAppointmentReminderCard =
+    appointmentReminderCards.find(
+      (card) => card.readStateMutable && card.isUnread,
+    ) ?? appointmentReminderCards[0] ?? null;
+  const nextGeneralNoticeCard =
+    generalNoticeCards.find((card) => card.readStateMutable && card.isUnread) ??
+    generalNoticeCards[0] ??
+    null;
+  const followUpShortcutCount = snapshot.cleanup.items.filter(
+    (item) => item.kindKey === "follow_up",
+  ).length;
+  const appointmentWritebackShortcutCount = snapshot.cleanup.items.filter(
+    (item) => item.kindKey === "appointment_writeback",
+  ).length;
+  const duplicateReviewShortcutCount = snapshot.cleanup.duplicatePairs.length;
+  const teamOverdueShortcutCount = leadershipQueue.visible
+    ? leadershipQueue.overdueTaskCount
+    : 0;
+  const confirmationShortcutCount = localNotifications.filter(
+    (card) =>
+      card.groupKey === "confirmation_due" &&
+      cardMatchesReadState(card, activeReadState),
+  ).length;
+  const backOfficeNoticeShortcutCount = localNotifications.filter(
+    (card) =>
+      card.groupKey === "general_notice" &&
+      card.streamKey === "back_office" &&
+      cardMatchesReadState(card, activeReadState),
+  ).length;
+  const quickFocusShortcuts: ActivityShortcut[] = [
+    {
+      key: "follow-up",
+      label: "Follow-up due",
+      count: followUpShortcutCount,
+      href: buildAgentNotificationsHref({
+        pathname,
+        activityView: "personal_cleanup",
+        cleanupFilter: "follow_up",
+        filter: rawNotificationFilter,
+        noticeStreamFilter: activeNoticeStreamFilter,
+        readState: activeReadState,
+        leadershipFilter: activeLeadershipFilter,
+        anchor: "#cleanup-center",
+      }),
+    },
+    {
+      key: "appointment-writeback",
+      label: "Appointment writeback",
+      count: appointmentWritebackShortcutCount,
+      href: buildAgentNotificationsHref({
+        pathname,
+        activityView: "personal_cleanup",
+        cleanupFilter: "appointment_writeback",
+        filter: rawNotificationFilter,
+        noticeStreamFilter: activeNoticeStreamFilter,
+        readState: activeReadState,
+        leadershipFilter: activeLeadershipFilter,
+        anchor: "#cleanup-center",
+      }),
+    },
+    {
+      key: "duplicate-review",
+      label: "Duplicate review",
+      count: duplicateReviewShortcutCount,
+      href: duplicateReviewHref,
+    },
+    ...(leadershipQueue.visible
+      ? [
+          {
+            key: "team-overdue",
+            label: "Team overdue tasks",
+            count: teamOverdueShortcutCount,
+            href: buildAgentNotificationsHref({
+              pathname,
+              activityView: "team_cleanup",
+              cleanupFilter: activeCleanupFilter,
+              filter: rawNotificationFilter,
+              noticeStreamFilter: activeNoticeStreamFilter,
+              readState: activeReadState,
+              leadershipFilter: "overdue_task",
+              anchor: "#team-cleanup-pressure",
+            }),
+          },
+        ]
+      : []),
+    {
+      key: "confirmation-due",
+      label: "Confirmation due",
+      count: confirmationShortcutCount,
+      href: buildAgentNotificationsHref({
+        pathname,
+        activityView: "appointment_reminders",
+        cleanupFilter: activeCleanupFilter,
+        filter: "confirmation_due",
+        noticeStreamFilter: activeNoticeStreamFilter,
+        readState: activeReadState,
+        leadershipFilter: activeLeadershipFilter,
+        anchor: "#appointment-reminder-pressure",
+      }),
+    },
+    {
+      key: "bo-handoff",
+      label: "BO handoff notices",
+      count: backOfficeNoticeShortcutCount,
+      href: buildAgentNotificationsHref({
+        pathname,
+        activityView: "general_notices",
+        cleanupFilter: activeCleanupFilter,
+        filter: rawNotificationFilter,
+        noticeStreamFilter: "back_office",
+        readState: activeReadState,
+        leadershipFilter: activeLeadershipFilter,
+        anchor: "#notice-stream",
+      }),
+    },
+  ].filter((shortcut) => shortcut.count > 0);
+  const primaryAction: ActivityPrimaryAction | null =
+    activeActivityView === "personal_cleanup"
+      ? nextPersonalCleanupItem
+        ? {
+            key: nextPersonalCleanupItem.id,
+            label: nextPersonalCleanupItem.title,
+            description: nextPersonalCleanupItem.description,
+            href: nextPersonalCleanupItem.href,
+            tone: nextPersonalCleanupItem.tone,
+            badgeLabel: nextPersonalCleanupItem.kindLabel,
+            meta: [
+              `Owner · ${nextPersonalCleanupItem.ownerLabel}`,
+              `Scope · ${nextPersonalCleanupItem.scopeLabel}`,
+              nextPersonalCleanupItem.sortLabel,
+            ],
+            ctaLabel: nextPersonalCleanupItem.actionLabel,
+          }
+        : visibleDuplicatePairs.length
+          ? {
+              key: "duplicate-review",
+              label: "Review duplicate queue",
+              description:
+                "Merge duplicate dossiers before the next send or appointment so tracked history, follow-up, and handoff context stay on one surviving record.",
+              href: duplicateReviewHref,
+              tone: "accent",
+              badgeLabel: "Duplicate review",
+              meta: [
+                `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
+                "Foundation cleanup before next touch",
+              ],
+              ctaLabel: "Review duplicate queue",
+            }
+          : null
+      : activeActivityView === "team_cleanup"
+        ? nextTeamCleanupItem
+          ? {
+              key: nextTeamCleanupItem.id,
+              label: nextTeamCleanupItem.title,
+              description: nextTeamCleanupItem.description,
+              href: nextTeamCleanupItem.href,
+              tone: nextTeamCleanupItem.tone,
+              badgeLabel: nextTeamCleanupItem.kindLabel,
+              meta: [
+                `Owner · ${nextTeamCleanupItem.ownerLabel}`,
+                `Scope · ${nextTeamCleanupItem.scopeLabel}`,
+                `Context · ${nextTeamCleanupItem.contextLabel}`,
+              ],
+              ctaLabel: nextTeamCleanupItem.actionLabel,
+            }
+          : null
+        : activeActivityView === "appointment_reminders"
+          ? nextAppointmentReminderCard
+            ? {
+                key: nextAppointmentReminderCard.id,
+                label: nextAppointmentReminderCard.title,
+                description: nextAppointmentReminderCard.body,
+                href: buildNotificationOpenHref(nextAppointmentReminderCard),
+                tone: nextAppointmentReminderCard.pressureTone,
+                badgeLabel: nextAppointmentReminderCard.groupLabel,
+                meta: [
+                  `Owner · ${nextAppointmentReminderCard.ownerLabel}`,
+                  `Scope · ${nextAppointmentReminderCard.scopeLabel}`,
+                  `Read state · ${nextAppointmentReminderCard.readStateLabel}`,
+                ],
+                ctaLabel: getNotificationOpenLabel(nextAppointmentReminderCard),
+              }
+            : null
+          : activeActivityView === "general_notices"
+            ? nextGeneralNoticeCard
+              ? {
+                  key: nextGeneralNoticeCard.id,
+                  label: nextGeneralNoticeCard.title,
+                  description: nextGeneralNoticeCard.body,
+                  href: buildNotificationOpenHref(nextGeneralNoticeCard),
+                  tone: nextGeneralNoticeCard.pressureTone,
+                  badgeLabel: nextGeneralNoticeCard.streamLabel,
+                  meta: [
+                    `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
+                    `Scope · ${nextGeneralNoticeCard.scopeLabel}`,
+                    `Read state · ${nextGeneralNoticeCard.readStateLabel}`,
+                  ],
+                  ctaLabel: getNotificationOpenLabel(nextGeneralNoticeCard),
+                }
+              : null
+            : nextAppointmentReminderCard
+              ? {
+                  key: nextAppointmentReminderCard.id,
+                  label: nextAppointmentReminderCard.title,
+                  description: nextAppointmentReminderCard.body,
+                  href: buildNotificationOpenHref(nextAppointmentReminderCard),
+                  tone: nextAppointmentReminderCard.pressureTone,
+                  badgeLabel: nextAppointmentReminderCard.groupLabel,
+                  meta: [
+                    "Recommended next pass",
+                    `Owner · ${nextAppointmentReminderCard.ownerLabel}`,
+                    `Read state · ${nextAppointmentReminderCard.readStateLabel}`,
+                  ],
+                  ctaLabel: getNotificationOpenLabel(nextAppointmentReminderCard),
+                }
+              : nextPersonalCleanupItem
+                ? {
+                    key: nextPersonalCleanupItem.id,
+                    label: nextPersonalCleanupItem.title,
+                    description: nextPersonalCleanupItem.description,
+                    href: nextPersonalCleanupItem.href,
+                    tone: nextPersonalCleanupItem.tone,
+                    badgeLabel: nextPersonalCleanupItem.kindLabel,
+                    meta: [
+                      "Recommended next pass",
+                      `Owner · ${nextPersonalCleanupItem.ownerLabel}`,
+                      nextPersonalCleanupItem.sortLabel,
+                    ],
+                    ctaLabel: nextPersonalCleanupItem.actionLabel,
+                  }
+                : nextTeamCleanupItem
+                  ? {
+                      key: nextTeamCleanupItem.id,
+                      label: nextTeamCleanupItem.title,
+                      description: nextTeamCleanupItem.description,
+                      href: nextTeamCleanupItem.href,
+                      tone: nextTeamCleanupItem.tone,
+                      badgeLabel: nextTeamCleanupItem.kindLabel,
+                      meta: [
+                        "Leadership-visible pressure",
+                        `Owner · ${nextTeamCleanupItem.ownerLabel}`,
+                        `Context · ${nextTeamCleanupItem.contextLabel}`,
+                      ],
+                      ctaLabel: nextTeamCleanupItem.actionLabel,
+                    }
+                  : nextGeneralNoticeCard
+                    ? {
+                        key: nextGeneralNoticeCard.id,
+                        label: nextGeneralNoticeCard.title,
+                        description: nextGeneralNoticeCard.body,
+                        href: buildNotificationOpenHref(nextGeneralNoticeCard),
+                        tone: nextGeneralNoticeCard.pressureTone,
+                        badgeLabel: nextGeneralNoticeCard.streamLabel,
+                        meta: [
+                          "Broader notice follow-through",
+                          `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
+                          `Read state · ${nextGeneralNoticeCard.readStateLabel}`,
+                        ],
+                        ctaLabel: getNotificationOpenLabel(nextGeneralNoticeCard),
+                      }
+                    : visibleDuplicatePairs.length
+                      ? {
+                          key: "duplicate-review-all",
+                          label: "Review duplicate queue",
+                          description:
+                            "Duplicate review is still open in this slice and should be resolved before the next follow-up or appointment touches the wrong dossier.",
+                          href: duplicateReviewHref,
+                          tone: "accent",
+                          badgeLabel: "Duplicate review",
+                          meta: [
+                            `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
+                            "Foundation cleanup before next touch",
+                          ],
+                          ctaLabel: "Review duplicate queue",
+                        }
+                      : null;
 
   function toggleNotificationSelection(notificationId: string) {
     setSelectedNotificationIds((current) =>
@@ -753,7 +1182,7 @@ export function AgentNotificationsClient({
     updateFilters(
       activeActivityView,
       "all",
-      activeFilter,
+      rawNotificationFilter,
       activeNoticeStreamFilter,
       activeReadState,
       activeLeadershipFilter,
@@ -764,7 +1193,7 @@ export function AgentNotificationsClient({
     updateFilters(
       activeActivityView,
       activeCleanupFilter,
-      activeFilter,
+      rawNotificationFilter,
       activeNoticeStreamFilter,
       activeReadState,
       "all",
@@ -786,7 +1215,7 @@ export function AgentNotificationsClient({
     updateFilters(
       activeActivityView,
       activeCleanupFilter,
-      "general_notice",
+      rawNotificationFilter,
       "all",
       "all",
       activeLeadershipFilter,
@@ -819,6 +1248,11 @@ export function AgentNotificationsClient({
         } | null;
         throw new Error(body?.error ?? "Notification update failed.");
       }
+
+      applyLocalNotificationReadState(
+        [notificationId],
+        action === "mark_unread",
+      );
 
       setSelectedNotificationIds((current) =>
         current.filter((id) => id !== notificationId),
@@ -868,6 +1302,7 @@ export function AgentNotificationsClient({
 
       const body = (await response.json().catch(() => null)) as {
         updatedCount?: number;
+        readState?: "read" | "unread";
         error?: string;
       } | null;
 
@@ -884,6 +1319,11 @@ export function AgentNotificationsClient({
         typeof body?.updatedCount === "number"
           ? body.updatedCount
           : notificationIds.length;
+      applyLocalNotificationReadState(
+        notificationIds,
+        (body?.readState ?? (action === "mark_all_read" ? "read" : "unread")) ===
+          "unread",
+      );
       setSelectedNotificationIds([]);
       setStatusMessage(
         action === "mark_all_read"
@@ -906,10 +1346,7 @@ export function AgentNotificationsClient({
     }
   }
 
-  function renderNotificationCard(
-    card: FrontOfficeActivityNotificationRecord,
-    openLabel: string,
-  ) {
+  function renderNotificationCard(card: FrontOfficeActivityNotificationRecord) {
     const isSelected = selectedVisibleNotificationSet.has(card.id);
 
     return (
@@ -938,6 +1375,21 @@ export function AgentNotificationsClient({
                 {card.pressureLabel}
               </Badge>
               <Badge tone={toneToBadgeTone(card.tone)}>{card.groupLabel}</Badge>
+              <Badge
+                tone={
+                  !card.readStateMutable
+                    ? "neutral"
+                    : card.isUnread
+                      ? "accent"
+                      : "neutral"
+                }
+              >
+                {!card.readStateMutable
+                  ? "Shared open-only"
+                  : card.isUnread
+                    ? "Open marks read"
+                    : "Already reviewed"}
+              </Badge>
               {card.groupKey === "general_notice" ? (
                 <Badge tone={streamBadgeTone(card.streamKey)}>
                   {card.streamLabel}
@@ -974,7 +1426,7 @@ export function AgentNotificationsClient({
             className="office-button-secondary office-button-sm"
             href={buildNotificationOpenHref(card)}
           >
-            {openLabel}
+            {getNotificationOpenLabel(card)}
           </FrontOfficeLink>
           {card.readStateMutable ? (
             <Button
@@ -1006,7 +1458,7 @@ export function AgentNotificationsClient({
       <SectionCard
         className="office-list-card office-notification-toolbar"
         subtitle="Keep the office-wide cleanup surface stable on one route: self-owned cleanup, visible-scope team cleanup, inbox-backed appointment reminders, and broader general notices. The active slice stays encoded in the URL so refreshes and reopen flows come back to the same pass."
-        title="Activity lanes & controls"
+        title="Inbox lanes & cleanup controls"
       >
         <ListPageStatsGrid>
           <StatCard
@@ -1082,12 +1534,16 @@ export function AgentNotificationsClient({
                   updateFilters(
                     area.key,
                     activeCleanupFilter,
-                    area.key === "general_notices"
-                      ? "general_notice"
-                      : activeFilter,
+                    rawNotificationFilter,
                     activeNoticeStreamFilter,
                     activeReadState,
                     activeLeadershipFilter,
+                    area.key === "all"
+                      ? undefined
+                      : {
+                          anchor: getActivityViewAnchor(area.key),
+                          scroll: true,
+                        },
                   )
                 }
                 role="tab"
@@ -1124,7 +1580,7 @@ export function AgentNotificationsClient({
           <div className={styles.summaryPanelPills}>
             <span className={styles.summaryPanelPill}>
               <strong>Route</strong>
-              URL keeps this slice stable on reopen
+              URL keeps this slice and its filters stable on reopen
             </span>
             <span className={styles.summaryPanelPill}>
               <strong>Scope</strong>
@@ -1163,7 +1619,56 @@ export function AgentNotificationsClient({
               </span>
             ) : null}
           </div>
+          {primaryAction ? (
+            <div className="list-column front-office-record-list">
+              <article className={`list-row front-office-record tone-${primaryAction.tone}`}>
+                <div className="list-row-top front-office-record-head">
+                  <div>
+                    <strong>{primaryAction.label}</strong>
+                    <p>{primaryAction.description}</p>
+                  </div>
+                  <StatusBadge tone={primaryAction.tone}>
+                    {primaryAction.badgeLabel}
+                  </StatusBadge>
+                </div>
+                <div className="list-row-meta front-office-record-meta">
+                  {primaryAction.meta.map((metaLabel) => (
+                    <span key={`${primaryAction.key}-${metaLabel}`}>{metaLabel}</span>
+                  ))}
+                </div>
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href={primaryAction.href}
+                >
+                  {primaryAction.ctaLabel}
+                </FrontOfficeLink>
+              </article>
+            </div>
+          ) : null}
         </div>
+
+        {quickFocusShortcuts.length ? (
+          <div className={styles.bulkPanel}>
+            <div className={styles.bulkPanelHeader}>
+              <strong>High-frequency shortcuts</strong>
+              <p>
+                Jump straight into the cleanup or reminder pass you reopen most
+                often without rebuilding the route state by hand.
+              </p>
+            </div>
+            <div className={styles.bulkPanelActions}>
+              {quickFocusShortcuts.map((shortcut) => (
+                <FrontOfficeLink
+                  className="office-button-secondary office-button-sm"
+                  href={shortcut.href}
+                  key={shortcut.key}
+                >
+                  {shortcut.label} ({shortcut.count})
+                </FrontOfficeLink>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <FilterBar className="office-notification-filter-grid office-list-filters">
           {showPersonalCleanupSection ? (
@@ -1173,7 +1678,7 @@ export function AgentNotificationsClient({
                   updateFilters(
                     activeActivityView,
                     event.currentTarget.value as AgentCleanupFilter,
-                    activeFilter,
+                    rawNotificationFilter,
                     activeNoticeStreamFilter,
                     activeReadState,
                     activeLeadershipFilter,
@@ -1201,7 +1706,7 @@ export function AgentNotificationsClient({
             </FilterField>
           ) : null}
 
-          {showNotificationControls ? (
+          {showNotificationTypeControl ? (
             <FilterField label={notificationFilterFieldLabel}>
               <SelectInput
                 onChange={(event) =>
@@ -1219,8 +1724,10 @@ export function AgentNotificationsClient({
                 {visibleNotificationFilterOptions.map((option) => {
                   const count =
                     option.value === "all"
-                      ? snapshot.notifications.length
-                      : snapshot.notifications.filter(
+                      ? activeActivityView === "appointment_reminders"
+                        ? appointmentReminderCount
+                        : localNotifications.length
+                      : localNotifications.filter(
                           (card) => card.groupKey === option.value,
                         ).length;
 
@@ -1238,13 +1745,13 @@ export function AgentNotificationsClient({
             <FilterField label="Notice lane">
               <SelectInput
                 onChange={(event) =>
-                  updateFilters(
-                    activeActivityView,
-                    activeCleanupFilter,
-                    activeFilter,
-                    event.currentTarget.value as AgentNotificationStreamFilter,
-                    activeReadState,
-                    activeLeadershipFilter,
+                    updateFilters(
+                      activeActivityView,
+                      activeCleanupFilter,
+                      rawNotificationFilter,
+                      event.currentTarget.value as AgentNotificationStreamFilter,
+                      activeReadState,
+                      activeLeadershipFilter,
                   )
                 }
                 value={activeNoticeStreamFilter}
@@ -1252,10 +1759,10 @@ export function AgentNotificationsClient({
                 {noticeStreamFilterOptions.map((option) => {
                   const count =
                     option.value === "all"
-                      ? snapshot.notifications.filter(
+                      ? localNotifications.filter(
                           (card) => card.groupKey === "general_notice",
                         ).length
-                      : snapshot.notifications.filter(
+                      : localNotifications.filter(
                           (card) =>
                             card.groupKey === "general_notice" &&
                             card.streamKey === option.value,
@@ -1275,13 +1782,13 @@ export function AgentNotificationsClient({
             <FilterField label="Read state">
               <SelectInput
                 onChange={(event) =>
-                  updateFilters(
-                    activeActivityView,
-                    activeCleanupFilter,
-                    activeFilter,
-                    activeNoticeStreamFilter,
-                    event.currentTarget.value as AgentNotificationReadState,
-                    activeLeadershipFilter,
+                    updateFilters(
+                      activeActivityView,
+                      activeCleanupFilter,
+                      rawNotificationFilter,
+                      activeNoticeStreamFilter,
+                      event.currentTarget.value as AgentNotificationReadState,
+                      activeLeadershipFilter,
                   )
                 }
                 value={activeReadState}
@@ -1299,13 +1806,13 @@ export function AgentNotificationsClient({
             <FilterField label="Team cleanup">
               <SelectInput
                 onChange={(event) =>
-                  updateFilters(
-                    activeActivityView,
-                    activeCleanupFilter,
-                    activeFilter,
-                    activeNoticeStreamFilter,
-                    activeReadState,
-                    event.currentTarget.value as AgentLeadershipCleanupFilter,
+                    updateFilters(
+                      activeActivityView,
+                      activeCleanupFilter,
+                      rawNotificationFilter,
+                      activeNoticeStreamFilter,
+                      activeReadState,
+                      event.currentTarget.value as AgentLeadershipCleanupFilter,
                   )
                 }
                 value={activeLeadershipFilter}
@@ -1330,6 +1837,83 @@ export function AgentNotificationsClient({
             </FilterField>
           ) : null}
         </FilterBar>
+
+        {activeCleanupFilter !== "all" ||
+        rawNotificationFilter !== "all" ||
+        activeNoticeStreamFilter !== "all" ||
+        activeReadState !== "all" ||
+        activeLeadershipFilter !== "all" ? (
+          <div className={styles.bulkPanelActions}>
+            {activeCleanupFilter !== "all" ? (
+              <Button
+                disabled={controlsBusy}
+                onClick={() => resetPersonalCleanupFocus()}
+                type="button"
+                variant="secondary"
+              >
+                Clear cleanup filter
+              </Button>
+            ) : null}
+            {rawNotificationFilter !== "all" ? (
+              <Button
+                disabled={controlsBusy}
+                onClick={() =>
+                  updateFilters(
+                    activeActivityView,
+                    activeCleanupFilter,
+                    "all",
+                    activeNoticeStreamFilter,
+                    activeReadState,
+                    activeLeadershipFilter,
+                  )
+                }
+                type="button"
+                variant="secondary"
+              >
+                Clear reminder filter
+              </Button>
+            ) : null}
+            {activeNoticeStreamFilter !== "all" ? (
+              <Button
+                disabled={controlsBusy}
+                onClick={() => resetGeneralNoticeFocus()}
+                type="button"
+                variant="secondary"
+              >
+                Clear notice lane
+              </Button>
+            ) : null}
+            {activeReadState !== "all" ? (
+              <Button
+                disabled={controlsBusy}
+                onClick={() =>
+                  updateFilters(
+                    activeActivityView,
+                    activeCleanupFilter,
+                    rawNotificationFilter,
+                    activeNoticeStreamFilter,
+                    "all",
+                    activeLeadershipFilter,
+                  )
+                }
+                type="button"
+                variant="secondary"
+              >
+                Show all read states
+              </Button>
+            ) : null}
+            {activeLeadershipFilter !== "all" ? (
+              <Button
+                disabled={controlsBusy}
+                onClick={() => resetTeamCleanupFocus()}
+                type="button"
+                variant="secondary"
+              >
+                Clear team filter
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         {showNotificationControls ? (
           <div className={styles.bulkPanel}>
@@ -1478,6 +2062,28 @@ export function AgentNotificationsClient({
 
       {showPersonalCleanupSection ? (
         <SectionCard
+          actions={
+            nextPersonalCleanupItem || visibleDuplicatePairs.length ? (
+              <div className={styles.bulkActionGroup}>
+                {nextPersonalCleanupItem ? (
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={nextPersonalCleanupItem.href}
+                  >
+                    Open next cleanup
+                  </FrontOfficeLink>
+                ) : null}
+                {visibleDuplicatePairs.length ? (
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={duplicateReviewHref}
+                  >
+                    Review duplicates
+                  </FrontOfficeLink>
+                ) : null}
+              </div>
+            ) : null
+          }
           className="office-list-card"
           id="cleanup-center"
           subtitle="Personal cleanup stays self-owned. Surface the loudest issue per client first, then reopen the same center directly into follow-up, writeback, send rescue, stale-dossier cleanup, or duplicate review."
@@ -1574,6 +2180,16 @@ export function AgentNotificationsClient({
 
       {showTeamCleanupSection ? (
         <SectionCard
+          actions={
+            nextTeamCleanupItem ? (
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href={nextTeamCleanupItem.href}
+              >
+                Open next team item
+              </FrontOfficeLink>
+            ) : null
+          }
           className="office-list-card"
           id="team-cleanup-pressure"
           subtitle="Leadership cleanup stays visible-scope, not owner-blind. This section keeps overdue shared tasks, stale dossiers, and quiet send trails together so leads and office admins can decide where to intervene next."
@@ -1687,12 +2303,15 @@ export function AgentNotificationsClient({
       (activeCleanupFilter === "all" ||
         activeCleanupFilter === "duplicate_review") ? (
         visibleDuplicatePairs.length ? (
-          <FrontOfficeClientDuplicatesCard
-            duplicatePairs={visibleDuplicatePairs}
-          />
+          <div id="duplicate-review">
+            <FrontOfficeClientDuplicatesCard
+              duplicatePairs={visibleDuplicatePairs}
+            />
+          </div>
         ) : activeCleanupFilter === "duplicate_review" ? (
           <SectionCard
             className="office-list-card"
+            id="duplicate-review"
             subtitle="Duplicate review stays separate from the live cleanup list so agents can reconcile dossiers before the next follow-up, send, or appointment."
             title="Duplicate review"
           >
@@ -1706,6 +2325,16 @@ export function AgentNotificationsClient({
 
       {showAppointmentReminderSection ? (
         <SectionCard
+          actions={
+            nextAppointmentReminderCard ? (
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href={buildNotificationOpenHref(nextAppointmentReminderCard)}
+              >
+                Open next reminder
+              </FrontOfficeLink>
+            ) : null
+          }
           className="office-list-card"
           id="appointment-reminder-pressure"
           subtitle="Appointment reminders stay inbox-backed but separate from broader notices, so confirmation, reschedule, external follow-up, and near-term meeting pressure can be worked as one calendar-owned slice."
@@ -1753,9 +2382,7 @@ export function AgentNotificationsClient({
                   </header>
 
                   <div className="office-notification-list">
-                    {group.items.map((card) =>
-                      renderNotificationCard(card, card.actionLabel),
-                    )}
+                    {group.items.map((card) => renderNotificationCard(card))}
                   </div>
                 </section>
               ))}
@@ -1788,6 +2415,16 @@ export function AgentNotificationsClient({
 
       {showGeneralNoticeSection ? (
         <SectionCard
+          actions={
+            nextGeneralNoticeCard ? (
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href={buildNotificationOpenHref(nextGeneralNoticeCard)}
+              >
+                Open next notice
+              </FrontOfficeLink>
+            ) : null
+          }
           className="office-list-card"
           id="notice-stream"
           subtitle="General notices stay separate from calendar pressure and can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or awareness only."
@@ -1815,14 +2452,7 @@ export function AgentNotificationsClient({
                   </header>
 
                   <div className="office-notification-list">
-                    {group.items.map((card) =>
-                      renderNotificationCard(
-                        card,
-                        card.actionLabel === card.typeLabel
-                          ? "Review notice"
-                          : card.actionLabel,
-                      ),
-                    )}
+                    {group.items.map((card) => renderNotificationCard(card))}
                   </div>
                 </section>
               ))}

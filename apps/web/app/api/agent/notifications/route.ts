@@ -66,5 +66,12 @@ export async function POST(request: NextRequest) {
             : [],
         });
 
-  return NextResponse.json({ updatedCount });
+  return NextResponse.json({
+    ok: true,
+    updatedCount,
+    requestedCount: Array.isArray(body.notificationIds)
+      ? body.notificationIds.length
+      : 0,
+    readState: body.action === "mark_all_read" ? "read" : "unread",
+  });
 }

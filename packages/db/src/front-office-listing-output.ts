@@ -201,6 +201,19 @@ function buildShareModeLabel(mode: FrontOfficeListingShareBindingMode) {
   return "Generic tracked link";
 }
 
+function buildShareChannelLabel(channel: FrontOfficeSendChannel) {
+  switch (channel) {
+    case FrontOfficeSendChannel.sms:
+      return "SMS";
+    case FrontOfficeSendChannel.email:
+      return "Email";
+    case FrontOfficeSendChannel.direct:
+      return "Direct link";
+    default:
+      return "Tracked send";
+  }
+}
+
 function buildShareTrackingLabel(input: {
   mode: FrontOfficeListingShareBindingMode;
   clientName: string | null;
@@ -215,6 +228,57 @@ function buildShareTrackingLabel(input: {
   }
 
   return "Tracked link created without client-linked send attribution.";
+}
+
+function buildShareSendCue(input: {
+  channel: FrontOfficeSendChannel;
+  mode: FrontOfficeListingShareBindingMode;
+}) {
+  if (input.channel === FrontOfficeSendChannel.sms) {
+    if (input.mode === "client_appointment_context") {
+      return "Best for a quick reaction or confirmation around the active appointment while the tracked link stays attached to the meeting trail.";
+    }
+
+    if (input.mode === "client_dossier_context") {
+      return "Best for a quick yes / no reaction while keeping the dossier send trail warm.";
+    }
+
+    return "Best for a fast manual text touch when you still want the private tracked link copied with the note.";
+  }
+
+  if (input.channel === FrontOfficeSendChannel.email) {
+    if (input.mode === "client_appointment_context") {
+      return "Best when the client needs more framing before or after the appointment, but you still want the send tied back to the meeting loop.";
+    }
+
+    if (input.mode === "client_dossier_context") {
+      return "Best when the client needs summary, context, and a clear next-step ask beside the tracked link.";
+    }
+
+    return "Best when the listing needs more framing than a raw link before you attach it to a specific client trail.";
+  }
+
+  if (input.mode === "client_appointment_context") {
+    return "Best for WeChat or another manual chat flow when you only need the private tracked URL and will handle the rest of the note yourself around the appointment.";
+  }
+
+  if (input.mode === "client_dossier_context") {
+    return "Best for WeChat or ad-hoc chat when you only need the private tracked URL but still want the send recorded in the client trail.";
+  }
+
+  return "Best when you only need the private tracked URL and will handle the rest of the context in another manual send tool.";
+}
+
+function buildShareManualSendCue(channel: FrontOfficeSendChannel) {
+  if (channel === FrontOfficeSendChannel.sms) {
+    return "Acre only copied the SMS-ready content and tracked link. You still need to paste and send it manually from your texting app.";
+  }
+
+  if (channel === FrontOfficeSendChannel.email) {
+    return "Acre only copied the email-ready content and tracked link. You still need to paste and send it manually from your mail client.";
+  }
+
+  return "Acre only copied the private tracked link. Add your own context and send it manually from the chat or email tool you choose.";
 }
 
 function buildShareFollowUpSnapshot(mode: FrontOfficeListingShareBindingMode) {
@@ -338,6 +402,9 @@ export type FrontOfficeListingShareLinkResult = {
     shareLinkId: string;
     shareCode: string;
     channel: FrontOfficeSendChannel;
+    channelLabel: string;
+    sendCue: string;
+    manualSendCue: string;
     sentAt: string;
     writebackLabel: string;
   };
@@ -370,6 +437,7 @@ export type FrontOfficeListingShareLinkResult = {
       status: FrontOfficeListingShareWritebackMode;
       sentAt: string;
       channel: FrontOfficeSendChannel;
+      channelLabel: string;
       materialType: FrontOfficeSendMaterialType;
       clientStageLabel: string | null;
       appointmentId: string | null;
@@ -443,10 +511,16 @@ function buildShareResultSnapshot(input: {
     mode,
     clientStageLabel,
   });
+  const channelLabel = buildShareChannelLabel(input.channel);
   const writebackLabel = buildShareWritebackLabel({
     sendRecordId: input.sendRecordId,
     aiAcceptedActionRecorded: input.aiAcceptedActionRecorded,
   });
+  const sendCue = buildShareSendCue({
+    channel: input.channel,
+    mode,
+  });
+  const manualSendCue = buildShareManualSendCue(input.channel);
 
   return {
     context: {
@@ -478,6 +552,9 @@ function buildShareResultSnapshot(input: {
       shareLinkId: input.shareLinkId,
       shareCode: input.shareCode,
       channel: input.channel,
+      channelLabel,
+      sendCue,
+      manualSendCue,
       sentAt: sentAtIso,
       writebackLabel,
     },
@@ -514,6 +591,7 @@ function buildShareResultSnapshot(input: {
         status: trackingStatus,
         sentAt: sentAtIso,
         channel: input.channel,
+        channelLabel,
         materialType: FrontOfficeSendMaterialType.listing_share,
         clientStageLabel,
         appointmentId: input.appointment?.id ?? null,

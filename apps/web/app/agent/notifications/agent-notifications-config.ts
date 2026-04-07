@@ -34,11 +34,11 @@ export const activityViewOptions: Array<{
   value: AgentActivityView;
   label: string;
 }> = [
-  { value: "all", label: "Full activity center" },
+  { value: "all", label: "Inbox overview" },
   { value: "personal_cleanup", label: "Personal cleanup" },
   { value: "team_cleanup", label: "Team cleanup" },
-  { value: "appointment_reminders", label: "Appointment reminders" },
-  { value: "general_notices", label: "General notices" },
+  { value: "appointment_reminders", label: "Appointment inbox" },
+  { value: "general_notices", label: "Notice lane" },
 ];
 
 export const cleanupFilterOptions: Array<{
@@ -219,45 +219,28 @@ export function buildAgentNotificationsHref(input: {
   anchor?: string;
 }) {
   const params = new URLSearchParams();
-  const showPersonalCleanupControls =
-    input.activityView === "all" || input.activityView === "personal_cleanup";
-  const showNotificationControls =
-    input.activityView === "all" ||
-    input.activityView === "appointment_reminders" ||
-    input.activityView === "general_notices";
-  const showGeneralNoticeControls =
-    input.activityView === "all" || input.activityView === "general_notices";
-  const showTeamCleanupControls =
-    input.activityView === "all" || input.activityView === "team_cleanup";
 
   if (input.activityView !== "all") {
     params.set("activityView", input.activityView);
   }
 
-  if (showPersonalCleanupControls && input.cleanupFilter !== "all") {
+  if (input.cleanupFilter !== "all") {
     params.set("cleanupFilter", input.cleanupFilter);
   }
 
-  if (
-    showNotificationControls &&
-    input.filter !== "all" &&
-    !(
-      input.activityView === "general_notices" &&
-      input.filter === "general_notice"
-    )
-  ) {
+  if (input.filter !== "all") {
     params.set("noticeFilter", input.filter);
   }
 
-  if (showGeneralNoticeControls && input.noticeStreamFilter !== "all") {
+  if (input.noticeStreamFilter !== "all") {
     params.set("noticeStreamFilter", input.noticeStreamFilter);
   }
 
-  if (showNotificationControls && input.readState !== "all") {
+  if (input.readState !== "all") {
     params.set("readState", input.readState);
   }
 
-  if (showTeamCleanupControls && input.leadershipFilter !== "all") {
+  if (input.leadershipFilter !== "all") {
     params.set("teamCleanupFilter", input.leadershipFilter);
   }
 

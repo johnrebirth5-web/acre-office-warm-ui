@@ -20,6 +20,7 @@ type FrontOfficeAgentMaterialWindowProps = {
 type FeedbackState = {
   tone: "success" | "error";
   message: string;
+  detail?: string | null;
 } | null;
 
 async function copyTextToClipboard(value: string) {
@@ -170,6 +171,120 @@ function buildMaterialWindowStatus(props: FrontOfficeAgentMaterialWindowProps) {
   };
 }
 
+function buildFeaturedProofLine(material: FrontOfficeAgentMaterialSnapshot) {
+  const featuredCase = material.featuredCases[0];
+
+  if (!featuredCase) {
+    return "No featured closing is ready yet, so lead with identity and a clear next-step ask instead of forcing proof into the first touch.";
+  }
+
+  return `Proof point: ${featuredCase.label} · ${featuredCase.priceLabel} · ${featuredCase.closingLabel}.`;
+}
+
+function buildSmsSupportPackage(input: {
+  material: FrontOfficeAgentMaterialSnapshot;
+  targetClient?: FrontOfficeListingsTargetClient | null;
+  targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+}) {
+  const contextLine = input.targetAppointment
+    ? `Context: Use this with the tracked listing when following up on ${input.targetAppointment.title} (${input.targetAppointment.startsAtLabel}).`
+    : input.targetClient
+      ? `Context: Use this with the tracked listing while ${input.targetClient.fullName} is still in ${input.targetClient.stage}.`
+      : "Context: Use this with the tracked listing when you need a quick intro plus identity in the same manual send.";
+
+  return `${input.material.introTextMessage.trim()}\n\n${contextLine}\n${buildFeaturedProofLine(input.material)}\n\nBusiness card\n${input.material.businessCardText}`;
+}
+
+function buildEmailSupportPackage(input: {
+  material: FrontOfficeAgentMaterialSnapshot;
+  targetClient?: FrontOfficeListingsTargetClient | null;
+  targetAppointment?: FrontOfficeListingsTargetAppointment | null;
+}) {
+  const contextLine = input.targetAppointment
+    ? `Appointment context: tie the listing back to ${input.targetAppointment.title} so the next reply can stay anchored to the meeting loop.`
+    : input.targetClient
+      ? `Client context: keep the listing tied to ${input.targetClient.fullName}'s current ${input.targetClient.stage} search stage.`
+      : "Client context: add the tracked listing to this note when the recipient needs more framing than a raw link.";
+
+  return `${input.material.introEmailText.trim()}\n\n${contextLine}\n${buildFeaturedProofLine(input.material)}\n\nBusiness card\n${input.material.businessCardText}`;
+}
+
+function buildProofAddOnPackage(material: FrontOfficeAgentMaterialSnapshot) {
+  if (!material.featuredCases.length) {
+    return `Identity fallback\n${material.businessCardText}\n\nNo featured closing package is ready yet, so use the business card and intro copy as the credibility layer.`;
+  }
+
+  return [
+    "Proof add-on",
+    ...material.featuredCases.map(
+      (item, index) =>
+        `${index + 1}. ${item.label} · ${item.priceLabel} · ${item.closingLabel}`,
+    ),
+  ].join("\n");
+}
+
+function buildSupportPackageStatus(props: FrontOfficeAgentMaterialWindowProps) {
+  if (props.routeState.requestedDraftChannel === "sms") {
+    return {
+      badgeLabel: "SMS support",
+      badgeTone: "accent" as const,
+      title: "SMS support package is the preferred companion",
+      description:
+        "A draft-assisted SMS lane is active, so the fastest clean support move is to keep the intro text, business card, and one proof point ready for that manual text send.",
+    };
+  }
+
+  if (props.routeState.requestedDraftChannel === "email") {
+    return {
+      badgeLabel: "Email support",
+      badgeTone: "accent" as const,
+      title: "Email support package is the preferred companion",
+      description:
+        "A draft-assisted email lane is active, so the cleanest support move is to keep the longer intro, business card, and proof point ready for that manual email send.",
+    };
+  }
+
+  if (props.targetAppointment) {
+    return {
+      badgeLabel: "Appointment send",
+      badgeTone: "success" as const,
+      title: "SMS support package is usually the first move here",
+      description:
+        "Appointment-linked sends usually need a faster reaction path, so keep the text intro and one proof point ready before the listing goes out.",
+    };
+  }
+
+  if (props.targetClient) {
+    return {
+      badgeLabel: "Client send",
+      badgeTone: "success" as const,
+      title: "Email support package is usually the first move here",
+      description:
+        "Client-linked sends usually benefit from a little more framing, so the email support package is the safest default unless the conversation already has momentum.",
+    };
+  }
+
+  return {
+    badgeLabel: "Generic send",
+    badgeTone: "warning" as const,
+    title: "Keep both support packages ready",
+    description:
+      "Generic tracked-link mode can still turn into a real outbound touch, but you need the support package ready so the next client-linked send does not start from scratch.",
+  };
+}
+
+function buildMaterialCopyDetail(props: FrontOfficeAgentMaterialWindowProps) {
+  if (props.targetAppointment && props.targetClient) {
+    return `Use it beside ${props.targetAppointment.title} so the listing, identity, and appointment continuity stay in one manual send loop for ${props.targetClient.fullName}.`;
+  }
+
+  if (props.targetClient) {
+    return `Use it beside the tracked listing so ${props.targetClient.fullName}'s next touch carries identity, context, and proof in one manual send.`;
+  }
+
+  return "Use it beside the tracked listing so the next outbound touch does not travel as a naked link.";
+}
+
 export function FrontOfficeAgentMaterialWindow(
   props: FrontOfficeAgentMaterialWindowProps,
 ) {
@@ -180,19 +295,33 @@ export function FrontOfficeAgentMaterialWindow(
     targetAppointment: props.targetAppointment,
   });
   const materialStatus = buildMaterialWindowStatus(props);
+  const supportPackageStatus = buildSupportPackageStatus(props);
+  const smsSupportPackage = buildSmsSupportPackage({
+    material: props.material,
+    targetClient: props.targetClient,
+    targetAppointment: props.targetAppointment,
+  });
+  const emailSupportPackage = buildEmailSupportPackage({
+    material: props.material,
+    targetClient: props.targetClient,
+    targetAppointment: props.targetAppointment,
+  });
+  const proofAddOnPackage = buildProofAddOnPackage(props.material);
 
   async function handleCopy(label: string, value: string) {
     try {
       await copyTextToClipboard(value);
       setFeedback({
         tone: "success",
-        message: `${label} copied. The next client touch can use it immediately.`,
+        message: `${label} copied. The next listing send can use it immediately.`,
+        detail: buildMaterialCopyDetail(props),
       });
     } catch {
       setFeedback({
         tone: "error",
         message:
           "Clipboard access is not available in this browser. Copy the material manually instead.",
+        detail: null,
       });
     }
   }
@@ -236,42 +365,43 @@ export function FrontOfficeAgentMaterialWindow(
         <div className="front-office-agent-material-actions">
           <Button
             onClick={() =>
-              void handleCopy("Business card", props.material.businessCardText)
+              void handleCopy("SMS support package", smsSupportPackage)
             }
             size="sm"
             type="button"
             variant="secondary"
           >
-            Copy business card
+            Copy SMS support
           </Button>
           <Button
             onClick={() =>
-              void handleCopy("Intro email", props.material.introEmailText)
+              void handleCopy("Email support package", emailSupportPackage)
             }
             size="sm"
             type="button"
             variant="ghost"
           >
-            Copy intro email
+            Copy email support
           </Button>
           <Button
             onClick={() =>
-              void handleCopy("Intro text", props.material.introTextMessage)
+              void handleCopy("Proof add-on", proofAddOnPackage)
             }
             size="sm"
             type="button"
             variant="ghost"
           >
-            Copy intro text
+            Copy proof add-on
           </Button>
         </div>
 
         {feedback ? (
-          <p
+          <div
             className={`front-office-calendar-feedback ${feedback.tone === "error" ? "is-error" : "is-success"}`}
           >
-            {feedback.message}
-          </p>
+            <strong>{feedback.message}</strong>
+            {feedback.detail ? <span>{feedback.detail}</span> : null}
+          </div>
         ) : null}
       </div>
 
@@ -333,6 +463,89 @@ export function FrontOfficeAgentMaterialWindow(
               </span>
             }
             title={materialStatus.title}
+          />
+          <QueueItem
+            badgeLabel={supportPackageStatus.badgeLabel}
+            badgeTone={supportPackageStatus.badgeTone}
+            context="Manual send support"
+            description={supportPackageStatus.description}
+            title={supportPackageStatus.title}
+          />
+        </div>
+      </div>
+
+      <div className="front-office-playbook-card">
+        <div className="front-office-playbook-card-head">
+          <strong>Send support packages</strong>
+          <span>
+            These packages are meant to travel with the tracked listing send, so
+            the message leaves this page with identity, context, and proof.
+          </span>
+        </div>
+        <div className="office-queue-list">
+          <QueueItem
+            action={
+              <Button
+                onClick={() =>
+                  void handleCopy("SMS support package", smsSupportPackage)
+                }
+                size="sm"
+                type="button"
+                variant={
+                  supportPackageStatus.badgeLabel === "SMS support" ||
+                  supportPackageStatus.badgeLabel === "Appointment send"
+                    ? "secondary"
+                    : "ghost"
+                }
+              >
+                Copy SMS support
+              </Button>
+            }
+            badgeLabel="SMS"
+            badgeTone="accent"
+            description="Short intro, current route context, one proof point, and business card together for the manual SMS lane."
+            title="SMS support package"
+          />
+          <QueueItem
+            action={
+              <Button
+                onClick={() =>
+                  void handleCopy("Email support package", emailSupportPackage)
+                }
+                size="sm"
+                type="button"
+                variant={
+                  supportPackageStatus.badgeLabel === "Email support" ||
+                  supportPackageStatus.badgeLabel === "Client send"
+                    ? "secondary"
+                    : "ghost"
+                }
+              >
+                Copy email support
+              </Button>
+            }
+            badgeLabel="Email"
+            badgeTone="success"
+            description="Longer intro, current route context, one proof point, and business card together for the manual email lane."
+            title="Email support package"
+          />
+          <QueueItem
+            action={
+              <Button
+                onClick={() =>
+                  void handleCopy("Proof add-on", proofAddOnPackage)
+                }
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                Copy proof add-on
+              </Button>
+            }
+            badgeLabel="Proof"
+            badgeTone="warning"
+            description="Use this only when the listing needs extra credibility. Keep proof additive, not louder than the actual next-step ask."
+            title="Proof add-on package"
           />
         </div>
       </div>
@@ -479,10 +692,10 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Copy-ready intro package</strong>
+          <strong>Underlying copy pieces</strong>
           <span>
-            Keep identity and tone ready so the tracked listing can move with a
-            credible opening line.
+            Edit from these raw pieces when the support package needs a custom
+            tone for the live conversation.
           </span>
         </div>
 

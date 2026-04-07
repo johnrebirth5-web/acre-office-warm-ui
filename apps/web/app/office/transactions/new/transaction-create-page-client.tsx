@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, SectionCard } from "@acre/ui";
+import { Badge, Button, SectionCard } from "@acre/ui";
 import type {
   OfficeFieldModuleSettingsSnapshot,
   OfficeFieldSettingsSnapshot,
@@ -14,6 +14,14 @@ import { OfficeSettingsFieldsClient } from "../../settings/fields/fields-client"
 import { TransactionIntakeWorkspace } from "../transaction-intake-form";
 import type { TransactionStatusFieldPolicy } from "../transaction-status-rules";
 
+type TransactionCreatePageLeadIn = {
+  badgeLabel?: string;
+  badgeTone?: "neutral" | "accent" | "success" | "warning" | "danger";
+  title: string;
+  description: string;
+  items?: string[];
+};
+
 type TransactionCreatePageClientProps = {
   afterSubmit?: "refresh" | "go-detail";
   canManageFields: boolean;
@@ -21,6 +29,7 @@ type TransactionCreatePageClientProps = {
   initialFieldModule?: OfficeFieldModuleSettingsSnapshot;
   initialOwnerMembershipId?: string;
   initialValues?: Record<string, string>;
+  leadIn?: TransactionCreatePageLeadIn;
   mode?: "page" | "modal";
   modalDescription?: string;
   modalEyebrow?: string;
@@ -145,6 +154,7 @@ export function TransactionCreatePageClient({
   initialOwnerMembershipId,
   initialSchema,
   initialValues,
+  leadIn,
   mode = "page",
   modalDescription,
   modalEyebrow,
@@ -260,6 +270,28 @@ export function TransactionCreatePageClient({
           className="office-new-transaction-card office-new-transaction-live-card"
           title="Transaction intake"
         >
+          {leadIn ? (
+            <div className="office-transaction-create-lead-in">
+              {leadIn.badgeLabel ? (
+                <p>
+                  <Badge tone={leadIn.badgeTone ?? "accent"}>
+                    {leadIn.badgeLabel}
+                  </Badge>
+                </p>
+              ) : null}
+              <div>
+                <h4>{leadIn.title}</h4>
+                <p>{leadIn.description}</p>
+                {leadIn.items?.length ? (
+                  <ul>
+                    {leadIn.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           {workspace}
         </SectionCard>
       ) : (

@@ -1,5 +1,8 @@
 import { hasAnyPermission } from "@acre/auth";
-import { markOfficeNotificationRead, markOfficeNotificationUnread } from "@acre/db";
+import {
+  markOfficeNotificationRead,
+  markOfficeNotificationUnread,
+} from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
 
@@ -70,5 +73,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    notificationId,
+    updatedCount: 1,
+    readState: body.action === "mark_read" ? "read" : "unread",
+  });
 }

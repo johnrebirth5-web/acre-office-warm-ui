@@ -6,6 +6,8 @@ export type FrontOfficeLeadDuplicatePreviewCandidate = {
   nextTouchLabel: string;
   href: string;
   areasLabel?: string;
+  email?: string;
+  phone?: string;
 };
 
 export type FrontOfficeLeadDuplicatePreviewNeedle = {
@@ -13,6 +15,8 @@ export type FrontOfficeLeadDuplicatePreviewNeedle = {
   sourceLabel: string;
   preferredAreas?: string;
   source?: string;
+  email?: string;
+  phone?: string;
 };
 
 export type FrontOfficeLeadDuplicatePreviewMatch = {
@@ -42,6 +46,14 @@ function normalizeLoose(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ")
     .trim();
+}
+
+function normalizeEmail(value: string | undefined) {
+  return normalizeWhitespace(value ?? "").toLowerCase();
+}
+
+function normalizePhoneDigits(value: string | undefined) {
+  return (value ?? "").replace(/\D/g, "");
 }
 
 function buildNameTokens(value: string) {
@@ -138,17 +150,42 @@ function scoreCandidateMatch(input: {
   candidate: FrontOfficeLeadDuplicatePreviewCandidate;
   needle: FrontOfficeLeadDuplicatePreviewNeedle;
 }) {
-  const nameMatch = scoreNameMatch(
-    input.candidate.fullName,
-    input.needle.fullName,
-  );
+  const reasons: string[] = [];
+  let score = 0;
+  const normalizedCandidateEmail = normalizeEmail(input.candidate.email);
+  const normalizedNeedleEmail = normalizeEmail(input.needle.email);
+  const normalizedCandidatePhone = normalizePhoneDigits(input.candidate.phone);
+  const normalizedNeedlePhone = normalizePhoneDigits(input.needle.phone);
+  const nameMatch = input.needle.fullName
+    ? scoreNameMatch(input.candidate.fullName, input.needle.fullName)
+    : null;
 
-  if (!nameMatch) {
-    return null;
+  if (
+    normalizedCandidateEmail &&
+    normalizedNeedleEmail &&
+    normalizedCandidateEmail === normalizedNeedleEmail
+  ) {
+    reasons.push(`Same email from ${input.needle.sourceLabel}`);
+    score += 5;
   }
 
-  const reasons = [`${nameMatch.reason} from ${input.needle.sourceLabel}`];
-  let score = nameMatch.score;
+  if (
+    normalizedCandidatePhone &&
+    normalizedNeedlePhone &&
+    normalizedCandidatePhone === normalizedNeedlePhone
+  ) {
+    reasons.push(`Same phone from ${input.needle.sourceLabel}`);
+    score += 4;
+  }
+
+  if (nameMatch) {
+    reasons.push(`${nameMatch.reason} from ${input.needle.sourceLabel}`);
+    score += nameMatch.score;
+  }
+
+  if (!reasons.length) {
+    return null;
+  }
 
   const needleAreas = buildAreaTokens(input.needle.preferredAreas);
   const candidateAreas = buildAreaTokens(input.candidate.areasLabel);
@@ -179,6 +216,10 @@ function scoreCandidateMatch(input: {
 }
 
 function buildConfidenceLabel(score: number) {
+  if (score >= 8) {
+    return "Very high visible duplicate risk";
+  }
+
   if (score >= 6) {
     return "High visible duplicate risk";
   }

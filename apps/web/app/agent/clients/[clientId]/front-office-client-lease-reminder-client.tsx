@@ -24,6 +24,8 @@ type FeedbackState = {
   message: string;
 } | null;
 
+const FRONT_OFFICE_FOLLOW_UP_FORM_ID = "front-office-follow-up-form";
+
 function buildInitialFormState(
   snapshot: FrontOfficeClientDetailSnapshot,
 ): LeaseReminderFormState {
@@ -31,6 +33,21 @@ function buildInitialFormState(
     leaseEndDate: snapshot.leaseReminder.leaseEndDateValue,
     leaseReminderAt: snapshot.leaseReminder.reminderAtValue,
   };
+}
+
+function buildDateValueWithOffset(currentValue: string, days: number) {
+  if (!currentValue) {
+    return "";
+  }
+
+  const date = new Date(currentValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 export function FrontOfficeClientLeaseReminderClient(
@@ -50,6 +67,13 @@ export function FrontOfficeClientLeaseReminderClient(
     setFormState((current) => ({
       ...current,
       [name]: value,
+    }));
+  }
+
+  function applyLeaseReminderPreset(leadDays: number) {
+    setFormState((current) => ({
+      ...current,
+      leaseReminderAt: buildDateValueWithOffset(current.leaseEndDate, -leadDays),
     }));
   }
 
@@ -115,14 +139,49 @@ export function FrontOfficeClientLeaseReminderClient(
           }
           title="Renewal / remarketing window"
         />
+        <QueueItem
+          badgeLabel={props.snapshot.nextStepRail.decisionLabel}
+          badgeTone={props.snapshot.nextStepRail.decisionTone}
+          description="Use this reminder to drive the client conversation in Front Office. Formal transaction, contract, or admin work still belongs in Back Office once the file becomes formal."
+          meta={<span>{props.snapshot.nextStepRail.decisionMetaLabel}</span>}
+          title="FO / BO boundary"
+        />
       </div>
 
       <div className="front-office-placeholder-note">
         <strong>Set lease reminder</strong>
         <p>
           Capture the lease end and reminder date here so renewal,
-          remarketing, and move planning stay visible in Front Office.
+          remarketing, and move planning stay visible in Front Office. When
+          the reminder becomes the live execution pressure, turn it into a real
+          follow-up instead of assuming Acre will send something automatically.
         </p>
+        <div className="list-row-meta front-office-record-meta">
+          <a className="office-inline-link" href={`#${FRONT_OFFICE_FOLLOW_UP_FORM_ID}`}>
+            Open follow-up form
+          </a>
+          <button
+            className="office-inline-link"
+            onClick={() => applyLeaseReminderPreset(45)}
+            type="button"
+          >
+            Auto 45 days
+          </button>
+          <button
+            className="office-inline-link"
+            onClick={() => applyLeaseReminderPreset(30)}
+            type="button"
+          >
+            30 days before
+          </button>
+          <button
+            className="office-inline-link"
+            onClick={() => applyLeaseReminderPreset(14)}
+            type="button"
+          >
+            14 days before
+          </button>
+        </div>
 
         <form
           className="front-office-calendar-form"

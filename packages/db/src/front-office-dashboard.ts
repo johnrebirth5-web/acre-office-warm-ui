@@ -2709,11 +2709,14 @@ export async function getFrontOfficeDashboardSnapshot(
       tone: dueFollowUpCount > 0 ? "warning" : "neutral",
       description:
         dueFollowUpClients.length > 0
-          ? dueFollowUpClients.map((client) => client.fullName).join(" · ")
-          : "No overdue or same-day follow-ups are waiting right now.",
-      helper: `${openFollowUpTaskCount} open scheduled follow-up task(s) in your queue.`,
+          ? `Start with ${dueFollowUpClients[0]?.fullName}. ${dueFollowUpCount} client touch(es) are due today or already late.`
+          : "No same-day or overdue client touch is waiting right now.",
+      helper:
+        overdueFollowUpTaskCount > 0
+          ? `${overdueFollowUpTaskCount} scheduled follow-up task(s) are already overdue, with ${openFollowUpTaskCount} still open in total.`
+          : `${openFollowUpTaskCount} scheduled follow-up task(s) are still open in your shared queue.`,
       href: "/agent/clients",
-      actionLabel: "Open clients",
+      actionLabel: "Work follow-up queue",
     },
     {
       id: "commitments",
@@ -2722,12 +2725,12 @@ export async function getFrontOfficeDashboardSnapshot(
       tone: todayCommitmentCount > 0 ? "accent" : "neutral",
       description:
         todayCommitmentCount > 0
-          ? `${todayAppointmentCount} appointment(s) and ${todayEventCount} shared office event(s) land today.`
-          : "No appointments or shared office commitments are scheduled for today.",
+          ? `${todayAppointmentCount} appointment(s) and ${todayEventCount} shared office commitment(s) land today. Prep the next meeting before the clock slips.`
+          : "No Front Office appointments or shared office commitments are scheduled for today.",
       helper:
-        "Your own Front Office appointments now live here alongside shared office events.",
+        "The live FO calendar stays action-first. External calendar or email bridges are still explicit jump-outs, not hidden sync.",
       href: "/agent/calendar",
-      actionLabel: "Open calendar",
+      actionLabel: "Open live calendar",
     },
     {
       id: "lease-reminders",
@@ -2741,14 +2744,14 @@ export async function getFrontOfficeDashboardSnapshot(
             : "neutral",
       description:
         leaseReminderItems.length > 0
-          ? leaseReminderItems.map((item) => item.clientName).join(" · ")
-          : "No lease-date reminders are due soon right now.",
+          ? `${leaseReminderItems[0]?.clientName} is already in a renewal or move-planning window.`
+          : "No lease-date reminder is due soon right now.",
       helper:
         overdueLeaseReminderCount > 0
-          ? `${overdueLeaseReminderCount} reminder(s) are already overdue.`
-          : "Use lease dates to surface renewal, remarketing, and move planning before they go quiet.",
+          ? `${overdueLeaseReminderCount} lease reminder(s) are already overdue.`
+          : "Use lease timing to keep renewal, remarketing, and move planning visible before the record goes quiet.",
       href: "/agent/clients",
-      actionLabel: "Open client pipeline",
+      actionLabel: "Review lease reminders",
     },
     {
       id: "content",
@@ -2756,29 +2759,33 @@ export async function getFrontOfficeDashboardSnapshot(
       count: activeListingCount,
       tone: activeListingCount > 0 ? "success" : "neutral",
       description:
-        activeListingCount > 0
-          ? `${activeListingCount} active or hot listing(s) are available for outreach.`
+        recentSendRecords[0]
+          ? `${recentSendRecords[0].client.fullName} already has tracked send history in motion. Keep the next send or click follow-up explicit.`
+          : activeListingCount > 0
+            ? `${activeListingCount} active or hot listing(s) are ready for tracked outreach.`
           : "No active listing inventory is currently available in this scope.",
       helper:
-        shareAggregate._count._all > 0
-          ? `${shareAggregate._count._all} tracked link(s) already created from this dashboard scope.`
-          : "Tracked sending is ready for listings with existing share links.",
+        openedSendCount > 0
+          ? `${openedSendCount} tracked send(s) already have opens. Acre still does not auto-send anything from this queue.`
+          : shareAggregate._count._all > 0
+            ? `${shareAggregate._count._all} tracked link(s) already exist in this dashboard scope.`
+            : "Tracked sending is ready as soon as you create the first share link.",
       href: "/agent/listings",
-      actionLabel: "Open listings",
+      actionLabel: "Open listing output",
     },
     {
       id: "handoff",
-      label: "Needs Back Office",
+      label: "Formal handoff",
       count: needsBackOfficeCount,
       tone: needsBackOfficeCount > 0 ? "warning" : "neutral",
       description:
         needsBackOfficeCount > 0
-          ? `${needsBackOfficeCount} item(s) should move into formal transaction or signature workflow.`
-          : "Nothing is waiting for formal transaction or signature work right now.",
+          ? `${needsBackOfficeCount} client or signature step(s) now need a formal transaction, signature, or auditable BO file.`
+          : "Nothing needs formal transaction or signature workflow right now.",
       helper:
-        "Use this queue when a client, document, or signature step becomes an official record.",
+        "Front Office can tee up the work, but the official record still starts in Back Office.",
       href: "/office/transactions",
-      actionLabel: "Open Back Office",
+      actionLabel: "Review formal handoff",
     },
     ...(leadershipScope.visible
       ? [
@@ -2786,21 +2793,21 @@ export async function getFrontOfficeDashboardSnapshot(
             id: "leadership",
             label:
               input.viewerRole === "team_lead"
-                ? "Team execution pressure"
-                : "Office execution pressure",
+                ? "Team cleanup"
+                : "Office cleanup",
             count: leadershipPressureCount,
             tone: leadershipPressureCount > 0 ? "danger" : "neutral",
             description:
               leadershipPressureCount > 0
-                ? `${leadershipOverdueTaskCount} overdue task(s), ${leadershipStaleClientCount} stale client(s), and ${leadershipEngagementRiskCount} send-trail risk item(s) need leadership attention.`
+                ? `${leadershipOverdueTaskCount} overdue task(s), ${leadershipStaleClientCount} stale client(s), and ${leadershipEngagementRiskCount} send-trail risk item(s) need leadership review in Front Office.`
                 : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
             helper:
-              "Leadership visibility should surface follow-up drift and quiet engagement before it turns into a formal Back Office problem.",
-            href: "/office/contacts",
+              "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
+            href: "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
             actionLabel:
               input.viewerRole === "team_lead"
-                ? "Open team contacts"
-                : "Open office contacts",
+                ? "Open team cleanup"
+                : "Open office cleanup",
           } satisfies FrontOfficeDashboardActionQueueItem,
         ]
       : []),

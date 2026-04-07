@@ -18,6 +18,7 @@ import { FrontOfficePageTemplate } from "../_components/front-office-page-templa
 import { requireSessionContext } from "../../../lib/auth-session";
 import {
   activityViewOptions,
+  buildAgentNotificationsHref,
   cleanupFilterOptions,
   leadershipCleanupFilterOptions,
   noticeStreamFilterOptions,
@@ -124,14 +125,20 @@ export default async function AgentNotificationsPage(
     dashboardSnapshot.leadershipQueue.items.filter((item) =>
       leadershipItemMatchesFilter(item, initialTeamCleanupFilter),
     );
-  const leadershipQueueHref =
-    initialTeamCleanupFilter === "all"
-      ? "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure"
-      : `/agent/notifications?activityView=team_cleanup&teamCleanupFilter=${initialTeamCleanupFilter}#team-cleanup-pressure`;
+  const leadershipQueueHref = buildAgentNotificationsHref({
+    pathname: "/agent/notifications",
+    activityView: "team_cleanup",
+    cleanupFilter: initialCleanupFilter,
+    filter: initialFilter,
+    noticeStreamFilter: initialNoticeStreamFilter,
+    readState: initialReadState,
+    leadershipFilter: initialTeamCleanupFilter,
+    anchor: "#team-cleanup-pressure",
+  });
 
   return (
     <FrontOfficePageTemplate
-      description="A clearer Front Office cleanup surface for self-owned execution drift, visible-scope team pressure, appointment reminder writeback, and broader notice follow-through."
+      description="A Front Office inbox and cleanup hub for self-owned execution drift, visible-scope team pressure, appointment reminder writeback, and broader notice follow-through without blurring the Back Office boundary."
       eyebrow="Activity"
       main={
         <AgentNotificationsClient
@@ -351,7 +358,7 @@ export default async function AgentNotificationsPage(
           />
         </>
       }
-      title="Activity & cleanup"
+      title="Activity inbox & cleanup"
     />
   );
 }

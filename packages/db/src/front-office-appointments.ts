@@ -12,6 +12,7 @@ import {
   buildFrontOfficeAppointmentCalendarExport,
   buildFrontOfficeAppointmentExternalLinks,
   buildFrontOfficeAppointmentExternalTargets,
+  extractFrontOfficeAppointmentEmailRecipient,
   formatFrontOfficeAppointmentBridgeActionLabel,
   frontOfficeAppointmentBridgeActions,
   isFrontOfficeAppointmentBridgeAction,
@@ -127,6 +128,8 @@ export type FrontOfficeAppointmentsSnapshot = {
     showingCount: number;
     handoffReadyCount: number;
     awaitingReplyCount: number;
+    confirmationPendingCount: number;
+    rescheduleRequestedCount: number;
     touchDueCount: number;
     missingTouchPlanCount: number;
     bridgedCount: number;
@@ -134,6 +137,8 @@ export type FrontOfficeAppointmentsSnapshot = {
   filteredSummary: {
     appointmentCount: number;
     awaitingReplyCount: number;
+    confirmationPendingCount: number;
+    rescheduleRequestedCount: number;
     touchDueCount: number;
     missingTouchPlanCount: number;
     confirmedCount: number;
@@ -153,6 +158,7 @@ export type GetFrontOfficeAppointmentsSnapshotInput = {
   officeId?: string | null;
   timeZone?: string | null;
   clientId?: string | null;
+  listingId?: string | null;
   type?: string | null;
   status?: string | null;
   coordination?: string | null;
@@ -362,6 +368,25 @@ function buildOfficeScopeFilter(officeId: string | null | undefined) {
   return {
     OR: [{ officeId }, { officeId: null }],
   };
+}
+
+function buildDedupedFrontOfficeAppointmentOptions(
+  options: FrontOfficeAppointmentOption[],
+) {
+  const seen = new Set<string>();
+
+  return options.filter((option) => {
+    if (!option.value || seen.has(option.value)) {
+      return false;
+    }
+
+    seen.add(option.value);
+    return true;
+  });
+}
+
+function isPresent<T>(value: T | null | undefined): value is T {
+  return value != null;
 }
 
 function findAppointmentTypeDefinition(value: AppointmentType) {
@@ -1948,6 +1973,10 @@ function mapAppointmentRecord(
     metadata: appointment.metadata,
     timeZone,
   });
+  const emailRecipientLabel = extractFrontOfficeAppointmentEmailRecipient({
+    clientEmail: appointment.client?.email,
+    contactLabel: appointment.contactLabel,
+  });
   const externalLinks = buildFrontOfficeAppointmentExternalLinks({
     appointmentId: appointment.id,
     title: appointment.title,
@@ -2021,8 +2050,7 @@ function mapAppointmentRecord(
       : "No end time set",
     locationLabel: meetingOrLocation,
     clientLabel,
-    clientEmailLabel:
-      appointment.client?.email?.trim() || "No client email saved",
+    clientEmailLabel: emailRecipientLabel || "No email target saved",
     contactLabel:
       appointment.contactLabel?.trim() || "No external contact noted",
     listingLabel,
@@ -2235,7 +2263,9 @@ export async function getFrontOfficeAppointmentsSnapshot(
     todayCount,
     showingCount,
     clients,
+    selectedClient,
     listings,
+    selectedListing,
     handoffReadyCount,
     handoffs,
   ] = await Promise.all([
@@ -2306,6 +2336,20 @@ export async function getFrontOfficeAppointmentsSnapshot(
         stage: true,
       },
     }),
+    input.clientId?.trim()
+      ? prisma.client.findFirst({
+          where: {
+            id: input.clientId.trim(),
+            organizationId: input.organizationId,
+            ownerMembershipId: input.viewerMembershipId,
+          },
+          select: {
+            id: true,
+            fullName: true,
+            stage: true,
+          },
+        })
+      : Promise.resolve(null),
     prisma.listing.findMany({
       where: listingWhere,
       orderBy: [{ updatedAt: "desc" }],
@@ -2317,6 +2361,20 @@ export async function getFrontOfficeAppointmentsSnapshot(
         city: true,
       },
     }),
+    input.listingId?.trim()
+      ? prisma.listing.findFirst({
+          where: {
+            id: input.listingId.trim(),
+            ...listingWhere,
+          },
+          select: {
+            id: true,
+            title: true,
+            neighborhood: true,
+            city: true,
+          },
+        })
+      : Promise.resolve(null),
     prisma.frontOfficeHandoffDraft.count({
       where: {
         organizationId: input.organizationId,
@@ -2440,10 +2498,34 @@ export async function getFrontOfficeAppointmentsSnapshot(
   const bridgedCount = mappedAppointmentRecords.filter(
     (appointment) => appointment.hasBridgeActivity,
   ).length;
+  const confirmationPendingCount = mappedAppointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
+  ).length;
+  const rescheduleRequestedCount = mappedAppointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested,
+  ).length;
   const filteredAwaitingReplyCount = appointmentRecords.filter(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.requiresExternalResponse,
+  ).length;
+  const filteredConfirmationPendingCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
+  ).length;
+  const filteredRescheduleRequestedCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested,
   ).length;
   const filteredTouchDueCount = appointmentRecords.filter(
     (appointment) =>
@@ -2476,6 +2558,8 @@ export async function getFrontOfficeAppointmentsSnapshot(
       showingCount,
       handoffReadyCount,
       awaitingReplyCount,
+      confirmationPendingCount,
+      rescheduleRequestedCount,
       touchDueCount,
       missingTouchPlanCount,
       bridgedCount,
@@ -2483,6 +2567,8 @@ export async function getFrontOfficeAppointmentsSnapshot(
     filteredSummary: {
       appointmentCount: appointmentRecords.length,
       awaitingReplyCount: filteredAwaitingReplyCount,
+      confirmationPendingCount: filteredConfirmationPendingCount,
+      rescheduleRequestedCount: filteredRescheduleRequestedCount,
       touchDueCount: filteredTouchDueCount,
       missingTouchPlanCount: filteredMissingTouchPlanCount,
       confirmedCount: filteredConfirmedCount,
@@ -2492,14 +2578,22 @@ export async function getFrontOfficeAppointmentsSnapshot(
       value: option.value,
       label: option.label,
     })),
-    clientOptions: clients.map((client) => ({
-      value: client.id,
-      label: `${client.fullName} · ${client.stage}`,
-    })),
-    listingOptions: listings.map((listing) => ({
-      value: listing.id,
-      label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
-    })),
+    clientOptions: buildDedupedFrontOfficeAppointmentOptions(
+      [selectedClient, ...clients]
+        .filter(isPresent)
+        .map((client) => ({
+          value: client.id,
+          label: `${client.fullName} · ${client.stage}`,
+        })),
+    ),
+    listingOptions: buildDedupedFrontOfficeAppointmentOptions(
+      [selectedListing, ...listings]
+        .filter(isPresent)
+        .map((listing) => ({
+          value: listing.id,
+          label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
+        })),
+    ),
     appointments: appointmentRecords,
     selectedAppointment,
     handoffs: handoffs.map((draft) => ({
@@ -2951,6 +3045,10 @@ export async function getFrontOfficeAppointmentBridgeResult(
     frontOfficeAppointmentExternalWorkflowStatuses.idle
       ? null
       : externalWorkflow.label;
+  const emailRecipient = extractFrontOfficeAppointmentEmailRecipient({
+    clientEmail: appointment.client?.email,
+    contactLabel: appointment.contactLabel,
+  });
 
   const externalTargets = buildFrontOfficeAppointmentExternalTargets({
     appointmentId: appointment.id,
@@ -2993,7 +3091,7 @@ export async function getFrontOfficeAppointmentBridgeResult(
               }
             : (() => {
                 throw new Error(
-                  "Client email is required before opening the appointment email brief.",
+                  "An email target is required before opening the appointment email brief.",
                 );
               })()
           : {
@@ -3064,8 +3162,8 @@ export async function getFrontOfficeAppointmentBridgeResult(
             ? [`Meeting link: ${appointment.meetingUrl.trim()}`]
             : []),
           ...(input.action === frontOfficeAppointmentBridgeActions.emailBrief &&
-          appointment.client?.email?.trim()
-            ? [`Email: ${appointment.client.email.trim()}`]
+          emailRecipient
+            ? [`Email: ${emailRecipient}`]
             : []),
           ...(appointment.listing?.title
             ? [`Listing: ${appointment.listing.title}`]

@@ -35,6 +35,7 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 
 type FrontOfficeCalendarClientProps = {
   initialClientId?: string;
+  initialListingId?: string;
   snapshot: FrontOfficeAppointmentsSnapshot;
 };
 
@@ -79,6 +80,19 @@ type BridgeActionResponse = {
         content: string;
       };
   error?: string;
+};
+
+type AppointmentMutationResponse = {
+  appointment?: {
+    id: string;
+    title?: string;
+  };
+  error?: string;
+} | null;
+
+type AppointmentCue = {
+  label: string;
+  tone: "neutral" | "accent" | "success" | "warning" | "danger";
 };
 
 type FilterState = {
@@ -194,12 +208,15 @@ function buildDefaultStartValue() {
     .slice(0, 16);
 }
 
-function buildEmptyFormState(initialClientId?: string): AppointmentFormState {
+function buildEmptyFormState(
+  initialClientId?: string,
+  initialListingId?: string,
+): AppointmentFormState {
   return {
     title: "",
     type: "showing",
     clientId: initialClientId ?? "",
-    listingId: "",
+    listingId: initialListingId ?? "",
     startsAt: buildDefaultStartValue(),
     endsAt: "",
     location: "",
@@ -207,6 +224,53 @@ function buildEmptyFormState(initialClientId?: string): AppointmentFormState {
     contactLabel: "",
     notes: "",
   };
+}
+
+function buildAppointmentCueList(
+  appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+) {
+  const cues: AppointmentCue[] = [];
+
+  if (appointment.statusValue !== "scheduled") {
+    return cues;
+  }
+
+  if (appointment.externalStatusValue === "confirmation_pending") {
+    cues.push({ label: "Awaiting confirmation", tone: "accent" });
+  }
+
+  if (appointment.externalStatusValue === "reschedule_requested") {
+    cues.push({ label: "Reschedule requested", tone: "danger" });
+  }
+
+  if (appointment.isExternalTouchDue) {
+    cues.push({ label: "Touch due", tone: "danger" });
+  } else if (
+    appointment.requiresExternalResponse &&
+    appointment.externalNextActionAtValue
+  ) {
+    cues.push({ label: "Touch scheduled", tone: "accent" });
+  }
+
+  if (appointment.needsNextTouchPlan) {
+    cues.push({ label: "Missing next touch", tone: "warning" });
+  }
+
+  if (
+    appointment.hasBridgeActivity &&
+    appointment.externalStatusValue === "idle"
+  ) {
+    cues.push({ label: "Bridge pending", tone: "warning" });
+  }
+
+  if (
+    appointment.externalStatusValue === "confirmed" &&
+    !appointment.externalNextActionAtValue
+  ) {
+    cues.push({ label: "Confirmed", tone: "success" });
+  }
+
+  return cues.slice(0, 4);
 }
 
 function toIsoDateTime(value: string) {
@@ -326,6 +390,26 @@ function buildCalendarHref(
   return query ? `${pathname}?${query}` : pathname;
 }
 
+function appendReturnToHref(href: string, returnTo: string) {
+  const trimmedHref = href.trim();
+
+  if (!trimmedHref.startsWith("/")) {
+    return href;
+  }
+
+  try {
+    const parsed = new URL(trimmedHref, "http://acre.local");
+
+    if (returnTo) {
+      parsed.searchParams.set("returnTo", returnTo);
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return href;
+  }
+}
+
 function readFilterState(searchParams: ReadonlyURLSearchParams): FilterState {
   return {
     clientId: searchParams.get("clientId")?.trim() ?? "",
@@ -389,7 +473,7 @@ function normalizeFilterState(
   snapshot: FrontOfficeAppointmentsSnapshot,
 ): FilterState {
   return {
-    clientId: rawFilterState.clientId,
+    clientId: sanitizeScopedValue(rawFilterState.clientId, snapshot.clientOptions),
     type: sanitizeScopedValue(rawFilterState.type, snapshot.typeOptions),
     status: sanitizeEnumValue(rawFilterState.status, statusFilterValueSet, "all"),
     coordination: sanitizeEnumValue(
@@ -513,9 +597,11 @@ export function FrontOfficeCalendarClient(
   const currentHref = currentSearch ? `${pathname}?${currentSearch}` : pathname;
   const normalizedHref = buildCalendarHref(pathname, searchParams, filterState);
   const defaultClientId = props.initialClientId || "";
+  const defaultListingId = props.initialListingId || "";
   const defaultClientIdRef = useRef(defaultClientId);
+  const defaultListingIdRef = useRef(defaultListingId);
   const [formState, setFormState] = useState<AppointmentFormState>(() =>
-    buildEmptyFormState(defaultClientId),
+    buildEmptyFormState(defaultClientId, defaultListingId),
   );
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -531,6 +617,9 @@ export function FrontOfficeCalendarClient(
   const focusedWritebackDraft = focusedAppointment
     ? readWritebackDraft(focusedAppointment, writebackDrafts)
     : null;
+  const focusedCueList = focusedAppointment
+    ? buildAppointmentCueList(focusedAppointment)
+    : [];
   const latestBridgeHistory = focusedAppointment?.bridgeHistory[0] ?? null;
   const latestWritebackHistory = focusedAppointment?.writebackHistory[0] ?? null;
   const selectedClientOption = props.snapshot.clientOptions.find(
@@ -601,6 +690,16 @@ export function FrontOfficeCalendarClient(
       : "If another page sends you here with a relative return path, Acre will preserve it while the shell state changes.",
   ];
 
+  function buildAppointmentFocusHref(appointmentId: string) {
+    return buildCalendarHref(pathname, searchParams, {
+      appointmentId,
+    });
+  }
+
+  function buildContextAwareHref(baseHref: string, appointmentId: string) {
+    return appendReturnToHref(baseHref, buildAppointmentFocusHref(appointmentId));
+  }
+
   useEffect(() => {
     if (normalizedHref !== currentHref) {
       router.replace(normalizedHref, { scroll: false });
@@ -627,6 +726,30 @@ export function FrontOfficeCalendarClient(
 
     defaultClientIdRef.current = defaultClientId;
   }, [defaultClientId]);
+
+  useEffect(() => {
+    const previousDefaultListingId = defaultListingIdRef.current;
+
+    if (previousDefaultListingId === defaultListingId) {
+      return;
+    }
+
+    setFormState((current) => {
+      if (
+        !current.listingId ||
+        current.listingId === previousDefaultListingId
+      ) {
+        return {
+          ...current,
+          listingId: defaultListingId,
+        };
+      }
+
+      return current;
+    });
+
+    defaultListingIdRef.current = defaultListingId;
+  }, [defaultListingId]);
 
   function navigateWithFilters(update: FilterUpdate) {
     startTransition(() => {
@@ -707,7 +830,7 @@ export function FrontOfficeCalendarClient(
 
   function resetForm() {
     setFeedback(null);
-    setFormState(buildEmptyFormState(defaultClientId));
+    setFormState(buildEmptyFormState(defaultClientId, defaultListingId));
   }
 
   function clearFocusLock() {
@@ -732,6 +855,65 @@ export function FrontOfficeCalendarClient(
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function refreshIntoAppointmentFocus(appointmentId: string, onComplete?: () => void) {
+    startTransition(() => {
+      router.replace(buildAppointmentFocusHref(appointmentId), {
+        scroll: false,
+      });
+      router.refresh();
+      onComplete?.();
+    });
+  }
+
+  function findTouchPresetForStatus(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+    externalStatus: FrontOfficeAppointmentExternalWorkflowStatus,
+  ) {
+    return (
+      appointment.touchPresets.find(
+        (preset) => preset.suggestedStatus === externalStatus,
+      ) ?? null
+    );
+  }
+
+  function primeWritebackDraftAfterBridge(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+  ) {
+    if (
+      appointment.statusValue !== "scheduled" ||
+      appointment.externalStatusValue !== "idle" ||
+      appointment.externalNextActionAtValue
+    ) {
+      return null;
+    }
+
+    const preset = findTouchPresetForStatus(
+      appointment,
+      "confirmation_pending",
+    );
+
+    if (!preset) {
+      return null;
+    }
+
+    setWritebackDrafts((current) => {
+      if (current[appointment.id]) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [appointment.id]: {
+          status: preset.suggestedStatus,
+          note: "",
+          nextActionAt: preset.nextActionAtValue,
+        },
+      };
+    });
+
+    return preset.label;
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback(null);
@@ -749,9 +931,9 @@ export function FrontOfficeCalendarClient(
           endsAt: formState.endsAt ? toIsoDateTime(formState.endsAt) : "",
         }),
       });
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+      const payload = (await response
+        .json()
+        .catch(() => null)) as AppointmentMutationResponse;
 
       if (!response.ok) {
         setFeedback({
@@ -765,11 +947,12 @@ export function FrontOfficeCalendarClient(
       setFeedback({
         tone: "success",
         message:
-          "Appointment scheduled. Your dashboard and calendar will refresh now.",
+          payload?.appointment?.title?.trim()
+            ? `${payload.appointment.title} scheduled. Acre will keep this appointment pinned below while the calendar refreshes.`
+            : "Appointment scheduled. Acre will keep it pinned below while the calendar refreshes.",
       });
-      setFormState(buildEmptyFormState(defaultClientId));
-      startTransition(() => {
-        router.refresh();
+      setFormState(buildEmptyFormState(defaultClientId, defaultListingId));
+      refreshIntoAppointmentFocus(payload?.appointment?.id ?? "", () => {
         setIsSaving(false);
       });
     } catch {
@@ -796,9 +979,9 @@ export function FrontOfficeCalendarClient(
         },
         body: JSON.stringify({ status }),
       });
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+      const payload = (await response
+        .json()
+        .catch(() => null)) as AppointmentMutationResponse;
 
       if (!response.ok) {
         setFeedback({
@@ -813,8 +996,7 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message: "Appointment status updated.",
       });
-      startTransition(() => {
-        router.refresh();
+      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointmentId, () => {
         setIsSaving(false);
       });
     } catch {
@@ -851,9 +1033,9 @@ export function FrontOfficeCalendarClient(
           }),
         },
       );
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+      const payload = (await response
+        .json()
+        .catch(() => null)) as AppointmentMutationResponse;
 
       if (!response.ok) {
         setFeedback({
@@ -868,11 +1050,13 @@ export function FrontOfficeCalendarClient(
 
       setFeedback({
         tone: "success",
-        message: "Appointment external writeback updated.",
+        message:
+          draft.nextActionAt
+            ? `Appointment external writeback updated. Acre will keep ${appointment.title} pinned with the saved next-touch deadline in view.`
+            : "Appointment external writeback updated.",
       });
       clearSavedWritebackDraft(appointment.id);
-      startTransition(() => {
-        router.refresh();
+      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointment.id, () => {
         setIsSaving(false);
       });
     } catch {
@@ -889,8 +1073,16 @@ export function FrontOfficeCalendarClient(
     externalStatus: FrontOfficeAppointmentExternalWorkflowStatus,
   ) {
     const draft = readWritebackDraft(appointment, writebackDrafts);
+    const suggestedPreset =
+      externalStatus === "confirmed"
+        ? null
+        : !draft.nextActionAt
+          ? findTouchPresetForStatus(appointment, externalStatus)
+          : null;
     const nextActionAt =
-      externalStatus === "confirmed" ? "" : draft.nextActionAt;
+      externalStatus === "confirmed"
+        ? ""
+        : draft.nextActionAt || suggestedPreset?.nextActionAtValue || "";
 
     setFeedback(null);
     setIsSaving(true);
@@ -912,9 +1104,9 @@ export function FrontOfficeCalendarClient(
           }),
         },
       );
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+      const payload = (await response
+        .json()
+        .catch(() => null)) as AppointmentMutationResponse;
 
       if (!response.ok) {
         setFeedback({
@@ -932,11 +1124,12 @@ export function FrontOfficeCalendarClient(
         message:
           externalStatus === "confirmed"
             ? "Confirmed writeback saved and the current next-touch deadline was cleared."
-            : "Quick coordination action saved.",
+            : suggestedPreset
+              ? `Quick coordination action saved with ${suggestedPreset.label} loaded as the next checkpoint.`
+              : "Quick coordination action saved.",
       });
       clearSavedWritebackDraft(appointment.id);
-      startTransition(() => {
-        router.refresh();
+      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointment.id, () => {
         setIsSaving(false);
       });
     } catch {
@@ -973,9 +1166,9 @@ export function FrontOfficeCalendarClient(
           }),
         },
       );
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+      const payload = (await response
+        .json()
+        .catch(() => null)) as AppointmentMutationResponse;
 
       if (!response.ok) {
         setFeedback({
@@ -993,8 +1186,7 @@ export function FrontOfficeCalendarClient(
         message: `${preset.label} saved to Acre as the next coordination checkpoint.`,
       });
       clearSavedWritebackDraft(appointment.id);
-      startTransition(() => {
-        router.refresh();
+      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointment.id, () => {
         setIsSaving(false);
       });
     } catch {
@@ -1049,13 +1241,15 @@ export function FrontOfficeCalendarClient(
         downloadCalendarExport(payload.result.fileName, payload.result.content);
       }
 
+      const primedPresetLabel = primeWritebackDraftAfterBridge(appointment);
+
       setFeedback({
         tone: "success",
-        message: `${payload.actionLabel} opened. Acre will refresh so the latest bridge trail stays visible on this appointment.`,
+        message: primedPresetLabel
+          ? `${payload.actionLabel} opened. Acre only logged the bridge, and ${primedPresetLabel} has been loaded into the writeback draft for this appointment.`
+          : `${payload.actionLabel} opened. Acre only logged the bridge and will keep this appointment focused so the trail stays readable here.`,
       });
-      startTransition(() => {
-        router.refresh();
-      });
+      refreshIntoAppointmentFocus(appointment.id);
     } catch {
       setFeedback({
         tone: "error",
@@ -1394,8 +1588,16 @@ export function FrontOfficeCalendarClient(
           <Badge tone="warning">
             Awaiting reply {props.snapshot.filteredSummary.awaitingReplyCount}
           </Badge>
+          <Badge tone="accent">
+            Awaiting confirm{" "}
+            {props.snapshot.filteredSummary.confirmationPendingCount}
+          </Badge>
           <Badge tone="danger">
             Touch due {props.snapshot.filteredSummary.touchDueCount}
+          </Badge>
+          <Badge tone="danger">
+            Reschedule{" "}
+            {props.snapshot.filteredSummary.rescheduleRequestedCount}
           </Badge>
           <Badge tone="warning">
             Missing next touch{" "}
@@ -1428,6 +1630,23 @@ export function FrontOfficeCalendarClient(
           <Button
             onClick={() =>
               navigateWithFilters({
+                coordination: "confirmation_pending",
+                followUp: "all",
+                appointmentId: "",
+              })
+            }
+            size="sm"
+            variant={
+              filterState.coordination === "confirmation_pending"
+                ? "primary"
+                : "secondary"
+            }
+          >
+            Awaiting confirmation
+          </Button>
+          <Button
+            onClick={() =>
+              navigateWithFilters({
                 followUp: "touch_due",
                 coordination: "all",
                 appointmentId: "",
@@ -1454,6 +1673,23 @@ export function FrontOfficeCalendarClient(
             }
           >
             Missing next touch
+          </Button>
+          <Button
+            onClick={() =>
+              navigateWithFilters({
+                coordination: "reschedule_requested",
+                followUp: "all",
+                appointmentId: "",
+              })
+            }
+            size="sm"
+            variant={
+              filterState.coordination === "reschedule_requested"
+                ? "primary"
+                : "secondary"
+            }
+          >
+            Reschedule requested
           </Button>
           <Button
             onClick={() =>
@@ -1619,6 +1855,15 @@ export function FrontOfficeCalendarClient(
               <p className="front-office-record-supporting">
                 Next step: {focusedAppointment.coordinationNextStep}
               </p>
+              {focusedCueList.length ? (
+                <div className="front-office-calendar-badges">
+                  {focusedCueList.map((cue) => (
+                    <Badge key={`${focusedAppointment.id}-${cue.label}`} tone={cue.tone}>
+                      {cue.label}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
             </article>
 
             <div className="office-queue-list">
@@ -1652,7 +1897,10 @@ export function FrontOfficeCalendarClient(
               {focusedAppointment.clientHref ? (
                 <FrontOfficeLink
                   className="office-inline-link front-office-inline-link"
-                  href={focusedAppointment.clientHref}
+                  href={buildContextAwareHref(
+                    focusedAppointment.clientHref,
+                    focusedAppointment.id,
+                  )}
                 >
                   Open client dossier
                 </FrontOfficeLink>
@@ -1660,7 +1908,10 @@ export function FrontOfficeCalendarClient(
               {focusedAppointment.listingOutputHref ? (
                 <FrontOfficeLink
                   className="office-inline-link front-office-inline-link"
-                  href={focusedAppointment.listingOutputHref}
+                  href={buildContextAwareHref(
+                    focusedAppointment.listingOutputHref,
+                    focusedAppointment.id,
+                  )}
                 >
                   Open listing output
                 </FrontOfficeLink>
@@ -1785,8 +2036,8 @@ export function FrontOfficeCalendarClient(
                     </button>
                   ) : (
                     <p className="front-office-record-supporting">
-                      Client email is missing, so the email brief is not
-                      available yet.
+                      No email target is saved on this appointment yet, so the
+                      email brief is not available.
                     </p>
                   )}
                 </div>
@@ -2146,6 +2397,7 @@ export function FrontOfficeCalendarClient(
           {props.snapshot.appointments.length ? (
             props.snapshot.appointments.map((appointment) => {
               const isFocused = focusedAppointment?.id === appointment.id;
+              const appointmentCueList = buildAppointmentCueList(appointment);
 
               return (
                 <article
@@ -2196,6 +2448,15 @@ export function FrontOfficeCalendarClient(
                   <p className="front-office-record-supporting">
                     Next step: {appointment.coordinationNextStep}
                   </p>
+                  {appointmentCueList.length ? (
+                    <div className="front-office-calendar-badges">
+                      {appointmentCueList.map((cue) => (
+                        <Badge key={`${appointment.id}-${cue.label}`} tone={cue.tone}>
+                          {cue.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
 
                   <div className="front-office-calendar-actions">
                     <FrontOfficeLink
@@ -2209,7 +2470,10 @@ export function FrontOfficeCalendarClient(
                     {appointment.clientHref ? (
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
-                        href={appointment.clientHref}
+                        href={buildContextAwareHref(
+                          appointment.clientHref,
+                          appointment.id,
+                        )}
                       >
                         Client dossier
                       </FrontOfficeLink>
@@ -2217,7 +2481,10 @@ export function FrontOfficeCalendarClient(
                     {appointment.listingOutputHref ? (
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
-                        href={appointment.listingOutputHref}
+                        href={buildContextAwareHref(
+                          appointment.listingOutputHref,
+                          appointment.id,
+                        )}
                       >
                         Listing output
                       </FrontOfficeLink>

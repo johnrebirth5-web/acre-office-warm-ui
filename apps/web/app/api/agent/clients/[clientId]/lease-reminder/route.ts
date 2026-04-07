@@ -38,6 +38,25 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     );
   }
 
+  const leaseEndDate =
+    typeof body.leaseEndDate === "string" ? body.leaseEndDate.trim() : "";
+  const leaseReminderAt =
+    typeof body.leaseReminderAt === "string" ? body.leaseReminderAt.trim() : "";
+
+  if (leaseEndDate && !/^\d{4}-\d{2}-\d{2}$/.test(leaseEndDate)) {
+    return NextResponse.json(
+      { error: "Lease end date must use YYYY-MM-DD format." },
+      { status: 400 },
+    );
+  }
+
+  if (leaseReminderAt && !/^\d{4}-\d{2}-\d{2}$/.test(leaseReminderAt)) {
+    return NextResponse.json(
+      { error: "Lease reminder date must use YYYY-MM-DD format." },
+      { status: 400 },
+    );
+  }
+
   const { clientId } = await params;
 
   try {
@@ -46,10 +65,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       clientId,
       actorMembershipId: context.currentMembership.id,
       actorOfficeId: context.currentOffice?.id ?? null,
-      leaseEndDate:
-        typeof body.leaseEndDate === "string" ? body.leaseEndDate : "",
-      leaseReminderAt:
-        typeof body.leaseReminderAt === "string" ? body.leaseReminderAt : "",
+      leaseEndDate,
+      leaseReminderAt,
     });
 
     if (!reminder) {

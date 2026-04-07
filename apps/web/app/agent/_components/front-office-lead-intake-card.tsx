@@ -12,6 +12,7 @@ import {
 } from "react";
 import {
   Button,
+  EmptyState,
   FormField,
   SectionCard,
   SelectInput,
@@ -55,6 +56,7 @@ type LeadFormState = {
 };
 
 type LeadFormFieldKey = keyof LeadFormState;
+type LeadFieldErrors = Partial<Record<LeadFormFieldKey, string>>;
 
 type FeedbackState = {
   tone: "success" | "error";
@@ -89,6 +91,24 @@ type AssistFeedbackState = {
 } | null;
 
 type DuplicatePreviewHydrationState = "idle" | "loading" | "ready" | "error";
+type CreateLeadApiErrorCode =
+  | "authentication_required"
+  | "front_office_create_forbidden"
+  | "invalid_request_body"
+  | "validation_error"
+  | "duplicate_lead"
+  | "create_failed";
+
+type CreateLeadApiPayload = {
+  error?: string;
+  errorCode?: CreateLeadApiErrorCode;
+  fieldErrors?: LeadFieldErrors;
+  duplicateMatches?: DuplicateMatch[];
+  contact?: {
+    id: string;
+    fullName: string;
+  };
+};
 
 const stageOptions = [
   "Cold Lead",
@@ -139,6 +159,22 @@ function normalizeCompactValue(value: string) {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "");
+}
+
+function omitFieldError(
+  fieldErrors: LeadFieldErrors,
+  fieldKey: LeadFormFieldKey,
+): LeadFieldErrors {
+  if (!fieldErrors[fieldKey]) {
+    return fieldErrors;
+  }
+
+  const nextErrors = {
+    ...fieldErrors,
+  };
+
+  delete nextErrors[fieldKey];
+  return nextErrors;
 }
 
 function getAssistFieldReviewKey(field: FrontOfficeLeadIntakeAssistField) {
@@ -266,6 +302,12 @@ function getAssistFieldStatus(input: {
     return "Awaiting replace confirmation before the live value changes";
   }
 
+  if (isReviewed && currentValue && !matchesSuggestion) {
+    return input.manuallyEditedFields.includes(fieldKey)
+      ? "Reviewed, but your manual live value stays in control"
+      : "Reviewed, but the live form still keeps the current value";
+  }
+
   if (needsReplaceConfirmation) {
     return isReviewed
       ? "Reviewed, but the live form still keeps your current value"
@@ -288,6 +330,40 @@ function getAssistFieldStatus(input: {
   }
 
   return "Current form keeps your live value until review";
+}
+
+function getAssistFieldLiveValueLabel(input: {
+  field: FrontOfficeLeadIntakeAssistField;
+  formState: LeadFormState;
+  defaultFormState: LeadFormState;
+  manuallyEditedFields: LeadFormFieldKey[];
+}) {
+  const fieldKey = input.field.field as LeadFormFieldKey;
+  const currentValue = input.formState[fieldKey].trim();
+
+  if (!currentValue) {
+    return "Live form is still blank";
+  }
+
+  if (
+    normalizeCompactValue(currentValue) ===
+    normalizeCompactValue(input.field.value)
+  ) {
+    return `Live form now matches: ${currentValue}`;
+  }
+
+  if (input.manuallyEditedFields.includes(fieldKey)) {
+    return `Manual live value stays in control: ${currentValue}`;
+  }
+
+  if (
+    normalizeCompactValue(currentValue) ===
+    normalizeCompactValue(input.defaultFormState[fieldKey].trim())
+  ) {
+    return `Default live value still in form: ${currentValue}`;
+  }
+
+  return `Current live value: ${currentValue}`;
 }
 
 function mergeLeadFormStateWithReviewedAssistFields(
@@ -370,8 +446,16 @@ function buildDuplicatePreviewNeedles(input: {
     sourceLabel: string,
     preferredAreas?: string,
     source?: string,
+    email?: string,
+    phone?: string,
   ) {
-    const normalized = normalizeCompactValue(fullName);
+    const normalized = [
+      normalizeCompactValue(fullName),
+      normalizeCompactValue(email ?? ""),
+      normalizeCompactValue(phone ?? ""),
+    ]
+      .filter(Boolean)
+      .join("|");
 
     if (!normalized || seen.has(normalized)) {
       return;
@@ -383,15 +467,23 @@ function buildDuplicatePreviewNeedles(input: {
       sourceLabel,
       preferredAreas,
       source,
+      email,
+      phone,
     });
   }
 
-  if (input.formState.fullName.trim()) {
+  if (
+    input.formState.fullName.trim() ||
+    input.formState.email.trim() ||
+    input.formState.phone.trim()
+  ) {
     appendNeedle(
       input.formState.fullName,
       "the current form",
       input.formState.preferredAreas,
       input.formState.source,
+      input.formState.email,
+      input.formState.phone,
     );
   }
 
@@ -402,9 +494,27 @@ function buildDuplicatePreviewNeedles(input: {
       input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
   );
 
-  if (assistNameField?.value.trim()) {
+  const reviewedAssistFullName = assistNameField?.value.trim() ?? "";
+  const reviewedAssistEmail =
+    getReviewedAssistFieldValue({
+      assistResult: input.assistResult,
+      reviewedFieldKeys: input.reviewedFieldKeys,
+      fieldKey: "email",
+    }) ?? "";
+  const reviewedAssistPhone =
+    getReviewedAssistFieldValue({
+      assistResult: input.assistResult,
+      reviewedFieldKeys: input.reviewedFieldKeys,
+      fieldKey: "phone",
+    }) ?? "";
+
+  if (
+    reviewedAssistFullName ||
+    reviewedAssistEmail.trim() ||
+    reviewedAssistPhone.trim()
+  ) {
     appendNeedle(
-      assistNameField.value,
+      reviewedAssistFullName,
       "the reviewed assist suggestion",
       getReviewedAssistFieldValue({
         assistResult: input.assistResult,
@@ -416,6 +526,8 @@ function buildDuplicatePreviewNeedles(input: {
         reviewedFieldKeys: input.reviewedFieldKeys,
         fieldKey: "source",
       }),
+      reviewedAssistEmail,
+      reviewedAssistPhone,
     );
   }
 
@@ -521,6 +633,8 @@ function mapSnapshotClientsToPreviewCandidates(input: unknown) {
         href: record.href,
         areasLabel:
           typeof record.areasLabel === "string" ? record.areasLabel : undefined,
+        email: typeof record.email === "string" ? record.email : undefined,
+        phone: typeof record.phone === "string" ? record.phone : undefined,
       },
     ] satisfies FrontOfficeLeadDuplicatePreviewCandidate[];
   });
@@ -549,6 +663,7 @@ export function FrontOfficeLeadIntakeCard(
   const [manuallyEditedFields, setManuallyEditedFields] = useState<
     LeadFormFieldKey[]
   >([]);
+  const [fieldErrors, setFieldErrors] = useState<LeadFieldErrors>({});
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>(
     [],
@@ -592,6 +707,7 @@ export function FrontOfficeLeadIntakeCard(
     setFormDefaults(nextDefaults);
     setFormState(nextDefaults);
     setManuallyEditedFields([]);
+    setFieldErrors({});
     setAssistReplaceConfirmationFieldKey(null);
   }
 
@@ -620,11 +736,13 @@ export function FrontOfficeLeadIntakeCard(
   ) {
     const { name, value } = event.target;
     const fieldKey = name as LeadFormFieldKey;
+    const hadFieldError = Boolean(fieldErrors[fieldKey]);
 
     setFormState((current) => ({
       ...current,
       [fieldKey]: value,
     }));
+    setFieldErrors((current) => omitFieldError(current, fieldKey));
     setManuallyEditedFields((current) =>
       current.includes(fieldKey) ? current : [...current, fieldKey],
     );
@@ -655,9 +773,12 @@ export function FrontOfficeLeadIntakeCard(
       fieldKey === "email"
     ) {
       setDuplicateMatches([]);
-      setFeedback((current) =>
-        current?.tone === "error" ? null : current,
-      );
+      setFeedback((current) => (current?.tone === "error" ? null : current));
+      return;
+    }
+
+    if (hadFieldError) {
+      setFeedback((current) => (current?.tone === "error" ? null : current));
     }
   }
 
@@ -747,12 +868,21 @@ export function FrontOfficeLeadIntakeCard(
       ...current,
       [targetField]: field.value,
     }));
+    setFieldErrors((current) => omitFieldError(current, targetField));
     setAssistAppliedFields((current) =>
       current.includes(targetField) ? current : [...current, targetField],
     );
     setManuallyEditedFields((current) =>
       current.filter((entry) => entry !== targetField),
     );
+    if (
+      targetField === "fullName" ||
+      targetField === "phone" ||
+      targetField === "email"
+    ) {
+      setDuplicateMatches([]);
+      setFeedback((current) => (current?.tone === "error" ? null : current));
+    }
     setAssistFeedback({
       tone: "success",
       message: needsReplaceConfirmation
@@ -786,6 +916,15 @@ export function FrontOfficeLeadIntakeCard(
     }
 
     setFormState(mergeOutcome.nextState);
+    setFieldErrors((current) => {
+      let nextErrors = current;
+
+      for (const field of mergeOutcome.appliedFields) {
+        nextErrors = omitFieldError(nextErrors, field);
+      }
+
+      return nextErrors;
+    });
     setManuallyEditedFields((current) =>
       current.filter((field) => !mergeOutcome.appliedFields.includes(field)),
     );
@@ -793,6 +932,14 @@ export function FrontOfficeLeadIntakeCard(
       ...new Set([...current, ...mergeOutcome.appliedFields]),
     ]);
     setAssistReplaceConfirmationFieldKey(null);
+    if (
+      mergeOutcome.appliedFields.includes("fullName") ||
+      mergeOutcome.appliedFields.includes("phone") ||
+      mergeOutcome.appliedFields.includes("email")
+    ) {
+      setDuplicateMatches([]);
+      setFeedback((current) => (current?.tone === "error" ? null : current));
+    }
     setAssistFeedback({
       tone: "success",
       message: `${mergeOutcome.appliedFields.length} reviewed suggestion(s) were copied into blank or default form fields.${mergeOutcome.skippedFieldLabels.length ? ` ${mergeOutcome.skippedFieldLabels.join(", ")} stayed untouched because the live form already has a value.` : ""}`,
@@ -935,6 +1082,10 @@ export function FrontOfficeLeadIntakeCard(
         feedbackParts.push(result.safetySummary.label);
       }
 
+      if (result.readinessSummary.tone === "warning") {
+        feedbackParts.push(result.readinessSummary.label);
+      }
+
       if (ocrFailed && transcriptText) {
         feedbackParts.push(
           "Screenshot OCR could not finish, so Acre used the pasted transcript only.",
@@ -970,6 +1121,7 @@ export function FrontOfficeLeadIntakeCard(
   }
 
   async function submitLead(skipDuplicateCheck = false) {
+    setFieldErrors({});
     const response = await fetch("/api/agent/clients", {
       method: "POST",
       headers: {
@@ -980,14 +1132,9 @@ export function FrontOfficeLeadIntakeCard(
         skipDuplicateCheck,
       }),
     });
-    const payload = (await response.json().catch(() => null)) as {
-      error?: string;
-      duplicateMatches?: DuplicateMatch[];
-      contact?: {
-        id: string;
-        fullName: string;
-      };
-    } | null;
+    const payload = (await response.json().catch(() => null)) as
+      | CreateLeadApiPayload
+      | null;
 
     if (response.status === 409 && payload?.duplicateMatches?.length) {
       setDuplicateMatches(payload.duplicateMatches);
@@ -1000,15 +1147,31 @@ export function FrontOfficeLeadIntakeCard(
       return false;
     }
 
+    if (payload?.errorCode === "validation_error") {
+      setFieldErrors(payload.fieldErrors ?? {});
+    }
+
     if (!response.ok || !payload?.contact) {
       setFeedback({
         tone: "error",
-        message: payload?.error ?? "Could not create the Front Office lead.",
+        message:
+          payload?.errorCode === "validation_error"
+            ? payload.error ??
+              "Lead not created. Fix the highlighted field values in the live form, then try again."
+            : payload?.errorCode === "front_office_create_forbidden"
+              ? payload.error ??
+                "You do not have permission to create Front Office leads from this workspace."
+              : payload?.errorCode === "authentication_required"
+                ? payload.error ??
+                  "Sign in again before creating a Front Office lead."
+                : payload?.error ??
+                  "Could not create the Front Office lead.",
       });
       return false;
     }
 
     setDuplicateMatches([]);
+    setFieldErrors({});
     setCreatedClient({
       id: payload.contact.id,
       fullName: payload.contact.fullName,
@@ -1145,6 +1308,27 @@ export function FrontOfficeLeadIntakeCard(
       ).length ?? 0,
     [assistResult, assistReviewedFieldKeys],
   );
+  const manualAssistOverrideCount = useMemo(
+    () =>
+      assistResult?.fields.filter((field) => {
+        if (field.suggestedAction === "preview_only") {
+          return false;
+        }
+
+        const fieldKey = field.field as LeadFormFieldKey;
+        const currentValue = formState[fieldKey].trim();
+
+        return (
+          Boolean(currentValue) &&
+          manuallyEditedFields.includes(fieldKey) &&
+          normalizeCompactValue(currentValue) !==
+            normalizeCompactValue(field.value)
+        );
+      }).length ?? 0,
+    [assistResult, formState, manuallyEditedFields],
+  );
+  const shouldShowDuplicatePreviewSurface =
+    duplicateGateSignals.length > 0 || pendingDuplicateIdentityAssistCount > 0;
 
   useEffect(() => {
     if (
@@ -1341,6 +1525,13 @@ export function FrontOfficeLeadIntakeCard(
               </p>
             ) : null}
 
+            {!assistResult && !assistImage && !assistTranscript.trim() ? (
+              <EmptyState
+                description="Best results usually come from a screenshot crop or 3-8 transcript lines that include a name plus one contact, area, budget, or next-step clue. Assist stays browser-side and never auto-creates the lead."
+                title="Start with one screenshot or a short chat excerpt"
+              />
+            ) : null}
+
             {assistResult ? (
               <div className="front-office-lead-intake-assist-result">
                 <div className="front-office-lead-intake-assist-head">
@@ -1366,6 +1557,11 @@ export function FrontOfficeLeadIntakeCard(
                       Live form values stay in control until replace is
                       confirmed
                     </span>
+                    {manualAssistOverrideCount > 0 ? (
+                      <span>
+                        {manualAssistOverrideCount} manual override(s)
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 
@@ -1379,6 +1575,27 @@ export function FrontOfficeLeadIntakeCard(
                   <strong>{assistResult.safetySummary.label}</strong>{" "}
                   {assistResult.safetySummary.detail}
                 </p>
+
+                <p
+                  className={`front-office-calendar-feedback ${
+                    assistResult.readinessSummary.tone === "warning"
+                      ? "is-neutral"
+                      : "is-success"
+                  }`}
+                >
+                  <strong>{assistResult.readinessSummary.label}</strong>{" "}
+                  {assistResult.readinessSummary.detail}
+                </p>
+
+                {assistResult.readinessSummary.nextStepLabels.length ? (
+                  <div className="front-office-record-meta">
+                    {assistResult.readinessSummary.nextStepLabels.map(
+                      (label) => (
+                        <span key={label}>{label}</span>
+                      ),
+                    )}
+                  </div>
+                ) : null}
 
                 {assistResult.safetySummary.cautionLabels.length ? (
                   <div className="front-office-record-meta">
@@ -1488,6 +1705,14 @@ export function FrontOfficeLeadIntakeCard(
                                 reviewedFieldKeys: assistReviewedFieldKeys,
                               })}
                             </span>
+                            <span>
+                              {getAssistFieldLiveValueLabel({
+                                field,
+                                formState,
+                                defaultFormState: formDefaults,
+                                manuallyEditedFields,
+                              })}
+                            </span>
                           </div>
                           <div className="front-office-record-meta">
                             <span>Evidence: {field.evidenceLabel}</span>
@@ -1571,10 +1796,11 @@ export function FrontOfficeLeadIntakeCard(
                       );
                     })
                   ) : (
-                    <article className="front-office-lead-intake-assist-field is-empty">
-                      <span>Detected fields</span>
-                      <strong>Nothing structured yet</strong>
-                    </article>
+                    <EmptyState
+                      className="front-office-lead-intake-assist-field is-empty"
+                      description={assistResult.readinessSummary.detail}
+                      title="Nothing structured moved into review yet"
+                    />
                   )}
                 </div>
 
@@ -1587,58 +1813,79 @@ export function FrontOfficeLeadIntakeCard(
             ) : null}
           </div>
 
-          {duplicatePreviewMatches.length ? (
+          {shouldShowDuplicatePreviewSurface ? (
             <div className="front-office-duplicate-surface">
               <div className="front-office-duplicate-head">
                 <strong>Early duplicate preview</strong>
                 <p>
-                  Acre checks visible-scope name collisions from{" "}
-                  {duplicatePreviewSourceSummary} now, then the formal
-                  create-time duplicate gate still runs on save from the live
-                  form only. Suggested phone or email values stay out of both
-                  checks until you review them into the live form.
+                  Acre checks visible-scope collisions from{" "}
+                  {duplicatePreviewSourceSummary} now as an early warning only.
+                  The formal create-time duplicate gate still runs from the
+                  live form on save, and nothing here merges or auto-creates a
+                  dossier.
                 </p>
               </div>
 
-              <div className="office-queue-list">
-                {duplicatePreviewMatches.map((match) => (
-                  <article
-                    className="office-queue-item"
-                    key={`preview-${match.id}`}
-                  >
-                    <div className="office-queue-item-top">
-                      <strong>{match.fullName}</strong>
-                      <StatusBadge
-                        tone={match.matchStrength >= 3 ? "warning" : "accent"}
-                      >
-                        {match.confidenceLabel}
-                      </StatusBadge>
-                    </div>
-                    <p>
-                      {match.stage} · {match.sourceLabel}
-                    </p>
-                    <div className="front-office-record-meta">
-                      <span>{match.matchReasons.join(" · ")}</span>
-                      <span>{match.nextTouchLabel}</span>
-                      <span>Visible Front Office scope</span>
-                    </div>
-                    <div className="front-office-merge-actions">
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={match.href}
-                      >
-                        Review visible record
-                      </FrontOfficeLink>
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={duplicateReviewHref}
-                      >
-                        {duplicateReviewLabel}
-                      </FrontOfficeLink>
-                    </div>
-                  </article>
-                ))}
+              <div className="front-office-record-meta">
+                <span>Early preview uses live or reviewed values only</span>
+                <span>Unreviewed assist identity fields stay out of duplicate checks</span>
+                <span>Save-time gate still checks live name, phone, and email</span>
               </div>
+
+              {duplicatePreviewMatches.length ? (
+                <div className="office-queue-list">
+                  {duplicatePreviewMatches.map((match) => (
+                    <article
+                      className="office-queue-item"
+                      key={`preview-${match.id}`}
+                    >
+                      <div className="office-queue-item-top">
+                        <strong>{match.fullName}</strong>
+                        <StatusBadge
+                          tone={match.matchStrength >= 4 ? "warning" : "accent"}
+                        >
+                          {match.confidenceLabel}
+                        </StatusBadge>
+                      </div>
+                      <p>
+                        {match.stage} · {match.sourceLabel}
+                      </p>
+                      <div className="front-office-record-meta">
+                        <span>{match.matchReasons.join(" · ")}</span>
+                        <span>{match.nextTouchLabel}</span>
+                        <span>Visible Front Office scope</span>
+                      </div>
+                      <div className="front-office-merge-actions">
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={match.href}
+                        >
+                          Review visible record
+                        </FrontOfficeLink>
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={duplicateReviewHref}
+                        >
+                          {duplicateReviewLabel}
+                        </FrontOfficeLink>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  description={
+                    pendingDuplicateIdentityAssistCount > 0
+                      ? "Identity suggestions are still pending review, so Acre is intentionally holding back duplicate preview until those values enter the live form."
+                      : "No visible collision is showing yet. Save-time duplicate checks will still verify the live name, phone, and email before create."
+                  }
+                  title={
+                    pendingDuplicateIdentityAssistCount > 0
+                      ? "Duplicate preview is waiting on reviewed identity fields"
+                      : "No visible duplicate warning yet"
+                  }
+                />
+              )}
             </div>
           ) : null}
 
@@ -1660,10 +1907,14 @@ export function FrontOfficeLeadIntakeCard(
           <div className="office-form-grid front-office-lead-intake-grid">
             <FormField
               className="office-form-grid-span-2"
-              helper="Required. Use the best name you have right now."
+              helper={
+                fieldErrors.fullName ??
+                "Required. Use the best name you have right now."
+              }
               label="Full name"
             >
               <TextInput
+                aria-invalid={Boolean(fieldErrors.fullName)}
                 name="fullName"
                 onChange={handleFieldChange}
                 placeholder="Jamie Chen"
@@ -1672,8 +1923,13 @@ export function FrontOfficeLeadIntakeCard(
               />
             </FormField>
 
-            <FormField label="Phone">
+            <FormField
+              helper={fieldErrors.phone}
+              label="Phone"
+            >
               <TextInput
+                aria-invalid={Boolean(fieldErrors.phone)}
+                inputMode="tel"
                 name="phone"
                 onChange={handleFieldChange}
                 placeholder="(917) 555-0182"
@@ -1681,8 +1937,12 @@ export function FrontOfficeLeadIntakeCard(
               />
             </FormField>
 
-            <FormField label="Email">
+            <FormField
+              helper={fieldErrors.email}
+              label="Email"
+            >
               <TextInput
+                aria-invalid={Boolean(fieldErrors.email)}
                 name="email"
                 onChange={handleFieldChange}
                 placeholder="jamie@example.com"
@@ -1691,8 +1951,9 @@ export function FrontOfficeLeadIntakeCard(
               />
             </FormField>
 
-            <FormField label="Stage">
+            <FormField helper={fieldErrors.stage} label="Stage">
               <SelectInput
+                aria-invalid={Boolean(fieldErrors.stage)}
                 name="stage"
                 onChange={handleFieldChange}
                 value={formState.stage}
@@ -1705,8 +1966,9 @@ export function FrontOfficeLeadIntakeCard(
               </SelectInput>
             </FormField>
 
-            <FormField label="Intent">
+            <FormField helper={fieldErrors.intent} label="Intent">
               <SelectInput
+                aria-invalid={Boolean(fieldErrors.intent)}
                 name="intent"
                 onChange={handleFieldChange}
                 value={formState.intent}
@@ -1719,8 +1981,9 @@ export function FrontOfficeLeadIntakeCard(
               </SelectInput>
             </FormField>
 
-            <FormField label="Source">
+            <FormField helper={fieldErrors.source} label="Source">
               <TextInput
+                aria-invalid={Boolean(fieldErrors.source)}
                 name="source"
                 onChange={handleFieldChange}
                 placeholder="Referral / WeChat / Open house"
@@ -1728,21 +1991,27 @@ export function FrontOfficeLeadIntakeCard(
               />
             </FormField>
 
-            <FormField label="Budget up to">
+            <FormField helper={fieldErrors.budgetMax} label="Budget up to">
               <TextInput
+                aria-invalid={Boolean(fieldErrors.budgetMax)}
+                inputMode="decimal"
                 name="budgetMax"
                 onChange={handleFieldChange}
-                placeholder="5500"
+                placeholder="5500 or 5.5k"
                 value={formState.budgetMax}
               />
             </FormField>
 
             <FormField
               className="office-form-grid-span-2"
-              helper="Comma-separated is enough for fast capture."
+              helper={
+                fieldErrors.preferredAreas ??
+                "Comma-separated is enough for fast capture."
+              }
               label="Preferred areas"
             >
               <TextInput
+                aria-invalid={Boolean(fieldErrors.preferredAreas)}
                 name="preferredAreas"
                 onChange={handleFieldChange}
                 placeholder="LIC, Astoria, Greenpoint"
@@ -1751,10 +2020,14 @@ export function FrontOfficeLeadIntakeCard(
             </FormField>
 
             <FormField
-              helper="Default is tomorrow so the next-touch queue stays active."
+              helper={
+                fieldErrors.nextFollowUpAt ??
+                "Default is tomorrow so the next-touch queue stays active."
+              }
               label="Next follow-up"
             >
               <TextInput
+                aria-invalid={Boolean(fieldErrors.nextFollowUpAt)}
                 name="nextFollowUpAt"
                 onChange={handleFieldChange}
                 type="date"
@@ -1764,10 +2037,14 @@ export function FrontOfficeLeadIntakeCard(
 
             <FormField
               className="office-form-grid-span-3"
-              helper="Optional. Capture one concrete detail from the first conversation."
+              helper={
+                fieldErrors.notes ??
+                "Optional. Capture one concrete detail from the first conversation."
+              }
               label="Notes"
             >
               <TextareaInput
+                aria-invalid={Boolean(fieldErrors.notes)}
                 name="notes"
                 onChange={handleFieldChange}
                 placeholder="Budget is flexible for the right building. Wants Saturday showings only."
@@ -1829,7 +2106,7 @@ export function FrontOfficeLeadIntakeCard(
                 Acre found existing records in the CRM scope you can currently
                 see. Start with the closest match below, then jump into the
                 duplicate review lane if this should merge instead of creating a
-                second dossier.
+                second dossier. Nothing has been merged or created yet.
               </p>
             </div>
 
@@ -1879,7 +2156,7 @@ export function FrontOfficeLeadIntakeCard(
                 type="button"
                 variant="secondary"
               >
-                Create anyway
+                Create separate dossier anyway
               </Button>
               <Button
                 disabled={isBusy}

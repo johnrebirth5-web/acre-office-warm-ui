@@ -43,25 +43,38 @@ function buildDraftDirectHref(
       : "";
     return {
       href: `mailto:${snapshot.email}${subject}`,
-      label: "Email client",
+      label: "Open email app",
     };
   }
 
   if (draft.channelKey === "sms" && snapshot.phone) {
     return {
       href: `sms:${snapshot.phone}`,
-      label: "Text client",
+      label: "Open text app",
     };
   }
 
   if (draft.channelKey === "call" && snapshot.phone) {
     return {
       href: `tel:${snapshot.phone}`,
-      label: "Call client",
+      label: "Open dialer",
     };
   }
 
   return null;
+}
+
+function formatAiSuggestionDueDate(value: string) {
+  const parsedValue = new Date(value);
+
+  if (Number.isNaN(parsedValue.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(parsedValue);
 }
 
 function canUseTrackedDraftAssist(statusLabel: string) {
@@ -92,6 +105,26 @@ export function FrontOfficeClientAiSuggestionsClient(
           aiSuggestions.primaryActionHref === "#front-office-follow-up-form"
       ? "Review in follow-up form"
       : aiSuggestions.primaryActionLabel;
+  const suggestedDueLabel = aiSuggestions.followUpSuggestion
+    ? formatAiSuggestionDueDate(aiSuggestions.followUpSuggestion.dueAt)
+    : null;
+  const executionAssistantSummary =
+    canCreateSuggestedFollowUp && aiSuggestions.followUpSuggestion
+      ? `Acre can create "${aiSuggestions.followUpSuggestion.title}" as a shared follow-up task${suggestedDueLabel ? ` due ${suggestedDueLabel}` : ""}. This is a review-ready task only: nothing will be sent automatically, no outside system will be updated, and no Back Office record will be opened for you.`
+      : aiSuggestions.oneClickReason;
+  const executionAssistantMeta = canCreateSuggestedFollowUp
+    ? [
+        "Creates a shared follow-up task only",
+        "No auto-send",
+        "No hidden background automation",
+        "Agent confirms timing and wording",
+      ]
+    : [
+        "Review current task or boundary first",
+        "No auto-send",
+        "No hidden background automation",
+        "Agent confirmation still required",
+      ];
 
   async function handleCreateFollowUp() {
     if (!aiSuggestions.followUpSuggestion) {
@@ -138,7 +171,7 @@ export function FrontOfficeClientAiSuggestionsClient(
       setFeedback({
         tone: "success",
         message:
-          "Suggested follow-up created. Acre did not send anything automatically, and the dossier will refresh with the accepted next touch.",
+          "Review-ready follow-up created in the shared queue. Acre did not send anything, did not change any Back Office record, and will only measure the outcome after an agent completes or adjusts the task.",
       });
       startTransition(() => {
         router.refresh();
@@ -158,7 +191,7 @@ export function FrontOfficeClientAiSuggestionsClient(
       await copyTextToClipboard(buildDraftCopyValue(draft));
       setFeedback({
         tone: "success",
-        message: `${draft.title} copied. Edit it before sending if the live conversation needs a different tone.`,
+        message: `${draft.title} copied for review. Acre did not send anything; edit the wording if the live conversation now needs a different tone.`,
       });
     } catch {
       setFeedback({
@@ -209,8 +242,8 @@ export function FrontOfficeClientAiSuggestionsClient(
                   variant="secondary"
                 >
                   {activeAction === "follow-up" || isPending
-                    ? "Working..."
-                    : "Create suggested follow-up"}
+                    ? "Creating..."
+                    : "Create review-ready follow-up"}
                 </Button>
               ) : (
                 <Button disabled size="sm" type="button" variant="secondary">
@@ -244,6 +277,18 @@ export function FrontOfficeClientAiSuggestionsClient(
       </div>
 
       <div className="front-office-placeholder-note front-office-playbook-surface">
+        <div className="front-office-ai-explainability-block">
+          <span className="front-office-ai-explainability-kicker">
+            Execution assistant
+          </span>
+          <p>{executionAssistantSummary}</p>
+          <div className="list-row-meta front-office-record-meta">
+            {executionAssistantMeta.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        </div>
+
         <FrontOfficeAiExplainabilitySurface
           allowsDirectFollowUpCreation={aiSuggestions.allowsDirectFollowUpCreation}
           boundaryDescription={aiSuggestions.boundaryDescription}
@@ -278,6 +323,7 @@ export function FrontOfficeClientAiSuggestionsClient(
                   <span>
                     {draft.channelLabel} · {draft.reasonLabel}
                   </span>
+                  <span>Manual send only · Acre only prepares the draft</span>
                 </div>
                 <div className="front-office-playbook-actions">
                   {directAction ? (
@@ -290,7 +336,7 @@ export function FrontOfficeClientAiSuggestionsClient(
                       className="office-inline-link"
                       href={trackedAssistHref}
                     >
-                      Open tracked assist
+                      Open tracked send assist
                     </FrontOfficeLink>
                   ) : null}
                   <Button
@@ -311,6 +357,19 @@ export function FrontOfficeClientAiSuggestionsClient(
               <pre className="front-office-playbook-template-body">
                 {draft.body}
               </pre>
+
+              <div className="list-row-meta front-office-record-meta">
+                <span>
+                  {trackedAssistHref
+                    ? "Tracked send assist keeps the next step inside listing output so accepted actions and tracked opens stay auditable."
+                    : "No tracked send record is created unless you continue through a tracked output surface."}
+                </span>
+                <span>
+                  {directAction
+                    ? "Opening your device app never auto-sends; you confirm delivery there."
+                    : "Copy the draft into your preferred channel and review it before sending."}
+                </span>
+              </div>
             </article>
           );
         })}

@@ -9,8 +9,16 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(_request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(_request);
+function mapAppointmentIcsErrorStatus(message: string) {
+  if (message.includes("Only scheduled appointments")) {
+    return 409;
+  }
+
+  return 400;
+}
+
+export async function GET(request: NextRequest, { params }: RouteContext) {
+  const context = await getRequestSessionContext(request);
 
   if (!context) {
     return NextResponse.json(
@@ -27,28 +35,41 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   }
 
   const { appointmentId } = await params;
-  const exportPayload = await getFrontOfficeAppointmentCalendarExport({
-    organizationId: context.currentOrganization.id,
-    appointmentId,
-    ownerMembershipId: context.currentMembership.id,
-    actorMembershipId: context.currentMembership.id,
-    officeId: context.currentOffice?.id ?? null,
-    timeZone: context.currentUser.timezone,
-  });
 
-  if (!exportPayload) {
+  try {
+    const exportPayload = await getFrontOfficeAppointmentCalendarExport({
+      organizationId: context.currentOrganization.id,
+      appointmentId,
+      ownerMembershipId: context.currentMembership.id,
+      actorMembershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
+    });
+
+    if (!exportPayload) {
+      return NextResponse.json(
+        { error: "Appointment not found." },
+        { status: 404 },
+      );
+    }
+
+    return new NextResponse(exportPayload.content, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": `attachment; filename=\"${exportPayload.fileName}\"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not open the appointment ICS export.";
+
     return NextResponse.json(
-      { error: "Appointment not found." },
-      { status: 404 },
+      { error: message },
+      { status: mapAppointmentIcsErrorStatus(message) },
     );
   }
-
-  return new NextResponse(exportPayload.content, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename=\"${exportPayload.fileName}\"`,
-      "Cache-Control": "no-store",
-    },
-  });
 }

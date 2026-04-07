@@ -57,6 +57,13 @@ export type FrontOfficeLeadIntakeAssistSafetySummary = {
   cautionLabels: string[];
 };
 
+export type FrontOfficeLeadIntakeAssistReadinessSummary = {
+  tone: "neutral" | "warning";
+  label: string;
+  detail: string;
+  nextStepLabels: string[];
+};
+
 export type FrontOfficeLeadIntakeAssistResult = {
   rawText: string;
   draft: FrontOfficeLeadIntakeAssistDraft;
@@ -66,6 +73,7 @@ export type FrontOfficeLeadIntakeAssistResult = {
   reviewFieldCount: number;
   previewOnlyFieldCount: number;
   safetySummary: FrontOfficeLeadIntakeAssistSafetySummary;
+  readinessSummary: FrontOfficeLeadIntakeAssistReadinessSummary;
 };
 
 type IntakeSourceMode = "image" | "text" | "hybrid";
@@ -103,6 +111,8 @@ const followUpLinePattern =
   /(?:follow-up|follow up|next touch|next step|callback|回访|跟进|下次联系)\s*[:：-]?\s*(.+)$/i;
 const speakerPrefixPattern =
   /^([A-Za-z][A-Za-z'’.-]*(?:\s+[A-Za-z][A-Za-z'’.-]*){0,2}|[\u4e00-\u9fff]{2,6})\s*[:：]\s*/;
+const selfIntroNamePattern =
+  /(?:\b(?:i am|i'm|this is|my name is)\s+([A-Za-z][A-Za-z'’.-]*(?:\s+[A-Za-z][A-Za-z'’.-]*){0,2})\b|(?:我是|我叫)\s*([\u4e00-\u9fff]{2,4}))/i;
 const familyContextPattern =
   /(?:wife|husband|spouse|partner|fianc(?:e|ee|é|ée)|boyfriend|girlfriend|family|parents?|mom|mother|dad|father|son|daughter|kids?|children|brother|sister|roommate|roommates|夫妻|家人|家庭|老公|老婆|父母|爸妈|妈妈|爸爸|儿子|女儿|孩子|室友|男朋友|女朋友)/i;
 const multiPartyPattern =
@@ -113,6 +123,8 @@ const contactOwnerRiskPattern =
   /(?:agent|broker|realtor|assistant|coworker|for my client|their client|经纪人|中介|助理|代发|转述|帮客户)/i;
 const signatureContactPattern =
   /(?:best|thanks|regards|sincerely|call me|text me|reach me|联系我|给我打电话|给我发短信)/i;
+const areaInferencePattern =
+  /(?:looking (?:in|at|around)|interested in|target(?:ing)?|focus(?:ed)? on|prefer(?:s|red)?|wants?|considering|moving to|want to be in|想找|想看|考虑|目标|想住在|想在)\s+(.+)$/i;
 
 const stageLabelMap: Record<string, string> = {
   "Cold Lead": "Stage",
@@ -242,6 +254,17 @@ function extractExplicitNameCandidates(lines: string[]) {
   );
 }
 
+function extractSelfIntroNameCandidates(lines: string[]) {
+  return uniqueStrings(
+    lines.flatMap((line) => {
+      const match = line.match(selfIntroNamePattern);
+      const candidate = cleanPotentialName(match?.[1] ?? match?.[2] ?? "");
+
+      return isLikelyName(candidate) ? [candidate] : [];
+    }),
+  );
+}
+
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "");
 
@@ -331,8 +354,13 @@ function parseName(
   context: ConversationContext,
 ): ParsedAssistValue | null {
   const explicitNameCandidates = extractExplicitNameCandidates(lines);
+  const selfIntroCandidates = extractSelfIntroNameCandidates(lines);
 
   if (explicitNameCandidates.length > 1) {
+    return null;
+  }
+
+  if (selfIntroCandidates.length > 1) {
     return null;
   }
 
@@ -372,6 +400,24 @@ function parseName(
       provenance: "explicit_line",
       explicit: true,
       riskFlags,
+    };
+  }
+
+  if (selfIntroCandidates.length === 1) {
+    const evidence =
+      lines.find((line) => {
+        const match = line.match(selfIntroNamePattern);
+        const candidate = cleanPotentialName(match?.[1] ?? match?.[2] ?? "");
+
+        return candidate === selfIntroCandidates[0];
+      }) ?? selfIntroCandidates[0];
+
+    return {
+      value: selfIntroCandidates[0],
+      evidence,
+      provenance: "conversation_inference",
+      explicit: false,
+      riskFlags: [...context.riskFlags],
     };
   }
 
@@ -642,21 +688,41 @@ function cleanAreaToken(value: string) {
     .trim();
 }
 
+function extractAreaTokensFromSegment(value: string) {
+  return value
+    .split(/,|\/|;|\band\b|\bor\b|，|、|和|或/i)
+    .map((item) => cleanAreaToken(item));
+}
+
 function parsePreferredAreas(lines: string[]): ParsedAssistValue | null {
   const labeledLines = lines.filter((line) => areaLinePattern.test(line));
-  const tokens = labeledLines.flatMap((line) => {
+  const labeledTokens = labeledLines.flatMap((line) => {
     const match = line.match(areaLinePattern);
 
     if (!match?.[1]) {
       return [];
     }
 
-    return match[1]
-      .split(/,|\/|;|\band\b|，|、/i)
-      .map((item) => cleanAreaToken(item));
+    return extractAreaTokensFromSegment(match[1]);
+  });
+  const inferenceLines = lines.filter((line) => {
+    if (labeledLines.includes(line)) {
+      return false;
+    }
+
+    return areaInferencePattern.test(line);
+  });
+  const inferredTokens = inferenceLines.flatMap((line) => {
+    const match = line.match(areaInferencePattern);
+
+    if (!match?.[1]) {
+      return [];
+    }
+
+    return extractAreaTokensFromSegment(match[1]);
   });
   const seen = new Set<string>();
-  const unique = tokens.filter((token) => {
+  const unique = [...labeledTokens, ...inferredTokens].filter((token) => {
     const normalized = token.toLowerCase();
 
     if (
@@ -682,10 +748,9 @@ function parsePreferredAreas(lines: string[]): ParsedAssistValue | null {
 
   return {
     value: unique.slice(0, 5).join(", "),
-    evidence: labeledLines[0] ?? unique[0],
-    provenance: labeledLines.length
-      ? "explicit_line"
-      : "conversation_inference",
+    evidence: labeledLines[0] ?? inferenceLines[0] ?? unique[0],
+    provenance:
+      labeledLines.length > 0 ? "explicit_line" : "conversation_inference",
     explicit: labeledLines.length > 0,
     riskFlags: [],
   };
@@ -1163,6 +1228,120 @@ function buildSafetySummary(
   };
 }
 
+function countAlphaNumericLikeChars(value: string) {
+  return value.match(/[A-Za-z0-9\u4e00-\u9fff]/g)?.length ?? 0;
+}
+
+function buildReadinessSummary(input: {
+  rawText: string;
+  lines: string[];
+  fields: FrontOfficeLeadIntakeAssistField[];
+  context: ConversationContext;
+  sourceMode: IntakeSourceMode;
+}): FrontOfficeLeadIntakeAssistReadinessSummary {
+  const identityFields = input.fields.filter(
+    (field) =>
+      field.field === "fullName" ||
+      field.field === "phone" ||
+      field.field === "email",
+  );
+  const hasLeadName = input.fields.some((field) => field.field === "fullName");
+  const hasWorkflowField = input.fields.some((field) =>
+    [
+      "stage",
+      "intent",
+      "budgetMax",
+      "preferredAreas",
+      "nextFollowUpAt",
+    ].includes(field.field),
+  );
+  const alphaNumericChars = countAlphaNumericLikeChars(input.rawText);
+  const signalRatio =
+    input.rawText.length > 0 ? alphaNumericChars / input.rawText.length : 0;
+  const lowSignal =
+    input.lines.length <= 2 ||
+    alphaNumericChars < 20 ||
+    (input.fields.length <= 2 && signalRatio < 0.45);
+
+  const screenshotGuidance =
+    input.sourceMode === "image" || input.sourceMode === "hybrid"
+      ? "Crop tighter around the lead messages before re-running OCR"
+      : "";
+  const transcriptGuidance =
+    input.sourceMode === "text" || input.sourceMode === "hybrid"
+      ? "Paste 3-8 lines that include name, contact clues, or a clear next step"
+      : "";
+
+  if (!input.fields.length) {
+    return {
+      tone: "warning",
+      label: "Extraction stayed conservative",
+      detail:
+        "Acre found text, but not enough structured lead data to move anything into the live form yet.",
+      nextStepLabels: uniqueStrings([
+        screenshotGuidance,
+        transcriptGuidance,
+        "Manual entry is still the safe fallback if you already know the lead",
+      ]).filter(Boolean),
+    };
+  }
+
+  if (!hasLeadName && identityFields.length > 0) {
+    return {
+      tone: "warning",
+      label: "Contact clues appeared without a clear lead name",
+      detail:
+        "Phone or email may be usable, but review who those details belong to before applying them into the live form.",
+      nextStepLabels: uniqueStrings([
+        transcriptGuidance,
+        "Look for a self-introduction or labeled name line before applying contact details",
+      ]).filter(Boolean),
+    };
+  }
+
+  if (lowSignal) {
+    return {
+      tone: "warning",
+      label: "Low-signal extract: keep review tight",
+      detail:
+        "Acre found a few usable clues, but the extract still looks sparse or noisy, so review each field before you apply it.",
+      nextStepLabels: uniqueStrings([
+        screenshotGuidance,
+        transcriptGuidance,
+        hasWorkflowField
+          ? "Apply only the fields you are comfortable promoting into the live form"
+          : "Add one workflow clue such as budget, areas, or next follow-up timing",
+      ]).filter(Boolean),
+    };
+  }
+
+  if (input.context.cautionLabels.length > 0) {
+    return {
+      tone: "warning",
+      label: "Structured fields found, but identity still needs review",
+      detail:
+        "Acre found usable lead signals, yet household, multi-party, or relay-contact context means the live form should stay under manual control.",
+      nextStepLabels: [
+        "Review identity fields first",
+        "Only apply the values that clearly belong to the primary lead",
+        "Create uses live form values only",
+      ],
+    };
+  }
+
+  return {
+    tone: "neutral",
+    label: "Good starting point for review",
+    detail:
+      "Acre found structured lead fields and kept every suggestion separate from the live form until you review and apply it.",
+    nextStepLabels: [
+      "Review safe suggestions first",
+      "Apply only the fields you want in the live form",
+      "No auto-create or auto-send happens here",
+    ],
+  };
+}
+
 export function extractFrontOfficeLeadIntakeAssist(input: {
   rawText: string;
   sourceMode: IntakeSourceMode;
@@ -1236,5 +1415,12 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
     reviewFieldCount,
     previewOnlyFieldCount,
     safetySummary: buildSafetySummary(context),
+    readinessSummary: buildReadinessSummary({
+      rawText: normalizedText,
+      lines,
+      fields,
+      context,
+      sourceMode: input.sourceMode,
+    }),
   } satisfies FrontOfficeLeadIntakeAssistResult;
 }

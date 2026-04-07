@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       officeId: context.currentOffice?.id ?? null,
       timeZone: context.currentUser.timezone,
       clientId: request.nextUrl.searchParams.get("clientId"),
+      listingId: request.nextUrl.searchParams.get("listingId"),
       type: request.nextUrl.searchParams.get("type"),
       status: request.nextUrl.searchParams.get("status"),
       coordination: request.nextUrl.searchParams.get("coordination"),

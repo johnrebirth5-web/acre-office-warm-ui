@@ -14,7 +14,7 @@ import { FrontOfficeAgentMaterialWindow } from "./front-office-agent-material-wi
 import { FrontOfficeListingsOutputClient } from "./front-office-listings-output-client";
 import {
   buildFrontOfficeListingsRouteState,
-  readSearchParamValue,
+  parseFrontOfficeListingsSearchParams,
 } from "./front-office-listings-route-state";
 import { requireSessionContext } from "../../../lib/auth-session";
 
@@ -41,50 +41,10 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
   }
 
   const searchParams = (await props.searchParams) ?? {};
-  const targetClientId = readSearchParamValue(searchParams.clientId)?.trim();
-  const targetAppointmentId = readSearchParamValue(
-    searchParams.appointmentId,
-  )?.trim();
-  const draftChannelValue = readSearchParamValue(
-    searchParams.draftChannel,
-  )?.trim();
-  const draftBodyValue = readSearchParamValue(searchParams.draftBody)?.trim();
-  const draftSubjectValue =
-    readSearchParamValue(searchParams.draftSubject)?.trim() || "";
-  const draftTitleValue =
-    readSearchParamValue(searchParams.draftTitle)?.trim() || "";
-  const hasDraftAssistParams = Boolean(
-    draftChannelValue ||
-      draftBodyValue ||
-      draftSubjectValue ||
-      draftTitleValue ||
-      readSearchParamValue(searchParams.draftSource)?.trim() ||
-      readSearchParamValue(searchParams.draftSuggestionKind)?.trim() ||
-      readSearchParamValue(searchParams.draftSuggestionLabel)?.trim(),
-  );
-  const draftChannel: "sms" | "email" | null =
-    draftChannelValue === "sms" || draftChannelValue === "email"
-      ? draftChannelValue
-      : null;
-  const draftAssist =
-    draftChannel && draftBodyValue
-      ? {
-          channel: draftChannel,
-          title: draftTitleValue || "AI outbound draft",
-          subjectLine: draftSubjectValue,
-          body: draftBodyValue,
-          suggestionKind:
-            readSearchParamValue(searchParams.draftSuggestionKind)?.trim() ||
-            null,
-          suggestionLabel:
-            readSearchParamValue(searchParams.draftSuggestionLabel)?.trim() ||
-            null,
-          sourceLabel:
-            readSearchParamValue(searchParams.draftSource) === "ai"
-              ? "AI draft assist loaded below. Copying the matching channel now uses this draft and still appends a tracked listing link."
-              : null,
-        }
-      : null;
+  const parsedSearch = parseFrontOfficeListingsSearchParams(searchParams);
+  const targetClientId = parsedSearch.requestedClientId;
+  const targetAppointmentId = parsedSearch.requestedAppointmentId;
+  const draftAssist = parsedSearch.draftAssist;
   const snapshot = await getFrontOfficeListingsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -97,9 +57,9 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
     snapshot,
     requestedClientId: targetClientId ?? null,
     requestedAppointmentId: targetAppointmentId ?? null,
-    requestedDraftChannel: draftChannel,
-    hasDraftAssist: Boolean(draftAssist),
-    hasDraftAssistParams,
+    requestedDraftChannel: parsedSearch.requestedDraftChannel,
+    draftAssist,
+    hasDraftAssistParams: parsedSearch.hasDraftAssistParams,
   });
   const materialStatusLabel = buildMaterialStatusLabel({
     portraitReady: snapshot.agentMaterial.portraitReady,
@@ -108,13 +68,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Listings in Front Office are about tracked recommendation, outreach context, and follow-up visibility, not back-office inventory administration."
+      description="Front Office listings are a manual outbound workspace: package the send, keep tracked-link context visible, and push the next touch back into the FO trail without pretending Acre already auto-sends anything."
       eyebrow="Listings"
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this list as the tracked listing output surface for live client outreach, appointment prep, and send-trail rescue."
-          title="Tracked listing output"
+          subtitle="Use this as the agent outbound send desk for listing recommendations, appointment follow-up, send-trail rescue, and manual outreach packaging."
+          title="Outbound listing workspace"
         >
           <FrontOfficeListingsOutputClient
             draftAssist={draftAssist}
@@ -127,8 +87,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Quick read on the current listing output surface."
-            title="Output signals"
+            subtitle="Quick read on how ready this workspace is for tracked outbound send work right now."
+            title="Outbound signals"
           >
             <ListPageStatsGrid>
               <StatCard
@@ -152,6 +112,12 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 value={snapshot.summary.trackedClicks}
               />
               <StatCard
+                hint={routeState.routeStatusDescription}
+                label="Route"
+                tone={routeState.diagnostics.length ? "default" : "accent"}
+                value={routeState.routeStatusLabel}
+              />
+              <StatCard
                 hint="current writeback mode for this route"
                 label="Mode"
                 tone="accent"
@@ -160,9 +126,9 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               <StatCard
                 hint={
                   draftAssist
-                    ? "deep-linked assisted copy is currently loaded"
-                    : hasDraftAssistParams
-                      ? "draft parameters arrived but Acre kept the standard templates"
+                    ? "deep-linked assisted copy is currently loaded into the matching send lane"
+                    : parsedSearch.hasDraftAssistParams
+                      ? "draft parameters arrived but Acre kept the standard manual templates"
                       : "copy actions are using the standard listing templates"
                 }
                 label="Draft"
@@ -178,8 +144,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Client-linked sends are the current Front Office priority because they close the execution loop and keep appointment pressure visible."
-            title="Send context"
+            subtitle="Keep the active recipient, appointment loop, draft lane, and route health visible before the listing leaves this page."
+            title="Workspace context"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
@@ -248,6 +214,38 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                   title={`${snapshot.targetAppointment.title} · ${snapshot.targetAppointment.startsAtLabel}`}
                 />
               ) : null}
+              <FrontOfficeRailItem
+                action={
+                  <>
+                    {routeState.hasDraftAssist ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={routeState.contextHref}
+                      >
+                        Clear draft lane
+                      </FrontOfficeLink>
+                    ) : null}
+                    {routeState.diagnostics.length ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={routeState.cleanHref}
+                      >
+                        Open clean route
+                      </FrontOfficeLink>
+                    ) : null}
+                  </>
+                }
+                badgeLabel={routeState.routeStatusLabel}
+                badgeTone={routeState.diagnostics.length ? "warning" : "accent"}
+                description={routeState.routeStatusDescription}
+                meta={
+                  <>
+                    <span>{routeState.draftStatusLabel}</span>
+                    <span>Manual send only</span>
+                  </>
+                }
+                title="Route health and draft lane"
+              />
               {draftAssist ? (
                 <FrontOfficeRailItem
                   action={
@@ -286,8 +284,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Business card, profile assets, intro copy, and proof package should stay beside listing output so the agent can build a send bundle instead of hunting for assets."
-            title="Agent material window"
+            subtitle="Business card, intro copy, and proof points stay here as send support so each listing can leave with identity and context, not as a separate profile toy."
+            title="Agent send package"
           >
             <FrontOfficeAgentMaterialWindow
               material={snapshot.agentMaterial}
@@ -299,8 +297,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="This route should feel like an output terminal with writeback signals, not an admin inventory console."
-            title="Writeback behavior"
+            subtitle="Acre creates tracked links and writeback context here, but the actual send still happens only when the agent manually pastes and sends the copied content."
+            title="Manual send guardrails"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
@@ -338,6 +336,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             tone="accent"
             value={snapshot.summary.trackedClicks}
           />
+          <SummaryChip label="Route" value={routeState.routeStatusLabel} />
           <SummaryChip
             label="Mode"
             tone={routeState.mode === "tracked-link" ? "default" : "accent"}
@@ -358,12 +357,9 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
           ) : null}
           <SummaryChip label="Draft" value={routeState.draftStatusLabel} />
           <SummaryChip label="Materials" value={materialStatusLabel} />
-          {routeState.diagnostics.length ? (
-            <SummaryChip label="URL" value="Adjusted" />
-          ) : null}
         </>
       }
-      title="Listing output"
+      title="Listing outbound workspace"
     />
   );
 }

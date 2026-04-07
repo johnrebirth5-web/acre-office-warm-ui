@@ -3,6 +3,9 @@ import Link from "next/link";
 import {
   getFrontOfficeClientsSnapshot,
   getFrontOfficeDashboardSnapshot,
+  type FrontOfficeClientsSnapshot,
+  type FrontOfficeDashboardSnapshot,
+  type FrontOfficeDashboardTone,
 } from "@acre/db";
 import {
   Badge,
@@ -72,6 +75,343 @@ function getDashboardQueueAction(input: {
   };
 }
 
+type DashboardLaunchpadItem = {
+  id: string;
+  badgeLabel: string;
+  badgeTone: FrontOfficeDashboardTone;
+  title: string;
+  description: string;
+  metaLabel: string;
+  href: string;
+  actionLabel: string;
+  opensInNewTab?: boolean;
+};
+
+function getDashboardRoleFocus(role: string) {
+  switch (role) {
+    case "team_lead":
+      return {
+        label: "Team lead focus",
+        description:
+          "Clear visible team cleanup first, then keep your own follow-up, send/click, and handoff work moving in Front Office.",
+      };
+    case "owner":
+    case "office_admin":
+      return {
+        label: "Office leadership focus",
+        description:
+          "Keep office execution pressure visible here, and move work into Back Office only when the record truly needs a formal file.",
+      };
+    default:
+      return {
+        label: "Agent execution focus",
+        description:
+          "Start with the next due touch, then work send/click, today's commitments, and formal handoffs from the same Front Office bench.",
+      };
+  }
+}
+
+function buildDashboardLaunchpadItems(input: {
+  snapshot: FrontOfficeDashboardSnapshot;
+  clientsSnapshot: FrontOfficeClientsSnapshot | null;
+  canUseAi: boolean;
+  canViewClients: boolean;
+  viewerRole: string;
+}) {
+  const items: DashboardLaunchpadItem[] = [];
+  const seen = new Set<string>();
+  const addItem = (item: DashboardLaunchpadItem | null) => {
+    if (!item || seen.has(item.id)) {
+      return;
+    }
+
+    seen.add(item.id);
+    items.push(item);
+  };
+  const leadingCommitment = input.snapshot.commitments.items[0] ?? null;
+  const leadingAiItem = input.snapshot.aiQueue.items[0] ?? null;
+  const leadingEngagement = input.snapshot.listingOutput.recentEngagement[0] ?? null;
+  const leadingBackOfficeItem = input.snapshot.backOffice.items[0] ?? null;
+  const leadingLeadershipItem = input.snapshot.leadershipQueue.items[0] ?? null;
+  const followUpLead =
+    input.snapshot.pipeline.recentClients.find(
+      (client) =>
+        client.nextTouchLabel.includes("Due") ||
+        client.nextTouchLabel.includes("Overdue"),
+    ) ?? input.snapshot.pipeline.recentClients[0] ?? null;
+
+  if (
+    input.snapshot.leadershipQueue.visible &&
+    input.snapshot.summary.leadershipPressureCount > 0
+  ) {
+    addItem({
+      id: "leadership",
+      badgeLabel:
+        input.viewerRole === "team_lead" ? "Team cleanup" : "Office cleanup",
+      badgeTone: "danger",
+      title:
+        input.viewerRole === "team_lead"
+          ? "Clear visible team cleanup pressure"
+          : "Clear visible office cleanup pressure",
+      description: leadingLeadershipItem
+        ? `${leadingLeadershipItem.title} is the clearest pressure point right now. Review it in the FO activity center before it turns into a formal fire drill.`
+        : "Leadership cleanup is already visible in Front Office, so missed follow-up and quiet send trails do not hide behind Back Office work.",
+      metaLabel: `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s)`,
+      href: "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
+      actionLabel:
+        input.viewerRole === "team_lead"
+          ? "Open team cleanup"
+          : "Open office cleanup",
+    });
+  }
+
+  if (input.snapshot.summary.followUpDueCount > 0) {
+    addItem({
+      id: "follow-up",
+      badgeLabel: "Do now",
+      badgeTone: "warning",
+      title: "Work the live follow-up queue",
+      description: followUpLead
+        ? `${followUpLead.fullName} is a good first touch. ${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`
+        : `${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`,
+      metaLabel: `${input.snapshot.summary.overdueTaskCount} overdue task(s) in the shared follow-up clock`,
+      href: "/agent/clients#client-pipeline",
+      actionLabel: "Open client queue",
+    });
+  }
+
+  if (input.snapshot.summary.todayCommitmentCount > 0) {
+    addItem({
+      id: "commitments",
+      badgeLabel: "Today",
+      badgeTone: "accent",
+      title: "Prep today's commitments",
+      description: leadingCommitment
+        ? `${leadingCommitment.title} is already on the calendar. Use Front Office to confirm prep, follow-through, and any promised next touch.`
+        : `${input.snapshot.summary.todayCommitmentCount} appointment or office commitment(s) land today.`,
+      metaLabel: leadingCommitment
+        ? `${leadingCommitment.startsAtLabel} · ${leadingCommitment.contextLabel}`
+        : `${input.snapshot.summary.todayCommitmentCount} commitment(s) scheduled today`,
+      href: "/agent/calendar",
+      actionLabel: "Open calendar",
+    });
+  }
+
+  if (input.canUseAi && leadingAiItem) {
+    addItem({
+      id: "ai",
+      badgeLabel: leadingAiItem.statusLabel,
+      badgeTone: leadingAiItem.tone,
+      title: `Review AI next touch for ${leadingAiItem.clientName}`,
+      description: `${leadingAiItem.description} Acre still waits for your approval and does not auto-send or hide automation behind the queue.`,
+      metaLabel: leadingAiItem.helperLabel,
+      href: leadingAiItem.primaryActionHref,
+      actionLabel: leadingAiItem.primaryActionLabel,
+      opensInNewTab: leadingAiItem.primaryActionOpensInNewTab,
+    });
+  }
+
+  if (leadingEngagement) {
+    addItem({
+      id: "engagement",
+      badgeLabel: leadingEngagement.engagementLabel,
+      badgeTone: leadingEngagement.engagementTone,
+      title: `Work ${leadingEngagement.clientName}'s send signal`,
+      description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the dossier to turn that open or quiet send into a real next step.`,
+      metaLabel: `${leadingEngagement.channelLabel} · ${leadingEngagement.detailLabel}`,
+      href: leadingEngagement.href,
+      actionLabel: "Open client dossier",
+    });
+  } else if (input.snapshot.listingOutput.activeListingCount > 0) {
+    addItem({
+      id: "listing-output",
+      badgeLabel: "Send-ready",
+      badgeTone: "success",
+      title: "Send tracked content",
+      description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the execution trail.`,
+      metaLabel:
+        input.snapshot.listingOutput.trackedLinkCount > 0
+          ? `${input.snapshot.listingOutput.trackedLinkCount} tracked link(s) already created`
+          : "First tracked send starts from listing output",
+      href: "/agent/listings",
+      actionLabel: "Open listing output",
+    });
+  }
+
+  if (leadingBackOfficeItem) {
+    addItem({
+      id: "handoff",
+      badgeLabel: "Boundary",
+      badgeTone: leadingBackOfficeItem.tone,
+      title: `Move ${leadingBackOfficeItem.title} into formal workflow`,
+      description: `${leadingBackOfficeItem.description} Keep the FO -> BO boundary explicit and open the formal record only when the package is ready.`,
+      metaLabel: leadingBackOfficeItem.contextLabel,
+      href: leadingBackOfficeItem.href,
+      actionLabel: leadingBackOfficeItem.actionLabel,
+    });
+  }
+
+  if (
+    input.canViewClients &&
+    (input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0) > 0
+  ) {
+    addItem({
+      id: "duplicate-review",
+      badgeLabel: "Review",
+      badgeTone: "warning",
+      title: "Clean duplicate pressure before it spreads",
+      description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Review first so intake and follow-up stay on one surviving dossier.`,
+      metaLabel: "Duplicate compare and merge still stays in the client queue",
+      href: "/agent/clients#duplicate-review",
+      actionLabel: "Open duplicate review",
+    });
+  }
+
+  if (input.canViewClients) {
+    addItem({
+      id: "intake",
+      badgeLabel: "Intake",
+      badgeTone: "accent",
+      title: "Capture a new lead without leaving Front Office",
+      description:
+        "Use intake assist when a live call, screenshot, or pasted chat needs to become a real dossier. Acre still waits for your review before anything is created.",
+      metaLabel: input.clientsSnapshot
+        ? `${input.clientsSnapshot.summary.liveContacts} live contact(s) in your current scope`
+        : "Field-level review and duplicate warnings stay in the card",
+      href: "#dashboard-intake-launch",
+      actionLabel: "Open intake assist",
+    });
+  }
+
+  return items.slice(0, 4);
+}
+
+function buildDashboardHeroStats(input: {
+  snapshot: FrontOfficeDashboardSnapshot;
+  canUseAi: boolean;
+}) {
+  const stats = [
+    {
+      label: "Today actions",
+      value: input.snapshot.summary.todayActionCount,
+      hint: "execution signals currently visible on this launchpad",
+      tone: "accent" as const,
+    },
+    {
+      label: "Follow-up due",
+      value: input.snapshot.summary.followUpDueCount,
+      hint: "same-day or overdue client touches",
+      tone:
+        input.snapshot.summary.followUpDueCount > 0
+          ? ("accent" as const)
+          : ("default" as const),
+    },
+    {
+      label: "Today commitments",
+      value: input.snapshot.summary.todayCommitmentCount,
+      hint: "appointments or shared office commitments landing today",
+      tone: "default" as const,
+    },
+  ];
+
+  if (input.canUseAi) {
+    stats.push({
+      label: "AI suggestions",
+      value: input.snapshot.summary.aiSuggestionCount,
+      hint: "grounded next-touch ideas waiting for approval",
+      tone:
+        input.snapshot.summary.aiSuggestionCount > 0
+          ? ("accent" as const)
+          : ("default" as const),
+    });
+  } else {
+    const useEngagementSignal =
+      input.snapshot.listingOutput.engagedClientCount > 0;
+
+    stats.push({
+      label: useEngagementSignal ? "Engaged clients" : "Send-ready listings",
+      value: useEngagementSignal
+        ? input.snapshot.listingOutput.engagedClientCount
+        : input.snapshot.listingOutput.activeListingCount,
+      hint: useEngagementSignal
+        ? "clients with tracked opens already on record"
+        : "active inventory ready for tracked outreach",
+      tone: "accent" as const,
+    });
+  }
+
+  stats.push(
+    input.snapshot.leadershipQueue.visible
+      ? {
+          label: "Leadership pressure",
+          value: input.snapshot.summary.leadershipPressureCount,
+          hint: "visible team or office cleanup signals",
+          tone:
+            input.snapshot.summary.leadershipPressureCount > 0
+              ? ("accent" as const)
+              : ("default" as const),
+        }
+      : {
+          label: "Needs Back Office",
+          value: input.snapshot.summary.needsBackOfficeCount,
+          hint: "records that now need formal workflow",
+          tone:
+            input.snapshot.summary.needsBackOfficeCount > 0
+              ? ("accent" as const)
+              : ("default" as const),
+        },
+  );
+
+  return stats;
+}
+
+function getActionLaneStatus(item: FrontOfficeDashboardSnapshot["actionQueue"][number]) {
+  if (item.count <= 0) {
+    return {
+      label: "Clear",
+      tone: "neutral" as const,
+    };
+  }
+
+  switch (item.id) {
+    case "follow-up":
+      return {
+        label: "Do now",
+        tone: item.tone,
+      };
+    case "commitments":
+      return {
+        label: "Today",
+        tone: item.tone,
+      };
+    case "lease-reminders":
+      return {
+        label: item.tone === "danger" ? "Late" : "Upcoming",
+        tone: item.tone,
+      };
+    case "content":
+      return {
+        label: "Ready",
+        tone: item.tone,
+      };
+    case "handoff":
+      return {
+        label: "Boundary",
+        tone: item.tone,
+      };
+    case "leadership":
+      return {
+        label: "Review",
+        tone: item.tone,
+      };
+    default:
+      return {
+        label: "Active",
+        tone: item.tone,
+      };
+  }
+}
+
 export default async function AgentDashboardPage() {
   const context = await requireSessionContext();
 
@@ -108,21 +448,152 @@ export default async function AgentDashboardPage() {
       nextTouchLabel: client.nextTouchLabel,
       href: client.href,
     }));
+  const roleFocus = getDashboardRoleFocus(context.currentMembership.role);
+  const launchpadItems = buildDashboardLaunchpadItems({
+    snapshot,
+    clientsSnapshot,
+    canUseAi,
+    canViewClients,
+    viewerRole: context.currentMembership.role,
+  });
+  const primaryLaunchpadItem = launchpadItems[0] ?? null;
+  const supportingLaunchpadItems = launchpadItems.slice(1);
+  const heroStats = buildDashboardHeroStats({
+    snapshot,
+    canUseAi,
+  });
+  const leadershipCleanupHref =
+    "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure";
+  const activityCenterHref = snapshot.leadershipQueue.visible
+    ? leadershipCleanupHref
+    : "/agent/notifications?activityView=personal_cleanup#personal-cleanup-pressure";
+  const listingSummaryChip = snapshot.listingOutput.engagedClientCount > 0
+    ? {
+        label: "Engaged clients",
+        value: snapshot.listingOutput.engagedClientCount,
+      }
+    : {
+        label: "Send-ready listings",
+        value: snapshot.listingOutput.activeListingCount,
+      };
 
   return (
     <FrontOfficePageTemplate
-      description="Daily follow-up, commitments, listing outreach, and the next Back Office handoff in one view."
+      description={roleFocus.description}
       eyebrow="Front Office"
       headerClassName="front-office-dashboard-header"
       layoutClassName="front-office-dashboard-layout"
       summaryClassName="front-office-dashboard-summary"
       main={
         <>
+          <SectionCard
+            className="office-list-card"
+            actions={
+              <>
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href={activityCenterHref}
+                >
+                  Open activity center
+                </FrontOfficeLink>
+                {canViewClients ? (
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href="/agent/clients#client-pipeline"
+                  >
+                    Open client queue
+                  </FrontOfficeLink>
+                ) : null}
+              </>
+            }
+            subtitle={`${roleFocus.label}. Start with the first lane below; the supporting cards keep send/click, AI review, intake, and formal handoff in the same honest workspace.`}
+            title="Start here first"
+          >
+            <ListPageStatsGrid>
+              {heroStats.map((stat) => (
+                <StatCard
+                  hint={stat.hint}
+                  key={stat.label}
+                  label={stat.label}
+                  tone={stat.tone}
+                  value={stat.value}
+                />
+              ))}
+            </ListPageStatsGrid>
+
+            {primaryLaunchpadItem ? (
+              <div className="office-queue-list">
+                <FrontOfficeRailItem
+                  action={
+                    primaryLaunchpadItem.opensInNewTab ? (
+                      <a
+                        className="office-inline-link front-office-inline-link"
+                        href={primaryLaunchpadItem.href}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {primaryLaunchpadItem.actionLabel}
+                      </a>
+                    ) : (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={primaryLaunchpadItem.href}
+                      >
+                        {primaryLaunchpadItem.actionLabel}
+                      </FrontOfficeLink>
+                    )
+                  }
+                  badgeLabel={primaryLaunchpadItem.badgeLabel}
+                  badgeTone={primaryLaunchpadItem.badgeTone}
+                  context="First move"
+                  description={primaryLaunchpadItem.description}
+                  meta={<span>{primaryLaunchpadItem.metaLabel}</span>}
+                  title={primaryLaunchpadItem.title}
+                />
+              </div>
+            ) : null}
+
+            {supportingLaunchpadItems.length ? (
+              <div className="office-queue-list">
+                {supportingLaunchpadItems.map((item) => (
+                  <FrontOfficeRailItem
+                    action={
+                      item.opensInNewTab ? (
+                        <a
+                          className="office-inline-link front-office-inline-link"
+                          href={item.href}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {item.actionLabel}
+                        </a>
+                      ) : (
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={item.href}
+                        >
+                          {item.actionLabel}
+                        </FrontOfficeLink>
+                      )
+                    }
+                    badgeLabel={item.badgeLabel}
+                    badgeTone={item.badgeTone}
+                    context="Keep moving"
+                    description={item.description}
+                    key={item.id}
+                    meta={<span>{item.metaLabel}</span>}
+                    title={item.title}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </SectionCard>
+
           {clientsSnapshot ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Use the dashboard as the launch pad: start a new intake, reopen pending assist review inside the card below, or jump straight into duplicate review and the live client queue."
-              title="Intake launch & review"
+              subtitle="Keep new lead capture, duplicate warnings, and pending intake review inside the live FO queue. Nothing here auto-creates from OCR or transcript assist."
+              title="Intake assist & duplicate review"
             >
               <ListPageStatsGrid>
                 <StatCard
@@ -270,15 +741,15 @@ export default async function AgentDashboardPage() {
               hydrateDuplicatePreviewCandidates
               initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
               sourceSurface="dashboard"
-              subtitle="Launch a new lead or reopen a screenshot / transcript extract that still needs review. The same card keeps field-level confidence, provenance, review-pending suggestions, and duplicate warnings visible before anything touches the live form."
-              title="Launch intake assist"
+              subtitle="Open a new lead capture or reopen screenshot / transcript suggestions that still need review. The card keeps confidence, provenance, and duplicate warnings visible before anything touches the live form."
+              title="Open intake assist"
             />
           </div>
 
           <SectionCard
             className="office-list-card"
-            subtitle="The queue stays inside Front Office until a client or document needs to become a formal Back Office record."
-            title="Today action queue"
+            subtitle="Work these lanes in order. Front Office keeps the live execution clock; Back Office starts only when the record needs formal ownership."
+            title="Today execution lanes"
           >
             <div className="list-column front-office-record-list">
               {snapshot.actionQueue.map((item) => {
@@ -288,6 +759,7 @@ export default async function AgentDashboardPage() {
                   actionLabel: item.actionLabel,
                   canViewClients,
                 });
+                const laneStatus = getActionLaneStatus(item);
 
                 return (
                   <article
@@ -299,8 +771,8 @@ export default async function AgentDashboardPage() {
                         <strong>{item.label}</strong>
                         <p>{item.description}</p>
                       </div>
-                      <StatusBadge tone={item.tone}>
-                        {item.tone === "neutral" ? "In view" : "Active"}
+                      <StatusBadge tone={laneStatus.tone}>
+                        {laneStatus.label}
                       </StatusBadge>
                     </div>
                     <div className="list-row-meta front-office-record-meta">
@@ -322,7 +794,7 @@ export default async function AgentDashboardPage() {
           {canUseAi ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Acre can now lift grounded next-touch opportunities out of the dossier and into the dashboard, but every action still stays agent-approved."
+              subtitle="Grounded next-touch suggestions only. No auto-send, no hidden automation, and BO-ready records still push the formal handoff path instead of another silent reminder."
               title="AI next-touch queue"
             >
               <ListPageStatsGrid>
@@ -343,7 +815,7 @@ export default async function AgentDashboardPage() {
           {canUseAi ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Accepted AI actions stay measured against the same shared follow-up and tracked-send trail, so Acre can show what actually moved after the suggestion was used."
+              subtitle="Use this trust layer to see what happened after you accepted a suggestion: which action became a real follow-up or tracked send, and which ones still need help."
               title="AI accepted actions & outcomes"
             >
               <ListPageStatsGrid>
@@ -443,8 +915,8 @@ export default async function AgentDashboardPage() {
                 </>
               ) : undefined
             }
-            subtitle="Light pipeline visibility for the agent workday. Formal transaction reporting still belongs in Back Office."
-            title="Client pipeline snapshot"
+            subtitle="Use this as a fast re-entry map. Full cleanup, merge, and detailed review still stay in the client workspace."
+            title="Live client queue"
           >
             <ListPageStatsGrid>
               {snapshot.pipeline.stageMetrics.length ? (
@@ -465,7 +937,7 @@ export default async function AgentDashboardPage() {
               ) : (
                 <EmptyState
                   className="front-office-inline-empty"
-                  description="Once Front Office is managing live clients in this scope, stage distribution will appear here."
+                  description="Start with intake assist or the client queue. Stage distribution appears once live dossiers are moving in this scope."
                   title="No client stages yet"
                 />
               )}
@@ -501,6 +973,14 @@ export default async function AgentDashboardPage() {
                 ))
               ) : (
                 <EmptyState
+                  action={
+                    <Link
+                      className="office-button-secondary"
+                      href="#dashboard-intake-launch"
+                    >
+                      Open intake assist
+                    </Link>
+                  }
                   description="When client activity starts flowing into the shared CRM, the latest active records will appear here."
                   title="No active client records"
                 />
@@ -510,7 +990,7 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Your own Front Office appointments now sit next to shared office commitments so the workday stays in one place, and near-term appointments feed the same activity stream as other reminders."
+            subtitle="Appointments and shared office commitments stay in one FO calendar view. Google, Outlook, ICS, and email remain explicit bridge actions, not two-way sync."
             title="Calendar & commitments"
           >
             <ListPageStatsGrid>
@@ -535,17 +1015,7 @@ export default async function AgentDashboardPage() {
             </ListPageStatsGrid>
 
             <div className="front-office-placeholder-note">
-              <Badge
-                tone={
-                  snapshot.commitments.appointmentModuleReady
-                    ? "accent"
-                    : "neutral"
-                }
-              >
-                {snapshot.commitments.appointmentModuleReady
-                  ? "Live now"
-                  : "Honest state"}
-              </Badge>
+              <Badge tone="accent">Scheduling live</Badge>
               <p>{snapshot.commitments.appointmentMessage}</p>
             </div>
 
@@ -579,7 +1049,15 @@ export default async function AgentDashboardPage() {
                 ))
               ) : (
                 <EmptyState
-                  description="When this office publishes upcoming events or visible meetings, they will surface here."
+                  action={
+                    <Link
+                      className="office-button-secondary"
+                      href="/agent/calendar"
+                    >
+                      Open calendar
+                    </Link>
+                  }
+                  description="Nothing is on deck yet. Use the calendar to stage the next appointment or promised follow-up."
                   title="No commitments scheduled"
                 />
               )}
@@ -588,8 +1066,8 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Use listing inventory and tracked links to drive outreach without switching into formal Back Office workflows."
-            title="Listing & content output"
+            subtitle="Tracked sends, opens, and quiet links should help you decide the next touch. Acre records the execution trail but does not auto-send."
+            title="Send & click output"
           >
             <ListPageStatsGrid>
               <StatCard
@@ -669,6 +1147,14 @@ export default async function AgentDashboardPage() {
                 ))
               ) : (
                 <EmptyState
+                  action={
+                    <Link
+                      className="office-button-secondary"
+                      href="/agent/listings"
+                    >
+                      Open listing output
+                    </Link>
+                  }
                   description="Active listings will appear here once inventory is available in the shared listing model."
                   title="No listing inventory in scope"
                 />
@@ -676,11 +1162,11 @@ export default async function AgentDashboardPage() {
             </div>
 
             <div className="front-office-placeholder-note">
-              <strong>Recent client engagement</strong>
+              <strong>Recent send & click signal</strong>
               <p>
-                Client-linked sends now turn tracked links into real execution
-                history, so you can see who was sent what and whether they
-                opened it.
+                Client-linked sends turn tracked links into real execution
+                history, so you can see who received what, whether they opened
+                it, and where the next touch still needs agent judgment.
               </p>
             </div>
 
@@ -719,7 +1205,15 @@ export default async function AgentDashboardPage() {
                 ))
               ) : (
                 <EmptyState
-                  description="Open listing output from a client dossier to create client-linked send records and show engagement here."
+                  action={
+                    <Link
+                      className="office-button-secondary"
+                      href="/agent/listings"
+                    >
+                      Start tracked send
+                    </Link>
+                  }
+                  description="Start from listing output or a client dossier to create the first client-linked send record. Opens and revisits will show here after that."
                   title="No client-linked sends yet"
                 />
               )}
@@ -728,8 +1222,8 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="These items should move into Back Office because they need formal transactions, signatures, or auditable document flow."
-            title="Needs Back Office"
+            subtitle="These items now need formal transactions, signatures, or auditable document flow. Front Office should tee up the work, then hand off deliberately."
+            title="Front Office -> Back Office boundary"
           >
             <div className="list-column front-office-record-list">
               {snapshot.backOffice.items.length ? (
@@ -760,12 +1254,18 @@ export default async function AgentDashboardPage() {
                   action={
                     <Link
                       className="office-button-secondary"
-                      href="/office/transactions"
+                      href={
+                        canViewClients
+                          ? "/agent/clients#client-pipeline"
+                          : activityCenterHref
+                      }
                     >
-                      Open Back Office
+                      {canViewClients
+                        ? "Stay in client queue"
+                        : "Open activity center"}
                     </Link>
                   }
-                  description="When a client is ready to become a transaction or a signature step needs formal follow-through, it will show up here."
+                  description="Nothing needs a formal BO file right now. Keep working the live FO queue until a package, signature, or transaction truly needs auditable ownership."
                   title="Nothing waiting for formal workflow"
                 />
               )}
@@ -776,10 +1276,86 @@ export default async function AgentDashboardPage() {
       pageClassName="front-office-dashboard-page"
       rail={
         <>
+          {snapshot.leadershipQueue.visible ? (
+            <SectionCard
+              className="office-list-card"
+              actions={
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href={leadershipCleanupHref}
+                >
+                  Open full queue
+                </FrontOfficeLink>
+              }
+              subtitle="Use the FO activity center to scan overdue tasks, stale clients, and quiet send trails before anyone has to jump into a direct office record."
+              title={snapshot.leadershipQueue.scopeLabel}
+            >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="open shared follow-up tasks already overdue"
+                  label="Overdue tasks"
+                  value={snapshot.leadershipQueue.overdueTaskCount}
+                />
+                <StatCard
+                  hint="active clients with 15+ days of inactivity"
+                  label="15+ day stale"
+                  value={snapshot.leadershipQueue.staleClientCount}
+                />
+                <StatCard
+                  hint="latest tracked sends that were never opened or have gone quiet"
+                  label="Send-trail risk"
+                  value={snapshot.leadershipQueue.engagementRiskCount}
+                />
+              </ListPageStatsGrid>
+
+              <div className="office-queue-list">
+                {snapshot.leadershipQueue.items.length ? (
+                  snapshot.leadershipQueue.items.map((item) => (
+                    <FrontOfficeRailItem
+                      action={
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={item.href}
+                        >
+                          {item.actionLabel}
+                        </FrontOfficeLink>
+                      }
+                      badgeLabel={item.contextLabel}
+                      badgeTone={item.tone}
+                      description={item.description}
+                      key={item.id}
+                      meta={
+                        <>
+                          <span>{item.ownerLabel}</span>
+                          <span>{item.pressureLabel}</span>
+                        </>
+                      }
+                      title={item.title}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    className="front-office-inline-empty"
+                    description="No overdue task, stale-client, or quiet send-trail pressure is visible right now."
+                    title="Leadership queue is clear"
+                  />
+                )}
+              </div>
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             className="office-list-card"
-            subtitle="Office-level alerts and visibility cues that support daily follow-up."
-            title="Resource & notice rail"
+            actions={
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href={activityCenterHref}
+              >
+                Open activity center
+              </FrontOfficeLink>
+            }
+            subtitle="Shared office alerts and personal notice links that help you clear today's queue without leaving the Front Office shell."
+            title="Activity & notices"
           >
             <div className="office-queue-list">
               {snapshot.noticeRail.notifications.length ? (
@@ -808,7 +1384,7 @@ export default async function AgentDashboardPage() {
               ) : (
                 <EmptyState
                   className="front-office-inline-empty"
-                  description="Shared office notices and personal notifications will appear here when they are available."
+                  description="Nothing new is waiting in the notice rail. The activity center still carries personal cleanup and reminder pressure."
                   title="No current notices"
                 />
               )}
@@ -817,40 +1393,17 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Published documents, templates, and playbooks stay discoverable from the Front Office rail."
-            title="Training & documents"
-          >
-            <div className="office-queue-list">
-              {snapshot.noticeRail.resources.length ? (
-                snapshot.noticeRail.resources.map((resource) => (
-                  <FrontOfficeRailItem
-                    action={
-                      <FrontOfficeLink
-                        className="office-inline-link front-office-inline-link"
-                        href={resource.href}
-                      >
-                        Open resource
-                      </FrontOfficeLink>
-                    }
-                    badgeLabel={resource.typeLabel}
-                    description={resource.summary}
-                    key={resource.id}
-                    title={resource.title}
-                  />
-                ))
-              ) : (
-                <EmptyState
-                  className="front-office-inline-empty"
-                  description="Published Front Office resources will surface here once the shared library is populated."
-                  title="No resources published"
-                />
-              )}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            className="office-list-card"
-            subtitle="Lease renewal and remarketing windows should show up before they turn into a last-minute fire drill."
+            actions={
+              canViewClients ? (
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href="/agent/clients#client-pipeline"
+                >
+                  Open client queue
+                </FrontOfficeLink>
+              ) : undefined
+            }
+            subtitle="Lease renewal and remarketing windows should surface before they become a last-minute fire drill."
             title="Lease-date reminders"
           >
             <ListPageStatsGrid>
@@ -898,6 +1451,47 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
+            actions={
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href="/agent/resources"
+              >
+                Open resources
+              </FrontOfficeLink>
+            }
+            subtitle="Published documents, templates, and playbooks stay one click away from the active execution queue."
+            title="Training & documents"
+          >
+            <div className="office-queue-list">
+              {snapshot.noticeRail.resources.length ? (
+                snapshot.noticeRail.resources.map((resource) => (
+                  <FrontOfficeRailItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={resource.href}
+                      >
+                        Open resource
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={resource.typeLabel}
+                    description={resource.summary}
+                    key={resource.id}
+                    title={resource.title}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  className="front-office-inline-empty"
+                  description="Published FO resources will surface here once the shared library is populated."
+                  title="No resources published"
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
             subtitle="Operational shortcuts for vendors that agents need during client execution."
             title="Vendor shortcuts"
           >
@@ -936,60 +1530,6 @@ export default async function AgentDashboardPage() {
               )}
             </div>
           </SectionCard>
-
-          {snapshot.leadershipQueue.visible ? (
-            <SectionCard
-              className="office-list-card"
-              subtitle="Team leads and office admins should see overdue tasks, stale clients, and quiet tracked-send trails before they become a formal Back Office fire drill."
-              title={snapshot.leadershipQueue.scopeLabel}
-            >
-              <ListPageStatsGrid>
-                <StatCard
-                  hint="open shared follow-up tasks already overdue"
-                  label="Overdue tasks"
-                  value={snapshot.leadershipQueue.overdueTaskCount}
-                />
-                <StatCard
-                  hint="active clients with 15+ days of inactivity"
-                  label="15+ day stale"
-                  value={snapshot.leadershipQueue.staleClientCount}
-                />
-                <StatCard
-                  hint="latest tracked sends that were never opened or have gone quiet"
-                  label="Send-trail risk"
-                  value={snapshot.leadershipQueue.engagementRiskCount}
-                />
-              </ListPageStatsGrid>
-
-              <div className="office-queue-list">
-                {snapshot.leadershipQueue.items.length ? (
-                  snapshot.leadershipQueue.items.map((item) => (
-                    <FrontOfficeRailItem
-                      action={
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={item.href}
-                        >
-                          {item.actionLabel}
-                        </FrontOfficeLink>
-                      }
-                      badgeLabel={item.contextLabel}
-                      badgeTone={item.tone}
-                      description={item.description}
-                      key={item.id}
-                      title={item.title}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
-                    className="front-office-inline-empty"
-                    description="No overdue task, stale-client, or quiet send-trail pressure is visible right now."
-                    title="Leadership queue is clear"
-                  />
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
         </>
       }
       summary={
@@ -1001,50 +1541,38 @@ export default async function AgentDashboardPage() {
             }
           />
           <SummaryChip label="Access" value={access.label} />
+          <SummaryChip label="Role focus" value={roleFocus.label} />
           <SummaryChip
             label="Today actions"
             tone="accent"
             value={snapshot.summary.todayActionCount}
           />
-          {clientsSnapshot ? (
-            <SummaryChip
-              label="Live contacts"
-              value={clientsSnapshot.summary.liveContacts}
-            />
-          ) : null}
           <SummaryChip
             label="Follow-up due"
-            value={snapshot.summary.followUpDueCount}
-          />
-          {clientsSnapshot ? (
-            <SummaryChip
-              label="Duplicate review"
-              tone="accent"
-              value={clientsSnapshot.summary.potentialDuplicateCount}
-            />
-          ) : null}
-          <SummaryChip
-            label="Lease reminders"
             tone="accent"
-            value={snapshot.summary.leaseReminderCount}
-          />
-          <SummaryChip
-            label="Overdue tasks"
-            value={snapshot.summary.overdueTaskCount}
-          />
-          <SummaryChip
-            label="15+ day stale"
-            value={snapshot.summary.staleClientCount}
+            value={snapshot.summary.followUpDueCount}
           />
           <SummaryChip
             label="Today commitments"
             value={snapshot.summary.todayCommitmentCount}
           />
           <SummaryChip
+            label={listingSummaryChip.label}
+            tone="accent"
+            value={listingSummaryChip.value}
+          />
+          <SummaryChip
             label="Needs Back Office"
             tone="accent"
             value={snapshot.summary.needsBackOfficeCount}
           />
+          {snapshot.summary.leaseReminderCount > 0 ? (
+            <SummaryChip
+              label="Lease reminders"
+              tone="accent"
+              value={snapshot.summary.leaseReminderCount}
+            />
+          ) : null}
           {canUseAi ? (
             <SummaryChip
               label="AI suggestions"
@@ -1059,9 +1587,23 @@ export default async function AgentDashboardPage() {
               value={snapshot.summary.leadershipPressureCount}
             />
           ) : null}
+          {clientsSnapshot &&
+          clientsSnapshot.summary.potentialDuplicateCount > 0 ? (
+            <SummaryChip
+              label="Duplicate review"
+              tone="accent"
+              value={clientsSnapshot.summary.potentialDuplicateCount}
+            />
+          ) : null}
+          {clientsSnapshot ? (
+            <SummaryChip
+              label="Live contacts"
+              value={clientsSnapshot.summary.liveContacts}
+            />
+          ) : null}
         </>
       }
-      title="Front Office dashboard"
+      title="Front Office launchpad"
     />
   );
 }

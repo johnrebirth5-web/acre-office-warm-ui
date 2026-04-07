@@ -12,6 +12,19 @@ type AgentNotificationOpenPageProps = {
   }>;
 };
 
+function appendNoticeFeedback(href: string, notificationId: string) {
+  const [baseHref, hash = ""] = href.split("#", 2);
+  const [pathname, query = ""] = baseHref.split("?", 2);
+  const params = new URLSearchParams(query);
+
+  params.set("noticeFeedback", "opened_from_center");
+  params.set("openedNoticeId", notificationId);
+
+  const nextQuery = params.toString();
+
+  return `${pathname}${nextQuery ? `?${nextQuery}` : ""}${hash ? `#${hash}` : ""}`;
+}
+
 export default async function AgentNotificationOpenPage({
   params,
   searchParams,
@@ -31,13 +44,17 @@ export default async function AgentNotificationOpenPage({
 
   const { notificationId } = await params;
   const resolvedSearchParams = (await searchParams) ?? {};
+  const fallbackUrl = appendNoticeFeedback(
+    resolvedSearchParams.returnTo || "/agent/notifications",
+    notificationId,
+  );
   const actionUrl = await openOfficeNotification({
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
     membershipId: context.currentMembership.id,
     notificationId,
-    fallbackUrl: resolvedSearchParams.returnTo || "/agent/notifications",
+    fallbackUrl,
   });
 
-  redirect(actionUrl || "/agent/notifications");
+  redirect(actionUrl || fallbackUrl);
 }

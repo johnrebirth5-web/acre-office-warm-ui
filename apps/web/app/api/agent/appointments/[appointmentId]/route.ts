@@ -17,6 +17,17 @@ function isJsonObjectBody(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function mapAppointmentUpdateErrorStatus(message: string) {
+  if (
+    message.includes("still scheduled") ||
+    message.includes("only be updated while the appointment is still scheduled")
+  ) {
+    return 409;
+  }
+
+  return 400;
+}
+
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
 
@@ -97,14 +108,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json({ appointment });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not update the appointment.";
+
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not update the appointment.",
-      },
-      { status: 400 },
+      { error: message },
+      { status: mapAppointmentUpdateErrorStatus(message) },
     );
   }
 }

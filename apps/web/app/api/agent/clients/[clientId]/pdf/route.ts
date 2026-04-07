@@ -27,7 +27,7 @@ function buildPdfFileName(fullName: string, generatedAt: Date) {
       .replace(/^-+|-+$/g, "") || "client";
   const dateStamp = generatedAt.toISOString().slice(0, 10);
 
-  return `${safeName}-front-office-summary-${dateStamp}.pdf`;
+  return `${safeName}-client-summary-${dateStamp}.pdf`;
 }
 
 export async function GET(
@@ -83,6 +83,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
+      "Cache-Control": "no-store",
       "Content-Disposition": `attachment; filename="${buildPdfFileName(
         snapshot.fullName,
         generatedAt,

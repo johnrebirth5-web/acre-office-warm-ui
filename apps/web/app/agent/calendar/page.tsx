@@ -45,6 +45,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     officeId: context.currentOffice?.id ?? null,
     timeZone: context.currentUser.timezone,
     clientId: readSearchParamValue(searchParams.clientId)?.trim(),
+    listingId: readSearchParamValue(searchParams.listingId)?.trim(),
     type: readSearchParamValue(searchParams.type)?.trim(),
     status: readSearchParamValue(searchParams.status)?.trim(),
     coordination: readSearchParamValue(searchParams.coordination)?.trim(),
@@ -59,6 +60,12 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
   )
     ? requestedClientId
     : undefined;
+  const requestedListingId = readSearchParamValue(searchParams.listingId)?.trim();
+  const initialListingId = snapshot.listingOptions.some(
+    (option) => option.value === requestedListingId,
+  )
+    ? requestedListingId
+    : undefined;
 
   return (
     <FrontOfficePageTemplate
@@ -67,6 +74,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
       main={
         <FrontOfficeCalendarClient
           initialClientId={initialClientId}
+          initialListingId={initialListingId}
           snapshot={snapshot}
         />
       }
@@ -95,9 +103,10 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 value={snapshot.summary.awaitingReplyCount}
               />
               <StatCard
-                hint="next external touches already due or overdue in the visible queue"
-                label="Touch due"
-                value={snapshot.summary.touchDueCount}
+                hint="scheduled appointments explicitly waiting on an outside confirmation reply"
+                label="Awaiting confirm"
+                tone="accent"
+                value={snapshot.summary.confirmationPendingCount}
               />
               <StatCard
                 hint="appointments still waiting on outside coordination but missing a saved next-touch deadline"
@@ -106,10 +115,15 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 value={snapshot.summary.missingTouchPlanCount}
               />
               <StatCard
-                hint="appointments with at least one Google / Outlook / ICS / email bridge logged"
-                label="Bridged"
+                hint="next external touches already due or overdue in the visible queue"
+                label="Touch due"
+                value={snapshot.summary.touchDueCount}
+              />
+              <StatCard
+                hint="appointments whose latest writeback says the time needs to move"
+                label="Reschedule"
                 tone="accent"
-                value={snapshot.summary.bridgedCount}
+                value={snapshot.summary.rescheduleRequestedCount}
               />
               <StatCard
                 hint="formal transaction follow-through waiting in BO"
@@ -209,18 +223,23 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             value={snapshot.summary.awaitingReplyCount}
           />
           <SummaryChip
+            label="Awaiting confirm"
+            tone="accent"
+            value={snapshot.summary.confirmationPendingCount}
+          />
+          <SummaryChip
             label="Touch due"
             value={snapshot.summary.touchDueCount}
+          />
+          <SummaryChip
+            label="Reschedule"
+            tone="accent"
+            value={snapshot.summary.rescheduleRequestedCount}
           />
           <SummaryChip
             label="Missing touch"
             tone="accent"
             value={snapshot.summary.missingTouchPlanCount}
-          />
-          <SummaryChip
-            label="Bridged"
-            tone="accent"
-            value={snapshot.summary.bridgedCount}
           />
         </>
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { FrontOfficeDashboardAiQueueItem } from "@acre/db";
 import { Button, EmptyState } from "@acre/ui";
 import { useRouter } from "next/navigation";
@@ -23,7 +23,15 @@ export function FrontOfficeDashboardAiQueueClient(
   const router = useRouter();
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [activeClientId, setActiveClientId] = useState<string | null>(null);
+  const [resolvedItemIds, setResolvedItemIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
+  const visibleItems = props.items.filter(
+    (item) => !resolvedItemIds.includes(item.id),
+  );
+
+  useEffect(() => {
+    setResolvedItemIds([]);
+  }, [props.items]);
 
   async function handleCreateFollowUp(item: FrontOfficeDashboardAiQueueItem) {
     setFeedback(null);
@@ -51,6 +59,9 @@ export function FrontOfficeDashboardAiQueueClient(
       );
       const payload = (await response.json().catch(() => null)) as {
         error?: string;
+        task?: {
+          title?: string | null;
+        } | null;
       } | null;
 
       if (!response.ok) {
@@ -63,9 +74,13 @@ export function FrontOfficeDashboardAiQueueClient(
         return;
       }
 
+      const createdTitle = payload?.task?.title?.trim() || item.followUpTitle;
+      setResolvedItemIds((current) =>
+        current.includes(item.id) ? current : [...current, item.id],
+      );
       setFeedback({
         tone: "success",
-        message: `Suggested follow-up created for ${item.clientName}. Acre did not send anything automatically, and the dashboard will refresh with the updated queue.`,
+        message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The dashboard is refreshing, and Acre will only bring the record back if a grounded next step is still needed.`,
       });
       startTransition(() => {
         router.refresh();
@@ -91,8 +106,8 @@ export function FrontOfficeDashboardAiQueueClient(
       ) : null}
 
       <div className="office-queue-list">
-        {props.items.length ? (
-          props.items.map((item) => (
+        {visibleItems.length ? (
+          visibleItems.map((item) => (
             <FrontOfficeRailItem
               action={
                 <>
@@ -105,7 +120,7 @@ export function FrontOfficeDashboardAiQueueClient(
                       variant="secondary"
                     >
                       {activeClientId === item.clientId || isPending
-                        ? "Working..."
+                        ? "Queueing..."
                         : "Create follow-up"}
                     </Button>
                   ) : (
@@ -152,6 +167,7 @@ export function FrontOfficeDashboardAiQueueClient(
                   boundaryLabel={item.boundaryLabel}
                   boundaryTone={item.boundaryTone}
                   compact
+                  helperText={item.helperLabel}
                   oneClickReason={item.oneClickReason}
                   primaryActionReason={item.primaryActionReason}
                   rankingSignals={item.rankingSignals}
@@ -163,8 +179,16 @@ export function FrontOfficeDashboardAiQueueClient(
           ))
         ) : (
           <EmptyState
-            description="As lease timing, appointments, tracked send behavior, handoff state, and transaction milestones line up, grounded AI next-touch opportunities will appear here."
-            title="No AI suggestions in queue"
+            description={
+              props.items.length && resolvedItemIds.length
+                ? "The queue is refreshing after your last accepted action. If the record still needs work, Acre will return with the next grounded step."
+                : "Nothing grounded is surfacing right now. Keep working the live follow-up, send/click, and handoff queues; Acre will only surface suggestions when the record trail supports them."
+            }
+            title={
+              props.items.length && resolvedItemIds.length
+                ? "Refreshing AI queue"
+                : "No AI suggestions in queue"
+            }
           />
         )}
       </div>

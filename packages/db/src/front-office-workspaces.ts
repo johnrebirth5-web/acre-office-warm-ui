@@ -362,7 +362,12 @@ export type FrontOfficeResourceRecord = {
   id: string;
   title: string;
   summary: string;
+  detailLabel: string;
+  freshnessLabel: string;
+  actionLabel: string;
+  typeKey: ResourceType;
   typeLabel: string;
+  typeTone: FrontOfficeTone;
   tags: string[];
   href: string;
 };
@@ -371,9 +376,17 @@ export type FrontOfficeVendorRecord = {
   id: string;
   name: string;
   category: string;
+  categoryLabel: string;
+  categoryTone: FrontOfficeTone;
   headline: string;
   neighborhoodsLabel: string;
+  coverageLabel: string;
   contactLabel: string;
+  actionLabel: string;
+  websiteHref: string | null;
+  phoneHref: string | null;
+  emailHref: string | null;
+  isFeatured: boolean;
   href: string | null;
 };
 
@@ -382,7 +395,22 @@ export type FrontOfficeResourcesSnapshot = {
     resourceCount: number;
     vendorCount: number;
     resourceTypeCount: number;
+    featuredVendorCount: number;
+    quickContactVendorCount: number;
+    vendorCategoryCount: number;
   };
+  resourceTypes: Array<{
+    key: ResourceType;
+    label: string;
+    count: number;
+    tone: FrontOfficeTone;
+    description: string;
+  }>;
+  vendorCategories: Array<{
+    category: string;
+    label: string;
+    count: number;
+  }>;
   resources: FrontOfficeResourceRecord[];
   vendors: FrontOfficeVendorRecord[];
 };
@@ -608,6 +636,32 @@ function formatBudgetRange(
   return "Budget not captured";
 }
 
+function cleanStringList(
+  values: Array<string | null | undefined>,
+  maxItems?: number,
+) {
+  const uniqueValues = Array.from(
+    new Set(
+      values
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  return typeof maxItems === "number"
+    ? uniqueValues.slice(0, maxItems)
+    : uniqueValues;
+}
+
+function formatLooseTitleLabel(value: string | null | undefined) {
+  return cleanStringList([value])
+    .join(" ")
+    .split(/[_\-\s]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
 function formatDateLabel(
   value: Date | null | undefined,
   timeZone?: string | null,
@@ -741,6 +795,205 @@ function mapClientStageTone(stage: string): FrontOfficeTone {
   }
 
   return "neutral";
+}
+
+function getClientStageSortRank(stage: string) {
+  const normalized = stage.trim().toLowerCase();
+
+  if (!normalized) {
+    return 99;
+  }
+
+  if (normalized.includes("cold")) {
+    return 0;
+  }
+
+  if (normalized.includes("warm")) {
+    return 1;
+  }
+
+  if (normalized.includes("contacted")) {
+    return 2;
+  }
+
+  if (normalized.includes("follow-up") || normalized.includes("follow up")) {
+    return 3;
+  }
+
+  if (
+    normalized.includes("viewing scheduled") ||
+    normalized.includes("showing scheduled") ||
+    normalized.includes("tour scheduled")
+  ) {
+    return 4;
+  }
+
+  if (
+    normalized.includes("viewing completed") ||
+    normalized.includes("showing completed") ||
+    normalized.includes("tour completed")
+  ) {
+    return 5;
+  }
+
+  if (normalized.includes("negotiation")) {
+    return 6;
+  }
+
+  if (normalized.includes("application") || normalized.includes("offer")) {
+    return 7;
+  }
+
+  if (normalized.includes("pending")) {
+    return 8;
+  }
+
+  if (normalized.includes("won")) {
+    return 9;
+  }
+
+  if (normalized.includes("lost")) {
+    return 10;
+  }
+
+  return 50;
+}
+
+function compareClientStageLabels(left: string, right: string) {
+  const rankDelta =
+    getClientStageSortRank(left) - getClientStageSortRank(right);
+
+  if (rankDelta !== 0) {
+    return rankDelta;
+  }
+
+  return left.localeCompare(right);
+}
+
+function resolveClientNextTouchAt(input: {
+  nextFollowUpAt: Date | null;
+  leaseReminderAt: Date | null;
+}) {
+  const leaseReminder = resolveLeaseReminderDates({
+    leaseEndDate: null,
+    leaseReminderAt: input.leaseReminderAt,
+  }).leaseReminderAt;
+
+  if (input.nextFollowUpAt && leaseReminder) {
+    return input.nextFollowUpAt.getTime() <= leaseReminder.getTime()
+      ? input.nextFollowUpAt
+      : leaseReminder;
+  }
+
+  return input.nextFollowUpAt ?? leaseReminder ?? null;
+}
+
+function compareFrontOfficeClientQueueRecords(
+  left: {
+    fullName: string;
+    stage: string;
+    lastContactAt: Date | null;
+    nextFollowUpAt: Date | null;
+    leaseReminderAt: Date | null;
+    updatedAt: Date;
+    createdAt: Date;
+  },
+  right: {
+    fullName: string;
+    stage: string;
+    lastContactAt: Date | null;
+    nextFollowUpAt: Date | null;
+    leaseReminderAt: Date | null;
+    updatedAt: Date;
+    createdAt: Date;
+  },
+  now: Date,
+) {
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  ).getTime();
+  const fifteenDaysAgo = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 15,
+  ).getTime();
+
+  const resolveBucket = (value: typeof left) => {
+    if (isClosedClientStage(value.stage)) {
+      return 5;
+    }
+
+    const nextTouchAt = resolveClientNextTouchAt(value)?.getTime() ?? null;
+
+    if (nextTouchAt != null && nextTouchAt < startOfToday) {
+      return 0;
+    }
+
+    if (nextTouchAt != null && nextTouchAt < startOfTomorrow) {
+      return 1;
+    }
+
+    if (nextTouchAt != null) {
+      return 2;
+    }
+
+    const lastTouchAt = value.lastContactAt?.getTime() ?? null;
+
+    if (lastTouchAt == null || lastTouchAt <= fifteenDaysAgo) {
+      return 3;
+    }
+
+    return 4;
+  };
+
+  const leftBucket = resolveBucket(left);
+  const rightBucket = resolveBucket(right);
+
+  if (leftBucket !== rightBucket) {
+    return leftBucket - rightBucket;
+  }
+
+  if (leftBucket <= 2) {
+    const leftNextTouchAt =
+      resolveClientNextTouchAt(left)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const rightNextTouchAt =
+      resolveClientNextTouchAt(right)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftNextTouchAt !== rightNextTouchAt) {
+      return leftNextTouchAt - rightNextTouchAt;
+    }
+  }
+
+  if (leftBucket === 3) {
+    const leftStaleAt = (
+      left.lastContactAt ??
+      left.createdAt
+    ).getTime();
+    const rightStaleAt = (
+      right.lastContactAt ??
+      right.createdAt
+    ).getTime();
+
+    if (leftStaleAt !== rightStaleAt) {
+      return leftStaleAt - rightStaleAt;
+    }
+  }
+
+  if (left.updatedAt.getTime() !== right.updatedAt.getTime()) {
+    return right.updatedAt.getTime() - left.updatedAt.getTime();
+  }
+
+  return (
+    compareClientStageLabels(left.stage, right.stage) ||
+    left.fullName.localeCompare(right.fullName)
+  );
 }
 
 function normalizeDuplicateName(value: string | null | undefined) {
@@ -1085,6 +1338,23 @@ function mapListingStatusTone(status: ListingStatus): FrontOfficeTone {
   return "neutral";
 }
 
+function getListingStatusSortRank(status: ListingStatus) {
+  switch (status) {
+    case ListingStatus.hot:
+      return 0;
+    case ListingStatus.active:
+      return 1;
+    case ListingStatus.pending:
+      return 2;
+    case ListingStatus.sold:
+      return 3;
+    case ListingStatus.off_market:
+      return 4;
+    default:
+      return 5;
+  }
+}
+
 function formatUserRoleLabel(role: UserRole) {
   switch (role) {
     case "owner":
@@ -1297,9 +1567,7 @@ function getFrontOfficeNotificationActionLabel(input: {
         : "Open calendar writeback";
   }
 
-  return input.actionUrl?.trim()
-    ? "Open notice"
-    : formatNotificationType(input.type);
+  return input.actionUrl?.trim() ? "Open notice" : "Review notice";
 }
 
 function getFrontOfficeNotificationStream(input: {
@@ -1351,6 +1619,58 @@ function getFrontOfficeNotificationOwnerLabel(readStateMutable: boolean) {
         ownerKey: "shared_office" as const,
         ownerLabel: "Shared office",
       };
+}
+
+function getFrontOfficeToneSortRank(tone: FrontOfficeTone) {
+  switch (tone) {
+    case "danger":
+      return 0;
+    case "warning":
+      return 1;
+    case "accent":
+      return 2;
+    case "success":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
+function getFrontOfficeNotificationStreamSortRank(
+  streamKey: FrontOfficeActivityNotificationStreamKey,
+) {
+  switch (streamKey) {
+    case "front_office":
+      return 0;
+    case "back_office":
+      return 1;
+    case "shared_notice":
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+function getFrontOfficeNotificationSortRank(input: {
+  groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+  pressureTone: FrontOfficeTone;
+  streamKey: FrontOfficeActivityNotificationStreamKey;
+  readStateMutable: boolean;
+  isUnread: boolean;
+}) {
+  if (input.groupKey !== "general_notice") {
+    return getFrontOfficeToneSortRank(input.pressureTone);
+  }
+
+  if (input.readStateMutable && input.isUnread) {
+    return 10 + getFrontOfficeToneSortRank(input.pressureTone);
+  }
+
+  if (!input.readStateMutable) {
+    return 20 + getFrontOfficeNotificationStreamSortRank(input.streamKey);
+  }
+
+  return 30 + getFrontOfficeToneSortRank(input.pressureTone);
 }
 
 function getFrontOfficeNotificationScopeLabel(input: {
@@ -1532,6 +1852,251 @@ function formatResourceType(type: ResourceType) {
     .split("_")
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
+}
+
+function getResourceTypePriority(type: ResourceType) {
+  switch (type) {
+    case ResourceType.playbook:
+      return 0;
+    case ResourceType.template:
+      return 1;
+    case ResourceType.document:
+      return 2;
+    case ResourceType.training_video:
+      return 3;
+    case ResourceType.vendor_card:
+      return 4;
+    default:
+      return 5;
+  }
+}
+
+function getResourceTypeTone(type: ResourceType): FrontOfficeTone {
+  switch (type) {
+    case ResourceType.template:
+      return "success";
+    case ResourceType.playbook:
+      return "accent";
+    case ResourceType.training_video:
+      return "warning";
+    default:
+      return "neutral";
+  }
+}
+
+function getResourceTypeDescription(type: ResourceType) {
+  switch (type) {
+    case ResourceType.playbook:
+      return "Step-by-step operating guidance for live calls, follow-up, and handoff prep.";
+    case ResourceType.template:
+      return "Copy-ready structure that keeps repeat client communication fast and consistent.";
+    case ResourceType.document:
+      return "Shared forms, contracts, and internal reference documents that agents reach for often.";
+    case ResourceType.training_video:
+      return "Short training material for process refreshers and office onboarding.";
+    case ResourceType.vendor_card:
+      return "Vendor reference material that supports the wider Front Office execution loop.";
+    default:
+      return "Published Front Office material ready to open.";
+  }
+}
+
+function getResourceTypeDetailLabel(type: ResourceType) {
+  switch (type) {
+    case ResourceType.playbook:
+      return "Best opened when an agent needs the next call step, objection path, or handoff checklist immediately.";
+    case ResourceType.template:
+      return "Use this lane when the structure should already exist and the agent only needs to personalize the final message.";
+    case ResourceType.document:
+      return "Keep the canonical form or reference close without turning this page into a second formal records module.";
+    case ResourceType.training_video:
+      return "Use for quick refreshers and coaching moments, not for background automation or hidden progress tricks.";
+    case ResourceType.vendor_card:
+      return "Use this lane when the job needs a real outside partner and a direct next action.";
+    default:
+      return "Published Front Office material that can be opened directly from the live workflow.";
+  }
+}
+
+function getResourceActionLabel(type: ResourceType) {
+  switch (type) {
+    case ResourceType.playbook:
+      return "Open playbook";
+    case ResourceType.template:
+      return "Open template";
+    case ResourceType.training_video:
+      return "Watch training";
+    case ResourceType.vendor_card:
+      return "Open vendor card";
+    default:
+      return "Open resource";
+  }
+}
+
+function buildListingAreaLabel(
+  neighborhood: string | null | undefined,
+  city: string | null | undefined,
+) {
+  const labels = cleanStringList([neighborhood, city]);
+
+  if (labels.length === 0) {
+    return "Area pending";
+  }
+
+  if (labels.length === 1) {
+    return labels[0];
+  }
+
+  return `${labels[0]}, ${labels[1]}`;
+}
+
+function buildListingSummaryLabel(input: {
+  aiSummary: string | null;
+  bedrooms: number | null;
+  bathrooms: Prisma.Decimal | number | null;
+  isPublic: boolean;
+}) {
+  if (input.aiSummary?.trim()) {
+    return input.aiSummary.trim();
+  }
+
+  const bedroomLabel = input.bedrooms ? `${input.bedrooms} bd` : null;
+  const bathroomLabel = input.bathrooms
+    ? `${Number(input.bathrooms)} ba`
+    : null;
+  const layoutLabel = [bedroomLabel, bathroomLabel]
+    .filter(Boolean)
+    .join(" · ");
+
+  if (layoutLabel) {
+    return `${layoutLabel} match ready to review.`;
+  }
+
+  return input.isPublic
+    ? "Published listing ready to review."
+    : "Curated listing ready to review.";
+}
+
+function formatVendorCategoryLabel(category: string | null | undefined) {
+  return formatLooseTitleLabel(category) || "Vendor";
+}
+
+function mapVendorCategoryTone(category: string | null | undefined) {
+  const normalized = category?.trim().toLowerCase() || "";
+
+  if (
+    normalized.includes("mortgage") ||
+    normalized.includes("loan") ||
+    normalized.includes("lender") ||
+    normalized.includes("finance")
+  ) {
+    return "success";
+  }
+
+  if (
+    normalized.includes("attorney") ||
+    normalized.includes("legal") ||
+    normalized.includes("title") ||
+    normalized.includes("closing") ||
+    normalized.includes("escrow")
+  ) {
+    return "accent";
+  }
+
+  if (
+    normalized.includes("inspection") ||
+    normalized.includes("repair") ||
+    normalized.includes("contractor") ||
+    normalized.includes("moving") ||
+    normalized.includes("insurance")
+  ) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
+function buildVendorCoverageLabel(neighborhoods: string[]) {
+  const cleanedNeighborhoods = cleanStringList(neighborhoods);
+
+  if (cleanedNeighborhoods.length === 0) {
+    return "Office-wide coverage";
+  }
+
+  if (cleanedNeighborhoods.length <= 2) {
+    return cleanedNeighborhoods.join(" · ");
+  }
+
+  return `${cleanedNeighborhoods.slice(0, 2).join(" · ")} · +${
+    cleanedNeighborhoods.length - 2
+  } more`;
+}
+
+function buildVendorPrimaryHref(input: {
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+}) {
+  return (
+    input.website?.trim() ||
+    (input.phone?.trim()
+      ? `tel:${input.phone.trim()}`
+      : input.email?.trim()
+        ? `mailto:${input.email.trim()}`
+        : null)
+  );
+}
+
+function buildVendorPrimaryActionLabel(input: {
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+}) {
+  if (input.website?.trim()) {
+    return "Open site";
+  }
+
+  if (input.phone?.trim()) {
+    return "Call vendor";
+  }
+
+  if (input.email?.trim()) {
+    return "Email vendor";
+  }
+
+  return "Review vendor";
+}
+
+function buildVendorContactLabel(input: {
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+}) {
+  if (input.phone?.trim()) {
+    return `Call ${input.phone.trim()}`;
+  }
+
+  if (input.email?.trim()) {
+    return `Email ${input.email.trim()}`;
+  }
+
+  if (input.website?.trim()) {
+    return "Website available";
+  }
+
+  return "No quick contact published";
+}
+
+function countVendorQuickActions(input: {
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+}) {
+  return [
+    input.website?.trim(),
+    input.phone?.trim(),
+    input.email?.trim(),
+  ].filter(Boolean).length;
 }
 
 function formatEventVisibilityLabel(
@@ -1770,6 +2335,7 @@ export async function getFrontOfficeClientsSnapshot(
 
   const [
     clients,
+    clientCount,
     stageGroups,
     followUpDueCount,
     overdueTaskCount,
@@ -1778,7 +2344,7 @@ export async function getFrontOfficeClientsSnapshot(
     prisma.client.findMany({
       where: clientWhere,
       orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
-      take: 24,
+      take: 48,
       select: {
         id: true,
         fullName: true,
@@ -1791,7 +2357,12 @@ export async function getFrontOfficeClientsSnapshot(
         lastContactAt: true,
         nextFollowUpAt: true,
         leaseReminderAt: true,
+        createdAt: true,
+        updatedAt: true,
       },
+    }),
+    prisma.client.count({
+      where: clientWhere,
     }),
     prisma.client.groupBy({
       by: ["stage"],
@@ -1803,9 +2374,18 @@ export async function getFrontOfficeClientsSnapshot(
     prisma.client.count({
       where: {
         ...clientWhere,
-        nextFollowUpAt: {
-          lt: startOfTomorrow,
-        },
+        OR: [
+          {
+            nextFollowUpAt: {
+              lt: startOfTomorrow,
+            },
+          },
+          {
+            leaseReminderAt: {
+              lt: startOfTomorrow,
+            },
+          },
+        ],
       },
     }),
     prisma.followUpTask.count({
@@ -1829,9 +2409,16 @@ export async function getFrontOfficeClientsSnapshot(
     }),
   ]);
 
+  const sortedClients = clients
+    .slice()
+    .sort((left, right) =>
+      compareFrontOfficeClientQueueRecords(left, right, now),
+    )
+    .slice(0, 24);
+
   return {
     summary: {
-      liveContacts: clients.length,
+      liveContacts: clientCount,
       activeStages: stageGroups.length,
       followUpDueCount,
       overdueTaskCount,
@@ -1840,8 +2427,8 @@ export async function getFrontOfficeClientsSnapshot(
     stageMetrics: stageGroups
       .sort(
         (left, right) =>
-          right._count._all - left._count._all ||
-          left.stage.localeCompare(right.stage),
+          compareClientStageLabels(left.stage, right.stage) ||
+          right._count._all - left._count._all,
       )
       .slice(0, 6)
       .map((group) => ({
@@ -1849,7 +2436,7 @@ export async function getFrontOfficeClientsSnapshot(
         count: group._count._all,
         tone: mapClientStageTone(group.stage),
       })),
-    clients: clients.map((client) => ({
+    clients: sortedClients.map((client) => ({
       id: client.id,
       fullName: client.fullName,
       stage: client.stage,
@@ -1902,7 +2489,7 @@ export async function getFrontOfficeListingsSnapshot(
     prisma.listing.findMany({
       where: listingWhere,
       orderBy: [{ updatedAt: "desc" }],
-      take: 24,
+      take: 48,
       select: {
         id: true,
         title: true,
@@ -1914,6 +2501,7 @@ export async function getFrontOfficeListingsSnapshot(
         aiSummary: true,
         bedrooms: true,
         bathrooms: true,
+        updatedAt: true,
       },
     }),
     prisma.listing.count({
@@ -2073,6 +2661,46 @@ export async function getFrontOfficeListingsSnapshot(
       },
     ]),
   );
+  const sortedListings = listings
+    .slice()
+    .sort((left, right) => {
+      const leftShares = listingShareMap.get(left.id);
+      const rightShares = listingShareMap.get(right.id);
+      const publicReadyDelta = Number(right.isPublic) - Number(left.isPublic);
+
+      if (publicReadyDelta !== 0) {
+        return publicReadyDelta;
+      }
+
+      const statusDelta =
+        getListingStatusSortRank(left.status) -
+        getListingStatusSortRank(right.status);
+
+      if (statusDelta !== 0) {
+        return statusDelta;
+      }
+
+      const clickDelta =
+        (rightShares?.clicks ?? 0) - (leftShares?.clicks ?? 0);
+
+      if (clickDelta !== 0) {
+        return clickDelta;
+      }
+
+      const trackedLinkDelta =
+        (rightShares?.count ?? 0) - (leftShares?.count ?? 0);
+
+      if (trackedLinkDelta !== 0) {
+        return trackedLinkDelta;
+      }
+
+      if (left.updatedAt.getTime() !== right.updatedAt.getTime()) {
+        return right.updatedAt.getTime() - left.updatedAt.getTime();
+      }
+
+      return left.title.localeCompare(right.title);
+    })
+    .slice(0, 24);
 
   const targetClient =
     explicitTargetClient ??
@@ -2201,26 +2829,21 @@ export async function getFrontOfficeListingsSnapshot(
         href: `/office/transactions/${transaction.id}`,
       })),
     },
-    listings: listings.map((listing) => {
+    listings: sortedListings.map((listing) => {
       const shareMetrics = listingShareMap.get(listing.id);
-      const bedroomLabel = listing.bedrooms ? `${listing.bedrooms} bd` : null;
-      const bathroomLabel = listing.bathrooms
-        ? `${Number(listing.bathrooms)} ba`
-        : null;
-      const layoutLabel = [bedroomLabel, bathroomLabel]
-        .filter(Boolean)
-        .join(" · ");
 
       return {
         id: listing.id,
         title: listing.title,
-        areaLabel: `${listing.neighborhood}, ${listing.city}`,
-        summaryLabel:
-          listing.aiSummary?.trim() ||
-          layoutLabel ||
-          "Send-ready listing in the current office scope.",
+        areaLabel: buildListingAreaLabel(listing.neighborhood, listing.city),
+        summaryLabel: buildListingSummaryLabel({
+          aiSummary: listing.aiSummary,
+          bedrooms: listing.bedrooms,
+          bathrooms: listing.bathrooms,
+          isPublic: listing.isPublic,
+        }),
         priceLabel: formatCurrency(listing.price),
-        cityLabel: listing.city,
+        cityLabel: cleanStringList([listing.city])[0] || "City pending",
         statusLabel: formatListingStatus(listing.status),
         statusTone: mapListingStatusTone(listing.status),
         trackedClickCount: shareMetrics?.clicks ?? 0,
@@ -2244,12 +2867,20 @@ export async function getFrontOfficeResourcesSnapshot(
     ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
   };
 
-  const [resources, vendors, resourceCount, vendorCount, resourceTypes] =
-    await Promise.all([
+  const [
+    resources,
+    vendors,
+    resourceCount,
+    vendorCount,
+    resourceTypeGroups,
+    featuredVendorCount,
+    quickContactVendorCount,
+    vendorCategoryGroups,
+  ] = await Promise.all([
       prisma.resource.findMany({
         where: resourceWhere,
         orderBy: [{ updatedAt: "desc" }],
-        take: 24,
+        take: 48,
         select: {
           id: true,
           title: true,
@@ -2257,12 +2888,13 @@ export async function getFrontOfficeResourcesSnapshot(
           type: true,
           tags: true,
           url: true,
+          updatedAt: true,
         },
       }),
       prisma.vendor.findMany({
         where: vendorWhere,
         orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
-        take: 24,
+        take: 48,
         select: {
           id: true,
           category: true,
@@ -2272,6 +2904,9 @@ export async function getFrontOfficeResourcesSnapshot(
           email: true,
           website: true,
           neighborhoods: true,
+          notes: true,
+          isFeatured: true,
+          updatedAt: true,
         },
       }),
       prisma.resource.count({
@@ -2283,44 +2918,172 @@ export async function getFrontOfficeResourcesSnapshot(
       prisma.resource.groupBy({
         by: ["type"],
         where: resourceWhere,
+        _count: {
+          _all: true,
+        },
+      }),
+      prisma.vendor.count({
+        where: {
+          ...vendorWhere,
+          isFeatured: true,
+        },
+      }),
+      prisma.vendor.count({
+        where: {
+          ...vendorWhere,
+          OR: [
+            { phone: { not: null } },
+            { email: { not: null } },
+            { website: { not: null } },
+          ],
+        },
+      }),
+      prisma.vendor.groupBy({
+        by: ["category"],
+        where: vendorWhere,
+        _count: {
+          _all: true,
+        },
       }),
     ]);
+
+  const sortedResources = resources
+    .slice()
+    .sort((left, right) => {
+      const priorityDelta =
+        getResourceTypePriority(left.type) - getResourceTypePriority(right.type);
+
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+
+      const tagDelta =
+        cleanStringList(right.tags).length - cleanStringList(left.tags).length;
+
+      if (tagDelta !== 0) {
+        return tagDelta;
+      }
+
+      if (left.updatedAt.getTime() !== right.updatedAt.getTime()) {
+        return right.updatedAt.getTime() - left.updatedAt.getTime();
+      }
+
+      return left.title.localeCompare(right.title);
+    })
+    .slice(0, 24);
+  const sortedVendors = vendors
+    .slice()
+    .sort((left, right) => {
+      const featuredDelta = Number(right.isFeatured) - Number(left.isFeatured);
+
+      if (featuredDelta !== 0) {
+        return featuredDelta;
+      }
+
+      const leftQuickActionCount = countVendorQuickActions(left);
+      const rightQuickActionCount = countVendorQuickActions(right);
+
+      if (leftQuickActionCount !== rightQuickActionCount) {
+        return rightQuickActionCount - leftQuickActionCount;
+      }
+
+      const categoryDelta = formatVendorCategoryLabel(left.category).localeCompare(
+        formatVendorCategoryLabel(right.category),
+      );
+
+      if (categoryDelta !== 0) {
+        return categoryDelta;
+      }
+
+      if (left.updatedAt.getTime() !== right.updatedAt.getTime()) {
+        return right.updatedAt.getTime() - left.updatedAt.getTime();
+      }
+
+      return left.name.localeCompare(right.name);
+    })
+    .slice(0, 24);
 
   return {
     summary: {
       resourceCount,
       vendorCount,
-      resourceTypeCount: resourceTypes.length,
+      resourceTypeCount: resourceTypeGroups.length,
+      featuredVendorCount,
+      quickContactVendorCount,
+      vendorCategoryCount: vendorCategoryGroups.length,
     },
-    resources: resources.map((resource) => ({
+    resourceTypes: resourceTypeGroups
+      .slice()
+      .sort(
+        (left, right) =>
+          getResourceTypePriority(left.type) -
+            getResourceTypePriority(right.type) ||
+          right._count._all - left._count._all,
+      )
+      .map((group) => ({
+        key: group.type,
+        label: formatResourceType(group.type),
+        count: group._count._all,
+        tone: getResourceTypeTone(group.type),
+        description: getResourceTypeDescription(group.type),
+      })),
+    vendorCategories: vendorCategoryGroups
+      .slice()
+      .sort(
+        (left, right) =>
+          right._count._all - left._count._all ||
+          formatVendorCategoryLabel(left.category).localeCompare(
+            formatVendorCategoryLabel(right.category),
+          ),
+      )
+      .map((group) => ({
+        category: group.category,
+        label: formatVendorCategoryLabel(group.category),
+        count: group._count._all,
+      })),
+    resources: sortedResources.map((resource) => ({
       id: resource.id,
       title: resource.title,
-      summary: resource.summary,
+      summary:
+        resource.summary?.trim() || getResourceTypeDescription(resource.type),
+      detailLabel: getResourceTypeDetailLabel(resource.type),
+      freshnessLabel: `Updated ${formatDateLabel(resource.updatedAt, input.timeZone)}`,
+      actionLabel: getResourceActionLabel(resource.type),
+      typeKey: resource.type,
       typeLabel: formatResourceType(resource.type),
-      tags: resource.tags,
+      typeTone: getResourceTypeTone(resource.type),
+      tags: cleanStringList(resource.tags, 4),
       href: resource.url,
     })),
-    vendors: vendors.map((vendor) => ({
+    vendors: sortedVendors.map((vendor) => {
+      const websiteHref = vendor.website?.trim() || null;
+      const phoneHref = vendor.phone?.trim() ? `tel:${vendor.phone.trim()}` : null;
+      const emailHref = vendor.email?.trim()
+        ? `mailto:${vendor.email.trim()}`
+        : null;
+      const coverageLabel = buildVendorCoverageLabel(vendor.neighborhoods);
+
+      return {
       id: vendor.id,
       name: vendor.name,
       category: vendor.category,
-      headline: vendor.headline,
-      neighborhoodsLabel: vendor.neighborhoods.length
-        ? vendor.neighborhoods.join(" · ")
-        : "Office-wide vendor",
-      contactLabel:
-        vendor.phone?.trim() ||
-        vendor.website?.trim() ||
-        vendor.email?.trim() ||
-        "Open vendor profile",
-      href:
-        vendor.website?.trim() ||
-        (vendor.phone?.trim()
-          ? `tel:${vendor.phone.trim()}`
-          : vendor.email?.trim()
-            ? `mailto:${vendor.email.trim()}`
-            : null),
-    })),
+      categoryLabel: formatVendorCategoryLabel(vendor.category),
+      categoryTone: mapVendorCategoryTone(vendor.category),
+      headline:
+        vendor.headline?.trim() ||
+        vendor.notes?.trim() ||
+        `${formatVendorCategoryLabel(vendor.category)} support available through the shared Front Office vendor hub.`,
+      neighborhoodsLabel: coverageLabel,
+      coverageLabel,
+      contactLabel: buildVendorContactLabel(vendor),
+      actionLabel: buildVendorPrimaryActionLabel(vendor),
+      websiteHref,
+      phoneHref,
+      emailHref,
+      isFeatured: vendor.isFeatured,
+      href: buildVendorPrimaryHref(vendor),
+    };
+    }),
   };
 }
 
@@ -2420,7 +3183,7 @@ export async function getFrontOfficeActivitySnapshot(
     prisma.notification.findMany({
       where: notificationWhere,
       orderBy: [{ createdAt: "desc" }],
-      take: 24,
+      take: 48,
       select: {
         id: true,
         membershipId: true,
@@ -2512,9 +3275,18 @@ export async function getFrontOfficeActivitySnapshot(
     prisma.client.findMany({
       where: {
         ...clientWhere,
-        nextFollowUpAt: {
-          lt: startOfTomorrow,
-        },
+        OR: [
+          {
+            nextFollowUpAt: {
+              lt: startOfTomorrow,
+            },
+          },
+          {
+            leaseReminderAt: {
+              lt: startOfTomorrow,
+            },
+          },
+        ],
       },
       orderBy: [{ nextFollowUpAt: "asc" }, { updatedAt: "desc" }],
       take: 8,
@@ -2915,8 +3687,7 @@ export async function getFrontOfficeActivitySnapshot(
   });
   const dueClientItems: CleanupCandidate[] = dueFollowUpClientOnly.map(
     (client) => {
-      const nextTouchAt =
-        client.nextFollowUpAt ?? client.leaseReminderAt ?? now;
+      const nextTouchAt = resolveClientNextTouchAt(client) ?? now;
       const isOverdue = nextTouchAt.getTime() < startOfToday.getTime();
 
       return {
@@ -3163,6 +3934,9 @@ export async function getFrontOfficeActivitySnapshot(
   const followUpMetricCount = dueTaskItems.length + dueClientItems.length;
   const sendRiskMetricCount = sendRiskItems.length;
   const staleMetricCount = staleClientItems.length;
+  const hasUrgentFollowUpPressure =
+    dueTaskItems.some((item) => item.tone === "danger") ||
+    dueClientItems.some((item) => item.tone === "danger");
   const totalCleanupByKind = buildCleanupKindCountRecord();
   totalCleanupByKind.follow_up = followUpMetricCount;
   totalCleanupByKind.appointment_writeback = appointmentSoonCount;
@@ -3199,7 +3973,11 @@ export async function getFrontOfficeActivitySnapshot(
       count: followUpMetricCount,
       visibleCount: visibleCleanupByKind.follow_up,
       countMode: "raw_pressure",
-      tone: followUpMetricCount > 0 ? "warning" : "neutral",
+      tone: hasUrgentFollowUpPressure
+        ? "danger"
+        : followUpMetricCount > 0
+          ? "warning"
+          : "neutral",
       helper:
         "Scheduled follow-up work that should be touched today or is already overdue.",
     },
@@ -3209,7 +3987,12 @@ export async function getFrontOfficeActivitySnapshot(
       count: appointmentSoonCount,
       visibleCount: visibleCleanupByKind.appointment_writeback,
       countMode: "raw_pressure",
-      tone: appointmentSoonCount > 0 ? "accent" : "neutral",
+      tone:
+        appointmentItems.some((item) => item.tone === "danger")
+          ? "danger"
+          : appointmentSoonCount > 0
+            ? "warning"
+            : "neutral",
       helper:
         "Calendar-owned meetings and promised external touches in the next two days that still need direct Front Office follow-through.",
     },
@@ -3219,7 +4002,12 @@ export async function getFrontOfficeActivitySnapshot(
       count: sendRiskMetricCount,
       visibleCount: visibleCleanupByKind.send_risk,
       countMode: "raw_pressure",
-      tone: sendRiskMetricCount > 0 ? "warning" : "neutral",
+      tone:
+        sendRiskItems.some((item) => item.tone === "danger")
+          ? "danger"
+          : sendRiskMetricCount > 0
+            ? "warning"
+            : "neutral",
       helper:
         "Tracked sends with no open after three days or no recent engagement after the last open.",
     },
@@ -3244,77 +4032,96 @@ export async function getFrontOfficeActivitySnapshot(
         "Visible-scope duplicate review pairs that should be merged before the next touch.",
     },
   ];
-  const notificationCards = notifications.map((notification) => {
-    const group = getFrontOfficeNotificationGroup({
-      type: notification.type,
-      metadata: notification.metadata,
-    });
-    const stream = getFrontOfficeNotificationStream({
-      actionUrl: notification.actionUrl?.trim() || null,
-      membershipId: notification.membershipId,
-      groupKey: group.groupKey,
-    });
-    const owner = getFrontOfficeNotificationOwnerLabel(
-      notification.membershipId != null,
-    );
-    const scope = getFrontOfficeNotificationScopeLabel({
-      groupKey: group.groupKey,
-      streamKey: stream.streamKey,
-      streamLabel: stream.streamLabel,
-    });
-    const readStateMutable = notification.membershipId != null;
-    const isUnread = readStateMutable && notification.readAt == null;
-    const pressureTone = mapNotificationSeverityTone(notification.severity);
-    const pressureState = getFrontOfficeNotificationPressureState({
-      groupKey: group.groupKey,
-      notificationTone: pressureTone,
-      readStateMutable,
-      isUnread,
-    });
-
-    return {
-      id: notification.id,
-      type: notification.type,
-      title: notification.title,
-      body: notification.body,
-      typeLabel: formatNotificationType(notification.type),
-      groupKey: group.groupKey,
-      groupLabel: group.groupLabel,
-      streamKey: stream.streamKey,
-      streamLabel: stream.streamLabel,
-      audienceLabel: readStateMutable
-        ? "Personal notice"
-        : "Shared office notice",
-      ownerKey: owner.ownerKey,
-      ownerLabel: owner.ownerLabel,
-      scopeKey: scope.scopeKey,
-      scopeLabel: scope.scopeLabel,
-      pressureKey: pressureState.key,
-      pressureLabel: pressureState.label,
-      pressureTone: pressureState.tone,
-      whyNowLabel: pressureState.whyNowLabel,
-      tone:
-        notification.type === NotificationType.appointment_due_soon
-          ? "accent"
-          : mapNotificationSeverityTone(notification.severity),
-      createdAtLabel: formatDateTimeLabel(notification.createdAt, {
-        timeZone: input.timeZone ?? null,
-      }),
-      actionLabel: getFrontOfficeNotificationActionLabel({
+  const notificationCards = notifications
+    .map((notification) => {
+      const group = getFrontOfficeNotificationGroup({
         type: notification.type,
+        metadata: notification.metadata,
+      });
+      const stream = getFrontOfficeNotificationStream({
         actionUrl: notification.actionUrl?.trim() || null,
+        membershipId: notification.membershipId,
         groupKey: group.groupKey,
-      }),
-      href: `/agent/notifications/${notification.id}/open`,
-      isUnread,
-      readStateLabel: !readStateMutable
-        ? "Shared notice"
-        : notification.readAt == null
-          ? "Unread"
-          : "Read",
-      readStateMutable,
-    } satisfies FrontOfficeActivityNotificationRecord;
-  });
+      });
+      const owner = getFrontOfficeNotificationOwnerLabel(
+        notification.membershipId != null,
+      );
+      const scope = getFrontOfficeNotificationScopeLabel({
+        groupKey: group.groupKey,
+        streamKey: stream.streamKey,
+        streamLabel: stream.streamLabel,
+      });
+      const readStateMutable = notification.membershipId != null;
+      const isUnread = readStateMutable && notification.readAt == null;
+      const pressureTone = mapNotificationSeverityTone(notification.severity);
+      const pressureState = getFrontOfficeNotificationPressureState({
+        groupKey: group.groupKey,
+        notificationTone: pressureTone,
+        readStateMutable,
+        isUnread,
+      });
+
+      return {
+        card: {
+          id: notification.id,
+          type: notification.type,
+          title: notification.title,
+          body: notification.body,
+          typeLabel: formatNotificationType(notification.type),
+          groupKey: group.groupKey,
+          groupLabel: group.groupLabel,
+          streamKey: stream.streamKey,
+          streamLabel: stream.streamLabel,
+          audienceLabel: readStateMutable
+            ? "Personal notice"
+            : "Shared office notice",
+          ownerKey: owner.ownerKey,
+          ownerLabel: owner.ownerLabel,
+          scopeKey: scope.scopeKey,
+          scopeLabel: scope.scopeLabel,
+          pressureKey: pressureState.key,
+          pressureLabel: pressureState.label,
+          pressureTone: pressureState.tone,
+          whyNowLabel: pressureState.whyNowLabel,
+          tone:
+            notification.type === NotificationType.appointment_due_soon
+              ? "accent"
+              : mapNotificationSeverityTone(notification.severity),
+          createdAtLabel: formatDateTimeLabel(notification.createdAt, {
+            timeZone: input.timeZone ?? null,
+          }),
+          actionLabel: getFrontOfficeNotificationActionLabel({
+            type: notification.type,
+            actionUrl: notification.actionUrl?.trim() || null,
+            groupKey: group.groupKey,
+          }),
+          href: `/agent/notifications/${notification.id}/open`,
+          isUnread,
+          readStateLabel: !readStateMutable
+            ? "Shared notice"
+            : notification.readAt == null
+              ? "Unread"
+              : "Read",
+          readStateMutable,
+        } satisfies FrontOfficeActivityNotificationRecord,
+        sortRank: getFrontOfficeNotificationSortRank({
+          groupKey: group.groupKey,
+          pressureTone: pressureState.tone,
+          streamKey: stream.streamKey,
+          readStateMutable,
+          isUnread,
+        }),
+        createdAt: notification.createdAt.getTime(),
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.sortRank - right.sortRank ||
+        right.createdAt - left.createdAt ||
+        left.card.title.localeCompare(right.card.title),
+    )
+    .slice(0, 24)
+    .map((entry) => entry.card);
   const notificationGroupCounts = buildNotificationGroupCountRecord();
   const notificationStreamCounts = buildNotificationStreamCountRecord();
   let personalVisibleNoticeCount = 0;

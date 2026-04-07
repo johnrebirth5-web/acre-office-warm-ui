@@ -13,6 +13,17 @@ type RouteContext = {
   }>;
 };
 
+function mapAppointmentBridgeErrorStatus(message: string) {
+  if (
+    message.includes("Only scheduled appointments") ||
+    message.includes("email target is required")
+  ) {
+    return 409;
+  }
+
+  return 400;
+}
+
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const context = await getRequestSessionContext(request);
 
@@ -102,14 +113,14 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       },
     });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not open the appointment bridge.";
+
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not open the appointment bridge.",
-      },
-      { status: 400 },
+      { error: message },
+      { status: mapAppointmentBridgeErrorStatus(message) },
     );
   }
 }

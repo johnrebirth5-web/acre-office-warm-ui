@@ -43,10 +43,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const title = String(body.title ?? "").trim();
+  const dueAt = typeof body.dueAt === "string" ? body.dueAt.trim() : "";
 
   if (!title) {
     return NextResponse.json(
       { error: "Task title is required." },
+      { status: 400 },
+    );
+  }
+
+  if (dueAt && !/^\d{4}-\d{2}-\d{2}$/.test(dueAt)) {
+    return NextResponse.json(
+      { error: "Due date must use YYYY-MM-DD format." },
       { status: 400 },
     );
   }
@@ -96,8 +104,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     actorMembershipId: context.currentMembership.id,
     actorOfficeId: context.currentOffice?.id ?? null,
     title,
-    dueAt:
-      typeof body.dueAt === "string" && body.dueAt.trim() ? body.dueAt : "",
+    dueAt,
     acceptedAiAction:
       acceptedAiAction &&
       acceptedAiAction.sourceSurface &&

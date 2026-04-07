@@ -266,7 +266,10 @@ export type FrontOfficeClientDetailStageHistoryItem = {
   id: string;
   title: string;
   description: string;
+  actorLabel: string;
+  noteLabel: string;
   changedAtLabel: string;
+  changedAtValue: string;
   tone: FrontOfficeClientDetailTone;
 };
 
@@ -315,8 +318,12 @@ export type FrontOfficeClientDetailTaskItem = {
   dueLabel: string;
   dueAtValue: string;
   statusLabel: string;
+  queueLabel: string;
+  helperLabel: string;
   tone: FrontOfficeClientDetailTone;
   assigneeLabel: string;
+  needsAttention: boolean;
+  isResolved: boolean;
 };
 
 export type FrontOfficeClientDetailSendRecordItem = {
@@ -350,6 +357,7 @@ export type FrontOfficeClientDetailHandoffItem = {
   destinationTarget: FrontOfficeClientDetailActionTarget;
   action: FrontOfficeClientDetailAction;
   updatedAtLabel: string;
+  updatedAtValue: string;
   href: string;
 };
 
@@ -628,6 +636,8 @@ export type FrontOfficeClientDetailSnapshot = {
   nextTouchLabel: string;
   summary: {
     openTaskCount: number;
+    overdueTaskCount: number;
+    completedTaskCount: number;
     upcomingAppointmentCount: number;
     stageHistoryCount: number;
     openHandoffCount: number;
@@ -732,6 +742,46 @@ function formatDateTimeValue(value: Date | null | undefined) {
   return value.toISOString();
 }
 
+function getCalendarDayDifference(value: Date, now: Date) {
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const startOfValue = new Date(
+    value.getFullYear(),
+    value.getMonth(),
+    value.getDate(),
+  ).getTime();
+
+  return Math.round((startOfValue - startOfToday) / 86_400_000);
+}
+
+function formatCalendarDistanceLabel(value: Date, now: Date) {
+  const dayDifference = getCalendarDayDifference(value, now);
+
+  if (dayDifference < 0) {
+    const overdueDays = Math.abs(dayDifference);
+    return overdueDays === 1
+      ? "Overdue by 1 day"
+      : `Overdue by ${overdueDays} days`;
+  }
+
+  if (dayDifference === 0) {
+    return "Due today";
+  }
+
+  if (dayDifference === 1) {
+    return "Due tomorrow";
+  }
+
+  if (dayDifference <= 7) {
+    return `Due in ${dayDifference} days`;
+  }
+
+  return "Upcoming";
+}
+
 function buildClientAction(input: {
   label: string;
   href: string;
@@ -747,6 +797,9 @@ function buildClientAction(input: {
     target: input.target,
   };
 }
+
+const FRONT_OFFICE_FOLLOW_UP_FORM_ID = "front-office-follow-up-form";
+const FRONT_OFFICE_FOLLOW_UP_QUEUE_ID = "front-office-follow-up-queue";
 
 function pickEarliestDate(...values: Array<Date | null | undefined>) {
   return values.reduce<Date | null>((earliest, value) => {
@@ -866,27 +919,14 @@ function formatRelativeDueLabel(
     return "No follow-up scheduled";
   }
 
-  const dueTime = value.getTime();
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  ).getTime();
-  const startOfTomorrow = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-  ).getTime();
+  const distanceLabel = formatCalendarDistanceLabel(value, now);
+  const needsTimeLabel = getCalendarDayDifference(value, now) === 0;
 
-  if (dueTime < startOfToday) {
-    return `Overdue since ${formatDateLabel(value, timeZone)}`;
-  }
-
-  if (dueTime < startOfTomorrow) {
-    return `Due today · ${formatDateTimeLabel(value, { timeZone: timeZone ?? null })}`;
-  }
-
-  return `Next follow-up · ${formatDateLabel(value, timeZone)}`;
+  return needsTimeLabel
+    ? `${distanceLabel} · ${formatDateTimeLabel(value, {
+        timeZone: timeZone ?? null,
+      })}`
+    : `${distanceLabel} · ${formatDateLabel(value, timeZone)}`;
 }
 
 function mapSendEngagementKey(
@@ -1000,11 +1040,21 @@ function mapTaskTone(
     return "success";
   }
 
+  if (status === TaskStatus.canceled) {
+    return "neutral";
+  }
+
   if (!dueAt) {
     return "neutral";
   }
 
-  if (dueAt.getTime() < now.getTime()) {
+  const dayDifference = getCalendarDayDifference(dueAt, now);
+
+  if (dayDifference < 0) {
+    return "danger";
+  }
+
+  if (dayDifference === 0) {
     return "warning";
   }
 
@@ -1027,27 +1077,63 @@ function formatTaskDueLabel(
     return "No due date";
   }
 
-  const dueTime = dueAt.getTime();
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  ).getTime();
-  const startOfTomorrow = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-  ).getTime();
+  const distanceLabel = formatCalendarDistanceLabel(dueAt, now);
+  return `${distanceLabel} · ${formatDateLabel(dueAt, timeZone)}`;
+}
 
-  if (dueTime < startOfToday) {
-    return `Overdue · ${formatDateLabel(dueAt, timeZone)}`;
+function buildTaskQueueLabel(
+  status: TaskStatus,
+  dueAt: Date | null,
+  now: Date,
+) {
+  if (status === TaskStatus.completed) {
+    return "Closed out";
   }
 
-  if (dueTime < startOfTomorrow) {
-    return `Due today · ${formatDateLabel(dueAt, timeZone)}`;
+  if (status === TaskStatus.canceled) {
+    return "Canceled";
   }
 
-  return `Due ${formatDateLabel(dueAt, timeZone)}`;
+  if (!dueAt) {
+    return "Needs a date";
+  }
+
+  const dayDifference = getCalendarDayDifference(dueAt, now);
+
+  if (dayDifference < 0) {
+    return "Needs action now";
+  }
+
+  if (dayDifference === 0) {
+    return "Today";
+  }
+
+  if (dayDifference === 1) {
+    return "Tomorrow";
+  }
+
+  return "Upcoming";
+}
+
+function buildTaskHelperLabel(input: {
+  status: TaskStatus;
+  dueAt: Date | null;
+  assigneeLabel: string;
+  now: Date;
+}) {
+  const details = [`Owner · ${input.assigneeLabel}`];
+
+  if (input.status === TaskStatus.completed) {
+    details.push("Resolved");
+  } else if (input.status === TaskStatus.canceled) {
+    details.push("No longer active");
+  } else if (!input.dueAt) {
+    details.push("Add a due date to keep workflow pressure accurate");
+  } else {
+    details.push(formatCalendarDistanceLabel(input.dueAt, input.now));
+  }
+
+  return details.join(" · ");
 }
 
 function formatFrontOfficeSendChannelLabel(channel: string) {
@@ -2577,13 +2663,13 @@ function buildFrontOfficeFollowUpAction(input: {
   return input.hasScheduledTouch
     ? buildClientAction({
         label: "Review follow-up queue",
-        href: "#front-office-follow-up-form",
+        href: `#${FRONT_OFFICE_FOLLOW_UP_QUEUE_ID}`,
         kind: frontOfficeClientDetailActionKinds.reviewFollowUpQueue,
         target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
       })
     : buildClientAction({
         label: "Create follow-up",
-        href: "#front-office-follow-up-form",
+        href: `#${FRONT_OFFICE_FOLLOW_UP_FORM_ID}`,
         kind: frontOfficeClientDetailActionKinds.createFollowUp,
         target: frontOfficeClientDetailActionTargets.frontOfficeFollowUp,
       });
@@ -3901,7 +3987,7 @@ export async function getFrontOfficeClientDetail(
       },
       followUpTasks: {
         orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
-        take: 6,
+        take: 8,
         select: {
           id: true,
           title: true,
@@ -3975,7 +4061,7 @@ export async function getFrontOfficeClientDetail(
       },
       stageHistory: {
         orderBy: [{ createdAt: "desc" }],
-        take: 8,
+        take: 10,
         select: {
           id: true,
           fromStage: true,
@@ -4076,16 +4162,31 @@ export async function getFrontOfficeClientDetail(
     });
 
   const openTaskCount = client.followUpTasks.filter(
-    (task) => task.status !== TaskStatus.completed,
+    (task) =>
+      task.status !== TaskStatus.completed && task.status !== TaskStatus.canceled,
+  ).length;
+  const completedTaskCount = client.followUpTasks.filter(
+    (task) => task.status === TaskStatus.completed,
+  ).length;
+  const overdueTaskCount = client.followUpTasks.filter(
+    (task) =>
+      task.status !== TaskStatus.completed &&
+      task.status !== TaskStatus.canceled &&
+      Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
   ).length;
   const hasOverdueTask = client.followUpTasks.some(
     (task) =>
       task.status !== TaskStatus.completed &&
+      task.status !== TaskStatus.canceled &&
       Boolean(task.dueAt && task.dueAt.getTime() < now.getTime()),
   );
   const earliestOpenTaskDueAt = client.followUpTasks.reduce<Date | null>(
     (earliest, task) => {
-      if (task.status === TaskStatus.completed || !task.dueAt) {
+      if (
+        task.status === TaskStatus.completed ||
+        task.status === TaskStatus.canceled ||
+        !task.dueAt
+      ) {
         return earliest;
       }
 
@@ -5323,6 +5424,8 @@ export async function getFrontOfficeClientDetail(
     nextTouchLabel,
     summary: {
       openTaskCount,
+      overdueTaskCount,
+      completedTaskCount,
       upcomingAppointmentCount,
       stageHistoryCount: client.stageHistory.length,
       openHandoffCount,
@@ -5428,16 +5531,20 @@ export async function getFrontOfficeClientDetail(
       const transitionLabel = entry.fromStage?.trim()
         ? `${entry.fromStage} → ${entry.toStage}`
         : `Entered ${entry.toStage}`;
+      const noteLabel = entry.note?.trim() || "";
 
       return {
         id: entry.id,
         title: transitionLabel,
-        description: [entry.note?.trim() || "", `Updated by ${actorLabel}`]
+        description: [noteLabel || "", `Updated by ${actorLabel}`]
           .filter(Boolean)
           .join(" · "),
+        actorLabel,
+        noteLabel,
         changedAtLabel: formatDateTimeLabel(entry.createdAt, {
           timeZone: input.timeZone ?? null,
         }),
+        changedAtValue: formatDateTimeValue(entry.createdAt),
         tone: mapClientStageTone(entry.toStage),
       };
     }),
@@ -5552,19 +5659,38 @@ export async function getFrontOfficeClientDetail(
         hasBridgeActivity: bridgeStatus?.hasBridgeActivity ?? false,
       };
     }),
-    followUpTasks: client.followUpTasks.map((task) => ({
-      id: task.id,
-      title: task.title,
-      statusValue: task.status,
-      dueLabel: formatTaskDueLabel(task.dueAt, now, input.timeZone),
-      dueAtValue: task.dueAt ? task.dueAt.toISOString().slice(0, 10) : "",
-      statusLabel: formatTaskStatusLabel(task.status),
-      tone: mapTaskTone(task.status, task.dueAt, now),
-      assigneeLabel:
+    followUpTasks: client.followUpTasks.map((task) => {
+      const assigneeLabel =
         `${task.assigneeMembership?.user.firstName ?? ""} ${task.assigneeMembership?.user.lastName ?? ""}`.trim() ||
         task.assigneeMembership?.user.email ||
-        "Unassigned",
-    })),
+        "Unassigned";
+      const isResolved =
+        task.status === TaskStatus.completed ||
+        task.status === TaskStatus.canceled;
+      const needsAttention =
+        !isResolved &&
+        Boolean(task.dueAt && getCalendarDayDifference(task.dueAt, now) <= 0);
+
+      return {
+        id: task.id,
+        title: task.title,
+        statusValue: task.status,
+        dueLabel: formatTaskDueLabel(task.dueAt, now, input.timeZone),
+        dueAtValue: task.dueAt ? task.dueAt.toISOString().slice(0, 10) : "",
+        statusLabel: formatTaskStatusLabel(task.status),
+        queueLabel: buildTaskQueueLabel(task.status, task.dueAt, now),
+        helperLabel: buildTaskHelperLabel({
+          status: task.status,
+          dueAt: task.dueAt,
+          assigneeLabel,
+          now,
+        }),
+        tone: mapTaskTone(task.status, task.dueAt, now),
+        assigneeLabel,
+        needsAttention,
+        isResolved,
+      };
+    }),
     sendRecords: client.frontOfficeSendRecords.map((record) => ({
       id: record.id,
       title:
@@ -5655,6 +5781,9 @@ export async function getFrontOfficeClientDetail(
       updatedAtLabel: formatDateTimeLabel(
         draft.committedAt ?? draft.updatedAt ?? draft.createdAt,
         { timeZone: input.timeZone ?? null },
+      ),
+      updatedAtValue: formatDateTimeValue(
+        draft.committedAt ?? draft.updatedAt ?? draft.createdAt,
       ),
       href:
         draft.status === FrontOfficeHandoffStatus.committed &&

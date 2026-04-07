@@ -3,14 +3,18 @@ import type { FrontOfficeClientDetailSnapshot } from "@acre/db";
 
 const styles = StyleSheet.create({
   page: {
-    padding: 24,
+    paddingTop: 28,
+    paddingRight: 28,
+    paddingBottom: 32,
+    paddingLeft: 28,
     fontSize: 9,
     color: "#1f2937",
     fontFamily: "Helvetica",
+    lineHeight: 1.45,
   },
   header: {
-    marginBottom: 14,
-    paddingBottom: 10,
+    marginBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#d1d5db",
   },
@@ -20,63 +24,73 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   eyebrow: {
-    color: "#9ca3af",
-    textTransform: "uppercase",
     fontSize: 8,
-    letterSpacing: 0.6,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.9,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 700,
-    marginTop: 6,
+    marginBottom: 4,
   },
   subtitle: {
-    color: "#6b7280",
-    marginTop: 4,
-    lineHeight: 1.4,
+    color: "#4b5563",
   },
-  metaGrid: {
+  heroGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  metaCard: {
-    width: "24%",
+  heroCard: {
+    width: "48.5%",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 6,
-    padding: 9,
+    borderColor: "#dbe4f0",
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 8,
+    backgroundColor: "#f8fafc",
   },
-  metaLabel: {
-    color: "#6b7280",
-    marginBottom: 4,
+  heroLabel: {
+    fontSize: 8,
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+    marginBottom: 5,
   },
-  metaValue: {
+  heroValue: {
     fontSize: 11,
     fontWeight: 700,
+    marginBottom: 3,
+  },
+  heroDetail: {
+    color: "#475569",
   },
   section: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: 700,
-    marginBottom: 8,
+    marginBottom: 7,
   },
-  sectionGrid: {
+  cardGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
   infoCard: {
-    width: "49%",
+    width: "48.5%",
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    borderRadius: 6,
-    padding: 9,
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 8,
+  },
+  fullCard: {
+    width: "100%",
   },
   infoCardTitle: {
     fontSize: 10,
@@ -90,41 +104,19 @@ const styles = StyleSheet.create({
   listCard: {
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    borderRadius: 6,
-    padding: 9,
-  },
-  listItem: {
-    paddingBottom: 7,
-    marginBottom: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
-  },
-  listItemLast: {
-    paddingBottom: 0,
-    marginBottom: 0,
-    borderBottomWidth: 0,
-  },
-  listItemTitle: {
-    fontWeight: 700,
-    marginBottom: 2,
-  },
-  listItemDetail: {
-    color: "#4b5563",
-    lineHeight: 1.45,
+    borderRadius: 8,
+    padding: 10,
   },
   bullet: {
-    marginBottom: 4,
     color: "#4b5563",
-    lineHeight: 1.45,
-  },
-  divider: {
-    marginVertical: 2,
+    marginBottom: 5,
+    lineHeight: 1.5,
   },
   footer: {
-    marginTop: 8,
+    marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopColor: "#d1d5db",
     color: "#6b7280",
     fontSize: 8,
     lineHeight: 1.5,
@@ -138,103 +130,115 @@ type FrontOfficeClientSummaryPdfProps = {
   generatedAtLabel: string;
 };
 
+type SummaryBlock = {
+  title: string;
+  description: string;
+};
+
 function normalizeValue(value: string) {
   const trimmed = value.trim();
   return trimmed || "Not captured";
 }
 
-function buildNegotiationSummary(snapshot: FrontOfficeClientDetailSnapshot) {
+function buildNegotiationSummary(snapshot: FrontOfficeClientDetailSnapshot): SummaryBlock {
   switch (snapshot.negotiation.boundaryLabel) {
     case "BO workspace live":
       return {
-        title: "Formal offer or application workflow is active",
+        title: "Formal offer or application steps are already active",
         description:
           snapshot.negotiation.offerCount > 0
-            ? `${snapshot.negotiation.offerCount} formal record(s) are active, and the current primary state is ${snapshot.negotiation.acceptedOfferLabel}.`
-            : "A formal record is active and ready for the next offer or application step.",
+            ? `${snapshot.negotiation.offerCount} formal offer or application record(s) are already active, and the current primary status is ${snapshot.negotiation.acceptedOfferLabel}.`
+            : "A formal record is already active, so pricing, terms, and paperwork now move from the shared transaction workspace.",
       };
     case "Ready for BO handoff":
       return {
-        title: "Preparation is ready to become a formal record",
+        title: "The client is ready for the formal next step",
         description:
-          "Property feedback, timing, and key terms are aligned closely enough to move into a formal offer or application workflow.",
+          "Search feedback, timing, and decision readiness are aligned enough that the next move is to open the formal transaction workflow.",
       };
     default:
       return {
-        title: "Preparation is still underway",
+        title: "Decision-making is still being narrowed",
         description:
-          "Search criteria, showing feedback, and decision timing are still being refined before a formal offer or application is opened.",
+          "We are still using showings, shortlist feedback, and follow-up to clarify the best fit before opening any formal offer or application record.",
       };
   }
 }
 
-function buildInspectionSummary(snapshot: FrontOfficeClientDetailSnapshot) {
+function buildInspectionSummary(snapshot: FrontOfficeClientDetailSnapshot): SummaryBlock {
   switch (snapshot.inspection.boundaryLabel) {
     case "Inspection-era live":
       return {
-        title: "Contract and inspection support are active",
+        title: "Contract support and milestone follow-through are active",
         description:
-          "The formal contract file is carrying live milestone work, including checklist steps, signatures, and review items.",
+          "The shared formal transaction record is already carrying active checklist work, signatures, and review items for this client.",
       };
     case "Contract file live":
       return {
         title: "The formal contract file is open",
         description:
-          "Core contract setup is active, and final acceptance details are still being confirmed before the full inspection-era workflow settles in.",
+          "The shared record is live and carrying the next contract step, even if final acceptance-era details are still settling.",
       };
     case "Ready for contract file":
       return {
-        title: "The file is ready for formal contract setup",
+        title: "Formal contract setup is the next move",
         description:
-          "Planning has progressed to the point where the next formal contract step should start from the shared transaction record.",
+          "This dossier has advanced to the point where the next contract or application step should start from the formal shared record.",
       };
     default:
       return {
-        title: "Contract support has not started yet",
+        title: "Formal contract support has not started yet",
         description:
-          "The current work remains in follow-up, showing coordination, and decision preparation rather than formal contract execution.",
+          "The current work is still focused on follow-up, showings, shortlist decisions, and early client coordination.",
       };
   }
 }
 
-function buildInspectionMilestones(snapshot: FrontOfficeClientDetailSnapshot) {
-  const milestones = [
-    `Open milestone tasks: ${snapshot.inspection.openTaskCount}`,
-    `Overdue milestone tasks: ${snapshot.inspection.overdueTaskCount}`,
-    `Signatures in progress: ${snapshot.inspection.pendingSignatureCount}`,
-    `Review items pending: ${snapshot.inspection.pendingIncomingUpdateCount}`,
+function buildSearchSummaryLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  return [
+    `Search or move intent: ${normalizeValue(snapshot.intentLabel)}`,
+    `Budget: ${normalizeValue(snapshot.budgetLabel)}`,
+    `Preferred areas: ${normalizeValue(snapshot.preferredAreasLabel)}`,
+    `Current stage: ${snapshot.stage}`,
+  ];
+}
+
+function buildLeaseTimingText(snapshot: FrontOfficeClientDetailSnapshot) {
+  if (
+    snapshot.leaseReminder.leaseEndDateLabel === "No lease end date captured" &&
+    snapshot.leaseReminder.statusLabel === "No lease reminder"
+  ) {
+    return "No lease-driven timing is currently recorded on this dossier.";
+  }
+
+  return [
+    `Lease end: ${snapshot.leaseReminder.leaseEndDateLabel}`,
+    `Reminder timing: ${snapshot.leaseReminder.reminderAtLabel}`,
+    snapshot.leaseReminder.helperText,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildCurrentPlanLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const lines = [
+    `${snapshot.workflow.nextStepTitle}: ${snapshot.workflow.nextStepDescription}`,
+    `Next planned touch: ${snapshot.followUpCue.dueLabel}`,
+    `Workflow pressure: ${snapshot.workflow.pressureLabel}`,
   ];
 
-  if (
-    snapshot.inspection.openTaskCount === 0 &&
-    snapshot.inspection.pendingSignatureCount === 0 &&
-    snapshot.inspection.pendingIncomingUpdateCount === 0
-  ) {
-    milestones.push(
-      "No contract-support pressure is currently showing in the shared transaction workflow.",
-    );
+  if (snapshot.leaseReminder.statusLabel !== "No lease reminder") {
+    lines.push(`Lease timing: ${snapshot.leaseReminder.statusLabel}`);
   }
 
-  return milestones;
+  return lines;
 }
 
-function buildMaterialLines(snapshot: FrontOfficeClientDetailSnapshot) {
-  if (!snapshot.sendRecords.length) {
-    return [
-      "No listing or resource packet has been sent from this client dossier yet.",
-    ];
-  }
-
-  return snapshot.sendRecords.slice(0, 4).map((record) =>
-    [record.title, `Shared ${record.sentAtLabel}`, record.appointmentLabel]
-      .filter(Boolean)
-      .join(" | "),
-  );
-}
-
-function buildAppointmentLines(snapshot: FrontOfficeClientDetailSnapshot) {
+function buildUpcomingCoordinationLines(snapshot: FrontOfficeClientDetailSnapshot) {
   if (!snapshot.appointments.length) {
-    return ["No upcoming appointment is currently attached to this dossier."];
+    return [
+      `No appointment is currently booked. The next move is still anchored on ${snapshot.followUpCue.dueLabel.toLowerCase()}.`,
+    ];
   }
 
   return snapshot.appointments.slice(0, 4).map((appointment) =>
@@ -242,46 +246,119 @@ function buildAppointmentLines(snapshot: FrontOfficeClientDetailSnapshot) {
       appointment.title,
       appointment.startsAtLabel,
       appointment.locationLabel,
-      appointment.contextLabel,
+      appointment.externalStatusDetail,
     ]
       .filter(Boolean)
       .join(" | "),
   );
 }
 
-function buildOfferLines(snapshot: FrontOfficeClientDetailSnapshot) {
-  if (!snapshot.negotiation.offers.length) {
+function buildMaterialsLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  if (!snapshot.sendRecords.length) {
     return [
-      snapshot.negotiation.acceptedOfferLabel !== "No accepted offer"
-        ? `Primary status: ${snapshot.negotiation.acceptedOfferLabel}`
-        : "No formal offer or application record is currently listed in the active workflow.",
+      "No listing packet or tracked resource has been shared from this dossier yet.",
     ];
   }
 
-  return snapshot.negotiation.offers.slice(0, 3).map((offer) =>
+  return snapshot.sendRecords.slice(0, 5).map((record) =>
     [
-      offer.title,
-      offer.statusLabel,
-      offer.priceLabel,
-      offer.expirationLabel,
+      record.title,
+      `Shared ${record.sentAtLabel}`,
+      record.engagementLabel,
+      record.appointmentLabel,
     ]
       .filter(Boolean)
       .join(" | "),
   );
 }
 
-function MetaCard(props: { label: string; value: string | number }) {
+function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const negotiationSummary = buildNegotiationSummary(snapshot);
+  const inspectionSummary = buildInspectionSummary(snapshot);
+  const lines = [
+    `${negotiationSummary.title} | ${negotiationSummary.description}`,
+    `${inspectionSummary.title} | ${inspectionSummary.description}`,
+    `Current closing or milestone view: ${snapshot.closing.boundaryLabel} | ${snapshot.closing.keyDateLabel}`,
+  ];
+
+  if (snapshot.negotiation.offers.length) {
+    lines.push(
+      ...snapshot.negotiation.offers.slice(0, 3).map((offer) =>
+        [
+          offer.title,
+          offer.statusLabel,
+          offer.priceLabel,
+          offer.expirationLabel,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+      ),
+    );
+  }
+
+  return lines;
+}
+
+function buildRecentProgressLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const lines = [
+    ...snapshot.stageHistory.slice(0, 3).map((entry) =>
+      [entry.changedAtLabel, entry.title].filter(Boolean).join(" | "),
+    ),
+    ...snapshot.sendRecords.slice(0, 2).map((record) =>
+      [
+        record.sentAtLabel,
+        `Shared ${record.title}`,
+        record.engagementLabel,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    ),
+    ...snapshot.handoffs.slice(0, 2).map((handoff) =>
+      [
+        handoff.updatedAtLabel,
+        handoff.stageLabel,
+        handoff.statusLabel,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    ),
+  ].filter(Boolean);
+
+  return lines.length
+    ? lines.slice(0, 6)
+    : ["No recent progress has been logged on this dossier yet."];
+}
+
+function HeroCard(props: {
+  label: string;
+  value: string | number;
+  detail: string;
+}) {
   return (
-    <View style={styles.metaCard}>
-      <Text style={styles.metaLabel}>{props.label}</Text>
-      <Text style={styles.metaValue}>{String(props.value)}</Text>
+    <View style={styles.heroCard}>
+      <Text style={styles.heroLabel}>{props.label}</Text>
+      <Text style={styles.heroValue}>{String(props.value)}</Text>
+      <Text style={styles.heroDetail}>{props.detail}</Text>
+    </View>
+  );
+}
+
+function InfoCard(props: {
+  title: string;
+  body: string;
+  fullWidth?: boolean;
+}) {
+  return (
+    <View style={props.fullWidth ? [styles.infoCard, styles.fullCard] : styles.infoCard}>
+      <Text style={styles.infoCardTitle}>{props.title}</Text>
+      <Text style={styles.infoCardBody}>{props.body}</Text>
     </View>
   );
 }
 
 function BulletList(props: { lines: string[] }) {
   return (
-    <View>
+    <View style={styles.listCard}>
       {props.lines.map((line, index) => (
         <Text key={`${line}-${index}`} style={styles.bullet}>
           - {line}
@@ -302,112 +379,121 @@ export function FrontOfficeClientSummaryPdfDocument(
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.organization}>{props.organizationLabel}</Text>
-          <Text style={styles.eyebrow}>Front Office Client Summary</Text>
+          <Text style={styles.eyebrow}>Client progress summary</Text>
           <Text style={styles.title}>{props.snapshot.fullName}</Text>
           <Text style={styles.subtitle}>
-            Prepared {props.generatedAtLabel} by {props.agentLabel}. This PDF
-            uses the live Front Office dossier and linked formal workflow
-            context at the moment it was generated.
+            Prepared {props.generatedAtLabel} by {props.agentLabel}. This
+            summary reflects the live Acre client dossier at the moment it was
+            generated.
           </Text>
         </View>
 
-        <View style={styles.metaGrid}>
-          <MetaCard label="Current stage" value={props.snapshot.stage} />
-          <MetaCard
-            label="Next planned touch"
-            value={props.snapshot.nextTouchLabel}
+        <View style={styles.heroGrid}>
+          <HeroCard
+            label="Current focus"
+            value={props.snapshot.workflow.nextStepTitle}
+            detail={props.snapshot.workflow.pressureDescription}
           />
-          <MetaCard
+          <HeroCard
+            label="Next planned touch"
+            value={props.snapshot.followUpCue.dueLabel}
+            detail={props.snapshot.followUpCue.description}
+          />
+          <HeroCard
             label="Upcoming appointments"
             value={props.snapshot.summary.upcomingAppointmentCount}
+            detail={
+              props.snapshot.summary.upcomingAppointmentCount
+                ? "Appointments are already on the calendar for this dossier."
+                : "The next move is still being driven by follow-up and shortlist work."
+            }
           />
-          <MetaCard
-            label="Shared materials"
-            value={props.snapshot.engagement.sendCount}
+          <HeroCard
+            label="Formal workflow status"
+            value={props.snapshot.nextStepRail.decisionLabel}
+            detail={props.snapshot.nextStepRail.decisionDescription}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Client brief</Text>
-          <View style={styles.sectionGrid}>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoCardTitle}>Search or move intent</Text>
-              <Text style={styles.infoCardBody}>
-                {normalizeValue(props.snapshot.intentLabel)}
-              </Text>
-            </View>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoCardTitle}>Budget</Text>
-              <Text style={styles.infoCardBody}>
-                {normalizeValue(props.snapshot.budgetLabel)}
-              </Text>
-            </View>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoCardTitle}>Preferred areas</Text>
-              <Text style={styles.infoCardBody}>
-                {normalizeValue(props.snapshot.preferredAreasLabel)}
-              </Text>
-            </View>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoCardTitle}>Contact on file</Text>
-              <Text style={styles.infoCardBody}>
-                {normalizeValue(props.snapshot.email || props.snapshot.phone)}
-              </Text>
-            </View>
+          <Text style={styles.sectionTitle}>Search summary</Text>
+          <View style={styles.cardGrid}>
+            <InfoCard
+              title="What we are solving"
+              body={buildSearchSummaryLines(props.snapshot).join("\n")}
+            />
+            <InfoCard
+              title="Client contact"
+              body={[
+                `Email: ${normalizeValue(props.snapshot.email || "")}`,
+                `Phone: ${normalizeValue(props.snapshot.phone || "")}`,
+              ].join("\n")}
+            />
+            <InfoCard
+              title="Current working plan"
+              body={buildCurrentPlanLines(props.snapshot).join("\n")}
+            />
+            <InfoCard
+              title="Lease timing"
+              body={buildLeaseTimingText(props.snapshot)}
+            />
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming schedule</Text>
-          <View style={styles.listCard}>
-            <BulletList lines={buildAppointmentLines(props.snapshot)} />
-          </View>
+          <Text style={styles.sectionTitle}>Upcoming coordination</Text>
+          <BulletList lines={buildUpcomingCoordinationLines(props.snapshot)} />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Shared materials</Text>
-          <View style={styles.listCard}>
-            <BulletList lines={buildMaterialLines(props.snapshot)} />
+          <Text style={styles.sectionTitle}>Formal workflow view</Text>
+          <View style={styles.cardGrid}>
+            <InfoCard
+              title={negotiationSummary.title}
+              body={negotiationSummary.description}
+            />
+            <InfoCard
+              title={inspectionSummary.title}
+              body={inspectionSummary.description}
+            />
           </View>
+        </View>
+      </Page>
+
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <Text style={styles.organization}>{props.organizationLabel}</Text>
+          <Text style={styles.eyebrow}>Client progress summary</Text>
+          <Text style={styles.title}>Activity and milestones</Text>
+          <Text style={styles.subtitle}>
+            Recent coordination, shared materials, and formal milestone context
+            pulled from the live dossier.
+          </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Offer and decision status</Text>
-          <View style={styles.listCard}>
-            <View style={styles.listItem}>
-              <Text style={styles.listItemTitle}>{negotiationSummary.title}</Text>
-              <Text style={styles.listItemDetail}>
-                {negotiationSummary.description}
-              </Text>
-            </View>
-            <View style={styles.listItemLast}>
-              <BulletList lines={buildOfferLines(props.snapshot)} />
-            </View>
-          </View>
+          <Text style={styles.sectionTitle}>Materials and shortlist activity</Text>
+          <BulletList lines={buildMaterialsLines(props.snapshot)} />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contract and inspection support</Text>
-          <View style={styles.listCard}>
-            <View style={styles.listItem}>
-              <Text style={styles.listItemTitle}>{inspectionSummary.title}</Text>
-              <Text style={styles.listItemDetail}>
-                {inspectionSummary.description}
-              </Text>
-            </View>
-            <View style={styles.listItemLast}>
-              <BulletList lines={buildInspectionMilestones(props.snapshot)} />
-            </View>
-          </View>
+          <Text style={styles.sectionTitle}>Formal milestones</Text>
+          <BulletList lines={buildFormalMilestoneLines(props.snapshot)} />
         </View>
 
-        <Text style={styles.footer}>
-          Agent: {props.agentLabel}
-          {"\n"}
-          Generated from Acre Front Office live dossier data. Formal transaction,
-          signature, and archival records continue to live in the shared Back
-          Office workflow.
-        </Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent progress</Text>
+          <BulletList lines={buildRecentProgressLines(props.snapshot)} />
+        </View>
+
+        <View style={styles.footer}>
+          <Text>
+            This summary is meant for client-facing coordination and recap.
+            Formal transaction records, signatures, accounting, and archival
+            documents continue to live in Acre&apos;s shared formal transaction
+            workspace.
+          </Text>
+        </View>
       </Page>
     </Document>
   );
