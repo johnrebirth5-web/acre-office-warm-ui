@@ -6,6 +6,8 @@ type JsonRecord = Record<string, unknown>;
 type StudioAmenitySection = { title: string; items: string[] };
 type StudioTransitItem = { label: string; detail?: string | null; distanceLabel?: string | null };
 type StudioFloorPlanItem = { label: string; url?: string | null; assetId?: string | null };
+type StudioDetailSection = { title: string; items: string[] };
+type StudioLabeledValue = { label: string; value: string };
 
 export type StudioCapturedAssetInput = {
   kind?: StudioListingAssetKind | null;
@@ -72,9 +74,12 @@ export type StudioListingDetailSnapshot = {
   locationLine: string | null;
   descriptionText: string | null;
   facts: Array<{ label: string; value: string }>;
+  sourceFacts: Array<{ label: string; value: string }>;
   amenities: Array<{ title: string; items: string[] }>;
   transit: Array<{ label: string; detail?: string | null; distanceLabel?: string | null }>;
   floorPlans: Array<{ label: string; assetId?: string | null; url?: string | null }>;
+  propertyHistory: Array<{ title: string; items: string[] }>;
+  capturedSections: Array<{ title: string; items: string[] }>;
   assets: Array<{
     id: string;
     kind: StudioListingAssetKind;
@@ -111,6 +116,7 @@ export type StudioListingPublicPackSnapshot = {
   locationLine: string | null;
   descriptionText: string | null;
   facts: Array<{ label: string; value: string }>;
+  sourceFacts: Array<{ label: string; value: string }>;
   amenities: Array<{ title: string; items: string[] }>;
   transit: Array<{ label: string; detail?: string | null; distanceLabel?: string | null }>;
   selectedAssets: Array<{
@@ -120,6 +126,8 @@ export type StudioListingPublicPackSnapshot = {
     sortOrder: number;
   }>;
   floorPlans: Array<{ label: string; assetId?: string | null; url?: string | null }>;
+  propertyHistory: Array<{ title: string; items: string[] }>;
+  capturedSections: Array<{ title: string; items: string[] }>;
   contact: {
     name: string;
     title: string;
@@ -389,6 +397,65 @@ function normalizeFloorPlans(value: unknown): StudioFloorPlanItem[] {
   });
 
   return items;
+}
+
+function normalizeDetailSections(value: unknown): StudioDetailSection[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry, index) => {
+      if (typeof entry === "string") {
+        const title = `Section ${index + 1}`;
+        const item = trimString(entry);
+        return item ? { title, items: [item] } : null;
+      }
+
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const candidate = entry as Record<string, unknown>;
+      const title = trimString(candidate.title) ?? `Section ${index + 1}`;
+      const items = normalizeTextArray(candidate.items);
+      return items.length ? { title, items } : null;
+    })
+    .filter((entry): entry is StudioDetailSection => Boolean(entry));
+}
+
+function normalizeLabeledValues(value: unknown): StudioLabeledValue[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const candidate = entry as Record<string, unknown>;
+      const label = trimString(candidate.label);
+      const itemValue = trimString(candidate.value);
+      return label && itemValue ? { label, value: itemValue } : null;
+    })
+    .filter((entry): entry is StudioLabeledValue => Boolean(entry));
+}
+
+function readCanonicalFieldFromRawParsed(
+  rawParsedJson: Prisma.JsonValue | null,
+  key: string,
+): unknown {
+  if (!rawParsedJson || typeof rawParsedJson !== "object" || Array.isArray(rawParsedJson)) {
+    return undefined;
+  }
+
+  const canonicalFields = (rawParsedJson as Record<string, unknown>).canonicalFields;
+  if (!canonicalFields || typeof canonicalFields !== "object" || Array.isArray(canonicalFields)) {
+    return undefined;
+  }
+
+  return (canonicalFields as Record<string, unknown>)[key];
 }
 
 function toInputJsonValue(value: unknown): Prisma.InputJsonValue {
@@ -1156,6 +1223,15 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
   const snapshot = record.snapshot;
   const bulletPoints = normalizeBulletPoints(record.bulletPointsJson);
   const selectedAssetIds = normalizeBulletPoints(record.selectedAssetIdsJson);
+  const sourceFacts = normalizeLabeledValues(
+    readCanonicalFieldFromRawParsed(snapshot.rawParsedJson as Prisma.JsonValue | null, "sourceFacts"),
+  );
+  const capturedSections = normalizeDetailSections(
+    readCanonicalFieldFromRawParsed(snapshot.rawParsedJson as Prisma.JsonValue | null, "detailSections"),
+  ).filter(
+    (section) => !/amenities|features|transit|transportation|history|about|overview/i.test(section.title),
+  );
+  const propertyHistory = normalizeDetailSections(snapshot.propertyHistoryJson as Prisma.JsonValue | null);
   const assets = snapshot.assets.map((asset) => ({
     id: asset.id,
     kind: asset.kind,
@@ -1199,6 +1275,7 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
             sqft: snapshot.sqft,
             availabilityLabel: snapshot.availabilityLabel,
           }),
+    sourceFacts,
     amenities: Array.isArray(snapshot.amenitiesJson)
       ? (snapshot.amenitiesJson as Array<{ title: string; items: string[] }>)
       : [],
@@ -1208,6 +1285,8 @@ function mapDetailSnapshot(record: StudioListingPackRecord): StudioListingDetail
     floorPlans: Array.isArray(snapshot.floorPlanJson)
       ? (snapshot.floorPlanJson as Array<{ label: string; assetId?: string | null; url?: string | null }>)
       : [],
+    propertyHistory,
+    capturedSections,
     assets,
     pack: {
       status: record.status,
@@ -1425,10 +1504,13 @@ export async function getStudioListingPublicPack(input: {
     locationLine: detail.locationLine,
     descriptionText: detail.descriptionText,
     facts: detail.facts,
+    sourceFacts: detail.sourceFacts,
     amenities: detail.amenities,
     transit: detail.transit,
     selectedAssets: selectedAssets.length ? selectedAssets : detail.assets.slice(0, 8),
     floorPlans: detail.floorPlans,
+    propertyHistory: detail.propertyHistory,
+    capturedSections: detail.capturedSections,
     contact: {
       name: detail.pack.contactName,
       title: detail.pack.contactTitle,

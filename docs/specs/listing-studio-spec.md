@@ -61,6 +61,18 @@
    - canonical fields
    - image urls
    - floor plan / transit / amenities 等结构化信息
+   - source facts：
+     - rooms
+     - availability
+     - common charges / HOA / taxes
+     - price per foot
+     - lease term
+     - listed by / broker / property type
+   - additional detail sections：
+     - policies
+     - property details
+     - building details
+     - property history / listing history
 7. background worker 使用 Acre extension token 调用 `/api/listing-studio/imports`
 8. 服务端同步创建 import、snapshot、assets、pack
 9. 浮层进入 success 状态，显示 `Saved to Listing Studio` 和 `Open in Acre`
@@ -89,8 +101,11 @@
 - hero image
 - gallery
 - price / address / facts
+- source facts
 - amenities
 - transit
+- property history
+- additional captured sections
 - floor plans
 - source attribution
 - client-copy edit panel

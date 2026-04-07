@@ -201,6 +201,35 @@ export function StudioListingPdfDocument(props: {
           </View>
         ) : null}
 
+        {props.detail.sourceFacts.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Source facts</Text>
+            {props.detail.sourceFacts.slice(0, 8).map((item) => (
+              <Text key={item.label} style={styles.bullet}>
+                • {item.label}: {item.value}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
+        {props.detail.capturedSections.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Additional details</Text>
+            {props.detail.capturedSections.slice(0, 3).map((section) => (
+              <View key={section.title} style={{ marginBottom: 8 }}>
+                <Text style={{ fontSize: 9, fontWeight: 700, marginBottom: 4 }}>
+                  {section.title}
+                </Text>
+                {section.items.slice(0, 5).map((item) => (
+                  <Text key={`${section.title}-${item}`} style={styles.bullet}>
+                    • {item}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         <View style={styles.footer}>
           <Text>Source: {props.detail.sourceSite}</Text>
           <Text>Original listing: {props.detail.sourceUrl}</Text>

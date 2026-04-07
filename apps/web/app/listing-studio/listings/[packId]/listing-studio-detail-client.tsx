@@ -202,6 +202,23 @@ export function ListingStudioDetailClient({
           ) : null}
         </SectionCard>
 
+        {detail.sourceFacts.length ? (
+          <SectionCard
+            className="office-list-card"
+            subtitle="Structured source facts captured from the original listing page."
+            title="Source facts"
+          >
+            <div className="listing-studio-keyvalue-grid">
+              {detail.sourceFacts.map((item) => (
+                <div className="listing-studio-keyvalue-card" key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        ) : null}
+
         <div className="listing-studio-section-grid">
           <SectionCard
             className="office-list-card"
@@ -248,6 +265,48 @@ export function ListingStudioDetailClient({
             )}
           </SectionCard>
         </div>
+
+        {detail.propertyHistory.length ? (
+          <SectionCard
+            className="office-list-card"
+            subtitle="Property and listing history blocks captured from the source page."
+            title="History"
+          >
+            <div className="listing-studio-detail-section-list">
+              {detail.propertyHistory.map((section) => (
+                <div className="listing-studio-detail-section-block" key={section.title}>
+                  <strong>{section.title}</strong>
+                  <div className="listing-studio-detail-section-items">
+                    {section.items.map((item) => (
+                      <span key={`${section.title}-${item}`}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {detail.capturedSections.length ? (
+          <SectionCard
+            className="office-list-card"
+            subtitle="Additional sections captured from the listing page that do not fit the core fact cards."
+            title="Additional details"
+          >
+            <div className="listing-studio-detail-section-list">
+              {detail.capturedSections.map((section) => (
+                <div className="listing-studio-detail-section-block" key={section.title}>
+                  <strong>{section.title}</strong>
+                  <div className="listing-studio-detail-section-items">
+                    {section.items.map((item) => (
+                      <span key={`${section.title}-${item}`}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        ) : null}
 
         <SectionCard
           className="office-list-card"

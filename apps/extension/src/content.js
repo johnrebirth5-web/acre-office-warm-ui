@@ -27,6 +27,24 @@
     return null;
   }
 
+  function normalizeWhitespace(value) {
+    return typeof value === "string"
+      ? value.replace(/\s+/g, " ").trim()
+      : "";
+  }
+
+  function findRegexValue(patterns, sourceText) {
+    const text = sourceText || "";
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      const value = trimText(match?.[1] ?? match?.[0] ?? "");
+      if (value) {
+        return value;
+      }
+    }
+    return null;
+  }
+
   function extractJsonLdNodes() {
     const nodes = [];
     for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
@@ -148,7 +166,7 @@
       .map((image) => image.currentSrc || image.src)
       .filter(Boolean);
 
-    return collectUniqueUrls([...domImages, ...ldImages]).slice(0, 16);
+    return collectUniqueUrls([...domImages, ...ldImages]).slice(0, 32);
   }
 
   function collectFloorPlans() {
@@ -197,6 +215,149 @@
     }
 
     return [...new Set(items)].slice(0, 18);
+  }
+
+  function collectSectionBlocks(sectionTitles) {
+    const blocks = [];
+
+    for (const heading of document.querySelectorAll("h2, h3, h4, h5")) {
+      const title = trimText(heading.textContent || "");
+      if (!title || !sectionTitles.some((candidate) => candidate.test(title))) {
+        continue;
+      }
+
+      let sibling = heading.nextElementSibling;
+      let depth = 0;
+      const items = [];
+
+      while (sibling && depth < 8) {
+        if (/^H[1-4]$/.test(sibling.tagName)) {
+          break;
+        }
+
+        const scopedNodes = sibling.querySelectorAll("li, p, div, span, a");
+        if (scopedNodes.length) {
+          scopedNodes.forEach((node) => {
+            const value = normalizeWhitespace(node.textContent || "");
+            if (
+              value &&
+              value !== title &&
+              value.length <= 180 &&
+              value.length >= 2
+            ) {
+              items.push(value);
+            }
+          });
+        } else {
+          const value = normalizeWhitespace(sibling.textContent || "");
+          if (value && value !== title && value.length <= 180) {
+            items.push(value);
+          }
+        }
+
+        sibling = sibling.nextElementSibling;
+        depth += 1;
+      }
+
+      const uniqueItems = [...new Set(items)].slice(0, 24);
+      if (uniqueItems.length) {
+        blocks.push({ title, items: uniqueItems });
+      }
+    }
+
+    return blocks;
+  }
+
+  function extractLabeledFacts(pageText) {
+    const normalizedText = pageText || "";
+    const commonChargesLabel = findRegexValue(
+      [
+        /common charges\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+        /maintenance\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+        /hoa(?: fees?)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i,
+      ],
+      normalizedText,
+    );
+    const taxesLabel = findRegexValue(
+      [/tax(?:es)?\s+(\$[0-9,]+(?:\.\d+)?(?:\/(?:mo|month|yr|year))?)/i],
+      normalizedText,
+    );
+    const pricePerSquareFootLabel = findRegexValue(
+      [
+        /(\$[0-9,]+(?:\.\d+)?)\s+per\s*(?:ft²|sq\.?\s*ft|sf)/i,
+        /price per(?: square)? foot\s+(\$[0-9,]+(?:\.\d+)?)/i,
+      ],
+      normalizedText,
+    );
+    const availabilityLabel = findRegexValue(
+      [
+        /(Available(?:\s+(?:Now|now|Immediately|immediately|[A-Z][a-z]{2,8}\s+\d{1,2}))?)/i,
+        /availability\s+([A-Za-z]{3,12}\s+\d{1,2}|Available now|Now)/i,
+      ],
+      normalizedText,
+    );
+    const leaseTermLabel = findRegexValue(
+      [/(\d{1,2}(?:-\d{1,2})?\s*-\s*month lease|\d{1,2}-month lease)/i],
+      normalizedText,
+    );
+    const netEffectiveLabel = findRegexValue(
+      [/(Net:\s*\$[0-9,]+(?:\.\d+)?(?:\/mo)?(?:\s*\([^)]+\))?)/i],
+      normalizedText,
+    );
+    const listedBy = findRegexValue(
+      [/listed by\s+([A-Za-z0-9 .,&'/-]{2,120})/i],
+      normalizedText,
+    );
+    const brokerLabel = findRegexValue(
+      [/broker(?:age)?\s+([A-Za-z0-9 .,&'/-]{2,120})/i],
+      normalizedText,
+    );
+    const propertyType = findRegexValue(
+      [/\b(condo|co-op|coop|townhouse|house|rental unit|apartment|condop)\b/i],
+      normalizedText,
+    );
+    const rooms = findRegexValue([/([0-9.]+)\s*rooms?/i], normalizedText);
+
+    return {
+      commonChargesLabel,
+      taxesLabel,
+      pricePerSquareFootLabel,
+      availabilityLabel,
+      leaseTermLabel,
+      netEffectiveLabel,
+      listedBy,
+      brokerLabel,
+      propertyType,
+      rooms,
+    };
+  }
+
+  function buildHeroFactsFromPayload(payload) {
+    const facts = [
+      payload.bedrooms ? { label: "Bedrooms", value: String(payload.bedrooms) } : null,
+      payload.bathrooms ? { label: "Bathrooms", value: String(payload.bathrooms) } : null,
+      payload.sqft ? { label: "Sqft", value: String(payload.sqft) } : null,
+      payload.rooms ? { label: "Rooms", value: String(payload.rooms) } : null,
+      payload.availabilityLabel ? { label: "Availability", value: payload.availabilityLabel } : null,
+      payload.commonChargesLabel ? { label: "Common charges", value: payload.commonChargesLabel } : null,
+      payload.taxesLabel ? { label: "Taxes", value: payload.taxesLabel } : null,
+      payload.pricePerSquareFootLabel ? { label: "Price / ft", value: payload.pricePerSquareFootLabel } : null,
+      payload.leaseTermLabel ? { label: "Lease term", value: payload.leaseTermLabel } : null,
+    ].filter(Boolean);
+
+    return facts.slice(0, 8);
+  }
+
+  function buildSourceFacts(payload) {
+    return [
+      payload.buildingName ? { label: "Building", value: payload.buildingName } : null,
+      payload.propertyType ? { label: "Property type", value: payload.propertyType } : null,
+      payload.listedBy ? { label: "Listed by", value: payload.listedBy } : null,
+      payload.brokerLabel ? { label: "Broker", value: payload.brokerLabel } : null,
+      payload.netEffectiveLabel ? { label: "Net effective", value: payload.netEffectiveLabel } : null,
+      payload.commonChargesLabel ? { label: "Common charges", value: payload.commonChargesLabel } : null,
+      payload.taxesLabel ? { label: "Taxes", value: payload.taxesLabel } : null,
+    ].filter(Boolean);
   }
 
   function extractDescription() {
@@ -263,12 +424,23 @@
       parseMoneyValue(ldOffer?.price) ||
       parseMoneyValue(priceText);
     const facts = buildFacts(ldResidence, factsText);
+    const labeledFacts = extractLabeledFacts(factsText);
     const amenities = collectSectionTextItems([/amenities/i, /home features/i, /building amenities/i]);
     const transit = collectSectionTextItems([/nearby transit/i, /transportation/i]).map((item) => ({
       label: item,
     }));
     const floorPlans = collectFloorPlans();
     const imageUrls = collectImageUrls();
+    const detailSections = collectSectionBlocks([
+      /policies/i,
+      /home features/i,
+      /building amenities/i,
+      /property details/i,
+      /listing details/i,
+      /price history/i,
+      /listing history/i,
+      /^about$/i,
+    ]);
 
     return {
       sourceSite: "streeteasy",
@@ -289,11 +461,43 @@
       priceLabel: priceText,
       bedrooms: facts.bedrooms,
       bathrooms: facts.bathrooms,
+      rooms: labeledFacts.rooms,
       sqft: facts.sqft,
+      commonChargesLabel: labeledFacts.commonChargesLabel,
+      taxesLabel: labeledFacts.taxesLabel,
+      pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
+      availabilityLabel: labeledFacts.availabilityLabel,
+      leaseTermLabel: labeledFacts.leaseTermLabel,
+      netEffectiveLabel: labeledFacts.netEffectiveLabel,
+      propertyType: labeledFacts.propertyType,
+      listedBy: labeledFacts.listedBy,
+      brokerLabel: labeledFacts.brokerLabel,
       descriptionText: extractDescription(),
+      heroFacts: buildHeroFactsFromPayload({
+        ...facts,
+        rooms: labeledFacts.rooms,
+        availabilityLabel: labeledFacts.availabilityLabel,
+        commonChargesLabel: labeledFacts.commonChargesLabel,
+        taxesLabel: labeledFacts.taxesLabel,
+        pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
+        leaseTermLabel: labeledFacts.leaseTermLabel,
+      }),
+      sourceFacts: buildSourceFacts({
+        buildingName:
+          queryText(["[class*='building'] a", "[class*='building']"]) ||
+          trimText(ldResidence?.containedInPlace?.name),
+        propertyType: labeledFacts.propertyType,
+        listedBy: labeledFacts.listedBy,
+        brokerLabel: labeledFacts.brokerLabel,
+        netEffectiveLabel: labeledFacts.netEffectiveLabel,
+        commonChargesLabel: labeledFacts.commonChargesLabel,
+        taxesLabel: labeledFacts.taxesLabel,
+      }),
       amenities: amenities.length ? { "Amenities & building": amenities } : [],
       transit,
       floorPlans,
+      detailSections,
+      propertyHistory: detailSections.filter((section) => /history/i.test(section.title)),
       assetUrls: imageUrls,
     };
   }
@@ -320,12 +524,21 @@
       parseMoneyValue(priceText);
     const factsText = document.body.innerText || "";
     const facts = buildFacts(ldResidence, factsText);
+    const labeledFacts = extractLabeledFacts(factsText);
     const amenities = collectSectionTextItems([/amenities/i, /features/i]);
     const transit = collectSectionTextItems([/nearby schools/i, /commute/i, /transit/i]).map((item) => ({
       label: item,
     }));
     const floorPlans = collectFloorPlans();
     const imageUrls = collectImageUrls();
+    const detailSections = collectSectionBlocks([
+      /price history/i,
+      /property details/i,
+      /home facts/i,
+      /policies/i,
+      /features/i,
+      /^about$/i,
+    ]);
 
     return {
       sourceSite: "zillow",
@@ -344,11 +557,41 @@
       priceLabel: priceText,
       bedrooms: facts.bedrooms,
       bathrooms: facts.bathrooms,
+      rooms: labeledFacts.rooms,
       sqft: facts.sqft,
+      commonChargesLabel: labeledFacts.commonChargesLabel,
+      taxesLabel: labeledFacts.taxesLabel,
+      pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
+      availabilityLabel: labeledFacts.availabilityLabel,
+      leaseTermLabel: labeledFacts.leaseTermLabel,
+      netEffectiveLabel: labeledFacts.netEffectiveLabel,
+      propertyType: labeledFacts.propertyType,
+      listedBy: labeledFacts.listedBy,
+      brokerLabel: labeledFacts.brokerLabel,
       descriptionText: extractDescription(),
+      heroFacts: buildHeroFactsFromPayload({
+        ...facts,
+        rooms: labeledFacts.rooms,
+        availabilityLabel: labeledFacts.availabilityLabel,
+        commonChargesLabel: labeledFacts.commonChargesLabel,
+        taxesLabel: labeledFacts.taxesLabel,
+        pricePerSquareFootLabel: labeledFacts.pricePerSquareFootLabel,
+        leaseTermLabel: labeledFacts.leaseTermLabel,
+      }),
+      sourceFacts: buildSourceFacts({
+        buildingName: queryText(["[class*='building']", "[class*='community']"]),
+        propertyType: labeledFacts.propertyType,
+        listedBy: labeledFacts.listedBy,
+        brokerLabel: labeledFacts.brokerLabel,
+        netEffectiveLabel: labeledFacts.netEffectiveLabel,
+        commonChargesLabel: labeledFacts.commonChargesLabel,
+        taxesLabel: labeledFacts.taxesLabel,
+      }),
       amenities: amenities.length ? { "Amenities & features": amenities } : [],
       transit,
       floorPlans,
+      detailSections,
+      propertyHistory: detailSections.filter((section) => /history/i.test(section.title)),
       assetUrls: imageUrls,
     };
   }
@@ -420,11 +663,25 @@
           priceLabel,
           bedrooms: sitePayload.bedrooms,
           bathrooms: sitePayload.bathrooms,
+          rooms: sitePayload.rooms,
           sqft: sitePayload.sqft,
+          availabilityLabel: sitePayload.availabilityLabel,
+          commonChargesLabel: sitePayload.commonChargesLabel,
+          taxesLabel: sitePayload.taxesLabel,
+          pricePerSquareFootLabel: sitePayload.pricePerSquareFootLabel,
+          leaseTermLabel: sitePayload.leaseTermLabel,
+          netEffectiveLabel: sitePayload.netEffectiveLabel,
+          propertyType: sitePayload.propertyType,
+          listedBy: sitePayload.listedBy,
+          brokerLabel: sitePayload.brokerLabel,
           descriptionText: sitePayload.descriptionText,
+          heroFacts: sitePayload.heroFacts,
+          sourceFacts: sitePayload.sourceFacts,
           amenities: sitePayload.amenities,
           transit: sitePayload.transit,
           floorPlans: sitePayload.floorPlans,
+          detailSections: sitePayload.detailSections,
+          propertyHistory: sitePayload.propertyHistory,
         },
         assets,
       },

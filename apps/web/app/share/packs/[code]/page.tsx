@@ -85,6 +85,20 @@ export default async function ListingStudioPublicSharePage(
             ) : null}
           </div>
 
+          {snapshot.sourceFacts.length ? (
+            <div className="listing-studio-share-section">
+              <h2>Source facts</h2>
+              <div className="listing-studio-keyvalue-grid">
+                {snapshot.sourceFacts.map((item) => (
+                  <div className="listing-studio-keyvalue-card" key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {snapshot.amenities.length ? (
             <div className="listing-studio-share-section">
               <h2>Amenities</h2>
@@ -115,6 +129,42 @@ export default async function ListingStudioPublicSharePage(
                     <strong>{item.label}</strong>
                     <span>{item.detail ?? "Transit details captured"}</span>
                     {item.distanceLabel ? <em>{item.distanceLabel}</em> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {snapshot.propertyHistory.length ? (
+            <div className="listing-studio-share-section">
+              <h2>History</h2>
+              <div className="listing-studio-detail-section-list">
+                {snapshot.propertyHistory.map((section) => (
+                  <div className="listing-studio-detail-section-block" key={section.title}>
+                    <strong>{section.title}</strong>
+                    <div className="listing-studio-detail-section-items">
+                      {section.items.map((item) => (
+                        <span key={`${section.title}-${item}`}>{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {snapshot.capturedSections.length ? (
+            <div className="listing-studio-share-section">
+              <h2>Additional details</h2>
+              <div className="listing-studio-detail-section-list">
+                {snapshot.capturedSections.map((section) => (
+                  <div className="listing-studio-detail-section-block" key={section.title}>
+                    <strong>{section.title}</strong>
+                    <div className="listing-studio-detail-section-items">
+                      {section.items.map((item) => (
+                        <span key={`${section.title}-${item}`}>{item}</span>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
