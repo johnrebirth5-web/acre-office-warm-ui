@@ -200,6 +200,11 @@ export function ListingStudioExtensionConnectAction(
   }, []);
 
   function handleClick() {
+    if (browserConnectionState === "not_installed") {
+      window.location.reload();
+      return;
+    }
+
     if (!bridgeReady) {
       setBrowserConnectionState("not_installed");
       setStatusMessage(
@@ -218,6 +223,8 @@ export function ListingStudioExtensionConnectAction(
     "Acre is checking whether the Chrome extension is available in this browser.";
   let badgeClassName = "office-status-badge office-status-badge-neutral";
   let badgeLabel = "Checking";
+  let panelMessage =
+    "Connect this browser to save listings directly from supported pages.";
 
   if (browserConnectionState === "connected") {
     heading = "Connected in this browser";
@@ -227,12 +234,14 @@ export function ListingStudioExtensionConnectAction(
         : "This browser is ready to save listings into Acre.";
     badgeClassName = "office-status-badge office-status-badge-success";
     badgeLabel = "Connected";
+    panelMessage = "This browser can now save listings directly from StreetEasy and Zillow.";
   } else if (browserConnectionState === "pending") {
     heading = "Approving this browser";
     description =
       "Finish the Acre approval tab that just opened. This page will update automatically once the extension is linked.";
     badgeClassName = "office-status-badge office-status-badge-warning";
     badgeLabel = "Awaiting connection";
+    panelMessage = "The approval tab is open. Finish approval there and this page will update automatically.";
   } else if (browserConnectionState === "disconnected") {
     heading = "Ready to connect in this browser";
     description =
@@ -241,14 +250,17 @@ export function ListingStudioExtensionConnectAction(
         : "Click Connect Chrome extension and Acre will open the approval page automatically.";
     badgeClassName = "office-status-badge office-status-badge-warning";
     badgeLabel = "Ready to connect";
+    panelMessage = "Connect this browser to save listings directly from supported pages.";
   } else if (browserConnectionState === "not_installed") {
-    heading = "Extension not installed in this browser";
+    heading = "Extension not detected on this page";
     description =
       props.serverHasActiveToken && props.serverActiveTokenCount > 0
-        ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else, but this browser still needs the Acre Chrome extension installed.`
-        : "Install or reload the Acre Chrome extension in this browser, then come back here and click Connect Chrome extension.";
+        ? `Your account already has ${pluralizeConnections(props.serverActiveTokenCount)} somewhere else, but this browser still needs the Acre Chrome extension installed or reloaded.`
+        : "Install or reload the Acre Chrome extension in this browser, then refresh this dashboard to continue.";
     badgeClassName = "office-status-badge office-status-badge-neutral";
-    badgeLabel = "Not installed";
+    badgeLabel = "Extension missing";
+    panelMessage =
+      "If you just installed or reloaded the extension, refresh this dashboard first. Then you can connect this browser.";
   }
 
   let actionLabel = "Connect Chrome extension";
@@ -256,6 +268,8 @@ export function ListingStudioExtensionConnectAction(
     actionLabel = "Connected in this browser";
   } else if (browserConnectionState === "pending" || isConnecting) {
     actionLabel = "Connecting...";
+  } else if (browserConnectionState === "not_installed") {
+    actionLabel = "Refresh after install";
   }
 
   return (
@@ -275,9 +289,7 @@ export function ListingStudioExtensionConnectAction(
             StreetEasy + Zillow
           </span>
         </div>
-        <p className="listing-studio-banner-meta">
-          Connect this browser to save listings directly from supported pages.
-        </p>
+        <p className="listing-studio-banner-meta">{panelMessage}</p>
         <div className="listing-studio-connect-action">
           <Button
             disabled={browserConnectionState === "connected" || isConnecting}
