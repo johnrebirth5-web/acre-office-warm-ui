@@ -1,7 +1,4 @@
-import {
-  canEditOfficeContacts,
-  canViewOfficeContacts,
-} from "@acre/auth";
+import { canEditOfficeContacts, canViewOfficeContacts } from "@acre/auth";
 import { mergeFrontOfficeClients } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../lib/auth-session";
@@ -10,22 +7,38 @@ function readRequiredString(body: Record<string, unknown>, key: string) {
   return typeof body[key] === "string" ? body[key].trim() : "";
 }
 
-function isPrismaRecordMissingError(error: unknown) {
-  return (
+function readPrismaErrorCode(error: unknown) {
+  if (
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    error.code === "P2025"
-  );
+    typeof error.code === "string"
+  ) {
+    return error.code;
+  }
+
+  return "";
+}
+
+function isPrismaRecordMissingError(error: unknown) {
+  return readPrismaErrorCode(error) === "P2025";
 }
 
 function buildMergeSuccessDetail() {
-  return "Acre kept the surviving Front Office dossier and reconciled linked FO history plus existing Back Office contact pointers inside the same merge. No new transaction, outside-system sync, or auto-send step was created.";
+  return "Acre reconciled linked Front Office history plus existing Back Office contact pointers inside the same merge so the surviving dossier remains the single FO record.";
+}
+
+function buildMergeKeepReason() {
+  return "Acre keeps the dossier you explicitly reviewed and chose as the surviving record; the duplicate disappears only after linked history is moved safely.";
+}
+
+function buildMergeBoundaryDetail() {
+  return "This merge does not create a transaction, sync an outside system, or auto-send any follow-up.";
 }
 
 function buildMergeErrorResponse(error: unknown) {
-  const message =
-    error instanceof Error ? error.message.trim() : "";
+  const message = error instanceof Error ? error.message.trim() : "";
+  const prismaCode = readPrismaErrorCode(error);
 
   if (message === "Choose two different client records to merge.") {
     return {
@@ -59,8 +72,26 @@ function buildMergeErrorResponse(error: unknown) {
     };
   }
 
+  if (
+    prismaCode === "P2002" ||
+    prismaCode === "P2003" ||
+    prismaCode === "P2028"
+  ) {
+    return {
+      status: 409,
+      body: {
+        code: "linked_history_conflict",
+        error: "Acre paused the merge to protect linked history.",
+        detail:
+          "A linked appointment, follow-up task, send record, or Back Office contact pointer changed while Acre was reconciling this pair, so the duplicate was left intact.",
+        nextStep:
+          "Refresh duplicate review, reopen both dossiers, and retry only if the keep choice is still correct.",
+      },
+    };
+  }
+
   return {
-    status: 400,
+    status: 500,
     body: {
       code: "merge_failed",
       error: "Acre could not merge these Front Office dossiers.",
@@ -118,7 +149,8 @@ export async function POST(request: NextRequest) {
         error: "A valid JSON body is required.",
         detail:
           "Acre did not receive the keep dossier and duplicate dossier IDs it needs to perform a safe merge.",
-        nextStep: "Reload the page and start the merge again from duplicate review.",
+        nextStep:
+          "Reload the page and start the merge again from duplicate review.",
       },
       { status: 400 },
     );
@@ -134,7 +166,8 @@ export async function POST(request: NextRequest) {
         error: "Both targetClientId and sourceClientId are required.",
         detail:
           "Acre needs one surviving dossier and one duplicate dossier before it can move linked history safely.",
-        nextStep: "Reopen duplicate review and confirm both sides before retrying.",
+        nextStep:
+          "Reopen duplicate review and confirm both sides before retrying.",
       },
       { status: 400 },
     );
@@ -151,8 +184,11 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
+      code: "merged",
       result,
+      keepReason: buildMergeKeepReason(),
       detail: buildMergeSuccessDetail(),
+      boundary: buildMergeBoundaryDetail(),
       nextStep:
         "Open the surviving dossier if you want to re-check stage, next touch, or the FO -> BO boundary after the merge.",
     });
