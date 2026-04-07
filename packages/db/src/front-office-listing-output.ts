@@ -230,6 +230,22 @@ function buildShareTrackingLabel(input: {
   return "Tracked link created without client-linked send attribution.";
 }
 
+function buildShareWritebackScopeLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  clientName: string | null;
+  appointmentTitle: string | null;
+}) {
+  if (input.mode === "client_appointment_context") {
+    return `Writeback scope stays on ${input.clientName || "the selected client"} and ${input.appointmentTitle || "the selected appointment"}, so reply pressure and appointment continuity remain on one trail.`;
+  }
+
+  if (input.mode === "client_dossier_context") {
+    return `Writeback scope stays on ${input.clientName || "the selected client"}'s Front Office dossier trail.`;
+  }
+
+  return "Writeback scope is the tracked private link only until you reopen listing output from a dossier or appointment.";
+}
+
 function buildShareSendCue(input: {
   channel: FrontOfficeSendChannel;
   mode: FrontOfficeListingShareBindingMode;
@@ -279,6 +295,18 @@ function buildShareManualSendCue(channel: FrontOfficeSendChannel) {
   }
 
   return "Acre only copied the private tracked link. Add your own context and send it manually from the chat or email tool you choose.";
+}
+
+function buildShareNextStepLabel(channel: FrontOfficeSendChannel) {
+  if (channel === FrontOfficeSendChannel.sms) {
+    return "Paste the SMS package into your texting app and send it manually.";
+  }
+
+  if (channel === FrontOfficeSendChannel.email) {
+    return "Paste the email package into your mail client and send it manually.";
+  }
+
+  return "Drop the tracked private link into your live chat or email thread with your own context.";
 }
 
 function buildShareFollowUpSnapshot(mode: FrontOfficeListingShareBindingMode) {
@@ -389,6 +417,7 @@ export type FrontOfficeListingShareLinkResult = {
     clientLabel: string | null;
     clientStageLabel: string | null;
     clientStageDisplayLabel: string | null;
+    writebackScopeLabel: string;
     appointmentId: string | null;
     appointmentLabel: string | null;
     appointmentStartsAt: string | null;
@@ -405,6 +434,7 @@ export type FrontOfficeListingShareLinkResult = {
     channelLabel: string;
     sendCue: string;
     manualSendCue: string;
+    nextStepLabel: string;
     sentAt: string;
     writebackLabel: string;
   };
@@ -459,6 +489,8 @@ export type FrontOfficeListingShareLinkResult = {
       clientBound: boolean;
       appointmentBound: boolean;
       label: string;
+      scopeLabel: string;
+      nextStepLabel: string;
     };
   };
 };
@@ -516,11 +548,17 @@ function buildShareResultSnapshot(input: {
     sendRecordId: input.sendRecordId,
     aiAcceptedActionRecorded: input.aiAcceptedActionRecorded,
   });
+  const writebackScopeLabel = buildShareWritebackScopeLabel({
+    mode,
+    clientName: input.client?.fullName ?? null,
+    appointmentTitle,
+  });
   const sendCue = buildShareSendCue({
     channel: input.channel,
     mode,
   });
   const manualSendCue = buildShareManualSendCue(input.channel);
+  const nextStepLabel = buildShareNextStepLabel(input.channel);
 
   return {
     context: {
@@ -539,6 +577,7 @@ function buildShareResultSnapshot(input: {
       clientStageDisplayLabel: input.client
         ? buildClientStageDisplayLabel(clientStageLabel)
         : null,
+      writebackScopeLabel,
       appointmentId: input.appointment?.id ?? null,
       appointmentLabel: appointmentTitle,
       appointmentStartsAt: appointmentStartsAtIso,
@@ -555,6 +594,7 @@ function buildShareResultSnapshot(input: {
       channelLabel,
       sendCue,
       manualSendCue,
+      nextStepLabel,
       sentAt: sentAtIso,
       writebackLabel,
     },
@@ -613,6 +653,8 @@ function buildShareResultSnapshot(input: {
         clientBound: Boolean(input.client),
         appointmentBound: Boolean(input.appointment),
         label: writebackLabel,
+        scopeLabel: writebackScopeLabel,
+        nextStepLabel,
       },
     },
   };

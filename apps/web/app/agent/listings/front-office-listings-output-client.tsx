@@ -5,20 +5,15 @@ import type { FrontOfficeListingsSnapshot, FrontOfficeTone } from "@acre/db";
 import { Badge, Button, EmptyState, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
-import type { FrontOfficeListingsRouteState } from "./front-office-listings-route-state";
+import type {
+  FrontOfficeListingsDraftAssist,
+  FrontOfficeListingsRouteState,
+} from "./front-office-listings-route-state";
 
 type FrontOfficeListingsOutputClientProps = {
   snapshot: FrontOfficeListingsSnapshot;
   routeState: FrontOfficeListingsRouteState;
-  draftAssist?: {
-    channel: "sms" | "email";
-    title: string;
-    subjectLine: string;
-    body: string;
-    suggestionKind?: string | null;
-    suggestionLabel?: string | null;
-    sourceLabel?: string | null;
-  } | null;
+  draftAssist?: FrontOfficeListingsDraftAssist | null;
 };
 
 type FeedbackState = {
@@ -38,6 +33,7 @@ type ShareActionContext = {
   trackingLabel?: string;
   trackingStatus?: string;
   writebackLabel?: string;
+  writebackScopeLabel?: string;
   clientLabel?: string | null;
   clientStageLabel?: string | null;
   clientStageDisplayLabel?: string | null;
@@ -47,9 +43,35 @@ type ShareActionContext = {
   channelLabel?: string;
   sendCue?: string;
   manualSendCue?: string;
+  nextStepLabel?: string;
   followUpCue?: string;
   materialCue?: string;
 };
+
+type ShareActionResultPayload = {
+  error?: string;
+  shareLink?: {
+    sharePath?: string;
+    sendRecordId?: string | null;
+    context?: ShareActionContext;
+    snapshot?: {
+      followUp?: {
+        cue?: string;
+        materialCue?: string;
+      };
+      writeback?: {
+        label?: string;
+        scopeLabel?: string;
+        nextStepLabel?: string;
+      };
+    };
+  };
+  writeback?: {
+    label?: string;
+    scopeLabel?: string;
+    nextStepLabel?: string;
+  };
+} | null;
 
 type QueueItemBadgeTone = NonNullable<
   ComponentProps<typeof QueueItem>["badgeTone"]
@@ -59,6 +81,17 @@ type RecommendedShareAction = {
   action: "sms" | "email" | "direct";
   label: string;
   reason: string;
+};
+
+type ShareLanePlan = {
+  action: "sms" | "email" | "direct";
+  badgeLabel: string;
+  badgeTone: QueueItemBadgeTone;
+  title: string;
+  context: string;
+  description: string;
+  meta: string[];
+  isRecommended: boolean;
 };
 
 async function copyTextToClipboard(value: string) {
@@ -151,7 +184,7 @@ function buildListingTractionCue(
   }
 
   if (listing.trackedClickCount >= listing.trackedLinkCount) {
-    return `Tracked sends are already producing opens here. Good candidate for a shortlist or showing follow-up instead of a cold first touch.`;
+    return "Tracked sends are already producing opens here. Good candidate for a shortlist or showing follow-up instead of a cold first touch.";
   }
 
   return `${listing.trackedClickCount} open(s) across ${listing.trackedLinkCount} tracked send(s). Use SMS when you need a quick reaction instead of another long note.`;
@@ -196,62 +229,6 @@ function buildChannelCue(
     : "Use this when you need the tracked URL only and will handle the rest of the context elsewhere.";
 }
 
-function buildRecordedContextMessage(input: {
-  listingTitle: string;
-  action: "sms" | "email" | "direct";
-  usedDraftAssist: boolean;
-  context?: ShareActionContext | null;
-}) {
-  const channelLabel =
-    input.action === "sms"
-      ? "SMS"
-      : input.action === "email"
-        ? "Email"
-        : "tracked link";
-  const baseLabel = input.usedDraftAssist
-    ? input.action === "direct"
-      ? `Tracked link copied for ${input.listingTitle}.`
-      : `AI-assisted ${channelLabel} send copied for ${input.listingTitle}.`
-    : input.action === "direct"
-      ? `Tracked link copied for ${input.listingTitle}.`
-      : `Tracked ${channelLabel} send copied for ${input.listingTitle}.`;
-  const trackingLabel = input.context?.writebackLabel?.trim();
-
-  return trackingLabel ? `${baseLabel} ${trackingLabel}` : baseLabel;
-}
-
-function buildRecordedContextDetail(context?: ShareActionContext | null) {
-  if (!context) {
-    return null;
-  }
-
-  const detail = [
-    context.trackingLabel?.trim() || null,
-    context.clientStageLabel
-      ? `Stage snapshot · ${context.clientStageDisplayLabel || context.clientStageLabel}`
-      : null,
-    context.appointmentLabel
-      ? [
-          `Appointment · ${context.appointmentLabel}`,
-          context.appointmentWindowLabel,
-        ]
-          .filter(Boolean)
-          .join(" · ")
-      : null,
-    context.inheritedClientFromAppointment
-      ? "Client binding came from the selected appointment."
-      : null,
-    context.sendCue?.trim() || null,
-    context.manualSendCue?.trim() || null,
-    context.followUpCue?.trim() || null,
-    context.materialCue?.trim() || null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  return detail.length ? detail : null;
-}
-
 function buildActionButtonLabel(input: {
   action: "sms" | "email" | "direct";
   usesDraftAssist: boolean;
@@ -269,9 +246,7 @@ function buildActionButtonLabel(input: {
   return "Copy tracked link only";
 }
 
-function buildDraftLaneNote(
-  draftAssist: FrontOfficeListingsOutputClientProps["draftAssist"],
-) {
+function buildDraftLaneNote(draftAssist: FrontOfficeListingsDraftAssist | null) {
   if (!draftAssist) {
     return "No assisted draft is loaded, so every send lane below uses the standard manual templates.";
   }
@@ -282,7 +257,7 @@ function buildDraftLaneNote(
 function buildListingRecommendedShareAction(input: {
   snapshot: FrontOfficeListingsSnapshot;
   listing: FrontOfficeListingsSnapshot["listings"][number];
-  draftAssist: FrontOfficeListingsOutputClientProps["draftAssist"];
+  draftAssist: FrontOfficeListingsDraftAssist | null;
 }): RecommendedShareAction {
   if (input.draftAssist?.channel === "sms") {
     return {
@@ -380,6 +355,202 @@ function buildListingEmptyState(
   };
 }
 
+function buildWorkspaceHeading(props: FrontOfficeListingsOutputClientProps) {
+  if (props.snapshot.targetAppointment && props.snapshot.targetClient) {
+    return `Appointment-linked listing desk for ${props.snapshot.targetClient.fullName}`;
+  }
+
+  if (props.snapshot.targetClient) {
+    return `Client-linked listing desk for ${props.snapshot.targetClient.fullName}`;
+  }
+
+  return "Tracked listing outbound desk";
+}
+
+function buildTrackedContextBadgeLabel(
+  listing: FrontOfficeListingsSnapshot["listings"][number],
+) {
+  if (listing.trackedLinkCount <= 0) {
+    return "Fresh";
+  }
+
+  if (listing.trackedClickCount <= 0) {
+    return `${listing.trackedLinkCount} sent`;
+  }
+
+  return `${listing.trackedClickCount} opened`;
+}
+
+function buildTrackedContextBadgeTone(
+  listing: FrontOfficeListingsSnapshot["listings"][number],
+): QueueItemBadgeTone {
+  if (listing.trackedClickCount > 0) {
+    return "success";
+  }
+
+  if (listing.trackedLinkCount > 0) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
+function buildShareLanePlan(input: {
+  snapshot: FrontOfficeListingsSnapshot;
+  routeState: FrontOfficeListingsRouteState;
+  listing: FrontOfficeListingsSnapshot["listings"][number];
+  draftAssist: FrontOfficeListingsDraftAssist | null;
+  action: "sms" | "email" | "direct";
+  recommendedAction: RecommendedShareAction;
+}): ShareLanePlan {
+  const usesDraftAssist =
+    input.action !== "direct" &&
+    input.draftAssist?.channel === input.action &&
+    Boolean(input.draftAssist.body.trim());
+  const isRecommended = input.recommendedAction.action === input.action;
+  const writebackMeta =
+    input.routeState.mode === "appointment-linked"
+      ? "Writeback: client trail + appointment loop."
+      : input.routeState.mode === "client-linked"
+        ? "Writeback: client trail."
+        : "Writeback: tracked link only.";
+
+  if (input.action === "sms") {
+    return {
+      action: "sms",
+      badgeLabel: "SMS",
+      badgeTone: "accent",
+      title: usesDraftAssist
+        ? "SMS draft + tracked link"
+        : input.snapshot.targetAppointment
+          ? "Appointment reaction text"
+          : "Quick reaction text",
+      context: usesDraftAssist
+        ? "AI draft lane"
+        : isRecommended
+          ? "Recommended first move"
+          : "Standard manual lane",
+      description: buildChannelCue(input.snapshot, "sms"),
+      meta: [
+        usesDraftAssist
+          ? "Copy result: assisted SMS draft + tracked link."
+          : "Copy result: standard SMS template + tracked link.",
+        writebackMeta,
+        input.routeState.preferredSupportLane === "sms"
+          ? "Pair with: SMS companion package."
+          : "Pair with: intro text + business card when the note needs more identity.",
+      ],
+      isRecommended,
+    };
+  }
+
+  if (input.action === "email") {
+    return {
+      action: "email",
+      badgeLabel: "Email",
+      badgeTone: "success",
+      title: usesDraftAssist
+        ? "Email draft + tracked link"
+        : "Framed email send",
+      context: usesDraftAssist
+        ? "AI draft lane"
+        : isRecommended
+          ? "Recommended first move"
+          : "Standard manual lane",
+      description: buildChannelCue(input.snapshot, "email"),
+      meta: [
+        usesDraftAssist
+          ? "Copy result: assisted email draft + tracked link."
+          : "Copy result: standard email template + tracked link.",
+        writebackMeta,
+        input.routeState.preferredSupportLane === "email"
+          ? "Pair with: email companion package."
+          : "Pair with: email support package when the client needs more framing.",
+      ],
+      isRecommended,
+    };
+  }
+
+  return {
+    action: "direct",
+    badgeLabel: "Direct",
+    badgeTone: "warning",
+    title: input.snapshot.targetClient
+      ? "Live chat / WeChat link"
+      : "Raw tracked link",
+    context: isRecommended ? "Recommended first move" : "Manual-only lane",
+    description: buildChannelCue(input.snapshot, "direct"),
+    meta: [
+      "Copy result: private tracked link only.",
+      writebackMeta,
+      "Pair with: business card or support package if the conversation thread does not already carry context.",
+    ],
+    isRecommended,
+  };
+}
+
+function buildShareFeedback(input: {
+  listingTitle: string;
+  action: "sms" | "email" | "direct";
+  usedDraftAssist: boolean;
+  payload: ShareActionResultPayload;
+}): FeedbackState {
+  const payload = input.payload ?? {};
+  const context = payload.shareLink?.context;
+  const writebackLabel =
+    payload.writeback?.label ||
+    payload.shareLink?.snapshot?.writeback?.label ||
+    context?.writebackLabel ||
+    null;
+  const scopeLabel =
+    context?.writebackScopeLabel ||
+    payload.writeback?.scopeLabel ||
+    payload.shareLink?.snapshot?.writeback?.scopeLabel ||
+    context?.trackingLabel ||
+    null;
+  const nextStepLabel =
+    context?.nextStepLabel ||
+    payload.writeback?.nextStepLabel ||
+    payload.shareLink?.snapshot?.writeback?.nextStepLabel ||
+    context?.manualSendCue ||
+    null;
+  const nextCue =
+    input.action === "direct"
+      ? context?.materialCue ||
+        payload.shareLink?.snapshot?.followUp?.materialCue ||
+        null
+      : payload.shareLink?.snapshot?.followUp?.cue ||
+        context?.followUpCue ||
+        context?.materialCue ||
+        null;
+  const channelLabel =
+    input.action === "sms"
+      ? input.usedDraftAssist
+        ? "SMS draft + tracked link"
+        : "SMS package + tracked link"
+      : input.action === "email"
+        ? input.usedDraftAssist
+          ? "Email draft + tracked link"
+          : "Email package + tracked link"
+        : "Private tracked link";
+  const detail = [writebackLabel, scopeLabel, nextStepLabel]
+    .concat(
+      nextCue
+        ? [
+            `${input.action === "direct" ? "Package cue" : "Next cue"}: ${nextCue}`,
+          ]
+        : [],
+    )
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    tone: "success",
+    message: `${channelLabel} copied for ${input.listingTitle}.`,
+    detail: detail.length ? detail : null,
+  };
+}
+
 export function FrontOfficeListingsOutputClient(
   props: FrontOfficeListingsOutputClientProps,
 ) {
@@ -387,6 +558,13 @@ export function FrontOfficeListingsOutputClient(
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [isPending, startTransition] = useTransition();
+  const hasStableWorkspaceLink =
+    props.routeState.hasDraftAssist || props.routeState.diagnostics.length > 0;
+  const agentPackageHref = `${props.routeState.stableHref}#agent-send-package`;
+  const shouldShowResetLink =
+    props.routeState.hasDraftAssist ||
+    props.routeState.diagnostics.length > 0 ||
+    props.routeState.contextHref !== props.routeState.cleanHref;
 
   const isBusy = Boolean(pendingAction) || isPending;
 
@@ -435,14 +613,7 @@ export function FrontOfficeListingsOutputClient(
           }),
         },
       );
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-        shareLink?: {
-          sharePath: string;
-          sendRecordId?: string | null;
-          context?: ShareActionContext;
-        };
-      } | null;
+      const payload = (await response.json().catch(() => null)) as ShareActionResultPayload;
 
       if (!response.ok || !payload?.shareLink?.sharePath) {
         setFeedback({
@@ -488,19 +659,17 @@ export function FrontOfficeListingsOutputClient(
                 : shareUrl;
 
       await copyTextToClipboard(copiedValue);
-      setFeedback({
-        tone: "success",
-        message: buildRecordedContextMessage({
+      setFeedback(
+        buildShareFeedback({
           listingTitle: listing.title,
           action,
           usedDraftAssist: usesDraftAssist,
-          context: payload.shareLink.context,
+          payload,
         }),
-        detail: buildRecordedContextDetail(payload.shareLink.context),
-      });
+      );
+      setPendingAction(null);
       startTransition(() => {
         router.refresh();
-        setPendingAction(null);
       });
     } catch {
       setFeedback({
@@ -535,7 +704,7 @@ export function FrontOfficeListingsOutputClient(
     return buildListingRecommendedShareAction({
       snapshot: props.snapshot,
       listing,
-      draftAssist: props.draftAssist,
+      draftAssist: props.draftAssist ?? null,
     });
   }
 
@@ -552,19 +721,14 @@ export function FrontOfficeListingsOutputClient(
 
       <div className="front-office-placeholder-note front-office-playbook-surface">
         <div className="front-office-playbook-header">
-          <strong>
-            {props.routeState.mode === "appointment-linked"
-              ? `Appointment-linked outbound desk for ${props.snapshot.targetClient?.fullName || "current client"}`
-              : props.snapshot.targetClient
-                ? `Client-linked outbound desk for ${props.snapshot.targetClient.fullName}`
-                : "Tracked link outbound desk"}
-          </strong>
+          <strong>{buildWorkspaceHeading(props)}</strong>
           <p>{props.routeState.modeDescription}</p>
         </div>
 
         <div className="list-row-meta front-office-record-meta">
           <span>Route · {props.routeState.routeStatusLabel}</span>
           <span>Mode · {props.routeState.modeLabel}</span>
+          <span>Package · {props.routeState.preferredSupportLaneLabel}</span>
           <span>Rule · Manual send only</span>
           {props.snapshot.targetClient ? (
             <span>Stage · {props.snapshot.targetClient.stage}</span>
@@ -582,12 +746,21 @@ export function FrontOfficeListingsOutputClient(
         </div>
 
         <p className="front-office-record-supporting">
-          Acre prepares the tracked send here, but the message only leaves when
-          you manually paste and send it from SMS, email, WeChat, or another
-          chat tool.
+          {props.routeState.routeStatusDescription}
+        </p>
+        <p className="front-office-record-supporting">
+          {props.routeState.draftStatusDescription}
         </p>
 
         <div className="front-office-playbook-actions">
+          {hasStableWorkspaceLink ? (
+            <FrontOfficeLink className="office-inline-link" href={props.routeState.stableHref}>
+              Open stable workspace link
+            </FrontOfficeLink>
+          ) : null}
+          <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+            Open agent send package
+          </FrontOfficeLink>
           {props.snapshot.targetClient ? (
             <FrontOfficeLink
               className="office-inline-link"
@@ -609,15 +782,12 @@ export function FrontOfficeListingsOutputClient(
               className="office-inline-link"
               href={props.routeState.contextHref}
             >
-              Dismiss draft assist
+              Keep context, clear draft
             </FrontOfficeLink>
           ) : null}
-          {props.routeState.diagnostics.length ? (
-            <FrontOfficeLink
-              className="office-inline-link"
-              href={props.routeState.cleanHref}
-            >
-              Open clean route
+          {shouldShowResetLink ? (
+            <FrontOfficeLink className="office-inline-link" href={props.routeState.cleanHref}>
+              Reset to clean workspace
             </FrontOfficeLink>
           ) : null}
         </div>
@@ -627,9 +797,7 @@ export function FrontOfficeListingsOutputClient(
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
             <strong>Deep-link hygiene</strong>
-            <span>
-              {props.routeState.routeStatusDescription}
-            </span>
+            <span>{props.routeState.routeStatusDescription}</span>
           </div>
           <div className="office-queue-list">
             {props.routeState.diagnostics.map((diagnostic) => (
@@ -680,6 +848,9 @@ export function FrontOfficeListingsOutputClient(
             >
               Keep context, clear draft
             </FrontOfficeLink>
+            <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+              Open agent send package
+            </FrontOfficeLink>
           </div>
         </div>
       ) : null}
@@ -687,10 +858,10 @@ export function FrontOfficeListingsOutputClient(
       <div className="front-office-playbook-grid">
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Current send context</strong>
+            <strong>Outbound send plan</strong>
             <span>
-              Keep recipient, writeback scope, and manual-send guardrails visible
-              before you copy anything.
+              Keep recipient binding, route health, and the preferred companion
+              package visible before you copy any lane.
             </span>
           </div>
           <div className="office-queue-list">
@@ -735,24 +906,39 @@ export function FrontOfficeListingsOutputClient(
               />
             )}
             <QueueItem
+              action={
+                <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+                  Open agent send package
+                </FrontOfficeLink>
+              }
+              badgeLabel={props.routeState.preferredSupportLaneLabel}
+              badgeTone={
+                props.routeState.preferredSupportLane === "mixed"
+                  ? "warning"
+                  : "accent"
+              }
+              description={props.routeState.preferredSupportLaneDescription}
+              title="Preferred companion package"
+            />
+            <QueueItem
               badgeLabel={props.routeState.routeStatusLabel}
               badgeTone={
                 props.routeState.diagnostics.length ? "warning" : "accent"
               }
               context={props.routeState.draftStatusLabel}
               description={props.routeState.routeStatusDescription}
-              title="Route and draft lane"
+              title="Route hygiene"
             />
           </div>
         </div>
 
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Channel strategy</strong>
+            <strong>Channel lanes</strong>
             <span>
-              Choose the lane based on what the client needs next. The
-              highlighted button on each listing marks the recommended first
-              move in the current context.
+              SMS, Email, and Direct are intentionally different manual moves.
+              The recommended first lane depends on context, traction, and the
+              active draft lane.
             </span>
           </div>
           <div className="office-queue-list">
@@ -762,7 +948,9 @@ export function FrontOfficeListingsOutputClient(
               context={
                 props.draftAssist?.channel === "sms"
                   ? "Draft lane active"
-                  : "Standard lane"
+                  : props.routeState.preferredSupportLane === "sms"
+                    ? "Preferred companion"
+                    : "Standard lane"
               }
               description={buildChannelCue(props.snapshot, "sms")}
               title="SMS + tracked link"
@@ -773,7 +961,9 @@ export function FrontOfficeListingsOutputClient(
               context={
                 props.draftAssist?.channel === "email"
                   ? "Draft lane active"
-                  : "Standard lane"
+                  : props.routeState.preferredSupportLane === "email"
+                    ? "Preferred companion"
+                    : "Standard lane"
               }
               description={buildChannelCue(props.snapshot, "email")}
               title="Email + tracked link"
@@ -781,7 +971,7 @@ export function FrontOfficeListingsOutputClient(
             <QueueItem
               badgeLabel="Manual"
               badgeTone="warning"
-              context="Always standard lane"
+              context="Always link-only"
               description={buildChannelCue(props.snapshot, "direct")}
               title="Private link only"
             />
@@ -790,10 +980,10 @@ export function FrontOfficeListingsOutputClient(
 
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
-            <strong>Follow-up cues</strong>
+            <strong>Tracked rescue cues</strong>
             <span>
-              Sends should reopen the next task faster, not disappear into
-              clipboard history.
+              Every copied send should have a follow-up consequence instead of
+              disappearing into clipboard history.
             </span>
           </div>
           <div className="office-queue-list">
@@ -810,7 +1000,9 @@ export function FrontOfficeListingsOutputClient(
               title="Watch quiet-after-open risk"
             />
             <QueueItem
-              badgeLabel={props.snapshot.targetAppointment ? "Appt" : "Package"}
+              badgeLabel={
+                props.snapshot.targetAppointment ? "Appt" : "Package"
+              }
               badgeTone={
                 props.snapshot.targetAppointment ? "accent" : "success"
               }
@@ -833,6 +1025,32 @@ export function FrontOfficeListingsOutputClient(
         {props.snapshot.listings.length ? (
           props.snapshot.listings.map((listing) => {
             const recommendedAction = getRecommendedShareAction(listing);
+            const lanePlans: ShareLanePlan[] = [
+              buildShareLanePlan({
+                snapshot: props.snapshot,
+                routeState: props.routeState,
+                listing,
+                draftAssist: props.draftAssist ?? null,
+                action: "sms",
+                recommendedAction,
+              }),
+              buildShareLanePlan({
+                snapshot: props.snapshot,
+                routeState: props.routeState,
+                listing,
+                draftAssist: props.draftAssist ?? null,
+                action: "email",
+                recommendedAction,
+              }),
+              buildShareLanePlan({
+                snapshot: props.snapshot,
+                routeState: props.routeState,
+                listing,
+                draftAssist: props.draftAssist ?? null,
+                action: "direct",
+                recommendedAction,
+              }),
+            ];
 
             return (
               <article className="list-row front-office-record" key={listing.id}>
@@ -846,19 +1064,6 @@ export function FrontOfficeListingsOutputClient(
                   </Badge>
                 </div>
                 <p>{listing.summaryLabel}</p>
-                <p className="front-office-record-supporting">
-                  {buildListingExecutionCue(props.snapshot, listing)}
-                </p>
-                <p className="front-office-record-supporting">
-                  {buildListingTractionCue(listing)}
-                </p>
-                <p className="front-office-record-supporting">
-                  Recommended first lane: {recommendedAction.label}.{" "}
-                  {recommendedAction.reason}
-                </p>
-                <p className="front-office-record-supporting">
-                  {buildListingMaterialCue(props.snapshot)}
-                </p>
                 <div className="list-row-meta front-office-record-meta">
                   <span>{listing.priceLabel}</span>
                   <span>{listing.cityLabel}</span>
@@ -866,46 +1071,85 @@ export function FrontOfficeListingsOutputClient(
                   <span>{listing.trackedClickCount} tracked click(s)</span>
                   <span>{listing.trackedLinkCount} tracked link(s)</span>
                 </div>
-                <div className="front-office-listing-actions">
-                  <Button
-                    disabled={isBusy}
-                    onClick={() => void runShareAction(listing, "sms")}
-                    size="sm"
-                    type="button"
-                    variant={
-                      recommendedAction.action === "sms"
-                        ? "secondary"
-                        : "ghost"
+
+                <div className="office-queue-list">
+                  <QueueItem
+                    badgeLabel={props.routeState.modeLabel}
+                    badgeTone={
+                      props.routeState.mode === "tracked-link"
+                        ? "warning"
+                        : "accent"
                     }
-                  >
-                    {renderActionLabel(listing.id, "sms")}
-                  </Button>
-                  <Button
-                    disabled={isBusy}
-                    onClick={() => void runShareAction(listing, "email")}
-                    size="sm"
-                    type="button"
-                    variant={
-                      recommendedAction.action === "email"
-                        ? "secondary"
-                        : "ghost"
+                    description={buildListingExecutionCue(props.snapshot, listing)}
+                    meta={
+                      <span>
+                        Recommended first lane: {recommendedAction.label}.{" "}
+                        {recommendedAction.reason}
+                      </span>
                     }
-                  >
-                    {renderActionLabel(listing.id, "email")}
-                  </Button>
-                  <Button
-                    disabled={isBusy}
-                    onClick={() => void runShareAction(listing, "direct")}
-                    size="sm"
-                    type="button"
-                    variant={
-                      recommendedAction.action === "direct"
-                        ? "secondary"
-                        : "ghost"
+                    title="Execution moment"
+                  />
+                  <QueueItem
+                    badgeLabel={buildTrackedContextBadgeLabel(listing)}
+                    badgeTone={buildTrackedContextBadgeTone(listing)}
+                    description={buildListingTractionCue(listing)}
+                    meta={
+                      <span>
+                        {listing.trackedLinkCount} tracked link(s) ·{" "}
+                        {listing.trackedClickCount} tracked click(s)
+                      </span>
                     }
-                  >
-                    {renderActionLabel(listing.id, "direct")}
-                  </Button>
+                    title="Tracked link context"
+                  />
+                  <QueueItem
+                    action={
+                      <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+                        Open agent send package
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={props.routeState.preferredSupportLaneLabel}
+                    badgeTone={
+                      props.routeState.preferredSupportLane === "mixed"
+                        ? "warning"
+                        : "success"
+                    }
+                    description={buildListingMaterialCue(props.snapshot)}
+                    meta={
+                      <span>{props.routeState.preferredSupportLaneDescription}</span>
+                    }
+                    title="Material pairing"
+                  />
+                </div>
+
+                <div className="office-queue-list">
+                  {lanePlans.map((plan) => (
+                    <QueueItem
+                      action={
+                        <Button
+                          disabled={isBusy}
+                          onClick={() => void runShareAction(listing, plan.action)}
+                          size="sm"
+                          type="button"
+                          variant={plan.isRecommended ? "secondary" : "ghost"}
+                        >
+                          {renderActionLabel(listing.id, plan.action)}
+                        </Button>
+                      }
+                      badgeLabel={plan.badgeLabel}
+                      badgeTone={plan.badgeTone}
+                      context={plan.context}
+                      description={plan.description}
+                      key={plan.action}
+                      meta={
+                        <>
+                          {plan.meta.map((item, index) => (
+                            <span key={`${plan.action}-${index}`}>{item}</span>
+                          ))}
+                        </>
+                      }
+                      title={plan.title}
+                    />
+                  ))}
                 </div>
               </article>
             );
@@ -937,22 +1181,23 @@ export function FrontOfficeListingsOutputClient(
                     Open appointment
                   </FrontOfficeLink>
                 ) : null}
-                {(props.routeState.hasDraftAssist ||
-                  props.routeState.diagnostics.length) &&
-                props.routeState.contextHref !== props.routeState.cleanHref ? (
+                <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+                  Open agent send package
+                </FrontOfficeLink>
+                {props.routeState.hasDraftAssist ? (
                   <FrontOfficeLink
                     className="office-inline-link"
                     href={props.routeState.contextHref}
                   >
-                    Keep context, clear extras
+                    Keep context, clear draft
                   </FrontOfficeLink>
                 ) : null}
-                {props.routeState.diagnostics.length ? (
+                {shouldShowResetLink ? (
                   <FrontOfficeLink
                     className="office-inline-link"
                     href={props.routeState.cleanHref}
                   >
-                    Open clean route
+                    Reset to clean workspace
                   </FrontOfficeLink>
                 ) : null}
               </div>
@@ -972,10 +1217,7 @@ export function FrontOfficeListingsOutputClient(
           continuity can rise back into the dossier and dashboard.
         </p>
         <div className="front-office-playbook-actions">
-          <FrontOfficeLink
-            className="office-inline-link"
-            href="/agent/dashboard"
-          >
+          <FrontOfficeLink className="office-inline-link" href="/agent/dashboard">
             Back to dashboard
           </FrontOfficeLink>
         </div>

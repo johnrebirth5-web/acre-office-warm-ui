@@ -26,9 +26,12 @@ export type FrontOfficeListingsRouteDiagnostic = {
   description: string;
 };
 
+export type FrontOfficeListingsPreferredSupportLane = "sms" | "email" | "mixed";
+
 export type FrontOfficeListingsRouteState = {
   cleanHref: string;
   contextHref: string;
+  stableHref: string;
   requestedClientId: string | null;
   requestedAppointmentId: string | null;
   requestedDraftChannel: "sms" | "email" | null;
@@ -42,6 +45,10 @@ export type FrontOfficeListingsRouteState = {
   routeStatusLabel: string;
   routeStatusDescription: string;
   draftStatusLabel: string;
+  draftStatusDescription: string;
+  preferredSupportLane: FrontOfficeListingsPreferredSupportLane;
+  preferredSupportLaneLabel: string;
+  preferredSupportLaneDescription: string;
 };
 
 export type FrontOfficeListingsSearchParams = Record<
@@ -66,6 +73,12 @@ type BuildFrontOfficeListingsRouteStateInput = {
   hasDraftAssistParams: boolean;
 };
 
+type BuildAgentListingsHrefInput = {
+  clientId?: string | null;
+  appointmentId?: string | null;
+  draftAssist?: FrontOfficeListingsDraftAssist | null;
+};
+
 export function readSearchParamValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return typeof value[0] === "string" ? value[0] : undefined;
@@ -84,10 +97,75 @@ function buildDraftAssistSourceLabel(
   sourceKey: FrontOfficeListingsDraftAssistSource | null,
 ) {
   if (sourceKey === "ai") {
-    return "AI draft assist is loaded below. Copying the matching send lane still keeps the action manual and appends a tracked private listing link.";
+    return "AI draft assist is loaded into the matching manual send lane below. Acre still only copies the message package and tracked link; it does not send anything for you.";
   }
 
   return null;
+}
+
+function buildDraftAssistStatusDescription(input: {
+  draftAssist: FrontOfficeListingsDraftAssist | null;
+  hasDraftAssistParams: boolean;
+}) {
+  if (input.draftAssist) {
+    return input.draftAssist.channel === "sms"
+      ? "An SMS draft lane is active on top of the current send context. SMS actions use the assisted copy, while email and direct-link lanes stay on the standard manual templates."
+      : "An email draft lane is active on top of the current send context. Email actions use the assisted copy, while SMS and direct-link lanes stay on the standard manual templates.";
+  }
+
+  if (input.hasDraftAssistParams) {
+    return "Incoming draft parameters were incomplete or stale, so Acre kept the workspace on the standard manual templates instead of carrying dirty assisted-copy state forward.";
+  }
+
+  return "This workspace is running only the standard manual templates right now, with no deep-linked draft override attached.";
+}
+
+function buildPreferredSupportLane(input: {
+  mode: FrontOfficeListingsRouteMode;
+  draftAssist: FrontOfficeListingsDraftAssist | null;
+}) {
+  if (input.draftAssist?.channel === "sms") {
+    return {
+      lane: "sms" as const,
+      label: "SMS companion",
+      description:
+        "The active SMS draft lane should stay paired with the SMS support package, so the copied listing send and the agent package leave this workspace in one motion.",
+    };
+  }
+
+  if (input.draftAssist?.channel === "email") {
+    return {
+      lane: "email" as const,
+      label: "Email companion",
+      description:
+        "The active email draft lane should stay paired with the email support package, so the longer framing and tracked link remain aligned.",
+    };
+  }
+
+  if (input.mode === "appointment-linked") {
+    return {
+      lane: "sms" as const,
+      label: "SMS companion",
+      description:
+        "Appointment-linked sends usually need a faster reaction path first, so the SMS support package is the safest default companion to the tracked listing lane.",
+    };
+  }
+
+  if (input.mode === "client-linked") {
+    return {
+      lane: "email" as const,
+      label: "Email companion",
+      description:
+        "Client-linked sends usually need a little more framing on the first move, so the email support package is the default companion unless the live conversation is already moving quickly.",
+    };
+  }
+
+  return {
+    lane: "mixed" as const,
+    label: "Keep both ready",
+    description:
+      "Generic tracked-link mode is not yet tied to a live client trail, so keep both SMS and email companion packages ready until the send path is clearer.",
+  };
 }
 
 export function parseFrontOfficeListingsSearchParams(
@@ -151,10 +229,7 @@ export function parseFrontOfficeListingsSearchParams(
   };
 }
 
-export function buildAgentListingsHref(input: {
-  clientId?: string | null;
-  appointmentId?: string | null;
-}) {
+export function buildAgentListingsHref(input: BuildAgentListingsHrefInput) {
   const params = new URLSearchParams();
 
   if (input.clientId?.trim()) {
@@ -163,6 +238,34 @@ export function buildAgentListingsHref(input: {
 
   if (input.appointmentId?.trim()) {
     params.set("appointmentId", input.appointmentId.trim());
+  }
+
+  if (input.draftAssist?.channel && input.draftAssist.body.trim()) {
+    params.set("draftChannel", input.draftAssist.channel);
+    params.set("draftBody", input.draftAssist.body.trim());
+
+    if (input.draftAssist.title.trim()) {
+      params.set("draftTitle", input.draftAssist.title.trim());
+    }
+
+    if (input.draftAssist.channel === "email" && input.draftAssist.subjectLine) {
+      params.set("draftSubject", input.draftAssist.subjectLine.trim());
+    }
+
+    if (input.draftAssist.sourceKey) {
+      params.set("draftSource", input.draftAssist.sourceKey);
+    }
+
+    if (input.draftAssist.suggestionKind?.trim()) {
+      params.set("draftSuggestionKind", input.draftAssist.suggestionKind.trim());
+    }
+
+    if (input.draftAssist.suggestionLabel?.trim()) {
+      params.set(
+        "draftSuggestionLabel",
+        input.draftAssist.suggestionLabel.trim(),
+      );
+    }
   }
 
   const query = params.toString();
@@ -185,6 +288,11 @@ export function buildFrontOfficeListingsRouteState(
   const contextHref = buildAgentListingsHref({
     clientId: input.snapshot.targetClient?.id ?? null,
     appointmentId: input.snapshot.targetAppointment?.id ?? null,
+  });
+  const stableHref = buildAgentListingsHref({
+    clientId: input.snapshot.targetClient?.id ?? null,
+    appointmentId: input.snapshot.targetAppointment?.id ?? null,
+    draftAssist: input.draftAssist,
   });
   let mode: FrontOfficeListingsRouteMode = "tracked-link";
   let modeLabel = "Tracked link";
@@ -251,19 +359,24 @@ export function buildFrontOfficeListingsRouteState(
   }
 
   const routeStatusLabel = diagnostics.length
-    ? "Adjusted route"
+    ? "Adjusted workspace"
     : input.draftAssist
-      ? "Deep-linked draft"
-      : "Clean route";
+      ? "Stable draft lane"
+      : "Stable workspace";
   const routeStatusDescription = diagnostics.length
-    ? "Acre trimmed or replaced part of the incoming URL so the workspace could stay on a safe manual-send path."
+    ? "Acre trimmed or replaced part of the incoming URL so the outbound workspace could stay on a safe manual-send path. Use the stable workspace link if you want to continue without stale route baggage."
     : input.draftAssist
-      ? "A valid draft assist is loaded on top of the current send context, and the send remains fully manual."
+      ? "A valid draft assist is loaded on top of the current send context. The link can be reopened through the stable workspace href without carrying duplicate or stale query state."
       : "The route is carrying only the current send context, with no extra draft or stale deep-link baggage.";
+  const preferredSupportLane = buildPreferredSupportLane({
+    mode,
+    draftAssist: input.draftAssist,
+  });
 
   return {
     cleanHref: "/agent/listings",
     contextHref,
+    stableHref,
     requestedClientId: input.requestedClientId,
     requestedAppointmentId: input.requestedAppointmentId,
     requestedDraftChannel: input.requestedDraftChannel,
@@ -283,5 +396,12 @@ export function buildFrontOfficeListingsRouteState(
       : input.hasDraftAssistParams
         ? "Draft adjusted"
         : "Manual templates",
+    draftStatusDescription: buildDraftAssistStatusDescription({
+      draftAssist: input.draftAssist,
+      hasDraftAssistParams: input.hasDraftAssistParams,
+    }),
+    preferredSupportLane: preferredSupportLane.lane,
+    preferredSupportLaneLabel: preferredSupportLane.label,
+    preferredSupportLaneDescription: preferredSupportLane.description,
   };
 }
