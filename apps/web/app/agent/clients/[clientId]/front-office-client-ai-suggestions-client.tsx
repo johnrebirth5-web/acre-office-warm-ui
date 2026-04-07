@@ -86,6 +86,39 @@ function canUseTrackedDraftAssist(statusLabel: string) {
   );
 }
 
+function buildExecutionAssistantSummary(input: {
+  aiSuggestions: FrontOfficeClientDetailSnapshot["aiSuggestions"];
+  canCreateSuggestedFollowUp: boolean;
+  suggestedDueLabel: string | null;
+}) {
+  if (
+    input.canCreateSuggestedFollowUp &&
+    input.aiSuggestions.followUpSuggestion
+  ) {
+    return `${input.aiSuggestions.primaryActionReason} If you accept one-click, Acre will create "${input.aiSuggestions.followUpSuggestion.title}" as a shared follow-up task${input.suggestedDueLabel ? ` due ${input.suggestedDueLabel}` : ""}, record this as an agent-approved AI action, and wait for the later task outcome before learning from it.`;
+  }
+
+  return `${input.aiSuggestions.primaryActionReason} ${input.aiSuggestions.oneClickReason} Acre is not recording a new accepted action until you review the live task or boundary decision first.`;
+}
+
+function buildExecutionAssistantMeta(input: {
+  aiSuggestions: FrontOfficeClientDetailSnapshot["aiSuggestions"];
+  canCreateSuggestedFollowUp: boolean;
+  primaryActionLabel: string;
+}) {
+  return [
+    `Recommended move · ${input.primaryActionLabel}`,
+    `Boundary · ${input.aiSuggestions.boundaryLabel}`,
+    input.canCreateSuggestedFollowUp
+      ? "One-click · shared task only"
+      : "One-click · paused for review",
+    input.canCreateSuggestedFollowUp
+      ? "Accepted outcome · tracked after explicit click"
+      : "Accepted outcome · no new acceptance yet",
+    "No auto-send",
+  ];
+}
+
 export function FrontOfficeClientAiSuggestionsClient(
   props: FrontOfficeClientAiSuggestionsClientProps,
 ) {
@@ -103,28 +136,21 @@ export function FrontOfficeClientAiSuggestionsClient(
       ? "Review existing follow-up"
       : aiSuggestions.followUpSuggestion &&
           aiSuggestions.primaryActionHref === "#front-office-follow-up-form"
-      ? "Review in follow-up form"
-      : aiSuggestions.primaryActionLabel;
+        ? "Review in follow-up form"
+        : aiSuggestions.primaryActionLabel;
   const suggestedDueLabel = aiSuggestions.followUpSuggestion
     ? formatAiSuggestionDueDate(aiSuggestions.followUpSuggestion.dueAt)
     : null;
-  const executionAssistantSummary =
-    canCreateSuggestedFollowUp && aiSuggestions.followUpSuggestion
-      ? `Acre can create "${aiSuggestions.followUpSuggestion.title}" as a shared follow-up task${suggestedDueLabel ? ` due ${suggestedDueLabel}` : ""}. This is a review-ready task only: nothing will be sent automatically, no outside system will be updated, and no Back Office record will be opened for you.`
-      : aiSuggestions.oneClickReason;
-  const executionAssistantMeta = canCreateSuggestedFollowUp
-    ? [
-        "Creates a shared follow-up task only",
-        "No auto-send",
-        "No hidden background automation",
-        "Agent confirms timing and wording",
-      ]
-    : [
-        "Review current task or boundary first",
-        "No auto-send",
-        "No hidden background automation",
-        "Agent confirmation still required",
-      ];
+  const executionAssistantSummary = buildExecutionAssistantSummary({
+    aiSuggestions,
+    canCreateSuggestedFollowUp,
+    suggestedDueLabel,
+  });
+  const executionAssistantMeta = buildExecutionAssistantMeta({
+    aiSuggestions,
+    canCreateSuggestedFollowUp,
+    primaryActionLabel,
+  });
 
   async function handleCreateFollowUp() {
     if (!aiSuggestions.followUpSuggestion) {
@@ -171,7 +197,7 @@ export function FrontOfficeClientAiSuggestionsClient(
       setFeedback({
         tone: "success",
         message:
-          "Review-ready follow-up created in the shared queue. Acre did not send anything, did not change any Back Office record, and will only measure the outcome after an agent completes or adjusts the task.",
+          "Shared follow-up created in the queue. Acre logged this as an accepted AI action for later outcome tracking, but it did not send anything and did not change any Back Office record. It will only learn from the measurable task outcome after an agent completes, reschedules, or cancels it.",
       });
       startTransition(() => {
         router.refresh();
@@ -191,7 +217,7 @@ export function FrontOfficeClientAiSuggestionsClient(
       await copyTextToClipboard(buildDraftCopyValue(draft));
       setFeedback({
         tone: "success",
-        message: `${draft.title} copied for review. Acre did not send anything; edit the wording if the live conversation now needs a different tone.`,
+        message: `${draft.title} copied for review. Acre did not send anything, and copying alone does not count as an accepted action or tracked send. Edit the wording if the live conversation now needs a different tone.`,
       });
     } catch {
       setFeedback({
@@ -243,7 +269,7 @@ export function FrontOfficeClientAiSuggestionsClient(
                 >
                   {activeAction === "follow-up" || isPending
                     ? "Creating..."
-                    : "Create review-ready follow-up"}
+                    : "Create shared follow-up"}
                 </Button>
               ) : (
                 <Button disabled size="sm" type="button" variant="secondary">
@@ -290,7 +316,9 @@ export function FrontOfficeClientAiSuggestionsClient(
         </div>
 
         <FrontOfficeAiExplainabilitySurface
-          allowsDirectFollowUpCreation={aiSuggestions.allowsDirectFollowUpCreation}
+          allowsDirectFollowUpCreation={
+            aiSuggestions.allowsDirectFollowUpCreation
+          }
           boundaryDescription={aiSuggestions.boundaryDescription}
           boundaryLabel={aiSuggestions.boundaryLabel}
           boundaryTone={aiSuggestions.boundaryTone}
