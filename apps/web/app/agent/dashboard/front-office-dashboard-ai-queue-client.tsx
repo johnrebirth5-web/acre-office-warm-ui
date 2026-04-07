@@ -15,6 +15,10 @@ type FrontOfficeDashboardAiQueueClientProps = {
 type FeedbackState = {
   tone: "success" | "error";
   message: string;
+  primaryHref?: string;
+  primaryLabel?: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
 } | null;
 
 export function FrontOfficeDashboardAiQueueClient(
@@ -80,11 +84,15 @@ export function FrontOfficeDashboardAiQueueClient(
       );
       setFeedback({
         tone: "success",
-        message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The dashboard is refreshing, and Acre will only bring the record back if a grounded next step is still needed.`,
+        message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The task is now in the shared follow-up clock while the dashboard refreshes.`,
+        primaryHref: item.openDossierHref,
+        primaryLabel: "Open dossier",
+        secondaryHref: "/agent/clients#client-pipeline",
+        secondaryLabel: "Review client queue",
       });
+      setActiveClientId(null);
       startTransition(() => {
         router.refresh();
-        setActiveClientId(null);
       });
     } catch {
       setFeedback({
@@ -98,11 +106,29 @@ export function FrontOfficeDashboardAiQueueClient(
   return (
     <>
       {feedback ? (
-        <p
+        <div
           className={`front-office-calendar-feedback ${feedback.tone === "error" ? "is-error" : "is-success"}`}
         >
-          {feedback.message}
-        </p>
+          <p>{feedback.message}</p>
+          {feedback.primaryHref ? (
+            <div className="list-row-meta front-office-record-meta">
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href={feedback.primaryHref}
+              >
+                {feedback.primaryLabel ?? "Open record"}
+              </FrontOfficeLink>
+              {feedback.secondaryHref ? (
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href={feedback.secondaryHref}
+                >
+                  {feedback.secondaryLabel ?? "Open queue"}
+                </FrontOfficeLink>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="office-queue-list">
@@ -121,11 +147,11 @@ export function FrontOfficeDashboardAiQueueClient(
                     >
                       {activeClientId === item.clientId || isPending
                         ? "Queueing..."
-                        : "Create follow-up"}
+                        : "Queue next touch"}
                     </Button>
                   ) : (
                     <Button disabled size="sm" type="button" variant="secondary">
-                      One-click paused
+                      Review before queueing
                     </Button>
                   )}
                   {item.primaryActionOpensInNewTab ? (
@@ -181,12 +207,12 @@ export function FrontOfficeDashboardAiQueueClient(
           <EmptyState
             description={
               props.items.length && resolvedItemIds.length
-                ? "The queue is refreshing after your last accepted action. If the record still needs work, Acre will return with the next grounded step."
-                : "Nothing grounded is surfacing right now. Keep working the live follow-up, send/click, and handoff queues; Acre will only surface suggestions when the record trail supports them."
+                ? "The accepted next touch is now in the shared follow-up clock. If the record still needs work after refresh, Acre will bring back the next grounded step."
+                : "Nothing grounded outranks your manual queue right now. Keep working follow-up pressure, send/click follow-through, and explicit handoff; Acre will only surface suggestions when the record trail supports them."
             }
             title={
               props.items.length && resolvedItemIds.length
-                ? "Refreshing AI queue"
+                ? "Action recorded"
                 : "No AI suggestions in queue"
             }
           />

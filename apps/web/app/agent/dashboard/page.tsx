@@ -55,14 +55,17 @@ function getDashboardQueueAction(input: {
     };
   }
 
-  if (input.actionId === "follow-up") {
+  if (input.actionId === "follow-up" && input.href === "/agent/clients") {
     return {
       href: "/agent/clients#client-pipeline",
       label: "Review client queue",
     };
   }
 
-  if (input.actionId === "lease-reminders") {
+  if (
+    input.actionId === "lease-reminders" &&
+    input.href === "/agent/clients"
+  ) {
     return {
       href: "/agent/clients#client-pipeline",
       label: "Open client reminders",
@@ -87,26 +90,30 @@ type DashboardLaunchpadItem = {
   opensInNewTab?: boolean;
 };
 
+function getLaunchpadStepContext(index: number) {
+  return index === 0 ? "Step 1 · Do this first" : `Step ${index + 1} · Keep moving`;
+}
+
 function getDashboardRoleFocus(role: string) {
   switch (role) {
     case "team_lead":
       return {
         label: "Team lead focus",
         description:
-          "Clear visible team cleanup first, then keep your own follow-up, send/click, and handoff work moving in Front Office.",
+          "Clear visible team cleanup first, then return to your own follow-up, send/click, and formal handoff work from the same Front Office bench.",
       };
     case "owner":
     case "office_admin":
       return {
         label: "Office leadership focus",
         description:
-          "Keep office execution pressure visible here, and move work into Back Office only when the record truly needs a formal file.",
+          "Keep office execution pressure visible here, then push only truly formal work into Back Office once the package is ready.",
       };
     default:
       return {
         label: "Agent execution focus",
         description:
-          "Start with the next due touch, then work send/click, today's commitments, and formal handoffs from the same Front Office bench.",
+          "Start with the next due touch, then work lease timing, commitments, send/click follow-through, and formal handoffs without leaving Front Office early.",
       };
   }
 }
@@ -129,6 +136,7 @@ function buildDashboardLaunchpadItems(input: {
     items.push(item);
   };
   const leadingCommitment = input.snapshot.commitments.items[0] ?? null;
+  const leadingLeaseReminder = input.snapshot.leaseReminders.items[0] ?? null;
   const leadingAiItem = input.snapshot.aiQueue.items[0] ?? null;
   const leadingEngagement = input.snapshot.listingOutput.recentEngagement[0] ?? null;
   const leadingBackOfficeItem = input.snapshot.backOffice.items[0] ?? null;
@@ -165,18 +173,45 @@ function buildDashboardLaunchpadItems(input: {
     });
   }
 
-  if (input.snapshot.summary.followUpDueCount > 0) {
+  if (
+    input.snapshot.summary.followUpDueCount > 0 ||
+    input.snapshot.summary.overdueTaskCount > 0
+  ) {
     addItem({
       id: "follow-up",
       badgeLabel: "Do now",
       badgeTone: "warning",
-      title: "Work the live follow-up queue",
+      title: "Clear the live next-touch pressure",
       description: followUpLead
-        ? `${followUpLead.fullName} is a good first touch. ${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`
-        : `${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`,
-      metaLabel: `${input.snapshot.summary.overdueTaskCount} overdue task(s) in the shared follow-up clock`,
+        ? `${followUpLead.fullName} is the clearest first touch. ${
+            input.snapshot.summary.followUpDueCount > 0
+              ? `${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`
+              : `${input.snapshot.summary.overdueTaskCount} shared follow-up task(s) are already overdue.`
+          }`
+        : `${
+            input.snapshot.summary.followUpDueCount > 0
+              ? `${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`
+              : `${input.snapshot.summary.overdueTaskCount} shared follow-up task(s) are already overdue.`
+          }`,
+      metaLabel:
+        input.snapshot.summary.overdueTaskCount > 0
+          ? `${input.snapshot.summary.overdueTaskCount} overdue task(s) already sit in the shared follow-up clock`
+          : "The shared follow-up clock still drives the next-touch order",
       href: "/agent/clients#client-pipeline",
       actionLabel: "Open client queue",
+    });
+  }
+
+  if (leadingLeaseReminder && input.snapshot.leaseReminders.dueCount > 0) {
+    addItem({
+      id: "lease-reminders",
+      badgeLabel: leadingLeaseReminder.statusLabel,
+      badgeTone: leadingLeaseReminder.tone,
+      title: `Protect ${leadingLeaseReminder.clientName}'s lease window`,
+      description: `${leadingLeaseReminder.detailLabel} Keep renewal, move, or remarketing timing visible before it slips into a last-minute scramble.`,
+      metaLabel: leadingLeaseReminder.reminderLabel,
+      href: leadingLeaseReminder.href,
+      actionLabel: "Open client dossier",
     });
   }
 
@@ -185,9 +220,9 @@ function buildDashboardLaunchpadItems(input: {
       id: "commitments",
       badgeLabel: "Today",
       badgeTone: "accent",
-      title: "Prep today's commitments",
+      title: "Prep the next time-bound commitment",
       description: leadingCommitment
-        ? `${leadingCommitment.title} is already on the calendar. Use Front Office to confirm prep, follow-through, and any promised next touch.`
+        ? `${leadingCommitment.title} is already on the calendar. Use Front Office to confirm prep, follow-through, and any promised next touch before the start window.`
         : `${input.snapshot.summary.todayCommitmentCount} appointment or office commitment(s) land today.`,
       metaLabel: leadingCommitment
         ? `${leadingCommitment.startsAtLabel} · ${leadingCommitment.contextLabel}`
@@ -197,13 +232,26 @@ function buildDashboardLaunchpadItems(input: {
     });
   }
 
+  if (leadingBackOfficeItem) {
+    addItem({
+      id: "handoff",
+      badgeLabel: "Boundary",
+      badgeTone: leadingBackOfficeItem.tone,
+      title: `Open ${leadingBackOfficeItem.title}'s formal workflow`,
+      description: `${leadingBackOfficeItem.description} Keep the FO -> BO boundary explicit and only open the formal record when the package is genuinely ready.`,
+      metaLabel: leadingBackOfficeItem.contextLabel,
+      href: leadingBackOfficeItem.href,
+      actionLabel: leadingBackOfficeItem.actionLabel,
+    });
+  }
+
   if (input.canUseAi && leadingAiItem) {
     addItem({
       id: "ai",
       badgeLabel: leadingAiItem.statusLabel,
       badgeTone: leadingAiItem.tone,
-      title: `Review AI next touch for ${leadingAiItem.clientName}`,
-      description: `${leadingAiItem.description} Acre still waits for your approval and does not auto-send or hide automation behind the queue.`,
+      title: `Review Acre's grounded next touch for ${leadingAiItem.clientName}`,
+      description: `${leadingAiItem.description} Acre still waits for your approval. Nothing here auto-sends or hides automation behind the queue.`,
       metaLabel: leadingAiItem.helperLabel,
       href: leadingAiItem.primaryActionHref,
       actionLabel: leadingAiItem.primaryActionLabel,
@@ -217,7 +265,7 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel: leadingEngagement.engagementLabel,
       badgeTone: leadingEngagement.engagementTone,
       title: `Work ${leadingEngagement.clientName}'s send signal`,
-      description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the dossier to turn that open or quiet send into a real next step.`,
+      description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the dossier to turn that open or quiet send into a concrete next step instead of sending blindly.`,
       metaLabel: `${leadingEngagement.channelLabel} · ${leadingEngagement.detailLabel}`,
       href: leadingEngagement.href,
       actionLabel: "Open client dossier",
@@ -227,27 +275,14 @@ function buildDashboardLaunchpadItems(input: {
       id: "listing-output",
       badgeLabel: "Send-ready",
       badgeTone: "success",
-      title: "Send tracked content",
-      description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the execution trail.`,
+      title: "Send tracked content when the target is clear",
+      description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the execution trail after you send.`,
       metaLabel:
         input.snapshot.listingOutput.trackedLinkCount > 0
           ? `${input.snapshot.listingOutput.trackedLinkCount} tracked link(s) already created`
           : "First tracked send starts from listing output",
       href: "/agent/listings",
       actionLabel: "Open listing output",
-    });
-  }
-
-  if (leadingBackOfficeItem) {
-    addItem({
-      id: "handoff",
-      badgeLabel: "Boundary",
-      badgeTone: leadingBackOfficeItem.tone,
-      title: `Move ${leadingBackOfficeItem.title} into formal workflow`,
-      description: `${leadingBackOfficeItem.description} Keep the FO -> BO boundary explicit and open the formal record only when the package is ready.`,
-      metaLabel: leadingBackOfficeItem.contextLabel,
-      href: leadingBackOfficeItem.href,
-      actionLabel: leadingBackOfficeItem.actionLabel,
     });
   }
 
@@ -259,7 +294,7 @@ function buildDashboardLaunchpadItems(input: {
       id: "duplicate-review",
       badgeLabel: "Review",
       badgeTone: "warning",
-      title: "Clean duplicate pressure before it spreads",
+      title: "Resolve duplicate pressure before more work lands",
       description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Review first so intake and follow-up stay on one surviving dossier.`,
       metaLabel: "Duplicate compare and merge still stays in the client queue",
       href: "/agent/clients#duplicate-review",
@@ -272,9 +307,9 @@ function buildDashboardLaunchpadItems(input: {
       id: "intake",
       badgeLabel: "Intake",
       badgeTone: "accent",
-      title: "Capture a new lead without leaving Front Office",
+      title: "Capture the next lead with review-first intake",
       description:
-        "Use intake assist when a live call, screenshot, or pasted chat needs to become a real dossier. Acre still waits for your review before anything is created.",
+        "Use intake assist when a live call, screenshot, or pasted chat needs to become a real dossier. Acre still waits for your review before anything is created, and it does not claim provider-backed ingestion or WeChat sync.",
       metaLabel: input.clientsSnapshot
         ? `${input.clientsSnapshot.summary.liveContacts} live contact(s) in your current scope`
         : "Field-level review and duplicate warnings stay in the card",
@@ -290,19 +325,39 @@ function buildDashboardHeroStats(input: {
   snapshot: FrontOfficeDashboardSnapshot;
   canUseAi: boolean;
 }) {
+  const followUpPressureCount = Math.max(
+    input.snapshot.summary.followUpDueCount,
+    input.snapshot.summary.overdueTaskCount,
+  );
+  const sendSignalValue = input.snapshot.listingOutput.recentEngagement.length
+    ? input.snapshot.listingOutput.recentEngagement.length
+    : input.snapshot.listingOutput.activeListingCount;
+  const sendSignalLabel = input.snapshot.listingOutput.recentEngagement.length
+    ? "Send signals"
+    : "Send-ready listings";
+  const sendSignalHint = input.snapshot.listingOutput.recentEngagement.length
+    ? "tracked opens or quiet send trails worth working now"
+    : "active inventory ready for tracked outreach";
   const stats = [
+    ...(input.snapshot.leadershipQueue.visible
+      ? [
+          {
+            label: "Leadership pressure",
+            value: input.snapshot.summary.leadershipPressureCount,
+            hint: "visible team or office cleanup signals",
+            tone:
+              input.snapshot.summary.leadershipPressureCount > 0
+                ? ("accent" as const)
+                : ("default" as const),
+          },
+        ]
+      : []),
     {
-      label: "Today actions",
-      value: input.snapshot.summary.todayActionCount,
-      hint: "execution signals currently visible on this launchpad",
-      tone: "accent" as const,
-    },
-    {
-      label: "Follow-up due",
-      value: input.snapshot.summary.followUpDueCount,
-      hint: "same-day or overdue client touches",
+      label: "Follow-up pressure",
+      value: followUpPressureCount,
+      hint: "due touches or overdue shared follow-up tasks",
       tone:
-        input.snapshot.summary.followUpDueCount > 0
+        followUpPressureCount > 0
           ? ("accent" as const)
           : ("default" as const),
     },
@@ -310,9 +365,37 @@ function buildDashboardHeroStats(input: {
       label: "Today commitments",
       value: input.snapshot.summary.todayCommitmentCount,
       hint: "appointments or shared office commitments landing today",
-      tone: "default" as const,
+      tone:
+        input.snapshot.summary.todayCommitmentCount > 0
+          ? ("accent" as const)
+          : ("default" as const),
+    },
+    {
+      label: sendSignalLabel,
+      value: sendSignalValue,
+      hint: sendSignalHint,
+      tone:
+        sendSignalValue > 0 ? ("accent" as const) : ("default" as const),
+    },
+    {
+      label: "Needs Back Office",
+      value: input.snapshot.summary.needsBackOfficeCount,
+      hint: "records that now need formal workflow",
+      tone:
+        input.snapshot.summary.needsBackOfficeCount > 0
+          ? ("accent" as const)
+          : ("default" as const),
     },
   ];
+
+  if (input.snapshot.summary.leaseReminderCount > 0) {
+    stats.splice(2, 0, {
+      label: "Lease reminders",
+      value: input.snapshot.summary.leaseReminderCount,
+      hint: "renewal or move windows already due soon",
+      tone: "accent" as const,
+    });
+  }
 
   if (input.canUseAi) {
     stats.push({
@@ -324,43 +407,7 @@ function buildDashboardHeroStats(input: {
           ? ("accent" as const)
           : ("default" as const),
     });
-  } else {
-    const useEngagementSignal =
-      input.snapshot.listingOutput.engagedClientCount > 0;
-
-    stats.push({
-      label: useEngagementSignal ? "Engaged clients" : "Send-ready listings",
-      value: useEngagementSignal
-        ? input.snapshot.listingOutput.engagedClientCount
-        : input.snapshot.listingOutput.activeListingCount,
-      hint: useEngagementSignal
-        ? "clients with tracked opens already on record"
-        : "active inventory ready for tracked outreach",
-      tone: "accent" as const,
-    });
   }
-
-  stats.push(
-    input.snapshot.leadershipQueue.visible
-      ? {
-          label: "Leadership pressure",
-          value: input.snapshot.summary.leadershipPressureCount,
-          hint: "visible team or office cleanup signals",
-          tone:
-            input.snapshot.summary.leadershipPressureCount > 0
-              ? ("accent" as const)
-              : ("default" as const),
-        }
-      : {
-          label: "Needs Back Office",
-          value: input.snapshot.summary.needsBackOfficeCount,
-          hint: "records that now need formal workflow",
-          tone:
-            input.snapshot.summary.needsBackOfficeCount > 0
-              ? ("accent" as const)
-              : ("default" as const),
-        },
-  );
 
   return stats;
 }
@@ -391,7 +438,7 @@ function getActionLaneStatus(item: FrontOfficeDashboardSnapshot["actionQueue"][n
       };
     case "content":
       return {
-        label: "Ready",
+        label: item.tone === "warning" ? "Rescue" : "Signal",
         tone: item.tone,
       };
     case "handoff":
@@ -476,6 +523,15 @@ export default async function AgentDashboardPage() {
         label: "Send-ready listings",
         value: snapshot.listingOutput.activeListingCount,
       };
+  const executionOrder = snapshot.actionQueue
+    .filter((item) => item.count > 0)
+    .slice(0, 4);
+  const honestStateText = canUseAi
+    ? "Acre surfaces live follow-up, tracked send/click history, review-first AI suggestions, and explicit FO -> BO handoff. It still does not auto-send, hide automation, own two-way sync, or claim provider-backed / WeChat ingestion."
+    : "Acre surfaces live follow-up, tracked send/click history, and explicit FO -> BO handoff. It still does not auto-send, hide automation, own two-way sync, or claim provider-backed / WeChat ingestion.";
+  const primaryLaneLabel =
+    executionOrder[0]?.label ??
+    (canViewClients ? "Intake assist" : "Activity center");
 
   return (
     <FrontOfficePageTemplate
@@ -506,7 +562,7 @@ export default async function AgentDashboardPage() {
                 ) : null}
               </>
             }
-            subtitle={`${roleFocus.label}. Start with the first lane below; the supporting cards keep send/click, AI review, intake, and formal handoff in the same honest workspace.`}
+            subtitle={`${roleFocus.label}. Start with the top move below, then work the ordered launchpad so follow-up, commitments, send/click, and formal handoff stay in one honest Front Office workspace.`}
             title="Start here first"
           >
             <ListPageStatsGrid>
@@ -520,6 +576,35 @@ export default async function AgentDashboardPage() {
                 />
               ))}
             </ListPageStatsGrid>
+
+            <div className="front-office-placeholder-note">
+              <Badge tone={primaryLaunchpadItem?.badgeTone ?? "accent"}>
+                {primaryLaunchpadItem ? "Priority now" : "Queue check"}
+              </Badge>
+              <p>
+                {primaryLaunchpadItem
+                  ? `${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so follow-up, commitments, send/click, and boundary work stay in sequence.`
+                  : canViewClients
+                    ? "No urgent Front Office pressure is elevated right now. Use the live client queue or intake assist only after you confirm the activity center is clear."
+                    : "No urgent Front Office pressure is elevated right now. Reopen the activity center to confirm nothing time-sensitive is hiding there."}
+              </p>
+              <div className="list-row-meta front-office-record-meta">
+                {executionOrder.length ? (
+                  executionOrder.map((item, index) => (
+                    <span key={item.id}>
+                      {getLaunchpadStepContext(index)} · {item.label}
+                    </span>
+                  ))
+                ) : (
+                  <span>No lane is currently elevated above the rest.</span>
+                )}
+              </div>
+            </div>
+
+            <div className="front-office-placeholder-note">
+              <Badge tone="neutral">Honest state</Badge>
+              <p>{honestStateText}</p>
+            </div>
 
             {primaryLaunchpadItem ? (
               <div className="office-queue-list">
@@ -545,7 +630,7 @@ export default async function AgentDashboardPage() {
                   }
                   badgeLabel={primaryLaunchpadItem.badgeLabel}
                   badgeTone={primaryLaunchpadItem.badgeTone}
-                  context="First move"
+                  context={getLaunchpadStepContext(0)}
                   description={primaryLaunchpadItem.description}
                   meta={<span>{primaryLaunchpadItem.metaLabel}</span>}
                   title={primaryLaunchpadItem.title}
@@ -555,7 +640,7 @@ export default async function AgentDashboardPage() {
 
             {supportingLaunchpadItems.length ? (
               <div className="office-queue-list">
-                {supportingLaunchpadItems.map((item) => (
+                {supportingLaunchpadItems.map((item, index) => (
                   <FrontOfficeRailItem
                     action={
                       item.opensInNewTab ? (
@@ -578,7 +663,7 @@ export default async function AgentDashboardPage() {
                     }
                     badgeLabel={item.badgeLabel}
                     badgeTone={item.badgeTone}
-                    context="Keep moving"
+                    context={getLaunchpadStepContext(index + 1)}
                     description={item.description}
                     key={item.id}
                     meta={<span>{item.metaLabel}</span>}
@@ -592,8 +677,8 @@ export default async function AgentDashboardPage() {
           {clientsSnapshot ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Keep new lead capture, duplicate warnings, and pending intake review inside the live FO queue. Nothing here auto-creates from OCR or transcript assist."
-              title="Intake assist & duplicate review"
+              subtitle="Use this after you clear the live pressure above. Intake stays review-first: duplicate warnings are visible, OCR / transcript assist does not auto-create anything, and Acre is not claiming provider-backed ingestion or WeChat integration."
+              title="Intake assist when you are ready to capture new work"
             >
               <ListPageStatsGrid>
                 <StatCard
@@ -741,16 +826,25 @@ export default async function AgentDashboardPage() {
               hydrateDuplicatePreviewCandidates
               initialDuplicatePreviewCandidates={duplicatePreviewCandidates}
               sourceSurface="dashboard"
-              subtitle="Open a new lead capture or reopen screenshot / transcript suggestions that still need review. The card keeps confidence, provenance, and duplicate warnings visible before anything touches the live form."
-              title="Open intake assist"
+              subtitle="Open a new lead capture only when the live queue above is under control, or reopen screenshot / transcript suggestions that still need review. The card keeps confidence, provenance, and duplicate warnings visible before anything touches the live form."
+              title="Review-first intake assist"
             />
           </div>
 
           <SectionCard
             className="office-list-card"
-            subtitle="Work these lanes in order. Front Office keeps the live execution clock; Back Office starts only when the record needs formal ownership."
+            subtitle="Work these lanes in order. Each row reflects live pressure that Acre can already see; if a specific record is linked, open it, and if not, reopen the shared queue."
             title="Today execution lanes"
           >
+            <div className="front-office-placeholder-note">
+              <Badge tone="accent">Work in this order</Badge>
+              <p>
+                Front Office keeps the live execution clock here. Back Office
+                starts only when the row explicitly points to a formal handoff
+                or signature workflow.
+              </p>
+            </div>
+
             <div className="list-column front-office-record-list">
               {snapshot.actionQueue.map((item) => {
                 const action = getDashboardQueueAction({
@@ -915,7 +1009,7 @@ export default async function AgentDashboardPage() {
                 </>
               ) : undefined
             }
-            subtitle="Use this as a fast re-entry map. Full cleanup, merge, and detailed review still stay in the client workspace."
+            subtitle="Use this as a fast re-entry map for dossiers that still need operator judgment. Full cleanup, merge, and detailed review still stay in the client workspace."
             title="Live client queue"
           >
             <ListPageStatsGrid>
@@ -1015,8 +1109,12 @@ export default async function AgentDashboardPage() {
             </ListPageStatsGrid>
 
             <div className="front-office-placeholder-note">
-              <Badge tone="accent">Scheduling live</Badge>
-              <p>{snapshot.commitments.appointmentMessage}</p>
+              <Badge tone="accent">Bridge actions stay explicit</Badge>
+              <p>
+                {snapshot.commitments.appointmentMessage} Acre can log the
+                scheduling path and external follow-up state here, but it is not
+                pretending to own a hidden calendar sync.
+              </p>
             </div>
 
             <div className="list-column front-office-record-list">
@@ -1066,7 +1164,7 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Tracked sends, opens, and quiet links should help you decide the next touch. Acre records the execution trail but does not auto-send."
+            subtitle="Tracked sends, opens, and quiet links should help you decide the next touch. Acre records the execution trail after you send; it does not auto-send or silently rescue the thread for you."
             title="Send & click output"
           >
             <ListPageStatsGrid>
@@ -1162,11 +1260,12 @@ export default async function AgentDashboardPage() {
             </div>
 
             <div className="front-office-placeholder-note">
-              <strong>Recent send & click signal</strong>
+              <strong>How to read this lane</strong>
               <p>
                 Client-linked sends turn tracked links into real execution
                 history, so you can see who received what, whether they opened
-                it, and where the next touch still needs agent judgment.
+                it, and where the next touch still needs agent judgment instead
+                of hidden automation.
               </p>
             </div>
 
@@ -1222,7 +1321,7 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="These items now need formal transactions, signatures, or auditable document flow. Front Office should tee up the work, then hand off deliberately."
+            subtitle="These items now need formal transactions, signatures, or auditable document flow. Front Office should tee up the work, then hand off deliberately instead of pretending the formal file already exists."
             title="Front Office -> Back Office boundary"
           >
             <div className="list-column front-office-record-list">
@@ -1543,9 +1642,9 @@ export default async function AgentDashboardPage() {
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip label="Role focus" value={roleFocus.label} />
           <SummaryChip
-            label="Today actions"
+            label="Start with"
             tone="accent"
-            value={snapshot.summary.todayActionCount}
+            value={primaryLaneLabel}
           />
           <SummaryChip
             label="Follow-up due"
@@ -1561,6 +1660,13 @@ export default async function AgentDashboardPage() {
             tone="accent"
             value={listingSummaryChip.value}
           />
+          {snapshot.leadershipQueue.visible ? (
+            <SummaryChip
+              label="Leadership pressure"
+              tone="accent"
+              value={snapshot.summary.leadershipPressureCount}
+            />
+          ) : null}
           <SummaryChip
             label="Needs Back Office"
             tone="accent"
@@ -1578,13 +1684,6 @@ export default async function AgentDashboardPage() {
               label="AI suggestions"
               tone="accent"
               value={snapshot.summary.aiSuggestionCount}
-            />
-          ) : null}
-          {snapshot.leadershipQueue.visible ? (
-            <SummaryChip
-              label="Leadership pressure"
-              tone="accent"
-              value={snapshot.summary.leadershipPressureCount}
             />
           ) : null}
           {clientsSnapshot &&

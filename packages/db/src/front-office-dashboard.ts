@@ -2672,6 +2672,58 @@ export async function getFrontOfficeDashboardSnapshot(
       appointment.startsAt < startOfTomorrow,
   ).length;
   const todayCommitmentCount = todayEventCount + todayAppointmentCount;
+  const commitmentEntries = [
+    ...upcomingAppointments.map((appointment) => ({
+      sortAt: appointment.startsAt,
+      item: {
+        id: `appointment-${appointment.id}`,
+        title: appointment.title,
+        badgeLabel: formatAppointmentTypeLabel(appointment.type),
+        badgeTone: mapAppointmentTypeTone(appointment.type),
+        startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
+          timeZone: input.timeZone,
+        }),
+        locationLabel:
+          appointment.location?.trim() ||
+          appointment.meetingUrl?.trim() ||
+          "Location pending",
+        contextLabel: appointment.client?.fullName
+          ? `Client · ${appointment.client.fullName}`
+          : appointment.listing?.title
+            ? `Listing · ${appointment.listing.title}`
+            : "Front Office appointment",
+        href: "/agent/calendar",
+      },
+    })),
+    ...upcomingEvents.map((event) => ({
+      sortAt: event.startsAt,
+      item: {
+        id: `event-${event.id}`,
+        title: event.title,
+        badgeLabel: "Office event",
+        badgeTone: "neutral" as const,
+        startsAtLabel: formatDateTimeLabel(event.startsAt, {
+          timeZone: input.timeZone,
+        }),
+        locationLabel:
+          event.location?.trim() ||
+          event.meetingUrl?.trim() ||
+          "Location pending",
+        contextLabel:
+          event.rsvps[0]?.status === "going"
+            ? "You RSVP'd going"
+            : event.rsvps[0]?.status === "maybe"
+              ? "You RSVP'd maybe"
+              : event.rsvps[0]?.status === "declined"
+                ? "You declined"
+                : `${formatEventVisibilityLabel(event.visibility)} · ${event._count.rsvps} RSVP(s)`,
+        href: "/agent/notifications",
+      },
+    })),
+  ]
+    .sort((left, right) => left.sortAt.getTime() - right.sortAt.getTime())
+    .slice(0, 4);
+  const commitmentItems = commitmentEntries.map((entry) => entry.item);
   const backOfficeItems: FrontOfficeDashboardBackOfficeItem[] = [
     ...handoffDrafts.map((draft) => ({
       id: `handoff-client-${draft.id}`,
@@ -2701,40 +2753,104 @@ export async function getFrontOfficeDashboardSnapshot(
     leadershipOverdueTaskCount +
     leadershipStaleClientCount +
     leadershipEngagementRiskCount;
-  const actionQueue: FrontOfficeDashboardActionQueueItem[] = [
+  const leadingFollowUpClient = dueFollowUpClients[0] ?? null;
+  const followUpPressureCount = Math.max(
+    dueFollowUpCount,
+    overdueFollowUpTaskCount,
+  );
+  const followUpAction =
+    followUpPressureCount === 1 && leadingFollowUpClient
+      ? {
+          href: `/agent/clients/${leadingFollowUpClient.id}`,
+          actionLabel: "Open first dossier",
+        }
+      : {
+          href: "/agent/clients",
+          actionLabel: "Work follow-up queue",
+        };
+  const leadingCommitmentItem = commitmentItems[0] ?? null;
+  const leadingLeaseReminderItem = leaseReminderItems[0] ?? null;
+  const leadingSendRecord = recentSendRecords[0] ?? null;
+  const leadingBackOfficeItem = backOfficeItems[0] ?? null;
+  const leadingLeadershipItem = leadershipItems[0] ?? null;
+  const sendSignalCount =
+    recentSendRecords.length > 0 ? recentSendRecords.length : activeListingCount;
+  const leadingSendListingLabel =
+    leadingSendRecord?.listing?.title?.trim() || "tracked send trail";
+  const sendSignalTone: FrontOfficeDashboardTone = leadingSendRecord
+    ? leadingSendRecord.openCount <= 0 &&
+      leadingSendRecord.sentAt.getTime() <= threeDaysAgo.getTime()
+      ? "warning"
+      : leadingSendRecord.openCount > 1
+        ? "success"
+        : "accent"
+    : activeListingCount > 0
+      ? "success"
+      : "neutral";
+  const sendSignalDescription = leadingSendRecord
+    ? leadingSendRecord.openCount <= 0 &&
+      leadingSendRecord.sentAt.getTime() <= threeDaysAgo.getTime()
+      ? `${leadingSendRecord.client.fullName} still has no tracked open on ${leadingSendListingLabel}. Rescue this thread before you add fresh noise.`
+      : leadingSendRecord.openCount > 0
+        ? `${leadingSendRecord.client.fullName} already engaged with ${leadingSendListingLabel}. Turn that signal into a real next step while it is still warm.`
+        : `${leadingSendRecord.client.fullName} already has tracked send history in motion. Keep the next send and follow-through explicit.`
+    : activeListingCount > 0
+      ? `${activeListingCount} active or hot listing(s) are ready for tracked outreach. Start a send only when the target client and channel are clear.`
+      : "No active listing inventory is currently available in this scope.";
+  const sendSignalHelper = leadingSendRecord
+    ? [
+        `${formatFrontOfficeSendChannelLabel(leadingSendRecord.channel)} · ${formatDateTimeLabel(
+          leadingSendRecord.sentAt,
+          { timeZone: input.timeZone ?? null },
+        )}`,
+        buildFrontOfficeSendEngagementLabel(leadingSendRecord.openCount),
+        "Acre records the trail only after you choose to send.",
+      ].join(" · ")
+    : shareAggregate._count._all > 0
+      ? `${shareAggregate._count._all} tracked link(s) already exist in this scope. Acre still does not auto-send anything.`
+      : "Tracked sending is ready as soon as you create the first share link.";
+  const actionQueueBase: FrontOfficeDashboardActionQueueItem[] = [
     {
       id: "follow-up",
-      label: "Follow up now",
-      count: dueFollowUpCount,
-      tone: dueFollowUpCount > 0 ? "warning" : "neutral",
+      label: "Follow-up pressure",
+      count: followUpPressureCount,
+      tone: followUpPressureCount > 0 ? "warning" : "neutral",
       description:
-        dueFollowUpClients.length > 0
-          ? `Start with ${dueFollowUpClients[0]?.fullName}. ${dueFollowUpCount} client touch(es) are due today or already late.`
-          : "No same-day or overdue client touch is waiting right now.",
+        leadingFollowUpClient && dueFollowUpCount > 0
+          ? `${leadingFollowUpClient.fullName} is the clearest next touch. ${dueFollowUpCount} client touch(es) are due today or already late.`
+          : overdueFollowUpTaskCount > 0
+            ? `${overdueFollowUpTaskCount} shared follow-up task(s) are already overdue even though no fresh client touch is due today.`
+            : "No same-day client touch or overdue shared follow-up task is waiting right now.",
       helper:
         overdueFollowUpTaskCount > 0
-          ? `${overdueFollowUpTaskCount} scheduled follow-up task(s) are already overdue, with ${openFollowUpTaskCount} still open in total.`
-          : `${openFollowUpTaskCount} scheduled follow-up task(s) are still open in your shared queue.`,
-      href: "/agent/clients",
-      actionLabel: "Work follow-up queue",
+          ? `${overdueFollowUpTaskCount} task(s) are already overdue, with ${openFollowUpTaskCount} still open in total.`
+          : `${openFollowUpTaskCount} scheduled follow-up task(s) remain open in the shared Front Office clock.`,
+      href: followUpAction.href,
+      actionLabel: followUpAction.actionLabel,
     },
     {
       id: "commitments",
-      label: "Commitments today",
+      label: "Today commitments",
       count: todayCommitmentCount,
       tone: todayCommitmentCount > 0 ? "accent" : "neutral",
       description:
-        todayCommitmentCount > 0
-          ? `${todayAppointmentCount} appointment(s) and ${todayEventCount} shared office commitment(s) land today. Prep the next meeting before the clock slips.`
-          : "No Front Office appointments or shared office commitments are scheduled for today.",
-      helper:
-        "The live FO calendar stays action-first. External calendar or email bridges are still explicit jump-outs, not hidden sync.",
-      href: "/agent/calendar",
-      actionLabel: "Open live calendar",
+        leadingCommitmentItem && todayCommitmentCount > 0
+          ? `${leadingCommitmentItem.title} is the next time-bound promise on your desk. Prep it before the start window slips.`
+          : commitmentItems.length > 0
+            ? `No commitment lands today, but ${commitmentItems.length} appointment or office item(s) are already on deck.`
+            : "No Front Office appointments or shared office commitments are currently scheduled.",
+      helper: leadingCommitmentItem
+        ? `${leadingCommitmentItem.startsAtLabel} · ${leadingCommitmentItem.contextLabel} · External calendar and email remain explicit bridge actions, not hidden sync.`
+        : "The live FO calendar stays action-first. Google, Outlook, ICS, and email are still explicit jump-outs, not two-way sync.",
+      href: leadingCommitmentItem?.href ?? "/agent/calendar",
+      actionLabel:
+        leadingCommitmentItem?.id.startsWith("event-")
+          ? "Open event"
+          : "Open calendar",
     },
     {
       id: "lease-reminders",
-      label: "Lease reminders",
+      label: "Lease timing",
       count: dueLeaseReminderCount,
       tone:
         overdueLeaseReminderCount > 0
@@ -2742,76 +2858,79 @@ export async function getFrontOfficeDashboardSnapshot(
           : dueLeaseReminderCount > 0
             ? "warning"
             : "neutral",
-      description:
-        leaseReminderItems.length > 0
-          ? `${leaseReminderItems[0]?.clientName} is already in a renewal or move-planning window.`
-          : "No lease-date reminder is due soon right now.",
+      description: leadingLeaseReminderItem
+        ? `${leadingLeaseReminderItem.clientName} is already inside a renewal or move-planning window. Keep the next touch explicit before the record goes quiet.`
+        : "No lease-date reminder is due soon right now.",
       helper:
         overdueLeaseReminderCount > 0
           ? `${overdueLeaseReminderCount} lease reminder(s) are already overdue.`
-          : "Use lease timing to keep renewal, remarketing, and move planning visible before the record goes quiet.",
-      href: "/agent/clients",
-      actionLabel: "Review lease reminders",
+          : leadingLeaseReminderItem
+            ? `${leadingLeaseReminderItem.statusLabel} · ${leadingLeaseReminderItem.detailLabel}`
+            : "Lease timing stays visible here before renewal, remarketing, or move planning becomes a fire drill.",
+      href:
+        dueLeaseReminderCount === 1 && leadingLeaseReminderItem
+          ? leadingLeaseReminderItem.href
+          : "/agent/clients",
+      actionLabel:
+        dueLeaseReminderCount === 1 && leadingLeaseReminderItem
+          ? "Open client dossier"
+          : "Review lease reminders",
     },
     {
       id: "content",
-      label: "Content ready to send",
-      count: activeListingCount,
-      tone: activeListingCount > 0 ? "success" : "neutral",
-      description:
-        recentSendRecords[0]
-          ? `${recentSendRecords[0].client.fullName} already has tracked send history in motion. Keep the next send or click follow-up explicit.`
-          : activeListingCount > 0
-            ? `${activeListingCount} active or hot listing(s) are ready for tracked outreach.`
-          : "No active listing inventory is currently available in this scope.",
-      helper:
-        openedSendCount > 0
-          ? `${openedSendCount} tracked send(s) already have opens. Acre still does not auto-send anything from this queue.`
-          : shareAggregate._count._all > 0
-            ? `${shareAggregate._count._all} tracked link(s) already exist in this dashboard scope.`
-            : "Tracked sending is ready as soon as you create the first share link.",
-      href: "/agent/listings",
-      actionLabel: "Open listing output",
+      label: "Send & click follow-through",
+      count: sendSignalCount,
+      tone: sendSignalTone,
+      description: sendSignalDescription,
+      helper: sendSignalHelper,
+      href: leadingSendRecord
+        ? `/agent/clients/${leadingSendRecord.client.id}`
+        : "/agent/listings",
+      actionLabel: leadingSendRecord
+        ? "Open client dossier"
+        : "Open listing output",
     },
     {
       id: "handoff",
       label: "Formal handoff",
       count: needsBackOfficeCount,
       tone: needsBackOfficeCount > 0 ? "warning" : "neutral",
-      description:
-        needsBackOfficeCount > 0
-          ? `${needsBackOfficeCount} client or signature step(s) now need a formal transaction, signature, or auditable BO file.`
-          : "Nothing needs formal transaction or signature workflow right now.",
-      helper:
-        "Front Office can tee up the work, but the official record still starts in Back Office.",
-      href: "/office/transactions",
-      actionLabel: "Review formal handoff",
+      description: leadingBackOfficeItem
+        ? `${leadingBackOfficeItem.title} is the clearest FO -> BO boundary move right now. Open the formal workspace only when the package is truly ready.`
+        : "Nothing needs formal transaction, signature, or auditable Back Office workflow right now.",
+      helper: leadingBackOfficeItem
+        ? `${leadingBackOfficeItem.contextLabel} · ${leadingBackOfficeItem.description}`
+        : "Front Office can tee up the work, but the official record still starts in Back Office.",
+      href: leadingBackOfficeItem?.href ?? "/office/transactions",
+      actionLabel:
+        leadingBackOfficeItem?.actionLabel ?? "Review formal handoff",
     },
-    ...(leadershipScope.visible
-      ? [
-          {
-            id: "leadership",
-            label:
-              input.viewerRole === "team_lead"
-                ? "Team cleanup"
-                : "Office cleanup",
-            count: leadershipPressureCount,
-            tone: leadershipPressureCount > 0 ? "danger" : "neutral",
-            description:
-              leadershipPressureCount > 0
-                ? `${leadershipOverdueTaskCount} overdue task(s), ${leadershipStaleClientCount} stale client(s), and ${leadershipEngagementRiskCount} send-trail risk item(s) need leadership review in Front Office.`
-                : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
-            helper:
-              "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
-            href: "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
-            actionLabel:
-              input.viewerRole === "team_lead"
-                ? "Open team cleanup"
-                : "Open office cleanup",
-          } satisfies FrontOfficeDashboardActionQueueItem,
-        ]
-      : []),
   ];
+  const actionQueue: FrontOfficeDashboardActionQueueItem[] = leadershipScope.visible
+    ? [
+        {
+          id: "leadership",
+          label:
+            input.viewerRole === "team_lead"
+              ? "Team cleanup"
+              : "Office cleanup",
+          count: leadershipPressureCount,
+          tone: leadershipPressureCount > 0 ? "danger" : "neutral",
+          description: leadingLeadershipItem
+            ? `${leadingLeadershipItem.title} is the first rescue pass. Review visible cleanup pressure in Front Office before it becomes a formal fire drill.`
+            : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
+          helper: leadingLeadershipItem
+            ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope.`
+            : "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
+          href: "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
+          actionLabel:
+            input.viewerRole === "team_lead"
+              ? "Open team cleanup"
+              : "Open office cleanup",
+        },
+        ...actionQueueBase,
+      ]
+    : actionQueueBase;
 
   return {
     summary: {
@@ -2863,58 +2982,7 @@ export async function getFrontOfficeDashboardSnapshot(
       })),
     },
     commitments: {
-      items: [
-        ...upcomingAppointments.map((appointment) => ({
-          sortAt: appointment.startsAt,
-          item: {
-            id: `appointment-${appointment.id}`,
-            title: appointment.title,
-            badgeLabel: formatAppointmentTypeLabel(appointment.type),
-            badgeTone: mapAppointmentTypeTone(appointment.type),
-            startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
-              timeZone: input.timeZone,
-            }),
-            locationLabel:
-              appointment.location?.trim() ||
-              appointment.meetingUrl?.trim() ||
-              "Location pending",
-            contextLabel: appointment.client?.fullName
-              ? `Client · ${appointment.client.fullName}`
-              : appointment.listing?.title
-                ? `Listing · ${appointment.listing.title}`
-                : "Front Office appointment",
-            href: "/agent/calendar",
-          },
-        })),
-        ...upcomingEvents.map((event) => ({
-          sortAt: event.startsAt,
-          item: {
-            id: `event-${event.id}`,
-            title: event.title,
-            badgeLabel: "Office event",
-            badgeTone: "neutral" as const,
-            startsAtLabel: formatDateTimeLabel(event.startsAt, {
-              timeZone: input.timeZone,
-            }),
-            locationLabel:
-              event.location?.trim() ||
-              event.meetingUrl?.trim() ||
-              "Location pending",
-            contextLabel:
-              event.rsvps[0]?.status === "going"
-                ? "You RSVP'd going"
-                : event.rsvps[0]?.status === "maybe"
-                  ? "You RSVP'd maybe"
-                  : event.rsvps[0]?.status === "declined"
-                    ? "You declined"
-                    : `${formatEventVisibilityLabel(event.visibility)} · ${event._count.rsvps} RSVP(s)`,
-            href: "/agent/notifications",
-          },
-        })),
-      ]
-        .sort((left, right) => left.sortAt.getTime() - right.sortAt.getTime())
-        .slice(0, 4)
-        .map((entry) => entry.item),
+      items: commitmentItems,
       appointmentModuleReady: true,
       appointmentMessage:
         todayAppointmentCount > 0
