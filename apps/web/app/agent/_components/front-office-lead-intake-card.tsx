@@ -97,6 +97,7 @@ type CreateLeadApiErrorCode =
   | "invalid_request_body"
   | "validation_error"
   | "duplicate_lead"
+  | "duplicate_check_failed"
   | "create_failed";
 
 type CreateLeadApiPayload = {
@@ -133,6 +134,8 @@ const intentOptions = [
   "Unknown",
 ] as const;
 
+const maxAssistImageSizeBytes = 10 * 1024 * 1024;
+
 function buildDefaultNextFollowUpAt() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -159,6 +162,104 @@ function normalizeCompactValue(value: string) {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "");
+}
+
+function countMeaningfulAssistChars(value: string) {
+  return value.match(/[A-Za-z0-9\u4e00-\u9fff]/g)?.length ?? 0;
+}
+
+function getLeadFieldLabel(fieldKey: LeadFormFieldKey) {
+  switch (fieldKey) {
+    case "fullName":
+      return "full name";
+    case "phone":
+      return "phone";
+    case "email":
+      return "email";
+    case "source":
+      return "source";
+    case "stage":
+      return "stage";
+    case "intent":
+      return "intent";
+    case "budgetMax":
+      return "budget";
+    case "preferredAreas":
+      return "preferred areas";
+    case "nextFollowUpAt":
+      return "next follow-up";
+    case "notes":
+      return "notes";
+  }
+}
+
+function buildFieldErrorSummary(fieldErrors: LeadFieldErrors) {
+  const keys = Object.keys(fieldErrors) as LeadFormFieldKey[];
+
+  if (!keys.length) {
+    return "";
+  }
+
+  if (keys.length === 1) {
+    return `Review the ${getLeadFieldLabel(keys[0])} field and try again.`;
+  }
+
+  return `Review these fields and try again: ${keys
+    .map((key) => getLeadFieldLabel(key))
+    .join(", ")}.`;
+}
+
+function buildCreateLeadErrorFeedback(
+  payload: CreateLeadApiPayload | null,
+  responseStatus: number,
+) {
+  const fieldSummary = buildFieldErrorSummary(payload?.fieldErrors ?? {});
+
+  if (responseStatus === 409 || payload?.errorCode === "duplicate_lead") {
+    return (
+      payload?.error ??
+      "Potential duplicate clients were found inside your visible CRM scope. Nothing was created. Review the closest existing record first, or create anyway only if this truly needs a separate dossier."
+    );
+  }
+
+  if (payload?.errorCode === "validation_error") {
+    return (
+      payload?.error ??
+      (fieldSummary
+        ? `Lead not created. ${fieldSummary}`
+        : "Lead not created. Fix the highlighted field values in the live form, then try again.")
+    );
+  }
+
+  if (payload?.errorCode === "front_office_create_forbidden") {
+    return (
+      payload?.error ??
+      "You do not have permission to create Front Office leads from this workspace."
+    );
+  }
+
+  if (payload?.errorCode === "authentication_required") {
+    return (
+      payload?.error ??
+      "Sign in again before creating a Front Office lead."
+    );
+  }
+
+  if (payload?.errorCode === "duplicate_check_failed") {
+    return (
+      payload?.error ??
+      "Acre could not verify duplicate risk right now, so it stopped before creating anything."
+    );
+  }
+
+  if (payload?.errorCode === "invalid_request_body") {
+    return (
+      payload?.error ??
+      "Acre needs a valid live intake payload before it can create the dossier."
+    );
+  }
+
+  return payload?.error ?? "Could not create the Front Office lead.";
 }
 
 function omitFieldError(
@@ -970,6 +1071,37 @@ export function FrontOfficeLeadIntakeCard(
       return;
     }
 
+    if (assistImage && !assistImage.type.startsWith("image/")) {
+      setAssistFeedback({
+        tone: "error",
+        message:
+          "Upload a screenshot image file only. PNG or JPG chat crops work best for OCR review.",
+      });
+      return;
+    }
+
+    if (assistImage && assistImage.size > maxAssistImageSizeBytes) {
+      setAssistFeedback({
+        tone: "error",
+        message:
+          "That screenshot is too large for quick browser-side OCR. Try a tighter crop under 10 MB.",
+      });
+      return;
+    }
+
+    if (
+      transcriptText &&
+      !assistImage &&
+      countMeaningfulAssistChars(transcriptText) < 12
+    ) {
+      setAssistFeedback({
+        tone: "error",
+        message:
+          "Paste a little more context first. Three to eight lines with a name, contact clue, area, budget, or next step usually work best.",
+      });
+      return;
+    }
+
     const assistRunId = assistRunIdRef.current + 1;
     assistRunIdRef.current = assistRunId;
     setAssistResult(null);
@@ -1137,35 +1269,23 @@ export function FrontOfficeLeadIntakeCard(
       | null;
 
     if (response.status === 409 && payload?.duplicateMatches?.length) {
+      setFieldErrors(payload.fieldErrors ?? {});
       setDuplicateMatches(payload.duplicateMatches);
       setFeedback({
         tone: "error",
-        message:
-          payload.error ??
-          "Potential duplicate clients were found inside your visible CRM scope. Review the closest existing record first, or create anyway if this is truly a new lead.",
+        message: buildCreateLeadErrorFeedback(payload, response.status),
       });
       return false;
     }
 
-    if (payload?.errorCode === "validation_error") {
+    if (payload?.fieldErrors) {
       setFieldErrors(payload.fieldErrors ?? {});
     }
 
     if (!response.ok || !payload?.contact) {
       setFeedback({
         tone: "error",
-        message:
-          payload?.errorCode === "validation_error"
-            ? payload.error ??
-              "Lead not created. Fix the highlighted field values in the live form, then try again."
-            : payload?.errorCode === "front_office_create_forbidden"
-              ? payload.error ??
-                "You do not have permission to create Front Office leads from this workspace."
-              : payload?.errorCode === "authentication_required"
-                ? payload.error ??
-                  "Sign in again before creating a Front Office lead."
-                : payload?.error ??
-                  "Could not create the Front Office lead.",
+        message: buildCreateLeadErrorFeedback(payload, response.status),
       });
       return false;
     }
@@ -1527,7 +1647,7 @@ export function FrontOfficeLeadIntakeCard(
 
             {!assistResult && !assistImage && !assistTranscript.trim() ? (
               <EmptyState
-                description="Best results usually come from a screenshot crop or 3-8 transcript lines that include a name plus one contact, area, budget, or next-step clue. Assist stays browser-side and never auto-creates the lead."
+                description="Best results usually come from one tighter chat screenshot crop or 3-8 transcript lines that include a name plus one contact, area, budget, or next-step clue. Review stays field-by-field, the live form stays under manual control, and assist never auto-creates the lead."
                 title="Start with one screenshot or a short chat excerpt"
               />
             ) : null}
@@ -1622,6 +1742,14 @@ export function FrontOfficeLeadIntakeCard(
                   </p>
                 ) : null}
 
+                {manualAssistOverrideCount > 0 ? (
+                  <p className="front-office-calendar-feedback is-neutral">
+                    {manualAssistOverrideCount} reviewed suggestion(s) are
+                    currently overridden by your live form edits. Saving still
+                    uses the live form values only.
+                  </p>
+                ) : null}
+
                 {assistResult.fields.some(
                   (field) => field.suggestedAction !== "preview_only",
                 ) ? (
@@ -1693,6 +1821,7 @@ export function FrontOfficeLeadIntakeCard(
                           <div className="front-office-record-meta">
                             <span>{field.reasonLabel}</span>
                             <span>{field.suggestedActionLabel}</span>
+                            <span>{field.reviewHintLabel}</span>
                             <span>
                               {getAssistFieldStatus({
                                 field,
@@ -1715,6 +1844,7 @@ export function FrontOfficeLeadIntakeCard(
                             </span>
                           </div>
                           <div className="front-office-record-meta">
+                            <span>{field.sourceDetailLabel}</span>
                             <span>Evidence: {field.evidenceLabel}</span>
                             {field.cautionLabels.map((label) => (
                               <span key={`${field.field}-${label}`}>
@@ -1799,7 +1929,7 @@ export function FrontOfficeLeadIntakeCard(
                     <EmptyState
                       className="front-office-lead-intake-assist-field is-empty"
                       description={assistResult.readinessSummary.detail}
-                      title="Nothing structured moved into review yet"
+                      title={assistResult.readinessSummary.label}
                     />
                   )}
                 </div>
@@ -1828,7 +1958,10 @@ export function FrontOfficeLeadIntakeCard(
 
               <div className="front-office-record-meta">
                 <span>Early preview uses live or reviewed values only</span>
-                <span>Unreviewed assist identity fields stay out of duplicate checks</span>
+                <span>
+                  Unreviewed assist identity fields stay out of duplicate checks
+                </span>
+                <span>Preview is warning-only: nothing merges or creates here</span>
                 <span>Save-time gate still checks live name, phone, and email</span>
               </div>
 
@@ -1855,6 +1988,7 @@ export function FrontOfficeLeadIntakeCard(
                         <span>{match.nextTouchLabel}</span>
                         <span>Visible Front Office scope</span>
                       </div>
+                      <p>{match.recommendedActionLabel}</p>
                       <div className="front-office-merge-actions">
                         <FrontOfficeLink
                           className="office-inline-link front-office-inline-link"
@@ -1877,7 +2011,7 @@ export function FrontOfficeLeadIntakeCard(
                   description={
                     pendingDuplicateIdentityAssistCount > 0
                       ? "Identity suggestions are still pending review, so Acre is intentionally holding back duplicate preview until those values enter the live form."
-                      : "No visible collision is showing yet. Save-time duplicate checks will still verify the live name, phone, and email before create."
+                      : "No visible collision is showing yet. That does not bypass the final duplicate gate: save-time checks still verify the live name, phone, and email before create."
                   }
                   title={
                     pendingDuplicateIdentityAssistCount > 0
@@ -1903,6 +2037,11 @@ export function FrontOfficeLeadIntakeCard(
                 "Could not load the visible duplicate preview right now."}
             </p>
           ) : null}
+
+          <p className="front-office-calendar-feedback is-neutral">
+            Create uses the live form only. OCR / transcript assist remains
+            review-then-apply, and nothing auto-creates or auto-sends.
+          </p>
 
           <div className="office-form-grid front-office-lead-intake-grid">
             <FormField

@@ -29,6 +29,7 @@ export type FrontOfficeLeadDuplicatePreviewMatch = {
   confidenceLabel: string;
   matchStrength: number;
   matchReasons: string[];
+  recommendedActionLabel: string;
 };
 
 function normalizeWhitespace(value: string) {
@@ -215,24 +216,40 @@ function scoreCandidateMatch(input: {
   };
 }
 
-function buildConfidenceLabel(score: number) {
-  if (score >= 8) {
+function buildConfidenceLabel(input: {
+  score: number;
+  reasons: string[];
+}) {
+  const hasEmail = input.reasons.some((reason) => reason.startsWith("Same email"));
+  const hasPhone = input.reasons.some((reason) => reason.startsWith("Same phone"));
+  const hasName = input.reasons.some((reason) => reason.includes("name"));
+
+  if (hasEmail && hasPhone) {
     return "Very high visible duplicate risk";
   }
 
-  if (score >= 6) {
-    return "High visible duplicate risk";
+  if (hasEmail || hasPhone) {
+    return input.score >= 6
+      ? "High visible duplicate risk"
+      : "Likely visible duplicate via contact info";
   }
 
-  if (score >= 5) {
-    return "Strong visible duplicate";
-  }
-
-  if (score >= 4) {
+  if (hasName && input.score >= 4) {
     return "Likely visible duplicate";
   }
 
-  return "Visible name collision";
+  return "Visible name collision only";
+}
+
+function buildRecommendedActionLabel(reasons: string[]) {
+  const hasEmail = reasons.some((reason) => reason.startsWith("Same email"));
+  const hasPhone = reasons.some((reason) => reason.startsWith("Same phone"));
+
+  if (hasEmail || hasPhone) {
+    return "Open the existing record first before you create a separate dossier.";
+  }
+
+  return "This looks like a name-only collision. Compare phone or email in the existing record before you create anything new.";
 }
 
 export function buildFrontOfficeLeadDuplicatePreview(input: {
@@ -242,7 +259,11 @@ export function buildFrontOfficeLeadDuplicatePreview(input: {
   const merged = new Map<string, FrontOfficeLeadDuplicatePreviewMatch>();
 
   for (const needle of input.needles) {
-    if (!needle.fullName.trim()) {
+    if (
+      !needle.fullName.trim() &&
+      !normalizeEmail(needle.email) &&
+      !normalizePhoneDigits(needle.phone)
+    ) {
       continue;
     }
 
@@ -271,9 +292,13 @@ export function buildFrontOfficeLeadDuplicatePreview(input: {
         sourceLabel: candidate.sourceLabel,
         nextTouchLabel: candidate.nextTouchLabel,
         href: candidate.href,
-        confidenceLabel: buildConfidenceLabel(nextScore),
+        confidenceLabel: buildConfidenceLabel({
+          score: nextScore,
+          reasons: nextReasons,
+        }),
         matchStrength: nextScore,
         matchReasons: nextReasons,
+        recommendedActionLabel: buildRecommendedActionLabel(nextReasons),
       });
     }
   }

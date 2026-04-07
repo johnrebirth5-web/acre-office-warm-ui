@@ -40,8 +40,27 @@ type LeadFieldKey =
 
 type LeadFieldErrorMap = Partial<Record<LeadFieldKey, string>>;
 
-function readOptionalString(body: Record<string, unknown>, key: string) {
-  return typeof body[key] === "string" ? body[key].trim() : "";
+function readOptionalStringField(
+  body: Record<string, unknown>,
+  key: LeadFieldKey,
+  fieldErrors: LeadFieldErrorMap,
+) {
+  const value = body[key];
+
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (typeof value !== "string") {
+    appendFieldError(
+      fieldErrors,
+      key,
+      "Use plain text for this field so Acre can review it safely.",
+    );
+    return "";
+  }
+
+  return value.trim();
 }
 
 function readBoolean(body: Record<string, unknown>, key: string) {
@@ -173,6 +192,89 @@ function validationErrorResponse(fieldErrors: LeadFieldErrorMap) {
   );
 }
 
+function buildDuplicateFieldErrors(input: {
+  fullName: string;
+  email: string;
+  phone: string;
+  duplicateMatches: Array<{ matchReasons?: string[] }>;
+}) {
+  const matchReasons = new Set(
+    input.duplicateMatches.flatMap((match) => match.matchReasons ?? []),
+  );
+  const fieldErrors: LeadFieldErrorMap = {};
+
+  if (input.fullName && matchReasons.has("Same name")) {
+    fieldErrors.fullName =
+      "A visible record with the same name already exists. Review it before creating another dossier.";
+  }
+
+  if (input.email && matchReasons.has("Same email")) {
+    fieldErrors.email =
+      "This email already appears on a visible Front Office record.";
+  }
+
+  if (input.phone && matchReasons.has("Same phone")) {
+    fieldErrors.phone =
+      "This phone number already appears on a visible Front Office record.";
+  }
+
+  return fieldErrors;
+}
+
+function inferFieldErrorsFromCreateFailure(message: string) {
+  const lowered = message.toLowerCase();
+  const fieldErrors: LeadFieldErrorMap = {};
+
+  if (lowered.includes("full name") || lowered.includes("name")) {
+    fieldErrors.fullName =
+      "Acre could not save the lead name. Review the name and retry.";
+  }
+
+  if (lowered.includes("email")) {
+    fieldErrors.email =
+      "Acre could not save the email value. Review the format and retry.";
+  }
+
+  if (lowered.includes("phone")) {
+    fieldErrors.phone =
+      "Acre could not save the phone value. Review the digits and retry.";
+  }
+
+  if (lowered.includes("source")) {
+    fieldErrors.source =
+      "Acre could not save the source label. Shorten or simplify it, then retry.";
+  }
+
+  if (lowered.includes("budget")) {
+    fieldErrors.budgetMax =
+      "Acre could not save the budget value. Confirm the amount and retry.";
+  }
+
+  if (
+    lowered.includes("preferred areas") ||
+    lowered.includes("preferred area")
+  ) {
+    fieldErrors.preferredAreas =
+      "Acre could not save the preferred areas. Use short place names separated by commas.";
+  }
+
+  if (
+    lowered.includes("follow-up") ||
+    lowered.includes("follow up") ||
+    lowered.includes("date")
+  ) {
+    fieldErrors.nextFollowUpAt =
+      "Acre could not save the next follow-up date. Confirm the calendar value and retry.";
+  }
+
+  if (lowered.includes("note")) {
+    fieldErrors.notes =
+      "Acre could not save the note text. Trim it down and retry.";
+  }
+
+  return fieldErrors;
+}
+
 export async function POST(request: NextRequest) {
   const context = await getRequestSessionContext(request);
 
@@ -200,6 +302,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const fieldErrors: LeadFieldErrorMap = {};
   const body = (await request.json().catch(() => null)) as Record<
     string,
     unknown
@@ -216,18 +319,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const fullName = readOptionalString(body, "fullName");
-  const email = readOptionalString(body, "email");
-  const phone = readOptionalString(body, "phone");
-  const source = readOptionalString(body, "source");
-  const stage = readOptionalString(body, "stage");
-  const intent = readOptionalString(body, "intent");
-  const budgetMax = readOptionalString(body, "budgetMax");
-  const preferredAreas = readOptionalString(body, "preferredAreas");
-  const nextFollowUpAt = readOptionalString(body, "nextFollowUpAt");
-  const notes = readOptionalString(body, "notes");
+  const fullName = readOptionalStringField(body, "fullName", fieldErrors);
+  const email = readOptionalStringField(body, "email", fieldErrors);
+  const phone = readOptionalStringField(body, "phone", fieldErrors);
+  const source = readOptionalStringField(body, "source", fieldErrors);
+  const stage = readOptionalStringField(body, "stage", fieldErrors);
+  const intent = readOptionalStringField(body, "intent", fieldErrors);
+  const budgetMax = readOptionalStringField(body, "budgetMax", fieldErrors);
+  const preferredAreas = readOptionalStringField(
+    body,
+    "preferredAreas",
+    fieldErrors,
+  );
+  const nextFollowUpAt = readOptionalStringField(
+    body,
+    "nextFollowUpAt",
+    fieldErrors,
+  );
+  const notes = readOptionalStringField(body, "notes", fieldErrors);
   const skipDuplicateCheck = readBoolean(body, "skipDuplicateCheck");
-  const fieldErrors: LeadFieldErrorMap = {};
   const normalizedBudgetMax = budgetMax
     ? normalizeBudgetMaxInput(budgetMax)
     : "";
@@ -335,25 +445,42 @@ export async function POST(request: NextRequest) {
   }
 
   if (!skipDuplicateCheck) {
-    const duplicateMatches = await findFrontOfficeLeadDuplicateMatches({
-      organizationId: context.currentOrganization.id,
-      viewerMembershipId: context.currentMembership.id,
-      officeId: context.currentOffice?.id ?? null,
-      fullName,
-      email,
-      phone,
-      timeZone: context.currentUser.timezone,
-    });
+    try {
+      const duplicateMatches = await findFrontOfficeLeadDuplicateMatches({
+        organizationId: context.currentOrganization.id,
+        viewerMembershipId: context.currentMembership.id,
+        officeId: context.currentOffice?.id ?? null,
+        fullName,
+        email,
+        phone,
+        timeZone: context.currentUser.timezone,
+      });
 
-    if (duplicateMatches.length) {
+      if (duplicateMatches.length) {
+        return NextResponse.json(
+          {
+            error:
+              "Potential duplicate clients already exist inside your visible Front Office CRM scope. Review the closest record first, then create anyway only if this really needs a separate Front Office dossier.",
+            errorCode: "duplicate_lead",
+            fieldErrors: buildDuplicateFieldErrors({
+              fullName,
+              email,
+              phone,
+              duplicateMatches,
+            }),
+            duplicateMatches,
+          },
+          { status: 409 },
+        );
+      }
+    } catch {
       return NextResponse.json(
         {
           error:
-            "Potential duplicate clients already exist inside your visible Front Office CRM scope. Review the closest record first, then create anyway only if this really needs a separate Front Office dossier.",
-          errorCode: "duplicate_lead",
-          duplicateMatches,
+            "Acre could not verify duplicate risk right now, so it stopped before creating anything. Your live form is unchanged.",
+          errorCode: "duplicate_check_failed",
         },
-        { status: 409 },
+        { status: 500 },
       );
     }
   }
@@ -382,17 +509,15 @@ export async function POST(request: NextRequest) {
       error instanceof Error
         ? error.message
         : "Could not create the Front Office lead.";
+    const inferredFieldErrors = inferFieldErrorsFromCreateFailure(message);
 
-    if (
-      /full name|email|phone|budget|date|follow-up|follow up|preferred areas/i.test(
-        message,
-      )
-    ) {
+    if (Object.keys(inferredFieldErrors).length > 0) {
       return NextResponse.json(
         {
           error:
             "Lead not created because one or more live form values could not be saved. Review the field details and try again.",
           errorCode: "validation_error",
+          fieldErrors: inferredFieldErrors,
         },
         { status: 400 },
       );

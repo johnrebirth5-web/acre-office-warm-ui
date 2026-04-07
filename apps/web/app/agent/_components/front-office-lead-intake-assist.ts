@@ -33,6 +33,9 @@ export type FrontOfficeLeadIntakeAssistRiskFlag =
   | "multiple_contact_values"
   | "multiple_budget_values"
   | "relative_timing"
+  | "low_signal_extract"
+  | "ambiguous_stage"
+  | "ambiguous_intent"
   | "preview_summary";
 
 export type FrontOfficeLeadIntakeAssistField = {
@@ -44,8 +47,10 @@ export type FrontOfficeLeadIntakeAssistField = {
   suggestedAction: FrontOfficeLeadIntakeAssistSuggestedAction;
   suggestedActionLabel: string;
   reasonLabel: string;
+  reviewHintLabel: string;
   provenance: FrontOfficeLeadIntakeAssistProvenance;
   provenanceLabel: string;
+  sourceDetailLabel: string;
   evidenceLabel: string;
   cautionLabels: string[];
 };
@@ -91,6 +96,7 @@ type ConversationContext = {
   hasHouseholdContext: boolean;
   hasContactOwnerRisk: boolean;
   hasSpeakerSwitching: boolean;
+  hasLowSignalText: boolean;
   riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[];
   cautionLabels: string[];
   speakerNameCandidates: string[];
@@ -177,6 +183,21 @@ function addDays(input: Date, days: number) {
 
 function uniqueStrings(values: string[]) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function countAlphaNumericLikeChars(value: string) {
+  return value.match(/[A-Za-z0-9\u4e00-\u9fff]/g)?.length ?? 0;
+}
+
+function looksLowSignal(lines: string[], text: string) {
+  const alphaNumericChars = countAlphaNumericLikeChars(text);
+  const signalRatio = text.length > 0 ? alphaNumericChars / text.length : 0;
+
+  return (
+    lines.length <= 2 ||
+    alphaNumericChars < 20 ||
+    (lines.length <= 4 && signalRatio < 0.45)
+  );
 }
 
 function cleanPotentialName(value: string) {
@@ -283,6 +304,44 @@ function countMoneyMatches(value: string) {
   return value.match(/\$?\s?\d[\d,.]*(?:\.\d+)?\s?[kKmM]?/g)?.length ?? 0;
 }
 
+function resolveSingleMappedLabel(
+  rawValue: string,
+  input: {
+    checks: Array<[RegExp, string]>;
+    canonicalValues: string[];
+  },
+) {
+  const normalizedRawValue = normalizeWhitespace(rawValue).toLowerCase();
+  const directMatch = input.canonicalValues.find(
+    (value) => normalizeWhitespace(value).toLowerCase() === normalizedRawValue,
+  );
+
+  if (directMatch) {
+    return {
+      value: directMatch,
+      ambiguous: false,
+    };
+  }
+
+  const labels = uniqueStrings(
+    input.checks.flatMap(([pattern, label]) =>
+      pattern.test(rawValue) ? [label] : [],
+    ),
+  );
+
+  if (!labels.length) {
+    return {
+      value: null,
+      ambiguous: false,
+    };
+  }
+
+  return {
+    value: labels[0] ?? null,
+    ambiguous: labels.length > 1,
+  };
+}
+
 function buildConversationContext(
   lines: string[],
   text: string,
@@ -309,6 +368,7 @@ function buildConversationContext(
   const hasSpeakerSwitching = speakerNameCandidates.length > 1;
   const hasContactOwnerRisk =
     contactOwnerRiskPattern.test(text) || signatureContactPattern.test(text);
+  const hasLowSignalText = looksLowSignal(lines, text);
 
   if (hasMultiplePeople) {
     riskFlags.add("multiple_people");
@@ -338,11 +398,19 @@ function buildConversationContext(
     );
   }
 
+  if (hasLowSignalText) {
+    riskFlags.add("low_signal_extract");
+    cautionLabels.push(
+      "This extract looks sparse or noisy, so Acre keeps field suggestions more conservative until you compare them with the original screenshot or chat.",
+    );
+  }
+
   return {
     hasMultiplePeople,
     hasHouseholdContext,
     hasContactOwnerRisk,
     hasSpeakerSwitching,
+    hasLowSignalText,
     riskFlags: [...riskFlags],
     cautionLabels,
     speakerNameCandidates,
@@ -563,21 +631,52 @@ function parseIntent(text: string, lines: string[]): ParsedAssistValue | null {
     [/\b(?:buyer|buy|purchase|looking to buy|买房|购房)\b/i, "Buyer"],
   ];
 
-  for (const [pattern, label] of checks) {
-    if (!pattern.test(text)) {
-      continue;
+  if (explicitLine) {
+    const explicitValue = explicitLine.match(intentLinePattern)?.[1] ?? explicitLine;
+    const resolved = resolveSingleMappedLabel(explicitValue, {
+      checks,
+      canonicalValues: Object.keys(intentLabelMap),
+    });
+
+    if (!resolved.value || resolved.ambiguous) {
+      return null;
     }
 
     return {
-      value: label,
-      evidence: explicitLine ?? label,
-      provenance: explicitLine ? "explicit_line" : "conversation_inference",
-      explicit: Boolean(explicitLine),
+      value: resolved.value,
+      evidence: explicitLine,
+      provenance: "explicit_line",
+      explicit: true,
       riskFlags: [],
     };
   }
 
-  return null;
+  const resolved = resolveSingleMappedLabel(text, {
+    checks,
+    canonicalValues: Object.keys(intentLabelMap),
+  });
+
+  if (!resolved.value) {
+    return null;
+  }
+
+  if (resolved.ambiguous) {
+    return {
+      value: resolved.value,
+      evidence: resolved.value,
+      provenance: "conversation_inference",
+      explicit: false,
+      riskFlags: ["ambiguous_intent"],
+    };
+  }
+
+  return {
+    value: resolved.value,
+    evidence: resolved.value,
+    provenance: "conversation_inference",
+    explicit: false,
+    riskFlags: [],
+  };
 }
 
 function parseStage(text: string, lines: string[]): ParsedAssistValue | null {
@@ -605,21 +704,52 @@ function parseStage(text: string, lines: string[]): ParsedAssistValue | null {
     [/\b(?:pending|待定)\b/i, "Pending"],
   ];
 
-  for (const [pattern, label] of checks) {
-    if (!pattern.test(text)) {
-      continue;
+  if (explicitLine) {
+    const explicitValue = explicitLine.match(stageLinePattern)?.[1] ?? explicitLine;
+    const resolved = resolveSingleMappedLabel(explicitValue, {
+      checks,
+      canonicalValues: Object.keys(stageLabelMap),
+    });
+
+    if (!resolved.value || resolved.ambiguous) {
+      return null;
     }
 
     return {
-      value: label,
-      evidence: explicitLine ?? label,
-      provenance: explicitLine ? "explicit_line" : "conversation_inference",
-      explicit: Boolean(explicitLine),
+      value: resolved.value,
+      evidence: explicitLine,
+      provenance: "explicit_line",
+      explicit: true,
       riskFlags: [],
     };
   }
 
-  return null;
+  const resolved = resolveSingleMappedLabel(text, {
+    checks,
+    canonicalValues: Object.keys(stageLabelMap),
+  });
+
+  if (!resolved.value) {
+    return null;
+  }
+
+  if (resolved.ambiguous) {
+    return {
+      value: resolved.value,
+      evidence: resolved.value,
+      provenance: "conversation_inference",
+      explicit: false,
+      riskFlags: ["ambiguous_stage"],
+    };
+  }
+
+  return {
+    value: resolved.value,
+    evidence: resolved.value,
+    provenance: "conversation_inference",
+    explicit: false,
+    riskFlags: [],
+  };
 }
 
 function parseMoneyToken(value: string) {
@@ -1012,6 +1142,18 @@ function buildCautionLabels(riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[]) {
     labels.push("Relative timing should be confirmed");
   }
 
+  if (riskFlags.includes("low_signal_extract")) {
+    labels.push("Low-signal extract");
+  }
+
+  if (riskFlags.includes("ambiguous_stage")) {
+    labels.push("Stage cues conflict with each other");
+  }
+
+  if (riskFlags.includes("ambiguous_intent")) {
+    labels.push("Intent cues conflict with each other");
+  }
+
   if (riskFlags.includes("preview_summary")) {
     labels.push("Preview summary only");
   }
@@ -1034,17 +1176,22 @@ function resolveFieldAssessment(input: {
   parsed: ParsedAssistValue;
   context: ConversationContext;
 }) {
-  const cautionLabels = buildCautionLabels(input.parsed.riskFlags);
+  const effectiveRiskFlags = uniqueStrings([
+    ...input.parsed.riskFlags,
+    input.context.hasLowSignalText ? "low_signal_extract" : "",
+  ]) as FrontOfficeLeadIntakeAssistRiskFlag[];
+  const cautionLabels = buildCautionLabels(effectiveRiskFlags);
   const hasIdentityRisk =
-    input.parsed.riskFlags.includes("multiple_people") ||
-    input.parsed.riskFlags.includes("household_context") ||
-    input.parsed.riskFlags.includes("speaker_switching") ||
-    input.parsed.riskFlags.includes("contact_owner_unclear") ||
-    input.parsed.riskFlags.includes("multiple_contact_values");
+    effectiveRiskFlags.includes("multiple_people") ||
+    effectiveRiskFlags.includes("household_context") ||
+    effectiveRiskFlags.includes("speaker_switching") ||
+    effectiveRiskFlags.includes("contact_owner_unclear") ||
+    effectiveRiskFlags.includes("multiple_contact_values");
+  const hasLowSignal = effectiveRiskFlags.includes("low_signal_extract");
 
   switch (input.field) {
     case "fullName":
-      return input.parsed.explicit && !hasIdentityRisk
+      return input.parsed.explicit && !hasIdentityRisk && !hasLowSignal
         ? {
             confidence: "high" as const,
             suggestedAction: "safe_apply" as const,
@@ -1053,17 +1200,20 @@ function resolveFieldAssessment(input: {
             cautionLabels,
           }
         : {
-            confidence: input.parsed.explicit
-              ? ("medium" as const)
-              : ("low" as const),
+            confidence:
+              input.parsed.explicit && !hasLowSignal
+                ? ("medium" as const)
+                : ("low" as const),
             suggestedAction: "review_first" as const,
             reasonLabel:
-              "Lead identity needs review because the conversation may reference more than one person.",
+              hasLowSignal
+                ? "Lead identity needs review because the extract still looks sparse or noisy."
+                : "Lead identity needs review because the conversation may reference more than one person.",
             cautionLabels,
           };
     case "phone":
     case "email":
-      if (input.parsed.riskFlags.includes("multiple_contact_values")) {
+      if (effectiveRiskFlags.includes("multiple_contact_values")) {
         return {
           confidence: "low" as const,
           suggestedAction: "review_first" as const,
@@ -1073,18 +1223,22 @@ function resolveFieldAssessment(input: {
         };
       }
 
-      return !hasIdentityRisk
+      return input.parsed.explicit && !hasIdentityRisk && !hasLowSignal
         ? {
             confidence: "high" as const,
             suggestedAction: "safe_apply" as const,
-            reasonLabel: `${input.field === "phone" ? "Phone" : "Email"} matched a clear contact pattern.`,
+            reasonLabel: `${input.field === "phone" ? "Phone" : "Email"} was found on a clear contact line.`,
             cautionLabels,
           }
         : {
-            confidence: "medium" as const,
+            confidence:
+              hasIdentityRisk || hasLowSignal
+                ? ("medium" as const)
+                : ("low" as const),
             suggestedAction: "review_first" as const,
-            reasonLabel:
-              "Contact details were found, but they may belong to a family member, relay contact, or another participant.",
+            reasonLabel: input.parsed.explicit
+              ? "Contact details were found, but they may belong to a family member, relay contact, or another participant."
+              : `${input.field === "phone" ? "Phone" : "Email"} matched a contact pattern, but Acre wants you to compare it with the original extract before it enters the live form.`,
             cautionLabels,
           };
     case "source":
@@ -1096,7 +1250,19 @@ function resolveFieldAssessment(input: {
       };
     case "stage":
     case "intent":
-      return input.parsed.explicit
+      if (
+        effectiveRiskFlags.includes("ambiguous_stage") ||
+        effectiveRiskFlags.includes("ambiguous_intent")
+      ) {
+        return {
+          confidence: "low" as const,
+          suggestedAction: "review_first" as const,
+          reasonLabel: `${input.field === "stage" ? "Stage" : "Intent"} cues conflict in the same extract, so Acre kept the suggestion conservative.`,
+          cautionLabels,
+        };
+      }
+
+      return input.parsed.explicit && !hasLowSignal
         ? {
             confidence: "high" as const,
             suggestedAction: "safe_apply" as const,
@@ -1110,12 +1276,14 @@ function resolveFieldAssessment(input: {
             cautionLabels,
           };
     case "budgetMax":
-      return input.parsed.riskFlags.includes("multiple_budget_values")
+      return effectiveRiskFlags.includes("multiple_budget_values") || hasLowSignal
         ? {
-            confidence: "medium" as const,
+            confidence: hasLowSignal ? ("low" as const) : ("medium" as const),
             suggestedAction: "review_first" as const,
             reasonLabel:
-              "A budget signal was found, but multiple amounts appeared in the same extract.",
+              effectiveRiskFlags.includes("multiple_budget_values")
+                ? "A budget signal was found, but multiple amounts appeared in the same extract."
+                : "A budget signal was found, but the extract still looks sparse or noisy.",
             cautionLabels,
           }
         : {
@@ -1132,24 +1300,28 @@ function resolveFieldAssessment(input: {
           };
     case "preferredAreas":
       return {
-        confidence: input.parsed.explicit
+        confidence: input.parsed.explicit && !hasLowSignal
           ? ("high" as const)
           : ("medium" as const),
-        suggestedAction: input.parsed.explicit
+        suggestedAction: input.parsed.explicit && !hasLowSignal
           ? ("safe_apply" as const)
           : ("review_first" as const),
-        reasonLabel: input.parsed.explicit
+        reasonLabel: input.parsed.explicit && !hasLowSignal
           ? "Areas came from a location line."
-          : "Areas were inferred from freeform text.",
+          : hasLowSignal
+            ? "Area cues were found, but the extract looks noisy enough that Acre keeps them review-first."
+            : "Areas were inferred from freeform text.",
         cautionLabels,
       };
     case "nextFollowUpAt":
-      if (input.parsed.riskFlags.includes("relative_timing")) {
+      if (effectiveRiskFlags.includes("relative_timing") || hasLowSignal) {
         return {
-          confidence: "medium" as const,
+          confidence: hasLowSignal ? ("low" as const) : ("medium" as const),
           suggestedAction: "review_first" as const,
           reasonLabel:
-            "Follow-up timing was detected, but relative dates should be confirmed before applying.",
+            effectiveRiskFlags.includes("relative_timing")
+              ? "Follow-up timing was detected, but relative dates should be confirmed before applying."
+              : "Follow-up timing was detected, but the extract still looks noisy enough that Acre keeps the date review-first.",
           cautionLabels,
         };
       }
@@ -1177,6 +1349,54 @@ function resolveFieldAssessment(input: {
   }
 }
 
+function buildSourceDetailLabel(
+  field: keyof FrontOfficeLeadIntakeAssistDraft,
+  parsed: ParsedAssistValue,
+) {
+  switch (parsed.provenance) {
+    case "explicit_line":
+      return "Source: came from a clearly labeled line in the extract.";
+    case "pattern_match":
+      return `Source: matched a ${
+        field === "phone" ? "phone" : "contact"
+      } pattern in the extract.`;
+    case "conversation_inference":
+      return "Source: inferred from surrounding conversation context, not a labeled field.";
+    case "assist_mode":
+      return "Source: derived from the assist mode you used, not from lead message content.";
+    case "summary_preview":
+      return "Source: summarized from freeform text and kept preview-only.";
+  }
+}
+
+function buildReviewHintLabel(input: {
+  field: keyof FrontOfficeLeadIntakeAssistDraft;
+  parsed: ParsedAssistValue;
+  suggestedAction: FrontOfficeLeadIntakeAssistSuggestedAction;
+}) {
+  if (input.suggestedAction === "preview_only") {
+    return "Review hint: keep only the useful part, then rewrite or paste it into Notes manually.";
+  }
+
+  if (input.field === "nextFollowUpAt") {
+    return input.parsed.riskFlags.includes("relative_timing")
+      ? "Review hint: confirm the exact calendar date before you apply it."
+      : "Review hint: check that this follow-up date matches the real next-touch plan.";
+  }
+
+  if (input.field === "fullName") {
+    return "Review hint: confirm this is the primary lead, not another household member or chat participant.";
+  }
+
+  if (input.field === "phone" || input.field === "email") {
+    return "Review hint: compare this contact value against the original chat or screenshot before applying it.";
+  }
+
+  return input.suggestedAction === "safe_apply"
+    ? "Review hint: once this matches the original input, you can move it into the live form."
+    : "Review hint: compare this suggestion with the original text before you let it into the live form.";
+}
+
 function buildField(
   field: keyof FrontOfficeLeadIntakeAssistDraft,
   label: string,
@@ -1199,8 +1419,14 @@ function buildField(
     value: parsed.value.trim(),
     provenance: parsed.provenance,
     provenanceLabel: buildProvenanceLabel(parsed.provenance),
+    sourceDetailLabel: buildSourceDetailLabel(field, parsed),
     confidenceLabel: buildConfidenceLabel(assessment.confidence),
     suggestedActionLabel: buildSuggestedActionLabel(assessment.suggestedAction),
+    reviewHintLabel: buildReviewHintLabel({
+      field,
+      parsed,
+      suggestedAction: assessment.suggestedAction,
+    }),
     evidenceLabel: truncateEvidenceLabel(parsed.evidence),
     ...assessment,
   };
@@ -1219,6 +1445,22 @@ function buildSafetySummary(
     };
   }
 
+  if (
+    context.hasLowSignalText &&
+    !context.hasMultiplePeople &&
+    !context.hasHouseholdContext &&
+    !context.hasSpeakerSwitching &&
+    !context.hasContactOwnerRisk
+  ) {
+    return {
+      tone: "warning",
+      label: "Low-signal extract: compare suggestions with the original input",
+      detail:
+        "Acre found some usable text, but the screenshot or transcript still looks sparse or noisy enough that every field should stay under manual review.",
+      cautionLabels: context.cautionLabels,
+    };
+  }
+
   return {
     tone: "warning",
     label: "Review lead identity before applying suggestions",
@@ -1226,10 +1468,6 @@ function buildSafetySummary(
       "This extract may involve multiple people or indirect contact details, so Acre kept identity-sensitive fields conservative.",
     cautionLabels: context.cautionLabels,
   };
-}
-
-function countAlphaNumericLikeChars(value: string) {
-  return value.match(/[A-Za-z0-9\u4e00-\u9fff]/g)?.length ?? 0;
 }
 
 function buildReadinessSummary(input: {
