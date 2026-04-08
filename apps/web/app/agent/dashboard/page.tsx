@@ -42,10 +42,26 @@ function getClientReviewActionLabel(stage: string) {
     : "Open client workspace";
 }
 
+type ClientWorkbenchView =
+  | "all"
+  | "follow_first"
+  | "anchor_now"
+  | "viewing_lane"
+  | "boundary_review"
+  | "duplicate_review";
+
+function buildClientWorkbenchHref(
+  clientView: ClientWorkbenchView,
+  hash?: string,
+) {
+  return `/agent/clients?clientView=${clientView}${hash ? `#${hash}` : ""}`;
+}
+
 function getDashboardQueueAction(input: {
   actionId: string;
   href: string;
   actionLabel: string;
+  count: number;
   canViewClients: boolean;
 }) {
   if (!input.canViewClients) {
@@ -57,8 +73,13 @@ function getDashboardQueueAction(input: {
 
   if (input.actionId === "follow-up" && input.href === "/agent/clients") {
     return {
-      href: "/agent/clients#client-pipeline",
-      label: "Review client queue",
+      href: input.count === 1
+        ? buildClientWorkbenchHref("anchor_now")
+        : buildClientWorkbenchHref("follow_first"),
+      label:
+        input.count === 1
+          ? "Anchor now"
+          : "Open follow-first queue",
     };
   }
 
@@ -67,8 +88,12 @@ function getDashboardQueueAction(input: {
     input.href === "/agent/clients"
   ) {
     return {
-      href: "/agent/clients#client-pipeline",
-      label: "Open client reminders",
+      href:
+        input.count === 1
+          ? buildClientWorkbenchHref("anchor_now")
+          : buildClientWorkbenchHref("viewing_lane"),
+      label:
+        input.count === 1 ? "Anchor lease now" : "Open lease lane",
     };
   }
 
@@ -141,12 +166,20 @@ function buildDashboardLaunchpadItems(input: {
   const leadingEngagement = input.snapshot.listingOutput.recentEngagement[0] ?? null;
   const leadingBackOfficeItem = input.snapshot.backOffice.items[0] ?? null;
   const leadingLeadershipItem = input.snapshot.leadershipQueue.items[0] ?? null;
+  const actionQueueById = new Map(
+    input.snapshot.actionQueue.map((item) => [item.id, item] as const),
+  );
   const followUpLead =
     input.snapshot.pipeline.recentClients.find(
       (client) =>
         client.nextTouchLabel.includes("Due") ||
         client.nextTouchLabel.includes("Overdue"),
     ) ?? input.snapshot.pipeline.recentClients[0] ?? null;
+  const followUpAction = actionQueueById.get("follow-up") ?? null;
+  const commitmentAction = actionQueueById.get("commitments") ?? null;
+  const leaseAction = actionQueueById.get("lease-reminders") ?? null;
+  const handoffAction = actionQueueById.get("handoff") ?? null;
+  const leadershipAction = actionQueueById.get("leadership") ?? null;
 
   if (
     input.snapshot.leadershipQueue.visible &&
@@ -162,14 +195,17 @@ function buildDashboardLaunchpadItems(input: {
           ? "Clear visible team cleanup pressure"
           : "Clear visible office cleanup pressure",
       description: leadingLeadershipItem
-        ? `${leadingLeadershipItem.title} is the clearest pressure point right now. Review it in the FO activity center before it turns into a formal fire drill.`
+        ? `${leadingLeadershipItem.title} is the clearest pressure point right now. ${leadingLeadershipItem.whyNowLabel}`
         : "Leadership cleanup is already visible in Front Office, so missed follow-up and quiet send trails do not hide behind Back Office work.",
-      metaLabel: `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s)`,
-      href: "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
+      metaLabel: leadershipAction
+        ? `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s) · ${leadershipAction.nextStepLabel}`
+        : `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s)`,
+      href: leadershipAction?.href ?? "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
       actionLabel:
-        input.viewerRole === "team_lead"
+        leadershipAction?.actionLabel ??
+        (input.viewerRole === "team_lead"
           ? "Open team cleanup"
-          : "Open office cleanup",
+          : "Open office cleanup"),
     });
   }
 
@@ -187,18 +223,19 @@ function buildDashboardLaunchpadItems(input: {
             input.snapshot.summary.followUpDueCount > 0
               ? `${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`
               : `${input.snapshot.summary.overdueTaskCount} shared follow-up task(s) are already overdue.`
-          }`
+          } ${followUpAction?.whyNowLabel ?? ""}`.trim()
         : `${
             input.snapshot.summary.followUpDueCount > 0
               ? `${input.snapshot.summary.followUpDueCount} client touch(es) are already due today or overdue.`
               : `${input.snapshot.summary.overdueTaskCount} shared follow-up task(s) are already overdue.`
           }`,
-      metaLabel:
-        input.snapshot.summary.overdueTaskCount > 0
+      metaLabel: followUpAction
+        ? followUpAction.nextStepLabel
+        : input.snapshot.summary.overdueTaskCount > 0
           ? `${input.snapshot.summary.overdueTaskCount} overdue task(s) already sit in the shared follow-up clock`
           : "The shared follow-up clock still drives the next-touch order",
-      href: "/agent/clients#client-pipeline",
-      actionLabel: "Open client queue",
+      href: followUpAction?.href ?? buildClientWorkbenchHref("follow_first"),
+      actionLabel: followUpAction?.actionLabel ?? "Open follow-first queue",
     });
   }
 
@@ -208,10 +245,14 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel: leadingLeaseReminder.statusLabel,
       badgeTone: leadingLeaseReminder.tone,
       title: `Protect ${leadingLeaseReminder.clientName}'s lease window`,
-      description: `${leadingLeaseReminder.detailLabel} Keep renewal, move, or remarketing timing visible before it slips into a last-minute scramble.`,
-      metaLabel: leadingLeaseReminder.reminderLabel,
-      href: leadingLeaseReminder.href,
-      actionLabel: "Open client dossier",
+      description: leaseAction
+        ? `${leadingLeaseReminder.detailLabel} ${leaseAction.whyNowLabel}`
+        : `${leadingLeaseReminder.detailLabel} Keep renewal, move, or remarketing timing visible before it slips into a last-minute scramble.`,
+      metaLabel: leaseAction
+        ? leaseAction.nextStepLabel
+        : leadingLeaseReminder.reminderLabel,
+      href: leaseAction?.href ?? leadingLeaseReminder.href,
+      actionLabel: leaseAction?.actionLabel ?? "Open client dossier",
     });
   }
 
@@ -222,13 +263,15 @@ function buildDashboardLaunchpadItems(input: {
       badgeTone: "accent",
       title: "Prep the next time-bound commitment",
       description: leadingCommitment
-        ? `${leadingCommitment.title} is already on the calendar. Use Front Office to confirm prep, follow-through, and any promised next touch before the start window.`
+        ? `${leadingCommitment.title} is already on the calendar. ${commitmentAction?.whyNowLabel ?? "Use Front Office to confirm prep, follow-through, and any promised next touch before the start window."}`
         : `${input.snapshot.summary.todayCommitmentCount} appointment or office commitment(s) land today.`,
-      metaLabel: leadingCommitment
-        ? `${leadingCommitment.startsAtLabel} · ${leadingCommitment.contextLabel}`
-        : `${input.snapshot.summary.todayCommitmentCount} commitment(s) scheduled today`,
-      href: "/agent/calendar",
-      actionLabel: "Open calendar",
+      metaLabel: commitmentAction
+        ? commitmentAction.nextStepLabel
+        : leadingCommitment
+          ? `${leadingCommitment.startsAtLabel} · ${leadingCommitment.contextLabel}`
+          : `${input.snapshot.summary.todayCommitmentCount} commitment(s) scheduled today`,
+      href: commitmentAction?.href ?? "/agent/calendar",
+      actionLabel: commitmentAction?.actionLabel ?? "Open calendar",
     });
   }
 
@@ -238,10 +281,14 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel: "Boundary",
       badgeTone: leadingBackOfficeItem.tone,
       title: `Open ${leadingBackOfficeItem.title}'s formal workflow`,
-      description: `${leadingBackOfficeItem.description} Keep the FO -> BO boundary explicit and only open the formal record when the package is genuinely ready.`,
-      metaLabel: leadingBackOfficeItem.contextLabel,
-      href: leadingBackOfficeItem.href,
-      actionLabel: leadingBackOfficeItem.actionLabel,
+      description: handoffAction
+        ? `${leadingBackOfficeItem.description} ${handoffAction.whyNowLabel}`
+        : `${leadingBackOfficeItem.description} Keep the FO -> BO boundary explicit and only open the formal record when the package is genuinely ready.`,
+      metaLabel: handoffAction
+        ? handoffAction.nextStepLabel
+        : leadingBackOfficeItem.contextLabel,
+      href: handoffAction?.href ?? leadingBackOfficeItem.href,
+      actionLabel: handoffAction?.actionLabel ?? leadingBackOfficeItem.actionLabel,
     });
   }
 
@@ -297,8 +344,8 @@ function buildDashboardLaunchpadItems(input: {
       title: "Resolve duplicate pressure before more work lands",
       description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Review first so intake and follow-up stay on one surviving dossier.`,
       metaLabel: "Duplicate compare and merge still stays in the client queue",
-      href: "/agent/clients#duplicate-review",
-      actionLabel: "Open duplicate review",
+      href: buildClientWorkbenchHref("duplicate_review", "duplicate-review"),
+      actionLabel: "Open duplicate review lane",
     });
   }
 
@@ -555,9 +602,9 @@ export default async function AgentDashboardPage() {
                 {canViewClients ? (
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
-                    href="/agent/clients#client-pipeline"
+                    href={buildClientWorkbenchHref("follow_first")}
                   >
-                    Open client queue
+                    Open follow-first queue
                   </FrontOfficeLink>
                 ) : null}
               </>
@@ -592,7 +639,8 @@ export default async function AgentDashboardPage() {
                 {executionOrder.length ? (
                   executionOrder.map((item, index) => (
                     <span key={item.id}>
-                      {getLaunchpadStepContext(index)} · {item.label}
+                      {getLaunchpadStepContext(index)} · {item.label} ·{" "}
+                      {item.nextStepLabel}
                     </span>
                   ))
                 ) : (
@@ -726,9 +774,9 @@ export default async function AgentDashboardPage() {
                   action={
                     <FrontOfficeLink
                       className="office-inline-link front-office-inline-link"
-                      href="/agent/clients#client-pipeline"
+                      href={buildClientWorkbenchHref("all")}
                     >
-                      Open client pipeline
+                      Open all clients
                     </FrontOfficeLink>
                   }
                   badgeLabel="Clients"
@@ -747,9 +795,9 @@ export default async function AgentDashboardPage() {
                   action={
                     <FrontOfficeLink
                       className="office-inline-link front-office-inline-link"
-                      href="/agent/clients#duplicate-review"
+                      href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
                     >
-                      Open duplicate review
+                      Open duplicate review lane
                     </FrontOfficeLink>
                   }
                   badgeLabel={
@@ -789,7 +837,7 @@ export default async function AgentDashboardPage() {
                             </FrontOfficeLink>
                             <FrontOfficeLink
                               className="office-inline-link front-office-inline-link"
-                              href="/agent/clients#duplicate-review"
+                              href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
                             >
                               Open duplicate lane
                             </FrontOfficeLink>
@@ -851,6 +899,7 @@ export default async function AgentDashboardPage() {
                   actionId: item.id,
                   href: item.href,
                   actionLabel: item.actionLabel,
+                  count: item.count,
                   canViewClients,
                 });
                 const laneStatus = getActionLaneStatus(item);
@@ -872,6 +921,8 @@ export default async function AgentDashboardPage() {
                     <div className="list-row-meta front-office-record-meta">
                       <span>{item.count} item(s)</span>
                       <span>{item.helper}</span>
+                      <span>{item.whyNowLabel}</span>
+                      <span>{item.nextStepLabel}</span>
                     </div>
                     <FrontOfficeLink
                       className="office-inline-link front-office-inline-link"
@@ -996,15 +1047,15 @@ export default async function AgentDashboardPage() {
                 <>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
-                    href="/agent/clients#client-pipeline"
+                    href={buildClientWorkbenchHref("all")}
                   >
-                    Open client list
+                    Open all clients
                   </FrontOfficeLink>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
-                    href="/agent/clients#duplicate-review"
+                    href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
                   >
-                    Review duplicates
+                    Review duplicate lane
                   </FrontOfficeLink>
                 </>
               ) : undefined
@@ -1141,7 +1192,7 @@ export default async function AgentDashboardPage() {
                       className="office-inline-link front-office-inline-link"
                       href={commitment.href}
                     >
-                      Open calendar
+                      {commitment.actionLabel}
                     </FrontOfficeLink>
                   </article>
                 ))
@@ -1355,12 +1406,12 @@ export default async function AgentDashboardPage() {
                       className="office-button-secondary"
                       href={
                         canViewClients
-                          ? "/agent/clients#client-pipeline"
+                          ? buildClientWorkbenchHref("all")
                           : activityCenterHref
                       }
                     >
                       {canViewClients
-                        ? "Stay in client queue"
+                        ? "Stay in all clients"
                         : "Open activity center"}
                     </Link>
                   }
@@ -1427,6 +1478,8 @@ export default async function AgentDashboardPage() {
                         <>
                           <span>{item.ownerLabel}</span>
                           <span>{item.pressureLabel}</span>
+                          <span>{item.whyNowLabel}</span>
+                          <span>{item.nextStepLabel}</span>
                         </>
                       }
                       title={item.title}
@@ -1496,9 +1549,9 @@ export default async function AgentDashboardPage() {
               canViewClients ? (
                 <FrontOfficeLink
                   className="office-inline-link front-office-inline-link"
-                  href="/agent/clients#client-pipeline"
+                  href={buildClientWorkbenchHref("viewing_lane")}
                 >
-                  Open client queue
+                  Open lease lane
                 </FrontOfficeLink>
               ) : undefined
             }

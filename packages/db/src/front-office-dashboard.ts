@@ -102,6 +102,8 @@ export type FrontOfficeDashboardActionQueueItem = {
   tone: FrontOfficeDashboardTone;
   description: string;
   helper: string;
+  whyNowLabel: string;
+  nextStepLabel: string;
   href: string;
   actionLabel: string;
 };
@@ -131,6 +133,7 @@ export type FrontOfficeDashboardCommitmentItem = {
   startsAtLabel: string;
   locationLabel: string;
   contextLabel: string;
+  actionLabel: string;
   href: string;
 };
 
@@ -193,6 +196,7 @@ export type FrontOfficeDashboardLeaseReminderItem = {
   tone: FrontOfficeDashboardTone;
   reminderLabel: string;
   detailLabel: string;
+  actionLabel: string;
   href: string;
 };
 
@@ -776,6 +780,21 @@ function formatEventVisibilityLabel(
   }
 
   return "Invite only";
+}
+
+type FrontOfficeClientWorkbenchView =
+  | "all"
+  | "follow_first"
+  | "anchor_now"
+  | "viewing_lane"
+  | "boundary_review"
+  | "duplicate_review";
+
+function buildClientWorkbenchHref(
+  clientView: FrontOfficeClientWorkbenchView,
+  hash?: string,
+) {
+  return `/agent/clients?clientView=${clientView}${hash ? `#${hash}` : ""}`;
 }
 
 function formatAppointmentTypeLabel(type: AppointmentType) {
@@ -1936,6 +1955,7 @@ export async function getFrontOfficeDashboardSnapshot(
                 })
               : formatDateLabel(leaseReminder.reminderAt),
           detailLabel: leaseReminder.detailLabel,
+          actionLabel: "Open client dossier",
           href: `/agent/clients/${client.id}`,
         },
       ];
@@ -2740,7 +2760,12 @@ export async function getFrontOfficeDashboardSnapshot(
           : appointment.listing?.title
             ? `Listing · ${appointment.listing.title}`
             : "Front Office appointment",
-        href: "/agent/calendar",
+        actionLabel: appointment.client?.id
+          ? "Open calendar focus"
+          : "Open calendar",
+        href: appointment.client?.id
+          ? `/agent/calendar?clientId=${appointment.client.id}`
+          : "/agent/calendar",
       },
     })),
     ...upcomingEvents.map((event) => ({
@@ -2765,6 +2790,7 @@ export async function getFrontOfficeDashboardSnapshot(
               : event.rsvps[0]?.status === "declined"
                 ? "You declined"
                 : `${formatEventVisibilityLabel(event.visibility)} · ${event._count.rsvps} RSVP(s)`,
+        actionLabel: "Open calendar",
         href: "/agent/notifications",
       },
     })),
@@ -2809,12 +2835,12 @@ export async function getFrontOfficeDashboardSnapshot(
   const followUpAction =
     followUpPressureCount === 1 && leadingFollowUpClient
       ? {
-          href: `/agent/clients/${leadingFollowUpClient.id}`,
-          actionLabel: "Open first dossier",
+          href: buildClientWorkbenchHref("anchor_now"),
+          actionLabel: "Anchor now",
         }
       : {
-          href: "/agent/clients",
-          actionLabel: "Work follow-up queue",
+          href: buildClientWorkbenchHref("follow_first"),
+          actionLabel: "Open follow-first queue",
         };
   const leadingCommitmentItem = commitmentItems[0] ?? null;
   const leadingLeaseReminderItem = leaseReminderItems[0] ?? null;
@@ -2876,6 +2902,16 @@ export async function getFrontOfficeDashboardSnapshot(
         overdueFollowUpTaskCount > 0
           ? `${overdueFollowUpTaskCount} task(s) are already overdue, with ${openFollowUpTaskCount} still open in total.`
           : `${openFollowUpTaskCount} scheduled follow-up task(s) remain open in the shared Front Office clock.`,
+      whyNowLabel:
+        leadingFollowUpClient && dueFollowUpCount > 0
+          ? `${leadingFollowUpClient.fullName} is due first, so the follow-first queue should be the next stop.`
+          : overdueFollowUpTaskCount > 0
+            ? `${overdueFollowUpTaskCount} shared follow-up task(s) are already overdue.`
+            : "The shared follow-up clock is clear for now.",
+      nextStepLabel:
+        followUpPressureCount === 1 && leadingFollowUpClient
+          ? "Anchor now and work the top dossier."
+          : "Open the follow-first queue and clear the next touch.",
       href: followUpAction.href,
       actionLabel: followUpAction.actionLabel,
     },
@@ -2893,11 +2929,16 @@ export async function getFrontOfficeDashboardSnapshot(
       helper: leadingCommitmentItem
         ? `${leadingCommitmentItem.startsAtLabel} · ${leadingCommitmentItem.contextLabel} · External calendar and email remain explicit bridge actions, not hidden sync.`
         : "The live FO calendar stays action-first. Google, Outlook, ICS, and email are still explicit jump-outs, not two-way sync.",
+      whyNowLabel: leadingCommitmentItem
+        ? leadingCommitmentItem.id.startsWith("event-")
+          ? `${leadingCommitmentItem.title} is already on the office calendar.`
+          : `${leadingCommitmentItem.title} is already on the calendar and should be prepped before the start window.`
+        : "The nearest commitment is already visible on the calendar.",
+      nextStepLabel: leadingCommitmentItem
+        ? leadingCommitmentItem.actionLabel
+        : "Open the calendar and confirm prep.",
       href: leadingCommitmentItem?.href ?? "/agent/calendar",
-      actionLabel:
-        leadingCommitmentItem?.id.startsWith("event-")
-          ? "Open event"
-          : "Open calendar",
+      actionLabel: leadingCommitmentItem?.actionLabel ?? "Open calendar",
     },
     {
       id: "lease-reminders",
@@ -2918,14 +2959,20 @@ export async function getFrontOfficeDashboardSnapshot(
           : leadingLeaseReminderItem
             ? `${leadingLeaseReminderItem.statusLabel} · ${leadingLeaseReminderItem.detailLabel}`
             : "Lease timing stays visible here before renewal, remarketing, or move planning becomes a fire drill.",
+      whyNowLabel: leadingLeaseReminderItem
+        ? `${leadingLeaseReminderItem.clientName} needs lease timing attention now.`
+        : "No lease timing pressure is visible right now.",
+      nextStepLabel: leadingLeaseReminderItem
+        ? "Open the client dossier and confirm the next timing touch."
+        : "Open the lease lane and sort the next reminder.",
       href:
         dueLeaseReminderCount === 1 && leadingLeaseReminderItem
           ? leadingLeaseReminderItem.href
-          : "/agent/clients",
+          : buildClientWorkbenchHref("viewing_lane"),
       actionLabel:
         dueLeaseReminderCount === 1 && leadingLeaseReminderItem
           ? "Open client dossier"
-          : "Review lease reminders",
+          : "Open lease lane",
     },
     {
       id: "content",
@@ -2934,6 +2981,12 @@ export async function getFrontOfficeDashboardSnapshot(
       tone: sendSignalTone,
       description: sendSignalDescription,
       helper: sendSignalHelper,
+      whyNowLabel: leadingSendRecord
+        ? `${leadingSendRecord.client.fullName} already has tracked send history waiting for the next touch.`
+        : "Tracked sending is ready once the target client and channel are clear.",
+      nextStepLabel: leadingSendRecord
+        ? "Open the dossier and choose the next send."
+        : "Open listing output and start a tracked send.",
       href: leadingSendRecord
         ? `/agent/clients/${leadingSendRecord.client.id}`
         : "/agent/listings",
@@ -2952,6 +3005,12 @@ export async function getFrontOfficeDashboardSnapshot(
       helper: leadingBackOfficeItem
         ? `${leadingBackOfficeItem.contextLabel} · ${leadingBackOfficeItem.description}`
         : "Front Office can tee up the work, but the official record still starts in Back Office.",
+      whyNowLabel: leadingBackOfficeItem
+        ? `${leadingBackOfficeItem.title} is ready for formal ownership outside Front Office.`
+        : "No formal handoff is waiting right now.",
+      nextStepLabel: leadingBackOfficeItem
+        ? `Open Back Office and complete ${leadingBackOfficeItem.contextLabel.toLowerCase()}.`
+        : "Review the formal handoff queue.",
       href: leadingBackOfficeItem?.href ?? "/office/transactions",
       actionLabel:
         leadingBackOfficeItem?.actionLabel ?? "Review formal handoff",
@@ -2973,6 +3032,12 @@ export async function getFrontOfficeDashboardSnapshot(
           helper: leadingLeadershipItem
             ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope.`
             : "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
+          whyNowLabel: leadingLeadershipItem
+            ? leadingLeadershipItem.whyNowLabel
+            : "Leadership cleanup is clear for now.",
+          nextStepLabel: leadingLeadershipItem
+            ? leadingLeadershipItem.nextStepLabel
+            : "Open the cleanup lane and scan the next pressure point.",
           href: leadershipNotificationsHref,
           actionLabel:
             input.viewerRole === "team_lead"
