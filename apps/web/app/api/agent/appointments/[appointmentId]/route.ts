@@ -42,7 +42,7 @@ function mapAppointmentUpdateErrorStatus(message: string) {
   ) {
     return {
       status: 422,
-      hint: "Check the selected status and next-touch value, then try again.",
+      hint: "Check the selected status and promised next-touch checkpoint, then try again.",
     };
   }
 
@@ -91,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json(
       {
         error:
-          "Provide either an appointment status update or an external coordination writeback.",
+          "Provide either an appointment status update or an external coordination checkpoint.",
       },
       { status: 400 },
     );
@@ -101,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json(
       {
         error:
-          "Submit either an appointment status update or an external coordination writeback, not both.",
+          "Submit either an appointment status update or an external coordination checkpoint, not both.",
       },
       { status: 400 },
     );

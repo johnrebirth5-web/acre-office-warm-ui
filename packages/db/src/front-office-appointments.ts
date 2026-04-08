@@ -748,8 +748,8 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
       tone: "danger" as const,
       detail:
         input.externalWorkflow.nextActionAtLabel === "No next external touch set"
-          ? "Acre expects another outside touch now, but the saved follow-up deadline is already overdue."
-          : `The saved next external touch is overdue since ${input.externalWorkflow.nextActionAtLabel}.`,
+          ? "Acre expects another outside touch now, but the saved promised checkpoint is already overdue."
+          : `The saved promised checkpoint is overdue since ${input.externalWorkflow.nextActionAtLabel}.`,
       needsNextTouchPlan: false,
     };
   }
@@ -763,7 +763,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
       label: "Missing next touch",
       tone: "warning" as const,
       detail:
-        "The appointment still needs outside confirmation or follow-up, but no next-touch deadline is saved yet.",
+        "The appointment still needs outside confirmation or follow-up, but no promised next-touch checkpoint is saved yet.",
       needsNextTouchPlan: true,
     };
   }
@@ -780,7 +780,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed
           ? "success"
           : "accent",
-      detail: `Next external touch is set for ${input.externalWorkflow.nextActionAtLabel}.`,
+      detail: `Promised next touch is set for ${input.externalWorkflow.nextActionAtLabel}.`,
       needsNextTouchPlan: false,
     };
   }
@@ -812,7 +812,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
     label: "No bridge or writeback yet",
     tone: "neutral" as const,
     detail:
-      "Acre has the appointment on the calendar, but there is still no explicit outside follow-up rhythm saved on the record.",
+      "Acre has the appointment on the calendar, but there is still no explicit outside follow-up rhythm or checkpoint saved on the record.",
     needsNextTouchPlan: false,
   };
 }
@@ -891,7 +891,8 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
     pushFrontOfficeAppointmentTouchPreset(presets, {
       id: "reschedule-2h",
       label: "Reschedule · +2h",
-      detail: "Keep the time-change conversation active in the next two hours.",
+      detail:
+        "Keep the time-change conversation active and save the promised checkpoint in the next two hours.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested,
       nextActionAt: twoHoursFromNow,
@@ -902,7 +903,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       id: "reschedule-24h",
       label: "Reschedule · +24h",
       detail:
-        "Bring the time-change thread back tomorrow if the new slot is still unresolved.",
+        "Bring the time-change thread back tomorrow if the new slot is still unresolved, and keep the checkpoint visible.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested,
       nextActionAt: oneDayFromNow,
@@ -917,7 +918,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       id: "confirmed-prestart",
       label: "Confirmed · before start",
       detail:
-        "Keep a light final check before the meeting starts without changing the confirmed state.",
+        "Keep a light final checkpoint before the meeting starts without changing the confirmed state.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
       nextActionAt: twoHoursBeforeStart,
@@ -928,7 +929,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       id: "confirmed-day-before",
       label: "Confirmed · day-before",
       detail:
-        "Use a day-before reminder when you want one last soft touch on the record.",
+        "Use a day-before reminder when you want one last soft checkpoint on the record.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
       nextActionAt: oneDayBeforeStart,
@@ -939,7 +940,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
     pushFrontOfficeAppointmentTouchPreset(presets, {
       id: "awaiting-2h",
       label: "Awaiting reply · +2h",
-      detail: "Best when you expect a same-day confirmation reply.",
+      detail: "Best when you expect a same-day confirmation reply and want a checkpoint to return to.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
       nextActionAt: twoHoursFromNow,
@@ -950,7 +951,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       id: "awaiting-24h",
       label: "Awaiting reply · +24h",
       detail:
-        "Keeps the confirmation thread visible tomorrow if no one replies today.",
+        "Keeps the confirmation thread visible tomorrow if no one replies today and preserves the promised checkpoint.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
       nextActionAt: oneDayFromNow,
@@ -961,7 +962,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       id: "followup-prestart",
       label: "Needs follow-up · before start",
       detail:
-        "Use when you want one more outbound push shortly before the meeting starts.",
+        "Use when you want one more outbound push shortly before the meeting starts and want the checkpoint ready.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp,
       nextActionAt: twoHoursBeforeStart,
@@ -975,7 +976,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       id: "followup-2h",
       label: "Needs follow-up · +2h",
       detail:
-        "Adds a fresh next-touch checkpoint without implying anything synced in the background.",
+        "Adds a fresh promised checkpoint without implying anything synced in the background.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp,
       nextActionAt: twoHoursFromNow,
@@ -995,7 +996,7 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
   timeZone?: string | null;
 }): FrontOfficeAppointmentBridgeGuidance {
   const manualOnlyDetail =
-    "Acre only logs that the bridge was opened here. Google, Outlook, ICS, and email still need a manual save or send outside the system, and the next writeback should be saved back on this appointment record.";
+    "Acre only logs that the bridge was opened here. Google, Outlook, ICS, and email still need a manual save or send outside the system, and the next checkpoint should be saved back on this appointment record.";
 
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
     return {
@@ -1025,22 +1026,22 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
     followUpDetail:
       input.externalWorkflow.value ===
       frontOfficeAppointmentExternalWorkflowStatuses.confirmed
-        ? "If the outside plan changes after this export, update the appointment writeback so Acre still reflects the confirmed state or the new reschedule plan."
+        ? "If the outside plan changes after this export, update the appointment writeback so Acre still reflects the confirmed state or the new reschedule checkpoint."
         : input.externalWorkflow.value ===
             frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
           ? "After you use the bridge, save the reschedule checkpoint in Acre so the time-change conversation stays readable."
-          : "After you use the bridge, save whether you are awaiting confirmation, confirmed, or still need another follow-up touch.",
+          : "After you use the bridge, save whether you are awaiting confirmation, confirmed, or still need another follow-up checkpoint.",
     followUpCadenceLabel: suggestedPreset
       ? suggestedPreset.label
-      : "Keep the next touch visible",
+      : "Promised next touch",
     followUpCadenceDetail: suggestedPreset
       ? `${suggestedPreset.detail} Save it back on the appointment once the bridge action is done.`
-      : "Save the next bridge checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
+      : "Save the next promised checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
     suggestedWriteback: suggestedPreset
       ? {
           status: suggestedPreset.suggestedStatus,
           label: suggestedPreset.label,
-          detail: `${suggestedPreset.detail} Load it into the writeback form, then save the next checkpoint.`,
+          detail: `${suggestedPreset.detail} Load it into the writeback form, then save the next promised checkpoint.`,
           nextActionAtLabel: suggestedPreset.nextActionAtLabel,
           nextActionAtValue: suggestedPreset.nextActionAtValue,
         }

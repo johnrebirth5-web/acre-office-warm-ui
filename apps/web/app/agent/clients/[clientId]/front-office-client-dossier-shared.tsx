@@ -26,11 +26,11 @@ export const frontOfficeClientDossierSectionLabels = {
 
 export const frontOfficeClientDossierSectionDescriptions = {
   nextStepRail:
-    "Use this section when you want the dossier to explain the active execution lane and the next best move.",
+    "Use this section when you want the dossier to explain the active workbench lane, the current return point, and the next best move.",
   appointmentsFollowUp:
-    "Use this section when the next touch belongs to calls, reminders, confirmations, reschedules, or live client coordination.",
+    "Use this section when the next touch belongs to calls, reminders, confirmations, reschedules, or live client coordination and you want to re-enter from calendar writeback.",
   listingOutput:
-    "Use this section when the next move is about tracked sends, rescues, open counts, or follow-through on a previous shortlist.",
+    "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.",
   offerPrep:
     "Use this section when the dossier has crossed into negotiation or formal offer prep and needs the FO / BO boundary to stay explicit.",
   inspectionSupport:
@@ -38,7 +38,7 @@ export const frontOfficeClientDossierSectionDescriptions = {
   closingSuggestion:
     "Use this section when the record is closing, recently won, or ready for post-close re-entry and recap.",
   backOfficeContext:
-    "Use this section when you need the dossier to explain why the formal Back Office record should take over.",
+    "Use this section when you need the dossier to explain why the formal Back Office record should take over, including cleanup or handoff routes that return here from another workbench.",
 } as const;
 
 export type FrontOfficeClientActionDescriptor = {

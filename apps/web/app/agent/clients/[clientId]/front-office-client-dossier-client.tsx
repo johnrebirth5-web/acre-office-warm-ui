@@ -194,16 +194,15 @@ function resolveSectionFocusState(
     case frontOfficeClientDossierSectionIds.appointmentsFollowUp:
       return {
         label: "Appointments & follow-up",
-        description: getFrontOfficeClientDossierSectionDescription(
-          "follow_up",
-        ),
+        description:
+          "Use this section when you are coming back from calendar writeback and want the next touch to stay attached to the same client rail.",
         href: `#${frontOfficeClientDossierSectionIds.appointmentsFollowUp}`,
       };
     case frontOfficeClientDossierSectionIds.listingOutput:
       return {
         label: "Listing output",
         description:
-          "Use this section for tracked sends, rescues, open counts, and the next outbound decision.",
+          "Use this section for tracked sends, rescues, open counts, and the next outbound decision when you are returning from the listing workbench.",
         href: `#${frontOfficeClientDossierSectionIds.listingOutput}`,
       };
     case frontOfficeClientDossierSectionIds.offerPrep:
@@ -231,16 +230,21 @@ function resolveSectionFocusState(
       return {
         label: "FO / BO boundary",
         description:
-          "Use this section when the dossier needs to explain why Back Office should take the formal record.",
+          "Use this section when the dossier needs to explain why Back Office should take the formal record or when cleanup and handoff routes return here from another workbench.",
         href: `#${frontOfficeClientDossierSectionIds.backOfficeContext}`,
       };
     case frontOfficeClientDossierSectionIds.nextStepRail:
     default:
       return {
         label: getFrontOfficeClientDossierSectionLabel(currentRailItem.id),
-        description: getFrontOfficeClientDossierSectionDescription(
-          currentRailItem.id,
-        ),
+        description:
+          currentRailItem.id === "appointment"
+            ? "Use this rail when calendar writeback needs to keep the same appointment focus and the dossier should reopen the exact next touch."
+            : currentRailItem.id === "listing_output"
+              ? "Use this rail when a tracked send, resend, or follow-through action needs to come back into the listing workbench."
+              : getFrontOfficeClientDossierSectionDescription(
+                  currentRailItem.id,
+                ),
         href: getFrontOfficeClientDossierSectionHref(currentRailItem.id),
       };
   }
@@ -341,7 +345,7 @@ export function FrontOfficeClientDossierClient(
   const primaryRailActions = [
     {
       href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
-      label: "Open next-step rail",
+      label: "Open current workbench rail",
     },
     {
       href: props.snapshot.nextStepRail.primaryActionHref,
@@ -552,12 +556,12 @@ export function FrontOfficeClientDossierClient(
             key: "section-focus",
             label: "Re-entry focus",
             tone: "accent",
-            title: `You're back in the ${sectionFocus.label} section`,
+            title: `You're back in the ${sectionFocus.label} workbench`,
             description: sectionFocus.description,
             context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
             meta: (
               <span>
-                Section anchor · {sectionFocus.href.replace(/^#/, "")}
+                Workbench return point · {sectionFocus.href.replace(/^#/, "")}
               </span>
             ),
             actions: [
@@ -585,7 +589,7 @@ export function FrontOfficeClientDossierClient(
             key: "cue",
             label: props.snapshot.followUpCue.label,
             tone: props.snapshot.followUpCue.tone,
-            title: "Follow-up is the active execution lane",
+            title: "Follow-up is the active re-entry lane",
             description: props.snapshot.followUpCue.description,
             context: props.snapshot.followUpCue.dueLabel,
             meta: (

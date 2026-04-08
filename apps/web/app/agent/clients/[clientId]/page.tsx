@@ -437,7 +437,7 @@ export default async function AgentClientDetailPage(
 
   return (
     <FrontOfficePageTemplate
-      description="Client dossier stays focused on execution context: stage movement, next touches, appointments, and the moment formal Back Office workflow needs to take over."
+      description="Client dossier stays focused on execution context: stage movement, next touches, appointments, and the exact return point when calendar, listing, or cleanup work brings you back here."
       eyebrow="Client dossier"
       main={
         <>
@@ -464,7 +464,7 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id="front-office-client-overview"
-            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so the next call, showing, or handoff does not require opening a full admin form.`}
+            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so calendar, listing, or cleanup re-entry lands back on the same workbench instead of a fresh admin form.`}
             title="Overview"
           >
             <ListPageStatsGrid>
@@ -724,7 +724,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review rail",
+                    label: "Review current rail",
                   },
                   {
                     href: appointmentRailItem.actionHref,
@@ -891,7 +891,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review rail",
+                    label: "Review current rail",
                   },
                   {
                     href: listingRailItem.actionHref,
@@ -1018,7 +1018,7 @@ export default async function AgentClientDetailPage(
                 actions={[
                   {
                     href: railSectionHref,
-                    label: "Review rail",
+                    label: "Review current rail",
                   },
                   {
                     href: snapshot.negotiation.primaryActionHref,

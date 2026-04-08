@@ -28,6 +28,8 @@ import {
   buildAgentNotificationsHref,
   cleanupFilterOptions,
   getActivityViewBridgeLabel,
+  getActivityViewFocusLabel,
+  getActivityViewNextMoveLabel,
   generalNoticeLaneConfig,
   getActivityViewAnchor,
   leadershipCleanupFilterOptions,
@@ -1222,11 +1224,11 @@ export function AgentNotificationsClient({
             ? "Stay on this reminder focus"
             : "Open this reminder focus",
         nextStepLabel:
-          nextCard?.actionLabel ??
+          nextCard?.nextStepLabel ??
           "Open the reminder focus and resolve the next touch.",
-        sectionLabel: "Appointment reminders",
+        sectionLabel: nextCard?.sectionLabel ?? "Appointment reminders",
         meta: [
-          "Section · Appointment reminders",
+          `Section · ${nextCard?.sectionLabel ?? "Appointment reminders"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1278,11 +1280,11 @@ export function AgentNotificationsClient({
             ? "Stay on this notice lane"
             : "Open this notice lane",
         nextStepLabel:
-          nextCard?.actionLabel ??
+          nextCard?.nextStepLabel ??
           "Open the notice lane and review the next notice.",
-        sectionLabel: "General notices",
+        sectionLabel: nextCard?.sectionLabel ?? "General notices",
         meta: [
-          "Section · General notices",
+          `Section · ${nextCard?.sectionLabel ?? "General notices"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1756,7 +1758,7 @@ export function AgentNotificationsClient({
             <span>Scope · {card.scopeLabel}</span>
             <span>Created · {card.createdAtLabel}</span>
             <span>Read state · {card.readStateLabel}</span>
-            <span>Next step · {card.actionLabel}</span>
+            <span>Next step · {card.nextStepLabel}</span>
           </div>
           <p className="front-office-record-supporting">{card.whyNowLabel}</p>
         </div>
@@ -1846,6 +1848,10 @@ export function AgentNotificationsClient({
         subtitle="Keep the office-wide cleanup workbench stable on one route: self-owned cleanup, visible-scope team cleanup, inbox-backed appointment reminders, and broader general notices. The active slice stays encoded in the URL so refreshes and reopen flows come back to the same pass."
         title="Workbench lanes & cleanup controls"
       >
+        <div className="front-office-placeholder-note">
+          {getActivityViewFocusLabel(activeActivityView)}.{" "}
+          {getActivityViewNextMoveLabel(activeActivityView)}
+        </div>
         <ListPageStatsGrid>
           <StatCard
             hint="Self-owned cleanup items, plus duplicate review, that still need direct agent follow-through."

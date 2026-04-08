@@ -84,7 +84,7 @@ export function FrontOfficeDashboardAiQueueClient(
       );
       setFeedback({
         tone: "success",
-        message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The task is now in the shared follow-up clock while the dashboard refreshes.`,
+        message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The grounded next touch is now in the shared follow-up clock while the dashboard refreshes.`,
         primaryHref: item.openDossierHref,
         primaryLabel: "Open dossier",
         secondaryHref: "/agent/clients#client-pipeline",
@@ -147,11 +147,11 @@ export function FrontOfficeDashboardAiQueueClient(
                     >
                       {activeClientId === item.clientId || isPending
                         ? "Queueing..."
-                        : "Queue next touch"}
+                        : "Queue grounded next touch"}
                     </Button>
                   ) : (
                     <Button disabled size="sm" type="button" variant="secondary">
-                      Review before queueing
+                      Review grounded next move
                     </Button>
                   )}
                   {item.primaryActionOpensInNewTab ? (
@@ -207,8 +207,8 @@ export function FrontOfficeDashboardAiQueueClient(
           <EmptyState
             description={
               props.items.length && resolvedItemIds.length
-                ? "The accepted next touch is now in the shared follow-up clock. If the record still needs work after refresh, Acre will bring back the next grounded step."
-                : "Nothing grounded outranks your manual queue right now. Keep working follow-up pressure, send/click follow-through, and explicit handoff; Acre will only surface suggestions when the record trail supports them."
+                ? "The accepted next touch is now in the shared follow-up clock. If the record still needs work after refresh, Acre will bring back the next grounded workbench move."
+                : "Nothing grounded outranks your manual queue right now. Keep working follow-up pressure, send/click follow-through, and explicit handoff; Acre will only surface suggestions when the record trail can support the next move."
             }
             title={
               props.items.length && resolvedItemIds.length

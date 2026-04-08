@@ -1390,8 +1390,8 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message:
           draft.nextActionAt
-            ? `Appointment external writeback updated. Acre will keep ${appointment.title} pinned with the saved next-touch deadline and the same route context in view.`
-            : "Appointment external writeback updated.",
+            ? `Appointment external writeback saved as a checkpoint. Acre will keep ${appointment.title} pinned with the promised next-touch deadline and the same route context in view.`
+            : "Appointment external writeback saved as a checkpoint.",
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -1470,10 +1470,10 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message:
           externalStatus === "confirmed"
-            ? "Confirmed writeback saved and the current next-touch deadline was cleared."
+            ? "Confirmed writeback saved and the current promised next-touch checkpoint was cleared."
             : suggestedPreset
-              ? `Quick coordination action saved with ${suggestedPreset.label} loaded as the next checkpoint.`
-              : "Quick coordination action saved.",
+              ? `Quick coordination checkpoint saved with ${suggestedPreset.label} loaded as the next promised touch.`
+              : "Quick coordination checkpoint saved.",
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -1539,7 +1539,7 @@ export function FrontOfficeCalendarClient(
 
       setFeedback({
         tone: "success",
-        message: `${preset.label} saved to Acre as the next coordination checkpoint.`,
+        message: `${preset.label} saved to Acre as the next promised checkpoint.`,
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -1621,11 +1621,11 @@ export function FrontOfficeCalendarClient(
           `${payload.actionLabel} opened.`,
           payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
           payload.followUpCadenceLabel
-            ? `Next checkpoint: ${payload.followUpCadenceLabel}.`
+            ? `Promised next touch: ${payload.followUpCadenceLabel}.`
             : null,
           payload.followUpCadenceDetail ?? payload.followUpDetail ?? null,
           primedPresetLabel
-            ? `${primedPresetLabel} is already loaded into the writeback draft.`
+            ? `${primedPresetLabel} is already loaded into the writeback draft as the next promised checkpoint.`
             : null,
         ]
           .filter(Boolean)
@@ -1637,13 +1637,13 @@ export function FrontOfficeCalendarClient(
         manualOnlyDetail:
           payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
         followUpDetail:
-          payload.followUpDetail ?? "Save the writeback form below.",
+          payload.followUpDetail ?? "Save the checkpoint form below.",
         followUpCadenceLabel:
           payload.followUpCadenceLabel ?? payload.suggestedWriteback?.label ?? payload.actionLabel,
         followUpCadenceDetail:
           payload.followUpCadenceDetail ??
           payload.followUpDetail ??
-          "Save the writeback form below.",
+          "Save the checkpoint form below.",
         resultKind: payload.result.kind,
         suggestedWriteback: payload.suggestedWriteback ?? null,
       });

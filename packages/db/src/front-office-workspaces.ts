@@ -446,6 +446,7 @@ export type FrontOfficeActivityNotificationRecord = {
   tone: FrontOfficeTone;
   createdAtLabel: string;
   actionLabel: string;
+  nextStepLabel: string;
   href: string;
   isUnread: boolean;
   readStateLabel: "Unread" | "Read" | "Shared notice";
@@ -1673,11 +1674,11 @@ function getFrontOfficeCleanupSectionLabel(input: {
   scopeKey: FrontOfficeActivityCleanupScopeKey;
 }) {
   if (input.kindKey === "appointment_writeback") {
-    return "Calendar writeback rail";
+    return "Calendar writeback cleanup rail";
   }
 
   if (input.kindKey === "send_risk") {
-    return "Listing output rail";
+    return "Tracked send rescue rail";
   }
 
   if (input.kindKey === "stale_client") {
@@ -1691,16 +1692,37 @@ function getFrontOfficeCleanupSectionLabel(input: {
   return "Next-touch rail";
 }
 
-function getFrontOfficeNotificationSectionLabel(groupKey: FrontOfficeActivityNotificationGroupKey) {
-  return groupKey === "general_notice"
-    ? "General notices"
-    : "Appointment reminders";
+function getFrontOfficeNotificationSectionLabel(input: {
+  groupKey: FrontOfficeActivityNotificationGroupKey;
+  streamKey: FrontOfficeActivityNotificationStreamKey;
+  streamLabel: string;
+}) {
+  if (input.groupKey !== "general_notice") {
+    return input.groupKey === "appointment_soon"
+      ? "Meeting countdown rail"
+      : "Calendar writeback rail";
+  }
+
+  if (input.streamKey === "front_office") {
+    return "FO action rail";
+  }
+
+  if (input.streamKey === "back_office") {
+    return "BO handoff rail";
+  }
+
+  if (input.streamKey === "shared_notice") {
+    return "Shared office notice rail";
+  }
+
+  return "Awareness-only rail";
 }
 
 function getFrontOfficeNotificationActionLabel(input: {
   type: NotificationType;
   actionUrl: string | null;
   groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+  streamKey: FrontOfficeActivityNotificationStreamKey;
 }) {
   if (input.type === NotificationType.appointment_due_soon) {
     return "Open calendar item";
@@ -1714,7 +1736,55 @@ function getFrontOfficeNotificationActionLabel(input: {
         : "Open calendar writeback";
   }
 
+  if (input.streamKey === "front_office") {
+    return "Open FO action";
+  }
+
+  if (input.streamKey === "back_office") {
+    return "Open BO handoff";
+  }
+
+  if (input.streamKey === "shared_notice") {
+    return "Open shared notice";
+  }
+
+  if (input.streamKey === "reference") {
+    return "Open awareness item";
+  }
+
   return input.actionUrl?.trim() ? "Open notice" : "Review notice";
+}
+
+function getFrontOfficeNotificationNextStepLabel(input: {
+  type: NotificationType;
+  groupKey: FrontOfficeActivityNotificationRecord["groupKey"];
+  streamKey: FrontOfficeActivityNotificationStreamKey;
+}) {
+  if (input.type === NotificationType.appointment_due_soon) {
+    return "Open the calendar workbench and keep the meeting on track.";
+  }
+
+  if (input.type === NotificationType.appointment_external_touch_due) {
+    return input.groupKey === "confirmation_due"
+      ? "Open the calendar writeback lane and record the confirmation."
+      : input.groupKey === "reschedule_due"
+        ? "Open the calendar writeback lane and capture the reschedule follow-up."
+        : "Open the calendar writeback lane and record the next external touch.";
+  }
+
+  if (input.streamKey === "front_office") {
+    return "Open the FO action lane and decide the next agent-side follow-through.";
+  }
+
+  if (input.streamKey === "back_office") {
+    return "Open the BO handoff lane and keep the formal workflow moving.";
+  }
+
+  if (input.streamKey === "shared_notice") {
+    return "Open the shared notice lane and keep the office-visible context in view.";
+  }
+
+  return "Open the awareness lane and decide whether this needs action.";
 }
 
 function getFrontOfficeNotificationStream(input: {
@@ -4530,7 +4600,11 @@ export async function getFrontOfficeActivitySnapshot(
           ownerLabel: owner.ownerLabel,
           scopeKey: scope.scopeKey,
           scopeLabel: scope.scopeLabel,
-          sectionLabel: getFrontOfficeNotificationSectionLabel(group.groupKey),
+          sectionLabel: getFrontOfficeNotificationSectionLabel({
+            groupKey: group.groupKey,
+            streamKey: stream.streamKey,
+            streamLabel: stream.streamLabel,
+          }),
           pressureKey: pressureState.key,
           pressureLabel: pressureState.label,
           pressureTone: pressureState.tone,
@@ -4546,6 +4620,12 @@ export async function getFrontOfficeActivitySnapshot(
             type: notification.type,
             actionUrl: notification.actionUrl?.trim() || null,
             groupKey: group.groupKey,
+            streamKey: stream.streamKey,
+          }),
+          nextStepLabel: getFrontOfficeNotificationNextStepLabel({
+            type: notification.type,
+            groupKey: group.groupKey,
+            streamKey: stream.streamKey,
           }),
           href: `/agent/notifications/${notification.id}/open`,
           isUnread,

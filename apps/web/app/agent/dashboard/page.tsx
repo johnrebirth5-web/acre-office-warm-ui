@@ -131,7 +131,7 @@ function getDashboardRoleFocus(role: string) {
       return {
         label: "Team lead focus",
         description:
-          "Clear visible team cleanup first, then return to your own follow-up, send/click, and formal handoff work from the same Front Office bench.",
+          "Clear visible team cleanup first, then return to your own follow-up, send/click, and formal handoff work from the same grounded Front Office bench.",
       };
     case "owner":
     case "office_admin":
@@ -144,7 +144,7 @@ function getDashboardRoleFocus(role: string) {
       return {
         label: "Agent execution focus",
         description:
-          "Start with the next due touch, then work lease timing, commitments, send/click follow-through, and formal handoffs without leaving Front Office early.",
+          "Start with the next grounded touch, then work lease timing, commitments, send/click follow-through, and formal handoffs without leaving Front Office early.",
       };
   }
 }
@@ -611,7 +611,7 @@ export default async function AgentDashboardPage() {
                 ) : null}
               </>
             }
-            subtitle={`${roleFocus.label}. Start with the top move below, then work the ordered launchpad so cleanup re-entry, appointment writeback, send-risk follow-through, and duplicate review stay in one honest Front Office workspace.`}
+            subtitle={`${roleFocus.label}. Start with the top grounded move below, then work the ordered launchpad so cleanup re-entry, appointment writeback, send-risk follow-through, and duplicate review stay in one honest Front Office workspace.`}
             title="Start here first"
           >
             <ListPageStatsGrid>
@@ -890,7 +890,7 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Work these lanes in order. Each row reflects live pressure that Acre can already see; if a specific record is linked, open it, and if not, reopen the shared queue."
+            subtitle="Work these lanes in order. Each row is a grounded next move that Acre can already see; if a specific record is linked, open it, and if not, reopen the shared queue."
             title="Today execution lanes"
           >
             <div className="front-office-placeholder-note">
@@ -898,7 +898,8 @@ export default async function AgentDashboardPage() {
               <p>
                 Front Office keeps the live execution clock here. Back Office
                 starts only when the row explicitly points to a formal handoff
-                or signature workflow.
+                or signature workflow, not when the move is still grounded in
+                the active dossier.
               </p>
             </div>
 
@@ -948,7 +949,7 @@ export default async function AgentDashboardPage() {
           {canUseAi ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Grounded next-touch suggestions only. No auto-send, no hidden automation, and BO-ready records still push the formal handoff path instead of another silent reminder."
+              subtitle="Grounded next-touch suggestions only. The queue should reopen a dossier, a calendar writeback, or a formal handoff only when the record trail can support it."
               title="AI next-touch queue"
             >
               <ListPageStatsGrid>

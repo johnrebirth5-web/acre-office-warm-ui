@@ -21,6 +21,8 @@ import {
   buildAgentNotificationsHref,
   cleanupFilterOptions,
   getActivityViewBridgeLabel,
+  getActivityViewFocusLabel,
+  getActivityViewNextMoveLabel,
   leadershipCleanupFilterOptions,
   noticeStreamFilterOptions,
   reminderFilterOptions,
@@ -199,6 +201,8 @@ export default async function AgentNotificationsPage(
                 description={buildActivityFocusDescription(initialActivityView)}
                 meta={
                   <>
+                    <span>{getActivityViewFocusLabel(initialActivityView)}</span>
+                    <span>{getActivityViewNextMoveLabel(initialActivityView)}</span>
                     <span>{readStateLabel}</span>
                     <span>{cleanupFilterLabel}</span>
                     <span>{noticeLaneLabel}</span>
@@ -216,6 +220,7 @@ export default async function AgentNotificationsPage(
                   <>
                     <span>{snapshot.summary.urgentCleanupCount} urgent</span>
                     <span>{snapshot.summary.duplicateReviewCount} duplicate-review signal(s)</span>
+                    <span>Next move · Resolve the loudest cleanup rail, then reopen the broader workbench.</span>
                   </>
                 }
                 title="Personal cleanup slice"
@@ -228,6 +233,7 @@ export default async function AgentNotificationsPage(
                 meta={
                   <>
                     <span>{snapshot.summary.appointmentSoonCount} appointment cleanup signal(s)</span>
+                    <span>{getActivityViewNextMoveLabel("appointment_reminders")}</span>
                     <span>{initialActivityView === "appointment_reminders" ? "Route locked on appointment workbench" : "Reopen this when calendar writeback is the next move"}</span>
                   </>
                 }
@@ -241,6 +247,7 @@ export default async function AgentNotificationsPage(
                   <>
                     <span>{readStateLabel}</span>
                     <span>{getOptionLabel(noticeStreamFilterOptions, initialNoticeStreamFilter)}</span>
+                    <span>{getActivityViewNextMoveLabel("general_notices")}</span>
                   </>
                 }
                 title="General notice lane"

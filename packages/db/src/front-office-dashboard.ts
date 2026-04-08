@@ -448,19 +448,19 @@ function formatDashboardAppointmentCalendarActionLabel(
 ) {
   switch (calendarView) {
     case frontOfficeDashboardCalendarViews.replyDue:
-      return "Open reply-due workbench";
+      return "Open reply-due writeback";
     case frontOfficeDashboardCalendarViews.confirmationPending:
-      return "Open confirmation workbench";
+      return "Open confirmation writeback";
     case frontOfficeDashboardCalendarViews.confirmed:
-      return "Open confirmed workbench";
+      return "Open confirmed writeback";
     case frontOfficeDashboardCalendarViews.touchDue:
-      return "Open touch-due workbench";
+      return "Open touch writeback";
     case frontOfficeDashboardCalendarViews.missingNextTouch:
-      return "Open next-touch workbench";
+      return "Open next-touch writeback";
     case frontOfficeDashboardCalendarViews.rescheduleRequested:
-      return "Open reschedule workbench";
+      return "Open reschedule writeback";
     default:
-      return "Open appointment workbench";
+      return "Open appointment writeback";
   }
 }
 
@@ -2521,12 +2521,12 @@ export async function getFrontOfficeDashboardSnapshot(
             tone: "accent",
             description: `There is already a scheduled ${formatAppointmentTypeLabel(
               latestAppointment.type,
-            ).toLowerCase()} on the calendar, so the next-touch should sharpen expectations before the meeting.`,
+            ).toLowerCase()} on the calendar, so the next-touch should sharpen expectations before the meeting and save the writeback checkpoint.`,
             contextLabel: nextTouchLabel,
             helperLabel: `${latestAppointment.title} · ${formatDateTimeLabel(
               latestAppointment.startsAt,
               { timeZone: input.timeZone ?? null },
-            )}`,
+            )} · Calendar writeback first, then dossier follow-up.`,
             whyNowSignals: buildAiQueueWhyNowSignals({
               trigger: `Appointment · ${latestAppointment.title}`,
               contextLabel: `Current touch window · ${nextTouchLabel}`,
@@ -2537,7 +2537,7 @@ export async function getFrontOfficeDashboardSnapshot(
             }),
             openDossierHref,
             ...aiBoundaryState,
-            primaryActionLabel: "Open calendar",
+            primaryActionLabel: "Open calendar writeback",
             primaryActionHref: `/agent/calendar?clientId=${client.id}`,
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
@@ -2567,12 +2567,12 @@ export async function getFrontOfficeDashboardSnapshot(
             statusLabel: "Content follow-up",
             tone: "warning",
             description:
-              "Material was sent but there is still no tracked open, so the safest next-touch is to reduce friction and offer a smaller next step.",
+              "Material was sent but there is still no tracked open, so the safest next-touch is to reduce friction and offer a smaller next step from the dossier.",
             contextLabel: nextTouchLabel,
             helperLabel:
               latestSendRecord.listing?.title?.trim()
-                ? `No open on ${latestSendRecord.listing.title.trim()}`
-                : "Tracked send has no open yet",
+                ? `No open on ${latestSendRecord.listing.title.trim()} · open the dossier before retrying.`
+                : "Tracked send has no open yet · reopen the dossier before retrying.",
             whyNowSignals: buildAiQueueWhyNowSignals({
               trigger: latestSendRecord.listing?.title?.trim()
                 ? `Tracked send · no open on ${latestSendRecord.listing.title.trim()}`
@@ -2585,6 +2585,7 @@ export async function getFrontOfficeDashboardSnapshot(
             }),
             openDossierHref,
             ...aiBoundaryState,
+            primaryActionLabel: "Open dossier and rescue thread",
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 6,
@@ -2621,8 +2622,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 ? `Last open · ${formatDateTimeLabel(
                     latestSendRecord.lastOpenedAt,
                     { timeZone: input.timeZone ?? null },
-                  )}`
-                : `Opened ${latestSendRecord.openCount} time(s)`,
+                  )} · open the dossier and turn the warm signal into a next step.`
+                : `Opened ${latestSendRecord.openCount} time(s) · open the dossier and turn the warm signal into a next step.`,
             whyNowSignals: buildAiQueueWhyNowSignals({
               trigger:
                 latestSendRecord.lastOpenedAt
@@ -2639,6 +2640,7 @@ export async function getFrontOfficeDashboardSnapshot(
             }),
             openDossierHref,
             ...aiBoundaryState,
+            primaryActionLabel: "Open dossier and turn warm signal",
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 7,
@@ -2667,7 +2669,7 @@ export async function getFrontOfficeDashboardSnapshot(
             contextLabel: nextTouchLabel,
             helperLabel:
               client.handoffDrafts[0]?.summary?.trim() ||
-              "Front Office stage is ready for formal workflow",
+              "Front Office stage is ready for formal workflow. Confirm the package before opening Back Office.",
             whyNowSignals: buildAiQueueWhyNowSignals({
               trigger: "Execution boundary · Front Office is ready for formal workflow",
               contextLabel: `Current touch window · ${nextTouchLabel}`,
@@ -2708,7 +2710,7 @@ export async function getFrontOfficeDashboardSnapshot(
             description:
               "This active client does not yet have a future touch on the books, so Acre should not leave the next move implicit.",
             contextLabel: nextTouchLabel,
-            helperLabel: `Stage · ${client.stage}`,
+            helperLabel: `Stage · ${client.stage} · open the dossier and choose the next grounded touch.`,
             whyNowSignals: buildAiQueueWhyNowSignals({
               trigger: `Stage · ${client.stage}`,
               contextLabel: `Current touch window · ${nextTouchLabel}`,
@@ -2716,6 +2718,7 @@ export async function getFrontOfficeDashboardSnapshot(
             }),
             openDossierHref,
             ...aiBoundaryState,
+            primaryActionLabel: "Open dossier and choose next touch",
             followUpTitle: followUp.title,
             followUpDueAt: followUp.dueAt,
             basePriority: 9,
@@ -3007,24 +3010,24 @@ export async function getFrontOfficeDashboardSnapshot(
       tone: followUpPressureCount > 0 ? "warning" : "neutral",
       description:
         leadingFollowUpClient && dueFollowUpCount > 0
-          ? `${leadingFollowUpClient.fullName} is the clearest next touch. ${dueFollowUpCount} client touch(es) are due today or already late.`
+          ? `${leadingFollowUpClient.fullName} is the clearest next touch. ${dueFollowUpCount} client touch(es) are due today or already late, so start in the shared clock and then reopen the dossier.`
           : overdueFollowUpTaskCount > 0
             ? `${overdueFollowUpTaskCount} shared follow-up task(s) are already overdue even though no fresh client touch is due today.`
             : "No same-day client touch or overdue shared follow-up task is waiting right now.",
       helper:
         overdueFollowUpTaskCount > 0
-          ? `${overdueFollowUpTaskCount} task(s) are already overdue, with ${openFollowUpTaskCount} still open in total.`
-          : `${openFollowUpTaskCount} scheduled follow-up task(s) remain open in the shared Front Office clock.`,
+          ? `${overdueFollowUpTaskCount} task(s) are already overdue, with ${openFollowUpTaskCount} still open in total. Start there, then anchor the top dossier.`
+          : `${openFollowUpTaskCount} scheduled follow-up task(s) remain open in the shared Front Office clock. Use that clock to pick the next grounded dossier.`,
       whyNowLabel:
         leadingFollowUpClient && dueFollowUpCount > 0
-          ? `${leadingFollowUpClient.fullName} is due first, so the follow-first queue should be the next stop.`
+          ? `${leadingFollowUpClient.fullName} is due first, so the follow-first queue should be the next stop before you reopen the dossier.`
           : overdueFollowUpTaskCount > 0
             ? `${overdueFollowUpTaskCount} shared follow-up task(s) are already overdue.`
             : "The shared follow-up clock is clear for now.",
       nextStepLabel:
         followUpPressureCount === 1 && leadingFollowUpClient
           ? "Anchor now and work the top dossier."
-          : "Open the follow-first queue and clear the next touch.",
+          : "Open the follow-first queue, then anchor the next dossier.",
       href: followUpAction.href,
       actionLabel: followUpAction.actionLabel,
     },
@@ -3035,7 +3038,7 @@ export async function getFrontOfficeDashboardSnapshot(
       tone: todayCommitmentCount > 0 ? "accent" : "neutral",
       description:
         leadingCommitmentItem && todayCommitmentCount > 0
-          ? `${leadingCommitmentItem.title} is the next time-bound promise on your desk. Prep it before the start window slips.`
+          ? `${leadingCommitmentItem.title} is the next time-bound promise on your desk. Prep it before the start window slips, then save the follow-up checkpoint.`
           : commitmentItems.length > 0
             ? `No commitment lands today, but ${commitmentItems.length} appointment or office item(s) are already on deck.`
             : "No Front Office appointments or shared office commitments are currently scheduled.",
@@ -3066,11 +3069,11 @@ export async function getFrontOfficeDashboardSnapshot(
             ? "warning"
             : "neutral",
       description: leadingLeaseReminderItem
-        ? `${leadingLeaseReminderItem.clientName} is already inside a renewal or move-planning window. Keep the next touch explicit before the record goes quiet.`
+        ? `${leadingLeaseReminderItem.clientName} is already inside a renewal or move-planning window. Keep the next touch explicit before the record goes quiet, then reopen the dossier with the timing lane in view.`
         : "No lease-date reminder is due soon right now.",
       helper:
         overdueLeaseReminderCount > 0
-          ? `${overdueLeaseReminderCount} lease reminder(s) are already overdue.`
+          ? `${overdueLeaseReminderCount} lease reminder(s) are already overdue. Use the lease lane to rescue the timing before it becomes a scramble.`
           : leadingLeaseReminderItem
             ? `${leadingLeaseReminderItem.statusLabel} · ${leadingLeaseReminderItem.detailLabel}`
             : "Lease timing stays visible here before renewal, remarketing, or move planning becomes a fire drill.",
@@ -3078,7 +3081,7 @@ export async function getFrontOfficeDashboardSnapshot(
         ? `${leadingLeaseReminderItem.clientName} needs lease timing attention now.`
         : "No lease timing pressure is visible right now.",
       nextStepLabel: leadingLeaseReminderItem
-        ? "Open the client dossier and confirm the next timing touch."
+        ? "Open the client dossier, confirm the next timing touch, and keep the lease lane explicit."
         : "Open the lease lane and sort the next reminder.",
       href:
         dueLeaseReminderCount === 1 && leadingLeaseReminderItem
@@ -3097,10 +3100,10 @@ export async function getFrontOfficeDashboardSnapshot(
       description: sendSignalDescription,
       helper: sendSignalHelper,
       whyNowLabel: leadingSendRecord
-        ? `${leadingSendRecord.client.fullName} already has tracked send history waiting for the next touch.`
+        ? `${leadingSendRecord.client.fullName} already has tracked send history waiting for the next touch. Open the dossier before sending again.`
         : "Tracked sending is ready once the target client and channel are clear.",
       nextStepLabel: leadingSendRecord
-        ? "Open the client next-step rail and choose the next send."
+        ? "Open the client next-step rail and choose the next tracked send or reply."
         : "Open the send-risk workbench and start a tracked send.",
       href: leadingSendRecord
         ? `/agent/clients/${leadingSendRecord.client.id}#front-office-client-next-step-rail`
@@ -3115,7 +3118,7 @@ export async function getFrontOfficeDashboardSnapshot(
       count: needsBackOfficeCount,
       tone: needsBackOfficeCount > 0 ? "warning" : "neutral",
       description: leadingBackOfficeItem
-        ? `${leadingBackOfficeItem.title} is the clearest FO -> BO boundary move right now. Open the formal workspace only when the package is truly ready.`
+        ? `${leadingBackOfficeItem.title} is the clearest FO -> BO boundary move right now. Confirm package, timing, and expectations before opening the formal workspace.`
         : "Nothing needs formal transaction, signature, or auditable Back Office workflow right now.",
       helper: leadingBackOfficeItem
         ? `${leadingBackOfficeItem.contextLabel} · ${leadingBackOfficeItem.description}`
@@ -3142,10 +3145,10 @@ export async function getFrontOfficeDashboardSnapshot(
           count: leadershipPressureCount,
           tone: leadershipPressureCount > 0 ? "danger" : "neutral",
           description: leadingLeadershipItem
-            ? `${leadingLeadershipItem.title} is the first rescue pass. Review visible cleanup pressure in Front Office before it becomes a formal fire drill.`
+            ? `${leadingLeadershipItem.title} is the first rescue pass. Review visible cleanup pressure in Front Office before it becomes a formal fire drill, then keep the rest of the rescue pass in the same lane.`
             : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
           helper: leadingLeadershipItem
-            ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope.`
+            ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope. The next move is to keep the rescue pass in Front Office.`
             : "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
           whyNowLabel: leadingLeadershipItem
             ? leadingLeadershipItem.whyNowLabel
