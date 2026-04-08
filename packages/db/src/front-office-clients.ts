@@ -885,7 +885,7 @@ function resolveFrontOfficeCalendarView(input: {
   hasBridgeActivity: boolean;
   hasNextAction: boolean;
   isExternalTouchDue: boolean;
-}): FrontOfficeCalendarView {
+}): FrontOfficeCalendarView | null {
   if (input.bridgeActivityState === "logged" || input.hasBridgeActivity) {
     return frontOfficeCalendarViews.bridgeLogged;
   }
@@ -905,11 +905,32 @@ function resolveFrontOfficeCalendarView(input: {
       }
 
       if (input.hasNextAction) {
-        return frontOfficeCalendarViews.missingNextTouch;
+        return null;
       }
 
       return frontOfficeCalendarViews.missingNextTouch;
   }
+}
+
+function resolveNextStepRailCalendarView(input: {
+  hasUpcomingAppointment: boolean;
+  nextTouchAt: Date | null;
+  openTaskCount: number;
+  now: Date;
+}): FrontOfficeCalendarView | null {
+  if (input.hasUpcomingAppointment) {
+    return frontOfficeCalendarViews.confirmationPending;
+  }
+
+  if (input.nextTouchAt && input.nextTouchAt.getTime() <= input.now.getTime()) {
+    return frontOfficeCalendarViews.touchDue;
+  }
+
+  if (!input.nextTouchAt && input.openTaskCount === 0) {
+    return frontOfficeCalendarViews.missingNextTouch;
+  }
+
+  return null;
 }
 
 function resolveFrontOfficeListingsLane(input: {
@@ -3944,13 +3965,12 @@ function buildNextStepRail(input: {
     label: "Open calendar",
     href: buildFrontOfficeCalendarHref({
       clientId: input.clientId,
-      calendarView: input.hasUpcomingAppointment
-        ? frontOfficeCalendarViews.confirmationPending
-        : input.nextTouchAt
-          ? frontOfficeCalendarViews.touchDue
-          : input.openTaskCount > 0
-            ? frontOfficeCalendarViews.touchDue
-            : frontOfficeCalendarViews.missingNextTouch,
+      calendarView: resolveNextStepRailCalendarView({
+        hasUpcomingAppointment: input.hasUpcomingAppointment,
+        nextTouchAt: input.nextTouchAt,
+        openTaskCount: input.openTaskCount,
+        now: input.now,
+      }),
     }),
     kind: frontOfficeClientDetailActionKinds.openCalendar,
     target: frontOfficeClientDetailActionTargets.frontOfficeCalendar,
