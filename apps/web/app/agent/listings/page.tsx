@@ -250,6 +250,22 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     : `${routeState.focusedRouteLaneLabel} for tracked listings`
                 }
               />
+              <FrontOfficeRailItem
+                action={
+                  routeState.stableHref !== routeState.contextHref ? (
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={routeState.stableHref}
+                    >
+                      {routeState.focusedRouteLaneActionLabel}
+                    </FrontOfficeLink>
+                  ) : null
+                }
+                badgeLabel={routeState.stableReentryLabel}
+                badgeTone="accent"
+                description={routeState.stableReentryDescription}
+                title="Stable re-entry"
+              />
               {snapshot.targetAppointment ? (
                 <FrontOfficeRailItem
                   action={

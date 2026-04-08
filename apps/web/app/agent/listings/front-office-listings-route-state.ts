@@ -45,6 +45,8 @@ export type FrontOfficeListingsRouteState = {
   cleanHref: string;
   contextHref: string;
   stableHref: string;
+  stableReentryLabel: string;
+  stableReentryDescription: string;
   requestedClientId: string | null;
   requestedAppointmentId: string | null;
   requestedRouteLane: FrontOfficeListingsRouteLane | null;
@@ -192,6 +194,41 @@ function buildPreferredSupportLane(input: {
     label: "Keep both ready",
     description:
       "Generic tracked-link mode is not yet tied to a live client trail, so keep both SMS and email companion packages ready until the send path is clearer.",
+  };
+}
+
+function buildStableRouteReentry(input: {
+  mode: FrontOfficeListingsRouteMode;
+  focusedRouteLaneLabel: string;
+  draftAssist: FrontOfficeListingsDraftAssist | null;
+}) {
+  if (input.draftAssist) {
+    return {
+      label: "Stable re-entry",
+      description: `Use the stable link to come back to the ${input.focusedRouteLaneLabel.toLowerCase()} with the same draft payload, recipient binding, and appointment context intact. Use the clean route only if you want to drop the draft and restart from a plain manual template.`,
+    };
+  }
+
+  if (input.mode === "appointment-linked") {
+    return {
+      label: "Stable re-entry",
+      description:
+        "Use the stable link to come back to the appointment follow-through lane with the same client, appointment, and writeback trail intact. Use the clean route only if you want to restart without the appointment thread.",
+    };
+  }
+
+  if (input.mode === "client-linked") {
+    return {
+      label: "Stable re-entry",
+      description:
+        "Use the stable link to come back to the client follow-through lane with the same dossier and tracked send trail intact. Use the clean route only if you want to restart without the client binding.",
+    };
+  }
+
+  return {
+    label: "Stable re-entry",
+    description:
+      "Use the stable link to reopen the send rescue lane with the same tracked-link context intact. Use the clean route only if you want to start a fresh generic listings workspace.",
   };
 }
 
@@ -433,11 +470,18 @@ export function buildFrontOfficeListingsRouteState(
     mode,
     draftAssist: input.draftAssist,
   });
+  const stableReentry = buildStableRouteReentry({
+    mode,
+    focusedRouteLaneLabel: resolvedFocusedRouteLane.focusedRouteLaneLabel,
+    draftAssist: input.draftAssist,
+  });
 
   return {
     cleanHref: "/agent/listings",
     contextHref,
     stableHref,
+    stableReentryLabel: stableReentry.label,
+    stableReentryDescription: stableReentry.description,
     requestedClientId: input.requestedClientId,
     requestedAppointmentId: input.requestedAppointmentId,
     requestedRouteLane: input.requestedRouteLane,

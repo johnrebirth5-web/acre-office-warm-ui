@@ -524,6 +524,7 @@ function buildShareFeedback(input: {
   listingTitle: string;
   action: "sms" | "email" | "direct";
   usedDraftAssist: boolean;
+  routeState: FrontOfficeListingsRouteState;
   payload: ShareActionResultPayload;
 }): FeedbackState {
   const payload = input.payload ?? {};
@@ -570,6 +571,9 @@ function buildShareFeedback(input: {
         ? [
             `${input.action === "direct" ? "Package cue" : "Next cue"}: ${nextCue}`,
           ]
+        : [],
+      input.routeState.stableReentryDescription
+        ? [`Re-entry: ${input.routeState.stableReentryDescription}`]
         : [],
     )
     .filter(Boolean)
@@ -695,6 +699,7 @@ export function FrontOfficeListingsOutputClient(
           listingTitle: listing.title,
           action,
           usedDraftAssist: usesDraftAssist,
+          routeState: props.routeState,
           payload,
         }),
       );
@@ -855,10 +860,10 @@ export function FrontOfficeListingsOutputClient(
                 </FrontOfficeLink>
               ) : null
             }
-            badgeLabel="Lane re-entry"
+            badgeLabel={props.routeState.stableReentryLabel}
             badgeTone="accent"
             context={props.routeState.routeStatusLabel}
-            description="Reopen the same route when you want the next send to keep its client, appointment, and draft context intact."
+            description={props.routeState.stableReentryDescription}
             title="Lane execution checkpoint"
           />
         </div>
