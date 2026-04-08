@@ -1506,6 +1506,10 @@ function buildCalendarAppointmentHref(input: {
   return `/agent/calendar?${params.toString()}`;
 }
 
+function buildClientDetailHref(clientId: string) {
+  return `/agent/clients/${clientId}`;
+}
+
 function formatFrontOfficeSendChannelLabel(channel: string) {
   switch (channel.trim().toLowerCase()) {
     case "sms":
@@ -3947,9 +3951,9 @@ export async function getFrontOfficeActivitySnapshot(
             : "Open calendar writeback",
         nextStepLabel:
           kindLabel === "Appointment soon"
-            ? "Open the appointment and keep the meeting on track."
+            ? "Open the calendar workbench and keep the meeting on track."
             : appointment.client?.id
-              ? "Open the calendar writeback with client context and record the next touch."
+              ? "Open the calendar writeback workbench with client context and record the next touch."
               : "Open the calendar writeback and record the next touch.",
         _priority: priority,
         _sortAt:
@@ -4000,10 +4004,10 @@ export async function getFrontOfficeActivitySnapshot(
           ? "The scheduled follow-up task is already overdue."
           : "This follow-up task lands in today's working set.",
         sortLabel: `Due · ${formatDateLabel(task.dueAt, input.timeZone)}`,
-        href: `/agent/clients/${task.client.id}`,
-        actionLabel: "Open client workspace",
+        href: buildClientDetailHref(task.client.id),
+        actionLabel: "Open follow-up workbench",
         nextStepLabel:
-          "Open the client workspace and resolve the overdue follow-up.",
+          "Open the client workbench and resolve the overdue follow-up.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: task.dueAt,
         _clientId: task.client.id,
@@ -4051,10 +4055,10 @@ export async function getFrontOfficeActivitySnapshot(
           ? "The next planned follow-up date has already slipped."
           : "This client's next touch is due today and should stay in the active pass.",
         sortLabel: `Next touch · ${formatDateLabel(nextTouchAt, input.timeZone)}`,
-        href: `/agent/clients/${client.id}`,
-        actionLabel: "Open client workspace",
+        href: buildClientDetailHref(client.id),
+        actionLabel: "Open next-touch workbench",
         nextStepLabel:
-          "Open the client workspace and choose the next touch.",
+          "Open the client workbench and choose the next touch.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: nextTouchAt,
         _clientId: client.id,
@@ -4105,13 +4109,13 @@ export async function getFrontOfficeActivitySnapshot(
             whyNowLabel:
               "The tracked send is still unopened after the initial wait window.",
             sortLabel: `Sent · ${formatDateLabel(record.sentAt, input.timeZone)}`,
-          href: `/agent/clients/${record.client.id}`,
-          actionLabel: "Open send trail",
-          nextStepLabel:
-            "Open the send trail and decide whether to rescue the send.",
-          _priority: 4,
-          _sortAt: record.sentAt,
-          _clientId: record.client.id,
+            href: buildClientDetailHref(record.client.id),
+            actionLabel: "Open send-risk workbench",
+            nextStepLabel:
+              "Open the send trail workbench and decide whether to rescue the send.",
+            _priority: 4,
+            _sortAt: record.sentAt,
+            _clientId: record.client.id,
           },
         ];
       }
@@ -4163,10 +4167,10 @@ export async function getFrontOfficeActivitySnapshot(
             lastEngagementAt,
             input.timeZone,
           )}`,
-          href: `/agent/clients/${record.client.id}`,
-          actionLabel: "Open send trail",
+          href: buildClientDetailHref(record.client.id),
+          actionLabel: "Open send-risk workbench",
           nextStepLabel:
-            "Open the send trail and decide whether to rescue the send.",
+            "Open the send trail workbench and decide whether to rescue the send.",
           _priority: 5,
           _sortAt: lastEngagementAt,
           _clientId: record.client.id,
@@ -4210,9 +4214,9 @@ export async function getFrontOfficeActivitySnapshot(
       sortLabel: client.lastContactAt
         ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
         : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
-      href: `/agent/clients/${client.id}`,
-      actionLabel: "Open client workspace",
-      nextStepLabel: "Open the dossier and plan the next recovery touch.",
+      href: buildClientDetailHref(client.id),
+      actionLabel: "Open recovery workbench",
+      nextStepLabel: "Open the dossier workbench and plan the next recovery touch.",
       _priority: tone === "danger" ? 6 : 7,
       _sortAt: staleSince,
       _clientId: client.id,

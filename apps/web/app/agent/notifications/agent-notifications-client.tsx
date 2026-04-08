@@ -933,8 +933,9 @@ export function AgentNotificationsClient({
     );
   }
 
-  const duplicateReviewHref =
-    "/agent/clients?clientView=duplicate_review#duplicate-review";
+  function buildDuplicateReviewHref() {
+    return "/agent/clients?clientView=duplicate_review#duplicate-review";
+  }
   const nextPersonalCleanupItem = filteredCleanupItems[0] ?? null;
   const nextTeamCleanupItem = filteredLeadershipItems[0] ?? null;
   const nextAppointmentReminderCard =
@@ -1003,7 +1004,7 @@ export function AgentNotificationsClient({
       key: "duplicate-review",
       label: "Duplicate review",
       count: duplicateReviewShortcutCount,
-      href: duplicateReviewHref,
+      href: buildDuplicateReviewHref(),
     },
     ...(leadershipQueue.visible
       ? [
@@ -1293,17 +1294,17 @@ export function AgentNotificationsClient({
         : visibleDuplicatePairs.length
           ? {
               key: "duplicate-review",
-              label: "Review duplicate queue",
+              label: "Review duplicate workbench",
               description:
                 "Merge duplicate dossiers before the next send or appointment so tracked history, follow-up, and handoff context stay on one surviving record.",
-              href: duplicateReviewHref,
+              href: buildDuplicateReviewHref(),
               tone: "accent",
               badgeLabel: "Duplicate review",
               meta: [
                 `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
                 "Foundation cleanup before next touch",
               ],
-              ctaLabel: "Review duplicate queue",
+              ctaLabel: "Review duplicate workbench",
             }
           : null
       : activeActivityView === "team_cleanup"
@@ -1424,17 +1425,17 @@ export function AgentNotificationsClient({
                     : visibleDuplicatePairs.length
                       ? {
                           key: "duplicate-review-all",
-                          label: "Review duplicate queue",
+                          label: "Review duplicate workbench",
                           description:
                             "Duplicate review is still open in this slice and should be resolved before the next follow-up or appointment touches the wrong dossier.",
-                          href: duplicateReviewHref,
+                          href: buildDuplicateReviewHref(),
                           tone: "accent",
                           badgeLabel: "Duplicate review",
                           meta: [
                             `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
                             "Foundation cleanup before next touch",
                           ],
-                          ctaLabel: "Review duplicate queue",
+                          ctaLabel: "Review duplicate workbench",
                         }
                       : null;
 
@@ -2459,17 +2460,17 @@ export function AgentNotificationsClient({
                 {visibleDuplicatePairs.length ? (
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
-                    href={duplicateReviewHref}
+                    href={buildDuplicateReviewHref()}
                   >
-                    Open duplicate review lane
+                    Open duplicate review workbench
                   </FrontOfficeLink>
                 ) : null}
                 {isOverviewMode && hiddenCleanupItemCount > 0 ? (
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
-                    href={focusAreaCards[0]?.href ?? duplicateReviewHref}
+                    href={focusAreaCards[0]?.href ?? buildDuplicateReviewHref()}
                   >
-                    Open full personal queue
+                    Open full personal workbench
                   </FrontOfficeLink>
                 ) : null}
               </div>
@@ -2479,8 +2480,8 @@ export function AgentNotificationsClient({
           id="cleanup-center"
           subtitle={
             isOverviewMode
-              ? "Personal cleanup stays self-owned. Overview shows the first few cleanup items so the center stays scan-first; open the lane to work the full queue."
-              : "Personal cleanup stays self-owned. Surface the loudest issue per client first, then reopen the same center directly into follow-up, writeback, send rescue, stale-dossier cleanup, or duplicate review."
+              ? "Personal cleanup stays self-owned. Overview shows the first few cleanup items so the center stays scan-first; open the workbench to work the full queue."
+              : "Personal cleanup stays self-owned. Surface the loudest issue per client first, then reopen the same workbench directly into follow-up, writeback, send rescue, stale-dossier cleanup, or duplicate review."
           }
           title="Personal cleanup"
         >
