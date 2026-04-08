@@ -214,13 +214,20 @@ This keeps the handoff visible without pretending formal transaction creation al
   - that same writeback layer now also supports an optional `next external touch` timestamp plus operator note, so cleanup priority can follow the promised outside follow-up window instead of only the appointment start time
   - that promised outside follow-up window now also flows into the shared inbox reconciliation path, so a due or overdue confirmation / reschedule touch can become a real notification instead of staying cleanup-only
   - `/agent/calendar` now also turns that bridge action into an explicit `After the bridge` checkpoint with a suggested-writeback load action, so the operator can jump directly from export/open to the saved Acre next-touch form without re-building the plan by hand
+  - `/agent/calendar` now also exposes a route-persistent `calendarView` contract for its main coordination lanes, so writeback-heavy slices can reopen through stable aliases instead of manually reconstructing `coordination` and `followUp` query combinations each time
   - `/agent/clients/[clientId]` appointment cards now also carry `calendarWritebackHref`, `bridgeNextStepLabel`, and `bridgeNextStepDetail`, so the dossier can reopen the exact writeback route for the same appointment instead of forcing the operator to rediscover it through the calendar list first
+  - cleanup and dashboard appointment shortcuts now consume that same focused route shape, so appointment writeback re-entry can preserve `clientId + appointmentId` context when it is available instead of dropping back to a broad calendar surface
   - this current layer intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path with lightweight writeback that preserves the existing FO appointment source of truth
 
 - `/agent/dashboard` now also consumes the same execution-lane contracts instead of using generic summary links:
   - dashboard action-queue items now carry explicit `whyNowLabel` and `nextStepLabel`, so the launchpad and action queue can explain both the pressure reason and the operator move without collapsing them into one sentence
   - dashboard client shortcuts now reopen `/agent/clients` through the same `clientView` contract, so `follow first`, `anchor now`, `viewing lane`, `duplicate review`, and broad CRM review all land in stable workbench states
+  - dashboard appointment commitments now reopen the exact appointment writeback route when the next move belongs in calendar coordination, so the CTA no longer stops at a generic calendar summary
   - leadership cleanup shortcuts continue to route through `/agent/notifications`, but now reuse the same pressure-specific next-step copy that the activity center shows inside the workbench cards
+
+- `/agent/notifications` now also tightens cleanup re-entry instead of behaving like a broad holding page:
+  - duplicate-review cleanup now intentionally reopens `/agent/clients?clientView=duplicate_review#duplicate-review`, keeping duplicate merge work inside the dedicated clients workbench lane
+  - appointment-writeback cleanup now preserves `clientId + appointmentId` when that context exists, so the next calendar move reopens a tighter writeback focus instead of a bare appointment deep link
 
 ## Non-goals in this phase
 

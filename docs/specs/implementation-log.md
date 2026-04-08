@@ -5,7 +5,7 @@
 - `Back Office MVP+` on one active repo/deployment line
 - Core operational modules already exist as real product surfaces, not just placeholder navigation
 - Current priority is cleanup, normalization, and workflow hardening instead of blindly adding more modules
-- `visible-scope CRM cleanup`, the first FO `activity + cleanup center`, the first browser-side `OCR / transcript intake assist`, the first logged `appointment bridge writeback` layer, the first agent-managed `appointment external follow-up writeback state`, a route-persistent `/agent/clients` workbench contract, and dashboard-to-workbench re-entry shortcuts are now live, so the next FO work should stay focused on deeper external writeback, stronger provider-backed intake acceleration, and broader office-wide cleanup depth before any heavier background automation
+- `visible-scope CRM cleanup`, the first FO `activity + cleanup center`, the first browser-side `OCR / transcript intake assist`, the first logged `appointment bridge writeback` layer, the first agent-managed `appointment external follow-up writeback state`, a route-persistent `/agent/clients` workbench contract, a route-persistent `/agent/calendar` workbench contract, and dashboard-to-workbench re-entry shortcuts are now live, so the next FO work should stay focused on deeper external writeback, stronger provider-backed intake acceleration, and broader office-wide cleanup depth before any heavier background automation
 
 ## Recently completed major work
 
@@ -34,6 +34,18 @@
 - 2026-04-08: `Front Office dashboard workbench shortcuts` now align dashboard launch actions with those focused FO routes instead of broad summary links:
   - extended [packages/db/src/front-office-dashboard.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-dashboard.ts) so dashboard queue items now carry `whyNowLabel` and `nextStepLabel`, plus stronger action labels and focused client-workbench hrefs for follow-up, lease timing, formal handoff, and leadership cleanup
   - updated [apps/web/app/agent/dashboard/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/dashboard/page.tsx) so launchpad cards, lane shortcuts, and duplicate-review re-entry now open stable `/agent/clients?clientView=...` targets or focused cleanup routes instead of broad `/agent/clients` summary jumps
+
+- 2026-04-08: `Front Office calendar view route contract` now turns the main writeback lanes into stable route aliases instead of ad-hoc filter combinations:
+  - added [apps/web/app/agent/calendar/calendar-view.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/calendar/calendar-view.ts) so the calendar route now has reusable `calendarView` aliases for `reply_due`, `confirmation_pending`, `touch_due`, `missing_next_touch`, `reschedule_requested`, and `bridge_logged`
+  - updated [apps/web/app/agent/calendar/front-office-calendar-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/calendar/front-office-calendar-client.tsx) so queue filters, quick lane buttons, and route normalization now consume `calendarView` while preserving the existing `appointmentId` focus lock behavior
+  - updated [apps/web/app/agent/calendar/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/calendar/page.tsx) so page-level copy and snapshot loading now follow the active calendar workbench lane instead of a generic calendar shell
+
+- 2026-04-08: `Front Office cleanup re-entry hardening` now routes duplicate review and appointment writeback back into the right focused workbench instead of broad holding routes:
+  - extended [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) so appointment cleanup targets now preserve `clientId + appointmentId` when available, and the target appointment in listings-side snapshots uses the same tighter calendar href shape
+  - updated [apps/web/app/agent/notifications/agent-notifications-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/notifications/agent-notifications-client.tsx) so duplicate-review cleanup now re-enters through `/agent/clients?clientView=duplicate_review#duplicate-review` and the personal cleanup copy explicitly points there when duplicate review is the active pass
+
+- 2026-04-08: `Front Office dashboard appointment writeback shortcuts` now send appointment commitments back into exact calendar focus instead of a broad summary route:
+  - updated [packages/db/src/front-office-dashboard.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-dashboard.ts) so appointment commitments now link to `clientId + appointmentId` calendar writeback URLs when possible, and the dashboard copy now talks about opening the writeback directly instead of a general calendar focus
 
 - 2026-04-07: `Front Office activity center drill-down workbench` now deepens the existing `/agent/notifications` cleanup route instead of leaving office-level cleanup capped at preview-only leadership rows:
   - extended [packages/db/src/front-office-dashboard.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-dashboard.ts) so leadership cleanup now keeps its existing dashboard preview rows while also returning a deeper notifications-only workbench item set, plus more explicit overdue-task age copy and a focus-preserving team-cleanup launch URL
