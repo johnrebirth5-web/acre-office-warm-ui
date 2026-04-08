@@ -73,6 +73,10 @@ export type FrontOfficeLeadIntakeAssistResult = {
   rawText: string;
   draft: FrontOfficeLeadIntakeAssistDraft;
   fields: FrontOfficeLeadIntakeAssistField[];
+  recognizedFieldLabels: string[];
+  manualConfirmationFieldLabels: string[];
+  ignoredFieldLabels: string[];
+  ignoredFieldReasonLabel: string;
   summaryLabel: string;
   safeApplyFieldCount: number;
   reviewFieldCount: number;
@@ -100,6 +104,35 @@ type ConversationContext = {
   riskFlags: FrontOfficeLeadIntakeAssistRiskFlag[];
   cautionLabels: string[];
   speakerNameCandidates: string[];
+};
+
+const intakeDraftFieldOrder: Array<keyof FrontOfficeLeadIntakeAssistDraft> = [
+  "fullName",
+  "phone",
+  "email",
+  "source",
+  "stage",
+  "intent",
+  "budgetMax",
+  "preferredAreas",
+  "nextFollowUpAt",
+  "notes",
+];
+
+const intakeDraftFieldLabels: Record<
+  keyof FrontOfficeLeadIntakeAssistDraft,
+  string
+> = {
+  fullName: "Full name",
+  phone: "Phone",
+  email: "Email",
+  source: "Source",
+  stage: "Stage",
+  intent: "Intent",
+  budgetMax: "Budget up to",
+  preferredAreas: "Preferred areas",
+  nextFollowUpAt: "Next follow-up",
+  notes: "Notes",
 };
 
 const nameLinePattern =
@@ -1397,6 +1430,33 @@ function buildReviewHintLabel(input: {
     : "Review hint: compare this suggestion with the original text before you let it into the live form.";
 }
 
+function buildIgnoredFieldReasonLabel(input: {
+  fields: FrontOfficeLeadIntakeAssistField[];
+  context: ConversationContext;
+}) {
+  if (!input.fields.length) {
+    return "Acre kept every field out of the live form because the extract stayed low-signal.";
+  }
+
+  if (input.fields.length >= intakeDraftFieldOrder.length) {
+    return "Acre extracted every intake field it could read from this extract.";
+  }
+
+  if (
+    input.context.hasMultiplePeople ||
+    input.context.hasHouseholdContext ||
+    input.context.hasContactOwnerRisk
+  ) {
+    return "Acre left the remaining fields out because the thread still looks multi-party, household-heavy, or relay-contact heavy.";
+  }
+
+  if (input.context.hasLowSignalText) {
+    return "Acre left the remaining fields out because the extract still looks sparse or noisy.";
+  }
+
+  return "Acre did not see enough evidence to promote the remaining fields into the live form.";
+}
+
 function buildField(
   field: keyof FrontOfficeLeadIntakeAssistDraft,
   label: string,
@@ -1641,11 +1701,25 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
   const previewOnlyFieldCount = fields.filter(
     (field) => field.suggestedAction === "preview_only",
   ).length;
+  const recognizedFieldLabels = fields.map((field) => field.label);
+  const manualConfirmationFieldLabels = fields
+    .filter((field) => field.suggestedAction !== "safe_apply")
+    .map((field) => field.label);
+  const ignoredFieldLabels = intakeDraftFieldOrder
+    .map((fieldKey) => intakeDraftFieldLabels[fieldKey])
+    .filter((label) => !recognizedFieldLabels.includes(label));
 
   return {
     rawText: normalizedText,
     draft,
     fields,
+    recognizedFieldLabels,
+    manualConfirmationFieldLabels,
+    ignoredFieldLabels,
+    ignoredFieldReasonLabel: buildIgnoredFieldReasonLabel({
+      fields,
+      context,
+    }),
     summaryLabel: fields.length
       ? `Detected ${fields.length} intake field(s) · ${safeApplyFieldCount} safe after review`
       : "No structured lead fields detected yet",

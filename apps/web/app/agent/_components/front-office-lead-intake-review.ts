@@ -244,12 +244,22 @@ function buildConfidenceLabel(input: {
 function buildRecommendedActionLabel(reasons: string[]) {
   const hasEmail = reasons.some((reason) => reason.startsWith("Same email"));
   const hasPhone = reasons.some((reason) => reason.startsWith("Same phone"));
+  const hasContactInfoMatch = hasEmail || hasPhone;
+  const hasNameMatch = reasons.some((reason) => reason.includes("name"));
 
-  if (hasEmail || hasPhone) {
-    return "Open the existing record first before you create a separate dossier.";
+  if (hasEmail && hasPhone) {
+    return "Open the existing record first, compare stage and next touch, and only create a second dossier if this is truly a different lead.";
   }
 
-  return "This looks like a name-only collision. Compare phone or email in the existing record before you create anything new.";
+  if (hasContactInfoMatch) {
+    return "Open the existing record first, compare contact info and stage, and use duplicate review if this is the same person.";
+  }
+
+  if (hasNameMatch) {
+    return "Compare phone, email, and preferred areas in the existing record before you create anything new.";
+  }
+
+  return "Review the visible record first, then compare contact details and stage before creating a separate dossier.";
 }
 
 export function buildFrontOfficeLeadDuplicatePreview(input: {

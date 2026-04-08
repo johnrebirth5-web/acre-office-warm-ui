@@ -218,7 +218,7 @@ function buildCreateLeadErrorFeedback(
   if (responseStatus === 409 || payload?.errorCode === "duplicate_lead") {
     return (
       payload?.error ??
-      "Potential duplicate clients were found inside your visible CRM scope. Nothing was created. Review the closest existing record first, or create anyway only if this truly needs a separate dossier."
+      "Potential duplicate clients were found inside your visible CRM scope. Open the closest existing record first, compare contact info and stage, then use the duplicate review lane if this is the same lead. Create a separate dossier only if this is truly a different person."
     );
   }
 
@@ -323,6 +323,55 @@ function getAssistFieldProvenanceTone(field: FrontOfficeLeadIntakeAssistField) {
     case "summary_preview":
       return "neutral" as const;
   }
+}
+
+function summarizeLabelList(labels: string[], emptyLabel: string, limit = 4) {
+  if (!labels.length) {
+    return emptyLabel;
+  }
+
+  if (labels.length <= limit) {
+    return labels.join(", ");
+  }
+
+  return `${labels.slice(0, limit).join(", ")} +${labels.length - limit} more`;
+}
+
+function buildDuplicateNextStepLabels(reasons: string[]) {
+  const hasEmail = reasons.some((reason) => reason.startsWith("Same email"));
+  const hasPhone = reasons.some((reason) => reason.startsWith("Same phone"));
+  const hasContactInfoMatch = hasEmail || hasPhone;
+  const hasNameMatch = reasons.some((reason) => reason.includes("name"));
+
+  if (hasEmail && hasPhone) {
+    return [
+      "Open the existing record first",
+      "Compare stage, next touch, and source",
+      "Use duplicate review if this is the same lead",
+    ];
+  }
+
+  if (hasContactInfoMatch) {
+    return [
+      "Open the existing record first",
+      "Compare contact info, stage, and next touch",
+      "Use duplicate review if this is the same person",
+    ];
+  }
+
+  if (hasNameMatch) {
+    return [
+      "Open the existing record first",
+      "Compare phone, email, and preferred areas",
+      "Create a new dossier only if this is truly different",
+    ];
+  }
+
+  return [
+    "Open the existing record first",
+    "Compare stage, source, and next touch",
+    "Create separately only if the contact is distinct",
+  ];
 }
 
 function isBlankOrUntouchedDefaultField(input: {
@@ -1663,6 +1712,33 @@ export function FrontOfficeLeadIntakeCard(
                   </p>
                   <div className="front-office-record-meta">
                     <span>
+                      Recognized:{" "}
+                      {summarizeLabelList(
+                        assistResult.recognizedFieldLabels,
+                        "none yet",
+                      )}
+                    </span>
+                    <span>
+                      Manual confirmation:{" "}
+                      {summarizeLabelList(
+                        assistResult.manualConfirmationFieldLabels,
+                        "none",
+                      )}
+                    </span>
+                    <span>
+                      Not extracted:{" "}
+                      {summarizeLabelList(
+                        assistResult.ignoredFieldLabels,
+                        "none",
+                      )}
+                    </span>
+                  </div>
+                  <p className="front-office-calendar-feedback is-neutral">
+                    <strong>Ignored fields stay out of the live form.</strong>{" "}
+                    {assistResult.ignoredFieldReasonLabel}
+                  </p>
+                  <div className="front-office-record-meta">
+                    <span>
                       {assistResult.safeApplyFieldCount} safe after review
                     </span>
                     <span>{assistResult.reviewFieldCount} review-first</span>
@@ -1946,22 +2022,20 @@ export function FrontOfficeLeadIntakeCard(
           {shouldShowDuplicatePreviewSurface ? (
             <div className="front-office-duplicate-surface">
               <div className="front-office-duplicate-head">
-                <strong>Early duplicate preview</strong>
+                <strong>Early duplicate warning</strong>
                 <p>
                   Acre checks visible-scope collisions from{" "}
-                  {duplicatePreviewSourceSummary} now as an early warning only.
-                  The formal create-time duplicate gate still runs from the
-                  live form on save, and nothing here merges or auto-creates a
-                  dossier.
+                  {duplicatePreviewSourceSummary} before you submit. Open the
+                  closest existing record first, compare contact info and
+                  stage, and only create a separate dossier if this is truly a
+                  different lead.
                 </p>
               </div>
 
               <div className="front-office-record-meta">
-                <span>Early preview uses live or reviewed values only</span>
-                <span>
-                  Unreviewed assist identity fields stay out of duplicate checks
-                </span>
-                <span>Preview is warning-only: nothing merges or creates here</span>
+                <span>Open the existing record first</span>
+                <span>Compare contact info, stage, and next touch</span>
+                <span>Use duplicate review if this is the same lead</span>
                 <span>Save-time gate still checks live name, phone, and email</span>
               </div>
 
@@ -1989,6 +2063,13 @@ export function FrontOfficeLeadIntakeCard(
                         <span>Visible Front Office scope</span>
                       </div>
                       <p>{match.recommendedActionLabel}</p>
+                      <div className="front-office-record-meta">
+                        {buildDuplicateNextStepLabels(match.matchReasons).map(
+                          (label) => (
+                            <span key={`${match.id}-${label}`}>{label}</span>
+                          ),
+                        )}
+                      </div>
                       <div className="front-office-merge-actions">
                         <FrontOfficeLink
                           className="office-inline-link front-office-inline-link"
@@ -2010,8 +2091,8 @@ export function FrontOfficeLeadIntakeCard(
                 <EmptyState
                   description={
                     pendingDuplicateIdentityAssistCount > 0
-                      ? "Identity suggestions are still pending review, so Acre is intentionally holding back duplicate preview until those values enter the live form."
-                      : "No visible collision is showing yet. That does not bypass the final duplicate gate: save-time checks still verify the live name, phone, and email before create."
+                      ? "Identity suggestions are still pending review, so Acre is intentionally holding back duplicate preview until those values enter the live form. Review the name, phone, or email first, then compare the closest visible record."
+                      : "No visible collision is showing yet. That does not bypass the final duplicate gate: save-time checks still verify the live name, phone, and email before create. Compare the closest visible record first if this lead already exists."
                   }
                   title={
                     pendingDuplicateIdentityAssistCount > 0
@@ -2243,10 +2324,18 @@ export function FrontOfficeLeadIntakeCard(
               <strong>Potential duplicate leads</strong>
               <p>
                 Acre found existing records in the CRM scope you can currently
-                see. Start with the closest match below, then jump into the
-                duplicate review lane if this should merge instead of creating a
-                second dossier. Nothing has been merged or created yet.
+                see. Open the closest match below first, compare contact
+                details and stage, then jump into the duplicate review lane if
+                this should merge instead of creating a second dossier. Nothing
+                has been merged or created yet.
               </p>
+            </div>
+
+            <div className="front-office-record-meta">
+              <span>Open the existing record first</span>
+              <span>Compare contact details and stage</span>
+              <span>Use duplicate review for the same lead</span>
+              <span>Only create a separate dossier if distinct</span>
             </div>
 
             <div className="office-queue-list">
@@ -2268,6 +2357,13 @@ export function FrontOfficeLeadIntakeCard(
                     <span>{match.nextTouchLabel}</span>
                     <span>{match.ownerLabel}</span>
                     <span>{match.scopeLabel}</span>
+                  </div>
+                  <div className="front-office-record-meta">
+                    {buildDuplicateNextStepLabels(match.matchReasons).map(
+                      (label) => (
+                        <span key={`${match.id}-${label}`}>{label}</span>
+                      ),
+                    )}
                   </div>
                   <div className="front-office-merge-actions">
                     <FrontOfficeLink
