@@ -13,6 +13,13 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import {
+  deriveCalendarViewFromRoute,
+  getCalendarViewConfig,
+  getCalendarViewRoutePatch,
+  resolveCalendarView,
+  type CalendarViewKey,
+} from "./calendar-view";
+import {
   getSessionAccess,
   requireSessionContext,
 } from "../../../lib/auth-session";
@@ -39,6 +46,23 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
   const access = getSessionAccess(context);
   const searchParams = (await props.searchParams) ?? {};
+  const requestedCalendarViewValue = readSearchParamValue(
+    searchParams.calendarView,
+  )?.trim();
+  const requestedCalendarView = resolveCalendarView(requestedCalendarViewValue);
+  const hasExplicitCalendarView = Boolean(requestedCalendarViewValue);
+  const calendarViewFromFilters = deriveCalendarViewFromRoute({
+    coordination: readSearchParamValue(searchParams.coordination)?.trim() ?? "all",
+    followUp: readSearchParamValue(searchParams.followUp)?.trim() ?? "all",
+    status: readSearchParamValue(searchParams.status)?.trim() ?? "all",
+  });
+  const activeCalendarView: CalendarViewKey = hasExplicitCalendarView
+    ? requestedCalendarView
+    : calendarViewFromFilters;
+  const activeCalendarViewConfig = getCalendarViewConfig(activeCalendarView);
+  const activeCalendarViewPatch = hasExplicitCalendarView
+    ? getCalendarViewRoutePatch(activeCalendarView)
+    : null;
   const snapshot = await getFrontOfficeAppointmentsSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -47,9 +71,15 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
     clientId: readSearchParamValue(searchParams.clientId)?.trim(),
     listingId: readSearchParamValue(searchParams.listingId)?.trim(),
     type: readSearchParamValue(searchParams.type)?.trim(),
-    status: readSearchParamValue(searchParams.status)?.trim(),
-    coordination: readSearchParamValue(searchParams.coordination)?.trim(),
-    followUp: readSearchParamValue(searchParams.followUp)?.trim(),
+    status:
+      activeCalendarViewPatch?.status ??
+      readSearchParamValue(searchParams.status)?.trim(),
+    coordination:
+      activeCalendarViewPatch?.coordination ??
+      readSearchParamValue(searchParams.coordination)?.trim(),
+    followUp:
+      activeCalendarViewPatch?.followUp ??
+      readSearchParamValue(searchParams.followUp)?.trim(),
     targetAppointmentId: readSearchParamValue(
       searchParams.appointmentId,
     )?.trim(),
@@ -69,7 +99,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page."
+      description={`${activeCalendarViewConfig.description} Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page.`}
       eyebrow="Calendar"
       main={
         <FrontOfficeCalendarClient

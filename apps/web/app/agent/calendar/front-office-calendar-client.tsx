@@ -32,6 +32,14 @@ import {
   type ReadonlyURLSearchParams,
 } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import {
+  calendarViewValues,
+  deriveCalendarViewFromRoute,
+  getCalendarViewConfig,
+  getCalendarViewRoutePatch,
+  resolveCalendarView,
+  type CalendarViewKey,
+} from "./calendar-view";
 
 type FrontOfficeCalendarClientProps = {
   initialClientId?: string;
@@ -117,6 +125,7 @@ type AppointmentCue = {
 
 type FilterState = {
   clientId: string;
+  calendarView: CalendarViewKey;
   listingId: string;
   type: string;
   status: string;
@@ -156,6 +165,11 @@ const statusFilterOptions = [
   { value: "canceled", label: "Canceled" },
   { value: "no_show", label: "No-show" },
 ];
+
+const calendarViewOptions = calendarViewValues.map((value) => ({
+  value,
+  label: getCalendarViewConfig(value).label,
+}));
 
 const coordinationFilterOptions = [
   { value: "all", label: "All coordination states" },
@@ -448,6 +462,15 @@ function buildCalendarHref(
     }
   }
 
+  const nextCalendarView = update.calendarView;
+  if (nextCalendarView !== undefined) {
+    if (nextCalendarView && nextCalendarView !== "all") {
+      params.set("calendarView", nextCalendarView);
+    } else {
+      params.delete("calendarView");
+    }
+  }
+
   const nextListingId = update.listingId;
   if (nextListingId !== undefined) {
     if (nextListingId) {
@@ -538,6 +561,7 @@ function appendReturnToHref(href: string, returnTo: string) {
 function readFilterState(searchParams: ReadonlyURLSearchParams): FilterState {
   return {
     clientId: searchParams.get("clientId")?.trim() ?? "",
+    calendarView: resolveCalendarView(searchParams.get("calendarView")?.trim()),
     listingId: searchParams.get("listingId")?.trim() ?? "",
     type: searchParams.get("type")?.trim() ?? "",
     status: searchParams.get("status")?.trim() ?? "all",
@@ -598,24 +622,42 @@ function normalizeFilterState(
   rawFilterState: FilterState,
   snapshot: FrontOfficeAppointmentsSnapshot,
 ): FilterState {
+  const normalizedCoordination = sanitizeEnumValue(
+    rawFilterState.coordination,
+    coordinationFilterValueSet,
+    "all",
+  );
+  const normalizedFollowUp = sanitizeEnumValue(
+    rawFilterState.followUp,
+    followUpFilterValueSet,
+    "all",
+  );
+  const normalizedStatus = sanitizeEnumValue(
+    rawFilterState.status,
+    statusFilterValueSet,
+    "all",
+  );
+  const explicitCalendarView = resolveCalendarView(rawFilterState.calendarView);
+  const derivedCalendarView =
+    explicitCalendarView !== "all"
+      ? explicitCalendarView
+      : deriveCalendarViewFromRoute({
+          coordination: normalizedCoordination,
+          followUp: normalizedFollowUp,
+          status: normalizedStatus,
+        });
+
   return {
     clientId: sanitizeScopedValue(rawFilterState.clientId, snapshot.clientOptions),
+    calendarView: derivedCalendarView,
     listingId: sanitizeScopedValue(
       rawFilterState.listingId,
       snapshot.listingOptions,
     ),
     type: sanitizeScopedValue(rawFilterState.type, snapshot.typeOptions),
-    status: sanitizeEnumValue(rawFilterState.status, statusFilterValueSet, "all"),
-    coordination: sanitizeEnumValue(
-      rawFilterState.coordination,
-      coordinationFilterValueSet,
-      "all",
-    ),
-    followUp: sanitizeEnumValue(
-      rawFilterState.followUp,
-      followUpFilterValueSet,
-      "all",
-    ),
+    status: normalizedStatus,
+    coordination: normalizedCoordination,
+    followUp: normalizedFollowUp,
     appointmentId: rawFilterState.appointmentId,
     returnTo: sanitizeReturnTo(rawFilterState.returnTo),
   };
@@ -661,6 +703,7 @@ function readReturnToLabel(returnTo: string) {
 function hasActiveQueueFilters(filterState: FilterState) {
   return Boolean(
       filterState.clientId ||
+      filterState.calendarView !== "all" ||
       filterState.listingId ||
       filterState.type ||
       filterState.status !== "all" ||
@@ -788,9 +831,13 @@ export function FrontOfficeCalendarClient(
     filterState.followUp !== "all"
       ? readOptionLabel(followUpFilterOptions, filterState.followUp)
       : "";
+  const activeCalendarViewConfig = getCalendarViewConfig(
+    filterState.calendarView,
+  );
   const hasQueueFilters = hasActiveQueueFilters(filterState);
   const returnToLabel = readReturnToLabel(filterState.returnTo);
   const routeStateMeta = [
+    `Calendar view · ${activeCalendarViewConfig.label}`,
     selectedClientLabel ? `Client · ${selectedClientLabel}` : "Client · all visible",
     selectedListingLabel
       ? `Listing · ${selectedListingLabel}`
@@ -815,13 +862,14 @@ export function FrontOfficeCalendarClient(
     focusState.mode === "missing"
       ? "The route still carries an appointment deep link that Acre can no longer resolve."
       : focusState.mode === "locked_outside_queue"
-        ? "A pinned appointment is being kept readable even though the queue filters hide it."
+        ? `${activeCalendarViewConfig.routeCopy} with a pinned appointment`
         : filterState.appointmentId
-          ? "This route keeps a specific appointment pinned while the queue stays visible below."
-        : hasQueueFilters
-          ? "This calendar slice is pinned by route filters and will reopen in the same state."
-          : "This route is showing the full visible Front Office calendar queue.";
+          ? `${activeCalendarViewConfig.routeCopy} with a specific appointment pinned`
+          : hasQueueFilters
+          ? `${activeCalendarViewConfig.routeCopy} is pinned by route filters and will reopen in the same state.`
+          : activeCalendarViewConfig.routeCopy;
   const routeStateDescriptionParts = [
+    activeCalendarViewConfig.description,
     selectedClientLabel
       ? `Client context is scoped to ${selectedClientLabel}.`
       : "Client context is not narrowed yet.",
@@ -842,6 +890,10 @@ export function FrontOfficeCalendarClient(
     return buildCalendarHref(pathname, searchParams, {
       appointmentId,
     });
+  }
+
+  function navigateToCalendarView(calendarView: CalendarViewKey) {
+    navigateWithFilters(getCalendarViewRoutePatch(calendarView));
   }
 
   function buildContextAwareHref(baseHref: string, appointmentId: string) {
@@ -900,10 +952,26 @@ export function FrontOfficeCalendarClient(
   }, [defaultListingId]);
 
   function navigateWithFilters(update: FilterUpdate) {
-    startTransition(() => {
-      router.replace(buildCalendarHref(pathname, searchParams, update), {
-        scroll: false,
+    const nextState = {
+      ...filterState,
+      ...update,
+    };
+    const nextCalendarView =
+      update.calendarView ??
+      deriveCalendarViewFromRoute({
+        coordination: nextState.coordination,
+        followUp: nextState.followUp,
+        status: nextState.status,
       });
+
+    startTransition(() => {
+      router.replace(
+        buildCalendarHref(pathname, searchParams, {
+          ...update,
+          calendarView: nextCalendarView,
+        }),
+        { scroll: false },
+      );
     });
   }
 
@@ -1026,11 +1094,13 @@ export function FrontOfficeCalendarClient(
   function clearQueueFilters() {
     navigateWithFilters({
       clientId: "",
+      calendarView: "all",
       listingId: "",
       type: "",
       status: "all",
       coordination: "all",
       followUp: "all",
+      appointmentId: "",
     });
   }
 
@@ -1694,10 +1764,25 @@ export function FrontOfficeCalendarClient(
 
       <SectionCard
         className="office-list-card"
-        subtitle="Filters stay in the route so you can reopen the same external-coordination slice without rebuilding the view."
+        subtitle="Calendar view and filters stay in the route so you can reopen the same external-coordination slice without rebuilding the view."
         title="Queue filters"
       >
         <div className="office-form-grid">
+          <FormField label="Calendar view">
+            <SelectInput
+              onChange={(event) =>
+                navigateToCalendarView(resolveCalendarView(event.target.value))
+              }
+              value={filterState.calendarView}
+            >
+              {calendarViewOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </SelectInput>
+          </FormField>
+
           <FormField label="Client">
             <SelectInput
               onChange={(event) =>
@@ -1912,30 +1997,20 @@ export function FrontOfficeCalendarClient(
         <div className="front-office-calendar-actions">
           <Button
             onClick={() =>
-              navigateWithFilters({
-                followUp: "response_waiting",
-                coordination: "all",
-                appointmentId: "",
-              })
+              navigateToCalendarView("reply_due")
             }
             size="sm"
-            variant={
-              filterState.followUp === "response_waiting" ? "primary" : "secondary"
-            }
+            variant={filterState.calendarView === "reply_due" ? "primary" : "secondary"}
           >
             Needs reply
           </Button>
           <Button
             onClick={() =>
-              navigateWithFilters({
-                coordination: "confirmation_pending",
-                followUp: "all",
-                appointmentId: "",
-              })
+              navigateToCalendarView("confirmation_pending")
             }
             size="sm"
             variant={
-              filterState.coordination === "confirmation_pending"
+              filterState.calendarView === "confirmation_pending"
                 ? "primary"
                 : "secondary"
             }
@@ -1944,28 +2019,20 @@ export function FrontOfficeCalendarClient(
           </Button>
           <Button
             onClick={() =>
-              navigateWithFilters({
-                followUp: "touch_due",
-                coordination: "all",
-                appointmentId: "",
-              })
+              navigateToCalendarView("touch_due")
             }
             size="sm"
-            variant={filterState.followUp === "touch_due" ? "primary" : "secondary"}
+            variant={filterState.calendarView === "touch_due" ? "primary" : "secondary"}
           >
             Touch due
           </Button>
           <Button
             onClick={() =>
-              navigateWithFilters({
-                followUp: "next_touch_missing",
-                coordination: "all",
-                appointmentId: "",
-              })
+              navigateToCalendarView("missing_next_touch")
             }
             size="sm"
             variant={
-              filterState.followUp === "next_touch_missing"
+              filterState.calendarView === "missing_next_touch"
                 ? "primary"
                 : "secondary"
             }
@@ -1974,15 +2041,11 @@ export function FrontOfficeCalendarClient(
           </Button>
           <Button
             onClick={() =>
-              navigateWithFilters({
-                coordination: "reschedule_requested",
-                followUp: "all",
-                appointmentId: "",
-              })
+              navigateToCalendarView("reschedule_requested")
             }
             size="sm"
             variant={
-              filterState.coordination === "reschedule_requested"
+              filterState.calendarView === "reschedule_requested"
                 ? "primary"
                 : "secondary"
             }
@@ -2004,15 +2067,11 @@ export function FrontOfficeCalendarClient(
           </Button>
           <Button
             onClick={() =>
-              navigateWithFilters({
-                coordination: "writeback_pending",
-                followUp: "all",
-                appointmentId: "",
-              })
+              navigateToCalendarView("bridge_logged")
             }
             size="sm"
             variant={
-              filterState.coordination === "writeback_pending"
+              filterState.calendarView === "bridge_logged"
                 ? "primary"
                 : "secondary"
             }
