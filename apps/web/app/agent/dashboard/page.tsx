@@ -119,6 +119,12 @@ function getLaunchpadStepContext(index: number) {
   return index === 0 ? "Step 1 · Do this first" : `Step ${index + 1} · Keep moving`;
 }
 
+function formatTodayActionLabel(count: number) {
+  return count === 1
+    ? "1 action needs attention today"
+    : `${count} actions need attention today`;
+}
+
 function getDashboardRoleFocus(role: string) {
   switch (role) {
     case "team_lead":
@@ -549,6 +555,7 @@ export default async function AgentDashboardPage() {
     snapshot,
     canUseAi,
   });
+  const todayActionCount = snapshot.summary.todayActionCount;
   const leadershipCleanupHref =
     "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure";
   const activityCenterHref = snapshot.leadershipQueue.visible
@@ -621,11 +628,15 @@ export default async function AgentDashboardPage() {
 
             <div className="front-office-placeholder-note">
               <Badge tone={primaryLaunchpadItem?.badgeTone ?? "accent"}>
-                {primaryLaunchpadItem ? "Priority now" : "Queue check"}
+                {todayActionCount > 0
+                  ? formatTodayActionLabel(todayActionCount)
+                  : primaryLaunchpadItem
+                    ? "Priority now"
+                    : "Queue check"}
               </Badge>
               <p>
                 {primaryLaunchpadItem
-                  ? `${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so cleanup re-entry, appointment work, send-risk follow-through, and duplicate review stay in sequence.`
+                  ? `${todayActionCount > 0 ? `${formatTodayActionLabel(todayActionCount)}. ` : ""}${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so cleanup re-entry, appointment work, send-risk follow-through, and duplicate review stay in sequence.`
                   : canViewClients
                     ? "No urgent Front Office pressure is elevated right now. Use the live client queue or intake assist only after you confirm the activity center is clear."
                     : "No urgent Front Office pressure is elevated right now. Reopen the activity center to confirm nothing time-sensitive is hiding there."}
@@ -1694,6 +1705,7 @@ export default async function AgentDashboardPage() {
           />
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip label="Role focus" value={roleFocus.label} />
+          <SummaryChip label="Today actions" tone="accent" value={todayActionCount} />
           <SummaryChip
             label="Start with"
             tone="accent"
