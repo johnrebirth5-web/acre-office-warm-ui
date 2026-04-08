@@ -308,7 +308,7 @@ export function WorkspaceNav({
                 role="presentation"
               >
                 <strong>{currentWorkspaceName}</strong>
-                <span>Current workspace</span>
+                <span>Current active workspace</span>
               </div>
               {resolvedSwitcherShortcuts.map((shortcut) => (
                 <Link
