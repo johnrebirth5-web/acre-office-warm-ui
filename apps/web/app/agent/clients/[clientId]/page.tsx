@@ -20,6 +20,8 @@ import {
   FrontOfficeClientGuidanceQueue,
   buildFrontOfficeClientFollowUpHref,
   frontOfficeClientDossierSectionIds,
+  getFrontOfficeClientDossierSectionDescription,
+  getFrontOfficeClientDossierSectionLabel,
   getFrontOfficeClientDossierSectionHref,
 } from "./front-office-client-dossier-shared";
 import { FrontOfficeClientLeaseReminderClient } from "./front-office-client-lease-reminder-client";
@@ -141,6 +143,15 @@ export default async function AgentClientDetailPage(
     snapshot.nextStepRail.items.find(
       (item) => item.id === "closing_suggestion",
     ) ?? currentRailItem;
+  const currentSectionLabel = getFrontOfficeClientDossierSectionLabel(
+    currentRailItem.id,
+  );
+  const currentSectionDescription = getFrontOfficeClientDossierSectionDescription(
+    currentRailItem.id,
+  );
+  const currentSectionHref = getFrontOfficeClientDossierSectionHref(
+    currentRailItem.id,
+  );
   const railSectionHref = `#${frontOfficeClientDossierSectionIds.nextStepRail}`;
   const backOfficeContextHref = `#${frontOfficeClientDossierSectionIds.backOfficeContext}`;
   const overviewSectionHref = "#front-office-client-overview";
@@ -390,6 +401,10 @@ export default async function AgentClientDetailPage(
             actions={
               <FrontOfficeClientActionGroup
                 actions={[
+                  {
+                    href: currentSectionHref,
+                    label: `Jump to ${currentSectionLabel}`,
+                  },
                   followUpPrimaryAction,
                   {
                     href: timelineSectionHref,
@@ -405,7 +420,7 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id="front-office-client-overview"
-            subtitle="Core FO context stays readable here so the next call, showing, or handoff does not require opening a full admin form."
+            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so the next call, showing, or handoff does not require opening a full admin form.`}
             title="Overview"
           >
             <ListPageStatsGrid>
@@ -480,7 +495,7 @@ export default async function AgentClientDetailPage(
                   tone: snapshot.workflow.pressureTone,
                   title: snapshot.workflow.nextStepTitle,
                   description: snapshot.workflow.nextStepDescription,
-                  context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
+                  context: `${currentSectionLabel} · ${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
                   meta: <span>{snapshot.workflow.pressureDescription}</span>,
                   actions: [workflowAction],
                 },
@@ -534,8 +549,12 @@ export default async function AgentClientDetailPage(
 
             <div className="office-detail-grid">
               <div className="office-detail-field">
-                <span>Current focus</span>
-                <strong>{currentRailItem.title}</strong>
+                <span>Current section</span>
+                <strong>{currentSectionLabel}</strong>
+              </div>
+              <div className="office-detail-field office-detail-field-wide">
+                <span>Section note</span>
+                <strong>{currentSectionDescription}</strong>
               </div>
               <div className="office-detail-field">
                 <span>Next touch</span>

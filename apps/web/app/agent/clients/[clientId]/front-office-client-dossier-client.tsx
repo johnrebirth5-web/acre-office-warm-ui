@@ -22,6 +22,9 @@ import {
   FrontOfficeClientActionGroup,
   FrontOfficeClientGuidanceQueue,
   frontOfficeClientDossierSectionIds,
+  getFrontOfficeClientDossierSectionDescription,
+  getFrontOfficeClientDossierSectionHref,
+  getFrontOfficeClientDossierSectionLabel,
 } from "./front-office-client-dossier-shared";
 
 type FrontOfficeClientDossierClientProps = {
@@ -59,6 +62,12 @@ type FollowUpQuickTemplate = {
 type TaskDraftState = {
   title: string;
   dueAt: string;
+};
+
+type SectionFocusState = {
+  label: string;
+  description: string;
+  href: string;
 };
 
 const FRONT_OFFICE_FOLLOW_UP_FORM_ID = "front-office-follow-up-form";
@@ -175,6 +184,68 @@ function buildFollowUpQuickTemplates(
   return templates.slice(0, 4);
 }
 
+function resolveSectionFocusState(
+  hash: string,
+  currentRailItem: FrontOfficeClientDetailSnapshot["nextStepRail"]["items"][number],
+): SectionFocusState {
+  const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
+
+  switch (normalizedHash) {
+    case frontOfficeClientDossierSectionIds.appointmentsFollowUp:
+      return {
+        label: "Appointments & follow-up",
+        description: getFrontOfficeClientDossierSectionDescription(
+          "follow_up",
+        ),
+        href: `#${frontOfficeClientDossierSectionIds.appointmentsFollowUp}`,
+      };
+    case frontOfficeClientDossierSectionIds.listingOutput:
+      return {
+        label: "Listing output",
+        description:
+          "Use this section for tracked sends, rescues, open counts, and the next outbound decision.",
+        href: `#${frontOfficeClientDossierSectionIds.listingOutput}`,
+      };
+    case frontOfficeClientDossierSectionIds.offerPrep:
+      return {
+        label: "Offer & negotiation",
+        description:
+          "Use this section when the dossier needs to stay explicit about FO prep versus BO handoff.",
+        href: `#${frontOfficeClientDossierSectionIds.offerPrep}`,
+      };
+    case frontOfficeClientDossierSectionIds.inspectionSupport:
+      return {
+        label: "Inspection & contract support",
+        description:
+          "Use this section when a linked transaction needs task, signature, or incoming-update support.",
+        href: `#${frontOfficeClientDossierSectionIds.inspectionSupport}`,
+      };
+    case frontOfficeClientDossierSectionIds.closingSuggestion:
+      return {
+        label: "Closing & win suggestions",
+        description:
+          "Use this section when the record is closing, recently won, or set up for post-close re-entry.",
+        href: `#${frontOfficeClientDossierSectionIds.closingSuggestion}`,
+      };
+    case frontOfficeClientDossierSectionIds.backOfficeContext:
+      return {
+        label: "FO / BO boundary",
+        description:
+          "Use this section when the dossier needs to explain why Back Office should take the formal record.",
+        href: `#${frontOfficeClientDossierSectionIds.backOfficeContext}`,
+      };
+    case frontOfficeClientDossierSectionIds.nextStepRail:
+    default:
+      return {
+        label: getFrontOfficeClientDossierSectionLabel(currentRailItem.id),
+        description: getFrontOfficeClientDossierSectionDescription(
+          currentRailItem.id,
+        ),
+        href: getFrontOfficeClientDossierSectionHref(currentRailItem.id),
+      };
+  }
+}
+
 export function FrontOfficeClientDossierClient(
   props: FrontOfficeClientDossierClientProps,
 ) {
@@ -189,11 +260,13 @@ export function FrontOfficeClientDossierClient(
     title: "",
     dueAt: "",
   });
+  const [sectionHash, setSectionHash] = useState<string>("");
   const [isPending, startTransition] = useTransition();
   const isBusy = isSaving || isPending;
   const currentRailItem =
     props.snapshot.nextStepRail.items.find((item) => item.isCurrent) ??
     props.snapshot.nextStepRail.items[0];
+  const sectionFocus = resolveSectionFocusState(sectionHash, currentRailItem);
   const activeTasks = props.snapshot.followUpTasks.filter((task) => !task.isResolved);
   const resolvedTasks = props.snapshot.followUpTasks.filter((task) => task.isResolved);
   const orderedActiveTasks = [...activeTasks].sort((left, right) => {
@@ -280,6 +353,19 @@ export function FrontOfficeClientDossierClient(
   useEffect(() => {
     setFormState(buildEmptyFormState(props.suggestedFollowUp));
   }, [props.suggestedFollowUp?.dueAt, props.suggestedFollowUp?.title]);
+
+  useEffect(() => {
+    const syncSectionHash = () => {
+      setSectionHash(window.location.hash || "");
+    };
+
+    syncSectionHash();
+    window.addEventListener("hashchange", syncSectionHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncSectionHash);
+    };
+  }, []);
 
   useEffect(() => {
     if (!editingTaskId) {
@@ -462,6 +548,29 @@ export function FrontOfficeClientDossierClient(
     <div className="office-list-page-stack">
       <FrontOfficeClientGuidanceQueue
         items={[
+          {
+            key: "section-focus",
+            label: "Re-entry focus",
+            tone: "accent",
+            title: `You're back in the ${sectionFocus.label} section`,
+            description: sectionFocus.description,
+            context: `${currentRailItem.stepLabel} · ${currentRailItem.ownershipLabel}`,
+            meta: (
+              <span>
+                Section anchor · {sectionFocus.href.replace(/^#/, "")}
+              </span>
+            ),
+            actions: [
+              {
+                href: sectionFocus.href,
+                label: `Review ${sectionFocus.label}`,
+              },
+              {
+                href: `#${frontOfficeClientDossierSectionIds.nextStepRail}`,
+                label: "Jump to next-step rail",
+              },
+            ],
+          },
           {
             key: "workflow",
             label: props.snapshot.workflow.pressureLabel,

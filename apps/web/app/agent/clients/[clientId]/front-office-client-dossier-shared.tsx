@@ -14,6 +14,33 @@ export const frontOfficeClientDossierSectionIds = {
   backOfficeContext: "front-office-client-back-office-context",
 } as const;
 
+export const frontOfficeClientDossierSectionLabels = {
+  nextStepRail: "Next-step rail",
+  appointmentsFollowUp: "Appointments & follow-up",
+  listingOutput: "Listing output",
+  offerPrep: "Offer & negotiation",
+  inspectionSupport: "Inspection & contract support",
+  closingSuggestion: "Closing & win suggestions",
+  backOfficeContext: "FO / BO boundary",
+} as const;
+
+export const frontOfficeClientDossierSectionDescriptions = {
+  nextStepRail:
+    "Use this section when you want the dossier to explain the active execution lane and the next best move.",
+  appointmentsFollowUp:
+    "Use this section when the next touch belongs to calls, reminders, confirmations, reschedules, or live client coordination.",
+  listingOutput:
+    "Use this section when the next move is about tracked sends, rescues, open counts, or follow-through on a previous shortlist.",
+  offerPrep:
+    "Use this section when the dossier has crossed into negotiation or formal offer prep and needs the FO / BO boundary to stay explicit.",
+  inspectionSupport:
+    "Use this section when a linked transaction needs inspection, signature, or incoming-update support from the same client record.",
+  closingSuggestion:
+    "Use this section when the record is closing, recently won, or ready for post-close re-entry and recap.",
+  backOfficeContext:
+    "Use this section when you need the dossier to explain why the formal Back Office record should take over.",
+} as const;
+
 export type FrontOfficeClientActionDescriptor = {
   href?: string | null;
   label: string;
@@ -60,6 +87,42 @@ export function getFrontOfficeClientDossierSectionHref(stepId: string) {
       return `#${frontOfficeClientDossierSectionIds.closingSuggestion}`;
     default:
       return `#${frontOfficeClientDossierSectionIds.nextStepRail}`;
+  }
+}
+
+export function getFrontOfficeClientDossierSectionLabel(stepId: string) {
+  switch (stepId) {
+    case "follow_up":
+    case "appointment":
+      return frontOfficeClientDossierSectionLabels.appointmentsFollowUp;
+    case "listing_output":
+      return frontOfficeClientDossierSectionLabels.listingOutput;
+    case "offer_prep":
+      return frontOfficeClientDossierSectionLabels.offerPrep;
+    case "inspection_support":
+      return frontOfficeClientDossierSectionLabels.inspectionSupport;
+    case "closing_suggestion":
+      return frontOfficeClientDossierSectionLabels.closingSuggestion;
+    default:
+      return frontOfficeClientDossierSectionLabels.nextStepRail;
+  }
+}
+
+export function getFrontOfficeClientDossierSectionDescription(stepId: string) {
+  switch (stepId) {
+    case "follow_up":
+    case "appointment":
+      return frontOfficeClientDossierSectionDescriptions.appointmentsFollowUp;
+    case "listing_output":
+      return frontOfficeClientDossierSectionDescriptions.listingOutput;
+    case "offer_prep":
+      return frontOfficeClientDossierSectionDescriptions.offerPrep;
+    case "inspection_support":
+      return frontOfficeClientDossierSectionDescriptions.inspectionSupport;
+    case "closing_suggestion":
+      return frontOfficeClientDossierSectionDescriptions.closingSuggestion;
+    default:
+      return frontOfficeClientDossierSectionDescriptions.nextStepRail;
   }
 }
 
