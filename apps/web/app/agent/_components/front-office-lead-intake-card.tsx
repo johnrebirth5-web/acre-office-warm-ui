@@ -90,6 +90,28 @@ type AssistFeedbackState = {
   message: string;
 } | null;
 
+type IntakeReviewSectionKey =
+  | "identity"
+  | "qualification"
+  | "context"
+  | "timing"
+  | "notes";
+
+type IntakeReviewSection = {
+  key: IntakeReviewSectionKey;
+  label: string;
+  description: string;
+  fieldKeys: LeadFormFieldKey[];
+  reviewableCount: number;
+  safeApplyCount: number;
+  reviewFirstCount: number;
+  previewOnlyCount: number;
+  pendingCount: number;
+  reviewedCount: number;
+  fieldSummary: string;
+  actionHint: string;
+};
+
 type DuplicatePreviewHydrationState = "idle" | "loading" | "ready" | "error";
 type CreateLeadApiErrorCode =
   | "authentication_required"
@@ -372,6 +394,149 @@ function buildDuplicateNextStepLabels(reasons: string[]) {
     "Compare stage, source, and next touch",
     "Create separately only if the contact is distinct",
   ];
+}
+
+function getAssistReviewSectionKey(
+  fieldKey: LeadFormFieldKey,
+): IntakeReviewSectionKey {
+  switch (fieldKey) {
+    case "fullName":
+    case "phone":
+    case "email":
+      return "identity";
+    case "source":
+    case "stage":
+    case "intent":
+      return "qualification";
+    case "budgetMax":
+    case "preferredAreas":
+      return "context";
+    case "nextFollowUpAt":
+      return "timing";
+    case "notes":
+      return "notes";
+  }
+}
+
+function getAssistReviewSectionMeta(sectionKey: IntakeReviewSectionKey) {
+  switch (sectionKey) {
+    case "identity":
+      return {
+        label: "Identity",
+        description:
+          "Confirm who this lead is before anything else, because duplicate preview and save-time checks lean on these values first.",
+      };
+    case "qualification":
+      return {
+        label: "Qualification",
+        description:
+          "Quickly review source, stage, and intent so the intake lands in the right active work lane without re-reading the full transcript.",
+      };
+    case "context":
+      return {
+        label: "Context",
+        description:
+          "Budget and area clues are usually enough to steer the first real follow-up, so keep these together and apply them in one pass.",
+      };
+    case "timing":
+      return {
+        label: "Timing",
+        description:
+          "The next follow-up date is the fastest way to keep the lead from going cold, so review this before saving the dossier.",
+      };
+    case "notes":
+      return {
+        label: "Notes",
+        description:
+          "Use the notes field for anything worth preserving that should stay manual, previewable, and easy to scan later.",
+      };
+  }
+}
+
+function buildAssistReviewSections(input: {
+  assistResult: FrontOfficeLeadIntakeAssistResult;
+  reviewedFieldKeys: string[];
+  formState: LeadFormState;
+  defaultFormState: LeadFormState;
+  manuallyEditedFields: LeadFormFieldKey[];
+}) {
+  const sectionKeys: IntakeReviewSectionKey[] = [
+    "identity",
+    "qualification",
+    "context",
+    "timing",
+    "notes",
+  ];
+
+  return sectionKeys.map((sectionKey) => {
+    const meta = getAssistReviewSectionMeta(sectionKey);
+    const fieldKeys = input.assistResult.fields
+      .filter(
+        (field) =>
+          getAssistReviewSectionKey(field.field as LeadFormFieldKey) ===
+          sectionKey,
+      )
+      .map((field) => field.field as LeadFormFieldKey);
+    const sectionFields = input.assistResult.fields.filter((field) =>
+      fieldKeys.includes(field.field as LeadFormFieldKey),
+    );
+
+    const reviewableCount = sectionFields.filter(
+      (field) => field.suggestedAction !== "preview_only",
+    ).length;
+    const safeApplyCount = sectionFields.filter(
+      (field) => field.suggestedAction === "safe_apply",
+    ).length;
+    const reviewFirstCount = sectionFields.filter(
+      (field) => field.suggestedAction === "review_first",
+    ).length;
+    const previewOnlyCount = sectionFields.filter(
+      (field) => field.suggestedAction === "preview_only",
+    ).length;
+    const pendingCount = sectionFields.filter((field) => {
+      if (field.suggestedAction === "preview_only") {
+        return false;
+      }
+
+      const reviewKey = getAssistFieldReviewKey(field);
+      const fieldKey = field.field as LeadFormFieldKey;
+      const currentValue = input.formState[fieldKey].trim();
+
+      return (
+        !input.reviewedFieldKeys.includes(reviewKey) &&
+        normalizeCompactValue(currentValue) !== normalizeCompactValue(field.value)
+      );
+    }).length;
+    const reviewedCount = sectionFields.filter((field) =>
+      input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
+    ).length;
+
+    return {
+      key: sectionKey,
+      label: meta.label,
+      description: meta.description,
+      fieldKeys,
+      reviewableCount,
+      safeApplyCount,
+      reviewFirstCount,
+      previewOnlyCount,
+      pendingCount,
+      reviewedCount,
+      fieldSummary: summarizeLabelList(
+        sectionFields.map((field) => field.label),
+        "none",
+        3,
+      ),
+      actionHint:
+        sectionKey === "identity"
+          ? "Review identity first to unlock duplicate preview and faster compare decisions."
+          : sectionKey === "timing"
+            ? "Review timing early so the next-touch clock stays useful."
+            : sectionKey === "notes"
+              ? "Keep manual notes last because they rarely gate the next save."
+              : "Review this section as a batch, then apply the reviewed blank fields together.",
+    } satisfies IntakeReviewSection;
+  });
 }
 
 function isBlankOrUntouchedDefaultField(input: {
@@ -1094,6 +1259,95 @@ export function FrontOfficeLeadIntakeCard(
     });
   }
 
+  function handleReviewAssistSection(fieldKeys: LeadFormFieldKey[]) {
+    if (!assistResult) {
+      return;
+    }
+
+    const reviewedKeys = assistResult.fields
+      .filter(
+        (field) =>
+          fieldKeys.includes(field.field as LeadFormFieldKey) &&
+          field.suggestedAction !== "preview_only",
+      )
+      .map((field) => getAssistFieldReviewKey(field));
+
+    if (!reviewedKeys.length) {
+      setAssistFeedback({
+        tone: "neutral",
+        message:
+          "That section only contains preview-only fields right now, so there is nothing batch-reviewable yet.",
+      });
+      return;
+    }
+
+    setAssistReviewedFieldKeys((current) => [
+      ...new Set([...current, ...reviewedKeys]),
+    ]);
+    setAssistReplaceConfirmationFieldKey(null);
+    setAssistFeedback({
+      tone: "success",
+      message: `${reviewedKeys.length} field(s) in this section were marked reviewed. Apply the reviewed blank fields when you are ready.`,
+    });
+  }
+
+  function handleApplyReviewedAssistSection(fieldKeys: LeadFormFieldKey[]) {
+    if (!assistResult) {
+      return;
+    }
+
+    const filteredFields = assistResult.fields.filter((field) =>
+      fieldKeys.includes(field.field as LeadFormFieldKey),
+    );
+
+    const mergeOutcome = mergeLeadFormStateWithReviewedAssistFields(
+      formState,
+      filteredFields,
+      formDefaults,
+      manuallyEditedFields,
+      assistReviewedFieldKeys,
+    );
+
+    if (!mergeOutcome.appliedFields.length) {
+      setAssistFeedback({
+        tone: "neutral",
+        message:
+          "No reviewed blank fields were waiting in that section. Review the section first or keep the current live values in place.",
+      });
+      return;
+    }
+
+    setFormState(mergeOutcome.nextState);
+    setFieldErrors((current) => {
+      let nextErrors = current;
+
+      for (const field of mergeOutcome.appliedFields) {
+        nextErrors = omitFieldError(nextErrors, field);
+      }
+
+      return nextErrors;
+    });
+    setManuallyEditedFields((current) =>
+      current.filter((field) => !mergeOutcome.appliedFields.includes(field)),
+    );
+    setAssistAppliedFields((current) => [
+      ...new Set([...current, ...mergeOutcome.appliedFields]),
+    ]);
+    setAssistReplaceConfirmationFieldKey(null);
+    if (
+      mergeOutcome.appliedFields.includes("fullName") ||
+      mergeOutcome.appliedFields.includes("phone") ||
+      mergeOutcome.appliedFields.includes("email")
+    ) {
+      setDuplicateMatches([]);
+      setFeedback((current) => (current?.tone === "error" ? null : current));
+    }
+    setAssistFeedback({
+      tone: "success",
+      message: `${mergeOutcome.appliedFields.length} reviewed field(s) were copied from the section into blank or default form values.${mergeOutcome.skippedFieldLabels.length ? ` ${mergeOutcome.skippedFieldLabels.join(", ")} stayed untouched because the live form already has a value.` : ""}`,
+    });
+  }
+
   function handleAssistTranscriptChange(
     event: ChangeEvent<HTMLTextAreaElement>,
   ) {
@@ -1475,6 +1729,19 @@ export function FrontOfficeLeadIntakeCard(
       ).length ?? 0,
     [assistResult, assistReviewedFieldKeys],
   );
+  const assistReviewSections = useMemo(
+    () =>
+      assistResult
+        ? buildAssistReviewSections({
+            assistResult,
+            reviewedFieldKeys: assistReviewedFieldKeys,
+            formState,
+            defaultFormState: formDefaults,
+            manuallyEditedFields,
+          })
+        : [],
+    [assistResult, assistReviewedFieldKeys, formDefaults, formState, manuallyEditedFields],
+  );
   const manualAssistOverrideCount = useMemo(
     () =>
       assistResult?.fields.filter((field) => {
@@ -1760,6 +2027,60 @@ export function FrontOfficeLeadIntakeCard(
                       </span>
                     ) : null}
                   </div>
+                </div>
+
+                <div className="office-queue-list">
+                  {assistReviewSections.map((section) => (
+                    <article
+                      className="office-queue-item"
+                      key={`assist-section-${section.key}`}
+                    >
+                      <div className="office-queue-item-top">
+                        <strong>{section.label}</strong>
+                        <StatusBadge
+                          tone={
+                            section.pendingCount > 0 ? "warning" : "accent"
+                          }
+                        >
+                          {section.reviewableCount} reviewable
+                        </StatusBadge>
+                      </div>
+                      <p>{section.description}</p>
+                      <div className="front-office-record-meta">
+                        <span>{section.fieldSummary}</span>
+                        <span>{section.safeApplyCount} safe</span>
+                        <span>{section.reviewFirstCount} review-first</span>
+                        <span>{section.previewOnlyCount} preview-only</span>
+                        <span>{section.pendingCount} still pending</span>
+                        <span>{section.reviewedCount} reviewed</span>
+                      </div>
+                      <p>{section.actionHint}</p>
+                      <div className="front-office-merge-actions">
+                        <Button
+                          disabled={isBusy || section.reviewableCount === 0}
+                          onClick={() => {
+                            handleReviewAssistSection(section.fieldKeys);
+                          }}
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          Review {section.label.toLowerCase()}
+                        </Button>
+                        <Button
+                          disabled={isBusy || section.reviewedCount === 0}
+                          onClick={() => {
+                            handleApplyReviewedAssistSection(section.fieldKeys);
+                          }}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          Apply reviewed {section.label.toLowerCase()}
+                        </Button>
+                      </div>
+                    </article>
+                  ))}
                 </div>
 
                 <p
