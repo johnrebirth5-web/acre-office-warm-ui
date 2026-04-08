@@ -234,3 +234,250 @@ Future Codex tasks should rely on these stable project files instead of chat his
 - [docs/specs/implementation-log.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs/implementation-log.md)
 - module specs in [docs/specs](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/specs)
 - [docs/deployment.md](/Users/openclaw_john/工作文件夹/Acre_latest_clean/docs/deployment.md) for DigitalOcean production sync/runbook details
+
+## Opt-In multi-thread worktree workflow
+
+Only activate this workflow when the user explicitly asks for it, for example:
+
+- “按多线程 worktree 并发工作流执行”
+- “拆成多个 worktree 线程并发做”
+- “总控拆任务，子线程并发开发”
+
+If the user does not explicitly ask for this workflow, keep using the normal single-thread workflow and the standard Git rules above.
+
+### Purpose
+
+This workflow is for larger implementation batches where one Local controller thread coordinates multiple Worktree child threads.
+
+Core goals:
+
+- keep child threads from editing the same files
+- avoid direct concurrent work on `main` or the current target branch
+- keep each parallel wave on a single frozen base commit
+- let the controller thread own integration and validation
+
+### Scope and precedence
+
+When this workflow is explicitly activated:
+
+- these rules apply in addition to the rest of this file
+- for that batch only, the controller thread may create and use an `integration/*` branch even though the default Git rule is to stay on the current branch
+- outside that batch, revert to the normal Git workflow rules in this file
+
+### Acre project defaults for this workflow
+
+Use these defaults unless the current task explicitly says otherwise:
+
+- project type: Node.js monorepo
+- package manager: `npm`
+- deterministic dependency bootstrap: `npm ci`
+- standard validation commands:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+- extra validation when Prisma schema changes:
+  - `npm run db:validate`
+  - `npm run db:generate`
+  - `npm run db:migrate -- --name <change_name>` when required
+  - `npm run db:seed` only when the task explicitly requires seed verification
+- default local app port remains `3105`
+- host-mode local PostgreSQL access remains `127.0.0.1:5433`
+- container-to-container PostgreSQL access remains `db:5432`
+
+Do not rewrite this `AGENTS.md` for every batch. Batch-specific values such as target branch, `integration` branch name, wave base commit, assigned ports, and temporary database strategy should live in the controller prompt and child prompts for that batch.
+
+### Roles
+
+When this workflow is active, there are only two roles:
+
+- controller thread:
+  - runs in `Local`
+  - reads the task, inspects the repo, defines boundaries, creates the integration branch, freezes each wave base commit, generates child prompts, merges finished child branches into integration, runs full validation, and finally merges back to the target branch
+- child thread:
+  - runs in its own `Worktree`
+  - implements exactly one bounded subtask
+  - must not merge, rebase, pull target updates, or integrate other child threads
+
+If a prompt does not clearly identify the thread as the controller, treat it as a child thread.
+
+### Target branch and integration branch
+
+When this workflow starts:
+
+1. the controller thread must determine the batch target branch
+2. default target branch is the branch checked out at batch start, not automatically `main`
+3. if the user explicitly says `main`, use `main`
+4. if the repo is already on a feature branch, call that out and use that feature branch as the default target unless the user says otherwise
+
+For the batch, create an integration branch from the clean target branch. Recommended naming:
+
+- `integration/<target-branch>-<yyyymmdd>-<short-slug>`
+
+Example:
+
+- `integration/main-20260408-contacts-batch`
+
+### Clean-start requirements
+
+Before creating the integration branch, the controller thread must confirm:
+
+- `git fetch` has been run
+- `git status` is clean
+- the target branch is explicit
+- the user has not asked to avoid branch creation
+
+If the working tree is dirty, do not start a new parallel batch until the state is clarified.
+
+### Controller-thread responsibilities
+
+The controller thread must do the following in order:
+
+1. inspect project scripts and constraints
+2. identify whether the batch touches shared or high-risk files
+3. split work into 2-5 subtasks by default
+4. only exceed 5 subtasks when write boundaries are unusually clean, and never exceed 7
+5. assign clear allowed paths and forbidden paths for each child thread
+6. create the integration branch from the clean target branch
+7. freeze a single wave base commit before opening each parallel wave
+8. wait for the whole wave to finish before freezing the next wave
+9. merge child branches back into integration in dependency order
+10. run full validation on integration after each wave
+11. merge integration back into the target branch only after the full batch passes validation
+
+### Child-thread hard rules
+
+Every child thread must follow all of these rules:
+
+- use its own `Worktree`
+- use the current batch `integration/*` branch as the worktree base branch
+- use the exact wave base commit assigned by the controller thread
+- only modify files inside the allowed path set from its prompt
+- stop immediately if it needs to change files outside that path set
+- commit and push only its own task branch
+- never merge, rebase, or pull updates from `main`, the target branch, `integration`, or any sibling branch
+
+### Shared or high-risk files
+
+Treat the following as shared or high-risk by default. Child threads must not touch them unless the controller thread explicitly assigns single-owner responsibility for that file group in the prompt:
+
+- `package.json`
+- `package-lock.json`
+- `turbo.json`
+- root TypeScript and build config files
+- `.env*`
+- `apps/web/app/globals.css`
+- shared UI exports and shared barrel files
+- shared type definition files
+- `packages/db/prisma/schema.prisma`
+- Prisma migrations and seed-related files
+- tracked generated files
+- CI/CD and deployment scripts
+
+If a task needs any of the above:
+
+- either turn it into an earlier serial foundation task
+- or assign one explicit owner thread and make downstream tasks depend on it
+
+### Setup script and environment bootstrapping
+
+If the user wants to use Local Environment for child worktrees:
+
+- prefer `npm ci`
+- keep the setup script deterministic
+- do not include commands that modify tracked files
+- do not hide foundation work inside the setup script
+
+For this repo, `npm ci` is the default dependency bootstrap. Only add extra setup commands when the batch clearly needs them.
+
+### Validation rules for this repo
+
+Controller thread full-batch validation on `integration` should normally run:
+
+1. `npm run typecheck`
+2. `npm run lint`
+3. `npm run build`
+
+When Prisma schema changes are involved, also run:
+
+1. `npm run db:validate`
+2. `npm run db:generate`
+
+Child threads should run the smallest validation set that still proves their work, but must report exactly what they ran and what passed or failed.
+
+### Runtime isolation rules
+
+Worktrees isolate code, not runtime state. When this workflow is active:
+
+- child threads should not start `npm run dev` by default
+- if live runtime verification is needed, the controller thread must assign unique ports
+- do not let multiple child threads share a drifting local database when schema changes are in flight
+- if a batch changes Prisma schema or migrations, finish and integrate that foundation work before opening dependent child threads
+- when host-mode DB access is needed, prefer `127.0.0.1:5433`
+- when Docker inter-container access is needed, prefer `db:5432`
+
+### Wave-based execution model
+
+A batch should run in waves, not as an uncontrolled pile of threads.
+
+For each wave:
+
+1. controller thread checks out the integration branch
+2. controller thread records `git rev-parse HEAD` as the wave base commit
+3. every child thread in that wave must start from that same base commit
+4. no next-wave thread should be opened until the current wave is integrated and validated
+
+If a new task appears mid-wave and cannot use the same base commit cleanly, defer it to the next wave.
+
+### Recommended prompt contract
+
+When asked to use this workflow, the controller thread should produce:
+
+- target branch
+- integration branch name
+- current wave base commit
+- project validation commands
+- runtime constraints
+- a subtask table with:
+  - task name
+  - wave number
+  - allowed paths
+  - forbidden paths
+  - dependency notes
+  - completion criteria
+- one ready-to-paste child prompt per subtask
+
+Each child prompt should state:
+
+- you are a child thread
+- your exact task goal
+- your allowed paths
+- your forbidden paths
+- the integration branch name
+- the wave base commit
+- the runtime constraints
+- completion/reporting requirements
+
+### Reporting contract
+
+Each child thread must finish with a compact report containing:
+
+- branch name
+- base commit
+- latest commit hash and message
+- changed files
+- validation commands run and results
+- known risks
+- integration notes
+
+The controller thread should then summarize:
+
+- what merged cleanly
+- what conflicts or risks remain
+- what validation ran on integration
+- whether the batch is ready to merge back to the target branch
+
+### Recommended trigger phrase
+
+If the user wants this workflow, interpret a short instruction like the following as sufficient:
+
+“按多线程 worktree 并发工作流执行这次任务：先由总控线程拆成 2-5 个写入边界不重叠的子任务，创建 integration 分支，冻结每一波的 base commit，再让子线程各自用独立 worktree 开发，最后由总控统一集成和验证。”
