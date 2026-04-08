@@ -41,12 +41,16 @@ type AgentClientDetailPageProps = {
   }>;
 };
 
+type FrontOfficeClientDetailSnapshot = NonNullable<
+  Awaited<ReturnType<typeof getFrontOfficeClientDetail>>
+>;
+
 function getClientFirstName(fullName: string) {
   const [firstName] = fullName.trim().split(/\s+/);
   return firstName?.trim() || "Client";
 }
 
-function buildWorkflowFollowUpTitle(snapshot: Awaited<ReturnType<typeof getFrontOfficeClientDetail>>) {
+function buildWorkflowFollowUpTitle(snapshot: FrontOfficeClientDetailSnapshot) {
   if (!snapshot) {
     return "Create the next follow-up";
   }
@@ -82,6 +86,46 @@ function getSuggestedFollowUpSourceLabel(source: string | undefined) {
     default:
       return source ? "Suggested follow-up loaded into the form below." : null;
   }
+}
+
+function getChatListStrategyLabel(snapshot: FrontOfficeClientDetailSnapshot) {
+  if (snapshot.phone) {
+    return "Call first";
+  }
+
+  if (snapshot.email) {
+    return "Email first";
+  }
+
+  return "Contact data missing";
+}
+
+function getChatListStrategyTone(
+  snapshot: FrontOfficeClientDetailSnapshot,
+) {
+  if (snapshot.phone) {
+    return "accent" as const;
+  }
+
+  if (snapshot.email) {
+    return "warning" as const;
+  }
+
+  return "danger" as const;
+}
+
+function getChatListStrategyDescription(
+  snapshot: FrontOfficeClientDetailSnapshot,
+) {
+  if (snapshot.phone) {
+    return "A direct number is already on file, so the fastest move is to call first, use the intro script, and leave the client with one clear next step.";
+  }
+
+  if (snapshot.email) {
+    return "No phone number is captured yet, so open with email, keep the call script ready for the reply, and avoid pretending the dossier is more complete than it is.";
+  }
+
+  return "No direct contact path is captured yet, so finish the contact record before trying to execute the playbook or send anything outbound.";
 }
 
 export default async function AgentClientDetailPage(
@@ -1479,6 +1523,59 @@ export default async function AgentClientDetailPage(
             subtitle="Phone strategy and copy-ready outreach stay embedded in the active dossier instead of hiding in a training doc."
             title="Chat List & phone strategy"
           >
+            <FrontOfficeClientGuidanceQueue
+              items={[
+                {
+                  key: "contact-path",
+                  label: getChatListStrategyLabel(snapshot),
+                  tone: getChatListStrategyTone(snapshot),
+                  title: "Start with the strongest live channel",
+                  description: `${getChatListStrategyDescription(snapshot)} ${snapshot.playbook.focusDescription}`,
+                  meta: (
+                    <span>
+                      {snapshot.playbook.messageTemplates[0]
+                        ? `After the call, the first ${snapshot.playbook.messageTemplates[0].channelLabel.toLowerCase()} template is ready to copy.`
+                        : "The template pack below stays ready once a first draft is needed."}
+                    </span>
+                  ),
+                  actions: [
+                    ...(snapshot.phone
+                      ? [
+                          {
+                            href: `tel:${snapshot.phone}`,
+                            label: "Call client",
+                          },
+                        ]
+                      : []),
+                    ...(snapshot.email
+                      ? [
+                          {
+                            href: `mailto:${snapshot.email}`,
+                            label: "Email client",
+                          },
+                        ]
+                      : []),
+                    followUpPrimaryAction,
+                  ],
+                },
+                {
+                  key: "next-step",
+                  label: snapshot.followUpCue.label,
+                  tone: snapshot.followUpCue.tone,
+                  title: "Leave the call with a dated next step",
+                  description:
+                    "Use the intro script and checklist to leave the conversation with a real follow-up date, a clearer channel, or a confirmed meeting rather than a vague 'keep me posted'.",
+                  meta: <span>{snapshot.followUpCue.dueLabel}</span>,
+                  actions: [
+                    followUpPrimaryAction,
+                    {
+                      href: workflowFollowUpHref,
+                      label: "Open follow-up form",
+                    },
+                  ],
+                },
+              ]}
+            />
             <FrontOfficeClientChatListClient snapshot={snapshot} />
           </SectionCard>
         </>

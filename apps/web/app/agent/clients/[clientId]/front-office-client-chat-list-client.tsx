@@ -25,6 +25,22 @@ export function FrontOfficeClientChatListClient(
   props: FrontOfficeClientChatListClientProps,
 ) {
   const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const primaryTemplate = props.snapshot.playbook.messageTemplates[0] ?? null;
+  const contactPathLabel = props.snapshot.phone
+    ? "Call first"
+    : props.snapshot.email
+      ? "Email first"
+      : "Contact data missing";
+  const contactPathTone = props.snapshot.phone
+    ? "accent"
+    : props.snapshot.email
+      ? "warning"
+      : "danger";
+  const contactPathDescription = props.snapshot.phone
+    ? "A direct number is already on file, so the fastest move is to call first, use the intro script, and then leave the client with one clear next step."
+    : props.snapshot.email
+      ? "No phone number is captured yet, so open with email, keep the call script ready for the reply, and avoid pretending the dossier is more complete than it is."
+      : "No direct contact path is captured yet, so finish the contact record before trying to execute the playbook or send anything outbound.";
 
   async function handleCopy(label: string, value: string) {
     try {
@@ -77,16 +93,40 @@ export function FrontOfficeClientChatListClient(
               >
                 Copy intro script
               </Button>
+              {primaryTemplate ? (
+                <Button
+                  onClick={() =>
+                    void handleCopy(primaryTemplate.label, primaryTemplate.body)
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Copy first template
+                </Button>
+              ) : null}
             </div>
           }
-          badgeLabel={props.snapshot.playbook.focusLabel}
-          badgeTone={props.snapshot.workflow.nextStepTone}
-          description={props.snapshot.playbook.focusDescription}
-          title="Current playbook focus"
+          badgeLabel={contactPathLabel}
+          badgeTone={contactPathTone}
+          description={`${contactPathDescription} ${props.snapshot.playbook.focusDescription}`}
+          meta={
+            <span>
+              {primaryTemplate
+                ? `After the call, use the ${primaryTemplate.channelLabel.toLowerCase()} template first.`
+                : "The template pack stays ready below once a first draft is needed."}
+            </span>
+          }
+          title="Recommended contact sequence"
         />
       </div>
 
-      <div className="front-office-placeholder-note front-office-playbook-surface">
+      <div className="front-office-playbook-surface">
+        <div className="front-office-playbook-header">
+          <strong>Why this lane now</strong>
+          <p>{props.snapshot.playbook.focusDescription}</p>
+        </div>
+
         <div className="front-office-playbook-header">
           <strong>Intro script</strong>
           <p>{props.snapshot.playbook.introScript}</p>
