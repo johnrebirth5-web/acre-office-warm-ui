@@ -127,6 +127,9 @@ export default async function AgentClientDetailPage(
     snapshot.nextStepRail.items.find((item) => item.id === "listing_output") ??
     snapshot.nextStepRail.items[2] ??
     currentRailItem;
+  const appointmentRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "appointment") ??
+    currentRailItem;
   const offerRailItem =
     snapshot.nextStepRail.items.find((item) => item.id === "offer_prep") ??
     currentRailItem;
@@ -295,8 +298,9 @@ export default async function AgentClientDetailPage(
           : ("desc" as const),
       actions: [
         {
-          href: `/agent/calendar?clientId=${snapshot.id}`,
-          label: "Open calendar",
+          href: appointmentRailItem.actionHref,
+          label: appointmentRailItem.actionLabel,
+          opensInNewTab: appointmentRailItem.actionOpensInNewTab,
         },
       ],
     })),
@@ -660,8 +664,9 @@ export default async function AgentClientDetailPage(
                     label: "Review rail",
                   },
                   {
-                    href: `/agent/calendar?clientId=${snapshot.id}`,
-                    label: "Open calendar",
+                    href: appointmentRailItem.actionHref,
+                    label: appointmentRailItem.actionLabel,
+                    opensInNewTab: appointmentRailItem.actionOpensInNewTab,
                   },
                 ]}
               />
@@ -713,8 +718,9 @@ export default async function AgentClientDetailPage(
                     actions: [
                       followUpPrimaryAction,
                       {
-                        href: `/agent/calendar?clientId=${snapshot.id}`,
-                        label: "Open calendar",
+                        href: appointmentRailItem.actionHref,
+                        label: appointmentRailItem.actionLabel,
+                        opensInNewTab: appointmentRailItem.actionOpensInNewTab,
                       },
                     ],
                   },
@@ -798,9 +804,9 @@ export default async function AgentClientDetailPage(
                     action={
                       <FrontOfficeLink
                         className="office-button-secondary"
-                        href={`/agent/calendar?clientId=${snapshot.id}`}
+                        href={appointmentRailItem.actionHref}
                       >
-                        Schedule appointment
+                        {appointmentRailItem.actionLabel}
                       </FrontOfficeLink>
                     }
                     description="Showings, consultations, and meetings for this client will surface here."
@@ -825,8 +831,9 @@ export default async function AgentClientDetailPage(
                     label: "Review rail",
                   },
                   {
-                    href: `/agent/listings?clientId=${snapshot.id}`,
-                    label: "Open listing output",
+                    href: listingRailItem.actionHref,
+                    label: listingRailItem.actionLabel,
+                    opensInNewTab: listingRailItem.actionOpensInNewTab,
                   },
                 ]}
               />
@@ -930,9 +937,9 @@ export default async function AgentClientDetailPage(
                   action={
                     <FrontOfficeLink
                       className="office-button-secondary"
-                      href={`/agent/listings?clientId=${snapshot.id}`}
+                      href={listingRailItem.actionHref}
                     >
-                      Send first listing
+                      {listingRailItem.actionLabel}
                     </FrontOfficeLink>
                   }
                   description="Client-linked listing sends will appear here once you open listing output in this client's context."

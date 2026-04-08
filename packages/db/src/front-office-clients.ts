@@ -34,6 +34,7 @@ import { buildFrontOfficeAppointmentExternalLinks } from "./front-office-calenda
 import {
   getFrontOfficeAppointmentBridgeStatusMap,
   getFrontOfficeAppointmentExternalWorkflowState,
+  frontOfficeAppointmentExternalWorkflowStatuses,
   type FrontOfficeAppointmentBridgeStatus,
   type FrontOfficeAppointmentExternalWorkflowStatus,
 } from "./front-office-appointments";
@@ -814,6 +815,118 @@ function buildClientAction(input: {
     kind: input.kind,
     target: input.target,
   };
+}
+
+const frontOfficeCalendarViews = {
+  replyDue: "reply_due",
+  confirmationPending: "confirmation_pending",
+  confirmed: "confirmed",
+  touchDue: "touch_due",
+  missingNextTouch: "missing_next_touch",
+  rescheduleRequested: "reschedule_requested",
+  bridgeLogged: "bridge_logged",
+} as const;
+
+type FrontOfficeCalendarView =
+  (typeof frontOfficeCalendarViews)[keyof typeof frontOfficeCalendarViews];
+
+const frontOfficeListingsLanes = {
+  sendRescue: "send-rescue",
+  followThrough: "follow-through",
+  draftLane: "draft-lane",
+} as const;
+
+type FrontOfficeListingsLane =
+  (typeof frontOfficeListingsLanes)[keyof typeof frontOfficeListingsLanes];
+
+function buildClientRouteHref(
+  path: string,
+  params: Array<[string, string | null | undefined]>,
+) {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of params) {
+    if (value && value.trim()) {
+      searchParams.set(key, value.trim());
+    }
+  }
+
+  const query = searchParams.toString();
+  return query ? `${path}?${query}` : path;
+}
+
+function buildFrontOfficeCalendarHref(input: {
+  clientId: string;
+  appointmentId?: string | null;
+  calendarView?: FrontOfficeCalendarView | null;
+}) {
+  return buildClientRouteHref("/agent/calendar", [
+    ["calendarView", input.calendarView ?? null],
+    ["clientId", input.clientId],
+    ["appointmentId", input.appointmentId ?? null],
+  ]);
+}
+
+function buildFrontOfficeListingsHref(input: {
+  clientId: string;
+  appointmentId?: string | null;
+  lane?: FrontOfficeListingsLane | null;
+}) {
+  return buildClientRouteHref("/agent/listings", [
+    ["lane", input.lane ?? null],
+    ["clientId", input.clientId],
+    ["appointmentId", input.appointmentId ?? null],
+  ]);
+}
+
+function resolveFrontOfficeCalendarView(input: {
+  bridgeActivityState?: FrontOfficeClientDetailBridgeActivityState;
+  externalStatusValue?: FrontOfficeAppointmentExternalWorkflowStatus | null;
+  hasBridgeActivity: boolean;
+  hasNextAction: boolean;
+  isExternalTouchDue: boolean;
+}): FrontOfficeCalendarView {
+  if (input.bridgeActivityState === "logged" || input.hasBridgeActivity) {
+    return frontOfficeCalendarViews.bridgeLogged;
+  }
+
+  switch (input.externalStatusValue) {
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmed:
+      return frontOfficeCalendarViews.confirmed;
+    case frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested:
+      return frontOfficeCalendarViews.rescheduleRequested;
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending:
+      return frontOfficeCalendarViews.confirmationPending;
+    case frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp:
+      return frontOfficeCalendarViews.replyDue;
+    default:
+      if (input.isExternalTouchDue) {
+        return frontOfficeCalendarViews.touchDue;
+      }
+
+      if (input.hasNextAction) {
+        return frontOfficeCalendarViews.missingNextTouch;
+      }
+
+      return frontOfficeCalendarViews.missingNextTouch;
+  }
+}
+
+function resolveFrontOfficeListingsLane(input: {
+  openCount: number;
+  appointmentId?: string | null;
+  hasListingContext: boolean;
+  latestEngagementKey?: FrontOfficeClientDetailSendEngagementKey | null;
+}) {
+  if (input.openCount > 0 || input.latestEngagementKey === "opened" || input.latestEngagementKey === "revisited") {
+    return frontOfficeListingsLanes.followThrough;
+  }
+
+  if (input.hasListingContext || input.appointmentId) {
+    return frontOfficeListingsLanes.sendRescue;
+  }
+
+  return frontOfficeListingsLanes.draftLane;
 }
 
 const FRONT_OFFICE_FOLLOW_UP_FORM_ID = "front-office-follow-up-form";
@@ -2284,7 +2397,10 @@ function buildFrontOfficeAiSuggestions(input: {
       appointmentTitle: input.latestAppointment.title,
     });
     primaryActionLabel = "Open calendar";
-    primaryActionHref = `/agent/calendar?clientId=${input.clientId}`;
+    primaryActionHref = buildFrontOfficeCalendarHref({
+      clientId: input.clientId,
+      calendarView: frontOfficeCalendarViews.confirmationPending,
+    });
 
     pushDraft({
       id: "appointment-text",
@@ -2329,7 +2445,10 @@ function buildFrontOfficeAiSuggestions(input: {
       clientFullName: input.fullName,
     });
     primaryActionLabel = "Open listing output";
-    primaryActionHref = `/agent/listings?clientId=${input.clientId}`;
+    primaryActionHref = buildFrontOfficeListingsHref({
+      clientId: input.clientId,
+      lane: frontOfficeListingsLanes.sendRescue,
+    });
 
     pushDraft({
       id: "unopened-text",
@@ -2940,6 +3059,10 @@ function buildFollowUpCue(input: {
     normalizedStage.includes("viewing") &&
     normalizedStage.includes("scheduled")
   ) {
+    const calendarView = buildFrontOfficeCalendarHref({
+      clientId: input.clientId,
+      calendarView: frontOfficeCalendarViews.confirmationPending,
+    });
     return {
       key: frontOfficeClientDetailFollowUpCueKeys.viewingScheduled,
       tone: "accent",
@@ -2952,7 +3075,7 @@ function buildFollowUpCue(input: {
       targetStepId: frontOfficeClientDetailNextStepIds.appointment,
       action: buildClientAction({
         label: "Open calendar",
-        href: `/agent/calendar?clientId=${input.clientId}`,
+        href: calendarView,
         kind: frontOfficeClientDetailActionKinds.openCalendar,
         target: frontOfficeClientDetailActionTargets.frontOfficeCalendar,
       }),
@@ -3245,9 +3368,13 @@ function buildWorkflowSignal(input: {
     normalizedStage.includes("viewing") &&
     normalizedStage.includes("scheduled")
   ) {
+    const calendarView = buildFrontOfficeCalendarHref({
+      clientId: input.clientId,
+      calendarView: frontOfficeCalendarViews.confirmationPending,
+    });
     const action = buildClientAction({
       label: "Open calendar",
-      href: `/agent/calendar?clientId=${input.clientId}`,
+      href: calendarView,
       kind: frontOfficeClientDetailActionKinds.openCalendar,
       target: frontOfficeClientDetailActionTargets.frontOfficeCalendar,
     });
@@ -3815,7 +3942,16 @@ function buildNextStepRail(input: {
   });
   const appointmentAction = buildClientAction({
     label: "Open calendar",
-    href: `/agent/calendar?clientId=${input.clientId}`,
+    href: buildFrontOfficeCalendarHref({
+      clientId: input.clientId,
+      calendarView: input.hasUpcomingAppointment
+        ? frontOfficeCalendarViews.confirmationPending
+        : input.nextTouchAt
+          ? frontOfficeCalendarViews.touchDue
+          : input.openTaskCount > 0
+            ? frontOfficeCalendarViews.touchDue
+            : frontOfficeCalendarViews.missingNextTouch,
+    }),
     kind: frontOfficeClientDetailActionKinds.openCalendar,
     target: frontOfficeClientDetailActionTargets.frontOfficeCalendar,
   });
@@ -3824,7 +3960,13 @@ function buildNextStepRail(input: {
       input.latestSendRecord || input.sendCount > 0
         ? "Open listing output"
         : "Send first listing",
-    href: `/agent/listings?clientId=${input.clientId}`,
+    href: buildFrontOfficeListingsHref({
+      clientId: input.clientId,
+      lane:
+        input.latestSendRecord || input.sendCount > 0
+          ? frontOfficeListingsLanes.followThrough
+          : frontOfficeListingsLanes.draftLane,
+    }),
     kind: frontOfficeClientDetailActionKinds.openListingOutput,
     target: frontOfficeClientDetailActionTargets.frontOfficeListingOutput,
   });
@@ -5239,7 +5381,10 @@ export async function getFrontOfficeClientDetail(
             "If the client restarts, the fastest recovery path is to reopen listing output from this same dossier instead of rebuilding context from scratch.",
           metaLabel: `${sendCount} tracked send(s) already attached to this client`,
           actionLabel: "Open listing output",
-          href: `/agent/listings?clientId=${client.id}`,
+          href: buildFrontOfficeListingsHref({
+            clientId: client.id,
+            lane: frontOfficeListingsLanes.followThrough,
+          }),
           opensInNewTab: false,
         },
       ]
@@ -5524,7 +5669,10 @@ export async function getFrontOfficeClientDetail(
             : "Open follow-up queue",
         href:
           action.actionType === "tracked_send_created"
-            ? `/agent/listings?clientId=${client.id}`
+            ? buildFrontOfficeListingsHref({
+                clientId: client.id,
+                lane: frontOfficeListingsLanes.followThrough,
+              })
             : "#front-office-follow-up-form",
       };
     }),
@@ -5702,7 +5850,20 @@ export async function getFrontOfficeClientDetail(
         timeZone: input.timeZone ?? null,
       });
       const bridgeStatus = appointmentBridgeStatusMap.get(appointment.id) ?? null;
-      const calendarWritebackHref = `/agent/calendar?clientId=${client.id}&appointmentId=${appointment.id}`;
+      const calendarWritebackHref = buildFrontOfficeCalendarHref({
+        clientId: client.id,
+        appointmentId: appointment.id,
+        calendarView: resolveFrontOfficeCalendarView({
+          bridgeActivityState: mapBridgeActivityState(bridgeStatus),
+          externalStatusValue: externalWorkflow.value,
+          hasBridgeActivity: bridgeStatus?.hasBridgeActivity ?? false,
+          hasNextAction: Boolean(externalWorkflow.nextActionAtValue),
+          isExternalTouchDue: Boolean(
+            externalWorkflow.nextActionAt &&
+              externalWorkflow.nextActionAt.getTime() <= now.getTime(),
+          ),
+        }),
+      });
       const bridgeNextStepLabel = bridgeStatus?.hasBridgeActivity
         ? "Open calendar writeback"
         : externalWorkflow.value === "confirmed"
@@ -5740,7 +5901,18 @@ export async function getFrontOfficeClientDetail(
       });
       const outputHandoffAction = buildClientAction({
         label: "Open listing output",
-        href: `/agent/listings?clientId=${client.id}&appointmentId=${appointment.id}`,
+        href: buildFrontOfficeListingsHref({
+          clientId: client.id,
+          appointmentId: appointment.id,
+          lane: resolveFrontOfficeListingsLane({
+            openCount: bridgeStatus?.hasBridgeActivity ? 1 : 0,
+            appointmentId: appointment.id,
+            hasListingContext: Boolean(appointment.listing),
+            latestEngagementKey: bridgeStatus?.hasBridgeActivity
+              ? "opened"
+              : null,
+          }),
+        }),
         kind: frontOfficeClientDetailActionKinds.openListingOutput,
         target: frontOfficeClientDetailActionTargets.frontOfficeListingOutput,
       });
@@ -5938,16 +6110,30 @@ export async function getFrontOfficeClientDetail(
         hasListingContext: Boolean(record.listing),
         action: buildClientAction({
           label: "Open listing output",
-          href: record.appointmentId
-            ? `/agent/listings?clientId=${client.id}&appointmentId=${record.appointmentId}`
-            : `/agent/listings?clientId=${client.id}`,
+          href: buildFrontOfficeListingsHref({
+            clientId: client.id,
+            appointmentId: record.appointmentId,
+            lane: resolveFrontOfficeListingsLane({
+              openCount: record.openCount,
+              appointmentId: record.appointmentId,
+              hasListingContext: Boolean(record.listing),
+              latestEngagementKey: mapSendEngagementKey(record.openCount),
+            }),
+          }),
           kind: frontOfficeClientDetailActionKinds.openListingOutput,
           target: frontOfficeClientDetailActionTargets.frontOfficeListingOutput,
         }),
       },
-      href: record.appointmentId
-        ? `/agent/listings?clientId=${client.id}&appointmentId=${record.appointmentId}`
-        : `/agent/listings?clientId=${client.id}`,
+      href: buildFrontOfficeListingsHref({
+        clientId: client.id,
+        appointmentId: record.appointmentId,
+        lane: resolveFrontOfficeListingsLane({
+          openCount: record.openCount,
+          appointmentId: record.appointmentId,
+          hasListingContext: Boolean(record.listing),
+          latestEngagementKey: mapSendEngagementKey(record.openCount),
+        }),
+      }),
     })),
     handoffs: client.handoffDrafts.map((draft) => ({
       id: draft.id,
