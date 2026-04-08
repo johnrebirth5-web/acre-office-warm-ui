@@ -12,3 +12,4 @@ coverage
 .local-storage
 *.log
 *.tsbuildinfo
+.DS_Store
