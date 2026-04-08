@@ -39,6 +39,14 @@ type MergeApiPayload = {
   result?: FrontOfficeClientMergeResult;
 };
 
+type ClientWorkbenchView =
+  | "all"
+  | "follow_first"
+  | "anchor_now"
+  | "viewing_lane"
+  | "boundary_review"
+  | "duplicate_review";
+
 function buildDuplicatePairAnchorId(pairId: string) {
   const sanitized = pairId
     .trim()
@@ -137,10 +145,19 @@ function buildMergeFailureDetail(pair: FrontOfficeClientDuplicatePair) {
   return `Why Acre was keeping ${pair.recommendedClient.fullName}: ${pair.rationaleLabel}`;
 }
 
+function buildClientWorkbenchHref(
+  view: ClientWorkbenchView,
+  anchorId: string,
+) {
+  return `/agent/clients?clientView=${view}#${anchorId}`;
+}
+
 export function FrontOfficeClientDuplicatesCard(props: {
   duplicatePairs: FrontOfficeClientDuplicatePair[];
+  clientView?: ClientWorkbenchView;
 }) {
   const router = useRouter();
+  const clientView = props.clientView ?? "duplicate_review";
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [activePairId, setActivePairId] = useState<string | null>(null);
   const [confirmPair, setConfirmPair] =
@@ -180,7 +197,10 @@ export function FrontOfficeClientDuplicatesCard(props: {
           "Refresh duplicate review, reopen both dossiers, and confirm the keep choice before trying again.",
         actions: [
           {
-            href: `#${buildDuplicatePairAnchorId(pair.id)}`,
+            href: buildClientWorkbenchHref(
+              "duplicate_review",
+              buildDuplicatePairAnchorId(pair.id),
+            ),
             label: "Jump back to this pair",
           },
           {
@@ -218,7 +238,12 @@ export function FrontOfficeClientDuplicatesCard(props: {
           label: `Open ${pair.recommendedClient.fullName}`,
         },
         {
-          href: "#client-execution-queue",
+          href: buildClientWorkbenchHref(
+            clientView,
+            clientView === "duplicate_review"
+              ? "duplicate-review"
+              : "client-execution-queue",
+          ),
           label: "Back to queue",
         },
       ],

@@ -796,9 +796,7 @@ export function FrontOfficeLeadIntakeCard(
   const router = useRouter();
   const density = props.density ?? "default";
   const duplicateReviewHref =
-    props.sourceSurface === "clients"
-      ? "#duplicate-review"
-      : "/agent/clients#duplicate-review";
+    "/agent/clients?clientView=duplicate_review#duplicate-review";
   const duplicateReviewLabel =
     props.sourceSurface === "clients"
       ? "Open duplicate review lane"

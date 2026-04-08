@@ -25,11 +25,80 @@ import {
   requireSessionContext,
 } from "../../../lib/auth-session";
 
+type AgentClientsPageProps = {
+  searchParams?: Promise<{
+    [key: string]: string | string[] | undefined;
+  }>;
+};
+
 const clientListSectionIds = {
   intakeLaunch: "clients-intake-launch",
   executionQueue: "client-execution-queue",
   duplicateReview: "duplicate-review",
 } as const;
+
+type ClientWorkbenchView =
+  | "all"
+  | "follow_first"
+  | "anchor_now"
+  | "viewing_lane"
+  | "boundary_review"
+  | "duplicate_review";
+
+const clientWorkbenchViews: Record<
+  ClientWorkbenchView,
+  {
+    label: string;
+    subtitle: string;
+    focusAnchor: string;
+  }
+> = {
+  all: {
+    label: "All lanes",
+    subtitle:
+      "Keep the whole FO queue visible and re-open the lane you need from the same page.",
+    focusAnchor: clientListSectionIds.executionQueue,
+  },
+  follow_first: {
+    label: "Follow first",
+    subtitle:
+      "Lead with overdue or due-today next touches so the queue stays execution-first.",
+    focusAnchor: clientListSectionIds.executionQueue,
+  },
+  anchor_now: {
+    label: "Anchor now",
+    subtitle:
+      "Use this view for dossiers that still need a first touch or a dated next touch.",
+    focusAnchor: clientListSectionIds.executionQueue,
+  },
+  viewing_lane: {
+    label: "Viewing lane",
+    subtitle:
+      "Keep appointments, showings, and tour follow-up visible without losing the queue.",
+    focusAnchor: clientListSectionIds.executionQueue,
+  },
+  boundary_review: {
+    label: "Boundary review",
+    subtitle:
+      "Review negotiation, offer, application, and contract work against the FO → BO boundary.",
+    focusAnchor: clientListSectionIds.executionQueue,
+  },
+  duplicate_review: {
+    label: "Duplicate review",
+    subtitle:
+      "Reopen the merge lane and compare each pair side by side before you consolidate records.",
+    focusAnchor: clientListSectionIds.duplicateReview,
+  },
+};
+
+const clientWorkbenchViewOrder: ClientWorkbenchView[] = [
+  "all",
+  "follow_first",
+  "anchor_now",
+  "viewing_lane",
+  "boundary_review",
+  "duplicate_review",
+];
 
 const clientDossierAnchors = {
   followUpForm: "#front-office-follow-up-form",
@@ -81,6 +150,38 @@ type ClientExecutionQueueItem = FrontOfficeClientRecord & {
 
 function normalizeLabel(value: string) {
   return value.trim().toLowerCase();
+}
+
+function resolveClientWorkbenchView(value: string | undefined) {
+  switch (value) {
+    case "follow_first":
+    case "anchor_now":
+    case "viewing_lane":
+    case "boundary_review":
+    case "duplicate_review":
+      return value;
+    default:
+      return "all";
+  }
+}
+
+function buildClientWorkbenchHref(
+  view: ClientWorkbenchView,
+  anchorId: string,
+) {
+  return `/agent/clients?clientView=${view}#${anchorId}`;
+}
+
+function buildClientWorkbenchViewActions() {
+  return clientWorkbenchViewOrder.map((view) => {
+    const config = clientWorkbenchViews[view];
+
+    return {
+      href: buildClientWorkbenchHref(view, config.focusAnchor),
+      label: config.label,
+      title: config.subtitle,
+    };
+  });
 }
 
 function buildDuplicatePairAnchorId(pairId: string) {
@@ -148,7 +249,10 @@ function buildDuplicateClientSignals(
   const signals = new Map<string, DuplicateClientSignal>();
 
   for (const pair of duplicatePairs) {
-    const pairHref = `#${buildDuplicatePairAnchorId(pair.id)}`;
+    const pairHref = buildClientWorkbenchHref(
+      "duplicate_review",
+      buildDuplicatePairAnchorId(pair.id),
+    );
     const matchSummary = pair.matchReasons.join(" · ");
 
     if (!signals.has(pair.recommendedClient.id)) {
@@ -368,8 +472,15 @@ function buildDuplicateBoardDescription(pair: FrontOfficeClientDuplicatePair) {
   return `${pair.rationaleLabel} Merge ${pair.duplicateClient.fullName} only after you confirm both dossiers side by side.`;
 }
 
-export default async function AgentClientsPage() {
+export default async function AgentClientsPage(props: AgentClientsPageProps) {
   const context = await requireSessionContext();
+  const searchParams = (await props.searchParams) ?? {};
+  const activeClientView = resolveClientWorkbenchView(
+    typeof searchParams.clientView === "string"
+      ? searchParams.clientView
+      : undefined,
+  );
+  const activeClientViewConfig = clientWorkbenchViews[activeClientView];
 
   if (!can(context.currentMembership, "clients:view")) {
     redirect(getDefaultAppPath(context.currentMembership));
@@ -419,13 +530,27 @@ export default async function AgentClientsPage() {
 
   return (
     <FrontOfficePageTemplate
-      description="Run Front Office CRM here as an execution queue, not a summary: see who to touch first, which dossier still needs an anchor, which pair should merge next, and only then reopen intake."
+      description={`${activeClientViewConfig.subtitle} Run Front Office CRM here as an execution queue, not a summary: see who to touch first, which dossier still needs an anchor, which pair should merge next, and only then reopen intake.`}
       eyebrow="Clients"
       main={
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Keep the daily decision obvious in three passes: follow first, anchor next, and review one duplicate pair at a time before you create or merge anything."
+            actions={
+              <>
+                {buildClientWorkbenchViewActions().map((viewAction) => (
+                  <FrontOfficeLink
+                    className="office-inline-link front-office-inline-link"
+                    href={viewAction.href}
+                    key={viewAction.href}
+                    title={viewAction.title}
+                  >
+                    {viewAction.label}
+                  </FrontOfficeLink>
+                ))}
+              </>
+            }
+            subtitle={`Current route focus: ${activeClientViewConfig.label}. ${activeClientViewConfig.subtitle}`}
             title="Today's FO operating board"
           >
             <div className="office-queue-list">
@@ -518,7 +643,10 @@ export default async function AgentClientsPage() {
                     <div className="list-row-meta front-office-record-meta">
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
-                        href={`#${buildDuplicatePairAnchorId(topDuplicatePair.id)}`}
+                        href={buildClientWorkbenchHref(
+                          "duplicate_review",
+                          buildDuplicatePairAnchorId(topDuplicatePair.id),
+                        )}
                       >
                         Review pair
                       </FrontOfficeLink>
@@ -563,13 +691,19 @@ export default async function AgentClientsPage() {
               <>
                 <FrontOfficeLink
                   className="office-inline-link front-office-inline-link"
-                  href={`#${clientListSectionIds.duplicateReview}`}
+                  href={buildClientWorkbenchHref(
+                    "duplicate_review",
+                    clientListSectionIds.duplicateReview,
+                  )}
                 >
                   Review duplicates
                 </FrontOfficeLink>
                 <FrontOfficeLink
                   className="office-inline-link front-office-inline-link"
-                  href={`#${clientListSectionIds.intakeLaunch}`}
+                  href={buildClientWorkbenchHref(
+                    "anchor_now",
+                    clientListSectionIds.intakeLaunch,
+                  )}
                 >
                   Open intake assist
                 </FrontOfficeLink>
@@ -694,7 +828,10 @@ export default async function AgentClientsPage() {
                   action={
                     <FrontOfficeLink
                       className="office-button-secondary"
-                      href={`#${clientListSectionIds.intakeLaunch}`}
+                      href={buildClientWorkbenchHref(
+                        "anchor_now",
+                        clientListSectionIds.intakeLaunch,
+                      )}
                     >
                       Launch intake assist
                     </FrontOfficeLink>
@@ -708,6 +845,7 @@ export default async function AgentClientsPage() {
 
           {snapshot.duplicatePairs.length ? (
             <FrontOfficeClientDuplicatesCard
+              clientView={activeClientView}
               duplicatePairs={snapshot.duplicatePairs}
             />
           ) : (
@@ -825,8 +963,14 @@ export default async function AgentClientsPage() {
                     className="office-inline-link front-office-inline-link"
                     href={
                       topDuplicatePair
-                        ? `#${buildDuplicatePairAnchorId(topDuplicatePair.id)}`
-                        : `#${clientListSectionIds.duplicateReview}`
+                        ? buildClientWorkbenchHref(
+                            "duplicate_review",
+                            buildDuplicatePairAnchorId(topDuplicatePair.id),
+                          )
+                        : buildClientWorkbenchHref(
+                            "duplicate_review",
+                            clientListSectionIds.duplicateReview,
+                          )
                     }
                   >
                     {topDuplicatePair
