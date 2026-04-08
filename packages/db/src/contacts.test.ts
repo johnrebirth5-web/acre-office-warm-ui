@@ -3,7 +3,12 @@ import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
 import { prisma } from "./client.ts";
-import { createContact, getContactById, listContacts } from "./contacts.ts";
+import {
+  createContact,
+  getContactById,
+  listContacts,
+  mergeFrontOfficeClients,
+} from "./contacts.ts";
 import { createTransaction } from "./transactions.ts";
 
 after(async () => {
@@ -133,6 +138,66 @@ test("createContact stores an empty additionalFields object when none is provide
     const stored = await prisma.client.findUnique({
       where: {
         id: created.id
+      },
+      select: {
+        additionalFields: true
+      }
+    });
+
+    assert.deepEqual(stored?.additionalFields, {});
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("mergeFrontOfficeClients normalizes scalar additionalFields to an empty object", async () => {
+  const context = await createContactsTestContext();
+
+  try {
+    await listContacts({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    const target = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.adminMembership.id,
+        fullName: "Merge Target",
+        source: "Manual entry",
+        stage: "New",
+        intent: "Buyer",
+        preferredAreas: [],
+        additionalFields: Prisma.JsonNull
+      }
+    });
+
+    const source = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.adminMembership.id,
+        fullName: "Merge Source",
+        source: "Manual entry",
+        stage: "New",
+        intent: "Buyer",
+        preferredAreas: [],
+        additionalFields: Prisma.JsonNull
+      }
+    });
+
+    await mergeFrontOfficeClients({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      targetClientId: target.id,
+      sourceClientId: source.id,
+      actorMembershipId: context.adminMembership.id,
+      actorOfficeId: context.office.id
+    });
+
+    const stored = await prisma.client.findUnique({
+      where: {
+        id: target.id
       },
       select: {
         additionalFields: true

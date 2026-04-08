@@ -359,7 +359,7 @@ function mergeJsonObjects(
     return secondaryObject satisfies Prisma.InputJsonValue;
   }
 
-  return Prisma.JsonNull;
+  return {} satisfies Prisma.InputJsonValue;
 }
 
 function formatCompactDateLabel(date: Date | null, timeZone?: string | null) {
