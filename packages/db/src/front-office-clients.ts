@@ -5917,6 +5917,8 @@ export async function getFrontOfficeClientDetail(
         listingTitle: appointment.listing?.title,
         listingNeighborhood: appointment.listing?.neighborhood,
         listingCity: appointment.listing?.city,
+        followUpCadenceLabel: bridgeNextStepLabel,
+        followUpCadenceDetail: bridgeNextStepDetail,
         timeZone: input.timeZone ?? null,
       });
       const outputHandoffAction = buildClientAction({

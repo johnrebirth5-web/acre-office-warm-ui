@@ -93,6 +93,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
           actionLabel: formatFrontOfficeAppointmentBridgeActionLabel(action),
           manualOnlyDetail: result.guidance.manualOnlyDetail,
           followUpDetail: result.guidance.followUpDetail,
+          followUpCadenceLabel: result.guidance.followUpCadenceLabel,
+          followUpCadenceDetail: result.guidance.followUpCadenceDetail,
           suggestedWriteback: result.guidance.suggestedWriteback,
           result,
         },

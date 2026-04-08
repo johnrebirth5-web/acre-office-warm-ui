@@ -80,6 +80,8 @@ type BridgeActionResponse = {
   actionLabel: string;
   manualOnlyDetail?: string;
   followUpDetail?: string;
+  followUpCadenceLabel?: string;
+  followUpCadenceDetail?: string;
   suggestedWriteback?: {
     status: FrontOfficeAppointmentExternalWorkflowStatus;
     label: string;
@@ -106,6 +108,8 @@ type BridgeOutcomeState = {
   actionLabel: string;
   manualOnlyDetail: string;
   followUpDetail: string;
+  followUpCadenceLabel: string;
+  followUpCadenceDetail: string;
   resultKind: BridgeActionResponse["result"]["kind"];
   suggestedWriteback: BridgeActionResponse["suggestedWriteback"];
 };
@@ -1613,9 +1617,19 @@ export function FrontOfficeCalendarClient(
 
       setFeedback({
         tone: "success",
-        message: primedPresetLabel
-          ? `${payload.actionLabel} opened. ${payload.manualOnlyDetail ?? "Acre only logged the bridge here."} Next step: ${payload.followUpDetail ?? "Save the writeback form below."} ${primedPresetLabel} is already loaded into the writeback draft.`
-          : `${payload.actionLabel} opened. ${payload.manualOnlyDetail ?? "Acre only logged the bridge here."} Next step: ${payload.followUpDetail ?? "Save the writeback form below."}`,
+        message: [
+          `${payload.actionLabel} opened.`,
+          payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
+          payload.followUpCadenceLabel
+            ? `Next checkpoint: ${payload.followUpCadenceLabel}.`
+            : null,
+          payload.followUpCadenceDetail ?? payload.followUpDetail ?? null,
+          primedPresetLabel
+            ? `${primedPresetLabel} is already loaded into the writeback draft.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" "),
       });
       setBridgeOutcome({
         appointmentId: appointment.id,
@@ -1624,6 +1638,12 @@ export function FrontOfficeCalendarClient(
           payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
         followUpDetail:
           payload.followUpDetail ?? "Save the writeback form below.",
+        followUpCadenceLabel:
+          payload.followUpCadenceLabel ?? payload.suggestedWriteback?.label ?? payload.actionLabel,
+        followUpCadenceDetail:
+          payload.followUpCadenceDetail ??
+          payload.followUpDetail ??
+          "Save the writeback form below.",
         resultKind: payload.result.kind,
         suggestedWriteback: payload.suggestedWriteback ?? null,
       });
@@ -2508,6 +2528,7 @@ export function FrontOfficeCalendarClient(
                       </div>
                     }
                     badgeLabel={
+                      bridgeOutcome.followUpCadenceLabel ??
                       bridgeOutcome.suggestedWriteback?.label ??
                       bridgeOutcome.actionLabel
                     }
@@ -2516,10 +2537,11 @@ export function FrontOfficeCalendarClient(
                         ? "accent"
                         : "warning"
                     }
-                    description={bridgeOutcome.followUpDetail}
+                    description={bridgeOutcome.followUpCadenceDetail}
                     meta={
                       <>
                         <span>{bridgeOutcome.manualOnlyDetail}</span>
+                        <span>{bridgeOutcome.followUpDetail}</span>
                         <span>
                           {bridgeOutcome.resultKind === "calendar_export"
                             ? "ICS export logged"

@@ -48,6 +48,8 @@ type AppointmentExternalLinkInput = {
   externalStatusLabel?: string | null;
   externalNote?: string | null;
   externalNextActionAtLabel?: string | null;
+  followUpCadenceLabel?: string | null;
+  followUpCadenceDetail?: string | null;
   timeZone?: string | null;
 };
 
@@ -187,6 +189,12 @@ function buildCalendarDescription(input: AppointmentExternalLinkInput) {
       : "",
     normalizeBridgeText(input.externalNextActionAtLabel)
       ? `Next external touch: ${normalizeBridgeText(input.externalNextActionAtLabel)}`
+      : "",
+    normalizeBridgeText(input.followUpCadenceLabel)
+      ? `Bridge follow-up cadence: ${normalizeBridgeText(input.followUpCadenceLabel)}`
+      : "",
+    normalizeBridgeText(input.followUpCadenceDetail)
+      ? `Cadence detail: ${normalizeBridgeText(input.followUpCadenceDetail)}`
       : "",
     normalizeBridgeText(input.externalNote)
       ? `Writeback note: ${normalizeBridgeText(input.externalNote)}`

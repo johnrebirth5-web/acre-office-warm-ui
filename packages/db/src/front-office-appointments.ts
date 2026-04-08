@@ -231,6 +231,8 @@ export type FrontOfficeAppointmentBridgeWritebackSuggestion = {
 export type FrontOfficeAppointmentBridgeGuidance = {
   manualOnlyDetail: string;
   followUpDetail: string;
+  followUpCadenceLabel: string;
+  followUpCadenceDetail: string;
   suggestedWriteback: FrontOfficeAppointmentBridgeWritebackSuggestion | null;
 };
 
@@ -1000,6 +1002,9 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
       manualOnlyDetail,
       followUpDetail:
         "This appointment is no longer scheduled in Acre, so any outside follow-up should happen on a replacement or reopened plan instead.",
+      followUpCadenceLabel: "Reopen the plan first",
+      followUpCadenceDetail:
+        "This appointment is closed in Acre, so any bridge or follow-up should happen from a fresh scheduled record.",
       suggestedWriteback: null,
     };
   }
@@ -1025,6 +1030,12 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
             frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
           ? "After you use the bridge, save the reschedule checkpoint in Acre so the time-change conversation stays readable."
           : "After you use the bridge, save whether you are awaiting confirmation, confirmed, or still need another follow-up touch.",
+    followUpCadenceLabel: suggestedPreset
+      ? suggestedPreset.label
+      : "Keep the next touch visible",
+    followUpCadenceDetail: suggestedPreset
+      ? `${suggestedPreset.detail} Save it back on the appointment once the bridge action is done.`
+      : "Save the next bridge checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
     suggestedWriteback: suggestedPreset
       ? {
           status: suggestedPreset.suggestedStatus,
@@ -2134,21 +2145,6 @@ function mapAppointmentRecord(
     clientEmail: appointment.client?.email,
     contactLabel: appointment.contactLabel,
   });
-  const externalLinks = buildFrontOfficeAppointmentExternalLinks({
-    appointmentId: appointment.id,
-    title: appointment.title,
-    startsAt: appointment.startsAt,
-    endsAt: appointment.endsAt,
-    location: appointment.location,
-    meetingUrl: appointment.meetingUrl,
-    clientName: appointment.client?.fullName,
-    clientEmail: appointment.client?.email,
-    contactLabel: appointment.contactLabel,
-    listingTitle: appointment.listing?.title,
-    listingNeighborhood: appointment.listing?.neighborhood,
-    listingCity: appointment.listing?.city,
-    timeZone,
-  });
   const resolvedBridgeStatus = coordinationArtifacts?.bridgeStatus
     ? coordinationArtifacts.bridgeStatus
     : buildFrontOfficeAppointmentBridgeStatus(null, timeZone);
@@ -2176,6 +2172,23 @@ function mapAppointmentRecord(
     bridgeStatus: resolvedBridgeStatus,
     requiresExternalResponse: coordination.requiresExternalResponse,
     isExternalTouchDue: coordination.isExternalTouchDue,
+  });
+  const externalLinks = buildFrontOfficeAppointmentExternalLinks({
+    appointmentId: appointment.id,
+    title: appointment.title,
+    startsAt: appointment.startsAt,
+    endsAt: appointment.endsAt,
+    location: appointment.location,
+    meetingUrl: appointment.meetingUrl,
+    clientName: appointment.client?.fullName,
+    clientEmail: appointment.client?.email,
+    contactLabel: appointment.contactLabel,
+    listingTitle: appointment.listing?.title,
+    listingNeighborhood: appointment.listing?.neighborhood,
+    listingCity: appointment.listing?.city,
+    followUpCadenceLabel: followUpPlan.label,
+    followUpCadenceDetail: followUpPlan.detail,
+    timeZone,
   });
   const touchPresets = buildFrontOfficeAppointmentTouchPresets({
     appointmentStatus: appointment.status,
@@ -3305,6 +3318,13 @@ export async function getFrontOfficeAppointmentBridgeResult(
     clientEmail: appointment.client?.email,
     contactLabel: appointment.contactLabel,
   });
+  const guidance = buildFrontOfficeAppointmentBridgeGuidance({
+    appointmentStatus: appointment.status,
+    startsAt: appointment.startsAt,
+    externalWorkflow,
+    now: new Date(),
+    timeZone: input.timeZone ?? null,
+  });
 
   const externalTargets = buildFrontOfficeAppointmentExternalTargets({
     appointmentId: appointment.id,
@@ -3326,13 +3346,8 @@ export async function getFrontOfficeAppointmentBridgeResult(
     externalNextActionAtLabel: externalWorkflow.nextActionAt
       ? externalWorkflow.nextActionAtLabel
       : null,
-    timeZone: input.timeZone ?? null,
-  });
-  const guidance = buildFrontOfficeAppointmentBridgeGuidance({
-    appointmentStatus: appointment.status,
-    startsAt: appointment.startsAt,
-    externalWorkflow,
-    now: new Date(),
+    followUpCadenceLabel: guidance.followUpCadenceLabel,
+    followUpCadenceDetail: guidance.followUpCadenceDetail,
     timeZone: input.timeZone ?? null,
   });
   const result: FrontOfficeAppointmentBridgeResult =
@@ -3382,6 +3397,8 @@ export async function getFrontOfficeAppointmentBridgeResult(
                 externalNextActionAtLabel: externalWorkflow.nextActionAt
                   ? externalWorkflow.nextActionAtLabel
                   : null,
+                followUpCadenceLabel: guidance.followUpCadenceLabel,
+                followUpCadenceDetail: guidance.followUpCadenceDetail,
                 timeZone: input.timeZone ?? null,
               }),
               guidance,
