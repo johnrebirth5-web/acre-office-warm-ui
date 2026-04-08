@@ -6,9 +6,11 @@ export const calendarViewValues = [
   "confirmation_pending",
   "confirmed",
   "touch_due",
+  "touch_scheduled",
   "missing_next_touch",
   "reschedule_requested",
   "bridge_logged",
+  "writeback_pending",
 ] as const;
 
 export type CalendarViewKey = (typeof calendarViewValues)[number];
@@ -60,6 +62,12 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
     label: "Touch due",
     routeCopy: "Touch-due workbench",
   },
+  touch_scheduled: {
+    description:
+      "Focus on appointments where the next external touch is already saved but is not due yet.",
+    label: "Touch scheduled",
+    routeCopy: "Touch-scheduled workbench",
+  },
   missing_next_touch: {
     description:
       "Focus on appointments that still need a saved next-touch deadline before the outside thread stays readable.",
@@ -77,6 +85,12 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
       "Focus on appointments where Acre already logged the bridge and the next writeback step is to reopen the saved plan.",
     label: "Bridge logged",
     routeCopy: "Bridge workbench",
+  },
+  writeback_pending: {
+    description:
+      "Focus on appointments where the bridge was opened, but no confirmation or reschedule writeback has been saved yet.",
+    label: "Writeback pending",
+    routeCopy: "Writeback-pending workbench",
   },
 };
 
@@ -107,6 +121,24 @@ export function getCalendarViewForExternalWorkflowStatus(
   }
 }
 
+export function getCalendarViewForWritebackReentry(input: {
+  status: FrontOfficeAppointmentExternalWorkflowStatus;
+  hasBridgeActivity?: boolean;
+  nextActionAtValue?: string | null;
+}) {
+  const hasNextActionAt = Boolean(input.nextActionAtValue?.trim());
+
+  if (input.hasBridgeActivity && !hasNextActionAt) {
+    return "writeback_pending" as const;
+  }
+
+  if (input.status !== "confirmed" && hasNextActionAt) {
+    return "touch_scheduled" as const;
+  }
+
+  return getCalendarViewForExternalWorkflowStatus(input.status);
+}
+
 export function deriveCalendarViewFromRoute(input: {
   coordination: string;
   followUp: string;
@@ -124,10 +156,11 @@ export function deriveCalendarViewFromRoute(input: {
     return "reschedule_requested" as const;
   }
 
-  if (
-    input.coordination === "bridge_logged" ||
-    input.coordination === "writeback_pending"
-  ) {
+  if (input.coordination === "writeback_pending") {
+    return "writeback_pending" as const;
+  }
+
+  if (input.coordination === "bridge_logged") {
     return "bridge_logged" as const;
   }
 
@@ -137,6 +170,10 @@ export function deriveCalendarViewFromRoute(input: {
 
   if (input.followUp === "touch_due") {
     return "touch_due" as const;
+  }
+
+  if (input.followUp === "touch_scheduled") {
+    return "touch_scheduled" as const;
   }
 
   if (input.followUp === "response_waiting") {
@@ -186,6 +223,14 @@ export function getCalendarViewRoutePatch(
         followUp: "touch_due",
         status: "all",
       };
+    case "touch_scheduled":
+      return {
+        appointmentId: "",
+        calendarView,
+        coordination: "all",
+        followUp: "touch_scheduled",
+        status: "all",
+      };
     case "missing_next_touch":
       return {
         appointmentId: "",
@@ -207,6 +252,14 @@ export function getCalendarViewRoutePatch(
         appointmentId: "",
         calendarView,
         coordination: "bridge_logged",
+        followUp: "all",
+        status: "all",
+      };
+    case "writeback_pending":
+      return {
+        appointmentId: "",
+        calendarView,
+        coordination: "writeback_pending",
         followUp: "all",
         status: "all",
       };

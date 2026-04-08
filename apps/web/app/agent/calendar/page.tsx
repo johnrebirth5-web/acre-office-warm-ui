@@ -112,7 +112,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Separate the queue into reply pressure, confirmation pressure, next-touch pressure, bridge logs, and BO-ready handoff so the page reads like a workbench instead of a draft exporter."
+            subtitle="Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, writeback pending, bridge logs, and BO-ready handoff so the page reads like a workbench instead of a draft exporter."
             title="Coordination pressure"
           >
             <ListPageStatsGrid>
@@ -150,6 +150,12 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 value={snapshot.summary.touchDueCount}
               />
               <StatCard
+                hint="next external touches already saved but not due yet"
+                label="Touch scheduled"
+                tone="accent"
+                value={snapshot.summary.touchScheduledCount}
+              />
+              <StatCard
                 hint="appointments whose latest writeback says the time needs to move"
                 label="Reschedule requested"
                 tone="accent"
@@ -159,6 +165,12 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 hint="appointments that already opened Google, Outlook, ICS, or email from Acre"
                 label="Bridge logged"
                 value={snapshot.summary.bridgedCount}
+              />
+              <StatCard
+                hint="appointments where Acre opened the bridge but no writeback has been saved yet"
+                label="Writeback pending"
+                tone="accent"
+                value={snapshot.summary.writebackPendingCount}
               />
               <StatCard
                 hint="formal transaction follow-through waiting in BO"
@@ -267,9 +279,19 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
             value={snapshot.summary.touchDueCount}
           />
           <SummaryChip
+            label="Touch scheduled"
+            tone="accent"
+            value={snapshot.summary.touchScheduledCount}
+          />
+          <SummaryChip
             label="Reschedule"
             tone="accent"
             value={snapshot.summary.rescheduleRequestedCount}
+          />
+          <SummaryChip
+            label="Writeback pending"
+            tone="accent"
+            value={snapshot.summary.writebackPendingCount}
           />
           <SummaryChip
             label="Missing touch"

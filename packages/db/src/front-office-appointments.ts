@@ -132,8 +132,10 @@ export type FrontOfficeAppointmentsSnapshot = {
     confirmationPendingCount: number;
     rescheduleRequestedCount: number;
     touchDueCount: number;
+    touchScheduledCount: number;
     missingTouchPlanCount: number;
     bridgedCount: number;
+    writebackPendingCount: number;
   };
   filteredSummary: {
     appointmentCount: number;
@@ -141,9 +143,11 @@ export type FrontOfficeAppointmentsSnapshot = {
     confirmationPendingCount: number;
     rescheduleRequestedCount: number;
     touchDueCount: number;
+    touchScheduledCount: number;
     missingTouchPlanCount: number;
     confirmedCount: number;
     bridgePendingCount: number;
+    writebackPendingCount: number;
   };
   typeOptions: FrontOfficeAppointmentOption[];
   clientOptions: FrontOfficeAppointmentOption[];
@@ -2669,6 +2673,12 @@ export async function getFrontOfficeAppointmentsSnapshot(
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.isExternalTouchDue,
   ).length;
+  const touchScheduledCount = mappedAppointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      !appointment.isExternalTouchDue &&
+      appointment.externalNextActionAtValue !== "",
+  ).length;
   const missingTouchPlanCount = mappedAppointmentRecords.filter(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
@@ -2676,6 +2686,13 @@ export async function getFrontOfficeAppointmentsSnapshot(
   ).length;
   const bridgedCount = mappedAppointmentRecords.filter(
     (appointment) => appointment.hasBridgeActivity,
+  ).length;
+  const writebackPendingCount = mappedAppointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      appointment.hasBridgeActivity &&
+      appointment.externalStatusValue ===
+        frontOfficeAppointmentExternalWorkflowStatuses.idle,
   ).length;
   const confirmationPendingCount = mappedAppointmentRecords.filter(
     (appointment) =>
@@ -2711,6 +2728,12 @@ export async function getFrontOfficeAppointmentsSnapshot(
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.isExternalTouchDue,
   ).length;
+  const filteredTouchScheduledCount = appointmentRecords.filter(
+    (appointment) =>
+      appointment.statusValue === AppointmentStatus.scheduled &&
+      !appointment.isExternalTouchDue &&
+      appointment.externalNextActionAtValue !== "",
+  ).length;
   const filteredMissingTouchPlanCount = appointmentRecords.filter(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
@@ -2729,6 +2752,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
       appointment.externalStatusValue ===
         frontOfficeAppointmentExternalWorkflowStatuses.idle,
   ).length;
+  const filteredWritebackPendingCount = filteredBridgePendingCount;
 
   return {
     summary: {
@@ -2740,8 +2764,10 @@ export async function getFrontOfficeAppointmentsSnapshot(
       confirmationPendingCount,
       rescheduleRequestedCount,
       touchDueCount,
+      touchScheduledCount,
       missingTouchPlanCount,
       bridgedCount,
+      writebackPendingCount,
     },
     filteredSummary: {
       appointmentCount: appointmentRecords.length,
@@ -2749,9 +2775,11 @@ export async function getFrontOfficeAppointmentsSnapshot(
       confirmationPendingCount: filteredConfirmationPendingCount,
       rescheduleRequestedCount: filteredRescheduleRequestedCount,
       touchDueCount: filteredTouchDueCount,
+      touchScheduledCount: filteredTouchScheduledCount,
       missingTouchPlanCount: filteredMissingTouchPlanCount,
       confirmedCount: filteredConfirmedCount,
       bridgePendingCount: filteredBridgePendingCount,
+      writebackPendingCount: filteredWritebackPendingCount,
     },
     typeOptions: frontOfficeAppointmentTypeDefinitions.map((option) => ({
       value: option.value,

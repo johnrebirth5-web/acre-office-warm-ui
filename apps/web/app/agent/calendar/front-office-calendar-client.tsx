@@ -35,7 +35,7 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import {
   calendarViewValues,
   deriveCalendarViewFromRoute,
-  getCalendarViewForExternalWorkflowStatus,
+  getCalendarViewForWritebackReentry,
   getCalendarViewConfig,
   getCalendarViewRoutePatch,
   resolveCalendarView,
@@ -1392,7 +1392,11 @@ export function FrontOfficeCalendarClient(
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
         payload?.appointment?.id ?? appointment.id,
-        getCalendarViewForExternalWorkflowStatus(draft.status) ?? undefined,
+        getCalendarViewForWritebackReentry({
+          status: draft.status,
+          hasBridgeActivity: appointment.hasBridgeActivity,
+          nextActionAtValue: draft.nextActionAt,
+        }) ?? undefined,
         () => {
           setIsSaving(false);
         },
@@ -1470,7 +1474,11 @@ export function FrontOfficeCalendarClient(
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
         payload?.appointment?.id ?? appointment.id,
-        getCalendarViewForExternalWorkflowStatus(externalStatus) ?? undefined,
+        getCalendarViewForWritebackReentry({
+          status: externalStatus,
+          hasBridgeActivity: appointment.hasBridgeActivity,
+          nextActionAtValue: nextActionAt,
+        }) ?? undefined,
         () => {
           setIsSaving(false);
         },
@@ -1532,9 +1540,12 @@ export function FrontOfficeCalendarClient(
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
         payload?.appointment?.id ?? appointment.id,
-        getCalendarViewForExternalWorkflowStatus(
-          draft.status === "idle" ? preset.suggestedStatus : draft.status,
-        ) ?? undefined,
+        getCalendarViewForWritebackReentry({
+          status:
+            draft.status === "idle" ? preset.suggestedStatus : draft.status,
+          hasBridgeActivity: appointment.hasBridgeActivity,
+          nextActionAtValue: preset.nextActionAtValue,
+        }) ?? undefined,
         () => {
           setIsSaving(false);
         },
@@ -1616,7 +1627,18 @@ export function FrontOfficeCalendarClient(
         resultKind: payload.result.kind,
         suggestedWriteback: payload.suggestedWriteback ?? null,
       });
-      refreshIntoAppointmentFocus(appointment.id, "bridge_logged");
+      refreshIntoAppointmentFocus(
+        appointment.id,
+        getCalendarViewForWritebackReentry({
+          status:
+            payload.suggestedWriteback?.status ??
+            (appointment.externalStatusValue === "idle"
+              ? "idle"
+              : appointment.externalStatusValue),
+          hasBridgeActivity: true,
+          nextActionAtValue: payload.suggestedWriteback?.nextActionAtValue,
+        }) ?? "bridge_logged",
+      );
     } catch {
       setFeedback({
         tone: "error",
@@ -2005,6 +2027,9 @@ export function FrontOfficeCalendarClient(
           <Badge tone="danger">
             Touch due {props.snapshot.filteredSummary.touchDueCount}
           </Badge>
+          <Badge tone="accent">
+            Touch scheduled {props.snapshot.filteredSummary.touchScheduledCount}
+          </Badge>
           <Badge tone="danger">
             Reschedule{" "}
             {props.snapshot.filteredSummary.rescheduleRequestedCount}
@@ -2018,6 +2043,10 @@ export function FrontOfficeCalendarClient(
           </Badge>
           <Badge tone="warning">
             Bridge pending {props.snapshot.filteredSummary.bridgePendingCount}
+          </Badge>
+          <Badge tone="warning">
+            Writeback pending{" "}
+            {props.snapshot.filteredSummary.writebackPendingCount}
           </Badge>
         </div>
 
@@ -2052,6 +2081,19 @@ export function FrontOfficeCalendarClient(
             variant={filterState.calendarView === "touch_due" ? "primary" : "secondary"}
           >
             Touch due
+          </Button>
+          <Button
+            onClick={() =>
+              navigateToCalendarView("touch_scheduled")
+            }
+            size="sm"
+            variant={
+              filterState.calendarView === "touch_scheduled"
+                ? "primary"
+                : "secondary"
+            }
+          >
+            Touch scheduled
           </Button>
           <Button
             onClick={() =>
@@ -2100,6 +2142,19 @@ export function FrontOfficeCalendarClient(
             }
           >
             Bridge pending
+          </Button>
+          <Button
+            onClick={() =>
+              navigateToCalendarView("writeback_pending")
+            }
+            size="sm"
+            variant={
+              filterState.calendarView === "writeback_pending"
+                ? "primary"
+                : "secondary"
+            }
+          >
+            Writeback pending
           </Button>
         </div>
 
