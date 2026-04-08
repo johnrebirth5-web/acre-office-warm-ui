@@ -23,7 +23,9 @@ export default async function PublicListingSharePage(
     <main className="listing-share-shell">
       <section className="listing-share-card">
         <div className="listing-share-head">
-          <span className="listing-share-eyebrow">Private listing share</span>
+          <span className="listing-share-eyebrow">
+            {snapshot.shareSurfaceLabel}
+          </span>
           <span className="listing-share-status">{snapshot.statusLabel}</span>
         </div>
 
@@ -48,6 +50,14 @@ export default async function PublicListingSharePage(
           <article>
             <span>Shared by</span>
             <strong>{snapshot.agentLabel}</strong>
+          </article>
+          <article>
+            <span>Tracking</span>
+            <strong>{snapshot.trackingLabel}</strong>
+          </article>
+          <article>
+            <span>Next step</span>
+            <strong>{snapshot.nextStepLabel}</strong>
           </article>
         </div>
 
@@ -80,9 +90,12 @@ export default async function PublicListingSharePage(
         <div className="listing-share-footer">
           <strong>{snapshot.organizationLabel}</strong>
           <p>
-            This private page came from an Acre agent share link, so the sender
-            can keep the listing conversation aligned without sending you into
-            Back Office tools.
+            {snapshot.followUpLabel}
+          </p>
+          <p>
+            This private Acre share surface keeps the conversation aligned
+            without sending you into Back Office tools. Use the contact buttons
+            above if you want to talk through the listing or the next step.
           </p>
         </div>
       </section>

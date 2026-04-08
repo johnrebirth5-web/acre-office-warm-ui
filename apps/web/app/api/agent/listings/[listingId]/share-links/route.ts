@@ -259,6 +259,7 @@ export async function POST(
 
     return NextResponse.json({
       shareLink,
+      execution: shareLink.execution,
       writeback: shareLink.snapshot.writeback,
     });
   } catch (error) {

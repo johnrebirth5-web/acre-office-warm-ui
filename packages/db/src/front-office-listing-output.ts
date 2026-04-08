@@ -438,6 +438,14 @@ export type FrontOfficeListingShareLinkResult = {
     sentAt: string;
     writebackLabel: string;
   };
+  execution: {
+    trackingLabel: string;
+    writebackLabel: string;
+    writebackScopeLabel: string;
+    nextStepLabel: string;
+    sendCue: string;
+    manualSendCue: string;
+  };
   snapshot: {
     shareLink: {
       id: string;
@@ -503,6 +511,10 @@ export type FrontOfficeListingSharePageSnapshot = {
   factsLabel: string;
   summaryLabel: string;
   statusLabel: string;
+  shareSurfaceLabel: string;
+  trackingLabel: string;
+  nextStepLabel: string;
+  followUpLabel: string;
   sourceUrl: string;
   agentLabel: string;
   agentEmail: string;
@@ -597,6 +609,18 @@ function buildShareResultSnapshot(input: {
       nextStepLabel,
       sentAt: sentAtIso,
       writebackLabel,
+    },
+    execution: {
+      trackingLabel: buildShareTrackingLabel({
+        mode,
+        clientName: input.client?.fullName ?? null,
+        appointmentTitle,
+      }),
+      writebackLabel,
+      writebackScopeLabel,
+      nextStepLabel,
+      sendCue,
+      manualSendCue,
     },
     snapshot: {
       shareLink: {
@@ -926,6 +950,7 @@ export async function createFrontOfficeListingShareLink(
         sharePath: transactionResult.createdShareLink.targetUrl,
         sendRecordId: transactionResult.createdSendRecord?.id ?? null,
         context: shareSnapshot.context,
+        execution: shareSnapshot.execution,
         snapshot: shareSnapshot.snapshot,
       };
     } catch (error) {
@@ -954,11 +979,15 @@ export async function getFrontOfficeListingSharePageSnapshot(
     where: { code },
     select: {
       code: true,
+      channel: true,
       membershipId: true,
       sendRecord: {
         select: {
           id: true,
+          channel: true,
           firstOpenedAt: true,
+          lastOpenedAt: true,
+          openCount: true,
         },
       },
       listing: {
@@ -1038,6 +1067,17 @@ export async function getFrontOfficeListingSharePageSnapshot(
   const agentLabel = membership?.title?.trim()
     ? `${agentName} · ${membership.title.trim()}`
     : agentName;
+  const shareSurfaceLabel = shareLink.sendRecord
+    ? "Tracked client share"
+    : "Private listing share";
+  const trackingLabel = shareLink.sendRecord
+    ? `Tracked via ${buildShareChannelLabel(shareLink.sendRecord.channel)}.`
+    : "Private share link only.";
+  const nextStepLabel =
+    "Call or email the agent to keep the conversation moving, or open the source listing for the canonical record.";
+  const followUpLabel = shareLink.sendRecord
+    ? "If you were sent this privately, reply in the same conversation so the sender keeps the thread aligned."
+    : "If this page was forwarded, ask the sender for the original context so nothing gets lost.";
 
   return {
     code: shareLink.code,
@@ -1054,6 +1094,10 @@ export async function getFrontOfficeListingSharePageSnapshot(
       shareLink.listing.status === ListingStatus.hot
         ? "Hot listing"
         : "Active listing",
+    shareSurfaceLabel,
+    trackingLabel,
+    nextStepLabel,
+    followUpLabel,
     sourceUrl: shareLink.listing.sourceUrl?.trim() || "",
     agentLabel,
     agentEmail: membership?.user.email?.trim() || "",
