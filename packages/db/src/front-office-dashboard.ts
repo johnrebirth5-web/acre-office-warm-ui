@@ -30,6 +30,11 @@ import {
   buildFrontOfficeHandoffCreateHref,
   isFrontOfficeStageReadyForBackOffice,
 } from "./front-office-contracts";
+import {
+  frontOfficeAppointmentExternalWorkflowStatuses,
+  getFrontOfficeAppointmentExternalWorkflowState,
+  type FrontOfficeAppointmentExternalWorkflowStatus,
+} from "./front-office-appointments";
 import { resolveLeaseReminderDates } from "./lease-reminders";
 import { reconcileOfficeNotificationReminders } from "./notifications";
 import {
@@ -82,6 +87,18 @@ const frontOfficeDashboardLeadershipPreviewPerKind = 2;
 const frontOfficeDashboardLeadershipPreviewTotal = 4;
 const frontOfficeDashboardLeadershipWorkbenchPerKind = 6;
 const frontOfficeDashboardLeadershipTaskFetchLimit = 8;
+
+const frontOfficeDashboardCalendarViews = {
+  replyDue: "reply_due",
+  confirmationPending: "confirmation_pending",
+  confirmed: "confirmed",
+  touchDue: "touch_due",
+  missingNextTouch: "missing_next_touch",
+  rescheduleRequested: "reschedule_requested",
+} as const;
+
+type FrontOfficeDashboardCalendarView =
+  (typeof frontOfficeDashboardCalendarViews)[keyof typeof frontOfficeDashboardCalendarViews];
 
 export type FrontOfficeDashboardSummary = {
   todayActionCount: number;
@@ -393,6 +410,79 @@ function buildFrontOfficeDashboardLeadershipKindCountRecord() {
     engagement_risk: 0,
     stale_client: 0,
   } satisfies Record<FrontOfficeDashboardLeadershipKindKey, number>;
+}
+
+function resolveDashboardAppointmentCalendarView(input: {
+  externalStatusValue: FrontOfficeAppointmentExternalWorkflowStatus;
+  nextActionAt: Date | null;
+  isExternalTouchDue: boolean;
+}): FrontOfficeDashboardCalendarView | null {
+  switch (input.externalStatusValue) {
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmed:
+      return frontOfficeDashboardCalendarViews.confirmed;
+    case frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested:
+      return frontOfficeDashboardCalendarViews.rescheduleRequested;
+    case frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending:
+      return input.isExternalTouchDue
+        ? frontOfficeDashboardCalendarViews.touchDue
+        : frontOfficeDashboardCalendarViews.confirmationPending;
+    case frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp:
+      return input.isExternalTouchDue
+        ? frontOfficeDashboardCalendarViews.touchDue
+        : frontOfficeDashboardCalendarViews.replyDue;
+    default:
+      if (input.isExternalTouchDue) {
+        return frontOfficeDashboardCalendarViews.touchDue;
+      }
+
+      if (!input.nextActionAt) {
+        return frontOfficeDashboardCalendarViews.missingNextTouch;
+      }
+
+      return null;
+  }
+}
+
+function formatDashboardAppointmentCalendarActionLabel(
+  calendarView: FrontOfficeDashboardCalendarView | null,
+) {
+  switch (calendarView) {
+    case frontOfficeDashboardCalendarViews.replyDue:
+      return "Open reply-due workbench";
+    case frontOfficeDashboardCalendarViews.confirmationPending:
+      return "Open confirmation workbench";
+    case frontOfficeDashboardCalendarViews.confirmed:
+      return "Open confirmed workbench";
+    case frontOfficeDashboardCalendarViews.touchDue:
+      return "Open touch-due workbench";
+    case frontOfficeDashboardCalendarViews.missingNextTouch:
+      return "Open next-touch workbench";
+    case frontOfficeDashboardCalendarViews.rescheduleRequested:
+      return "Open reschedule workbench";
+    default:
+      return "Open appointment workbench";
+  }
+}
+
+function formatDashboardAppointmentCalendarViewLabel(
+  calendarView: FrontOfficeDashboardCalendarView | null,
+) {
+  switch (calendarView) {
+    case frontOfficeDashboardCalendarViews.replyDue:
+      return "Reply due";
+    case frontOfficeDashboardCalendarViews.confirmationPending:
+      return "Awaiting confirmation";
+    case frontOfficeDashboardCalendarViews.confirmed:
+      return "Externally confirmed";
+    case frontOfficeDashboardCalendarViews.touchDue:
+      return "Touch due";
+    case frontOfficeDashboardCalendarViews.missingNextTouch:
+      return "Missing next touch";
+    case frontOfficeDashboardCalendarViews.rescheduleRequested:
+      return "Reschedule requested";
+    default:
+      return "Appointment workbench";
+  }
 }
 
 type GetFrontOfficeDashboardSnapshotInput = {
@@ -1551,6 +1641,7 @@ export async function getFrontOfficeDashboardSnapshot(
         id: true,
         title: true,
         type: true,
+        metadata: true,
         startsAt: true,
         location: true,
         meetingUrl: true,
@@ -2744,28 +2835,51 @@ export async function getFrontOfficeDashboardSnapshot(
   const commitmentEntries = [
     ...upcomingAppointments.map((appointment) => ({
       sortAt: appointment.startsAt,
-      item: {
-        id: `appointment-${appointment.id}`,
-        title: appointment.title,
-        badgeLabel: formatAppointmentTypeLabel(appointment.type),
-        badgeTone: mapAppointmentTypeTone(appointment.type),
-        startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
-          timeZone: input.timeZone,
-        }),
-        locationLabel:
-          appointment.location?.trim() ||
-          appointment.meetingUrl?.trim() ||
-          "Location pending",
-        contextLabel: appointment.client?.fullName
-          ? `Client · ${appointment.client.fullName}`
-          : appointment.listing?.title
-            ? `Listing · ${appointment.listing.title}`
-            : "Front Office appointment",
-        actionLabel: "Open appointment workbench",
-        href: appointment.client?.id
-          ? `/agent/calendar?calendarView=bridge_logged&clientId=${appointment.client.id}&appointmentId=${appointment.id}`
-          : `/agent/calendar?calendarView=bridge_logged&appointmentId=${appointment.id}`,
-      },
+      item: (() => {
+        const externalWorkflow = getFrontOfficeAppointmentExternalWorkflowState({
+          metadata: appointment.metadata,
+          timeZone: input.timeZone ?? null,
+        });
+        const calendarView = resolveDashboardAppointmentCalendarView({
+          externalStatusValue: externalWorkflow.value,
+          nextActionAt: externalWorkflow.nextActionAt,
+          isExternalTouchDue: Boolean(
+            externalWorkflow.nextActionAt &&
+              externalWorkflow.nextActionAt.getTime() <= now.getTime(),
+          ),
+        });
+        const routeLabel = formatDashboardAppointmentCalendarViewLabel(
+          calendarView,
+        );
+        const actionLabel =
+          formatDashboardAppointmentCalendarActionLabel(calendarView);
+        const baseHref = appointment.client?.id
+          ? `/agent/calendar?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
+          : `/agent/calendar?appointmentId=${appointment.id}`;
+
+        return {
+          id: `appointment-${appointment.id}`,
+          title: appointment.title,
+          badgeLabel: formatAppointmentTypeLabel(appointment.type),
+          badgeTone: mapAppointmentTypeTone(appointment.type),
+          startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
+            timeZone: input.timeZone,
+          }),
+          locationLabel:
+            appointment.location?.trim() ||
+            appointment.meetingUrl?.trim() ||
+            "Location pending",
+          contextLabel: appointment.client?.fullName
+            ? `${appointment.client.fullName} · ${routeLabel}`
+            : appointment.listing?.title
+              ? `${appointment.listing.title} · ${routeLabel}`
+              : routeLabel,
+          actionLabel,
+          href: calendarView
+            ? `${baseHref}&calendarView=${calendarView}`
+            : baseHref,
+        };
+      })(),
     })),
     ...upcomingEvents.map((event) => ({
       sortAt: event.startsAt,
@@ -2990,7 +3104,7 @@ export async function getFrontOfficeDashboardSnapshot(
         : "Open the send-risk workbench and start a tracked send.",
       href: leadingSendRecord
         ? `/agent/clients/${leadingSendRecord.client.id}#front-office-client-next-step-rail`
-        : "/agent/listings",
+        : "/agent/listings?lane=draft-lane",
       actionLabel: leadingSendRecord
         ? "Open next-step rail"
         : "Open send-risk workbench",
@@ -3126,7 +3240,7 @@ export async function getFrontOfficeDashboardSnapshot(
           statusTone: mapListingStatusTone(listing.status),
           trackedLinkCount: shareMetrics?.count ?? 0,
           trackedClickCount: shareMetrics?.clicks ?? 0,
-          href: "/agent/listings",
+          href: "/agent/listings?lane=draft-lane",
         };
       }),
       recentEngagement: recentSendRecords.map((record) => ({

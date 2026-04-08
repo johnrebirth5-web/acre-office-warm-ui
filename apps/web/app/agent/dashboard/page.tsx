@@ -321,7 +321,7 @@ function buildDashboardLaunchpadItems(input: {
         input.snapshot.listingOutput.trackedLinkCount > 0
           ? `${input.snapshot.listingOutput.trackedLinkCount} tracked link(s) already created`
           : "First tracked send starts from listing output",
-      href: "/agent/listings",
+      href: "/agent/listings?lane=draft-lane",
       actionLabel: "Open send-risk workbench",
     });
   }
@@ -1297,7 +1297,7 @@ export default async function AgentDashboardPage() {
                   action={
                     <Link
                       className="office-button-secondary"
-                      href="/agent/listings"
+                      href="/agent/listings?lane=draft-lane"
                     >
                       Open send-risk workbench
                     </Link>
@@ -1356,7 +1356,7 @@ export default async function AgentDashboardPage() {
                   action={
                     <Link
                       className="office-button-secondary"
-                      href="/agent/listings"
+                      href="/agent/listings?lane=draft-lane"
                     >
                       Open send-risk workbench
                     </Link>
