@@ -1104,11 +1104,11 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "personal_cleanup" &&
           activeCleanupFilter === track.key
-            ? "Stay on this cleanup focus"
-            : "Open this cleanup focus",
+            ? "Stay on this cleanup rail"
+            : "Open this cleanup rail",
         nextStepLabel:
           matchingItems[0]?.nextStepLabel ??
-          "Open the cleanup focus and resolve the next touch.",
+          "Open the cleanup rail and resolve the next touch.",
         meta: [
           `${count} item(s) in scope`,
           nextLabel,
@@ -1149,11 +1149,11 @@ export function AgentNotificationsClient({
         actionLabel:
           activeActivityView === "team_cleanup" &&
           activeLeadershipFilter === group.key
-            ? "Stay on this team focus"
-            : "Open this team focus",
+            ? "Stay on this team lane"
+            : "Open this team lane",
         nextStepLabel:
           nextItem?.nextStepLabel ??
-          "Open the team focus and decide where to intervene.",
+          "Open the team lane and decide where to intervene.",
         meta: [
           count > matchingItems.length && matchingItems.length > 0
             ? `${count} signal(s) in scope · showing ${matchingItems.length}`
@@ -2454,7 +2454,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={nextPersonalCleanupItem.href}
                   >
-                    Open next cleanup
+                    Open next cleanup rail
                   </FrontOfficeLink>
                 ) : null}
                 {visibleDuplicatePairs.length ? (
@@ -2470,7 +2470,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={focusAreaCards[0]?.href ?? buildDuplicateReviewHref()}
                   >
-                    Open full personal workbench
+                    Open full personal cleanup workbench
                   </FrontOfficeLink>
                 ) : null}
               </div>

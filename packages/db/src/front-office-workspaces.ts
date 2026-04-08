@@ -1506,8 +1506,20 @@ function buildCalendarAppointmentHref(input: {
   return `/agent/calendar?${params.toString()}`;
 }
 
-function buildClientDetailHref(clientId: string) {
-  return `/agent/clients/${clientId}`;
+const frontOfficeClientSectionAnchors = {
+  appointmentsFollowUp: "front-office-client-appointments-follow-up",
+  listingOutput: "front-office-client-listing-output",
+  nextStepRail: "front-office-client-next-step-rail",
+} as const;
+
+function buildClientDetailHref(clientId: string, anchor?: string | null) {
+  const href = `/agent/clients/${clientId}`;
+
+  if (!anchor?.trim()) {
+    return href;
+  }
+
+  return `${href}#${anchor.trim().replace(/^#/, "")}`;
 }
 
 function formatFrontOfficeSendChannelLabel(channel: string) {
@@ -3941,19 +3953,27 @@ export async function getFrontOfficeActivitySnapshot(
             : `Starts · ${formatDateTimeLabel(appointment.startsAt, {
                 timeZone: input.timeZone ?? null,
               })}`,
-        href: buildCalendarAppointmentHref({
-          appointmentId: appointment.id,
-          clientId: appointment.client?.id ?? null,
-        }),
+        href:
+          appointment.client?.id && kindLabel !== "Appointment soon"
+            ? buildClientDetailHref(
+                appointment.client.id,
+                frontOfficeClientSectionAnchors.appointmentsFollowUp,
+              )
+            : buildCalendarAppointmentHref({
+                appointmentId: appointment.id,
+                clientId: appointment.client?.id ?? null,
+              }),
         actionLabel:
           kindLabel === "Appointment soon"
             ? "Open calendar item"
-            : "Open calendar writeback",
+            : appointment.client?.id
+              ? "Open appointment writeback rail"
+              : "Open calendar writeback",
         nextStepLabel:
           kindLabel === "Appointment soon"
             ? "Open the calendar workbench and keep the meeting on track."
             : appointment.client?.id
-              ? "Open the calendar writeback workbench with client context and record the next touch."
+              ? "Open the appointments rail with client context and record the next touch."
               : "Open the calendar writeback and record the next touch.",
         _priority: priority,
         _sortAt:
@@ -4004,10 +4024,13 @@ export async function getFrontOfficeActivitySnapshot(
           ? "The scheduled follow-up task is already overdue."
           : "This follow-up task lands in today's working set.",
         sortLabel: `Due · ${formatDateLabel(task.dueAt, input.timeZone)}`,
-        href: buildClientDetailHref(task.client.id),
-        actionLabel: "Open follow-up workbench",
+        href: buildClientDetailHref(
+          task.client.id,
+          frontOfficeClientSectionAnchors.appointmentsFollowUp,
+        ),
+        actionLabel: "Open follow-up rail",
         nextStepLabel:
-          "Open the client workbench and resolve the overdue follow-up.",
+          "Open the follow-up rail and resolve the overdue task.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: task.dueAt,
         _clientId: task.client.id,
@@ -4055,10 +4078,12 @@ export async function getFrontOfficeActivitySnapshot(
           ? "The next planned follow-up date has already slipped."
           : "This client's next touch is due today and should stay in the active pass.",
         sortLabel: `Next touch · ${formatDateLabel(nextTouchAt, input.timeZone)}`,
-        href: buildClientDetailHref(client.id),
-        actionLabel: "Open next-touch workbench",
-        nextStepLabel:
-          "Open the client workbench and choose the next touch.",
+        href: buildClientDetailHref(
+          client.id,
+          frontOfficeClientSectionAnchors.appointmentsFollowUp,
+        ),
+        actionLabel: "Open next-touch rail",
+        nextStepLabel: "Open the follow-up rail and choose the next touch.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: nextTouchAt,
         _clientId: client.id,
@@ -4109,10 +4134,13 @@ export async function getFrontOfficeActivitySnapshot(
             whyNowLabel:
               "The tracked send is still unopened after the initial wait window.",
             sortLabel: `Sent · ${formatDateLabel(record.sentAt, input.timeZone)}`,
-            href: buildClientDetailHref(record.client.id),
-            actionLabel: "Open send-risk workbench",
+            href: buildClientDetailHref(
+              record.client.id,
+              frontOfficeClientSectionAnchors.listingOutput,
+            ),
+            actionLabel: "Open listing output rail",
             nextStepLabel:
-              "Open the send trail workbench and decide whether to rescue the send.",
+              "Open the listing output rail and decide whether to rescue the send.",
             _priority: 4,
             _sortAt: record.sentAt,
             _clientId: record.client.id,
@@ -4167,10 +4195,13 @@ export async function getFrontOfficeActivitySnapshot(
             lastEngagementAt,
             input.timeZone,
           )}`,
-          href: buildClientDetailHref(record.client.id),
-          actionLabel: "Open send-risk workbench",
+          href: buildClientDetailHref(
+            record.client.id,
+            frontOfficeClientSectionAnchors.listingOutput,
+          ),
+          actionLabel: "Open listing output rail",
           nextStepLabel:
-            "Open the send trail workbench and decide whether to rescue the send.",
+            "Open the listing output rail and decide whether to rescue the send.",
           _priority: 5,
           _sortAt: lastEngagementAt,
           _clientId: record.client.id,
@@ -4214,9 +4245,13 @@ export async function getFrontOfficeActivitySnapshot(
       sortLabel: client.lastContactAt
         ? `Last contact · ${formatDateLabel(client.lastContactAt, input.timeZone)}`
         : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
-      href: buildClientDetailHref(client.id),
-      actionLabel: "Open recovery workbench",
-      nextStepLabel: "Open the dossier workbench and plan the next recovery touch.",
+      href: buildClientDetailHref(
+        client.id,
+        frontOfficeClientSectionAnchors.nextStepRail,
+      ),
+      actionLabel: "Open recovery rail",
+      nextStepLabel:
+        "Open the next-step rail and plan the next recovery touch.",
       _priority: tone === "danger" ? 6 : 7,
       _sortAt: staleSince,
       _clientId: client.id,
