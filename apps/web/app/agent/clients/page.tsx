@@ -472,6 +472,69 @@ function buildDuplicateBoardDescription(pair: FrontOfficeClientDuplicatePair) {
   return `${pair.rationaleLabel} Merge ${pair.duplicateClient.fullName} only after you confirm both dossiers side by side.`;
 }
 
+function matchesClientWorkbenchView(
+  client: ClientExecutionQueueItem,
+  view: ClientWorkbenchView,
+) {
+  switch (view) {
+    case "follow_first":
+      return client.isUrgent;
+    case "anchor_now":
+      return client.needsCleanup;
+    case "viewing_lane":
+      return client.isViewingLane;
+    case "boundary_review":
+      return client.needsBoundaryReview;
+    case "duplicate_review":
+      return Boolean(client.duplicateSignal);
+    default:
+      return true;
+  }
+}
+
+function buildClientWorkbenchQueueEmptyState(
+  view: ClientWorkbenchView,
+  focusLabel: string,
+) {
+  switch (view) {
+    case "follow_first":
+      return {
+        title: "Follow-first lane is clear",
+        description:
+          "No dossier currently has an overdue or due-today next touch, so you can reopen the broader queue without losing the active route focus.",
+      };
+    case "anchor_now":
+      return {
+        title: "Anchor-now lane is clear",
+        description:
+          "Every visible live dossier already has a first touch or a dated next-touch anchor, so the route can safely widen back into the broader queue.",
+      };
+    case "viewing_lane":
+      return {
+        title: "Viewing lane is clear",
+        description:
+          "No visible dossier is currently leading with a showing or appointment-follow-through path.",
+      };
+    case "boundary_review":
+      return {
+        title: "Boundary-review lane is clear",
+        description:
+          "No visible dossier is currently active enough in negotiation, offer, or application work to demand a BO-boundary review first.",
+      };
+    case "duplicate_review":
+      return {
+        title: "Duplicate-review lane is clear",
+        description:
+          "No visible dossier is currently carrying the strongest pairwise duplicate signal, so the route can widen back into the full execution queue.",
+      };
+    default:
+      return {
+        title: "No live client queue",
+        description: `No dossier currently matches ${focusLabel.toLowerCase()} because the visible FO queue is still empty.`,
+      };
+  }
+}
+
 export default async function AgentClientsPage(props: AgentClientsPageProps) {
   const context = await requireSessionContext();
   const searchParams = (await props.searchParams) ?? {};
@@ -497,6 +560,18 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
   const executionQueue = buildClientExecutionQueue(
     snapshot.clients,
     duplicateSignals,
+  );
+  const focusedExecutionQueue = executionQueue.filter((client) =>
+    matchesClientWorkbenchView(client, activeClientView),
+  );
+  const visibleExecutionQueue =
+    activeClientView === "all" || focusedExecutionQueue.length
+      ? focusedExecutionQueue
+      : executionQueue;
+  const focusedQueueLeader = focusedExecutionQueue[0] ?? null;
+  const queueEmptyState = buildClientWorkbenchQueueEmptyState(
+    activeClientView,
+    activeClientViewConfig.label,
   );
   const actNowCount = executionQueue.filter((client) => client.isUrgent).length;
   const cleanupCount = executionQueue.filter(
@@ -553,6 +628,65 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
             title="Today's FO operating board"
           >
             <div className="office-queue-list">
+              <QueueItem
+                action={
+                  <div className="list-row-meta front-office-record-meta">
+                    {focusedQueueLeader ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={focusedQueueLeader.primaryActionHref}
+                      >
+                        {focusedQueueLeader.primaryActionLabel}
+                      </FrontOfficeLink>
+                    ) : null}
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={buildClientWorkbenchHref(
+                        activeClientView,
+                        activeClientViewConfig.focusAnchor,
+                      )}
+                    >
+                      Reopen this lane
+                    </FrontOfficeLink>
+                  </div>
+                }
+                badgeLabel={activeClientViewConfig.label}
+                badgeTone={
+                  activeClientView === "all"
+                    ? "accent"
+                    : focusedExecutionQueue.length
+                      ? "warning"
+                      : "neutral"
+                }
+                context={
+                  activeClientView === "all"
+                    ? "Full FO queue"
+                    : `${focusedExecutionQueue.length} dossier(s) in focus`
+                }
+                description={
+                  focusedQueueLeader
+                    ? `${focusedQueueLeader.fullName} is the clearest dossier inside this route focus. ${focusedQueueLeader.whyNow}`
+                    : `${activeClientViewConfig.subtitle} ${queueEmptyState.description}`
+                }
+                meta={
+                  focusedQueueLeader ? (
+                    <div className="list-row-meta front-office-record-meta">
+                      <StatusBadge tone={focusedQueueLeader.stageTone}>
+                        {focusedQueueLeader.stage}
+                      </StatusBadge>
+                      <span>{focusedQueueLeader.nextTouchLabel}</span>
+                      <span>{focusedQueueLeader.anchorLabel}</span>
+                    </div>
+                  ) : (
+                    <div className="list-row-meta front-office-record-meta">
+                      <span>{activeClientViewConfig.label}</span>
+                      <span>{queueEmptyState.title}</span>
+                    </div>
+                  )
+                }
+                title="Current route focus"
+              />
+
               {topQueueClient ? (
                 <QueueItem
                   action={
@@ -709,7 +843,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
               </>
             }
             className="office-list-card"
-            subtitle="Queue order stays execution-first: overdue next touches, missing anchors, viewing coordination, duplicate review signals, and BO-ready stage review all stay visible without pretending Acre already has auto-send, hidden automation, or two-way sync."
+            subtitle={`Queue order stays execution-first: overdue next touches, missing anchors, viewing coordination, duplicate review signals, and BO-ready stage review all stay visible without pretending Acre already has auto-send, hidden automation, or two-way sync. Current route focus: ${activeClientViewConfig.label}.`}
             title="Client execution queue"
           >
             <ListPageStatsGrid>
@@ -753,8 +887,8 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
             </div>
 
             <div className="office-queue-list">
-              {executionQueue.length ? (
-                executionQueue.map((client) => (
+              {visibleExecutionQueue.length ? (
+                visibleExecutionQueue.map((client) => (
                   <QueueItem
                     action={
                       <div className="list-row-meta front-office-record-meta">
@@ -832,11 +966,21 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                         clientListSectionIds.intakeLaunch,
                       )}
                     >
-                      Launch intake assist
+                      {activeClientView === "all"
+                        ? "Launch intake assist"
+                        : "Open broader queue"}
                     </FrontOfficeLink>
                   }
-                  description="When Front Office starts using the shared CRM as the active client queue, the next-touch order will appear here."
-                  title="No live client queue"
+                  description={
+                    activeClientView === "all"
+                      ? "When Front Office starts using the shared CRM as the active client queue, the next-touch order will appear here."
+                      : queueEmptyState.description
+                  }
+                  title={
+                    activeClientView === "all"
+                      ? "No live client queue"
+                      : queueEmptyState.title
+                  }
                 />
               )}
             </div>
@@ -1045,6 +1189,13 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
         <>
           <SummaryChip label="Follow first" tone="accent" value={actNowCount} />
           <SummaryChip label="Anchor now" tone="accent" value={cleanupCount} />
+          {activeClientView !== "all" ? (
+            <SummaryChip
+              label={`${activeClientViewConfig.label} in focus`}
+              tone="accent"
+              value={focusedExecutionQueue.length}
+            />
+          ) : null}
           <SummaryChip label="Viewing lane" value={viewingCount} />
           <SummaryChip label="BO boundary" value={boundaryCount} />
           <SummaryChip

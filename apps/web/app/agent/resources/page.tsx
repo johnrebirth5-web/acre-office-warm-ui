@@ -210,6 +210,44 @@ function buildResourceLaneMap(resources: ResourceRecord[]) {
   return lanes;
 }
 
+function buildResourcePulseLanes(input: {
+  playbookCount: number;
+  templateCount: number;
+  documentCount: number;
+  trainingCount: number;
+}) {
+  return [
+    {
+      key: "playbook",
+      label: "Playbooks",
+      count: input.playbookCount,
+      description:
+        "Use these when the next move is a live conversation, objection response, or execution checklist.",
+    },
+    {
+      key: "template",
+      label: "Templates",
+      count: input.templateCount,
+      description:
+        "Use these when the structure already exists and the agent mainly needs a fast, reviewable outbound draft.",
+    },
+    {
+      key: "document",
+      label: "Documents",
+      count: input.documentCount,
+      description:
+        "Use these when the next move depends on a form, contract reference, or a clean supporting document.",
+    },
+    {
+      key: "training_video",
+      label: "Training",
+      count: input.trainingCount,
+      description:
+        "Use these when the lane needs a quick refresher before the live work continues.",
+    },
+  ] as const;
+}
+
 function renderVendorActions(vendor: VendorRecord) {
   return (
     <>
@@ -389,6 +427,20 @@ export default async function AgentResourcesPage() {
   const trainingCount =
     snapshot.resourceTypes.find((lane) => lane.key === "training_video")?.count ??
     0;
+  const resourcePulseLanes = buildResourcePulseLanes({
+    playbookCount,
+    templateCount,
+    documentCount,
+    trainingCount,
+  });
+  const strongestResourceLane =
+    resourcePulseLanes
+      .slice()
+      .sort((left, right) => right.count - left.count)[0] ?? null;
+  const thinnestResourceLane =
+    resourcePulseLanes
+      .slice()
+      .sort((left, right) => left.count - right.count)[0] ?? null;
 
   return (
     <FrontOfficePageTemplate
@@ -713,6 +765,70 @@ export default async function AgentResourcesPage() {
       }
       rail={
         <>
+          <SectionCard
+            className="office-list-card"
+            subtitle="Use this rail when you want the shortest path into the strongest published lane instead of scanning the whole library first."
+            title="Where to start first"
+          >
+            <div className="office-queue-list">
+              <FrontOfficeRailItem
+                badgeLabel={
+                  strongestResourceLane && strongestResourceLane.count > 0
+                    ? strongestResourceLane.label
+                    : "Library thin"
+                }
+                badgeTone="accent"
+                context={
+                  strongestResourceLane
+                    ? `${pluralize(strongestResourceLane.count, "item")} published`
+                    : "No lane published"
+                }
+                description={
+                  strongestResourceLane && strongestResourceLane.count > 0
+                    ? `${strongestResourceLane.description} This is the quickest lane to start from today.`
+                    : "No one lane is populated yet, so the library still needs more published support before it can lead live work cleanly."
+                }
+                title="Strongest published lane"
+              />
+              <FrontOfficeRailItem
+                badgeLabel={
+                  thinnestResourceLane ? thinnestResourceLane.label : "Coverage"
+                }
+                badgeTone={
+                  thinnestResourceLane && thinnestResourceLane.count === 0
+                    ? "warning"
+                    : "neutral"
+                }
+                context={
+                  thinnestResourceLane
+                    ? `${pluralize(thinnestResourceLane.count, "item")} published`
+                    : "No lane data"
+                }
+                description={
+                  thinnestResourceLane
+                    ? `${thinnestResourceLane.description} This is the thinnest support lane right now, so agents may need to lean on adjacent materials or the vendor desk sooner.`
+                    : "Lane coverage will surface here once shared resources are published."
+                }
+                title="Thinnest support lane"
+              />
+              <FrontOfficeRailItem
+                badgeLabel={
+                  readyNowVendors.length
+                    ? "Partners ready now"
+                    : "Reference posture"
+                }
+                badgeTone={readyNowVendors.length ? "success" : "warning"}
+                context={`${pluralize(snapshot.summary.quickContactVendorCount, "quick-contact vendor")} ready`}
+                description={
+                  readyNowVendors.length
+                    ? "The vendor desk is already contact-ready, so outside support can be pulled into the same FO execution lane without a second lookup pass."
+                    : "Published vendors are still acting more like reference cards than contact-ready partners, so agents may need to widen the directory before acting."
+                }
+                title="Vendor posture"
+              />
+            </div>
+          </SectionCard>
+
           <SectionCard
             className="office-list-card"
             subtitle="This rail is the quick read: which library lanes are healthy, and how much vendor support is actually contact-ready right now."
