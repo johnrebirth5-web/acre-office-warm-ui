@@ -1,3 +1,5 @@
+import type { FrontOfficeAppointmentExternalWorkflowStatus } from "@acre/db";
+
 export const calendarViewValues = [
   "all",
   "reply_due",
@@ -86,6 +88,23 @@ export function resolveCalendarView(value: string | null | undefined) {
 
 export function getCalendarViewConfig(calendarView: CalendarViewKey) {
   return calendarViewConfigs[calendarView];
+}
+
+export function getCalendarViewForExternalWorkflowStatus(
+  status: FrontOfficeAppointmentExternalWorkflowStatus,
+) {
+  switch (status) {
+    case "needs_follow_up":
+      return "reply_due" as const;
+    case "confirmation_pending":
+      return "confirmation_pending" as const;
+    case "confirmed":
+      return "confirmed" as const;
+    case "reschedule_requested":
+      return "reschedule_requested" as const;
+    default:
+      return null;
+  }
 }
 
 export function deriveCalendarViewFromRoute(input: {

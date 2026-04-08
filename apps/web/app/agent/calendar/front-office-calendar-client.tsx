@@ -35,6 +35,7 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import {
   calendarViewValues,
   deriveCalendarViewFromRoute,
+  getCalendarViewForExternalWorkflowStatus,
   getCalendarViewConfig,
   getCalendarViewRoutePatch,
   resolveCalendarView,
@@ -886,9 +887,13 @@ export function FrontOfficeCalendarClient(
       : "If another page sends you here with a relative return path, Acre will preserve it while the shell state changes.",
   ];
 
-  function buildAppointmentFocusHref(appointmentId: string) {
+  function buildAppointmentFocusHref(
+    appointmentId: string,
+    calendarView?: CalendarViewKey,
+  ) {
     return buildCalendarHref(pathname, searchParams, {
       appointmentId,
+      ...(calendarView ? { calendarView } : {}),
     });
   }
 
@@ -1116,9 +1121,13 @@ export function FrontOfficeCalendarClient(
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function refreshIntoAppointmentFocus(appointmentId: string, onComplete?: () => void) {
+  function refreshIntoAppointmentFocus(
+    appointmentId: string,
+    calendarView?: CalendarViewKey,
+    onComplete?: () => void,
+  ) {
     startTransition(() => {
-      router.replace(buildAppointmentFocusHref(appointmentId), {
+      router.replace(buildAppointmentFocusHref(appointmentId, calendarView), {
         scroll: false,
       });
       router.refresh();
@@ -1269,7 +1278,7 @@ export function FrontOfficeCalendarClient(
           filterState.listingId || defaultListingId,
         ),
       );
-      refreshIntoAppointmentFocus(payload?.appointment?.id ?? "", () => {
+      refreshIntoAppointmentFocus(payload?.appointment?.id ?? "", undefined, () => {
         setIsSaving(false);
       });
     } catch {
@@ -1316,9 +1325,13 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message: "Appointment status updated.",
       });
-      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointmentId, () => {
-        setIsSaving(false);
-      });
+      refreshIntoAppointmentFocus(
+        payload?.appointment?.id ?? appointmentId,
+        undefined,
+        () => {
+          setIsSaving(false);
+        },
+      );
     } catch {
       setFeedback({
         tone: "error",
@@ -1377,9 +1390,13 @@ export function FrontOfficeCalendarClient(
             : "Appointment external writeback updated.",
       });
       clearSavedWritebackDraft(appointment.id);
-      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointment.id, () => {
-        setIsSaving(false);
-      });
+      refreshIntoAppointmentFocus(
+        payload?.appointment?.id ?? appointment.id,
+        getCalendarViewForExternalWorkflowStatus(draft.status) ?? undefined,
+        () => {
+          setIsSaving(false);
+        },
+      );
     } catch {
       setFeedback({
         tone: "error",
@@ -1451,9 +1468,13 @@ export function FrontOfficeCalendarClient(
               : "Quick coordination action saved.",
       });
       clearSavedWritebackDraft(appointment.id);
-      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointment.id, () => {
-        setIsSaving(false);
-      });
+      refreshIntoAppointmentFocus(
+        payload?.appointment?.id ?? appointment.id,
+        getCalendarViewForExternalWorkflowStatus(externalStatus) ?? undefined,
+        () => {
+          setIsSaving(false);
+        },
+      );
     } catch {
       setFeedback({
         tone: "error",
@@ -1509,9 +1530,15 @@ export function FrontOfficeCalendarClient(
         message: `${preset.label} saved to Acre as the next coordination checkpoint.`,
       });
       clearSavedWritebackDraft(appointment.id);
-      refreshIntoAppointmentFocus(payload?.appointment?.id ?? appointment.id, () => {
-        setIsSaving(false);
-      });
+      refreshIntoAppointmentFocus(
+        payload?.appointment?.id ?? appointment.id,
+        getCalendarViewForExternalWorkflowStatus(
+          draft.status === "idle" ? preset.suggestedStatus : draft.status,
+        ) ?? undefined,
+        () => {
+          setIsSaving(false);
+        },
+      );
     } catch {
       setFeedback({
         tone: "error",
@@ -1589,7 +1616,7 @@ export function FrontOfficeCalendarClient(
         resultKind: payload.result.kind,
         suggestedWriteback: payload.suggestedWriteback ?? null,
       });
-      refreshIntoAppointmentFocus(appointment.id);
+      refreshIntoAppointmentFocus(appointment.id, "bridge_logged");
     } catch {
       setFeedback({
         tone: "error",
