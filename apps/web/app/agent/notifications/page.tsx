@@ -20,6 +20,7 @@ import {
   activityViewOptions,
   buildAgentNotificationsHref,
   cleanupFilterOptions,
+  getActivityViewBridgeLabel,
   leadershipCleanupFilterOptions,
   noticeStreamFilterOptions,
   reminderFilterOptions,
@@ -201,6 +202,7 @@ export default async function AgentNotificationsPage(
                     <span>{readStateLabel}</span>
                     <span>{cleanupFilterLabel}</span>
                     <span>{noticeLaneLabel}</span>
+                    <span>{getActivityViewBridgeLabel(initialActivityView)}</span>
                   </>
                 }
                 title="Keep this slice shareable"
@@ -397,6 +399,11 @@ export default async function AgentNotificationsPage(
       }
       summary={
         <>
+          <SummaryChip label="Current lane" value={activeViewLabel} />
+          <SummaryChip
+            label="Next move"
+            value={getActivityViewBridgeLabel(initialActivityView)}
+          />
           <SummaryChip
             label="Visible workbench items"
             value={visibleRouteItemCount}

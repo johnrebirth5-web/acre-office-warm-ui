@@ -367,3 +367,18 @@ export function getActivityViewAnchor(activityView: AgentActivityView) {
 
   return "";
 }
+
+export function getActivityViewBridgeLabel(activityView: AgentActivityView) {
+  switch (activityView) {
+    case "personal_cleanup":
+      return "Bridge to appointment reminders or duplicate review when the cleanup rail is clear.";
+    case "team_cleanup":
+      return "Bridge back to personal cleanup once the visible-scope lane is quiet.";
+    case "appointment_reminders":
+      return "Bridge to general notices after the calendar writeback pass.";
+    case "general_notices":
+      return "Bridge back to appointment reminders if the next touch is calendar-owned.";
+    default:
+      return "Bridge into the highest-pressure lane, then return to this overview slice.";
+  }
+}

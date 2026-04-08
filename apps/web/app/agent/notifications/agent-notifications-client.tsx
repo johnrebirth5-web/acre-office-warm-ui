@@ -27,6 +27,7 @@ import {
   appointmentReminderGroupConfig,
   buildAgentNotificationsHref,
   cleanupFilterOptions,
+  getActivityViewBridgeLabel,
   generalNoticeLaneConfig,
   getActivityViewAnchor,
   leadershipCleanupFilterOptions,
@@ -814,6 +815,7 @@ export function AgentNotificationsClient({
     activityLaneTabs.find((area) => area.key === activeActivityView) ??
     activityLaneTabs[0];
   const isOverviewMode = activeActivityView === "all";
+  const activeRouteBridgeLabel = getActivityViewBridgeLabel(activeActivityView);
   const overviewPreviewLimit = 4;
   const displayedCleanupItems = isOverviewMode
     ? filteredCleanupItems.slice(0, overviewPreviewLimit)
@@ -1302,6 +1304,7 @@ export function AgentNotificationsClient({
             tone: nextPersonalCleanupItem.tone,
             badgeLabel: nextPersonalCleanupItem.kindLabel,
             meta: [
+              `Bridge · ${activeRouteBridgeLabel}`,
               `Section · ${nextPersonalCleanupItem.sectionLabel}`,
               `Owner · ${nextPersonalCleanupItem.ownerLabel}`,
               `Scope · ${nextPersonalCleanupItem.scopeLabel}`,
@@ -1319,6 +1322,7 @@ export function AgentNotificationsClient({
               tone: "accent",
               badgeLabel: "Duplicate review",
               meta: [
+                `Bridge · ${activeRouteBridgeLabel}`,
                 "Section · Duplicate review workbench",
                 `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
                 "Foundation cleanup before next touch",
@@ -1336,6 +1340,7 @@ export function AgentNotificationsClient({
               tone: nextTeamCleanupItem.tone,
               badgeLabel: nextTeamCleanupItem.kindLabel,
               meta: [
+                `Bridge · ${activeRouteBridgeLabel}`,
                 `Section · ${nextTeamCleanupItem.kindLabel}`,
                 `Owner · ${nextTeamCleanupItem.ownerLabel}`,
                 `Scope · ${nextTeamCleanupItem.scopeLabel}`,
@@ -1354,6 +1359,7 @@ export function AgentNotificationsClient({
                 tone: nextAppointmentReminderCard.pressureTone,
                 badgeLabel: nextAppointmentReminderCard.groupLabel,
                 meta: [
+                  `Bridge · ${activeRouteBridgeLabel}`,
                   `Section · ${nextAppointmentReminderCard.sectionLabel}`,
                   `Owner · ${nextAppointmentReminderCard.ownerLabel}`,
                   `Scope · ${nextAppointmentReminderCard.scopeLabel}`,
@@ -1372,6 +1378,7 @@ export function AgentNotificationsClient({
                 tone: nextGeneralNoticeCard.pressureTone,
                 badgeLabel: nextGeneralNoticeCard.streamLabel,
                 meta: [
+                  `Bridge · ${activeRouteBridgeLabel}`,
                   `Section · ${nextGeneralNoticeCard.sectionLabel}`,
                   `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
                   `Scope · ${nextGeneralNoticeCard.scopeLabel}`,
@@ -1379,87 +1386,87 @@ export function AgentNotificationsClient({
                 ],
                 ctaLabel: getNotificationOpenLabel(nextGeneralNoticeCard),
               }
-              : null
-            : nextAppointmentReminderCard
+            : null
+          : nextAppointmentReminderCard
+            ? {
+                key: nextAppointmentReminderCard.id,
+                label: nextAppointmentReminderCard.title,
+                description: nextAppointmentReminderCard.body,
+                href: buildNotificationOpenHref(nextAppointmentReminderCard),
+                tone: nextAppointmentReminderCard.pressureTone,
+                badgeLabel: nextAppointmentReminderCard.groupLabel,
+                meta: [
+                  `Bridge · ${activeRouteBridgeLabel}`,
+                  "Recommended next pass",
+                  `Owner · ${nextAppointmentReminderCard.ownerLabel}`,
+                  `Read state · ${nextAppointmentReminderCard.readStateLabel}`,
+                ],
+                ctaLabel: getNotificationOpenLabel(nextAppointmentReminderCard),
+              }
+            : nextPersonalCleanupItem
               ? {
-                  key: nextAppointmentReminderCard.id,
-                  label: nextAppointmentReminderCard.title,
-                  description: nextAppointmentReminderCard.body,
-                  href: buildNotificationOpenHref(nextAppointmentReminderCard),
-                  tone: nextAppointmentReminderCard.pressureTone,
-                  badgeLabel: nextAppointmentReminderCard.groupLabel,
+                  key: nextPersonalCleanupItem.id,
+                  label: nextPersonalCleanupItem.title,
+                  description: nextPersonalCleanupItem.description,
+                  href: nextPersonalCleanupItem.href,
+                  tone: nextPersonalCleanupItem.tone,
+                  badgeLabel: nextPersonalCleanupItem.kindLabel,
                   meta: [
+                    `Bridge · ${activeRouteBridgeLabel}`,
                     "Recommended next pass",
-                    `Owner · ${nextAppointmentReminderCard.ownerLabel}`,
-                    `Read state · ${nextAppointmentReminderCard.readStateLabel}`,
+                    `Owner · ${nextPersonalCleanupItem.ownerLabel}`,
+                    nextPersonalCleanupItem.sortLabel,
                   ],
-                  ctaLabel: getNotificationOpenLabel(
-                    nextAppointmentReminderCard,
-                  ),
+                  ctaLabel: nextPersonalCleanupItem.actionLabel,
                 }
-              : nextPersonalCleanupItem
+              : nextTeamCleanupItem
                 ? {
-                    key: nextPersonalCleanupItem.id,
-                    label: nextPersonalCleanupItem.title,
-                    description: nextPersonalCleanupItem.description,
-                    href: nextPersonalCleanupItem.href,
-                    tone: nextPersonalCleanupItem.tone,
-                    badgeLabel: nextPersonalCleanupItem.kindLabel,
+                    key: nextTeamCleanupItem.id,
+                    label: nextTeamCleanupItem.title,
+                    description: nextTeamCleanupItem.description,
+                    href: nextTeamCleanupItem.href,
+                    tone: nextTeamCleanupItem.tone,
+                    badgeLabel: nextTeamCleanupItem.kindLabel,
                     meta: [
-                      "Recommended next pass",
-                      `Owner · ${nextPersonalCleanupItem.ownerLabel}`,
-                      nextPersonalCleanupItem.sortLabel,
+                      `Bridge · ${activeRouteBridgeLabel}`,
+                      "Leadership-visible pressure",
+                      `Owner · ${nextTeamCleanupItem.ownerLabel}`,
+                      `Context · ${nextTeamCleanupItem.contextLabel}`,
                     ],
-                    ctaLabel: nextPersonalCleanupItem.actionLabel,
+                    ctaLabel: nextTeamCleanupItem.actionLabel,
                   }
-                : nextTeamCleanupItem
+                : nextGeneralNoticeCard
                   ? {
-                      key: nextTeamCleanupItem.id,
-                      label: nextTeamCleanupItem.title,
-                      description: nextTeamCleanupItem.description,
-                      href: nextTeamCleanupItem.href,
-                      tone: nextTeamCleanupItem.tone,
-                      badgeLabel: nextTeamCleanupItem.kindLabel,
+                      key: nextGeneralNoticeCard.id,
+                      label: nextGeneralNoticeCard.title,
+                      description: nextGeneralNoticeCard.body,
+                      href: buildNotificationOpenHref(nextGeneralNoticeCard),
+                      tone: nextGeneralNoticeCard.pressureTone,
+                      badgeLabel: nextGeneralNoticeCard.streamLabel,
                       meta: [
-                        "Leadership-visible pressure",
-                        `Owner · ${nextTeamCleanupItem.ownerLabel}`,
-                        `Context · ${nextTeamCleanupItem.contextLabel}`,
+                        `Bridge · ${activeRouteBridgeLabel}`,
+                        "Broader notice follow-through",
+                        `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
+                        `Read state · ${nextGeneralNoticeCard.readStateLabel}`,
                       ],
-                      ctaLabel: nextTeamCleanupItem.actionLabel,
+                      ctaLabel: getNotificationOpenLabel(nextGeneralNoticeCard),
                     }
-                  : nextGeneralNoticeCard
+                  : visibleDuplicatePairs.length
                     ? {
-                        key: nextGeneralNoticeCard.id,
-                        label: nextGeneralNoticeCard.title,
-                        description: nextGeneralNoticeCard.body,
-                        href: buildNotificationOpenHref(nextGeneralNoticeCard),
-                        tone: nextGeneralNoticeCard.pressureTone,
-                        badgeLabel: nextGeneralNoticeCard.streamLabel,
+                        key: "duplicate-review-all",
+                        label: "Review duplicate workbench",
+                        description:
+                          "Duplicate review is still open in this slice and should be resolved before the next follow-up or appointment touches the wrong dossier.",
+                        href: buildDuplicateReviewHref(),
+                        tone: "accent",
+                        badgeLabel: "Duplicate review",
                         meta: [
-                          "Broader notice follow-through",
-                          `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
-                          `Read state · ${nextGeneralNoticeCard.readStateLabel}`,
+                          `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
+                          "Foundation cleanup before next touch",
                         ],
-                        ctaLabel: getNotificationOpenLabel(
-                          nextGeneralNoticeCard,
-                        ),
+                        ctaLabel: "Review duplicate workbench",
                       }
-                    : visibleDuplicatePairs.length
-                      ? {
-                          key: "duplicate-review-all",
-                          label: "Review duplicate workbench",
-                          description:
-                            "Duplicate review is still open in this slice and should be resolved before the next follow-up or appointment touches the wrong dossier.",
-                          href: buildDuplicateReviewHref(),
-                          tone: "accent",
-                          badgeLabel: "Duplicate review",
-                          meta: [
-                            `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
-                            "Foundation cleanup before next touch",
-                          ],
-                          ctaLabel: "Review duplicate workbench",
-                        }
-                      : null;
+                    : null;
 
   function toggleNotificationSelection(notificationId: string) {
     setSelectedNotificationIds((current) =>
@@ -1972,6 +1979,10 @@ export function AgentNotificationsClient({
             <span className={styles.summaryPanelPill}>
               <strong>Filter</strong>
               {activeLaneTab.sliceLabel}
+            </span>
+            <span className={styles.summaryPanelPill}>
+              <strong>Next move</strong>
+              {activeRouteBridgeLabel}
             </span>
             {isOverviewMode ? (
               <span className={styles.summaryPanelPill}>
