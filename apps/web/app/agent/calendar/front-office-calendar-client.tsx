@@ -92,6 +92,15 @@ type BridgeActionResponse = {
   hint?: string;
 };
 
+type BridgeOutcomeState = {
+  appointmentId: string;
+  actionLabel: string;
+  manualOnlyDetail: string;
+  followUpDetail: string;
+  resultKind: BridgeActionResponse["result"]["kind"];
+  suggestedWriteback: BridgeActionResponse["suggestedWriteback"];
+};
+
 type AppointmentMutationResponse = {
   appointment?: {
     id: string;
@@ -731,6 +740,8 @@ export function FrontOfficeCalendarClient(
     appointmentId: string;
     action: FrontOfficeAppointmentBridgeAction;
   } | null>(null);
+  const [bridgeOutcome, setBridgeOutcome] =
+    useState<BridgeOutcomeState | null>(null);
   const [writebackDrafts, setWritebackDrafts] = useState<
     Record<string, AppointmentWritebackDraft>
   >({});
@@ -941,6 +952,29 @@ export function FrontOfficeCalendarClient(
     });
   }
 
+  function loadSuggestedBridgeWriteback(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+    suggestion: BridgeActionResponse["suggestedWriteback"],
+  ) {
+    if (!suggestion || appointment.statusValue !== "scheduled") {
+      return;
+    }
+
+    setWritebackDrafts((current) => ({
+      ...current,
+      [appointment.id]: {
+        status: suggestion.status,
+        note: "",
+        nextActionAt: suggestion.nextActionAtValue,
+      },
+    }));
+    setFeedback({
+      tone: "success",
+      message: `${suggestion.label} loaded into the writeback form. Save it when ready to keep the next touch visible in Acre.`,
+    });
+    scrollToWritebackSection();
+  }
+
   function applyTouchPresetDraft(
     appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
     preset: AppointmentTouchPreset,
@@ -1003,6 +1037,12 @@ export function FrontOfficeCalendarClient(
   function scrollToScheduleForm() {
     document
       .getElementById("calendar-schedule-form")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function scrollToWritebackSection() {
+    document
+      .getElementById("calendar-writeback-section")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -1466,8 +1506,18 @@ export function FrontOfficeCalendarClient(
       setFeedback({
         tone: "success",
         message: primedPresetLabel
-          ? `${payload.actionLabel} opened. ${payload.manualOnlyDetail ?? "Acre only logged the bridge here."} ${primedPresetLabel} is loaded into the writeback draft so you can save the next checkpoint after the outside send or export.`
-          : `${payload.actionLabel} opened. ${payload.manualOnlyDetail ?? "Acre only logged the bridge here."} ${payload.followUpDetail ?? "Keep the writeback up to date after the outside action is complete."}`,
+          ? `${payload.actionLabel} opened. ${payload.manualOnlyDetail ?? "Acre only logged the bridge here."} Next step: ${payload.followUpDetail ?? "Save the writeback form below."} ${primedPresetLabel} is already loaded into the writeback draft.`
+          : `${payload.actionLabel} opened. ${payload.manualOnlyDetail ?? "Acre only logged the bridge here."} Next step: ${payload.followUpDetail ?? "Save the writeback form below."}`,
+      });
+      setBridgeOutcome({
+        appointmentId: appointment.id,
+        actionLabel: payload.actionLabel,
+        manualOnlyDetail:
+          payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
+        followUpDetail:
+          payload.followUpDetail ?? "Save the writeback form below.",
+        resultKind: payload.result.kind,
+        suggestedWriteback: payload.suggestedWriteback ?? null,
       });
       refreshIntoAppointmentFocus(appointment.id);
     } catch {
@@ -2137,7 +2187,7 @@ export function FrontOfficeCalendarClient(
                     <span>Next step: {focusedAppointment.coordinationNextStep}</span>
                   </>
                 }
-                title="Follow-up rhythm"
+                title="Pressure and next step"
               />
             </div>
 
@@ -2280,7 +2330,7 @@ export function FrontOfficeCalendarClient(
                       {bridgeState?.appointmentId === focusedAppointment.id &&
                       bridgeState.action === "email_brief"
                         ? "Opening..."
-                        : "Draft client email"}
+                      : "Draft client email"}
                     </button>
                   ) : (
                     <p className="front-office-record-supporting">
@@ -2290,10 +2340,64 @@ export function FrontOfficeCalendarClient(
                   )}
                 </div>
 
+                {bridgeOutcome &&
+                bridgeOutcome.appointmentId === focusedAppointment.id ? (
+                  <QueueItem
+                    action={
+                      <div className="front-office-calendar-actions">
+                        <Button
+                          disabled={isBusy}
+                          onClick={scrollToWritebackSection}
+                          size="sm"
+                          variant="secondary"
+                        >
+                          Jump to writeback
+                        </Button>
+                        {bridgeOutcome.suggestedWriteback ? (
+                          <Button
+                            disabled={isBusy}
+                            onClick={() =>
+                              loadSuggestedBridgeWriteback(
+                                focusedAppointment,
+                                bridgeOutcome.suggestedWriteback,
+                              )
+                            }
+                            size="sm"
+                            variant="secondary"
+                          >
+                            Load suggested next touch
+                          </Button>
+                        ) : null}
+                      </div>
+                    }
+                    badgeLabel={
+                      bridgeOutcome.suggestedWriteback?.label ??
+                      bridgeOutcome.actionLabel
+                    }
+                    badgeTone={
+                      bridgeOutcome.resultKind === "calendar_export"
+                        ? "accent"
+                        : "warning"
+                    }
+                    description={bridgeOutcome.followUpDetail}
+                    meta={
+                      <>
+                        <span>{bridgeOutcome.manualOnlyDetail}</span>
+                        <span>
+                          {bridgeOutcome.resultKind === "calendar_export"
+                            ? "ICS export logged"
+                            : "Draft opened in a new tab"}
+                        </span>
+                      </>
+                    }
+                    title="After the bridge"
+                  />
+                ) : null}
+
                 <div className="front-office-calendar-writeback">
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      Quick coordination actions
+                      Bridge-linked quick actions
                     </span>
                     <p className="front-office-record-supporting">
                       These quick actions update Acre&apos;s writeback only.
@@ -2353,7 +2457,10 @@ export function FrontOfficeCalendarClient(
                   </div>
                 ) : null}
 
-                <div className="front-office-calendar-writeback">
+                <div
+                  className="front-office-calendar-writeback"
+                  id="calendar-writeback-section"
+                >
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
                       Coordination writeback

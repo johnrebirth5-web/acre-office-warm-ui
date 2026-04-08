@@ -168,6 +168,7 @@ function buildCalendarDescription(input: AppointmentExternalLinkInput) {
   const lines = [
     "Manual export from Acre Front Office.",
     "Acre remains the source of truth for appointment status and writeback. No provider sync is implied by this draft.",
+    "Next step: save the follow-up writeback in Acre after you open this draft or export.",
     normalizeBridgeText(input.appointmentTypeLabel)
       ? `Appointment type: ${normalizeBridgeText(input.appointmentTypeLabel)}`
       : "",
@@ -298,6 +299,7 @@ function buildEmailBriefHref(input: AppointmentExternalLinkInput) {
     isRescheduleRequest
       ? "If you need to move it, reply with a few times that work better and I will update the plan."
       : "If anything changes or you need to reschedule, reply here and I will adjust the plan.",
+    "After you send this brief, save the confirmation, reschedule, or follow-up writeback in Acre so the next touch stays visible.",
     "",
     "Best,",
     "Acre",

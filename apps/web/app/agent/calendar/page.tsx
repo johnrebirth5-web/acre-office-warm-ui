@@ -82,8 +82,8 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="A compact read on the live calendar queue, with external coordination pressure still derived from the same appointment records and bridge trail rather than a fake provider sync layer."
-            title="Workflow signals"
+            subtitle="Separate the queue into reply pressure, confirmation pressure, next-touch pressure, bridge logs, and BO-ready handoff so the page reads like a workbench instead of a draft exporter."
+            title="Coordination pressure"
           >
             <ListPageStatsGrid>
               <StatCard
@@ -98,19 +98,19 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
                 value={snapshot.summary.todayCount}
               />
               <StatCard
-                hint="appointments whose outside reply or reschedule still needs attention"
-                label="Awaiting reply"
+                hint="appointments whose outside reply still needs attention"
+                label="Reply due"
                 value={snapshot.summary.awaitingReplyCount}
               />
               <StatCard
                 hint="scheduled appointments explicitly waiting on an outside confirmation reply"
-                label="Awaiting confirm"
+                label="Confirmation pending"
                 tone="accent"
                 value={snapshot.summary.confirmationPendingCount}
               />
               <StatCard
                 hint="appointments still waiting on outside coordination but missing a saved next-touch deadline"
-                label="Missing touch"
+                label="Missing next touch"
                 tone="accent"
                 value={snapshot.summary.missingTouchPlanCount}
               />
@@ -121,13 +121,13 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               />
               <StatCard
                 hint="appointments whose latest writeback says the time needs to move"
-                label="Reschedule"
+                label="Reschedule requested"
                 tone="accent"
                 value={snapshot.summary.rescheduleRequestedCount}
               />
               <StatCard
                 hint="appointments that already opened Google, Outlook, ICS, or email from Acre"
-                label="Bridge opened"
+                label="Bridge logged"
                 value={snapshot.summary.bridgedCount}
               />
               <StatCard

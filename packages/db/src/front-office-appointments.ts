@@ -779,6 +779,16 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
     };
   }
 
+  if (input.bridgeStatus.hasBridgeActivity) {
+    return {
+      label: "Bridge opened, writeback pending",
+      tone: "warning" as const,
+      detail:
+        "A Google, Outlook, ICS, or email bridge was opened from Acre, but the next confirmation, reschedule, or follow-up checkpoint still needs to be written back.",
+      needsNextTouchPlan: true,
+    };
+  }
+
   if (
     input.externalWorkflow.value ===
     frontOfficeAppointmentExternalWorkflowStatuses.confirmed
@@ -792,18 +802,8 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
     };
   }
 
-  if (input.bridgeStatus.hasBridgeActivity) {
-    return {
-      label: "Bridge opened, plan not written back",
-      tone: "warning" as const,
-      detail:
-        "A Google, Outlook, ICS, or email bridge was opened from Acre, but the follow-up rhythm still has not been written back.",
-      needsNextTouchPlan: false,
-    };
-  }
-
   return {
-    label: "No follow-up rhythm saved",
+    label: "No bridge or writeback yet",
     tone: "neutral" as const,
     detail:
       "Acre has the appointment on the calendar, but there is still no explicit outside follow-up rhythm saved on the record.",
@@ -989,7 +989,7 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
   timeZone?: string | null;
 }): FrontOfficeAppointmentBridgeGuidance {
   const manualOnlyDetail =
-    "Acre only logs that the bridge was opened here. Google, Outlook, ICS, and email still need a manual save or send outside the system.";
+    "Acre only logs that the bridge was opened here. Google, Outlook, ICS, and email still need a manual save or send outside the system, and the next writeback should be saved back on this appointment record.";
 
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
     return {
@@ -1016,16 +1016,16 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
     followUpDetail:
       input.externalWorkflow.value ===
       frontOfficeAppointmentExternalWorkflowStatuses.confirmed
-        ? "If the outside plan changes after this export, write back whether it is still confirmed or needs to be rescheduled."
+        ? "If the outside plan changes after this export, update the appointment writeback so Acre still reflects the confirmed state or the new reschedule plan."
         : input.externalWorkflow.value ===
             frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
-          ? "After you use the bridge, keep the time-change conversation visible by saving the next reschedule checkpoint in Acre."
-          : "After you use the bridge, write back whether you are now awaiting confirmation, confirmed, or still need another follow-up touch.",
+          ? "After you use the bridge, save the reschedule checkpoint in Acre so the time-change conversation stays readable."
+          : "After you use the bridge, save whether you are awaiting confirmation, confirmed, or still need another follow-up touch.",
     suggestedWriteback: suggestedPreset
       ? {
           status: suggestedPreset.suggestedStatus,
           label: suggestedPreset.label,
-          detail: suggestedPreset.detail,
+          detail: `${suggestedPreset.detail} Load it into the writeback form, then save the next checkpoint.`,
           nextActionAtLabel: suggestedPreset.nextActionAtLabel,
           nextActionAtValue: suggestedPreset.nextActionAtValue,
         }
@@ -1926,7 +1926,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       }
 
       return {
-        label: "No external coordination logged",
+        label: "No bridge or writeback logged",
         tone: "neutral",
         detail:
           "Acre has the appointment on the calendar, but there is no bridge activity or follow-up writeback saved yet.",
