@@ -704,7 +704,7 @@ export default async function AgentClientDetailPage(
                     label: snapshot.workflow.pressureLabel,
                     tone: snapshot.workflow.pressureTone,
                     title: snapshot.workflow.nextStepTitle,
-                    description: snapshot.workflow.nextStepDescription,
+                    description: `${snapshot.workflow.nextStepDescription} The appointment cards below now call out the external status, bridge log, next-touch pressure, and the exact jump back to calendar writeback.`,
                     meta: (
                       <span>
                         {currentRailItem.stepLabel} · {currentRailItem.ownershipLabel}
@@ -727,6 +727,12 @@ export default async function AgentClientDetailPage(
                     <QueueItem
                       action={
                         <>
+                          <FrontOfficeLink
+                            className="office-inline-link"
+                            href={appointment.calendarWritebackHref}
+                          >
+                            Open calendar writeback
+                          </FrontOfficeLink>
                           <FrontOfficeLink
                             className="office-inline-link"
                             href={appointment.listingOutputHref}
@@ -774,11 +780,14 @@ export default async function AgentClientDetailPage(
                         <div className="list-row-meta front-office-record-meta">
                           <span>{appointment.contextLabel}</span>
                           <span>
-                            {appointment.externalStatusDetail}
+                            {appointment.externalStatusLabel} · {appointment.externalStatusDetail}
                           </span>
                           <span>
                             {appointment.bridgeStatusLabel} · {appointment.bridgeStatusDetail}
                           </span>
+                          <span>Next touch · {appointment.externalNextActionAtLabel}</span>
+                          <span>{appointment.bridgeNextStepLabel}</span>
+                          <span>{appointment.bridgeNextStepDetail}</span>
                         </div>
                       }
                       title={appointment.title}

@@ -288,6 +288,9 @@ export type FrontOfficeClientDetailAppointmentItem = {
   externalStatusDetail: string;
   externalNextActionAtValue: string;
   externalNextActionAtLabel: string;
+  calendarWritebackHref: string;
+  bridgeNextStepLabel: string;
+  bridgeNextStepDetail: string;
   startsAtValue: string;
   startsAtLabel: string;
   locationLabel: string;
@@ -5699,6 +5702,27 @@ export async function getFrontOfficeClientDetail(
         timeZone: input.timeZone ?? null,
       });
       const bridgeStatus = appointmentBridgeStatusMap.get(appointment.id) ?? null;
+      const calendarWritebackHref = `/agent/calendar?clientId=${client.id}&appointmentId=${appointment.id}`;
+      const bridgeNextStepLabel = bridgeStatus?.hasBridgeActivity
+        ? "Open calendar writeback"
+        : externalWorkflow.value === "confirmed"
+          ? "Open calendar writeback after confirmation"
+          : externalWorkflow.value === "reschedule_requested"
+            ? "Bridge the reschedule, then open calendar writeback"
+            : externalWorkflow.value === "needs_follow_up" ||
+                externalWorkflow.value === "confirmation_pending"
+              ? "Keep the bridge moving, then open calendar writeback"
+              : "Open calendar writeback after the next external touch";
+      const bridgeNextStepDetail = bridgeStatus?.hasBridgeActivity
+        ? "The bridge has already been logged, so the next touch should be recorded in the calendar route instead of starting a second coordination surface."
+        : externalWorkflow.value === "confirmed"
+          ? "The outside status is settled enough that the calendar route should capture the next touch and keep the focus on this appointment."
+          : externalWorkflow.value === "reschedule_requested"
+            ? "Once the new time or reply is confirmed, move straight into calendar writeback with the same appointment focus."
+            : externalWorkflow.value === "needs_follow_up" ||
+                externalWorkflow.value === "confirmation_pending"
+              ? "Use the bridge action first, then come back to calendar writeback when the outside reply is ready to record."
+              : "Calendar writeback should happen after the next external touch, not as a separate coordination page.";
       const externalLinks = buildFrontOfficeAppointmentExternalLinks({
         appointmentId: appointment.id,
         title: appointment.title,
@@ -5766,6 +5790,9 @@ export async function getFrontOfficeClientDetail(
         externalStatusDetail: externalWorkflow.detail,
         externalNextActionAtValue: externalWorkflow.nextActionAtValue,
         externalNextActionAtLabel: externalWorkflow.nextActionAtLabel,
+        calendarWritebackHref,
+        bridgeNextStepLabel,
+        bridgeNextStepDetail,
         startsAtValue: formatDateTimeValue(appointment.startsAt),
         startsAtLabel: formatDateTimeLabel(appointment.startsAt, {
           timeZone: input.timeZone ?? null,
