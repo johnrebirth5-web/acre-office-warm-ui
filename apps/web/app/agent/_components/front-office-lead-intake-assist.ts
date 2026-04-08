@@ -1769,7 +1769,7 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
   ).length;
   const recognizedFieldLabels = fields.map((field) => field.label);
   const manualConfirmationFieldLabels = fields
-    .filter((field) => field.suggestedAction !== "safe_apply")
+    .filter((field) => field.suggestedAction === "review_first")
     .map((field) => field.label);
   const ignoredFieldLabels = intakeDraftFieldOrder
     .map((fieldKey) => intakeDraftFieldLabels[fieldKey])
@@ -1787,7 +1787,7 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
       context,
     }),
     summaryLabel: fields.length
-      ? `Detected ${fields.length} intake field(s) · ${safeApplyFieldCount} safe after review`
+      ? `Detected ${fields.length} intake field(s) · ${reviewFieldCount} review-first · ${previewOnlyFieldCount} preview-only · ${safeApplyFieldCount} safe after review`
       : "No structured lead fields detected yet",
     safeApplyFieldCount,
     reviewFieldCount,

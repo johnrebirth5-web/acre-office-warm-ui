@@ -571,6 +571,24 @@ function buildAssistReviewOrderLabels(sections: IntakeReviewSection[]) {
     );
 }
 
+function buildAssistReviewFocusLabels(sections: IntakeReviewSection[]) {
+  return sections
+    .filter(
+      (section) =>
+        section.pendingCount > 0 ||
+        (section.reviewFirstCount > 0 &&
+          section.reviewedCount < section.reviewFirstCount),
+    )
+    .slice(0, 3)
+    .map((section) =>
+      section.pendingCount > 0
+        ? `${section.label} unresolved (${section.pendingCount})`
+        : `${section.label} manual confirmation (${
+            section.reviewFirstCount - section.reviewedCount
+          })`,
+    );
+}
+
 function isBlankOrUntouchedDefaultField(input: {
   fieldKey: LeadFormFieldKey;
   currentValue: string;
@@ -1830,6 +1848,10 @@ export function FrontOfficeLeadIntakeCard(
     () => buildAssistReviewOrderLabels(assistReviewSections),
     [assistReviewSections],
   );
+  const assistReviewFocusLabels = useMemo(
+    () => buildAssistReviewFocusLabels(assistReviewSections),
+    [assistReviewSections],
+  );
   const manualConfirmationAssistSectionCount = useMemo(
     () =>
       assistReviewSections.filter(
@@ -2111,6 +2133,11 @@ export function FrontOfficeLeadIntakeCard(
                     {assistReviewOrderLabels.length ? (
                       <span>
                         Review order: {assistReviewOrderLabels.join(" · ")}
+                      </span>
+                    ) : null}
+                    {assistReviewFocusLabels.length ? (
+                      <span>
+                        Focus now: {assistReviewFocusLabels.join(" · ")}
                       </span>
                     ) : null}
                   </div>
