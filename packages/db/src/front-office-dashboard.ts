@@ -2761,12 +2761,10 @@ export async function getFrontOfficeDashboardSnapshot(
           : appointment.listing?.title
             ? `Listing · ${appointment.listing.title}`
             : "Front Office appointment",
-        actionLabel: appointment.client?.id
-          ? "Open calendar focus"
-          : "Open calendar",
+        actionLabel: "Open calendar writeback",
         href: appointment.client?.id
-          ? `/agent/calendar?clientId=${appointment.client.id}`
-          : "/agent/calendar",
+          ? `/agent/calendar?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
+          : `/agent/calendar?appointmentId=${appointment.id}`,
       },
     })),
     ...upcomingEvents.map((event) => ({
@@ -2936,7 +2934,9 @@ export async function getFrontOfficeDashboardSnapshot(
           : `${leadingCommitmentItem.title} is already on the calendar and should be prepped before the start window.`
         : "The nearest commitment is already visible on the calendar.",
       nextStepLabel: leadingCommitmentItem
-        ? leadingCommitmentItem.actionLabel
+        ? leadingCommitmentItem.id.startsWith("appointment-")
+          ? "Open the appointment writeback and record the next touch."
+          : leadingCommitmentItem.actionLabel
         : "Open the calendar and confirm prep.",
       href: leadingCommitmentItem?.href ?? "/agent/calendar",
       actionLabel: leadingCommitmentItem?.actionLabel ?? "Open calendar",
@@ -3103,7 +3103,7 @@ export async function getFrontOfficeDashboardSnapshot(
       appointmentModuleReady: true,
       appointmentMessage:
         todayAppointmentCount > 0
-          ? `${todayAppointmentCount} Front Office appointment(s) are on your calendar today. Shared office events still stay visible so the workday does not fragment.`
+          ? `${todayAppointmentCount} Front Office appointment(s) are on your calendar today. Open the appointment writeback from the commitment row when the next touch needs to be recorded, and keep shared office events visible so the workday does not fragment.`
           : "Front Office appointment scheduling is now live. Shared office events still stay visible here when the office publishes commitments.",
     },
     listingOutput: {
