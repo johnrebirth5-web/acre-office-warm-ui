@@ -190,10 +190,7 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel:
         input.viewerRole === "team_lead" ? "Team cleanup" : "Office cleanup",
       badgeTone: "danger",
-      title:
-        input.viewerRole === "team_lead"
-          ? "Clear visible team cleanup pressure"
-          : "Clear visible office cleanup pressure",
+      title: "Open cleanup re-entry",
       description: leadingLeadershipItem
         ? `${leadingLeadershipItem.title} is the clearest pressure point right now. ${leadingLeadershipItem.whyNowLabel}`
         : "Leadership cleanup is already visible in Front Office, so missed follow-up and quiet send trails do not hide behind Back Office work.",
@@ -201,11 +198,7 @@ function buildDashboardLaunchpadItems(input: {
         ? `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s) · ${leadershipAction.nextStepLabel}`
         : `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s)`,
       href: leadershipAction?.href ?? "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
-      actionLabel:
-        leadershipAction?.actionLabel ??
-        (input.viewerRole === "team_lead"
-          ? "Open team cleanup"
-          : "Open office cleanup"),
+      actionLabel: leadershipAction?.actionLabel ?? "Open cleanup re-entry",
     });
   }
 
@@ -261,9 +254,9 @@ function buildDashboardLaunchpadItems(input: {
       id: "commitments",
       badgeLabel: "Today",
       badgeTone: "accent",
-      title: "Prep the next time-bound commitment",
+      title: "Open appointment workbench",
       description: leadingCommitment
-        ? `${leadingCommitment.title} is already on the calendar. ${commitmentAction?.whyNowLabel ?? "Use Front Office to confirm prep, follow-through, and any promised next touch before the start window."}`
+        ? `${leadingCommitment.title} is already on the calendar. ${commitmentAction?.whyNowLabel ?? "Use the appointment workbench to confirm prep, follow-through, and any promised next touch before the start window."}`
         : `${input.snapshot.summary.todayCommitmentCount} appointment or office commitment(s) land today.`,
       metaLabel: commitmentAction
         ? commitmentAction.nextStepLabel
@@ -271,7 +264,7 @@ function buildDashboardLaunchpadItems(input: {
           ? `${leadingCommitment.startsAtLabel} · ${leadingCommitment.contextLabel}`
           : `${input.snapshot.summary.todayCommitmentCount} commitment(s) scheduled today`,
       href: commitmentAction?.href ?? "/agent/calendar",
-      actionLabel: commitmentAction?.actionLabel ?? "Open calendar",
+      actionLabel: commitmentAction?.actionLabel ?? "Open appointment workbench",
     });
   }
 
@@ -311,25 +304,25 @@ function buildDashboardLaunchpadItems(input: {
       id: "engagement",
       badgeLabel: leadingEngagement.engagementLabel,
       badgeTone: leadingEngagement.engagementTone,
-      title: `Work ${leadingEngagement.clientName}'s send signal`,
-      description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the dossier to turn that open or quiet send into a concrete next step instead of sending blindly.`,
+      title: "Open send-risk workbench",
+      description: `${leadingEngagement.listingTitle} already has tracked engagement context. Use the next-step rail to turn that open or quiet send into a concrete next step instead of sending blindly.`,
       metaLabel: `${leadingEngagement.channelLabel} · ${leadingEngagement.detailLabel}`,
       href: leadingEngagement.href,
-      actionLabel: "Open client dossier",
+      actionLabel: "Open next-step rail",
     });
   } else if (input.snapshot.listingOutput.activeListingCount > 0) {
     addItem({
       id: "listing-output",
       badgeLabel: "Send-ready",
       badgeTone: "success",
-      title: "Send tracked content when the target is clear",
-      description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the execution trail after you send.`,
+      title: "Open send-risk workbench",
+      description: `${input.snapshot.listingOutput.activeListingCount} active or hot listing(s) are ready for outreach. You still choose the link and channel; Acre only records the execution trail after you send, and the next-step rail keeps the send-risk trail explicit.`,
       metaLabel:
         input.snapshot.listingOutput.trackedLinkCount > 0
           ? `${input.snapshot.listingOutput.trackedLinkCount} tracked link(s) already created`
           : "First tracked send starts from listing output",
       href: "/agent/listings",
-      actionLabel: "Open listing output",
+      actionLabel: "Open send-risk workbench",
     });
   }
 
@@ -341,11 +334,11 @@ function buildDashboardLaunchpadItems(input: {
       id: "duplicate-review",
       badgeLabel: "Review",
       badgeTone: "warning",
-      title: "Resolve duplicate pressure before more work lands",
-      description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Review first so intake and follow-up stay on one surviving dossier.`,
-      metaLabel: "Duplicate compare and merge still stays in the client queue",
+      title: "Open duplicate review workbench",
+      description: `${input.clientsSnapshot?.summary.potentialDuplicateCount ?? 0} potential duplicate pair(s) are already visible. Reopen the merge lane before more work lands so intake and follow-up stay on one surviving dossier.`,
+      metaLabel: "Duplicate compare and merge stays in the client queue",
       href: buildClientWorkbenchHref("duplicate_review", "duplicate-review"),
-      actionLabel: "Open duplicate review lane",
+      actionLabel: "Open duplicate review workbench",
     });
   }
 
@@ -597,7 +590,9 @@ export default async function AgentDashboardPage() {
                   className="office-inline-link front-office-inline-link"
                   href={activityCenterHref}
                 >
-                  Open activity center
+                  {snapshot.leadershipQueue.visible
+                    ? "Open cleanup re-entry"
+                    : "Open activity center"}
                 </FrontOfficeLink>
                 {canViewClients ? (
                   <FrontOfficeLink
@@ -609,7 +604,7 @@ export default async function AgentDashboardPage() {
                 ) : null}
               </>
             }
-            subtitle={`${roleFocus.label}. Start with the top move below, then work the ordered launchpad so follow-up, commitments, send/click, and formal handoff stay in one honest Front Office workspace.`}
+            subtitle={`${roleFocus.label}. Start with the top move below, then work the ordered launchpad so cleanup re-entry, appointment writeback, send-risk follow-through, and duplicate review stay in one honest Front Office workspace.`}
             title="Start here first"
           >
             <ListPageStatsGrid>
@@ -630,7 +625,7 @@ export default async function AgentDashboardPage() {
               </Badge>
               <p>
                 {primaryLaunchpadItem
-                  ? `${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so follow-up, commitments, send/click, and boundary work stay in sequence.`
+                  ? `${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so cleanup re-entry, appointment work, send-risk follow-through, and duplicate review stay in sequence.`
                   : canViewClients
                     ? "No urgent Front Office pressure is elevated right now. Use the live client queue or intake assist only after you confirm the activity center is clear."
                     : "No urgent Front Office pressure is elevated right now. Reopen the activity center to confirm nothing time-sensitive is hiding there."}
@@ -795,9 +790,12 @@ export default async function AgentDashboardPage() {
                   action={
                     <FrontOfficeLink
                       className="office-inline-link front-office-inline-link"
-                      href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
+                      href={buildClientWorkbenchHref(
+                        "duplicate_review",
+                        "duplicate-review",
+                      )}
                     >
-                      Open duplicate review lane
+                      Open duplicate review workbench
                     </FrontOfficeLink>
                   }
                   badgeLabel={
@@ -839,7 +837,7 @@ export default async function AgentDashboardPage() {
                               className="office-inline-link front-office-inline-link"
                               href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
                             >
-                              Open duplicate lane
+                              Open duplicate review workbench
                             </FrontOfficeLink>
                           </>
                         }
@@ -1055,7 +1053,7 @@ export default async function AgentDashboardPage() {
                     className="office-inline-link front-office-inline-link"
                     href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
                   >
-                    Review duplicate lane
+                    Open duplicate review workbench
                   </FrontOfficeLink>
                 </>
               ) : undefined
@@ -1215,8 +1213,8 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Tracked sends, opens, and quiet links should help you decide the next touch. Acre records the execution trail after you send; it does not auto-send or silently rescue the thread for you."
-            title="Send & click output"
+            subtitle="Tracked sends, opens, and quiet links should help you decide the next touch. The send-risk workbench keeps the next-step rail explicit; Acre records the execution trail after you send and does not auto-send or silently rescue the thread for you."
+            title="Send-risk workbench"
           >
             <ListPageStatsGrid>
               <StatCard
@@ -1301,7 +1299,7 @@ export default async function AgentDashboardPage() {
                       className="office-button-secondary"
                       href="/agent/listings"
                     >
-                      Open listing output
+                      Open send-risk workbench
                     </Link>
                   }
                   description="Active listings will appear here once inventory is available in the shared listing model."
@@ -1349,7 +1347,7 @@ export default async function AgentDashboardPage() {
                       className="office-inline-link front-office-inline-link"
                       href={record.href}
                     >
-                      Open client dossier
+                      Open next-step rail
                     </FrontOfficeLink>
                   </article>
                 ))
@@ -1360,7 +1358,7 @@ export default async function AgentDashboardPage() {
                       className="office-button-secondary"
                       href="/agent/listings"
                     >
-                      Start tracked send
+                      Open send-risk workbench
                     </Link>
                   }
                   description="Start from listing output or a client dossier to create the first client-linked send record. Opens and revisits will show here after that."
@@ -1434,7 +1432,7 @@ export default async function AgentDashboardPage() {
                   className="office-inline-link front-office-inline-link"
                   href={leadershipCleanupHref}
                 >
-                  Open full queue
+                  Open cleanup re-entry
                 </FrontOfficeLink>
               }
               subtitle="Use the FO activity center to scan overdue tasks, stale clients, and quiet send trails before anyone has to jump into a direct office record."
@@ -1503,7 +1501,9 @@ export default async function AgentDashboardPage() {
                 className="office-inline-link front-office-inline-link"
                 href={activityCenterHref}
               >
-                Open activity center
+                {snapshot.leadershipQueue.visible
+                  ? "Open cleanup re-entry"
+                  : "Open activity center"}
               </FrontOfficeLink>
             }
             subtitle="Shared office alerts and personal notice links that help you clear today's queue without leaving the Front Office shell."

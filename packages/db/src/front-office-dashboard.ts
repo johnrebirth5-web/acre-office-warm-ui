@@ -2761,10 +2761,10 @@ export async function getFrontOfficeDashboardSnapshot(
           : appointment.listing?.title
             ? `Listing · ${appointment.listing.title}`
             : "Front Office appointment",
-        actionLabel: "Open calendar writeback",
+        actionLabel: "Open appointment workbench",
         href: appointment.client?.id
-          ? `/agent/calendar?clientId=${appointment.client.id}&appointmentId=${appointment.id}`
-          : `/agent/calendar?appointmentId=${appointment.id}`,
+          ? `/agent/calendar?calendarView=bridge_logged&clientId=${appointment.client.id}&appointmentId=${appointment.id}`
+          : `/agent/calendar?calendarView=bridge_logged&appointmentId=${appointment.id}`,
       },
     })),
     ...upcomingEvents.map((event) => ({
@@ -2977,7 +2977,7 @@ export async function getFrontOfficeDashboardSnapshot(
     },
     {
       id: "content",
-      label: "Send & click follow-through",
+      label: "Send-risk follow-through",
       count: sendSignalCount,
       tone: sendSignalTone,
       description: sendSignalDescription,
@@ -2986,14 +2986,14 @@ export async function getFrontOfficeDashboardSnapshot(
         ? `${leadingSendRecord.client.fullName} already has tracked send history waiting for the next touch.`
         : "Tracked sending is ready once the target client and channel are clear.",
       nextStepLabel: leadingSendRecord
-        ? "Open the dossier and choose the next send."
-        : "Open listing output and start a tracked send.",
+        ? "Open the client next-step rail and choose the next send."
+        : "Open the send-risk workbench and start a tracked send.",
       href: leadingSendRecord
-        ? `/agent/clients/${leadingSendRecord.client.id}`
+        ? `/agent/clients/${leadingSendRecord.client.id}#front-office-client-next-step-rail`
         : "/agent/listings",
       actionLabel: leadingSendRecord
-        ? "Open client dossier"
-        : "Open listing output",
+        ? "Open next-step rail"
+        : "Open send-risk workbench",
     },
     {
       id: "handoff",
@@ -3037,13 +3037,13 @@ export async function getFrontOfficeDashboardSnapshot(
             ? leadingLeadershipItem.whyNowLabel
             : "Leadership cleanup is clear for now.",
           nextStepLabel: leadingLeadershipItem
-            ? leadingLeadershipItem.nextStepLabel
+            ? "Open the cleanup lane and continue the rescue pass."
             : "Open the cleanup lane and scan the next pressure point.",
           href: leadershipNotificationsHref,
           actionLabel:
             input.viewerRole === "team_lead"
-              ? "Open team cleanup"
-              : "Open office cleanup",
+              ? "Open cleanup re-entry"
+              : "Open cleanup re-entry",
         },
         ...actionQueueBase,
       ]
