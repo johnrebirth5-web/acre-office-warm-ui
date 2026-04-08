@@ -221,6 +221,7 @@ function buildResourcePulseLanes(input: {
       key: "playbook",
       label: "Playbooks",
       count: input.playbookCount,
+      startLabel: "Start with the call guide",
       description:
         "Use these when the next move is a live conversation, objection response, or execution checklist.",
     },
@@ -228,6 +229,7 @@ function buildResourcePulseLanes(input: {
       key: "template",
       label: "Templates",
       count: input.templateCount,
+      startLabel: "Start with the send kit",
       description:
         "Use these when the structure already exists and the agent mainly needs a fast, reviewable outbound draft.",
     },
@@ -235,6 +237,7 @@ function buildResourcePulseLanes(input: {
       key: "document",
       label: "Documents",
       count: input.documentCount,
+      startLabel: "Start with the form or reference",
       description:
         "Use these when the next move depends on a form, contract reference, or a clean supporting document.",
     },
@@ -242,6 +245,7 @@ function buildResourcePulseLanes(input: {
       key: "training_video",
       label: "Training",
       count: input.trainingCount,
+      startLabel: "Start with the refresher",
       description:
         "Use these when the lane needs a quick refresher before the live work continues.",
     },
@@ -480,6 +484,9 @@ export default async function AgentResourcesPage() {
                             : lane.label}
                         </strong>
                         <p style={subsectionIntroStyle}>{lane.description}</p>
+                        <p style={subsectionIntroStyle}>
+                          <strong>Start here:</strong> {lane.startLabel}
+                        </p>
                       </div>
 
                       <div style={lanePreviewStyle}>
@@ -785,7 +792,7 @@ export default async function AgentResourcesPage() {
                 }
                 description={
                   strongestResourceLane && strongestResourceLane.count > 0
-                    ? `${strongestResourceLane.description} This is the quickest lane to start from today.`
+                    ? `${strongestResourceLane.description} Start here: ${strongestResourceLane.startLabel}.`
                     : "No one lane is populated yet, so the library still needs more published support before it can lead live work cleanly."
                 }
                 title="Strongest published lane"
@@ -825,6 +832,12 @@ export default async function AgentResourcesPage() {
                     : "Published vendors are still acting more like reference cards than contact-ready partners, so agents may need to widen the directory before acting."
                 }
                 title="Vendor posture"
+              />
+              <FrontOfficeRailItem
+                badgeLabel="FO / BO"
+                badgeTone="warning"
+                description="Use this hub to open the material, but keep signing, accounting, and archival work in Back Office so the record boundary stays honest."
+                title="Boundary stays explicit"
               />
             </div>
           </SectionCard>
@@ -985,6 +998,15 @@ export default async function AgentResourcesPage() {
             label="Execution lanes"
             tone="accent"
             value={snapshot.summary.resourceTypeCount}
+          />
+          <SummaryChip
+            label="Focus lane"
+            tone="accent"
+            value={strongestResourceLane?.label ?? "None"}
+          />
+          <SummaryChip
+            label="Start action"
+            value={strongestResourceLane?.startLabel ?? "No start action"}
           />
           <SummaryChip label="Vendors" value={snapshot.summary.vendorCount} />
           <SummaryChip

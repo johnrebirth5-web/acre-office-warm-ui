@@ -409,6 +409,7 @@ export type FrontOfficeResourcesSnapshot = {
     count: number;
     tone: FrontOfficeTone;
     description: string;
+    startLabel: string;
     actionLabel: string;
   }>;
   vendorCategories: Array<{
@@ -2064,6 +2065,23 @@ function getResourceTypeLaneLabel(type: ResourceType) {
   }
 }
 
+function getResourceTypeStartLabel(type: ResourceType) {
+  switch (type) {
+    case ResourceType.playbook:
+      return "Start with the call guide";
+    case ResourceType.template:
+      return "Start with the send kit";
+    case ResourceType.document:
+      return "Start with the form or reference";
+    case ResourceType.training_video:
+      return "Start with the refresher";
+    case ResourceType.vendor_card:
+      return "Start with the partner desk";
+    default:
+      return "Start here";
+  }
+}
+
 function getResourceTypeDetailLabel(type: ResourceType) {
   switch (type) {
     case ResourceType.playbook:
@@ -3353,6 +3371,7 @@ export async function getFrontOfficeResourcesSnapshot(
         count: group._count._all,
         tone: getResourceTypeTone(group.type),
         description: getResourceTypeDescription(group.type),
+        startLabel: getResourceTypeStartLabel(group.type),
         actionLabel: getResourceActionLabel(group.type),
       })),
     vendorCategories: vendorCategoryGroups

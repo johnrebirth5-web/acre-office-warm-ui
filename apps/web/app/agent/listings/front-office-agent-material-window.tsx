@@ -276,6 +276,24 @@ function buildPreferredSupportPackage(input: {
   return null;
 }
 
+function buildExecutionLaneOverview(
+  props: FrontOfficeAgentMaterialWindowProps,
+) {
+  return {
+    badgeLabel: props.routeState.focusedRouteLanePanelLabel,
+    badgeTone:
+      props.routeState.focusedRouteLane === "send-rescue"
+        ? ("warning" as const)
+        : ("accent" as const),
+    title: props.routeState.focusedRouteLaneLabel,
+    description: `${props.routeState.focusedRouteLaneDescription} ${props.routeState.routeStatusDescription}`,
+    meta: props.routeState.focusedRouteLaneSteps
+      .map((step) => step.label)
+      .join(" · "),
+    actionLabel: props.routeState.focusedRouteLaneActionLabel,
+  };
+}
+
 function buildMaterialCopyDetail(props: FrontOfficeAgentMaterialWindowProps) {
   if (props.targetAppointment && props.targetClient) {
     return `Use it beside ${props.targetAppointment.title} so the listing, identity, and appointment continuity stay in one manual send loop for ${props.targetClient.fullName}.`;
@@ -315,6 +333,7 @@ export function FrontOfficeAgentMaterialWindow(
     smsSupportPackage,
     emailSupportPackage,
   });
+  const executionLaneOverview = buildExecutionLaneOverview(props);
 
   async function handleCopy(label: string, value: string) {
     try {
@@ -430,10 +449,75 @@ export function FrontOfficeAgentMaterialWindow(
 
       <div className="front-office-playbook-card">
         <div className="front-office-playbook-card-head">
-          <strong>Current send companion</strong>
+          <strong>Execution lane</strong>
+          <span>
+            Keep the material package attached to the active route lane so the
+            next send stays manual, reviewable, and FO-owned.
+          </span>
+        </div>
+        <div className="office-queue-list">
+          <QueueItem
+            action={
+              props.routeState.stableHref !== props.routeState.contextHref ? (
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={props.routeState.stableHref}
+                >
+                  {executionLaneOverview.actionLabel}
+                </FrontOfficeLink>
+              ) : null
+            }
+            badgeLabel={executionLaneOverview.badgeLabel}
+            badgeTone={executionLaneOverview.badgeTone}
+            context={`${props.routeState.modeContextLabel} · ${props.routeState.draftStatusLabel}`}
+            description={executionLaneOverview.description}
+            meta={<span>{executionLaneOverview.meta}</span>}
+            title={executionLaneOverview.title}
+          />
+          <QueueItem
+            action={
+              preferredSupportPackage ? (
+                <Button
+                  onClick={() =>
+                    void handleCopy(
+                      preferredSupportPackage.title,
+                      preferredSupportPackage.value,
+                    )
+                  }
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {preferredSupportPackage.copyLabel}
+                </Button>
+              ) : null
+            }
+            badgeLabel="Companion package"
+            badgeTone="accent"
+            context="Manual send support"
+            description={props.routeState.preferredSupportLaneDescription}
+            title={
+              preferredSupportPackage?.title ??
+              "Keep both support packages ready"
+            }
+          />
+          <QueueItem
+            badgeLabel="BO boundary"
+            badgeTone="warning"
+            description="Use this window for copy, identity, and proof only; signatures, accounting, and archive still belong in Back Office."
+            title="Leave record work in Back Office"
+          />
+        </div>
+      </div>
+
+      <div className="front-office-playbook-card">
+        <div className="front-office-playbook-card-head">
+          <strong>Material package</strong>
           <span>
             Keep the material package aligned with the active listing lane so
             the send does not leave this page without identity or proof context.
+            The execution lane card above handles the route decision and
+            handoff.
           </span>
         </div>
         <div className="office-queue-list">
