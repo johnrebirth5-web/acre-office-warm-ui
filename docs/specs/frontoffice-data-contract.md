@@ -197,7 +197,9 @@ This keeps the handoff visible without pretending formal transaction creation al
   - `/agent/dashboard` and `/agent/clients` now expose a lightweight lead-capture form that writes into the same shared `Client` record, `ClientStageHistory`, and `FollowUp` clock foundation used by the rest of Front Office
   - the intake path intentionally captures only first-touch essentials such as name, source, stage, intent, target areas, budget, notes, and next follow-up timing so the agent can keep moving during a live call or message thread
   - that same intake form now also exposes a first browser-side `OCR / transcript assist` block that can parse a WeChat screenshot or pasted chat text into suggested lead fields, while only filling empty/default values in the live form and never auto-creating the record
+  - that same assist layer now also groups review into `recognized`, `manual confirmation`, and `not extracted` field sets, so omitted or identity-sensitive fields stay visibly outside the live form instead of silently disappearing
   - before create, that path now performs a lightweight duplicate warning check against the CRM records currently visible to the viewer for same-email, same-phone, or same-name matches, pushing the user toward dossier review before creating a second FO record
+  - duplicate warning copy now also points the agent through an explicit `open existing record -> compare contact / stage / next touch -> use duplicate review or create separately` sequence instead of leaving the create-time stop as a generic warning only
 - `/agent/clients` now also exposes a pairwise duplicate review + merge surface for the current visible CRM scope:
   - Acre surfaces same-email / same-phone / same-name duplicate pairs in the active FO pipeline instead of only warning at create time
   - the merge action keeps one surviving FO dossier and moves shared FO workflow context such as appointments, follow-up tasks, tracked send history, AI accepted actions, handoff drafts, and transaction-contact links onto that surviving record
@@ -210,6 +212,7 @@ This keeps the handoff visible without pretending formal transaction creation al
   - FO appointments now also carry an explicit agent-managed external follow-up state, so confirmation, resend, and reschedule pressure can be surfaced in the calendar, dossier, and cleanup center even though Acre still does not own the outside system
   - that same writeback layer now also supports an optional `next external touch` timestamp plus operator note, so cleanup priority can follow the promised outside follow-up window instead of only the appointment start time
   - that promised outside follow-up window now also flows into the shared inbox reconciliation path, so a due or overdue confirmation / reschedule touch can become a real notification instead of staying cleanup-only
+  - `/agent/calendar` now also turns that bridge action into an explicit `After the bridge` checkpoint with a suggested-writeback load action, so the operator can jump directly from export/open to the saved Acre next-touch form without re-building the plan by hand
   - this current layer intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path with lightweight writeback that preserves the existing FO appointment source of truth
 
 ## Non-goals in this phase
