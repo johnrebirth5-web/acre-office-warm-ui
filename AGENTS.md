@@ -242,6 +242,7 @@ Only activate this workflow when the user explicitly asks for it, for example:
 - “按多线程 worktree 并发工作流执行”
 - “拆成多个 worktree 线程并发做”
 - “总控拆任务，子线程并发开发”
+- “按 AGENTS.md 里的并发规则执行”
 
 If the user does not explicitly ask for this workflow, keep using the normal single-thread workflow and the standard Git rules above.
 
@@ -261,8 +262,29 @@ Core goals:
 When this workflow is explicitly activated:
 
 - these rules apply in addition to the rest of this file
+- Acre-specific product, deployment, validation, and Git constraints elsewhere in this file still take precedence over generic parallel-workflow guidance
 - for that batch only, the controller thread may create and use an `integration/*` branch even though the default Git rule is to stay on the current branch
 - outside that batch, revert to the normal Git workflow rules in this file
+
+### First-use / legacy-area onboarding
+
+This repo already has project-specific rules, but when this workflow is used for the first time on an older module or on a batch with unclear boundaries, the controller thread should treat it as a cautious onboarding pass instead of jumping straight to high parallelism.
+
+Before the first large parallel batch in a legacy area, inspect and confirm:
+
+- current package manager and dependency bootstrap command
+- standard validation commands
+- target branch conventions already in use for that area
+- shared or high-risk files that would break parallel safety
+- schema / migration / seed impact
+- tracked codegen impact
+- modules that still require serial ownership
+
+Recommended first trial in a legacy area:
+
+- start with only `2-3` child threads
+- prefer a smaller batch to prove the workflow fits the real repo boundaries
+- expand to more threads only after one wave integrates cleanly
 
 ### Acre project defaults for this workflow
 
@@ -300,6 +322,25 @@ When this workflow is active, there are only two roles:
 
 If a prompt does not clearly identify the thread as the controller, treat it as a child thread.
 
+### Controller-thread required startup sequence
+
+When the user explicitly asks for this workflow, the controller thread must do the following in order:
+
+1. inspect project scripts and constraints
+2. identify whether the batch touches shared or high-risk files
+3. determine the target branch explicitly
+4. run `git fetch`
+5. confirm `git status` is clean
+6. create the integration branch from the clean target branch
+7. split work into `2-5` subtasks by default
+8. only exceed `5` subtasks when write boundaries are unusually clean, and never exceed `7`
+9. assign clear allowed paths and forbidden paths for each child thread
+10. freeze a single wave base commit before opening each parallel wave
+11. wait for the whole wave to finish before freezing the next wave
+12. merge child branches back into integration in dependency order
+13. run full validation on integration after each wave
+14. merge integration back into the target branch only after the full batch passes validation
+
 ### Target branch and integration branch
 
 When this workflow starts:
@@ -328,21 +369,82 @@ Before creating the integration branch, the controller thread must confirm:
 
 If the working tree is dirty, do not start a new parallel batch until the state is clarified.
 
-### Controller-thread responsibilities
+### Controller output contract
 
-The controller thread must do the following in order:
+When the controller thread activates this workflow, it should produce the following sections in its user-facing plan.
 
-1. inspect project scripts and constraints
-2. identify whether the batch touches shared or high-risk files
-3. split work into 2-5 subtasks by default
-4. only exceed 5 subtasks when write boundaries are unusually clean, and never exceed 7
-5. assign clear allowed paths and forbidden paths for each child thread
-6. create the integration branch from the clean target branch
-7. freeze a single wave base commit before opening each parallel wave
-8. wait for the whole wave to finish before freezing the next wave
-9. merge child branches back into integration in dependency order
-10. run full validation on integration after each wave
-11. merge integration back into the target branch only after the full batch passes validation
+Project environment block:
+
+```text
+- 项目类型：
+- 包管理器：
+- 依赖准备命令：
+- 类型检查命令：
+- Lint 命令：
+- 测试命令：
+- 构建命令：
+- 其他只读初始化命令：
+- 当前 integration 分支：
+- 运行态约束：
+```
+
+Rules:
+
+- if an item does not exist, write `无`
+- prefer existing repo scripts over improvised commands
+- only include stable, repeatable commands
+- do not hide tracked-file mutations inside “只读初始化命令”
+
+Setup script guidance:
+
+- if Local Environment is needed, provide a deterministic setup script that only prepares dependencies and read-only bootstrap work
+- if no setup script is needed, explicitly say `无需配置 Local Environment`
+
+Runtime strategy:
+
+- say whether child threads are allowed to run dev servers
+- if live verification is needed, assign ports centrally
+- if schema / migration / seed is involved, explain database isolation
+- call out any external services that must remain controller-owned
+
+Subtask table:
+
+```text
+### 子任务 [编号]：[任务名]
+- 类型：基础任务 / 独立任务
+- 波次：第 N 波
+- 目标：
+- 允许修改的路径：
+  - ...
+- 禁止修改的路径：
+  - ...
+- 依赖：
+- 完成标准：
+  - ...
+- 验证命令：
+  - ...
+```
+
+Wave sequencing:
+
+- identify which tasks belong to wave 1
+- mark which tasks are serial foundation tasks
+- include the current wave base commit
+- state that only the controller merges back into `integration`
+- state that the next wave must wait for integration + validation
+
+Child prompt requirements:
+
+- one ready-to-paste prompt per child thread
+- each prompt must say the thread is a child thread
+- include the unique goal, allowed paths, forbidden paths, integration branch, wave base commit, runtime constraints, completion standard, validation requirements, and the rule that the child may only `commit + push` its own branch
+
+Controller closeout instructions:
+
+- explain how finished child branches are merged back into `integration`
+- explain which full validation commands run on `integration`
+- explain that the next wave requires a freshly frozen base commit
+- explain that only a fully validated batch can merge back to the target branch
 
 ### Child-thread hard rules
 
@@ -355,6 +457,31 @@ Every child thread must follow all of these rules:
 - stop immediately if it needs to change files outside that path set
 - commit and push only its own task branch
 - never merge, rebase, or pull updates from `main`, the target branch, `integration`, or any sibling branch
+- do not install or remove dependencies unless the controller explicitly assigned that shared ownership
+- do not adjust ports, database targets, or external service settings unless the controller explicitly assigned them
+
+### Boundary-conflict stop condition
+
+If a child thread discovers any of the following, it must stop immediately and report instead of continuing:
+
+- it needs to edit a shared or high-risk file
+- it needs to install a new dependency
+- it needs to change shared types or shared interfaces outside its allowed scope
+- it needs to change files outside the allowed path set
+- the current worktree base does not match the assigned wave base commit
+- runtime constraints are missing or ambiguous
+
+Use this exact compact report format:
+
+```text
+⚠️ 边界冲突
+- 冲突类型：
+- 具体文件或资源：
+- 原因：
+- 建议：
+```
+
+Before receiving new instructions, do not continue implementation after such a report.
 
 ### Shared or high-risk files
 
@@ -388,6 +515,8 @@ If the user wants to use Local Environment for child worktrees:
 - do not hide foundation work inside the setup script
 
 For this repo, `npm ci` is the default dependency bootstrap. Only add extra setup commands when the batch clearly needs them.
+
+If an initialization command would write back to tracked files, it is not setup-script material. Treat it as a serial foundation task owned by the controller or by one explicitly assigned owner thread.
 
 ### Validation rules for this repo
 
@@ -428,46 +557,51 @@ For each wave:
 
 If a new task appears mid-wave and cannot use the same base commit cleanly, defer it to the next wave.
 
-### Recommended prompt contract
+### Final integration rules
 
-When asked to use this workflow, the controller thread should produce:
+Only the controller thread may perform final integration.
 
-- target branch
-- integration branch name
-- current wave base commit
-- project validation commands
-- runtime constraints
-- a subtask table with:
-  - task name
-  - wave number
-  - allowed paths
-  - forbidden paths
-  - dependency notes
-  - completion criteria
-- one ready-to-paste child prompt per subtask
+After each wave, the controller thread should:
 
-Each child prompt should state:
+1. merge finished child branches back into `integration` in dependency order
+2. run full validation on `integration`
+3. record the next wave base commit only after validation passes
+4. open the next wave only after the prior wave is integrated and validated
 
-- you are a child thread
-- your exact task goal
-- your allowed paths
-- your forbidden paths
-- the integration branch name
-- the wave base commit
-- the runtime constraints
-- completion/reporting requirements
+Only merge `integration` back to the target branch when:
+
+- all planned waves are complete
+- required validation has passed
+- known risks have been surfaced clearly
 
 ### Reporting contract
 
 Each child thread must finish with a compact report containing:
 
 - branch name
+- integration branch
 - base commit
 - latest commit hash and message
 - changed files
 - validation commands run and results
 - known risks
 - integration notes
+
+Recommended child-thread completion format:
+
+```text
+✅ 任务完成报告
+- 分支名：
+- integration 分支：
+- wave base commit：
+- 最新 commit：
+- 改动文件列表：
+  - ...
+- 验证结果：
+  - [命令]：[通过/失败]
+- 已知风险：
+- 集成注意事项：
+```
 
 The controller thread should then summarize:
 
@@ -480,4 +614,4 @@ The controller thread should then summarize:
 
 If the user wants this workflow, interpret a short instruction like the following as sufficient:
 
-“按多线程 worktree 并发工作流执行这次任务：先由总控线程拆成 2-5 个写入边界不重叠的子任务，创建 integration 分支，冻结每一波的 base commit，再让子线程各自用独立 worktree 开发，最后由总控统一集成和验证。”
+“按 AGENTS.md 里的多线程 worktree 并发工作流执行这次任务：先由总控线程识别项目环境、确认目标主线、创建 integration 分支并冻结当前波次的 base commit，再拆成 2-5 个写入边界不重叠的子任务，让每个子线程用独立 worktree 开发，最后由总控统一集成和验证。”
