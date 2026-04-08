@@ -110,6 +110,7 @@ type IntakeReviewSection = {
   reviewedCount: number;
   fieldSummary: string;
   actionHint: string;
+  priorityRank: number;
 };
 
 type DuplicatePreviewHydrationState = "idle" | "loading" | "ready" | "error";
@@ -510,6 +511,12 @@ function buildAssistReviewSections(input: {
     const reviewedCount = sectionFields.filter((field) =>
       input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
     ).length;
+    const unresolvedCount = pendingCount;
+    const manualConfirmationCount = sectionFields.filter(
+      (field) =>
+        field.suggestedAction === "review_first" &&
+        !input.reviewedFieldKeys.includes(getAssistFieldReviewKey(field)),
+    ).length;
 
     return {
       key: sectionKey,
@@ -528,13 +535,25 @@ function buildAssistReviewSections(input: {
         3,
       ),
       actionHint:
-        sectionKey === "identity"
-          ? "Review identity first to unlock duplicate preview and faster compare decisions."
-          : sectionKey === "timing"
-            ? "Review timing early so the next-touch clock stays useful."
+        unresolvedCount > 0
+          ? sectionKey === "identity"
+            ? "Resolve identity first so duplicate preview and compare decisions stay accurate."
+            : sectionKey === "timing"
+              ? "Resolve timing early so the next-touch clock stays useful."
+              : "Resolve the unresolved fields in this section before moving to safer applied values."
+          : manualConfirmationCount > 0
+            ? "These fields still need explicit manual confirmation before anything can move into the form."
             : sectionKey === "notes"
               ? "Keep manual notes last because they rarely gate the next save."
               : "Review this section as a batch, then apply the reviewed blank fields together.",
+      priorityRank:
+        unresolvedCount > 0
+          ? 0
+          : manualConfirmationCount > 0
+            ? 1
+            : previewOnlyCount > 0
+              ? 2
+              : 3,
     } satisfies IntakeReviewSection;
   });
 }
@@ -1108,30 +1127,43 @@ export function FrontOfficeLeadIntakeCard(
     );
   }
 
-  function handleReviewSafeAssistFields() {
+  function handleReviewUnresolvedAssistSections() {
     if (!assistResult) {
       return;
     }
 
-    const safeFieldKeys = assistResult.fields
-      .filter((field) => field.suggestedAction === "safe_apply")
+    const unresolvedSectionFieldKeys = assistReviewSections
+      .filter(
+        (section) =>
+          section.pendingCount > 0 ||
+          (section.reviewFirstCount > 0 &&
+            section.reviewedCount < section.reviewFirstCount),
+      )
+      .flatMap((section) => section.fieldKeys);
+
+    const reviewableFieldKeys = assistResult.fields
+      .filter(
+        (field) =>
+          unresolvedSectionFieldKeys.includes(field.field as LeadFormFieldKey) &&
+          field.suggestedAction !== "preview_only",
+      )
       .map((field) => getAssistFieldReviewKey(field));
 
-    if (!safeFieldKeys.length) {
+    if (!reviewableFieldKeys.length) {
       setAssistFeedback({
         tone: "neutral",
         message:
-          "There are no safe-after-review fields in this extract yet. Review-first suggestions stay individual.",
+          "There are no unresolved sections left to batch-review. Safe suggestions and reviewed fields are already separated below.",
       });
       return;
     }
 
     setAssistReviewedFieldKeys((current) => [
-      ...new Set([...current, ...safeFieldKeys]),
+      ...new Set([...current, ...reviewableFieldKeys]),
     ]);
     setAssistFeedback({
       tone: "success",
-      message: `${safeFieldKeys.length} safe suggestion(s) were marked reviewed. Apply them individually or use the reviewed-blank-fields action next.`,
+      message: `${reviewableFieldKeys.length} suggestion(s) from unresolved sections were marked reviewed. Apply the reviewed-blank-fields action next if you want to copy them into blank live fields.`,
     });
   }
 
@@ -1738,6 +1770,20 @@ export function FrontOfficeLeadIntakeCard(
             formState,
             defaultFormState: formDefaults,
             manuallyEditedFields,
+          }).sort((left, right) => {
+            if (left.priorityRank !== right.priorityRank) {
+              return left.priorityRank - right.priorityRank;
+            }
+
+            if (left.pendingCount !== right.pendingCount) {
+              return right.pendingCount - left.pendingCount;
+            }
+
+            if (left.reviewFirstCount !== right.reviewFirstCount) {
+              return right.reviewFirstCount - left.reviewFirstCount;
+            }
+
+            return left.label.localeCompare(right.label);
           })
         : [],
     [assistResult, assistReviewedFieldKeys, formDefaults, formState, manuallyEditedFields],
@@ -1763,6 +1809,20 @@ export function FrontOfficeLeadIntakeCard(
   );
   const shouldShowDuplicatePreviewSurface =
     duplicateGateSignals.length > 0 || pendingDuplicateIdentityAssistCount > 0;
+  const unresolvedAssistSectionCount = useMemo(
+    () => assistReviewSections.filter((section) => section.pendingCount > 0).length,
+    [assistReviewSections],
+  );
+  const manualConfirmationAssistSectionCount = useMemo(
+    () =>
+      assistReviewSections.filter(
+        (section) =>
+          section.pendingCount === 0 &&
+          section.reviewFirstCount > 0 &&
+          section.reviewedCount < section.reviewFirstCount,
+      ).length,
+    [assistReviewSections],
+  );
 
   useEffect(() => {
     if (
@@ -1972,10 +2032,10 @@ export function FrontOfficeLeadIntakeCard(
                   <strong>{assistResult.summaryLabel}</strong>
                   <p>
                     Acre keeps the raw extract as a preview and waits for you to
-                    review before applying anything. Recognized fields can move
-                    quickly once checked, manual-confirmation fields should be
-                    compared against the source, and ignored fields stay out of
-                    the live form.
+                    review before applying anything. Unresolved sections stay at
+                    the top, manual-confirmation sections come next, and safe
+                    suggestions are still available once you have checked the
+                    source.
                   </p>
                   <div className="front-office-record-meta">
                     <span>
@@ -2017,6 +2077,11 @@ export function FrontOfficeLeadIntakeCard(
                       {pendingReviewableAssistCount} still waiting on review
                     </span>
                     <span>{reviewedReviewableAssistCount} reviewed</span>
+                    <span>{unresolvedAssistSectionCount} unresolved sections</span>
+                    <span>
+                      {manualConfirmationAssistSectionCount} manual-confirmation
+                      sections
+                    </span>
                     <span>
                       Live form values stay in control until replace is
                       confirmed
@@ -2053,6 +2118,14 @@ export function FrontOfficeLeadIntakeCard(
                         <span>{section.previewOnlyCount} preview-only</span>
                         <span>{section.pendingCount} still pending</span>
                         <span>{section.reviewedCount} reviewed</span>
+                        {section.pendingCount > 0 ? (
+                          <span>Unresolved comes first</span>
+                        ) : section.reviewFirstCount > 0 &&
+                          section.reviewedCount < section.reviewFirstCount ? (
+                          <span>Manual confirmation next</span>
+                        ) : (
+                          <span>Safe apply later</span>
+                        )}
                       </div>
                       <p>{section.actionHint}</p>
                       <div className="front-office-merge-actions">
@@ -2154,11 +2227,11 @@ export function FrontOfficeLeadIntakeCard(
                   <div className="front-office-lead-intake-actions front-office-lead-intake-assist-actions">
                     <Button
                       disabled={isBusy}
-                      onClick={handleReviewSafeAssistFields}
+                      onClick={handleReviewUnresolvedAssistSections}
                       type="button"
                       variant="secondary"
                     >
-                      Review safe suggestions
+                      Review unresolved sections first
                     </Button>
                     <Button
                       disabled={isBusy || reviewedReviewableAssistCount === 0}
@@ -2166,7 +2239,7 @@ export function FrontOfficeLeadIntakeCard(
                       type="button"
                       variant="secondary"
                     >
-                      Apply reviewed blank fields
+                      Apply reviewed unresolved fields
                     </Button>
                   </div>
                 ) : null}
@@ -2174,7 +2247,9 @@ export function FrontOfficeLeadIntakeCard(
                 {pendingReviewableAssistCount > 0 ? (
                   <p className="front-office-calendar-feedback is-neutral">
                     {pendingReviewableAssistCount} reviewable suggestion(s) are
-                    still pending. Create uses only the live form values.
+                    still pending. Acre keeps unresolved and manual-confirmation
+                    fields at the top, and create still uses only the live form
+                    values.
                   </p>
                 ) : null}
 
