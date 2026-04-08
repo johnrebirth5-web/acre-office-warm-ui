@@ -1705,8 +1705,10 @@ export function FrontOfficeLeadIntakeCard(
                   <strong>{assistResult.summaryLabel}</strong>
                   <p>
                     Acre keeps the raw extract as a preview and waits for you to
-                    apply suggestions. Identity-sensitive fields stay more
-                    conservative when household or multi-person context appears.
+                    review before applying anything. Recognized fields can move
+                    quickly once checked, manual-confirmation fields should be
+                    compared against the source, and ignored fields stay out of
+                    the live form.
                   </p>
                   <div className="front-office-record-meta">
                     <span>
@@ -1733,7 +1735,8 @@ export function FrontOfficeLeadIntakeCard(
                   </div>
                   <p className="front-office-calendar-feedback is-neutral">
                     <strong>Ignored fields stay out of the live form.</strong>{" "}
-                    {assistResult.ignoredFieldReasonLabel}
+                    {assistResult.ignoredFieldReasonLabel} They only move back
+                    in when the extract gives them clearer evidence.
                   </p>
                   <div className="front-office-record-meta">
                     <span>
@@ -2322,18 +2325,18 @@ export function FrontOfficeLeadIntakeCard(
               <strong>Potential duplicate leads</strong>
               <p>
                 Acre found existing records in the CRM scope you can currently
-                see. Open the closest match below first, compare contact
-                details and stage, then jump into the duplicate review lane if
-                this should merge instead of creating a second dossier. Nothing
-                has been merged or created yet.
+                see. Open the closest match first, compare contact info,
+                stage, and next touch, then jump into the duplicate review lane
+                if this is the same lead. Nothing has been merged or created
+                yet.
               </p>
             </div>
 
             <div className="front-office-record-meta">
-              <span>Open the existing record first</span>
-              <span>Compare contact details and stage</span>
-              <span>Use duplicate review for the same lead</span>
-              <span>Only create a separate dossier if distinct</span>
+              <span>Open the closest match first</span>
+              <span>Compare contact info, stage, and next touch</span>
+              <span>Use duplicate review if it is the same lead</span>
+              <span>Create separately only if the person is distinct</span>
             </div>
 
             <div className="office-queue-list">

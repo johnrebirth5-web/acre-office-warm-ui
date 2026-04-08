@@ -1136,11 +1136,11 @@ function buildSuggestedActionLabel(
 ) {
   switch (action) {
     case "safe_apply":
-      return "Ready once reviewed";
+      return "Safe after review";
     case "review_first":
-      return "Review required before apply";
+      return "Review before apply";
     case "preview_only":
-      return "Preview only";
+      return "Keep preview-only";
   }
 }
 
@@ -1388,15 +1388,15 @@ function buildSourceDetailLabel(
 ) {
   switch (parsed.provenance) {
     case "explicit_line":
-      return "Source: came from a clearly labeled line in the extract.";
+      return "Source: clearly labeled line in the extract.";
     case "pattern_match":
       return `Source: matched a ${
         field === "phone" ? "phone" : "contact"
       } pattern in the extract.`;
     case "conversation_inference":
-      return "Source: inferred from surrounding conversation context, not a labeled field.";
+      return "Source: inferred from surrounding context, not a labeled field.";
     case "assist_mode":
-      return "Source: derived from the assist mode you used, not from lead message content.";
+      return "Source: derived from the assist mode, not the lead text.";
     case "summary_preview":
       return "Source: summarized from freeform text and kept preview-only.";
   }
@@ -1408,7 +1408,7 @@ function buildReviewHintLabel(input: {
   suggestedAction: FrontOfficeLeadIntakeAssistSuggestedAction;
 }) {
   if (input.suggestedAction === "preview_only") {
-    return "Review hint: keep only the useful part, then rewrite or paste it into Notes manually.";
+    return "Review hint: rewrite or paste only the useful part into Notes.";
   }
 
   if (input.field === "nextFollowUpAt") {
@@ -1426,7 +1426,7 @@ function buildReviewHintLabel(input: {
   }
 
   return input.suggestedAction === "safe_apply"
-    ? "Review hint: once this matches the original input, you can move it into the live form."
+    ? "Review hint: confirm it matches the original extract, then move it into the live form."
     : "Review hint: compare this suggestion with the original text before you let it into the live form.";
 }
 
@@ -1579,7 +1579,7 @@ function buildReadinessSummary(input: {
       nextStepLabels: uniqueStrings([
         screenshotGuidance,
         transcriptGuidance,
-        "Manual entry is still the safe fallback if you already know the lead",
+        "Manual entry is still the fastest fallback if you already know the lead",
       ]).filter(Boolean),
     };
   }
@@ -1591,6 +1591,7 @@ function buildReadinessSummary(input: {
       detail:
         "Phone or email may be usable, but review who those details belong to before applying them into the live form.",
       nextStepLabels: uniqueStrings([
+        screenshotGuidance,
         transcriptGuidance,
         "Look for a self-introduction or labeled name line before applying contact details",
       ]).filter(Boolean),
@@ -1604,10 +1605,10 @@ function buildReadinessSummary(input: {
       detail:
         "Acre found a few usable clues, but the extract still looks sparse or noisy, so review each field before you apply it.",
       nextStepLabels: uniqueStrings([
-        screenshotGuidance,
+        screenshotGuidance || "Re-run OCR on a tighter crop around the lead message",
         transcriptGuidance,
         hasWorkflowField
-          ? "Apply only the fields you are comfortable promoting into the live form"
+          ? "Apply only the fields you can confirm at a glance"
           : "Add one workflow clue such as budget, areas, or next follow-up timing",
       ]).filter(Boolean),
     };
@@ -1622,6 +1623,7 @@ function buildReadinessSummary(input: {
       nextStepLabels: [
         "Review identity fields first",
         "Only apply the values that clearly belong to the primary lead",
+        "Use duplicate review if this looks like a repeat lead",
         "Create uses live form values only",
       ],
     };
@@ -1634,7 +1636,7 @@ function buildReadinessSummary(input: {
       "Acre found structured lead fields and kept every suggestion separate from the live form until you review and apply it.",
     nextStepLabels: [
       "Review safe suggestions first",
-      "Apply only the fields you want in the live form",
+      "Apply reviewed fields to the live form",
       "No auto-create or auto-send happens here",
     ],
   };
