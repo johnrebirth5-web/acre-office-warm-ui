@@ -44,6 +44,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
   const parsedSearch = parseFrontOfficeListingsSearchParams(searchParams);
   const targetClientId = parsedSearch.requestedClientId;
   const targetAppointmentId = parsedSearch.requestedAppointmentId;
+  const requestedRouteLane = parsedSearch.requestedRouteLane;
   const draftAssist = parsedSearch.draftAssist;
   const snapshot = await getFrontOfficeListingsSnapshot({
     organizationId: context.currentOrganization.id,
@@ -57,6 +58,8 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
     snapshot,
     requestedClientId: targetClientId ?? null,
     requestedAppointmentId: targetAppointmentId ?? null,
+    requestedRouteLane,
+    hasRouteLaneParams: parsedSearch.hasRouteLaneParams,
     requestedDraftChannel: parsedSearch.requestedDraftChannel,
     draftAssist,
     hasDraftAssistParams: parsedSearch.hasDraftAssistParams,
@@ -74,7 +77,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this as the real manual send desk for listing recommendations, appointment follow-up, tracked-link rescue, and agent-material packaging."
+          subtitle="Use this as the real manual send desk for listing recommendations, appointment follow-up, tracked-send rescue, focused lane re-entry, and agent-material packaging."
           title="Outbound listing workspace"
         >
           <FrontOfficeListingsOutputClient
@@ -132,6 +135,17 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               />
               <StatCard
                 className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
+                hint={routeState.focusedRouteLaneDescription}
+                label="Lane"
+                tone={
+                  routeState.focusedRouteLane === "send-rescue"
+                    ? "warning"
+                    : "accent"
+                }
+                value={routeState.focusedRouteLaneLabel}
+              />
+              <StatCard
+                className="front-office-listings-rail-stat front-office-listings-rail-stat-detail"
                 hint={
                   routeState.draftStatusDescription
                 }
@@ -149,21 +163,19 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Keep recipient binding, appointment loop, draft lane, route hygiene, and package pairing visible before the listing leaves this desk."
+            subtitle="Keep recipient binding, appointment loop, focused lane, draft lane, route hygiene, and package pairing visible before the listing leaves this desk."
             title="Workspace context"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
                 action={
                   <>
-                    {(routeState.hasDraftAssist ||
-                      routeState.diagnostics.length) &&
-                    routeState.stableHref !== routeState.contextHref ? (
+                    {routeState.stableHref !== routeState.contextHref ? (
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
                         href={routeState.stableHref}
                       >
-                        Open stable workspace link
+                        {routeState.focusedRouteLaneActionLabel}
                       </FrontOfficeLink>
                     ) : null}
                     {snapshot.targetClient ? (
@@ -192,29 +204,31 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     ) : null}
                   </>
                 }
-                badgeLabel={routeState.modeLabel}
+                badgeLabel={routeState.focusedRouteLaneLabel}
                 badgeTone={
-                  routeState.mode === "tracked-link" ? "warning" : "accent"
+                  routeState.focusedRouteLane === "send-rescue"
+                    ? "warning"
+                    : "accent"
                 }
-                description={routeState.modeDescription}
+                description={routeState.focusedRouteLaneDescription}
                 meta={
                   snapshot.targetClient ? (
                     <>
                       <span>{snapshot.targetClient.stage}</span>
                       <span>{snapshot.targetClient.nextTouchLabel}</span>
-                      <span>Package · {routeState.preferredSupportLaneLabel}</span>
+                      <span>Mode · {routeState.modeLabel}</span>
                     </>
                   ) : (
                     <span>
-                      Open from a dossier or appointment to turn the tracked
-                      link desk into a real send trail.
+                      Open from a dossier or appointment to turn the focused
+                      lane into a real send trail.
                     </span>
                   )
                 }
                 title={
                   snapshot.targetClient
-                    ? snapshot.targetClient.fullName
-                    : "Generic tracked-link mode"
+                    ? `${routeState.focusedRouteLaneLabel} for ${snapshot.targetClient.fullName}`
+                    : `${routeState.focusedRouteLaneLabel} for tracked listings`
                 }
               />
               {snapshot.targetAppointment ? (
@@ -236,14 +250,12 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               <FrontOfficeRailItem
                 action={
                   <>
-                    {(routeState.hasDraftAssist ||
-                      routeState.diagnostics.length) &&
-                    routeState.stableHref !== routeState.contextHref ? (
+                    {routeState.stableHref !== routeState.contextHref ? (
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
                         href={routeState.stableHref}
                       >
-                        Open stable workspace link
+                        {routeState.focusedRouteLaneActionLabel}
                       </FrontOfficeLink>
                     ) : null}
                     {routeState.hasDraftAssist ? (
@@ -273,7 +285,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                     <span>{routeState.routeStatusDescription}</span>
                   </>
                 }
-                title="Route hygiene and draft lane"
+                title="Route hygiene and draft guardrails"
               />
               <FrontOfficeRailItem
                 action={
@@ -399,6 +411,15 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             label="Mode"
             tone={routeState.mode === "tracked-link" ? "default" : "accent"}
             value={routeState.modeLabel}
+          />
+          <SummaryChip
+            label="Lane"
+            tone={
+              routeState.focusedRouteLane === "send-rescue"
+                ? "default"
+                : "accent"
+            }
+            value={routeState.focusedRouteLaneLabel}
           />
           {snapshot.targetClient ? (
             <SummaryChip

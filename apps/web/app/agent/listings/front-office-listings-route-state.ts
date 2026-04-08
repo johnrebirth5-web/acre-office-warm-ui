@@ -5,6 +5,11 @@ export type FrontOfficeListingsRouteMode =
   | "client-linked"
   | "appointment-linked";
 
+export type FrontOfficeListingsRouteLane =
+  | "send-rescue"
+  | "follow-through"
+  | "draft-lane";
+
 export type FrontOfficeListingsDraftAssistSource = "ai";
 
 export type FrontOfficeListingsDraftAssist = {
@@ -19,7 +24,7 @@ export type FrontOfficeListingsDraftAssist = {
 };
 
 export type FrontOfficeListingsRouteDiagnostic = {
-  id: "client" | "appointment" | "draft";
+  id: "client" | "appointment" | "draft" | "lane";
   badgeLabel: string;
   badgeTone: "accent" | "warning";
   title: string;
@@ -34,14 +39,20 @@ export type FrontOfficeListingsRouteState = {
   stableHref: string;
   requestedClientId: string | null;
   requestedAppointmentId: string | null;
+  requestedRouteLane: FrontOfficeListingsRouteLane | null;
   requestedDraftChannel: "sms" | "email" | null;
   hasDraftAssist: boolean;
+  hasRouteLaneParams: boolean;
   hasDraftAssistParams: boolean;
   diagnostics: FrontOfficeListingsRouteDiagnostic[];
   mode: FrontOfficeListingsRouteMode;
   modeLabel: string;
   modeDescription: string;
   modeContextLabel: string;
+  focusedRouteLane: FrontOfficeListingsRouteLane;
+  focusedRouteLaneLabel: string;
+  focusedRouteLaneDescription: string;
+  focusedRouteLaneActionLabel: string;
   routeStatusLabel: string;
   routeStatusDescription: string;
   draftStatusLabel: string;
@@ -59,6 +70,8 @@ export type FrontOfficeListingsSearchParams = Record<
 export type FrontOfficeListingsSearchState = {
   requestedClientId: string | null;
   requestedAppointmentId: string | null;
+  requestedRouteLane: FrontOfficeListingsRouteLane | null;
+  hasRouteLaneParams: boolean;
   requestedDraftChannel: "sms" | "email" | null;
   hasDraftAssistParams: boolean;
   draftAssist: FrontOfficeListingsDraftAssist | null;
@@ -68,6 +81,8 @@ type BuildFrontOfficeListingsRouteStateInput = {
   snapshot: FrontOfficeListingsSnapshot;
   requestedClientId: string | null;
   requestedAppointmentId: string | null;
+  requestedRouteLane: FrontOfficeListingsRouteLane | null;
+  hasRouteLaneParams: boolean;
   requestedDraftChannel: "sms" | "email" | null;
   draftAssist: FrontOfficeListingsDraftAssist | null;
   hasDraftAssistParams: boolean;
@@ -76,6 +91,7 @@ type BuildFrontOfficeListingsRouteStateInput = {
 type BuildAgentListingsHrefInput = {
   clientId?: string | null;
   appointmentId?: string | null;
+  lane?: FrontOfficeListingsRouteLane | null;
   draftAssist?: FrontOfficeListingsDraftAssist | null;
 };
 
@@ -171,6 +187,16 @@ function buildPreferredSupportLane(input: {
 export function parseFrontOfficeListingsSearchParams(
   searchParams: FrontOfficeListingsSearchParams,
 ): FrontOfficeListingsSearchState {
+  const hasRouteLaneParams =
+    "lane" in searchParams && readSearchParamValue(searchParams.lane) != null;
+  const requestedRouteLaneValue =
+    readNormalizedSearchParamValue(searchParams.lane)?.toLowerCase() ?? null;
+  const requestedRouteLane: FrontOfficeListingsRouteLane | null =
+    requestedRouteLaneValue === "send-rescue" ||
+    requestedRouteLaneValue === "follow-through" ||
+    requestedRouteLaneValue === "draft-lane"
+      ? requestedRouteLaneValue
+      : null;
   const draftKeys = [
     "draftChannel",
     "draftBody",
@@ -223,6 +249,8 @@ export function parseFrontOfficeListingsSearchParams(
     requestedAppointmentId: readNormalizedSearchParamValue(
       searchParams.appointmentId,
     ),
+    requestedRouteLane,
+    hasRouteLaneParams,
     requestedDraftChannel,
     hasDraftAssistParams,
     draftAssist,
@@ -238,6 +266,10 @@ export function buildAgentListingsHref(input: BuildAgentListingsHrefInput) {
 
   if (input.appointmentId?.trim()) {
     params.set("appointmentId", input.appointmentId.trim());
+  }
+
+  if (input.lane) {
+    params.set("lane", input.lane);
   }
 
   if (input.draftAssist?.channel && input.draftAssist.body.trim()) {
@@ -285,13 +317,20 @@ export function buildFrontOfficeListingsRouteState(
     input.requestedAppointmentId &&
       input.snapshot.targetAppointment?.id !== input.requestedAppointmentId,
   );
+  const resolvedFocusedRouteLane = buildFocusedRouteLane({
+    requestedRouteLane: input.requestedRouteLane,
+    snapshot: input.snapshot,
+    draftAssist: input.draftAssist,
+  });
   const contextHref = buildAgentListingsHref({
     clientId: input.snapshot.targetClient?.id ?? null,
     appointmentId: input.snapshot.targetAppointment?.id ?? null,
+    lane: resolvedFocusedRouteLane.focusedRouteLane,
   });
   const stableHref = buildAgentListingsHref({
     clientId: input.snapshot.targetClient?.id ?? null,
     appointmentId: input.snapshot.targetAppointment?.id ?? null,
+    lane: resolvedFocusedRouteLane.focusedRouteLane,
     draftAssist: input.draftAssist,
   });
   let mode: FrontOfficeListingsRouteMode = "tracked-link";
@@ -342,7 +381,18 @@ export function buildFrontOfficeListingsRouteState(
       description:
         mode === "client-linked"
           ? "The incoming appointment could not be attached to this recipient, so sends will write back to the client trail only."
-          : "The incoming appointment did not resolve into the current send context, so the page is not carrying appointment writeback right now.",
+        : "The incoming appointment did not resolve into the current send context, so the page is not carrying appointment writeback right now.",
+    });
+  }
+
+  if (input.hasRouteLaneParams && !input.requestedRouteLane) {
+    diagnostics.push({
+      id: "lane",
+      badgeLabel: "Lane URL",
+      badgeTone: "warning",
+      title: "Requested lane did not resolve",
+      description:
+        "The URL carried a lane parameter, but it did not match a supported focused lane, so Acre kept the workspace on the nearest safe send trail instead.",
     });
   }
 
@@ -360,14 +410,14 @@ export function buildFrontOfficeListingsRouteState(
 
   const routeStatusLabel = diagnostics.length
     ? "Adjusted workspace"
-    : input.draftAssist
-      ? "Stable draft lane"
-      : "Stable workspace";
+    : resolvedFocusedRouteLane.focusedRouteLane === "draft-lane"
+      ? "Focused draft lane"
+      : resolvedFocusedRouteLane.focusedRouteLane === "follow-through"
+        ? "Focused follow-through lane"
+        : "Focused rescue lane";
   const routeStatusDescription = diagnostics.length
     ? "Acre trimmed or replaced part of the incoming URL so the outbound workspace could stay on a safe manual-send path. Use the stable workspace link if you want to continue without stale route baggage."
-    : input.draftAssist
-      ? "A valid draft assist is loaded on top of the current send context. The link can be reopened through the stable workspace href without carrying duplicate or stale query state."
-      : "The route is carrying only the current send context, with no extra draft or stale deep-link baggage.";
+    : resolvedFocusedRouteLane.focusedRouteLaneDescription;
   const preferredSupportLane = buildPreferredSupportLane({
     mode,
     draftAssist: input.draftAssist,
@@ -379,14 +429,22 @@ export function buildFrontOfficeListingsRouteState(
     stableHref,
     requestedClientId: input.requestedClientId,
     requestedAppointmentId: input.requestedAppointmentId,
+    requestedRouteLane: input.requestedRouteLane,
     requestedDraftChannel: input.requestedDraftChannel,
     hasDraftAssist: Boolean(input.draftAssist),
+    hasRouteLaneParams: input.hasRouteLaneParams,
     hasDraftAssistParams: input.hasDraftAssistParams,
     diagnostics,
     mode,
     modeLabel,
     modeDescription,
     modeContextLabel,
+    focusedRouteLane: resolvedFocusedRouteLane.focusedRouteLane,
+    focusedRouteLaneLabel: resolvedFocusedRouteLane.focusedRouteLaneLabel,
+    focusedRouteLaneDescription:
+      resolvedFocusedRouteLane.focusedRouteLaneDescription,
+    focusedRouteLaneActionLabel:
+      resolvedFocusedRouteLane.focusedRouteLaneActionLabel,
     routeStatusLabel,
     routeStatusDescription,
     draftStatusLabel: input.draftAssist
@@ -403,5 +461,74 @@ export function buildFrontOfficeListingsRouteState(
     preferredSupportLane: preferredSupportLane.lane,
     preferredSupportLaneLabel: preferredSupportLane.label,
     preferredSupportLaneDescription: preferredSupportLane.description,
+  };
+}
+
+function buildFocusedRouteLane(input: {
+  requestedRouteLane: FrontOfficeListingsRouteLane | null;
+  snapshot: FrontOfficeListingsSnapshot;
+  draftAssist: FrontOfficeListingsDraftAssist | null;
+}) {
+  const resolvedRouteLane =
+    input.requestedRouteLane ??
+    (input.draftAssist
+      ? "draft-lane"
+      : input.snapshot.targetAppointment || input.snapshot.targetClient
+        ? "follow-through"
+        : "send-rescue");
+
+  if (resolvedRouteLane === "draft-lane") {
+    const draftChannelLabel = input.draftAssist
+      ? input.draftAssist.channel === "sms"
+        ? "SMS draft lane"
+        : "Email draft lane"
+      : "Draft lane";
+
+    return {
+      focusedRouteLane: "draft-lane" as const,
+      focusedRouteLaneLabel: draftChannelLabel,
+      focusedRouteLaneDescription: input.draftAssist
+        ? "A deep-linked draft assist is active here. Re-enter this lane when you want the assisted copy and tracked listing link to travel together."
+        : "A draft lane shell is selected here, but no assisted copy is loaded yet. Re-enter from a draft assist link to carry the copied channel with the listing trail.",
+      focusedRouteLaneActionLabel: input.draftAssist
+        ? "Keep draft lane open"
+        : "Open draft lane",
+    };
+  }
+
+  if (resolvedRouteLane === "follow-through") {
+    if (input.snapshot.targetAppointment && input.snapshot.targetClient) {
+      return {
+        focusedRouteLane: "follow-through" as const,
+        focusedRouteLaneLabel: "Appointment follow-through lane",
+        focusedRouteLaneDescription: `This lane keeps ${input.snapshot.targetClient.fullName} and ${input.snapshot.targetAppointment.title} tied to the same tracked send trail, so the next touch does not fall back to a generic outbound workspace.`,
+        focusedRouteLaneActionLabel: "Resume follow-through lane",
+      };
+    }
+
+    if (input.snapshot.targetClient) {
+      return {
+        focusedRouteLane: "follow-through" as const,
+        focusedRouteLaneLabel: "Client follow-through lane",
+        focusedRouteLaneDescription: `This lane keeps ${input.snapshot.targetClient.fullName}'s dossier bound to the outbound send trail, so the next touch re-enters from the same client context instead of a generic tracked link.`,
+        focusedRouteLaneActionLabel: "Resume follow-through lane",
+      };
+    }
+
+    return {
+      focusedRouteLane: "follow-through" as const,
+      focusedRouteLaneLabel: "Follow-through lane",
+      focusedRouteLaneDescription:
+        "This lane shell is selected, but no bound client or appointment trail is attached yet. Re-enter from a dossier or appointment when you want the next touch to inherit writeback instead of generic outbound state.",
+      focusedRouteLaneActionLabel: "Resume follow-through lane",
+    };
+  }
+
+  return {
+    focusedRouteLane: "send-rescue" as const,
+    focusedRouteLaneLabel: "Send rescue lane",
+    focusedRouteLaneDescription:
+      "Use this lane to reopen quiet tracked sends, rescue no-reply follow-up, and keep the next manual touch tied to the same listing trail.",
+    focusedRouteLaneActionLabel: "Re-enter rescue lane",
   };
 }

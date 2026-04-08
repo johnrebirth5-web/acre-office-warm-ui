@@ -258,6 +258,7 @@ function buildListingRecommendedShareAction(input: {
   snapshot: FrontOfficeListingsSnapshot;
   listing: FrontOfficeListingsSnapshot["listings"][number];
   draftAssist: FrontOfficeListingsDraftAssist | null;
+  routeState: FrontOfficeListingsRouteState;
 }): RecommendedShareAction {
   if (input.draftAssist?.channel === "sms") {
     return {
@@ -277,38 +278,52 @@ function buildListingRecommendedShareAction(input: {
     };
   }
 
-  if (input.snapshot.targetAppointment) {
+  if (input.routeState.focusedRouteLane === "draft-lane") {
     return {
       action: "sms",
-      label: "Appointment reaction lane",
+      label: "Draft lane",
       reason:
-        "Appointment-linked sends usually need a faster reaction or confirmation path than a long note.",
+        "A draft lane shell is selected here, so keep the lane ready for the matching draft before you copy a send.",
     };
   }
 
-  if (input.listing.trackedClickCount > 0) {
+  if (input.routeState.focusedRouteLane === "follow-through") {
     return {
-      action: "sms",
-      label: "Reaction follow-up lane",
+      action: input.snapshot.targetAppointment ? "sms" : "email",
+      label: input.snapshot.targetAppointment
+        ? "Appointment follow-through lane"
+        : "Client follow-through lane",
       reason:
-        "This listing already has engagement, so a short reaction ask is usually stronger than restarting with another long message.",
+        input.snapshot.targetAppointment
+          ? "This route is already tied to the appointment loop, so a quick reaction keeps the send in the same trail."
+          : "This route is already tied to the client dossier, so the next manual send should stay in the same trail instead of restarting as a generic outbound share.",
     };
   }
 
-  if (input.snapshot.targetClient || input.listing.trackedLinkCount === 0) {
+  if (input.routeState.focusedRouteLane === "send-rescue") {
     return {
-      action: "email",
-      label: "Framed send lane",
+      action: input.listing.trackedClickCount > 0 ? "sms" : "email",
+      label: "Send rescue lane",
       reason:
-        "A richer framed send is the safer first move when the client still needs context or the listing has not been sent from this feed yet.",
+        input.listing.trackedClickCount > 0
+          ? "This listing already has engagement, so the rescue lane should reopen it with a short reply path."
+          : "This listing is quiet, so the rescue lane should reopen it with a tighter reason-to-care and the tracked link still attached.",
     };
   }
 
   return {
-    action: "direct",
-    label: "Link-only lane",
+    action: input.snapshot.targetClient ? "email" : "direct",
+    label: input.snapshot.targetAppointment
+      ? "Appointment reaction lane"
+      : input.snapshot.targetClient
+        ? "Framed send lane"
+        : "Link-only lane",
     reason:
-      "Use the raw tracked URL only when the surrounding context already exists in another manual conversation thread.",
+      input.snapshot.targetAppointment
+        ? "Appointment-linked sends usually need a faster reaction or confirmation path than a long note."
+        : input.snapshot.targetClient
+          ? "A richer framed send is the safer first move when the client still needs context."
+          : "Use the raw tracked URL only when the surrounding context already exists in another manual conversation thread.",
   };
 }
 
@@ -357,14 +372,14 @@ function buildListingEmptyState(
 
 function buildWorkspaceHeading(props: FrontOfficeListingsOutputClientProps) {
   if (props.snapshot.targetAppointment && props.snapshot.targetClient) {
-    return `Appointment-linked listing desk for ${props.snapshot.targetClient.fullName}`;
+    return `${props.routeState.focusedRouteLaneLabel} for ${props.snapshot.targetClient.fullName}`;
   }
 
   if (props.snapshot.targetClient) {
-    return `Client-linked listing desk for ${props.snapshot.targetClient.fullName}`;
+    return `${props.routeState.focusedRouteLaneLabel} for ${props.snapshot.targetClient.fullName}`;
   }
 
-  return "Tracked listing outbound desk";
+  return `${props.routeState.focusedRouteLaneLabel} for tracked listings`;
 }
 
 function buildTrackedContextBadgeLabel(
@@ -414,6 +429,12 @@ function buildShareLanePlan(input: {
       : input.routeState.mode === "client-linked"
         ? "Writeback: client trail."
         : "Writeback: tracked link only.";
+  const focusedLaneMeta =
+    input.routeState.focusedRouteLane === "draft-lane"
+      ? "Focused lane: draft lane."
+      : input.routeState.focusedRouteLane === "follow-through"
+        ? "Focused lane: follow-through."
+        : "Focused lane: send rescue.";
 
   if (input.action === "sms") {
     return {
@@ -422,13 +443,16 @@ function buildShareLanePlan(input: {
       badgeTone: "accent",
       title: usesDraftAssist
         ? "SMS draft + tracked link"
-        : input.snapshot.targetAppointment
-          ? "Appointment reaction text"
-          : "Quick reaction text",
+        : input.routeState.focusedRouteLane === "follow-through" &&
+            input.snapshot.targetAppointment
+          ? "Appointment follow-through text"
+          : input.routeState.focusedRouteLane === "send-rescue"
+            ? "SMS rescue text"
+            : "Quick reaction text",
       context: usesDraftAssist
         ? "AI draft lane"
         : isRecommended
-          ? "Recommended first move"
+          ? input.routeState.focusedRouteLaneLabel
           : "Standard manual lane",
       description: buildChannelCue(input.snapshot, "sms"),
       meta: [
@@ -436,6 +460,7 @@ function buildShareLanePlan(input: {
           ? "Copy result: assisted SMS draft + tracked link."
           : "Copy result: standard SMS template + tracked link.",
         writebackMeta,
+        focusedLaneMeta,
         input.routeState.preferredSupportLane === "sms"
           ? "Pair with: SMS companion package."
           : "Pair with: intro text + business card when the note needs more identity.",
@@ -451,11 +476,13 @@ function buildShareLanePlan(input: {
       badgeTone: "success",
       title: usesDraftAssist
         ? "Email draft + tracked link"
-        : "Framed email send",
+        : input.routeState.focusedRouteLane === "follow-through"
+          ? "Follow-through email"
+          : "Framed email send",
       context: usesDraftAssist
         ? "AI draft lane"
         : isRecommended
-          ? "Recommended first move"
+          ? input.routeState.focusedRouteLaneLabel
           : "Standard manual lane",
       description: buildChannelCue(input.snapshot, "email"),
       meta: [
@@ -463,6 +490,7 @@ function buildShareLanePlan(input: {
           ? "Copy result: assisted email draft + tracked link."
           : "Copy result: standard email template + tracked link.",
         writebackMeta,
+        focusedLaneMeta,
         input.routeState.preferredSupportLane === "email"
           ? "Pair with: email companion package."
           : "Pair with: email support package when the client needs more framing.",
@@ -478,11 +506,14 @@ function buildShareLanePlan(input: {
     title: input.snapshot.targetClient
       ? "Live chat / WeChat link"
       : "Raw tracked link",
-    context: isRecommended ? "Recommended first move" : "Manual-only lane",
+    context: isRecommended
+      ? input.routeState.focusedRouteLaneLabel
+      : "Manual-only lane",
     description: buildChannelCue(input.snapshot, "direct"),
     meta: [
       "Copy result: private tracked link only.",
       writebackMeta,
+      focusedLaneMeta,
       "Pair with: business card or support package if the conversation thread does not already carry context.",
     ],
     isRecommended,
@@ -705,6 +736,7 @@ export function FrontOfficeListingsOutputClient(
       snapshot: props.snapshot,
       listing,
       draftAssist: props.draftAssist ?? null,
+      routeState: props.routeState,
     });
   }
 
@@ -722,11 +754,12 @@ export function FrontOfficeListingsOutputClient(
       <div className="front-office-placeholder-note front-office-playbook-surface">
         <div className="front-office-playbook-header">
           <strong>{buildWorkspaceHeading(props)}</strong>
-          <p>{props.routeState.modeDescription}</p>
+          <p>{props.routeState.focusedRouteLaneDescription}</p>
         </div>
 
         <div className="list-row-meta front-office-record-meta">
           <span>Route · {props.routeState.routeStatusLabel}</span>
+          <span>Lane · {props.routeState.focusedRouteLaneLabel}</span>
           <span>Mode · {props.routeState.modeLabel}</span>
           <span>Package · {props.routeState.preferredSupportLaneLabel}</span>
           <span>Rule · Manual send only</span>
@@ -754,8 +787,11 @@ export function FrontOfficeListingsOutputClient(
 
         <div className="front-office-playbook-actions">
           {hasStableWorkspaceLink ? (
-            <FrontOfficeLink className="office-inline-link" href={props.routeState.stableHref}>
-              Open stable workspace link
+            <FrontOfficeLink
+              className="office-inline-link"
+              href={props.routeState.stableHref}
+            >
+              {props.routeState.focusedRouteLaneActionLabel}
             </FrontOfficeLink>
           ) : null}
           <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
