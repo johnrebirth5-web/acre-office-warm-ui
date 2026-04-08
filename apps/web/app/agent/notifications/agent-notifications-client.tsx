@@ -933,16 +933,8 @@ export function AgentNotificationsClient({
     );
   }
 
-  const duplicateReviewHref = buildAgentNotificationsHref({
-    pathname,
-    activityView: "personal_cleanup",
-    cleanupFilter: "duplicate_review",
-    filter: activeReminderFilter,
-    noticeStreamFilter: activeNoticeStreamFilter,
-    readState: activeReadState,
-    leadershipFilter: activeLeadershipFilter,
-    anchor: "#duplicate-review",
-  });
+  const duplicateReviewHref =
+    "/agent/clients?clientView=duplicate_review#duplicate-review";
   const nextPersonalCleanupItem = filteredCleanupItems[0] ?? null;
   const nextTeamCleanupItem = filteredLeadershipItems[0] ?? null;
   const nextAppointmentReminderCard =
@@ -2469,7 +2461,7 @@ export function AgentNotificationsClient({
                     className="office-inline-link front-office-inline-link"
                     href={duplicateReviewHref}
                   >
-                    Review duplicates
+                    Open duplicate review lane
                   </FrontOfficeLink>
                 ) : null}
                 {isOverviewMode && hiddenCleanupItemCount > 0 ? (
@@ -2580,7 +2572,7 @@ export function AgentNotificationsClient({
                 }
                 description={
                   activeCleanupFilter === "duplicate_review"
-                    ? "Use the duplicate-review block below for this pass. The client cleanup queue above is intentionally muted while duplicate review is in focus."
+                    ? "Use the Clients duplicate-review lane for this pass. The client cleanup queue above is intentionally muted while duplicate review is in focus."
                     : activeCleanupFilter === "all"
                       ? "When follow-ups, tracked sends, appointments, external writeback deadlines, or duplicate review start applying pressure, the highest-priority cleanup items will stack here first."
                       : `No personal cleanup items match ${activeCleanupFilterLabel.toLowerCase()} right now.`

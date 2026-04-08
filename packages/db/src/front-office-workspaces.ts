@@ -1491,6 +1491,21 @@ function formatAppointmentStatusLabel(status: AppointmentStatus) {
     .join(" ");
 }
 
+function buildCalendarAppointmentHref(input: {
+  appointmentId: string;
+  clientId?: string | null;
+}) {
+  const params = new URLSearchParams();
+
+  if (input.clientId?.trim()) {
+    params.set("clientId", input.clientId.trim());
+  }
+
+  params.set("appointmentId", input.appointmentId);
+
+  return `/agent/calendar?${params.toString()}`;
+}
+
 function formatFrontOfficeSendChannelLabel(channel: string) {
   switch (channel.trim().toLowerCase()) {
     case "sms":
@@ -3041,7 +3056,10 @@ export async function getFrontOfficeListingsSnapshot(
             resolvedTargetAppointment.location?.trim() ||
             resolvedTargetAppointment.meetingUrl?.trim() ||
             "Location pending",
-          href: `/agent/calendar?appointmentId=${resolvedTargetAppointment.id}`,
+          href: buildCalendarAppointmentHref({
+            appointmentId: resolvedTargetAppointment.id,
+            clientId: resolvedTargetAppointment.client?.id ?? null,
+          }),
         }
       : null,
     agentMaterial: {
@@ -3919,7 +3937,10 @@ export async function getFrontOfficeActivitySnapshot(
             : `Starts · ${formatDateTimeLabel(appointment.startsAt, {
                 timeZone: input.timeZone ?? null,
               })}`,
-        href: `/agent/calendar?appointmentId=${appointment.id}`,
+        href: buildCalendarAppointmentHref({
+          appointmentId: appointment.id,
+          clientId: appointment.client?.id ?? null,
+        }),
         actionLabel:
           kindLabel === "Appointment soon"
             ? "Open calendar item"
@@ -3927,7 +3948,9 @@ export async function getFrontOfficeActivitySnapshot(
         nextStepLabel:
           kindLabel === "Appointment soon"
             ? "Open the appointment and keep the meeting on track."
-            : "Open the calendar writeback and record the next touch.",
+            : appointment.client?.id
+              ? "Open the calendar writeback with client context and record the next touch."
+              : "Open the calendar writeback and record the next touch.",
         _priority: priority,
         _sortAt:
           nextActionTime != null && nextActionTime < startsAtTime
