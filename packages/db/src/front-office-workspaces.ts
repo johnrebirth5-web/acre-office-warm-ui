@@ -489,6 +489,7 @@ export type FrontOfficeActivityCleanupItem = {
   metaLabels: string[];
   href: string;
   actionLabel: string;
+  nextStepLabel: string;
 };
 
 export type FrontOfficeActivitySnapshot = {
@@ -3923,6 +3924,10 @@ export async function getFrontOfficeActivitySnapshot(
           kindLabel === "Appointment soon"
             ? "Open calendar item"
             : "Open calendar writeback",
+        nextStepLabel:
+          kindLabel === "Appointment soon"
+            ? "Open the appointment and keep the meeting on track."
+            : "Open the calendar writeback and record the next touch.",
         _priority: priority,
         _sortAt:
           nextActionTime != null && nextActionTime < startsAtTime
@@ -3974,6 +3979,8 @@ export async function getFrontOfficeActivitySnapshot(
         sortLabel: `Due · ${formatDateLabel(task.dueAt, input.timeZone)}`,
         href: `/agent/clients/${task.client.id}`,
         actionLabel: "Open client workspace",
+        nextStepLabel:
+          "Open the client workspace and resolve the overdue follow-up.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: task.dueAt,
         _clientId: task.client.id,
@@ -4023,6 +4030,8 @@ export async function getFrontOfficeActivitySnapshot(
         sortLabel: `Next touch · ${formatDateLabel(nextTouchAt, input.timeZone)}`,
         href: `/agent/clients/${client.id}`,
         actionLabel: "Open client workspace",
+        nextStepLabel:
+          "Open the client workspace and choose the next touch.",
         _priority: isOverdue ? 0 : 2,
         _sortAt: nextTouchAt,
         _clientId: client.id,
@@ -4073,11 +4082,13 @@ export async function getFrontOfficeActivitySnapshot(
             whyNowLabel:
               "The tracked send is still unopened after the initial wait window.",
             sortLabel: `Sent · ${formatDateLabel(record.sentAt, input.timeZone)}`,
-            href: `/agent/clients/${record.client.id}`,
-            actionLabel: "Open send trail",
-            _priority: 4,
-            _sortAt: record.sentAt,
-            _clientId: record.client.id,
+          href: `/agent/clients/${record.client.id}`,
+          actionLabel: "Open send trail",
+          nextStepLabel:
+            "Open the send trail and decide whether to rescue the send.",
+          _priority: 4,
+          _sortAt: record.sentAt,
+          _clientId: record.client.id,
           },
         ];
       }
@@ -4131,6 +4142,8 @@ export async function getFrontOfficeActivitySnapshot(
           )}`,
           href: `/agent/clients/${record.client.id}`,
           actionLabel: "Open send trail",
+          nextStepLabel:
+            "Open the send trail and decide whether to rescue the send.",
           _priority: 5,
           _sortAt: lastEngagementAt,
           _clientId: record.client.id,
@@ -4176,6 +4189,7 @@ export async function getFrontOfficeActivitySnapshot(
         : `Created · ${formatDateLabel(client.createdAt, input.timeZone)}`,
       href: `/agent/clients/${client.id}`,
       actionLabel: "Open client workspace",
+      nextStepLabel: "Open the dossier and plan the next recovery touch.",
       _priority: tone === "danger" ? 6 : 7,
       _sortAt: staleSince,
       _clientId: client.id,
@@ -4219,6 +4233,7 @@ export async function getFrontOfficeActivitySnapshot(
       metaLabels: item.metaLabels,
       href: item.href,
       actionLabel: item.actionLabel,
+      nextStepLabel: item.nextStepLabel,
     });
 
     if (item._clientId) {

@@ -44,11 +44,11 @@ export const activityViewOptions: Array<{
   value: AgentActivityView;
   label: string;
 }> = [
-  { value: "all", label: "Inbox overview" },
+  { value: "all", label: "Workbench overview" },
   { value: "personal_cleanup", label: "Personal cleanup" },
-  { value: "team_cleanup", label: "Team cleanup" },
-  { value: "appointment_reminders", label: "Appointment inbox" },
-  { value: "general_notices", label: "Notice lane" },
+  { value: "team_cleanup", label: "Team cleanup workbench" },
+  { value: "appointment_reminders", label: "Appointment workbench" },
+  { value: "general_notices", label: "Notice workbench" },
 ];
 
 export const cleanupFilterOptions: Array<{

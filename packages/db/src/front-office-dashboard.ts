@@ -217,6 +217,7 @@ export type FrontOfficeDashboardLeadershipItem = {
   scopeLabel: string;
   pressureLabel: string;
   whyNowLabel: string;
+  nextStepLabel: string;
   tone: FrontOfficeDashboardTone;
   actionLabel: string;
   href: string;
@@ -2010,6 +2011,8 @@ export async function getFrontOfficeDashboardSnapshot(
               pressureLabel: "Unopened 3+ days",
               whyNowLabel:
                 "A tracked send inside this leadership scope is still unopened after the initial wait window.",
+              nextStepLabel:
+                "Open the contact and decide whether the send needs rescue.",
               tone: "danger",
               actionLabel: "Open office contact",
               href: `/office/contacts/${record.client.id}`,
@@ -2047,6 +2050,8 @@ export async function getFrontOfficeDashboardSnapshot(
             pressureLabel: "Quiet after last open",
             whyNowLabel:
               "The last tracked open inside this leadership scope has gone quiet long enough to warrant a leadership rescue pass.",
+            nextStepLabel:
+              "Open the contact and choose the next rescue touch.",
             tone: "warning",
             actionLabel: "Open office contact",
             href: `/office/contacts/${record.client.id}`,
@@ -2087,6 +2092,7 @@ export async function getFrontOfficeDashboardSnapshot(
           overdueDays >= 3
             ? `This shared follow-up has been overdue for ${overdueDays} day(s) inside the visible leadership scope and needs an operator-level recovery pass.`
             : "A shared follow-up inside this leadership scope is already overdue and needs an operator-level follow-through.",
+        nextStepLabel: "Open the task and follow up with the assignee.",
         tone: "danger" as const,
         actionLabel: "Open office contact",
         href: task.clientId
@@ -2125,6 +2131,7 @@ export async function getFrontOfficeDashboardSnapshot(
         pressureLabel:
           inactiveDays >= 30 ? "30+ days stale" : "15+ days stale",
         whyNowLabel: `No logged touch has landed on this visible-scope dossier for ${inactiveDays} day(s).`,
+        nextStepLabel: "Open the contact and choose the next touch.",
         tone: "warning" as const,
         actionLabel: "Open office contact",
         href: `/office/contacts/${client.id}`,

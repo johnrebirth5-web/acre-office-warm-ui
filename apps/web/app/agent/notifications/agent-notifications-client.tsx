@@ -88,6 +88,7 @@ type ActivityWorkbenchCard = {
   tone: ActivityLaneTone;
   href: string;
   actionLabel: string;
+  nextStepLabel: string;
   meta: string[];
 };
 
@@ -617,7 +618,7 @@ export function AgentNotificationsClient({
     )?.label ?? "current leadership filter";
   const currentPassSummaryLabel =
     activeActivityView === "all"
-      ? "Working a hub pass across all four lanes. Overview stays intentionally preview-first so the page reads like an inbox, while each lane still remembers its own filters in the URL."
+      ? "Working a workbench pass across all four lanes. Overview stays intentionally preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
       : activeActivityView === "personal_cleanup"
         ? "Focused on self-owned cleanup pressure only."
         : activeActivityView === "team_cleanup"
@@ -1112,6 +1113,9 @@ export function AgentNotificationsClient({
           activeCleanupFilter === track.key
             ? "Stay on this cleanup focus"
             : "Open this cleanup focus",
+        nextStepLabel:
+          matchingItems[0]?.nextStepLabel ??
+          "Open the cleanup focus and resolve the next touch.",
         meta: [
           `${count} item(s) in scope`,
           nextLabel,
@@ -1154,6 +1158,9 @@ export function AgentNotificationsClient({
           activeLeadershipFilter === group.key
             ? "Stay on this team focus"
             : "Open this team focus",
+        nextStepLabel:
+          nextItem?.nextStepLabel ??
+          "Open the team focus and decide where to intervene.",
         meta: [
           count > matchingItems.length && matchingItems.length > 0
             ? `${count} signal(s) in scope · showing ${matchingItems.length}`
@@ -1206,6 +1213,9 @@ export function AgentNotificationsClient({
           activeReminderFilter === group.key
             ? "Stay on this reminder focus"
             : "Open this reminder focus",
+        nextStepLabel:
+          nextCard?.actionLabel ??
+          "Open the reminder focus and resolve the next touch.",
         meta: [
           `${matchingCards.length} notice(s) in scope`,
           nextCard
@@ -1257,6 +1267,9 @@ export function AgentNotificationsClient({
           activeNoticeStreamFilter === group.key
             ? "Stay on this notice lane"
             : "Open this notice lane",
+        nextStepLabel:
+          nextCard?.actionLabel ??
+          "Open the notice lane and review the next notice.",
         meta: [
           `${matchingCards.length} notice(s) in scope`,
           nextCard
@@ -1719,6 +1732,7 @@ export function AgentNotificationsClient({
             <span>Scope · {card.scopeLabel}</span>
             <span>Created · {card.createdAtLabel}</span>
             <span>Read state · {card.readStateLabel}</span>
+            <span>Next step · {card.actionLabel}</span>
           </div>
           <p className="front-office-record-supporting">{card.whyNowLabel}</p>
         </div>
@@ -1783,6 +1797,7 @@ export function AgentNotificationsClient({
               <StatusBadge tone={card.tone}>{card.count}</StatusBadge>
             </div>
             <div className="list-row-meta front-office-record-meta">
+              <span>Next step · {card.nextStepLabel}</span>
               {card.meta.map((metaLabel) => (
                 <span key={`${card.key}-${metaLabel}`}>{metaLabel}</span>
               ))}
@@ -1803,8 +1818,8 @@ export function AgentNotificationsClient({
     <>
       <SectionCard
         className="office-list-card office-notification-toolbar"
-        subtitle="Keep the office-wide cleanup surface stable on one route: self-owned cleanup, visible-scope team cleanup, inbox-backed appointment reminders, and broader general notices. The active slice stays encoded in the URL so refreshes and reopen flows come back to the same pass."
-        title="Inbox lanes & cleanup controls"
+        subtitle="Keep the office-wide cleanup workbench stable on one route: self-owned cleanup, visible-scope team cleanup, inbox-backed appointment reminders, and broader general notices. The active slice stays encoded in the URL so refreshes and reopen flows come back to the same pass."
+        title="Workbench lanes & cleanup controls"
       >
         <ListPageStatsGrid>
           <StatCard

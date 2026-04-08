@@ -136,7 +136,7 @@ export default async function AgentNotificationsPage(
 
   return (
     <FrontOfficePageTemplate
-      description="A Front Office inbox and cleanup hub for self-owned execution drift, visible-scope team pressure, appointment reminder writeback, and broader notice follow-through without blurring the Back Office boundary."
+      description="A Front Office workbench and cleanup hub for self-owned execution drift, visible-scope team pressure, appointment reminder writeback, and broader notice follow-through without blurring the Back Office boundary."
       eyebrow="Activity"
       main={
         <AgentNotificationsClient
@@ -271,7 +271,7 @@ export default async function AgentNotificationsPage(
           <SectionCard
             className="office-list-card"
             subtitle="The center should stay practical: reopen a shareable slice, clean the record, move the next touch, and keep formal ops in Back Office."
-            title="How to use this center"
+            title="How to use this workbench"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
@@ -304,7 +304,7 @@ export default async function AgentNotificationsPage(
       summary={
         <>
           <SummaryChip
-            label="Visible route items"
+            label="Visible workbench items"
             value={visibleRouteItemCount}
           />
           <SummaryChip
@@ -356,7 +356,7 @@ export default async function AgentNotificationsPage(
           />
         </>
       }
-      title="Activity inbox & cleanup"
+      title="Activity workbench & cleanup"
     />
   );
 }
