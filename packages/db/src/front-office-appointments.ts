@@ -767,7 +767,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
       label:
         input.externalWorkflow.value ===
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed
-          ? "Confirmed with guardrail"
+          ? "Handoff ready"
           : "Touch scheduled",
       tone:
         input.externalWorkflow.value ===
@@ -794,7 +794,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
     frontOfficeAppointmentExternalWorkflowStatuses.confirmed
   ) {
     return {
-      label: "Confirmed and clear",
+      label: "Handoff ready",
       tone: "success" as const,
       detail:
         "Outside confirmation is already saved and there is no extra next-touch deadline on the record.",
@@ -1892,7 +1892,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       };
     case frontOfficeAppointmentExternalWorkflowStatuses.confirmed:
       return {
-        label: "Externally confirmed",
+        label: "Handoff ready",
         tone: "success",
         detail: [
           "The outside participant has already confirmed this appointment.",
@@ -1903,7 +1903,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
           .filter(Boolean)
           .join(" "),
         nextStep:
-          "Keep this record as-is unless the plan changes, or add a follow-up reminder if you want a last-touch check before start time.",
+          "Keep this record ready for the next handoff, or add a last-touch reminder if you want one before start time.",
         requiresExternalResponse: false,
         isExternalTouchDue: false,
       };

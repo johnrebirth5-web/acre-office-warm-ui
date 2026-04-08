@@ -2,6 +2,7 @@ export const calendarViewValues = [
   "all",
   "reply_due",
   "confirmation_pending",
+  "confirmed",
   "touch_due",
   "missing_next_touch",
   "reschedule_requested",
@@ -44,6 +45,12 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
       "Focus on scheduled appointments that still need an explicit confirmation back from the outside party.",
     label: "Awaiting confirmation",
     routeCopy: "Confirmation workbench",
+  },
+  confirmed: {
+    description:
+      "Focus on appointments that are already confirmed outside Acre and are ready for the next handoff or a final reminder checkpoint.",
+    label: "Handoff ready",
+    routeCopy: "Handoff-ready workbench",
   },
   touch_due: {
     description:
@@ -88,6 +95,10 @@ export function deriveCalendarViewFromRoute(input: {
 }) {
   if (input.coordination === "confirmation_pending") {
     return "confirmation_pending" as const;
+  }
+
+  if (input.coordination === "confirmed" || input.followUp === "confirmed") {
+    return "confirmed" as const;
   }
 
   if (input.coordination === "reschedule_requested") {
@@ -138,6 +149,14 @@ export function getCalendarViewRoutePatch(
         calendarView,
         coordination: "confirmation_pending",
         followUp: "all",
+        status: "all",
+      };
+    case "confirmed":
+      return {
+        appointmentId: "",
+        calendarView,
+        coordination: "all",
+        followUp: "confirmed",
         status: "all",
       };
     case "touch_due":

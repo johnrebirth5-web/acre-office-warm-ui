@@ -393,7 +393,7 @@ function buildAppointmentCueList(
     appointment.externalStatusValue === "confirmed" &&
     !appointment.externalNextActionAtValue
   ) {
-    cues.push({ label: "Confirmed", tone: "success" });
+    cues.push({ label: "Handoff ready", tone: "success" });
   }
 
   if (appointment.reminderLabel === "Starts within 2h") {
@@ -2054,16 +2054,12 @@ export function FrontOfficeCalendarClient(
           </Button>
           <Button
             onClick={() =>
-              navigateWithFilters({
-                followUp: "confirmed",
-                coordination: "all",
-                appointmentId: "",
-              })
+              navigateToCalendarView("confirmed")
             }
             size="sm"
-            variant={filterState.followUp === "confirmed" ? "primary" : "secondary"}
+            variant={filterState.calendarView === "confirmed" ? "primary" : "secondary"}
           >
-            Confirmed
+            Handoff ready
           </Button>
           <Button
             onClick={() =>
