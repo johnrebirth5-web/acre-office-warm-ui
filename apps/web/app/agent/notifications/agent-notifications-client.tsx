@@ -89,6 +89,7 @@ type ActivityWorkbenchCard = {
   href: string;
   actionLabel: string;
   nextStepLabel: string;
+  sectionLabel: string;
   meta: string[];
 };
 
@@ -1067,6 +1068,14 @@ export function AgentNotificationsClient({
           ? snapshot.cleanup.duplicatePairs.length
           : matchingItems.length;
       const nextDuplicatePair = snapshot.cleanup.duplicatePairs[0] ?? null;
+      const sectionLabel =
+        track.key === "appointment_writeback"
+          ? "Calendar writeback rail"
+          : track.key === "send_risk"
+            ? "Listing output rail"
+            : track.key === "stale_client"
+              ? "Recovery rail"
+              : "Follow-up rail";
       const nextLabel =
         track.key === "duplicate_review"
           ? nextDuplicatePair
@@ -1109,7 +1118,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           matchingItems[0]?.nextStepLabel ??
           "Open the cleanup rail and resolve the next touch.",
+        sectionLabel,
         meta: [
+          `Section · ${sectionLabel}`,
           `${count} item(s) in scope`,
           nextLabel,
           activeCleanupFilter === track.key
@@ -1154,7 +1165,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           nextItem?.nextStepLabel ??
           "Open the team lane and decide where to intervene.",
+        sectionLabel: group.label,
         meta: [
+          `Section · ${group.label}`,
           count > matchingItems.length && matchingItems.length > 0
             ? `${count} signal(s) in scope · showing ${matchingItems.length}`
             : `${count} signal(s) in scope`,
@@ -1209,7 +1222,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           nextCard?.actionLabel ??
           "Open the reminder focus and resolve the next touch.",
+        sectionLabel: "Appointment reminders",
         meta: [
+          "Section · Appointment reminders",
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1263,7 +1278,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           nextCard?.actionLabel ??
           "Open the notice lane and review the next notice.",
+        sectionLabel: "General notices",
         meta: [
+          "Section · General notices",
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1285,6 +1302,7 @@ export function AgentNotificationsClient({
             tone: nextPersonalCleanupItem.tone,
             badgeLabel: nextPersonalCleanupItem.kindLabel,
             meta: [
+              `Section · ${nextPersonalCleanupItem.sectionLabel}`,
               `Owner · ${nextPersonalCleanupItem.ownerLabel}`,
               `Scope · ${nextPersonalCleanupItem.scopeLabel}`,
               nextPersonalCleanupItem.sortLabel,
@@ -1301,6 +1319,7 @@ export function AgentNotificationsClient({
               tone: "accent",
               badgeLabel: "Duplicate review",
               meta: [
+                "Section · Duplicate review workbench",
                 `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
                 "Foundation cleanup before next touch",
               ],
@@ -1317,6 +1336,7 @@ export function AgentNotificationsClient({
               tone: nextTeamCleanupItem.tone,
               badgeLabel: nextTeamCleanupItem.kindLabel,
               meta: [
+                `Section · ${nextTeamCleanupItem.kindLabel}`,
                 `Owner · ${nextTeamCleanupItem.ownerLabel}`,
                 `Scope · ${nextTeamCleanupItem.scopeLabel}`,
                 `Context · ${nextTeamCleanupItem.contextLabel}`,
@@ -1334,6 +1354,7 @@ export function AgentNotificationsClient({
                 tone: nextAppointmentReminderCard.pressureTone,
                 badgeLabel: nextAppointmentReminderCard.groupLabel,
                 meta: [
+                  `Section · ${nextAppointmentReminderCard.sectionLabel}`,
                   `Owner · ${nextAppointmentReminderCard.ownerLabel}`,
                   `Scope · ${nextAppointmentReminderCard.scopeLabel}`,
                   `Read state · ${nextAppointmentReminderCard.readStateLabel}`,
@@ -1341,22 +1362,23 @@ export function AgentNotificationsClient({
                 ctaLabel: getNotificationOpenLabel(nextAppointmentReminderCard),
               }
             : null
-          : activeActivityView === "general_notices"
-            ? nextGeneralNoticeCard
-              ? {
-                  key: nextGeneralNoticeCard.id,
-                  label: nextGeneralNoticeCard.title,
-                  description: nextGeneralNoticeCard.body,
-                  href: buildNotificationOpenHref(nextGeneralNoticeCard),
-                  tone: nextGeneralNoticeCard.pressureTone,
-                  badgeLabel: nextGeneralNoticeCard.streamLabel,
-                  meta: [
-                    `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
-                    `Scope · ${nextGeneralNoticeCard.scopeLabel}`,
-                    `Read state · ${nextGeneralNoticeCard.readStateLabel}`,
-                  ],
-                  ctaLabel: getNotificationOpenLabel(nextGeneralNoticeCard),
-                }
+        : activeActivityView === "general_notices"
+          ? nextGeneralNoticeCard
+            ? {
+                key: nextGeneralNoticeCard.id,
+                label: nextGeneralNoticeCard.title,
+                description: nextGeneralNoticeCard.body,
+                href: buildNotificationOpenHref(nextGeneralNoticeCard),
+                tone: nextGeneralNoticeCard.pressureTone,
+                badgeLabel: nextGeneralNoticeCard.streamLabel,
+                meta: [
+                  `Section · ${nextGeneralNoticeCard.sectionLabel}`,
+                  `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
+                  `Scope · ${nextGeneralNoticeCard.scopeLabel}`,
+                  `Read state · ${nextGeneralNoticeCard.readStateLabel}`,
+                ],
+                ctaLabel: getNotificationOpenLabel(nextGeneralNoticeCard),
+              }
               : null
             : nextAppointmentReminderCard
               ? {
@@ -1692,6 +1714,7 @@ export function AgentNotificationsClient({
                 {card.pressureLabel}
               </Badge>
               <Badge tone={toneToBadgeTone(card.tone)}>{card.groupLabel}</Badge>
+              <Badge tone="neutral">{card.sectionLabel}</Badge>
               <Badge
                 tone={
                   !card.readStateMutable
@@ -1721,6 +1744,7 @@ export function AgentNotificationsClient({
           <p>{card.body}</p>
           <div className="list-row-meta front-office-record-meta">
             <span>{card.audienceLabel}</span>
+            <span>Section · {card.sectionLabel}</span>
             <span>Owner · {card.ownerLabel}</span>
             <span>Scope · {card.scopeLabel}</span>
             <span>Created · {card.createdAtLabel}</span>
@@ -1790,6 +1814,7 @@ export function AgentNotificationsClient({
               <StatusBadge tone={card.tone}>{card.count}</StatusBadge>
             </div>
             <div className="list-row-meta front-office-record-meta">
+              <span>Section · {card.sectionLabel}</span>
               <span>Next step · {card.nextStepLabel}</span>
               {card.meta.map((metaLabel) => (
                 <span key={`${card.key}-${metaLabel}`}>{metaLabel}</span>

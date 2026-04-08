@@ -430,6 +430,7 @@ export type FrontOfficeActivityNotificationRecord = {
   typeLabel: string;
   groupKey: FrontOfficeActivityNotificationGroupKey;
   groupLabel: string;
+  sectionLabel: string;
   streamKey: FrontOfficeActivityNotificationStreamKey;
   streamLabel: string;
   audienceLabel: "Personal notice" | "Shared office notice";
@@ -482,6 +483,7 @@ export type FrontOfficeActivityCleanupItem = {
   ownerLabel: string;
   scopeKey: FrontOfficeActivityCleanupScopeKey;
   scopeLabel: string;
+  sectionLabel: string;
   pressureKey: FrontOfficeActivityCleanupPressureKey;
   pressureLabel: string;
   whyNowLabel: string;
@@ -1663,6 +1665,35 @@ function getFrontOfficeNotificationGroup(input: {
     groupKey: "general_notice" as const,
     groupLabel: "General notice",
   };
+}
+
+function getFrontOfficeCleanupSectionLabel(input: {
+  kindKey: FrontOfficeActivityCleanupKindKey;
+  scopeKey: FrontOfficeActivityCleanupScopeKey;
+}) {
+  if (input.kindKey === "appointment_writeback") {
+    return "Calendar writeback rail";
+  }
+
+  if (input.kindKey === "send_risk") {
+    return "Listing output rail";
+  }
+
+  if (input.kindKey === "stale_client") {
+    return "Recovery rail";
+  }
+
+  if (input.scopeKey === "follow_up_task") {
+    return "Follow-up rail";
+  }
+
+  return "Next-touch rail";
+}
+
+function getFrontOfficeNotificationSectionLabel(groupKey: FrontOfficeActivityNotificationGroupKey) {
+  return groupKey === "general_notice"
+    ? "General notices"
+    : "Appointment reminders";
 }
 
 function getFrontOfficeNotificationActionLabel(input: {
@@ -3923,6 +3954,10 @@ export async function getFrontOfficeActivitySnapshot(
         ownerLabel: "Assigned to you",
         scopeKey,
         scopeLabel,
+        sectionLabel: getFrontOfficeCleanupSectionLabel({
+          kindKey: "appointment_writeback",
+          scopeKey,
+        }),
         pressureKey,
         pressureLabel,
         metaLabels: [
@@ -4009,6 +4044,10 @@ export async function getFrontOfficeActivitySnapshot(
         ownerLabel: "Assigned to you",
         scopeKey: "follow_up_task",
         scopeLabel: "Client follow-up task",
+        sectionLabel: getFrontOfficeCleanupSectionLabel({
+          kindKey: "follow_up",
+          scopeKey: "follow_up_task",
+        }),
         pressureKey: isOverdue ? "overdue" : "due_today",
         pressureLabel: isOverdue ? "Overdue" : "Due today",
         metaLabels: [
@@ -4063,6 +4102,10 @@ export async function getFrontOfficeActivitySnapshot(
         ownerLabel: "Assigned to you",
         scopeKey: "client_next_touch",
         scopeLabel: "Client next touch",
+        sectionLabel: getFrontOfficeCleanupSectionLabel({
+          kindKey: "follow_up",
+          scopeKey: "client_next_touch",
+        }),
         pressureKey: isOverdue ? "overdue" : "due_today",
         pressureLabel: isOverdue ? "Overdue" : "Due today",
         metaLabels: [
@@ -4125,6 +4168,10 @@ export async function getFrontOfficeActivitySnapshot(
             ownerLabel: "Assigned to you",
             scopeKey: "tracked_send_rescue",
             scopeLabel: "Tracked send rescue",
+            sectionLabel: getFrontOfficeCleanupSectionLabel({
+              kindKey: "send_risk",
+              scopeKey: "tracked_send_rescue",
+            }),
             pressureKey: "send_unopened_3_days",
             pressureLabel: "Unopened 3+ days",
             metaLabels: [
@@ -4183,6 +4230,10 @@ export async function getFrontOfficeActivitySnapshot(
           ownerLabel: "Assigned to you",
           scopeKey: "tracked_send_rescue",
           scopeLabel: "Tracked send rescue",
+          sectionLabel: getFrontOfficeCleanupSectionLabel({
+            kindKey: "send_risk",
+            scopeKey: "tracked_send_rescue",
+          }),
           pressureKey: "send_quiet_after_open",
           pressureLabel: "Quiet after last open",
           metaLabels: [
@@ -4231,6 +4282,10 @@ export async function getFrontOfficeActivitySnapshot(
       ownerLabel: "Assigned to you",
       scopeKey: "client_freshness",
       scopeLabel: "Client freshness",
+      sectionLabel: getFrontOfficeCleanupSectionLabel({
+        kindKey: "stale_client",
+        scopeKey: "client_freshness",
+      }),
       pressureKey: tone === "danger" ? "stale_30_days" : "stale_15_days",
       pressureLabel: tone === "danger" ? "30+ days stale" : "15+ days stale",
       metaLabels: [
@@ -4288,6 +4343,7 @@ export async function getFrontOfficeActivitySnapshot(
       ownerLabel: item.ownerLabel,
       scopeKey: item.scopeKey,
       scopeLabel: item.scopeLabel,
+      sectionLabel: item.sectionLabel,
       pressureKey: item.pressureKey,
       pressureLabel: item.pressureLabel,
       whyNowLabel: item.whyNowLabel,
@@ -4455,6 +4511,7 @@ export async function getFrontOfficeActivitySnapshot(
           ownerLabel: owner.ownerLabel,
           scopeKey: scope.scopeKey,
           scopeLabel: scope.scopeLabel,
+          sectionLabel: getFrontOfficeNotificationSectionLabel(group.groupKey),
           pressureKey: pressureState.key,
           pressureLabel: pressureState.label,
           pressureTone: pressureState.tone,
