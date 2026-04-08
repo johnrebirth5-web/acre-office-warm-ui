@@ -829,6 +829,41 @@ export function FrontOfficeListingsOutputClient(
         </div>
       </div>
 
+      <div className="front-office-playbook-card">
+        <div className="front-office-playbook-card-head">
+          <strong>{props.routeState.focusedRouteLanePanelLabel}</strong>
+          <span>{props.routeState.focusedRouteLanePanelDescription}</span>
+        </div>
+        <div className="office-queue-list">
+          {props.routeState.focusedRouteLaneSteps.map((step, index) => (
+            <QueueItem
+              badgeLabel={`Step ${index + 1}`}
+              badgeTone={step.tone}
+              description={step.detail}
+              key={step.label}
+              title={step.label}
+            />
+          ))}
+          <QueueItem
+            action={
+              hasStableWorkspaceLink ? (
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={props.routeState.stableHref}
+                >
+                  {props.routeState.focusedRouteLaneActionLabel}
+                </FrontOfficeLink>
+              ) : null
+            }
+            badgeLabel="Lane re-entry"
+            badgeTone="accent"
+            context={props.routeState.routeStatusLabel}
+            description="Reopen the same route when you want the next send to keep its client, appointment, and draft context intact."
+            title="Lane execution checkpoint"
+          />
+        </div>
+      </div>
+
       {props.routeState.diagnostics.length ? (
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">

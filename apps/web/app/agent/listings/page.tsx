@@ -1,6 +1,7 @@
 import { can, getDefaultAppPath } from "@acre/auth";
 import { getFrontOfficeListingsSnapshot } from "@acre/db";
 import {
+  QueueItem,
   ListPageStatsGrid,
   SectionCard,
   StatCard,
@@ -71,13 +72,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description="Work the outbound desk here: choose the send lane, package the agent materials, keep tracked-link context visible, and manually push the next touch back into Front Office without pretending Acre auto-sends anything."
+      description="Work the outbound desk here: choose the send lane, follow the lane checklist, package the agent materials, keep tracked-link context visible, and manually push the next touch back into Front Office without pretending Acre auto-sends anything."
       eyebrow="Listings"
       layoutClassName="front-office-listings-layout"
       main={
         <SectionCard
           className="office-list-card"
-          subtitle="Use this as the real manual send desk for listing recommendations, appointment follow-up, tracked-send rescue, focused lane re-entry, and agent-material packaging."
+          subtitle="Use this as the real manual send desk for listing recommendations, appointment follow-up, tracked-send rescue, focused lane re-entry, lane execution steps, and agent-material packaging."
           title="Outbound listing workspace"
         >
           <FrontOfficeListingsOutputClient
@@ -159,6 +160,24 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 value={routeState.preferredSupportLaneLabel}
               />
             </ListPageStatsGrid>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
+            subtitle={routeState.focusedRouteLanePanelDescription}
+            title={routeState.focusedRouteLanePanelLabel}
+          >
+            <div className="office-queue-list">
+              {routeState.focusedRouteLaneSteps.map((step, index) => (
+                <QueueItem
+                  badgeLabel={`Step ${index + 1}`}
+                  badgeTone={step.tone}
+                  description={step.detail}
+                  key={step.label}
+                  title={step.label}
+                />
+              ))}
+            </div>
           </SectionCard>
 
           <SectionCard

@@ -31,6 +31,14 @@ export type FrontOfficeListingsRouteDiagnostic = {
   description: string;
 };
 
+export type FrontOfficeListingsLaneStepTone = "accent" | "success" | "warning";
+
+export type FrontOfficeListingsLaneStep = {
+  label: string;
+  detail: string;
+  tone: FrontOfficeListingsLaneStepTone;
+};
+
 export type FrontOfficeListingsPreferredSupportLane = "sms" | "email" | "mixed";
 
 export type FrontOfficeListingsRouteState = {
@@ -52,6 +60,9 @@ export type FrontOfficeListingsRouteState = {
   focusedRouteLane: FrontOfficeListingsRouteLane;
   focusedRouteLaneLabel: string;
   focusedRouteLaneDescription: string;
+  focusedRouteLanePanelLabel: string;
+  focusedRouteLanePanelDescription: string;
+  focusedRouteLaneSteps: FrontOfficeListingsLaneStep[];
   focusedRouteLaneActionLabel: string;
   routeStatusLabel: string;
   routeStatusDescription: string;
@@ -443,6 +454,10 @@ export function buildFrontOfficeListingsRouteState(
     focusedRouteLaneLabel: resolvedFocusedRouteLane.focusedRouteLaneLabel,
     focusedRouteLaneDescription:
       resolvedFocusedRouteLane.focusedRouteLaneDescription,
+    focusedRouteLanePanelLabel: resolvedFocusedRouteLane.focusedRouteLanePanelLabel,
+    focusedRouteLanePanelDescription:
+      resolvedFocusedRouteLane.focusedRouteLanePanelDescription,
+    focusedRouteLaneSteps: resolvedFocusedRouteLane.focusedRouteLaneSteps,
     focusedRouteLaneActionLabel:
       resolvedFocusedRouteLane.focusedRouteLaneActionLabel,
     routeStatusLabel,
@@ -490,6 +505,29 @@ function buildFocusedRouteLane(input: {
       focusedRouteLaneDescription: input.draftAssist
         ? "A deep-linked draft assist is active here. Re-enter this lane when you want the assisted copy and tracked listing link to travel together."
         : "A draft lane shell is selected here, but no assisted copy is loaded yet. Re-enter from a draft assist link to carry the copied channel with the listing trail.",
+      focusedRouteLanePanelLabel: "Draft lane workbench",
+      focusedRouteLanePanelDescription:
+        "Keep the assisted draft, channel choice, and tracked link together before copying anything into a manual send.",
+      focusedRouteLaneSteps: [
+        {
+          label: "Review the assisted draft",
+          detail:
+            "Check the loaded SMS or email copy before it leaves this route.",
+          tone: "warning" as const,
+        },
+        {
+          label: "Match the send channel",
+          detail:
+            "Use the channel that matches the loaded draft so the package stays coherent.",
+          tone: "accent" as const,
+        },
+        {
+          label: "Keep the tracked link attached",
+          detail:
+            "Only reopen a different lane if you need a different recipient thread or writeback path.",
+          tone: "success" as const,
+        },
+      ],
       focusedRouteLaneActionLabel: input.draftAssist
         ? "Keep draft lane open"
         : "Open draft lane",
@@ -502,6 +540,29 @@ function buildFocusedRouteLane(input: {
         focusedRouteLane: "follow-through" as const,
         focusedRouteLaneLabel: "Appointment follow-through lane",
         focusedRouteLaneDescription: `This lane keeps ${input.snapshot.targetClient.fullName} and ${input.snapshot.targetAppointment.title} tied to the same tracked send trail, so the next touch does not fall back to a generic outbound workspace.`,
+        focusedRouteLanePanelLabel: "Appointment follow-through workbench",
+        focusedRouteLanePanelDescription:
+          "Stay inside the appointment thread so the next send, reminder, or writeback continues the same conversation.",
+        focusedRouteLaneSteps: [
+          {
+            label: "Keep the appointment thread attached",
+            detail:
+              "Use the active appointment context instead of rebuilding the send from a generic listings surface.",
+            tone: "accent" as const,
+          },
+          {
+            label: "Choose the next reaction channel",
+            detail:
+              "Use SMS for a quick reaction and email when the client needs more framing beside the listing.",
+            tone: "warning" as const,
+          },
+          {
+            label: "Save the follow-through outcome",
+            detail:
+              "Record the next touch or bridge result before leaving the appointment loop.",
+            tone: "success" as const,
+          },
+        ],
         focusedRouteLaneActionLabel: "Resume follow-through lane",
       };
     }
@@ -511,6 +572,29 @@ function buildFocusedRouteLane(input: {
         focusedRouteLane: "follow-through" as const,
         focusedRouteLaneLabel: "Client follow-through lane",
         focusedRouteLaneDescription: `This lane keeps ${input.snapshot.targetClient.fullName}'s dossier bound to the outbound send trail, so the next touch re-enters from the same client context instead of a generic tracked link.`,
+        focusedRouteLanePanelLabel: "Client follow-through workbench",
+        focusedRouteLanePanelDescription:
+          "Stay in the client trail so the next send, reaction, or rescue pass remains attached to the same dossier.",
+        focusedRouteLaneSteps: [
+          {
+            label: "Keep the dossier context attached",
+            detail:
+              "Re-enter from the client record so the next touch inherits the same contact, stage, and send trail.",
+            tone: "accent" as const,
+          },
+          {
+            label: "Pick the channel that fits the thread",
+            detail:
+              "Use email when the client needs framing and SMS when the next move should feel quick.",
+            tone: "warning" as const,
+          },
+          {
+            label: "Leave a written next step",
+            detail:
+              "Save the follow-up or writeback before you exit the client trail.",
+            tone: "success" as const,
+          },
+        ],
         focusedRouteLaneActionLabel: "Resume follow-through lane",
       };
     }
@@ -520,6 +604,29 @@ function buildFocusedRouteLane(input: {
       focusedRouteLaneLabel: "Follow-through lane",
       focusedRouteLaneDescription:
         "This lane shell is selected, but no bound client or appointment trail is attached yet. Re-enter from a dossier or appointment when you want the next touch to inherit writeback instead of generic outbound state.",
+      focusedRouteLanePanelLabel: "Follow-through workbench",
+      focusedRouteLanePanelDescription:
+        "Attach the lane to a client or appointment before you copy anything so the next step keeps a visible execution trail.",
+      focusedRouteLaneSteps: [
+        {
+          label: "Attach a live trail first",
+          detail:
+            "Open the dossier or appointment that should own the next touch before you send anything.",
+          tone: "warning" as const,
+        },
+        {
+          label: "Choose the right channel",
+          detail:
+            "Match the manual send channel to the conversation depth you need to preserve.",
+          tone: "accent" as const,
+        },
+        {
+          label: "Capture the next touch",
+          detail:
+            "Write back the next follow-up or bridge result while the context is still fresh.",
+          tone: "success" as const,
+        },
+      ],
       focusedRouteLaneActionLabel: "Resume follow-through lane",
     };
   }
@@ -529,6 +636,29 @@ function buildFocusedRouteLane(input: {
     focusedRouteLaneLabel: "Send rescue lane",
     focusedRouteLaneDescription:
       "Use this lane to reopen quiet tracked sends, rescue no-reply follow-up, and keep the next manual touch tied to the same listing trail.",
+    focusedRouteLanePanelLabel: "Send rescue workbench",
+    focusedRouteLanePanelDescription:
+      "Use this lane to reopen a quiet send, decide the next manual reaction, and keep the tracked trail intact.",
+    focusedRouteLaneSteps: [
+      {
+        label: "Reopen the quiet send trail",
+        detail:
+          "Start from the listing that went quiet so you can recover momentum without rebuilding the whole package.",
+        tone: "warning" as const,
+      },
+      {
+        label: "Pick the shortest useful reply path",
+        detail:
+          "Use SMS for a quick reaction or email when the lead needs more framing before they answer.",
+        tone: "accent" as const,
+      },
+      {
+        label: "Keep proof and identity nearby",
+        detail:
+          "Pair the rescue with the companion package so the next manual send still feels grounded.",
+        tone: "success" as const,
+      },
+    ],
     focusedRouteLaneActionLabel: "Re-enter rescue lane",
   };
 }

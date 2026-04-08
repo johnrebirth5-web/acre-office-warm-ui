@@ -528,6 +528,30 @@ export function FrontOfficeAgentMaterialWindow(
             description={supportPackageStatus.description}
             title={supportPackageStatus.title}
           />
+          <QueueItem
+            action={
+              props.routeState.stableHref !== props.routeState.contextHref ? (
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={props.routeState.stableHref}
+                >
+                  {props.routeState.focusedRouteLaneActionLabel}
+                </FrontOfficeLink>
+              ) : null
+            }
+            badgeLabel={props.routeState.focusedRouteLanePanelLabel}
+            badgeTone="accent"
+            context={props.routeState.focusedRouteLaneLabel}
+            description={props.routeState.focusedRouteLanePanelDescription}
+            meta={
+              <span>
+                {props.routeState.focusedRouteLaneSteps
+                  .map((step) => step.label)
+                  .join(" · ")}
+              </span>
+            }
+            title="Lane execution checklist"
+          />
         </div>
       </div>
 
