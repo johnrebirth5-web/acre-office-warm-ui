@@ -214,6 +214,64 @@ function addDays(input: Date, days: number) {
   return next;
 }
 
+function getUpcomingWeekdayDate(input: Date, weekday: number, forceNextWeek = false) {
+  const next = new Date(input);
+  const currentWeekday = next.getDay();
+  let daysUntilTarget = (weekday - currentWeekday + 7) % 7;
+
+  if (forceNextWeek && daysUntilTarget === 0) {
+    daysUntilTarget = 7;
+  }
+
+  next.setDate(next.getDate() + daysUntilTarget);
+  return next;
+}
+
+function parseWeekdayDate(text: string, now: Date) {
+  const weekdayMatch = text.match(
+    /\b(?:next|this|coming|on)?\s*(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/i,
+  );
+
+  if (!weekdayMatch?.[1]) {
+    return null;
+  }
+
+  const weekdayLabel = weekdayMatch[1].toLowerCase();
+  const weekdayIndexMap: Record<string, number> = {
+    mon: 1,
+    monday: 1,
+    tue: 2,
+    tues: 2,
+    tuesday: 2,
+    wed: 3,
+    wednesday: 3,
+    thu: 4,
+    thur: 4,
+    thurs: 4,
+    thursday: 4,
+    fri: 5,
+    friday: 5,
+    sat: 6,
+    saturday: 6,
+    sun: 0,
+    sunday: 0,
+  };
+
+  const weekdayIndex = weekdayIndexMap[weekdayLabel];
+
+  if (weekdayIndex === undefined) {
+    return null;
+  }
+
+  const forceNextWeek = /\b(?:next|coming)\b/i.test(text);
+  const value = formatIsoDate(getUpcomingWeekdayDate(now, weekdayIndex, forceNextWeek));
+
+  return {
+    value,
+    relative: true,
+  };
+}
+
 function uniqueStrings(values: string[]) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -948,6 +1006,12 @@ function parseDateValue(text: string, now: Date) {
       value: isoMatch[1],
       relative: false,
     };
+  }
+
+  const weekdayDate = parseWeekdayDate(text, now);
+
+  if (weekdayDate) {
+    return weekdayDate;
   }
 
   const usDateMatch = text.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);

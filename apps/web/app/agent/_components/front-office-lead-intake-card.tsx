@@ -558,6 +558,19 @@ function buildAssistReviewSections(input: {
   });
 }
 
+function buildAssistReviewOrderLabels(sections: IntakeReviewSection[]) {
+  return sections
+    .filter((section) => section.reviewableCount > 0)
+    .slice(0, 3)
+    .map((section) =>
+      section.pendingCount > 0
+        ? `${section.label} first`
+        : section.reviewFirstCount > 0 && section.reviewedCount < section.reviewFirstCount
+          ? `${section.label} next`
+          : section.label,
+    );
+}
+
 function isBlankOrUntouchedDefaultField(input: {
   fieldKey: LeadFormFieldKey;
   currentValue: string;
@@ -1163,7 +1176,7 @@ export function FrontOfficeLeadIntakeCard(
     ]);
     setAssistFeedback({
       tone: "success",
-      message: `${reviewableFieldKeys.length} suggestion(s) from unresolved sections were marked reviewed. Apply the reviewed-blank-fields action next if you want to copy them into blank live fields.`,
+      message: `${reviewableFieldKeys.length} suggestion(s) from unresolved sections were marked reviewed. ${assistReviewOrderLabels.length ? `Next up: ${assistReviewOrderLabels.join(", ")}.` : "Apply the reviewed-blank-fields action next if you want to copy them into blank live fields."}`,
     });
   }
 
@@ -1319,7 +1332,7 @@ export function FrontOfficeLeadIntakeCard(
     setAssistReplaceConfirmationFieldKey(null);
     setAssistFeedback({
       tone: "success",
-      message: `${reviewedKeys.length} field(s) in this section were marked reviewed. Apply the reviewed blank fields when you are ready.`,
+      message: `${reviewedKeys.length} field(s) in this section were marked reviewed. ${assistReviewOrderLabels.length ? `Current review order: ${assistReviewOrderLabels.join(", ")}.` : "Apply the reviewed blank fields when you are ready."}`,
     });
   }
 
@@ -1813,6 +1826,10 @@ export function FrontOfficeLeadIntakeCard(
     () => assistReviewSections.filter((section) => section.pendingCount > 0).length,
     [assistReviewSections],
   );
+  const assistReviewOrderLabels = useMemo(
+    () => buildAssistReviewOrderLabels(assistReviewSections),
+    [assistReviewSections],
+  );
   const manualConfirmationAssistSectionCount = useMemo(
     () =>
       assistReviewSections.filter(
@@ -2089,6 +2106,11 @@ export function FrontOfficeLeadIntakeCard(
                     {manualAssistOverrideCount > 0 ? (
                       <span>
                         {manualAssistOverrideCount} manual override(s)
+                      </span>
+                    ) : null}
+                    {assistReviewOrderLabels.length ? (
+                      <span>
+                        Review order: {assistReviewOrderLabels.join(" · ")}
                       </span>
                     ) : null}
                   </div>

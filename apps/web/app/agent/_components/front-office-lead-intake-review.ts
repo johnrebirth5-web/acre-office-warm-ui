@@ -147,6 +147,10 @@ function buildMeaningfulSource(value: string | undefined) {
   return normalized;
 }
 
+function hasReason(reasons: string[], predicate: (reason: string) => boolean) {
+  return reasons.some(predicate);
+}
+
 function scoreCandidateMatch(input: {
   candidate: FrontOfficeLeadDuplicatePreviewCandidate;
   needle: FrontOfficeLeadDuplicatePreviewNeedle;
@@ -220,9 +224,13 @@ function buildConfidenceLabel(input: {
   score: number;
   reasons: string[];
 }) {
-  const hasEmail = input.reasons.some((reason) => reason.startsWith("Same email"));
-  const hasPhone = input.reasons.some((reason) => reason.startsWith("Same phone"));
-  const hasName = input.reasons.some((reason) => reason.includes("name"));
+  const hasEmail = hasReason(input.reasons, (reason) =>
+    reason.startsWith("Same email"),
+  );
+  const hasPhone = hasReason(input.reasons, (reason) =>
+    reason.startsWith("Same phone"),
+  );
+  const hasName = hasReason(input.reasons, (reason) => reason.includes("name"));
 
   if (hasEmail && hasPhone) {
     return "Very high visible duplicate risk";
@@ -242,13 +250,19 @@ function buildConfidenceLabel(input: {
 }
 
 function buildRecommendedActionLabel(reasons: string[]) {
-  const hasEmail = reasons.some((reason) => reason.startsWith("Same email"));
-  const hasPhone = reasons.some((reason) => reason.startsWith("Same phone"));
+  const hasEmail = hasReason(reasons, (reason) => reason.startsWith("Same email"));
+  const hasPhone = hasReason(reasons, (reason) => reason.startsWith("Same phone"));
   const hasContactInfoMatch = hasEmail || hasPhone;
-  const hasNameMatch = reasons.some((reason) => reason.includes("name"));
+  const hasNameMatch = hasReason(reasons, (reason) => reason.includes("name"));
+  const hasAreaOverlap = hasReason(reasons, (reason) =>
+    reason.startsWith("Area overlap"),
+  );
+  const hasSourceMatch = hasReason(reasons, (reason) =>
+    reason.startsWith("Source label also lines up"),
+  );
 
   if (hasEmail && hasPhone) {
-    return "Open the existing record first, compare stage, next touch, and source, then create a second dossier only if this is truly a different lead.";
+    return "Open the existing record first, compare contact info, next touch, and source, then create a second dossier only if this is truly a different lead.";
   }
 
   if (hasContactInfoMatch) {
@@ -257,6 +271,10 @@ function buildRecommendedActionLabel(reasons: string[]) {
 
   if (hasNameMatch) {
     return "Compare phone, email, stage, and preferred areas in the existing record before you create anything new.";
+  }
+
+  if (hasAreaOverlap || hasSourceMatch) {
+    return "Open the visible record first, then compare preferred areas, source, and next touch before deciding whether to create a separate dossier.";
   }
 
   return "Review the visible record first, then compare contact details, stage, and next touch before creating a separate dossier.";
