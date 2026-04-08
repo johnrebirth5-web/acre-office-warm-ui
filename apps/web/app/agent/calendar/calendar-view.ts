@@ -48,9 +48,9 @@ const calendarViewConfigs: Record<CalendarViewKey, CalendarViewConfig> = {
   },
   confirmed: {
     description:
-      "Focus on appointments that are already confirmed outside Acre and are ready for the next handoff or a final reminder checkpoint.",
-    label: "Handoff ready",
-    routeCopy: "Handoff-ready workbench",
+      "Focus on appointments that are already confirmed outside Acre and only need a last-touch checkpoint or a clean confirmed record before start time.",
+    label: "Externally confirmed",
+    routeCopy: "Confirmed workbench",
   },
   touch_due: {
     description:

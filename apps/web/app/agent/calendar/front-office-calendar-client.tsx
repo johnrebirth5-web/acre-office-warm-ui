@@ -393,7 +393,7 @@ function buildAppointmentCueList(
     appointment.externalStatusValue === "confirmed" &&
     !appointment.externalNextActionAtValue
   ) {
-    cues.push({ label: "Handoff ready", tone: "success" });
+    cues.push({ label: "Externally confirmed", tone: "success" });
   }
 
   if (appointment.reminderLabel === "Starts within 2h") {
@@ -2059,7 +2059,7 @@ export function FrontOfficeCalendarClient(
             size="sm"
             variant={filterState.calendarView === "confirmed" ? "primary" : "secondary"}
           >
-            Handoff ready
+            Externally confirmed
           </Button>
           <Button
             onClick={() =>

@@ -139,7 +139,7 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 label="Lane"
                 tone={
                   routeState.focusedRouteLane === "send-rescue"
-                    ? "warning"
+                    ? "default"
                     : "accent"
                 }
                 value={routeState.focusedRouteLaneLabel}

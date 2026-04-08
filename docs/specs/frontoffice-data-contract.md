@@ -228,6 +228,21 @@ This keeps the handoff visible without pretending formal transaction creation al
 - `/agent/notifications` now also tightens cleanup re-entry instead of behaving like a broad holding page:
   - duplicate-review cleanup now intentionally reopens `/agent/clients?clientView=duplicate_review#duplicate-review`, keeping duplicate merge work inside the dedicated clients workbench lane
   - appointment-writeback cleanup now preserves `clientId + appointmentId` when that context exists, so the next calendar move reopens a tighter writeback focus instead of a bare appointment deep link
+  - cleanup and team-cleanup items now also carry more explicit workbench next-step labels such as `follow-up workbench`, `next-touch workbench`, `send-risk workbench`, `recovery workbench`, and client-aware calendar-writeback re-entry so the activity center reads as an operator surface instead of a generic queue
+
+- `/agent/listings` now also carries a route-persistent focused-lane contract on top of the existing send mode:
+  - the route now accepts `lane=send-rescue|follow-through|draft-lane`, so listings can reopen the same rescue, client-follow-through, appointment-follow-through, or draft-focused send trail without reconstructing context from generic mode alone
+  - the listings route-state service now builds lane-aware `stableHref` and diagnostics, so stale or invalid lane params can be trimmed while preserving the nearest safe outbound workspace
+  - the live listings UI now surfaces `Route`, `Mode`, and `Lane` separately, keeping send-rescue intent, writeback binding, and draft/package state visible at once
+
+- `/agent/calendar` now also hardens the confirmed writeback slice into the same route-persistent contract:
+  - `/agent/calendar` now supports `calendarView=confirmed`, so externally confirmed appointments can reopen through one stable alias instead of a filter-only `followUp=confirmed` combination
+  - the confirmed lane intentionally stays in FO appointment language as `Externally confirmed`, reserving FO -> BO handoff language for formal boundary work instead of appointment coordination
+
+- `/agent/dashboard` now also sharpens its workbench shortcuts on top of those shared contracts:
+  - appointment commitments now reopen the appointment workbench through `calendarView=bridge_logged` plus preserved `appointmentId` context when available
+  - send-pressure launch cards now point to the client `next-step rail` or the listings-side `send-risk workbench` instead of a broad listing-output summary
+  - cleanup launch cards now consistently use `cleanup re-entry` wording so the dashboard and activity center describe the same operator move
 
 ## Non-goals in this phase
 
