@@ -543,7 +543,6 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                     className="office-inline-link front-office-inline-link"
                     href={viewAction.href}
                     key={viewAction.href}
-                    title={viewAction.title}
                   >
                     {viewAction.label}
                   </FrontOfficeLink>

@@ -1556,6 +1556,7 @@ export async function getFrontOfficeDashboardSnapshot(
         meetingUrl: true,
         client: {
           select: {
+            id: true,
             fullName: true,
           },
         },

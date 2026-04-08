@@ -204,6 +204,7 @@ This keeps the handoff visible without pretending formal transaction creation al
   - Acre surfaces same-email / same-phone / same-name duplicate pairs in the active FO pipeline instead of only warning at create time
   - the merge action keeps one surviving FO dossier and moves shared FO workflow context such as appointments, follow-up tasks, tracked send history, AI accepted actions, handoff drafts, and transaction-contact links onto that surviving record
   - when the matched record belongs to the current viewer, review stays inside the FO dossier; when it is only visible through broader contact permissions, the review path intentionally opens the shared Office contact workspace instead of a FO-only route that would fail access
+  - that same CRM route now also accepts a route-persistent `clientView` contract with `all`, `follow_first`, `anchor_now`, `viewing_lane`, `boundary_review`, and `duplicate_review`, so dashboard shortcuts, intake duplicate warnings, and duplicate-review actions can reopen the exact lane without inventing parallel list routes
   - this cleanup pass now extends beyond the current owner's queue, and the first unified cleanup center now lives on `/agent/notifications`, but deeper office-wide cleanup depth and stronger intake acceleration beyond the current browser-side OCR beta still remain follow-up work
 - external calendar / email bridge now also lives on top of the same FO appointment foundation instead of remaining only a roadmap line:
   - scheduled appointments on `/agent/calendar` and `/agent/clients/[clientId]` now expose direct `Google Calendar`, `Outlook`, `Download ICS`, and `Email client` actions
@@ -213,7 +214,13 @@ This keeps the handoff visible without pretending formal transaction creation al
   - that same writeback layer now also supports an optional `next external touch` timestamp plus operator note, so cleanup priority can follow the promised outside follow-up window instead of only the appointment start time
   - that promised outside follow-up window now also flows into the shared inbox reconciliation path, so a due or overdue confirmation / reschedule touch can become a real notification instead of staying cleanup-only
   - `/agent/calendar` now also turns that bridge action into an explicit `After the bridge` checkpoint with a suggested-writeback load action, so the operator can jump directly from export/open to the saved Acre next-touch form without re-building the plan by hand
+  - `/agent/clients/[clientId]` appointment cards now also carry `calendarWritebackHref`, `bridgeNextStepLabel`, and `bridgeNextStepDetail`, so the dossier can reopen the exact writeback route for the same appointment instead of forcing the operator to rediscover it through the calendar list first
   - this current layer intentionally stops short of pretending Acre already owns full two-way sync; it is an action-first export path with lightweight writeback that preserves the existing FO appointment source of truth
+
+- `/agent/dashboard` now also consumes the same execution-lane contracts instead of using generic summary links:
+  - dashboard action-queue items now carry explicit `whyNowLabel` and `nextStepLabel`, so the launchpad and action queue can explain both the pressure reason and the operator move without collapsing them into one sentence
+  - dashboard client shortcuts now reopen `/agent/clients` through the same `clientView` contract, so `follow first`, `anchor now`, `viewing lane`, `duplicate review`, and broad CRM review all land in stable workbench states
+  - leadership cleanup shortcuts continue to route through `/agent/notifications`, but now reuse the same pressure-specific next-step copy that the activity center shows inside the workbench cards
 
 ## Non-goals in this phase
 
