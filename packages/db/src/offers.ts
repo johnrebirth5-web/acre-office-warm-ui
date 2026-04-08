@@ -1128,7 +1128,7 @@ export async function createOffer(input: CreateOfferInput): Promise<OfficeOfferR
         financingType: parseOptionalText(input.financingType),
         closingDateOffered: parseOptionalDate(input.closingDateOffered),
         expirationAt: parseOptionalDate(input.expirationAt),
-        additionalFields: input.additionalFields ?? Prisma.JsonNull,
+        additionalFields: input.additionalFields ?? {},
         notes: parseOptionalText(input.notes),
         status: OfferStatus.draft
       }
@@ -1222,7 +1222,7 @@ export async function updateOffer(input: UpdateOfferInput): Promise<OfficeOfferR
               String(value ?? "")
             ])
           )
-        : Prisma.JsonNull;
+        : {};
 
     const nextValues = {
       title: input.title?.trim() || existing.title,

@@ -1055,12 +1055,18 @@ async function listCustomFieldKeysWithSavedValues(input: {
 }): Promise<Set<string>> {
   const db = input.db ?? prisma;
   const scopedOfficeId = resolveFieldSettingsOfficeId(input.module, input.officeId);
+  const safeAdditionalFieldsObjectSql = Prisma.sql`
+    CASE
+      WHEN jsonb_typeof("additionalFields") = 'object' THEN "additionalFields"
+      ELSE '{}'::jsonb
+    END
+  `;
 
   if (input.module === "contact") {
     const rows = await db.$queryRaw<Array<{ fieldKey: string }>>(Prisma.sql`
       SELECT DISTINCT keys."fieldKey"
       FROM "Client"
-      CROSS JOIN LATERAL jsonb_object_keys(COALESCE("additionalFields", '{}'::jsonb)) AS keys("fieldKey")
+      CROSS JOIN LATERAL jsonb_object_keys(${safeAdditionalFieldsObjectSql}) AS keys("fieldKey")
       WHERE "organizationId" = ${input.organizationId}
     `);
 
@@ -1074,7 +1080,7 @@ async function listCustomFieldKeysWithSavedValues(input: {
     const rows = await db.$queryRaw<Array<{ fieldKey: string }>>(Prisma.sql`
       SELECT DISTINCT keys."fieldKey"
       FROM "Offer"
-      CROSS JOIN LATERAL jsonb_object_keys(COALESCE("additionalFields", '{}'::jsonb)) AS keys("fieldKey")
+      CROSS JOIN LATERAL jsonb_object_keys(${safeAdditionalFieldsObjectSql}) AS keys("fieldKey")
       WHERE "organizationId" = ${input.organizationId}
       ${officeFilter}
     `);
@@ -1088,7 +1094,7 @@ async function listCustomFieldKeysWithSavedValues(input: {
   const rows = await db.$queryRaw<Array<{ fieldKey: string }>>(Prisma.sql`
     SELECT DISTINCT keys."fieldKey"
     FROM "Transaction"
-    CROSS JOIN LATERAL jsonb_object_keys(COALESCE("additionalFields", '{}'::jsonb)) AS keys("fieldKey")
+    CROSS JOIN LATERAL jsonb_object_keys(${safeAdditionalFieldsObjectSql}) AS keys("fieldKey")
     WHERE "organizationId" = ${input.organizationId}
     ${officeFilter}
   `);

@@ -992,7 +992,7 @@ export async function createContact(
         budgetMin: parseOptionalDecimal(input.budgetMin),
         budgetMax: parseOptionalDecimal(input.budgetMax),
         preferredAreas: input.preferredAreas?.filter(Boolean) ?? [],
-        additionalFields: input.additionalFields ?? Prisma.JsonNull,
+        additionalFields: input.additionalFields ?? {},
         notes: input.notes?.trim() || null,
         lastContactAt: parseOptionalDate(input.lastContactAt),
         nextFollowUpAt: parseOptionalDate(input.nextFollowUpAt),

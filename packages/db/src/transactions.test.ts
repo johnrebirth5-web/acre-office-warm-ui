@@ -5,10 +5,12 @@ import { NotificationType, Prisma, type UserRole } from "@prisma/client";
 import { prisma } from "./client.ts";
 import {
   createOfficeTransactionCustomFieldDefinition,
+  getOfficeFieldSettingsSnapshot,
   deleteOfficeCustomFieldDefinition,
   getOfficeTransactionIntakeSchema,
   saveOfficeFieldSettings
 } from "./field-settings.ts";
+import { createOffer } from "./offers.ts";
 import {
   createTransaction,
   getTransactionById,
@@ -100,6 +102,82 @@ async function createTransactionsTestContext() {
     }
   };
 }
+
+test("getOfficeFieldSettingsSnapshot tolerates scalar contact additionalFields when transaction module is selected", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.adminMembership.id,
+        fullName: "KiKi",
+        source: "Screenshot OCR import",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        preferredAreas: [],
+        additionalFields: Prisma.JsonNull
+      }
+    });
+
+    const snapshot = await getOfficeFieldSettingsSnapshot({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      selectedModule: "transaction"
+    });
+
+    assert.equal(snapshot.selectedModule, "transaction");
+    assert.equal(snapshot.currentModule.module, "transaction");
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("createOffer stores an empty additionalFields object when none is provided", async () => {
+  const context = await createTransactionsTestContext();
+
+  try {
+    const owner = await context.createMembership("agent", "offer-owner");
+    const transaction = await createTransaction({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      ownerMembershipId: owner.membership.id,
+      actorMembershipId: context.adminMembership.id,
+      transactionType: "sales",
+      transactionStatus: "pending",
+      representing: "buyer",
+      address: "200 Offer St",
+      city: "New York",
+      state: "NY",
+      zipCode: "10001",
+      transactionName: "Offer Parent Transaction",
+      price: "650000"
+    });
+
+    const offer = await createOffer({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      transactionId: transaction.id,
+      actorMembershipId: context.adminMembership.id,
+      title: "Initial Offer",
+      offeringPartyName: "Buyer LLC"
+    });
+
+    const stored = await prisma.offer.findUnique({
+      where: {
+        id: offer?.id ?? ""
+      },
+      select: {
+        additionalFields: true
+      }
+    });
+
+    assert.ok(offer);
+    assert.deepEqual(stored?.additionalFields, {});
+  } finally {
+    await context.cleanup();
+  }
+});
 
 function buildTransactionBuiltInSettingsInput(
   schema: Awaited<ReturnType<typeof getOfficeTransactionIntakeSchema>>,

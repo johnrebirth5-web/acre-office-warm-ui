@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { Prisma, type UserRole } from "@prisma/client";
 import { prisma } from "./client.ts";
-import { getContactById, listContacts } from "./contacts.ts";
+import { createContact, getContactById, listContacts } from "./contacts.ts";
 import { createTransaction } from "./transactions.ts";
 
 after(async () => {
@@ -108,6 +108,42 @@ function buildTransactionInput(
     price: "100000"
   };
 }
+
+test("createContact stores an empty additionalFields object when none is provided", async () => {
+  const context = await createContactsTestContext();
+
+  try {
+    await listContacts({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      officeId: context.office.id
+    });
+
+    const created = await createContact({
+      organizationId: context.organization.id,
+      ownerMembershipId: context.adminMembership.id,
+      actorMembershipId: context.adminMembership.id,
+      actorOfficeId: context.office.id,
+      fullName: "Empty Additional Fields Contact",
+      source: "Manual entry",
+      stage: "New",
+      intent: "Buyer"
+    });
+
+    const stored = await prisma.client.findUnique({
+      where: {
+        id: created.id
+      },
+      select: {
+        additionalFields: true
+      }
+    });
+
+    assert.deepEqual(stored?.additionalFields, {});
+  } finally {
+    await context.cleanup();
+  }
+});
 
 test("contacts list and detail respect membership scope", async () => {
   const context = await createContactsTestContext();
