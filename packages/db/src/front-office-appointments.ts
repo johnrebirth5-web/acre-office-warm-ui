@@ -241,12 +241,22 @@ export type FrontOfficeAppointmentCheckpointSummary = {
   sourceNote: string;
 };
 
+export type FrontOfficeAppointmentBridgeContinuity = {
+  label: string;
+  detail: string;
+  nextStep: string;
+  sourceNote: string;
+  returnToLabel: string;
+  returnToDetail: string;
+};
+
 export type FrontOfficeAppointmentBridgeGuidance = {
   manualOnlyDetail: string;
   followUpDetail: string;
   followUpCadenceLabel: string;
   followUpCadenceDetail: string;
   checkpoint: FrontOfficeAppointmentCheckpointSummary;
+  continuity: FrontOfficeAppointmentBridgeContinuity;
   suggestedWriteback: FrontOfficeAppointmentBridgeWritebackSuggestion | null;
 };
 
@@ -1051,8 +1061,29 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
 }): FrontOfficeAppointmentBridgeGuidance {
   const manualOnlyDetail =
     "Bridge lane only: Acre logs that the bridge was opened here. The Google, Outlook, ICS, or email draft stays manual, so save the reply due, confirmation pending, reschedule, or promised-touch checkpoint back on this appointment after you send or export.";
+  const buildContinuity = (
+    checkpoint: FrontOfficeAppointmentCheckpointSummary,
+  ): FrontOfficeAppointmentBridgeContinuity => ({
+    label: checkpoint.label,
+    detail:
+      `${checkpoint.detail} The bridge remains manual, so jump back to the same appointment and save the checkpoint in Acre once you finish the draft or export.`,
+    nextStep: checkpoint.nextStep,
+    sourceNote: checkpoint.sourceNote,
+    returnToLabel: "Return to writeback",
+    returnToDetail:
+      "Acre keeps the checkpoint readable here. The outside calendar or inbox draft does not sync it automatically.",
+  });
 
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
+    const checkpoint = {
+      label: "Reopen before writeback",
+      detail:
+        "This appointment is closed in Acre, so the next reply due, confirmation pending, reschedule, or promised-touch checkpoint must start from a fresh scheduled record.",
+      nextStep:
+        "Create or reopen a fresh scheduled record before writing the next checkpoint back into Acre.",
+      sourceNote: manualOnlyDetail,
+    };
+
     return {
       manualOnlyDetail,
       followUpDetail:
@@ -1060,14 +1091,8 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
       followUpCadenceLabel: "Reopen before writeback",
       followUpCadenceDetail:
         "This appointment is closed in Acre, so any bridge or follow-up should happen from a fresh scheduled record before a new touch scheduled checkpoint is saved.",
-      checkpoint: {
-        label: "Reopen before writeback",
-        detail:
-          "This appointment is closed in Acre, so the next reply due, confirmation pending, reschedule, or promised-touch checkpoint must start from a fresh scheduled record.",
-        nextStep:
-          "Create or reopen a fresh scheduled record before writing the next checkpoint back into Acre.",
-        sourceNote: manualOnlyDetail,
-      },
+      checkpoint,
+      continuity: buildContinuity(checkpoint),
       suggestedWriteback: null,
     };
   }
@@ -1082,6 +1107,19 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
     touchPresets.find((preset) => preset.suggestedStatus === preferredStatus) ??
     touchPresets[0] ??
     null;
+
+  const checkpoint = {
+    label: suggestedPreset
+      ? suggestedPreset.label
+      : "Recommended next checkpoint",
+    detail: suggestedPreset
+      ? suggestedPreset.detail
+      : "Keep the current reply due, confirmation pending, reschedule, or touch scheduled checkpoint readable in Acre.",
+    nextStep: suggestedPreset
+      ? `${suggestedPreset.detail} Save it back on the appointment once the bridge action is done so Acre keeps the checkpoint visible.`
+      : "Save the next promised checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
+    sourceNote: manualOnlyDetail,
+  };
 
   return {
     manualOnlyDetail,
@@ -1099,18 +1137,8 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
     followUpCadenceDetail: suggestedPreset
       ? `${suggestedPreset.detail} Save it back on the appointment once the bridge action is done so Acre keeps the checkpoint visible.`
       : "Save the next promised checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
-    checkpoint: {
-      label: suggestedPreset
-        ? suggestedPreset.label
-        : "Recommended next checkpoint",
-      detail: suggestedPreset
-        ? suggestedPreset.detail
-        : "Keep the current reply due, confirmation pending, reschedule, or touch scheduled checkpoint readable in Acre.",
-      nextStep: suggestedPreset
-        ? `${suggestedPreset.detail} Save it back on the appointment once the bridge action is done so Acre keeps the checkpoint visible.`
-        : "Save the next promised checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
-      sourceNote: manualOnlyDetail,
-    },
+    checkpoint,
+    continuity: buildContinuity(checkpoint),
     suggestedWriteback: suggestedPreset
       ? {
           status: suggestedPreset.suggestedStatus,
