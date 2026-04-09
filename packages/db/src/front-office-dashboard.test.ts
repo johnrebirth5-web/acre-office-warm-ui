@@ -391,6 +391,18 @@ test("dashboard surfaces the leadership command deck for office admins", async (
       snapshot.aiQueue.items[0]?.sequenceLabel,
       "Prep the calendar checkpoint",
     );
+    assert.equal(
+      snapshot.aiQueue.items[0]?.safeActionLabel,
+      "Safe action · Open calendar writeback before dossier follow-up",
+    );
+    assert.equal(
+      snapshot.aiQueue.items[0]?.sequenceContractLabel,
+      "Sequence contract · Calendar writeback first, dossier second",
+    );
+    assert.match(
+      snapshot.aiQueue.items[0]?.whyNowLabel ?? "",
+      /^Why now · Appointment/,
+    );
     assert.ok(snapshot.leadershipQueue.items.length > 0);
     assert.ok(snapshot.leadershipQueue.activityCenterItems.length > 0);
   } finally {

@@ -188,24 +188,31 @@ export function FrontOfficeDashboardAiQueueClient(
               }
               badgeLabel={item.statusLabel}
               badgeTone={item.tone}
-              context={`${item.sequenceLabel} · ${item.contextLabel}`}
-              description={item.description}
+              context={`${item.sequenceLabel} · ${item.sequenceContractLabel}`}
+              description={`${item.description} ${item.safeActionLabel}.`}
               key={item.id}
               meta={
-                <FrontOfficeAiExplainabilitySurface
-                  allowsDirectFollowUpCreation={
-                    item.allowsDirectFollowUpCreation
-                  }
-                  boundaryDescription={item.boundaryDescription}
-                  boundaryLabel={item.boundaryLabel}
-                  boundaryTone={item.boundaryTone}
-                  compact
-                  helperText={item.helperLabel}
-                  oneClickReason={item.oneClickReason}
-                  primaryActionReason={item.primaryActionReason}
-                  rankingSignals={item.rankingSignals}
-                  whyNowSignals={item.whyNowSignals}
-                />
+                <>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{item.safeActionLabel}</span>
+                    <span>{item.sequenceContractLabel}</span>
+                    <span>{item.whyNowLabel}</span>
+                  </div>
+                  <FrontOfficeAiExplainabilitySurface
+                    allowsDirectFollowUpCreation={
+                      item.allowsDirectFollowUpCreation
+                    }
+                    boundaryDescription={item.boundaryDescription}
+                    boundaryLabel={item.boundaryLabel}
+                    boundaryTone={item.boundaryTone}
+                    compact
+                    helperText={item.helperLabel}
+                    oneClickReason={item.oneClickReason}
+                    primaryActionReason={item.primaryActionReason}
+                    rankingSignals={item.rankingSignals}
+                    whyNowSignals={item.whyNowSignals}
+                  />
+                </>
               }
               title={item.clientName}
             />
