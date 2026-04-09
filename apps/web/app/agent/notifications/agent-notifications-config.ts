@@ -54,22 +54,22 @@ export const activityViewOptions: Array<{
 export function getActivityViewFocusLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Self-owned cleanup and duplicate review";
+      return "Self-owned cleanup, duplicate review, and send rescue";
     case "team_cleanup":
-      return "Visible-scope leadership cleanup";
+      return "Visible-scope leadership cleanup and send-trail risk";
     case "appointment_reminders":
-      return "Calendar writeback and reminder pressure";
+      return "Calendar writeback, confirmations, and reminder pressure";
     case "general_notices":
       return "Front Office actions, Back Office handoff, shared notices, and awareness-only items";
     default:
-      return "Full activity workbench with all four lanes in view";
+      return "Full workbench with cleanup, reminders, team pressure, and notices";
   }
 }
 
 export function getActivityViewNextMoveLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Resolve the loudest cleanup rail, then reopen reminders or notices if they become louder.";
+      return "Resolve the loudest cleanup item, then reopen reminders or notices if they become louder.";
     case "team_cleanup":
       return "Intervene on the loudest visible-scope item, then return to personal cleanup.";
     case "appointment_reminders":
@@ -77,7 +77,7 @@ export function getActivityViewNextMoveLabel(activityView: AgentActivityView) {
     case "general_notices":
       return "Open the notice lane and route the next move to FO or BO.";
     default:
-      return "Open the lane with the loudest pressure, then keep the current slice stable in the URL.";
+      return "Open the loudest lane first, then keep the current slice stable in the URL.";
   }
 }
 
