@@ -1043,13 +1043,13 @@ export default async function AgentClientDetailPage(
           >
             <ListPageStatsGrid>
               <StatCard
-                hint="where this client currently sits across FO prep and BO offer execution"
+                hint="where this client currently sits across FO prep and the shared BO offer file"
                 label="Workspace stage"
                 tone="accent"
                 value={snapshot.negotiation.boundaryLabel}
               />
               <StatCard
-                hint="formal Back Office offers already tracked for the linked transaction"
+                hint="formal Back Office offer records already tracked in the linked transaction"
                 label="BO offers"
                 value={snapshot.negotiation.offerCount}
               />
@@ -1200,7 +1200,7 @@ export default async function AgentClientDetailPage(
           >
             <ListPageStatsGrid>
               <StatCard
-                hint="where this client currently sits across FO prep, contract setup, and live inspection-era BO execution"
+                hint="where this client currently sits across FO prep and the live BO contract file"
                 label="Contract stage"
                 tone="accent"
                 value={snapshot.inspection.boundaryLabel}
@@ -1268,7 +1268,9 @@ export default async function AgentClientDetailPage(
                   title: inspectionRailItem.returnPoint.label,
                   description: inspectionRailItem.returnDescription,
                   context: snapshot.inspection.boundaryLabel,
-                  meta: <span>{inspectionRailItem.returnPoint.description}</span>,
+                  meta: (
+                    <span>{inspectionRailItem.returnPoint.description}</span>
+                  ),
                   actions: [
                     {
                       href: inspectionRailItem.returnPoint.href,
