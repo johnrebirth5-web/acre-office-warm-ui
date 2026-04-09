@@ -16,6 +16,18 @@ type RouteContext = {
   }>;
 };
 
+type AppointmentMailThreadRouteDependencies = {
+  getSessionContext: typeof getRequestSessionContext;
+  canViewDashboard: typeof can;
+  canAccessOfficeMail: typeof canAccessOfficeMail;
+  canSendOfficeMail: typeof canSendOfficeMail;
+  getAppointmentsSnapshot: typeof getFrontOfficeAppointmentsSnapshot;
+  resolveRecipientMembershipIds: typeof listInternalMailContinuityRecipientIds;
+  createOfficeMailThread: typeof createOfficeMailThread;
+  buildAppointmentInternalMailThreadResponse: typeof buildAppointmentInternalMailThreadResponse;
+  mapErrorStatus: typeof mapAppointmentInternalMailThreadErrorStatus;
+};
+
 function isInternalMailContinuityRecipientRole(role: string) {
   return role === "owner" || role === "office_admin";
 }
@@ -174,12 +186,24 @@ async function listInternalMailContinuityRecipientIds(input: {
   );
 }
 
-function mapMailThreadErrorStatus(message: string) {
-  return mapAppointmentInternalMailThreadErrorStatus(message);
-}
+const appointmentMailThreadRouteDependencies: AppointmentMailThreadRouteDependencies = {
+  getSessionContext: getRequestSessionContext,
+  canViewDashboard: can,
+  canAccessOfficeMail,
+  canSendOfficeMail,
+  getAppointmentsSnapshot: getFrontOfficeAppointmentsSnapshot,
+  resolveRecipientMembershipIds: listInternalMailContinuityRecipientIds,
+  createOfficeMailThread,
+  buildAppointmentInternalMailThreadResponse,
+  mapErrorStatus: mapAppointmentInternalMailThreadErrorStatus,
+};
 
-export async function POST(request: NextRequest, { params }: RouteContext) {
-  const context = await getRequestSessionContext(request);
+export async function handleAppointmentMailThreadPost(
+  request: NextRequest,
+  { params }: RouteContext,
+  dependencies: AppointmentMailThreadRouteDependencies = appointmentMailThreadRouteDependencies,
+) {
+  const context = await dependencies.getSessionContext(request);
 
   if (!context) {
     return NextResponse.json(
@@ -188,21 +212,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     );
   }
 
-  if (!can(context.currentMembership, "dashboard:view")) {
+  if (
+    !dependencies.canViewDashboard(context.currentMembership, "dashboard:view")
+  ) {
     return NextResponse.json(
       { error: "Front Office dashboard access required." },
       { status: 403 },
     );
   }
 
-  if (!canAccessOfficeMail(context.currentMembership)) {
+  if (!dependencies.canAccessOfficeMail(context.currentMembership)) {
     return NextResponse.json(
       { error: "Mail access required." },
       { status: 403 },
     );
   }
 
-  if (!canSendOfficeMail(context.currentMembership)) {
+  if (!dependencies.canSendOfficeMail(context.currentMembership)) {
     return NextResponse.json(
       { error: "Mail send access required." },
       { status: 403 },
@@ -212,7 +238,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const { appointmentId } = await params;
 
   try {
-    const snapshot = await getFrontOfficeAppointmentsSnapshot({
+    const snapshot = await dependencies.getAppointmentsSnapshot({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
@@ -250,7 +276,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const recipientMembershipIds = await listInternalMailContinuityRecipientIds(
+    const recipientMembershipIds = await dependencies.resolveRecipientMembershipIds(
       {
         organizationId: context.currentOrganization.id,
         membershipId: context.currentMembership.id,
@@ -261,7 +287,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const subject = buildMailThreadSubject(appointment);
     const body = buildMailThreadBody(appointment);
 
-    const thread = await createOfficeMailThread({
+    const thread = await dependencies.createOfficeMailThread({
       organizationId: context.currentOrganization.id,
       membershipId: context.currentMembership.id,
       subject,
@@ -272,7 +298,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     });
 
     return NextResponse.json(
-      buildAppointmentInternalMailThreadResponse({
+      dependencies.buildAppointmentInternalMailThreadResponse({
         threadId: thread.id,
         subject: thread.subject,
         actionUrl: `/agent/calendar?appointmentId=${appointment.id}`,
@@ -290,7 +316,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       error instanceof Error
         ? error.message
         : "Could not open the internal mail thread.";
-    const mappedError = mapMailThreadErrorStatus(message);
+    const mappedError = dependencies.mapErrorStatus(message);
 
     return NextResponse.json(
       {
@@ -300,4 +326,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: mappedError.status },
     );
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  return handleAppointmentMailThreadPost(request, { params });
 }
