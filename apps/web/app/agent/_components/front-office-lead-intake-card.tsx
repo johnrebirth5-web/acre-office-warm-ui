@@ -425,7 +425,7 @@ function getAssistReviewSectionMeta(sectionKey: IntakeReviewSectionKey) {
       return {
         label: "Identity",
         description:
-          "Start here. Confirm who this lead is before anything else, because duplicate preview and save-time checks lean on these values first.",
+          "Start here. Confirm who this lead is before anything else, because duplicate preview, save-time checks, and every later section batch lean on these values first.",
       };
     case "qualification":
       return {
@@ -437,13 +437,13 @@ function getAssistReviewSectionMeta(sectionKey: IntakeReviewSectionKey) {
       return {
         label: "Context",
         description:
-          "Batch budget and area clues together after identity is clear; they usually steer the first real follow-up.",
+          "Batch budget and area clues together after identity is clear; they usually steer the first real follow-up and keep the next call scoped.",
       };
     case "timing":
       return {
         label: "Timing",
         description:
-          "Lock the exact next follow-up date after identity is clear so the lead does not drift cold.",
+          "Lock the exact next follow-up date after identity is clear so the lead does not drift cold and the next-touch clock stays useful.",
       };
     case "notes":
       return {
@@ -463,7 +463,7 @@ function getAssistReviewSectionBatchCue(input: {
   if (input.pendingCount > 0) {
     switch (input.sectionKey) {
       case "identity":
-        return "Operator start: resolve unresolved identity before anything else.";
+        return "Operator start: resolve unresolved identity before any section batch.";
       case "qualification":
         return "Operator next: batch source, stage, and intent together after identity is clear.";
       case "context":
@@ -476,7 +476,7 @@ function getAssistReviewSectionBatchCue(input: {
   }
 
   if (input.reviewFirstCount > 0) {
-    return "Operator next: manual-confirmation fields come before safe apply.";
+    return "Operator next: manual-confirmation fields come before safe apply in this section batch.";
   }
 
   if (input.previewOnlyCount > 0) {
@@ -1503,7 +1503,7 @@ export function FrontOfficeLeadIntakeCard(
       setAssistFeedback({
         tone: "error",
         message:
-          "Paste a little more context first. Three to eight lines with a name, contact clue, area, budget, or next step usually work best.",
+          "Paste a little more context first. Three to eight contiguous lines with a name, one contact clue, and one workflow clue usually work best.",
       });
       return;
     }
@@ -1626,7 +1626,7 @@ export function FrontOfficeLeadIntakeCard(
 
       if (ocrFailed && transcriptText) {
         feedbackParts.push(
-          "Screenshot OCR could not finish, so Acre used the pasted transcript only.",
+          "Screenshot OCR could not finish, so Acre used the pasted transcript only. If it still looks sparse, paste a tighter 3-8 line excerpt and keep unresolved identity first.",
         );
       }
 
@@ -2021,16 +2021,16 @@ export function FrontOfficeLeadIntakeCard(
               <p>
                 Drop in a WeChat screenshot or paste the chat thread. Acre reads
                 it in the browser, keeps field-level confidence and provenance
-                on every suggestion, keeps unresolved identity ahead of
-                manual-confirmation fields, stays safer around household or
-                multi-party threads, and waits for review before anything
-                touches the live intake form.
+                on every suggestion, keeps unresolved identity ahead of every
+                section batch, stays safer around household or multi-party
+                threads, and waits for review before anything touches the live
+                intake form.
               </p>
               <div className="front-office-record-meta">
                 <span>Browser-side extraction only</span>
                 <span>Field-level confidence + provenance</span>
-                <span>Unresolved first</span>
-                <span>Manual confirmation next</span>
+                <span>Identity first</span>
+                <span>Section batches next</span>
                 <span>Preview-only last</span>
                 <span>Safer household parsing</span>
                 <span>No auto-create or auto-send</span>
@@ -2114,7 +2114,7 @@ export function FrontOfficeLeadIntakeCard(
 
             {!assistResult && !assistImage && !assistTranscript.trim() ? (
               <EmptyState
-                description="Best results usually come from one tighter chat screenshot crop or 3-8 transcript lines that include a name plus one contact, area, budget, or next-step clue. Review stays field-by-field, the live form stays under manual control, and assist never auto-creates the lead."
+                description="Best results usually come from one tighter chat screenshot crop or 3-8 contiguous transcript lines that keep a name, one contact clue, and one workflow clue together. Review stays field-by-field, unresolved identity stays ahead of safe apply, and assist never auto-creates the lead."
                 title="Start with one screenshot or a short chat excerpt"
               />
             ) : null}
@@ -2125,9 +2125,10 @@ export function FrontOfficeLeadIntakeCard(
                   <strong>{assistResult.summaryLabel}</strong>
                   <p>
                     Acre keeps the raw extract as a preview and waits for you to
-                    review before applying anything. Unresolved sections stay at
-                    the top, manual-confirmation sections come next, and
-                    preview-only notes stay manual until you rewrite them.
+                    review before applying anything. Unresolved identity stays
+                    at the top, then qualification, context, timing, and notes
+                    move as separate section batches. Preview-only notes stay
+                    manual until you rewrite them.
                   </p>
                   <div className="front-office-record-meta">
                     <span>
@@ -2334,7 +2335,7 @@ export function FrontOfficeLeadIntakeCard(
                       type="button"
                       variant="secondary"
                     >
-                      Resolve unresolved sections first
+                      Review unresolved sections in batch
                     </Button>
                     <Button
                       disabled={isBusy || reviewedReviewableAssistCount === 0}
