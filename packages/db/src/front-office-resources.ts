@@ -72,6 +72,8 @@ export type FrontOfficeResourceInteractionSnapshot = {
   completionCount: number;
   resourceOpenCount: number;
   vendorClickCount: number;
+  signalLabel: string;
+  signalDetailLabel: string;
   recentInteractionCount: number;
   lastInteractionLabel: string;
   recentInteractions: Array<{
@@ -102,6 +104,8 @@ export type FrontOfficeSharedResourceInteractionSnapshot = {
   completionCount: number;
   resourceOpenCount: number;
   vendorClickCount: number;
+  signalLabel: string;
+  signalDetailLabel: string;
   recentInteractionCount: number;
   lastInteractionLabel: string;
   totalCountDelta: number;
@@ -261,6 +265,78 @@ function formatComparisonWindowLabel(days: number) {
   return `Prior ${days} days`;
 }
 
+function formatCountPhrase(
+  value: number,
+  singular: string,
+  plural = `${singular}s`,
+) {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function buildResourceSignalLabel(summary: {
+  searchCount: number;
+  progressCount: number;
+  resourceOpenCount: number;
+  vendorClickCount: number;
+}) {
+  const signalBuckets = [
+    {
+      label: "Search-led operator signal",
+      count: summary.searchCount,
+    },
+    {
+      label: "Training follow-through signal",
+      count: summary.progressCount,
+    },
+    {
+      label: "Resource-open signal",
+      count: summary.resourceOpenCount,
+    },
+    {
+      label: "Vendor-led signal",
+      count: summary.vendorClickCount,
+    },
+  ].filter((bucket) => bucket.count > 0);
+
+  if (!signalBuckets.length) {
+    return "No operator signal yet";
+  }
+
+  const strongestCount = Math.max(
+    ...signalBuckets.map((bucket) => bucket.count),
+  );
+  const strongestBuckets = signalBuckets.filter(
+    (bucket) => bucket.count === strongestCount,
+  );
+
+  return strongestBuckets.length > 1
+    ? "Balanced operator signal"
+    : (strongestBuckets[0]?.label ?? "No operator signal yet");
+}
+
+function buildResourceSignalDetailLabel(summary: {
+  searchCount: number;
+  progressCount: number;
+  resourceOpenCount: number;
+  vendorClickCount: number;
+}) {
+  if (
+    !summary.searchCount &&
+    !summary.progressCount &&
+    !summary.resourceOpenCount &&
+    !summary.vendorClickCount
+  ) {
+    return `No tracked actions in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`;
+  }
+
+  return [
+    formatCountPhrase(summary.searchCount, "search"),
+    formatCountPhrase(summary.progressCount, "progress checkpoint"),
+    formatCountPhrase(summary.resourceOpenCount, "resource open"),
+    formatCountPhrase(summary.vendorClickCount, "vendor click"),
+  ].join(" · ");
+}
+
 function buildEmptySharedResourceInteractionSnapshot(): FrontOfficeSharedResourceInteractionSnapshot {
   return {
     visible: false,
@@ -280,6 +356,8 @@ function buildEmptySharedResourceInteractionSnapshot(): FrontOfficeSharedResourc
     completionCount: 0,
     resourceOpenCount: 0,
     vendorClickCount: 0,
+    signalLabel: "No operator signal yet",
+    signalDetailLabel: `No tracked actions in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
     recentInteractionCount: 0,
     lastInteractionLabel: `No shared tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
     totalCountDelta: 0,
@@ -372,14 +450,25 @@ function buildTrackedInteractionTitle(
 }
 
 function buildInteractionDetailLabel(action: string, details: string[]) {
+  const signalDetail =
+    details.find((detail) => detail.startsWith("Signal: ")) ?? null;
+
   if (action === activityLogActions.frontOfficeResourceSearched) {
     const queryDetail =
       details.find((detail) => detail.startsWith("Query: ")) ?? null;
     const scopeDetail =
       details.find((detail) => detail.startsWith("Scope: ")) ?? null;
 
+    if (queryDetail && scopeDetail && signalDetail) {
+      return `${queryDetail.replace("Query: ", "")} · ${scopeDetail.replace("Scope: ", "")} · ${signalDetail.replace("Signal: ", "")}`;
+    }
+
     if (queryDetail && scopeDetail) {
       return `${queryDetail.replace("Query: ", "")} · ${scopeDetail.replace("Scope: ", "")}`;
+    }
+
+    if (queryDetail && signalDetail) {
+      return `${queryDetail.replace("Query: ", "")} · ${signalDetail.replace("Signal: ", "")}`;
     }
 
     if (queryDetail) {
@@ -395,8 +484,16 @@ function buildInteractionDetailLabel(action: string, details: string[]) {
     const laneDetail =
       details.find((detail) => detail.startsWith("Lane: ")) ?? null;
 
+    if (progressDetail && laneDetail && signalDetail) {
+      return `${progressDetail.replace("Progress: ", "")} · ${laneDetail.replace("Lane: ", "")} · ${signalDetail.replace("Signal: ", "")}`;
+    }
+
     if (progressDetail && laneDetail) {
       return `${progressDetail.replace("Progress: ", "")} · ${laneDetail.replace("Lane: ", "")}`;
+    }
+
+    if (progressDetail && signalDetail) {
+      return `${progressDetail.replace("Progress: ", "")} · ${signalDetail.replace("Signal: ", "")}`;
     }
 
     if (progressDetail) {
@@ -412,15 +509,21 @@ function buildInteractionDetailLabel(action: string, details: string[]) {
     details.find((detail) => !detail.startsWith("Action: ")) ?? null;
 
   if (actionDetail && secondaryDetail) {
-    return `${actionDetail.replace("Action: ", "")} · ${secondaryDetail}`;
+    return signalDetail
+      ? `${actionDetail.replace("Action: ", "")} · ${secondaryDetail} · ${signalDetail.replace("Signal: ", "")}`
+      : `${actionDetail.replace("Action: ", "")} · ${secondaryDetail}`;
   }
 
   if (actionDetail) {
-    return actionDetail.replace("Action: ", "");
+    return signalDetail
+      ? `${actionDetail.replace("Action: ", "")} · ${signalDetail.replace("Signal: ", "")}`
+      : actionDetail.replace("Action: ", "");
   }
 
   if (secondaryDetail) {
-    return secondaryDetail;
+    return signalDetail
+      ? `${secondaryDetail} · ${signalDetail.replace("Signal: ", "")}`
+      : secondaryDetail;
   }
 
   return action === activityLogActions.frontOfficeVendorClicked
@@ -474,10 +577,9 @@ function buildResourceInteractionSummary(
     searchCount + progressCount + resourceOpenCount + vendorClickCount;
   const latestInteraction = recentInteractions[0] ?? null;
   const lastInteractionLabel = latestInteraction
-    ? [latestInteraction.kindLabel, latestInteraction.detailLabel].filter(
-        Boolean,
-      ).join(" · ") +
-      ` · ${latestInteraction.timestampLabel}`
+    ? [latestInteraction.kindLabel, latestInteraction.detailLabel]
+        .filter(Boolean)
+        .join(" · ") + ` · ${latestInteraction.timestampLabel}`
     : `No tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`;
 
   return {
@@ -540,12 +642,16 @@ export async function getFrontOfficeResourceInteractionSnapshot(
     interactions,
     input.timeZone ?? null,
   );
+  const signalLabel = buildResourceSignalLabel(summary);
+  const signalDetailLabel = buildResourceSignalDetailLabel(summary);
 
   return {
     windowLabel: formatWindowLabel(
       frontOfficeTrackedResourceInteractionWindowDays,
     ),
     ...summary,
+    signalLabel,
+    signalDetailLabel,
   };
 }
 
@@ -678,6 +784,8 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
     comparisonInteractions,
     input.timeZone ?? null,
   );
+  const signalLabel = buildResourceSignalLabel(summary);
+  const signalDetailLabel = buildResourceSignalDetailLabel(summary);
   const membershipLabelById = new Map(
     memberships.map((membership) => [
       membership.id,
@@ -814,6 +922,8 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
     completionCount: summary.completionCount,
     resourceOpenCount: summary.resourceOpenCount,
     vendorClickCount: summary.vendorClickCount,
+    signalLabel,
+    signalDetailLabel,
     recentInteractionCount: summary.recentInteractionCount,
     lastInteractionLabel:
       summary.totalCount > 0
@@ -854,7 +964,11 @@ export async function recordFrontOfficeResourceSearch(
       objectLabel: "Resource hub search",
       contextHref: `/agent/resources?q=${encodeURIComponent(query)}`,
       actionSource: "front_office_resource_hub",
-      details: [`Query: ${query}`, "Scope: Resources + vendors"],
+      details: [
+        `Query: ${query}`,
+        "Scope: Resources + vendors",
+        "Signal: Search-led operator lookup",
+      ],
     },
   });
 }
@@ -903,7 +1017,11 @@ export async function recordFrontOfficeResourceProgress(
       contextHref: "/agent/resources#published-tool-library",
       actionSource: "front_office_resource_hub",
       progressPercent: input.progressPercent,
-      details: [`Progress: ${progressLabel}`, "Lane: Training video"],
+      details: [
+        `Progress: ${progressLabel}`,
+        "Lane: Training video",
+        "Signal: Training follow-through",
+      ],
     },
   });
 }
@@ -944,6 +1062,7 @@ export async function recordFrontOfficeResourceOpen(
       details: [
         `Lane: ${formatResourceTypeLabel(resource.type)}`,
         `Action: ${getResourceActionLabel(resource.type)}`,
+        "Signal: Resource-open touch",
       ],
     },
   });
@@ -1008,6 +1127,7 @@ export async function recordFrontOfficeVendorClick(
       details: [
         `Action: ${formatVendorActionLabel(input.action)}`,
         `Category: ${vendor.category || "Vendor"}`,
+        "Signal: Vendor-led touch",
       ],
     },
   });
