@@ -327,8 +327,8 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel: leadingAiItem.statusLabel,
       badgeTone: leadingAiItem.tone,
       title: `Review Acre's grounded next touch for ${leadingAiItem.clientName}`,
-      description: `${leadingAiItem.description} Acre still waits for your approval. Nothing here auto-sends or hides automation behind the queue.`,
-      metaLabel: leadingAiItem.helperLabel,
+      description: `${leadingAiItem.description} ${leadingAiItem.safeActionLabel}. ${leadingAiItem.sequenceContractLabel}. Acre still waits for your approval. Nothing here auto-sends or hides automation behind the queue.`,
+      metaLabel: `${leadingAiItem.safeActionLabel} · ${leadingAiItem.whyNowLabel}`,
       href: leadingAiItem.primaryActionHref,
       actionLabel: leadingAiItem.primaryActionLabel,
       opensInNewTab: leadingAiItem.primaryActionOpensInNewTab,
@@ -589,6 +589,7 @@ export default async function AgentDashboardPage() {
     snapshot,
     primaryLaunchpadItem,
   });
+  const leadingAiItem = snapshot.aiQueue.items[0] ?? null;
   const leadershipCleanupHref =
     "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure";
   const activityCenterHref = snapshot.leadershipQueue.visible
@@ -986,7 +987,7 @@ export default async function AgentDashboardPage() {
           {canUseAi ? (
             <SectionCard
               className="office-list-card"
-              subtitle="Grounded next-touch suggestions only. The queue should reopen a dossier, a calendar writeback, or a formal handoff only when the record trail can support it."
+              subtitle="Grounded next-touch suggestions only. Each card states the safe action, why-now signal, and sequence contract before you touch the record; the queue should reopen a dossier, a calendar writeback, or a formal handoff only when the record trail can support it."
               title="AI next-touch queue"
             >
               <ListPageStatsGrid>
@@ -997,6 +998,22 @@ export default async function AgentDashboardPage() {
                   value={snapshot.aiQueue.suggestionCount}
                 />
               </ListPageStatsGrid>
+
+              {leadingAiItem ? (
+                <div className="front-office-placeholder-note">
+                  <Badge tone={leadingAiItem.tone}>Safe action</Badge>
+                  <p>
+                    {leadingAiItem.safeActionLabel}.{" "}
+                    {leadingAiItem.sequenceContractLabel}.{" "}
+                    {leadingAiItem.whyNowLabel}. Acre still waits for your
+                    approval, and nothing here auto-sends.
+                  </p>
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{leadingAiItem.helperLabel}</span>
+                    <span>{leadingAiItem.contextLabel}</span>
+                  </div>
+                </div>
+              ) : null}
 
               <FrontOfficeDashboardAiQueueClient
                 items={snapshot.aiQueue.items}

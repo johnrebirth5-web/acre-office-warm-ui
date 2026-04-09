@@ -259,6 +259,9 @@ export type FrontOfficeDashboardAiQueueItem = {
   description: string;
   contextLabel: string;
   sequenceLabel: string;
+  safeActionLabel: string;
+  sequenceContractLabel: string;
+  whyNowLabel: string;
   helperLabel: string;
   whyNowSignals: string[];
   rankingSignals: string[];
@@ -340,6 +343,66 @@ function buildFrontOfficeDashboardAiSequenceLabel(
     default:
       return "Choose the next grounded touch";
   }
+}
+
+function buildFrontOfficeDashboardAiSafeActionLabel(
+  suggestionKind: FrontOfficeDashboardAiQueueItem["suggestionKind"],
+) {
+  switch (suggestionKind) {
+    case "reentry":
+      return "Safe action · Reopen gently without restarting formal workflow";
+    case "postclose":
+      return "Safe action · Keep the relationship warm without reopening formal work";
+    case "closing":
+      return "Safe action · Steady the finish without jumping ahead";
+    case "lease":
+      return "Safe action · Confirm lease timing before the window slips";
+    case "appointment":
+      return "Safe action · Open calendar writeback before dossier follow-up";
+    case "content_rescue":
+      return "Safe action · Rescue the send trail before retrying the send";
+    case "warm_engagement":
+      return "Safe action · Turn warm interest into the next grounded step";
+    case "handoff":
+      return "Safe action · Confirm the package before opening Back Office";
+    default:
+      return "Safe action · Open the dossier and choose the next grounded touch";
+  }
+}
+
+function buildFrontOfficeDashboardAiSequenceContractLabel(
+  suggestionKind: FrontOfficeDashboardAiQueueItem["suggestionKind"],
+) {
+  switch (suggestionKind) {
+    case "reentry":
+      return "Sequence contract · Reopen gently, then reassess the next touch";
+    case "postclose":
+      return "Sequence contract · Stay in relationship lane, not formal workflow";
+    case "closing":
+      return "Sequence contract · Stabilize the finish, then hand off if needed";
+    case "lease":
+      return "Sequence contract · Protect lease timing before it slips";
+    case "appointment":
+      return "Sequence contract · Calendar writeback first, dossier second";
+    case "content_rescue":
+      return "Sequence contract · Rescue the send trail before retrying the send";
+    case "warm_engagement":
+      return "Sequence contract · Convert warm interest into the next step";
+    case "handoff":
+      return "Sequence contract · Prepare the package before Back Office";
+    default:
+      return "Sequence contract · Open the dossier first, then choose the next touch";
+  }
+}
+
+function buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals: string[]) {
+  const signals = whyNowSignals.filter((signal) => signal.trim().length > 0);
+
+  if (!signals.length) {
+    return "Why now · Use the record trail to justify the next touch";
+  }
+
+  return `Why now · ${signals.slice(0, 2).join(" · ")}`;
 }
 
 type FrontOfficeDashboardAiCandidateItem = Omit<
@@ -2407,6 +2470,12 @@ export async function getFrontOfficeDashboardSnapshot(
               now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: "Formal deal outcome · cancelled or lost",
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail:
+                "Use a respectful re-entry touch instead of restarting formal workflow.",
+            });
 
             return [
               {
@@ -2421,13 +2490,14 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("reentry"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("reentry"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel("reentry"),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: "Grounded by cancelled / lost transaction outcome",
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: "Formal deal outcome · cancelled or lost",
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail:
-                    "Use a respectful re-entry touch instead of restarting formal workflow.",
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 followUpTitle: followUp.title,
@@ -2444,6 +2514,14 @@ export async function getFrontOfficeDashboardSnapshot(
               now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: closingReferenceDate
+                ? `Closed milestone · ${formatDateLabel(closingReferenceDate)}`
+                : "Formal deal outcome · closed",
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail:
+                "Keep the relationship warm while the formal record stays in Back Office.",
+            });
 
             return [
               {
@@ -2459,17 +2537,16 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("postclose"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("postclose"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel("postclose"),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: closingReferenceDate
                   ? `Milestone · ${formatDateLabel(closingReferenceDate)}`
                   : "Grounded by closed transaction outcome",
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: closingReferenceDate
-                    ? `Closed milestone · ${formatDateLabel(closingReferenceDate)}`
-                    : "Formal deal outcome · closed",
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail:
-                    "Keep the relationship warm while the formal record stays in Back Office.",
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 followUpTitle: followUp.title,
@@ -2486,6 +2563,17 @@ export async function getFrontOfficeDashboardSnapshot(
               now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: linkedTransaction?.moveInDate
+                ? "Move-in window is approaching"
+                : linkedTransaction?.closingDate
+                  ? "Closing date is approaching"
+                  : "Accepted file needs a wrap-up plan",
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail: `Shared milestone · ${formatDateLabel(
+                closingReferenceDate,
+              )}`,
+            });
 
             return [
               {
@@ -2501,22 +2589,18 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("closing"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("closing"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel("closing"),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: linkedTransaction?.moveInDate
                   ? "Move-in window is approaching"
                   : linkedTransaction?.closingDate
                     ? "Closing date is approaching"
                     : "Accepted file needs a wrap-up plan",
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: linkedTransaction?.moveInDate
-                    ? "Move-in window is approaching"
-                    : linkedTransaction?.closingDate
-                      ? "Closing date is approaching"
-                      : "Accepted file needs a wrap-up plan",
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail: `Shared milestone · ${formatDateLabel(
-                    closingReferenceDate,
-                  )}`,
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 followUpTitle: followUp.title,
@@ -2540,6 +2624,11 @@ export async function getFrontOfficeDashboardSnapshot(
                   : now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: `Lease reminder · ${leaseReminder.statusLabel}`,
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail: leaseReminder.detailLabel,
+            });
 
             return [
               {
@@ -2554,12 +2643,14 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("lease"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("lease"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel("lease"),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: `${leaseReminder.statusLabel} · ${leaseReminder.detailLabel}`,
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: `Lease reminder · ${leaseReminder.statusLabel}`,
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail: leaseReminder.detailLabel,
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 followUpTitle: followUp.title,
@@ -2577,6 +2668,14 @@ export async function getFrontOfficeDashboardSnapshot(
               clientFullName: client.fullName,
               appointmentTitle: latestAppointment.title,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: `Appointment · ${latestAppointment.title}`,
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail: `Starts ${formatDateTimeLabel(
+                latestAppointment.startsAt,
+                { timeZone: input.timeZone ?? null },
+              )}`,
+            });
 
             return [
               {
@@ -2592,18 +2691,19 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("appointment"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("appointment"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel(
+                    "appointment",
+                  ),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: `${latestAppointment.title} · ${formatDateTimeLabel(
                   latestAppointment.startsAt,
                   { timeZone: input.timeZone ?? null },
                 )} · Calendar writeback first, then dossier follow-up.`,
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: `Appointment · ${latestAppointment.title}`,
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail: `Starts ${formatDateTimeLabel(
-                    latestAppointment.startsAt,
-                    { timeZone: input.timeZone ?? null },
-                  )}`,
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 primaryActionLabel: "Open calendar writeback",
@@ -2626,6 +2726,16 @@ export async function getFrontOfficeDashboardSnapshot(
               now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: latestSendRecord.listing?.title?.trim()
+                ? `Tracked send · no open on ${latestSendRecord.listing.title.trim()}`
+                : "Tracked send · no open yet",
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail: `Sent ${formatDateTimeLabel(
+                latestSendRecord.sentAt,
+                { timeZone: input.timeZone ?? null },
+              )}`,
+            });
 
             return [
               {
@@ -2640,19 +2750,18 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("content_rescue"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("content_rescue"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel(
+                    "content_rescue",
+                  ),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: latestSendRecord.listing?.title?.trim()
                   ? `No open on ${latestSendRecord.listing.title.trim()} · open the dossier before retrying.`
                   : "Tracked send has no open yet · reopen the dossier before retrying.",
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: latestSendRecord.listing?.title?.trim()
-                    ? `Tracked send · no open on ${latestSendRecord.listing.title.trim()}`
-                    : "Tracked send · no open yet",
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail: `Sent ${formatDateTimeLabel(
-                    latestSendRecord.sentAt,
-                    { timeZone: input.timeZone ?? null },
-                  )}`,
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 primaryActionLabel: "Open dossier and rescue thread",
@@ -2676,6 +2785,18 @@ export async function getFrontOfficeDashboardSnapshot(
               now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: latestSendRecord.lastOpenedAt
+                ? `Tracked engagement · last open ${formatDateTimeLabel(
+                    latestSendRecord.lastOpenedAt,
+                    { timeZone: input.timeZone ?? null },
+                  )}`
+                : `Tracked engagement · opened ${latestSendRecord.openCount} time(s)`,
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail: latestSendRecord.listing?.title?.trim()
+                ? `Listing · ${latestSendRecord.listing.title.trim()}`
+                : null,
+            });
 
             return [
               {
@@ -2690,24 +2811,21 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("warm_engagement"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("warm_engagement"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel(
+                    "warm_engagement",
+                  ),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: latestSendRecord.lastOpenedAt
                   ? `Last open · ${formatDateTimeLabel(
                       latestSendRecord.lastOpenedAt,
                       { timeZone: input.timeZone ?? null },
                     )} · open the dossier and turn the warm signal into a next step.`
                   : `Opened ${latestSendRecord.openCount} time(s) · open the dossier and turn the warm signal into a next step.`,
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: latestSendRecord.lastOpenedAt
-                    ? `Tracked engagement · last open ${formatDateTimeLabel(
-                        latestSendRecord.lastOpenedAt,
-                        { timeZone: input.timeZone ?? null },
-                      )}`
-                    : `Tracked engagement · opened ${latestSendRecord.openCount} time(s)`,
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail: latestSendRecord.listing?.title?.trim()
-                    ? `Listing · ${latestSendRecord.listing.title.trim()}`
-                    : null,
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 primaryActionLabel: "Open dossier and turn warm signal",
@@ -2726,6 +2844,14 @@ export async function getFrontOfficeDashboardSnapshot(
               now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger:
+                "Execution boundary · Front Office is ready for formal workflow",
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail:
+                client.handoffDrafts[0]?.summary?.trim() ||
+                "Acre should align package and timing before creating the Back Office file.",
+            });
 
             return [
               {
@@ -2740,17 +2866,16 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("handoff"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("handoff"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel("handoff"),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel:
                   client.handoffDrafts[0]?.summary?.trim() ||
                   "Front Office stage is ready for formal workflow. Confirm the package before opening Back Office.",
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger:
-                    "Execution boundary · Front Office is ready for formal workflow",
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail:
-                    client.handoffDrafts[0]?.summary?.trim() ||
-                    "Acre should align package and timing before creating the Back Office file.",
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 primaryActionLabel: "Open Back Office create flow",
@@ -2774,6 +2899,12 @@ export async function getFrontOfficeDashboardSnapshot(
               now,
               clientFullName: client.fullName,
             });
+            const whyNowSignals = buildAiQueueWhyNowSignals({
+              trigger: `Stage · ${client.stage}`,
+              contextLabel: `Current touch window · ${nextTouchLabel}`,
+              supportingDetail:
+                "No future touch is currently scheduled on this active record.",
+            });
 
             return [
               {
@@ -2788,13 +2919,14 @@ export async function getFrontOfficeDashboardSnapshot(
                 contextLabel: nextTouchLabel,
                 sequenceLabel:
                   buildFrontOfficeDashboardAiSequenceLabel("generic"),
+                safeActionLabel:
+                  buildFrontOfficeDashboardAiSafeActionLabel("generic"),
+                sequenceContractLabel:
+                  buildFrontOfficeDashboardAiSequenceContractLabel("generic"),
+                whyNowLabel:
+                  buildFrontOfficeDashboardAiWhyNowLabel(whyNowSignals),
                 helperLabel: `Stage · ${client.stage} · open the dossier and choose the next grounded touch.`,
-                whyNowSignals: buildAiQueueWhyNowSignals({
-                  trigger: `Stage · ${client.stage}`,
-                  contextLabel: `Current touch window · ${nextTouchLabel}`,
-                  supportingDetail:
-                    "No future touch is currently scheduled on this active record.",
-                }),
+                whyNowSignals,
                 openDossierHref,
                 ...aiBoundaryState,
                 primaryActionLabel: "Open dossier and choose next touch",
