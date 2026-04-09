@@ -93,6 +93,8 @@ export type FrontOfficeListingUsagePulse = {
   sendTrailDescription: string;
   quietTrailLabel: string;
   quietTrailDescription: string;
+  sendRiskLabel: string;
+  sendRiskDescription: string;
   nextMoveLabel: string;
   nextMoveDescription: string;
   strongestTrail: FrontOfficeListingUsagePulseCard | null;
@@ -628,6 +630,41 @@ function buildListingUsagePulseQuietTrailSummary(input: {
   };
 }
 
+function buildListingUsagePulseSendRiskSummary(input: {
+  trackedLinkCount: number;
+  trackedClickCount: number;
+  quietTrackedListingCount: number;
+}) {
+  if (input.trackedLinkCount <= 0) {
+    return {
+      label: "No send risk yet",
+      description:
+        "No tracked sends have left the desk yet, so the first measured trail still needs to be created before any send-risk needs to be managed.",
+    };
+  }
+
+  if (input.trackedClickCount <= 0) {
+    return {
+      label: "High send risk",
+      description:
+        "Every tracked send is still waiting on its first click pulse, so the desk needs an immediate rescue move before those trails disappear into quiet follow-up debt.",
+    };
+  }
+
+  if (input.quietTrackedListingCount > 0) {
+    return {
+      label: "Mixed send risk",
+      description: `${input.quietTrackedListingCount} listing(s) still carry quiet-after-send risk even though other trails are already warm, so rescue work should stay visible beside the engaged pulse.`,
+    };
+  }
+
+  return {
+    label: "Managed send risk",
+    description:
+      "Every tracked listing has already returned a click pulse, so send risk is being managed inside warm trails instead of piling up as silent follow-up debt.",
+  };
+}
+
 function buildListingUsagePulseNextMoveSummary(input: {
   trackedLinkCount: number;
   trackedClickCount: number;
@@ -821,6 +858,11 @@ export function buildFrontOfficeListingUsagePulse(
     trackedClickCount,
     quietTrackedListingCount,
   });
+  const sendRiskSummary = buildListingUsagePulseSendRiskSummary({
+    trackedLinkCount,
+    trackedClickCount,
+    quietTrackedListingCount,
+  });
   const sortedByLatestShare = listings
     .filter((listing) => listing.latestTrackedShare)
     .slice()
@@ -872,6 +914,8 @@ export function buildFrontOfficeListingUsagePulse(
     sendTrailDescription: sendTrailSummary.description,
     quietTrailLabel: quietTrailSummary.label,
     quietTrailDescription: quietTrailSummary.description,
+    sendRiskLabel: sendRiskSummary.label,
+    sendRiskDescription: sendRiskSummary.description,
     nextMoveLabel: nextMoveSummary.label,
     nextMoveDescription: nextMoveSummary.description,
     strongestTrail: strongestTrailListing

@@ -112,6 +112,14 @@ type ClientFacingShareContract = {
   meta: string[];
 };
 
+type ListingSendRiskWatch = {
+  badgeLabel: string;
+  badgeTone: QueueItemBadgeTone;
+  context: string;
+  description: string;
+  meta: string[];
+};
+
 async function copyTextToClipboard(value: string) {
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
     throw new Error("Clipboard access is not available in this browser.");
@@ -684,6 +692,80 @@ function buildClientFacingShareContract(input: {
   };
 }
 
+function buildListingSendRiskWatch(
+  listing: FrontOfficeListingsSnapshot["listings"][number],
+): ListingSendRiskWatch {
+  const meta = [
+    `${listing.trackedLinkCount} tracked link(s)`,
+    `${listing.trackedClickCount} tracked click(s)`,
+  ];
+
+  if (listing.trackedLinkCount <= 0) {
+    return {
+      badgeLabel: "No send risk",
+      badgeTone: "neutral",
+      context: "Fresh trail",
+      description:
+        "This listing has not left the desk as a tracked send yet, so there is no silent follow-up debt to rescue.",
+      meta: meta.concat(
+        "Watchpoint · Start the first tracked send from a dossier or appointment when this listing becomes live.",
+      ),
+    };
+  }
+
+  if (listing.trackedClickCount <= 0) {
+    return {
+      badgeLabel: "Unopened risk",
+      badgeTone: "danger",
+      context: listing.latestTrackedShare
+        ? `${listing.latestTrackedShare.channelLabel} · ${listing.latestTrackedShare.modeLabel}`
+        : "Tracked send waiting",
+      description:
+        "The latest tracked send is still waiting on its first click pulse, so this trail needs a tighter reason-to-care before it disappears into quiet follow-up debt.",
+      meta: meta.concat(
+        `Watchpoint · ${
+          listing.latestTrackedShare?.nextStepLabel ??
+          "Reopen the same trail with a stronger framing before starting a new one."
+        }`,
+      ),
+    };
+  }
+
+  if (listing.trackedClickCount < listing.trackedLinkCount) {
+    return {
+      badgeLabel: "Quiet-after-open",
+      badgeTone: "warning",
+      context: listing.latestTrackedShare
+        ? `${listing.latestTrackedShare.channelLabel} · warm but uneven`
+        : "Mixed trail",
+      description:
+        "This listing has already pulled at least one click, but part of the trail is still cooling off, so the next touch should stay inside the same conversation instead of restarting cold.",
+      meta: meta.concat(
+        `Watchpoint · ${
+          listing.latestTrackedShare?.nextStepLabel ??
+          "Use the warm trail as the anchor and rescue the quieter branch from the same conversation."
+        }`,
+      ),
+    };
+  }
+
+  return {
+    badgeLabel: "Managed risk",
+    badgeTone: "success",
+    context: listing.latestTrackedShare
+      ? `${listing.latestTrackedShare.channelLabel} · warm trail`
+      : "Warm trail",
+    description:
+      "Every tracked send on this listing has already produced a click pulse, so send risk is being managed inside an active trail.",
+    meta: meta.concat(
+      `Watchpoint · ${
+        listing.latestTrackedShare?.nextStepLabel ??
+        "Keep the next touch attached to the same warm trail."
+      }`,
+    ),
+  };
+}
+
 export function FrontOfficeListingsOutputClient(
   props: FrontOfficeListingsOutputClientProps,
 ) {
@@ -1055,6 +1137,7 @@ export function FrontOfficeListingsOutputClient(
           <span>{props.usagePulse.clickThroughRateLabel}</span>
           <span>{props.usagePulse.sendTrailLabel}</span>
           <span>{props.usagePulse.quietTrailLabel}</span>
+          <span>{props.usagePulse.sendRiskLabel}</span>
           <span>{props.usagePulse.nextMoveLabel}</span>
         </div>
         <div className="office-queue-list">
@@ -1115,6 +1198,27 @@ export function FrontOfficeListingsOutputClient(
               </>
             }
             title="Rescue lane"
+          />
+          <QueueItem
+            badgeLabel={props.usagePulse.sendRiskLabel}
+            badgeTone={
+              props.usagePulse.trackedLinkCount <= 0
+                ? "neutral"
+                : props.usagePulse.trackedClickCount <= 0
+                  ? "danger"
+                  : props.usagePulse.quietTrackedListingCount > 0
+                    ? "warning"
+                    : "success"
+            }
+            context="Send-risk watch"
+            description={props.usagePulse.sendRiskDescription}
+            meta={
+              <>
+                <span>{props.usagePulse.sendTrailDescription}</span>
+                <span>{props.usagePulse.quietTrailDescription}</span>
+              </>
+            }
+            title="Send-risk watch"
           />
           {props.usagePulse.strongestTrail ? (
             <QueueItem
@@ -1461,6 +1565,7 @@ export function FrontOfficeListingsOutputClient(
               routeState: props.routeState,
               recommendedAction,
             });
+            const sendRiskWatch = buildListingSendRiskWatch(listing);
 
             return (
               <article
@@ -1516,6 +1621,22 @@ export function FrontOfficeListingsOutputClient(
                       </span>
                     }
                     title="Usage pulse"
+                  />
+                  <QueueItem
+                    badgeLabel={sendRiskWatch.badgeLabel}
+                    badgeTone={sendRiskWatch.badgeTone}
+                    context={sendRiskWatch.context}
+                    description={sendRiskWatch.description}
+                    meta={
+                      <>
+                        {sendRiskWatch.meta.map((item, index) => (
+                          <span key={`send-risk-${listing.id}-${index}`}>
+                            {item}
+                          </span>
+                        ))}
+                      </>
+                    }
+                    title="Send-risk watch"
                   />
                   <QueueItem
                     badgeLabel={clientFacingContract.badgeLabel}

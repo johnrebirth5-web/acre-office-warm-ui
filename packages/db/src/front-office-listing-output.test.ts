@@ -366,6 +366,7 @@ test("listing usage pulse surfaces explicit send trail and next move summaries",
 
   assert.equal(usagePulse.sendTrailLabel, "Mixed send trail");
   assert.equal(usagePulse.quietTrailLabel, "1 quiet trail(s)");
+  assert.equal(usagePulse.sendRiskLabel, "Mixed send risk");
   assert.equal(usagePulse.nextMoveLabel, "Rescue quiet trails");
   assert.equal(usagePulse.strongestTrail?.title, "Active Trail Listing");
   assert.equal(usagePulse.latestTrackedShare?.title, "Active Trail Listing");
@@ -385,5 +386,6 @@ test("listing usage pulse surfaces explicit send trail and next move summaries",
     ),
   );
   assert.match(usagePulse.sendTrailDescription, /quiet/);
+  assert.match(usagePulse.sendRiskDescription, /risk/i);
   assert.match(usagePulse.nextMoveDescription, /quiet/i);
 });
