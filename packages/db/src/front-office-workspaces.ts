@@ -258,6 +258,21 @@ export type FrontOfficeClientsSnapshot = {
     followUpDueCount: number;
     overdueTaskCount: number;
     potentialDuplicateCount: number;
+    missingContactCount: number;
+    missingNextTouchCount: number;
+    viewingLaneCount: number;
+    boundaryReviewCount: number;
+    leaseWatchCount: number;
+  };
+  workspaceAnchor: {
+    label: string;
+    tone: FrontOfficeTone;
+    contextLabel: string;
+    description: string;
+    primaryActionLabel: string;
+    primaryActionHref: string;
+    secondaryActionLabel: string;
+    secondaryActionHref: string;
   };
   stageMetrics: Array<{
     label: string;
@@ -739,6 +754,14 @@ const activeListingStatuses: ListingStatus[] = [
   ListingStatus.hot,
 ];
 
+type FrontOfficeClientsWorkspaceView =
+  | "all"
+  | "follow_first"
+  | "anchor_now"
+  | "viewing_lane"
+  | "boundary_review"
+  | "duplicate_review";
+
 function formatCurrency(value: Prisma.Decimal | number | null | undefined) {
   const numeric = Number(value ?? 0);
 
@@ -1079,6 +1102,171 @@ function compareClientStageLabels(left: string, right: string) {
   }
 
   return left.localeCompare(right);
+}
+
+function normalizeClientStageLabel(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function isViewingLaneStage(stage: string) {
+  const normalized = normalizeClientStageLabel(stage);
+
+  return (
+    normalized.includes("viewing") ||
+    normalized.includes("showing") ||
+    normalized.includes("tour") ||
+    normalized.includes("open house")
+  );
+}
+
+function isBoundaryStage(stage: string) {
+  const normalized = normalizeClientStageLabel(stage);
+
+  return (
+    normalized.includes("negotiation") ||
+    normalized.includes("offer") ||
+    normalized.includes("application") ||
+    normalized.includes("contract")
+  );
+}
+
+function buildClientWorkspaceHref(
+  view: FrontOfficeClientsWorkspaceView,
+  anchorId: string,
+) {
+  return `/agent/clients?clientView=${view}#${anchorId}`;
+}
+
+function buildClientWorkspaceAnchor(input: {
+  followUpDueCount: number;
+  overdueTaskCount: number;
+  missingContactCount: number;
+  missingNextTouchCount: number;
+  viewingLaneCount: number;
+  boundaryReviewCount: number;
+  duplicatePairCount: number;
+}) {
+  const followPressureCount = input.followUpDueCount + input.overdueTaskCount;
+  const anchorGapCount =
+    input.missingContactCount + input.missingNextTouchCount;
+
+  if (followPressureCount > 0) {
+    return {
+      label: "Follow first",
+      tone: "danger" as FrontOfficeTone,
+      contextLabel: `${formatCountLabel(followPressureCount, "pressure")} on the active queue`,
+      description:
+        "Keep the due-today and overdue touches visible before anything else so the Clients page stays execution-first.",
+      primaryActionLabel: "Open follow-first lane",
+      primaryActionHref: buildClientWorkspaceHref(
+        "follow_first",
+        "client-execution-queue",
+      ),
+      secondaryActionLabel: "Open cleanup lane",
+      secondaryActionHref: buildClientWorkspaceHref(
+        "anchor_now",
+        "client-execution-queue",
+      ),
+    };
+  }
+
+  if (anchorGapCount > 0) {
+    return {
+      label: "Anchor now",
+      tone: "warning" as FrontOfficeTone,
+      contextLabel: `${formatCountLabel(anchorGapCount, "dossier")} still need a visible first-touch anchor`,
+      description:
+        "This workspace should stay anchored to a visible first touch or dated next touch instead of drifting into a passive CRM list.",
+      primaryActionLabel: "Open cleanup lane",
+      primaryActionHref: buildClientWorkspaceHref(
+        "anchor_now",
+        "client-execution-queue",
+      ),
+      secondaryActionLabel: "Open duplicate lane",
+      secondaryActionHref: buildClientWorkspaceHref(
+        "duplicate_review",
+        "duplicate-review",
+      ),
+    };
+  }
+
+  if (input.viewingLaneCount > 0) {
+    return {
+      label: "Viewing lane",
+      tone: "accent" as FrontOfficeTone,
+      contextLabel: `${formatCountLabel(input.viewingLaneCount, "dossier")} are in the appointment lane`,
+      description:
+        "Keep the showing and follow-up route easy to reopen without losing the surrounding client queue.",
+      primaryActionLabel: "Open viewing lane",
+      primaryActionHref: buildClientWorkspaceHref(
+        "viewing_lane",
+        "client-execution-queue",
+      ),
+      secondaryActionLabel: "Open follow-first lane",
+      secondaryActionHref: buildClientWorkspaceHref(
+        "follow_first",
+        "client-execution-queue",
+      ),
+    };
+  }
+
+  if (input.boundaryReviewCount > 0) {
+    return {
+      label: "Boundary review",
+      tone: "warning" as FrontOfficeTone,
+      contextLabel: `${formatCountLabel(input.boundaryReviewCount, "dossier")} are formal enough for FO → BO review`,
+      description:
+        "Negotiation, offer, application, and contract-era work should still be easy to reopen here, but the formal record belongs in Back Office.",
+      primaryActionLabel: "Open boundary lane",
+      primaryActionHref: buildClientWorkspaceHref(
+        "boundary_review",
+        "client-execution-queue",
+      ),
+      secondaryActionLabel: "Open duplicate lane",
+      secondaryActionHref: buildClientWorkspaceHref(
+        "duplicate_review",
+        "duplicate-review",
+      ),
+    };
+  }
+
+  if (input.duplicatePairCount > 0) {
+    return {
+      label: "Duplicate review",
+      tone: "warning" as FrontOfficeTone,
+      contextLabel: `${formatCountLabel(input.duplicatePairCount, "pair")} need merge review`,
+      description:
+        "Compare the surviving and duplicate records side by side, then merge only after the keep choice is clear.",
+      primaryActionLabel: "Open duplicate lane",
+      primaryActionHref: buildClientWorkspaceHref(
+        "duplicate_review",
+        "duplicate-review",
+      ),
+      secondaryActionLabel: "Open full queue",
+      secondaryActionHref: buildClientWorkspaceHref(
+        "all",
+        "client-execution-queue",
+      ),
+    };
+  }
+
+  return {
+    label: "Queue clear",
+    tone: "success" as FrontOfficeTone,
+    contextLabel: "No active client pressure",
+    description:
+      "The visible client queue is clear enough to reopen intake or widen the route focus from the same workspace.",
+    primaryActionLabel: "Open intake review",
+    primaryActionHref: buildClientWorkspaceHref(
+      "anchor_now",
+      "clients-intake-launch",
+    ),
+    secondaryActionLabel: "Open full queue",
+    secondaryActionHref: buildClientWorkspaceHref(
+      "all",
+      "client-execution-queue",
+    ),
+  };
 }
 
 function resolveClientNextTouchAt(input: {
@@ -2987,6 +3175,31 @@ export async function getFrontOfficeClientsSnapshot(
       compareFrontOfficeClientQueueRecords(left, right, now),
     )
     .slice(0, 24);
+  const missingContactCount = sortedClients.filter(
+    (client) => !client.lastContactAt,
+  ).length;
+  const missingNextTouchCount = sortedClients.filter(
+    (client) => !client.nextFollowUpAt && !client.leaseReminderAt,
+  ).length;
+  const viewingLaneCount = sortedClients.filter((client) =>
+    isViewingLaneStage(client.stage),
+  ).length;
+  const boundaryReviewCount = sortedClients.filter((client) =>
+    isBoundaryStage(client.stage),
+  ).length;
+  const leaseWatchCount = sortedClients.filter((client) => {
+    if (!client.leaseReminderAt) {
+      return false;
+    }
+
+    const leaseReminderTime = client.leaseReminderAt.getTime();
+    const nextFollowUpTime = client.nextFollowUpAt?.getTime() ?? Infinity;
+
+    return (
+      leaseReminderTime >= startOfTomorrow.getTime() &&
+      leaseReminderTime <= nextFollowUpTime
+    );
+  }).length;
 
   return {
     summary: {
@@ -2995,7 +3208,21 @@ export async function getFrontOfficeClientsSnapshot(
       followUpDueCount,
       overdueTaskCount,
       potentialDuplicateCount: duplicatePairs.length,
+      missingContactCount,
+      missingNextTouchCount,
+      viewingLaneCount,
+      boundaryReviewCount,
+      leaseWatchCount,
     },
+    workspaceAnchor: buildClientWorkspaceAnchor({
+      followUpDueCount,
+      overdueTaskCount,
+      missingContactCount,
+      missingNextTouchCount,
+      viewingLaneCount,
+      boundaryReviewCount,
+      duplicatePairCount: duplicatePairs.length,
+    }),
     stageMetrics: stageGroups
       .slice()
       .sort(

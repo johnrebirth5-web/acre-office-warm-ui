@@ -165,10 +165,7 @@ function resolveClientWorkbenchView(value: string | undefined) {
   }
 }
 
-function buildClientWorkbenchHref(
-  view: ClientWorkbenchView,
-  anchorId: string,
-) {
+function buildClientWorkbenchHref(view: ClientWorkbenchView, anchorId: string) {
   return `/agent/clients?clientView=${view}#${anchorId}`;
 }
 
@@ -574,18 +571,12 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
     activeClientViewConfig.label,
   );
   const actNowCount = executionQueue.filter((client) => client.isUrgent).length;
-  const cleanupCount = executionQueue.filter(
-    (client) => client.needsCleanup,
-  ).length;
-  const boundaryCount = executionQueue.filter(
-    (client) => client.needsBoundaryReview,
-  ).length;
-  const viewingCount = executionQueue.filter(
-    (client) => client.isViewingLane,
-  ).length;
-  const leaseWatchCount = executionQueue.filter(
-    (client) => client.isLeaseAnchored && !client.isUrgent,
-  ).length;
+  const cleanupCount =
+    snapshot.summary.missingContactCount +
+    snapshot.summary.missingNextTouchCount;
+  const boundaryCount = snapshot.summary.boundaryReviewCount;
+  const viewingCount = snapshot.summary.viewingLaneCount;
+  const leaseWatchCount = snapshot.summary.leaseWatchCount;
   const topQueueClient = executionQueue[0] ?? null;
   const topCleanupClient =
     executionQueue.find((client) => client.needsCleanup) ?? null;
@@ -605,7 +596,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description={`${activeClientViewConfig.subtitle} Run Front Office CRM here as an execution queue, not a summary: see who to touch first, which dossier still needs an anchor, which pair should merge next, and only then reopen intake.`}
+      description={`${snapshot.workspaceAnchor.description} Keep the Clients workspace as the live queue, not a passive list, and reopen intake only when the lane is clear enough for more work.`}
       eyebrow="Clients"
       main={
         <>
@@ -624,68 +615,98 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                 ))}
               </>
             }
-            subtitle={`Current route focus: ${activeClientViewConfig.label}. ${activeClientViewConfig.subtitle}`}
-            title="Today's FO operating board"
+            subtitle={`${snapshot.workspaceAnchor.contextLabel}. Current route focus: ${activeClientViewConfig.label}. ${activeClientViewConfig.subtitle}`}
+            title="Today's FO clients workspace"
           >
             <div className="office-queue-list">
               <QueueItem
                 action={
                   <div className="list-row-meta front-office-record-meta">
-                    {focusedQueueLeader ? (
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={snapshot.workspaceAnchor.primaryActionHref}
+                    >
+                      {snapshot.workspaceAnchor.primaryActionLabel}
+                    </FrontOfficeLink>
+                    <FrontOfficeLink
+                      className="office-inline-link front-office-inline-link"
+                      href={snapshot.workspaceAnchor.secondaryActionHref}
+                    >
+                      {snapshot.workspaceAnchor.secondaryActionLabel}
+                    </FrontOfficeLink>
+                  </div>
+                }
+                badgeLabel={snapshot.workspaceAnchor.label}
+                badgeTone={snapshot.workspaceAnchor.tone}
+                context={snapshot.workspaceAnchor.contextLabel}
+                description={snapshot.workspaceAnchor.description}
+                meta={
+                  <div className="list-row-meta front-office-record-meta">
+                    <span>{snapshot.summary.liveContacts} live dossiers</span>
+                    <span>{activeClientViewConfig.label}</span>
+                  </div>
+                }
+                title="Workspace anchor"
+              />
+
+              {focusedQueueLeader ? (
+                <QueueItem
+                  action={
+                    <div className="list-row-meta front-office-record-meta">
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
                         href={focusedQueueLeader.primaryActionHref}
                       >
                         {focusedQueueLeader.primaryActionLabel}
                       </FrontOfficeLink>
-                    ) : null}
-                    <FrontOfficeLink
-                      className="office-inline-link front-office-inline-link"
-                      href={buildClientWorkbenchHref(
-                        activeClientView,
-                        activeClientViewConfig.focusAnchor,
-                      )}
-                    >
-                      Reopen this lane
-                    </FrontOfficeLink>
-                  </div>
-                }
-                badgeLabel={activeClientViewConfig.label}
-                badgeTone={
-                  activeClientView === "all"
-                    ? "accent"
-                    : focusedExecutionQueue.length
-                      ? "warning"
-                      : "neutral"
-                }
-                context={
-                  activeClientView === "all"
-                    ? "Full FO queue"
-                    : `${focusedExecutionQueue.length} dossier(s) in focus`
-                }
-                description={
-                  focusedQueueLeader
-                    ? `${focusedQueueLeader.fullName} is the clearest dossier inside this route focus. ${focusedQueueLeader.whyNow}`
-                    : `${activeClientViewConfig.subtitle} ${queueEmptyState.description}`
-                }
-                meta={
-                  focusedQueueLeader ? (
-                    <div className="list-row-meta front-office-record-meta">
-                      <StatusBadge tone={focusedQueueLeader.stageTone}>
-                        {focusedQueueLeader.stage}
-                      </StatusBadge>
-                      <span>{focusedQueueLeader.nextTouchLabel}</span>
-                      <span>{focusedQueueLeader.anchorLabel}</span>
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={buildClientWorkbenchHref(
+                          activeClientView,
+                          activeClientViewConfig.focusAnchor,
+                        )}
+                      >
+                        Reopen this lane
+                      </FrontOfficeLink>
                     </div>
-                  ) : (
-                    <div className="list-row-meta front-office-record-meta">
-                      <span>{activeClientViewConfig.label}</span>
-                      <span>{queueEmptyState.title}</span>
-                    </div>
-                  )
-                }
-                title="Current route focus"
-              />
+                  }
+                  badgeLabel={activeClientViewConfig.label}
+                  badgeTone={
+                    activeClientView === "all"
+                      ? "accent"
+                      : focusedExecutionQueue.length
+                        ? "warning"
+                        : "neutral"
+                  }
+                  context={
+                    activeClientView === "all"
+                      ? "Full FO queue"
+                      : `${focusedExecutionQueue.length} dossier(s) in focus`
+                  }
+                  description={
+                    focusedQueueLeader
+                      ? `${focusedQueueLeader.fullName} is the clearest dossier inside this route focus. ${focusedQueueLeader.whyNow}`
+                      : `${activeClientViewConfig.subtitle} ${queueEmptyState.description}`
+                  }
+                  meta={
+                    focusedQueueLeader ? (
+                      <div className="list-row-meta front-office-record-meta">
+                        <StatusBadge tone={focusedQueueLeader.stageTone}>
+                          {focusedQueueLeader.stage}
+                        </StatusBadge>
+                        <span>{focusedQueueLeader.nextTouchLabel}</span>
+                        <span>{focusedQueueLeader.anchorLabel}</span>
+                      </div>
+                    ) : (
+                      <div className="list-row-meta front-office-record-meta">
+                        <span>{activeClientViewConfig.label}</span>
+                        <span>{queueEmptyState.title}</span>
+                      </div>
+                    )
+                  }
+                  title="Current route focus"
+                />
+              ) : null}
 
               {topQueueClient ? (
                 <QueueItem
@@ -843,7 +864,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
               </>
             }
             className="office-list-card"
-            subtitle={`Queue order stays execution-first: overdue next touches, missing anchors, viewing coordination, duplicate review signals, and BO-ready stage review all stay visible without pretending Acre already has auto-send, hidden automation, or two-way sync. Current route focus: ${activeClientViewConfig.label}.`}
+            subtitle={`Queue order stays execution-first: overdue next touches, missing anchors, viewing coordination, duplicate review signals, and BO-ready stage review all stay visible without pretending Acre already has auto-send, hidden automation, or two-way sync. Workspace anchor: ${snapshot.workspaceAnchor.label}. Current route focus: ${activeClientViewConfig.label}.`}
             title="Client execution queue"
           >
             <ListPageStatsGrid>
@@ -1188,6 +1209,11 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
       summary={
         <>
           <SummaryChip label="Follow first" tone="accent" value={actNowCount} />
+          <SummaryChip
+            label="Workspace anchor"
+            tone="accent"
+            value={snapshot.workspaceAnchor.label}
+          />
           <SummaryChip label="Anchor now" tone="accent" value={cleanupCount} />
           {activeClientView !== "all" ? (
             <SummaryChip
