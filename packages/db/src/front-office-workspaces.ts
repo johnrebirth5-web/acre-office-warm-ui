@@ -1176,7 +1176,7 @@ function buildClientWorkspaceAnchor(input: {
         "client-execution-queue",
       ),
       returnDescription:
-        "After you clear a record, come back through the same execution lane so the next touch stays visible.",
+        "After you clear a record, come back through the same execution lane so the next touch stays visible and the queue does not drift into passive cleanup.",
     };
   }
 
@@ -1203,7 +1203,7 @@ function buildClientWorkspaceAnchor(input: {
         "client-execution-queue",
       ),
       returnDescription:
-        "Re-enter this lane when a dossier still needs a first touch or a dated next touch.",
+        "Re-enter cleanup lane when a dossier still needs a first touch or a dated next touch; this same workspace anchor stays ready for duplicate review and the next cleanup pass.",
     };
   }
 
@@ -1230,7 +1230,7 @@ function buildClientWorkspaceAnchor(input: {
         "client-execution-queue",
       ),
       returnDescription:
-        "Use the same queue anchor to revisit showing follow-up without losing the active client list.",
+        "Use the same queue anchor to revisit showing follow-up without losing the active client list or the next cleanup step.",
     };
   }
 
@@ -1257,7 +1257,7 @@ function buildClientWorkspaceAnchor(input: {
         "client-execution-queue",
       ),
       returnDescription:
-        "Re-open this lane when negotiation, offer, or application work needs another FO -> BO boundary check.",
+        "Re-open this lane when negotiation, offer, or application work needs another FO -> BO boundary check, then step back to duplicate review or cleanup from the same anchor if the queue still needs attention.",
     };
   }
 
@@ -1267,15 +1267,15 @@ function buildClientWorkspaceAnchor(input: {
       tone: "warning" as FrontOfficeTone,
       contextLabel: `${formatCountLabel(input.duplicatePairCount, "pair")} need merge review`,
       description:
-        "Compare the surviving and duplicate records side by side, then merge only after the keep choice is clear. After each merge, come back through this same lane so the next pair stays easy to review.",
+        "Compare the surviving and duplicate records side by side, then merge only after the keep choice is clear. After each merge, come back through this same duplicate-review slice so the next pair and cleanup re-entry stay easy to reopen.",
       primaryActionLabel: "Open duplicate lane",
       primaryActionHref: buildClientWorkspaceHref(
         "duplicate_review",
         "duplicate-review",
       ),
-      secondaryActionLabel: "Open full queue",
+      secondaryActionLabel: "Open cleanup lane",
       secondaryActionHref: buildClientWorkspaceHref(
-        "all",
+        "anchor_now",
         "client-execution-queue",
       ),
       returnLabel: "Re-enter duplicate review",
@@ -1284,7 +1284,7 @@ function buildClientWorkspaceAnchor(input: {
         "duplicate-review",
       ),
       returnDescription:
-        "After a merge completes, reopen this anchor to verify the surviving dossier and move on to the next pair.",
+        "After a merge completes, reopen this duplicate-review slice to verify the surviving dossier, then step back into cleanup lane if another pair is still waiting.",
     };
   }
 
@@ -1305,12 +1305,9 @@ function buildClientWorkspaceAnchor(input: {
       "client-execution-queue",
     ),
     returnLabel: "Return to intake review",
-    returnHref: buildClientWorkspaceHref(
-      "anchor_now",
-      "clients-intake-launch",
-    ),
+    returnHref: buildClientWorkspaceHref("anchor_now", "clients-intake-launch"),
     returnDescription:
-      "When new work comes in, come back through intake review so the first touch stays explicit.",
+      "When new work comes in, come back through intake review so the first touch stays explicit and the same workspace anchor can widen back into cleanup or duplicate review later.",
   };
 }
 
