@@ -137,7 +137,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         detail: appointment.coordinationDetail,
         nextStep: appointment.coordinationNextStep,
         sourceNote:
-          "Acre keeps confirmation, reschedule, and promised-touch checkpoints as the source of truth; the outside calendar or email draft stays manual unless it is written back here.",
+          "Acre keeps reply due, confirmation pending, reschedule, touch scheduled, and promised-touch checkpoints as the source of truth; the outside calendar or email draft stays manual unless it is written back here.",
       },
     });
   } catch (error) {

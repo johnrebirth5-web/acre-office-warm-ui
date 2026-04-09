@@ -167,8 +167,8 @@ const externalStatusOptions: Array<{
   label: string;
 }> = [
   { value: "idle", label: "External follow-up idle" },
-  { value: "needs_follow_up", label: "Needs follow-up" },
-  { value: "confirmation_pending", label: "Awaiting confirmation" },
+  { value: "needs_follow_up", label: "Reply due" },
+  { value: "confirmation_pending", label: "Confirmation pending" },
   { value: "confirmed", label: "Confirmed" },
   { value: "reschedule_requested", label: "Reschedule requested" },
 ];
@@ -188,18 +188,18 @@ const calendarViewOptions = calendarViewValues.map((value) => ({
 
 const coordinationFilterOptions = [
   { value: "all", label: "All coordination states" },
-  { value: "needs_follow_up", label: "Needs follow-up" },
-  { value: "confirmation_pending", label: "Awaiting confirmation" },
+  { value: "needs_follow_up", label: "Reply due" },
+  { value: "confirmation_pending", label: "Confirmation pending" },
   { value: "confirmed", label: "Confirmed" },
   { value: "reschedule_requested", label: "Reschedule requested" },
   { value: "touch_due", label: "Touch due" },
   { value: "bridge_logged", label: "Bridge opened" },
-  { value: "writeback_pending", label: "Bridge opened, writeback pending" },
+  { value: "writeback_pending", label: "Writeback pending" },
 ];
 
 const followUpFilterOptions = [
   { value: "all", label: "All follow-up rhythms" },
-  { value: "response_waiting", label: "Needs outside reply" },
+  { value: "response_waiting", label: "Reply due" },
   { value: "touch_due", label: "Touch due now" },
   { value: "next_touch_missing", label: "Missing next touch" },
   { value: "touch_scheduled", label: "Touch scheduled" },
@@ -223,19 +223,19 @@ const quickWritebackActions: Array<{
 }> = [
   {
     value: "needs_follow_up",
-    label: "Needs follow-up",
+    label: "Reply due",
     description:
-      "Keep the appointment active, but flag that another outbound touch is still needed.",
+      "Keep the appointment active, but flag that another outbound reply is still needed.",
   },
   {
     value: "confirmation_pending",
-    label: "Awaiting confirmation",
+    label: "Confirmation pending",
     description:
       "Save that the outside reply has not come back yet without claiming a confirmed sync.",
   },
   {
     value: "confirmed",
-    label: "Confirmed + clear touch",
+    label: "Confirmed / clear touch",
     description:
       "Mark the outside plan confirmed and clear the current checkpoint deadline.",
   },
@@ -377,7 +377,7 @@ function buildAppointmentCueList(
   }
 
   if (appointment.externalStatusValue === "confirmation_pending") {
-    cues.push({ label: "Awaiting confirmation", tone: "accent" });
+    cues.push({ label: "Confirmation pending", tone: "accent" });
   }
 
   if (appointment.externalStatusValue === "reschedule_requested") {
@@ -401,7 +401,7 @@ function buildAppointmentCueList(
     appointment.hasBridgeActivity &&
     appointment.externalStatusValue === "idle"
   ) {
-    cues.push({ label: "Bridge pending", tone: "warning" });
+    cues.push({ label: "Writeback pending", tone: "warning" });
   }
 
   if (
@@ -2104,10 +2104,10 @@ export function FrontOfficeCalendarClient(
             Showing {props.snapshot.filteredSummary.appointmentCount}
           </Badge>
           <Badge tone="warning">
-            Awaiting reply {props.snapshot.filteredSummary.awaitingReplyCount}
+            Reply due {props.snapshot.filteredSummary.awaitingReplyCount}
           </Badge>
           <Badge tone="accent">
-            Awaiting confirm{" "}
+            Confirmation pending{" "}
             {props.snapshot.filteredSummary.confirmationPendingCount}
           </Badge>
           <Badge tone="danger">
@@ -2127,7 +2127,7 @@ export function FrontOfficeCalendarClient(
             Confirmed {props.snapshot.filteredSummary.confirmedCount}
           </Badge>
           <Badge tone="warning">
-            Bridge pending {props.snapshot.filteredSummary.bridgePendingCount}
+            Bridge opened {props.snapshot.filteredSummary.bridgePendingCount}
           </Badge>
           <Badge tone="warning">
             Writeback pending{" "}
@@ -2143,7 +2143,7 @@ export function FrontOfficeCalendarClient(
               filterState.calendarView === "reply_due" ? "primary" : "secondary"
             }
           >
-            Needs reply
+            Reply due
           </Button>
           <Button
             onClick={() => navigateToCalendarView("confirmation_pending")}
@@ -2154,7 +2154,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Awaiting confirmation
+            Confirmation pending
           </Button>
           <Button
             onClick={() => navigateToCalendarView("touch_due")}
@@ -2216,7 +2216,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Bridge pending
+            Bridge opened
           </Button>
           <Button
             onClick={() => navigateToCalendarView("writeback_pending")}
@@ -2458,8 +2458,9 @@ export function FrontOfficeCalendarClient(
                     <p>
                       Google, Outlook, ICS, and email actions only open drafts
                       or exports from this appointment and log that bridge trail
-                      here. The next move is still to save the confirmation,
-                      reschedule, or follow-up checkpoint back into Acre.
+                      here. The next move is still to save the reply due,
+                      confirmation pending, reschedule, or touch scheduled
+                      checkpoint back into Acre.
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.bridgeStatusLabel}</span>
@@ -2700,9 +2701,9 @@ export function FrontOfficeCalendarClient(
                       </Badge>
                     </div>
                     <p className="front-office-record-supporting">
-                      Save what happened outside Acre and when the next
-                      checkpoint should come back into view on this same
-                      appointment record.
+                      Save what happened outside Acre and when the next reply,
+                      confirmation, reschedule, or touch checkpoint should come
+                      back into view on this same appointment record.
                     </p>
                   </div>
                   <div className="front-office-calendar-writeback-fields">
