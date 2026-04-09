@@ -422,6 +422,43 @@ export type FrontOfficeResourcesSnapshot = {
     quickContactVendorCount: number;
     vendorCategoryCount: number;
   };
+  executionPulse: {
+    libraryLanes: Array<{
+      key: ResourceType;
+      label: string;
+      count: number;
+      tone: FrontOfficeTone;
+      description: string;
+      startLabel: string;
+      actionLabel: string;
+    }>;
+    strongestLane: {
+      key: ResourceType;
+      label: string;
+      count: number;
+      tone: FrontOfficeTone;
+      description: string;
+      startLabel: string;
+      actionLabel: string;
+    } | null;
+    thinnestLane: {
+      key: ResourceType;
+      label: string;
+      count: number;
+      tone: FrontOfficeTone;
+      description: string;
+      startLabel: string;
+      actionLabel: string;
+    } | null;
+    vendorPosture: {
+      label: string;
+      tone: FrontOfficeTone;
+      contextLabel: string;
+      description: string;
+      readyNowCount: number;
+      referenceOnlyCount: number;
+    };
+  };
   resourceTypes: Array<{
     key: ResourceType;
     label: string;
@@ -2208,6 +2245,73 @@ function getResourceActionLabel(type: ResourceType) {
   }
 }
 
+function buildFrontOfficeResourcesExecutionPulse(input: {
+  resourceTypeGroups: Array<{
+    type: ResourceType;
+    _count: {
+      _all: number;
+    };
+  }>;
+  vendorCount: number;
+  quickContactVendorCount: number;
+}): FrontOfficeResourcesSnapshot["executionPulse"] {
+  const countByType = new Map(
+    input.resourceTypeGroups.map((group) => [group.type, group._count._all]),
+  );
+  const libraryLaneKeys: ResourceType[] = [
+    ResourceType.playbook,
+    ResourceType.template,
+    ResourceType.document,
+    ResourceType.training_video,
+  ];
+  const libraryLanes = libraryLaneKeys.map((type) => ({
+    key: type,
+    label: formatResourceType(type),
+    count: countByType.get(type) ?? 0,
+    tone: getResourceTypeTone(type),
+    description: getResourceTypeDescription(type),
+    startLabel: getResourceTypeStartLabel(type),
+    actionLabel: getResourceActionLabel(type),
+  }));
+  const strongestLane =
+    libraryLanes.slice().sort((left, right) => right.count - left.count)[0] ??
+    null;
+  const thinnestLane =
+    libraryLanes.slice().sort((left, right) => left.count - right.count)[0] ??
+    null;
+  const referenceOnlyCount = Math.max(
+    input.vendorCount - input.quickContactVendorCount,
+    0,
+  );
+  const vendorPosture =
+    input.quickContactVendorCount > 0
+      ? {
+          label: "Partners ready now",
+          tone: "success" as const,
+          contextLabel: `${formatCountLabel(input.quickContactVendorCount, "quick-contact vendor")} ready`,
+          description:
+            "The vendor desk is already contact-ready, so outside support can be pulled into the same FO execution lane without a second lookup pass.",
+          readyNowCount: input.quickContactVendorCount,
+          referenceOnlyCount,
+        }
+      : {
+          label: "Reference posture",
+          tone: "warning" as const,
+          contextLabel: `${formatCountLabel(input.quickContactVendorCount, "quick-contact vendor")} ready`,
+          description:
+            "Published vendors are still acting more like reference cards than contact-ready partners, so agents may need to widen the directory before acting.",
+          readyNowCount: input.quickContactVendorCount,
+          referenceOnlyCount,
+        };
+
+  return {
+    libraryLanes,
+    strongestLane,
+    thinnestLane,
+    vendorPosture,
+  };
+}
+
 function buildListingAreaLabel(
   neighborhood: string | null | undefined,
   city: string | null | undefined,
@@ -3562,6 +3666,11 @@ export async function getFrontOfficeResourcesSnapshot(
       return left.name.localeCompare(right.name);
     })
     .slice(0, 24);
+  const executionPulse = buildFrontOfficeResourcesExecutionPulse({
+    resourceTypeGroups,
+    vendorCount,
+    quickContactVendorCount,
+  });
 
   return {
     summary: {
@@ -3572,6 +3681,7 @@ export async function getFrontOfficeResourcesSnapshot(
       quickContactVendorCount,
       vendorCategoryCount: vendorCategoryGroups.length,
     },
+    executionPulse,
     resourceTypes: resourceTypeGroups
       .slice()
       .sort(

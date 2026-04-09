@@ -210,48 +210,6 @@ function buildResourceLaneMap(resources: ResourceRecord[]) {
   return lanes;
 }
 
-function buildResourcePulseLanes(input: {
-  playbookCount: number;
-  templateCount: number;
-  documentCount: number;
-  trainingCount: number;
-}) {
-  return [
-    {
-      key: "playbook",
-      label: "Playbooks",
-      count: input.playbookCount,
-      startLabel: "Start with the call guide",
-      description:
-        "Use these when the next move is a live conversation, objection response, or execution checklist.",
-    },
-    {
-      key: "template",
-      label: "Templates",
-      count: input.templateCount,
-      startLabel: "Start with the send kit",
-      description:
-        "Use these when the structure already exists and the agent mainly needs a fast, reviewable outbound draft.",
-    },
-    {
-      key: "document",
-      label: "Documents",
-      count: input.documentCount,
-      startLabel: "Start with the form or reference",
-      description:
-        "Use these when the next move depends on a form, contract reference, or a clean supporting document.",
-    },
-    {
-      key: "training_video",
-      label: "Training",
-      count: input.trainingCount,
-      startLabel: "Start with the refresher",
-      description:
-        "Use these when the lane needs a quick refresher before the live work continues.",
-    },
-  ] as const;
-}
-
 function renderVendorActions(vendor: VendorRecord) {
   return (
     <>
@@ -423,28 +381,21 @@ export default async function AgentResourcesPage() {
     (vendor) => vendor.quickActionCount === 0,
   );
   const playbookCount =
-    snapshot.resourceTypes.find((lane) => lane.key === "playbook")?.count ?? 0;
+    snapshot.executionPulse.libraryLanes.find((lane) => lane.key === "playbook")
+      ?.count ?? 0;
   const templateCount =
-    snapshot.resourceTypes.find((lane) => lane.key === "template")?.count ?? 0;
+    snapshot.executionPulse.libraryLanes.find((lane) => lane.key === "template")
+      ?.count ?? 0;
   const documentCount =
-    snapshot.resourceTypes.find((lane) => lane.key === "document")?.count ?? 0;
+    snapshot.executionPulse.libraryLanes.find((lane) => lane.key === "document")
+      ?.count ?? 0;
   const trainingCount =
-    snapshot.resourceTypes.find((lane) => lane.key === "training_video")?.count ??
-    0;
-  const resourcePulseLanes = buildResourcePulseLanes({
-    playbookCount,
-    templateCount,
-    documentCount,
-    trainingCount,
-  });
-  const strongestResourceLane =
-    resourcePulseLanes
-      .slice()
-      .sort((left, right) => right.count - left.count)[0] ?? null;
-  const thinnestResourceLane =
-    resourcePulseLanes
-      .slice()
-      .sort((left, right) => left.count - right.count)[0] ?? null;
+    snapshot.executionPulse.libraryLanes.find(
+      (lane) => lane.key === "training_video",
+    )?.count ?? 0;
+  const strongestResourceLane = snapshot.executionPulse.strongestLane;
+  const thinnestResourceLane = snapshot.executionPulse.thinnestLane;
+  const vendorPosture = snapshot.executionPulse.vendorPosture;
 
   return (
     <FrontOfficePageTemplate
@@ -466,7 +417,9 @@ export default async function AgentResourcesPage() {
                       ? snapshot.vendorCategories
                           .slice(0, 2)
                           .map((category) => category.label)
-                      : laneResources.slice(0, 2).map((resource) => resource.title);
+                      : laneResources
+                          .slice(0, 2)
+                          .map((resource) => resource.title);
 
                   return (
                     <article key={lane.key} style={laneCardStyle}>
@@ -659,9 +612,11 @@ export default async function AgentResourcesPage() {
 
                 <div className="office-queue-list">
                   {readyNowVendors.length ? (
-                    readyNowVendors.slice(0, 8).map((vendor) => (
-                      <VendorShortcutCard key={vendor.id} vendor={vendor} />
-                    ))
+                    readyNowVendors
+                      .slice(0, 8)
+                      .map((vendor) => (
+                        <VendorShortcutCard key={vendor.id} vendor={vendor} />
+                      ))
                   ) : (
                     <EmptyState
                       className="front-office-inline-empty"
@@ -678,8 +633,8 @@ export default async function AgentResourcesPage() {
                     <strong>Coverage lanes & support cards</strong>
                     <p style={subsectionIntroStyle}>
                       Category coverage and support cards keep vendor lookup
-                      grounded in the same execution lane instead of feeling like
-                      a detached marketplace.
+                      grounded in the same execution lane instead of feeling
+                      like a detached marketplace.
                     </p>
                   </div>
                 </div>
@@ -819,18 +774,10 @@ export default async function AgentResourcesPage() {
                 title="Thinnest support lane"
               />
               <FrontOfficeRailItem
-                badgeLabel={
-                  readyNowVendors.length
-                    ? "Partners ready now"
-                    : "Reference posture"
-                }
-                badgeTone={readyNowVendors.length ? "success" : "warning"}
-                context={`${pluralize(snapshot.summary.quickContactVendorCount, "quick-contact vendor")} ready`}
-                description={
-                  readyNowVendors.length
-                    ? "The vendor desk is already contact-ready, so outside support can be pulled into the same FO execution lane without a second lookup pass."
-                    : "Published vendors are still acting more like reference cards than contact-ready partners, so agents may need to widen the directory before acting."
-                }
+                badgeLabel={vendorPosture.label}
+                badgeTone={vendorPosture.tone}
+                context={vendorPosture.contextLabel}
+                description={vendorPosture.description}
                 title="Vendor posture"
               />
               <FrontOfficeRailItem
@@ -919,7 +866,9 @@ export default async function AgentResourcesPage() {
                 description="Open a playbook when the next move is a live call, objection response, showing prep, or FO-to-BO handoff checklist."
                 meta={
                   <>
-                    <span>{pluralize(playbookCount, "playbook")} published</span>
+                    <span>
+                      {pluralize(playbookCount, "playbook")} published
+                    </span>
                     <span>Keep the next step explicit</span>
                   </>
                 }

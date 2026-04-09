@@ -683,6 +683,10 @@
   - [packages/db/src/front-office-listing-output.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-listing-output.ts) now exports a shared tracked-share execution summary builder so channel, binding mode, writeback scope, and next-step labels come from one contract
   - [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) now adds `latestTrackedShare` onto each listing card in the FO listings snapshot by resolving the viewer's most recent share link / send-record context for that listing
   - [apps/web/app/agent/listings/front-office-listings-output-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/listings/front-office-listings-output-client.tsx) now shows that latest tracked-share checkpoint inline, including bound dossier / appointment jump-backs when the last share was client- or appointment-linked
+- FO resource center now reads its execution-pressure summary from a shared snapshot contract instead of page-local heuristics:
+  - [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) now emits `executionPulse` for `/agent/resources`, including resource-lane counts, strongest/thinnest lane, and vendor posture derived from the current resource/vendor set
+  - [apps/web/app/api/resources/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/resources/route.ts) now returns the richer resource-center snapshot shape plus lightweight `type / vendorCategory / vendorMode` filtering so downstream consumers can request a narrowed FO resource payload without recreating summary logic
+  - [apps/web/app/agent/resources/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/resources/page.tsx) now consumes that shared pulse contract for the command-deck rails instead of recomputing strongest/thinnest lane and vendor posture inside the page shell
 
 ## Next recommended work
 
