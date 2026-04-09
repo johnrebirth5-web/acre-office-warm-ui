@@ -21,9 +21,9 @@ import {
   buildAgentNotificationsHref,
   cleanupFilterOptions,
   getActivityViewBridgeLabel,
-  getActivityViewFocusLabel,
   getActivityViewNextMoveLabel,
   getActivityViewOperatorCue,
+  getActivityViewSectionTargetLabel,
   getActivityViewTriageOrderLabel,
   leadershipCleanupFilterOptions,
   noticeStreamFilterOptions,
@@ -176,6 +176,8 @@ export default async function AgentNotificationsPage(
     leadershipFilter: initialTeamCleanupFilter,
     anchor: "#team-cleanup-pressure",
   });
+  const sectionTargetLabel =
+    getActivityViewSectionTargetLabel(initialActivityView);
 
   return (
     <FrontOfficePageTemplate
@@ -208,9 +210,7 @@ export default async function AgentNotificationsPage(
                 description={buildActivityFocusDescription(initialActivityView)}
                 meta={
                   <>
-                    <span>
-                      {getActivityViewFocusLabel(initialActivityView)}
-                    </span>
+                    <span>Section target · {sectionTargetLabel}</span>
                     <span>
                       {getActivityViewNextMoveLabel(initialActivityView)}
                     </span>
@@ -222,7 +222,7 @@ export default async function AgentNotificationsPage(
                     </span>
                   </>
                 }
-                title="Keep this route stable"
+                title="Keep this section target stable"
               />
               <FrontOfficeRailItem
                 badgeLabel={cleanupFilterLabel}
@@ -439,7 +439,11 @@ export default async function AgentNotificationsPage(
       }
       summary={
         <>
-          <SummaryChip label="Focus area" tone="accent" value={activeViewLabel} />
+          <SummaryChip
+            label="Focus area"
+            tone="accent"
+            value={activeViewLabel}
+          />
           <SummaryChip
             label="Current next move"
             tone="accent"
@@ -473,12 +477,18 @@ export default async function AgentNotificationsPage(
             label="Calendar writeback"
             value={appointmentReminderCards.length}
           />
-          <SummaryChip label="Notice routing" value={generalNoticeCards.length} />
+          <SummaryChip
+            label="Notice routing"
+            value={generalNoticeCards.length}
+          />
           <SummaryChip
             label="Urgent cleanup"
             value={snapshot.summary.urgentCleanupCount}
           />
-          <SummaryChip label="Potential dupes" value={snapshot.summary.duplicateReviewCount} />
+          <SummaryChip
+            label="Potential dupes"
+            value={snapshot.summary.duplicateReviewCount}
+          />
           <SummaryChip
             label="Upcoming events"
             value={snapshot.summary.upcomingEventCount}

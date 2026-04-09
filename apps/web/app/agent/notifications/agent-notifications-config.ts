@@ -66,6 +66,23 @@ export function getActivityViewFocusLabel(activityView: AgentActivityView) {
   }
 }
 
+export function getActivityViewSectionTargetLabel(
+  activityView: AgentActivityView,
+) {
+  switch (activityView) {
+    case "personal_cleanup":
+      return "Personal cleanup section";
+    case "team_cleanup":
+      return "Team cleanup section";
+    case "appointment_reminders":
+      return "Calendar writeback section";
+    case "general_notices":
+      return "Notice routing section";
+    default:
+      return "Full activity center";
+  }
+}
+
 export function getActivityViewNextMoveLabel(activityView: AgentActivityView) {
   switch (activityView) {
     case "personal_cleanup":
