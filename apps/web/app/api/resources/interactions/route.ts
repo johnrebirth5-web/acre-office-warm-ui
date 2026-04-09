@@ -1,6 +1,7 @@
 import { can } from "@acre/auth";
 import {
   frontOfficeVendorInteractionActions,
+  recordFrontOfficeResourceSearch,
   recordFrontOfficeResourceOpen,
   recordFrontOfficeVendorClick,
 } from "@acre/db";
@@ -8,6 +9,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
 
 type ResourceInteractionRequest =
+  | {
+      type: "resource_search";
+      query: string;
+    }
   | {
       type: "resource_open";
       resourceId: string;
@@ -26,6 +31,14 @@ function isResourceInteractionRequest(
   }
 
   const candidate = value as Record<string, unknown>;
+
+  if (
+    candidate.type === "resource_search" &&
+    typeof candidate.query === "string" &&
+    candidate.query.trim()
+  ) {
+    return true;
+  }
 
   if (
     candidate.type === "resource_open" &&
@@ -77,7 +90,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (body.type === "resource_open") {
+    if (body.type === "resource_search") {
+      await recordFrontOfficeResourceSearch({
+        organizationId: context.currentOrganization.id,
+        membershipId: context.currentMembership.id,
+        officeId: context.currentOffice?.id ?? null,
+        query: body.query,
+      });
+    } else if (body.type === "resource_open") {
       await recordFrontOfficeResourceOpen({
         organizationId: context.currentOrganization.id,
         membershipId: context.currentMembership.id,

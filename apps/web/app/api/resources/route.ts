@@ -14,6 +14,57 @@ const allowedResourceTypes = new Set<ResourceType>([
 
 const allowedVendorModes = new Set(["all", "quick", "reference"]);
 
+function normalizeSearchValue(value: string | null | undefined) {
+  return value?.trim().toLowerCase() || null;
+}
+
+function resourceMatchesQuery(
+  resource: Awaited<
+    ReturnType<typeof getFrontOfficeResourcesSnapshot>
+  >["resources"][number],
+  query: string | null,
+) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    resource.title,
+    resource.summary,
+    resource.detailLabel,
+    resource.laneLabel,
+    resource.typeLabel,
+    ...resource.tags,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function vendorMatchesQuery(
+  vendor: Awaited<
+    ReturnType<typeof getFrontOfficeResourcesSnapshot>
+  >["vendors"][number],
+  query: string | null,
+) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    vendor.name,
+    vendor.categoryLabel,
+    vendor.headline,
+    vendor.coverageLabel,
+    vendor.contactLabel,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
 export async function GET(request: NextRequest) {
   const context = await getRequestSessionContext(request);
 
@@ -38,6 +89,9 @@ export async function GET(request: NextRequest) {
     timeZone: context.currentUser.timezone,
   });
   const resourceTypeFilter = request.nextUrl.searchParams.get("type")?.trim();
+  const resourceQuery = normalizeSearchValue(
+    request.nextUrl.searchParams.get("q"),
+  );
   const vendorCategoryFilter =
     request.nextUrl.searchParams.get("vendorCategory")?.trim() || null;
   const vendorMode =
@@ -66,6 +120,9 @@ export async function GET(request: NextRequest) {
         (resource) => resource.typeKey === resourceTypeFilter,
       )
     : snapshot.resources;
+  const searchedResources = filteredResources.filter((resource) =>
+    resourceMatchesQuery(resource, resourceQuery),
+  );
   const normalizedVendorCategoryFilter =
     vendorCategoryFilter?.toLowerCase() || null;
   const filteredVendors = snapshot.vendors.filter((vendor) => {
@@ -81,6 +138,9 @@ export async function GET(request: NextRequest) {
 
     return categoryMatches && modeMatches;
   });
+  const searchedVendors = filteredVendors.filter((vendor) =>
+    vendorMatchesQuery(vendor, resourceQuery),
+  );
   const filteredResourceTypes = resourceTypeFilter
     ? snapshot.resourceTypes.filter((lane) => lane.key === resourceTypeFilter)
     : snapshot.resourceTypes;
@@ -94,6 +154,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     filters: {
+      q: resourceQuery,
       type: resourceTypeFilter || null,
       vendorCategory: vendorCategoryFilter,
       vendorMode,
@@ -101,19 +162,19 @@ export async function GET(request: NextRequest) {
     summary: snapshot.summary,
     interactionTracking: snapshot.interactionTracking,
     filteredSummary: {
-      resourceCount: filteredResources.length,
-      vendorCount: filteredVendors.length,
-      quickContactVendorCount: filteredVendors.filter(
+      resourceCount: searchedResources.length,
+      vendorCount: searchedVendors.length,
+      quickContactVendorCount: searchedVendors.filter(
         (vendor) => vendor.quickActionCount > 0,
       ).length,
-      referenceOnlyVendorCount: filteredVendors.filter(
+      referenceOnlyVendorCount: searchedVendors.filter(
         (vendor) => vendor.quickActionCount === 0,
       ).length,
     },
     executionPulse: snapshot.executionPulse,
     resourceTypes: filteredResourceTypes,
     vendorCategories: filteredVendorCategories,
-    resources: filteredResources,
-    vendors: filteredVendors,
+    resources: searchedResources,
+    vendors: searchedVendors,
   });
 }

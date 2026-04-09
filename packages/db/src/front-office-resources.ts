@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Prisma, ResourceType } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
@@ -15,6 +16,7 @@ export type FrontOfficeVendorInteractionAction =
 
 const frontOfficeTrackedResourceInteractionWindowDays = 14;
 const frontOfficeTrackedResourceInteractionActions = [
+  activityLogActions.frontOfficeResourceSearched,
   activityLogActions.frontOfficeResourceOpened,
   activityLogActions.frontOfficeVendorClicked,
 ] as const;
@@ -34,6 +36,13 @@ type FrontOfficeVendorInteractionInput = {
   action: FrontOfficeVendorInteractionAction;
 };
 
+type FrontOfficeResourceSearchInput = {
+  organizationId: string;
+  membershipId: string;
+  officeId?: string | null;
+  query: string;
+};
+
 type GetFrontOfficeResourceInteractionSnapshotInput = {
   organizationId: string;
   membershipId: string;
@@ -44,6 +53,7 @@ type GetFrontOfficeResourceInteractionSnapshotInput = {
 export type FrontOfficeResourceInteractionSnapshot = {
   windowLabel: string;
   totalCount: number;
+  searchCount: number;
   resourceOpenCount: number;
   vendorClickCount: number;
   recentInteractionCount: number;
@@ -51,7 +61,7 @@ export type FrontOfficeResourceInteractionSnapshot = {
   recentInteractions: Array<{
     id: string;
     title: string;
-    kindLabel: "Resource open" | "Vendor click";
+    kindLabel: "Resource search" | "Resource open" | "Vendor click";
     detailLabel: string;
     timestampLabel: string;
     href: string;
@@ -172,13 +182,34 @@ function extractInteractionLabels(payload: Prisma.JsonValue | null) {
 
 function formatInteractionKindLabel(
   action: string,
-): "Resource open" | "Vendor click" {
+): "Resource search" | "Resource open" | "Vendor click" {
+  if (action === activityLogActions.frontOfficeResourceSearched) {
+    return "Resource search";
+  }
+
   return action === activityLogActions.frontOfficeVendorClicked
     ? "Vendor click"
     : "Resource open";
 }
 
 function buildInteractionDetailLabel(action: string, details: string[]) {
+  if (action === activityLogActions.frontOfficeResourceSearched) {
+    const queryDetail =
+      details.find((detail) => detail.startsWith("Query: ")) ?? null;
+    const scopeDetail =
+      details.find((detail) => detail.startsWith("Scope: ")) ?? null;
+
+    if (queryDetail && scopeDetail) {
+      return `${queryDetail.replace("Query: ", "")} · ${scopeDetail.replace("Scope: ", "")}`;
+    }
+
+    if (queryDetail) {
+      return queryDetail.replace("Query: ", "");
+    }
+
+    return "Tracked hub search";
+  }
+
   const actionDetail =
     details.find((detail) => detail.startsWith("Action: ")) ?? null;
   const secondaryDetail =
@@ -255,6 +286,10 @@ export async function getFrontOfficeResourceInteractionSnapshot(
     (interaction) =>
       interaction.action === activityLogActions.frontOfficeResourceOpened,
   ).length;
+  const searchCount = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeResourceSearched,
+  ).length;
   const vendorClickCount = interactions.filter(
     (interaction) =>
       interaction.action === activityLogActions.frontOfficeVendorClicked,
@@ -276,7 +311,7 @@ export async function getFrontOfficeResourceInteractionSnapshot(
         ? "/agent/resources#vendor-hub"
         : "/agent/resources#published-tool-library"),
   }));
-  const totalCount = resourceOpenCount + vendorClickCount;
+  const totalCount = searchCount + resourceOpenCount + vendorClickCount;
   const latestInteraction = recentInteractions[0] ?? null;
 
   return {
@@ -284,6 +319,7 @@ export async function getFrontOfficeResourceInteractionSnapshot(
       frontOfficeTrackedResourceInteractionWindowDays,
     ),
     totalCount,
+    searchCount,
     resourceOpenCount,
     vendorClickCount,
     recentInteractionCount: recentInteractions.length,
@@ -292,6 +328,31 @@ export async function getFrontOfficeResourceInteractionSnapshot(
       : `No tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
     recentInteractions,
   };
+}
+
+export async function recordFrontOfficeResourceSearch(
+  input: FrontOfficeResourceSearchInput,
+) {
+  const query = input.query.trim();
+
+  if (!query) {
+    throw new Error("Search query is required.");
+  }
+
+  await recordActivityLogEvent(prisma, {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    entityType: "resource",
+    entityId: randomUUID(),
+    action: activityLogActions.frontOfficeResourceSearched,
+    payload: {
+      officeId: input.officeId ?? null,
+      objectLabel: "Resource hub search",
+      contextHref: `/agent/resources?q=${encodeURIComponent(query)}`,
+      actionSource: "front_office_resource_hub",
+      details: [`Query: ${query}`, "Scope: Resources + vendors"],
+    },
+  });
 }
 
 export async function recordFrontOfficeResourceOpen(

@@ -15,6 +15,7 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { FrontOfficeResourceSearchForm } from "./front-office-resource-search-form";
 import { requireSessionContext } from "../../../lib/auth-session";
 
 type ResourcesSnapshot = Awaited<
@@ -211,6 +212,55 @@ function buildResourceLaneMap(resources: ResourceRecord[]) {
   return lanes;
 }
 
+function getSearchParamValue(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0]?.trim() || "";
+  }
+
+  return value?.trim() || "";
+}
+
+function normalizeSearchQuery(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function resourceMatchesSearch(resource: ResourceRecord, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    resource.title,
+    resource.summary,
+    resource.detailLabel,
+    resource.laneLabel,
+    resource.typeLabel,
+    ...resource.tags,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function vendorMatchesSearch(vendor: VendorRecord, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    vendor.name,
+    vendor.categoryLabel,
+    vendor.headline,
+    vendor.coverageLabel,
+    vendor.contactLabel,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
 function renderVendorActions(vendor: VendorRecord) {
   return (
     <>
@@ -377,13 +427,20 @@ function VendorCategoryCard(props: { category: VendorCategory }) {
   );
 }
 
-export default async function AgentResourcesPage() {
+export default async function AgentResourcesPage(props: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const context = await requireSessionContext();
 
   if (!can(context.currentMembership, "resources:view")) {
     redirect(getDefaultAppPath(context.currentMembership));
   }
 
+  const resolvedSearchParams = props.searchParams
+    ? await props.searchParams
+    : {};
+  const searchQuery = getSearchParamValue(resolvedSearchParams.q);
+  const normalizedSearchQuery = normalizeSearchQuery(searchQuery);
   const snapshot = await getFrontOfficeResourcesSnapshot({
     organizationId: context.currentOrganization.id,
     viewerMembershipId: context.currentMembership.id,
@@ -392,6 +449,16 @@ export default async function AgentResourcesPage() {
   });
 
   const resourceLanes = buildResourceLaneMap(snapshot.resources);
+  const searchedResources = normalizedSearchQuery
+    ? snapshot.resources.filter((resource) =>
+        resourceMatchesSearch(resource, normalizedSearchQuery),
+      )
+    : [];
+  const searchedVendors = normalizedSearchQuery
+    ? snapshot.vendors.filter((vendor) =>
+        vendorMatchesSearch(vendor, normalizedSearchQuery),
+      )
+    : [];
   const libraryLanes = snapshot.resourceTypes.filter(
     (lane) => lane.key !== "vendor_card",
   );
@@ -429,6 +496,114 @@ export default async function AgentResourcesPage() {
       eyebrow="Resources"
       main={
         <>
+          <SectionCard
+            className="office-list-card"
+            subtitle="Search across playbooks, templates, documents, and vendor cards from one FO hub, then jump straight into the right material without scanning every lane manually."
+            title="Search this hub"
+          >
+            <FrontOfficeResourceSearchForm initialQuery={searchQuery} />
+
+            {normalizedSearchQuery ? (
+              <div style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
+                <ListPageStatsGrid>
+                  <StatCard
+                    hint="matching shared materials"
+                    label="Resource matches"
+                    tone="accent"
+                    value={searchedResources.length}
+                  />
+                  <StatCard
+                    hint="matching vendor partners"
+                    label="Vendor matches"
+                    value={searchedVendors.length}
+                  />
+                  <StatCard
+                    hint="tracked searches in this window"
+                    label="Tracked searches"
+                    value={interactionTracking.searchCount}
+                  />
+                  <StatCard
+                    hint={interactionTracking.windowLabel.toLowerCase()}
+                    label="Last tracked use"
+                    value={interactionTracking.lastInteractionLabel}
+                  />
+                </ListPageStatsGrid>
+
+                <div style={vendorDeskGridStyle}>
+                  <div style={vendorColumnStyle}>
+                    <div style={subsectionHeaderStyle}>
+                      <div>
+                        <strong>Matching resources</strong>
+                        <p style={subsectionIntroStyle}>
+                          Search results stay execution-first, so the right
+                          script, template, or training clip is one click away.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={compactQueueStyle}>
+                      {searchedResources.length ? (
+                        searchedResources
+                          .slice(0, 6)
+                          .map((resource) => (
+                            <ResourceRecordCard
+                              key={resource.id}
+                              resource={resource}
+                            />
+                          ))
+                      ) : (
+                        <EmptyState
+                          className="front-office-inline-empty"
+                          description="No published resource matched this search. Try a different lane, tag, or vendor phrase."
+                          title="No matching resources"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={vendorColumnStyle}>
+                    <div style={subsectionHeaderStyle}>
+                      <div>
+                        <strong>Matching vendors</strong>
+                        <p style={subsectionIntroStyle}>
+                          Vendor hits stay visible beside materials so the next
+                          move can stay inside one FO workbench.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="office-queue-list">
+                      {searchedVendors.length ? (
+                        searchedVendors
+                          .slice(0, 6)
+                          .map((vendor) => (
+                            <VendorShortcutCard
+                              key={vendor.id}
+                              vendor={vendor}
+                            />
+                          ))
+                      ) : (
+                        <EmptyState
+                          className="front-office-inline-empty"
+                          description="No vendor matched this search yet. Try a category, coverage area, or contact phrase."
+                          title="No matching vendors"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p
+                className="office-form-helper"
+                style={{ margin: "0.9rem 0 0" }}
+              >
+                Searches are now tracked too, so recent query use can surface
+                back into this hub alongside resource opens and vendor clicks.
+              </p>
+            )}
+          </SectionCard>
+
           <SectionCard
             className="office-list-card"
             subtitle="Agents should be able to start from the task at hand: get the right script, send kit, form, refresher, or vendor partner without scanning a raw storage list."
@@ -890,7 +1065,7 @@ export default async function AgentResourcesPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Tracked opens and vendor clicks now stay visible here, so the hub can show what this agent is actually touching instead of acting like a static library."
+            subtitle="Tracked searches, opens, and vendor clicks now stay visible here, so the hub can show what this agent is actually touching instead of acting like a static library."
             title="Recent tracked use"
           >
             <ListPageStatsGrid>
@@ -898,6 +1073,11 @@ export default async function AgentResourcesPage() {
                 hint={interactionTracking.windowLabel.toLowerCase()}
                 label="Tracked actions"
                 value={interactionTracking.totalCount}
+              />
+              <StatCard
+                hint="searches recorded from this hub"
+                label="Searches"
+                value={interactionTracking.searchCount}
               />
               <StatCard
                 hint="resource opens recorded"
@@ -933,7 +1113,9 @@ export default async function AgentResourcesPage() {
                     badgeTone={
                       interaction.kindLabel === "Vendor click"
                         ? "warning"
-                        : "accent"
+                        : interaction.kindLabel === "Resource search"
+                          ? "neutral"
+                          : "accent"
                     }
                     context={interaction.timestampLabel}
                     description={interaction.detailLabel}
@@ -950,7 +1132,7 @@ export default async function AgentResourcesPage() {
               ) : (
                 <EmptyState
                   className="front-office-inline-empty"
-                  description="Tracked resource opens and vendor clicks will start appearing here as soon as this hub is used live."
+                  description="Tracked searches, resource opens, and vendor clicks will start appearing here as soon as this hub is used live."
                   title="No tracked use yet"
                 />
               )}
@@ -1065,6 +1247,11 @@ export default async function AgentResourcesPage() {
             label="Ready-now vendors"
             tone="accent"
             value={snapshot.summary.quickContactVendorCount}
+          />
+          <SummaryChip
+            label="Tracked searches"
+            tone="accent"
+            value={interactionTracking.searchCount}
           />
           <SummaryChip
             label="Tracked opens"

@@ -366,8 +366,11 @@ export {
 } from "./front-office-contracts";
 export {
   frontOfficeVendorInteractionActions,
+  getFrontOfficeResourceInteractionSnapshot,
+  recordFrontOfficeResourceSearch,
   recordFrontOfficeResourceOpen,
   recordFrontOfficeVendorClick,
+  type FrontOfficeResourceInteractionSnapshot,
   type FrontOfficeVendorInteractionAction,
 } from "./front-office-resources";
 export {

@@ -426,6 +426,7 @@ export type FrontOfficeResourcesSnapshot = {
   interactionTracking: {
     windowLabel: string;
     totalCount: number;
+    searchCount: number;
     resourceOpenCount: number;
     vendorClickCount: number;
     recentInteractionCount: number;
@@ -433,7 +434,7 @@ export type FrontOfficeResourcesSnapshot = {
     recentInteractions: Array<{
       id: string;
       title: string;
-      kindLabel: "Resource open" | "Vendor click";
+      kindLabel: "Resource search" | "Resource open" | "Vendor click";
       detailLabel: string;
       timestampLabel: string;
       href: string;

@@ -118,6 +118,7 @@ export const activityLogActions = {
   appointmentCreated: "appointment.created",
   appointmentUpdated: "appointment.updated",
   appointmentBridgeOpened: "appointment.bridge_opened",
+  frontOfficeResourceSearched: "front_office.resource_searched",
   frontOfficeResourceOpened: "front_office.resource_opened",
   frontOfficeVendorClicked: "front_office.vendor_clicked",
   contactCreated: "contact.created",
@@ -528,6 +529,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "appointment.created": "Appointment created",
   "appointment.updated": "Appointment updated",
   "appointment.bridge_opened": "Appointment bridge opened",
+  "front_office.resource_searched": "Front Office resources searched",
   "front_office.resource_opened": "Front Office resource opened",
   "front_office.vendor_clicked": "Front Office vendor clicked",
   "contact.created": "Contact created",
@@ -1562,6 +1564,11 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
             payload.workflowReason,
           ).toLowerCase()} bridge`
         : "opened an appointment bridge";
+    case activityLogActions.frontOfficeResourceSearched:
+      return appendActionSourceSummary(
+        "searched the Front Office resource hub",
+        payload,
+      );
     case activityLogActions.frontOfficeResourceOpened:
       return appendActionSourceSummary(
         "opened a Front Office resource",
