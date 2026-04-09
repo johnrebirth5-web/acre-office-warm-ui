@@ -155,6 +155,26 @@ test("generic listing shares return a public snapshot and increment click tracki
       share.snapshot.publicPage.shareSurfaceLabel,
       "Private listing share",
     );
+    assert.equal(
+      share.snapshot.publicPage.shareSurfaceLabel,
+      snapshot?.shareSurfaceLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.shareContextLabel,
+      snapshot?.shareContextLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.replyLaneLabel,
+      snapshot?.replyLaneLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.nextStepLabel,
+      snapshot?.nextStepLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.privacyLabel,
+      snapshot?.privacyLabel,
+    );
 
     const storedShare = await prisma.listingShareLink.findUnique({
       where: {
@@ -222,6 +242,26 @@ test("client-bound listing shares create tracked send records and update opens f
       share.snapshot.publicPage.replyLaneLabel,
       "Reply in the same email thread so the shortlist and next option stay aligned.",
     );
+    assert.equal(
+      share.snapshot.publicPage.shareSurfaceLabel,
+      snapshot?.shareSurfaceLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.shareContextLabel,
+      snapshot?.shareContextLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.replyLaneLabel,
+      snapshot?.replyLaneLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.nextStepLabel,
+      snapshot?.nextStepLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.privacyLabel,
+      snapshot?.privacyLabel,
+    );
 
     const storedSendRecord = await prisma.frontOfficeSendRecord.findUnique({
       where: {
@@ -287,6 +327,26 @@ test("appointment-bound listing shares surface appointment follow-through langua
     assert.equal(
       share.snapshot.publicPage.shareSurfaceLabel,
       "Tracked appointment follow-through share",
+    );
+    assert.equal(
+      share.snapshot.publicPage.shareSurfaceLabel,
+      snapshot?.shareSurfaceLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.shareContextLabel,
+      snapshot?.shareContextLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.replyLaneLabel,
+      snapshot?.replyLaneLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.nextStepLabel,
+      snapshot?.nextStepLabel,
+    );
+    assert.equal(
+      share.snapshot.publicPage.privacyLabel,
+      snapshot?.privacyLabel,
     );
   } finally {
     await context.cleanup();
