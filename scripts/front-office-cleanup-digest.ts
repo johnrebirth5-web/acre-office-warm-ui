@@ -3,7 +3,9 @@
 import {
   buildFrontOfficeCleanupDigestDeliveryDraft,
   buildFrontOfficeCleanupDigest,
-  renderFrontOfficeCleanupDigestDeliveryDraft,
+  buildFrontOfficeCleanupDigestRunnerContract,
+  renderFrontOfficeCleanupDigestDryRunOutput,
+  renderFrontOfficeCleanupDigestReport,
 } from "../packages/db/src/front-office-cleanup-digest.ts";
 
 type CliOptions = {
@@ -12,6 +14,8 @@ type CliOptions = {
   officeId?: string;
   timeZone?: string;
   json?: boolean;
+  dryRun?: boolean;
+  report?: boolean;
   now?: string;
 };
 
@@ -23,6 +27,16 @@ function readCliOptions(argv: string[]): CliOptions {
 
     if (value === "--json") {
       options.json = true;
+      continue;
+    }
+
+    if (value === "--dry-run") {
+      options.dryRun = true;
+      continue;
+    }
+
+    if (value === "--report") {
+      options.report = true;
       continue;
     }
 
@@ -74,7 +88,15 @@ function printUsage() {
   console.error(
     [
       "Usage:",
-      "  npx tsx scripts/front-office-cleanup-digest.ts --organization-id <id> --membership-id <id> [--office-id <id>] [--time-zone <iana>] [--now <iso>] [--json]",
+      "  npx tsx scripts/front-office-cleanup-digest.ts --organization-id <id> --membership-id <id> [--office-id <id>] [--time-zone <iana>] [--now <iso>] [--dry-run|--report|--json]",
+      "",
+      "Run mode:",
+      "  manual-only",
+      "",
+      "Output modes:",
+      "  --report   Print the cleanup digest report body only.",
+      "  --dry-run  Print the runner contract, then the report body.",
+      "  --json     Print a machine-readable payload with the runner contract, delivery draft, and report.",
       "",
       "Environment fallbacks:",
       "  ACRE_ORGANIZATION_ID, ACRE_MEMBERSHIP_ID, ACRE_OFFICE_ID, ACRE_TIME_ZONE",
@@ -115,13 +137,38 @@ async function main() {
     now: cliOptions.now ? new Date(cliOptions.now) : undefined,
   });
   const deliveryDraft = buildFrontOfficeCleanupDigestDeliveryDraft(digest);
+  const runnerContract = buildFrontOfficeCleanupDigestRunnerContract(
+    digest,
+    cliOptions.json ? "json" : cliOptions.dryRun ? "dry-run" : "report",
+  );
+  const report = renderFrontOfficeCleanupDigestReport(digest);
 
   if (cliOptions.json) {
-    console.log(JSON.stringify(deliveryDraft, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          runMode: runnerContract.runMode,
+          outputMode: runnerContract.outputMode,
+          runnerContract,
+          deliveryDraft,
+          report,
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
-  console.log(renderFrontOfficeCleanupDigestDeliveryDraft(deliveryDraft));
+  if (cliOptions.dryRun) {
+    console.log(renderFrontOfficeCleanupDigestDryRunOutput(digest));
+    return;
+  }
+
+  if (cliOptions.report || (!cliOptions.dryRun && !cliOptions.json)) {
+    console.log(report);
+    return;
+  }
 }
 
 void main().catch((error) => {

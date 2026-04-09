@@ -104,6 +104,19 @@ export type FrontOfficeCleanupDigestDeliveryDraft = {
   runSummary: FrontOfficeCleanupDigestRunSummary;
 };
 
+export type FrontOfficeCleanupDigestOutputMode = "report" | "dry-run" | "json";
+
+export type FrontOfficeCleanupDigestRunnerContract = {
+  runMode: "manual-only";
+  outputMode: FrontOfficeCleanupDigestOutputMode;
+  schedulerState: "not-involved";
+  deliveryMode: "draft-only";
+  sideEffectPolicy: "none";
+  scopeLabel: string;
+  generatedAtLabel: string;
+  windowLabel: string;
+};
+
 export type BuildFrontOfficeCleanupDigestInput = {
   organizationId: string;
   viewerMembershipId: string;
@@ -323,6 +336,22 @@ export function buildFrontOfficeCleanupDigestDeliveryDraft(
   };
 }
 
+export function buildFrontOfficeCleanupDigestRunnerContract(
+  digest: FrontOfficeCleanupDigest,
+  outputMode: FrontOfficeCleanupDigestOutputMode,
+): FrontOfficeCleanupDigestRunnerContract {
+  return {
+    runMode: "manual-only",
+    outputMode,
+    schedulerState: "not-involved",
+    deliveryMode: "draft-only",
+    sideEffectPolicy: "none",
+    scopeLabel: digest.scopeLabel,
+    generatedAtLabel: digest.generatedAtLabel,
+    windowLabel: digest.windowLabel,
+  };
+}
+
 export function buildFrontOfficeCleanupDigestRunActivityPayload(input: {
   officeId?: string | null;
   objectLabel?: string;
@@ -438,6 +467,36 @@ export function renderFrontOfficeCleanupDigestDeliveryDraft(
     `Summary: ${draft.summaryText}`,
     "",
     draft.body,
+  ].join("\n");
+}
+
+export function renderFrontOfficeCleanupDigestRunnerContract(
+  contract: FrontOfficeCleanupDigestRunnerContract,
+) {
+  return [
+    "Runner contract",
+    `Run mode: ${contract.runMode}`,
+    `Output mode: ${contract.outputMode}`,
+    `Scheduler: ${contract.schedulerState}`,
+    `Delivery mode: ${contract.deliveryMode}`,
+    `Side effects: ${contract.sideEffectPolicy}`,
+    `Scope: ${contract.scopeLabel}`,
+    `Window: ${contract.windowLabel}`,
+    `Generated: ${contract.generatedAtLabel}`,
+  ];
+}
+
+export function renderFrontOfficeCleanupDigestDryRunOutput(
+  digest: FrontOfficeCleanupDigest,
+  outputMode: FrontOfficeCleanupDigestOutputMode = "dry-run",
+) {
+  return [
+    ...renderFrontOfficeCleanupDigestRunnerContract(
+      buildFrontOfficeCleanupDigestRunnerContract(digest, outputMode),
+    ),
+    "",
+    "Report",
+    renderFrontOfficeCleanupDigestReport(digest),
   ].join("\n");
 }
 
