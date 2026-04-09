@@ -214,7 +214,11 @@ function addDays(input: Date, days: number) {
   return next;
 }
 
-function getUpcomingWeekdayDate(input: Date, weekday: number, forceNextWeek = false) {
+function getUpcomingWeekdayDate(
+  input: Date,
+  weekday: number,
+  forceNextWeek = false,
+) {
   const next = new Date(input);
   const currentWeekday = next.getDay();
   let daysUntilTarget = (weekday - currentWeekday + 7) % 7;
@@ -264,7 +268,9 @@ function parseWeekdayDate(text: string, now: Date) {
   }
 
   const forceNextWeek = /\b(?:next|coming)\b/i.test(text);
-  const value = formatIsoDate(getUpcomingWeekdayDate(now, weekdayIndex, forceNextWeek));
+  const value = formatIsoDate(
+    getUpcomingWeekdayDate(now, weekdayIndex, forceNextWeek),
+  );
 
   return {
     value,
@@ -723,7 +729,8 @@ function parseIntent(text: string, lines: string[]): ParsedAssistValue | null {
   ];
 
   if (explicitLine) {
-    const explicitValue = explicitLine.match(intentLinePattern)?.[1] ?? explicitLine;
+    const explicitValue =
+      explicitLine.match(intentLinePattern)?.[1] ?? explicitLine;
     const resolved = resolveSingleMappedLabel(explicitValue, {
       checks,
       canonicalValues: Object.keys(intentLabelMap),
@@ -796,7 +803,8 @@ function parseStage(text: string, lines: string[]): ParsedAssistValue | null {
   ];
 
   if (explicitLine) {
-    const explicitValue = explicitLine.match(stageLinePattern)?.[1] ?? explicitLine;
+    const explicitValue =
+      explicitLine.match(stageLinePattern)?.[1] ?? explicitLine;
     const resolved = resolveSingleMappedLabel(explicitValue, {
       checks,
       canonicalValues: Object.keys(stageLabelMap),
@@ -1302,10 +1310,9 @@ function resolveFieldAssessment(input: {
                 ? ("medium" as const)
                 : ("low" as const),
             suggestedAction: "review_first" as const,
-            reasonLabel:
-              hasLowSignal
-                ? "Lead identity needs review because the extract still looks sparse or noisy."
-                : "Lead identity needs review because the conversation may reference more than one person.",
+            reasonLabel: hasLowSignal
+              ? "Lead identity needs review because the extract still looks sparse or noisy."
+              : "Lead identity needs review because the conversation may reference more than one person.",
             cautionLabels,
           };
     case "phone":
@@ -1373,14 +1380,14 @@ function resolveFieldAssessment(input: {
             cautionLabels,
           };
     case "budgetMax":
-      return effectiveRiskFlags.includes("multiple_budget_values") || hasLowSignal
+      return effectiveRiskFlags.includes("multiple_budget_values") ||
+        hasLowSignal
         ? {
             confidence: hasLowSignal ? ("low" as const) : ("medium" as const),
             suggestedAction: "review_first" as const,
-            reasonLabel:
-              effectiveRiskFlags.includes("multiple_budget_values")
-                ? "A budget signal was found, but multiple amounts appeared in the same extract."
-                : "A budget signal was found, but the extract still looks sparse or noisy.",
+            reasonLabel: effectiveRiskFlags.includes("multiple_budget_values")
+              ? "A budget signal was found, but multiple amounts appeared in the same extract."
+              : "A budget signal was found, but the extract still looks sparse or noisy.",
             cautionLabels,
           }
         : {
@@ -1397,17 +1404,20 @@ function resolveFieldAssessment(input: {
           };
     case "preferredAreas":
       return {
-        confidence: input.parsed.explicit && !hasLowSignal
-          ? ("high" as const)
-          : ("medium" as const),
-        suggestedAction: input.parsed.explicit && !hasLowSignal
-          ? ("safe_apply" as const)
-          : ("review_first" as const),
-        reasonLabel: input.parsed.explicit && !hasLowSignal
-          ? "Areas came from a location line."
-          : hasLowSignal
-            ? "Area cues were found, but the extract looks noisy enough that Acre keeps them review-first."
-            : "Areas were inferred from freeform text.",
+        confidence:
+          input.parsed.explicit && !hasLowSignal
+            ? ("high" as const)
+            : ("medium" as const),
+        suggestedAction:
+          input.parsed.explicit && !hasLowSignal
+            ? ("safe_apply" as const)
+            : ("review_first" as const),
+        reasonLabel:
+          input.parsed.explicit && !hasLowSignal
+            ? "Areas came from a location line."
+            : hasLowSignal
+              ? "Area cues were found, but the extract looks noisy enough that Acre keeps them review-first."
+              : "Areas were inferred from freeform text.",
         cautionLabels,
       };
     case "nextFollowUpAt":
@@ -1415,10 +1425,9 @@ function resolveFieldAssessment(input: {
         return {
           confidence: hasLowSignal ? ("low" as const) : ("medium" as const),
           suggestedAction: "review_first" as const,
-          reasonLabel:
-            effectiveRiskFlags.includes("relative_timing")
-              ? "Follow-up timing was detected, but relative dates should be confirmed before applying."
-              : "Follow-up timing was detected, but the extract still looks noisy enough that Acre keeps the date review-first.",
+          reasonLabel: effectiveRiskFlags.includes("relative_timing")
+            ? "Follow-up timing was detected, but relative dates should be confirmed before applying."
+            : "Follow-up timing was detected, but the extract still looks noisy enough that Acre keeps the date review-first.",
           cautionLabels,
         };
       }
@@ -1631,7 +1640,7 @@ function buildReadinessSummary(input: {
       : "";
   const transcriptGuidance =
     input.sourceMode === "text" || input.sourceMode === "hybrid"
-      ? "Paste 3-8 lines that include name, contact clues, or a clear next step"
+      ? "Paste 3-8 lines with a name, one contact clue, and one workflow clue"
       : "";
 
   if (!input.fields.length) {
@@ -1639,11 +1648,11 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Extraction stayed conservative",
       detail:
-        "Acre found text, but not enough structured lead data to move anything into the live form yet.",
+        "Acre found text, but not enough structured lead data to move anything into the live form yet, so unresolved review stays ahead of any safe apply.",
       nextStepLabels: uniqueStrings([
         screenshotGuidance,
         transcriptGuidance,
-        "Manual entry is still the fastest fallback if you already know the lead",
+        "Keep manual entry ready if you already know the lead",
       ]).filter(Boolean),
     };
   }
@@ -1653,11 +1662,11 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Contact clues appeared without a clear lead name",
       detail:
-        "Phone or email may be usable, but review who those details belong to before applying them into the live form.",
+        "Phone or email may be usable, but review who those details belong to before anything enters the live form.",
       nextStepLabels: uniqueStrings([
         screenshotGuidance,
         transcriptGuidance,
-        "Look for a self-introduction or labeled name line before applying contact details",
+        "Find the primary lead name or a self-introduction before applying contact details",
       ]).filter(Boolean),
     };
   }
@@ -1667,12 +1676,14 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Low-signal extract: keep review tight",
       detail:
-        "Acre found a few usable clues, but the extract still looks sparse or noisy, so review each field before you apply it.",
+        "Acre found a few usable clues, but the extract still looks sparse or noisy, so unresolved fields should be handled before safer ones.",
       nextStepLabels: uniqueStrings([
-        screenshotGuidance || "Re-run OCR on a tighter crop around the lead message",
+        screenshotGuidance ||
+          "Re-run OCR on a tighter crop around the lead message",
         transcriptGuidance,
+        "Review unresolved identity fields first",
         hasWorkflowField
-          ? "Review identity and timing clues first, then batch the rest"
+          ? "Then batch timing and qualification fields together"
           : "Add one workflow clue such as budget, areas, or next follow-up timing",
       ]).filter(Boolean),
     };
@@ -1683,10 +1694,10 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Structured fields found, but identity still needs review",
       detail:
-        "Acre found usable lead signals, yet household, multi-party, or relay-contact context means the live form should stay under manual control.",
+        "Acre found usable lead signals, yet household, multi-party, or relay-contact context means unresolved identity should be cleared before duplicate review or create.",
       nextStepLabels: [
-        "Review identity fields as a batch first",
-        "Keep timing and contact values separate until the primary lead is clear",
+        "Review unresolved identity fields first",
+        "Hold timing and contact values until the primary lead is clear",
         "Use duplicate review if this looks like a repeat lead",
         "Create still uses live form values only",
       ],
@@ -1699,7 +1710,7 @@ function buildReadinessSummary(input: {
     detail:
       "Acre found structured lead fields and kept every suggestion separate from the live form until you review and apply it.",
     nextStepLabels: [
-      "Review safe suggestions first",
+      "Review unresolved fields first",
       "Apply reviewed fields to the live form in one pass",
       "No auto-create or auto-send happens here",
     ],
@@ -1787,7 +1798,7 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
       context,
     }),
     summaryLabel: fields.length
-      ? `Detected ${fields.length} intake field(s) · ${reviewFieldCount} unresolved review-first · ${safeApplyFieldCount} safe after review · ${previewOnlyFieldCount} preview-only`
+      ? `Detected ${fields.length} intake field(s) · ${reviewFieldCount} unresolved-first · ${safeApplyFieldCount} safe after review · ${previewOnlyFieldCount} preview-only`
       : "No structured lead fields detected yet",
     safeApplyFieldCount,
     reviewFieldCount,

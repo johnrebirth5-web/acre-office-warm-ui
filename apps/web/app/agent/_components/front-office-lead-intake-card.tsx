@@ -264,8 +264,7 @@ function buildCreateLeadErrorFeedback(
 
   if (payload?.errorCode === "authentication_required") {
     return (
-      payload?.error ??
-      "Sign in again before creating a Front Office lead."
+      payload?.error ?? "Sign in again before creating a Front Office lead."
     );
   }
 
@@ -464,20 +463,20 @@ function getAssistReviewSectionBatchCue(input: {
   if (input.pendingCount > 0) {
     switch (input.sectionKey) {
       case "identity":
-        return "Batch first: confirm who the primary lead is before any apply.";
+        return "Batch first: resolve unresolved identity before anything else.";
       case "qualification":
-        return "Batch first: resolve source, stage, and intent together.";
+        return "Batch first: resolve source, stage, and intent together after identity is clear.";
       case "context":
-        return "Batch first: review budget and area together.";
+        return "Batch first: review budget and area together after identity is clear.";
       case "timing":
-        return "Batch first: lock the exact next-touch date.";
+        return "Batch first: lock the exact next-touch date after identity is clear.";
       case "notes":
         return "Batch last: notes stay manual unless you rewrite them.";
     }
   }
 
   if (input.reviewFirstCount > 0) {
-    return "Batch next: review the extracted values, then apply the blank live fields together.";
+    return "Batch next: manual-confirmation fields come before safe apply.";
   }
 
   if (input.previewOnlyCount > 0) {
@@ -538,7 +537,8 @@ function buildAssistReviewSections(input: {
 
       return (
         !input.reviewedFieldKeys.includes(reviewKey) &&
-        normalizeCompactValue(currentValue) !== normalizeCompactValue(field.value)
+        normalizeCompactValue(currentValue) !==
+          normalizeCompactValue(field.value)
       );
     }).length;
     const reviewedCount = sectionFields.filter((field) =>
@@ -576,10 +576,10 @@ function buildAssistReviewSections(input: {
       actionHint:
         unresolvedCount > 0
           ? sectionKey === "identity"
-            ? "Resolve identity first so duplicate preview and compare decisions stay accurate."
+            ? "Clear unresolved identity first so duplicate preview and compare decisions stay accurate."
             : sectionKey === "timing"
               ? "Resolve timing early so the next-touch clock stays useful."
-              : "Resolve the unresolved fields in this section before moving to safer applied values."
+              : "Clear the unresolved fields here before moving to safer apply or preview-only values."
           : manualConfirmationCount > 0
             ? "These fields still need explicit manual confirmation before anything can move into the form."
             : sectionKey === "notes"
@@ -603,10 +603,11 @@ function buildAssistReviewOrderLabels(sections: IntakeReviewSection[]) {
     .slice(0, 3)
     .map((section) =>
       section.pendingCount > 0
-        ? `${section.label} first`
-        : section.reviewFirstCount > 0 && section.reviewedCount < section.reviewFirstCount
-          ? `${section.label} next`
-          : section.label,
+        ? `${section.label} unresolved first`
+        : section.reviewFirstCount > 0 &&
+            section.reviewedCount < section.reviewFirstCount
+          ? `${section.label} manual confirm next`
+          : `${section.label} ready`,
     );
 }
 
@@ -621,7 +622,7 @@ function buildAssistReviewFocusLabels(sections: IntakeReviewSection[]) {
     .slice(0, 3)
     .map((section) =>
       section.pendingCount > 0
-        ? `${section.label} unresolved (${section.pendingCount})`
+        ? `Resolve ${section.label.toLowerCase()} unresolved (${section.pendingCount})`
         : `${section.label} manual confirmation (${
             section.reviewFirstCount - section.reviewedCount
           })`,
@@ -654,8 +655,7 @@ function liveFieldNeedsReplaceConfirmation(input: {
   manuallyEditedFields: LeadFormFieldKey[];
 }) {
   return (
-    Boolean(input.currentValue.trim()) &&
-    !isBlankOrUntouchedDefaultField(input)
+    Boolean(input.currentValue.trim()) && !isBlankOrUntouchedDefaultField(input)
   );
 }
 
@@ -1084,8 +1084,10 @@ export function FrontOfficeLeadIntakeCard(
   const [assistAppliedFields, setAssistAppliedFields] = useState<
     LeadFormFieldKey[]
   >([]);
-  const [assistReplaceConfirmationFieldKey, setAssistReplaceConfirmationFieldKey] =
-    useState<string | null>(null);
+  const [
+    assistReplaceConfirmationFieldKey,
+    setAssistReplaceConfirmationFieldKey,
+  ] = useState<string | null>(null);
   const [assistFeedback, setAssistFeedback] =
     useState<AssistFeedbackState>(null);
   const [assistProgressMessage, setAssistProgressMessage] = useState("");
@@ -1214,8 +1216,9 @@ export function FrontOfficeLeadIntakeCard(
     const reviewableFieldKeys = assistResult.fields
       .filter(
         (field) =>
-          unresolvedSectionFieldKeys.includes(field.field as LeadFormFieldKey) &&
-          field.suggestedAction !== "preview_only",
+          unresolvedSectionFieldKeys.includes(
+            field.field as LeadFormFieldKey,
+          ) && field.suggestedAction !== "preview_only",
       )
       .map((field) => getAssistFieldReviewKey(field));
 
@@ -1667,9 +1670,9 @@ export function FrontOfficeLeadIntakeCard(
         skipDuplicateCheck,
       }),
     });
-    const payload = (await response.json().catch(() => null)) as
-      | CreateLeadApiPayload
-      | null;
+    const payload = (await response
+      .json()
+      .catch(() => null)) as CreateLeadApiPayload | null;
 
     if (response.status === 409 && payload?.duplicateMatches?.length) {
       setFieldErrors(payload.fieldErrors ?? {});
@@ -1781,7 +1784,9 @@ export function FrontOfficeLeadIntakeCard(
           return false;
         }
 
-        return !assistReviewedFieldKeys.includes(getAssistFieldReviewKey(field));
+        return !assistReviewedFieldKeys.includes(
+          getAssistFieldReviewKey(field),
+        );
       }).length ?? 0,
     [assistResult, assistReviewedFieldKeys, formState],
   );
@@ -1856,7 +1861,13 @@ export function FrontOfficeLeadIntakeCard(
             return left.label.localeCompare(right.label);
           })
         : [],
-    [assistResult, assistReviewedFieldKeys, formDefaults, formState, manuallyEditedFields],
+    [
+      assistResult,
+      assistReviewedFieldKeys,
+      formDefaults,
+      formState,
+      manuallyEditedFields,
+    ],
   );
   const manualAssistOverrideCount = useMemo(
     () =>
@@ -1880,7 +1891,8 @@ export function FrontOfficeLeadIntakeCard(
   const shouldShowDuplicatePreviewSurface =
     duplicateGateSignals.length > 0 || pendingDuplicateIdentityAssistCount > 0;
   const unresolvedAssistSectionCount = useMemo(
-    () => assistReviewSections.filter((section) => section.pendingCount > 0).length,
+    () =>
+      assistReviewSections.filter((section) => section.pendingCount > 0).length,
     [assistReviewSections],
   );
   const assistReviewOrderLabels = useMemo(
@@ -2009,14 +2021,17 @@ export function FrontOfficeLeadIntakeCard(
               <p>
                 Drop in a WeChat screenshot or paste the chat thread. Acre reads
                 it in the browser, keeps field-level confidence and provenance
-                on every suggestion, stays safer around household or multi-party
-                threads, and waits for review before anything touches the live
-                intake form.
+                on every suggestion, keeps unresolved identity ahead of
+                manual-confirmation fields, stays safer around household or
+                multi-party threads, and waits for review before anything
+                touches the live intake form.
               </p>
               <div className="front-office-record-meta">
                 <span>Browser-side extraction only</span>
                 <span>Field-level confidence + provenance</span>
-                <span>Review-then-apply</span>
+                <span>Unresolved first</span>
+                <span>Manual confirmation next</span>
+                <span>Preview-only last</span>
                 <span>Safer household parsing</span>
                 <span>No auto-create or auto-send</span>
               </div>
@@ -2111,9 +2126,8 @@ export function FrontOfficeLeadIntakeCard(
                   <p>
                     Acre keeps the raw extract as a preview and waits for you to
                     review before applying anything. Unresolved sections stay at
-                    the top, manual-confirmation sections come next, and safe
-                    suggestions are still available once you have checked the
-                    source.
+                    the top, manual-confirmation sections come next, and
+                    preview-only notes stay manual until you rewrite them.
                   </p>
                   <div className="front-office-record-meta">
                     <span>
@@ -2155,7 +2169,9 @@ export function FrontOfficeLeadIntakeCard(
                       {pendingReviewableAssistCount} still waiting on review
                     </span>
                     <span>{reviewedReviewableAssistCount} reviewed</span>
-                    <span>{unresolvedAssistSectionCount} unresolved sections</span>
+                    <span>
+                      {unresolvedAssistSectionCount} unresolved sections
+                    </span>
                     <span>
                       {manualConfirmationAssistSectionCount} manual-confirmation
                       sections
@@ -2171,12 +2187,12 @@ export function FrontOfficeLeadIntakeCard(
                     ) : null}
                     {assistReviewOrderLabels.length ? (
                       <span>
-                        Review order: {assistReviewOrderLabels.join(" · ")}
+                        Operator guidance: {assistReviewOrderLabels.join(" · ")}
                       </span>
                     ) : null}
                     {assistReviewFocusLabels.length ? (
                       <span>
-                        Focus now: {assistReviewFocusLabels.join(" · ")}
+                        Unresolved focus: {assistReviewFocusLabels.join(" · ")}
                       </span>
                     ) : null}
                   </div>
@@ -2191,9 +2207,7 @@ export function FrontOfficeLeadIntakeCard(
                       <div className="office-queue-item-top">
                         <strong>{section.label}</strong>
                         <StatusBadge
-                          tone={
-                            section.pendingCount > 0 ? "warning" : "accent"
-                          }
+                          tone={section.pendingCount > 0 ? "warning" : "accent"}
                         >
                           {section.reviewableCount} reviewable
                         </StatusBadge>
@@ -2320,7 +2334,7 @@ export function FrontOfficeLeadIntakeCard(
                       type="button"
                       variant="secondary"
                     >
-                      Review unresolved sections first
+                      Resolve unresolved sections first
                     </Button>
                     <Button
                       disabled={isBusy || reviewedReviewableAssistCount === 0}
@@ -2337,8 +2351,8 @@ export function FrontOfficeLeadIntakeCard(
                   <p className="front-office-calendar-feedback is-neutral">
                     {pendingReviewableAssistCount} reviewable suggestion(s) are
                     still pending. Acre keeps unresolved and manual-confirmation
-                    fields at the top, and create still uses only the live form
-                    values.
+                    fields ahead of safe apply, and create still uses only the
+                    live form values.
                   </p>
                 ) : null}
 
@@ -2512,8 +2526,8 @@ export function FrontOfficeLeadIntakeCard(
                 <p>
                   Acre checks visible-scope collisions from{" "}
                   {duplicatePreviewSourceSummary} before you submit. Open the
-                  closest existing record first, compare contact info and
-                  stage, and only create a separate dossier if this is truly a
+                  closest existing record first, compare contact info and stage,
+                  and only create a separate dossier if this is truly a
                   different lead.
                 </p>
               </div>
@@ -2522,7 +2536,9 @@ export function FrontOfficeLeadIntakeCard(
                 <span>Open the existing record first</span>
                 <span>Compare contact info, stage, and next touch</span>
                 <span>Use duplicate review if this is the same lead</span>
-                <span>Save-time gate still checks live name, phone, and email</span>
+                <span>
+                  Save-time gate still checks live name, phone, and email
+                </span>
               </div>
 
               {duplicatePreviewMatches.length ? (
@@ -2629,10 +2645,7 @@ export function FrontOfficeLeadIntakeCard(
               />
             </FormField>
 
-            <FormField
-              helper={fieldErrors.phone}
-              label="Phone"
-            >
+            <FormField helper={fieldErrors.phone} label="Phone">
               <TextInput
                 aria-invalid={Boolean(fieldErrors.phone)}
                 inputMode="tel"
@@ -2643,10 +2656,7 @@ export function FrontOfficeLeadIntakeCard(
               />
             </FormField>
 
-            <FormField
-              helper={fieldErrors.email}
-              label="Email"
-            >
+            <FormField helper={fieldErrors.email} label="Email">
               <TextInput
                 aria-invalid={Boolean(fieldErrors.email)}
                 name="email"
@@ -2810,10 +2820,9 @@ export function FrontOfficeLeadIntakeCard(
               <strong>Potential duplicate leads</strong>
               <p>
                 Acre found existing records in the CRM scope you can currently
-                see. Open the closest match first, compare contact info,
-                stage, and next touch, then jump into the duplicate review lane
-                if this is the same lead. Nothing has been merged or created
-                yet.
+                see. Open the closest match first, compare contact info, stage,
+                and next touch, then jump into the duplicate review lane if this
+                is the same lead. Nothing has been merged or created yet.
               </p>
             </div>
 

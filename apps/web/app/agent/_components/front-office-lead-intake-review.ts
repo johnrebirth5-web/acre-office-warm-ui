@@ -220,10 +220,7 @@ function scoreCandidateMatch(input: {
   };
 }
 
-function buildConfidenceLabel(input: {
-  score: number;
-  reasons: string[];
-}) {
+function buildConfidenceLabel(input: { score: number; reasons: string[] }) {
   const hasEmail = hasReason(input.reasons, (reason) =>
     reason.startsWith("Same email"),
   );
@@ -250,8 +247,12 @@ function buildConfidenceLabel(input: {
 }
 
 function buildRecommendedActionLabel(reasons: string[]) {
-  const hasEmail = hasReason(reasons, (reason) => reason.startsWith("Same email"));
-  const hasPhone = hasReason(reasons, (reason) => reason.startsWith("Same phone"));
+  const hasEmail = hasReason(reasons, (reason) =>
+    reason.startsWith("Same email"),
+  );
+  const hasPhone = hasReason(reasons, (reason) =>
+    reason.startsWith("Same phone"),
+  );
   const hasContactInfoMatch = hasEmail || hasPhone;
   const hasNameMatch = hasReason(reasons, (reason) => reason.includes("name"));
   const hasAreaOverlap = hasReason(reasons, (reason) =>
@@ -262,15 +263,15 @@ function buildRecommendedActionLabel(reasons: string[]) {
   );
 
   if (hasEmail && hasPhone) {
-    return "Open the existing record first, compare contact info, next touch, and source, then create a second dossier only if this is truly a different lead.";
+    return "Open the visible record first, compare contact info, next touch, and source, then keep create closed unless this is truly a different lead.";
   }
 
   if (hasContactInfoMatch) {
-    return "Open the existing record first, compare contact info, stage, and next touch, then use duplicate review if this is the same person.";
+    return "Open the visible record first, compare contact info, stage, and next touch, then keep duplicate review open only if this is the same person.";
   }
 
   if (hasNameMatch) {
-    return "Compare phone, email, stage, and preferred areas in the existing record before you create anything new.";
+    return "Compare phone, email, stage, and preferred areas in the visible record before you create anything new.";
   }
 
   if (hasAreaOverlap || hasSourceMatch) {
