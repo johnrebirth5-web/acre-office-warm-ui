@@ -630,6 +630,13 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
       pageClassName="front-office-listings-page"
       summary={
         <>
+          <SummaryChip
+            description={routeState.focusedRouteLaneDescription}
+            featured
+            label="Lane"
+            tone="accent"
+            value={routeState.focusedRouteLaneLabel}
+          />
           <SummaryChip label="Listings" value={snapshot.summary.listingCount} />
           <SummaryChip
             label="Public-ready"
@@ -654,15 +661,6 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
             label="Mode"
             tone={routeState.mode === "tracked-link" ? "default" : "accent"}
             value={routeState.modeLabel}
-          />
-          <SummaryChip
-            label="Lane"
-            tone={
-              routeState.focusedRouteLane === "send-rescue"
-                ? "default"
-                : "accent"
-            }
-            value={routeState.focusedRouteLaneLabel}
           />
           {snapshot.targetClient ? (
             <SummaryChip

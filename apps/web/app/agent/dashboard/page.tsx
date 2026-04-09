@@ -1891,6 +1891,18 @@ export default async function AgentDashboardPage() {
       summary={
         <>
           <SummaryChip
+            label="Command lead"
+            description={commandLeadText}
+            featured
+            tone="accent"
+            value={primaryLaneLabel}
+          />
+          <SummaryChip
+            label="Today actions"
+            tone="accent"
+            value={todayActionCount}
+          />
+          <SummaryChip
             label="Office scope"
             value={
               context.currentOffice?.name ?? context.currentOrganization.name
@@ -1898,16 +1910,6 @@ export default async function AgentDashboardPage() {
           />
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip label="Role focus" value={roleFocus.label} />
-          <SummaryChip
-            label="Today actions"
-            tone="accent"
-            value={todayActionCount}
-          />
-          <SummaryChip
-            label="Command lead"
-            tone="accent"
-            value={primaryLaneLabel}
-          />
           <SummaryChip
             label="Follow-up due"
             tone="accent"

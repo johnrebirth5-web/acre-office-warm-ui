@@ -465,6 +465,8 @@ export default async function AgentNotificationsPage(
       summary={
         <>
           <SummaryChip
+            description={buildActivityFocusDescription(initialActivityView)}
+            featured
             label="Focus area"
             tone="accent"
             value={activeViewLabel}

@@ -1490,6 +1490,17 @@ export default async function AgentResourcesPage(props: {
       summary={
         <>
           <SummaryChip
+            description={
+              strongestResourceLane
+                ? `${strongestResourceLane.description} Start here: ${strongestResourceLane.startLabel}.`
+                : "No resource lane is elevated above the rest right now."
+            }
+            featured
+            label="Focus lane"
+            tone="accent"
+            value={strongestResourceLane?.label ?? "None"}
+          />
+          <SummaryChip
             label="Resources"
             value={snapshot.summary.resourceCount}
           />
@@ -1497,11 +1508,6 @@ export default async function AgentResourcesPage(props: {
             label="Execution lanes"
             tone="accent"
             value={snapshot.summary.resourceTypeCount}
-          />
-          <SummaryChip
-            label="Focus lane"
-            tone="accent"
-            value={strongestResourceLane?.label ?? "None"}
           />
           <SummaryChip
             label="Start action"

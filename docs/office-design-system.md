@@ -247,6 +247,8 @@ Office 路由级 canonical 组合层：
 - 页头按钮和 summary 必须拆开：按钮走 `OfficeListPage.actions` 顶部 action row，summary 走 `OfficeListPage.summary`
 - `OfficeListPageSummary` 里不要再混放 CTA；`Create` / `Export` / `Open activity` / `Add comment` 这类入口都应落在 action row，避免按钮因为 summary chip 数量变化而左右漂移
 - 页头 supporting 区保持 full-width workbench，但视觉顺序固定为“上方 actions、下方 summary”，不要让按钮插进 KPI 卡片之间
+- 页头 summary 现已统一为“1 张 lead summary card + 若干 secondary summary chips”的站内标准；默认应把最能代表当前页面意图的摘要项放在第一位，并可显式标记为 featured
+- featured summary card 可以带一句辅助说明，用来解释当前 focus / lane / stage / command lead；其余 summary chip 只保留简短 KPI / scope / state
 - 桌面中间断点开始，如果页头或 section 右侧 action 会压缩标题说明，就应优先改成上下两行，不要让按钮覆盖说明文本
 - header / section actions 内的按钮必须允许在窄宽下自然换行或折成两行文案，不能靠固定 `nowrap` 把标题区挤坏
 
@@ -290,6 +292,7 @@ transaction detail 补充规则：
 - `Office` shell、`Agent` shell、`Login` 页面共用一套字体、色板、边框、圆角、阴影和按钮层级
 - 允许 `Agent` 信息密度略低于 `Office`，但不能回到独立的 marketing UI 视觉
 - `/agent/dashboard` 现在按 `Front Office` 行动首页处理：页头仍用 `PageHeader + PageHeaderSummary`，内容仍用 `SectionCard / StatCard / SummaryChip / ListPageSplit / ListPageStack` 组织
+- `Front Office` 与 `Back Office` 现在共享同一套页头 summary 结构：lead card 承载当前 focus / lane / stage / queue lead，剩余 chip 承载数量、scope、状态与窗口类信息
 - `Front Office` 页面可以比 `Back Office` 更偏行动队列和对客输出，但不能复制正式 transaction / signature / accounting 工作流，也不能长出第二套 design language
 - `Login` 允许更强的品牌氛围和更大的标题，但表单字段、按钮、badge 仍需复用共享输入/动作语法
 

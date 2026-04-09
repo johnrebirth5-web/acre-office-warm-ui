@@ -1247,7 +1247,13 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
       }
       summary={
         <>
-          <SummaryChip label="Follow first" tone="accent" value={actNowCount} />
+          <SummaryChip
+            description="Visible dossiers that need the next touch or anchor before the rest of the queue."
+            featured
+            label="Follow first"
+            tone="accent"
+            value={actNowCount}
+          />
           <SummaryChip
             label="Workspace anchor"
             tone="accent"

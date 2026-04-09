@@ -2021,8 +2021,14 @@ export default async function AgentClientDetailPage(
       }
       summary={
         <>
+          <SummaryChip
+            description="Keep the dossier anchored on the live client stage before reopening follow-up, appointments, listing output, or FO to BO handoff."
+            featured
+            label="Stage"
+            tone="accent"
+            value={snapshot.stage}
+          />
           <SummaryChip label="Access" value={access.label} />
-          <SummaryChip label="Stage" tone="accent" value={snapshot.stage} />
           <SummaryChip
             label="Boundary"
             tone="accent"
