@@ -1080,6 +1080,16 @@ export type FrontOfficeListingShareLinkResult = {
       scopeLabel: string;
       nextStepLabel: string;
     };
+    publicPage: {
+      shareSurfaceLabel: string;
+      shareContextLabel: string;
+      channelLabel: string;
+      trackingLabel: string;
+      replyLaneLabel: string;
+      nextStepLabel: string;
+      followUpLabel: string;
+      privacyLabel: string;
+    };
   };
 };
 
@@ -1092,15 +1102,173 @@ export type FrontOfficeListingSharePageSnapshot = {
   summaryLabel: string;
   statusLabel: string;
   shareSurfaceLabel: string;
+  shareContextLabel: string;
+  channelLabel: string;
   trackingLabel: string;
+  replyLaneLabel: string;
   nextStepLabel: string;
   followUpLabel: string;
+  privacyLabel: string;
   sourceUrl: string;
   agentLabel: string;
   agentEmail: string;
   agentPhone: string;
   organizationLabel: string;
 };
+
+function resolvePublicShareModeFromStoredState(input: {
+  hasTrackedSend: boolean;
+  appointmentId: string | null;
+}): FrontOfficeListingShareBindingMode {
+  if (input.appointmentId) {
+    return "client_appointment_context";
+  }
+
+  if (input.hasTrackedSend) {
+    return "client_dossier_context";
+  }
+
+  return "generic_tracked_link";
+}
+
+function buildSharePublicSurfaceLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+}) {
+  if (input.mode === "client_appointment_context") {
+    return "Tracked appointment follow-through share";
+  }
+
+  if (input.mode === "client_dossier_context") {
+    return "Tracked client share";
+  }
+
+  return "Private listing share";
+}
+
+function buildSharePublicContextLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  appointmentTitle: string | null;
+}) {
+  if (input.mode === "client_appointment_context") {
+    return input.appointmentTitle
+      ? `Shared as a private follow-through link around ${input.appointmentTitle}.`
+      : "Shared as a private follow-through link around an active appointment.";
+  }
+
+  if (input.mode === "client_dossier_context") {
+    return "Shared as a private client follow-through link so the next step stays in one conversation.";
+  }
+
+  return "Shared as a private Acre listing link without a client-bound follow-through trail.";
+}
+
+function buildSharePublicReplyLaneLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  channel: FrontOfficeSendChannel;
+}) {
+  if (input.mode === "client_appointment_context") {
+    return "Reply in the same conversation if you are confirming timing, access, or the next showing step.";
+  }
+
+  if (input.mode === "client_dossier_context") {
+    return input.channel === FrontOfficeSendChannel.email
+      ? "Reply in the same email thread so the shortlist and next option stay aligned."
+      : "Reply in the same chat thread so the shortlist and next option stay aligned.";
+  }
+
+  return "If this page was forwarded, ask the sender for the original conversation so the next step stays aligned.";
+}
+
+function buildSharePublicTrackingLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  channel: FrontOfficeSendChannel;
+}) {
+  if (input.mode === "generic_tracked_link") {
+    return "Private share link only.";
+  }
+
+  return `Tracked via ${buildShareChannelLabel(input.channel)}.`;
+}
+
+function buildSharePublicNextStepLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  appointmentTitle: string | null;
+}) {
+  if (input.mode === "client_appointment_context") {
+    return input.appointmentTitle
+      ? `Use the same conversation to confirm ${input.appointmentTitle} details or ask for the next showing step.`
+      : "Use the same conversation to confirm timing or ask for the next showing step.";
+  }
+
+  if (input.mode === "client_dossier_context") {
+    return "Reply in the same conversation or contact the agent directly if you want the next option lined up.";
+  }
+
+  return "Call or email the agent to keep the conversation moving, or open the source listing for the canonical record.";
+}
+
+function buildSharePublicFollowUpLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  channel: FrontOfficeSendChannel;
+}) {
+  if (input.mode === "client_appointment_context") {
+    return "If you were sent this for an appointment or showing, keep the reply in the same thread so timing and follow-through do not split.";
+  }
+
+  if (input.mode === "client_dossier_context") {
+    return input.channel === FrontOfficeSendChannel.email
+      ? "If you want another option, reply in the same email thread so the agent can keep your search context together."
+      : "If you want another option, reply in the same conversation so the agent can keep your search context together.";
+  }
+
+  return "If this page was forwarded, ask the sender for the original context so nothing gets lost.";
+}
+
+function buildSharePublicPrivacyLabel(input: {
+  mode: FrontOfficeListingShareBindingMode;
+}) {
+  if (input.mode === "generic_tracked_link") {
+    return "This Acre page is meant to stay private to the conversation it came from.";
+  }
+
+  return "This Acre page is a private follow-through surface, so keep replies in the same conversation whenever possible.";
+}
+
+function buildSharePublicPageSnapshot(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  channel: FrontOfficeSendChannel;
+  appointmentTitle: string | null;
+}) {
+  return {
+    shareSurfaceLabel: buildSharePublicSurfaceLabel({
+      mode: input.mode,
+    }),
+    shareContextLabel: buildSharePublicContextLabel({
+      mode: input.mode,
+      appointmentTitle: input.appointmentTitle,
+    }),
+    channelLabel: buildShareChannelLabel(input.channel),
+    trackingLabel: buildSharePublicTrackingLabel({
+      mode: input.mode,
+      channel: input.channel,
+    }),
+    replyLaneLabel: buildSharePublicReplyLaneLabel({
+      mode: input.mode,
+      channel: input.channel,
+    }),
+    nextStepLabel: buildSharePublicNextStepLabel({
+      mode: input.mode,
+      appointmentTitle: input.appointmentTitle,
+    }),
+    followUpLabel: buildSharePublicFollowUpLabel({
+      mode: input.mode,
+      channel: input.channel,
+    }),
+    privacyLabel: buildSharePublicPrivacyLabel({
+      mode: input.mode,
+    }),
+  };
+}
 
 function buildShareResultSnapshot(input: {
   shareLinkId: string;
@@ -1151,6 +1319,11 @@ function buildShareResultSnapshot(input: {
   });
   const manualSendCue = buildShareManualSendCue(input.channel);
   const nextStepLabel = buildShareNextStepLabel(input.channel);
+  const publicPage = buildSharePublicPageSnapshot({
+    mode,
+    channel: input.channel,
+    appointmentTitle,
+  });
 
   return {
     context: {
@@ -1260,6 +1433,7 @@ function buildShareResultSnapshot(input: {
         scopeLabel: writebackScopeLabel,
         nextStepLabel,
       },
+      publicPage,
     },
   };
 }
@@ -1565,6 +1739,8 @@ export async function getFrontOfficeListingSharePageSnapshot(
         select: {
           id: true,
           channel: true,
+          appointmentId: true,
+          appointmentTitle: true,
           firstOpenedAt: true,
           lastOpenedAt: true,
           openCount: true,
@@ -1647,17 +1823,14 @@ export async function getFrontOfficeListingSharePageSnapshot(
   const agentLabel = membership?.title?.trim()
     ? `${agentName} · ${membership.title.trim()}`
     : agentName;
-  const shareSurfaceLabel = shareLink.sendRecord
-    ? "Tracked client share"
-    : "Private listing share";
-  const trackingLabel = shareLink.sendRecord
-    ? `Tracked via ${buildShareChannelLabel(shareLink.sendRecord.channel)}.`
-    : "Private share link only.";
-  const nextStepLabel =
-    "Call or email the agent to keep the conversation moving, or open the source listing for the canonical record.";
-  const followUpLabel = shareLink.sendRecord
-    ? "If you were sent this privately, reply in the same conversation so the sender keeps the thread aligned."
-    : "If this page was forwarded, ask the sender for the original context so nothing gets lost.";
+  const publicPage = buildSharePublicPageSnapshot({
+    mode: resolvePublicShareModeFromStoredState({
+      hasTrackedSend: Boolean(shareLink.sendRecord),
+      appointmentId: shareLink.sendRecord?.appointmentId ?? null,
+    }),
+    channel: shareLink.sendRecord?.channel ?? shareLink.channel,
+    appointmentTitle: shareLink.sendRecord?.appointmentTitle?.trim() || null,
+  });
 
   return {
     code: shareLink.code,
@@ -1674,10 +1847,14 @@ export async function getFrontOfficeListingSharePageSnapshot(
       shareLink.listing.status === ListingStatus.hot
         ? "Hot listing"
         : "Active listing",
-    shareSurfaceLabel,
-    trackingLabel,
-    nextStepLabel,
-    followUpLabel,
+    shareSurfaceLabel: publicPage.shareSurfaceLabel,
+    shareContextLabel: publicPage.shareContextLabel,
+    channelLabel: publicPage.channelLabel,
+    trackingLabel: publicPage.trackingLabel,
+    replyLaneLabel: publicPage.replyLaneLabel,
+    nextStepLabel: publicPage.nextStepLabel,
+    followUpLabel: publicPage.followUpLabel,
+    privacyLabel: publicPage.privacyLabel,
     sourceUrl: shareLink.listing.sourceUrl?.trim() || "",
     agentLabel,
     agentEmail: membership?.user.email?.trim() || "",

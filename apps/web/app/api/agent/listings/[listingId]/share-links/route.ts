@@ -261,6 +261,7 @@ export async function POST(
       shareLink,
       execution: shareLink.execution,
       writeback: shareLink.snapshot.writeback,
+      publicPage: shareLink.snapshot.publicPage,
     });
   } catch (error) {
     const status =

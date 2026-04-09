@@ -32,6 +32,7 @@ export default async function PublicListingSharePage(
         <div className="listing-share-copy">
           <h1>{snapshot.listingTitle}</h1>
           <p>{snapshot.summaryLabel}</p>
+          <p>{snapshot.shareContextLabel}</p>
         </div>
 
         <div className="listing-share-metrics">
@@ -54,6 +55,14 @@ export default async function PublicListingSharePage(
           <article>
             <span>Tracking</span>
             <strong>{snapshot.trackingLabel}</strong>
+          </article>
+          <article>
+            <span>Channel</span>
+            <strong>{snapshot.channelLabel}</strong>
+          </article>
+          <article>
+            <span>Reply lane</span>
+            <strong>{snapshot.replyLaneLabel}</strong>
           </article>
           <article>
             <span>Next step</span>
@@ -89,9 +98,8 @@ export default async function PublicListingSharePage(
 
         <div className="listing-share-footer">
           <strong>{snapshot.organizationLabel}</strong>
-          <p>
-            {snapshot.followUpLabel}
-          </p>
+          <p>{snapshot.followUpLabel}</p>
+          <p>{snapshot.privacyLabel}</p>
           <p>
             This private Acre share surface keeps the conversation aligned
             without sending you into Back Office tools. Use the contact buttons

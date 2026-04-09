@@ -140,10 +140,21 @@ test("generic listing shares return a public snapshot and increment click tracki
     assert.ok(snapshot);
     assert.equal(snapshot?.listingTitle, context.listing.title);
     assert.equal(snapshot?.shareSurfaceLabel, "Private listing share");
+    assert.equal(
+      snapshot?.shareContextLabel,
+      "Shared as a private Acre listing link without a client-bound follow-through trail.",
+    );
     assert.equal(snapshot?.trackingLabel, "Private share link only.");
+    assert.equal(snapshot?.channelLabel, "Direct link");
+    assert.match(snapshot?.replyLaneLabel ?? "", /forwarded/i);
     assert.equal(snapshot?.areaLabel, "Park Slope, Brooklyn");
     assert.equal(snapshot?.priceLabel, "$1,250,000");
     assert.match(snapshot?.agentLabel ?? "", /Listing Agent/);
+    assert.match(snapshot?.privacyLabel ?? "", /stay private/i);
+    assert.equal(
+      share.snapshot.publicPage.shareSurfaceLabel,
+      "Private listing share",
+    );
 
     const storedShare = await prisma.listingShareLink.findUnique({
       where: {
@@ -199,7 +210,18 @@ test("client-bound listing shares create tracked send records and update opens f
 
     assert.ok(snapshot);
     assert.equal(snapshot?.shareSurfaceLabel, "Tracked client share");
+    assert.equal(
+      snapshot?.shareContextLabel,
+      "Shared as a private client follow-through link so the next step stays in one conversation.",
+    );
     assert.equal(snapshot?.trackingLabel, "Tracked via Email.");
+    assert.equal(snapshot?.channelLabel, "Email");
+    assert.match(snapshot?.replyLaneLabel ?? "", /same email thread/i);
+    assert.match(snapshot?.privacyLabel ?? "", /private follow-through/i);
+    assert.equal(
+      share.snapshot.publicPage.replyLaneLabel,
+      "Reply in the same email thread so the shortlist and next option stay aligned.",
+    );
 
     const storedSendRecord = await prisma.frontOfficeSendRecord.findUnique({
       where: {
@@ -217,6 +239,55 @@ test("client-bound listing shares create tracked send records and update opens f
     assert.equal(storedSendRecord?.openCount, 1);
     assert.ok(storedSendRecord?.firstOpenedAt);
     assert.ok(storedSendRecord?.lastOpenedAt);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("appointment-bound listing shares surface appointment follow-through language on the public page", async () => {
+  const context = await createListingShareTestContext();
+
+  try {
+    const client = await context.createClient();
+    const appointment = await prisma.appointment.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        ownerMembershipId: context.membership.id,
+        clientId: client.id,
+        title: "Sunday showing",
+        startsAt: new Date("2026-04-10T14:00:00.000Z"),
+        status: "scheduled",
+      },
+    });
+
+    const share = await createFrontOfficeListingShareLink({
+      organizationId: context.organization.id,
+      officeId: context.office.id,
+      viewerMembershipId: context.membership.id,
+      listingId: context.listing.id,
+      appointmentId: appointment.id,
+      channel: "sms",
+    });
+
+    const snapshot = await getFrontOfficeListingSharePageSnapshot(
+      share.snapshot.shareLink.code,
+    );
+
+    assert.ok(snapshot);
+    assert.equal(
+      snapshot?.shareSurfaceLabel,
+      "Tracked appointment follow-through share",
+    );
+    assert.match(snapshot?.shareContextLabel ?? "", /Sunday showing/);
+    assert.equal(snapshot?.channelLabel, "SMS");
+    assert.match(snapshot?.replyLaneLabel ?? "", /confirming timing/i);
+    assert.match(snapshot?.nextStepLabel ?? "", /Sunday showing/i);
+    assert.match(snapshot?.followUpLabel ?? "", /appointment or showing/i);
+    assert.equal(
+      share.snapshot.publicPage.shareSurfaceLabel,
+      "Tracked appointment follow-through share",
+    );
   } finally {
     await context.cleanup();
   }
