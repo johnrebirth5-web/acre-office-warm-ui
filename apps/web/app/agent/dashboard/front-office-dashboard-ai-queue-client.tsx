@@ -84,7 +84,7 @@ export function FrontOfficeDashboardAiQueueClient(
       );
       setFeedback({
         tone: "success",
-        message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The grounded next touch is now in the shared follow-up clock while the dashboard refreshes.`,
+        message: `Queued "${createdTitle}" for ${item.clientName}. No outbound message was sent automatically. The next move is now in the shared follow-up clock while the dashboard refreshes.`,
         primaryHref: item.openDossierHref,
         primaryLabel: "Open dossier",
         secondaryHref: "/agent/clients#client-pipeline",
@@ -147,10 +147,15 @@ export function FrontOfficeDashboardAiQueueClient(
                     >
                       {activeClientId === item.clientId || isPending
                         ? "Queueing..."
-                        : "Queue grounded next touch"}
+                        : "Approve next move"}
                     </Button>
                   ) : (
-                    <Button disabled size="sm" type="button" variant="secondary">
+                    <Button
+                      disabled
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
                       Review grounded next move
                     </Button>
                   )}
@@ -188,7 +193,9 @@ export function FrontOfficeDashboardAiQueueClient(
               key={item.id}
               meta={
                 <FrontOfficeAiExplainabilitySurface
-                  allowsDirectFollowUpCreation={item.allowsDirectFollowUpCreation}
+                  allowsDirectFollowUpCreation={
+                    item.allowsDirectFollowUpCreation
+                  }
                   boundaryDescription={item.boundaryDescription}
                   boundaryLabel={item.boundaryLabel}
                   boundaryTone={item.boundaryTone}

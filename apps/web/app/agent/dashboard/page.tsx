@@ -133,20 +133,20 @@ function getDashboardRoleFocus(role: string) {
   switch (role) {
     case "team_lead":
       return {
-        label: "Team lead focus",
+        label: "Team command deck",
         description:
-          "Clear visible team cleanup first, then return to your own follow-up, send/click, and formal handoff work from the same grounded Front Office bench.",
+          "Clear visible team cleanup first, then keep follow-up, appointment writeback, send-trail follow-through, and formal handoff on the same Front Office command surface.",
       };
     case "owner":
     case "office_admin":
       return {
-        label: "Office leadership focus",
+        label: "Office command deck",
         description:
-          "Keep office execution pressure visible here, then push only truly formal work into Back Office once the package is ready.",
+          "Keep office execution pressure visible here, then move only truly formal work into Back Office once the package is genuinely ready.",
       };
     default:
       return {
-        label: "Agent execution focus",
+        label: "Agent execution deck",
         description:
           "Start with the next grounded touch, then work lease timing, commitments, send/click follow-through, and formal handoffs without leaving Front Office early.",
       };
@@ -203,7 +203,7 @@ function buildDashboardLaunchpadItems(input: {
       badgeLabel:
         input.viewerRole === "team_lead" ? "Team cleanup" : "Office cleanup",
       badgeTone: "danger",
-      title: "Open cleanup re-entry",
+      title: "Open cleanup command center",
       description: leadingLeadershipItem
         ? `${leadingLeadershipItem.title} is the clearest pressure point right now. ${leadingLeadershipItem.whyNowLabel}`
         : "Leadership cleanup is already visible in Front Office, so missed follow-up and quiet send trails do not hide behind Back Office work.",
@@ -213,7 +213,8 @@ function buildDashboardLaunchpadItems(input: {
       href:
         leadershipAction?.href ??
         "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
-      actionLabel: leadershipAction?.actionLabel ?? "Open cleanup re-entry",
+      actionLabel:
+        leadershipAction?.actionLabel ?? "Open cleanup command center",
     });
   }
 
@@ -612,7 +613,7 @@ export default async function AgentDashboardPage() {
                   href={activityCenterHref}
                 >
                   {snapshot.leadershipQueue.visible
-                    ? "Open cleanup re-entry"
+                    ? "Open cleanup command center"
                     : "Open activity center"}
                 </FrontOfficeLink>
                 {canViewClients ? (
@@ -625,8 +626,8 @@ export default async function AgentDashboardPage() {
                 ) : null}
               </>
             }
-            subtitle={`${roleFocus.label}. Start with the top grounded move below, then work the ordered launchpad so cleanup re-entry, appointment writeback, send-risk follow-through, and duplicate review stay in one honest Front Office workspace.`}
-            title="Start here first"
+            subtitle={`${roleFocus.label}. Lead with the top grounded move below, then work the ordered launchpad so cleanup command center, appointment writeback, send-risk follow-through, and duplicate review stay in one honest Front Office command deck.`}
+            title="Front Office command deck"
           >
             <ListPageStatsGrid>
               {heroStats.map((stat) => (
@@ -650,7 +651,7 @@ export default async function AgentDashboardPage() {
               </Badge>
               <p>
                 {primaryLaunchpadItem
-                  ? `${todayActionCount > 0 ? `${formatTodayActionLabel(todayActionCount)}. ` : ""}${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so cleanup re-entry, appointment work, send-risk follow-through, and duplicate review stay in sequence.`
+                  ? `${todayActionCount > 0 ? `${formatTodayActionLabel(todayActionCount)}. ` : ""}${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so cleanup command center, appointment work, send-risk follow-through, and duplicate review stay in sequence.`
                   : canViewClients
                     ? "No urgent Front Office pressure is elevated right now. Use the live client queue or intake assist only after you confirm the activity center is clear."
                     : "No urgent Front Office pressure is elevated right now. Reopen the activity center to confirm nothing time-sensitive is hiding there."}
@@ -1090,7 +1091,7 @@ export default async function AgentDashboardPage() {
                 </>
               ) : undefined
             }
-            subtitle="Use this as a fast re-entry map for dossiers that still need operator judgment. Full cleanup, merge, and detailed review still stay in the client workspace."
+            subtitle="Use this as a fast command map for dossiers that still need operator judgment. Full cleanup, merge, and detailed review still stay in the client workspace."
             title="Live client queue"
           >
             <ListPageStatsGrid>
@@ -1464,10 +1465,10 @@ export default async function AgentDashboardPage() {
                   className="office-inline-link front-office-inline-link"
                   href={leadershipCleanupHref}
                 >
-                  Open cleanup re-entry
+                  Open cleanup command center
                 </FrontOfficeLink>
               }
-              subtitle="Use the FO activity center to scan overdue tasks, stale clients, and quiet send trails before anyone has to jump into a direct office record."
+              subtitle="Use this command lane to scan overdue tasks, stale clients, and quiet send trails before anyone has to jump into a direct office record."
               title={snapshot.leadershipQueue.scopeLabel}
             >
               <ListPageStatsGrid>
@@ -1534,11 +1535,11 @@ export default async function AgentDashboardPage() {
                 href={activityCenterHref}
               >
                 {snapshot.leadershipQueue.visible
-                  ? "Open cleanup re-entry"
+                  ? "Open cleanup command center"
                   : "Open activity center"}
               </FrontOfficeLink>
             }
-            subtitle="Shared office alerts and personal notice links that help you clear today's queue without leaving the Front Office shell."
+            subtitle="Shared office alerts and personal notice links that help you clear today's queue without leaving the Front Office command deck."
             title="Activity & notices"
           >
             <div className="office-queue-list">
@@ -1867,7 +1868,7 @@ export default async function AgentDashboardPage() {
             value={todayActionCount}
           />
           <SummaryChip
-            label="Start with"
+            label="Lead with"
             tone="accent"
             value={primaryLaneLabel}
           />
