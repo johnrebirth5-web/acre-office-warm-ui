@@ -73,7 +73,7 @@ function buildActivityFocusDescription(
     case "general_notices":
       return "Use this slice when the next move is office awareness, shared visibility, or a BO-adjacent handoff instead of personal cleanup.";
     default:
-      return "This route keeps the cleanup command surface visible, then lets you narrow by owner cleanup, team pressure, calendar writeback, or general notices without losing the URL-stable slice.";
+      return "This route keeps the cleanup workbench visible, then lets you narrow by owner cleanup, team pressure, calendar writeback, or general notices without losing the URL-stable slice.";
   }
 }
 
@@ -439,13 +439,14 @@ export default async function AgentNotificationsPage(
       }
       summary={
         <>
-          <SummaryChip label="Current lane" value={activeViewLabel} />
+          <SummaryChip label="Focus area" tone="accent" value={activeViewLabel} />
           <SummaryChip
-            label="Next move"
+            label="Current next move"
+            tone="accent"
             value={getActivityViewBridgeLabel(initialActivityView)}
           />
           <SummaryChip
-            label="Visible workbench items"
+            label="Visible workbench"
             value={visibleRouteItemCount}
           />
           <SummaryChip
@@ -455,42 +456,29 @@ export default async function AgentNotificationsPage(
           />
           {dashboardSnapshot.leadershipQueue.visible ? (
             <SummaryChip
-              label="Team cleanup signals"
+              label="Team cleanup"
               tone="accent"
               value={dashboardSnapshot.summary.leadershipPressureCount}
             />
           ) : null}
           <SummaryChip
-            label="Urgent personal cleanup"
-            tone="accent"
-            value={snapshot.summary.urgentCleanupCount}
+            label="Reminder next move"
+            value={getActivityViewNextMoveLabel("appointment_reminders")}
           />
           <SummaryChip
-            label="Potential dupes"
-            tone="accent"
-            value={snapshot.summary.duplicateReviewCount}
+            label="Notice next move"
+            value={getActivityViewNextMoveLabel("general_notices")}
           />
           <SummaryChip
             label="Calendar writeback"
-            tone="accent"
             value={appointmentReminderCards.length}
           />
+          <SummaryChip label="Notice routing" value={generalNoticeCards.length} />
           <SummaryChip
-            label="Reminder pressure"
-            value={snapshot.summary.appointmentSoonCount}
+            label="Urgent cleanup"
+            value={snapshot.summary.urgentCleanupCount}
           />
-          <SummaryChip
-            label="Notice routing"
-            value={generalNoticeCards.length}
-          />
-          <SummaryChip
-            label="Unread personal notices"
-            value={snapshot.summary.unreadNoticeCount}
-          />
-          <SummaryChip
-            label="Shared notices"
-            value={snapshot.summary.sharedNoticeCount}
-          />
+          <SummaryChip label="Potential dupes" value={snapshot.summary.duplicateReviewCount} />
           <SummaryChip
             label="Upcoming events"
             value={snapshot.summary.upcomingEventCount}
