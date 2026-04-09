@@ -71,15 +71,15 @@ export function getActivityViewSectionTargetLabel(
 ) {
   switch (activityView) {
     case "personal_cleanup":
-      return "Personal cleanup section";
+      return "Personal cleanup";
     case "team_cleanup":
-      return "Team cleanup section";
+      return "Team cleanup";
     case "appointment_reminders":
-      return "Calendar writeback section";
+      return "Calendar writeback";
     case "general_notices":
-      return "Notice routing section";
+      return "Notice routing";
     default:
-      return "Full activity center";
+      return "Activity center";
   }
 }
 
@@ -459,5 +459,22 @@ export function getActivityViewBridgeLabel(activityView: AgentActivityView) {
       return "Bridge back to appointment reminders if the next touch is calendar-owned.";
     default:
       return "Bridge into the highest-pressure lane, then return to this overview slice.";
+  }
+}
+
+export function getActivityViewNextMoveChipLabel(
+  activityView: AgentActivityView,
+) {
+  switch (activityView) {
+    case "personal_cleanup":
+      return "Clear cleanup first";
+    case "team_cleanup":
+      return "Handle team pressure";
+    case "appointment_reminders":
+      return "Record next touch";
+    case "general_notices":
+      return "Route next notice";
+    default:
+      return "Open top lane";
   }
 }

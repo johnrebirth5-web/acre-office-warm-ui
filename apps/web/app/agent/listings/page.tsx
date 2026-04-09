@@ -631,7 +631,6 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
       summary={
         <>
           <SummaryChip
-            description={routeState.focusedRouteLaneDescription}
             featured
             label="Lane"
             tone="accent"

@@ -346,7 +346,6 @@ export function SummaryChip(props: {
   label: string;
   value: ReactNode;
   tone?: "default" | "accent";
-  description?: ReactNode;
   featured?: boolean;
   className?: string;
 }) {
@@ -356,15 +355,11 @@ export function SummaryChip(props: {
         "office-summary-chip",
         props.tone === "accent" && "office-summary-chip-accent",
         props.featured && "office-summary-chip-featured",
-        Boolean(props.description) && "office-summary-chip-with-description",
         props.className,
       )}
     >
       <strong>{props.value}</strong>
       <span>{props.label}</span>
-      {props.description ? (
-        <p className="office-summary-chip-description">{props.description}</p>
-      ) : null}
     </article>
   );
 }

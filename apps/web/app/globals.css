@@ -13451,13 +13451,13 @@ body,
 .office-summary-chip,
 .office-transactions-summary-chip {
   display: grid;
-  align-content: space-between;
+  align-content: start;
   flex: 1 1 168px;
   min-width: 0;
-  min-height: 96px;
+  min-height: 92px;
   max-width: 100%;
-  gap: 10px;
-  padding: 14px 16px 16px;
+  gap: 8px;
+  padding: 14px 16px;
   border: 1px solid rgba(194, 205, 220, 0.62);
   border-radius: 20px;
   background: linear-gradient(
@@ -13472,9 +13472,9 @@ body,
 .office-summary-chip-featured,
 .office-transactions-summary-chip-featured {
   grid-column: span 2;
-  min-height: 128px;
-  gap: 12px;
-  padding: 18px 20px 20px;
+  min-height: 108px;
+  gap: 10px;
+  padding: 16px 18px;
   border-color: rgba(129, 160, 222, 0.5);
   background:
     radial-gradient(
@@ -13501,9 +13501,9 @@ body,
 .office-list-page-summary > :is(.office-summary-chip, .office-transactions-summary-chip):first-child strong,
 .office-summary-chip-featured strong,
 .office-transactions-summary-chip-featured strong {
-  font-size: clamp(1.7rem, 1.28rem + 0.86vw, 2.24rem);
-  line-height: 0.92;
-  letter-spacing: -0.06em;
+  font-size: clamp(1.52rem, 1.24rem + 0.62vw, 1.9rem);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
 }
 
 .office-summary-chip span,
@@ -13515,22 +13515,6 @@ body,
   line-height: 1.2;
   text-transform: uppercase;
   overflow-wrap: anywhere;
-}
-
-.office-summary-chip-description {
-  display: none;
-  margin: 0;
-  color: var(--office-text-muted);
-  font-size: 0.92rem;
-  line-height: 1.5;
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-.office-list-page-summary > :is(.office-summary-chip, .office-transactions-summary-chip):first-child .office-summary-chip-description,
-.office-summary-chip-featured .office-summary-chip-description,
-.office-transactions-summary-chip-featured .office-summary-chip-description {
-  display: block;
 }
 
 .office-summary-chip-accent,
@@ -15510,7 +15494,7 @@ body,
   .office-summary-chip-featured,
   .office-transactions-summary-chip-featured {
     grid-column: auto;
-    min-height: 112px;
+    min-height: 96px;
   }
 
   .office-list-page-stats,

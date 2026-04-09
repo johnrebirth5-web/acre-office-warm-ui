@@ -23,6 +23,7 @@ import {
   cleanupFilterOptions,
   getActivityViewBridgeLabel,
   getActivityViewNextMoveLabel,
+  getActivityViewNextMoveChipLabel,
   getActivityViewOperatorCue,
   getActivityViewSectionTargetLabel,
   getActivityViewTriageOrderLabel,
@@ -465,21 +466,17 @@ export default async function AgentNotificationsPage(
       summary={
         <>
           <SummaryChip
-            description={buildActivityFocusDescription(initialActivityView)}
             featured
-            label="Focus area"
+            label="Current view"
             tone="accent"
             value={activeViewLabel}
           />
           <SummaryChip
-            label="Current next move"
+            label="Next move"
             tone="accent"
-            value={getActivityViewBridgeLabel(initialActivityView)}
+            value={getActivityViewNextMoveChipLabel(initialActivityView)}
           />
-          <SummaryChip
-            label="Section target"
-            value={sectionTargetLabel}
-          />
+          <SummaryChip label="Section" value={sectionTargetLabel} />
           <SummaryChip
             label="Visible now"
             tone="accent"
