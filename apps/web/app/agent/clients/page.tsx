@@ -466,7 +466,7 @@ function buildStageSummaryLabel(
 }
 
 function buildDuplicateBoardDescription(pair: FrontOfficeClientDuplicatePair) {
-  return `${pair.rationaleLabel} Merge ${pair.duplicateClient.fullName} only after you confirm both dossiers side by side.`;
+  return `${pair.rationaleLabel} Merge ${pair.duplicateClient.fullName} only after you confirm both dossiers side by side. After the merge, re-enter through the same duplicate-review anchor if another pair is still waiting.`;
 }
 
 function matchesClientWorkbenchView(
@@ -836,6 +836,32 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   title="Duplicate lane is clear"
                 />
               )}
+
+              {topDuplicatePair ? (
+                <QueueItem
+                  action={
+                    <div className="list-row-meta front-office-record-meta">
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={snapshot.workspaceAnchor.returnHref}
+                      >
+                        {snapshot.workspaceAnchor.returnLabel}
+                      </FrontOfficeLink>
+                    </div>
+                  }
+                  badgeLabel="Merge return"
+                  badgeTone="accent"
+                  context={snapshot.workspaceAnchor.label}
+                  description={snapshot.workspaceAnchor.returnDescription}
+                  meta={
+                    <div className="list-row-meta front-office-record-meta">
+                      <span>{snapshot.workspaceAnchor.contextLabel}</span>
+                      <span>{snapshot.workspaceAnchor.description}</span>
+                    </div>
+                  }
+                  title="Return point after merge"
+                />
+              ) : null}
             </div>
           </SectionCard>
 
@@ -1213,6 +1239,11 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
             label="Workspace anchor"
             tone="accent"
             value={snapshot.workspaceAnchor.label}
+          />
+          <SummaryChip
+            label="Merge return"
+            tone="accent"
+            value={snapshot.workspaceAnchor.returnLabel}
           />
           <SummaryChip label="Anchor now" tone="accent" value={cleanupCount} />
           {activeClientView !== "all" ? (
