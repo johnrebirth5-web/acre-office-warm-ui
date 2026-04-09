@@ -1,0 +1,814 @@
+import {
+  NotificationType,
+  PrismaClient,
+  TaskStatus,
+} from "/Users/openclaw_john/工作文件夹/Acre_latest_clean/node_modules/@prisma/client/index.js";
+import { formatDateTimeLabel, resolveTimeZone } from "./date-time.js";
+
+const prisma = new PrismaClient();
+
+const frontOfficeCleanupDigestWindowDays = 7;
+const frontOfficeCleanupDigestMaxItemsPerSection = 5;
+
+const frontOfficeCleanupDigestNotificationTypes = [
+  NotificationType.appointment_due_soon,
+  NotificationType.appointment_external_touch_due,
+  NotificationType.incoming_update_pending_review,
+  NotificationType.task_review_requested,
+  NotificationType.task_second_review_requested,
+  NotificationType.task_rejected,
+  NotificationType.offer_created,
+  NotificationType.offer_received,
+  NotificationType.offer_expiring_soon,
+  NotificationType.follow_up_assigned,
+  NotificationType.follow_up_overdue,
+  NotificationType.onboarding_assigned,
+  NotificationType.onboarding_due_soon,
+] as const;
+
+type FrontOfficeCleanupDigestTone =
+  | "neutral"
+  | "accent"
+  | "warning"
+  | "danger";
+
+type FrontOfficeCleanupDigestItemKind =
+  | "notification"
+  | "follow_up_task"
+  | "client_reminder"
+  | "appointment_continuity";
+
+export type FrontOfficeCleanupDigestItem = {
+  id: string;
+  kind: FrontOfficeCleanupDigestItemKind;
+  title: string;
+  detail: string;
+  href: string;
+  dueAtLabel: string;
+  tone: FrontOfficeCleanupDigestTone;
+};
+
+export type FrontOfficeCleanupDigestSection = {
+  key:
+    | "notifications"
+    | "follow_up_tasks"
+    | "client_reminders"
+    | "appointment_continuity";
+  label: string;
+  summary: string;
+  count: number;
+  items: FrontOfficeCleanupDigestItem[];
+};
+
+export type FrontOfficeCleanupDigest = {
+  generatedAt: string;
+  generatedAtLabel: string;
+  scopeLabel: string;
+  timeZone: string;
+  windowLabel: string;
+  cutoffAt: string;
+  summary: {
+    totalCount: number;
+    urgentCount: number;
+    dueSoonCount: number;
+    notificationCount: number;
+    followUpTaskCount: number;
+    clientReminderCount: number;
+    appointmentCount: number;
+  };
+  nextActionLabel: string;
+  nextActionDetail: string;
+  sections: FrontOfficeCleanupDigestSection[];
+};
+
+export type BuildFrontOfficeCleanupDigestInput = {
+  organizationId: string;
+  viewerMembershipId: string;
+  officeId?: string | null;
+  timeZone?: string | null;
+  now?: Date;
+};
+
+type CleanupNotificationRecord = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  actionUrl: string | null;
+  createdAt: Date;
+};
+
+type CleanupFollowUpTaskRecord = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  dueAt: Date;
+  client: {
+    id: string;
+    fullName: string;
+    ownerMembership: {
+      officeId: string | null;
+    } | null;
+  } | null;
+};
+
+type CleanupClientRecord = {
+  id: string;
+  fullName: string;
+  nextFollowUpAt: Date | null;
+  leaseReminderAt: Date | null;
+  ownerMembership: {
+    officeId: string | null;
+  } | null;
+};
+
+type CleanupAppointmentRecord = {
+  id: string;
+  title: string;
+  startsAt: Date;
+  clientId: string | null;
+  client: {
+    id: string;
+    fullName: string;
+    ownerMembership: {
+      officeId: string | null;
+    } | null;
+  } | null;
+  metadata: Record<string, unknown> | null;
+};
+
+type CleanupAppointmentBridgeLog = {
+  entityId: string;
+  createdAt: Date;
+};
+
+function buildOfficeScopeFilter(officeId: string | null | undefined) {
+  if (!officeId) {
+    return undefined;
+  }
+
+  return {
+    OR: [{ officeId }, { officeId: null }],
+  };
+}
+
+function isWithinOfficeScope(
+  officeId: string | null | undefined,
+  candidateOfficeId: string | null | undefined,
+) {
+  if (!officeId) {
+    return true;
+  }
+
+  return candidateOfficeId == null || candidateOfficeId === officeId;
+}
+
+function startOfDigestWindow(now: Date, windowDays: number) {
+  const cutoffAt = new Date(now);
+  cutoffAt.setDate(cutoffAt.getDate() + windowDays);
+
+  return cutoffAt;
+}
+
+function startOfRecentWindow(now: Date, windowDays: number) {
+  const windowStart = new Date(now);
+  windowStart.setDate(windowStart.getDate() - windowDays);
+
+  return windowStart;
+}
+
+function getDetailWithLabels(labels: string[]) {
+  return labels.filter((label) => label.trim().length > 0).join(" · ");
+}
+
+function getUrgencyTone(
+  dueAt: Date | null | undefined,
+  now: Date,
+  cutoffAt: Date,
+) {
+  if (!dueAt) {
+    return "warning" as const;
+  }
+
+  if (dueAt.getTime() <= now.getTime()) {
+    return "danger" as const;
+  }
+
+  if (dueAt.getTime() <= cutoffAt.getTime()) {
+    return "warning" as const;
+  }
+
+  return "neutral" as const;
+}
+
+function sortItemsByUrgency(
+  left: FrontOfficeCleanupDigestItem,
+  right: FrontOfficeCleanupDigestItem,
+) {
+  const toneRank: Record<FrontOfficeCleanupDigestTone, number> = {
+    danger: 0,
+    warning: 1,
+    accent: 2,
+    neutral: 3,
+  };
+
+  const leftRank = toneRank[left.tone];
+  const rightRank = toneRank[right.tone];
+
+  if (leftRank !== rightRank) {
+    return leftRank - rightRank;
+  }
+
+  return left.dueAtLabel.localeCompare(right.dueAtLabel);
+}
+
+function pickNextAction(
+  sections: FrontOfficeCleanupDigestSection[],
+  summary: FrontOfficeCleanupDigest["summary"],
+) {
+  const firstNonEmptySection = sections.find((section) => section.count > 0);
+
+  if (!firstNonEmptySection) {
+    return {
+      label: "No cleanup items queued",
+      detail:
+        "There are no unread cleanup notifications, overdue follow-up tasks, client reminders, or appointment continuity items in this digest.",
+    };
+  }
+
+  if (summary.followUpTaskCount > 0) {
+    return {
+      label: "Start with follow-up tasks",
+      detail:
+        firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
+    };
+  }
+
+  if (summary.clientReminderCount > 0) {
+    return {
+      label: "Review client reminders",
+      detail:
+        firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
+    };
+  }
+
+  if (summary.appointmentCount > 0) {
+    return {
+      label: "Reconcile appointment continuity",
+      detail:
+        firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
+    };
+  }
+
+  return {
+    label: "Clear unread cleanup notifications",
+    detail:
+      firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
+  };
+}
+
+function formatSectionSummary(count: number, noun: string) {
+  if (count === 0) {
+    return `No ${noun.toLowerCase()} due right now.`;
+  }
+
+  if (count === 1) {
+    return `1 ${noun} needs attention.`;
+  }
+
+  return `${count} ${noun.toLowerCase()} items need attention.`;
+}
+
+function mapNotificationLabel(type: NotificationType) {
+  switch (type) {
+    case NotificationType.appointment_due_soon:
+      return "Appointment due soon";
+    case NotificationType.appointment_external_touch_due:
+      return "Appointment touch due";
+    case NotificationType.incoming_update_pending_review:
+      return "Incoming update review";
+    case NotificationType.task_review_requested:
+      return "Task review requested";
+    case NotificationType.task_second_review_requested:
+      return "Task second review requested";
+    case NotificationType.task_rejected:
+      return "Task rejected";
+    case NotificationType.offer_created:
+      return "Offer created";
+    case NotificationType.offer_received:
+      return "Offer received";
+    case NotificationType.offer_expiring_soon:
+      return "Offer expiring soon";
+    case NotificationType.follow_up_assigned:
+      return "Follow-up assigned";
+    case NotificationType.follow_up_overdue:
+      return "Follow-up overdue";
+    case NotificationType.onboarding_assigned:
+      return "Onboarding assigned";
+    case NotificationType.onboarding_due_soon:
+      return "Onboarding due soon";
+    default:
+      return "Cleanup notification";
+  }
+}
+
+function mapNotificationTone(type: NotificationType): FrontOfficeCleanupDigestTone {
+  switch (type) {
+    case NotificationType.follow_up_overdue:
+    case NotificationType.appointment_external_touch_due:
+    case NotificationType.offer_expiring_soon:
+    case NotificationType.task_rejected:
+      return "danger";
+    case NotificationType.appointment_due_soon:
+    case NotificationType.incoming_update_pending_review:
+    case NotificationType.task_review_requested:
+    case NotificationType.task_second_review_requested:
+    case NotificationType.follow_up_assigned:
+    case NotificationType.onboarding_due_soon:
+      return "warning";
+    default:
+      return "accent";
+  }
+}
+
+function readAppointmentWorkflowState(metadata: Record<string, unknown> | null) {
+  const status = typeof metadata?.status === "string" ? metadata.status : null;
+  const note = typeof metadata?.note === "string" ? metadata.note : null;
+  const nextActionAt =
+    typeof metadata?.nextActionAt === "string" &&
+    metadata.nextActionAt.trim().length > 0
+      ? new Date(metadata.nextActionAt)
+      : null;
+
+  return {
+    status,
+    note,
+    nextActionAt:
+      nextActionAt && !Number.isNaN(nextActionAt.getTime())
+        ? nextActionAt
+        : null,
+  };
+}
+
+function mapAppointmentTone(appointment: {
+  bridgeOpenedAt: Date | null;
+  workflowStatus: string | null;
+  workflowNextActionAt: Date | null;
+  startsAt: Date;
+  now: Date;
+}) {
+  if (appointment.workflowStatus === "reschedule_requested") {
+    return "danger" as const;
+  }
+
+  if (appointment.workflowStatus === "needs_follow_up") {
+    return "warning" as const;
+  }
+
+  if (appointment.workflowStatus === "confirmation_pending") {
+    return "warning" as const;
+  }
+
+  if (
+    appointment.workflowNextActionAt &&
+    appointment.workflowNextActionAt.getTime() <= appointment.now.getTime()
+  ) {
+    return "danger" as const;
+  }
+
+  if (appointment.bridgeOpenedAt) {
+    return "warning" as const;
+  }
+
+  if (appointment.startsAt.getTime() <= appointment.now.getTime()) {
+    return "warning" as const;
+  }
+
+  return "accent" as const;
+}
+
+function buildAppointmentDetail(input: {
+  bridgeOpenedAt: Date | null;
+  workflowStatus: string | null;
+  workflowNote: string | null;
+  workflowNextActionAt: Date | null;
+  timeZone: string;
+}) {
+  const labels = [
+    input.bridgeOpenedAt
+      ? `Bridge opened: ${formatDateTimeLabel(input.bridgeOpenedAt, {
+          timeZone: input.timeZone,
+        })}`
+      : "No bridge opened yet",
+    input.workflowStatus
+      ? `Writeback state: ${input.workflowStatus.replace(/_/g, " ")}`
+      : "No saved writeback yet",
+    input.workflowNextActionAt
+      ? `Next touch: ${formatDateTimeLabel(input.workflowNextActionAt, {
+          timeZone: input.timeZone,
+        })}`
+      : "No next touch saved",
+    input.workflowNote ? `Note: ${input.workflowNote}` : "",
+  ];
+
+  return getDetailWithLabels(labels);
+}
+
+function buildNotificationItems(
+  notifications: CleanupNotificationRecord[],
+  timeZone: string,
+): FrontOfficeCleanupDigestItem[] {
+  return notifications.map<FrontOfficeCleanupDigestItem>((notification) => ({
+    id: notification.id,
+    kind: "notification",
+    title: mapNotificationLabel(notification.type),
+    detail: notification.body,
+    href: notification.actionUrl?.trim()
+      ? notification.actionUrl
+      : `/office/notifications/${notification.id}/open`,
+    dueAtLabel: formatDateTimeLabel(notification.createdAt, {
+      timeZone,
+    }),
+    tone: mapNotificationTone(notification.type),
+  }));
+}
+
+function buildFollowUpTaskItems(
+  tasks: CleanupFollowUpTaskRecord[],
+  officeId: string | null | undefined,
+  now: Date,
+  cutoffAt: Date,
+  timeZone: string,
+): FrontOfficeCleanupDigestItem[] {
+  return tasks
+    .filter((task) =>
+      isWithinOfficeScope(officeId, task.client?.ownerMembership?.officeId ?? null),
+    )
+    .map<FrontOfficeCleanupDigestItem>((task) => ({
+      id: task.id,
+      kind: "follow_up_task",
+      title: task.title,
+      detail: getDetailWithLabels([
+        task.client?.fullName ? `Client: ${task.client.fullName}` : "Client: Unassigned",
+        `Status: ${task.status}`,
+      ]),
+      href: task.client?.id ? `/office/contacts/${task.client.id}` : "/office/contacts",
+      dueAtLabel: formatDateTimeLabel(task.dueAt, { timeZone }),
+      tone: getUrgencyTone(task.dueAt, now, cutoffAt),
+    }))
+    .slice(0, frontOfficeCleanupDigestMaxItemsPerSection)
+    .sort(sortItemsByUrgency);
+}
+
+function buildClientReminderItems(
+  clients: CleanupClientRecord[],
+  officeId: string | null | undefined,
+  now: Date,
+  cutoffAt: Date,
+  timeZone: string,
+): FrontOfficeCleanupDigestItem[] {
+  return clients
+    .filter((client) =>
+      isWithinOfficeScope(
+        officeId,
+        client.ownerMembership?.officeId ?? null,
+      ),
+    )
+    .map<FrontOfficeCleanupDigestItem>((client) => {
+      const reminderAt = client.nextFollowUpAt ?? client.leaseReminderAt;
+
+      return {
+        id: client.id,
+        kind: "client_reminder",
+        title: client.fullName,
+        detail: getDetailWithLabels([
+          client.nextFollowUpAt
+            ? `Next follow-up: ${formatDateTimeLabel(client.nextFollowUpAt, {
+                timeZone,
+              })}`
+            : "",
+          client.leaseReminderAt
+            ? `Lease reminder: ${formatDateTimeLabel(client.leaseReminderAt, {
+                timeZone,
+              })}`
+            : "",
+        ]),
+        href: `/office/contacts/${client.id}`,
+        dueAtLabel: formatDateTimeLabel(reminderAt, { timeZone }),
+        tone: getUrgencyTone(reminderAt, now, cutoffAt),
+      };
+    })
+    .slice(0, frontOfficeCleanupDigestMaxItemsPerSection)
+    .sort(sortItemsByUrgency);
+}
+
+function buildAppointmentItems(
+  appointments: CleanupAppointmentRecord[],
+  bridgeLogsByAppointmentId: Map<string, CleanupAppointmentBridgeLog[]>,
+  officeId: string | null | undefined,
+  now: Date,
+  timeZone: string,
+): FrontOfficeCleanupDigestItem[] {
+  return appointments
+    .filter((appointment) =>
+      isWithinOfficeScope(
+        officeId,
+        appointment.client?.ownerMembership?.officeId ?? null,
+      ),
+    )
+    .map<FrontOfficeCleanupDigestItem & { _hasPressure: boolean }>((appointment) => {
+      const workflow = readAppointmentWorkflowState(appointment.metadata);
+      const bridgeLogs = bridgeLogsByAppointmentId.get(appointment.id) ?? [];
+      const bridgeOpenedAt = bridgeLogs.at(0)?.createdAt ?? null;
+      const workflowHasPressure = Boolean(
+        workflow.status ||
+          workflow.nextActionAt ||
+          bridgeOpenedAt ||
+          appointment.startsAt.getTime() <= now.getTime(),
+      );
+
+      return {
+        id: appointment.id,
+        kind: "appointment_continuity",
+        title: appointment.title,
+        detail: buildAppointmentDetail({
+          bridgeOpenedAt,
+          workflowStatus: workflow.status,
+          workflowNote: workflow.note,
+          workflowNextActionAt: workflow.nextActionAt,
+          timeZone,
+        }),
+        href: appointment.client?.id
+          ? `/agent/clients/${appointment.client.id}`
+          : `/agent/calendar?appointmentId=${appointment.id}`,
+        dueAtLabel: formatDateTimeLabel(appointment.startsAt, { timeZone }),
+        tone: mapAppointmentTone({
+          bridgeOpenedAt,
+          workflowStatus: workflow.status,
+          workflowNextActionAt: workflow.nextActionAt,
+          startsAt: appointment.startsAt,
+          now,
+        }),
+        _hasPressure: workflowHasPressure,
+      };
+    })
+    .filter((item) => item._hasPressure)
+    .map(({ _hasPressure, ...item }) => item)
+    .slice(0, frontOfficeCleanupDigestMaxItemsPerSection)
+    .sort(sortItemsByUrgency);
+}
+
+export async function buildFrontOfficeCleanupDigest(
+  input: BuildFrontOfficeCleanupDigestInput,
+): Promise<FrontOfficeCleanupDigest> {
+  const timeZone = resolveTimeZone(input.timeZone ?? null);
+  const generatedAt = input.now ?? new Date();
+  const cutoffAt = startOfDigestWindow(
+    generatedAt,
+    frontOfficeCleanupDigestWindowDays,
+  );
+  const recentWindowStart = startOfRecentWindow(
+    generatedAt,
+    frontOfficeCleanupDigestWindowDays,
+  );
+  const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
+
+  const [notifications, followUpTasks, clients, appointments, bridgeLogs] =
+    await Promise.all([
+      prisma.notification.findMany({
+        where: {
+          organizationId: input.organizationId,
+          membershipId: input.viewerMembershipId,
+          readAt: null,
+          type: {
+            in: frontOfficeCleanupDigestNotificationTypes as unknown as NotificationType[],
+          },
+          ...(officeScopeFilter ? officeScopeFilter : {}),
+        },
+        orderBy: [{ createdAt: "desc" }],
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          body: true,
+          actionUrl: true,
+          createdAt: true,
+        },
+        take: frontOfficeCleanupDigestMaxItemsPerSection,
+      }),
+      prisma.followUpTask.findMany({
+        where: {
+          organizationId: input.organizationId,
+          status: {
+            not: TaskStatus.completed,
+          },
+          dueAt: {
+            not: null,
+            lte: cutoffAt,
+          },
+        },
+        orderBy: [{ dueAt: "asc" }],
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          dueAt: true,
+          client: {
+            select: {
+              id: true,
+              fullName: true,
+              ownerMembership: {
+                select: {
+                  officeId: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.client.findMany({
+        where: {
+          organizationId: input.organizationId,
+          OR: [
+            {
+              nextFollowUpAt: {
+                not: null,
+                lte: cutoffAt,
+              },
+            },
+            {
+              leaseReminderAt: {
+                not: null,
+                lte: cutoffAt,
+              },
+            },
+          ],
+        },
+        orderBy: [
+          { nextFollowUpAt: "asc" },
+          { leaseReminderAt: "asc" },
+          { fullName: "asc" },
+        ],
+        select: {
+          id: true,
+          fullName: true,
+          nextFollowUpAt: true,
+          leaseReminderAt: true,
+          ownerMembership: {
+            select: {
+              officeId: true,
+            },
+          },
+        },
+      }),
+      prisma.appointment.findMany({
+        where: {
+          organizationId: input.organizationId,
+          startsAt: {
+            gte: recentWindowStart,
+          },
+        },
+        orderBy: [{ startsAt: "asc" }],
+        select: {
+          id: true,
+          title: true,
+          startsAt: true,
+          client: {
+            select: {
+              id: true,
+              fullName: true,
+              ownerMembership: {
+                select: {
+                  officeId: true,
+                },
+              },
+            },
+          },
+          metadata: true,
+        },
+      }),
+      prisma.auditLog.findMany({
+        where: {
+          organizationId: input.organizationId,
+          entityType: "appointment",
+          action: "appointment.bridge_opened",
+          createdAt: {
+            gte: recentWindowStart,
+          },
+        },
+        orderBy: [{ createdAt: "desc" }],
+        select: {
+          entityId: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+  const notificationItems = buildNotificationItems(notifications, timeZone);
+  const followUpTaskItems = buildFollowUpTaskItems(
+    followUpTasks as CleanupFollowUpTaskRecord[],
+    input.officeId ?? null,
+    generatedAt,
+    cutoffAt,
+    timeZone,
+  );
+  const clientReminderItems = buildClientReminderItems(
+    clients as CleanupClientRecord[],
+    input.officeId ?? null,
+    generatedAt,
+    cutoffAt,
+    timeZone,
+  );
+  const bridgeLogsByAppointmentId = new Map<string, CleanupAppointmentBridgeLog[]>();
+
+  for (const bridgeLog of bridgeLogs as CleanupAppointmentBridgeLog[]) {
+    const existing = bridgeLogsByAppointmentId.get(bridgeLog.entityId) ?? [];
+    existing.push(bridgeLog);
+    bridgeLogsByAppointmentId.set(bridgeLog.entityId, existing);
+  }
+
+  const appointmentItems = buildAppointmentItems(
+    appointments as CleanupAppointmentRecord[],
+    bridgeLogsByAppointmentId,
+    input.officeId ?? null,
+    generatedAt,
+    timeZone,
+  );
+
+  const sections: FrontOfficeCleanupDigestSection[] = [
+    {
+      key: "notifications",
+      label: "Unread notifications",
+      summary: formatSectionSummary(notificationItems.length, "Notification"),
+      count: notificationItems.length,
+      items: notificationItems.sort(sortItemsByUrgency),
+    },
+    {
+      key: "follow_up_tasks",
+      label: "Follow-up tasks",
+      summary: formatSectionSummary(
+        followUpTaskItems.length,
+        "Follow-up task",
+      ),
+      count: followUpTaskItems.length,
+      items: followUpTaskItems,
+    },
+    {
+      key: "client_reminders",
+      label: "Client reminders",
+      summary: formatSectionSummary(
+        clientReminderItems.length,
+        "Client reminder",
+      ),
+      count: clientReminderItems.length,
+      items: clientReminderItems,
+    },
+    {
+      key: "appointment_continuity",
+      label: "Appointment continuity",
+      summary: formatSectionSummary(
+        appointmentItems.length,
+        "Appointment continuity item",
+      ),
+      count: appointmentItems.length,
+      items: appointmentItems,
+    },
+  ];
+
+  const summary = {
+    totalCount: sections.reduce((count, section) => count + section.count, 0),
+    urgentCount: sections.reduce(
+      (count, section) =>
+        count +
+        section.items.filter((item) => item.tone === "danger").length,
+      0,
+    ),
+    dueSoonCount: sections.reduce(
+      (count, section) =>
+        count +
+        section.items.filter((item) => item.tone === "warning").length,
+      0,
+    ),
+    notificationCount: notificationItems.length,
+    followUpTaskCount: followUpTaskItems.length,
+    clientReminderCount: clientReminderItems.length,
+    appointmentCount: appointmentItems.length,
+  };
+
+  const nextAction = pickNextAction(sections, summary);
+
+  return {
+    generatedAt: generatedAt.toISOString(),
+    generatedAtLabel: formatDateTimeLabel(generatedAt, { timeZone }),
+    scopeLabel: input.officeId
+      ? "Office cleanup digest"
+      : "Organization cleanup digest",
+    timeZone,
+    windowLabel: `Next ${frontOfficeCleanupDigestWindowDays} days`,
+    cutoffAt: cutoffAt.toISOString(),
+    summary,
+    nextActionLabel: nextAction.label,
+    nextActionDetail: nextAction.detail,
+    sections,
+  };
+}
