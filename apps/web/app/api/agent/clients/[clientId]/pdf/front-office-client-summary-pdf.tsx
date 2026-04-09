@@ -1,5 +1,6 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { FrontOfficeClientDetailSnapshot } from "@acre/db";
+import { FrontOfficeSendMaterialType } from "@prisma/client";
 
 const styles = StyleSheet.create({
   page: {
@@ -144,6 +145,17 @@ function normalizeValue(value: string) {
   return trimmed || "Not captured";
 }
 
+function formatTrackedMaterialTypeLabel(
+  materialType: FrontOfficeSendMaterialType,
+) {
+  switch (materialType) {
+    case FrontOfficeSendMaterialType.listing_share:
+      return "Listing share";
+    default:
+      return "Tracked share";
+  }
+}
+
 function buildFormalWorkflowSummary(
   snapshot: FrontOfficeClientDetailSnapshot,
 ): SummaryBlock {
@@ -168,7 +180,8 @@ function buildFormalWorkflowSummary(
       };
     case "cancelled_reentry":
       return {
-        title: "The current opportunity is paused, but future planning stays open",
+        title:
+          "The current opportunity is paused, but future planning stays open",
         description:
           "The formal file is no longer the active lane. A respectful re-entry or future planning touch can still happen from the live client record.",
       };
@@ -301,16 +314,18 @@ function buildWhatHappensNextLines(snapshot: FrontOfficeClientDetailSnapshot) {
 
   if (snapshot.appointments.length) {
     lines.push(
-      ...snapshot.appointments.slice(0, 2).map((appointment) =>
-        [
-          "Appointment",
-          appointment.title,
-          appointment.startsAtLabel,
-          appointment.locationLabel,
-        ]
-          .filter(Boolean)
-          .join(" | "),
-      ),
+      ...snapshot.appointments
+        .slice(0, 2)
+        .map((appointment) =>
+          [
+            "Appointment",
+            appointment.title,
+            appointment.startsAtLabel,
+            appointment.locationLabel,
+          ]
+            .filter(Boolean)
+            .join(" | "),
+        ),
     );
   }
 
@@ -343,42 +358,106 @@ function buildWhatHappensNextLines(snapshot: FrontOfficeClientDetailSnapshot) {
   return lines;
 }
 
-function buildUpcomingCoordinationLines(snapshot: FrontOfficeClientDetailSnapshot) {
+function buildUpcomingCoordinationLines(
+  snapshot: FrontOfficeClientDetailSnapshot,
+) {
   if (!snapshot.appointments.length) {
     return [
       `No appointment is currently booked. The next move is still anchored on ${snapshot.followUpCue.dueLabel.toLowerCase()}.`,
     ];
   }
 
-  return snapshot.appointments.slice(0, 4).map((appointment) =>
-    [
-      appointment.title,
-      appointment.startsAtLabel,
-      appointment.locationLabel,
-      appointment.externalStatusDetail,
-    ]
-      .filter(Boolean)
-      .join(" | "),
-  );
+  return snapshot.appointments
+    .slice(0, 4)
+    .map((appointment) =>
+      [
+        appointment.title,
+        appointment.startsAtLabel,
+        appointment.locationLabel,
+        appointment.externalStatusDetail,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
 }
 
 function buildMaterialsLines(snapshot: FrontOfficeClientDetailSnapshot) {
   if (!snapshot.sendRecords.length) {
     return [
-      "No tracked listing packet or resource share has been recorded yet from this client record.",
+      "No tracked listing share has been recorded yet from this client record.",
     ];
   }
 
-  return snapshot.sendRecords.slice(0, 5).map((record) =>
-    [
-      record.title,
-      `Shared ${record.sentAtLabel}`,
-      record.engagementLabel,
-      record.appointmentLabel,
-    ]
-      .filter(Boolean)
-      .join(" | "),
-  );
+  return snapshot.sendRecords
+    .slice(0, 5)
+    .map((record) =>
+      [
+        formatTrackedMaterialTypeLabel(record.materialTypeValue),
+        record.title,
+        `Shared ${record.sentAtLabel}`,
+        record.channelLabel,
+        record.engagementLabel,
+        record.appointmentLabel,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
+}
+
+function buildTrackedSharePulseLines(
+  snapshot: FrontOfficeClientDetailSnapshot,
+) {
+  const lines = [
+    `Tracked sends: ${snapshot.engagement.sendCount} · opened ${snapshot.engagement.openedSendCount} · revisits ${snapshot.engagement.revisitCount}`,
+    `Latest engagement: ${snapshot.engagement.lastEngagementLabel}`,
+  ];
+
+  if (snapshot.sendRecords.length) {
+    const latestSend = snapshot.sendRecords[0];
+
+    lines.push(
+      [
+        `Latest share: ${latestSend.title}`,
+        latestSend.channelLabel,
+        latestSend.sentAtLabel,
+        latestSend.engagementLabel,
+        latestSend.appointmentLabel,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
+  } else {
+    lines.push(
+      "No tracked listing share has been recorded yet from this client record.",
+    );
+  }
+
+  return lines;
+}
+
+function buildRecentTrackedShareLines(
+  snapshot: FrontOfficeClientDetailSnapshot,
+) {
+  if (!snapshot.sendRecords.length) {
+    return [
+      "No tracked share history has been recorded yet from this client record.",
+    ];
+  }
+
+  return snapshot.sendRecords
+    .slice(0, 4)
+    .map((record) =>
+      [
+        formatTrackedMaterialTypeLabel(record.materialTypeValue),
+        record.title,
+        record.channelLabel,
+        record.sentAtLabel,
+        record.engagementLabel,
+        record.appointmentLabel,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
 }
 
 function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
@@ -394,16 +473,18 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
 
   if (snapshot.negotiation.offers.length) {
     lines.push(
-      ...snapshot.negotiation.offers.slice(0, 3).map((offer) =>
-        [
-          offer.title,
-          offer.statusLabel,
-          offer.priceLabel,
-          offer.expirationLabel,
-        ]
-          .filter(Boolean)
-          .join(" | "),
-      ),
+      ...snapshot.negotiation.offers
+        .slice(0, 3)
+        .map((offer) =>
+          [
+            offer.title,
+            offer.statusLabel,
+            offer.priceLabel,
+            offer.expirationLabel,
+          ]
+            .filter(Boolean)
+            .join(" | "),
+        ),
     );
   }
 
@@ -412,22 +493,30 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
 
 function buildRecentProgressLines(snapshot: FrontOfficeClientDetailSnapshot) {
   const lines = [
-    ...snapshot.followUpTasks.slice(0, 3).map((task) =>
-      [task.timelineAtLabel, task.timelineTitle].filter(Boolean).join(" | "),
-    ),
-    ...snapshot.stageHistory.slice(0, 2).map((entry) =>
-      [entry.changedAtLabel, entry.title].filter(Boolean).join(" | "),
-    ),
-    ...snapshot.sendRecords.slice(0, 2).map((record) =>
-      [record.sentAtLabel, `Shared ${record.title}`, record.engagementLabel]
-        .filter(Boolean)
-        .join(" | "),
-    ),
-    ...snapshot.handoffs.slice(0, 2).map((handoff) =>
-      [handoff.updatedAtLabel, handoff.stageLabel, handoff.statusLabel]
-        .filter(Boolean)
-        .join(" | "),
-    ),
+    ...snapshot.followUpTasks
+      .slice(0, 3)
+      .map((task) =>
+        [task.timelineAtLabel, task.timelineTitle].filter(Boolean).join(" | "),
+      ),
+    ...snapshot.stageHistory
+      .slice(0, 2)
+      .map((entry) =>
+        [entry.changedAtLabel, entry.title].filter(Boolean).join(" | "),
+      ),
+    ...snapshot.sendRecords
+      .slice(0, 2)
+      .map((record) =>
+        [record.sentAtLabel, `Shared ${record.title}`, record.engagementLabel]
+          .filter(Boolean)
+          .join(" | "),
+      ),
+    ...snapshot.handoffs
+      .slice(0, 2)
+      .map((handoff) =>
+        [handoff.updatedAtLabel, handoff.stageLabel, handoff.statusLabel]
+          .filter(Boolean)
+          .join(" | "),
+      ),
   ].filter(Boolean);
 
   return lines.length
@@ -449,14 +538,12 @@ function HeroCard(props: {
   );
 }
 
-function InfoCard(props: {
-  title: string;
-  body: string;
-  fullWidth?: boolean;
-}) {
+function InfoCard(props: { title: string; body: string; fullWidth?: boolean }) {
   return (
     <View
-      style={props.fullWidth ? [styles.infoCard, styles.fullCard] : styles.infoCard}
+      style={
+        props.fullWidth ? [styles.infoCard, styles.fullCard] : styles.infoCard
+      }
     >
       <Text style={styles.infoCardTitle}>{props.title}</Text>
       <Text style={styles.infoCardBody}>{props.body}</Text>
@@ -520,7 +607,9 @@ export function FrontOfficeClientSummaryPdfDocument(
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Client goals and working context</Text>
+          <Text style={styles.sectionTitle}>
+            Client goals and working context
+          </Text>
           <Text style={styles.sectionIntro}>
             The recap below is organized for active coordination, shortlist
             alignment, and clean follow-through after calls or meetings.
@@ -551,7 +640,9 @@ export function FrontOfficeClientSummaryPdfDocument(
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming appointments and coordination</Text>
+          <Text style={styles.sectionTitle}>
+            Upcoming appointments and coordination
+          </Text>
           <BulletList lines={buildUpcomingCoordinationLines(props.snapshot)} />
         </View>
       </Page>
@@ -562,9 +653,24 @@ export function FrontOfficeClientSummaryPdfDocument(
           <Text style={styles.eyebrow}>Client coordination summary</Text>
           <Text style={styles.title}>Shared materials and milestone view</Text>
           <Text style={styles.subtitle}>
-            This page captures what has already been shared, where formal
-            paperwork stands, and the most recent movement on the client record.
+            This page captures what has already been shared, how much tracked
+            engagement the client has shown, where formal paperwork stands, and
+            the most recent movement on the client record.
           </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tracked share pulse</Text>
+          <View style={styles.cardGrid}>
+            <InfoCard
+              title="Usage pulse"
+              body={buildTrackedSharePulseLines(props.snapshot).join("\n")}
+            />
+            <InfoCard
+              title="Recent tracked use"
+              body={buildRecentTrackedShareLines(props.snapshot).join("\n")}
+            />
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -573,11 +679,22 @@ export function FrontOfficeClientSummaryPdfDocument(
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Formal paperwork and milestone view</Text>
+          <Text style={styles.sectionTitle}>
+            Formal paperwork and milestone view
+          </Text>
           <View style={styles.cardGrid}>
-            <InfoCard title={formalWorkflow.title} body={formalWorkflow.description} />
-            <InfoCard title={negotiationSummary.title} body={negotiationSummary.description} />
-            <InfoCard title={inspectionSummary.title} body={inspectionSummary.description} />
+            <InfoCard
+              title={formalWorkflow.title}
+              body={formalWorkflow.description}
+            />
+            <InfoCard
+              title={negotiationSummary.title}
+              body={negotiationSummary.description}
+            />
+            <InfoCard
+              title={inspectionSummary.title}
+              body={inspectionSummary.description}
+            />
             <InfoCard
               title="Milestone snapshot"
               body={buildFormalMilestoneLines(props.snapshot).join("\n")}
@@ -586,8 +703,8 @@ export function FrontOfficeClientSummaryPdfDocument(
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent progress highlights</Text>
-          <BulletList lines={buildRecentProgressLines(props.snapshot)} />
+          <Text style={styles.sectionTitle}>Recent share history</Text>
+          <BulletList lines={buildRecentTrackedShareLines(props.snapshot)} />
         </View>
 
         <View style={styles.footer}>
