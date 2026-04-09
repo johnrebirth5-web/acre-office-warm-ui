@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
       {
         ok: true,
         executionMode: "manual",
+        mailThreadHref: "/api/agent/notifications/cleanup-digest/mail-thread",
         digest,
       },
       {

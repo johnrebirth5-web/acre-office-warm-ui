@@ -189,6 +189,8 @@ export default async function AgentNotificationsPage(
   const cleanupDigestHref = `/api/agent/notifications/cleanup-digest?timeZone=${encodeURIComponent(
     context.currentUser.timezone,
   )}`;
+  const cleanupDigestMailThreadHref =
+    "/api/agent/notifications/cleanup-digest/mail-thread";
 
   return (
     <FrontOfficePageTemplate
@@ -423,6 +425,7 @@ export default async function AgentNotificationsPage(
             <FrontOfficeCleanupDigestCard
               cleanupDigest={cleanupDigest}
               cleanupDigestHref={cleanupDigestHref}
+              cleanupDigestMailThreadHref={cleanupDigestMailThreadHref}
             />
           </SectionCard>
 
