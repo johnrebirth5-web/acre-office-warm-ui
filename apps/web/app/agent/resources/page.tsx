@@ -491,6 +491,7 @@ export default async function AgentResourcesPage(props: {
       (lane) => lane.key === "training_video",
     )?.count ?? 0;
   const interactionTracking = snapshot.interactionTracking;
+  const sharedTracking = interactionTracking.sharedTracking;
   const strongestResourceLane = snapshot.executionPulse.strongestLane;
   const thinnestResourceLane = snapshot.executionPulse.thinnestLane;
   const vendorPosture = snapshot.executionPulse.vendorPosture;
@@ -1156,6 +1157,118 @@ export default async function AgentResourcesPage(props: {
               )}
             </div>
           </SectionCard>
+
+          {sharedTracking.visible ? (
+            <SectionCard
+              className="office-list-card"
+              subtitle="Leads and office operators should be able to see whether this hub is actually getting used across the visible Front Office bench, not only inside one personal trail."
+              title={sharedTracking.scopeLabel}
+            >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="members in the visible FO scope"
+                  label="Visible members"
+                  value={sharedTracking.visibleMembershipCount}
+                />
+                <StatCard
+                  hint={sharedTracking.windowLabel.toLowerCase()}
+                  label="Active members"
+                  tone="accent"
+                  value={sharedTracking.activeMembershipCount}
+                />
+                <StatCard
+                  hint="tracked actions across the visible scope"
+                  label="Tracked actions"
+                  value={sharedTracking.totalCount}
+                />
+                <StatCard
+                  hint="resource opens across the visible scope"
+                  label="Resource opens"
+                  value={sharedTracking.resourceOpenCount}
+                />
+                <StatCard
+                  hint="vendor call, email, or site clicks"
+                  label="Vendor clicks"
+                  value={sharedTracking.vendorClickCount}
+                />
+                <StatCard
+                  hint="latest shared tracked activity"
+                  label="Last shared touch"
+                  value={sharedTracking.lastInteractionLabel}
+                />
+              </ListPageStatsGrid>
+
+              <div className="office-queue-list" style={{ marginTop: "1rem" }}>
+                {sharedTracking.topActors.length ? (
+                  sharedTracking.topActors.map((actor) => (
+                    <QueueItem
+                      badgeLabel="Operator"
+                      badgeTone="accent"
+                      context={actor.lastInteractionLabel}
+                      description={`${actor.label} logged ${actor.interactionCount} tracked action(s) in ${sharedTracking.windowLabel.toLowerCase()}.`}
+                      key={actor.membershipId}
+                      meta={
+                        <>
+                          <span>{sharedTracking.scopeLabel}</span>
+                          <span>{pluralize(actor.interactionCount, "tracked action")}</span>
+                        </>
+                      }
+                      title={actor.label}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    className="front-office-inline-empty"
+                    description="No one else in this visible scope has logged resource activity in the current window yet."
+                    title="No shared operator activity yet"
+                  />
+                )}
+              </div>
+
+              <div className="office-queue-list" style={{ marginTop: "1rem" }}>
+                {sharedTracking.hottestTargets.length ? (
+                  sharedTracking.hottestTargets.map((target) => (
+                    <QueueItem
+                      action={
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={target.href}
+                        >
+                          Open section
+                        </FrontOfficeLink>
+                      }
+                      badgeLabel={target.kindLabel}
+                      badgeTone={
+                        target.kindLabel === "Vendor click"
+                          ? "warning"
+                          : target.kindLabel === "Watch progress"
+                            ? "success"
+                          : target.kindLabel === "Resource search"
+                            ? "neutral"
+                            : "accent"
+                      }
+                      context={`${target.interactionCount} shared hit(s)`}
+                      description={target.detailLabel}
+                      key={target.key}
+                      meta={
+                        <>
+                          <span>{sharedTracking.scopeLabel}</span>
+                          <span>{sharedTracking.windowLabel}</span>
+                        </>
+                      }
+                      title={target.title}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    className="front-office-inline-empty"
+                    description="Hot spots will appear here once the visible team or office starts reusing the same resource lane."
+                    title="No shared hot spots yet"
+                  />
+                )}
+              </div>
+            </SectionCard>
+          ) : null}
 
           <SectionCard
             className="office-list-card"

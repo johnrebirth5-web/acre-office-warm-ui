@@ -9,6 +9,10 @@
 
 ## Recently completed major work
 
+- 2026-04-08: `Front Office resource hub shared adoption pulse` now shows whether the visible team or office is actually using the published hub instead of stopping at one viewer’s recent clicks:
+  - updated [packages/db/src/front-office-resources.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-resources.ts) so the existing 14-day tracked interaction pipeline now also aggregates a visible-scope `team / office adoption pulse`, including shared action counts, active-member counts, top operators, and hottest resource/vendor targets without introducing new schema
+  - updated [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) and [apps/web/app/agent/resources/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/resources/page.tsx) so `/agent/resources` and the shared resources API snapshot now expose that adoption pulse to lead/admin viewers in the same workbench instead of hiding it inside audit-only data
+  - added [packages/db/src/front-office-resources.test.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-resources.test.ts) so shared-adoption visibility is covered for both office-admin and self-scope agent viewers
 - 2026-04-08: `/agent/notifications` now keeps unauthenticated behavior aligned with the rest of the Front Office workbench instead of streaming a loading shell before redirect:
   - removed the route-level loading boundary from [apps/web/app/agent/notifications/loading.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/notifications/loading.tsx) so signed-out requests now resolve directly through the existing server-side session redirect path
   - this keeps `Activity` aligned with the other `/agent/*` routes that send anonymous traffic straight to `/login` instead of returning a `200 + meta refresh` shell

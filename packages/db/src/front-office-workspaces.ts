@@ -16,7 +16,10 @@ import {
   frontOfficeAppointmentExternalWorkflowStatuses,
   getFrontOfficeAppointmentExternalWorkflowState,
 } from "./front-office-appointments";
-import { getFrontOfficeResourceInteractionSnapshot } from "./front-office-resources";
+import {
+  getFrontOfficeResourceInteractionSnapshot,
+  getFrontOfficeSharedResourceInteractionSnapshot,
+} from "./front-office-resources";
 import { buildFrontOfficeListingShareExecutionSummary } from "./front-office-listing-output";
 import { resolveLeaseReminderDates } from "./lease-reminders";
 import { reconcileOfficeNotificationReminders } from "./notifications";
@@ -446,6 +449,40 @@ export type FrontOfficeResourcesSnapshot = {
       timestampLabel: string;
       href: string;
     }>;
+    sharedTracking: {
+      visible: boolean;
+      scopeKey: "self" | "team" | "organization";
+      scopeLabel: string;
+      windowLabel: string;
+      visibleMembershipCount: number;
+      activeMembershipCount: number;
+      totalCount: number;
+      searchCount: number;
+      progressCount: number;
+      completionCount: number;
+      resourceOpenCount: number;
+      vendorClickCount: number;
+      recentInteractionCount: number;
+      lastInteractionLabel: string;
+      topActors: Array<{
+        membershipId: string;
+        label: string;
+        interactionCount: number;
+        lastInteractionLabel: string;
+      }>;
+      hottestTargets: Array<{
+        key: string;
+        title: string;
+        kindLabel:
+          | "Resource search"
+          | "Watch progress"
+          | "Resource open"
+          | "Vendor click";
+        detailLabel: string;
+        interactionCount: number;
+        href: string;
+      }>;
+    };
   };
   executionPulse: {
     libraryLanes: Array<{
@@ -3553,6 +3590,7 @@ export async function getFrontOfficeResourcesSnapshot(
     quickContactVendorCount,
     vendorCategoryGroups,
     interactionTracking,
+    sharedInteractionTracking,
   ] = await Promise.all([
     prisma.resource.findMany({
       where: resourceWhere,
@@ -3623,6 +3661,12 @@ export async function getFrontOfficeResourcesSnapshot(
       },
     }),
     getFrontOfficeResourceInteractionSnapshot({
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      timeZone: input.timeZone ?? null,
+    }),
+    getFrontOfficeSharedResourceInteractionSnapshot({
       organizationId: input.organizationId,
       membershipId: input.viewerMembershipId,
       officeId: input.officeId ?? null,
@@ -3717,7 +3761,10 @@ export async function getFrontOfficeResourcesSnapshot(
       quickContactVendorCount,
       vendorCategoryCount: vendorCategoryGroups.length,
     },
-    interactionTracking,
+    interactionTracking: {
+      ...interactionTracking,
+      sharedTracking: sharedInteractionTracking,
+    },
     executionPulse,
     resourceTypes: resourceTypeGroups
       .slice()

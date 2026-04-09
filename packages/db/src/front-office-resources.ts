@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { Prisma, ResourceType } from "@prisma/client";
+import { Prisma, ResourceType, UserRole } from "@prisma/client";
 import { prisma } from "./client";
 import { formatDateTimeLabel } from "./date-time";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
+import { resolveOfficeDataScope } from "./access";
 
 export const frontOfficeVendorInteractionActions = [
   "phone",
@@ -85,6 +86,68 @@ export type FrontOfficeResourceInteractionSnapshot = {
     timestampLabel: string;
     href: string;
   }>;
+};
+
+export type FrontOfficeSharedResourceInteractionSnapshot = {
+  visible: boolean;
+  scopeKey: "self" | "team" | "organization";
+  scopeLabel: string;
+  windowLabel: string;
+  visibleMembershipCount: number;
+  activeMembershipCount: number;
+  totalCount: number;
+  searchCount: number;
+  progressCount: number;
+  completionCount: number;
+  resourceOpenCount: number;
+  vendorClickCount: number;
+  recentInteractionCount: number;
+  lastInteractionLabel: string;
+  topActors: Array<{
+    membershipId: string;
+    label: string;
+    interactionCount: number;
+    lastInteractionLabel: string;
+  }>;
+  hottestTargets: Array<{
+    key: string;
+    title: string;
+    kindLabel:
+      | "Resource search"
+      | "Watch progress"
+      | "Resource open"
+      | "Vendor click";
+    detailLabel: string;
+    interactionCount: number;
+    href: string;
+  }>;
+};
+
+type GetFrontOfficeSharedResourceInteractionSnapshotInput = {
+  organizationId: string;
+  membershipId: string;
+  officeId?: string | null;
+  timeZone?: string | null;
+};
+
+type RawTrackedResourceInteraction = {
+  id: string;
+  action: string;
+  payload: Prisma.JsonValue | null;
+  createdAt: Date;
+  membershipId: string | null;
+};
+
+type NormalizedTrackedResourceInteraction = {
+  id: string;
+  action: string;
+  createdAt: Date;
+  membershipId: string | null;
+  objectLabel: string | undefined;
+  officeId: string | null | undefined;
+  contextHref: string | undefined;
+  progressPercent: number | undefined;
+  details: string[];
 };
 
 function buildOfficeScopeFilter(officeId: string | null | undefined) {
@@ -185,6 +248,27 @@ function formatWindowLabel(days: number) {
   return `Last ${days} days`;
 }
 
+function buildEmptySharedResourceInteractionSnapshot(): FrontOfficeSharedResourceInteractionSnapshot {
+  return {
+    visible: false,
+    scopeKey: "self",
+    scopeLabel: "",
+    windowLabel: formatWindowLabel(frontOfficeTrackedResourceInteractionWindowDays),
+    visibleMembershipCount: 1,
+    activeMembershipCount: 0,
+    totalCount: 0,
+    searchCount: 0,
+    progressCount: 0,
+    completionCount: 0,
+    resourceOpenCount: 0,
+    vendorClickCount: 0,
+    recentInteractionCount: 0,
+    lastInteractionLabel: `No shared tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
+    topActors: [],
+    hottestTargets: [],
+  };
+}
+
 function extractInteractionLabels(payload: Prisma.JsonValue | null) {
   if (!isPayloadObject(payload)) {
     return {
@@ -205,6 +289,29 @@ function extractInteractionLabels(payload: Prisma.JsonValue | null) {
   };
 }
 
+function normalizeTrackedResourceInteractions(
+  interactions: RawTrackedResourceInteraction[],
+  officeId: string | null | undefined,
+) {
+  return interactions
+    .map((interaction): NormalizedTrackedResourceInteraction => {
+      const payload = extractInteractionLabels(interaction.payload);
+
+      return {
+        id: interaction.id,
+        action: interaction.action,
+        createdAt: interaction.createdAt,
+        membershipId: interaction.membershipId,
+        objectLabel: payload.objectLabel,
+        officeId: payload.officeId,
+        contextHref: payload.contextHref,
+        progressPercent: payload.progressPercent,
+        details: payload.details,
+      };
+    })
+    .filter((interaction) => matchesOfficeScope(interaction.officeId, officeId));
+}
+
 function formatInteractionKindLabel(
   action: string,
 ):
@@ -223,6 +330,22 @@ function formatInteractionKindLabel(
   return action === activityLogActions.frontOfficeVendorClicked
     ? "Vendor click"
     : "Resource open";
+}
+
+function buildTrackedInteractionTitle(
+  interaction: NormalizedTrackedResourceInteraction,
+) {
+  if (interaction.action === activityLogActions.frontOfficeResourceSearched) {
+    const queryDetail =
+      interaction.details.find((detail) => detail.startsWith("Query: ")) ??
+      null;
+
+    return queryDetail
+      ? queryDetail.replace("Query: ", "")
+      : interaction.objectLabel || "Resource hub search";
+  }
+
+  return interaction.objectLabel || "Tracked Front Office interaction";
 }
 
 function buildInteractionDetailLabel(action: string, details: string[]) {
@@ -282,6 +405,66 @@ function buildInteractionDetailLabel(action: string, details: string[]) {
     : "Tracked resource open";
 }
 
+function buildResourceInteractionSummary(
+  interactions: NormalizedTrackedResourceInteraction[],
+  timeZone?: string | null,
+) {
+  const resourceOpenCount = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeResourceOpened,
+  ).length;
+  const searchCount = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeResourceSearched,
+  ).length;
+  const progressInteractions = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeResourceProgressLogged,
+  );
+  const progressCount = progressInteractions.length;
+  const completionCount = progressInteractions.filter(
+    (interaction) => interaction.progressPercent === 100,
+  ).length;
+  const vendorClickCount = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeVendorClicked,
+  ).length;
+  const recentInteractions = interactions.slice(0, 6).map((interaction) => ({
+    id: interaction.id,
+    title: buildTrackedInteractionTitle(interaction),
+    kindLabel: formatInteractionKindLabel(interaction.action),
+    detailLabel: buildInteractionDetailLabel(
+      interaction.action,
+      interaction.details,
+    ),
+    timestampLabel: formatDateTimeLabel(interaction.createdAt, {
+      timeZone: timeZone ?? null,
+    }),
+    href:
+      interaction.contextHref ??
+      (interaction.action === activityLogActions.frontOfficeVendorClicked
+        ? "/agent/resources#vendor-hub"
+        : "/agent/resources#published-tool-library"),
+  }));
+  const totalCount =
+    searchCount + progressCount + resourceOpenCount + vendorClickCount;
+  const latestInteraction = recentInteractions[0] ?? null;
+
+  return {
+    totalCount,
+    searchCount,
+    progressCount,
+    completionCount,
+    resourceOpenCount,
+    vendorClickCount,
+    recentInteractionCount: recentInteractions.length,
+    lastInteractionLabel: latestInteraction
+      ? `${latestInteraction.kindLabel} · ${latestInteraction.timestampLabel}`
+      : `No tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
+    recentInteractions,
+  };
+}
+
 function matchesOfficeScope(
   payloadOfficeId: string | null | undefined,
   officeId: string | null | undefined,
@@ -318,76 +501,270 @@ export async function getFrontOfficeResourceInteractionSnapshot(
       action: true,
       payload: true,
       createdAt: true,
+      membershipId: true,
     },
   });
-  const interactions = rawInteractions
-    .map((interaction) => {
-      const payload = extractInteractionLabels(interaction.payload);
-
-      return {
-        ...interaction,
-        ...payload,
-      };
-    })
-    .filter((interaction) =>
-      matchesOfficeScope(interaction.officeId, input.officeId ?? null),
-    );
-  const resourceOpenCount = interactions.filter(
-    (interaction) =>
-      interaction.action === activityLogActions.frontOfficeResourceOpened,
-  ).length;
-  const searchCount = interactions.filter(
-    (interaction) =>
-      interaction.action === activityLogActions.frontOfficeResourceSearched,
-  ).length;
-  const progressInteractions = interactions.filter(
-    (interaction) =>
-      interaction.action === activityLogActions.frontOfficeResourceProgressLogged,
+  const interactions = normalizeTrackedResourceInteractions(
+    rawInteractions,
+    input.officeId ?? null,
   );
-  const progressCount = progressInteractions.length;
-  const completionCount = progressInteractions.filter(
-    (interaction) => interaction.progressPercent === 100,
-  ).length;
-  const vendorClickCount = interactions.filter(
-    (interaction) =>
-      interaction.action === activityLogActions.frontOfficeVendorClicked,
-  ).length;
-  const recentInteractions = interactions.slice(0, 6).map((interaction) => ({
-    id: interaction.id,
-    title: interaction.objectLabel || "Tracked Front Office interaction",
-    kindLabel: formatInteractionKindLabel(interaction.action),
-    detailLabel: buildInteractionDetailLabel(
-      interaction.action,
-      interaction.details,
-    ),
-    timestampLabel: formatDateTimeLabel(interaction.createdAt, {
-      timeZone: input.timeZone ?? null,
-    }),
-    href:
-      interaction.contextHref ??
-      (interaction.action === activityLogActions.frontOfficeVendorClicked
-        ? "/agent/resources#vendor-hub"
-        : "/agent/resources#published-tool-library"),
-  }));
-  const totalCount =
-    searchCount + progressCount + resourceOpenCount + vendorClickCount;
-  const latestInteraction = recentInteractions[0] ?? null;
+  const summary = buildResourceInteractionSummary(
+    interactions,
+    input.timeZone ?? null,
+  );
 
   return {
     windowLabel: formatWindowLabel(
       frontOfficeTrackedResourceInteractionWindowDays,
     ),
-    totalCount,
-    searchCount,
-    progressCount,
-    completionCount,
-    resourceOpenCount,
-    vendorClickCount,
-    recentInteractionCount: recentInteractions.length,
-    lastInteractionLabel: latestInteraction
-      ? `${latestInteraction.kindLabel} · ${latestInteraction.timestampLabel}`
-      : `No tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
-    recentInteractions,
+    ...summary,
+  };
+}
+
+function formatSharedTrackingScopeLabel(scopeKind: "team" | "organization") {
+  return scopeKind === "organization"
+    ? "Office adoption pulse"
+    : "Team adoption pulse";
+}
+
+function buildMembershipLabel(input: {
+  firstName: string | null | undefined;
+  lastName: string | null | undefined;
+  email: string | null | undefined;
+}) {
+  const name = `${input.firstName ?? ""} ${input.lastName ?? ""}`.trim();
+
+  return name || input.email?.trim() || "Team member";
+}
+
+export async function getFrontOfficeSharedResourceInteractionSnapshot(
+  input: GetFrontOfficeSharedResourceInteractionSnapshotInput,
+): Promise<FrontOfficeSharedResourceInteractionSnapshot> {
+  const scope = await resolveOfficeDataScope({
+    organizationId: input.organizationId,
+    viewerMembershipId: input.membershipId,
+    officeId: input.officeId ?? null,
+    resource: "agents",
+  });
+
+  if (scope.kind === "self") {
+    return buildEmptySharedResourceInteractionSnapshot();
+  }
+
+  const officeScopeFilter = buildOfficeScopeFilter(input.officeId ?? null);
+  const visibleMembershipIds =
+    scope.visibleMembershipIds ??
+    (
+      await prisma.membership.findMany({
+        where: {
+          organizationId: input.organizationId,
+          status: "active",
+          role: {
+            in: [
+              UserRole.agent,
+              UserRole.team_lead,
+              UserRole.office_admin,
+              UserRole.owner,
+            ],
+          },
+          ...(officeScopeFilter ? { AND: [officeScopeFilter] } : {}),
+        },
+        select: {
+          id: true,
+        },
+      })
+    ).map((membership) => membership.id);
+
+  const normalizedVisibleMembershipIds = Array.from(
+    new Set(visibleMembershipIds.filter(Boolean)),
+  );
+
+  if (normalizedVisibleMembershipIds.length <= 1) {
+    return buildEmptySharedResourceInteractionSnapshot();
+  }
+
+  const windowStart = new Date(
+    Date.now() -
+      frontOfficeTrackedResourceInteractionWindowDays * 24 * 60 * 60 * 1000,
+  );
+  const [memberships, rawInteractions] = await Promise.all([
+    prisma.membership.findMany({
+      where: {
+        id: {
+          in: normalizedVisibleMembershipIds,
+        },
+      },
+      select: {
+        id: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    }),
+    prisma.auditLog.findMany({
+      where: {
+        organizationId: input.organizationId,
+        membershipId: {
+          in: normalizedVisibleMembershipIds,
+        },
+        action: {
+          in: [...frontOfficeTrackedResourceInteractionActions],
+        },
+        createdAt: {
+          gte: windowStart,
+        },
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 200,
+      select: {
+        id: true,
+        action: true,
+        payload: true,
+        createdAt: true,
+        membershipId: true,
+      },
+    }),
+  ]);
+  const interactions = normalizeTrackedResourceInteractions(
+    rawInteractions,
+    input.officeId ?? null,
+  );
+  const summary = buildResourceInteractionSummary(
+    interactions,
+    input.timeZone ?? null,
+  );
+  const membershipLabelById = new Map(
+    memberships.map((membership) => [
+      membership.id,
+      buildMembershipLabel({
+        firstName: membership.user.firstName,
+        lastName: membership.user.lastName,
+        email: membership.user.email,
+      }),
+    ]),
+  );
+  const actorStats = new Map<
+    string,
+    { interactionCount: number; latestInteractionAt: Date }
+  >();
+
+  for (const interaction of interactions) {
+    if (!interaction.membershipId) {
+      continue;
+    }
+
+    const existing = actorStats.get(interaction.membershipId);
+
+    actorStats.set(interaction.membershipId, {
+      interactionCount: (existing?.interactionCount ?? 0) + 1,
+      latestInteractionAt:
+        existing && existing.latestInteractionAt > interaction.createdAt
+          ? existing.latestInteractionAt
+          : interaction.createdAt,
+    });
+  }
+
+  const topActors = [...actorStats.entries()]
+    .sort(
+      (left, right) =>
+        right[1].interactionCount - left[1].interactionCount ||
+        right[1].latestInteractionAt.getTime() -
+          left[1].latestInteractionAt.getTime(),
+    )
+    .slice(0, 4)
+    .map(([membershipId, stat]) => ({
+      membershipId,
+      label: membershipLabelById.get(membershipId) || "Team member",
+      interactionCount: stat.interactionCount,
+      lastInteractionLabel: formatDateTimeLabel(stat.latestInteractionAt, {
+        timeZone: input.timeZone ?? null,
+      }),
+    }));
+  const targetStats = new Map<
+    string,
+    {
+      title: string;
+      kindLabel:
+        | "Resource search"
+        | "Watch progress"
+        | "Resource open"
+        | "Vendor click";
+      detailLabel: string;
+      href: string;
+      interactionCount: number;
+      latestInteractionAt: Date;
+    }
+  >();
+
+  for (const interaction of interactions) {
+    const title = buildTrackedInteractionTitle(interaction);
+    const kindLabel = formatInteractionKindLabel(interaction.action);
+    const detailLabel = buildInteractionDetailLabel(
+      interaction.action,
+      interaction.details,
+    );
+    const href =
+      interaction.contextHref ??
+      (interaction.action === activityLogActions.frontOfficeVendorClicked
+        ? "/agent/resources#vendor-hub"
+        : "/agent/resources#published-tool-library");
+    const key = `${kindLabel}:${title}:${href}`;
+    const existing = targetStats.get(key);
+
+    targetStats.set(key, {
+      title,
+      kindLabel,
+      detailLabel,
+      href,
+      interactionCount: (existing?.interactionCount ?? 0) + 1,
+      latestInteractionAt:
+        existing && existing.latestInteractionAt > interaction.createdAt
+          ? existing.latestInteractionAt
+          : interaction.createdAt,
+    });
+  }
+
+  const hottestTargets = [...targetStats.entries()]
+    .sort(
+      (left, right) =>
+        right[1].interactionCount - left[1].interactionCount ||
+        right[1].latestInteractionAt.getTime() -
+          left[1].latestInteractionAt.getTime(),
+    )
+    .slice(0, 4)
+    .map(([key, target]) => ({
+      key,
+      title: target.title,
+      kindLabel: target.kindLabel,
+      detailLabel: target.detailLabel,
+      interactionCount: target.interactionCount,
+      href: target.href,
+    }));
+
+  return {
+    visible: true,
+    scopeKey: scope.kind,
+    scopeLabel: formatSharedTrackingScopeLabel(scope.kind),
+    windowLabel: formatWindowLabel(frontOfficeTrackedResourceInteractionWindowDays),
+    visibleMembershipCount: normalizedVisibleMembershipIds.length,
+    activeMembershipCount: actorStats.size,
+    totalCount: summary.totalCount,
+    searchCount: summary.searchCount,
+    progressCount: summary.progressCount,
+    completionCount: summary.completionCount,
+    resourceOpenCount: summary.resourceOpenCount,
+    vendorClickCount: summary.vendorClickCount,
+    recentInteractionCount: summary.recentInteractionCount,
+    lastInteractionLabel:
+      summary.totalCount > 0
+        ? summary.lastInteractionLabel
+        : `No shared tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
+    topActors,
+    hottestTargets,
   };
 }
 
