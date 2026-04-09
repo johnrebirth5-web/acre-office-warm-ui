@@ -9,6 +9,9 @@
 
 ## Recently completed major work
 
+- 2026-04-08: `/agent/notifications` now keeps unauthenticated behavior aligned with the rest of the Front Office workbench instead of streaming a loading shell before redirect:
+  - removed the route-level loading boundary from [apps/web/app/agent/notifications/loading.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/notifications/loading.tsx) so signed-out requests now resolve directly through the existing server-side session redirect path
+  - this keeps `Activity` aligned with the other `/agent/*` routes that send anonymous traffic straight to `/login` instead of returning a `200 + meta refresh` shell
 - 2026-04-08: `/api/health` is public again so deployment checks and anonymous smoke tests can probe the live app without a session:
   - updated [apps/web/app/api/health/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/health/route.ts) so the route now returns the same service/organization/catalog payload without requiring an authenticated cookie
   - corrected the implementation log to keep `/api/health` out of the session-gated mock/API route list while protected feeds such as `/api/resources` and `/api/agent/dashboard` stay behind authentication
