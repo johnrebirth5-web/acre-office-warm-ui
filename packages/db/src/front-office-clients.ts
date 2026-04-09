@@ -5504,7 +5504,7 @@ export async function getFrontOfficeClientDetail(
               ? "warning"
               : "neutral";
   const closingBoundaryTitle = hasCancelledTransaction
-    ? "This file did not turn into a closed win"
+    ? "This file no longer has a live close path"
     : isFreshWin
       ? "The deal just closed and the follow-up window is open"
       : hasClosedTransaction
@@ -5512,9 +5512,9 @@ export async function getFrontOfficeClientDetail(
         : isClosingSoon
           ? "The deal is approaching its closing or move-in window"
           : negotiationTransactionId
-            ? "Formal deal execution is active, but the wrap-up is not here yet"
+            ? "The formal Back Office record is already carrying the deal"
             : isFrontOfficeStageReadyForBackOffice(client.stage)
-              ? "The file is ready for formal deal-wrap execution"
+              ? "The file is ready to open the formal Back Office record"
               : "Closing guidance starts after the formal deal exists";
   const closingBoundaryDescription = hasCancelledTransaction
     ? "The formal transaction no longer points to a live close. Use Front Office for respectful re-entry, alternate options, or a future nurture touch instead of pretending a win exists."
@@ -5525,7 +5525,7 @@ export async function getFrontOfficeClientDetail(
         : isClosingSoon
           ? "The formal file already has a near-term closing or move-in milestone. Front Office should make the wrap-up visible now instead of waiting until the date has already passed."
           : negotiationTransactionId
-            ? "The formal file is active, but the best next move is still to tighten transaction milestones and place the first post-close touch before the close happens."
+            ? "The formal file is active, and Front Office should reference that shared Back Office record for the next move instead of creating a second close-out surface."
             : isFrontOfficeStageReadyForBackOffice(client.stage)
               ? "The client is BO-ready, but the formal deal-wrap record has not been opened yet. Start there before relying on win-stage guidance."
               : "This client is not yet in a deal-wrap phase, so closing guidance should stay dormant while follow-up, showing, and negotiation prep continue.";
@@ -5558,9 +5558,9 @@ export async function getFrontOfficeClientDetail(
       : isClosingSoon
         ? "Confirm the milestone date and wrap-up touch"
         : negotiationTransactionId
-          ? "Keep the deal-wrap lane visible in Back Office"
+          ? "Keep the formal Back Office record in view"
           : isFrontOfficeStageReadyForBackOffice(client.stage)
-            ? "Open the formal deal-wrap file"
+            ? "Open the formal Back Office record"
             : "Stay in Front Office prep until the deal exists";
   const closingNextMoveDescription = hasCancelledTransaction
     ? "The formal win path is gone, so the next move should be a respectful re-entry or a future nurture touch instead of a fake close-out."
@@ -5571,16 +5571,16 @@ export async function getFrontOfficeClientDetail(
       : isClosingSoon
         ? "The milestone is close enough that the wrap-up touch, date check, and client expectation should already be visible in Front Office."
         : negotiationTransactionId
-          ? "The formal file is live, so keep wrap-up visibility in Back Office and use this dossier for client-facing context only."
+          ? "The formal file is live, so Front Office should point to the shared Back Office record, keep client-facing context visible, and avoid building a second close-out surface."
           : isFrontOfficeStageReadyForBackOffice(client.stage)
-            ? "The client is ready for formal deal-wrap handling, so open the shared record before closing guidance starts."
+            ? "The client is ready for formal deal-wrap handling, so open the shared Back Office record before closing guidance starts."
             : "Stay in Front Office prep until the deal is formal enough to need a close-out track.";
   const closingOperatorLabel = hasCancelledTransaction
     ? "Front Office resets the conversation"
     : hasClosedTransaction
-      ? "FO owns the relationship; BO holds the finished record"
+      ? "FO owns the relationship; BO owns the finished record"
       : negotiationTransactionId
-        ? "FO supports the wrap-up; BO owns the outcome"
+        ? "FO supports the wrap-up; BO owns the formal record"
         : isFrontOfficeStageReadyForBackOffice(client.stage)
           ? "FO prepares the close; BO should own the file"
           : "Front Office is still in pre-win mode";
@@ -5663,7 +5663,7 @@ export async function getFrontOfficeClientDetail(
     : hasClosedTransaction
       ? "The formal win is already recorded, and the next recommendations should keep the relationship active after close."
       : negotiationTransactionId
-        ? "As closing dates, move-in timing, or transaction outcomes settle, the dossier will turn those signals into wrap-up guidance."
+        ? "As closing dates, move-in timing, or transaction outcomes settle, the dossier will turn those signals into wrap-up guidance tied to the shared Back Office record."
         : isFrontOfficeStageReadyForBackOffice(client.stage)
           ? "Open the formal Back Office deal first. Closing suggestions are intentionally downstream of that shared transaction record."
           : "Closing and win suggestions stay dormant until the client reaches a formal deal stage.";
@@ -5730,7 +5730,7 @@ export async function getFrontOfficeClientDetail(
               statusTone: "accent",
               contextLabel: "Client-facing recap",
               description:
-                "The current dossier can already generate a clean client summary PDF for move-in, milestone, or thank-you communication.",
+                "The current dossier can already generate a clean client summary PDF for move-in, milestone, or thank-you communication without duplicating the Back Office record.",
               metaLabel: `${sendCount} tracked send(s) already live on this dossier`,
               actionLabel: "Download client PDF",
               href: buildClientPdfHref(client.id),
@@ -5765,7 +5765,8 @@ export async function getFrontOfficeClientDetail(
           ? [
               {
                 id: "confirm-close-date",
-                title: "Confirm the closing or move-in date in the shared file",
+                title:
+                  "Confirm the closing or move-in date in the shared Back Office file",
                 statusLabel: closingReferenceDate
                   ? "Date on file"
                   : "Missing date",
@@ -5773,7 +5774,7 @@ export async function getFrontOfficeClientDetail(
                 contextLabel: "Deal wrap",
                 description: closingReferenceDate
                   ? closingKeyDateLabel
-                  : "A formal transaction exists, but no closing or move-in milestone is captured yet.",
+                  : "A formal transaction exists, but no closing or move-in milestone is captured yet in the shared Back Office record.",
                 metaLabel: closingBoundaryMetaLabel,
                 actionLabel: "Open transaction",
                 href: buildTransactionWorkspaceHref(negotiationTransactionId),
@@ -5789,7 +5790,7 @@ export async function getFrontOfficeClientDetail(
                 contextLabel: "Retention prep",
                 description: nextTouchAt
                   ? formatRelativeDueLabel(nextTouchAt, now, input.timeZone)
-                  : "Do not wait until after close to think about the next client relationship touch.",
+                  : "Do not wait until after close to think about the next client relationship touch, because the formal record should already point to it.",
                 metaLabel: `${openTaskCount} FO follow-up task(s) still open`,
                 actionLabel: "Create follow-up",
                 href: "#front-office-follow-up-form",
@@ -5802,7 +5803,7 @@ export async function getFrontOfficeClientDetail(
                 statusTone: "accent",
                 contextLabel: "Client-facing recap",
                 description:
-                  "The dossier can already export a clean client summary PDF, so wrap-up communication does not need a separate manual document.",
+                  "The dossier can already export a clean client summary PDF, so wrap-up communication does not need a separate manual document or a second formal file.",
                 metaLabel: closingBoundaryMetaLabel,
                 actionLabel: "Download client PDF",
                 href: buildClientPdfHref(client.id),

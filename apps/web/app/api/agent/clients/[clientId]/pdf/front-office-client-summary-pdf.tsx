@@ -162,13 +162,13 @@ function buildFormalWorkflowSummary(
   switch (snapshot.contract.boundaryState) {
     case "back_office_live":
       return {
-        title: "Formal paperwork is active",
+        title: "The formal deal record is active in Back Office",
         description:
-          "The shared transaction record is already carrying the formal offer, contract, signature, or milestone work. Client-facing coordination can still continue, but the auditable paperwork now lives in that formal file.",
+          "The shared transaction record is already carrying the formal offer, contract, signature, or milestone work. Client-facing coordination can still continue, but the auditable paperwork now lives in that formal file and should stay there as the source of truth.",
       };
     case "ready_for_back_office":
       return {
-        title: "Formal paperwork should open next",
+        title: "The formal Back Office record should open next",
         description:
           "Search feedback, timing, and decision readiness are aligned enough that the next formal step should start from the shared transaction record instead of a duplicate note.",
       };
@@ -176,18 +176,17 @@ function buildFormalWorkflowSummary(
       return {
         title: "The formal transaction is already complete",
         description:
-          "The next work is relationship-driven: move support, recap, referrals, testimonials, and the next future planning conversation.",
+          "The next work is relationship-driven: move support, recap, referrals, testimonials, and the next future-planning conversation.",
       };
     case "cancelled_reentry":
       return {
-        title:
-          "The current opportunity is paused, but future planning stays open",
+        title: "The formal file is paused, but future planning stays open",
         description:
-          "The formal file is no longer the active lane. A respectful re-entry or future planning touch can still happen from the live client record.",
+          "The formal file is no longer the active lane. A respectful re-entry or future-planning touch can still happen from the live client record.",
       };
     default:
       return {
-        title: "We are still in planning and coordination",
+        title: "We are still in Front Office planning and coordination",
         description:
           "The current focus is still follow-up, showings, shortlist feedback, and decision support before any formal paperwork is needed.",
       };
@@ -200,7 +199,7 @@ function buildNegotiationSummary(
   switch (snapshot.negotiation.boundaryLabel) {
     case "BO workspace live":
       return {
-        title: "Offer or application work is already active",
+        title: "Offer or application work is already active in Back Office",
         description:
           snapshot.negotiation.offerCount > 0
             ? `${snapshot.negotiation.offerCount} formal offer or application record(s) are already active, and the current primary state is ${snapshot.negotiation.acceptedOfferLabel}.`
@@ -208,7 +207,7 @@ function buildNegotiationSummary(
       };
     case "Ready for BO handoff":
       return {
-        title: "The client is ready for a formal next step",
+        title: "The client is ready for a formal handoff",
         description:
           "Search direction, timing, and decision-making are aligned enough that the next record should be a formal offer, application, or transaction setup.",
       };
@@ -233,7 +232,7 @@ function buildInspectionSummary(
       };
     case "Contract file live":
       return {
-        title: "The formal contract file is open",
+        title: "The formal contract file is open in Back Office",
         description:
           "The shared transaction record is already carrying the live contract lane, even if next-step details are still settling.",
       };
@@ -472,10 +471,10 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
     `${inspectionSummary.title} | ${inspectionSummary.description}`,
     `Inspection next move | ${snapshot.inspection.nextMoveLabel} | ${snapshot.inspection.nextMoveDescription}`,
     `Inspection operator frame | ${snapshot.inspection.operatorLabel} | ${snapshot.inspection.operatorDescription}`,
-    `Closing or milestone view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.boundaryTitle}`,
+    `Closing / handoff view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.boundaryTitle}`,
     `Closing next move | ${snapshot.closing.nextMoveLabel} | ${snapshot.closing.nextMoveDescription}`,
     `Closing operator frame | ${snapshot.closing.operatorLabel} | ${snapshot.closing.operatorDescription}`,
-    `Closing timing | ${snapshot.closing.keyDateLabel} | ${snapshot.closing.nextTouchLabel}`,
+    `Formal timing | ${snapshot.closing.keyDateLabel} | ${snapshot.closing.nextTouchLabel}`,
   ];
 
   if (snapshot.negotiation.offers.length) {
@@ -687,7 +686,7 @@ export function FrontOfficeClientSummaryPdfDocument(
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Formal paperwork and milestone view
+            Formal paperwork, handoff, and milestone view
           </Text>
           <View style={styles.cardGrid}>
             <InfoCard
@@ -718,8 +717,8 @@ export function FrontOfficeClientSummaryPdfDocument(
           <Text>
             This summary is intended for coordination, recap, and client-facing
             follow-through. Final contracts, signatures, accounting, and archive
-            documents continue to live in Acre&apos;s formal transaction record
-            when that paperwork is active.
+            documents continue to live in Acre&apos;s formal Back Office
+            transaction record when that paperwork is active.
           </Text>
         </View>
       </Page>

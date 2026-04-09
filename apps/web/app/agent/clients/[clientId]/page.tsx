@@ -1323,12 +1323,12 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.closingSuggestion}
-            subtitle="Once the formal deal is active or closed, Front Office should turn the shared Back Office outcome into clear wrap-up, referral, and post-close guidance instead of stopping at status visibility."
+            subtitle="Once the formal deal is active or closed, Front Office should point to the shared Back Office record for the authoritative outcome and use this section for wrap-up, referral, and post-close guidance."
             title="Closing & win suggestions"
           >
             <ListPageStatsGrid>
               <StatCard
-                hint="where this client currently sits across pre-close planning, fresh win follow-through, and post-close nurture"
+                hint="where this client currently sits across pre-close planning, formal handoff, fresh win follow-through, and post-close nurture"
                 label="Close stage"
                 tone={
                   snapshot.closing.boundaryTone === "neutral"
@@ -1338,7 +1338,7 @@ export default async function AgentClientDetailPage(
                 value={snapshot.closing.boundaryLabel}
               />
               <StatCard
-                hint="formal shared transaction state currently attached to this dossier"
+                hint="formal shared transaction state currently attached to this dossier and owned by Back Office"
                 label="Deal status"
                 value={snapshot.closing.transactionStatusLabel}
               />
@@ -1348,7 +1348,7 @@ export default async function AgentClientDetailPage(
                 value={snapshot.closing.keyDateLabel}
               />
               <StatCard
-                hint="latest client-facing follow-up timing already visible in Front Office"
+                hint="latest client-facing follow-up timing already visible in Front Office and tied back to the formal record"
                 label="Next touch"
                 tone="accent"
                 value={snapshot.closing.nextTouchLabel}
@@ -1402,7 +1402,7 @@ export default async function AgentClientDetailPage(
                   tone: primaryHandoff ? primaryHandoff.tone : "accent",
                   title: "The formal deal status still lives in Back Office",
                   description:
-                    "Closing dates, final milestones, and the finished transaction record remain on the shared Back Office side. Front Office should point to that outcome, not recreate it.",
+                    "Closing dates, final milestones, and the finished transaction record remain on the shared Back Office side. Front Office should point to that outcome, not recreate it, and keep the client-facing follow-up tied to the same formal source of truth.",
                   actions: [primaryHandoffAction],
                 },
                 {
@@ -1865,7 +1865,7 @@ export default async function AgentClientDetailPage(
           <SectionCard
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.backOfficeContext}
-            subtitle="Once formal transaction work starts, Front Office should point into the shared BO record instead of duplicating it."
+            subtitle="Once formal transaction work starts, Front Office should point into the shared BO record instead of duplicating it or treating the handoff as a second file."
             title="Back Office context"
           >
             <FrontOfficeClientGuidanceQueue
@@ -1888,8 +1888,8 @@ export default async function AgentClientDetailPage(
                   title:
                     "Client-facing next touches still stay in Front Office",
                   description: primaryHandoff
-                    ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this dossier."
-                    : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and queue-based next touches still belong here until the work becomes formal.",
+                    ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this dossier while the authoritative record stays in Back Office."
+                    : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and queue-based next touches still belong here until the work becomes formal and needs a shared record.",
                   meta: <span>{snapshot.contract.handoff.summary}</span>,
                   actions: [followUpPrimaryAction],
                 },

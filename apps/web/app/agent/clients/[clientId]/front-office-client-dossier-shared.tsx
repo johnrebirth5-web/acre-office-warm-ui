@@ -32,13 +32,13 @@ export const frontOfficeClientDossierSectionDescriptions = {
   listingOutput:
     "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.",
   offerPrep:
-    "Use this section when negotiation is active and the dossier needs to say what Front Office still owns, what Back Office should open next, and where the formal offer file starts.",
+    "Use this section when negotiation is active and the dossier needs to keep client-facing prep in Front Office while pointing the formal offer file to Back Office.",
   inspectionSupport:
     "Use this section when the formal transaction is live and Front Office should keep the client-facing explanation visible while Back Office owns the checklist, signatures, and incoming updates.",
   closingSuggestion:
-    "Use this section when the deal is closing, closed, or paused so the dossier can turn the win into a next move, a post-close touch, or a respectful re-entry plan.",
+    "Use this section when the deal is closing, closed, or paused so the dossier can turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan.",
   backOfficeContext:
-    "Use this section when you need the dossier to explain why the formal Back Office record should take over, including cleanup or handoff routes that return here from another workbench.",
+    "Use this section when you need the dossier to explain why the formal Back Office record should take over, including which work still belongs in Front Office and which work is already committed to the shared file.",
 } as const;
 
 export type FrontOfficeClientActionDescriptor = {
@@ -200,7 +200,9 @@ export function FrontOfficeClientActionGroup(props: {
   }
 
   return (
-    <div className={props.className ?? "list-row-meta front-office-record-meta"}>
+    <div
+      className={props.className ?? "list-row-meta front-office-record-meta"}
+    >
       {actions.map((action) => (
         <FrontOfficeClientActionLink
           className={action.className}
