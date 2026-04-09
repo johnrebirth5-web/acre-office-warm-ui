@@ -195,6 +195,7 @@ export {
 export {
   archiveOfficeMailThread,
   buildAppointmentInternalMailThreadResponse,
+  buildAppointmentInternalMailThreadOpenedActivityPayload,
   createOfficeMailThread,
   getOfficeMailUnreadCount,
   getOfficeMailAttachmentStorageRecord,
@@ -204,8 +205,10 @@ export {
   mapAppointmentInternalMailThreadErrorStatus,
   markOfficeMailThreadRead,
   markOfficeMailThreadUnread,
+  recordAppointmentInternalMailThreadOpenedActivity,
   replyToOfficeMailThread,
   unarchiveOfficeMailThread,
+  type AppointmentInternalMailThreadOpenedActivityInput,
   type OfficeMailAttachmentInput,
   type OfficeMailAttachmentItem,
   type OfficeMailMessageItem,

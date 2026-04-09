@@ -6,6 +6,7 @@ import { prisma } from "./client.ts";
 import {
   archiveOfficeMailThread,
   buildAppointmentInternalMailThreadResponse,
+  buildAppointmentInternalMailThreadOpenedActivityPayload,
   createOfficeMailThread,
   getOfficeMailAttachmentStorageRecord,
   getOfficeMailUnreadCount,
@@ -13,8 +14,10 @@ import {
   getOfficeMailWorkspace,
   markOfficeMailThreadUnread,
   mapAppointmentInternalMailThreadErrorStatus,
+  recordAppointmentInternalMailThreadOpenedActivity,
   replyToOfficeMailThread
 } from "./mail.ts";
+import { getOfficeActivityLogSnapshot } from "./activity-log.ts";
 
 after(async () => {
   await prisma.$disconnect();
@@ -403,6 +406,134 @@ test("appointment internal mail thread response drops unsafe action deep links w
   assert.equal(response.actionTargetUrl, null);
   assert.equal(response.continuity.returnToUrl, null);
   assert.equal(response.threadHref, "/office/mail?threadId=thread_456");
+});
+
+test("appointment internal mail thread opened activity payload and record helper keep the continuity contract explicit", async () => {
+  const context = await createMailTestContext();
+
+  try {
+    const sender = await context.createMembership({
+      workspace: context.primary,
+      role: "office_user",
+      prefix: "activity-sender",
+      firstName: "Anya",
+      lastName: "Writer",
+    });
+
+    const payload = buildAppointmentInternalMailThreadOpenedActivityPayload({
+      officeId: context.primary.office.id,
+      organizationId: context.primary.organization.id,
+      membershipId: sender.membership.id,
+      appointment: {
+        id: "apt_123",
+        title: "Buyer Check-In",
+        startsAtLabel: "April 9, 2026 at 10:00 AM",
+        endsAtLabel: "April 9, 2026 at 10:30 AM",
+        clientLabel: "Ava Client",
+        clientEmailLabel: "ava@example.com",
+        contactLabel: "Ava Client <ava@example.com>",
+        listingLabel: "12 Main St",
+        locationLabel: "Living room",
+        coordinationLabel: "Prepare internal continuity brief",
+        coordinationNextStep: "Review and save the next checkpoint",
+        externalStatusLabel: "Confirmed",
+        externalNote: "Bring listing docs",
+      },
+      thread: {
+        id: "thread_123",
+        subject: "Confirmed: Buyer Check-In on April 9, 2026 at 10:00 AM",
+      },
+      contextHref: "/agent/calendar?appointmentId=apt_123",
+    });
+
+    assert.deepEqual(payload, {
+      officeId: context.primary.office.id,
+      objectLabel: "Buyer Check-In",
+      contextHref: "/agent/calendar?appointmentId=apt_123",
+      details: [
+        "Mode: Manual-only",
+        "Provider sync: None",
+        "Thread: Internal mail continuity",
+        "Thread subject: Confirmed: Buyer Check-In on April 9, 2026 at 10:00 AM",
+        "Thread href: /office/mail?threadId=thread_123",
+        "Appointment: Buyer Check-In",
+        "Starts: April 9, 2026 at 10:00 AM",
+        "Ends: April 9, 2026 at 10:30 AM",
+        "Client: Ava Client",
+        "Email target: ava@example.com",
+        "Contact: Ava Client <ava@example.com>",
+        "Listing: 12 Main St",
+        "Location: Living room",
+        "External coordination: Confirmed",
+        "External note: Bring listing docs",
+        "Acre coordination: Prepare internal continuity brief",
+        "Next move: Review and save the next checkpoint",
+        "Return to: Open appointment",
+        "Return href: /agent/calendar?appointmentId=apt_123",
+      ],
+    });
+
+    await recordAppointmentInternalMailThreadOpenedActivity(prisma, {
+      officeId: context.primary.office.id,
+      organizationId: context.primary.organization.id,
+      membershipId: sender.membership.id,
+      appointment: {
+        id: "apt_123",
+        title: "Buyer Check-In",
+        startsAtLabel: "April 9, 2026 at 10:00 AM",
+        endsAtLabel: "April 9, 2026 at 10:30 AM",
+        clientLabel: "Ava Client",
+        clientEmailLabel: "ava@example.com",
+        contactLabel: "Ava Client <ava@example.com>",
+        listingLabel: "12 Main St",
+        locationLabel: "Living room",
+        coordinationLabel: "Prepare internal continuity brief",
+        coordinationNextStep: "Review and save the next checkpoint",
+        externalStatusLabel: "Confirmed",
+        externalNote: "Bring listing docs",
+      },
+      thread: {
+        id: "thread_123",
+        subject: "Confirmed: Buyer Check-In on April 9, 2026 at 10:00 AM",
+      },
+      contextHref: "/agent/calendar?appointmentId=apt_123",
+    });
+
+    const snapshot = await getOfficeActivityLogSnapshot({
+      organizationId: context.primary.organization.id,
+      officeId: context.primary.office.id,
+      limit: 10,
+      activitySection: "contacts",
+    });
+
+    assert.equal(snapshot.activityEvents[0]?.action, "appointment.internal_mail_thread_opened");
+    assert.equal(snapshot.activityEvents[0]?.actionLabel, "Appointment internal mail thread opened");
+    assert.equal(snapshot.activityEvents[0]?.objectLabel, "Buyer Check-In");
+    assert.equal(snapshot.activityEvents[0]?.href, "/agent/calendar?appointmentId=apt_123");
+    assert.deepEqual(snapshot.activityEvents[0]?.detailSummary, [
+      "Mode: Manual-only",
+      "Provider sync: None",
+      "Thread: Internal mail continuity",
+      "Thread subject: Confirmed: Buyer Check-In on April 9, 2026 at 10:00 AM",
+      "Thread href: /office/mail?threadId=thread_123",
+      "Appointment: Buyer Check-In",
+      "Starts: April 9, 2026 at 10:00 AM",
+      "Ends: April 9, 2026 at 10:30 AM",
+      "Client: Ava Client",
+      "Email target: ava@example.com",
+      "Contact: Ava Client <ava@example.com>",
+      "Listing: 12 Main St",
+      "Location: Living room",
+      "External coordination: Confirmed",
+      "External note: Bring listing docs",
+      "Acre coordination: Prepare internal continuity brief",
+      "Next move: Review and save the next checkpoint",
+      "Return to: Open appointment",
+      "Return href: /agent/calendar?appointmentId=apt_123",
+    ]);
+  } finally {
+    await context.cleanup();
+  }
 });
 
 test("appointment internal mail thread error mapping keeps manual-only and permission failures on the guarded contract", () => {

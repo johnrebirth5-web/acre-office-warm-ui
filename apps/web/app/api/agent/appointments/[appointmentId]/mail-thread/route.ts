@@ -4,6 +4,7 @@ import {
   createOfficeMailThread,
   getFrontOfficeAppointmentsSnapshot,
   mapAppointmentInternalMailThreadErrorStatus,
+  recordAppointmentInternalMailThreadOpenedActivity,
   prisma,
 } from "@acre/db";
 import { MembershipStatus } from "@prisma/client";
@@ -24,6 +25,7 @@ type AppointmentMailThreadRouteDependencies = {
   getAppointmentsSnapshot: typeof getFrontOfficeAppointmentsSnapshot;
   resolveRecipientMembershipIds: typeof listInternalMailContinuityRecipientIds;
   createOfficeMailThread: typeof createOfficeMailThread;
+  recordAppointmentInternalMailThreadOpenedActivity: typeof recordAppointmentInternalMailThreadOpenedActivity;
   buildAppointmentInternalMailThreadResponse: typeof buildAppointmentInternalMailThreadResponse;
   mapErrorStatus: typeof mapAppointmentInternalMailThreadErrorStatus;
 };
@@ -194,6 +196,7 @@ const appointmentMailThreadRouteDependencies: AppointmentMailThreadRouteDependen
   getAppointmentsSnapshot: getFrontOfficeAppointmentsSnapshot,
   resolveRecipientMembershipIds: listInternalMailContinuityRecipientIds,
   createOfficeMailThread,
+  recordAppointmentInternalMailThreadOpenedActivity,
   buildAppointmentInternalMailThreadResponse,
   mapErrorStatus: mapAppointmentInternalMailThreadErrorStatus,
 };
@@ -295,6 +298,32 @@ export async function handleAppointmentMailThreadPost(
       recipientMembershipIds,
       actionUrl: `/agent/calendar?appointmentId=${appointment.id}`,
       actionLabel: "Open appointment",
+    });
+
+    await dependencies.recordAppointmentInternalMailThreadOpenedActivity({
+      organizationId: context.currentOrganization.id,
+      membershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      appointment: {
+        id: appointment.id,
+        title: appointment.title,
+        startsAtLabel: appointment.startsAtLabel,
+        endsAtLabel: appointment.endsAtLabel,
+        clientLabel: appointment.clientLabel,
+        clientEmailLabel: appointment.clientEmailLabel,
+        contactLabel: appointment.contactLabel,
+        listingLabel: appointment.listingLabel,
+        locationLabel: appointment.locationLabel,
+        coordinationLabel: appointment.coordinationLabel,
+        coordinationNextStep: appointment.coordinationNextStep,
+        externalStatusLabel: appointment.externalStatusLabel,
+        externalNote: appointment.externalNote,
+      },
+      thread: {
+        id: thread.id,
+        subject: thread.subject,
+      },
+      contextHref: `/agent/calendar?appointmentId=${appointment.id}`,
     });
 
     return NextResponse.json(

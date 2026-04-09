@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { type NextRequest } from "next/server";
-import { buildAppointmentInternalMailThreadResponse } from "@acre/db";
+import {
+  buildAppointmentInternalMailThreadResponse,
+  type AppointmentInternalMailThreadOpenedActivityInput,
+} from "@acre/db";
 import { handleAppointmentMailThreadPost } from "./route";
 
 type RouteDependencies = NonNullable<
@@ -54,6 +57,9 @@ function buildDependencies(overrides: Partial<RouteDependencies>): RouteDependen
         id: "thread_123",
         subject: "Confirmed: Buyer Check-In on April 9, 2026 at 10:00 AM",
       }) as never,
+    recordAppointmentInternalMailThreadOpenedActivity: async (
+      _input: AppointmentInternalMailThreadOpenedActivityInput,
+    ) => {},
     buildAppointmentInternalMailThreadResponse,
     mapErrorStatus: (message: string) => ({
       status: message.includes("No internal mail recipients") ? 409 : 400,
@@ -149,15 +155,47 @@ test("returns 409 when the appointment has no email target for the internal mail
   });
 });
 
-test("returns 200 and a no-store internal mail thread response when the appointment is scheduled", async () => {
+test("returns 201 and a no-store internal mail thread response when the appointment is scheduled", async () => {
+  let recordedInput: AppointmentInternalMailThreadOpenedActivityInput | null =
+    null;
   const response = await handleAppointmentMailThreadPost(
     createRequest(),
     { params: Promise.resolve({ appointmentId: "apt_123" }) },
-    buildDependencies({}),
+    buildDependencies({
+      recordAppointmentInternalMailThreadOpenedActivity: async (input) => {
+        recordedInput = input;
+      },
+    }),
   );
 
   assert.equal(response.status, 201);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.ok(recordedInput);
+  assert.deepEqual(recordedInput, {
+    organizationId: "org_1",
+    membershipId: "member_1",
+    officeId: "office_1",
+    appointment: {
+      id: "apt_123",
+      title: "Buyer Check-In",
+      startsAtLabel: "April 9, 2026 at 10:00 AM",
+      endsAtLabel: "April 9, 2026 at 10:30 AM",
+      clientLabel: "Ava Client",
+      clientEmailLabel: "ava@example.com",
+      contactLabel: "Ava Client <ava@example.com>",
+      listingLabel: "12 Main St",
+      locationLabel: "Living room",
+      coordinationLabel: "Prepare internal continuity brief",
+      coordinationNextStep: "Review and save the next checkpoint",
+      externalStatusLabel: "Confirmed",
+      externalNote: "Bring listing docs",
+    },
+    thread: {
+      id: "thread_123",
+      subject: "Confirmed: Buyer Check-In on April 9, 2026 at 10:00 AM",
+    },
+    contextHref: "/agent/calendar?appointmentId=apt_123",
+  });
   assert.deepEqual(await readJson(response), {
     thread: {
       id: "thread_123",
