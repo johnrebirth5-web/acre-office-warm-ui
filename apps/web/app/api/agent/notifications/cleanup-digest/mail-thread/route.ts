@@ -4,6 +4,7 @@ import {
   buildFrontOfficeCleanupDigestDeliveryDraft,
   createOfficeMailThread,
   prisma,
+  recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
 } from "@acre/db";
 import { MembershipStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
@@ -21,6 +22,7 @@ type CleanupDigestMailThreadRouteDependencies = {
   getCleanupDigest: typeof buildFrontOfficeCleanupDigest;
   buildDeliveryDraft: typeof buildFrontOfficeCleanupDigestDeliveryDraft;
   createOfficeMailThread: typeof createOfficeMailThread;
+  recordThreadOpenedActivity: typeof recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity;
   resolveRecipientMembershipIds: typeof resolveCleanupDigestRecipientMembershipIds;
   buildResponse: typeof buildCleanupDigestInternalMailThreadResponse;
   mapErrorStatus: typeof mapCleanupDigestInternalMailThreadErrorStatus;
@@ -29,9 +31,7 @@ type CleanupDigestMailThreadRouteDependencies = {
 const cleanupDigestMailThreadFallbackHint =
   "If internal mail access is unavailable, keep working from the cleanup digest workbench instead.";
 
-function buildCleanupDigestMailThreadSubject(draft: {
-  subject: string;
-}) {
+function buildCleanupDigestMailThreadSubject(draft: { subject: string }) {
   return draft.subject.trim() || "Cleanup digest";
 }
 
@@ -232,6 +232,8 @@ const cleanupDigestMailThreadRouteDependencies: CleanupDigestMailThreadRouteDepe
     getCleanupDigest: buildFrontOfficeCleanupDigest,
     buildDeliveryDraft: buildFrontOfficeCleanupDigestDeliveryDraft,
     createOfficeMailThread,
+    recordThreadOpenedActivity:
+      recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
     resolveRecipientMembershipIds: resolveCleanupDigestRecipientMembershipIds,
     buildResponse: buildCleanupDigestInternalMailThreadResponse,
     mapErrorStatus: mapCleanupDigestInternalMailThreadErrorStatus,
@@ -303,6 +305,16 @@ export async function handleCleanupDigestMailThreadPost(
       recipientMembershipIds,
       actionUrl: "/agent/notifications",
       actionLabel: "Return to cleanup workbench",
+    });
+
+    await dependencies.recordThreadOpenedActivity(prisma, {
+      organizationId: context.currentOrganization.id,
+      membershipId: context.currentMembership.id,
+      officeId: context.currentOffice?.id ?? null,
+      runSummary: draft.runSummary,
+      threadId: thread.id,
+      threadSubject: thread.subject,
+      contextHref: "/agent/notifications",
     });
 
     return NextResponse.json(

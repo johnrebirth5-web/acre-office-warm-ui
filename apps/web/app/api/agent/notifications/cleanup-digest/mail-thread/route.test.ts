@@ -8,6 +8,16 @@ type RouteDependencies = NonNullable<
   Parameters<typeof handleCleanupDigestMailThreadPost>[2]
 >;
 
+type RecordedCleanupDigestThreadActivity = {
+  organizationId: string;
+  membershipId: string;
+  officeId: string | null;
+  threadId: string;
+  threadSubject: string;
+  contextHref?: string | null;
+  runSummary: Record<string, unknown>;
+};
+
 function createRequest() {
   return new Request(
     "https://example.com/api/agent/notifications/cleanup-digest/mail-thread",
@@ -67,6 +77,7 @@ function buildDependencies(
         actionUrl: input.actionUrl ?? null,
         actionLabel: input.actionLabel ?? null,
       }) as never,
+    recordThreadOpenedActivity: async () => undefined,
     buildResponse: (input) => ({
       thread: {
         id: input.threadId,
@@ -169,17 +180,44 @@ test("returns 409 when no internal mail recipients are available", async () => {
 
   assert.equal(response.status, 409);
   assert.deepEqual(await readJson(response), {
-    error: "No internal mail recipients are available for the cleanup digest thread.",
-    hint:
-      "If internal mail access is unavailable, keep working from the cleanup digest workbench instead.",
+    error:
+      "No internal mail recipients are available for the cleanup digest thread.",
+    hint: "If internal mail access is unavailable, keep working from the cleanup digest workbench instead.",
   });
 });
 
 test("returns 201 and a no-store internal mail thread response when the cleanup digest is available", async () => {
+  let recordedThreadActivity: RecordedCleanupDigestThreadActivity | null = null;
+
+  const recordThreadOpenedActivity: RouteDependencies["recordThreadOpenedActivity"] =
+    async (_writer, input) => {
+      const typedInput = input as unknown as {
+        organizationId: string;
+        membershipId: string;
+        officeId?: string | null;
+        threadId: string;
+        threadSubject: string;
+        contextHref?: string | null;
+        runSummary: Record<string, unknown>;
+      };
+
+      recordedThreadActivity = {
+        organizationId: typedInput.organizationId,
+        membershipId: typedInput.membershipId,
+        officeId: typedInput.officeId ?? null,
+        threadId: typedInput.threadId,
+        threadSubject: typedInput.threadSubject,
+        contextHref: typedInput.contextHref ?? null,
+        runSummary: typedInput.runSummary,
+      };
+    };
+
   const response = await handleCleanupDigestMailThreadPost(
     createRequest(),
     {},
-    buildDependencies({}),
+    buildDependencies({
+      recordThreadOpenedActivity,
+    }),
   );
 
   assert.equal(response.status, 201);
@@ -209,4 +247,20 @@ test("returns 201 and a no-store internal mail thread response when the cleanup 
       returnToUrl: "/agent/notifications",
     },
   });
+  assert.ok(recordedThreadActivity);
+  const threadActivity =
+    recordedThreadActivity as RecordedCleanupDigestThreadActivity;
+  assert.equal(threadActivity.organizationId, "org_1");
+  assert.equal(threadActivity.membershipId, "member_1");
+  assert.equal(threadActivity.officeId, "office_1");
+  assert.equal(threadActivity.threadId, "thread_123");
+  assert.equal(
+    threadActivity.threadSubject,
+    "South Bay Office: 7 item(s), 2 urgent, 1 due soon",
+  );
+  assert.equal(threadActivity.contextHref, "/agent/notifications");
+  assert.equal(
+    threadActivity.runSummary.scopeLabel,
+    "South Bay Office",
+  );
 });

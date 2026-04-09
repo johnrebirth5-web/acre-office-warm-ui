@@ -73,7 +73,9 @@ export function FrontOfficeCleanupDigestCard({
 }: FrontOfficeCleanupDigestCardProps) {
   const router = useRouter();
   const [isRefreshing, startRefreshing] = useTransition();
+  const [isRunningManualDigest, setIsRunningManualDigest] = useState(false);
   const [isOpeningMailThread, setIsOpeningMailThread] = useState(false);
+  const [runMessage, setRunMessage] = useState<string | null>(null);
   const [mailThreadMessage, setMailThreadMessage] = useState<string | null>(
     null,
   );
@@ -81,6 +83,53 @@ export function FrontOfficeCleanupDigestCard({
   const topSections = cleanupDigest.sections
     .filter((section) => section.count > 0)
     .slice(0, 2);
+
+  async function runCleanupDigest() {
+    setRunMessage(null);
+    setIsRunningManualDigest(true);
+
+    try {
+      const response = await fetch(cleanupDigestHref, {
+        cache: "no-store",
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        activityLabel?: string;
+        digest?: {
+          nextActionDetail?: string;
+          nextActionLabel?: string;
+        };
+        error?: string;
+        manualOnlyDetail?: string;
+      } | null;
+
+      if (!response.ok) {
+        setRunMessage(
+          payload?.error ?? "Could not record the cleanup digest run.",
+        );
+        return;
+      }
+
+      setRunMessage(
+        [
+          payload?.activityLabel ?? "Cleanup digest run recorded.",
+          payload?.manualOnlyDetail ??
+            "Manual-only. No scheduler. No provider sync.",
+          payload?.digest?.nextActionLabel
+            ? `Next: ${payload.digest.nextActionLabel}.`
+            : null,
+          payload?.digest?.nextActionDetail ?? null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+      router.refresh();
+    } catch {
+      setRunMessage("Could not record the cleanup digest run.");
+    } finally {
+      setIsRunningManualDigest(false);
+    }
+  }
 
   async function openCleanupDigestMailThread() {
     setMailThreadMessage(null);
@@ -91,16 +140,14 @@ export function FrontOfficeCleanupDigestCard({
         cache: "no-store",
         method: "POST",
       });
-      const payload = (await response.json().catch(() => null)) as
-        | {
-            actionLabel?: string;
-            continuity?: { detail?: string; nextStep?: string };
-            error?: string;
-            hint?: string;
-            manualOnlyDetail?: string;
-            threadHref?: string;
-          }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        actionLabel?: string;
+        continuity?: { detail?: string; nextStep?: string };
+        error?: string;
+        hint?: string;
+        manualOnlyDetail?: string;
+        threadHref?: string;
+      } | null;
 
       if (!response.ok || !payload?.threadHref) {
         setMailThreadMessage(
@@ -151,13 +198,17 @@ export function FrontOfficeCleanupDigestCard({
         <StatCard
           hint="unread notification cleanup signals in the digest window"
           label="Unread notices"
-          tone={cleanupDigest.summary.notificationCount > 0 ? "accent" : "default"}
+          tone={
+            cleanupDigest.summary.notificationCount > 0 ? "accent" : "default"
+          }
           value={cleanupDigest.summary.notificationCount}
         />
         <StatCard
           hint="follow-up tasks due inside the digest window"
           label="Follow-up tasks"
-          tone={cleanupDigest.summary.followUpTaskCount > 0 ? "accent" : "default"}
+          tone={
+            cleanupDigest.summary.followUpTaskCount > 0 ? "accent" : "default"
+          }
           value={cleanupDigest.summary.followUpTaskCount}
         />
         <StatCard
@@ -215,6 +266,16 @@ export function FrontOfficeCleanupDigestCard({
 
       <div className={styles.summaryPanelActions}>
         <Button
+          disabled={isRunningManualDigest}
+          onClick={runCleanupDigest}
+          type="button"
+          variant="primary"
+        >
+          {isRunningManualDigest
+            ? "Running manual digest..."
+            : "Run manual digest"}
+        </Button>
+        <Button
           disabled={isOpeningMailThread}
           onClick={openCleanupDigestMailThread}
           type="button"
@@ -243,6 +304,9 @@ export function FrontOfficeCleanupDigestCard({
           Open JSON
         </FrontOfficeLink>
       </div>
+      {runMessage ? (
+        <p className="front-office-record-supporting">{runMessage}</p>
+      ) : null}
       {mailThreadMessage ? (
         <p className="front-office-record-supporting">{mailThreadMessage}</p>
       ) : null}
