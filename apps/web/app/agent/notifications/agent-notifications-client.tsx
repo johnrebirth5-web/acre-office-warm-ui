@@ -624,14 +624,14 @@ export function AgentNotificationsClient({
     )?.label ?? "current leadership filter";
   const currentPassSummaryLabel =
     activeActivityView === "all"
-      ? "Working the cleanup command surface across all four lanes. Overview stays preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
+      ? "Working the cleanup workbench across all four lanes. Overview stays preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
       : activeActivityView === "personal_cleanup"
-        ? "Focused on owner-owned cleanup pressure only."
+        ? "Focused on owner-owned cleanup pressure only, with duplicate review and send rescue staying in the same pass."
         : activeActivityView === "team_cleanup"
-          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup.`
+          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup so the lead workbench stays readable.`
           : activeActivityView === "appointment_reminders"
-            ? "Focused on calendar writeback only; reminder pressure stays separate from broader notices."
-            : "Focused on broader notice follow-through without mixing in calendar pressure.";
+            ? "Focused on calendar writeback only; confirmation, reschedule, and promised-touch follow-through stay together."
+            : "Focused on broader notice follow-through without mixing in calendar pressure or owner cleanup.";
   const currentFocusCount =
     activeActivityView === "all"
       ? filteredCleanupItems.length +
@@ -674,7 +674,7 @@ export function AgentNotificationsClient({
       key: "personal_cleanup" as const,
       label: "Personal cleanup",
       description:
-        "Self-owned follow-up, send rescue, stale dossier cleanup, appointment writeback, and duplicate review stay together here.",
+        "Self-owned follow-up, send rescue, stale dossier cleanup, appointment writeback, and duplicate review stay together in one cleanup workbench lane.",
       count: personalCleanupCount,
       tone: personalCleanupTone,
       ownerLabel: "Ownership · Assigned to you",
@@ -732,7 +732,7 @@ export function AgentNotificationsClient({
       key: "appointment_reminders" as const,
       label: "Calendar writeback",
       description:
-        "Confirmation, reschedule, external-touch, and countdown pressure stay separate from broader notices.",
+        "Confirmation, reschedule, external-touch, and countdown pressure stay separate from broader notices so the calendar lane stays clean.",
       count: appointmentReminderCount,
       tone: appointmentReminderTone,
       ownerLabel: "Ownership · Calendar writeback + personal follow-through",
@@ -790,7 +790,7 @@ export function AgentNotificationsClient({
       key: "all" as const,
       label: "Cleanup overview",
       description:
-        "Keep personal cleanup, team pressure, calendar writeback, and broader notices visible on one stable route.",
+        "Keep personal cleanup, team pressure, calendar writeback, and broader notices visible on one stable cleanup route.",
       count:
         personalCleanupCount +
         teamCleanupCount +
