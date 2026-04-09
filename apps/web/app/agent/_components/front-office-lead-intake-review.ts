@@ -240,10 +240,10 @@ function buildConfidenceLabel(input: { score: number; reasons: string[] }) {
   }
 
   if (hasName && input.score >= 4) {
-    return "Likely visible duplicate";
+    return "Likely visible duplicate, review first";
   }
 
-  return "Visible name collision only";
+  return "Visible name collision only, review first";
 }
 
 function buildRecommendedActionLabel(reasons: string[]) {
