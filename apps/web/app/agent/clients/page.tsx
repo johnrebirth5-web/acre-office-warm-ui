@@ -843,18 +843,15 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                     <div className="list-row-meta front-office-record-meta">
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
-                        href={snapshot.workspaceAnchor.returnHref}
+                        href={snapshot.workspaceAnchor.returnSectionHref}
                       >
-                        {snapshot.workspaceAnchor.returnLabel}
+                        {snapshot.workspaceAnchor.returnSectionLabel}
                       </FrontOfficeLink>
                       <FrontOfficeLink
                         className="office-inline-link front-office-inline-link"
-                        href={buildClientWorkbenchHref(
-                          "anchor_now",
-                          clientListSectionIds.executionQueue,
-                        )}
+                        href={snapshot.workspaceAnchor.returnHref}
                       >
-                        Open cleanup lane
+                        {snapshot.workspaceAnchor.returnLabel}
                       </FrontOfficeLink>
                     </div>
                   }
@@ -863,10 +860,17 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                   context={snapshot.workspaceAnchor.label}
                   description={snapshot.workspaceAnchor.returnDescription}
                   meta={
-                    <div className="list-row-meta front-office-record-meta">
-                      <span>{snapshot.workspaceAnchor.contextLabel}</span>
-                      <span>{snapshot.workspaceAnchor.description}</span>
-                    </div>
+                    <>
+                      <div className="list-row-meta front-office-record-meta">
+                        <span>{snapshot.workspaceAnchor.contextLabel}</span>
+                        <span>{snapshot.workspaceAnchor.description}</span>
+                      </div>
+                      <div className="list-row-meta front-office-record-meta">
+                        <span>
+                          {snapshot.workspaceAnchor.returnSectionDescription}
+                        </span>
+                      </div>
+                    </>
                   }
                   title="Cleanup re-entry after merge"
                 />
@@ -1253,6 +1257,11 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
             label="Cleanup re-entry"
             tone="accent"
             value={snapshot.workspaceAnchor.returnLabel}
+          />
+          <SummaryChip
+            label="Return section"
+            tone="accent"
+            value={snapshot.workspaceAnchor.returnSectionLabel}
           />
           <SummaryChip label="Anchor now" tone="accent" value={cleanupCount} />
           {activeClientView !== "all" ? (

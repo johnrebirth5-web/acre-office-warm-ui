@@ -273,6 +273,9 @@ export type FrontOfficeClientsSnapshot = {
     primaryActionHref: string;
     secondaryActionLabel: string;
     secondaryActionHref: string;
+    returnSectionLabel: string;
+    returnSectionHref: string;
+    returnSectionDescription: string;
     returnLabel: string;
     returnHref: string;
     returnDescription: string;
@@ -1170,6 +1173,13 @@ function buildClientWorkspaceAnchor(input: {
         "anchor_now",
         "client-execution-queue",
       ),
+      returnSectionLabel: "Execution queue section",
+      returnSectionHref: buildClientWorkspaceHref(
+        "follow_first",
+        "client-execution-queue",
+      ),
+      returnSectionDescription:
+        "Re-enter the same execution queue section so the next-touch order stays visible after cleanup.",
       returnLabel: "Return to follow-first lane",
       returnHref: buildClientWorkspaceHref(
         "follow_first",
@@ -1197,6 +1207,13 @@ function buildClientWorkspaceAnchor(input: {
         "duplicate_review",
         "duplicate-review",
       ),
+      returnSectionLabel: "Cleanup section",
+      returnSectionHref: buildClientWorkspaceHref(
+        "anchor_now",
+        "client-execution-queue",
+      ),
+      returnSectionDescription:
+        "Re-enter the same cleanup section so the first-touch anchor stays visible alongside duplicate review.",
       returnLabel: "Return to cleanup lane",
       returnHref: buildClientWorkspaceHref(
         "anchor_now",
@@ -1224,6 +1241,13 @@ function buildClientWorkspaceAnchor(input: {
         "follow_first",
         "client-execution-queue",
       ),
+      returnSectionLabel: "Viewing section",
+      returnSectionHref: buildClientWorkspaceHref(
+        "viewing_lane",
+        "client-execution-queue",
+      ),
+      returnSectionDescription:
+        "Re-enter the same viewing section so appointment follow-through stays visible from the same queue anchor.",
       returnLabel: "Return to viewing lane",
       returnHref: buildClientWorkspaceHref(
         "viewing_lane",
@@ -1251,6 +1275,13 @@ function buildClientWorkspaceAnchor(input: {
         "duplicate_review",
         "duplicate-review",
       ),
+      returnSectionLabel: "Boundary review section",
+      returnSectionHref: buildClientWorkspaceHref(
+        "boundary_review",
+        "client-execution-queue",
+      ),
+      returnSectionDescription:
+        "Re-enter the same boundary review section so formal-stage dossiers stay easy to reopen without drifting into the wrong lane.",
       returnLabel: "Return to boundary lane",
       returnHref: buildClientWorkspaceHref(
         "boundary_review",
@@ -1278,6 +1309,13 @@ function buildClientWorkspaceAnchor(input: {
         "anchor_now",
         "client-execution-queue",
       ),
+      returnSectionLabel: "Duplicate review section",
+      returnSectionHref: buildClientWorkspaceHref(
+        "duplicate_review",
+        "duplicate-review",
+      ),
+      returnSectionDescription:
+        "Re-enter the same duplicate-review section so the next pair and cleanup re-entry stay on the same visible slice.",
       returnLabel: "Re-enter duplicate review",
       returnHref: buildClientWorkspaceHref(
         "duplicate_review",
@@ -1304,6 +1342,13 @@ function buildClientWorkspaceAnchor(input: {
       "all",
       "client-execution-queue",
     ),
+    returnSectionLabel: "Intake review section",
+    returnSectionHref: buildClientWorkspaceHref(
+      "anchor_now",
+      "clients-intake-launch",
+    ),
+    returnSectionDescription:
+      "Re-enter the intake section so first-touch work stays explicit before the queue widens again.",
     returnLabel: "Return to intake review",
     returnHref: buildClientWorkspaceHref("anchor_now", "clients-intake-launch"),
     returnDescription:
