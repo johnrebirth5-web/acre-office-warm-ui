@@ -81,6 +81,38 @@ export function getActivityViewNextMoveLabel(activityView: AgentActivityView) {
   }
 }
 
+export function getActivityViewOperatorCue(activityView: AgentActivityView) {
+  switch (activityView) {
+    case "personal_cleanup":
+      return "Work owner-owned cleanup first, then reopen reminders or notices once the drift is under control.";
+    case "team_cleanup":
+      return "Use visible-scope intervention only when a lead or office admin decision is needed.";
+    case "appointment_reminders":
+      return "Keep the lane on calendar writeback until confirmation, reschedule, or promised touch is handled.";
+    case "general_notices":
+      return "Route the next move to FO, BO, shared visibility, or awareness-only handling.";
+    default:
+      return "Triage the loudest lane first, then keep the route stable until the pass is closed.";
+  }
+}
+
+export function getActivityViewTriageOrderLabel(
+  activityView: AgentActivityView,
+) {
+  switch (activityView) {
+    case "personal_cleanup":
+      return "Resolve owner cleanup before widening the route.";
+    case "team_cleanup":
+      return "Handle visible-scope pressure before returning to owner cleanup.";
+    case "appointment_reminders":
+      return "Finish calendar writeback before reopening broader notices.";
+    case "general_notices":
+      return "Route notices before circling back to calendar pressure.";
+    default:
+      return "Personal cleanup → team pressure → appointment reminders → general notices.";
+  }
+}
+
 export const cleanupFilterOptions: Array<{
   value: AgentCleanupFilter;
   label: string;

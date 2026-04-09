@@ -23,6 +23,8 @@ import {
   getActivityViewBridgeLabel,
   getActivityViewFocusLabel,
   getActivityViewNextMoveLabel,
+  getActivityViewOperatorCue,
+  getActivityViewTriageOrderLabel,
   leadershipCleanupFilterOptions,
   noticeStreamFilterOptions,
   reminderFilterOptions,
@@ -58,18 +60,20 @@ function getOptionLabel<TValue extends string>(
   return options.find((option) => option.value === value)?.label ?? value;
 }
 
-function buildActivityFocusDescription(value: (typeof activityViewOptions)[number]["value"]) {
+function buildActivityFocusDescription(
+  value: (typeof activityViewOptions)[number]["value"],
+) {
   switch (value) {
     case "personal_cleanup":
-      return "Keep the route centered on your own cleanup pressure first, then widen back into reminders and notices once the live FO drift is under control.";
+      return "Keep the route centered on owner-owned cleanup first, then widen back into reminders and notices once the drift is under control.";
     case "team_cleanup":
-      return "Use this slice when leadership visibility matters more than your personal queue, so overdue team execution pressure stays readable.";
+      return "Use this slice when visible-scope leadership pressure matters more than the personal queue, so overdue team execution stays readable.";
     case "appointment_reminders":
-      return "Stay inside the calendar-writeback lane here when the next move is confirmation, reschedule, or promised external-touch follow-through.";
+      return "Stay inside the calendar-writeback lane when the next move is confirmation, reschedule, or promised external-touch follow-through.";
     case "general_notices":
-      return "Use this slice when the next move is office awareness, shared visibility, or a BO-adjacent heads-up instead of personal cleanup.";
+      return "Use this slice when the next move is office awareness, shared visibility, or a BO-adjacent handoff instead of personal cleanup.";
     default:
-      return "This route keeps the whole activity workbench visible, then lets you narrow by cleanup, reminder, or notice lane without losing the URL-stable slice.";
+      return "This route keeps the cleanup workbench visible, then lets you narrow by owner cleanup, team pressure, appointment reminders, or general notices without losing the URL-stable slice.";
   }
 }
 
@@ -149,7 +153,10 @@ export default async function AgentNotificationsPage(
     );
   const visibleRouteItemCount =
     snapshot.summary.actionableItemCount + filteredLeadershipItems.length;
-  const activeViewLabel = getOptionLabel(activityViewOptions, initialActivityView);
+  const activeViewLabel = getOptionLabel(
+    activityViewOptions,
+    initialActivityView,
+  );
   const cleanupFilterLabel = getOptionLabel(
     cleanupFilterOptions,
     initialCleanupFilter,
@@ -201,43 +208,64 @@ export default async function AgentNotificationsPage(
                 description={buildActivityFocusDescription(initialActivityView)}
                 meta={
                   <>
-                    <span>{getActivityViewFocusLabel(initialActivityView)}</span>
-                    <span>{getActivityViewNextMoveLabel(initialActivityView)}</span>
+                    <span>
+                      {getActivityViewFocusLabel(initialActivityView)}
+                    </span>
+                    <span>
+                      {getActivityViewNextMoveLabel(initialActivityView)}
+                    </span>
                     <span>{readStateLabel}</span>
                     <span>{cleanupFilterLabel}</span>
                     <span>{noticeLaneLabel}</span>
-                    <span>{getActivityViewBridgeLabel(initialActivityView)}</span>
+                    <span>
+                      {getActivityViewBridgeLabel(initialActivityView)}
+                    </span>
                   </>
                 }
-                title="Keep this slice shareable"
+                title="Keep this route stable"
               />
               <FrontOfficeRailItem
                 badgeLabel={cleanupFilterLabel}
                 badgeTone="warning"
                 context={`${personalCleanupCount} personal cleanup item(s)`}
-                description="Use the cleanup lane when the next move is to repair FO drift on one dossier before you reopen broader reminders or notices."
+                description="Use the cleanup lane when the next move is to repair owner-owned FO drift on one dossier before you reopen broader reminders or notices."
                 meta={
                   <>
                     <span>{snapshot.summary.urgentCleanupCount} urgent</span>
-                    <span>{snapshot.summary.duplicateReviewCount} duplicate-review signal(s)</span>
-                    <span>Next move · Resolve the loudest cleanup rail, then reopen the broader workbench.</span>
+                    <span>
+                      {snapshot.summary.duplicateReviewCount} duplicate-review
+                      signal(s)
+                    </span>
+                    <span>
+                      {getActivityViewTriageOrderLabel("personal_cleanup")}
+                    </span>
                   </>
                 }
-                title="Personal cleanup slice"
+                title="Personal cleanup workbench"
               />
               <FrontOfficeRailItem
-                badgeLabel={getOptionLabel(reminderFilterOptions, initialFilter)}
+                badgeLabel={getOptionLabel(
+                  reminderFilterOptions,
+                  initialFilter,
+                )}
                 badgeTone="accent"
                 context={`${appointmentReminderCards.length} appointment reminder(s)`}
                 description="Appointment pressure stays separate from broader notices so confirmation, reschedule, and promised-touch work can reopen as one clean calendar slice."
                 meta={
                   <>
-                    <span>{snapshot.summary.appointmentSoonCount} appointment cleanup signal(s)</span>
-                    <span>{getActivityViewNextMoveLabel("appointment_reminders")}</span>
-                    <span>{initialActivityView === "appointment_reminders" ? "Route locked on appointment workbench" : "Reopen this when calendar writeback is the next move"}</span>
+                    <span>
+                      {snapshot.summary.appointmentSoonCount} appointment
+                      cleanup signal(s)
+                    </span>
+                    <span>
+                      {getActivityViewNextMoveLabel("appointment_reminders")}
+                    </span>
+                    <span>
+                      {getActivityViewOperatorCue("appointment_reminders")}
+                    </span>
                   </>
                 }
-                title="Appointment reminder lane"
+                title="Calendar writeback lane"
               />
               <FrontOfficeRailItem
                 badgeLabel={noticeLaneLabel}
@@ -246,11 +274,16 @@ export default async function AgentNotificationsPage(
                 meta={
                   <>
                     <span>{readStateLabel}</span>
-                    <span>{getOptionLabel(noticeStreamFilterOptions, initialNoticeStreamFilter)}</span>
-                    <span>{getActivityViewNextMoveLabel("general_notices")}</span>
+                    <span>
+                      {getOptionLabel(
+                        noticeStreamFilterOptions,
+                        initialNoticeStreamFilter,
+                      )}
+                    </span>
+                    <span>{getActivityViewOperatorCue("general_notices")}</span>
                   </>
                 }
-                title="General notice lane"
+                title="Notice routing lane"
               />
             </div>
           </SectionCard>
