@@ -7,11 +7,11 @@ const interactionEndpoint = "/api/resources/interactions";
 const progressMilestones = [
   {
     value: 25,
-    label: "Log 25%",
+    label: "Log checkpoint",
   },
   {
     value: 50,
-    label: "Log 50%",
+    label: "Log halfway",
   },
   {
     value: 100,
@@ -47,9 +47,9 @@ export function FrontOfficeResourceProgressActions(props: {
           credentials: "same-origin",
         });
 
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
 
         if (!response.ok) {
           throw new Error(
@@ -61,8 +61,8 @@ export function FrontOfficeResourceProgressActions(props: {
           tone: "success",
           message:
             progressPercent === 100
-              ? "Completion logged."
-              : `${progressPercent}% progress logged.`,
+              ? "Training completion checkpoint logged."
+              : `${progressPercent}% checkpoint logged.`,
         });
         router.refresh();
       } catch (error) {
@@ -106,7 +106,8 @@ export function FrontOfficeResourceProgressActions(props: {
       </div>
       <p className="office-form-helper" style={{ margin: 0 }}>
         Training progress stays manual and reviewable: log the milestone you
-        actually reached after you watch the clip.
+        actually reached after you watch the clip so the operator signal stays
+        honest.
       </p>
       {feedback ? (
         <p

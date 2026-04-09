@@ -6,6 +6,13 @@ import { activityLogActions } from "./activity-log.ts";
 import { prisma } from "./client.ts";
 import { getFrontOfficeResourcesSnapshot } from "./front-office-workspaces.ts";
 
+type SharedResourceTrackingSnapshot = Awaited<
+  ReturnType<typeof getFrontOfficeResourcesSnapshot>
+>["interactionTracking"]["sharedTracking"] & {
+  signalLabel: string;
+  signalDetailLabel: string;
+};
+
 after(async () => {
   await prisma.$disconnect();
 });
@@ -212,73 +219,39 @@ test("office admins see a shared resource adoption pulse for visible FO usage", 
       officeId: context.office.id,
       timeZone: "America/New_York",
     });
+    const sharedTracking = snapshot.interactionTracking
+      .sharedTracking as SharedResourceTrackingSnapshot;
 
-    assert.equal(snapshot.interactionTracking.sharedTracking.visible, true);
+    assert.equal(sharedTracking.visible, true);
+    assert.equal(sharedTracking.scopeLabel, "Office adoption pulse");
+    assert.equal(sharedTracking.comparisonWindowLabel, "Prior 14 days");
+    assert.equal(sharedTracking.totalCount, 4);
+    assert.equal(sharedTracking.totalCountDelta, 2);
+    assert.equal(sharedTracking.searchCount, 1);
+    assert.equal(sharedTracking.searchCountDelta, 0);
+    assert.equal(sharedTracking.progressCount, 1);
+    assert.equal(sharedTracking.progressCountDelta, 0);
+    assert.equal(sharedTracking.completionCount, 1);
+    assert.equal(sharedTracking.signalLabel, "Balanced operator signal");
     assert.equal(
-      snapshot.interactionTracking.sharedTracking.scopeLabel,
-      "Office adoption pulse",
+      sharedTracking.signalDetailLabel,
+      "1 search · 1 progress checkpoint · 1 resource open · 1 vendor click",
     );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.comparisonWindowLabel,
-      "Prior 14 days",
-    );
-    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 4);
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.totalCountDelta,
-      2,
-    );
-    assert.equal(snapshot.interactionTracking.sharedTracking.searchCount, 1);
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.searchCountDelta,
-      0,
-    );
-    assert.equal(snapshot.interactionTracking.sharedTracking.progressCount, 1);
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.progressCountDelta,
-      0,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.completionCount,
-      1,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.completionCountDelta,
-      1,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.resourceOpenCount,
-      1,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.resourceOpenDelta,
-      1,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.vendorClickCount,
-      1,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.vendorClickDelta,
-      1,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.activeMembershipCount,
-      2,
-    );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.activeMembershipDelta,
-      1,
-    );
+    assert.equal(sharedTracking.completionCountDelta, 1);
+    assert.equal(sharedTracking.resourceOpenCount, 1);
+    assert.equal(sharedTracking.resourceOpenDelta, 1);
+    assert.equal(sharedTracking.vendorClickCount, 1);
+    assert.equal(sharedTracking.vendorClickDelta, 1);
+    assert.equal(sharedTracking.activeMembershipCount, 2);
+    assert.equal(sharedTracking.activeMembershipDelta, 1);
+    assert.ok(sharedTracking.visibleMembershipCount >= 2);
     assert.ok(
-      snapshot.interactionTracking.sharedTracking.visibleMembershipCount >= 2,
-    );
-    assert.ok(
-      snapshot.interactionTracking.sharedTracking.topActors.some(
+      sharedTracking.topActors.some(
         (actor) => actor.membershipId === context.agentMembership.id,
       ),
     );
     assert.ok(
-      snapshot.interactionTracking.sharedTracking.hottestTargets.some(
+      sharedTracking.hottestTargets.some(
         (target) =>
           target.title === context.resource.title &&
           target.lastInteractionLabel.length > 0,
@@ -309,18 +282,19 @@ test("agents keep the shared adoption pulse hidden when their FO scope is self o
       officeId: context.office.id,
       timeZone: "America/New_York",
     });
+    const sharedTracking = snapshot.interactionTracking
+      .sharedTracking as SharedResourceTrackingSnapshot;
 
-    assert.equal(snapshot.interactionTracking.sharedTracking.visible, false);
-    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 0);
-    assert.equal(snapshot.interactionTracking.sharedTracking.scopeLabel, "");
+    assert.equal(sharedTracking.visible, false);
+    assert.equal(sharedTracking.totalCount, 0);
+    assert.equal(sharedTracking.scopeLabel, "");
+    assert.equal(sharedTracking.signalLabel, "No operator signal yet");
     assert.equal(
-      snapshot.interactionTracking.sharedTracking.comparisonWindowLabel,
-      "Prior 14 days",
+      sharedTracking.signalDetailLabel,
+      "No tracked actions in the last 14 days",
     );
-    assert.equal(
-      snapshot.interactionTracking.sharedTracking.totalCountDelta,
-      0,
-    );
+    assert.equal(sharedTracking.comparisonWindowLabel, "Prior 14 days");
+    assert.equal(sharedTracking.totalCountDelta, 0);
   } finally {
     await context.cleanup();
   }

@@ -26,6 +26,14 @@ type ResourceLane = ResourcesSnapshot["resourceTypes"][number];
 type ResourceRecord = ResourcesSnapshot["resources"][number];
 type VendorRecord = ResourcesSnapshot["vendors"][number];
 type VendorCategory = ResourcesSnapshot["vendorCategories"][number];
+type ResourceInteractionTracking = ResourcesSnapshot["interactionTracking"] & {
+  signalLabel: string;
+  signalDetailLabel: string;
+  sharedTracking: ResourcesSnapshot["interactionTracking"]["sharedTracking"] & {
+    signalLabel: string;
+    signalDetailLabel: string;
+  };
+};
 
 const laneGridStyle: CSSProperties = {
   display: "grid",
@@ -498,7 +506,8 @@ export default async function AgentResourcesPage(props: {
     snapshot.executionPulse.libraryLanes.find(
       (lane) => lane.key === "training_video",
     )?.count ?? 0;
-  const interactionTracking = snapshot.interactionTracking;
+  const interactionTracking =
+    snapshot.interactionTracking as ResourceInteractionTracking;
   const sharedTracking = interactionTracking.sharedTracking;
   const strongestResourceLane = snapshot.executionPulse.strongestLane;
   const thinnestResourceLane = snapshot.executionPulse.thinnestLane;
@@ -540,6 +549,12 @@ export default async function AgentResourcesPage(props: {
                     hint={interactionTracking.windowLabel.toLowerCase()}
                     label="Last tracked use"
                     value={interactionTracking.lastInteractionLabel}
+                  />
+                  <StatCard
+                    hint="dominant operator motion in this window"
+                    label="Signal"
+                    tone="accent"
+                    value={interactionTracking.signalLabel}
                   />
                 </ListPageStatsGrid>
 
@@ -1232,6 +1247,11 @@ export default async function AgentResourcesPage(props: {
                   }
                   value={formatSignedDelta(sharedTracking.completionCountDelta)}
                 />
+                <SummaryChip
+                  label="Signal"
+                  tone="accent"
+                  value={sharedTracking.signalLabel}
+                />
               </div>
 
               <ListPageStatsGrid>
@@ -1280,6 +1300,12 @@ export default async function AgentResourcesPage(props: {
                   hint="latest shared tracked activity"
                   label="Last shared touch"
                   value={sharedTracking.lastInteractionLabel}
+                />
+                <StatCard
+                  hint={sharedTracking.signalDetailLabel}
+                  label="Signal"
+                  tone="accent"
+                  value={sharedTracking.signalLabel}
                 />
               </ListPageStatsGrid>
 
@@ -1370,7 +1396,7 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="Call prep"
                 badgeTone="accent"
-                description="Open a playbook when the next move is a live call, objection response, showing prep, or FO-to-BO handoff checklist. Resource opens now stay visible in the audit trail instead of disappearing into raw outbound clicks."
+                description="Open a playbook when the next move is a live call, objection response, showing prep, or FO-to-BO handoff checklist. Resource opens now stay visible in the audit trail instead of disappearing into raw outbound clicks, and the current resource signal will tell you whether the bench is search-led, follow-through-led, or balanced."
                 meta={
                   <>
                     <span>
@@ -1399,7 +1425,7 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="Training"
                 badgeTone="accent"
-                description="Use the training lane when the job is a refresher instead of a new document hunt. This hub now lets you log 25%, 50%, or complete after you actually watch the clip."
+                description="Use the training lane when the job is a refresher instead of a new document hunt. This hub now lets you log 25%, 50%, or complete after you actually watch the clip, and those checkpoints roll back into the same operator signal you see in the side rail."
                 meta={
                   <>
                     <span>
@@ -1416,7 +1442,7 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="Vendor"
                 badgeTone="warning"
-                description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module. Vendor call, email, and site clicks now stay traceable from the same FO hub."
+                description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module. Vendor call, email, and site clicks now stay traceable from the same FO hub, so partner touch shows up in the same signal mix as search, open, and progress work."
                 meta={
                   <>
                     <span>
