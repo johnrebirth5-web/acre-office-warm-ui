@@ -32,11 +32,11 @@ export const frontOfficeClientDossierSectionDescriptions = {
   listingOutput:
     "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.",
   offerPrep:
-    "Use this section when negotiation is active and the dossier needs to keep client-facing prep in Front Office while pointing the formal offer file to Back Office.",
+    "Use this section when negotiation is active, Front Office still owns the client-facing prep, and the same workbench needs to return to Back Office for the formal offer file.",
   inspectionSupport:
-    "Use this section when the formal transaction is live and Front Office should keep the client-facing explanation visible while Back Office owns the checklist, signatures, and incoming updates.",
+    "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same workbench should reopen the Back Office checklist instead of creating a second tracker.",
   closingSuggestion:
-    "Use this section when the deal is closing, closed, or paused so the dossier can turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan.",
+    "Use this section when the deal is closing, closed, or paused, and the same workbench should turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan.",
   backOfficeContext:
     "Use this section when you need the dossier to explain why the formal Back Office record should take over, including which work still belongs in Front Office and which work is already committed to the shared file.",
 } as const;

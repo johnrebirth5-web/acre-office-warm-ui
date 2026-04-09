@@ -19,6 +19,7 @@ import {
   FrontOfficeClientActionGroup,
   FrontOfficeClientGuidanceQueue,
   buildFrontOfficeClientFollowUpHref,
+  getFrontOfficeClientDossierSectionDescription,
   frontOfficeClientDossierSectionIds,
 } from "./front-office-client-dossier-shared";
 import { FrontOfficeClientLeaseReminderClient } from "./front-office-client-lease-reminder-client";
@@ -1035,7 +1036,9 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.offerPrep}
-            subtitle="Keep coaching, recap, and client-facing offer prep in Front Office until the terms need formal tracking in the shared offer workspace."
+            subtitle={getFrontOfficeClientDossierSectionDescription(
+              "offer_prep",
+            )}
             title="Offer & negotiation"
           >
             <ListPageStatsGrid>
@@ -1100,6 +1103,21 @@ export default async function AgentClientDetailPage(
                   context: snapshot.negotiation.boundaryLabel,
                   meta: <span>{snapshot.negotiation.boundaryMetaLabel}</span>,
                   actions: [primaryHandoffAction],
+                },
+                {
+                  key: "return-point",
+                  label: "Return point",
+                  tone: "neutral",
+                  title: offerRailItem.returnPoint.label,
+                  description: offerRailItem.returnDescription,
+                  context: snapshot.negotiation.boundaryLabel,
+                  meta: <span>{offerRailItem.returnPoint.description}</span>,
+                  actions: [
+                    {
+                      href: offerRailItem.returnPoint.href,
+                      label: "Jump back here",
+                    },
+                  ],
                 },
                 {
                   key: "current-state",
@@ -1175,7 +1193,9 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.inspectionSupport}
-            subtitle="Inspection-era support should keep client-facing recap visible here while the shared Back Office transaction owns the formal checklist, signatures, and review queue."
+            subtitle={getFrontOfficeClientDossierSectionDescription(
+              "inspection_support",
+            )}
             title="Inspection & contract support"
           >
             <ListPageStatsGrid>
@@ -1240,6 +1260,21 @@ export default async function AgentClientDetailPage(
                   context: snapshot.inspection.boundaryLabel,
                   meta: <span>{snapshot.inspection.boundaryMetaLabel}</span>,
                   actions: [primaryHandoffAction],
+                },
+                {
+                  key: "return-point",
+                  label: "Return point",
+                  tone: "neutral",
+                  title: inspectionRailItem.returnPoint.label,
+                  description: inspectionRailItem.returnDescription,
+                  context: snapshot.inspection.boundaryLabel,
+                  meta: <span>{inspectionRailItem.returnPoint.description}</span>,
+                  actions: [
+                    {
+                      href: inspectionRailItem.returnPoint.href,
+                      label: "Jump back here",
+                    },
+                  ],
                 },
                 {
                   key: "bo-lane",
@@ -1323,7 +1358,9 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.closingSuggestion}
-            subtitle="Once the formal deal is active or closed, Front Office should point to the shared Back Office record for the authoritative outcome and use this section for wrap-up, referral, and post-close guidance."
+            subtitle={getFrontOfficeClientDossierSectionDescription(
+              "closing_suggestion",
+            )}
             title="Closing & win suggestions"
           >
             <ListPageStatsGrid>
@@ -1395,6 +1432,21 @@ export default async function AgentClientDetailPage(
                   context: snapshot.closing.boundaryLabel,
                   meta: <span>{snapshot.closing.boundaryMetaLabel}</span>,
                   actions: [primaryHandoffAction],
+                },
+                {
+                  key: "return-point",
+                  label: "Return point",
+                  tone: "neutral",
+                  title: closingRailItem.returnPoint.label,
+                  description: closingRailItem.returnDescription,
+                  context: snapshot.closing.boundaryLabel,
+                  meta: <span>{closingRailItem.returnPoint.description}</span>,
+                  actions: [
+                    {
+                      href: closingRailItem.returnPoint.href,
+                      label: "Jump back here",
+                    },
+                  ],
                 },
                 {
                   key: "bo-lane",
