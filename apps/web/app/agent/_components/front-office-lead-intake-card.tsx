@@ -95,6 +95,7 @@ type FrontOfficeLeadIntakeAssistServerResponse = {
   sourceMode: "text" | "image" | "hybrid";
   hadImage: boolean;
   ocrSucceeded: boolean;
+  transcriptFallbackUsed: boolean;
   sourceSurface: string | null;
 };
 
@@ -1614,9 +1615,9 @@ export function FrontOfficeLeadIntakeCard(
         feedbackParts.push(result.readinessSummary.label);
       }
 
-      if (payload.hadImage && !payload.ocrSucceeded && transcriptText) {
+      if (payload.hadImage && payload.transcriptFallbackUsed) {
         feedbackParts.push(
-          "Server OCR could not finish, so Acre used the pasted transcript only. If it still looks sparse, paste a tighter 3-8 line excerpt and keep unresolved identity first.",
+          "Server OCR could not finish, so Acre used the pasted transcript as the fallback extract. If it still looks sparse, paste a tighter 3-8 line excerpt and keep unresolved identity first.",
         );
       }
 
