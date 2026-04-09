@@ -847,6 +847,15 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                       >
                         {snapshot.workspaceAnchor.returnLabel}
                       </FrontOfficeLink>
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={buildClientWorkbenchHref(
+                          "anchor_now",
+                          clientListSectionIds.executionQueue,
+                        )}
+                      >
+                        Open cleanup lane
+                      </FrontOfficeLink>
                     </div>
                   }
                   badgeLabel="Merge return"
@@ -859,7 +868,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
                       <span>{snapshot.workspaceAnchor.description}</span>
                     </div>
                   }
-                  title="Return point after merge"
+                  title="Cleanup re-entry after merge"
                 />
               ) : null}
             </div>
@@ -1241,7 +1250,7 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
             value={snapshot.workspaceAnchor.label}
           />
           <SummaryChip
-            label="Merge return"
+            label="Cleanup re-entry"
             tone="accent"
             value={snapshot.workspaceAnchor.returnLabel}
           />
