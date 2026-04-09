@@ -18,22 +18,6 @@ const frontOfficeNavGroups: WorkspaceNavGroup[] = [
       { href: "/agent/resources", label: "Resources" },
     ],
   },
-  {
-    title: "Handoff",
-    icon: "↔",
-    items: [
-      {
-        label: "Front Office",
-        badgeText: "clients, follow-up, calendar",
-        kind: "muted",
-      },
-      {
-        label: "Back Office",
-        badgeText: "transactions, signatures, accounting",
-        kind: "muted",
-      },
-    ],
-  },
 ];
 
 export function AgentNav() {
