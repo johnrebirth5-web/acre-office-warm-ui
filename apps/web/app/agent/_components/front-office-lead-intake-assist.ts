@@ -293,18 +293,18 @@ function buildTranscriptGuidanceLabels(input: {
   const labels: string[] = [];
 
   if (input.sourceMode === "image" || input.sourceMode === "hybrid") {
-    labels.push("Crop tighter around the active lead messages before OCR");
+    labels.push("Crop tightly around the active lead block before OCR");
   }
 
   if (input.sourceMode === "text" || input.sourceMode === "hybrid") {
     labels.push(
-      "Paste 3-8 contiguous lines that keep the lead name, one contact clue, and one workflow clue together",
+      "Paste 3-8 contiguous lines that keep one lead name, one contact clue, and one workflow clue together",
     );
   }
 
   if (input.lowSignal) {
     labels.push(
-      "Review unresolved identity first, then batch source, stage, intent, budget, and area",
+      "Start with unresolved identity, then batch source, stage, intent, budget, and area",
     );
   }
 
@@ -1533,7 +1533,7 @@ function buildIgnoredFieldReasonLabel(input: {
   context: ConversationContext;
 }) {
   if (!input.fields.length) {
-    return "Acre kept every field out of the live form because the extract stayed low-signal.";
+    return "Acre kept every field out of the live form because the extract stayed too sparse to clear unresolved identity first.";
   }
 
   if (input.fields.length >= intakeDraftFieldOrder.length) {
@@ -1545,14 +1545,14 @@ function buildIgnoredFieldReasonLabel(input: {
     input.context.hasHouseholdContext ||
     input.context.hasContactOwnerRisk
   ) {
-    return "Acre left the remaining fields out because the thread still looks multi-party, household-heavy, or relay-contact heavy.";
+    return "Acre left the remaining fields out because the thread still looks multi-party, household-heavy, or relay-contact heavy, so the next batch should stay unresolved-first.";
   }
 
   if (input.context.hasLowSignalText) {
-    return "Acre left the remaining fields out because the extract still looks sparse or noisy.";
+    return "Acre left the remaining fields out because the extract still looks sparse or noisy enough that the next batch should stay unresolved-first.";
   }
 
-  return "Acre did not see enough evidence to promote the remaining fields into the live form.";
+  return "Acre did not see enough evidence to promote the remaining fields into the live form, so the rest should wait for a tighter batch.";
 }
 
 function buildField(
@@ -1596,9 +1596,9 @@ function buildSafetySummary(
   if (!context.cautionLabels.length) {
     return {
       tone: "neutral",
-      label: "Single-lead parsing looks straightforward",
+      label: "Single-lead parsing looks ready for batch review",
       detail:
-        "Acre did not detect obvious household, group-chat, or relay-contact risk in this extract.",
+        "Acre did not detect obvious household, group-chat, or relay-contact risk in this extract, so the live form can stay untouched until you review the batch.",
       cautionLabels: [],
     };
   }
@@ -1612,9 +1612,9 @@ function buildSafetySummary(
   ) {
     return {
       tone: "warning",
-      label: "Low-signal extract: keep unresolved fields in review first",
+      label: "Low-signal extract: keep unresolved identity first",
       detail:
-        "Acre found some usable text, but the screenshot or transcript still looks sparse or noisy enough that unresolved identity should stay ahead of safe apply and the rest should be handled in section batches after you compare it against the original input.",
+        "Acre found some usable text, but the screenshot or transcript still reads sparse or noisy enough that it should not behave like a ready preview. Start with identity, then handle the rest in section batches after you compare it against the original input.",
       cautionLabels: context.cautionLabels,
     };
   }
@@ -1666,9 +1666,9 @@ function buildReadinessSummary(input: {
   if (!input.fields.length) {
     return {
       tone: "warning",
-      label: "Extraction stayed conservative",
+      label: "Extraction stalled at the review gate",
       detail:
-        "Acre found text, but not enough structured lead data to move anything into the live form yet, so unresolved review stays ahead of safe apply and the next section batch should start with identity.",
+        "Acre found text, but not enough structured lead data to move anything into the live form yet. Start with identity, then work through section batches after you compare the original screenshot or transcript.",
       nextStepLabels: uniqueStrings([
         ...guidanceLabels,
         "Keep manual entry ready if you already know the lead",
@@ -1692,9 +1692,9 @@ function buildReadinessSummary(input: {
   if (lowSignal) {
     return {
       tone: "warning",
-      label: "Low-signal extract: keep unresolved fields in review first",
+      label: "Low-signal extract: keep unresolved fields ahead of safe apply",
       detail:
-        "Acre found a few usable clues, but the extract still looks sparse or noisy, so unresolved fields should be handled before safer ones and the next moves should happen in section batches.",
+        "Acre found a few usable clues, but the extract still looks sparse or noisy. Resolve identity first, then batch source, stage, intent, budget, and timing.",
       nextStepLabels: uniqueStrings([
         ...guidanceLabels,
         hasWorkflowField
@@ -1712,7 +1712,7 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Structured fields found, but identity still needs review",
       detail:
-        "Acre found usable lead signals, yet household, multi-party, or relay-contact context means unresolved identity should be cleared before duplicate review or create, then the rest should be handled as section batches.",
+        "Acre found usable lead signals, yet household, multi-party, or relay-contact context means unresolved identity should be cleared before duplicate review or create, then the rest should move in section batches.",
       nextStepLabels: [
         "Review unresolved identity fields first",
         "Hold timing and contact values until the primary lead is clear",
@@ -1726,7 +1726,7 @@ function buildReadinessSummary(input: {
     tone: "neutral",
     label: "Good starting point for review",
     detail:
-      "Acre found structured lead fields and kept every suggestion separate from the live form until you review and apply it in section batches.",
+      "Acre found structured lead fields and keeps every suggestion separate from the live form until you review and apply it in section batches.",
     nextStepLabels: [
       "Review unresolved identity first",
       "Batch source, stage, intent, context, and timing in that order",
@@ -1816,8 +1816,8 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
       context,
     }),
     summaryLabel: fields.length
-      ? `Detected ${fields.length} intake field(s) · ${reviewFieldCount} unresolved-first · ${safeApplyFieldCount} safe after review · ${previewOnlyFieldCount} preview-only`
-      : "No structured lead fields detected yet",
+      ? `Review queue: ${fields.length} intake field(s) · ${reviewFieldCount} unresolved-first · ${safeApplyFieldCount} safe after review · ${previewOnlyFieldCount} preview-only`
+      : "Review queue empty · no structured lead fields detected yet",
     safeApplyFieldCount,
     reviewFieldCount,
     previewOnlyFieldCount,

@@ -2017,22 +2017,22 @@ export function FrontOfficeLeadIntakeCard(
         >
           <div className="front-office-lead-intake-assist">
             <div className="front-office-lead-intake-assist-copy">
-              <strong>OCR / transcript assist beta</strong>
+              <strong>OCR / transcript review bench</strong>
               <p>
                 Drop in a WeChat screenshot or paste the chat thread. Acre reads
-                it in the browser, keeps field-level confidence and provenance
-                on every suggestion, keeps unresolved identity ahead of every
-                section batch, stays safer around household or multi-party
-                threads, and waits for review before anything touches the live
-                intake form.
+                it in the browser, keeps every suggestion tied to evidence,
+                starts with unresolved identity, groups the rest into section
+                batches, stays stricter around household or multi-party threads,
+                and waits for manual confirmation before anything touches the
+                live intake form.
               </p>
               <div className="front-office-record-meta">
-                <span>Browser-side extraction only</span>
-                <span>Field-level confidence + provenance</span>
-                <span>Identity first</span>
-                <span>Section batches next</span>
-                <span>Preview-only last</span>
-                <span>Safer household parsing</span>
+                <span>Browser-side only</span>
+                <span>Evidence + provenance on every suggestion</span>
+                <span>Unresolved identity first</span>
+                <span>Then batch the rest</span>
+                <span>Preview-only stays manual</span>
+                <span>Stricter on multi-party chats</span>
                 <span>No auto-create or auto-send</span>
               </div>
             </div>
@@ -2059,7 +2059,7 @@ export function FrontOfficeLeadIntakeCard(
 
               <FormField
                 className="office-form-grid-span-3"
-                helper="Optional. Paste the live chat, notes, or call transcript to improve extraction."
+                helper="Optional. Paste 3-8 contiguous lines so the lead name, one contact clue, and one workflow clue stay together."
                 label="Transcript or chat text"
               >
                 <TextareaInput
@@ -2080,7 +2080,7 @@ export function FrontOfficeLeadIntakeCard(
                 }}
                 type="button"
               >
-                {isExtractingAssist ? "Extracting..." : "Extract intake"}
+                {isExtractingAssist ? "Reviewing..." : "Run intake review"}
               </Button>
               <Button
                 disabled={isBusy}
@@ -2162,7 +2162,9 @@ export function FrontOfficeLeadIntakeCard(
                     <span>
                       {assistResult.safeApplyFieldCount} safe after review
                     </span>
-                    <span>{assistResult.reviewFieldCount} review-first</span>
+                    <span>
+                      {assistResult.reviewFieldCount} unresolved-first
+                    </span>
                     <span>
                       {assistResult.previewOnlyFieldCount} preview-only
                     </span>
@@ -2188,12 +2190,12 @@ export function FrontOfficeLeadIntakeCard(
                     ) : null}
                     {assistReviewOrderLabels.length ? (
                       <span>
-                        Operator guidance: {assistReviewOrderLabels.join(" · ")}
+                        Queue order: {assistReviewOrderLabels.join(" · ")}
                       </span>
                     ) : null}
                     {assistReviewFocusLabels.length ? (
                       <span>
-                        Unresolved focus: {assistReviewFocusLabels.join(" · ")}
+                        Resolve first: {assistReviewFocusLabels.join(" · ")}
                       </span>
                     ) : null}
                   </div>
@@ -2218,12 +2220,12 @@ export function FrontOfficeLeadIntakeCard(
                         <span>{section.batchCue}</span>
                         <span>{section.fieldSummary}</span>
                         <span>{section.safeApplyCount} safe</span>
-                        <span>{section.reviewFirstCount} review-first</span>
+                        <span>{section.reviewFirstCount} unresolved-first</span>
                         <span>{section.previewOnlyCount} preview-only</span>
                         <span>{section.pendingCount} still pending</span>
                         <span>{section.reviewedCount} reviewed</span>
                         {section.pendingCount > 0 ? (
-                          <span>Unresolved comes first</span>
+                          <span>Resolve unresolved fields first</span>
                         ) : section.reviewFirstCount > 0 &&
                           section.reviewedCount < section.reviewFirstCount ? (
                           <span>Manual confirmation next</span>
@@ -2623,8 +2625,8 @@ export function FrontOfficeLeadIntakeCard(
           ) : null}
 
           <p className="front-office-calendar-feedback is-neutral">
-            Create uses the live form only. OCR / transcript assist remains
-            review-then-apply, and nothing auto-creates or auto-sends.
+            Create uses the live form only. OCR / transcript review stays
+            unresolved-first, and nothing auto-creates or auto-sends.
           </p>
 
           <div className="office-form-grid front-office-lead-intake-grid">
