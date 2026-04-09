@@ -188,7 +188,7 @@ export function FrontOfficeDashboardAiQueueClient(
               }
               badgeLabel={item.statusLabel}
               badgeTone={item.tone}
-              context={item.contextLabel}
+              context={`${item.sequenceLabel} · ${item.contextLabel}`}
               description={item.description}
               key={item.id}
               meta={
