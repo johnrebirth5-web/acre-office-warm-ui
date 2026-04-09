@@ -498,7 +498,7 @@ function buildConversationContext(
   if (hasLowSignalText) {
     riskFlags.add("low_signal_extract");
     cautionLabels.push(
-      "This extract looks sparse or noisy, so Acre keeps field suggestions more conservative until you compare them with the original screenshot or chat.",
+      "This extract looks sparse or noisy, so Acre keeps field suggestions review-first until you compare them with the original screenshot or transcript.",
     );
   }
 
@@ -1587,9 +1587,9 @@ function buildSafetySummary(
   ) {
     return {
       tone: "warning",
-      label: "Low-signal extract: compare suggestions with the original input",
+      label: "Low-signal extract: keep unresolved fields in review first",
       detail:
-        "Acre found some usable text, but the screenshot or transcript still looks sparse or noisy enough that every field should stay under manual review.",
+        "Acre found some usable text, but the screenshot or transcript still looks sparse or noisy enough that every field should stay under manual review until you compare it against the original input.",
       cautionLabels: context.cautionLabels,
     };
   }
@@ -1636,11 +1636,11 @@ function buildReadinessSummary(input: {
 
   const screenshotGuidance =
     input.sourceMode === "image" || input.sourceMode === "hybrid"
-      ? "Crop tighter around the lead messages before re-running OCR"
+      ? "Crop tighter around the active lead messages before re-running OCR"
       : "";
   const transcriptGuidance =
     input.sourceMode === "text" || input.sourceMode === "hybrid"
-      ? "Paste 3-8 lines with a name, one contact clue, and one workflow clue"
+      ? "Paste 3-8 contiguous lines that keep the lead name, one contact clue, and one workflow clue together"
       : "";
 
   if (!input.fields.length) {
@@ -1648,7 +1648,7 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Extraction stayed conservative",
       detail:
-        "Acre found text, but not enough structured lead data to move anything into the live form yet, so unresolved review stays ahead of any safe apply.",
+        "Acre found text, but not enough structured lead data to move anything into the live form yet, so unresolved review stays ahead of safe apply.",
       nextStepLabels: uniqueStrings([
         screenshotGuidance,
         transcriptGuidance,
@@ -1674,7 +1674,7 @@ function buildReadinessSummary(input: {
   if (lowSignal) {
     return {
       tone: "warning",
-      label: "Low-signal extract: keep review tight",
+      label: "Low-signal extract: keep unresolved fields in review first",
       detail:
         "Acre found a few usable clues, but the extract still looks sparse or noisy, so unresolved fields should be handled before safer ones.",
       nextStepLabels: uniqueStrings([
@@ -1683,7 +1683,7 @@ function buildReadinessSummary(input: {
         transcriptGuidance,
         "Review unresolved identity fields first",
         hasWorkflowField
-          ? "Then batch timing and qualification fields together"
+          ? "Then batch stage, source, and intent together after identity is clear"
           : "Add one workflow clue such as budget, areas, or next follow-up timing",
       ]).filter(Boolean),
     };
