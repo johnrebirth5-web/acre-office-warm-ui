@@ -290,11 +290,21 @@ function buildImportantDatesLines(snapshot: FrontOfficeClientDetailSnapshot) {
 }
 
 function buildWorkingPlanLines(snapshot: FrontOfficeClientDetailSnapshot) {
+  const currentRailItem =
+    snapshot.nextStepRail.items.find((item) => item.isCurrent) ??
+    snapshot.nextStepRail.items[0] ??
+    null;
   const lines = [
     `${snapshot.workflow.nextStepTitle}: ${snapshot.workflow.nextStepDescription}`,
     `Workflow pressure: ${snapshot.workflow.pressureLabel}`,
     `Current execution lane: ${snapshot.nextStepRail.decisionLabel}`,
   ];
+
+  if (currentRailItem) {
+    lines.push(
+      `Current return point: ${currentRailItem.returnPoint.label} | ${currentRailItem.returnDescription}`,
+    );
+  }
 
   if (snapshot.summary.openTaskCount > 0) {
     lines.push(
@@ -463,17 +473,35 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
   const formalWorkflow = buildFormalWorkflowSummary(snapshot);
   const negotiationSummary = buildNegotiationSummary(snapshot);
   const inspectionSummary = buildInspectionSummary(snapshot);
-  const lines = [
+  const offerRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "offer_prep") ??
+    null;
+  const inspectionRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "inspection_support") ??
+    null;
+  const closingRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "closing_suggestion") ??
+    null;
+  const lines: Array<string | null> = [
     `${formalWorkflow.title} | ${formalWorkflow.description}`,
     `${negotiationSummary.title} | ${negotiationSummary.description}`,
     `Negotiation next move | ${snapshot.negotiation.nextMoveLabel} | ${snapshot.negotiation.nextMoveDescription}`,
     `Negotiation operator frame | ${snapshot.negotiation.operatorLabel} | ${snapshot.negotiation.operatorDescription}`,
+    offerRailItem
+      ? `Offer return point | ${offerRailItem.returnPoint.label} | ${offerRailItem.returnDescription}`
+      : null,
     `${inspectionSummary.title} | ${inspectionSummary.description}`,
     `Inspection next move | ${snapshot.inspection.nextMoveLabel} | ${snapshot.inspection.nextMoveDescription}`,
     `Inspection operator frame | ${snapshot.inspection.operatorLabel} | ${snapshot.inspection.operatorDescription}`,
+    inspectionRailItem
+      ? `Inspection return point | ${inspectionRailItem.returnPoint.label} | ${inspectionRailItem.returnDescription}`
+      : null,
     `Closing / handoff view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.boundaryTitle}`,
     `Closing next move | ${snapshot.closing.nextMoveLabel} | ${snapshot.closing.nextMoveDescription}`,
     `Closing operator frame | ${snapshot.closing.operatorLabel} | ${snapshot.closing.operatorDescription}`,
+    closingRailItem
+      ? `Closing return point | ${closingRailItem.returnPoint.label} | ${closingRailItem.returnDescription}`
+      : null,
     `Formal timing | ${snapshot.closing.keyDateLabel} | ${snapshot.closing.nextTouchLabel}`,
   ];
 
@@ -494,7 +522,7 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
     );
   }
 
-  return lines;
+  return lines.filter((line): line is string => Boolean(line));
 }
 
 function buildRecentProgressLines(snapshot: FrontOfficeClientDetailSnapshot) {

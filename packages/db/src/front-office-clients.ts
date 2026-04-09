@@ -3650,11 +3650,11 @@ function getFrontOfficeClientDetailWorkbenchDescription(
     case frontOfficeClientDetailNextStepIds.listingOutput:
       return "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.";
     case frontOfficeClientDetailNextStepIds.offerPrep:
-      return "Use this section when the dossier has crossed into negotiation or formal offer prep and needs the FO / BO boundary to stay explicit.";
+      return "Use this section when negotiation is active, Front Office still owns the client-facing prep, and the same workbench needs to return to Back Office for the formal offer file.";
     case frontOfficeClientDetailNextStepIds.inspectionSupport:
-      return "Use this section when a linked transaction needs inspection, signature, or incoming-update support from the same client record.";
+      return "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same workbench should reopen the Back Office checklist instead of creating a second tracker.";
     case frontOfficeClientDetailNextStepIds.closingSuggestion:
-      return "Use this section when the record is closing, recently won, or ready for post-close re-entry and recap.";
+      return "Use this section when the deal is closing, closed, or paused, and the same workbench should turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan.";
     default:
       return "Use this section when you want the dossier to explain the active workbench lane, the current return point, and the next best move.";
   }
@@ -4165,10 +4165,10 @@ function buildNextStepRail(input: {
       ? "Use this rail when the dossier has crossed into formal offer prep and the next move is to open the Back Office file without losing client context."
       : offerReturnPoint.description;
   const inspectionReturnDescription = input.hasLinkedTransaction
-    ? "Use this rail when inspection, signatures, or incoming updates need client-facing support without duplicating the Back Office tracker."
+    ? "Use this rail when the formal transaction is live and the same client record needs client-facing support without duplicating the Back Office tracker."
     : inspectionReturnPoint.description;
   const closingReturnDescription = input.hasClosedTransaction
-    ? "Use this rail when a closed deal needs post-close re-entry, recap, or relationship follow-through from Front Office."
+    ? "Use this rail when a closed deal needs post-close re-entry, recap, or relationship follow-through from the same Front Office workbench."
     : closingReturnPoint.description;
 
   const items: FrontOfficeClientDetailNextStepRailItem[] = [
