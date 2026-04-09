@@ -1,16 +1,14 @@
 import { can, canAccessOfficeMail, canSendOfficeMail } from "@acre/auth";
 import {
+  buildAppointmentInternalMailThreadResponse,
   createOfficeMailThread,
   getFrontOfficeAppointmentsSnapshot,
+  mapAppointmentInternalMailThreadErrorStatus,
   prisma,
 } from "@acre/db";
 import { MembershipStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
-import {
-  buildAppointmentInternalMailThreadResponse,
-  mapAppointmentInternalMailThreadErrorStatus,
-} from "../../../../../../../../packages/db/src/mail.ts";
 
 type RouteContext = {
   params: Promise<{
@@ -32,6 +30,9 @@ const officeRecipientRoles = new Set([
   "office_manager",
   "office_user",
 ]);
+
+const appointmentInternalMailThreadFallbackHint =
+  "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.";
 
 function buildMailThreadSubject(appointment: {
   title: string;
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         {
           error:
             "An email target is required before opening the appointment mail thread.",
-          hint: buildMailThreadFallbackHint(),
+          hint: appointmentInternalMailThreadFallbackHint,
         },
         { status: 409 },
       );
@@ -243,7 +244,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         {
           error:
             "Only scheduled appointments can open the internal mail brief.",
-          hint: buildMailThreadFallbackHint(),
+          hint: appointmentInternalMailThreadFallbackHint,
         },
         { status: 409 },
       );

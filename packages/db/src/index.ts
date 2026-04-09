@@ -138,6 +138,13 @@ export {
 } from "./studio-listings";
 export { getOfficeActivitySnapshot } from "./activity";
 export {
+  buildFrontOfficeCleanupDigest,
+  type BuildFrontOfficeCleanupDigestInput,
+  type FrontOfficeCleanupDigest,
+  type FrontOfficeCleanupDigestItem,
+  type FrontOfficeCleanupDigestSection,
+} from "./front-office-cleanup-digest";
+export {
   activityLogActions,
   addOfficeActivityComment,
   getOfficeActivityLogSnapshot,
@@ -180,12 +187,14 @@ export {
 } from "./notifications";
 export {
   archiveOfficeMailThread,
+  buildAppointmentInternalMailThreadResponse,
   createOfficeMailThread,
   getOfficeMailUnreadCount,
   getOfficeMailAttachmentStorageRecord,
   getOfficeMailThreadDetail,
   getOfficeMailWorkspace,
   listOfficeMailRecipientOptions,
+  mapAppointmentInternalMailThreadErrorStatus,
   markOfficeMailThreadRead,
   markOfficeMailThreadUnread,
   replyToOfficeMailThread,

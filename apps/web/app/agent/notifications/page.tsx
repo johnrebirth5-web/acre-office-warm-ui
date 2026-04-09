@@ -1,5 +1,6 @@
 import { getDefaultAppPath, hasAnyPermission } from "@acre/auth";
 import {
+  buildFrontOfficeCleanupDigest,
   getFrontOfficeActivitySnapshot,
   getFrontOfficeDashboardSnapshot,
   type FrontOfficeDashboardSnapshot,
@@ -77,6 +78,21 @@ function buildActivityFocusDescription(
   }
 }
 
+function getCleanupDigestTone(summary: {
+  urgentCount: number;
+  dueSoonCount: number;
+}) {
+  if (summary.urgentCount > 0) {
+    return "danger" as const;
+  }
+
+  if (summary.dueSoonCount > 0) {
+    return "warning" as const;
+  }
+
+  return "accent" as const;
+}
+
 export default async function AgentNotificationsPage(
   props: AgentNotificationsPageProps,
 ) {
@@ -93,7 +109,7 @@ export default async function AgentNotificationsPage(
     redirect(getDefaultAppPath(context.currentMembership));
   }
 
-  const [snapshot, dashboardSnapshot] = await Promise.all([
+  const [snapshot, dashboardSnapshot, cleanupDigest] = await Promise.all([
     getFrontOfficeActivitySnapshot({
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
@@ -104,6 +120,12 @@ export default async function AgentNotificationsPage(
       organizationId: context.currentOrganization.id,
       viewerMembershipId: context.currentMembership.id,
       viewerRole: context.currentMembership.role,
+      officeId: context.currentOffice?.id ?? null,
+      timeZone: context.currentUser.timezone,
+    }),
+    buildFrontOfficeCleanupDigest({
+      organizationId: context.currentOrganization.id,
+      viewerMembershipId: context.currentMembership.id,
       officeId: context.currentOffice?.id ?? null,
       timeZone: context.currentUser.timezone,
     }),
@@ -178,6 +200,9 @@ export default async function AgentNotificationsPage(
   });
   const sectionTargetLabel =
     getActivityViewSectionTargetLabel(initialActivityView);
+  const cleanupDigestHref = `/api/agent/notifications/cleanup-digest?timeZone=${encodeURIComponent(
+    context.currentUser.timezone,
+  )}`;
 
   return (
     <FrontOfficePageTemplate
@@ -406,6 +431,94 @@ export default async function AgentNotificationsPage(
 
           <SectionCard
             className="office-list-card"
+            actions={
+              <FrontOfficeLink
+                className="office-inline-link front-office-inline-link"
+                href={cleanupDigestHref}
+              >
+                Open JSON
+              </FrontOfficeLink>
+            }
+            subtitle="This digest reads live Front Office cleanup pressure on demand. It is a manual summary surface, not a scheduled job runner."
+            title="Cleanup digest"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint="unread notification cleanup signals in the digest window"
+                label="Unread notices"
+                value={cleanupDigest.summary.notificationCount}
+              />
+              <StatCard
+                hint="follow-up tasks due inside the digest window"
+                label="Follow-up tasks"
+                value={cleanupDigest.summary.followUpTaskCount}
+              />
+              <StatCard
+                hint="client reminders and appointment continuity signals"
+                label="Reminder pressure"
+                value={
+                  cleanupDigest.summary.clientReminderCount +
+                  cleanupDigest.summary.appointmentCount
+                }
+              />
+            </ListPageStatsGrid>
+
+            <div className="office-queue-list">
+              <FrontOfficeRailItem
+                badgeLabel={cleanupDigest.windowLabel}
+                badgeTone={getCleanupDigestTone(cleanupDigest.summary)}
+                context={`${cleanupDigest.summary.totalCount} item(s) in scope`}
+                description={cleanupDigest.nextActionDetail}
+                meta={
+                  <>
+                    <span>{cleanupDigest.scopeLabel}</span>
+                    <span>{cleanupDigest.generatedAtLabel}</span>
+                    <span>{cleanupDigest.timeZone}</span>
+                  </>
+                }
+                title={cleanupDigest.nextActionLabel}
+              />
+              {cleanupDigest.sections
+                .filter((section) => section.count > 0)
+                .slice(0, 2)
+                .map((section) => (
+                  <FrontOfficeRailItem
+                    action={
+                      section.items[0] ? (
+                        <FrontOfficeLink
+                          className="office-inline-link front-office-inline-link"
+                          href={section.items[0].href}
+                        >
+                          Open first item
+                        </FrontOfficeLink>
+                      ) : undefined
+                    }
+                    badgeLabel={section.label}
+                    badgeTone="accent"
+                    context={`${section.count} item(s)`}
+                    description={section.summary}
+                    key={section.key}
+                    meta={
+                      <>
+                        <span>{section.items[0]?.dueAtLabel ?? "No due label"}</span>
+                        <span>{section.items[0]?.detail ?? "Digest preview only"}</span>
+                      </>
+                    }
+                    title={section.items[0]?.title ?? section.label}
+                  />
+                ))}
+              {!cleanupDigest.sections.some((section) => section.count > 0) ? (
+                <EmptyState
+                  className="front-office-inline-empty"
+                  description="The live digest is clear right now. Keep using the activity workbench below for direct cleanup and read-state changes."
+                  title="No digest pressure"
+                />
+              ) : null}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
             subtitle="The center should stay practical: reopen a shareable slice, clean the record, move the next touch, and keep formal ops in Back Office."
             title="How to use this command surface"
           >
@@ -492,6 +605,15 @@ export default async function AgentNotificationsPage(
           <SummaryChip
             label="Upcoming events"
             value={snapshot.summary.upcomingEventCount}
+          />
+          <SummaryChip
+            label="Digest items"
+            tone="accent"
+            value={cleanupDigest.summary.totalCount}
+          />
+          <SummaryChip
+            label="Digest next move"
+            value={cleanupDigest.nextActionLabel}
           />
         </>
       }
