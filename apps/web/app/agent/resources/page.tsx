@@ -1132,9 +1132,9 @@ export default async function AgentResourcesPage(props: {
                         ? "warning"
                         : interaction.kindLabel === "Watch progress"
                           ? "success"
-                        : interaction.kindLabel === "Resource search"
-                          ? "neutral"
-                          : "accent"
+                          : interaction.kindLabel === "Resource search"
+                            ? "neutral"
+                            : "accent"
                     }
                     context={interaction.timestampLabel}
                     description={interaction.detailLabel}
@@ -1161,6 +1161,7 @@ export default async function AgentResourcesPage(props: {
           {sharedTracking.visible ? (
             <SectionCard
               className="office-list-card"
+              id="shared-adoption-pulse"
               subtitle="Leads and office operators should be able to see whether this hub is actually getting used across the visible Front Office bench, not only inside one personal trail."
               title={sharedTracking.scopeLabel}
             >
@@ -1210,7 +1211,12 @@ export default async function AgentResourcesPage(props: {
                       meta={
                         <>
                           <span>{sharedTracking.scopeLabel}</span>
-                          <span>{pluralize(actor.interactionCount, "tracked action")}</span>
+                          <span>
+                            {pluralize(
+                              actor.interactionCount,
+                              "tracked action",
+                            )}
+                          </span>
                         </>
                       }
                       title={actor.label}
@@ -1243,9 +1249,9 @@ export default async function AgentResourcesPage(props: {
                           ? "warning"
                           : target.kindLabel === "Watch progress"
                             ? "success"
-                          : target.kindLabel === "Resource search"
-                            ? "neutral"
-                            : "accent"
+                            : target.kindLabel === "Resource search"
+                              ? "neutral"
+                              : "accent"
                       }
                       context={`${target.interactionCount} shared hit(s)`}
                       description={target.detailLabel}
@@ -1311,9 +1317,12 @@ export default async function AgentResourcesPage(props: {
                 description="Use the training lane when the job is a refresher instead of a new document hunt. This hub now lets you log 25%, 50%, or complete after you actually watch the clip."
                 meta={
                   <>
-                    <span>{pluralize(trainingCount, "training clip")} published</span>
                     <span>
-                      {interactionTracking.completionCount} completion milestone(s) logged
+                      {pluralize(trainingCount, "training clip")} published
+                    </span>
+                    <span>
+                      {interactionTracking.completionCount} completion
+                      milestone(s) logged
                     </span>
                   </>
                 }

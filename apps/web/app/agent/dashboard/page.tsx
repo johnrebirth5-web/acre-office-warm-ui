@@ -73,27 +73,21 @@ function getDashboardQueueAction(input: {
 
   if (input.actionId === "follow-up" && input.href === "/agent/clients") {
     return {
-      href: input.count === 1
-        ? buildClientWorkbenchHref("anchor_now")
-        : buildClientWorkbenchHref("follow_first"),
-      label:
+      href:
         input.count === 1
-          ? "Anchor now"
-          : "Open follow-first queue",
+          ? buildClientWorkbenchHref("anchor_now")
+          : buildClientWorkbenchHref("follow_first"),
+      label: input.count === 1 ? "Anchor now" : "Open follow-first queue",
     };
   }
 
-  if (
-    input.actionId === "lease-reminders" &&
-    input.href === "/agent/clients"
-  ) {
+  if (input.actionId === "lease-reminders" && input.href === "/agent/clients") {
     return {
       href:
         input.count === 1
           ? buildClientWorkbenchHref("anchor_now")
           : buildClientWorkbenchHref("viewing_lane"),
-      label:
-        input.count === 1 ? "Anchor lease now" : "Open lease lane",
+      label: input.count === 1 ? "Anchor lease now" : "Open lease lane",
     };
   }
 
@@ -116,7 +110,9 @@ type DashboardLaunchpadItem = {
 };
 
 function getLaunchpadStepContext(index: number) {
-  return index === 0 ? "Step 1 · Do this first" : `Step ${index + 1} · Keep moving`;
+  return index === 0
+    ? "Step 1 · Do this first"
+    : `Step ${index + 1} · Keep moving`;
 }
 
 function formatTodayActionLabel(count: number) {
@@ -169,7 +165,8 @@ function buildDashboardLaunchpadItems(input: {
   const leadingCommitment = input.snapshot.commitments.items[0] ?? null;
   const leadingLeaseReminder = input.snapshot.leaseReminders.items[0] ?? null;
   const leadingAiItem = input.snapshot.aiQueue.items[0] ?? null;
-  const leadingEngagement = input.snapshot.listingOutput.recentEngagement[0] ?? null;
+  const leadingEngagement =
+    input.snapshot.listingOutput.recentEngagement[0] ?? null;
   const leadingBackOfficeItem = input.snapshot.backOffice.items[0] ?? null;
   const leadingLeadershipItem = input.snapshot.leadershipQueue.items[0] ?? null;
   const actionQueueById = new Map(
@@ -180,7 +177,9 @@ function buildDashboardLaunchpadItems(input: {
       (client) =>
         client.nextTouchLabel.includes("Due") ||
         client.nextTouchLabel.includes("Overdue"),
-    ) ?? input.snapshot.pipeline.recentClients[0] ?? null;
+    ) ??
+    input.snapshot.pipeline.recentClients[0] ??
+    null;
   const followUpAction = actionQueueById.get("follow-up") ?? null;
   const commitmentAction = actionQueueById.get("commitments") ?? null;
   const leaseAction = actionQueueById.get("lease-reminders") ?? null;
@@ -203,7 +202,9 @@ function buildDashboardLaunchpadItems(input: {
       metaLabel: leadershipAction
         ? `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s) · ${leadershipAction.nextStepLabel}`
         : `${input.snapshot.summary.leadershipPressureCount} visible cleanup signal(s)`,
-      href: leadershipAction?.href ?? "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
+      href:
+        leadershipAction?.href ??
+        "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure",
       actionLabel: leadershipAction?.actionLabel ?? "Open cleanup re-entry",
     });
   }
@@ -270,7 +271,8 @@ function buildDashboardLaunchpadItems(input: {
           ? `${leadingCommitment.startsAtLabel} · ${leadingCommitment.contextLabel}`
           : `${input.snapshot.summary.todayCommitmentCount} commitment(s) scheduled today`,
       href: commitmentAction?.href ?? "/agent/calendar",
-      actionLabel: commitmentAction?.actionLabel ?? "Open appointment workbench",
+      actionLabel:
+        commitmentAction?.actionLabel ?? "Open appointment workbench",
     });
   }
 
@@ -287,7 +289,8 @@ function buildDashboardLaunchpadItems(input: {
         ? handoffAction.nextStepLabel
         : leadingBackOfficeItem.contextLabel,
       href: handoffAction?.href ?? leadingBackOfficeItem.href,
-      actionLabel: handoffAction?.actionLabel ?? leadingBackOfficeItem.actionLabel,
+      actionLabel:
+        handoffAction?.actionLabel ?? leadingBackOfficeItem.actionLabel,
     });
   }
 
@@ -403,9 +406,7 @@ function buildDashboardHeroStats(input: {
       value: followUpPressureCount,
       hint: "due touches or overdue shared follow-up tasks",
       tone:
-        followUpPressureCount > 0
-          ? ("accent" as const)
-          : ("default" as const),
+        followUpPressureCount > 0 ? ("accent" as const) : ("default" as const),
     },
     {
       label: "Today commitments",
@@ -420,8 +421,7 @@ function buildDashboardHeroStats(input: {
       label: sendSignalLabel,
       value: sendSignalValue,
       hint: sendSignalHint,
-      tone:
-        sendSignalValue > 0 ? ("accent" as const) : ("default" as const),
+      tone: sendSignalValue > 0 ? ("accent" as const) : ("default" as const),
     },
     {
       label: "Needs Back Office",
@@ -458,7 +458,9 @@ function buildDashboardHeroStats(input: {
   return stats;
 }
 
-function getActionLaneStatus(item: FrontOfficeDashboardSnapshot["actionQueue"][number]) {
+function getActionLaneStatus(
+  item: FrontOfficeDashboardSnapshot["actionQueue"][number],
+) {
   if (item.count <= 0) {
     return {
       label: "Clear",
@@ -561,15 +563,17 @@ export default async function AgentDashboardPage() {
   const activityCenterHref = snapshot.leadershipQueue.visible
     ? leadershipCleanupHref
     : "/agent/notifications?activityView=personal_cleanup#personal-cleanup-pressure";
-  const listingSummaryChip = snapshot.listingOutput.engagedClientCount > 0
-    ? {
-        label: "Engaged clients",
-        value: snapshot.listingOutput.engagedClientCount,
-      }
-    : {
-        label: "Send-ready listings",
-        value: snapshot.listingOutput.activeListingCount,
-      };
+  const resourcePulse = snapshot.noticeRail.resourcePulse;
+  const listingSummaryChip =
+    snapshot.listingOutput.engagedClientCount > 0
+      ? {
+          label: "Engaged clients",
+          value: snapshot.listingOutput.engagedClientCount,
+        }
+      : {
+          label: "Send-ready listings",
+          value: snapshot.listingOutput.activeListingCount,
+        };
   const executionOrder = snapshot.actionQueue
     .filter((item) => item.count > 0)
     .slice(0, 4);
@@ -791,8 +795,8 @@ export default async function AgentDashboardPage() {
                   description="Jump into the full client list when you need the stage view, next-touch ordering, and the real queue for continuing review across existing dossiers."
                   meta={
                     <span>
-                      {clientsSnapshot.summary.followUpDueCount} follow-up item(s)
-                      are already due there.
+                      {clientsSnapshot.summary.followUpDueCount} follow-up
+                      item(s) are already due there.
                     </span>
                   }
                   title="Review the live client queue"
@@ -825,53 +829,56 @@ export default async function AgentDashboardPage() {
                       : "No pairwise duplicates in view"
                   }
                   description="Keep create-time duplicate warnings review-first: the dedicated lane in the client list is still the place to compare dossiers before you merge anything."
-                  meta={<span>Duplicate review stays in the client queue.</span>}
+                  meta={
+                    <span>Duplicate review stays in the client queue.</span>
+                  }
                   title="Follow the duplicate cue"
                 />
               </div>
 
               {clientsSnapshot.duplicatePairs.length ? (
                 <div className="office-queue-list">
-                  {clientsSnapshot.duplicatePairs
-                    .slice(0, 2)
-                    .map((pair) => (
-                      <FrontOfficeRailItem
-                        action={
-                          <>
-                            <FrontOfficeLink
-                              className="office-inline-link front-office-inline-link"
-                              href={pair.recommendedClient.href}
-                            >
-                              Review keep record
-                            </FrontOfficeLink>
-                            <FrontOfficeLink
-                              className="office-inline-link front-office-inline-link"
-                              href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
-                            >
-                              Open duplicate review workbench
-                            </FrontOfficeLink>
-                          </>
-                        }
-                        badgeLabel={
-                          pair.matchReasons.length >= 2
-                            ? "High overlap"
-                            : "Review first"
-                        }
-                        badgeTone={
-                          pair.matchReasons.length >= 2 ? "warning" : "accent"
-                        }
-                        context={pair.matchReasons.join(" · ")}
-                        description={pair.rationaleLabel}
-                        key={pair.id}
-                        meta={
-                          <>
-                            <span>{pair.recommendedClient.nextTouchLabel}</span>
-                            <span>{pair.duplicateClient.nextTouchLabel}</span>
-                          </>
-                        }
-                        title={`${pair.recommendedClient.fullName} <> ${pair.duplicateClient.fullName}`}
-                      />
-                    ))}
+                  {clientsSnapshot.duplicatePairs.slice(0, 2).map((pair) => (
+                    <FrontOfficeRailItem
+                      action={
+                        <>
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href={pair.recommendedClient.href}
+                          >
+                            Review keep record
+                          </FrontOfficeLink>
+                          <FrontOfficeLink
+                            className="office-inline-link front-office-inline-link"
+                            href={buildClientWorkbenchHref(
+                              "duplicate_review",
+                              "duplicate-review",
+                            )}
+                          >
+                            Open duplicate review workbench
+                          </FrontOfficeLink>
+                        </>
+                      }
+                      badgeLabel={
+                        pair.matchReasons.length >= 2
+                          ? "High overlap"
+                          : "Review first"
+                      }
+                      badgeTone={
+                        pair.matchReasons.length >= 2 ? "warning" : "accent"
+                      }
+                      context={pair.matchReasons.join(" · ")}
+                      description={pair.rationaleLabel}
+                      key={pair.id}
+                      meta={
+                        <>
+                          <span>{pair.recommendedClient.nextTouchLabel}</span>
+                          <span>{pair.duplicateClient.nextTouchLabel}</span>
+                        </>
+                      }
+                      title={`${pair.recommendedClient.fullName} <> ${pair.duplicateClient.fullName}`}
+                    />
+                  ))}
                 </div>
               ) : null}
             </SectionCard>
@@ -1063,7 +1070,10 @@ export default async function AgentDashboardPage() {
                   </FrontOfficeLink>
                   <FrontOfficeLink
                     className="office-inline-link front-office-inline-link"
-                    href={buildClientWorkbenchHref("duplicate_review", "duplicate-review")}
+                    href={buildClientWorkbenchHref(
+                      "duplicate_review",
+                      "duplicate-review",
+                    )}
                   >
                     Open duplicate review workbench
                   </FrontOfficeLink>
@@ -1654,6 +1664,105 @@ export default async function AgentDashboardPage() {
             </div>
           </SectionCard>
 
+          {resourcePulse.visible ? (
+            <SectionCard
+              className="office-list-card"
+              actions={
+                <FrontOfficeLink
+                  className="office-inline-link front-office-inline-link"
+                  href="/agent/resources#shared-adoption-pulse"
+                >
+                  Open shared pulse
+                </FrontOfficeLink>
+              }
+              subtitle="Leadership should be able to see whether the shared Front Office library is actually being used across the visible bench, not only published."
+              title={resourcePulse.scopeLabel}
+            >
+              <ListPageStatsGrid>
+                <StatCard
+                  hint="members in the visible FO scope"
+                  label="Visible members"
+                  value={resourcePulse.visibleMembershipCount}
+                />
+                <StatCard
+                  hint={resourcePulse.windowLabel.toLowerCase()}
+                  label="Active members"
+                  tone="accent"
+                  value={resourcePulse.activeMembershipCount}
+                />
+                <StatCard
+                  hint="tracked actions across the visible scope"
+                  label="Tracked actions"
+                  value={resourcePulse.totalCount}
+                />
+                <StatCard
+                  hint="resource opens across the visible scope"
+                  label="Resource opens"
+                  value={resourcePulse.resourceOpenCount}
+                />
+                <StatCard
+                  hint="vendor call, email, or site clicks"
+                  label="Vendor clicks"
+                  value={resourcePulse.vendorClickCount}
+                />
+                <StatCard
+                  hint="latest shared tracked activity"
+                  label="Last shared touch"
+                  value={resourcePulse.lastInteractionLabel}
+                />
+              </ListPageStatsGrid>
+
+              <div className="office-queue-list" style={{ marginTop: "1rem" }}>
+                {resourcePulse.topActors.length ? (
+                  resourcePulse.topActors.slice(0, 2).map((actor) => (
+                    <FrontOfficeRailItem
+                      badgeLabel="Operator"
+                      badgeTone="accent"
+                      description={`${actor.label} logged ${actor.interactionCount} tracked action(s) in ${resourcePulse.windowLabel.toLowerCase()}.`}
+                      key={actor.membershipId}
+                      meta={
+                        <>
+                          <span>{resourcePulse.scopeLabel}</span>
+                          <span>{actor.lastInteractionLabel}</span>
+                        </>
+                      }
+                      title={actor.label}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    className="front-office-inline-empty"
+                    description="Tracked resource search, training progress, and vendor use will start surfacing here once the visible bench works this hub live."
+                    title="No shared operator pulse yet"
+                  />
+                )}
+
+                {resourcePulse.hottestTargets.slice(0, 2).map((target) => (
+                  <FrontOfficeRailItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href="/agent/resources#shared-adoption-pulse"
+                      >
+                        Open shared pulse
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={target.kindLabel}
+                    description={`${target.interactionCount} tracked action(s) across ${resourcePulse.windowLabel.toLowerCase()}.`}
+                    key={target.key}
+                    meta={
+                      <>
+                        <span>{resourcePulse.scopeLabel}</span>
+                        <span>{target.detailLabel}</span>
+                      </>
+                    }
+                    title={target.title}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             className="office-list-card"
             subtitle="Operational shortcuts for vendors that agents need during client execution."
@@ -1706,7 +1815,11 @@ export default async function AgentDashboardPage() {
           />
           <SummaryChip label="Access" value={access.label} />
           <SummaryChip label="Role focus" value={roleFocus.label} />
-          <SummaryChip label="Today actions" tone="accent" value={todayActionCount} />
+          <SummaryChip
+            label="Today actions"
+            tone="accent"
+            value={todayActionCount}
+          />
           <SummaryChip
             label="Start with"
             tone="accent"
