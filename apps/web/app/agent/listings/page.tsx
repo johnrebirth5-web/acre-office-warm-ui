@@ -198,12 +198,24 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               />
               <StatCard
                 className="front-office-listings-rail-stat"
-                hint="tracked listings still waiting on a click"
-                label="Quiet trails"
-                tone={
-                  usagePulse.quietTrackedListingCount > 0 ? "default" : "accent"
-                }
-                value={usagePulse.quietTrackedListingCount}
+                hint={usagePulse.sendTrailDescription}
+                label="Send trail"
+                tone={usagePulse.trackedLinkCount > 0 ? "accent" : "default"}
+                value={usagePulse.sendTrailLabel}
+              />
+              <StatCard
+                className="front-office-listings-rail-stat"
+                hint={usagePulse.quietTrailDescription}
+                label="Quiet trail"
+                tone={usagePulse.quietTrackedListingCount > 0 ? "default" : "accent"}
+                value={usagePulse.quietTrailLabel}
+              />
+              <StatCard
+                className="front-office-listings-rail-stat"
+                hint={usagePulse.nextMoveDescription}
+                label="Next move"
+                tone="accent"
+                value={usagePulse.nextMoveLabel}
               />
             </ListPageStatsGrid>
             <div className="office-queue-list">

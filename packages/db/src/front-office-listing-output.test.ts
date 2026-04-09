@@ -5,7 +5,9 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "./client.ts"
 import {
   createFrontOfficeListingShareLink,
+  buildFrontOfficeListingUsagePulse,
   getFrontOfficeListingSharePageSnapshot,
+  type FrontOfficeListingUsagePulseListing,
 } from "./front-office-listing-output.ts"
 
 after(async () => {
@@ -218,4 +220,79 @@ test("client-bound listing shares create tracked send records and update opens f
   } finally {
     await context.cleanup()
   }
+})
+
+test("listing usage pulse surfaces explicit send trail and next move summaries", () => {
+  const listings: FrontOfficeListingUsagePulseListing[] = [
+    {
+      id: "listing-a",
+      title: "Quiet Trail Listing",
+      areaLabel: "Park Slope, Brooklyn",
+      summaryLabel: "A listing still waiting on its first click pulse.",
+      priceLabel: "$1,250,000",
+      cityLabel: "Brooklyn",
+      statusLabel: "Active",
+      statusTone: "warning",
+      trackedClickCount: 0,
+      trackedLinkCount: 1,
+      latestTrackedShare: {
+        modeLabel: "Client dossier context",
+        channelLabel: "Email",
+        sentAtLabel: "Apr 8, 2026",
+        sentAtValue: "2026-04-08T14:00:00.000Z",
+        trackingLabel: "Tracked via Email.",
+        trackingStatus: "tracked_link_only",
+        statusTone: "warning",
+        writebackLabel: "Tracked link saved without client-linked writeback.",
+        writebackScopeLabel: "Writeback scope stays on the selected client's Front Office dossier trail.",
+        nextStepLabel: "Paste the email package into your mail client and send it manually.",
+        clientLabel: "Follow Through Client",
+        clientStageDisplayLabel: "Warm Lead",
+        clientHref: "/agent/clients/client-a",
+        appointmentLabel: null,
+        appointmentWindowLabel: null,
+        appointmentHref: null,
+      },
+    },
+    {
+      id: "listing-b",
+      title: "Active Trail Listing",
+      areaLabel: "Cobble Hill, Brooklyn",
+      summaryLabel: "A listing that already has an engaged send trail.",
+      priceLabel: "$1,900,000",
+      cityLabel: "Brooklyn",
+      statusLabel: "Active",
+      statusTone: "accent",
+      trackedClickCount: 1,
+      trackedLinkCount: 2,
+      latestTrackedShare: {
+        modeLabel: "Appointment follow-through lane",
+        channelLabel: "SMS",
+        sentAtLabel: "Apr 8, 2026",
+        sentAtValue: "2026-04-08T16:00:00.000Z",
+        trackingLabel: "Tracked via SMS.",
+        trackingStatus: "tracked_send_recorded",
+        statusTone: "accent",
+        writebackLabel: "Tracked link, send record, and AI acceptance trail saved.",
+        writebackScopeLabel: "Writeback scope stays on the selected client and appointment, so reply pressure and appointment continuity remain on one trail.",
+        nextStepLabel: "Paste the SMS package into your texting app and send it manually.",
+        clientLabel: "Follow Through Client",
+        clientStageDisplayLabel: "Warm Lead",
+        clientHref: "/agent/clients/client-b",
+        appointmentLabel: "Open House",
+        appointmentWindowLabel: "ahead of the appointment window",
+        appointmentHref: "/agent/calendar/appointments/appointment-b",
+      },
+    },
+  ]
+
+  const usagePulse = buildFrontOfficeListingUsagePulse(listings)
+
+  assert.equal(usagePulse.sendTrailLabel, "Mixed send trail")
+  assert.equal(usagePulse.quietTrailLabel, "1 quiet trail(s)")
+  assert.equal(usagePulse.nextMoveLabel, "Rescue quiet trails")
+  assert.equal(usagePulse.strongestTrail?.title, "Active Trail Listing")
+  assert.equal(usagePulse.latestTrackedShare?.title, "Active Trail Listing")
+  assert.match(usagePulse.sendTrailDescription, /quiet/)
+  assert.match(usagePulse.nextMoveDescription, /quiet/i)
 })
