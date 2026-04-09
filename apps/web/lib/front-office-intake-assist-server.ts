@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  FRONT_OFFICE_LEAD_INTAKE_OCR_MAX_IMAGE_BYTES,
   buildFrontOfficeLeadIntakeOcrMetadata,
   normalizeFrontOfficeLeadIntakeOcrText,
   recognizeFrontOfficeLeadIntakeOcrImage,
@@ -93,7 +94,7 @@ type FrontOfficeLeadIntakeAssistServerResult = {
 };
 
 export const FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES =
-  10 * 1024 * 1024;
+  FRONT_OFFICE_LEAD_INTAKE_OCR_MAX_IMAGE_BYTES;
 
 const defaultFrontOfficeLeadIntakeAssistRouteDependencies = {
   canViewOfficeContacts: (_subject: unknown) => true,
@@ -135,7 +136,7 @@ function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
       code: "oversized_image",
       label: "Screenshot too large for OCR",
       detail:
-        "The uploaded image crossed the server OCR size limit, so Acre stopped before local Tesseract ran.",
+        `The uploaded image crossed the ${input.ocr.capability.maxImageBytes / (1024 * 1024)} MB local OCR limit, so Acre stopped before local Tesseract ran.`,
     });
   }
 
@@ -144,7 +145,7 @@ function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
       code: "ocr_failed",
       label: "Screenshot OCR returned no text",
       detail:
-        "Acre ran local Tesseract on the server, but the image did not produce readable text.",
+        "Acre ran the local-only OCR resolver with local Tesseract, but the image did not produce readable text.",
     });
   }
 
@@ -153,7 +154,7 @@ function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
       code: "transcript_fallback",
       label: "Transcript used as fallback",
       detail:
-        "The pasted transcript supplied the usable text after local Tesseract did not return a readable extract.",
+        "The pasted transcript supplied the usable text after the local-only OCR resolver did not return a readable extract.",
     });
   }
 

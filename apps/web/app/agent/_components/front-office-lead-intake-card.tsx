@@ -100,7 +100,16 @@ type FrontOfficeLeadIntakeAssistServerResponse = {
   metadata: {
     ocr: {
       provider: "local_tesseract";
-      mode: "server_side";
+      resolverMode: "local_only";
+      providerChain: readonly string[];
+      capability: {
+        resolverMode: "local_only";
+        providerBacked: false;
+        providerChain: readonly string[];
+        maxImageBytes: number;
+        acceptedMimeTypes: readonly string[];
+        fallbackStory: "transcript_fallback";
+      };
       attempted: boolean;
       succeeded: boolean;
       fallback: "none" | "transcript";
@@ -249,15 +258,15 @@ function buildAssistServerProvenanceLabel(
 
   if (provenance.transcript.present && provenance.image.present) {
     return provenance.rawText.fallbackUsed
-      ? "Source trail: transcript fallback after local OCR"
+      ? "Source trail: transcript fallback after local-only OCR"
       : provenance.rawText.ocrIncluded
-        ? "Source trail: transcript + local OCR"
+        ? "Source trail: transcript + local-only OCR"
         : "Source trail: transcript + screenshot upload";
   }
 
   if (provenance.image.present) {
     return provenance.rawText.ocrIncluded
-      ? "Source trail: local OCR only"
+      ? "Source trail: local-only OCR"
       : "Source trail: screenshot upload only";
   }
 
@@ -283,10 +292,8 @@ function buildAssistServerOcrLabel(
     metadata.ocr.fallback === "transcript"
       ? "transcript fallback"
       : "no fallback";
-  const modeLabel =
-    metadata.ocr.mode === "server_side" ? "server-side" : metadata.ocr.mode;
 
-  return `OCR: ${providerLabel} · ${modeLabel} · ${fallbackLabel}`;
+  return `OCR: local-only resolver · ${providerLabel} · ${fallbackLabel}`;
 }
 
 function buildAssistServerWarningLabel(
@@ -1590,7 +1597,7 @@ export function FrontOfficeLeadIntakeCard(
       setAssistFeedback({
         tone: "error",
         message:
-          "Upload a screenshot image file only. PNG or JPG chat crops work best for OCR review.",
+          "Upload a screenshot image file only. PNG, JPG, or WebP chat crops work best for OCR review.",
       });
       return;
     }
@@ -1625,8 +1632,8 @@ export function FrontOfficeLeadIntakeCard(
     setAssistFeedback(null);
     setAssistProgressMessage(
       assistImage
-        ? "Running local Tesseract OCR on the server..."
-        : "Parsing pasted transcript on the server...",
+        ? "Running the local-only OCR resolver on the server..."
+        : "Parsing the pasted transcript through the local-only resolver...",
     );
     setIsExtractingAssist(true);
 
