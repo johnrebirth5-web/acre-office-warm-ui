@@ -128,6 +128,7 @@ export type FrontOfficeListingUsagePulseListing = {
     appointmentLabel: string | null;
     appointmentWindowLabel: string | null;
     appointmentHref: string | null;
+    followThroughCue?: string;
   } | null;
 };
 
@@ -644,12 +645,12 @@ function buildListingUsagePulseNextMoveSummary(input: {
 
   if (input.trackedClickCount <= 0) {
     return {
-      label: "Tighten the quiet trail",
+      label: "Rescue quiet trail",
       description: input.latestTrackedShare?.clientHref
-        ? "Reopen the client trail with a tighter reason-to-care, then keep the tracked link attached."
+        ? "Reopen the client trail with a stronger reason-to-care, then keep the tracked link attached."
         : input.latestTrackedShare?.appointmentHref
-          ? "Reopen the appointment trail with a tighter reaction path, then keep the tracked link attached."
-          : "Tighten the framing, then resend from the same trail so the first click pulse can return.",
+          ? "Reopen the appointment trail with a faster reaction path, then keep the tracked link attached."
+          : "Rescue the same trail with a clearer reason-to-care so the first click pulse can return.",
     };
   }
 
@@ -720,13 +721,17 @@ function buildListingUsagePulseCard(
   ];
 
   if (latestShare) {
+    const latestShareFollowThroughCue =
+      latestShare.followThroughCue ??
+      buildListingUsagePulseFollowThroughCue(listing);
+
     meta.push(`Send trail · ${trailState.badgeLabel}`);
     meta.push(`Quiet trail · ${buildListingUsagePulseQuietTrailCue(listing)}`);
     meta.push(`Next move · ${buildListingUsagePulseNextMoveCue(listing)}`);
     meta.push(`Latest share · ${latestShare.sentAtLabel}`);
+    meta.push(`Follow-through · ${latestShareFollowThroughCue}`);
     meta.push(latestShare.writebackScopeLabel);
     meta.push(`Next step · ${latestShare.nextStepLabel}`);
-    meta.push(`Follow-through · ${buildListingUsagePulseFollowThroughCue(listing)}`);
 
     if (latestShare.clientLabel) {
       meta.push(
@@ -804,7 +809,7 @@ export function buildFrontOfficeListingUsagePulse(
     trackedLinkCount <= 0
       ? "No tracked links have been created yet, so the desk is still waiting for its first measured send."
       : engagedListingCount <= 0
-      ? `${trackedLinkCount} tracked link(s) are in motion across ${trackedListingCount} listing(s), but no clicks have returned yet.`
+        ? `${trackedLinkCount} tracked link(s) are in motion across ${trackedListingCount} listing(s), but no clicks have returned yet.`
         : `${trackedClickCount} tracked click(s) are flowing across ${engagedListingCount} engaged listing(s), with ${quietTrackedListingCount} quiet tracked trail(s) still waiting on a response.`;
   const sendTrailSummary = buildListingUsagePulseSendTrailSummary({
     trackedLinkCount,

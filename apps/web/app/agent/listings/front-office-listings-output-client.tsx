@@ -966,6 +966,64 @@ export function FrontOfficeListingsOutputClient(
           <span>{props.usagePulse.nextMoveLabel}</span>
         </div>
         <div className="office-queue-list">
+          <QueueItem
+            action={
+              <>
+                {props.usagePulse.latestTrackedShare?.clientHref ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.usagePulse.latestTrackedShare.clientHref}
+                  >
+                    Open bound dossier
+                  </FrontOfficeLink>
+                ) : null}
+                {props.usagePulse.latestTrackedShare?.appointmentHref ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.usagePulse.latestTrackedShare.appointmentHref}
+                  >
+                    Open bound appointment
+                  </FrontOfficeLink>
+                ) : null}
+                {props.usagePulse.strongestTrail?.clientHref ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.usagePulse.strongestTrail.clientHref}
+                  >
+                    Open strongest dossier
+                  </FrontOfficeLink>
+                ) : null}
+                {props.usagePulse.strongestTrail?.appointmentHref ? (
+                  <FrontOfficeLink
+                    className="office-inline-link"
+                    href={props.usagePulse.strongestTrail.appointmentHref}
+                  >
+                    Open strongest appointment
+                  </FrontOfficeLink>
+                ) : null}
+              </>
+            }
+            badgeLabel={props.usagePulse.nextMoveLabel}
+            badgeTone={
+              props.usagePulse.quietTrackedListingCount > 0
+                ? "warning"
+                : "accent"
+            }
+            context="Rescue lane"
+            description={props.usagePulse.nextMoveDescription}
+            meta={
+              <>
+                <span>{props.usagePulse.sendTrailLabel}</span>
+                <span>{props.usagePulse.quietTrailLabel}</span>
+                <span>
+                  Follow-through ·{" "}
+                  {props.usagePulse.latestTrackedShare?.followThroughCue ??
+                    props.usagePulse.nextMoveDescription}
+                </span>
+              </>
+            }
+            title="Rescue lane"
+          />
           {props.usagePulse.strongestTrail ? (
             <QueueItem
               action={
@@ -994,6 +1052,10 @@ export function FrontOfficeListingsOutputClient(
               description={props.usagePulse.strongestTrail.description}
               meta={
                 <>
+                  <span>
+                    Follow-through ·{" "}
+                    {props.usagePulse.strongestTrail.followThroughCue}
+                  </span>
                   {props.usagePulse.strongestTrail.meta.map((item) => (
                     <span key={item}>{item}</span>
                   ))}
@@ -1030,6 +1092,10 @@ export function FrontOfficeListingsOutputClient(
               description={props.usagePulse.latestTrackedShare.description}
               meta={
                 <>
+                  <span>
+                    Follow-through ·{" "}
+                    {props.usagePulse.latestTrackedShare.followThroughCue}
+                  </span>
                   {props.usagePulse.latestTrackedShare.meta.map((item) => (
                     <span key={item}>{item}</span>
                   ))}
@@ -1039,12 +1105,15 @@ export function FrontOfficeListingsOutputClient(
             />
           ) : null}
         </div>
-        <div className="front-office-playbook-card-head" style={{ marginTop: "0.4rem" }}>
-          <strong>Recent tracked shares</strong>
+        <div
+          className="front-office-playbook-card-head"
+          style={{ marginTop: "0.4rem" }}
+        >
+          <strong>Recent tracked timeline</strong>
           <span>
-            Newest first. The latest tracked share stays at the top, followed
-            by older shares so you can see which trails are still warm and
-            which ones need a new next move.
+            Newest first. Each card carries the latest send plus the
+            follow-through cue that tells you how to rescue or continue the
+            trail.
           </span>
         </div>
         <div className="office-queue-list">
@@ -1078,6 +1147,7 @@ export function FrontOfficeListingsOutputClient(
                 key={`${share.title}-${share.context}`}
                 meta={
                   <>
+                    <span>Follow-through · {share.followThroughCue}</span>
                     {share.meta.map((item) => (
                       <span key={item}>{item}</span>
                     ))}
@@ -1090,8 +1160,8 @@ export function FrontOfficeListingsOutputClient(
             <QueueItem
               badgeLabel="No recent trails"
               badgeTone="neutral"
-              description="Recent tracked shares will appear here once the desk has enough outbound activity to build a small timeline."
-              title="Recent tracked shares"
+              description="Recent tracked shares will appear here once the desk has enough outbound activity to build a small timeline with rescue cues."
+              title="Recent tracked timeline"
             />
           )}
         </div>

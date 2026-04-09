@@ -207,7 +207,9 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                 className="front-office-listings-rail-stat"
                 hint={usagePulse.quietTrailDescription}
                 label="Quiet trail"
-                tone={usagePulse.quietTrackedListingCount > 0 ? "default" : "accent"}
+                tone={
+                  usagePulse.quietTrackedListingCount > 0 ? "default" : "accent"
+                }
                 value={usagePulse.quietTrailLabel}
               />
               <StatCard
@@ -219,6 +221,61 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
               />
             </ListPageStatsGrid>
             <div className="office-queue-list">
+              <FrontOfficeRailItem
+                action={
+                  <>
+                    {usagePulse.latestTrackedShare?.clientHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={usagePulse.latestTrackedShare.clientHref}
+                      >
+                        Open bound dossier
+                      </FrontOfficeLink>
+                    ) : null}
+                    {usagePulse.latestTrackedShare?.appointmentHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={usagePulse.latestTrackedShare.appointmentHref}
+                      >
+                        Open bound appointment
+                      </FrontOfficeLink>
+                    ) : null}
+                    {usagePulse.strongestTrail?.clientHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={usagePulse.strongestTrail.clientHref}
+                      >
+                        Open strongest dossier
+                      </FrontOfficeLink>
+                    ) : null}
+                    {usagePulse.strongestTrail?.appointmentHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={usagePulse.strongestTrail.appointmentHref}
+                      >
+                        Open strongest appointment
+                      </FrontOfficeLink>
+                    ) : null}
+                  </>
+                }
+                badgeLabel={usagePulse.nextMoveLabel}
+                badgeTone={
+                  usagePulse.quietTrackedListingCount > 0 ? "warning" : "accent"
+                }
+                description={usagePulse.nextMoveDescription}
+                meta={
+                  <>
+                    <span>{usagePulse.sendTrailLabel}</span>
+                    <span>{usagePulse.quietTrailLabel}</span>
+                    <span>
+                      Follow-through ·{" "}
+                      {usagePulse.latestTrackedShare?.followThroughCue ??
+                        usagePulse.nextMoveDescription}
+                    </span>
+                  </>
+                }
+                title="Rescue lane"
+              />
               {usagePulse.strongestTrail ? (
                 <FrontOfficeRailItem
                   action={
@@ -246,6 +303,10 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                   description={usagePulse.strongestTrail.description}
                   meta={
                     <>
+                      <span>
+                        Follow-through ·{" "}
+                        {usagePulse.strongestTrail.followThroughCue}
+                      </span>
                       {usagePulse.strongestTrail.meta.map((item) => (
                         <span key={item}>{item}</span>
                       ))}
@@ -288,6 +349,10 @@ export default async function AgentListingsPage(props: AgentListingsPageProps) {
                   description={usagePulse.latestTrackedShare.description}
                   meta={
                     <>
+                      <span>
+                        Follow-through ·{" "}
+                        {usagePulse.latestTrackedShare.followThroughCue}
+                      </span>
                       {usagePulse.latestTrackedShare.meta.map((item) => (
                         <span key={item}>{item}</span>
                       ))}
