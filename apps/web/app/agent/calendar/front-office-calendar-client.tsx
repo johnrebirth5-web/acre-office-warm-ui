@@ -79,6 +79,10 @@ type BridgeActionResponse = {
   action: FrontOfficeAppointmentBridgeAction;
   actionLabel: string;
   checkpoint: FrontOfficeAppointmentCheckpointSummary;
+  continuity?: FrontOfficeAppointmentCheckpointSummary & {
+    returnToLabel: string;
+    returnToDetail: string;
+  };
   manualOnlyDetail?: string;
   followUpDetail?: string;
   followUpCadenceLabel?: string;
@@ -120,6 +124,7 @@ type BridgeOutcomeState = {
   followUpCadenceDetail: string;
   resultKind: BridgeActionResponse["result"]["kind"];
   checkpoint: FrontOfficeAppointmentCheckpointSummary;
+  continuity: BridgeActionResponse["continuity"] | null;
   suggestedWriteback: BridgeActionResponse["suggestedWriteback"];
 };
 
@@ -129,6 +134,10 @@ type AppointmentMutationResponse = {
     title?: string;
   };
   checkpoint?: FrontOfficeAppointmentCheckpointSummary;
+  continuity?: FrontOfficeAppointmentCheckpointSummary & {
+    returnToLabel: string;
+    returnToDetail: string;
+  };
   error?: string;
   hint?: string;
 } | null;
@@ -1242,14 +1251,25 @@ export function FrontOfficeCalendarClient(
     return payload?.hint ? `${baseMessage} ${payload.hint}` : baseMessage;
   }
 
-  function formatCheckpointContinuation(
-    checkpoint?: FrontOfficeAppointmentCheckpointSummary | null,
+  function formatBridgeContinuation(
+    continuity?:
+      | (FrontOfficeAppointmentCheckpointSummary & {
+          returnToLabel?: string;
+          returnToDetail?: string;
+        })
+      | null,
   ) {
-    if (!checkpoint) {
+    if (!continuity) {
       return null;
     }
 
-    return [checkpoint.label, checkpoint.nextStep]
+    return [
+      continuity.label,
+      continuity.detail,
+      continuity.nextStep,
+      continuity.returnToLabel,
+      continuity.returnToDetail,
+    ]
       .filter(Boolean)
       .join(" · ");
   }
@@ -1417,8 +1437,8 @@ export function FrontOfficeCalendarClient(
         return;
       }
 
-      const checkpointContinuation = formatCheckpointContinuation(
-        payload?.checkpoint,
+      const checkpointContinuation = formatBridgeContinuation(
+        payload?.continuity ?? payload?.checkpoint ?? null,
       );
 
       setFeedback({
@@ -1502,8 +1522,8 @@ export function FrontOfficeCalendarClient(
         return;
       }
 
-      const checkpointContinuation = formatCheckpointContinuation(
-        payload?.checkpoint,
+      const checkpointContinuation = formatBridgeContinuation(
+        payload?.continuity ?? payload?.checkpoint ?? null,
       );
 
       setFeedback({
@@ -1578,8 +1598,8 @@ export function FrontOfficeCalendarClient(
         return;
       }
 
-      const checkpointContinuation = formatCheckpointContinuation(
-        payload?.checkpoint,
+      const checkpointContinuation = formatBridgeContinuation(
+        payload?.continuity ?? payload?.checkpoint ?? null,
       );
 
       setFeedback({
@@ -1643,6 +1663,16 @@ export function FrontOfficeCalendarClient(
       }
 
       const checkpoint = payload.checkpoint;
+      const continuity =
+        payload.continuity ??
+        (checkpoint
+          ? {
+              ...checkpoint,
+              returnToLabel: "Return to writeback",
+              returnToDetail:
+                "Jump back to the same appointment after the draft or export finishes, then save the checkpoint in Acre.",
+            }
+          : null);
 
       if (payload.result.kind === "redirect") {
         const opened = window.open(
@@ -1668,9 +1698,14 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message: [
           `${payload.actionLabel} opened.`,
-          checkpoint ? `Checkpoint: ${checkpoint.label}.` : null,
-          checkpoint?.detail ?? payload.followUpCadenceDetail ?? payload.followUpDetail ?? null,
-          checkpoint?.nextStep ?? payload.followUpDetail ?? null,
+          continuity ? `Checkpoint: ${continuity.label}.` : null,
+          continuity?.detail ??
+            checkpoint?.detail ??
+            payload.followUpCadenceDetail ??
+            payload.followUpDetail ??
+            null,
+          continuity?.nextStep ?? checkpoint?.nextStep ?? payload.followUpDetail ?? null,
+          continuity?.returnToDetail ?? null,
           primedPresetLabel
             ? `${primedPresetLabel} is already loaded into the writeback draft as the next promised checkpoint.`
             : null,
@@ -1711,6 +1746,7 @@ export function FrontOfficeCalendarClient(
             sourceNote:
               payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
           },
+        continuity,
         suggestedWriteback: payload.suggestedWriteback ?? null,
       });
       refreshIntoAppointmentFocus(
@@ -2458,9 +2494,9 @@ export function FrontOfficeCalendarClient(
                     <p>
                       Google, Outlook, ICS, and email actions only open drafts
                       or exports from this appointment and log that bridge trail
-                      here. The next move is still to save the reply due,
-                      confirmation pending, reschedule, or touch scheduled
-                      checkpoint back into Acre.
+                      here. The next move is still to jump back to the same
+                      appointment and save the reply due, confirmation pending,
+                      reschedule, or touch scheduled checkpoint back into Acre.
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.bridgeStatusLabel}</span>
@@ -2475,9 +2511,10 @@ export function FrontOfficeCalendarClient(
                     <p>
                       Quick coordination actions and saved writebacks only
                       update Acre&apos;s readable coordination record. The next
-                      move is to keep the promised checkpoint visible here. They
-                      do not auto-send email, create background jobs, or
-                      schedule provider events for you.
+                      move is to keep the promised checkpoint visible here on
+                      the same appointment record. They do not auto-send email,
+                      create background jobs, or schedule provider events for
+                      you.
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.followUpPlanLabel}</span>
@@ -2492,8 +2529,9 @@ export function FrontOfficeCalendarClient(
                   <p className="front-office-record-supporting">
                     Bridge actions open a draft or export in a new tab. The
                     history below records that you opened the bridge from Acre,
-                    but it does not claim the outside calendar or inbox synced
-                    back automatically.
+                    and the next move is to return here and write the checkpoint
+                    back on this same appointment. It still does not claim the
+                    outside calendar or inbox synced back automatically.
                   </p>
                   <button
                     className="office-button-secondary office-inline-action-sm"
@@ -2595,6 +2633,7 @@ export function FrontOfficeCalendarClient(
                       </div>
                     }
                     badgeLabel={
+                      bridgeOutcome.continuity?.label ??
                       bridgeOutcome.checkpoint.label ??
                       bridgeOutcome.followUpCadenceLabel ??
                       bridgeOutcome.suggestedWriteback?.label ??
@@ -2605,11 +2644,29 @@ export function FrontOfficeCalendarClient(
                         ? "accent"
                         : "warning"
                     }
-                    description={bridgeOutcome.checkpoint.detail}
+                    description={
+                      bridgeOutcome.continuity?.detail ??
+                      bridgeOutcome.checkpoint.detail
+                    }
                     meta={
                       <>
-                        <span>{bridgeOutcome.checkpoint.sourceNote}</span>
-                        <span>Next move: {bridgeOutcome.checkpoint.nextStep}</span>
+                        <span>
+                          {bridgeOutcome.continuity?.sourceNote ??
+                            bridgeOutcome.checkpoint.sourceNote}
+                        </span>
+                        <span>
+                          Next move:{" "}
+                          {bridgeOutcome.continuity?.nextStep ??
+                            bridgeOutcome.checkpoint.nextStep}
+                        </span>
+                        <span>
+                          {bridgeOutcome.continuity?.returnToLabel ??
+                            "Return to writeback"}
+                        </span>
+                        <span>
+                          {bridgeOutcome.continuity?.returnToDetail ??
+                            "Jump back to the same appointment after the draft or export finishes, then save the checkpoint in Acre."}
+                        </span>
                         <span>
                           {bridgeOutcome.resultKind === "calendar_export"
                             ? "ICS export logged"
@@ -2627,9 +2684,10 @@ export function FrontOfficeCalendarClient(
                       Checkpoint shortcuts
                     </span>
                     <p className="front-office-record-supporting">
-                      These quick actions update Acre&apos;s writeback only.
-                      They do not send mail, change Google or Outlook, or claim
-                      any background sync.
+                      These quick actions update Acre&apos;s writeback only and
+                      keep the next checkpoint visible on this same
+                      appointment. They do not send mail, change Google or
+                      Outlook, or claim any background sync.
                     </p>
                   </div>
                   <div className="front-office-calendar-actions">
@@ -2661,8 +2719,9 @@ export function FrontOfficeCalendarClient(
                       </span>
                       <p className="front-office-record-supporting">
                         Use these to save a suggested status plus checkpoint
-                        details directly into Acre. They do not send mail or
-                        update Google / Outlook in the background.
+                        details directly into Acre, then return to the same
+                        appointment when the bridge is done. They do not send
+                        mail or update Google / Outlook in the background.
                       </p>
                     </div>
                     <div className="front-office-calendar-actions">
