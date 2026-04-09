@@ -130,7 +130,16 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    return NextResponse.json({ appointment });
+    return NextResponse.json({
+      appointment,
+      checkpoint: {
+        label: appointment.coordinationLabel,
+        detail: appointment.coordinationDetail,
+        nextStep: appointment.coordinationNextStep,
+        sourceNote:
+          "Acre keeps the appointment checkpoint as the source of truth; the outside calendar or email draft stays manual unless it is written back here.",
+      },
+    });
   } catch (error) {
     const message =
       error instanceof Error
