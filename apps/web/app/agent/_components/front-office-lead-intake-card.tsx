@@ -90,6 +90,14 @@ type AssistFeedbackState = {
   message: string;
 } | null;
 
+type FrontOfficeLeadIntakeAssistServerResponse = {
+  rawText: string;
+  sourceMode: "text" | "image" | "hybrid";
+  hadImage: boolean;
+  ocrSucceeded: boolean;
+  sourceSurface: string | null;
+};
+
 type IntakeReviewSectionKey =
   | "identity"
   | "qualification"
@@ -1490,7 +1498,7 @@ export function FrontOfficeLeadIntakeCard(
       setAssistFeedback({
         tone: "error",
         message:
-          "That screenshot is too large for quick browser-side OCR. Try a tighter crop under 10 MB.",
+          "That screenshot is too large for quick server-side OCR. Try a tighter crop under 10 MB.",
       });
       return;
     }
@@ -1516,75 +1524,57 @@ export function FrontOfficeLeadIntakeCard(
     setAssistFeedback(null);
     setAssistProgressMessage(
       assistImage
-        ? "Preparing browser-side OCR for the uploaded screenshot..."
-        : "Parsing pasted transcript...",
+        ? "Sending screenshot to Acre's server for OCR..."
+        : "Parsing pasted transcript on the server...",
     );
     setIsExtractingAssist(true);
 
     const isCurrentRun = () => assistRunIdRef.current === assistRunId;
 
     try {
-      let ocrText = "";
-      let ocrFailed = false;
+      const formData = new FormData();
+      formData.append("transcript", transcriptText);
 
-      try {
-        if (assistImage) {
-          const { recognize } = await import("tesseract.js");
-          const { data } = await recognize(assistImage, "eng+chi_sim", {
-            logger: (message) => {
-              if (!isCurrentRun()) {
-                return;
-              }
-
-              const progress =
-                typeof message.progress === "number"
-                  ? ` ${Math.round(message.progress * 100)}%`
-                  : "";
-              setAssistProgressMessage(`${message.status}${progress}`);
-            },
-          });
-
-          if (!isCurrentRun()) {
-            return;
-          }
-
-          ocrText = data.text.trim();
-        }
-      } catch {
-        ocrFailed = true;
+      if (assistImage) {
+        formData.append("image", assistImage);
       }
+
+      formData.append("sourceSurface", props.sourceSurface);
+
+      const response = await fetch("/api/agent/clients/intake-assist", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | (Partial<FrontOfficeLeadIntakeAssistServerResponse> & {
+            error?: string;
+          })
+        | null;
 
       if (!isCurrentRun()) {
         return;
       }
 
-      const combinedText = [transcriptText, ocrText]
-        .filter(Boolean)
-        .join("\n\n");
-
-      if (!combinedText) {
+      if (!response.ok || !payload?.rawText?.trim()) {
         setAssistProgressMessage("");
         setAssistFeedback({
           tone: "error",
           message:
-            "Acre could not read usable text from that screenshot. Try a tighter crop, better contrast, or paste the chat text directly.",
+            payload?.error ??
+            "Acre could not finish intake extraction right now. Retry with a cleaner screenshot or paste the transcript directly.",
         });
         return;
       }
 
       const result = extractFrontOfficeLeadIntakeAssist({
-        rawText: combinedText,
-        sourceMode:
-          assistImage && transcriptText
-            ? "hybrid"
-            : assistImage
-              ? "image"
-              : "text",
+        rawText: payload.rawText,
+        sourceMode: payload.sourceMode ?? "text",
       });
       const feedbackParts: string[] = [];
 
-      if (assistImage && ocrText) {
-        feedbackParts.push("Screenshot text extracted.");
+      if (payload.hadImage && payload.ocrSucceeded) {
+        feedbackParts.push("Server-side screenshot text extracted.");
       }
 
       if (transcriptText) {
@@ -1624,9 +1614,9 @@ export function FrontOfficeLeadIntakeCard(
         feedbackParts.push(result.readinessSummary.label);
       }
 
-      if (ocrFailed && transcriptText) {
+      if (payload.hadImage && !payload.ocrSucceeded && transcriptText) {
         feedbackParts.push(
-          "Screenshot OCR could not finish, so Acre used the pasted transcript only. If it still looks sparse, paste a tighter 3-8 line excerpt and keep unresolved identity first.",
+          "Server OCR could not finish, so Acre used the pasted transcript only. If it still looks sparse, paste a tighter 3-8 line excerpt and keep unresolved identity first.",
         );
       }
 
@@ -2017,17 +2007,17 @@ export function FrontOfficeLeadIntakeCard(
         >
           <div className="front-office-lead-intake-assist">
             <div className="front-office-lead-intake-assist-copy">
-              <strong>OCR / transcript review bench</strong>
+              <strong>Server OCR / transcript review bench</strong>
               <p>
-                Drop in a WeChat screenshot or paste the chat thread. Acre reads
-                it in the browser, keeps every suggestion tied to evidence,
-                starts with unresolved identity, groups the rest into section
-                batches, stays stricter around household or multi-party threads,
-                and waits for manual confirmation before anything touches the
-                live intake form.
+                Drop in a WeChat screenshot or paste the chat thread. Acre
+                reads it on the server, keeps every suggestion tied to
+                evidence, starts with unresolved identity, groups the rest into
+                section batches, stays stricter around household or multi-party
+                threads, and waits for manual confirmation before anything
+                touches the live intake form.
               </p>
               <div className="front-office-record-meta">
-                <span>Browser-side only</span>
+                <span>Server-side OCR</span>
                 <span>Evidence + provenance on every suggestion</span>
                 <span>Unresolved identity first</span>
                 <span>Then batch the rest</span>
@@ -2045,7 +2035,7 @@ export function FrontOfficeLeadIntakeCard(
                     ? `Selected screenshot: ${assistImage.name}`
                     : "Optional. PNG / JPG chat screenshots work best."
                 }
-                label="Screenshot OCR"
+                label="Screenshot OCR upload"
               >
                 <input
                   accept="image/*"
