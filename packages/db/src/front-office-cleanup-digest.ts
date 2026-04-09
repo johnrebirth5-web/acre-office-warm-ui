@@ -75,6 +75,22 @@ export type FrontOfficeCleanupDigest = {
   sections: FrontOfficeCleanupDigestSection[];
 };
 
+export type FrontOfficeCleanupDigestRunSummary = {
+  scopeLabel: string;
+  generatedAtLabel: string;
+  timeZone: string;
+  windowLabel: string;
+  totalCount: number;
+  urgentCount: number;
+  dueSoonCount: number;
+  notificationCount: number;
+  followUpTaskCount: number;
+  clientReminderCount: number;
+  appointmentCount: number;
+  nextActionLabel: string;
+  nextActionDetail: string;
+};
+
 export type BuildFrontOfficeCleanupDigestInput = {
   organizationId: string;
   viewerMembershipId: string;
@@ -259,6 +275,74 @@ function pickNextAction(
     detail:
       firstNonEmptySection.items[0]?.detail ?? firstNonEmptySection.summary,
   };
+}
+
+export function buildFrontOfficeCleanupDigestRunSummary(
+  digest: FrontOfficeCleanupDigest,
+): FrontOfficeCleanupDigestRunSummary {
+  return {
+    scopeLabel: digest.scopeLabel,
+    generatedAtLabel: digest.generatedAtLabel,
+    timeZone: digest.timeZone,
+    windowLabel: digest.windowLabel,
+    totalCount: digest.summary.totalCount,
+    urgentCount: digest.summary.urgentCount,
+    dueSoonCount: digest.summary.dueSoonCount,
+    notificationCount: digest.summary.notificationCount,
+    followUpTaskCount: digest.summary.followUpTaskCount,
+    clientReminderCount: digest.summary.clientReminderCount,
+    appointmentCount: digest.summary.appointmentCount,
+    nextActionLabel: digest.nextActionLabel,
+    nextActionDetail: digest.nextActionDetail,
+  };
+}
+
+export function renderFrontOfficeCleanupDigestRunSummary(
+  summary: FrontOfficeCleanupDigestRunSummary,
+) {
+  return [
+    summary.scopeLabel,
+    `Generated: ${summary.generatedAtLabel}`,
+    `Window: ${summary.windowLabel} · ${summary.timeZone}`,
+    `Summary: ${summary.totalCount} item(s), ${summary.urgentCount} urgent, ${summary.dueSoonCount} due soon`,
+    `Next action: ${summary.nextActionLabel}`,
+    `  ${summary.nextActionDetail}`,
+  ];
+}
+
+export function renderFrontOfficeCleanupDigestSection(
+  section: FrontOfficeCleanupDigestSection,
+) {
+  const lines = [`${section.label} (${section.count})`, `  ${section.summary}`];
+
+  if (section.items.length === 0) {
+    lines.push("  No items.");
+    return lines;
+  }
+
+  for (const item of section.items) {
+    lines.push(`  - [${item.tone}] ${item.title}`);
+    lines.push(`    ${item.detail}`);
+    lines.push(`    Due: ${item.dueAtLabel}`);
+    lines.push(`    Link: ${item.href}`);
+  }
+
+  return lines;
+}
+
+export function renderFrontOfficeCleanupDigestReport(
+  digest: FrontOfficeCleanupDigest,
+) {
+  const lines = renderFrontOfficeCleanupDigestRunSummary(
+    buildFrontOfficeCleanupDigestRunSummary(digest),
+  );
+
+  for (const section of digest.sections) {
+    lines.push("");
+    lines.push(...renderFrontOfficeCleanupDigestSection(section));
+  }
+
+  return lines.join("\n");
 }
 
 function formatSectionSummary(count: number, noun: string) {

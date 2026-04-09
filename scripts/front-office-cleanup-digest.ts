@@ -1,6 +1,9 @@
 #!/usr/bin/env tsx
 
-import { buildFrontOfficeCleanupDigest } from "../packages/db/src/front-office-cleanup-digest.ts";
+import {
+  buildFrontOfficeCleanupDigest,
+  renderFrontOfficeCleanupDigestReport,
+} from "../packages/db/src/front-office-cleanup-digest.ts";
 
 type CliOptions = {
   organizationId?: string;
@@ -78,38 +81,6 @@ function printUsage() {
   );
 }
 
-function renderDigestReport(digest: Awaited<ReturnType<typeof buildFrontOfficeCleanupDigest>>) {
-  const lines: string[] = [];
-  lines.push(`${digest.scopeLabel}`);
-  lines.push(`Generated: ${digest.generatedAtLabel}`);
-  lines.push(`Window: ${digest.windowLabel} · ${digest.timeZone}`);
-  lines.push(
-    `Summary: ${digest.summary.totalCount} item(s), ${digest.summary.urgentCount} urgent, ${digest.summary.dueSoonCount} due soon`,
-  );
-  lines.push(`Next action: ${digest.nextActionLabel}`);
-  lines.push(`  ${digest.nextActionDetail}`);
-
-  for (const section of digest.sections) {
-    lines.push("");
-    lines.push(`${section.label} (${section.count})`);
-    lines.push(`  ${section.summary}`);
-
-    if (section.items.length === 0) {
-      lines.push("  No items.");
-      continue;
-    }
-
-    for (const item of section.items) {
-      lines.push(`  - [${item.tone}] ${item.title}`);
-      lines.push(`    ${item.detail}`);
-      lines.push(`    Due: ${item.dueAtLabel}`);
-      lines.push(`    Link: ${item.href}`);
-    }
-  }
-
-  return lines.join("\n");
-}
-
 async function main() {
   const cliOptions = readCliOptions(process.argv.slice(2));
   const organizationId = readFallbackOption(
@@ -148,7 +119,7 @@ async function main() {
     return;
   }
 
-  console.log(renderDigestReport(digest));
+  console.log(renderFrontOfficeCleanupDigestReport(digest));
 }
 
 void main().catch((error) => {
@@ -156,4 +127,3 @@ void main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
