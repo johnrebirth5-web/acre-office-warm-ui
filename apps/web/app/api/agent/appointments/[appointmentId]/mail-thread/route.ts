@@ -275,6 +275,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       buildAppointmentInternalMailThreadResponse({
         threadId: thread.id,
         subject: thread.subject,
+        actionUrl: `/agent/calendar?appointmentId=${appointment.id}`,
+        actionLabel: "Open appointment",
       }),
       {
         status: 201,

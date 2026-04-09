@@ -73,6 +73,8 @@ type AppointmentWritebackDraft = {
 type FeedbackState = {
   tone: "success" | "error";
   message: string;
+  actionHref?: string;
+  actionLabel?: string;
 } | null;
 
 type BridgeActionResponse = {
@@ -115,10 +117,13 @@ type AppointmentMailThreadSuccessResponse = {
   };
   threadHref: string;
   actionLabel: string;
+  actionTargetLabel: string | null;
+  actionTargetUrl: string | null;
   manualOnlyDetail: string;
   continuity: FrontOfficeAppointmentCheckpointSummary & {
     returnToLabel: string;
     returnToDetail: string;
+    returnToUrl: string | null;
   };
   error?: never;
   hint?: never;
@@ -1705,6 +1710,11 @@ export function FrontOfficeCalendarClient(
         window.location.assign(payload.threadHref);
       }
 
+      const returnLinkLabel =
+        payload.actionTargetLabel ??
+        payload.continuity?.returnToLabel ??
+        "Return to appointment";
+
       setFeedback({
         tone: "success",
         message: [
@@ -1716,9 +1726,15 @@ export function FrontOfficeCalendarClient(
           payload.continuity?.nextStep ??
             "Open the Acre thread, review the brief, then return to the appointment record and save the next checkpoint.",
           payload.continuity?.returnToDetail ?? null,
+          (payload.continuity?.returnToUrl ?? payload.actionTargetUrl)
+            ? `Return link preserved: ${returnLinkLabel}.`
+            : null,
         ]
           .filter(Boolean)
           .join(" "),
+        actionHref:
+          payload.continuity?.returnToUrl ?? payload.actionTargetUrl ?? undefined,
+        actionLabel: returnLinkLabel,
       });
       return true;
     } catch {
@@ -2020,11 +2036,21 @@ export function FrontOfficeCalendarClient(
           </div>
 
           {feedback ? (
-            <p
+            <div
               className={`front-office-calendar-feedback ${feedback.tone === "error" ? "is-error" : "is-success"}`}
             >
-              {feedback.message}
-            </p>
+              <p>{feedback.message}</p>
+              {feedback.actionHref ? (
+                <div className="front-office-calendar-actions">
+                  <FrontOfficeLink
+                    className="office-button-secondary office-inline-action-sm"
+                    href={feedback.actionHref}
+                  >
+                    {feedback.actionLabel ?? "Return to appointment"}
+                  </FrontOfficeLink>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           <div className="office-form-actions">

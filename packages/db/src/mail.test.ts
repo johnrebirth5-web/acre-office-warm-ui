@@ -354,6 +354,8 @@ test("appointment internal mail thread response keeps the continuity contract ex
   const response = buildAppointmentInternalMailThreadResponse({
     threadId: "thread_123",
     subject: "Please confirm: 123 Main St",
+    actionUrl: "/agent/calendar?appointmentId=apt_123",
+    actionLabel: "Open appointment",
   });
 
   assert.deepEqual(response.thread, {
@@ -362,6 +364,14 @@ test("appointment internal mail thread response keeps the continuity contract ex
   });
   assert.equal(response.threadHref, "/office/mail?threadId=thread_123");
   assert.equal(response.actionLabel, "Internal mail thread");
+  assert.equal(
+    response.actionTargetLabel,
+    "Open appointment",
+  );
+  assert.equal(
+    response.actionTargetUrl,
+    "/agent/calendar?appointmentId=apt_123",
+  );
   assert.match(
     response.manualOnlyDetail,
     /external send still stays manual and no provider sync is implied\./,
@@ -371,10 +381,28 @@ test("appointment internal mail thread response keeps the continuity contract ex
     /continuity stays inside the workspace/,
   );
   assert.equal(response.continuity.returnToLabel, "Return to writeback");
+  assert.equal(
+    response.continuity.returnToUrl,
+    "/agent/calendar?appointmentId=apt_123",
+  );
   assert.match(
     response.continuity.sourceNote,
     /outside email remains manual and no provider sync is implied\./,
   );
+});
+
+test("appointment internal mail thread response drops unsafe action deep links while keeping the thread continuity contract intact", () => {
+  const response = buildAppointmentInternalMailThreadResponse({
+    threadId: "thread_456",
+    subject: "Please confirm: 456 Main St",
+    actionUrl: "https://example.com/agent/calendar?appointmentId=apt_456",
+    actionLabel: "Open appointment",
+  });
+
+  assert.equal(response.actionTargetLabel, "Open appointment");
+  assert.equal(response.actionTargetUrl, null);
+  assert.equal(response.continuity.returnToUrl, null);
+  assert.equal(response.threadHref, "/office/mail?threadId=thread_456");
 });
 
 test("appointment internal mail thread error mapping keeps manual-only and permission failures on the guarded contract", () => {
