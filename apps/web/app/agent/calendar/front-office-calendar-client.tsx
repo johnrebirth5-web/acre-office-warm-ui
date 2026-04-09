@@ -227,7 +227,7 @@ const quickWritebackActions: Array<{
     value: "confirmed",
     label: "Confirmed + clear touch",
     description:
-      "Mark the outside plan confirmed and clear the current next-touch deadline.",
+      "Mark the outside plan confirmed and clear the current checkpoint deadline.",
   },
   {
     value: "reschedule_requested",
@@ -1053,7 +1053,7 @@ export function FrontOfficeCalendarClient(
     }));
     setFeedback({
       tone: "success",
-      message: `${suggestion.label} loaded into the writeback form. Save it when ready to keep the next touch visible in Acre.`,
+      message: `${suggestion.label} loaded into the writeback form. Save it when ready to keep the next checkpoint visible in Acre.`,
     });
     scrollToWritebackSection();
   }
@@ -1398,7 +1398,7 @@ export function FrontOfficeCalendarClient(
       setFeedback({
         tone: "success",
         message: draft.nextActionAt
-          ? `Appointment writeback saved. Acre will keep ${appointment.title} pinned with the promised next-touch deadline and the same route context in view.`
+          ? `Appointment writeback saved. Acre will keep ${appointment.title} pinned with the promised checkpoint deadline and the same route context in view.`
           : "Appointment writeback saved.",
       });
       clearSavedWritebackDraft(appointment.id);
@@ -1478,9 +1478,9 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message:
           externalStatus === "confirmed"
-            ? "Confirmed writeback saved and the current promised next-touch checkpoint was cleared."
+            ? "Confirmed writeback saved and the current promised checkpoint was cleared."
             : suggestedPreset
-              ? `Quick coordination checkpoint saved with ${suggestedPreset.label} loaded as the next touch.`
+              ? `Quick coordination checkpoint saved with ${suggestedPreset.label} loaded as the next checkpoint.`
               : "Quick coordination checkpoint saved.",
       });
       clearSavedWritebackDraft(appointment.id);
@@ -1629,7 +1629,7 @@ export function FrontOfficeCalendarClient(
           `${payload.actionLabel} opened.`,
           payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
           payload.followUpCadenceLabel
-            ? `Recommended next touch: ${payload.followUpCadenceLabel}.`
+            ? `Recommended next checkpoint: ${payload.followUpCadenceLabel}.`
             : null,
           payload.followUpCadenceDetail ?? payload.followUpDetail ?? null,
           primedPresetLabel
@@ -2189,7 +2189,7 @@ export function FrontOfficeCalendarClient(
 
       <SectionCard
         className="office-list-card"
-        subtitle="Use the focused panel to review the latest bridge activity, update the writeback, and keep the promised next touch readable without implying provider-owned sync."
+        subtitle="Use the focused panel to review the bridge lane, update the checkpoint lane, and keep the promised next touch readable without implying provider-owned sync."
         title="Focus appointment"
       >
         {focusedAppointment ? (
@@ -2352,7 +2352,7 @@ export function FrontOfficeCalendarClient(
                     </span>
                   </>
                 }
-                title="Next touch lane"
+                title="Checkpoint lane"
               />
             </div>
 
@@ -2396,13 +2396,14 @@ export function FrontOfficeCalendarClient(
                 <div className="front-office-ai-explainability is-compact">
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      Bridge handoff
+                      Bridge lane
                     </span>
                     <strong>{focusedAppointment.bridgeActionLabel}</strong>
                     <p>
                       Google, Outlook, ICS, and email actions only open drafts
                       or exports from this appointment and log that bridge trail
-                      here. Acre is not claiming provider-owned sync.
+                      here. The next move is still to save the confirmation,
+                      reschedule, or follow-up checkpoint back into Acre.
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.bridgeStatusLabel}</span>
@@ -2411,14 +2412,15 @@ export function FrontOfficeCalendarClient(
                   </div>
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      Checkpoint writeback
+                      Checkpoint lane
                     </span>
                     <strong>{focusedAppointment.externalStatusLabel}</strong>
                     <p>
                       Quick coordination actions and saved writebacks only
-                      update Acre&apos;s readable coordination record. They do
-                      not auto-send email, create background jobs, or schedule
-                      provider events for you.
+                      update Acre&apos;s readable coordination record. The next
+                      move is to keep the promised checkpoint visible here. They
+                      do not auto-send email, create background jobs, or
+                      schedule provider events for you.
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.followUpPlanLabel}</span>
@@ -2530,7 +2532,7 @@ export function FrontOfficeCalendarClient(
                             size="sm"
                             variant="secondary"
                           >
-                            Load suggested next touch
+                            Load suggested checkpoint
                           </Button>
                         ) : null}
                       </div>
@@ -2564,7 +2566,7 @@ export function FrontOfficeCalendarClient(
                 <div className="front-office-calendar-writeback">
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      Writeback shortcuts
+                      Checkpoint shortcuts
                     </span>
                     <p className="front-office-record-supporting">
                       These quick actions update Acre&apos;s writeback only.
@@ -2597,11 +2599,11 @@ export function FrontOfficeCalendarClient(
                   <div className="front-office-calendar-writeback">
                     <div className="front-office-calendar-writeback-head">
                       <span className="front-office-calendar-writeback-label">
-                        Touch presets
+                        Checkpoint presets
                       </span>
                       <p className="front-office-record-supporting">
-                        Use these to save a suggested status plus next-touch
-                        checkpoint directly into Acre. They do not send mail or
+                        Use these to save a suggested status plus checkpoint
+                        details directly into Acre. They do not send mail or
                         update Google / Outlook in the background.
                       </p>
                     </div>
@@ -2630,7 +2632,7 @@ export function FrontOfficeCalendarClient(
                 >
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      Checkpoint writeback
+                      Checkpoint lane
                     </span>
                     <div className="front-office-calendar-badges">
                       <StatusBadge tone={focusedAppointment.coordinationTone}>
@@ -2641,9 +2643,9 @@ export function FrontOfficeCalendarClient(
                       </Badge>
                     </div>
                     <p className="front-office-record-supporting">
-                      Save what happened outside Acre and when the next external
-                      touch should come back into view on this same appointment
-                      record.
+                      Save what happened outside Acre and when the next
+                      checkpoint should come back into view on this same
+                      appointment record.
                     </p>
                   </div>
                   <div className="front-office-calendar-writeback-fields">
@@ -2975,7 +2977,7 @@ export function FrontOfficeCalendarClient(
                     {appointment.calendarLaneDetail}
                   </p>
                   <p className="front-office-record-supporting">
-                    Next step: {appointment.coordinationNextStep}
+                    Next move: {appointment.coordinationNextStep}
                   </p>
                   {appointmentCueList.length ? (
                     <div className="front-office-calendar-badges">

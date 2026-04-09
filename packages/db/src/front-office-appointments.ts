@@ -747,17 +747,17 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
 } {
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
     return {
-      label: "Closed in Acre",
+      label: "Closed lane in Acre",
       tone: "neutral" as const,
       detail:
-        "This appointment is no longer scheduled, so the coordination rhythm is read-only unless you create a new plan.",
+        "This appointment is no longer scheduled, so the coordination lane is read-only unless you create a new plan.",
       needsNextTouchPlan: false,
     };
   }
 
   if (input.isExternalTouchDue) {
     return {
-      label: "Next touch overdue",
+      label: "Checkpoint overdue",
       tone: "danger" as const,
       detail:
         input.externalWorkflow.nextActionAtLabel ===
@@ -773,10 +773,10 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
 
   if (needsNextTouchPlan) {
     return {
-      label: "Next touch missing",
+      label: "Checkpoint missing",
       tone: "warning" as const,
       detail:
-        "The appointment still needs outside confirmation or follow-up, but no promised next-touch checkpoint is saved yet.",
+        "The appointment still needs outside confirmation or follow-up, but no promised checkpoint is saved yet.",
       needsNextTouchPlan: true,
     };
   }
@@ -786,21 +786,21 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
       label:
         input.externalWorkflow.value ===
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed
-          ? "Confirmed with touch scheduled"
-          : "Touch scheduled",
+          ? "Confirmed with checkpoint"
+          : "Checkpoint scheduled",
       tone:
         input.externalWorkflow.value ===
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed
           ? "success"
           : "accent",
-      detail: `Promised next touch is set for ${input.externalWorkflow.nextActionAtLabel}.`,
+      detail: `Promised checkpoint is set for ${input.externalWorkflow.nextActionAtLabel}.`,
       needsNextTouchPlan: false,
     };
   }
 
   if (input.bridgeStatus.hasBridgeActivity) {
     return {
-      label: "Bridge opened, checkpoint missing",
+      label: "Bridge lane open, checkpoint missing",
       tone: "warning" as const,
       detail:
         "A Google, Outlook, ICS, or email bridge was opened from Acre, but the next confirmation, reschedule, or follow-up checkpoint still needs to be written back.",
@@ -1008,7 +1008,7 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
   timeZone?: string | null;
 }): FrontOfficeAppointmentBridgeGuidance {
   const manualOnlyDetail =
-    "Acre only logs that the bridge was opened here. Finish the save or send in Google, Outlook, ICS, or email, then write the next checkpoint back on this appointment record.";
+    "Bridge lane only: Acre logs that the bridge was opened here. Finish the save or send in Google, Outlook, ICS, or email, then write the next checkpoint back on this appointment record.";
 
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
     return {
@@ -1038,14 +1038,14 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
     followUpDetail:
       input.externalWorkflow.value ===
       frontOfficeAppointmentExternalWorkflowStatuses.confirmed
-        ? "If the outside plan changes after this export, update the appointment writeback so Acre still reflects the confirmed state or the new reschedule checkpoint."
+        ? "If the outside plan changes after this export, update the appointment writeback so Acre still reflects the confirmed state or the new checkpoint."
         : input.externalWorkflow.value ===
             frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested
           ? "After you use the bridge, save the reschedule checkpoint in Acre so the time-change conversation stays readable."
-          : "After you use the bridge, save whether you are awaiting confirmation, confirmed, or still need another follow-up checkpoint.",
+          : "After you use the bridge, save whether you are awaiting confirmation, confirmed, or still need another checkpoint.",
     followUpCadenceLabel: suggestedPreset
       ? suggestedPreset.label
-      : "Recommended next touch",
+      : "Recommended next checkpoint",
     followUpCadenceDetail: suggestedPreset
       ? `${suggestedPreset.detail} Save it back on the appointment once the bridge action is done.`
       : "Save the next promised checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
@@ -1815,18 +1815,18 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       input.externalWorkflow.value ===
         frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested);
   const bridgeSummary = input.bridgeStatus.hasBridgeActivity
-    ? `${input.bridgeStatus.actionLabel} opened ${input.bridgeStatus.loggedAtLabel}.`
+    ? `Bridge lane: ${input.bridgeStatus.actionLabel} opened ${input.bridgeStatus.loggedAtLabel}.`
     : "No Google / Outlook / ICS / email bridge logged from Acre yet.";
   const nextTouchSummary = input.externalWorkflow.nextActionAt
     ? isExternalTouchDue
-      ? `Next external touch is overdue since ${input.externalWorkflow.nextActionAtLabel}.`
-      : `Next external touch is set for ${input.externalWorkflow.nextActionAtLabel}.`
+      ? `Checkpoint overdue since ${input.externalWorkflow.nextActionAtLabel}.`
+      : `Checkpoint set for ${input.externalWorkflow.nextActionAtLabel}.`
     : input.externalWorkflow.value !==
         frontOfficeAppointmentExternalWorkflowStatuses.idle
-      ? "No next external touch deadline is saved yet."
+      ? "No promised checkpoint is saved yet."
       : "";
   const noteSummary = input.externalWorkflow.note
-    ? `Writeback note: ${input.externalWorkflow.note}.`
+    ? `Checkpoint note: ${input.externalWorkflow.note}.`
     : "";
 
   if (!isScheduled) {
@@ -1850,7 +1850,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
 
   if (isExternalTouchDue) {
     return {
-      label: "External touch overdue",
+      label: "Checkpoint overdue",
       tone: "danger",
       detail: [
         `${input.externalWorkflow.label} is still the saved writeback state.`,
@@ -1861,7 +1861,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
         .filter(Boolean)
         .join(" "),
       nextStep:
-        "Reach back out now, then update the writeback to confirmed, reschedule requested, or a new follow-up deadline.",
+        "Reach back out now, then update the writeback to confirmed, reschedule requested, or a new checkpoint.",
       requiresExternalResponse,
       isExternalTouchDue: true,
     };
@@ -1881,7 +1881,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
           .filter(Boolean)
           .join(" "),
         nextStep:
-          "Use the note field to capture the new timing conversation, then save the next external touch until a replacement time is locked.",
+          "Use the note field to capture the new timing conversation, then save the next checkpoint until a replacement time is locked.",
         requiresExternalResponse: true,
         isExternalTouchDue: false,
       };
@@ -1898,7 +1898,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
           .filter(Boolean)
           .join(" "),
         nextStep:
-          "When the client or counterpart replies, write back whether the plan is confirmed or needs a reschedule.",
+          "When the client or counterpart replies, write back whether the plan is confirmed, needs a reschedule, or should keep a new checkpoint.",
         requiresExternalResponse: true,
         isExternalTouchDue: false,
       };
@@ -1915,7 +1915,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
           .filter(Boolean)
           .join(" "),
         nextStep:
-          "Use a bridge action or direct outreach, then save the next touch or confirmation outcome here.",
+          "Use a bridge action or direct outreach, then save the next checkpoint or confirmation outcome here.",
         requiresExternalResponse: true,
         isExternalTouchDue: false,
       };
@@ -1932,14 +1932,14 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
           .filter(Boolean)
           .join(" "),
         nextStep:
-          "Leave this record confirmed, or add a last-touch reminder if you still want one before start time.",
+          "Leave this record confirmed, or add a soft checkpoint if you still want one before start time.",
         requiresExternalResponse: false,
         isExternalTouchDue: false,
       };
     default:
       if (input.bridgeStatus.hasBridgeActivity) {
         return {
-          label: "Bridge opened, checkpoint pending",
+          label: "Bridge lane open, checkpoint pending",
           tone: "warning",
           detail: [
             bridgeSummary,
@@ -3026,7 +3026,7 @@ export async function updateFrontOfficeAppointmentStatus(
     (nextExternalNote || nextExternalActionAt)
   ) {
     throw new Error(
-      "Clear the external note and next-touch deadline when the appointment is set back to idle.",
+      "Clear the external note and checkpoint deadline when the appointment is set back to idle.",
     );
   }
 
