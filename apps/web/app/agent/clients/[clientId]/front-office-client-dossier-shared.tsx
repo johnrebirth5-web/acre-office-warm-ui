@@ -32,7 +32,7 @@ export const frontOfficeClientDossierSectionDescriptions = {
   listingOutput:
     "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.",
   offerPrep:
-    "Use this section when negotiation is active, Front Office still owns the client-facing prep, and the same workbench needs to return to Back Office for the formal offer file.",
+    "Use this section when negotiation is active, Front Office still owns the client-facing coaching, and the same workbench needs to open or return to the formal Back Office offer file.",
   inspectionSupport:
     "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same workbench should reopen the Back Office checklist instead of creating a second tracker.",
   closingSuggestion:

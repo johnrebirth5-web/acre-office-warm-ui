@@ -199,21 +199,21 @@ function buildNegotiationSummary(
   switch (snapshot.negotiation.boundaryLabel) {
     case "BO workspace live":
       return {
-        title: "Offer or application work is already active in Back Office",
+        title: "The formal offer file is the source of truth",
         description:
           snapshot.negotiation.offerCount > 0
-            ? `${snapshot.negotiation.offerCount} formal offer or application record(s) are already active, and the current primary state is ${snapshot.negotiation.acceptedOfferLabel}.`
+            ? `${snapshot.negotiation.offerCount} formal offer or application record(s) are already active, and the current primary state is ${snapshot.negotiation.acceptedOfferLabel}. Front Office should stay client-facing and point back to that file.`
             : "A formal record is already active, so pricing, terms, and document control are now managed from the shared transaction workspace.",
       };
     case "Ready for BO handoff":
       return {
-        title: "The client is ready for a formal handoff",
+        title: "The next formal offer file should open in Back Office",
         description:
-          "Search direction, timing, and decision-making are aligned enough that the next record should be a formal offer, application, or transaction setup.",
+          "Search direction, timing, and decision-making are aligned enough that the next record should be a formal offer, application, or transaction setup in Back Office instead of a duplicate Front Office note.",
       };
     default:
       return {
-        title: "Decision-making is still being narrowed",
+        title: "Keep offer prep in Front Office until the file is ready",
         description:
           "Showings, shortlist feedback, and follow-up are still doing the work of clarifying the best option before formal terms are opened.",
       };
@@ -226,9 +226,9 @@ function buildInspectionSummary(
   switch (snapshot.inspection.boundaryLabel) {
     case "Inspection-era live":
       return {
-        title: "Contract support and milestone follow-through are active",
+        title: "The live contract file owns inspection support",
         description:
-          "Checklist work, signatures, and incoming transaction updates are already moving in the shared formal record.",
+          "Checklist work, signatures, and incoming transaction updates are already moving in the shared formal record, while Front Office stays the explanation layer.",
       };
     case "Contract file live":
       return {
@@ -238,13 +238,13 @@ function buildInspectionSummary(
       };
     case "Ready for contract file":
       return {
-        title: "Formal contract setup is the next move",
+        title: "The next formal contract step should start in Back Office",
         description:
-          "This client has advanced far enough that the next contract or application step should start in the formal record.",
+          "This client has advanced far enough that the next contract or application step should start in the formal record instead of a second Front Office tracker.",
       };
     default:
       return {
-        title: "Formal contract support has not started yet",
+        title: "Inspection support starts after the formal file exists",
         description:
           "The current work is still centered on follow-up, showings, shortlist decisions, and early coordination.",
       };
@@ -477,11 +477,13 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
     snapshot.nextStepRail.items.find((item) => item.id === "offer_prep") ??
     null;
   const inspectionRailItem =
-    snapshot.nextStepRail.items.find((item) => item.id === "inspection_support") ??
-    null;
+    snapshot.nextStepRail.items.find(
+      (item) => item.id === "inspection_support",
+    ) ?? null;
   const closingRailItem =
-    snapshot.nextStepRail.items.find((item) => item.id === "closing_suggestion") ??
-    null;
+    snapshot.nextStepRail.items.find(
+      (item) => item.id === "closing_suggestion",
+    ) ?? null;
   const lines: Array<string | null> = [
     `${formalWorkflow.title} | ${formalWorkflow.description}`,
     `${negotiationSummary.title} | ${negotiationSummary.description}`,
@@ -496,7 +498,7 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
     inspectionRailItem
       ? `Inspection return point | ${inspectionRailItem.returnPoint.label} | ${inspectionRailItem.returnDescription}`
       : null,
-    `Closing / handoff view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.boundaryTitle}`,
+    `Closing / post-close view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.boundaryTitle}`,
     `Closing next move | ${snapshot.closing.nextMoveLabel} | ${snapshot.closing.nextMoveDescription}`,
     `Closing operator frame | ${snapshot.closing.operatorLabel} | ${snapshot.closing.operatorDescription}`,
     closingRailItem

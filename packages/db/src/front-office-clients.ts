@@ -5148,17 +5148,17 @@ export async function getFrontOfficeClientDetail(
         })
       : workflow.action;
   const negotiationBoundaryTitle = negotiationTransactionId
-    ? "Formal offer workspace is now the source of truth"
+    ? "The formal offer file is the source of truth"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Negotiation is ready to become a formal record"
-      : "Keep offer prep lightweight inside Front Office";
+      ? "The next formal offer file should open in Back Office"
+      : "Keep offer prep in Front Office until the file is ready";
   const negotiationBoundaryDescription = negotiationTransactionId
     ? negotiationOfferCount > 0
-      ? `${negotiationOfferCount} offer record(s) already exist in the shared Back Office workspace, so comparison, documents, and signatures stay anchored there.`
+      ? `${negotiationOfferCount} offer record(s) already exist in the shared Back Office workspace, so comparison, documents, and signatures stay anchored there. Front Office should stay client-facing and point back to that file.`
       : "The formal transaction record is live. Start structured offer tracking from the shared Back Office offers workspace instead of creating a second Front Office record."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Stage, appointments, send trail, and handoff context are already lined up. The next formal offer record should start in Back Office, not as a duplicate Front Office note."
-      : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before this becomes a formal Back Office offer workflow.";
+      ? "Stage, appointments, send trail, and handoff context are already lined up. The next formal offer record should open in Back Office, while Front Office keeps the coaching and client-facing explanation."
+      : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before the formal Back Office offer workflow opens.";
   const negotiationBoundaryMetaLabel = negotiationTransactionId
     ? inspectionTransactionRecord
       ? buildTransactionContextMetaLabel({
@@ -5182,7 +5182,7 @@ export async function getFrontOfficeClientDetail(
   const negotiationNextMoveLabel = negotiationTransactionId
     ? negotiationOfferCount > 0
       ? "Open the linked BO offer file"
-      : "Start formal offer tracking in Back Office"
+      : "Start the formal BO offer file"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "Move the offer into Back Office now"
       : "Keep shaping the offer in Front Office";
@@ -5194,7 +5194,7 @@ export async function getFrontOfficeClientDetail(
       ? "The client is ready for formal tracking, so open the shared offer workspace before the terms drift or get duplicated."
       : "Use coaching, recap, and decision support here until the client's terms are ready for formal Back Office tracking.";
   const negotiationOperatorLabel = negotiationTransactionId
-    ? "FO coaches; BO owns the formal offer"
+    ? "FO coaches; BO owns the formal offer file"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "FO prepares the handoff; BO should open the file"
       : "Front Office owns prep and decision support";
@@ -5230,14 +5230,14 @@ export async function getFrontOfficeClientDetail(
         : "neutral";
   const inspectionBoundaryTitle = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
-      ? "Inspection-era execution now lives in the shared BO workspace"
+      ? "The live contract file owns inspection support"
       : "Formal contract file is live, but acceptance is not locked yet"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "The next formal contract step should start in Back Office"
       : "Inspection support starts after the formal file exists";
   const inspectionBoundaryDescription = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
-      ? "Use the shared Back Office transaction to drive checklist work, signatures, incoming update review, and client-facing milestone clarity through the inspection window."
+      ? "Use the shared Back Office transaction to drive checklist work, signatures, incoming update review, and client-facing milestone clarity through the inspection window. Front Office stays the explanation layer, not a duplicate checklist."
       : "The transaction record exists, but Acre does not have an accepted-contract date yet. Finish the offer-to-contract transition in Back Office before treating this as a live inspection file."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "Negotiation is advanced enough that the next formal contract / inspection step should begin from the shared Back Office record, not as a second Front Office checklist."
@@ -5285,7 +5285,7 @@ export async function getFrontOfficeClientDetail(
       ? "The client is BO-ready, so the formal contract file should open before inspection support drifts into a duplicate tracker."
       : "Use this lane only for recap and coordination until a formal contract file exists.";
   const inspectionOperatorLabel = negotiationTransactionId
-    ? "FO coordinates; BO owns tasks, signatures, and updates"
+    ? "FO explains; BO owns tasks, signatures, and updates"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "FO prepares the handoff; BO should own the file"
       : "Front Office keeps the client visible";
