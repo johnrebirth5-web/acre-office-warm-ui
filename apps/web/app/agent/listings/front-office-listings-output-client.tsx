@@ -6,8 +6,8 @@ import type { FrontOfficeSendChannel } from "@prisma/client";
 import {
   buildFrontOfficeListingSharePromiseSnapshot,
   type FrontOfficeListingSharePromiseSnapshot,
-  type FrontOfficeListingUsagePulse,
-} from "../../../../../packages/db/src/front-office-listing-output";
+} from "../../../../../packages/db/src/front-office-listing-share-promise";
+import type { FrontOfficeListingUsagePulse } from "../../../../../packages/db/src/front-office-listing-output";
 import { Badge, Button, EmptyState, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
