@@ -111,6 +111,7 @@ export type AppointmentInternalMailThreadContinuity = {
   sourceNote: string;
   returnToLabel: string;
   returnToDetail: string;
+  returnToUrl: string | null;
 };
 
 export type AppointmentInternalMailThreadResponse = {
@@ -120,6 +121,8 @@ export type AppointmentInternalMailThreadResponse = {
   };
   threadHref: string;
   actionLabel: string;
+  actionTargetLabel: string | null;
+  actionTargetUrl: string | null;
   manualOnlyDetail: string;
   continuity: AppointmentInternalMailThreadContinuity;
 };
@@ -453,7 +456,9 @@ function buildAttachmentHref(
   return `/api/office/mail/attachments/${attachmentId}/file${suffix}`;
 }
 
-function buildAppointmentInternalMailThreadContinuity(): AppointmentInternalMailThreadContinuity {
+function buildAppointmentInternalMailThreadContinuity(
+  returnToUrl: string | null,
+): AppointmentInternalMailThreadContinuity {
   return {
     label: "Internal mail thread opened",
     detail:
@@ -465,13 +470,19 @@ function buildAppointmentInternalMailThreadContinuity(): AppointmentInternalMail
     returnToLabel: "Return to writeback",
     returnToDetail:
       "Jump back to the same appointment after reviewing the thread, then save the next checkpoint in Acre.",
+    returnToUrl,
   };
 }
 
 export function buildAppointmentInternalMailThreadResponse(input: {
   threadId: string;
   subject: string;
+  actionUrl?: string | null;
+  actionLabel?: string | null;
 }): AppointmentInternalMailThreadResponse {
+  const actionTargetUrl = normalizeActionUrl(input.actionUrl);
+  const actionTargetLabel = normalizeActionLabel(input.actionLabel);
+
   return {
     thread: {
       id: input.threadId,
@@ -479,9 +490,11 @@ export function buildAppointmentInternalMailThreadResponse(input: {
     },
     threadHref: buildThreadHref(input.threadId),
     actionLabel: "Internal mail thread",
+    actionTargetLabel,
+    actionTargetUrl,
     manualOnlyDetail:
       "The Acre mail thread keeps the appointment email brief inside the workspace; the external send still stays manual and no provider sync is implied.",
-    continuity: buildAppointmentInternalMailThreadContinuity(),
+    continuity: buildAppointmentInternalMailThreadContinuity(actionTargetUrl),
   };
 }
 
