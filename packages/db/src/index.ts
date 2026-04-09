@@ -138,11 +138,14 @@ export {
 } from "./studio-listings";
 export { getOfficeActivitySnapshot } from "./activity";
 export {
+  buildFrontOfficeCleanupDigestDeliveryDraft,
   buildFrontOfficeCleanupDigest,
   type BuildFrontOfficeCleanupDigestInput,
+  type FrontOfficeCleanupDigestDeliveryDraft,
   type FrontOfficeCleanupDigest,
   type FrontOfficeCleanupDigestItem,
   type FrontOfficeCleanupDigestSection,
+  renderFrontOfficeCleanupDigestDeliveryDraft,
 } from "./front-office-cleanup-digest";
 export {
   activityLogActions,

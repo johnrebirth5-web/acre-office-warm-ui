@@ -8,8 +8,10 @@ import {
 } from "@prisma/client";
 import { prisma } from "./client.ts";
 import {
+  buildFrontOfficeCleanupDigestDeliveryDraft,
   buildFrontOfficeCleanupDigest,
   buildFrontOfficeCleanupDigestRunSummary,
+  renderFrontOfficeCleanupDigestDeliveryDraft,
   renderFrontOfficeCleanupDigestReport,
   renderFrontOfficeCleanupDigestSection,
 } from "./front-office-cleanup-digest.ts";
@@ -254,6 +256,18 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
     ],
   } satisfies Parameters<typeof renderFrontOfficeCleanupDigestReport>[0];
 
+  const deliveryDraft = buildFrontOfficeCleanupDigestDeliveryDraft(digest);
+  assert.equal(
+    deliveryDraft.subject,
+    "Office cleanup digest: 4 item(s), 2 urgent, 2 due soon",
+  );
+  assert.equal(
+    deliveryDraft.summaryText,
+    "Office cleanup digest · Next 7 days · 4 item(s), 2 urgent, 2 due soon",
+  );
+  assert.equal(deliveryDraft.runSummary.totalCount, 4);
+  assert.match(deliveryDraft.body, /^Office cleanup digest$/m);
+
   const runSummary = buildFrontOfficeCleanupDigestRunSummary(digest);
   assert.equal(runSummary.scopeLabel, "Office cleanup digest");
   assert.equal(runSummary.totalCount, 4);
@@ -271,6 +285,19 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
   assert.match(report, /^Summary: 4 item\(s\), 2 urgent, 2 due soon$/m);
   assert.match(report, /^Next action: Start with follow-up tasks$/m);
   assert.match(report, /No saved writeback yet/);
+
+  const renderedDraft = renderFrontOfficeCleanupDigestDeliveryDraft(
+    deliveryDraft,
+  );
+  assert.match(
+    renderedDraft,
+    /^Subject: Office cleanup digest: 4 item\(s\), 2 urgent, 2 due soon$/m,
+  );
+  assert.match(
+    renderedDraft,
+    /^Summary: Office cleanup digest · Next 7 days · 4 item\(s\), 2 urgent, 2 due soon$/m,
+  );
+  assert.match(renderedDraft, /^Next action: Start with follow-up tasks$/m);
 });
 
 digestIntegrationTest(
@@ -338,6 +365,13 @@ digestIntegrationTest(
       assert.equal(runSummary.scopeLabel, digest.scopeLabel);
       assert.equal(runSummary.totalCount, digest.summary.totalCount);
       assert.equal(runSummary.nextActionLabel, digest.nextActionLabel);
+
+      const deliveryDraft = buildFrontOfficeCleanupDigestDeliveryDraft(digest);
+      assert.equal(
+        deliveryDraft.subject,
+        "Office cleanup digest: 4 item(s), 2 urgent, 2 due soon",
+      );
+      assert.match(deliveryDraft.body, /Follow-up cleanup/);
 
       if (!appointmentSection) {
         throw new Error("Expected appointment continuity section");
