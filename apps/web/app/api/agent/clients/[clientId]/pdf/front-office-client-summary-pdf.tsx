@@ -690,8 +690,9 @@ export function FrontOfficeClientSummaryPdfDocument(
           <Text style={styles.title}>Shared materials and milestone view</Text>
           <Text style={styles.subtitle}>
             This page captures what has already been shared, how much tracked
-            engagement the client has shown, where formal paperwork stands, and
-            the most recent movement on the client record.
+            engagement the client has shown, where formal paperwork stands,
+            which return point the dossier should use next, and the most recent
+            movement on the client record.
           </Text>
         </View>
 
@@ -716,7 +717,7 @@ export function FrontOfficeClientSummaryPdfDocument(
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Formal paperwork, handoff, and milestone view
+            Formal paperwork, handoff, and client-ready milestone view
           </Text>
           <View style={styles.cardGrid}>
             <InfoCard

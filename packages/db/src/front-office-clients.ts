@@ -4160,15 +4160,15 @@ function buildNextStepRail(input: {
         ? "Use this rail when a tracked send helps the conversation or handoff, but the formal record still needs to open in Back Office next."
         : "Use this rail when a tracked send, resend, or follow-through action needs to come back into the listing workbench.";
   const offerReturnDescription = input.hasLinkedTransaction
-    ? "Use this rail when offer intent is active, but the formal steps belong in the Back Office record and Front Office needs to stay clear about that boundary."
+    ? "Use this rail when offer intent is active, but the formal steps belong in the Back Office record and Front Office needs to keep the client-ready recap and return point aligned with that file."
     : input.isReadyForBackOffice
-      ? "Use this rail when the dossier has crossed into formal offer prep and the next move is to open the Back Office file without losing client context."
+      ? "Use this rail when the dossier has crossed into formal offer prep and the next move is to open the Back Office file without losing client context or the same return point."
       : offerReturnPoint.description;
   const inspectionReturnDescription = input.hasLinkedTransaction
-    ? "Use this rail when the formal transaction is live and the same client record needs client-facing support without duplicating the Back Office tracker."
+    ? "Use this rail when the formal transaction is live and the same client record needs client-facing support without duplicating the Back Office tracker or the client-ready summary."
     : inspectionReturnPoint.description;
   const closingReturnDescription = input.hasClosedTransaction
-    ? "Use this rail when a closed deal needs post-close re-entry, recap, or relationship follow-through from the same Front Office workbench."
+    ? "Use this rail when a closed deal needs post-close re-entry, recap, or relationship follow-through from the same Front Office workbench and the same client-ready story."
     : closingReturnPoint.description;
 
   const items: FrontOfficeClientDetailNextStepRailItem[] = [
@@ -5154,11 +5154,11 @@ export async function getFrontOfficeClientDetail(
       : "Keep offer prep in Front Office until the file is ready";
   const negotiationBoundaryDescription = negotiationTransactionId
     ? negotiationOfferCount > 0
-      ? `${negotiationOfferCount} offer record(s) already exist in the shared Back Office workspace, so comparison, documents, and signatures stay anchored there. Front Office should stay client-facing and point back to that file.`
-      : "The formal transaction record is live. Start structured offer tracking from the shared Back Office offers workspace instead of creating a second Front Office record."
+      ? `${negotiationOfferCount} offer record(s) already exist in the shared Back Office workspace, so comparison, documents, and signatures stay anchored there. Front Office should stay client-facing, keep the recap aligned, and point back to that file.`
+      : "The formal transaction record is live. Start structured offer tracking from the shared Back Office offers workspace instead of creating a second Front Office record, and use this dossier as the return point."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Stage, appointments, send trail, and handoff context are already lined up. The next formal offer record should open in Back Office, while Front Office keeps the coaching and client-facing explanation."
-      : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before the formal Back Office offer workflow opens.";
+      ? "Stage, appointments, send trail, and handoff context are already lined up. The next formal offer record should open in Back Office, while Front Office keeps the coaching, client-ready explanation, and return point together."
+      : "Use appointment feedback, send context, and follow-up to sharpen pricing, timing, and decision-maker clarity before the formal Back Office offer workflow opens and the dossier becomes the recap anchor.";
   const negotiationBoundaryMetaLabel = negotiationTransactionId
     ? inspectionTransactionRecord
       ? buildTransactionContextMetaLabel({
@@ -5188,31 +5188,31 @@ export async function getFrontOfficeClientDetail(
       : "Keep shaping the offer in Front Office";
   const negotiationNextMoveDescription = negotiationTransactionId
     ? negotiationOfferCount > 0
-      ? "Price, contingencies, signatures, and expiration control belong in the shared Back Office workspace now. Front Office should stay client-facing and point back to that file."
-      : "The file is already BO-ready, so the first formal step should be a Back Office offer record instead of a duplicate note."
+      ? "Price, contingencies, signatures, and expiration control belong in the shared Back Office workspace now. Front Office should stay client-facing, keep the return point visible, and point back to that file."
+      : "The file is already BO-ready, so the first formal step should be a Back Office offer record instead of a duplicate note, with this dossier remaining the client-facing return."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "The client is ready for formal tracking, so open the shared offer workspace before the terms drift or get duplicated."
-      : "Use coaching, recap, and decision support here until the client's terms are ready for formal Back Office tracking.";
+      ? "The client is ready for formal tracking, so open the shared offer workspace before the terms drift or get duplicated, and keep the client-ready summary consistent."
+      : "Use coaching, recap, and decision support here until the client's terms are ready for formal Back Office tracking and the dossier can hand off cleanly.";
   const negotiationOperatorLabel = negotiationTransactionId
     ? "FO coaches; BO owns the formal offer file"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "FO prepares the handoff; BO should open the file"
       : "Front Office owns prep and decision support";
   const negotiationOperatorDescription = negotiationTransactionId
-    ? "Keep client conversation, explanation, and comparison work here, but treat the offer itself as a Back Office record."
+    ? "Keep client conversation, explanation, and comparison work here, but treat the offer itself as a Back Office record and the dossier as the client-facing companion."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "This dossier should hand the actual offer terms to Back Office instead of creating a second track."
-      : "Use this lane for response shaping, objections, and readiness checks while the deal is still being clarified.";
+      ? "This dossier should hand the actual offer terms to Back Office instead of creating a second track, while still preserving the client-ready story."
+      : "Use this lane for response shaping, objections, and readiness checks while the deal is still being clarified and the return point stays in Front Office.";
   const negotiationEmptyStateTitle = negotiationTransactionId
     ? "No formal offers yet"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "No BO offer workspace started yet"
       : "Still in Front Office prep";
   const negotiationEmptyStateDescription = negotiationTransactionId
-    ? "Once the first Back Office offer is created, it will appear here with status, price, expiration, and direct links into the shared offer workspace."
+    ? "Once the first Back Office offer is created, it will appear here with status, price, expiration, and direct links into the shared offer workspace while the dossier remains the client-ready summary."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "This client is at a BO-ready stage, but the formal transaction and offer workspace have not been opened yet."
-      : "This client is not yet at a formal negotiation / offer stage, so the next move should stay in Front Office follow-up, showing, and send prep.";
+      ? "This client is at a BO-ready stage, but the formal transaction and offer workspace have not been opened yet, so the dossier is still the place to keep the recap coherent."
+      : "This client is not yet at a formal negotiation / offer stage, so the next move should stay in Front Office follow-up, showing, and send prep with the same dossier as the return point.";
   const inspectionBoundaryLabel = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
       ? "Inspection-era live"
@@ -5237,11 +5237,11 @@ export async function getFrontOfficeClientDetail(
       : "Inspection support starts after the formal file exists";
   const inspectionBoundaryDescription = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
-      ? "Use the shared Back Office transaction to drive checklist work, signatures, incoming update review, and client-facing milestone clarity through the inspection window. Front Office stays the explanation layer, not a duplicate checklist."
-      : "The transaction record exists, but Acre does not have an accepted-contract date yet. Finish the offer-to-contract transition in Back Office before treating this as a live inspection file."
+      ? "Use the shared Back Office transaction to drive checklist work, signatures, incoming update review, and client-facing milestone clarity through the inspection window. Front Office stays the explanation layer and the same recap surface, not a duplicate checklist."
+      : "The transaction record exists, but Acre does not have an accepted-contract date yet. Finish the offer-to-contract transition in Back Office before treating this as a live inspection file or a separate FO tracker."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Negotiation is advanced enough that the next formal contract / inspection step should begin from the shared Back Office record, not as a second Front Office checklist."
-      : "Keep the client in Front Office follow-up, showing, and negotiation prep until the formal contract file is opened.";
+      ? "Negotiation is advanced enough that the next formal contract / inspection step should begin from the shared Back Office record, not as a second Front Office checklist, and the dossier should stay the client-facing reference."
+      : "Keep the client in Front Office follow-up, showing, and negotiation prep until the formal contract file is opened and the next return point becomes the shared record.";
   const inspectionBoundaryMetaLabel = negotiationTransactionId
     ? inspectionTransactionRecord
       ? buildTransactionContextMetaLabel({
@@ -5275,25 +5275,25 @@ export async function getFrontOfficeClientDetail(
       : "Keep inspection support in Front Office only";
   const inspectionNextMoveDescription = negotiationTransactionId
     ? inspectionOverdueTaskCount > 0
-      ? "The shared transaction record already has checklist pressure, so clear the live BO tasks before anything else."
+      ? "The shared transaction record already has checklist pressure, so clear the live BO tasks before anything else and leave the dossier as the explanation layer."
       : inspectionPendingSignatureCount > 0
-        ? "Signature work now lives in the shared transaction, so the next move is to handle the formal paperwork there."
+        ? "Signature work now lives in the shared transaction, so the next move is to handle the formal paperwork there and keep the client-ready view in sync."
         : inspectionPendingIncomingUpdateCount > 0
-          ? "The contract file is live, and the next actionable signal is the incoming-update queue inside Back Office."
-          : "The inspection-era file is live, but there is no immediate pressure, so keep the formal record ready and the client-facing summary visible."
+          ? "The contract file is live, and the next actionable signal is the incoming-update queue inside Back Office while the dossier keeps the summary visible."
+          : "The inspection-era file is live, but there is no immediate pressure, so keep the formal record ready and the client-facing summary visible on the same return point."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "The client is BO-ready, so the formal contract file should open before inspection support drifts into a duplicate tracker."
-      : "Use this lane only for recap and coordination until a formal contract file exists.";
+      ? "The client is BO-ready, so the formal contract file should open before inspection support drifts into a duplicate tracker or a second recap surface."
+      : "Use this lane only for recap and coordination until a formal contract file exists and the return point can stay consistent.";
   const inspectionOperatorLabel = negotiationTransactionId
     ? "FO explains; BO owns tasks, signatures, and updates"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
       ? "FO prepares the handoff; BO should own the file"
       : "Front Office keeps the client visible";
   const inspectionOperatorDescription = negotiationTransactionId
-    ? "Keep the client-facing explanation in this dossier, but let the checklist, signature queue, and incoming review live in Back Office."
+    ? "Keep the client-facing explanation in this dossier, but let the checklist, signature queue, and incoming review live in Back Office while this page stays the reference view."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "Use this lane to prepare the handoff, but do not duplicate the contract workflow in Front Office."
-      : "Inspection support stays in Front Office until the formal file opens.";
+      ? "Use this lane to prepare the handoff, but do not duplicate the contract workflow in Front Office or break the client-ready recap."
+      : "Inspection support stays in Front Office until the formal file opens and the same dossier can point back to it.";
   const inspectionPrimaryActionLabel = negotiationTransactionId
     ? inspectionOverdueTaskCount > 0 || inspectionOpenTaskCount > 0
       ? "Open BO tasks"
@@ -5372,11 +5372,11 @@ export async function getFrontOfficeClientDetail(
       : "Still in Front Office prep";
   const inspectionEmptyStateDescription = negotiationTransactionId
     ? inspectionTransactionRecord?.acceptanceDate
-      ? "Open tasks, pending signatures, and incoming review items will show up here when the shared transaction workspace needs action."
-      : "Open the formal transaction record to finish acceptance / contract setup. Inspection-era checklist support will become meaningful once the BO file is carrying the live milestones."
+      ? "Open tasks, pending signatures, and incoming review items will show up here when the shared transaction workspace needs action, while the dossier keeps the client-facing recap aligned."
+      : "Open the formal transaction record to finish acceptance / contract setup. Inspection-era checklist support will become meaningful once the BO file is carrying the live milestones and this dossier can mirror them."
     : isFrontOfficeStageReadyForBackOffice(client.stage)
-      ? "This client is BO-ready, but the formal contract workspace has not been opened yet."
-      : "Inspection support is intentionally deferred until the client reaches formal contract work.";
+      ? "This client is BO-ready, but the formal contract workspace has not been opened yet, so the client-ready view still belongs in Front Office."
+      : "Inspection support is intentionally deferred until the client reaches formal contract work and the same return point can stay in sync.";
   const inspectionItems = negotiationTransactionId
     ? [
         ...inspectionTaskRows.map((task) => ({
@@ -5519,16 +5519,16 @@ export async function getFrontOfficeClientDetail(
   const closingBoundaryDescription = hasCancelledTransaction
     ? "The formal transaction no longer points to a live close. Use Front Office for respectful re-entry, alternate options, or a future nurture touch instead of pretending a win exists."
     : isFreshWin
-      ? "The shared transaction record now proves the win. Front Office should turn that into a same-week check-in, recap, referral ask, or move-in support plan before the momentum cools."
+      ? "The shared transaction record now proves the win. Front Office should turn that into a same-week check-in, recap, referral ask, or move-in support plan before the momentum cools, and keep the client-ready summary tied to the same file."
       : hasClosedTransaction
-        ? "The formal record is already closed. Front Office should keep the client relationship alive through post-close follow-up, referral timing, and future move planning."
+        ? "The formal record is already closed. Front Office should keep the client relationship alive through post-close follow-up, referral timing, and future move planning while the recap still points to the same source of truth."
         : isClosingSoon
-          ? "The formal file already has a near-term closing or move-in milestone. Front Office should make the wrap-up visible now instead of waiting until the date has already passed."
+          ? "The formal file already has a near-term closing or move-in milestone. Front Office should make the wrap-up visible now instead of waiting until the date has already passed, and keep the same return point visible."
           : negotiationTransactionId
-            ? "The formal file is active, and Front Office should reference that shared Back Office record for the next move instead of creating a second close-out surface."
+            ? "The formal file is active, and Front Office should reference that shared Back Office record for the next move instead of creating a second close-out surface or a second recap."
             : isFrontOfficeStageReadyForBackOffice(client.stage)
-              ? "The client is BO-ready, but the formal deal-wrap record has not been opened yet. Start there before relying on win-stage guidance."
-              : "This client is not yet in a deal-wrap phase, so closing guidance should stay dormant while follow-up, showing, and negotiation prep continue.";
+              ? "The client is BO-ready, but the formal deal-wrap record has not been opened yet. Start there before relying on win-stage guidance and keep the dossier as the client-facing version."
+              : "This client is not yet in a deal-wrap phase, so closing guidance should stay dormant while follow-up, showing, and negotiation prep continue from the same dossier.";
   const closingBoundaryMetaLabel = negotiationTransactionId
     ? inspectionTransactionRecord
       ? buildTransactionContextMetaLabel({
@@ -5569,12 +5569,12 @@ export async function getFrontOfficeClientDetail(
         ? "The deal is already closed, so keep the follow-through visible and use the calendar touch to protect the relationship."
         : "The win is already in the record, so book the first post-close touch before the momentum cools."
       : isClosingSoon
-        ? "The milestone is close enough that the wrap-up touch, date check, and client expectation should already be visible in Front Office."
+        ? "The milestone is close enough that the wrap-up touch, date check, and client expectation should already be visible in Front Office, with the same return point calling back to the formal file."
         : negotiationTransactionId
-          ? "The formal file is live, so Front Office should point to the shared Back Office record, keep client-facing context visible, and avoid building a second close-out surface."
+          ? "The formal file is live, so Front Office should point to the shared Back Office record, keep client-facing context visible, and avoid building a second close-out surface or recap."
           : isFrontOfficeStageReadyForBackOffice(client.stage)
-            ? "The client is ready for formal deal-wrap handling, so open the shared Back Office record before closing guidance starts."
-            : "Stay in Front Office prep until the deal is formal enough to need a close-out track.";
+            ? "The client is ready for formal deal-wrap handling, so open the shared Back Office record before closing guidance starts and keep the recap aligned."
+            : "Stay in Front Office prep until the deal is formal enough to need a close-out track and the return point can move with it.";
   const closingOperatorLabel = hasCancelledTransaction
     ? "Front Office resets the conversation"
     : hasClosedTransaction
@@ -5589,10 +5589,10 @@ export async function getFrontOfficeClientDetail(
     : hasClosedTransaction
       ? "Keep post-close care in Front Office while the authoritative transaction record remains in Back Office."
       : negotiationTransactionId
-        ? "The wrap-up should keep pointing to the formal BO record, not create a second closing tracker in Front Office."
+        ? "The wrap-up should keep pointing to the formal BO record, not create a second closing tracker in Front Office or split the recap away from it."
         : isFrontOfficeStageReadyForBackOffice(client.stage)
-          ? "Prepare the close here, but hand the formal deal file to Back Office when it opens."
-          : "Use this lane only for pre-win prep and keep the formal record dormant.";
+          ? "Prepare the close here, but hand the formal deal file to Back Office when it opens and preserve the same client-ready view."
+          : "Use this lane only for pre-win prep and keep the formal record dormant until the deal exists.";
   const closingTransactionStatusLabel = inspectionTransactionRecord
     ? formatTransactionStatusLabel(inspectionTransactionRecord.status)
     : "No linked transaction";
@@ -5661,12 +5661,12 @@ export async function getFrontOfficeClientDetail(
   const closingEmptyStateDescription = hasCancelledTransaction
     ? "Use Front Office follow-up, alternate options, or future nurture steps instead of a closeout workflow."
     : hasClosedTransaction
-      ? "The formal win is already recorded, and the next recommendations should keep the relationship active after close."
+      ? "The formal win is already recorded, and the next recommendations should keep the relationship active after close while the client-ready summary keeps pointing back to the same file."
       : negotiationTransactionId
-        ? "As closing dates, move-in timing, or transaction outcomes settle, the dossier will turn those signals into wrap-up guidance tied to the shared Back Office record."
+        ? "As closing dates, move-in timing, or transaction outcomes settle, the dossier will turn those signals into wrap-up guidance tied to the shared Back Office record and the same return point."
         : isFrontOfficeStageReadyForBackOffice(client.stage)
-          ? "Open the formal Back Office deal first. Closing suggestions are intentionally downstream of that shared transaction record."
-          : "Closing and win suggestions stay dormant until the client reaches a formal deal stage.";
+          ? "Open the formal Back Office deal first. Closing suggestions are intentionally downstream of that shared transaction record and should mirror the same client-facing view."
+          : "Closing and win suggestions stay dormant until the client reaches a formal deal stage and the dossier can hand off cleanly.";
   const closingSuggestions: FrontOfficeClientDetailClosingItem[] =
     hasCancelledTransaction
       ? [

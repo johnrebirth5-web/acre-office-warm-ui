@@ -26,19 +26,19 @@ export const frontOfficeClientDossierSectionLabels = {
 
 export const frontOfficeClientDossierSectionDescriptions = {
   nextStepRail:
-    "Use this section when you want the dossier to explain the active workbench lane, the current return point, and the next best move.",
+    "Use this section when you want the dossier to explain the active workbench lane, the current return point, and the next best move that should bring you back to the same file.",
   appointmentsFollowUp:
     "Use this section when the next touch belongs to calls, reminders, confirmations, reschedules, or live client coordination and you want to re-enter from calendar writeback.",
   listingOutput:
     "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.",
   offerPrep:
-    "Use this section when negotiation is active, Front Office still owns the client-facing coaching, and the same workbench needs to open or return to the formal Back Office offer file.",
+    "Use this section when negotiation is active, Front Office still owns the client-facing coaching, and the same workbench needs to open or return to the formal Back Office offer file without losing the client-ready recap.",
   inspectionSupport:
-    "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same workbench should reopen the Back Office checklist instead of creating a second tracker.",
+    "Use this section when the formal transaction is live, Front Office still owns the client-facing explanation, and the same workbench should reopen the Back Office checklist instead of creating a second tracker or a separate recap surface.",
   closingSuggestion:
-    "Use this section when the deal is closing, closed, or paused, and the same workbench should turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan.",
+    "Use this section when the deal is closing, closed, or paused, and the same workbench should turn the formal outcome into a next move, a post-close touch, or a respectful re-entry plan while keeping the client-ready view aligned with the same source of truth.",
   backOfficeContext:
-    "Use this section when you need the dossier to explain why the formal Back Office record should take over, including which work still belongs in Front Office and which work is already committed to the shared file.",
+    "Use this section when you need the dossier to explain why the formal Back Office record should take over, including which work still belongs in Front Office, which work is already committed to the shared file, and where the client-ready summary should point next.",
 } as const;
 
 export type FrontOfficeClientActionDescriptor = {

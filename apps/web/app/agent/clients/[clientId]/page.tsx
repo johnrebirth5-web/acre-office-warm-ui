@@ -460,7 +460,7 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id="front-office-client-overview"
-            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so calendar, listing, or cleanup re-entry lands back on the same workbench instead of a fresh admin form.`}
+            subtitle={`${currentSectionLabel} is the current focus, and the rest of the dossier stays one jump away so calendar, listing, cleanup, or PDF re-entry lands back on the same workbench and the same return point instead of a fresh admin form.`}
             title="Overview"
           >
             <ListPageStatsGrid>
@@ -572,11 +572,12 @@ export default async function AgentClientDetailPage(
                   tone: "neutral",
                   title: "Export a recap that mirrors the live dossier",
                   description:
-                    "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work.",
+                    "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work or breaking the same return point.",
                   meta: (
                     <span>
                       PDF export stays client-facing; formal transaction
-                      documents still live separately.
+                      documents still live separately and BO remains the source
+                      of truth.
                     </span>
                   ),
                   actions: [
@@ -1787,7 +1788,7 @@ export default async function AgentClientDetailPage(
                   title:
                     "Export the same execution story as a client-facing PDF",
                   description:
-                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without copying admin work back into Front Office.",
+                    "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without copying admin work back into Front Office or changing the return point.",
                   meta: (
                     <span>
                       Use it for recap, alignment, and post-meeting
@@ -1830,8 +1831,9 @@ export default async function AgentClientDetailPage(
               <strong>Execution chain</strong>
               <p>
                 Open the matching dossier block first. Use the second jump only
-                when the work needs calendar scheduling, listing output, or the
-                shared Back Office record.
+                when the work needs calendar scheduling, listing output, the
+                shared Back Office record, or a PDF export that should mirror
+                the same lane.
               </p>
             </div>
 
@@ -1919,7 +1921,7 @@ export default async function AgentClientDetailPage(
           <SectionCard
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.backOfficeContext}
-            subtitle="Once formal transaction work starts, Front Office should point into the shared BO record instead of duplicating it or treating the handoff as a second file."
+            subtitle="Once formal transaction work starts, Front Office should point into the shared BO record instead of duplicating it or treating the handoff as a second file, while the client-ready summary keeps pointing back to that source of truth."
             title="Back Office context"
           >
             <FrontOfficeClientGuidanceQueue
