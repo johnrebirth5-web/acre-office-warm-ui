@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ComponentProps } from "react";
 import type { FrontOfficeListingsSnapshot, FrontOfficeTone } from "@acre/db";
+import type { FrontOfficeListingUsagePulse } from "../../../../../packages/db/src/front-office-listing-output";
 import { Badge, Button, EmptyState, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
@@ -13,6 +14,7 @@ import type {
 type FrontOfficeListingsOutputClientProps = {
   snapshot: FrontOfficeListingsSnapshot;
   routeState: FrontOfficeListingsRouteState;
+  usagePulse: FrontOfficeListingUsagePulse;
   draftAssist?: FrontOfficeListingsDraftAssist | null;
 };
 
@@ -176,18 +178,18 @@ function buildListingTractionCue(
   listing: FrontOfficeListingsSnapshot["listings"][number],
 ) {
   if (listing.trackedLinkCount <= 0) {
-    return "No tracked send has gone out from this surface yet. Use email when the client needs more framing before they click.";
+    return "No tracked pulse has left this listing yet. Use the lane that gives the client enough framing to care before you ask for a click.";
   }
 
   if (listing.trackedClickCount <= 0) {
-    return `${listing.trackedLinkCount} tracked send(s) exist with no open yet. Tighten the reason-to-care or pair the share with stronger agent context before resending.`;
+    return `${listing.trackedLinkCount} tracked send(s) are still quiet. Tighten the reason-to-care or pair the share with stronger agent context before resending.`;
   }
 
   if (listing.trackedClickCount >= listing.trackedLinkCount) {
-    return "Tracked sends are already producing opens here. Good candidate for a shortlist or showing follow-up instead of a cold first touch.";
+    return "Tracked sends are already producing a strong pulse here. Good candidate for a shortlist or showing follow-up instead of a cold first touch.";
   }
 
-  return `${listing.trackedClickCount} open(s) across ${listing.trackedLinkCount} tracked send(s). Use SMS when you need a quick reaction instead of another long note.`;
+  return `${listing.trackedClickCount} click(s) across ${listing.trackedLinkCount} tracked send(s). Use SMS when you want a quicker pulse instead of another long note.`;
 }
 
 function buildListingMaterialCue(snapshot: FrontOfficeListingsSnapshot) {
@@ -386,14 +388,18 @@ function buildTrackedContextBadgeLabel(
   listing: FrontOfficeListingsSnapshot["listings"][number],
 ) {
   if (listing.trackedLinkCount <= 0) {
-    return "Fresh";
+    return "Fresh pulse";
   }
 
   if (listing.trackedClickCount <= 0) {
-    return `${listing.trackedLinkCount} sent`;
+    return "Quiet pulse";
   }
 
-  return `${listing.trackedClickCount} opened`;
+  if (listing.trackedClickCount >= listing.trackedLinkCount) {
+    return "Active pulse";
+  }
+
+  return "Warm pulse";
 }
 
 function buildTrackedContextBadgeTone(
@@ -942,6 +948,96 @@ export function FrontOfficeListingsOutputClient(
         </div>
       ) : null}
 
+      <div className="front-office-playbook-card">
+        <div className="front-office-playbook-card-head">
+          <strong>Tracked-share usage pulse</strong>
+          <span>{props.usagePulse.pulseDescription}</span>
+        </div>
+        <div className="list-row-meta front-office-record-meta">
+          <span>{props.usagePulse.trackedLinkCount} tracked link(s)</span>
+          <span>{props.usagePulse.trackedClickCount} tracked click(s)</span>
+          <span>{props.usagePulse.engagedListingCount} engaged listing(s)</span>
+          <span>
+            {props.usagePulse.quietTrackedListingCount} quiet trail(s)
+          </span>
+          <span>{props.usagePulse.clickThroughRateLabel}</span>
+        </div>
+        <div className="office-queue-list">
+          {props.usagePulse.strongestTrail ? (
+            <QueueItem
+              action={
+                <>
+                  {props.usagePulse.strongestTrail.clientHref ? (
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={props.usagePulse.strongestTrail.clientHref}
+                    >
+                      Open bound dossier
+                    </FrontOfficeLink>
+                  ) : null}
+                  {props.usagePulse.strongestTrail.appointmentHref ? (
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={props.usagePulse.strongestTrail.appointmentHref}
+                    >
+                      Open bound appointment
+                    </FrontOfficeLink>
+                  ) : null}
+                </>
+              }
+              badgeLabel={props.usagePulse.strongestTrail.badgeLabel}
+              badgeTone={props.usagePulse.strongestTrail.badgeTone}
+              context={props.usagePulse.strongestTrail.context}
+              description={props.usagePulse.strongestTrail.description}
+              meta={
+                <>
+                  {props.usagePulse.strongestTrail.meta.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </>
+              }
+              title="Strongest trail"
+            />
+          ) : null}
+          {props.usagePulse.latestTrackedShare ? (
+            <QueueItem
+              action={
+                <>
+                  {props.usagePulse.latestTrackedShare.clientHref ? (
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={props.usagePulse.latestTrackedShare.clientHref}
+                    >
+                      Open bound dossier
+                    </FrontOfficeLink>
+                  ) : null}
+                  {props.usagePulse.latestTrackedShare.appointmentHref ? (
+                    <FrontOfficeLink
+                      className="office-inline-link"
+                      href={props.usagePulse.latestTrackedShare.appointmentHref}
+                    >
+                      Open bound appointment
+                    </FrontOfficeLink>
+                  ) : null}
+                </>
+              }
+              badgeLabel={props.usagePulse.latestTrackedShare.badgeLabel}
+              badgeTone={props.usagePulse.latestTrackedShare.badgeTone}
+              context={props.usagePulse.latestTrackedShare.context}
+              description={props.usagePulse.latestTrackedShare.description}
+              meta={
+                <>
+                  {props.usagePulse.latestTrackedShare.meta.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </>
+              }
+              title="Most recent share"
+            />
+          ) : null}
+        </div>
+      </div>
+
       <div className="front-office-playbook-grid front-office-listings-overview-grid">
         <div className="front-office-playbook-card">
           <div className="front-office-playbook-card-head">
@@ -1193,7 +1289,7 @@ export function FrontOfficeListingsOutputClient(
                         {listing.trackedClickCount} tracked click(s)
                       </span>
                     }
-                    title="Tracked link context"
+                    title="Usage pulse"
                   />
                   {listing.latestTrackedShare ? (
                     <QueueItem

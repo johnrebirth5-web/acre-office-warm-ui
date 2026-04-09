@@ -65,6 +65,64 @@ export type FrontOfficeListingShareExecutionSummary = {
   appointmentWindowLabel: string | null;
 };
 
+type FrontOfficeTone = "neutral" | "accent" | "success" | "warning" | "danger";
+
+export type FrontOfficeListingUsagePulseCard = {
+  title: string;
+  badgeLabel: string;
+  badgeTone: FrontOfficeTone;
+  context: string;
+  description: string;
+  meta: string[];
+  clientHref: string | null;
+  appointmentHref: string | null;
+};
+
+export type FrontOfficeListingUsagePulse = {
+  listingCount: number;
+  trackedListingCount: number;
+  engagedListingCount: number;
+  quietTrackedListingCount: number;
+  trackedLinkCount: number;
+  trackedClickCount: number;
+  clickThroughRateLabel: string;
+  pulseLabel: string;
+  pulseDescription: string;
+  strongestTrail: FrontOfficeListingUsagePulseCard | null;
+  latestTrackedShare: FrontOfficeListingUsagePulseCard | null;
+  recentTrackedShares: FrontOfficeListingUsagePulseCard[];
+};
+
+export type FrontOfficeListingUsagePulseListing = {
+  id: string;
+  title: string;
+  areaLabel: string;
+  summaryLabel: string;
+  priceLabel: string;
+  cityLabel: string;
+  statusLabel: string;
+  statusTone: FrontOfficeTone;
+  trackedClickCount: number;
+  trackedLinkCount: number;
+  latestTrackedShare: {
+    modeLabel: string;
+    channelLabel: string;
+    sentAtLabel: string;
+    sentAtValue: string;
+    trackingLabel: string;
+    statusTone: FrontOfficeTone;
+    writebackLabel: string;
+    writebackScopeLabel: string;
+    nextStepLabel: string;
+    clientLabel: string | null;
+    clientStageDisplayLabel: string | null;
+    clientHref: string | null;
+    appointmentLabel: string | null;
+    appointmentWindowLabel: string | null;
+    appointmentHref: string | null;
+  } | null;
+};
+
 class FrontOfficeListingShareLinkError extends Error {
   readonly code: string;
   readonly status: number;
@@ -416,6 +474,187 @@ function buildShareWritebackLabel(input: {
   }
 
   return "Tracked link saved without client-linked writeback.";
+}
+
+function buildListingUsagePulseTrailState(input: {
+  trackedClickCount: number;
+  trackedLinkCount: number;
+}) {
+  if (input.trackedLinkCount <= 0) {
+    return {
+      badgeLabel: "Fresh trail",
+      badgeTone: "neutral" as const,
+      description: "No tracked send has left this listing yet.",
+    };
+  }
+
+  if (input.trackedClickCount <= 0) {
+    return {
+      badgeLabel: "Quiet trail",
+      badgeTone: "warning" as const,
+      description:
+        "Tracked sends exist, but the click pulse has not returned yet.",
+    };
+  }
+
+  if (input.trackedClickCount >= input.trackedLinkCount) {
+    return {
+      badgeLabel: "Active trail",
+      badgeTone: "success" as const,
+      description:
+        "Tracked sends are already producing a strong usage pulse in this desk.",
+    };
+  }
+
+  return {
+    badgeLabel: "Warm trail",
+    badgeTone: "accent" as const,
+    description:
+      "Tracked sends are returning clicks, but some links are still waiting on a response.",
+  };
+}
+
+function buildListingUsagePulseCard(
+  listing: FrontOfficeListingUsagePulseListing,
+): FrontOfficeListingUsagePulseCard {
+  const latestShare = listing.latestTrackedShare;
+  const trailState = buildListingUsagePulseTrailState({
+    trackedClickCount: listing.trackedClickCount,
+    trackedLinkCount: listing.trackedLinkCount,
+  });
+  const meta = [
+    `${listing.trackedLinkCount} tracked link(s)`,
+    `${listing.trackedClickCount} tracked click(s)`,
+  ];
+
+  if (latestShare) {
+    meta.push(`Latest share · ${latestShare.sentAtLabel}`);
+    meta.push(latestShare.writebackScopeLabel);
+    meta.push(`Next step · ${latestShare.nextStepLabel}`);
+
+    if (latestShare.clientLabel) {
+      meta.push(
+        `Client · ${latestShare.clientLabel}${
+          latestShare.clientStageDisplayLabel
+            ? ` · ${latestShare.clientStageDisplayLabel}`
+            : ""
+        }`,
+      );
+    }
+
+    if (latestShare.appointmentLabel) {
+      meta.push(
+        `Appointment · ${latestShare.appointmentLabel}${
+          latestShare.appointmentWindowLabel
+            ? ` · ${latestShare.appointmentWindowLabel}`
+            : ""
+        }`,
+      );
+    }
+  } else {
+    meta.push("Latest share pending");
+  }
+
+  return {
+    title: listing.title,
+    badgeLabel: trailState.badgeLabel,
+    badgeTone: trailState.badgeTone,
+    context: latestShare
+      ? `${latestShare.modeLabel} · ${latestShare.sentAtLabel}`
+      : `${listing.areaLabel} · pulse waiting`,
+    description: latestShare
+      ? `${latestShare.trackingLabel} ${latestShare.writebackLabel}`
+      : "No tracked share has been created for this listing yet.",
+    meta,
+    clientHref: latestShare?.clientHref ?? null,
+    appointmentHref: latestShare?.appointmentHref ?? null,
+  };
+}
+
+export function buildFrontOfficeListingUsagePulse(
+  listings: FrontOfficeListingUsagePulseListing[],
+): FrontOfficeListingUsagePulse {
+  const trackedLinkCount = listings.reduce(
+    (sum, listing) => sum + listing.trackedLinkCount,
+    0,
+  );
+  const trackedClickCount = listings.reduce(
+    (sum, listing) => sum + listing.trackedClickCount,
+    0,
+  );
+  const trackedListingCount = listings.filter(
+    (listing) => listing.trackedLinkCount > 0,
+  ).length;
+  const engagedListingCount = listings.filter(
+    (listing) => listing.trackedClickCount > 0,
+  ).length;
+  const quietTrackedListingCount = listings.filter(
+    (listing) => listing.trackedLinkCount > 0 && listing.trackedClickCount <= 0,
+  ).length;
+  const clickThroughRateLabel =
+    trackedLinkCount > 0
+      ? `${Math.round((trackedClickCount / trackedLinkCount) * 100)}% click rate`
+      : "No click data yet";
+  const pulseLabel =
+    trackedLinkCount <= 0
+      ? "Fresh desk"
+      : engagedListingCount <= 0
+        ? "Quiet pulse"
+        : quietTrackedListingCount <= 0
+          ? "Active pulse"
+          : "Mixed pulse";
+  const pulseDescription =
+    trackedLinkCount <= 0
+      ? "No tracked links have been created yet, so the desk is still waiting for its first measured send."
+      : engagedListingCount <= 0
+        ? `${trackedLinkCount} tracked link(s) are in motion across ${trackedListingCount} listing(s), but no clicks have returned yet.`
+        : `${trackedClickCount} tracked click(s) are flowing across ${engagedListingCount} engaged listing(s), with ${quietTrackedListingCount} quiet tracked trail(s) still waiting on a response.`;
+  const sortedByLatestShare = listings
+    .filter((listing) => listing.latestTrackedShare)
+    .slice()
+    .sort((left, right) => {
+      const leftValue = left.latestTrackedShare?.sentAtValue ?? "";
+      const rightValue = right.latestTrackedShare?.sentAtValue ?? "";
+
+      return rightValue.localeCompare(leftValue);
+    });
+  const sortedByClicks = listings.slice().sort((left, right) => {
+    if (right.trackedClickCount !== left.trackedClickCount) {
+      return right.trackedClickCount - left.trackedClickCount;
+    }
+
+    if (right.trackedLinkCount !== left.trackedLinkCount) {
+      return right.trackedLinkCount - left.trackedLinkCount;
+    }
+
+    const leftValue = left.latestTrackedShare?.sentAtValue ?? "";
+    const rightValue = right.latestTrackedShare?.sentAtValue ?? "";
+
+    return rightValue.localeCompare(leftValue);
+  });
+  const strongestTrailListing = sortedByClicks[0] ?? null;
+  const latestTrackedShareListing = sortedByLatestShare[0] ?? null;
+
+  return {
+    listingCount: listings.length,
+    trackedListingCount,
+    engagedListingCount,
+    quietTrackedListingCount,
+    trackedLinkCount,
+    trackedClickCount,
+    clickThroughRateLabel,
+    pulseLabel,
+    pulseDescription,
+    strongestTrail: strongestTrailListing
+      ? buildListingUsagePulseCard(strongestTrailListing)
+      : null,
+    latestTrackedShare: latestTrackedShareListing
+      ? buildListingUsagePulseCard(latestTrackedShareListing)
+      : null,
+    recentTrackedShares: sortedByLatestShare
+      .slice(0, 3)
+      .map((listing) => buildListingUsagePulseCard(listing)),
+  };
 }
 
 export function buildFrontOfficeListingShareExecutionSummary(input: {
