@@ -300,10 +300,12 @@ export async function handleAppointmentMailThreadPost(
       actionLabel: "Open appointment",
     });
 
-    await dependencies.recordAppointmentInternalMailThreadOpenedActivity({
-      organizationId: context.currentOrganization.id,
-      membershipId: context.currentMembership.id,
-      officeId: context.currentOffice?.id ?? null,
+    await dependencies.recordAppointmentInternalMailThreadOpenedActivity(
+      prisma,
+      {
+        organizationId: context.currentOrganization.id,
+        membershipId: context.currentMembership.id,
+        officeId: context.currentOffice?.id ?? null,
       appointment: {
         id: appointment.id,
         title: appointment.title,
@@ -323,8 +325,9 @@ export async function handleAppointmentMailThreadPost(
         id: thread.id,
         subject: thread.subject,
       },
-      contextHref: `/agent/calendar?appointmentId=${appointment.id}`,
-    });
+        contextHref: `/agent/calendar?appointmentId=${appointment.id}`,
+      },
+    );
 
     return NextResponse.json(
       dependencies.buildAppointmentInternalMailThreadResponse({

@@ -58,6 +58,7 @@ function buildDependencies(overrides: Partial<RouteDependencies>): RouteDependen
         subject: "Confirmed: Buyer Check-In on April 9, 2026 at 10:00 AM",
       }) as never,
     recordAppointmentInternalMailThreadOpenedActivity: async (
+      _writer,
       _input: AppointmentInternalMailThreadOpenedActivityInput,
     ) => {},
     buildAppointmentInternalMailThreadResponse,
@@ -162,7 +163,7 @@ test("returns 201 and a no-store internal mail thread response when the appointm
     createRequest(),
     { params: Promise.resolve({ appointmentId: "apt_123" }) },
     buildDependencies({
-      recordAppointmentInternalMailThreadOpenedActivity: async (input) => {
+      recordAppointmentInternalMailThreadOpenedActivity: async (_writer, input) => {
         recordedInput = input;
       },
     }),
