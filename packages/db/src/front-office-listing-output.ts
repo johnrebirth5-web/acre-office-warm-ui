@@ -1137,14 +1137,7 @@ export type FrontOfficeListingShareLinkResult = {
   };
 };
 
-export type FrontOfficeListingSharePageSnapshot = {
-  code: string;
-  listingTitle: string;
-  areaLabel: string;
-  priceLabel: string;
-  factsLabel: string;
-  summaryLabel: string;
-  statusLabel: string;
+export type FrontOfficeListingSharePublicPageSnapshot = {
   shareSurfaceLabel: string;
   shareContextLabel: string;
   channelLabel: string;
@@ -1153,12 +1146,26 @@ export type FrontOfficeListingSharePageSnapshot = {
   nextStepLabel: string;
   followUpLabel: string;
   privacyLabel: string;
-  sourceUrl: string;
-  agentLabel: string;
-  agentEmail: string;
-  agentPhone: string;
-  organizationLabel: string;
 };
+
+export type FrontOfficeListingSharePromiseSnapshot =
+  FrontOfficeListingSharePublicPageSnapshot;
+
+export type FrontOfficeListingSharePageSnapshot =
+  FrontOfficeListingSharePublicPageSnapshot & {
+    code: string;
+    listingTitle: string;
+    areaLabel: string;
+    priceLabel: string;
+    factsLabel: string;
+    summaryLabel: string;
+    statusLabel: string;
+    sourceUrl: string;
+    agentLabel: string;
+    agentEmail: string;
+    agentPhone: string;
+    organizationLabel: string;
+  };
 
 function resolvePublicShareModeFromStoredState(input: {
   hasTrackedSend: boolean;
@@ -1278,11 +1285,11 @@ function buildSharePublicPrivacyLabel(input: {
   return "This Acre page is a private follow-through surface, so keep replies in the same conversation whenever possible.";
 }
 
-function buildSharePublicPageSnapshot(input: {
+export function buildSharePublicPageSnapshot(input: {
   mode: FrontOfficeListingShareBindingMode;
   channel: FrontOfficeSendChannel;
   appointmentTitle: string | null;
-}) {
+}): FrontOfficeListingSharePublicPageSnapshot {
   return {
     shareSurfaceLabel: buildSharePublicSurfaceLabel({
       mode: input.mode,
@@ -1312,6 +1319,14 @@ function buildSharePublicPageSnapshot(input: {
       mode: input.mode,
     }),
   };
+}
+
+export function buildFrontOfficeListingSharePromiseSnapshot(input: {
+  mode: FrontOfficeListingShareBindingMode;
+  channel: FrontOfficeSendChannel;
+  appointmentTitle: string | null;
+}): FrontOfficeListingSharePromiseSnapshot {
+  return buildSharePublicPageSnapshot(input);
 }
 
 function buildShareResultSnapshot(input: {

@@ -112,6 +112,14 @@ type ClientFacingShareContract = {
   meta: string[];
 };
 
+type ClientFacingSharePromise = {
+  shareSurfaceLabel: string;
+  shareContextLabel: string;
+  replyLaneLabel: string;
+  nextStepLabel: string;
+  privacyLabel: string;
+};
+
 type ListingSendRiskWatch = {
   badgeLabel: string;
   badgeTone: QueueItemBadgeTone;
@@ -629,26 +637,23 @@ function buildShareFeedback(input: {
 
 function buildClientFacingShareContract(input: {
   snapshot: FrontOfficeListingsSnapshot;
-  routeState: FrontOfficeListingsRouteState;
   recommendedAction: RecommendedShareAction;
 }): ClientFacingShareContract {
+  const sharePromise = buildClientFacingSharePromise(input);
+
   if (input.snapshot.targetAppointment) {
     return {
       badgeLabel: "Appt share",
       badgeTone: "accent",
       title: "Client-facing follow-through surface",
-      context: "Appointment-linked promise",
-      description:
-        "The client lands on a private follow-through page that keeps the showing context visible and pushes the reply back into the same conversation thread.",
+      context: sharePromise.shareSurfaceLabel,
+      description: sharePromise.shareContextLabel,
       meta: [
         `First lane · ${input.recommendedAction.label}`,
-        "Public page · appointment follow-through share.",
-        `Reply lane · ${
-          input.recommendedAction.action === "sms"
-            ? "fast reaction / confirmation"
-            : "same thread with showing context"
-        }.`,
-        "Why it matters · the listing, appointment, and next move stay on one trail.",
+        `Public page · ${sharePromise.shareSurfaceLabel}.`,
+        `Reply lane · ${sharePromise.replyLaneLabel}`,
+        `Next step · ${sharePromise.nextStepLabel}`,
+        `Privacy · ${sharePromise.privacyLabel}`,
       ],
     };
   }
@@ -658,20 +663,14 @@ function buildClientFacingShareContract(input: {
       badgeLabel: "Client share",
       badgeTone: "success",
       title: "Client-facing follow-through surface",
-      context: "Dossier-linked promise",
-      description:
-        "The client lands on a private listing page that still explains why the share belongs in the current conversation instead of acting like a cold forwarded link.",
+      context: sharePromise.shareSurfaceLabel,
+      description: sharePromise.shareContextLabel,
       meta: [
         `First lane · ${input.recommendedAction.label}`,
-        "Public page · tracked client share.",
-        `Reply lane · ${
-          input.recommendedAction.action === "email"
-            ? "same email thread"
-            : input.recommendedAction.action === "sms"
-              ? "same text/chat thread"
-              : "same live conversation"
-        }.`,
-        "Why it matters · shortlist continuity stays attached to one dossier trail.",
+        `Public page · ${sharePromise.shareSurfaceLabel}.`,
+        `Reply lane · ${sharePromise.replyLaneLabel}`,
+        `Next step · ${sharePromise.nextStepLabel}`,
+        `Privacy · ${sharePromise.privacyLabel}`,
       ],
     };
   }
@@ -680,15 +679,66 @@ function buildClientFacingShareContract(input: {
     badgeLabel: "Link-only",
     badgeTone: "warning",
     title: "Client-facing private link promise",
-    context: "Generic tracked link",
-    description:
-      "The client still lands on a private Acre surface, but this share does not claim dossier or appointment continuity yet, so the surrounding conversation has to carry the context.",
+    context: sharePromise.shareSurfaceLabel,
+    description: sharePromise.shareContextLabel,
     meta: [
       `First lane · ${input.recommendedAction.label}`,
-      "Public page · private listing share.",
-      "Reply lane · ask for the original conversation if the link was forwarded.",
-      "Why it matters · next-touch continuity only becomes stronger once you reopen the share from a dossier or appointment.",
+      `Public page · ${sharePromise.shareSurfaceLabel}.`,
+      `Reply lane · ${sharePromise.replyLaneLabel}`,
+      `Next step · ${sharePromise.nextStepLabel}`,
+      `Privacy · ${sharePromise.privacyLabel}`,
     ],
+  };
+}
+
+function buildClientFacingSharePromise(input: {
+  snapshot: FrontOfficeListingsSnapshot;
+  recommendedAction: RecommendedShareAction;
+}): ClientFacingSharePromise {
+  if (input.snapshot.targetAppointment) {
+    return {
+      shareSurfaceLabel: "Tracked appointment follow-through share",
+      shareContextLabel: input.snapshot.targetAppointment.title
+        ? `Shared as a private follow-through link around ${input.snapshot.targetAppointment.title}.`
+        : "Shared as a private follow-through link around an active appointment.",
+      replyLaneLabel:
+        input.recommendedAction.action === "sms"
+          ? "Reply in the same conversation if you are confirming timing, access, or the next showing step."
+          : "Reply in the same conversation if you are confirming timing, access, or the next showing step.",
+      nextStepLabel: input.snapshot.targetAppointment.title
+        ? `Use the same conversation to confirm ${input.snapshot.targetAppointment.title} details or ask for the next showing step.`
+        : "Use the same conversation to confirm timing or ask for the next showing step.",
+      privacyLabel:
+        "This Acre page is a private follow-through surface, so keep replies in the same conversation whenever possible.",
+    };
+  }
+
+  if (input.snapshot.targetClient) {
+    return {
+      shareSurfaceLabel: "Tracked client share",
+      shareContextLabel:
+        "Shared as a private client follow-through link so the next step stays in one conversation.",
+      replyLaneLabel:
+        input.recommendedAction.action === "email"
+          ? "Reply in the same email thread so the shortlist and next option stay aligned."
+          : "Reply in the same chat thread so the shortlist and next option stay aligned.",
+      nextStepLabel:
+        "Reply in the same conversation or contact the agent directly if you want the next option lined up.",
+      privacyLabel:
+        "This Acre page is a private follow-through surface, so keep replies in the same conversation whenever possible.",
+    };
+  }
+
+  return {
+    shareSurfaceLabel: "Private listing share",
+    shareContextLabel:
+      "Shared as a private Acre listing link without a client-bound follow-through trail.",
+    replyLaneLabel:
+      "If this page was forwarded, ask the sender for the original conversation so the next step stays aligned.",
+    nextStepLabel:
+      "Call or email the agent to keep the conversation moving, or open the source listing for the canonical record.",
+    privacyLabel:
+      "This Acre page is meant to stay private to the conversation it came from.",
   };
 }
 
@@ -1562,7 +1612,6 @@ export function FrontOfficeListingsOutputClient(
             ];
             const clientFacingContract = buildClientFacingShareContract({
               snapshot: props.snapshot,
-              routeState: props.routeState,
               recommendedAction,
             });
             const sendRiskWatch = buildListingSendRiskWatch(listing);
