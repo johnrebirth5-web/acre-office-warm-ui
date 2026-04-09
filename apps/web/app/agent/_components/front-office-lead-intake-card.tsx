@@ -425,25 +425,25 @@ function getAssistReviewSectionMeta(sectionKey: IntakeReviewSectionKey) {
       return {
         label: "Identity",
         description:
-          "Confirm who this lead is before anything else, because duplicate preview and save-time checks lean on these values first.",
+          "Start here. Confirm who this lead is before anything else, because duplicate preview and save-time checks lean on these values first.",
       };
     case "qualification":
       return {
         label: "Qualification",
         description:
-          "Quickly review source, stage, and intent so the intake lands in the right active work lane without re-reading the full transcript.",
+          "Batch source, stage, and intent together after identity is clear so the intake lands in the right active work lane without rereading the full transcript.",
       };
     case "context":
       return {
         label: "Context",
         description:
-          "Budget and area clues are usually enough to steer the first real follow-up, so keep these together and apply them in one pass.",
+          "Batch budget and area clues together after identity is clear; they usually steer the first real follow-up.",
       };
     case "timing":
       return {
         label: "Timing",
         description:
-          "The next follow-up date is the fastest way to keep the lead from going cold, so review this before saving the dossier.",
+          "Lock the exact next follow-up date after identity is clear so the lead does not drift cold.",
       };
     case "notes":
       return {
@@ -463,27 +463,27 @@ function getAssistReviewSectionBatchCue(input: {
   if (input.pendingCount > 0) {
     switch (input.sectionKey) {
       case "identity":
-        return "Batch first: resolve unresolved identity before anything else.";
+        return "Operator start: resolve unresolved identity before anything else.";
       case "qualification":
-        return "Batch first: resolve source, stage, and intent together after identity is clear.";
+        return "Operator next: batch source, stage, and intent together after identity is clear.";
       case "context":
-        return "Batch first: review budget and area together after identity is clear.";
+        return "Operator next: batch budget and area together after identity is clear.";
       case "timing":
-        return "Batch first: lock the exact next-touch date after identity is clear.";
+        return "Operator next: lock the exact next-touch date after identity is clear.";
       case "notes":
-        return "Batch last: notes stay manual unless you rewrite them.";
+        return "Operator last: notes stay manual unless you rewrite them.";
     }
   }
 
   if (input.reviewFirstCount > 0) {
-    return "Batch next: manual-confirmation fields come before safe apply.";
+    return "Operator next: manual-confirmation fields come before safe apply.";
   }
 
   if (input.previewOnlyCount > 0) {
-    return "Batch last: preview-only stays manual.";
+    return "Operator last: preview-only stays manual.";
   }
 
-  return "Batch ready: safe after review.";
+  return "Operator ready: safe after review.";
 }
 
 function buildAssistReviewSections(input: {
@@ -576,15 +576,15 @@ function buildAssistReviewSections(input: {
       actionHint:
         unresolvedCount > 0
           ? sectionKey === "identity"
-            ? "Clear unresolved identity first so duplicate preview and compare decisions stay accurate."
+            ? "Operator start: clear unresolved identity first so duplicate preview and compare decisions stay accurate."
             : sectionKey === "timing"
-              ? "Resolve timing early so the next-touch clock stays useful."
-              : "Clear the unresolved fields here before moving to safer apply or preview-only values."
+              ? "Operator next: resolve timing early so the next-touch clock stays useful."
+              : "Operator next: clear the unresolved fields here before moving to safer apply or preview-only values."
           : manualConfirmationCount > 0
-            ? "These fields still need explicit manual confirmation before anything can move into the form."
+            ? "Operator next: these fields still need explicit manual confirmation before anything can move into the form."
             : sectionKey === "notes"
-              ? "Keep manual notes last because they rarely gate the next save."
-              : "Review this section as a batch, then apply the reviewed blank fields together.",
+              ? "Operator last: keep manual notes at the end because they rarely gate the next save."
+              : "Operator next: review this section as a batch, then apply the reviewed blank fields together.",
       priorityRank:
         unresolvedCount > 0
           ? 0
