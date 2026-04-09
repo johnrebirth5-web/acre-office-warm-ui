@@ -1,5 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "./client";
 import { formatDateTimeLabel, resolveTimeZone } from "./date-time";
+import {
+  activityLogActions,
+  recordActivityLogEvent,
+  type ActivityLogPayload,
+} from "./activity-log";
 
 const frontOfficeCleanupDigestWindowDays = 7;
 const frontOfficeCleanupDigestMaxItemsPerSection = 5;
@@ -315,6 +321,113 @@ export function buildFrontOfficeCleanupDigestDeliveryDraft(
     body: renderFrontOfficeCleanupDigestReport(digest),
     runSummary,
   };
+}
+
+export function buildFrontOfficeCleanupDigestRunActivityPayload(input: {
+  officeId?: string | null;
+  objectLabel?: string;
+  contextHref?: string | null;
+  runSummary: FrontOfficeCleanupDigestRunSummary;
+}): ActivityLogPayload {
+  return {
+    officeId: input.officeId ?? null,
+    objectLabel: input.objectLabel ?? input.runSummary.scopeLabel,
+    contextHref: input.contextHref ?? undefined,
+    details: [
+      "Mode: Manual-only",
+      "Scheduler: Not involved",
+      "Provider sync: None",
+      `Scope: ${input.runSummary.scopeLabel}`,
+      `Window: ${input.runSummary.windowLabel}`,
+      `Generated: ${input.runSummary.generatedAtLabel}`,
+      `Summary: ${input.runSummary.totalCount} item(s), ${input.runSummary.urgentCount} urgent, ${input.runSummary.dueSoonCount} due soon`,
+      `Next action: ${input.runSummary.nextActionLabel}`,
+      `Next detail: ${input.runSummary.nextActionDetail}`,
+    ],
+  };
+}
+
+export function buildFrontOfficeCleanupDigestInternalMailThreadOpenedActivityPayload(
+  input: {
+    officeId?: string | null;
+    objectLabel?: string;
+    contextHref?: string | null;
+    runSummary: FrontOfficeCleanupDigestRunSummary;
+  },
+): ActivityLogPayload {
+  return {
+    officeId: input.officeId ?? null,
+    objectLabel:
+      input.objectLabel ??
+      `${input.runSummary.scopeLabel} internal mail thread`,
+    contextHref: input.contextHref ?? undefined,
+    details: [
+      "Mode: Manual-only",
+      "Scheduler: Not involved",
+      "Provider sync: None",
+      `Scope: ${input.runSummary.scopeLabel}`,
+      `Window: ${input.runSummary.windowLabel}`,
+      `Thread: Internal mail continuity`,
+      `Summary: ${input.runSummary.totalCount} item(s), ${input.runSummary.urgentCount} urgent, ${input.runSummary.dueSoonCount} due soon`,
+      `Next action: ${input.runSummary.nextActionLabel}`,
+      `Next detail: ${input.runSummary.nextActionDetail}`,
+    ],
+  };
+}
+
+export async function recordFrontOfficeCleanupDigestRunActivity(
+  writer: Parameters<typeof recordActivityLogEvent>[0],
+  input: {
+    organizationId: string;
+    membershipId: string;
+    officeId?: string | null;
+    runSummary: FrontOfficeCleanupDigestRunSummary;
+    contextHref?: string | null;
+    objectLabel?: string;
+  },
+) {
+  await recordActivityLogEvent(writer, {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    entityType: "front_office_cleanup_digest",
+    entityId: randomUUID(),
+    action: activityLogActions.frontOfficeCleanupDigestRun,
+    payload: buildFrontOfficeCleanupDigestRunActivityPayload({
+      officeId: input.officeId ?? null,
+      objectLabel: input.objectLabel,
+      contextHref: input.contextHref ?? "/agent/notifications",
+      runSummary: input.runSummary,
+    }),
+  });
+}
+
+export async function recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity(
+  writer: Parameters<typeof recordActivityLogEvent>[0],
+  input: {
+    organizationId: string;
+    membershipId: string;
+    officeId?: string | null;
+    runSummary: FrontOfficeCleanupDigestRunSummary;
+    threadId: string;
+    threadSubject: string;
+    contextHref?: string | null;
+  },
+) {
+  await recordActivityLogEvent(writer, {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    entityType: "front_office_cleanup_digest",
+    entityId: input.threadId,
+    action: activityLogActions.frontOfficeCleanupDigestThreadOpened,
+    payload: buildFrontOfficeCleanupDigestInternalMailThreadOpenedActivityPayload(
+      {
+        officeId: input.officeId ?? null,
+        objectLabel: input.threadSubject,
+        contextHref: input.contextHref ?? `/office/mail?threadId=${encodeURIComponent(input.threadId)}`,
+        runSummary: input.runSummary,
+      },
+    ),
+  });
 }
 
 export function renderFrontOfficeCleanupDigestDeliveryDraft(

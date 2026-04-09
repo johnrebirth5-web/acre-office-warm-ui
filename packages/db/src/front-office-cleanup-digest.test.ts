@@ -10,11 +10,19 @@ import { prisma } from "./client.ts";
 import {
   buildFrontOfficeCleanupDigestDeliveryDraft,
   buildFrontOfficeCleanupDigest,
+  buildFrontOfficeCleanupDigestInternalMailThreadOpenedActivityPayload,
+  buildFrontOfficeCleanupDigestRunActivityPayload,
   buildFrontOfficeCleanupDigestRunSummary,
   renderFrontOfficeCleanupDigestDeliveryDraft,
   renderFrontOfficeCleanupDigestReport,
   renderFrontOfficeCleanupDigestSection,
+  recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
+  recordFrontOfficeCleanupDigestRunActivity,
 } from "./front-office-cleanup-digest.ts";
+import {
+  activityLogActions,
+  getOfficeActivityLogSnapshot,
+} from "./activity-log.ts";
 
 after(async () => {
   await prisma.$disconnect();
@@ -300,6 +308,63 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
   assert.match(renderedDraft, /^Next action: Start with follow-up tasks$/m);
 });
 
+test("cleanup digest activity payload builders keep manual-only semantics explicit", () => {
+  const runSummary = {
+    scopeLabel: "Office cleanup digest",
+    generatedAtLabel: "Apr 9, 2026, 11:00 AM",
+    timeZone: "America/New_York",
+    windowLabel: "Next 7 days",
+    totalCount: 4,
+    urgentCount: 2,
+    dueSoonCount: 2,
+    notificationCount: 1,
+    followUpTaskCount: 1,
+    clientReminderCount: 1,
+    appointmentCount: 1,
+    nextActionLabel: "Start with follow-up tasks",
+    nextActionDetail: "Follow-up cleanup needs a quick owner check.",
+  } satisfies ReturnType<typeof buildFrontOfficeCleanupDigestRunSummary>;
+
+  const runPayload = buildFrontOfficeCleanupDigestRunActivityPayload({
+    officeId: "office-1",
+    runSummary,
+  });
+  const threadPayload =
+    buildFrontOfficeCleanupDigestInternalMailThreadOpenedActivityPayload({
+      officeId: "office-1",
+      objectLabel: "Cleanup digest continuity thread",
+      contextHref: "/office/mail?threadId=thread-1",
+      runSummary,
+    });
+
+  assert.equal(runPayload.officeId, "office-1");
+  assert.equal(runPayload.objectLabel, "Office cleanup digest");
+  assert.equal(runPayload.contextHref, undefined);
+  assert.deepEqual(runPayload.details?.slice(0, 3), [
+    "Mode: Manual-only",
+    "Scheduler: Not involved",
+    "Provider sync: None",
+  ]);
+  assert.match(
+    runPayload.details?.join("\n") ?? "",
+    /Summary: 4 item\(s\), 2 urgent, 2 due soon/,
+  );
+
+  assert.equal(threadPayload.officeId, "office-1");
+  assert.equal(threadPayload.objectLabel, "Cleanup digest continuity thread");
+  assert.equal(threadPayload.contextHref, "/office/mail?threadId=thread-1");
+  assert.deepEqual(threadPayload.details?.slice(0, 4), [
+    "Mode: Manual-only",
+    "Scheduler: Not involved",
+    "Provider sync: None",
+    "Scope: Office cleanup digest",
+  ]);
+  assert.match(
+    threadPayload.details?.join("\n") ?? "",
+    /Thread: Internal mail continuity/,
+  );
+});
+
 digestIntegrationTest(
   "cleanup digest aggregates unread cleanup signals into a reusable summary",
   async () => {
@@ -392,6 +457,60 @@ digestIntegrationTest(
       assert.match(report, /^Generated: /m);
       assert.match(report, /^Summary: 4 item\(s\), 2 urgent, 2 due soon$/m);
       assert.match(report, /^Next action: Start with follow-up tasks$/m);
+
+      await recordFrontOfficeCleanupDigestRunActivity(prisma, {
+        organizationId: context.organization.id,
+        membershipId: context.membership.id,
+        officeId: context.office.id,
+        runSummary,
+        contextHref: "/agent/notifications",
+      });
+
+      await recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity(
+        prisma,
+        {
+          organizationId: context.organization.id,
+          membershipId: context.membership.id,
+          officeId: context.office.id,
+          runSummary,
+          threadId: "cleanup-digest-thread-1",
+          threadSubject: "Cleanup digest continuity thread",
+          contextHref: "/office/mail?threadId=cleanup-digest-thread-1",
+        },
+      );
+
+      const activitySnapshot = await getOfficeActivityLogSnapshot({
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        objectType: "task",
+        activitySection: "tasks-checklists",
+        limit: 10,
+      });
+
+      assert.equal(activitySnapshot.filters.objectType, "task");
+      assert.equal(activitySnapshot.activitySelectedSection, "tasks-checklists");
+      assert.ok(
+        activitySnapshot.activityEvents.some(
+          (event) =>
+            event.action === activityLogActions.frontOfficeCleanupDigestRun &&
+            event.actionLabel === "Cleanup digest run" &&
+            event.summary === "ran the cleanup digest manually" &&
+            event.objectType === "task" &&
+            event.href === "/agent/notifications",
+        ),
+      );
+      assert.ok(
+        activitySnapshot.activityEvents.some(
+          (event) =>
+            event.action ===
+              activityLogActions.frontOfficeCleanupDigestThreadOpened &&
+            event.actionLabel === "Cleanup digest thread opened" &&
+            event.summary ===
+              "opened the cleanup digest internal mail thread" &&
+            event.objectType === "task" &&
+            event.href === "/office/mail?threadId=cleanup-digest-thread-1",
+        ),
+      );
     } finally {
       await context.cleanup();
     }

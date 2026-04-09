@@ -118,6 +118,9 @@ export const activityLogActions = {
   appointmentCreated: "appointment.created",
   appointmentUpdated: "appointment.updated",
   appointmentBridgeOpened: "appointment.bridge_opened",
+  frontOfficeCleanupDigestRun: "front_office.cleanup_digest_run",
+  frontOfficeCleanupDigestThreadOpened:
+    "front_office.cleanup_digest_thread_opened",
   frontOfficeResourceSearched: "front_office.resource_searched",
   frontOfficeResourceProgressLogged: "front_office.resource_progress_logged",
   frontOfficeResourceOpened: "front_office.resource_opened",
@@ -202,6 +205,7 @@ export type ActivityLogEntityType =
   | "appointment"
   | "transaction_task"
   | "follow_up_task"
+  | "front_office_cleanup_digest"
   | "activity_comment"
   | "session"
   | "library_folder"
@@ -531,6 +535,9 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "appointment.created": "Appointment created",
   "appointment.updated": "Appointment updated",
   "appointment.bridge_opened": "Appointment bridge opened",
+  "front_office.cleanup_digest_run": "Cleanup digest run",
+  "front_office.cleanup_digest_thread_opened":
+    "Cleanup digest thread opened",
   "front_office.resource_searched": "Front Office resources searched",
   "front_office.resource_progress_logged": "Front Office resource progress logged",
   "front_office.resource_opened": "Front Office resource opened",
@@ -685,6 +692,8 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.transactionTaskCompleted ||
       action === activityLogActions.transactionTaskReopened ||
       action === activityLogActions.followUpTaskCreated ||
+      action === activityLogActions.frontOfficeCleanupDigestRun ||
+      action === activityLogActions.frontOfficeCleanupDigestThreadOpened ||
       action === activityLogActions.settingsChecklistTemplateCreated ||
       action === activityLogActions.settingsChecklistTemplateUpdated ||
       action === activityLogActions.settingsChecklistTemplateActivated ||
@@ -1014,6 +1023,7 @@ function mapEntityTypeToObjectType(
       return "document";
     case "transaction_task":
     case "follow_up_task":
+    case "front_office_cleanup_digest":
       return "task";
     case "activity_comment":
       return "comment";
@@ -1215,6 +1225,10 @@ function getActivityHref(
 
   if (record.entityType === "appointment") {
     return payload.contextHref ?? "/agent/calendar";
+  }
+
+  if (record.entityType === "front_office_cleanup_digest") {
+    return payload.contextHref ?? "/agent/notifications";
   }
 
   if (record.entityType === "resource") {
@@ -1645,6 +1659,10 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
             payload.workflowReason,
           ).toLowerCase()} bridge`
         : "opened an appointment bridge";
+    case activityLogActions.frontOfficeCleanupDigestRun:
+      return "ran the cleanup digest manually";
+    case activityLogActions.frontOfficeCleanupDigestThreadOpened:
+      return "opened the cleanup digest internal mail thread";
     case activityLogActions.frontOfficeResourceSearched:
       return getFrontOfficeResourceSearchSummary(payload);
     case activityLogActions.frontOfficeResourceProgressLogged:
