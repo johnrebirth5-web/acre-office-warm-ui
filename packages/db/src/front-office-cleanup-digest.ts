@@ -91,6 +91,13 @@ export type FrontOfficeCleanupDigestRunSummary = {
   nextActionDetail: string;
 };
 
+export type FrontOfficeCleanupDigestDeliveryDraft = {
+  subject: string;
+  summaryText: string;
+  body: string;
+  runSummary: FrontOfficeCleanupDigestRunSummary;
+};
+
 export type BuildFrontOfficeCleanupDigestInput = {
   organizationId: string;
   viewerMembershipId: string;
@@ -295,6 +302,30 @@ export function buildFrontOfficeCleanupDigestRunSummary(
     nextActionLabel: digest.nextActionLabel,
     nextActionDetail: digest.nextActionDetail,
   };
+}
+
+export function buildFrontOfficeCleanupDigestDeliveryDraft(
+  digest: FrontOfficeCleanupDigest,
+): FrontOfficeCleanupDigestDeliveryDraft {
+  const runSummary = buildFrontOfficeCleanupDigestRunSummary(digest);
+
+  return {
+    subject: `${runSummary.scopeLabel}: ${runSummary.totalCount} item(s), ${runSummary.urgentCount} urgent, ${runSummary.dueSoonCount} due soon`,
+    summaryText: `${runSummary.scopeLabel} · ${runSummary.windowLabel} · ${runSummary.totalCount} item(s), ${runSummary.urgentCount} urgent, ${runSummary.dueSoonCount} due soon`,
+    body: renderFrontOfficeCleanupDigestReport(digest),
+    runSummary,
+  };
+}
+
+export function renderFrontOfficeCleanupDigestDeliveryDraft(
+  draft: FrontOfficeCleanupDigestDeliveryDraft,
+) {
+  return [
+    `Subject: ${draft.subject}`,
+    `Summary: ${draft.summaryText}`,
+    "",
+    draft.body,
+  ].join("\n");
 }
 
 export function renderFrontOfficeCleanupDigestRunSummary(

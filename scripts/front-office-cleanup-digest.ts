@@ -1,8 +1,9 @@
 #!/usr/bin/env tsx
 
 import {
+  buildFrontOfficeCleanupDigestDeliveryDraft,
   buildFrontOfficeCleanupDigest,
-  renderFrontOfficeCleanupDigestReport,
+  renderFrontOfficeCleanupDigestDeliveryDraft,
 } from "../packages/db/src/front-office-cleanup-digest.ts";
 
 type CliOptions = {
@@ -113,13 +114,14 @@ async function main() {
     timeZone,
     now: cliOptions.now ? new Date(cliOptions.now) : undefined,
   });
+  const deliveryDraft = buildFrontOfficeCleanupDigestDeliveryDraft(digest);
 
   if (cliOptions.json) {
-    console.log(JSON.stringify(digest, null, 2));
+    console.log(JSON.stringify(deliveryDraft, null, 2));
     return;
   }
 
-  console.log(renderFrontOfficeCleanupDigestReport(digest));
+  console.log(renderFrontOfficeCleanupDigestDeliveryDraft(deliveryDraft));
 }
 
 void main().catch((error) => {
