@@ -1672,7 +1672,7 @@ function buildReadinessSummary(input: {
         screenshotGuidance || "Re-run OCR on a tighter crop around the lead message",
         transcriptGuidance,
         hasWorkflowField
-          ? "Apply only the fields you can confirm at a glance"
+          ? "Review identity and timing clues first, then batch the rest"
           : "Add one workflow clue such as budget, areas, or next follow-up timing",
       ]).filter(Boolean),
     };
@@ -1685,10 +1685,10 @@ function buildReadinessSummary(input: {
       detail:
         "Acre found usable lead signals, yet household, multi-party, or relay-contact context means the live form should stay under manual control.",
       nextStepLabels: [
-        "Review identity fields first",
-        "Only apply the values that clearly belong to the primary lead",
+        "Review identity fields as a batch first",
+        "Keep timing and contact values separate until the primary lead is clear",
         "Use duplicate review if this looks like a repeat lead",
-        "Create uses live form values only",
+        "Create still uses live form values only",
       ],
     };
   }
@@ -1700,7 +1700,7 @@ function buildReadinessSummary(input: {
       "Acre found structured lead fields and kept every suggestion separate from the live form until you review and apply it.",
     nextStepLabels: [
       "Review safe suggestions first",
-      "Apply reviewed fields to the live form",
+      "Apply reviewed fields to the live form in one pass",
       "No auto-create or auto-send happens here",
     ],
   };
@@ -1787,7 +1787,7 @@ export function extractFrontOfficeLeadIntakeAssist(input: {
       context,
     }),
     summaryLabel: fields.length
-      ? `Detected ${fields.length} intake field(s) · ${reviewFieldCount} review-first · ${previewOnlyFieldCount} preview-only · ${safeApplyFieldCount} safe after review`
+      ? `Detected ${fields.length} intake field(s) · ${reviewFieldCount} unresolved review-first · ${safeApplyFieldCount} safe after review · ${previewOnlyFieldCount} preview-only`
       : "No structured lead fields detected yet",
     safeApplyFieldCount,
     reviewFieldCount,

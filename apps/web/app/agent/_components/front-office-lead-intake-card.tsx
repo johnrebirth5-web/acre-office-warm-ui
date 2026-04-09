@@ -101,6 +101,7 @@ type IntakeReviewSection = {
   key: IntakeReviewSectionKey;
   label: string;
   description: string;
+  batchCue: string;
   fieldKeys: LeadFormFieldKey[];
   reviewableCount: number;
   safeApplyCount: number;
@@ -454,6 +455,38 @@ function getAssistReviewSectionMeta(sectionKey: IntakeReviewSectionKey) {
   }
 }
 
+function getAssistReviewSectionBatchCue(input: {
+  sectionKey: IntakeReviewSectionKey;
+  pendingCount: number;
+  reviewFirstCount: number;
+  previewOnlyCount: number;
+}) {
+  if (input.pendingCount > 0) {
+    switch (input.sectionKey) {
+      case "identity":
+        return "Batch first: confirm who the primary lead is before any apply.";
+      case "qualification":
+        return "Batch first: resolve source, stage, and intent together.";
+      case "context":
+        return "Batch first: review budget and area together.";
+      case "timing":
+        return "Batch first: lock the exact next-touch date.";
+      case "notes":
+        return "Batch last: notes stay manual unless you rewrite them.";
+    }
+  }
+
+  if (input.reviewFirstCount > 0) {
+    return "Batch next: review the extracted values, then apply the blank live fields together.";
+  }
+
+  if (input.previewOnlyCount > 0) {
+    return "Batch last: preview-only stays manual.";
+  }
+
+  return "Batch ready: safe after review.";
+}
+
 function buildAssistReviewSections(input: {
   assistResult: FrontOfficeLeadIntakeAssistResult;
   reviewedFieldKeys: string[];
@@ -522,6 +555,12 @@ function buildAssistReviewSections(input: {
       key: sectionKey,
       label: meta.label,
       description: meta.description,
+      batchCue: getAssistReviewSectionBatchCue({
+        sectionKey,
+        pendingCount,
+        reviewFirstCount,
+        previewOnlyCount,
+      }),
       fieldKeys,
       reviewableCount,
       safeApplyCount,
@@ -2161,6 +2200,7 @@ export function FrontOfficeLeadIntakeCard(
                       </div>
                       <p>{section.description}</p>
                       <div className="front-office-record-meta">
+                        <span>{section.batchCue}</span>
                         <span>{section.fieldSummary}</span>
                         <span>{section.safeApplyCount} safe</span>
                         <span>{section.reviewFirstCount} review-first</span>
@@ -2187,7 +2227,7 @@ export function FrontOfficeLeadIntakeCard(
                           type="button"
                           variant="secondary"
                         >
-                          Review {section.label.toLowerCase()}
+                          Review {section.label.toLowerCase()} batch
                         </Button>
                         <Button
                           disabled={isBusy || section.reviewedCount === 0}
@@ -2198,7 +2238,7 @@ export function FrontOfficeLeadIntakeCard(
                           type="button"
                           variant="ghost"
                         >
-                          Apply reviewed {section.label.toLowerCase()}
+                          Apply reviewed {section.label.toLowerCase()} batch
                         </Button>
                       </div>
                     </article>
