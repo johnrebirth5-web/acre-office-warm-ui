@@ -467,8 +467,15 @@ function buildFormalMilestoneLines(snapshot: FrontOfficeClientDetailSnapshot) {
   const lines = [
     `${formalWorkflow.title} | ${formalWorkflow.description}`,
     `${negotiationSummary.title} | ${negotiationSummary.description}`,
+    `Negotiation next move | ${snapshot.negotiation.nextMoveLabel} | ${snapshot.negotiation.nextMoveDescription}`,
+    `Negotiation operator frame | ${snapshot.negotiation.operatorLabel} | ${snapshot.negotiation.operatorDescription}`,
     `${inspectionSummary.title} | ${inspectionSummary.description}`,
-    `Closing or milestone view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.keyDateLabel}`,
+    `Inspection next move | ${snapshot.inspection.nextMoveLabel} | ${snapshot.inspection.nextMoveDescription}`,
+    `Inspection operator frame | ${snapshot.inspection.operatorLabel} | ${snapshot.inspection.operatorDescription}`,
+    `Closing or milestone view | ${snapshot.closing.boundaryLabel} | ${snapshot.closing.boundaryTitle}`,
+    `Closing next move | ${snapshot.closing.nextMoveLabel} | ${snapshot.closing.nextMoveDescription}`,
+    `Closing operator frame | ${snapshot.closing.operatorLabel} | ${snapshot.closing.operatorDescription}`,
+    `Closing timing | ${snapshot.closing.keyDateLabel} | ${snapshot.closing.nextTouchLabel}`,
   ];
 
   if (snapshot.negotiation.offers.length) {

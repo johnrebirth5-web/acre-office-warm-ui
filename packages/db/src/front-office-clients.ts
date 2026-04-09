@@ -408,6 +408,10 @@ export type FrontOfficeClientDetailNegotiation = {
   boundaryTitle: string;
   boundaryDescription: string;
   boundaryMetaLabel: string;
+  nextMoveLabel: string;
+  nextMoveDescription: string;
+  operatorLabel: string;
+  operatorDescription: string;
   offerCount: number;
   expiringSoonCount: number;
   acceptedOfferLabel: string;
@@ -436,6 +440,10 @@ export type FrontOfficeClientDetailInspection = {
   boundaryTitle: string;
   boundaryDescription: string;
   boundaryMetaLabel: string;
+  nextMoveLabel: string;
+  nextMoveDescription: string;
+  operatorLabel: string;
+  operatorDescription: string;
   openTaskCount: number;
   overdueTaskCount: number;
   pendingSignatureCount: number;
@@ -466,6 +474,10 @@ export type FrontOfficeClientDetailClosing = {
   boundaryTitle: string;
   boundaryDescription: string;
   boundaryMetaLabel: string;
+  nextMoveLabel: string;
+  nextMoveDescription: string;
+  operatorLabel: string;
+  operatorDescription: string;
   transactionStatusLabel: string;
   keyDateLabel: string;
   nextTouchLabel: string;
@@ -3714,6 +3726,10 @@ function buildNextStepRail(input: {
     | "boundaryTitle"
     | "boundaryDescription"
     | "boundaryMetaLabel"
+    | "nextMoveLabel"
+    | "nextMoveDescription"
+    | "operatorLabel"
+    | "operatorDescription"
   > & {
     primaryAction: FrontOfficeClientDetailAction;
   };
@@ -3723,6 +3739,10 @@ function buildNextStepRail(input: {
     | "boundaryTitle"
     | "boundaryDescription"
     | "boundaryMetaLabel"
+    | "nextMoveLabel"
+    | "nextMoveDescription"
+    | "operatorLabel"
+    | "operatorDescription"
     | "openTaskCount"
     | "pendingSignatureCount"
     | "pendingIncomingUpdateCount"
@@ -3735,6 +3755,10 @@ function buildNextStepRail(input: {
     | "boundaryTitle"
     | "boundaryDescription"
     | "boundaryMetaLabel"
+    | "nextMoveLabel"
+    | "nextMoveDescription"
+    | "operatorLabel"
+    | "operatorDescription"
   > & {
     primaryAction: FrontOfficeClientDetailAction;
   };
@@ -5155,6 +5179,30 @@ export async function getFrontOfficeClientDetail(
           client.fullName,
         )
       : `Current stage · ${client.stage}`;
+  const negotiationNextMoveLabel = negotiationTransactionId
+    ? negotiationOfferCount > 0
+      ? "Open the linked BO offer file"
+      : "Start formal offer tracking in Back Office"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Move the offer into Back Office now"
+      : "Keep shaping the offer in Front Office";
+  const negotiationNextMoveDescription = negotiationTransactionId
+    ? negotiationOfferCount > 0
+      ? "Price, contingencies, signatures, and expiration control belong in the shared Back Office workspace now. Front Office should stay client-facing and point back to that file."
+      : "The file is already BO-ready, so the first formal step should be a Back Office offer record instead of a duplicate note."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "The client is ready for formal tracking, so open the shared offer workspace before the terms drift or get duplicated."
+      : "Use coaching, recap, and decision support here until the client's terms are ready for formal Back Office tracking.";
+  const negotiationOperatorLabel = negotiationTransactionId
+    ? "FO coaches; BO owns the formal offer"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "FO prepares the handoff; BO should open the file"
+      : "Front Office owns prep and decision support";
+  const negotiationOperatorDescription = negotiationTransactionId
+    ? "Keep client conversation, explanation, and comparison work here, but treat the offer itself as a Back Office record."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "This dossier should hand the actual offer terms to Back Office instead of creating a second track."
+      : "Use this lane for response shaping, objections, and readiness checks while the deal is still being clarified.";
   const negotiationEmptyStateTitle = negotiationTransactionId
     ? "No formal offers yet"
     : isFrontOfficeStageReadyForBackOffice(client.stage)
@@ -5214,6 +5262,38 @@ export async function getFrontOfficeClientDetail(
           client.fullName,
         )
       : `Current stage · ${client.stage}`;
+  const inspectionNextMoveLabel = negotiationTransactionId
+    ? inspectionOverdueTaskCount > 0
+      ? "Clear BO tasks first"
+      : inspectionPendingSignatureCount > 0
+        ? "Open signatures in Back Office"
+        : inspectionPendingIncomingUpdateCount > 0
+          ? "Review the incoming BO updates"
+          : "Open the formal contract file"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Open the formal contract file"
+      : "Keep inspection support in Front Office only";
+  const inspectionNextMoveDescription = negotiationTransactionId
+    ? inspectionOverdueTaskCount > 0
+      ? "The shared transaction record already has checklist pressure, so clear the live BO tasks before anything else."
+      : inspectionPendingSignatureCount > 0
+        ? "Signature work now lives in the shared transaction, so the next move is to handle the formal paperwork there."
+        : inspectionPendingIncomingUpdateCount > 0
+          ? "The contract file is live, and the next actionable signal is the incoming-update queue inside Back Office."
+          : "The inspection-era file is live, but there is no immediate pressure, so keep the formal record ready and the client-facing summary visible."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "The client is BO-ready, so the formal contract file should open before inspection support drifts into a duplicate tracker."
+      : "Use this lane only for recap and coordination until a formal contract file exists.";
+  const inspectionOperatorLabel = negotiationTransactionId
+    ? "FO coordinates; BO owns tasks, signatures, and updates"
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "FO prepares the handoff; BO should own the file"
+      : "Front Office keeps the client visible";
+  const inspectionOperatorDescription = negotiationTransactionId
+    ? "Keep the client-facing explanation in this dossier, but let the checklist, signature queue, and incoming review live in Back Office."
+    : isFrontOfficeStageReadyForBackOffice(client.stage)
+      ? "Use this lane to prepare the handoff, but do not duplicate the contract workflow in Front Office."
+      : "Inspection support stays in Front Office until the formal file opens.";
   const inspectionPrimaryActionLabel = negotiationTransactionId
     ? inspectionOverdueTaskCount > 0 || inspectionOpenTaskCount > 0
       ? "Open BO tasks"
@@ -5469,6 +5549,50 @@ export async function getFrontOfficeClientDetail(
           client.fullName,
         )
       : `Current stage · ${client.stage}`;
+  const closingNextMoveLabel = hasCancelledTransaction
+    ? "Switch to respectful re-entry"
+    : hasClosedTransaction
+      ? nextTouchAt
+        ? "Keep the post-close touch on the calendar"
+        : "Book the post-close touch"
+      : isClosingSoon
+        ? "Confirm the milestone date and wrap-up touch"
+        : negotiationTransactionId
+          ? "Keep the deal-wrap lane visible in Back Office"
+          : isFrontOfficeStageReadyForBackOffice(client.stage)
+            ? "Open the formal deal-wrap file"
+            : "Stay in Front Office prep until the deal exists";
+  const closingNextMoveDescription = hasCancelledTransaction
+    ? "The formal win path is gone, so the next move should be a respectful re-entry or a future nurture touch instead of a fake close-out."
+    : hasClosedTransaction
+      ? nextTouchAt
+        ? "The deal is already closed, so keep the follow-through visible and use the calendar touch to protect the relationship."
+        : "The win is already in the record, so book the first post-close touch before the momentum cools."
+      : isClosingSoon
+        ? "The milestone is close enough that the wrap-up touch, date check, and client expectation should already be visible in Front Office."
+        : negotiationTransactionId
+          ? "The formal file is live, so keep wrap-up visibility in Back Office and use this dossier for client-facing context only."
+          : isFrontOfficeStageReadyForBackOffice(client.stage)
+            ? "The client is ready for formal deal-wrap handling, so open the shared record before closing guidance starts."
+            : "Stay in Front Office prep until the deal is formal enough to need a close-out track.";
+  const closingOperatorLabel = hasCancelledTransaction
+    ? "Front Office resets the conversation"
+    : hasClosedTransaction
+      ? "FO owns the relationship; BO holds the finished record"
+      : negotiationTransactionId
+        ? "FO supports the wrap-up; BO owns the outcome"
+        : isFrontOfficeStageReadyForBackOffice(client.stage)
+          ? "FO prepares the close; BO should own the file"
+          : "Front Office is still in pre-win mode";
+  const closingOperatorDescription = hasCancelledTransaction
+    ? "Use this lane for respectful re-entry, future planning, or alternate options instead of treating the cancelled file like a live win."
+    : hasClosedTransaction
+      ? "Keep post-close care in Front Office while the authoritative transaction record remains in Back Office."
+      : negotiationTransactionId
+        ? "The wrap-up should keep pointing to the formal BO record, not create a second closing tracker in Front Office."
+        : isFrontOfficeStageReadyForBackOffice(client.stage)
+          ? "Prepare the close here, but hand the formal deal file to Back Office when it opens."
+          : "Use this lane only for pre-win prep and keep the formal record dormant.";
   const closingTransactionStatusLabel = inspectionTransactionRecord
     ? formatTransactionStatusLabel(inspectionTransactionRecord.status)
     : "No linked transaction";
@@ -5761,6 +5885,10 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: negotiationBoundaryTitle,
       boundaryDescription: negotiationBoundaryDescription,
       boundaryMetaLabel: negotiationBoundaryMetaLabel,
+      nextMoveLabel: negotiationNextMoveLabel,
+      nextMoveDescription: negotiationNextMoveDescription,
+      operatorLabel: negotiationOperatorLabel,
+      operatorDescription: negotiationOperatorDescription,
       primaryAction: negotiationPrimaryAction,
     },
     inspection: {
@@ -5768,6 +5896,10 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: inspectionBoundaryTitle,
       boundaryDescription: inspectionBoundaryDescription,
       boundaryMetaLabel: inspectionBoundaryMetaLabel,
+      nextMoveLabel: inspectionNextMoveLabel,
+      nextMoveDescription: inspectionNextMoveDescription,
+      operatorLabel: inspectionOperatorLabel,
+      operatorDescription: inspectionOperatorDescription,
       primaryAction: inspectionPrimaryAction,
       openTaskCount: inspectionOpenTaskCount,
       pendingSignatureCount: inspectionPendingSignatureCount,
@@ -5778,6 +5910,10 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: closingBoundaryTitle,
       boundaryDescription: closingBoundaryDescription,
       boundaryMetaLabel: closingBoundaryMetaLabel,
+      nextMoveLabel: closingNextMoveLabel,
+      nextMoveDescription: closingNextMoveDescription,
+      operatorLabel: closingOperatorLabel,
+      operatorDescription: closingOperatorDescription,
       primaryAction: closingPrimaryAction,
     },
   });
@@ -5952,6 +6088,10 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: negotiationBoundaryTitle,
       boundaryDescription: negotiationBoundaryDescription,
       boundaryMetaLabel: negotiationBoundaryMetaLabel,
+      nextMoveLabel: negotiationNextMoveLabel,
+      nextMoveDescription: negotiationNextMoveDescription,
+      operatorLabel: negotiationOperatorLabel,
+      operatorDescription: negotiationOperatorDescription,
       offerCount: negotiationOfferCount,
       expiringSoonCount: negotiationOffersSnapshot?.expiringSoonCount ?? 0,
       acceptedOfferLabel:
@@ -5990,6 +6130,10 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: inspectionBoundaryTitle,
       boundaryDescription: inspectionBoundaryDescription,
       boundaryMetaLabel: inspectionBoundaryMetaLabel,
+      nextMoveLabel: inspectionNextMoveLabel,
+      nextMoveDescription: inspectionNextMoveDescription,
+      operatorLabel: inspectionOperatorLabel,
+      operatorDescription: inspectionOperatorDescription,
       openTaskCount: inspectionOpenTaskCount,
       overdueTaskCount: inspectionOverdueTaskCount,
       pendingSignatureCount: inspectionPendingSignatureCount,
@@ -6006,6 +6150,10 @@ export async function getFrontOfficeClientDetail(
       boundaryTitle: closingBoundaryTitle,
       boundaryDescription: closingBoundaryDescription,
       boundaryMetaLabel: closingBoundaryMetaLabel,
+      nextMoveLabel: closingNextMoveLabel,
+      nextMoveDescription: closingNextMoveDescription,
+      operatorLabel: closingOperatorLabel,
+      operatorDescription: closingOperatorDescription,
       transactionStatusLabel: closingTransactionStatusLabel,
       keyDateLabel: closingKeyDateLabel,
       nextTouchLabel: formatRelativeDueLabel(nextTouchAt, now, input.timeZone),

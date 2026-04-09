@@ -32,11 +32,11 @@ export const frontOfficeClientDossierSectionDescriptions = {
   listingOutput:
     "Use this section when the next move is about tracked sends, rescues, open counts, follow-through on a previous shortlist, or a return from the listing workbench.",
   offerPrep:
-    "Use this section when the dossier has crossed into negotiation or formal offer prep and needs the FO / BO boundary to stay explicit.",
+    "Use this section when negotiation is active and the dossier needs to say what Front Office still owns, what Back Office should open next, and where the formal offer file starts.",
   inspectionSupport:
-    "Use this section when a linked transaction needs inspection, signature, or incoming-update support from the same client record.",
+    "Use this section when the formal transaction is live and Front Office should keep the client-facing explanation visible while Back Office owns the checklist, signatures, and incoming updates.",
   closingSuggestion:
-    "Use this section when the record is closing, recently won, or ready for post-close re-entry and recap.",
+    "Use this section when the deal is closing, closed, or paused so the dossier can turn the win into a next move, a post-close touch, or a respectful re-entry plan.",
   backOfficeContext:
     "Use this section when you need the dossier to explain why the formal Back Office record should take over, including cleanup or handoff routes that return here from another workbench.",
 } as const;

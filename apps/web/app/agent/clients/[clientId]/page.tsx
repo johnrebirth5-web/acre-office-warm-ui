@@ -1060,25 +1060,45 @@ export default async function AgentClientDetailPage(
                 label="Accepted / primary"
                 value={snapshot.negotiation.acceptedOfferLabel}
               />
+              <StatCard
+                hint={snapshot.negotiation.nextMoveDescription}
+                label="Next move"
+                tone="accent"
+                value={snapshot.negotiation.nextMoveLabel}
+              />
+              <StatCard
+                hint={snapshot.negotiation.operatorDescription}
+                label="Operator frame"
+                tone="accent"
+                value={snapshot.negotiation.operatorLabel}
+              />
             </ListPageStatsGrid>
 
             <FrontOfficeClientGuidanceQueue
               items={[
                 {
-                  key: "fo-lane",
-                  label: offerRailItem.ownershipLabel,
-                  tone: offerRailItem.ownershipTone,
-                  title: "Client-facing prep can stay in Front Office",
-                  description:
-                    "Use this section for coaching, recap, expectation setting, and next-touch follow-through while the offer is still being shaped with the client.",
+                  key: "next-move",
+                  label: "Next move",
+                  tone: "accent",
+                  title: snapshot.negotiation.nextMoveLabel,
+                  description: snapshot.negotiation.nextMoveDescription,
+                  context: snapshot.negotiation.operatorLabel,
+                  meta: <span>{snapshot.negotiation.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.negotiation.primaryActionHref,
+                      label: snapshot.negotiation.primaryActionLabel,
+                    },
+                  ],
                 },
                 {
-                  key: "bo-lane",
-                  label: primaryHandoff ? "BO handoff active" : "Move to BO",
-                  tone: primaryHandoff ? primaryHandoff.tone : "warning",
-                  title: "Formal offer terms belong in Back Office",
-                  description:
-                    "Once price, contingencies, signatures, expiration timing, or application paperwork need auditable tracking, open the shared Back Office offer workflow instead of duplicating it here.",
+                  key: "fo-lane",
+                  label: "Operator frame",
+                  tone: offerRailItem.ownershipTone,
+                  title: snapshot.negotiation.operatorLabel,
+                  description: snapshot.negotiation.operatorDescription,
+                  context: snapshot.negotiation.boundaryLabel,
+                  meta: <span>{snapshot.negotiation.boundaryMetaLabel}</span>,
                   actions: [primaryHandoffAction],
                 },
                 {
@@ -1180,18 +1200,46 @@ export default async function AgentClientDetailPage(
                 label="Review queue"
                 value={snapshot.inspection.pendingIncomingUpdateCount}
               />
+              <StatCard
+                hint={snapshot.inspection.nextMoveDescription}
+                label="Next move"
+                tone="accent"
+                value={snapshot.inspection.nextMoveLabel}
+              />
+              <StatCard
+                hint={snapshot.inspection.operatorDescription}
+                label="Operator frame"
+                tone="accent"
+                value={snapshot.inspection.operatorLabel}
+              />
             </ListPageStatsGrid>
 
             <FrontOfficeClientGuidanceQueue
               items={[
                 {
+                  key: "next-move",
+                  label: "Next move",
+                  tone: "accent",
+                  title: snapshot.inspection.nextMoveLabel,
+                  description: snapshot.inspection.nextMoveDescription,
+                  context: snapshot.inspection.operatorLabel,
+                  meta: <span>{snapshot.inspection.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.inspection.primaryActionHref,
+                      label: snapshot.inspection.primaryActionLabel,
+                    },
+                  ],
+                },
+                {
                   key: "fo-lane",
-                  label: inspectionRailItem.ownershipLabel,
+                  label: "Operator frame",
                   tone: inspectionRailItem.ownershipTone,
-                  title:
-                    "Front Office stays client-facing during inspection support",
-                  description:
-                    "Use this block for recap, expectation setting, appointment coordination, and the next client touch around the formal file.",
+                  title: snapshot.inspection.operatorLabel,
+                  description: snapshot.inspection.operatorDescription,
+                  context: snapshot.inspection.boundaryLabel,
+                  meta: <span>{snapshot.inspection.boundaryMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
                 },
                 {
                   key: "bo-lane",
@@ -1305,20 +1353,48 @@ export default async function AgentClientDetailPage(
                 tone="accent"
                 value={snapshot.closing.nextTouchLabel}
               />
+              <StatCard
+                hint={snapshot.closing.nextMoveDescription}
+                label="Next move"
+                tone="accent"
+                value={snapshot.closing.nextMoveLabel}
+              />
+              <StatCard
+                hint={snapshot.closing.operatorDescription}
+                label="Operator frame"
+                tone="accent"
+                value={snapshot.closing.operatorLabel}
+              />
             </ListPageStatsGrid>
 
             <FrontOfficeClientGuidanceQueue
               items={[
                 {
+                  key: "next-move",
+                  label: "Next move",
+                  tone: "accent",
+                  title: snapshot.closing.nextMoveLabel,
+                  description: snapshot.closing.nextMoveDescription,
+                  context: snapshot.closing.operatorLabel,
+                  meta: <span>{snapshot.closing.boundaryMetaLabel}</span>,
+                  actions: [
+                    {
+                      href: snapshot.closing.primaryActionHref,
+                      label: snapshot.closing.primaryActionLabel,
+                      opensInNewTab:
+                        snapshot.closing.primaryActionOpensInNewTab,
+                    },
+                  ],
+                },
+                {
                   key: "fo-lane",
-                  label: closingRailItem.ownershipLabel,
+                  label: "Operator frame",
                   tone: closingRailItem.ownershipTone,
-                  title:
-                    snapshot.closing.boundaryLabel === "Return to FO"
-                      ? "Post-close relationship work returns to Front Office"
-                      : "Front Office keeps the client-facing wrap-up visible",
-                  description:
-                    "Use this section for recap timing, referral asks, testimonial follow-through, move support, and respectful re-entry guidance around the finished or finishing deal.",
+                  title: snapshot.closing.operatorLabel,
+                  description: snapshot.closing.operatorDescription,
+                  context: snapshot.closing.boundaryLabel,
+                  meta: <span>{snapshot.closing.boundaryMetaLabel}</span>,
+                  actions: [primaryHandoffAction],
                 },
                 {
                   key: "bo-lane",
