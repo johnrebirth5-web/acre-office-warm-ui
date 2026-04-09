@@ -44,11 +44,11 @@ export const activityViewOptions: Array<{
   value: AgentActivityView;
   label: string;
 }> = [
-  { value: "all", label: "Workbench overview" },
+  { value: "all", label: "Cleanup overview" },
   { value: "personal_cleanup", label: "Personal cleanup" },
   { value: "team_cleanup", label: "Team cleanup workbench" },
-  { value: "appointment_reminders", label: "Appointment workbench" },
-  { value: "general_notices", label: "Notice workbench" },
+  { value: "appointment_reminders", label: "Calendar writeback" },
+  { value: "general_notices", label: "Notice routing" },
 ];
 
 export function getActivityViewFocusLabel(activityView: AgentActivityView) {
@@ -58,11 +58,11 @@ export function getActivityViewFocusLabel(activityView: AgentActivityView) {
     case "team_cleanup":
       return "Visible-scope leadership cleanup and send-trail risk";
     case "appointment_reminders":
-      return "Calendar writeback, confirmations, and reminder pressure";
+      return "Calendar writeback, confirmations, reschedules, and reminder pressure";
     case "general_notices":
       return "Front Office actions, Back Office handoff, shared notices, and awareness-only items";
     default:
-      return "Full workbench with cleanup, reminders, team pressure, and notices";
+      return "Full command surface with cleanup, reminders, team pressure, and notices";
   }
 }
 
@@ -109,7 +109,7 @@ export function getActivityViewTriageOrderLabel(
     case "general_notices":
       return "Route notices before circling back to calendar pressure.";
     default:
-      return "Personal cleanup → team pressure → appointment reminders → general notices.";
+      return "Personal cleanup → team pressure → calendar writeback → notice routing.";
   }
 }
 
@@ -263,7 +263,7 @@ export const generalNoticeLaneConfig: Array<{
     key: "shared_notice",
     label: "Shared office notices",
     description:
-      "These keep office-wide visibility close without turning them into personal inbox mutations.",
+      "These keep office-wide visibility close without turning them into personal follow-through mutations.",
   },
   {
     key: "reference",
@@ -437,7 +437,7 @@ export function getActivityViewBridgeLabel(activityView: AgentActivityView) {
     case "team_cleanup":
       return "Bridge back to personal cleanup once the visible-scope lane is quiet.";
     case "appointment_reminders":
-      return "Bridge to general notices after the calendar writeback pass.";
+      return "Bridge to notice routing after the calendar writeback pass.";
     case "general_notices":
       return "Bridge back to appointment reminders if the next touch is calendar-owned.";
     default:

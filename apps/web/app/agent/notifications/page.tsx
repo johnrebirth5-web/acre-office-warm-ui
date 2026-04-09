@@ -65,7 +65,7 @@ function buildActivityFocusDescription(
 ) {
   switch (value) {
     case "personal_cleanup":
-      return "Keep the route centered on owner-owned cleanup first, then widen back into reminders and notices once the drift is under control.";
+      return "Keep the route centered on owner-owned cleanup first, then widen back into calendar writeback and notice follow-through once the drift is under control.";
     case "team_cleanup":
       return "Use this slice when visible-scope leadership pressure matters more than the personal queue, so overdue team execution stays readable.";
     case "appointment_reminders":
@@ -73,7 +73,7 @@ function buildActivityFocusDescription(
     case "general_notices":
       return "Use this slice when the next move is office awareness, shared visibility, or a BO-adjacent handoff instead of personal cleanup.";
     default:
-      return "This route keeps the cleanup workbench visible, then lets you narrow by owner cleanup, team pressure, appointment reminders, or general notices without losing the URL-stable slice.";
+      return "This route keeps the cleanup command surface visible, then lets you narrow by owner cleanup, team pressure, calendar writeback, or general notices without losing the URL-stable slice.";
   }
 }
 
@@ -179,7 +179,7 @@ export default async function AgentNotificationsPage(
 
   return (
     <FrontOfficePageTemplate
-      description="A Front Office workbench and cleanup hub for self-owned execution drift, visible-scope team pressure, appointment reminder writeback, and broader notice follow-through without blurring the Back Office boundary."
+      description="A Front Office cleanup command surface for self-owned execution drift, visible-scope team pressure, calendar writeback, and broader notice follow-through without blurring the Back Office boundary."
       eyebrow="Activity"
       main={
         <AgentNotificationsClient
@@ -228,7 +228,7 @@ export default async function AgentNotificationsPage(
                 badgeLabel={cleanupFilterLabel}
                 badgeTone="warning"
                 context={`${personalCleanupCount} personal cleanup item(s)`}
-                description="Use the cleanup lane when the next move is to repair owner-owned FO drift on one dossier before you reopen broader reminders or notices."
+                description="Use the cleanup lane when the next move is to repair owner-owned FO drift on one dossier before you reopen calendar writeback or broader notices."
                 meta={
                   <>
                     <span>{snapshot.summary.urgentCleanupCount} urgent</span>
@@ -250,7 +250,7 @@ export default async function AgentNotificationsPage(
                 )}
                 badgeTone="accent"
                 context={`${appointmentReminderCards.length} appointment reminder(s)`}
-                description="Appointment pressure stays separate from broader notices so confirmation, reschedule, and promised-touch work can reopen as one clean calendar slice."
+                description="Calendar writeback stays separate from broader notices so confirmation, reschedule, and promised-touch work can reopen as one clean command slice."
                 meta={
                   <>
                     <span>
@@ -270,7 +270,7 @@ export default async function AgentNotificationsPage(
               <FrontOfficeRailItem
                 badgeLabel={noticeLaneLabel}
                 context={`${generalNoticeCards.length} general notice(s)`}
-                description="General notices keep FO actions, BO handoff signals, shared office visibility, and awareness-only messages separated instead of collapsing them into one inbox pile."
+                description="General notices keep FO actions, BO handoff signals, shared office visibility, and awareness-only messages separated instead of collapsing them into one queue pile."
                 meta={
                   <>
                     <span>{readStateLabel}</span>
@@ -290,7 +290,7 @@ export default async function AgentNotificationsPage(
 
           <SectionCard
             className="office-list-card"
-            subtitle="Client-linked appointments now surface in the cleanup queue above. This rail keeps shared office notices, meetings, and RSVP context close by without mixing them into the same action stack."
+            subtitle="Client-linked appointments now surface in the cleanup queue above. This rail keeps shared office notices, meetings, and RSVP context close by without mixing them into the same command stack."
             title="Upcoming office events"
           >
             <div className="office-queue-list">
@@ -407,7 +407,7 @@ export default async function AgentNotificationsPage(
           <SectionCard
             className="office-list-card"
             subtitle="The center should stay practical: reopen a shareable slice, clean the record, move the next touch, and keep formal ops in Back Office."
-            title="How to use this workbench"
+            title="How to use this command surface"
           >
             <div className="office-queue-list">
               <FrontOfficeRailItem
@@ -471,16 +471,16 @@ export default async function AgentNotificationsPage(
             value={snapshot.summary.duplicateReviewCount}
           />
           <SummaryChip
-            label="Appointment reminders"
+            label="Calendar writeback"
             tone="accent"
             value={appointmentReminderCards.length}
           />
           <SummaryChip
-            label="Appointment cleanup"
+            label="Reminder pressure"
             value={snapshot.summary.appointmentSoonCount}
           />
           <SummaryChip
-            label="General notices"
+            label="Notice routing"
             value={generalNoticeCards.length}
           />
           <SummaryChip
@@ -497,7 +497,7 @@ export default async function AgentNotificationsPage(
           />
         </>
       }
-      title="Activity workbench & cleanup"
+      title="Activity cleanup command surface"
     />
   );
 }

@@ -624,13 +624,13 @@ export function AgentNotificationsClient({
     )?.label ?? "current leadership filter";
   const currentPassSummaryLabel =
     activeActivityView === "all"
-      ? "Working the cleanup workbench across all four lanes. Overview stays preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
+      ? "Working the cleanup command surface across all four lanes. Overview stays preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
       : activeActivityView === "personal_cleanup"
         ? "Focused on owner-owned cleanup pressure only."
         : activeActivityView === "team_cleanup"
           ? `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup.`
           : activeActivityView === "appointment_reminders"
-            ? "Focused on inbox-backed appointment writeback only; calendar pressure stays separate from broader notices."
+            ? "Focused on calendar writeback only; reminder pressure stays separate from broader notices."
             : "Focused on broader notice follow-through without mixing in calendar pressure.";
   const currentFocusCount =
     activeActivityView === "all"
@@ -730,12 +730,12 @@ export function AgentNotificationsClient({
       : []),
     {
       key: "appointment_reminders" as const,
-      label: "Appointment reminders",
+      label: "Calendar writeback",
       description:
-        "Inbox-backed confirmation, reschedule, external-touch, and countdown pressure stays separate from broader notices.",
+        "Confirmation, reschedule, external-touch, and countdown pressure stay separate from broader notices.",
       count: appointmentReminderCount,
       tone: appointmentReminderTone,
-      ownerLabel: "Ownership · Personal inbox + calendar writeback",
+      ownerLabel: "Ownership · Calendar writeback + personal follow-through",
       pressureLabel:
         urgentAppointmentReminderCount > 0
           ? `${urgentAppointmentReminderCount} urgent reminder(s)`
@@ -757,7 +757,7 @@ export function AgentNotificationsClient({
     },
     {
       key: "general_notices" as const,
-      label: "General notices",
+      label: "Notice routing",
       description:
         "Non-calendar notices stay in their own lane so Front Office follow-through, Back Office handoff, shared office visibility, and awareness-only items do not blur together.",
       count: generalNoticeCount,
@@ -788,9 +788,9 @@ export function AgentNotificationsClient({
   const activityLaneTabs: ActivityLaneCard[] = [
     {
       key: "all" as const,
-      label: "Inbox overview",
+      label: "Cleanup overview",
       description:
-        "Keep personal cleanup, team pressure, appointment reminders, and broader notices visible on one stable route.",
+        "Keep personal cleanup, team pressure, calendar writeback, and broader notices visible on one stable route.",
       count:
         personalCleanupCount +
         teamCleanupCount +
@@ -1254,9 +1254,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           nextCard?.nextStepLabel ??
           "Open the reminder focus and resolve the next touch.",
-        sectionLabel: nextCard?.sectionLabel ?? "Appointment reminders",
+        sectionLabel: nextCard?.sectionLabel ?? "Calendar writeback",
         meta: [
-          `Section · ${nextCard?.sectionLabel ?? "Appointment reminders"}`,
+          `Section · ${nextCard?.sectionLabel ?? "Calendar writeback"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1310,9 +1310,9 @@ export function AgentNotificationsClient({
         nextStepLabel:
           nextCard?.nextStepLabel ??
           "Open the notice lane and review the next notice.",
-        sectionLabel: nextCard?.sectionLabel ?? "General notices",
+        sectionLabel: nextCard?.sectionLabel ?? "Notice routing",
         meta: [
-          `Section · ${nextCard?.sectionLabel ?? "General notices"}`,
+          `Section · ${nextCard?.sectionLabel ?? "Notice routing"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1877,7 +1877,7 @@ export function AgentNotificationsClient({
     <>
       <SectionCard
         className="office-list-card office-notification-toolbar"
-        subtitle="Keep the office-wide cleanup workbench stable on one route: self-owned cleanup, visible-scope team cleanup, inbox-backed appointment reminders, and broader general notices. The active slice stays encoded in the URL so refreshes and reopen flows come back to the same pass."
+        subtitle="Keep the office-wide cleanup command surface stable on one route: self-owned cleanup, visible-scope team cleanup, calendar writeback, and broader general notices. The active slice stays encoded in the URL so refreshes and reopen flows come back to the same pass."
         title="Workbench lanes & cleanup controls"
       >
         <div className="front-office-placeholder-note">
@@ -1910,8 +1910,8 @@ export function AgentNotificationsClient({
             />
           ) : null}
           <StatCard
-            hint="Calendar-linked reminder notices for confirmation, reschedule, external follow-up, and near-term appointments."
-            label="Appointment reminders"
+            hint="Calendar-linked reminder pressure for confirmation, reschedule, external follow-up, and near-term appointments."
+            label="Calendar writeback"
             tone={
               activeActivityView === "all" ||
               activeActivityView === "appointment_reminders"
@@ -1921,8 +1921,8 @@ export function AgentNotificationsClient({
             value={appointmentReminderCount}
           />
           <StatCard
-            hint="The remaining notice lane after appointment reminders are split out."
-            label="General notices"
+            hint="The remaining notice lane after calendar writeback is split out."
+            label="Notice routing"
             tone={
               activeActivityView === "all" ||
               activeActivityView === "general_notices"
@@ -2892,10 +2892,10 @@ export function AgentNotificationsClient({
           id="appointment-reminder-pressure"
           subtitle={
             isOverviewMode
-              ? "Appointment reminders stay inbox-backed but separate from broader notices. Overview keeps only the first few reminder items visible so this page stays readable."
-              : "Appointment reminders stay inbox-backed but separate from broader notices, so confirmation, reschedule, external follow-up, and near-term meeting pressure can be worked as one calendar-owned slice."
+              ? "Calendar writeback stays separate from broader notices. Overview keeps only the first few reminder items visible so this page stays readable."
+              : "Calendar writeback stays separate from broader notices, so confirmation, reschedule, external follow-up, and near-term meeting pressure can be worked as one calendar-owned slice."
           }
-          title="Appointment reminder pressure"
+          title="Calendar writeback pressure"
         >
           <ListPageStatsGrid>
             <StatCard
@@ -2925,7 +2925,7 @@ export function AgentNotificationsClient({
           </ListPageStatsGrid>
 
           <div className="list-row-meta front-office-record-meta">
-            <span>Calendar-owned inbox slice</span>
+            <span>Calendar-owned writeback slice</span>
             {activeReminderFilter !== "all" ? (
               <span>{activeReminderFilterLabel} focus applied</span>
             ) : null}
@@ -2979,7 +2979,7 @@ export function AgentNotificationsClient({
               }
               description={
                 activeReminderFilter === "all"
-                  ? "Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters the inbox layer."
+                  ? "Calendar-linked confirmation, reschedule, external follow-up, and near-term appointment reminders will appear here when that pressure enters this lane."
                   : activeReadState === "all"
                     ? "No appointment reminder notices match the current filter."
                     : "No appointment reminder notices match the current reminder filter and read-state view."
@@ -3023,10 +3023,10 @@ export function AgentNotificationsClient({
           id="notice-stream"
           subtitle={
             isOverviewMode
-              ? "General notices stay separate from calendar pressure. Overview keeps this lane preview-sized so broader office context stays useful without taking over the page."
-              : "General notices stay separate from calendar pressure and can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or awareness only."
+              ? "Notice routing stays separate from calendar pressure. Overview keeps this lane preview-sized so broader office context stays useful without taking over the page."
+              : "Notice routing stays separate from calendar pressure and can be narrowed by whether the next step belongs in Front Office, Back Office, shared office visibility, or awareness only."
           }
-          title="General notices"
+          title="Notice routing"
         >
           <div className="list-row-meta front-office-record-meta">
             <span>{generalNoticeCards.length} notice(s) in this lane</span>
@@ -3086,7 +3086,7 @@ export function AgentNotificationsClient({
                 activeNoticeStreamFilter !== "all"
                   ? `No general notices match ${activeNoticeStreamFilterLabel.toLowerCase()} right now.`
                   : activeReadState === "all"
-                    ? "Broader Front Office notices will appear here after appointment reminder pressure has been handled or when non-calendar notices are available."
+                    ? "Broader Front Office notices will appear here after calendar writeback pressure has been handled or when non-calendar notices are available."
                     : "No general notices match the current read-state view."
               }
               title="No general notices"
