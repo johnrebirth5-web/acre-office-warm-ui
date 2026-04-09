@@ -119,6 +119,7 @@ export const activityLogActions = {
   appointmentUpdated: "appointment.updated",
   appointmentBridgeOpened: "appointment.bridge_opened",
   frontOfficeResourceSearched: "front_office.resource_searched",
+  frontOfficeResourceProgressLogged: "front_office.resource_progress_logged",
   frontOfficeResourceOpened: "front_office.resource_opened",
   frontOfficeVendorClicked: "front_office.vendor_clicked",
   contactCreated: "contact.created",
@@ -251,6 +252,7 @@ export type ActivityLogPayload = {
   actionSource?: string;
   workflowReason?: string;
   completed?: boolean;
+  progressPercent?: number;
   details?: string[];
   changes?: ActivityLogChange[];
 };
@@ -530,6 +532,7 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "appointment.updated": "Appointment updated",
   "appointment.bridge_opened": "Appointment bridge opened",
   "front_office.resource_searched": "Front Office resources searched",
+  "front_office.resource_progress_logged": "Front Office resource progress logged",
   "front_office.resource_opened": "Front Office resource opened",
   "front_office.vendor_clicked": "Front Office vendor clicked",
   "contact.created": "Contact created",
@@ -1567,6 +1570,11 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
     case activityLogActions.frontOfficeResourceSearched:
       return appendActionSourceSummary(
         "searched the Front Office resource hub",
+        payload,
+      );
+    case activityLogActions.frontOfficeResourceProgressLogged:
+      return appendActionSourceSummary(
+        "logged Front Office training progress",
         payload,
       );
     case activityLogActions.frontOfficeResourceOpened:

@@ -1,6 +1,8 @@
 import { can } from "@acre/auth";
 import {
+  frontOfficeResourceProgressMilestones,
   frontOfficeVendorInteractionActions,
+  recordFrontOfficeResourceProgress,
   recordFrontOfficeResourceSearch,
   recordFrontOfficeResourceOpen,
   recordFrontOfficeVendorClick,
@@ -12,6 +14,11 @@ type ResourceInteractionRequest =
   | {
       type: "resource_search";
       query: string;
+    }
+  | {
+      type: "resource_progress";
+      resourceId: string;
+      progressPercent: (typeof frontOfficeResourceProgressMilestones)[number];
     }
   | {
       type: "resource_open";
@@ -31,6 +38,18 @@ function isResourceInteractionRequest(
   }
 
   const candidate = value as Record<string, unknown>;
+
+  if (
+    candidate.type === "resource_progress" &&
+    typeof candidate.resourceId === "string" &&
+    candidate.resourceId.trim() &&
+    typeof candidate.progressPercent === "number" &&
+    frontOfficeResourceProgressMilestones.includes(
+      candidate.progressPercent as (typeof frontOfficeResourceProgressMilestones)[number],
+    )
+  ) {
+    return true;
+  }
 
   if (
     candidate.type === "resource_search" &&
@@ -96,6 +115,14 @@ export async function POST(request: NextRequest) {
         membershipId: context.currentMembership.id,
         officeId: context.currentOffice?.id ?? null,
         query: body.query,
+      });
+    } else if (body.type === "resource_progress") {
+      await recordFrontOfficeResourceProgress({
+        organizationId: context.currentOrganization.id,
+        membershipId: context.currentMembership.id,
+        officeId: context.currentOffice?.id ?? null,
+        resourceId: body.resourceId,
+        progressPercent: body.progressPercent,
       });
     } else if (body.type === "resource_open") {
       await recordFrontOfficeResourceOpen({

@@ -365,11 +365,14 @@ export {
   type FrontOfficeHandoffPrefillSnapshot,
 } from "./front-office-contracts";
 export {
+  frontOfficeResourceProgressMilestones,
   frontOfficeVendorInteractionActions,
   getFrontOfficeResourceInteractionSnapshot,
+  recordFrontOfficeResourceProgress,
   recordFrontOfficeResourceSearch,
   recordFrontOfficeResourceOpen,
   recordFrontOfficeVendorClick,
+  type FrontOfficeResourceProgressMilestone,
   type FrontOfficeResourceInteractionSnapshot,
   type FrontOfficeVendorInteractionAction,
 } from "./front-office-resources";

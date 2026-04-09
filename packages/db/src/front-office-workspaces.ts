@@ -428,6 +428,8 @@ export type FrontOfficeResourcesSnapshot = {
     windowLabel: string;
     totalCount: number;
     searchCount: number;
+    progressCount: number;
+    completionCount: number;
     resourceOpenCount: number;
     vendorClickCount: number;
     recentInteractionCount: number;
@@ -435,7 +437,11 @@ export type FrontOfficeResourcesSnapshot = {
     recentInteractions: Array<{
       id: string;
       title: string;
-      kindLabel: "Resource search" | "Resource open" | "Vendor click";
+      kindLabel:
+        | "Resource search"
+        | "Watch progress"
+        | "Resource open"
+        | "Vendor click";
       detailLabel: string;
       timestampLabel: string;
       href: string;

@@ -15,6 +15,7 @@ import { FrontOfficeLink } from "../_components/front-office-link";
 import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
+import { FrontOfficeResourceProgressActions } from "./front-office-resource-progress-actions";
 import { FrontOfficeResourceSearchForm } from "./front-office-resource-search-form";
 import { requireSessionContext } from "../../../lib/auth-session";
 
@@ -382,6 +383,10 @@ function ResourceRecordCard(props: {
           </FrontOfficeLink>
         ) : null}
       </div>
+
+      {resource.typeKey === "training_video" ? (
+        <FrontOfficeResourceProgressActions resourceId={resource.id} />
+      ) : null}
     </article>
   );
 }
@@ -1065,7 +1070,7 @@ export default async function AgentResourcesPage(props: {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Tracked searches, opens, and vendor clicks now stay visible here, so the hub can show what this agent is actually touching instead of acting like a static library."
+            subtitle="Tracked searches, watch progress, opens, and vendor clicks now stay visible here, so the hub can show what this agent is actually touching instead of acting like a static library."
             title="Recent tracked use"
           >
             <ListPageStatsGrid>
@@ -1078,6 +1083,17 @@ export default async function AgentResourcesPage(props: {
                 hint="searches recorded from this hub"
                 label="Searches"
                 value={interactionTracking.searchCount}
+              />
+              <StatCard
+                hint="training milestones logged from this hub"
+                label="Watch progress"
+                tone="accent"
+                value={interactionTracking.progressCount}
+              />
+              <StatCard
+                hint="100% training completions logged"
+                label="Completed"
+                value={interactionTracking.completionCount}
               />
               <StatCard
                 hint="resource opens recorded"
@@ -1113,6 +1129,8 @@ export default async function AgentResourcesPage(props: {
                     badgeTone={
                       interaction.kindLabel === "Vendor click"
                         ? "warning"
+                        : interaction.kindLabel === "Watch progress"
+                          ? "success"
                         : interaction.kindLabel === "Resource search"
                           ? "neutral"
                           : "accent"
@@ -1132,7 +1150,7 @@ export default async function AgentResourcesPage(props: {
               ) : (
                 <EmptyState
                   className="front-office-inline-empty"
-                  description="Tracked searches, resource opens, and vendor clicks will start appearing here as soon as this hub is used live."
+                  description="Tracked searches, training progress, resource opens, and vendor clicks will start appearing here as soon as this hub is used live."
                   title="No tracked use yet"
                 />
               )}
@@ -1175,6 +1193,20 @@ export default async function AgentResourcesPage(props: {
                 title="Package the next outbound move"
               />
               <FrontOfficeRailItem
+                badgeLabel="Training"
+                badgeTone="accent"
+                description="Use the training lane when the job is a refresher instead of a new document hunt. This hub now lets you log 25%, 50%, or complete after you actually watch the clip."
+                meta={
+                  <>
+                    <span>{pluralize(trainingCount, "training clip")} published</span>
+                    <span>
+                      {interactionTracking.completionCount} completion milestone(s) logged
+                    </span>
+                  </>
+                }
+                title="Keep training visible"
+              />
+              <FrontOfficeRailItem
                 badgeLabel="Vendor"
                 badgeTone="warning"
                 description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module. Vendor call, email, and site clicks now stay traceable from the same FO hub."
@@ -1215,7 +1247,7 @@ export default async function AgentResourcesPage(props: {
               <FrontOfficeRailItem
                 badgeLabel="Honest"
                 badgeTone="warning"
-                description="This page does not imply auto-send, two-way sync, hidden vendor ingestion, or provider-backed automation. Agents still choose and perform the next action, even though opens and vendor clicks are now tracked."
+                description="This page does not imply auto-send, two-way sync, hidden vendor ingestion, or provider-backed automation. Agents still choose and perform the next action, even though searches, watch progress, opens, and vendor clicks are now tracked."
                 title="No pretend automation layer"
               />
             </div>
@@ -1252,6 +1284,16 @@ export default async function AgentResourcesPage(props: {
             label="Tracked searches"
             tone="accent"
             value={interactionTracking.searchCount}
+          />
+          <SummaryChip
+            label="Watch progress"
+            tone="accent"
+            value={interactionTracking.progressCount}
+          />
+          <SummaryChip
+            label="Training complete"
+            tone="accent"
+            value={interactionTracking.completionCount}
           />
           <SummaryChip
             label="Tracked opens"

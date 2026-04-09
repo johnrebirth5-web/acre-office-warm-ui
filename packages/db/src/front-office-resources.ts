@@ -11,12 +11,17 @@ export const frontOfficeVendorInteractionActions = [
   "primary",
 ] as const;
 
+export const frontOfficeResourceProgressMilestones = [25, 50, 100] as const;
+
 export type FrontOfficeVendorInteractionAction =
   (typeof frontOfficeVendorInteractionActions)[number];
+export type FrontOfficeResourceProgressMilestone =
+  (typeof frontOfficeResourceProgressMilestones)[number];
 
 const frontOfficeTrackedResourceInteractionWindowDays = 14;
 const frontOfficeTrackedResourceInteractionActions = [
   activityLogActions.frontOfficeResourceSearched,
+  activityLogActions.frontOfficeResourceProgressLogged,
   activityLogActions.frontOfficeResourceOpened,
   activityLogActions.frontOfficeVendorClicked,
 ] as const;
@@ -43,6 +48,14 @@ type FrontOfficeResourceSearchInput = {
   query: string;
 };
 
+type FrontOfficeResourceProgressInput = {
+  organizationId: string;
+  membershipId: string;
+  officeId?: string | null;
+  resourceId: string;
+  progressPercent: FrontOfficeResourceProgressMilestone;
+};
+
 type GetFrontOfficeResourceInteractionSnapshotInput = {
   organizationId: string;
   membershipId: string;
@@ -54,6 +67,8 @@ export type FrontOfficeResourceInteractionSnapshot = {
   windowLabel: string;
   totalCount: number;
   searchCount: number;
+  progressCount: number;
+  completionCount: number;
   resourceOpenCount: number;
   vendorClickCount: number;
   recentInteractionCount: number;
@@ -61,7 +76,11 @@ export type FrontOfficeResourceInteractionSnapshot = {
   recentInteractions: Array<{
     id: string;
     title: string;
-    kindLabel: "Resource search" | "Resource open" | "Vendor click";
+    kindLabel:
+      | "Resource search"
+      | "Watch progress"
+      | "Resource open"
+      | "Vendor click";
     detailLabel: string;
     timestampLabel: string;
     href: string;
@@ -147,6 +166,10 @@ function parsePayloadNullableString(payload: Prisma.JsonObject, key: string) {
       : undefined;
 }
 
+function parsePayloadNumber(payload: Prisma.JsonObject, key: string) {
+  return typeof payload[key] === "number" ? payload[key] : undefined;
+}
+
 function parsePayloadDetails(payload: Prisma.JsonObject) {
   const value = payload.details;
 
@@ -168,6 +191,7 @@ function extractInteractionLabels(payload: Prisma.JsonValue | null) {
       objectLabel: undefined,
       officeId: undefined,
       contextHref: undefined,
+      progressPercent: undefined,
       details: [] as string[],
     };
   }
@@ -176,15 +200,24 @@ function extractInteractionLabels(payload: Prisma.JsonValue | null) {
     objectLabel: parsePayloadString(payload, "objectLabel"),
     officeId: parsePayloadNullableString(payload, "officeId"),
     contextHref: parsePayloadString(payload, "contextHref"),
+    progressPercent: parsePayloadNumber(payload, "progressPercent"),
     details: parsePayloadDetails(payload),
   };
 }
 
 function formatInteractionKindLabel(
   action: string,
-): "Resource search" | "Resource open" | "Vendor click" {
+):
+  | "Resource search"
+  | "Watch progress"
+  | "Resource open"
+  | "Vendor click" {
   if (action === activityLogActions.frontOfficeResourceSearched) {
     return "Resource search";
+  }
+
+  if (action === activityLogActions.frontOfficeResourceProgressLogged) {
+    return "Watch progress";
   }
 
   return action === activityLogActions.frontOfficeVendorClicked
@@ -208,6 +241,23 @@ function buildInteractionDetailLabel(action: string, details: string[]) {
     }
 
     return "Tracked hub search";
+  }
+
+  if (action === activityLogActions.frontOfficeResourceProgressLogged) {
+    const progressDetail =
+      details.find((detail) => detail.startsWith("Progress: ")) ?? null;
+    const laneDetail =
+      details.find((detail) => detail.startsWith("Lane: ")) ?? null;
+
+    if (progressDetail && laneDetail) {
+      return `${progressDetail.replace("Progress: ", "")} · ${laneDetail.replace("Lane: ", "")}`;
+    }
+
+    if (progressDetail) {
+      return progressDetail.replace("Progress: ", "");
+    }
+
+    return "Tracked training progress";
   }
 
   const actionDetail =
@@ -290,6 +340,14 @@ export async function getFrontOfficeResourceInteractionSnapshot(
     (interaction) =>
       interaction.action === activityLogActions.frontOfficeResourceSearched,
   ).length;
+  const progressInteractions = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeResourceProgressLogged,
+  );
+  const progressCount = progressInteractions.length;
+  const completionCount = progressInteractions.filter(
+    (interaction) => interaction.progressPercent === 100,
+  ).length;
   const vendorClickCount = interactions.filter(
     (interaction) =>
       interaction.action === activityLogActions.frontOfficeVendorClicked,
@@ -311,7 +369,8 @@ export async function getFrontOfficeResourceInteractionSnapshot(
         ? "/agent/resources#vendor-hub"
         : "/agent/resources#published-tool-library"),
   }));
-  const totalCount = searchCount + resourceOpenCount + vendorClickCount;
+  const totalCount =
+    searchCount + progressCount + resourceOpenCount + vendorClickCount;
   const latestInteraction = recentInteractions[0] ?? null;
 
   return {
@@ -320,6 +379,8 @@ export async function getFrontOfficeResourceInteractionSnapshot(
     ),
     totalCount,
     searchCount,
+    progressCount,
+    completionCount,
     resourceOpenCount,
     vendorClickCount,
     recentInteractionCount: recentInteractions.length,
@@ -351,6 +412,55 @@ export async function recordFrontOfficeResourceSearch(
       contextHref: `/agent/resources?q=${encodeURIComponent(query)}`,
       actionSource: "front_office_resource_hub",
       details: [`Query: ${query}`, "Scope: Resources + vendors"],
+    },
+  });
+}
+
+export async function recordFrontOfficeResourceProgress(
+  input: FrontOfficeResourceProgressInput,
+) {
+  const resource = await prisma.resource.findFirst({
+    where: {
+      id: input.resourceId,
+      organizationId: input.organizationId,
+      isPublished: true,
+      type: ResourceType.training_video,
+      ...(buildOfficeScopeFilter(input.officeId ?? null)
+        ? { AND: [buildOfficeScopeFilter(input.officeId ?? null)!] }
+        : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+    },
+  });
+
+  if (!resource) {
+    throw new Error("Training resource was not found.");
+  }
+
+  if (!frontOfficeResourceProgressMilestones.includes(input.progressPercent)) {
+    throw new Error("Unsupported resource progress milestone.");
+  }
+
+  const progressLabel =
+    input.progressPercent === 100
+      ? "Completed"
+      : `${input.progressPercent}% watched`;
+
+  await recordActivityLogEvent(prisma, {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    entityType: "resource",
+    entityId: resource.id,
+    action: activityLogActions.frontOfficeResourceProgressLogged,
+    payload: {
+      officeId: input.officeId ?? null,
+      objectLabel: resource.title,
+      contextHref: "/agent/resources#published-tool-library",
+      actionSource: "front_office_resource_hub",
+      progressPercent: input.progressPercent,
+      details: [`Progress: ${progressLabel}`, "Lane: Training video"],
     },
   });
 }
