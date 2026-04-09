@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import {
+  AppointmentStatus,
+  AppointmentType,
   FrontOfficeSendChannel,
   Prisma,
   ResourceType,
@@ -306,6 +308,33 @@ test("dashboard surfaces the leadership command deck for office admins", async (
         additionalFields: Prisma.JsonNull,
       },
     });
+    const aiClient = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.adminMembership.id,
+        fullName: "AI Sequence Client",
+        email: "ai-sequence-client@example.com",
+        phone: "2125550197",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        preferredAreas: ["Brooklyn"],
+        lastContactAt: new Date(now - 6 * 24 * 60 * 60 * 1000),
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+    await prisma.appointment.create({
+      data: {
+        organizationId: context.organization.id,
+        officeId: context.office.id,
+        ownerMembershipId: context.adminMembership.id,
+        clientId: aiClient.id,
+        title: "Leadership command deck prep",
+        type: AppointmentType.showing,
+        startsAt: new Date(now + 2 * 60 * 60 * 1000),
+        status: AppointmentStatus.scheduled,
+      },
+    });
 
     await context.createFollowUpTask({
       clientId: client.id,
@@ -338,6 +367,14 @@ test("dashboard surfaces the leadership command deck for office admins", async (
     assert.equal(snapshot.summary.leadershipPressureCount, 3);
     assert.equal(snapshot.actionQueue[0]?.label, "Office cleanup");
     assert.equal(
+      snapshot.actionQueue[0]?.sequenceLabel,
+      "Clear leadership pressure first",
+    );
+    assert.equal(
+      snapshot.actionQueue[1]?.sequenceLabel,
+      "Then work the next-touch clock",
+    );
+    assert.equal(
       snapshot.actionQueue[0]?.actionLabel,
       "Open office command deck",
     );
@@ -348,6 +385,11 @@ test("dashboard surfaces the leadership command deck for office admins", async (
     assert.match(
       snapshot.actionQueue[0]?.helper ?? "",
       /work the command deck first/,
+    );
+    assert.equal(snapshot.aiQueue.items.length > 0, true);
+    assert.equal(
+      snapshot.aiQueue.items[0]?.sequenceLabel,
+      "Prep the calendar checkpoint",
     );
     assert.ok(snapshot.leadershipQueue.items.length > 0);
     assert.ok(snapshot.leadershipQueue.activityCenterItems.length > 0);

@@ -123,6 +123,7 @@ export type FrontOfficeDashboardActionQueueItem = {
   tone: FrontOfficeDashboardTone;
   description: string;
   helper: string;
+  sequenceLabel: string;
   whyNowLabel: string;
   nextStepLabel: string;
   href: string;
@@ -257,6 +258,7 @@ export type FrontOfficeDashboardAiQueueItem = {
   tone: FrontOfficeDashboardTone;
   description: string;
   contextLabel: string;
+  sequenceLabel: string;
   helperLabel: string;
   whyNowSignals: string[];
   rankingSignals: string[];
@@ -293,6 +295,52 @@ type FrontOfficeDashboardLeadershipEngagementItem =
     _priority: number;
     _sortAt: Date;
   };
+
+function buildFrontOfficeDashboardActionSequenceLabel(
+  actionId: FrontOfficeDashboardActionQueueItem["id"],
+) {
+  switch (actionId) {
+    case "leadership":
+      return "Clear leadership pressure first";
+    case "follow-up":
+      return "Then work the next-touch clock";
+    case "commitments":
+      return "Keep calendar commitments in order";
+    case "lease-reminders":
+      return "Protect lease timing before it slips";
+    case "content":
+      return "Rescue the send-risk trail";
+    case "handoff":
+      return "Move formal work to Back Office";
+    default:
+      return "Keep the command deck in sequence";
+  }
+}
+
+function buildFrontOfficeDashboardAiSequenceLabel(
+  suggestionKind: FrontOfficeDashboardAiQueueItem["suggestionKind"],
+) {
+  switch (suggestionKind) {
+    case "reentry":
+      return "Reopen gently after the formal close";
+    case "postclose":
+      return "Keep the relationship warm after the win";
+    case "closing":
+      return "Steady the finish before the milestone slips";
+    case "lease":
+      return "Protect the lease window";
+    case "appointment":
+      return "Prep the calendar checkpoint";
+    case "content_rescue":
+      return "Rescue the quiet send trail";
+    case "warm_engagement":
+      return "Turn the warm signal into the next step";
+    case "handoff":
+      return "Prepare the formal handoff";
+    default:
+      return "Choose the next grounded touch";
+  }
+}
 
 type FrontOfficeDashboardAiCandidateItem = Omit<
   FrontOfficeDashboardAiQueueItem,
@@ -2371,6 +2419,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 description:
                   "The formal deal did not close, so the next-touch should reopen the relationship without forcing urgency.",
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("reentry"),
                 helperLabel: "Grounded by cancelled / lost transaction outcome",
                 whyNowSignals: buildAiQueueWhyNowSignals({
                   trigger: "Formal deal outcome · cancelled or lost",
@@ -2407,6 +2457,8 @@ export async function getFrontOfficeDashboardSnapshot(
                   ? `The shared transaction is already closed around ${formatDateLabel(closingReferenceDate)}. Keep the relationship warm while the win is still fresh.`
                   : "The shared transaction is already closed. Keep the relationship warm while the win is still fresh.",
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("postclose"),
                 helperLabel: closingReferenceDate
                   ? `Milestone · ${formatDateLabel(closingReferenceDate)}`
                   : "Grounded by closed transaction outcome",
@@ -2447,6 +2499,8 @@ export async function getFrontOfficeDashboardSnapshot(
                   closingReferenceDate,
                 )}. Use the next touch to steady logistics and wrap-up timing.`,
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("closing"),
                 helperLabel: linkedTransaction?.moveInDate
                   ? "Move-in window is approaching"
                   : linkedTransaction?.closingDate
@@ -2498,6 +2552,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 description:
                   "Lease timing is already visible on this record, so the next-touch should lock renewal, move, or remarketing intent before the window slips.",
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("lease"),
                 helperLabel: `${leaseReminder.statusLabel} · ${leaseReminder.detailLabel}`,
                 whyNowSignals: buildAiQueueWhyNowSignals({
                   trigger: `Lease reminder · ${leaseReminder.statusLabel}`,
@@ -2534,6 +2590,8 @@ export async function getFrontOfficeDashboardSnapshot(
                   latestAppointment.type,
                 ).toLowerCase()} on the calendar, so the next-touch should sharpen expectations before the meeting and save the writeback checkpoint.`,
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("appointment"),
                 helperLabel: `${latestAppointment.title} · ${formatDateTimeLabel(
                   latestAppointment.startsAt,
                   { timeZone: input.timeZone ?? null },
@@ -2580,6 +2638,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 description:
                   "Material was sent but there is still no tracked open, so the safest next-touch is to reduce friction and offer a smaller next step from the dossier.",
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("content_rescue"),
                 helperLabel: latestSendRecord.listing?.title?.trim()
                   ? `No open on ${latestSendRecord.listing.title.trim()} · open the dossier before retrying.`
                   : "Tracked send has no open yet · reopen the dossier before retrying.",
@@ -2628,6 +2688,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 description:
                   "Tracked content already shows live interest, so the next-touch should turn that signal into a shortlist, feedback, or booked step.",
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("warm_engagement"),
                 helperLabel: latestSendRecord.lastOpenedAt
                   ? `Last open · ${formatDateTimeLabel(
                       latestSendRecord.lastOpenedAt,
@@ -2676,6 +2738,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 description:
                   "This record is BO-ready, but the formal file is not live yet, so the next-touch should confirm package, timing, and expectations before handoff.",
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("handoff"),
                 helperLabel:
                   client.handoffDrafts[0]?.summary?.trim() ||
                   "Front Office stage is ready for formal workflow. Confirm the package before opening Back Office.",
@@ -2722,6 +2786,8 @@ export async function getFrontOfficeDashboardSnapshot(
                 description:
                   "This active client does not yet have a future touch on the books, so Acre should not leave the next move implicit.",
                 contextLabel: nextTouchLabel,
+                sequenceLabel:
+                  buildFrontOfficeDashboardAiSequenceLabel("generic"),
                 helperLabel: `Stage · ${client.stage} · open the dossier and choose the next grounded touch.`,
                 whyNowSignals: buildAiQueueWhyNowSignals({
                   trigger: `Stage · ${client.stage}`,
@@ -3035,6 +3101,7 @@ export async function getFrontOfficeDashboardSnapshot(
         overdueFollowUpTaskCount > 0
           ? `${overdueFollowUpTaskCount} task(s) are already overdue, with ${openFollowUpTaskCount} still open in total. Start there, then anchor the top dossier.`
           : `${openFollowUpTaskCount} scheduled follow-up task(s) remain open in the shared Front Office clock. Use that clock to pick the next grounded dossier.`,
+      sequenceLabel: buildFrontOfficeDashboardActionSequenceLabel("follow-up"),
       whyNowLabel:
         leadingFollowUpClient && dueFollowUpCount > 0
           ? `${leadingFollowUpClient.fullName} is due first, so the follow-first queue should be the next stop before you reopen the dossier.`
@@ -3062,6 +3129,8 @@ export async function getFrontOfficeDashboardSnapshot(
       helper: leadingCommitmentItem
         ? `${leadingCommitmentItem.startsAtLabel} · ${leadingCommitmentItem.contextLabel} · External calendar and email remain explicit bridge actions, not hidden sync.`
         : "The live FO calendar stays action-first. Google, Outlook, ICS, and email are still explicit jump-outs, not two-way sync.",
+      sequenceLabel:
+        buildFrontOfficeDashboardActionSequenceLabel("commitments"),
       whyNowLabel: leadingCommitmentItem
         ? leadingCommitmentItem.id.startsWith("event-")
           ? `${leadingCommitmentItem.title} is already on the office calendar.`
@@ -3094,6 +3163,8 @@ export async function getFrontOfficeDashboardSnapshot(
           : leadingLeaseReminderItem
             ? `${leadingLeaseReminderItem.statusLabel} · ${leadingLeaseReminderItem.detailLabel}`
             : "Lease timing stays visible here before renewal, remarketing, or move planning becomes a fire drill.",
+      sequenceLabel:
+        buildFrontOfficeDashboardActionSequenceLabel("lease-reminders"),
       whyNowLabel: leadingLeaseReminderItem
         ? `${leadingLeaseReminderItem.clientName} needs lease timing attention now.`
         : "No lease timing pressure is visible right now.",
@@ -3116,6 +3187,7 @@ export async function getFrontOfficeDashboardSnapshot(
       tone: sendSignalTone,
       description: sendSignalDescription,
       helper: sendSignalHelper,
+      sequenceLabel: buildFrontOfficeDashboardActionSequenceLabel("content"),
       whyNowLabel: leadingSendRecord
         ? `${leadingSendRecord.client.fullName} already has tracked send history waiting for the next touch. Open the dossier before sending again.`
         : "Tracked sending is ready once the target client and channel are clear.",
@@ -3140,6 +3212,7 @@ export async function getFrontOfficeDashboardSnapshot(
       helper: leadingBackOfficeItem
         ? `${leadingBackOfficeItem.contextLabel} · ${leadingBackOfficeItem.description}`
         : "Front Office can tee up the work, but the official record still starts in Back Office.",
+      sequenceLabel: buildFrontOfficeDashboardActionSequenceLabel("handoff"),
       whyNowLabel: leadingBackOfficeItem
         ? `${leadingBackOfficeItem.title} is ready for formal ownership outside Front Office.`
         : "No formal handoff is waiting right now.",
@@ -3168,6 +3241,8 @@ export async function getFrontOfficeDashboardSnapshot(
             helper: leadingLeadershipItem
               ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope. The next move is to keep the rescue pass in Front Office and work the command deck first.`
               : "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
+            sequenceLabel:
+              buildFrontOfficeDashboardActionSequenceLabel("leadership"),
             whyNowLabel: leadingLeadershipItem
               ? leadingLeadershipItem.whyNowLabel
               : "Leadership cleanup is clear for now.",

@@ -679,7 +679,7 @@ export default async function AgentDashboardPage() {
                   executionOrder.map((item, index) => (
                     <span key={item.id}>
                       {getLaunchpadStepContext(index)} · {item.label} ·{" "}
-                      {item.nextStepLabel}
+                      {item.sequenceLabel} · {item.nextStepLabel}
                     </span>
                   ))
                 ) : (
@@ -966,6 +966,7 @@ export default async function AgentDashboardPage() {
                     </div>
                     <div className="list-row-meta front-office-record-meta">
                       <span>{item.count} item(s)</span>
+                      <span>{item.sequenceLabel}</span>
                       <span>{item.helper}</span>
                       <span>{item.whyNowLabel}</span>
                       <span>{item.nextStepLabel}</span>
