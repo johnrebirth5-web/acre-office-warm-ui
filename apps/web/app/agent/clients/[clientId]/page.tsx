@@ -20,9 +20,6 @@ import {
   FrontOfficeClientGuidanceQueue,
   buildFrontOfficeClientFollowUpHref,
   frontOfficeClientDossierSectionIds,
-  getFrontOfficeClientDossierSectionDescription,
-  getFrontOfficeClientDossierSectionLabel,
-  getFrontOfficeClientDossierSectionHref,
 } from "./front-office-client-dossier-shared";
 import { FrontOfficeClientLeaseReminderClient } from "./front-office-client-lease-reminder-client";
 import {
@@ -100,9 +97,7 @@ function getChatListStrategyLabel(snapshot: FrontOfficeClientDetailSnapshot) {
   return "Contact data missing";
 }
 
-function getChatListStrategyTone(
-  snapshot: FrontOfficeClientDetailSnapshot,
-) {
+function getChatListStrategyTone(snapshot: FrontOfficeClientDetailSnapshot) {
   if (snapshot.phone) {
     return "accent" as const;
   }
@@ -151,7 +146,9 @@ export default async function AgentClientDetailPage(
     ? {
         title: suggestedFollowUpTitle,
         dueAt: suggestedFollowUpDueAt,
-        sourceLabel: getSuggestedFollowUpSourceLabel(searchParams.followUpSource),
+        sourceLabel: getSuggestedFollowUpSourceLabel(
+          searchParams.followUpSource,
+        ),
       }
     : null;
   const snapshot = await getFrontOfficeClientDetail({
@@ -187,15 +184,9 @@ export default async function AgentClientDetailPage(
     snapshot.nextStepRail.items.find(
       (item) => item.id === "closing_suggestion",
     ) ?? currentRailItem;
-  const currentSectionLabel = getFrontOfficeClientDossierSectionLabel(
-    currentRailItem.id,
-  );
-  const currentSectionDescription = getFrontOfficeClientDossierSectionDescription(
-    currentRailItem.id,
-  );
-  const currentSectionHref = getFrontOfficeClientDossierSectionHref(
-    currentRailItem.id,
-  );
+  const currentSectionLabel = currentRailItem.returnPoint.label;
+  const currentSectionDescription = currentRailItem.returnPoint.description;
+  const currentSectionHref = currentRailItem.returnPoint.href;
   const railSectionHref = `#${frontOfficeClientDossierSectionIds.nextStepRail}`;
   const backOfficeContextHref = `#${frontOfficeClientDossierSectionIds.backOfficeContext}`;
   const overviewSectionHref = "#front-office-client-overview";
@@ -239,22 +230,24 @@ export default async function AgentClientDetailPage(
         href: backOfficeContextHref,
         label: "Review handoff rules",
       };
-  const workflowAction =
-    snapshot.workflow.actionHref.startsWith("#front-office-follow-up")
-      ? followUpPrimaryAction
-      : {
-          href: snapshot.workflow.actionHref,
-          label: snapshot.workflow.actionLabel,
-          opensInNewTab: snapshot.workflow.action.opensInNewTab,
-        };
-  const followUpCueAction =
-    snapshot.followUpCue.action.href.startsWith("#front-office-follow-up")
-      ? followUpPrimaryAction
-      : {
-          href: snapshot.followUpCue.action.href,
-          label: snapshot.followUpCue.action.label,
-          opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
-        };
+  const workflowAction = snapshot.workflow.actionHref.startsWith(
+    "#front-office-follow-up",
+  )
+    ? followUpPrimaryAction
+    : {
+        href: snapshot.workflow.actionHref,
+        label: snapshot.workflow.actionLabel,
+        opensInNewTab: snapshot.workflow.action.opensInNewTab,
+      };
+  const followUpCueAction = snapshot.followUpCue.action.href.startsWith(
+    "#front-office-follow-up",
+  )
+    ? followUpPrimaryAction
+    : {
+        href: snapshot.followUpCue.action.href,
+        label: snapshot.followUpCue.action.label,
+        opensInNewTab: snapshot.followUpCue.action.opensInNewTab,
+      };
   const executionTimelineItems = [
     ...(snapshot.leaseReminder.timelineAtValue
       ? [
@@ -365,7 +358,11 @@ export default async function AgentClientDetailPage(
       badgeLabel: "Send",
       badgeTone: record.engagementTone,
       context: `${record.channelLabel} · ${record.engagementLabel}`,
-      description: [`Sent ${record.sentAtLabel}`, record.stageLabel, record.appointmentLabel]
+      description: [
+        `Sent ${record.sentAtLabel}`,
+        record.stageLabel,
+        record.appointmentLabel,
+      ]
         .filter(Boolean)
         .join(" · "),
       metaLabel: record.lastActivityLabel,
@@ -419,12 +416,10 @@ export default async function AgentClientDetailPage(
     })
     .slice(0, 12);
 
-  function buildRailItemActions(
-    item: typeof currentRailItem,
-  ) {
+  function buildRailItemActions(item: typeof currentRailItem) {
     return [
       {
-        href: getFrontOfficeClientDossierSectionHref(item.id),
+        href: item.returnPoint.href,
         label: "Review dossier block",
       },
       {
@@ -507,9 +502,7 @@ export default async function AgentClientDetailPage(
                 hint="tasks that already need action, re-dating, or a real due date"
                 label="Needs action now"
                 tone={
-                  snapshot.summary.attentionTaskCount > 0
-                    ? "accent"
-                    : "default"
+                  snapshot.summary.attentionTaskCount > 0 ? "accent" : "default"
                 }
                 value={snapshot.summary.attentionTaskCount}
               />
@@ -579,7 +572,12 @@ export default async function AgentClientDetailPage(
                   title: "Export a recap that mirrors the live dossier",
                   description:
                     "Use the PDF when the client needs a clean summary of goals, next steps, appointments, shared options, and formal-file status without exposing Acre admin work.",
-                  meta: <span>PDF export stays client-facing; formal transaction documents still live separately.</span>,
+                  meta: (
+                    <span>
+                      PDF export stays client-facing; formal transaction
+                      documents still live separately.
+                    </span>
+                  ),
                   actions: [
                     {
                       href: `/api/agent/clients/${snapshot.id}/pdf`,
@@ -736,7 +734,7 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.appointmentsFollowUp}
-            subtitle="Calls, reminders, confirmations, and showings stay readable together here so the next move is obvious without opening Back Office early."
+            subtitle={appointmentRailItem.returnDescription}
             title="Appointments & follow-up"
           >
             <div className="office-list-page-stack">
@@ -775,7 +773,8 @@ export default async function AgentClientDetailPage(
                     description: `${snapshot.workflow.nextStepDescription} The appointment cards below now call out the external status, bridge log, next-touch pressure, and the exact jump back to calendar writeback.`,
                     meta: (
                       <span>
-                        {currentRailItem.stepLabel} · {currentRailItem.ownershipLabel}
+                        {currentRailItem.stepLabel} ·{" "}
+                        {currentRailItem.ownershipLabel}
                       </span>
                     ),
                     actions: [
@@ -849,12 +848,16 @@ export default async function AgentClientDetailPage(
                         <div className="list-row-meta front-office-record-meta">
                           <span>{appointment.contextLabel}</span>
                           <span>
-                            {appointment.externalStatusLabel} · {appointment.externalStatusDetail}
+                            {appointment.externalStatusLabel} ·{" "}
+                            {appointment.externalStatusDetail}
                           </span>
                           <span>
-                            {appointment.bridgeStatusLabel} · {appointment.bridgeStatusDetail}
+                            {appointment.bridgeStatusLabel} ·{" "}
+                            {appointment.bridgeStatusDetail}
                           </span>
-                          <span>Next touch · {appointment.externalNextActionAtLabel}</span>
+                          <span>
+                            Next touch · {appointment.externalNextActionAtLabel}
+                          </span>
                           <span>{appointment.bridgeNextStepLabel}</span>
                           <span>{appointment.bridgeNextStepDetail}</span>
                         </div>
@@ -903,7 +906,7 @@ export default async function AgentClientDetailPage(
             }
             className="office-list-card"
             id={frontOfficeClientDossierSectionIds.listingOutput}
-            subtitle="Tracked sends stay client-facing and execution-first here; they should not replace the formal offer or contract record."
+            subtitle={listingRailItem.returnDescription}
             title="Send record & engagement"
           >
             <ListPageStatsGrid>
@@ -987,7 +990,10 @@ export default async function AgentClientDetailPage(
                     badgeLabel={record.engagementLabel}
                     badgeTone={record.engagementTone}
                     context={`${record.channelLabel} · ${record.stageLabel}`}
-                    description={[`Sent ${record.sentAtLabel}`, record.appointmentLabel]
+                    description={[
+                      `Sent ${record.sentAtLabel}`,
+                      record.appointmentLabel,
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
                     key={record.id}
@@ -1182,7 +1188,8 @@ export default async function AgentClientDetailPage(
                   key: "fo-lane",
                   label: inspectionRailItem.ownershipLabel,
                   tone: inspectionRailItem.ownershipTone,
-                  title: "Front Office stays client-facing during inspection support",
+                  title:
+                    "Front Office stays client-facing during inspection support",
                   description:
                     "Use this block for recap, expectation setting, appointment coordination, and the next client touch around the formal file.",
                 },
@@ -1306,11 +1313,10 @@ export default async function AgentClientDetailPage(
                   key: "fo-lane",
                   label: closingRailItem.ownershipLabel,
                   tone: closingRailItem.ownershipTone,
-                  title: (
+                  title:
                     snapshot.closing.boundaryLabel === "Return to FO"
                       ? "Post-close relationship work returns to Front Office"
-                      : "Front Office keeps the client-facing wrap-up visible"
-                  ),
+                      : "Front Office keeps the client-facing wrap-up visible",
                   description:
                     "Use this section for recap timing, referral asks, testimonial follow-through, move support, and respectful re-entry guidance around the finished or finishing deal.",
                 },
@@ -1599,9 +1605,7 @@ export default async function AgentClientDetailPage(
                   meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
                   actions: [
                     {
-                      href: getFrontOfficeClientDossierSectionHref(
-                        currentRailItem.id,
-                      ),
+                      href: currentRailItem.returnPoint.href,
                       label: "Review active block",
                     },
                     {
@@ -1650,10 +1654,16 @@ export default async function AgentClientDetailPage(
                   key: "pdf",
                   label: "Client recap",
                   tone: "neutral",
-                  title: "Export the same execution story as a client-facing PDF",
+                  title:
+                    "Export the same execution story as a client-facing PDF",
                   description:
                     "The PDF keeps goals, next steps, appointments, shortlist context, and formal-file status together without copying admin work back into Front Office.",
-                  meta: <span>Use it for recap, alignment, and post-meeting follow-through.</span>,
+                  meta: (
+                    <span>
+                      Use it for recap, alignment, and post-meeting
+                      follow-through.
+                    </span>
+                  ),
                   actions: [
                     {
                       href: `/api/agent/clients/${snapshot.id}/pdf`,
@@ -1719,9 +1729,7 @@ export default async function AgentClientDetailPage(
               ))}
               <QueueItem
                 action={
-                  <FrontOfficeClientActionGroup
-                    actions={[followUpCueAction]}
-                  />
+                  <FrontOfficeClientActionGroup actions={[followUpCueAction]} />
                 }
                 badgeLabel={snapshot.followUpCue.label}
                 badgeTone={snapshot.followUpCue.tone}
@@ -1765,7 +1773,10 @@ export default async function AgentClientDetailPage(
                 badgeLabel="Contact"
                 badgeTone="neutral"
                 description={
-                  [snapshot.phone ? `Phone: ${snapshot.phone}` : "", snapshot.email ? `Email: ${snapshot.email}` : ""]
+                  [
+                    snapshot.phone ? `Phone: ${snapshot.phone}` : "",
+                    snapshot.email ? `Email: ${snapshot.email}` : "",
+                  ]
                     .filter(Boolean)
                     .join(" · ") || "No direct contact info on record yet."
                 }
@@ -1787,7 +1798,8 @@ export default async function AgentClientDetailPage(
                   key: "boundary",
                   label: snapshot.nextStepRail.decisionLabel,
                   tone: snapshot.nextStepRail.decisionTone,
-                  title: "Front Office stays execution-first; Back Office stays formal",
+                  title:
+                    "Front Office stays execution-first; Back Office stays formal",
                   description:
                     "Use this rail to see when the client is still in FO follow-up versus when the next step needs a formal, auditable BO record.",
                   meta: <span>{snapshot.nextStepRail.decisionMetaLabel}</span>,
@@ -1797,7 +1809,8 @@ export default async function AgentClientDetailPage(
                   key: "fo-follow-up",
                   label: snapshot.followUpCue.label,
                   tone: snapshot.followUpCue.tone,
-                  title: "Client-facing next touches still stay in Front Office",
+                  title:
+                    "Client-facing next touches still stay in Front Office",
                   description: primaryHandoff
                     ? "Even with a live formal record, calls, recap, confirmations, and relationship follow-up should keep moving from this dossier."
                     : "Do not open Back Office just to hold a reminder. Calls, texts, showings, and queue-based next touches still belong here until the work becomes formal.",

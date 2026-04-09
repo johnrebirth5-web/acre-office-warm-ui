@@ -22,9 +22,6 @@ import {
   FrontOfficeClientActionGroup,
   FrontOfficeClientGuidanceQueue,
   frontOfficeClientDossierSectionIds,
-  getFrontOfficeClientDossierSectionDescription,
-  getFrontOfficeClientDossierSectionHref,
-  getFrontOfficeClientDossierSectionLabel,
 } from "./front-office-client-dossier-shared";
 
 type FrontOfficeClientDossierClientProps = {
@@ -154,7 +151,9 @@ function buildFollowUpQuickTemplates(
       label: "Lease timing",
       title: `Check ${firstName}'s lease renewal or move timing`,
       dueAt:
-        snapshot.leaseReminder.reminderAtValue || cueDueAt || buildDefaultDueAt(),
+        snapshot.leaseReminder.reminderAtValue ||
+        cueDueAt ||
+        buildDefaultDueAt(),
     });
   }
 
@@ -163,9 +162,7 @@ function buildFollowUpQuickTemplates(
       key: "appointment",
       label: "Appointment prep",
       title: `Confirm logistics for ${nextAppointment.title}`,
-      dueAt:
-        nextAppointment.startsAtValue.slice(0, 10) ||
-        buildDefaultDueAt(),
+      dueAt: nextAppointment.startsAtValue.slice(0, 10) || buildDefaultDueAt(),
     });
   }
 
@@ -186,45 +183,60 @@ function buildFollowUpQuickTemplates(
 
 function resolveSectionFocusState(
   hash: string,
-  currentRailItem: FrontOfficeClientDetailSnapshot["nextStepRail"]["items"][number],
+  snapshot: FrontOfficeClientDetailSnapshot,
 ): SectionFocusState {
   const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
+  const currentRailItem =
+    snapshot.nextStepRail.items.find((item) => item.isCurrent) ??
+    snapshot.nextStepRail.items[0];
+  const appointmentRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "appointment") ??
+    currentRailItem;
+  const listingRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "listing_output") ??
+    currentRailItem;
+  const offerRailItem =
+    snapshot.nextStepRail.items.find((item) => item.id === "offer_prep") ??
+    currentRailItem;
+  const inspectionRailItem =
+    snapshot.nextStepRail.items.find(
+      (item) => item.id === "inspection_support",
+    ) ?? currentRailItem;
+  const closingRailItem =
+    snapshot.nextStepRail.items.find(
+      (item) => item.id === "closing_suggestion",
+    ) ?? currentRailItem;
 
   switch (normalizedHash) {
     case frontOfficeClientDossierSectionIds.appointmentsFollowUp:
       return {
-        label: "Appointments & follow-up",
-        description:
-          "Use this section when you are coming back from calendar writeback and want the next touch to stay attached to the same client rail.",
-        href: `#${frontOfficeClientDossierSectionIds.appointmentsFollowUp}`,
+        label: appointmentRailItem.returnPoint.label,
+        description: appointmentRailItem.returnDescription,
+        href: appointmentRailItem.returnPoint.href,
       };
     case frontOfficeClientDossierSectionIds.listingOutput:
       return {
-        label: "Listing output",
-        description:
-          "Use this section for tracked sends, rescues, open counts, and the next outbound decision when you are returning from the listing workbench.",
-        href: `#${frontOfficeClientDossierSectionIds.listingOutput}`,
+        label: listingRailItem.returnPoint.label,
+        description: listingRailItem.returnDescription,
+        href: listingRailItem.returnPoint.href,
       };
     case frontOfficeClientDossierSectionIds.offerPrep:
       return {
-        label: "Offer & negotiation",
-        description:
-          "Use this section when the dossier needs to stay explicit about FO prep versus BO handoff.",
-        href: `#${frontOfficeClientDossierSectionIds.offerPrep}`,
+        label: offerRailItem.returnPoint.label,
+        description: offerRailItem.returnDescription,
+        href: offerRailItem.returnPoint.href,
       };
     case frontOfficeClientDossierSectionIds.inspectionSupport:
       return {
-        label: "Inspection & contract support",
-        description:
-          "Use this section when a linked transaction needs task, signature, or incoming-update support.",
-        href: `#${frontOfficeClientDossierSectionIds.inspectionSupport}`,
+        label: inspectionRailItem.returnPoint.label,
+        description: inspectionRailItem.returnDescription,
+        href: inspectionRailItem.returnPoint.href,
       };
     case frontOfficeClientDossierSectionIds.closingSuggestion:
       return {
-        label: "Closing & win suggestions",
-        description:
-          "Use this section when the record is closing, recently won, or set up for post-close re-entry.",
-        href: `#${frontOfficeClientDossierSectionIds.closingSuggestion}`,
+        label: closingRailItem.returnPoint.label,
+        description: closingRailItem.returnDescription,
+        href: closingRailItem.returnPoint.href,
       };
     case frontOfficeClientDossierSectionIds.backOfficeContext:
       return {
@@ -236,16 +248,9 @@ function resolveSectionFocusState(
     case frontOfficeClientDossierSectionIds.nextStepRail:
     default:
       return {
-        label: getFrontOfficeClientDossierSectionLabel(currentRailItem.id),
-        description:
-          currentRailItem.id === "appointment"
-            ? "Use this rail when calendar writeback needs to keep the same appointment focus and the dossier should reopen the exact next touch."
-            : currentRailItem.id === "listing_output"
-              ? "Use this rail when a tracked send, resend, or follow-through action needs to come back into the listing workbench."
-              : getFrontOfficeClientDossierSectionDescription(
-                  currentRailItem.id,
-                ),
-        href: getFrontOfficeClientDossierSectionHref(currentRailItem.id),
+        label: currentRailItem.returnPoint.label,
+        description: currentRailItem.returnDescription,
+        href: currentRailItem.returnPoint.href,
       };
   }
 }
@@ -254,8 +259,9 @@ export function FrontOfficeClientDossierClient(
   props: FrontOfficeClientDossierClientProps,
 ) {
   const router = useRouter();
-  const [formState, setFormState] =
-    useState<FollowUpFormState>(() => buildEmptyFormState(props.suggestedFollowUp));
+  const [formState, setFormState] = useState<FollowUpFormState>(() =>
+    buildEmptyFormState(props.suggestedFollowUp),
+  );
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -270,9 +276,13 @@ export function FrontOfficeClientDossierClient(
   const currentRailItem =
     props.snapshot.nextStepRail.items.find((item) => item.isCurrent) ??
     props.snapshot.nextStepRail.items[0];
-  const sectionFocus = resolveSectionFocusState(sectionHash, currentRailItem);
-  const activeTasks = props.snapshot.followUpTasks.filter((task) => !task.isResolved);
-  const resolvedTasks = props.snapshot.followUpTasks.filter((task) => task.isResolved);
+  const sectionFocus = resolveSectionFocusState(sectionHash, props.snapshot);
+  const activeTasks = props.snapshot.followUpTasks.filter(
+    (task) => !task.isResolved,
+  );
+  const resolvedTasks = props.snapshot.followUpTasks.filter(
+    (task) => task.isResolved,
+  );
   const orderedActiveTasks = [...activeTasks].sort((left, right) => {
     const leftAttention = left.needsAttention || !left.dueAtValue ? 1 : 0;
     const rightAttention = right.needsAttention || !right.dueAtValue ? 1 : 0;
@@ -623,9 +633,7 @@ export function FrontOfficeClientDossierClient(
           hint="tasks that need action, re-dating, or a real due date right now"
           label="Needs action now"
           tone={
-            props.snapshot.summary.attentionTaskCount > 0
-              ? "accent"
-              : "default"
+            props.snapshot.summary.attentionTaskCount > 0 ? "accent" : "default"
           }
           value={props.snapshot.summary.attentionTaskCount}
         />
@@ -770,7 +778,10 @@ export function FrontOfficeClientDossierClient(
         </p>
       </div>
 
-      <div className="office-list-page-stack" id={FRONT_OFFICE_FOLLOW_UP_QUEUE_ID}>
+      <div
+        className="office-list-page-stack"
+        id={FRONT_OFFICE_FOLLOW_UP_QUEUE_ID}
+      >
         {urgentTasks.length ? (
           <div className="office-list-page-stack">
             <div className="front-office-placeholder-note">
@@ -826,7 +837,9 @@ export function FrontOfficeClientDossierClient(
                                 type="button"
                                 variant="ghost"
                               >
-                                {activeTaskId === task.id ? "Saving..." : "Start now"}
+                                {activeTaskId === task.id
+                                  ? "Saving..."
+                                  : "Start now"}
                               </Button>
                             ) : (
                               <Button
@@ -842,7 +855,9 @@ export function FrontOfficeClientDossierClient(
                                 type="button"
                                 variant="ghost"
                               >
-                                {activeTaskId === task.id ? "Saving..." : "Back to queued"}
+                                {activeTaskId === task.id
+                                  ? "Saving..."
+                                  : "Back to queued"}
                               </Button>
                             )}
                             <Button
@@ -858,7 +873,9 @@ export function FrontOfficeClientDossierClient(
                               type="button"
                               variant="secondary"
                             >
-                              {activeTaskId === task.id ? "Saving..." : "Mark complete"}
+                              {activeTaskId === task.id
+                                ? "Saving..."
+                                : "Mark complete"}
                             </Button>
                             <Button
                               disabled={isBusy}
@@ -998,7 +1015,9 @@ export function FrontOfficeClientDossierClient(
                                 type="button"
                                 variant="ghost"
                               >
-                                {activeTaskId === task.id ? "Saving..." : "Start now"}
+                                {activeTaskId === task.id
+                                  ? "Saving..."
+                                  : "Start now"}
                               </Button>
                             ) : (
                               <Button
@@ -1014,7 +1033,9 @@ export function FrontOfficeClientDossierClient(
                                 type="button"
                                 variant="ghost"
                               >
-                                {activeTaskId === task.id ? "Saving..." : "Back to queued"}
+                                {activeTaskId === task.id
+                                  ? "Saving..."
+                                  : "Back to queued"}
                               </Button>
                             )}
                             <Button
@@ -1030,7 +1051,9 @@ export function FrontOfficeClientDossierClient(
                               type="button"
                               variant="secondary"
                             >
-                              {activeTaskId === task.id ? "Saving..." : "Mark complete"}
+                              {activeTaskId === task.id
+                                ? "Saving..."
+                                : "Mark complete"}
                             </Button>
                             <Button
                               disabled={isBusy}
