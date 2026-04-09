@@ -34,6 +34,7 @@ import {
   resolveOptionValue,
 } from "./agent-notifications-config";
 import { AgentNotificationsClient } from "./agent-notifications-client";
+import { FrontOfficeCleanupDigestCard } from "./front-office-cleanup-digest-card";
 
 type AgentNotificationsPageProps = {
   searchParams?: Promise<{
@@ -76,21 +77,6 @@ function buildActivityFocusDescription(
     default:
       return "This route keeps the cleanup workbench visible, then lets you narrow by owner cleanup, team pressure, calendar writeback, or general notices without losing the URL-stable slice.";
   }
-}
-
-function getCleanupDigestTone(summary: {
-  urgentCount: number;
-  dueSoonCount: number;
-}) {
-  if (summary.urgentCount > 0) {
-    return "danger" as const;
-  }
-
-  if (summary.dueSoonCount > 0) {
-    return "warning" as const;
-  }
-
-  return "accent" as const;
 }
 
 export default async function AgentNotificationsPage(
@@ -431,90 +417,13 @@ export default async function AgentNotificationsPage(
 
           <SectionCard
             className="office-list-card"
-            actions={
-              <FrontOfficeLink
-                className="office-inline-link front-office-inline-link"
-                href={cleanupDigestHref}
-              >
-                Open JSON
-              </FrontOfficeLink>
-            }
-            subtitle="This digest reads live Front Office cleanup pressure on demand. It is a manual summary surface, not a scheduled job runner."
+            subtitle="This digest reads live Front Office cleanup pressure on demand. It stays manual, refreshable, and separate from the workbench below."
             title="Cleanup digest"
           >
-            <ListPageStatsGrid>
-              <StatCard
-                hint="unread notification cleanup signals in the digest window"
-                label="Unread notices"
-                value={cleanupDigest.summary.notificationCount}
-              />
-              <StatCard
-                hint="follow-up tasks due inside the digest window"
-                label="Follow-up tasks"
-                value={cleanupDigest.summary.followUpTaskCount}
-              />
-              <StatCard
-                hint="client reminders and appointment continuity signals"
-                label="Reminder pressure"
-                value={
-                  cleanupDigest.summary.clientReminderCount +
-                  cleanupDigest.summary.appointmentCount
-                }
-              />
-            </ListPageStatsGrid>
-
-            <div className="office-queue-list">
-              <FrontOfficeRailItem
-                badgeLabel={cleanupDigest.windowLabel}
-                badgeTone={getCleanupDigestTone(cleanupDigest.summary)}
-                context={`${cleanupDigest.summary.totalCount} item(s) in scope`}
-                description={cleanupDigest.nextActionDetail}
-                meta={
-                  <>
-                    <span>{cleanupDigest.scopeLabel}</span>
-                    <span>{cleanupDigest.generatedAtLabel}</span>
-                    <span>{cleanupDigest.timeZone}</span>
-                  </>
-                }
-                title={cleanupDigest.nextActionLabel}
-              />
-              {cleanupDigest.sections
-                .filter((section) => section.count > 0)
-                .slice(0, 2)
-                .map((section) => (
-                  <FrontOfficeRailItem
-                    action={
-                      section.items[0] ? (
-                        <FrontOfficeLink
-                          className="office-inline-link front-office-inline-link"
-                          href={section.items[0].href}
-                        >
-                          Open first item
-                        </FrontOfficeLink>
-                      ) : undefined
-                    }
-                    badgeLabel={section.label}
-                    badgeTone="accent"
-                    context={`${section.count} item(s)`}
-                    description={section.summary}
-                    key={section.key}
-                    meta={
-                      <>
-                        <span>{section.items[0]?.dueAtLabel ?? "No due label"}</span>
-                        <span>{section.items[0]?.detail ?? "Digest preview only"}</span>
-                      </>
-                    }
-                    title={section.items[0]?.title ?? section.label}
-                  />
-                ))}
-              {!cleanupDigest.sections.some((section) => section.count > 0) ? (
-                <EmptyState
-                  className="front-office-inline-empty"
-                  description="The live digest is clear right now. Keep using the activity workbench below for direct cleanup and read-state changes."
-                  title="No digest pressure"
-                />
-              ) : null}
-            </div>
+            <FrontOfficeCleanupDigestCard
+              cleanupDigest={cleanupDigest}
+              cleanupDigestHref={cleanupDigestHref}
+            />
           </SectionCard>
 
           <SectionCard
