@@ -1,29 +1,23 @@
-import {
-  NotificationType,
-  PrismaClient,
-  TaskStatus,
-} from "/Users/openclaw_john/工作文件夹/Acre_latest_clean/node_modules/@prisma/client/index.js";
-import { formatDateTimeLabel, resolveTimeZone } from "./date-time.js";
-
-const prisma = new PrismaClient();
+import { prisma } from "./client";
+import { formatDateTimeLabel, resolveTimeZone } from "./date-time";
 
 const frontOfficeCleanupDigestWindowDays = 7;
 const frontOfficeCleanupDigestMaxItemsPerSection = 5;
 
 const frontOfficeCleanupDigestNotificationTypes = [
-  NotificationType.appointment_due_soon,
-  NotificationType.appointment_external_touch_due,
-  NotificationType.incoming_update_pending_review,
-  NotificationType.task_review_requested,
-  NotificationType.task_second_review_requested,
-  NotificationType.task_rejected,
-  NotificationType.offer_created,
-  NotificationType.offer_received,
-  NotificationType.offer_expiring_soon,
-  NotificationType.follow_up_assigned,
-  NotificationType.follow_up_overdue,
-  NotificationType.onboarding_assigned,
-  NotificationType.onboarding_due_soon,
+  "appointment_due_soon",
+  "appointment_external_touch_due",
+  "incoming_update_pending_review",
+  "task_review_requested",
+  "task_second_review_requested",
+  "task_rejected",
+  "offer_created",
+  "offer_received",
+  "offer_expiring_soon",
+  "follow_up_assigned",
+  "follow_up_overdue",
+  "onboarding_assigned",
+  "onboarding_due_soon",
 ] as const;
 
 type FrontOfficeCleanupDigestTone =
@@ -91,7 +85,7 @@ export type BuildFrontOfficeCleanupDigestInput = {
 
 type CleanupNotificationRecord = {
   id: string;
-  type: NotificationType;
+  type: string;
   title: string;
   body: string;
   actionUrl: string | null;
@@ -101,7 +95,7 @@ type CleanupNotificationRecord = {
 type CleanupFollowUpTaskRecord = {
   id: string;
   title: string;
-  status: TaskStatus;
+  status: string;
   dueAt: Date;
   client: {
     id: string;
@@ -279,52 +273,52 @@ function formatSectionSummary(count: number, noun: string) {
   return `${count} ${noun.toLowerCase()} items need attention.`;
 }
 
-function mapNotificationLabel(type: NotificationType) {
+function mapNotificationLabel(type: string) {
   switch (type) {
-    case NotificationType.appointment_due_soon:
+    case "appointment_due_soon":
       return "Appointment due soon";
-    case NotificationType.appointment_external_touch_due:
+    case "appointment_external_touch_due":
       return "Appointment touch due";
-    case NotificationType.incoming_update_pending_review:
+    case "incoming_update_pending_review":
       return "Incoming update review";
-    case NotificationType.task_review_requested:
+    case "task_review_requested":
       return "Task review requested";
-    case NotificationType.task_second_review_requested:
+    case "task_second_review_requested":
       return "Task second review requested";
-    case NotificationType.task_rejected:
+    case "task_rejected":
       return "Task rejected";
-    case NotificationType.offer_created:
+    case "offer_created":
       return "Offer created";
-    case NotificationType.offer_received:
+    case "offer_received":
       return "Offer received";
-    case NotificationType.offer_expiring_soon:
+    case "offer_expiring_soon":
       return "Offer expiring soon";
-    case NotificationType.follow_up_assigned:
+    case "follow_up_assigned":
       return "Follow-up assigned";
-    case NotificationType.follow_up_overdue:
+    case "follow_up_overdue":
       return "Follow-up overdue";
-    case NotificationType.onboarding_assigned:
+    case "onboarding_assigned":
       return "Onboarding assigned";
-    case NotificationType.onboarding_due_soon:
+    case "onboarding_due_soon":
       return "Onboarding due soon";
     default:
       return "Cleanup notification";
   }
 }
 
-function mapNotificationTone(type: NotificationType): FrontOfficeCleanupDigestTone {
+function mapNotificationTone(type: string): FrontOfficeCleanupDigestTone {
   switch (type) {
-    case NotificationType.follow_up_overdue:
-    case NotificationType.appointment_external_touch_due:
-    case NotificationType.offer_expiring_soon:
-    case NotificationType.task_rejected:
+    case "follow_up_overdue":
+    case "appointment_external_touch_due":
+    case "offer_expiring_soon":
+    case "task_rejected":
       return "danger";
-    case NotificationType.appointment_due_soon:
-    case NotificationType.incoming_update_pending_review:
-    case NotificationType.task_review_requested:
-    case NotificationType.task_second_review_requested:
-    case NotificationType.follow_up_assigned:
-    case NotificationType.onboarding_due_soon:
+    case "appointment_due_soon":
+    case "incoming_update_pending_review":
+    case "task_review_requested":
+    case "task_second_review_requested":
+    case "follow_up_assigned":
+    case "onboarding_due_soon":
       return "warning";
     default:
       return "accent";
@@ -581,7 +575,7 @@ export async function buildFrontOfficeCleanupDigest(
           membershipId: input.viewerMembershipId,
           readAt: null,
           type: {
-            in: frontOfficeCleanupDigestNotificationTypes as unknown as NotificationType[],
+            in: [...frontOfficeCleanupDigestNotificationTypes],
           },
           ...(officeScopeFilter ? officeScopeFilter : {}),
         },
@@ -600,7 +594,7 @@ export async function buildFrontOfficeCleanupDigest(
         where: {
           organizationId: input.organizationId,
           status: {
-            not: TaskStatus.completed,
+            not: "completed",
           },
           dueAt: {
             not: null,

@@ -5,13 +5,9 @@ import {
   NotificationCategory,
   NotificationEntityType,
   NotificationSeverity,
-  NotificationType,
-  PrismaClient,
-  TaskStatus,
-} from "/Users/openclaw_john/工作文件夹/Acre_latest_clean/node_modules/@prisma/client/index.js";
+} from "@prisma/client";
+import { prisma } from "./client.ts";
 import { buildFrontOfficeCleanupDigest } from "./front-office-cleanup-digest.ts";
-
-const prisma = new PrismaClient();
 
 after(async () => {
   await prisma.$disconnect();
@@ -83,7 +79,7 @@ async function createFrontOfficeCleanupDigestTestContext() {
       clientId: client.id,
       assigneeMemberId: membership.id,
       title: `Follow-up cleanup ${suffix}`,
-      status: TaskStatus.queued,
+      status: "queued",
       dueAt: new Date("2026-04-08T15:00:00.000Z"),
     },
   });
@@ -124,7 +120,7 @@ async function createFrontOfficeCleanupDigestTestContext() {
       organizationId: organization.id,
       officeId: office.id,
       membershipId: membership.id,
-      type: NotificationType.follow_up_overdue,
+      type: "follow_up_overdue",
       category: NotificationCategory.follow_up,
       severity: NotificationSeverity.warning,
       entityType: NotificationEntityType.follow_up_task,
