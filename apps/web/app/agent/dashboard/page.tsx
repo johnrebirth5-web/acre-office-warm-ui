@@ -121,6 +121,14 @@ function formatTodayActionLabel(count: number) {
     : `${count} actions need attention today`;
 }
 
+function formatSignedDelta(value: number) {
+  if (value > 0) {
+    return `+${value}`;
+  }
+
+  return `${value}`;
+}
+
 function getDashboardRoleFocus(role: string) {
   switch (role) {
     case "team_lead":
@@ -564,6 +572,8 @@ export default async function AgentDashboardPage() {
     ? leadershipCleanupHref
     : "/agent/notifications?activityView=personal_cleanup#personal-cleanup-pressure";
   const resourcePulse = snapshot.noticeRail.resourcePulse;
+  const resourcePulseComparisonLabel =
+    resourcePulse.comparisonWindowLabel.toLowerCase();
   const listingSummaryChip =
     snapshot.listingOutput.engagedClientCount > 0
       ? {
@@ -1678,6 +1688,42 @@ export default async function AgentDashboardPage() {
               subtitle="Leadership should be able to see whether the shared Front Office library is actually being used across the visible bench, not only published."
               title={resourcePulse.scopeLabel}
             >
+              <div
+                className="office-summary-chip-row"
+                style={{ marginBottom: "1rem" }}
+              >
+                <SummaryChip
+                  label={`Tracked actions vs ${resourcePulseComparisonLabel}`}
+                  tone={
+                    resourcePulse.totalCountDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(resourcePulse.totalCountDelta)}
+                />
+                <SummaryChip
+                  label={`Active operators vs ${resourcePulseComparisonLabel}`}
+                  tone={
+                    resourcePulse.activeMembershipDelta > 0
+                      ? "accent"
+                      : undefined
+                  }
+                  value={formatSignedDelta(resourcePulse.activeMembershipDelta)}
+                />
+                <SummaryChip
+                  label={`Resource opens vs ${resourcePulseComparisonLabel}`}
+                  tone={
+                    resourcePulse.resourceOpenDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(resourcePulse.resourceOpenDelta)}
+                />
+                <SummaryChip
+                  label={`Vendor clicks vs ${resourcePulseComparisonLabel}`}
+                  tone={
+                    resourcePulse.vendorClickDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(resourcePulse.vendorClickDelta)}
+                />
+              </div>
+
               <ListPageStatsGrid>
                 <StatCard
                   hint="members in the visible FO scope"

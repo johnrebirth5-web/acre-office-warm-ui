@@ -454,6 +454,7 @@ export type FrontOfficeResourcesSnapshot = {
       scopeKey: "self" | "team" | "organization";
       scopeLabel: string;
       windowLabel: string;
+      comparisonWindowLabel: string;
       visibleMembershipCount: number;
       activeMembershipCount: number;
       totalCount: number;
@@ -464,6 +465,10 @@ export type FrontOfficeResourcesSnapshot = {
       vendorClickCount: number;
       recentInteractionCount: number;
       lastInteractionLabel: string;
+      totalCountDelta: number;
+      activeMembershipDelta: number;
+      resourceOpenDelta: number;
+      vendorClickDelta: number;
       topActors: Array<{
         membershipId: string;
         label: string;

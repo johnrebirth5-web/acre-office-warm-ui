@@ -201,6 +201,14 @@ function pluralize(value: number, singular: string, plural = `${singular}s`) {
   return `${value} ${value === 1 ? singular : plural}`;
 }
 
+function formatSignedDelta(value: number) {
+  if (value > 0) {
+    return `+${value}`;
+  }
+
+  return `${value}`;
+}
+
 function buildResourceLaneMap(resources: ResourceRecord[]) {
   const lanes = new Map<ResourceRecord["typeKey"], ResourceRecord[]>();
 
@@ -1165,6 +1173,44 @@ export default async function AgentResourcesPage(props: {
               subtitle="Leads and office operators should be able to see whether this hub is actually getting used across the visible Front Office bench, not only inside one personal trail."
               title={sharedTracking.scopeLabel}
             >
+              <div
+                className="office-summary-chip-row"
+                style={{ marginBottom: "1rem" }}
+              >
+                <SummaryChip
+                  label={`Tracked actions vs ${sharedTracking.comparisonWindowLabel.toLowerCase()}`}
+                  tone={
+                    sharedTracking.totalCountDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(sharedTracking.totalCountDelta)}
+                />
+                <SummaryChip
+                  label={`Active operators vs ${sharedTracking.comparisonWindowLabel.toLowerCase()}`}
+                  tone={
+                    sharedTracking.activeMembershipDelta > 0
+                      ? "accent"
+                      : undefined
+                  }
+                  value={formatSignedDelta(
+                    sharedTracking.activeMembershipDelta,
+                  )}
+                />
+                <SummaryChip
+                  label={`Resource opens vs ${sharedTracking.comparisonWindowLabel.toLowerCase()}`}
+                  tone={
+                    sharedTracking.resourceOpenDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(sharedTracking.resourceOpenDelta)}
+                />
+                <SummaryChip
+                  label={`Vendor clicks vs ${sharedTracking.comparisonWindowLabel.toLowerCase()}`}
+                  tone={
+                    sharedTracking.vendorClickDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(sharedTracking.vendorClickDelta)}
+                />
+              </div>
+
               <ListPageStatsGrid>
                 <StatCard
                   hint="members in the visible FO scope"

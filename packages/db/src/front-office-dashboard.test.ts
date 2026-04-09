@@ -150,15 +150,24 @@ async function createFrontOfficeDashboardTestContext() {
 
 test("dashboard exposes shared resource pulse to office leadership", async () => {
   const context = await createFrontOfficeDashboardTestContext();
+  const now = Date.now();
 
   try {
+    await context.recordInteraction({
+      membershipId: context.agentMembership.id,
+      action: activityLogActions.frontOfficeResourceSearched,
+      objectLabel: "Broker tour notes",
+      contextHref: "/agent/resources#resource-search-results",
+      details: ["Query: broker tour notes", "Scope: Published resources"],
+      createdAt: new Date(now - 20 * 24 * 60 * 60 * 1000),
+    });
     await context.recordInteraction({
       membershipId: context.agentMembership.id,
       action: activityLogActions.frontOfficeResourceOpened,
       objectLabel: context.resource.title,
       contextHref: "/agent/resources#published-tool-library",
       details: ["Lane: Playbook", "Action: Open playbook"],
-      createdAt: new Date("2026-04-09T14:00:00.000Z"),
+      createdAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
     });
     await context.recordInteraction({
       membershipId: context.adminMembership.id,
@@ -166,7 +175,7 @@ test("dashboard exposes shared resource pulse to office leadership", async () =>
       objectLabel: context.vendor.name,
       contextHref: "/agent/resources#vendor-hub",
       details: ["Action: Website", "Coverage: Brooklyn"],
-      createdAt: new Date("2026-04-09T16:00:00.000Z"),
+      createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
     });
 
     const snapshot = await getFrontOfficeDashboardSnapshot({
@@ -182,9 +191,17 @@ test("dashboard exposes shared resource pulse to office leadership", async () =>
       snapshot.noticeRail.resourcePulse.scopeLabel,
       "Office adoption pulse",
     );
+    assert.equal(
+      snapshot.noticeRail.resourcePulse.comparisonWindowLabel,
+      "Prior 14 days",
+    );
     assert.equal(snapshot.noticeRail.resourcePulse.totalCount, 2);
+    assert.equal(snapshot.noticeRail.resourcePulse.totalCountDelta, 1);
     assert.equal(snapshot.noticeRail.resourcePulse.resourceOpenCount, 1);
+    assert.equal(snapshot.noticeRail.resourcePulse.resourceOpenDelta, 1);
     assert.equal(snapshot.noticeRail.resourcePulse.vendorClickCount, 1);
+    assert.equal(snapshot.noticeRail.resourcePulse.vendorClickDelta, 1);
+    assert.equal(snapshot.noticeRail.resourcePulse.activeMembershipDelta, 1);
     assert.ok(snapshot.noticeRail.resourcePulse.topActors.length > 0);
     assert.ok(snapshot.noticeRail.resourcePulse.hottestTargets.length > 0);
   } finally {
@@ -194,6 +211,7 @@ test("dashboard exposes shared resource pulse to office leadership", async () =>
 
 test("dashboard keeps shared resource pulse hidden for self-scoped agents", async () => {
   const context = await createFrontOfficeDashboardTestContext();
+  const now = Date.now();
 
   try {
     await context.recordInteraction({
@@ -202,6 +220,7 @@ test("dashboard keeps shared resource pulse hidden for self-scoped agents", asyn
       objectLabel: context.resource.title,
       contextHref: "/agent/resources#published-tool-library",
       details: ["Lane: Playbook", "Action: Open playbook"],
+      createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
     });
 
     const snapshot = await getFrontOfficeDashboardSnapshot({
@@ -215,6 +234,11 @@ test("dashboard keeps shared resource pulse hidden for self-scoped agents", asyn
     assert.equal(snapshot.noticeRail.resourcePulse.visible, false);
     assert.equal(snapshot.noticeRail.resourcePulse.totalCount, 0);
     assert.equal(snapshot.noticeRail.resourcePulse.scopeLabel, "");
+    assert.equal(
+      snapshot.noticeRail.resourcePulse.comparisonWindowLabel,
+      "Prior 14 days",
+    );
+    assert.equal(snapshot.noticeRail.resourcePulse.totalCountDelta, 0);
   } finally {
     await context.cleanup();
   }

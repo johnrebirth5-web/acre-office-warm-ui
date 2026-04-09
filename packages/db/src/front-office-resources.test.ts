@@ -1,23 +1,23 @@
-import assert from "node:assert/strict"
-import { randomUUID } from "node:crypto"
-import { after, test } from "node:test"
-import { Prisma, ResourceType } from "@prisma/client"
-import { activityLogActions } from "./activity-log.ts"
-import { prisma } from "./client.ts"
-import { getFrontOfficeResourcesSnapshot } from "./front-office-workspaces.ts"
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { after, test } from "node:test";
+import { Prisma, ResourceType } from "@prisma/client";
+import { activityLogActions } from "./activity-log.ts";
+import { prisma } from "./client.ts";
+import { getFrontOfficeResourcesSnapshot } from "./front-office-workspaces.ts";
 
 after(async () => {
-  await prisma.$disconnect()
-})
+  await prisma.$disconnect();
+});
 
 async function createFrontOfficeResourcesTestContext() {
-  const suffix = randomUUID().slice(0, 8)
+  const suffix = randomUUID().slice(0, 8);
   const organization = await prisma.organization.create({
     data: {
       name: `FO Resources Test ${suffix}`,
       slug: `fo-resources-test-${suffix}`,
     },
-  })
+  });
 
   const office = await prisma.office.create({
     data: {
@@ -27,11 +27,14 @@ async function createFrontOfficeResourcesTestContext() {
       market: "New York",
       isPrimary: true,
     },
-  })
+  });
 
-  const trackedUserIds: string[] = []
+  const trackedUserIds: string[] = [];
 
-  async function createMembership(role: "office_admin" | "agent", prefix: string) {
+  async function createMembership(
+    role: "office_admin" | "agent",
+    prefix: string,
+  ) {
     const user = await prisma.user.create({
       data: {
         email: `${prefix}-${suffix}@example.com`,
@@ -41,8 +44,8 @@ async function createFrontOfficeResourcesTestContext() {
         locale: "en-US",
         isActive: true,
       },
-    })
-    trackedUserIds.push(user.id)
+    });
+    trackedUserIds.push(user.id);
 
     const membership = await prisma.membership.create({
       data: {
@@ -54,13 +57,16 @@ async function createFrontOfficeResourcesTestContext() {
         title: role === "office_admin" ? "Office Admin" : "Agent",
         permissions: Prisma.JsonNull,
       },
-    })
+    });
 
-    return membership
+    return membership;
   }
 
-  const adminMembership = await createMembership("office_admin", "resource-admin")
-  const agentMembership = await createMembership("agent", "resource-agent")
+  const adminMembership = await createMembership(
+    "office_admin",
+    "resource-admin",
+  );
+  const agentMembership = await createMembership("agent", "resource-agent");
 
   const resource = await prisma.resource.create({
     data: {
@@ -74,7 +80,7 @@ async function createFrontOfficeResourcesTestContext() {
       tags: ["script", "tour"],
       isPublished: true,
     },
-  })
+  });
 
   const vendor = await prisma.vendor.create({
     data: {
@@ -90,7 +96,7 @@ async function createFrontOfficeResourcesTestContext() {
       notes: "Shared vendor coverage.",
       isFeatured: true,
     },
-  })
+  });
 
   return {
     organization,
@@ -100,12 +106,12 @@ async function createFrontOfficeResourcesTestContext() {
     resource,
     vendor,
     async recordInteraction(input: {
-      membershipId: string
-      action: string
-      objectLabel: string
-      contextHref: string
-      details: string[]
-      createdAt?: Date
+      membershipId: string;
+      action: string;
+      objectLabel: string;
+      contextHref: string;
+      details: string[];
+      createdAt?: Date;
     }) {
       return prisma.auditLog.create({
         data: {
@@ -122,14 +128,14 @@ async function createFrontOfficeResourcesTestContext() {
             details: input.details,
           },
         },
-      })
+      });
     },
     async cleanup() {
       await prisma.organization.delete({
         where: {
           id: organization.id,
         },
-      })
+      });
 
       await prisma.user.deleteMany({
         where: {
@@ -137,77 +143,107 @@ async function createFrontOfficeResourcesTestContext() {
             in: trackedUserIds,
           },
         },
-      })
+      });
     },
-  }
+  };
 }
 
 test("office admins see a shared resource adoption pulse for visible FO usage", async () => {
-  const context = await createFrontOfficeResourcesTestContext()
+  const context = await createFrontOfficeResourcesTestContext();
+  const now = Date.now();
 
   try {
+    await context.recordInteraction({
+      membershipId: context.agentMembership.id,
+      action: activityLogActions.frontOfficeResourceSearched,
+      objectLabel: "Staging checklist",
+      contextHref: "/agent/resources#resource-search-results",
+      details: ["Query: staging checklist", "Scope: Published resources"],
+      createdAt: new Date(now - 20 * 24 * 60 * 60 * 1000),
+    });
     await context.recordInteraction({
       membershipId: context.agentMembership.id,
       action: activityLogActions.frontOfficeResourceOpened,
       objectLabel: context.resource.title,
       contextHref: "/agent/resources#published-tool-library",
       details: ["Lane: Playbook", "Action: Open playbook"],
-      createdAt: new Date("2026-04-08T15:00:00.000Z"),
-    })
+      createdAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
+    });
     await context.recordInteraction({
       membershipId: context.adminMembership.id,
       action: activityLogActions.frontOfficeVendorClicked,
       objectLabel: context.vendor.name,
       contextHref: "/agent/resources#vendor-hub",
       details: ["Action: Call", "Coverage: Brooklyn"],
-      createdAt: new Date("2026-04-08T16:00:00.000Z"),
-    })
+      createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+    });
 
     const snapshot = await getFrontOfficeResourcesSnapshot({
       organizationId: context.organization.id,
       viewerMembershipId: context.adminMembership.id,
       officeId: context.office.id,
       timeZone: "America/New_York",
-    })
+    });
 
-    assert.equal(snapshot.interactionTracking.sharedTracking.visible, true)
+    assert.equal(snapshot.interactionTracking.sharedTracking.visible, true);
     assert.equal(
       snapshot.interactionTracking.sharedTracking.scopeLabel,
       "Office adoption pulse",
-    )
-    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 2)
+    );
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.comparisonWindowLabel,
+      "Prior 14 days",
+    );
+    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 2);
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.totalCountDelta,
+      1,
+    );
     assert.equal(
       snapshot.interactionTracking.sharedTracking.resourceOpenCount,
       1,
-    )
+    );
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.resourceOpenDelta,
+      1,
+    );
     assert.equal(
       snapshot.interactionTracking.sharedTracking.vendorClickCount,
       1,
-    )
+    );
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.vendorClickDelta,
+      1,
+    );
     assert.equal(
       snapshot.interactionTracking.sharedTracking.activeMembershipCount,
       2,
-    )
+    );
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.activeMembershipDelta,
+      1,
+    );
     assert.ok(
       snapshot.interactionTracking.sharedTracking.visibleMembershipCount >= 2,
-    )
+    );
     assert.ok(
       snapshot.interactionTracking.sharedTracking.topActors.some(
         (actor) => actor.membershipId === context.agentMembership.id,
       ),
-    )
+    );
     assert.ok(
       snapshot.interactionTracking.sharedTracking.hottestTargets.some(
         (target) => target.title === context.resource.title,
       ),
-    )
+    );
   } finally {
-    await context.cleanup()
+    await context.cleanup();
   }
-})
+});
 
 test("agents keep the shared adoption pulse hidden when their FO scope is self only", async () => {
-  const context = await createFrontOfficeResourcesTestContext()
+  const context = await createFrontOfficeResourcesTestContext();
+  const now = Date.now();
 
   try {
     await context.recordInteraction({
@@ -216,22 +252,28 @@ test("agents keep the shared adoption pulse hidden when their FO scope is self o
       objectLabel: context.resource.title,
       contextHref: "/agent/resources#published-tool-library",
       details: ["Lane: Playbook", "Action: Open playbook"],
-    })
+      createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+    });
 
     const snapshot = await getFrontOfficeResourcesSnapshot({
       organizationId: context.organization.id,
       viewerMembershipId: context.agentMembership.id,
       officeId: context.office.id,
       timeZone: "America/New_York",
-    })
+    });
 
-    assert.equal(snapshot.interactionTracking.sharedTracking.visible, false)
-    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 0)
+    assert.equal(snapshot.interactionTracking.sharedTracking.visible, false);
+    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 0);
+    assert.equal(snapshot.interactionTracking.sharedTracking.scopeLabel, "");
     assert.equal(
-      snapshot.interactionTracking.sharedTracking.scopeLabel,
-      "",
-    )
+      snapshot.interactionTracking.sharedTracking.comparisonWindowLabel,
+      "Prior 14 days",
+    );
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.totalCountDelta,
+      0,
+    );
   } finally {
-    await context.cleanup()
+    await context.cleanup();
   }
-})
+});

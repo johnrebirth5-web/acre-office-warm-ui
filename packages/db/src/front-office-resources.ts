@@ -93,6 +93,7 @@ export type FrontOfficeSharedResourceInteractionSnapshot = {
   scopeKey: "self" | "team" | "organization";
   scopeLabel: string;
   windowLabel: string;
+  comparisonWindowLabel: string;
   visibleMembershipCount: number;
   activeMembershipCount: number;
   totalCount: number;
@@ -103,6 +104,10 @@ export type FrontOfficeSharedResourceInteractionSnapshot = {
   vendorClickCount: number;
   recentInteractionCount: number;
   lastInteractionLabel: string;
+  totalCountDelta: number;
+  activeMembershipDelta: number;
+  resourceOpenDelta: number;
+  vendorClickDelta: number;
   topActors: Array<{
     membershipId: string;
     label: string;
@@ -248,12 +253,21 @@ function formatWindowLabel(days: number) {
   return `Last ${days} days`;
 }
 
+function formatComparisonWindowLabel(days: number) {
+  return `Prior ${days} days`;
+}
+
 function buildEmptySharedResourceInteractionSnapshot(): FrontOfficeSharedResourceInteractionSnapshot {
   return {
     visible: false,
     scopeKey: "self",
     scopeLabel: "",
-    windowLabel: formatWindowLabel(frontOfficeTrackedResourceInteractionWindowDays),
+    windowLabel: formatWindowLabel(
+      frontOfficeTrackedResourceInteractionWindowDays,
+    ),
+    comparisonWindowLabel: formatComparisonWindowLabel(
+      frontOfficeTrackedResourceInteractionWindowDays,
+    ),
     visibleMembershipCount: 1,
     activeMembershipCount: 0,
     totalCount: 0,
@@ -264,6 +278,10 @@ function buildEmptySharedResourceInteractionSnapshot(): FrontOfficeSharedResourc
     vendorClickCount: 0,
     recentInteractionCount: 0,
     lastInteractionLabel: `No shared tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
+    totalCountDelta: 0,
+    activeMembershipDelta: 0,
+    resourceOpenDelta: 0,
+    vendorClickDelta: 0,
     topActors: [],
     hottestTargets: [],
   };
@@ -309,16 +327,14 @@ function normalizeTrackedResourceInteractions(
         details: payload.details,
       };
     })
-    .filter((interaction) => matchesOfficeScope(interaction.officeId, officeId));
+    .filter((interaction) =>
+      matchesOfficeScope(interaction.officeId, officeId),
+    );
 }
 
 function formatInteractionKindLabel(
   action: string,
-):
-  | "Resource search"
-  | "Watch progress"
-  | "Resource open"
-  | "Vendor click" {
+): "Resource search" | "Watch progress" | "Resource open" | "Vendor click" {
   if (action === activityLogActions.frontOfficeResourceSearched) {
     return "Resource search";
   }
@@ -419,7 +435,8 @@ function buildResourceInteractionSummary(
   ).length;
   const progressInteractions = interactions.filter(
     (interaction) =>
-      interaction.action === activityLogActions.frontOfficeResourceProgressLogged,
+      interaction.action ===
+      activityLogActions.frontOfficeResourceProgressLogged,
   );
   const progressCount = progressInteractions.length;
   const completionCount = progressInteractions.filter(
@@ -540,6 +557,9 @@ function buildMembershipLabel(input: {
 export async function getFrontOfficeSharedResourceInteractionSnapshot(
   input: GetFrontOfficeSharedResourceInteractionSnapshotInput,
 ): Promise<FrontOfficeSharedResourceInteractionSnapshot> {
+  const now = new Date();
+  const windowMilliseconds =
+    frontOfficeTrackedResourceInteractionWindowDays * 24 * 60 * 60 * 1000;
   const scope = await resolveOfficeDataScope({
     organizationId: input.organizationId,
     viewerMembershipId: input.membershipId,
@@ -583,9 +603,9 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
     return buildEmptySharedResourceInteractionSnapshot();
   }
 
-  const windowStart = new Date(
-    Date.now() -
-      frontOfficeTrackedResourceInteractionWindowDays * 24 * 60 * 60 * 1000,
+  const currentWindowStart = new Date(now.getTime() - windowMilliseconds);
+  const comparisonWindowStart = new Date(
+    now.getTime() - windowMilliseconds * 2,
   );
   const [memberships, rawInteractions] = await Promise.all([
     prisma.membership.findMany({
@@ -615,7 +635,7 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
           in: [...frontOfficeTrackedResourceInteractionActions],
         },
         createdAt: {
-          gte: windowStart,
+          gte: comparisonWindowStart,
         },
       },
       orderBy: [{ createdAt: "desc" }],
@@ -629,12 +649,22 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
       },
     }),
   ]);
-  const interactions = normalizeTrackedResourceInteractions(
+  const normalizedInteractions = normalizeTrackedResourceInteractions(
     rawInteractions,
     input.officeId ?? null,
   );
+  const interactions = normalizedInteractions.filter(
+    (interaction) => interaction.createdAt >= currentWindowStart,
+  );
+  const comparisonInteractions = normalizedInteractions.filter(
+    (interaction) => interaction.createdAt < currentWindowStart,
+  );
   const summary = buildResourceInteractionSummary(
     interactions,
+    input.timeZone ?? null,
+  );
+  const comparisonSummary = buildResourceInteractionSummary(
+    comparisonInteractions,
     input.timeZone ?? null,
   );
   const membershipLabelById = new Map(
@@ -651,6 +681,7 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
     string,
     { interactionCount: number; latestInteractionAt: Date }
   >();
+  const comparisonActorMembershipIds = new Set<string>();
 
   for (const interaction of interactions) {
     if (!interaction.membershipId) {
@@ -666,6 +697,12 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
           ? existing.latestInteractionAt
           : interaction.createdAt,
     });
+  }
+
+  for (const interaction of comparisonInteractions) {
+    if (interaction.membershipId) {
+      comparisonActorMembershipIds.add(interaction.membershipId);
+    }
   }
 
   const topActors = [...actorStats.entries()]
@@ -749,7 +786,12 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
     visible: true,
     scopeKey: scope.kind,
     scopeLabel: formatSharedTrackingScopeLabel(scope.kind),
-    windowLabel: formatWindowLabel(frontOfficeTrackedResourceInteractionWindowDays),
+    windowLabel: formatWindowLabel(
+      frontOfficeTrackedResourceInteractionWindowDays,
+    ),
+    comparisonWindowLabel: formatComparisonWindowLabel(
+      frontOfficeTrackedResourceInteractionWindowDays,
+    ),
     visibleMembershipCount: normalizedVisibleMembershipIds.length,
     activeMembershipCount: actorStats.size,
     totalCount: summary.totalCount,
@@ -763,6 +805,12 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
       summary.totalCount > 0
         ? summary.lastInteractionLabel
         : `No shared tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
+    totalCountDelta: summary.totalCount - comparisonSummary.totalCount,
+    activeMembershipDelta: actorStats.size - comparisonActorMembershipIds.size,
+    resourceOpenDelta:
+      summary.resourceOpenCount - comparisonSummary.resourceOpenCount,
+    vendorClickDelta:
+      summary.vendorClickCount - comparisonSummary.vendorClickCount,
     topActors,
     hottestTargets,
   };
