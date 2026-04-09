@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
-import { Prisma } from "@prisma/client";
 import { prisma } from "./client.ts";
 import {
   createFrontOfficeListingShareLink,
   buildFrontOfficeListingUsagePulse,
+  buildFrontOfficeListingSharePromiseSnapshot,
+  buildSharePublicPageSnapshot,
   getFrontOfficeListingSharePageSnapshot,
   type FrontOfficeListingUsagePulseListing,
 } from "./front-office-listing-output.ts";
@@ -46,16 +47,16 @@ async function createListingShareTestContext() {
   });
 
   const membership = await prisma.membership.create({
-    data: {
-      organizationId: organization.id,
-      officeId: office.id,
-      userId: user.id,
-      role: "agent",
-      status: "active",
-      title: "Front Office Agent",
-      permissions: Prisma.JsonNull,
-    },
-  });
+      data: {
+        organizationId: organization.id,
+        officeId: office.id,
+        userId: user.id,
+        role: "agent",
+        status: "active",
+        title: "Front Office Agent",
+        permissions: {},
+      },
+    });
 
   const listing = await prisma.listing.create({
     data: {
@@ -92,13 +93,13 @@ async function createListingShareTestContext() {
           fullName: `Share Client ${suffix}`,
           email: `share-client-${suffix}@example.com`,
           phone: "6465550199",
-          source: "Regression test",
-          stage: "Warm Lead",
-          intent: "Buyer",
-          preferredAreas: ["Park Slope"],
-          additionalFields: Prisma.JsonNull,
-        },
-      });
+        source: "Regression test",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        preferredAreas: ["Park Slope"],
+        additionalFields: {},
+      },
+    });
     },
     async cleanup() {
       await prisma.organization.delete({
@@ -448,4 +449,48 @@ test("listing usage pulse surfaces explicit send trail and next move summaries",
   assert.match(usagePulse.sendTrailDescription, /quiet/);
   assert.match(usagePulse.sendRiskDescription, /risk/i);
   assert.match(usagePulse.nextMoveDescription, /quiet/i);
+});
+
+test("share promise snapshot stays aligned with the public page snapshot", () => {
+  const genericPromise = buildFrontOfficeListingSharePromiseSnapshot({
+    mode: "generic_tracked_link",
+    channel: "direct",
+    appointmentTitle: null,
+  });
+  assert.deepEqual(
+    genericPromise,
+    buildSharePublicPageSnapshot({
+      mode: "generic_tracked_link",
+      channel: "direct",
+      appointmentTitle: null,
+    }),
+  );
+
+  const clientPromise = buildFrontOfficeListingSharePromiseSnapshot({
+    mode: "client_dossier_context",
+    channel: "email",
+    appointmentTitle: null,
+  });
+  assert.deepEqual(
+    clientPromise,
+    buildSharePublicPageSnapshot({
+      mode: "client_dossier_context",
+      channel: "email",
+      appointmentTitle: null,
+    }),
+  );
+
+  const appointmentPromise = buildFrontOfficeListingSharePromiseSnapshot({
+    mode: "client_appointment_context",
+    channel: "sms",
+    appointmentTitle: "Sunday showing",
+  });
+  assert.deepEqual(
+    appointmentPromise,
+    buildSharePublicPageSnapshot({
+      mode: "client_appointment_context",
+      channel: "sms",
+      appointmentTitle: "Sunday showing",
+    }),
+  );
 });
