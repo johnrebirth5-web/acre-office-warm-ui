@@ -1,5 +1,6 @@
-import { ResourceType } from "@prisma/client";
+import { Prisma, ResourceType } from "@prisma/client";
 import { prisma } from "./client";
+import { formatDateTimeLabel } from "./date-time";
 import { activityLogActions, recordActivityLogEvent } from "./activity-log";
 
 export const frontOfficeVendorInteractionActions = [
@@ -11,6 +12,12 @@ export const frontOfficeVendorInteractionActions = [
 
 export type FrontOfficeVendorInteractionAction =
   (typeof frontOfficeVendorInteractionActions)[number];
+
+const frontOfficeTrackedResourceInteractionWindowDays = 14;
+const frontOfficeTrackedResourceInteractionActions = [
+  activityLogActions.frontOfficeResourceOpened,
+  activityLogActions.frontOfficeVendorClicked,
+] as const;
 
 type FrontOfficeResourceInteractionInput = {
   organizationId: string;
@@ -25,6 +32,30 @@ type FrontOfficeVendorInteractionInput = {
   officeId?: string | null;
   vendorId: string;
   action: FrontOfficeVendorInteractionAction;
+};
+
+type GetFrontOfficeResourceInteractionSnapshotInput = {
+  organizationId: string;
+  membershipId: string;
+  officeId?: string | null;
+  timeZone?: string | null;
+};
+
+export type FrontOfficeResourceInteractionSnapshot = {
+  windowLabel: string;
+  totalCount: number;
+  resourceOpenCount: number;
+  vendorClickCount: number;
+  recentInteractionCount: number;
+  lastInteractionLabel: string;
+  recentInteractions: Array<{
+    id: string;
+    title: string;
+    kindLabel: "Resource open" | "Vendor click";
+    detailLabel: string;
+    timestampLabel: string;
+    href: string;
+  }>;
 };
 
 function buildOfficeScopeFilter(officeId: string | null | undefined) {
@@ -84,6 +115,183 @@ function formatVendorActionLabel(action: FrontOfficeVendorInteractionAction) {
     default:
       return "Open vendor";
   }
+}
+
+function isPayloadObject(
+  payload: Prisma.JsonValue | null,
+): payload is Prisma.JsonObject {
+  return (
+    Boolean(payload) && typeof payload === "object" && !Array.isArray(payload)
+  );
+}
+
+function parsePayloadString(payload: Prisma.JsonObject, key: string) {
+  return typeof payload[key] === "string" ? payload[key] : undefined;
+}
+
+function parsePayloadNullableString(payload: Prisma.JsonObject, key: string) {
+  return typeof payload[key] === "string"
+    ? payload[key]
+    : payload[key] === null
+      ? null
+      : undefined;
+}
+
+function parsePayloadDetails(payload: Prisma.JsonObject) {
+  const value = payload.details;
+
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
+    : [];
+}
+
+function formatWindowLabel(days: number) {
+  return `Last ${days} days`;
+}
+
+function extractInteractionLabels(payload: Prisma.JsonValue | null) {
+  if (!isPayloadObject(payload)) {
+    return {
+      objectLabel: undefined,
+      officeId: undefined,
+      contextHref: undefined,
+      details: [] as string[],
+    };
+  }
+
+  return {
+    objectLabel: parsePayloadString(payload, "objectLabel"),
+    officeId: parsePayloadNullableString(payload, "officeId"),
+    contextHref: parsePayloadString(payload, "contextHref"),
+    details: parsePayloadDetails(payload),
+  };
+}
+
+function formatInteractionKindLabel(
+  action: string,
+): "Resource open" | "Vendor click" {
+  return action === activityLogActions.frontOfficeVendorClicked
+    ? "Vendor click"
+    : "Resource open";
+}
+
+function buildInteractionDetailLabel(action: string, details: string[]) {
+  const actionDetail =
+    details.find((detail) => detail.startsWith("Action: ")) ?? null;
+  const secondaryDetail =
+    details.find((detail) => !detail.startsWith("Action: ")) ?? null;
+
+  if (actionDetail && secondaryDetail) {
+    return `${actionDetail.replace("Action: ", "")} · ${secondaryDetail}`;
+  }
+
+  if (actionDetail) {
+    return actionDetail.replace("Action: ", "");
+  }
+
+  if (secondaryDetail) {
+    return secondaryDetail;
+  }
+
+  return action === activityLogActions.frontOfficeVendorClicked
+    ? "Tracked vendor action"
+    : "Tracked resource open";
+}
+
+function matchesOfficeScope(
+  payloadOfficeId: string | null | undefined,
+  officeId: string | null | undefined,
+) {
+  if (!officeId) {
+    return true;
+  }
+
+  return payloadOfficeId === officeId;
+}
+
+export async function getFrontOfficeResourceInteractionSnapshot(
+  input: GetFrontOfficeResourceInteractionSnapshotInput,
+): Promise<FrontOfficeResourceInteractionSnapshot> {
+  const windowStart = new Date(
+    Date.now() -
+      frontOfficeTrackedResourceInteractionWindowDays * 24 * 60 * 60 * 1000,
+  );
+  const rawInteractions = await prisma.auditLog.findMany({
+    where: {
+      organizationId: input.organizationId,
+      membershipId: input.membershipId,
+      action: {
+        in: [...frontOfficeTrackedResourceInteractionActions],
+      },
+      createdAt: {
+        gte: windowStart,
+      },
+    },
+    orderBy: [{ createdAt: "desc" }],
+    take: 50,
+    select: {
+      id: true,
+      action: true,
+      payload: true,
+      createdAt: true,
+    },
+  });
+  const interactions = rawInteractions
+    .map((interaction) => {
+      const payload = extractInteractionLabels(interaction.payload);
+
+      return {
+        ...interaction,
+        ...payload,
+      };
+    })
+    .filter((interaction) =>
+      matchesOfficeScope(interaction.officeId, input.officeId ?? null),
+    );
+  const resourceOpenCount = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeResourceOpened,
+  ).length;
+  const vendorClickCount = interactions.filter(
+    (interaction) =>
+      interaction.action === activityLogActions.frontOfficeVendorClicked,
+  ).length;
+  const recentInteractions = interactions.slice(0, 6).map((interaction) => ({
+    id: interaction.id,
+    title: interaction.objectLabel || "Tracked Front Office interaction",
+    kindLabel: formatInteractionKindLabel(interaction.action),
+    detailLabel: buildInteractionDetailLabel(
+      interaction.action,
+      interaction.details,
+    ),
+    timestampLabel: formatDateTimeLabel(interaction.createdAt, {
+      timeZone: input.timeZone ?? null,
+    }),
+    href:
+      interaction.contextHref ??
+      (interaction.action === activityLogActions.frontOfficeVendorClicked
+        ? "/agent/resources#vendor-hub"
+        : "/agent/resources#published-tool-library"),
+  }));
+  const totalCount = resourceOpenCount + vendorClickCount;
+  const latestInteraction = recentInteractions[0] ?? null;
+
+  return {
+    windowLabel: formatWindowLabel(
+      frontOfficeTrackedResourceInteractionWindowDays,
+    ),
+    totalCount,
+    resourceOpenCount,
+    vendorClickCount,
+    recentInteractionCount: recentInteractions.length,
+    lastInteractionLabel: latestInteraction
+      ? `${latestInteraction.kindLabel} · ${latestInteraction.timestampLabel}`
+      : `No tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
+    recentInteractions,
+  };
 }
 
 export async function recordFrontOfficeResourceOpen(

@@ -99,6 +99,7 @@ export async function GET(request: NextRequest) {
       vendorMode,
     },
     summary: snapshot.summary,
+    interactionTracking: snapshot.interactionTracking,
     filteredSummary: {
       resourceCount: filteredResources.length,
       vendorCount: filteredVendors.length,

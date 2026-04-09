@@ -418,6 +418,7 @@ export default async function AgentResourcesPage() {
     snapshot.executionPulse.libraryLanes.find(
       (lane) => lane.key === "training_video",
     )?.count ?? 0;
+  const interactionTracking = snapshot.interactionTracking;
   const strongestResourceLane = snapshot.executionPulse.strongestLane;
   const thinnestResourceLane = snapshot.executionPulse.thinnestLane;
   const vendorPosture = snapshot.executionPulse.vendorPosture;
@@ -889,6 +890,75 @@ export default async function AgentResourcesPage() {
 
           <SectionCard
             className="office-list-card"
+            subtitle="Tracked opens and vendor clicks now stay visible here, so the hub can show what this agent is actually touching instead of acting like a static library."
+            title="Recent tracked use"
+          >
+            <ListPageStatsGrid>
+              <StatCard
+                hint={interactionTracking.windowLabel.toLowerCase()}
+                label="Tracked actions"
+                value={interactionTracking.totalCount}
+              />
+              <StatCard
+                hint="resource opens recorded"
+                label="Resource opens"
+                tone="accent"
+                value={interactionTracking.resourceOpenCount}
+              />
+              <StatCard
+                hint="vendor call, email, or site clicks"
+                label="Vendor clicks"
+                value={interactionTracking.vendorClickCount}
+              />
+              <StatCard
+                hint="latest tracked interaction"
+                label="Last touch"
+                value={interactionTracking.lastInteractionLabel}
+              />
+            </ListPageStatsGrid>
+
+            <div className="office-queue-list" style={{ marginTop: "1rem" }}>
+              {interactionTracking.recentInteractions.length ? (
+                interactionTracking.recentInteractions.map((interaction) => (
+                  <QueueItem
+                    action={
+                      <FrontOfficeLink
+                        className="office-inline-link front-office-inline-link"
+                        href={interaction.href}
+                      >
+                        Open section
+                      </FrontOfficeLink>
+                    }
+                    badgeLabel={interaction.kindLabel}
+                    badgeTone={
+                      interaction.kindLabel === "Vendor click"
+                        ? "warning"
+                        : "accent"
+                    }
+                    context={interaction.timestampLabel}
+                    description={interaction.detailLabel}
+                    key={interaction.id}
+                    meta={
+                      <>
+                        <span>{interactionTracking.windowLabel}</span>
+                        <span>Tracked from this hub</span>
+                      </>
+                    }
+                    title={interaction.title}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  className="front-office-inline-empty"
+                  description="Tracked resource opens and vendor clicks will start appearing here as soon as this hub is used live."
+                  title="No tracked use yet"
+                />
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="office-list-card"
             subtitle="Resources should reduce execution friction, not become a second system to manage."
             title="Use it during live work"
           >
@@ -995,6 +1065,15 @@ export default async function AgentResourcesPage() {
             label="Ready-now vendors"
             tone="accent"
             value={snapshot.summary.quickContactVendorCount}
+          />
+          <SummaryChip
+            label="Tracked opens"
+            tone="accent"
+            value={interactionTracking.resourceOpenCount}
+          />
+          <SummaryChip
+            label="Vendor clicks"
+            value={interactionTracking.vendorClickCount}
           />
           <SummaryChip
             label="Featured vendors"

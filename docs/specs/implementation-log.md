@@ -692,6 +692,10 @@
   - [packages/db/src/activity-log.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/activity-log.ts) now recognizes Front Office resource/vendor interaction events, maps them into activity summaries, and links them back to `/agent/resources`
   - [apps/web/app/api/resources/interactions/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/resources/interactions/route.ts) plus [front-office-tracked-link.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-tracked-link.tsx) now send lightweight tracked opens/clicks before the real resource or vendor action continues
   - [apps/web/app/agent/resources/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/resources/page.tsx) now routes resource opens and vendor call/email/site actions through that tracked interaction path while keeping the existing FO hub layout intact
+- FO resource hub tracking now surfaces back into the hub instead of living only in the audit trail:
+  - [packages/db/src/front-office-resources.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-resources.ts) now aggregates the current viewer's recent 14-day resource opens and vendor clicks into a lightweight interaction snapshot
+  - [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) now includes that `interactionTracking` block in the shared FO resources snapshot, and [apps/web/app/api/resources/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/resources/route.ts) now returns it to API consumers too
+  - [apps/web/app/agent/resources/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/resources/page.tsx) now shows tracked opens/clicks in summary chips and a `Recent tracked use` rail so the resource hub reflects live usage rather than acting like a static library
 
 ## Next recommended work
 

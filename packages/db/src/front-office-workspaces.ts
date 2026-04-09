@@ -16,6 +16,7 @@ import {
   frontOfficeAppointmentExternalWorkflowStatuses,
   getFrontOfficeAppointmentExternalWorkflowState,
 } from "./front-office-appointments";
+import { getFrontOfficeResourceInteractionSnapshot } from "./front-office-resources";
 import { buildFrontOfficeListingShareExecutionSummary } from "./front-office-listing-output";
 import { resolveLeaseReminderDates } from "./lease-reminders";
 import { reconcileOfficeNotificationReminders } from "./notifications";
@@ -421,6 +422,22 @@ export type FrontOfficeResourcesSnapshot = {
     featuredVendorCount: number;
     quickContactVendorCount: number;
     vendorCategoryCount: number;
+  };
+  interactionTracking: {
+    windowLabel: string;
+    totalCount: number;
+    resourceOpenCount: number;
+    vendorClickCount: number;
+    recentInteractionCount: number;
+    lastInteractionLabel: string;
+    recentInteractions: Array<{
+      id: string;
+      title: string;
+      kindLabel: "Resource open" | "Vendor click";
+      detailLabel: string;
+      timestampLabel: string;
+      href: string;
+    }>;
   };
   executionPulse: {
     libraryLanes: Array<{
@@ -3523,6 +3540,7 @@ export async function getFrontOfficeResourcesSnapshot(
     featuredVendorCount,
     quickContactVendorCount,
     vendorCategoryGroups,
+    interactionTracking,
   ] = await Promise.all([
     prisma.resource.findMany({
       where: resourceWhere,
@@ -3591,6 +3609,12 @@ export async function getFrontOfficeResourcesSnapshot(
       _count: {
         _all: true,
       },
+    }),
+    getFrontOfficeResourceInteractionSnapshot({
+      organizationId: input.organizationId,
+      membershipId: input.viewerMembershipId,
+      officeId: input.officeId ?? null,
+      timeZone: input.timeZone ?? null,
     }),
   ]);
 
@@ -3681,6 +3705,7 @@ export async function getFrontOfficeResourcesSnapshot(
       quickContactVendorCount,
       vendorCategoryCount: vendorCategoryGroups.length,
     },
+    interactionTracking,
     executionPulse,
     resourceTypes: resourceTypeGroups
       .slice()
