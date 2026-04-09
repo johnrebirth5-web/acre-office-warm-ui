@@ -68,6 +68,13 @@ type ShareActionResultPayload = {
       };
     };
   };
+  publicPage?: {
+    shareSurfaceLabel?: string;
+    shareContextLabel?: string;
+    replyLaneLabel?: string;
+    nextStepLabel?: string;
+    privacyLabel?: string;
+  };
   writeback?: {
     label?: string;
     scopeLabel?: string;
@@ -94,6 +101,15 @@ type ShareLanePlan = {
   description: string;
   meta: string[];
   isRecommended: boolean;
+};
+
+type ClientFacingShareContract = {
+  badgeLabel: string;
+  badgeTone: QueueItemBadgeTone;
+  title: string;
+  context: string;
+  description: string;
+  meta: string[];
 };
 
 async function copyTextToClipboard(value: string) {
@@ -561,6 +577,7 @@ function buildShareFeedback(input: {
         context?.followUpCue ||
         context?.materialCue ||
         null;
+  const publicPage = input.payload?.publicPage;
   const channelLabel =
     input.action === "sms"
       ? input.usedDraftAssist
@@ -573,6 +590,16 @@ function buildShareFeedback(input: {
         : "Private tracked link";
   const detail = [writebackLabel, scopeLabel, nextStepLabel]
     .concat(
+      publicPage?.shareSurfaceLabel
+        ? [`Client view · ${publicPage.shareSurfaceLabel}`]
+        : [],
+      publicPage?.shareContextLabel
+        ? [`Public cue · ${publicPage.shareContextLabel}`]
+        : [],
+      publicPage?.replyLaneLabel
+        ? [`Reply lane · ${publicPage.replyLaneLabel}`]
+        : [],
+      publicPage?.privacyLabel ? [`Privacy · ${publicPage.privacyLabel}`] : [],
       nextCue
         ? [
             `${input.action === "direct" ? "Package cue" : "Next cue"}: ${nextCue}`,
@@ -589,6 +616,71 @@ function buildShareFeedback(input: {
     tone: "success",
     message: `${channelLabel} copied for ${input.listingTitle}.`,
     detail: detail.length ? detail : null,
+  };
+}
+
+function buildClientFacingShareContract(input: {
+  snapshot: FrontOfficeListingsSnapshot;
+  routeState: FrontOfficeListingsRouteState;
+  recommendedAction: RecommendedShareAction;
+}): ClientFacingShareContract {
+  if (input.snapshot.targetAppointment) {
+    return {
+      badgeLabel: "Appt share",
+      badgeTone: "accent",
+      title: "Client-facing follow-through surface",
+      context: "Appointment-linked promise",
+      description:
+        "The client lands on a private follow-through page that keeps the showing context visible and pushes the reply back into the same conversation thread.",
+      meta: [
+        `First lane · ${input.recommendedAction.label}`,
+        "Public page · appointment follow-through share.",
+        `Reply lane · ${
+          input.recommendedAction.action === "sms"
+            ? "fast reaction / confirmation"
+            : "same thread with showing context"
+        }.`,
+        "Why it matters · the listing, appointment, and next move stay on one trail.",
+      ],
+    };
+  }
+
+  if (input.snapshot.targetClient) {
+    return {
+      badgeLabel: "Client share",
+      badgeTone: "success",
+      title: "Client-facing follow-through surface",
+      context: "Dossier-linked promise",
+      description:
+        "The client lands on a private listing page that still explains why the share belongs in the current conversation instead of acting like a cold forwarded link.",
+      meta: [
+        `First lane · ${input.recommendedAction.label}`,
+        "Public page · tracked client share.",
+        `Reply lane · ${
+          input.recommendedAction.action === "email"
+            ? "same email thread"
+            : input.recommendedAction.action === "sms"
+              ? "same text/chat thread"
+              : "same live conversation"
+        }.`,
+        "Why it matters · shortlist continuity stays attached to one dossier trail.",
+      ],
+    };
+  }
+
+  return {
+    badgeLabel: "Link-only",
+    badgeTone: "warning",
+    title: "Client-facing private link promise",
+    context: "Generic tracked link",
+    description:
+      "The client still lands on a private Acre surface, but this share does not claim dossier or appointment continuity yet, so the surrounding conversation has to carry the context.",
+    meta: [
+      `First lane · ${input.recommendedAction.label}`,
+      "Public page · private listing share.",
+      "Reply lane · ask for the original conversation if the link was forwarded.",
+      "Why it matters · next-touch continuity only becomes stronger once you reopen the share from a dossier or appointment.",
+    ],
   };
 }
 
@@ -1364,6 +1456,11 @@ export function FrontOfficeListingsOutputClient(
                 recommendedAction,
               }),
             ];
+            const clientFacingContract = buildClientFacingShareContract({
+              snapshot: props.snapshot,
+              routeState: props.routeState,
+              recommendedAction,
+            });
 
             return (
               <article
@@ -1419,6 +1516,22 @@ export function FrontOfficeListingsOutputClient(
                       </span>
                     }
                     title="Usage pulse"
+                  />
+                  <QueueItem
+                    badgeLabel={clientFacingContract.badgeLabel}
+                    badgeTone={clientFacingContract.badgeTone}
+                    context={clientFacingContract.context}
+                    description={clientFacingContract.description}
+                    meta={
+                      <>
+                        {clientFacingContract.meta.map((item, index) => (
+                          <span key={`client-facing-${listing.id}-${index}`}>
+                            {item}
+                          </span>
+                        ))}
+                      </>
+                    }
+                    title={clientFacingContract.title}
                   />
                   {listing.latestTrackedShare ? (
                     <QueueItem
