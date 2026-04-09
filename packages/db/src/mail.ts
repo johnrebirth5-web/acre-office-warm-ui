@@ -104,6 +104,31 @@ export type OfficeMailThreadDetail = {
   actionLabel: string | null;
 };
 
+export type AppointmentInternalMailThreadContinuity = {
+  label: string;
+  detail: string;
+  nextStep: string;
+  sourceNote: string;
+  returnToLabel: string;
+  returnToDetail: string;
+};
+
+export type AppointmentInternalMailThreadResponse = {
+  thread: {
+    id: string;
+    subject: string;
+  };
+  threadHref: string;
+  actionLabel: string;
+  manualOnlyDetail: string;
+  continuity: AppointmentInternalMailThreadContinuity;
+};
+
+export type AppointmentInternalMailThreadErrorStatus = {
+  status: 400 | 403 | 409;
+  hint: string | null;
+};
+
 export type OfficeMailWorkspaceSnapshot = {
   mode: OfficeMailMode;
   canAudit: boolean;
@@ -426,6 +451,70 @@ function buildAttachmentHref(
 
   const suffix = query.size > 0 ? `?${query.toString()}` : "";
   return `/api/office/mail/attachments/${attachmentId}/file${suffix}`;
+}
+
+function buildAppointmentInternalMailThreadContinuity(): AppointmentInternalMailThreadContinuity {
+  return {
+    label: "Internal mail thread opened",
+    detail:
+      "Acre created an internal mail thread for the appointment brief so the continuity stays inside the workspace.",
+    nextStep:
+      "Review the Acre thread, then return to the appointment record and save the next checkpoint.",
+    sourceNote:
+      "Internal mail continuity only; the outside email remains manual and no provider sync is implied.",
+    returnToLabel: "Return to writeback",
+    returnToDetail:
+      "Jump back to the same appointment after reviewing the thread, then save the next checkpoint in Acre.",
+  };
+}
+
+export function buildAppointmentInternalMailThreadResponse(input: {
+  threadId: string;
+  subject: string;
+}): AppointmentInternalMailThreadResponse {
+  return {
+    thread: {
+      id: input.threadId,
+      subject: input.subject,
+    },
+    threadHref: buildThreadHref(input.threadId),
+    actionLabel: "Internal mail thread",
+    manualOnlyDetail:
+      "The Acre mail thread keeps the appointment email brief inside the workspace; the external send still stays manual and no provider sync is implied.",
+    continuity: buildAppointmentInternalMailThreadContinuity(),
+  };
+}
+
+export function mapAppointmentInternalMailThreadErrorStatus(
+  message: string,
+): AppointmentInternalMailThreadErrorStatus {
+  if (
+    message.includes("No internal mail recipients") ||
+    message.includes("email target is required") ||
+    message.includes("Only scheduled appointments")
+  ) {
+    return {
+      status: 409,
+      hint:
+        "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.",
+    };
+  }
+
+  if (
+    message.includes("Mail access required") ||
+    message.includes("Mail send access required.")
+  ) {
+    return {
+      status: 403,
+      hint:
+        "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.",
+    };
+  }
+
+  return {
+    status: 400,
+    hint: null,
+  };
 }
 
 function summarizeMessageBody(body: string, attachmentCount: number) {
