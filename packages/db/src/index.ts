@@ -140,11 +140,15 @@ export { getOfficeActivitySnapshot } from "./activity";
 export {
   buildFrontOfficeCleanupDigestDeliveryDraft,
   buildFrontOfficeCleanupDigest,
+  buildFrontOfficeCleanupDigestInternalMailThreadOpenedActivityPayload,
+  buildFrontOfficeCleanupDigestRunActivityPayload,
   type BuildFrontOfficeCleanupDigestInput,
   type FrontOfficeCleanupDigestDeliveryDraft,
   type FrontOfficeCleanupDigest,
   type FrontOfficeCleanupDigestItem,
   type FrontOfficeCleanupDigestSection,
+  recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
+  recordFrontOfficeCleanupDigestRunActivity,
   renderFrontOfficeCleanupDigestDeliveryDraft,
 } from "./front-office-cleanup-digest";
 export {
