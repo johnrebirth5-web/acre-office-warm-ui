@@ -246,7 +246,9 @@ function buildActionButtonLabel(input: {
   return "Copy tracked link only";
 }
 
-function buildDraftLaneNote(draftAssist: FrontOfficeListingsDraftAssist | null) {
+function buildDraftLaneNote(
+  draftAssist: FrontOfficeListingsDraftAssist | null,
+) {
   if (!draftAssist) {
     return "No assisted draft is loaded, so every send lane below uses the standard manual templates.";
   }
@@ -293,10 +295,9 @@ function buildListingRecommendedShareAction(input: {
       label: input.snapshot.targetAppointment
         ? "Appointment follow-through lane"
         : "Client follow-through lane",
-      reason:
-        input.snapshot.targetAppointment
-          ? "This route is already tied to the appointment loop, so a quick reaction keeps the send in the same trail."
-          : "This route is already tied to the client dossier, so the next manual send should stay in the same trail instead of restarting as a generic outbound share.",
+      reason: input.snapshot.targetAppointment
+        ? "This route is already tied to the appointment loop, so a quick reaction keeps the send in the same trail."
+        : "This route is already tied to the client dossier, so the next manual send should stay in the same trail instead of restarting as a generic outbound share.",
     };
   }
 
@@ -318,12 +319,11 @@ function buildListingRecommendedShareAction(input: {
       : input.snapshot.targetClient
         ? "Framed send lane"
         : "Link-only lane",
-    reason:
-      input.snapshot.targetAppointment
-        ? "Appointment-linked sends usually need a faster reaction or confirmation path than a long note."
-        : input.snapshot.targetClient
-          ? "A richer framed send is the safer first move when the client still needs context."
-          : "Use the raw tracked URL only when the surrounding context already exists in another manual conversation thread.",
+    reason: input.snapshot.targetAppointment
+      ? "Appointment-linked sends usually need a faster reaction or confirmation path than a long note."
+      : input.snapshot.targetClient
+        ? "A richer framed send is the safer first move when the client still needs context."
+        : "Use the raw tracked URL only when the surrounding context already exists in another manual conversation thread.",
   };
 }
 
@@ -648,7 +648,9 @@ export function FrontOfficeListingsOutputClient(
           }),
         },
       );
-      const payload = (await response.json().catch(() => null)) as ShareActionResultPayload;
+      const payload = (await response
+        .json()
+        .catch(() => null)) as ShareActionResultPayload;
 
       if (!response.ok || !payload?.shareLink?.sharePath) {
         setFeedback({
@@ -799,7 +801,10 @@ export function FrontOfficeListingsOutputClient(
               {props.routeState.focusedRouteLaneActionLabel}
             </FrontOfficeLink>
           ) : null}
-          <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+          <FrontOfficeLink
+            className="office-inline-link"
+            href={agentPackageHref}
+          >
             Open agent send package
           </FrontOfficeLink>
           {props.snapshot.targetClient ? (
@@ -827,7 +832,10 @@ export function FrontOfficeListingsOutputClient(
             </FrontOfficeLink>
           ) : null}
           {shouldShowResetLink ? (
-            <FrontOfficeLink className="office-inline-link" href={props.routeState.cleanHref}>
+            <FrontOfficeLink
+              className="office-inline-link"
+              href={props.routeState.cleanHref}
+            >
               Reset to clean workspace
             </FrontOfficeLink>
           ) : null}
@@ -924,7 +932,10 @@ export function FrontOfficeListingsOutputClient(
             >
               Keep context, clear draft
             </FrontOfficeLink>
-            <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+            <FrontOfficeLink
+              className="office-inline-link"
+              href={agentPackageHref}
+            >
               Open agent send package
             </FrontOfficeLink>
           </div>
@@ -983,7 +994,10 @@ export function FrontOfficeListingsOutputClient(
             )}
             <QueueItem
               action={
-                <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={agentPackageHref}
+                >
                   Open agent send package
                 </FrontOfficeLink>
               }
@@ -1076,9 +1090,7 @@ export function FrontOfficeListingsOutputClient(
               title="Watch quiet-after-open risk"
             />
             <QueueItem
-              badgeLabel={
-                props.snapshot.targetAppointment ? "Appt" : "Package"
-              }
+              badgeLabel={props.snapshot.targetAppointment ? "Appt" : "Package"}
               badgeTone={
                 props.snapshot.targetAppointment ? "accent" : "success"
               }
@@ -1129,7 +1141,10 @@ export function FrontOfficeListingsOutputClient(
             ];
 
             return (
-              <article className="list-row front-office-record" key={listing.id}>
+              <article
+                className="list-row front-office-record"
+                key={listing.id}
+              >
                 <div className="list-row-top front-office-record-head">
                   <div>
                     <strong>{listing.title}</strong>
@@ -1156,7 +1171,10 @@ export function FrontOfficeListingsOutputClient(
                         ? "warning"
                         : "accent"
                     }
-                    description={buildListingExecutionCue(props.snapshot, listing)}
+                    description={buildListingExecutionCue(
+                      props.snapshot,
+                      listing,
+                    )}
                     meta={
                       <span>
                         Recommended first lane: {recommendedAction.label}.{" "}
@@ -1177,9 +1195,80 @@ export function FrontOfficeListingsOutputClient(
                     }
                     title="Tracked link context"
                   />
+                  {listing.latestTrackedShare ? (
+                    <QueueItem
+                      action={
+                        <>
+                          {listing.latestTrackedShare.clientHref ? (
+                            <FrontOfficeLink
+                              className="office-inline-link"
+                              href={listing.latestTrackedShare.clientHref}
+                            >
+                              Open bound dossier
+                            </FrontOfficeLink>
+                          ) : null}
+                          {listing.latestTrackedShare.appointmentHref ? (
+                            <FrontOfficeLink
+                              className="office-inline-link"
+                              href={listing.latestTrackedShare.appointmentHref}
+                            >
+                              Open bound appointment
+                            </FrontOfficeLink>
+                          ) : null}
+                          {hasStableWorkspaceLink ? (
+                            <FrontOfficeLink
+                              className="office-inline-link"
+                              href={props.routeState.stableHref}
+                            >
+                              {props.routeState.focusedRouteLaneActionLabel}
+                            </FrontOfficeLink>
+                          ) : null}
+                        </>
+                      }
+                      badgeLabel={listing.latestTrackedShare.channelLabel}
+                      badgeTone={mapBadgeTone(
+                        listing.latestTrackedShare.statusTone,
+                      )}
+                      context={`${listing.latestTrackedShare.modeLabel} · ${listing.latestTrackedShare.sentAtLabel}`}
+                      description={`${listing.latestTrackedShare.trackingLabel} ${listing.latestTrackedShare.writebackLabel}`}
+                      meta={
+                        <>
+                          <span>
+                            {listing.latestTrackedShare.writebackScopeLabel}
+                          </span>
+                          <span>
+                            Next step ·{" "}
+                            {listing.latestTrackedShare.nextStepLabel}
+                          </span>
+                          {listing.latestTrackedShare.clientLabel ? (
+                            <span>
+                              Client · {listing.latestTrackedShare.clientLabel}
+                              {listing.latestTrackedShare
+                                .clientStageDisplayLabel
+                                ? ` · ${listing.latestTrackedShare.clientStageDisplayLabel}`
+                                : ""}
+                            </span>
+                          ) : null}
+                          {listing.latestTrackedShare.appointmentLabel ? (
+                            <span>
+                              Appointment ·{" "}
+                              {listing.latestTrackedShare.appointmentLabel}
+                              {listing.latestTrackedShare.appointmentWindowLabel
+                                ? ` · ${listing.latestTrackedShare.appointmentWindowLabel}`
+                                : ""}
+                            </span>
+                          ) : null}
+                        </>
+                      }
+                      title="Latest tracked share"
+                    />
+                  ) : null}
                   <QueueItem
                     action={
-                      <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={agentPackageHref}
+                      >
                         Open agent send package
                       </FrontOfficeLink>
                     }
@@ -1191,7 +1280,9 @@ export function FrontOfficeListingsOutputClient(
                     }
                     description={buildListingMaterialCue(props.snapshot)}
                     meta={
-                      <span>{props.routeState.preferredSupportLaneDescription}</span>
+                      <span>
+                        {props.routeState.preferredSupportLaneDescription}
+                      </span>
                     }
                     title="Material pairing"
                   />
@@ -1203,7 +1294,9 @@ export function FrontOfficeListingsOutputClient(
                       action={
                         <Button
                           disabled={isBusy}
-                          onClick={() => void runShareAction(listing, plan.action)}
+                          onClick={() =>
+                            void runShareAction(listing, plan.action)
+                          }
                           size="sm"
                           type="button"
                           variant={plan.isRecommended ? "secondary" : "ghost"}
@@ -1257,7 +1350,10 @@ export function FrontOfficeListingsOutputClient(
                     Open appointment
                   </FrontOfficeLink>
                 ) : null}
-                <FrontOfficeLink className="office-inline-link" href={agentPackageHref}>
+                <FrontOfficeLink
+                  className="office-inline-link"
+                  href={agentPackageHref}
+                >
                   Open agent send package
                 </FrontOfficeLink>
                 {props.routeState.hasDraftAssist ? (
@@ -1293,7 +1389,10 @@ export function FrontOfficeListingsOutputClient(
           continuity can rise back into the dossier and dashboard.
         </p>
         <div className="front-office-playbook-actions">
-          <FrontOfficeLink className="office-inline-link" href="/agent/dashboard">
+          <FrontOfficeLink
+            className="office-inline-link"
+            href="/agent/dashboard"
+          >
             Back to dashboard
           </FrontOfficeLink>
         </div>

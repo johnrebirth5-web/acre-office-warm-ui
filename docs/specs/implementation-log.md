@@ -679,6 +679,10 @@
 - FO dossier return semantics now come from the shared data contract instead of page-local guesses:
   - `FrontOfficeClientDetailNextStepRailItem` now carries a `returnPoint + returnDescription` contract so the active workbench lane, dossier block jump target, and re-entry copy are all emitted from `@acre/db`
   - `/agent/clients/[clientId]` and its dossier client now consume that contract for current-section state, appointments/listing subtitles, and re-entry guidance instead of maintaining separate hardcoded appointment/listing return strings
+- FO listing output now keeps the latest tracked-share execution checkpoint visible after refresh instead of collapsing back to aggregate counters only:
+  - [packages/db/src/front-office-listing-output.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-listing-output.ts) now exports a shared tracked-share execution summary builder so channel, binding mode, writeback scope, and next-step labels come from one contract
+  - [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) now adds `latestTrackedShare` onto each listing card in the FO listings snapshot by resolving the viewer's most recent share link / send-record context for that listing
+  - [apps/web/app/agent/listings/front-office-listings-output-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/listings/front-office-listings-output-client.tsx) now shows that latest tracked-share checkpoint inline, including bound dossier / appointment jump-backs when the last share was client- or appointment-linked
 
 ## Next recommended work
 

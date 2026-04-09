@@ -6,6 +6,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "./client";
+import { formatDateTimeLabel } from "./date-time";
 import type { FrontOfficeAiAcceptedActionContext } from "./front-office-ai";
 import { recordFrontOfficeAiAcceptedAction } from "./front-office-ai";
 
@@ -42,6 +43,26 @@ type FrontOfficeListingShareResolvedAppointment = {
   id: string;
   title: string;
   startsAt: Date | null;
+};
+
+export type FrontOfficeListingShareExecutionSummary = {
+  mode: FrontOfficeListingShareBindingMode;
+  modeLabel: string;
+  channelLabel: string;
+  sentAtLabel: string;
+  sentAtValue: string;
+  trackingLabel: string;
+  trackingStatus: FrontOfficeListingShareWritebackMode;
+  statusTone: "accent" | "warning";
+  writebackLabel: string;
+  writebackScopeLabel: string;
+  nextStepLabel: string;
+  clientLabel: string | null;
+  clientStageLabel: string | null;
+  clientStageDisplayLabel: string | null;
+  appointmentLabel: string | null;
+  appointmentStartsAt: string | null;
+  appointmentWindowLabel: string | null;
 };
 
 class FrontOfficeListingShareLinkError extends Error {
@@ -128,6 +149,16 @@ function parseFrontOfficeSendChannel(channel: string): FrontOfficeSendChannel {
         message: "Unsupported share channel.",
       });
   }
+}
+
+function normalizeFrontOfficeSendChannel(
+  channel: FrontOfficeSendChannel | string,
+): FrontOfficeSendChannel {
+  if (typeof channel !== "string") {
+    return channel;
+  }
+
+  return parseFrontOfficeSendChannel(channel);
 }
 
 export function buildFrontOfficeListingSharePath(code: string) {
@@ -385,6 +416,87 @@ function buildShareWritebackLabel(input: {
   }
 
   return "Tracked link saved without client-linked writeback.";
+}
+
+export function buildFrontOfficeListingShareExecutionSummary(input: {
+  channel: FrontOfficeSendChannel | string;
+  client: {
+    fullName: string;
+    stageLabel: string | null;
+  } | null;
+  appointment: {
+    title: string;
+    startsAt: Date | null;
+  } | null;
+  sentAt: Date;
+  sendRecordId: string | null;
+  aiAcceptedActionRecorded?: boolean;
+  timeZone?: string | null;
+}): FrontOfficeListingShareExecutionSummary {
+  const normalizedChannel = normalizeFrontOfficeSendChannel(input.channel);
+  const mode = resolveFrontOfficeListingShareBindingMode({
+    client: input.client
+      ? {
+          id: "client",
+          fullName: input.client.fullName,
+          stageLabel: input.client.stageLabel,
+          bindingSource: "explicit_client",
+        }
+      : null,
+    appointment: input.appointment
+      ? {
+          id: "appointment",
+          title: input.appointment.title,
+          startsAt: input.appointment.startsAt,
+        }
+      : null,
+  });
+  const appointmentLabel = input.appointment?.title ?? null;
+  const appointmentStartsAt = input.appointment?.startsAt ?? null;
+  const appointmentStartsAtValue = appointmentStartsAt?.toISOString() ?? null;
+  const sentAtValue = input.sentAt.toISOString();
+  const trackingStatus: FrontOfficeListingShareWritebackMode =
+    input.sendRecordId ? "tracked_send_recorded" : "tracked_link_only";
+  const writebackLabel = buildShareWritebackLabel({
+    sendRecordId: input.sendRecordId,
+    aiAcceptedActionRecorded: input.aiAcceptedActionRecorded ?? false,
+  });
+
+  return {
+    mode,
+    modeLabel: buildShareModeLabel(mode),
+    channelLabel: buildShareChannelLabel(normalizedChannel),
+    sentAtLabel: formatDateTimeLabel(input.sentAt, {
+      timeZone: input.timeZone ?? null,
+    }),
+    sentAtValue,
+    trackingLabel: buildShareTrackingLabel({
+      mode,
+      clientName: input.client?.fullName ?? null,
+      appointmentTitle: appointmentLabel,
+    }),
+    trackingStatus,
+    statusTone:
+      trackingStatus === "tracked_send_recorded" ? "accent" : "warning",
+    writebackLabel,
+    writebackScopeLabel: buildShareWritebackScopeLabel({
+      mode,
+      clientName: input.client?.fullName ?? null,
+      appointmentTitle: appointmentLabel,
+    }),
+    nextStepLabel: buildShareNextStepLabel(normalizedChannel),
+    clientLabel: input.client?.fullName ?? null,
+    clientStageLabel: input.client?.stageLabel ?? null,
+    clientStageDisplayLabel: input.client
+      ? buildClientStageDisplayLabel(input.client.stageLabel)
+      : null,
+    appointmentLabel,
+    appointmentStartsAt: appointmentStartsAtValue,
+    appointmentWindowLabel: buildAppointmentWindowLabel(
+      appointmentStartsAt,
+      input.sentAt,
+    ),
+  };
 }
 
 export type CreateFrontOfficeListingShareLinkInput = {
