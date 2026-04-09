@@ -339,7 +339,15 @@ test("dashboard surfaces the leadership command deck for office admins", async (
     assert.equal(snapshot.actionQueue[0]?.label, "Office cleanup");
     assert.equal(
       snapshot.actionQueue[0]?.actionLabel,
-      "Open cleanup command center",
+      "Open office command deck",
+    );
+    assert.match(
+      snapshot.actionQueue[0]?.description ?? "",
+      /first rescue pass in this command deck/,
+    );
+    assert.match(
+      snapshot.actionQueue[0]?.helper ?? "",
+      /work the command deck first/,
     );
     assert.ok(snapshot.leadershipQueue.items.length > 0);
     assert.ok(snapshot.leadershipQueue.activityCenterItems.length > 0);
