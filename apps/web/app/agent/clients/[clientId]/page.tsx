@@ -2022,7 +2022,6 @@ export default async function AgentClientDetailPage(
       summary={
         <>
           <SummaryChip
-            featured
             label="Stage"
             tone="accent"
             value={snapshot.stage}

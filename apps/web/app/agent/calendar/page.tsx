@@ -264,7 +264,6 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
       summary={
         <>
           <SummaryChip
-            featured
             label="Current lane"
             tone="accent"
             value={activeCalendarViewConfig.label}

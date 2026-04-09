@@ -1248,7 +1248,6 @@ export default async function AgentClientsPage(props: AgentClientsPageProps) {
       summary={
         <>
           <SummaryChip
-            featured
             label="Follow first"
             tone="accent"
             value={actNowCount}

@@ -13468,42 +13468,12 @@ body,
   box-shadow: 0 12px 24px rgba(148, 163, 184, 0.12);
 }
 
-.office-list-page-summary > :is(.office-summary-chip, .office-transactions-summary-chip):first-child,
-.office-summary-chip-featured,
-.office-transactions-summary-chip-featured {
-  grid-column: span 2;
-  min-height: 108px;
-  gap: 10px;
-  padding: 16px 18px;
-  border-color: rgba(129, 160, 222, 0.5);
-  background:
-    radial-gradient(
-      circle at top right,
-      rgba(220, 232, 255, 0.88),
-      rgba(220, 232, 255, 0) 44%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(246, 250, 255, 0.98),
-      rgba(235, 242, 252, 0.96)
-    );
-  box-shadow: 0 18px 34px rgba(32, 74, 149, 0.1);
-}
-
 .office-summary-chip strong,
 .office-transactions-summary-chip strong {
   color: var(--office-text);
   font-size: clamp(1.24rem, 1.08rem + 0.34vw, 1.56rem);
   line-height: 0.96;
   letter-spacing: -0.04em;
-}
-
-.office-list-page-summary > :is(.office-summary-chip, .office-transactions-summary-chip):first-child strong,
-.office-summary-chip-featured strong,
-.office-transactions-summary-chip-featured strong {
-  font-size: clamp(1.52rem, 1.24rem + 0.62vw, 1.9rem);
-  line-height: 0.94;
-  letter-spacing: -0.05em;
 }
 
 .office-summary-chip span,
@@ -15488,13 +15458,6 @@ body,
 
   .office-list-page-summary {
     grid-template-columns: 1fr;
-  }
-
-  .office-list-page-summary > :is(.office-summary-chip, .office-transactions-summary-chip):first-child,
-  .office-summary-chip-featured,
-  .office-transactions-summary-chip-featured {
-    grid-column: auto;
-    min-height: 96px;
   }
 
   .office-list-page-stats,

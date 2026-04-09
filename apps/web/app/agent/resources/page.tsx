@@ -1490,7 +1490,6 @@ export default async function AgentResourcesPage(props: {
       summary={
         <>
           <SummaryChip
-            featured
             label="Focus lane"
             tone="accent"
             value={strongestResourceLane?.label ?? "None"}

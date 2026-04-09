@@ -1892,7 +1892,6 @@ export default async function AgentDashboardPage() {
         <>
           <SummaryChip
             label="Command lead"
-            featured
             tone="accent"
             value={primaryLaneLabel}
           />

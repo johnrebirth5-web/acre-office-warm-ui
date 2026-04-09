@@ -247,8 +247,8 @@ Office 路由级 canonical 组合层：
 - 页头按钮和 summary 必须拆开：按钮走 `OfficeListPage.actions` 顶部 action row，summary 走 `OfficeListPage.summary`
 - `OfficeListPageSummary` 里不要再混放 CTA；`Create` / `Export` / `Open activity` / `Add comment` 这类入口都应落在 action row，避免按钮因为 summary chip 数量变化而左右漂移
 - 页头 supporting 区保持 full-width workbench，但视觉顺序固定为“上方 actions、下方 summary”，不要让按钮插进 KPI 卡片之间
-- 页头 summary 现已统一为“1 张 lead summary card + 若干 secondary summary chips”的站内标准；默认应把最能代表当前页面意图的摘要项放在第一位，并可显式标记为 featured
-- 页头 summary 是扫描层，不是说明层；lead summary card 只放短标签、短值、关键数字，不放段落说明
+- 页头 summary 统一使用同尺寸 summary chip，不使用首卡放大、跨列或“主卡 + 次卡”的特殊层级
+- 页头 summary 是扫描层，不是说明层；只放短标签、短值、关键数字，不放段落说明
 - 当前页面的解释文案、操作意图、边界提醒应留在页头 description、首个 section、副标题或 rail 中，不要塞回 summary chip
 - 桌面中间断点开始，如果页头或 section 右侧 action 会压缩标题说明，就应优先改成上下两行，不要让按钮覆盖说明文本
 - header / section actions 内的按钮必须允许在窄宽下自然换行或折成两行文案，不能靠固定 `nowrap` 把标题区挤坏

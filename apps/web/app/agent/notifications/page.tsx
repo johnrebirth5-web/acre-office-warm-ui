@@ -466,7 +466,6 @@ export default async function AgentNotificationsPage(
       summary={
         <>
           <SummaryChip
-            featured
             label="Current view"
             tone="accent"
             value={activeViewLabel}
