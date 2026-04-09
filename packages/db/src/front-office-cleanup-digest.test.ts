@@ -11,11 +11,14 @@ import {
   buildFrontOfficeCleanupDigestDeliveryDraft,
   buildFrontOfficeCleanupDigest,
   buildFrontOfficeCleanupDigestInternalMailThreadOpenedActivityPayload,
+  buildFrontOfficeCleanupDigestRunnerContract,
   buildFrontOfficeCleanupDigestRunActivityPayload,
   buildFrontOfficeCleanupDigestRunSummary,
   renderFrontOfficeCleanupDigestDeliveryDraft,
+  renderFrontOfficeCleanupDigestDryRunOutput,
   renderFrontOfficeCleanupDigestReport,
   renderFrontOfficeCleanupDigestSection,
+  renderFrontOfficeCleanupDigestRunnerContract,
   recordFrontOfficeCleanupDigestInternalMailThreadOpenedActivity,
   recordFrontOfficeCleanupDigestRunActivity,
 } from "./front-office-cleanup-digest.ts";
@@ -306,6 +309,33 @@ test("cleanup digest render helpers produce stable operator-facing output", () =
     /^Summary: Office cleanup digest · Next 7 days · 4 item\(s\), 2 urgent, 2 due soon$/m,
   );
   assert.match(renderedDraft, /^Next action: Start with follow-up tasks$/m);
+
+  const runnerContract = buildFrontOfficeCleanupDigestRunnerContract(
+    digest,
+    "dry-run",
+  );
+  assert.equal(runnerContract.runMode, "manual-only");
+  assert.equal(runnerContract.outputMode, "dry-run");
+  assert.equal(runnerContract.schedulerState, "not-involved");
+  assert.equal(runnerContract.deliveryMode, "draft-only");
+  assert.equal(runnerContract.sideEffectPolicy, "none");
+  assert.equal(runnerContract.scopeLabel, "Office cleanup digest");
+
+  const runnerContractLines = renderFrontOfficeCleanupDigestRunnerContract(
+    runnerContract,
+  );
+  assert.equal(runnerContractLines[0], "Runner contract");
+  assert.deepEqual(runnerContractLines.slice(1, 5), [
+    "Run mode: manual-only",
+    "Output mode: dry-run",
+    "Scheduler: not-involved",
+    "Delivery mode: draft-only",
+  ]);
+
+  const dryRunOutput = renderFrontOfficeCleanupDigestDryRunOutput(digest);
+  assert.match(dryRunOutput, /^Runner contract$/m);
+  assert.match(dryRunOutput, /^Report$/m);
+  assert.match(dryRunOutput, /^Office cleanup digest$/m);
 });
 
 test("cleanup digest activity payload builders keep manual-only semantics explicit", () => {
