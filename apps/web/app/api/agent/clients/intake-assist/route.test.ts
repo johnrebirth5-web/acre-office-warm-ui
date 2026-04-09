@@ -67,6 +67,34 @@ test("returns 400 when the intake assist payload is empty after form parsing", a
   assert.deepEqual(await readJson(response), {
     error: "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
     sourceSurface: "dashboard",
+    metadata: {
+      provenance: {
+        transcript: {
+          present: false,
+          source: "none",
+        },
+        image: {
+          present: false,
+          source: "none",
+          ocrAttempted: false,
+          ocrSucceeded: false,
+        },
+        rawText: {
+          sourceMode: "text",
+          transcriptIncluded: false,
+          ocrIncluded: false,
+          fallbackUsed: false,
+        },
+      },
+      warnings: [
+        {
+          code: "empty_payload",
+          label: "No intake source supplied",
+          detail:
+            "Add a screenshot or paste the transcript so Acre has a source trail to review.",
+        },
+      ],
+    },
   });
 });
 
@@ -88,6 +116,34 @@ test("returns 413 when the uploaded screenshot exceeds the server OCR limit", as
   assert.deepEqual(await readJson(response), {
     error: "That screenshot is too large for quick server-side OCR. Try a tighter crop under 10 MB.",
     sourceSurface: "dashboard",
+    metadata: {
+      provenance: {
+        transcript: {
+          present: false,
+          source: "none",
+        },
+        image: {
+          present: true,
+          source: "upload",
+          ocrAttempted: false,
+          ocrSucceeded: false,
+        },
+        rawText: {
+          sourceMode: "image",
+          transcriptIncluded: false,
+          ocrIncluded: false,
+          fallbackUsed: false,
+        },
+      },
+      warnings: [
+        {
+          code: "oversized_image",
+          label: "Screenshot too large for OCR",
+          detail:
+            "The uploaded image crossed the server OCR size limit, so Acre stopped before text extraction.",
+        },
+      ],
+    },
   });
 });
 
@@ -115,6 +171,40 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
         hadImage: true,
         ocrSucceeded: false,
         transcriptFallbackUsed: true,
+        metadata: {
+          provenance: {
+            transcript: {
+              present: true,
+              source: "form_data",
+            },
+            image: {
+              present: true,
+              source: "upload",
+              ocrAttempted: true,
+              ocrSucceeded: false,
+            },
+            rawText: {
+              sourceMode: "hybrid",
+              transcriptIncluded: true,
+              ocrIncluded: false,
+              fallbackUsed: true,
+            },
+          },
+          warnings: [
+            {
+              code: "ocr_failed",
+              label: "Screenshot OCR returned no text",
+              detail:
+                "Acre tried to read the screenshot on the server, but the image did not produce readable text.",
+            },
+            {
+              code: "transcript_fallback",
+              label: "Transcript used as fallback",
+              detail:
+                "The pasted transcript supplied the usable text because the screenshot OCR did not produce a readable extract.",
+            },
+          ],
+        },
       }),
     },
   );
@@ -128,6 +218,40 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
     hadImage: true,
     ocrSucceeded: false,
     transcriptFallbackUsed: true,
+    metadata: {
+      provenance: {
+        transcript: {
+          present: true,
+          source: "form_data",
+        },
+        image: {
+          present: true,
+          source: "upload",
+          ocrAttempted: true,
+          ocrSucceeded: false,
+        },
+        rawText: {
+          sourceMode: "hybrid",
+          transcriptIncluded: true,
+          ocrIncluded: false,
+          fallbackUsed: true,
+        },
+      },
+      warnings: [
+        {
+          code: "ocr_failed",
+          label: "Screenshot OCR returned no text",
+          detail:
+            "Acre tried to read the screenshot on the server, but the image did not produce readable text.",
+        },
+        {
+          code: "transcript_fallback",
+          label: "Transcript used as fallback",
+          detail:
+            "The pasted transcript supplied the usable text because the screenshot OCR did not produce a readable extract.",
+        },
+      ],
+    },
     sourceSurface: "dashboard",
   });
 });

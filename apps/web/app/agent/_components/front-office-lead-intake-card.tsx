@@ -97,6 +97,36 @@ type FrontOfficeLeadIntakeAssistServerResponse = {
   ocrSucceeded: boolean;
   transcriptFallbackUsed: boolean;
   sourceSurface: string | null;
+  metadata: {
+    provenance: {
+      transcript: {
+        present: boolean;
+        source: "form_data" | "none";
+      };
+      image: {
+        present: boolean;
+        source: "upload" | "none";
+        ocrAttempted: boolean;
+        ocrSucceeded: boolean;
+      };
+      rawText: {
+        sourceMode: "text" | "image" | "hybrid";
+        transcriptIncluded: boolean;
+        ocrIncluded: boolean;
+        fallbackUsed: boolean;
+      };
+    };
+    warnings: {
+      code:
+        | "empty_payload"
+        | "oversized_image"
+        | "ocr_failed"
+        | "transcript_fallback"
+        | "no_readable_text";
+      label: string;
+      detail: string;
+    }[];
+  };
 };
 
 type IntakeReviewSectionKey =
@@ -199,6 +229,48 @@ function normalizeCompactValue(value: string) {
 
 function countMeaningfulAssistChars(value: string) {
   return value.match(/[A-Za-z0-9\u4e00-\u9fff]/g)?.length ?? 0;
+}
+
+function buildAssistServerProvenanceLabel(
+  metadata: FrontOfficeLeadIntakeAssistServerResponse["metadata"] | undefined,
+) {
+  if (!metadata) {
+    return "";
+  }
+
+  const { provenance } = metadata;
+
+  if (provenance.transcript.present && provenance.image.present) {
+    return provenance.rawText.fallbackUsed
+      ? "Source trail: transcript fallback after screenshot OCR"
+      : provenance.rawText.ocrIncluded
+        ? "Source trail: transcript + screenshot OCR"
+        : "Source trail: transcript + screenshot upload";
+  }
+
+  if (provenance.image.present) {
+    return provenance.rawText.ocrIncluded
+      ? "Source trail: screenshot OCR only"
+      : "Source trail: screenshot upload only";
+  }
+
+  if (provenance.transcript.present) {
+    return "Source trail: transcript only";
+  }
+
+  return "Source trail: no intake source recorded";
+}
+
+function buildAssistServerWarningLabel(
+  metadata: FrontOfficeLeadIntakeAssistServerResponse["metadata"] | undefined,
+) {
+  if (!metadata?.warnings.length) {
+    return "";
+  }
+
+  const warnings = metadata.warnings.slice(0, 2).map((warning) => warning.label);
+
+  return `Warnings: ${warnings.join(" · ")}`;
 }
 
 function getLeadFieldLabel(fieldKey: LeadFormFieldKey) {
@@ -1561,9 +1633,14 @@ export function FrontOfficeLeadIntakeCard(
         setAssistProgressMessage("");
         setAssistFeedback({
           tone: "error",
-          message:
+          message: [
             payload?.error ??
-            "Acre could not finish intake extraction right now. Retry with a cleaner screenshot or paste the transcript directly.",
+              "Acre could not finish intake extraction right now. Retry with a cleaner screenshot or paste the transcript directly.",
+            buildAssistServerProvenanceLabel(payload?.metadata),
+            buildAssistServerWarningLabel(payload?.metadata),
+          ]
+            .filter(Boolean)
+            .join(" "),
         });
         return;
       }
@@ -1573,6 +1650,16 @@ export function FrontOfficeLeadIntakeCard(
         sourceMode: payload.sourceMode ?? "text",
       });
       const feedbackParts: string[] = [];
+      const provenanceLabel = buildAssistServerProvenanceLabel(payload.metadata);
+      const warningLabel = buildAssistServerWarningLabel(payload.metadata);
+
+      if (provenanceLabel) {
+        feedbackParts.push(provenanceLabel);
+      }
+
+      if (warningLabel) {
+        feedbackParts.push(warningLabel);
+      }
 
       if (payload.hadImage && payload.ocrSucceeded) {
         feedbackParts.push("Server-side screenshot text extracted.");
@@ -1617,7 +1704,7 @@ export function FrontOfficeLeadIntakeCard(
 
       if (payload.hadImage && payload.transcriptFallbackUsed) {
         feedbackParts.push(
-          "Server OCR could not finish, so Acre used the pasted transcript as the fallback extract. If it still looks sparse, paste a tighter 3-8 line excerpt and keep unresolved identity first.",
+          "Server OCR could not finish, so Acre used the pasted transcript as the fallback extract.",
         );
       }
 
@@ -2007,23 +2094,22 @@ export function FrontOfficeLeadIntakeCard(
           onSubmit={handleSubmit}
         >
           <div className="front-office-lead-intake-assist">
-            <div className="front-office-lead-intake-assist-copy">
-              <strong>Server OCR / transcript review bench</strong>
+          <div className="front-office-lead-intake-assist-copy">
+              <strong>Source-tracked transcript review</strong>
               <p>
                 Drop in a WeChat screenshot or paste the chat thread. Acre
-                reads it on the server, keeps every suggestion tied to
-                evidence, starts with unresolved identity, groups the rest into
-                section batches, stays stricter around household or multi-party
-                threads, and waits for manual confirmation before anything
-                touches the live intake form.
+                keeps the source trail explicit, labels transcript, image OCR,
+                and fallback separately, starts with unresolved identity,
+                groups the rest into section batches, and waits for manual
+                confirmation before anything touches the live intake form.
               </p>
               <div className="front-office-record-meta">
-                <span>Server-side OCR</span>
-                <span>Evidence + provenance on every suggestion</span>
+                <span>Transcript + image OCR provenance</span>
+                <span>Fallbacks are labeled</span>
                 <span>Unresolved identity first</span>
                 <span>Then batch the rest</span>
                 <span>Preview-only stays manual</span>
-                <span>Stricter on multi-party chats</span>
+                <span>No provider-backed ingestion claim</span>
                 <span>No auto-create or auto-send</span>
               </div>
             </div>

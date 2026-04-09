@@ -16,6 +16,43 @@ type FrontOfficeLeadIntakeAssistServerValidationIssue = {
   status: 400 | 413;
 };
 
+type FrontOfficeLeadIntakeAssistServerWarningCode =
+  | "empty_payload"
+  | "oversized_image"
+  | "ocr_failed"
+  | "transcript_fallback"
+  | "no_readable_text";
+
+type FrontOfficeLeadIntakeAssistServerWarning = {
+  code: FrontOfficeLeadIntakeAssistServerWarningCode;
+  label: string;
+  detail: string;
+};
+
+type FrontOfficeLeadIntakeAssistServerProvenance = {
+  transcript: {
+    present: boolean;
+    source: "form_data" | "none";
+  };
+  image: {
+    present: boolean;
+    source: "upload" | "none";
+    ocrAttempted: boolean;
+    ocrSucceeded: boolean;
+  };
+  rawText: {
+    sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode;
+    transcriptIncluded: boolean;
+    ocrIncluded: boolean;
+    fallbackUsed: boolean;
+  };
+};
+
+type FrontOfficeLeadIntakeAssistServerMetadata = {
+  provenance: FrontOfficeLeadIntakeAssistServerProvenance;
+  warnings: FrontOfficeLeadIntakeAssistServerWarning[];
+};
+
 type FrontOfficeLeadIntakeAssistServerInput = {
   transcriptText?: string;
   image?: Blob | null;
@@ -45,6 +82,7 @@ type FrontOfficeLeadIntakeAssistServerResult = {
   hadImage: boolean;
   ocrSucceeded: boolean;
   transcriptFallbackUsed: boolean;
+  metadata: FrontOfficeLeadIntakeAssistServerMetadata;
 };
 
 export const FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES =
@@ -71,6 +109,88 @@ function combineAssistText(transcriptText: string, ocrText: string) {
   return [transcriptText, ocrText].filter(Boolean).join("\n\n").trim();
 }
 
+function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
+  transcriptText: string;
+  image: Blob | null;
+  ocrAttempted: boolean;
+  ocrSucceeded: boolean;
+  transcriptFallbackUsed: boolean;
+  sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode;
+  warningCodes?: FrontOfficeLeadIntakeAssistServerWarningCode[];
+}): FrontOfficeLeadIntakeAssistServerMetadata {
+  const transcriptPresent = Boolean(normalizeAssistText(input.transcriptText));
+  const imagePresent = Boolean(input.image);
+  const warningCodes = new Set(input.warningCodes ?? []);
+  const warnings: FrontOfficeLeadIntakeAssistServerWarning[] = [];
+
+  if (warningCodes.has("empty_payload")) {
+    warnings.push({
+      code: "empty_payload",
+      label: "No intake source supplied",
+      detail:
+        "Add a screenshot or paste the transcript so Acre has a source trail to review.",
+    });
+  }
+
+  if (warningCodes.has("oversized_image")) {
+    warnings.push({
+      code: "oversized_image",
+      label: "Screenshot too large for OCR",
+      detail:
+        "The uploaded image crossed the server OCR size limit, so Acre stopped before text extraction.",
+    });
+  }
+
+  if (imagePresent && input.ocrAttempted && !input.ocrSucceeded) {
+    warnings.push({
+      code: "ocr_failed",
+      label: "Screenshot OCR returned no text",
+      detail:
+        "Acre tried to read the screenshot on the server, but the image did not produce readable text.",
+    });
+  }
+
+  if (input.transcriptFallbackUsed) {
+    warnings.push({
+      code: "transcript_fallback",
+      label: "Transcript used as fallback",
+      detail:
+        "The pasted transcript supplied the usable text because the screenshot OCR did not produce a readable extract.",
+    });
+  }
+
+  if (warningCodes.has("no_readable_text")) {
+    warnings.push({
+      code: "no_readable_text",
+      label: "No readable intake text yet",
+      detail:
+        "Try a tighter crop or paste the conversation directly so Acre can extract fields from the source text.",
+    });
+  }
+
+  return {
+    provenance: {
+      transcript: {
+        present: transcriptPresent,
+        source: transcriptPresent ? "form_data" : "none",
+      },
+      image: {
+        present: imagePresent,
+        source: imagePresent ? "upload" : "none",
+        ocrAttempted: input.ocrAttempted,
+        ocrSucceeded: input.ocrSucceeded,
+      },
+      rawText: {
+        sourceMode: input.sourceMode,
+        transcriptIncluded: transcriptPresent,
+        ocrIncluded: input.ocrSucceeded && imagePresent,
+        fallbackUsed: input.transcriptFallbackUsed,
+      },
+    },
+    warnings,
+  };
+}
+
 export function readFrontOfficeLeadIntakeAssistServerFormData(
   formData: FormData,
 ): FrontOfficeLeadIntakeAssistServerFormData {
@@ -93,6 +213,7 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
   transcriptText: string;
   image: Blob | null;
   sourceSurface: string | null;
+  metadata: FrontOfficeLeadIntakeAssistServerMetadata;
   issue: FrontOfficeLeadIntakeAssistServerValidationIssue | null;
 } {
   const transcriptText = normalizeAssistText(input.transcriptText);
@@ -106,6 +227,16 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
       transcriptText,
       image,
       sourceSurface: input.sourceSurface,
+      metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
+        transcriptText,
+        image,
+        ocrAttempted: false,
+        ocrSucceeded: false,
+        transcriptFallbackUsed: false,
+        sourceMode:
+          transcriptText && image ? "hybrid" : image ? "image" : "text",
+        warningCodes: ["oversized_image"],
+      }),
       issue: {
         error:
           "That screenshot is too large for quick server-side OCR. Try a tighter crop under 10 MB.",
@@ -119,6 +250,15 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
       transcriptText,
       image: null,
       sourceSurface: input.sourceSurface,
+      metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
+        transcriptText,
+        image: null,
+        ocrAttempted: false,
+        ocrSucceeded: false,
+        transcriptFallbackUsed: false,
+        sourceMode: "text",
+        warningCodes: ["empty_payload"],
+      }),
       issue: {
         error:
           "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
@@ -131,6 +271,15 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
     transcriptText,
     image,
     sourceSurface: input.sourceSurface,
+    metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
+      transcriptText,
+      image,
+      ocrAttempted: false,
+      ocrSucceeded: false,
+      transcriptFallbackUsed: false,
+      sourceMode:
+        transcriptText && image ? "hybrid" : image ? "image" : "text",
+    }),
     issue: null,
   };
 }
@@ -185,6 +334,7 @@ export async function handleFrontOfficeLeadIntakeAssistServerRoute(
       {
         error: validation.issue.error,
         sourceSurface,
+        metadata: validation.metadata,
       },
       { status: validation.issue.status },
     );
@@ -226,12 +376,6 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
 ): Promise<FrontOfficeLeadIntakeAssistServerResult> {
   const transcriptText = normalizeAssistText(input.transcriptText ?? "");
   const hadImage = Boolean(input.image);
-  const sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode =
-    hadImage && transcriptText
-      ? "hybrid"
-      : hadImage
-        ? "image"
-        : "text";
 
   let ocrText = "";
   let ocrSucceeded = false;
@@ -251,6 +395,12 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
 
   transcriptFallbackUsed = hadImage && Boolean(transcriptText) && !ocrText;
   const rawText = combineAssistText(transcriptText, ocrText);
+  const sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode =
+    hadImage && transcriptText
+      ? "hybrid"
+      : hadImage
+        ? "image"
+        : "text";
 
   return {
     rawText,
@@ -260,5 +410,15 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
     hadImage,
     ocrSucceeded,
     transcriptFallbackUsed,
+    metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
+      transcriptText,
+      image: input.image ?? null,
+      ocrAttempted: hadImage,
+      ocrSucceeded,
+      transcriptFallbackUsed,
+      sourceMode,
+      warningCodes:
+        !rawText && hadImage ? ["no_readable_text"] : undefined,
+    }),
   };
 }
