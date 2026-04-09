@@ -6,6 +6,7 @@ import {
   readFrontOfficeLeadIntakeAssistServerFormData,
   validateFrontOfficeLeadIntakeAssistServerInput,
 } from "./front-office-intake-assist-server";
+import { resolveFrontOfficeLeadIntakeOcrContract } from "./front-office-intake-ocr";
 
 test("reads intake server form data with transcript and image", () => {
   const formData = new FormData();
@@ -40,8 +41,17 @@ test("extracts transcript-only payload without calling OCR", async () => {
   assert.equal(result.hadImage, false);
   assert.equal(result.ocrSucceeded, false);
   assert.deepEqual(result.metadata.ocr, {
+    capability: {
+      resolverMode: "local_only",
+      providerBacked: false,
+      providerChain: ["local_tesseract"],
+      maxImageBytes: FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES,
+      acceptedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+      fallbackStory: "transcript_fallback",
+    },
+    providerChain: ["local_tesseract"],
     provider: "local_tesseract",
-    mode: "server_side",
+    resolverMode: "local_only",
     attempted: false,
     succeeded: false,
     fallback: "none",
@@ -71,8 +81,17 @@ test("combines transcript and server OCR into one hybrid extract", async () => {
   assert.equal(result.ocrSucceeded, true);
   assert.equal(result.ocrText, "OCR line 1\nOCR line 2\nOCR line 3");
   assert.deepEqual(result.metadata.ocr, {
+    capability: {
+      resolverMode: "local_only",
+      providerBacked: false,
+      providerChain: ["local_tesseract"],
+      maxImageBytes: FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES,
+      acceptedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+      fallbackStory: "transcript_fallback",
+    },
+    providerChain: ["local_tesseract"],
     provider: "local_tesseract",
-    mode: "server_side",
+    resolverMode: "local_only",
     attempted: true,
     succeeded: true,
     fallback: "none",
@@ -102,8 +121,17 @@ test("rejects empty payloads before OCR work starts", () => {
     "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
   );
   assert.deepEqual(validation.metadata.ocr, {
+    capability: {
+      resolverMode: "local_only",
+      providerBacked: false,
+      providerChain: ["local_tesseract"],
+      maxImageBytes: FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES,
+      acceptedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+      fallbackStory: "transcript_fallback",
+    },
+    providerChain: ["local_tesseract"],
     provider: "local_tesseract",
-    mode: "server_side",
+    resolverMode: "local_only",
     attempted: false,
     succeeded: false,
     fallback: "none",
@@ -136,8 +164,17 @@ test("rejects oversized screenshots before OCR work starts", () => {
     "That screenshot is too large for local OCR. Try a tighter crop under 10 MB.",
   );
   assert.deepEqual(validation.metadata.ocr, {
+    capability: {
+      resolverMode: "local_only",
+      providerBacked: false,
+      providerChain: ["local_tesseract"],
+      maxImageBytes: FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES,
+      acceptedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+      fallbackStory: "transcript_fallback",
+    },
+    providerChain: ["local_tesseract"],
     provider: "local_tesseract",
-    mode: "server_side",
+    resolverMode: "local_only",
     attempted: false,
     succeeded: false,
     fallback: "none",
@@ -164,8 +201,17 @@ test("uses the transcript as a fallback when OCR fails on a hybrid payload", asy
   assert.equal(result.ocrSucceeded, false);
   assert.equal(result.transcriptFallbackUsed, true);
   assert.deepEqual(result.metadata.ocr, {
+    capability: {
+      resolverMode: "local_only",
+      providerBacked: false,
+      providerChain: ["local_tesseract"],
+      maxImageBytes: FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES,
+      acceptedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+      fallbackStory: "transcript_fallback",
+    },
+    providerChain: ["local_tesseract"],
     provider: "local_tesseract",
-    mode: "server_side",
+    resolverMode: "local_only",
     attempted: true,
     succeeded: false,
     fallback: "transcript",
@@ -176,4 +222,20 @@ test("uses the transcript as a fallback when OCR fails on a hybrid payload", asy
     ["ocr_failed", "transcript_fallback"],
   );
   assert.equal(result.rawText, "Chat text line 1\nChat text line 2");
+});
+
+test("resolves a local-only OCR contract with a single provider chain", () => {
+  const contract = resolveFrontOfficeLeadIntakeOcrContract();
+
+  assert.deepEqual(contract, {
+    capability: {
+      resolverMode: "local_only",
+      providerBacked: false,
+      providerChain: ["local_tesseract"],
+      maxImageBytes: FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES,
+      acceptedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+      fallbackStory: "transcript_fallback",
+    },
+    selectedProvider: "local_tesseract",
+  });
 });
