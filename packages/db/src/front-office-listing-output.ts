@@ -1828,7 +1828,9 @@ export async function getFrontOfficeListingSharePageSnapshot(
       hasTrackedSend: Boolean(shareLink.sendRecord),
       appointmentId: shareLink.sendRecord?.appointmentId ?? null,
     }),
-    channel: shareLink.sendRecord?.channel ?? shareLink.channel,
+    channel: normalizeFrontOfficeSendChannel(
+      shareLink.sendRecord?.channel ?? shareLink.channel,
+    ),
     appointmentTitle: shareLink.sendRecord?.appointmentTitle?.trim() || null,
   });
 
