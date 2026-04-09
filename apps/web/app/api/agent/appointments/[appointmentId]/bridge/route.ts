@@ -91,6 +91,14 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         {
           action,
           actionLabel: formatFrontOfficeAppointmentBridgeActionLabel(action),
+          checkpoint: {
+            label: result.guidance.followUpCadenceLabel,
+            detail: result.guidance.followUpCadenceDetail,
+            nextStep:
+              result.guidance.suggestedWriteback?.detail ??
+              result.guidance.followUpDetail,
+            sourceNote: result.guidance.manualOnlyDetail,
+          },
           manualOnlyDetail: result.guidance.manualOnlyDetail,
           followUpDetail: result.guidance.followUpDetail,
           followUpCadenceLabel: result.guidance.followUpCadenceLabel,
