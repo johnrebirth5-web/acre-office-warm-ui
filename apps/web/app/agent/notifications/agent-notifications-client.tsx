@@ -30,6 +30,8 @@ import {
   getActivityViewBridgeLabel,
   getActivityViewFocusLabel,
   getActivityViewNextMoveLabel,
+  getActivityViewOperatorCue,
+  getActivityViewTriageOrderLabel,
   generalNoticeLaneConfig,
   getActivityViewAnchor,
   leadershipCleanupFilterOptions,
@@ -622,13 +624,13 @@ export function AgentNotificationsClient({
     )?.label ?? "current leadership filter";
   const currentPassSummaryLabel =
     activeActivityView === "all"
-      ? "Working a workbench pass across all four lanes. Overview stays intentionally preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
+      ? "Working the cleanup workbench across all four lanes. Overview stays preview-first so the page reads like an operator center, while each lane still remembers its own filters in the URL."
       : activeActivityView === "personal_cleanup"
-        ? "Focused on self-owned cleanup pressure only."
+        ? "Focused on owner-owned cleanup pressure only."
         : activeActivityView === "team_cleanup"
-          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only.`
+          ? `${leadershipQueue.scopeLabel || "Leadership scope"} only; keep visible-scope intervention separate from owner cleanup.`
           : activeActivityView === "appointment_reminders"
-            ? "Focused on inbox-backed appointment writeback only."
+            ? "Focused on inbox-backed appointment writeback only; calendar pressure stays separate from broader notices."
             : "Focused on broader notice follow-through without mixing in calendar pressure.";
   const currentFocusCount =
     activeActivityView === "all"
@@ -860,7 +862,7 @@ export function AgentNotificationsClient({
     : `${mutableVisibleNotificationIds.length} personal notice(s) in the current slice can change read state`;
   const bulkSelectionDetail = selectionActive
     ? "Bulk actions apply only to the current selection until you clear it. Opening one of those personal notices will still mark it read automatically."
-    : "When nothing is selected, bulk read and unread actions apply to the full visible personal slice. Opening any personal notice also marks it read automatically.";
+    : "When nothing is selected, bulk read and unread actions apply to the full visible personal slice. Shared notices stay open-only, and opening any personal notice still marks it read automatically.";
   const currentRouteHref = buildAgentNotificationsHref({
     pathname,
     activityView: activeActivityView,
@@ -893,6 +895,12 @@ export function AgentNotificationsClient({
       label: "Route contract",
       title: activeLaneTab.sliceLabel,
       description: `${activeLaneTab.ownerLabel} · ${activeLaneTab.pressureLabel}`,
+    },
+    {
+      key: "operator",
+      label: "Operator cue",
+      title: getActivityViewOperatorCue(activeActivityView),
+      description: getActivityViewTriageOrderLabel(activeActivityView),
     },
   ] as const;
 
@@ -2025,6 +2033,10 @@ export function AgentNotificationsClient({
               <strong>Next move</strong>
               {activeRouteBridgeLabel}
             </span>
+            <span className={styles.summaryPanelPill}>
+              <strong>Triage order</strong>
+              {getActivityViewTriageOrderLabel(activeActivityView)}
+            </span>
             {isOverviewMode ? (
               <span className={styles.summaryPanelPill}>
                 <strong>Overview</strong>
@@ -2111,10 +2123,10 @@ export function AgentNotificationsClient({
         {quickFocusShortcuts.length ? (
           <div className={styles.bulkPanel}>
             <div className={styles.bulkPanelHeader}>
-              <strong>High-frequency shortcuts</strong>
+              <strong>Operator shortcuts</strong>
               <p>
-                Jump straight into the cleanup or reminder pass you reopen most
-                often without rebuilding the route state by hand.
+                Jump straight into the cleanup, calendar, or notice pass you
+                reopen most often without rebuilding the route state by hand.
               </p>
             </div>
             <div className={styles.bulkPanelActions}>

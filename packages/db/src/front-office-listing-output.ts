@@ -89,6 +89,12 @@ export type FrontOfficeListingUsagePulse = {
   clickThroughRateLabel: string;
   pulseLabel: string;
   pulseDescription: string;
+  sendTrailLabel: string;
+  sendTrailDescription: string;
+  quietTrailLabel: string;
+  quietTrailDescription: string;
+  nextMoveLabel: string;
+  nextMoveDescription: string;
   strongestTrail: FrontOfficeListingUsagePulseCard | null;
   latestTrackedShare: FrontOfficeListingUsagePulseCard | null;
   recentTrackedShares: FrontOfficeListingUsagePulseCard[];
@@ -516,6 +522,158 @@ function buildListingUsagePulseTrailState(input: {
   };
 }
 
+function buildListingUsagePulseQuietTrailCue(
+  listing: FrontOfficeListingUsagePulseListing,
+) {
+  if (listing.trackedLinkCount <= 0) {
+    return "No quiet trail yet. Start the first tracked send from a dossier or appointment.";
+  }
+
+  if (listing.trackedClickCount <= 0) {
+    return "This send trail is still quiet. Tighten the framing or reopen it from the same client or appointment trail.";
+  }
+
+  return "This send trail is warm again, so the quiet trail has already been cleared.";
+}
+
+function buildListingUsagePulseNextMoveCue(
+  listing: FrontOfficeListingUsagePulseListing,
+) {
+  if (listing.trackedLinkCount <= 0) {
+    return "Start the first tracked share so the send trail can be measured.";
+  }
+
+  if (listing.trackedClickCount <= 0) {
+    return listing.latestTrackedShare?.clientHref
+      ? "Reopen the client trail with a tighter reason-to-care."
+      : listing.latestTrackedShare?.appointmentHref
+        ? "Reopen the appointment trail with a quicker reaction path."
+        : "Tighten the copy, then resend from the same trail.";
+  }
+
+  return listing.latestTrackedShare?.clientHref
+    ? "Keep the next touch inside the same client dossier so the warm trail stays attached."
+    : listing.latestTrackedShare?.appointmentHref
+      ? "Keep the next touch inside the same appointment loop so the warm trail stays attached."
+      : "Keep the next touch on the same listing trail instead of restarting cold.";
+}
+
+function buildListingUsagePulseSendTrailSummary(input: {
+  trackedLinkCount: number;
+  trackedClickCount: number;
+  quietTrackedListingCount: number;
+}) {
+  if (input.trackedLinkCount <= 0) {
+    return {
+      label: "Fresh send trail",
+      description:
+        "No tracked send has left this desk yet, so the first next move still needs to be created from a dossier or appointment.",
+    };
+  }
+
+  if (input.trackedClickCount <= 0) {
+    return {
+      label: "Quiet send trail",
+      description: `${input.trackedLinkCount} tracked send(s) are still waiting on their first click pulse.`,
+    };
+  }
+
+  if (input.quietTrackedListingCount > 0) {
+    return {
+      label: "Mixed send trail",
+      description: `${input.trackedClickCount} tracked click(s) are flowing, but ${input.quietTrackedListingCount} listing(s) are still quiet.`,
+    };
+  }
+
+  return {
+    label: "Active send trail",
+    description:
+      "Tracked clicks are flowing back across the desk, so the send trail is already warm.",
+  };
+}
+
+function buildListingUsagePulseQuietTrailSummary(input: {
+  trackedLinkCount: number;
+  trackedClickCount: number;
+  quietTrackedListingCount: number;
+}) {
+  if (input.trackedLinkCount <= 0) {
+    return {
+      label: "No quiet trails",
+      description:
+        "Nothing is quiet yet because this desk has not created its first tracked trail.",
+    };
+  }
+
+  if (input.quietTrackedListingCount > 0) {
+    return {
+      label: `${input.quietTrackedListingCount} quiet trail(s)`,
+      description: `${input.quietTrackedListingCount} tracked listing(s) still need a stronger next touch before the click pulse returns.`,
+    };
+  }
+
+  if (input.trackedClickCount <= 0) {
+    return {
+      label: "Quiet trail waiting",
+      description:
+        "Tracked sends exist, but no click pulse has returned yet, so the trail is still waiting on a reaction.",
+    };
+  }
+
+  return {
+    label: "No quiet trails",
+    description:
+      "Every tracked listing has returned a click pulse, so there is no quiet trail left to rescue.",
+  };
+}
+
+function buildListingUsagePulseNextMoveSummary(input: {
+  trackedLinkCount: number;
+  trackedClickCount: number;
+  quietTrackedListingCount: number;
+  strongestTrail: FrontOfficeListingUsagePulseCard | null;
+  latestTrackedShare: FrontOfficeListingUsagePulseCard | null;
+}) {
+  if (input.trackedLinkCount <= 0) {
+    return {
+      label: "Start first tracked send",
+      description:
+        "Open a dossier or appointment and create the first tracked share so the send trail can be measured.",
+    };
+  }
+
+  if (input.trackedClickCount <= 0) {
+    return {
+      label: "Tighten the quiet trail",
+      description: input.latestTrackedShare?.clientHref
+        ? "Reopen the client trail with a tighter reason-to-care, then keep the tracked link attached."
+        : input.latestTrackedShare?.appointmentHref
+          ? "Reopen the appointment trail with a tighter reaction path, then keep the tracked link attached."
+          : "Tighten the framing, then resend from the same trail so the first click pulse can return.",
+    };
+  }
+
+  if (input.quietTrackedListingCount > 0) {
+    return {
+      label: "Rescue quiet trails",
+      description: input.strongestTrail?.clientHref
+        ? "Use the most engaged trail as the anchor and reopen the quieter listings from the same client dossier."
+        : input.strongestTrail?.appointmentHref
+          ? "Use the most engaged trail as the anchor and reopen the quieter listings from the same appointment loop."
+          : "Use the most engaged trail as the anchor, then reopen the quieter listings before they cool off.",
+    };
+  }
+
+  return {
+    label: "Keep warm trails moving",
+    description: input.latestTrackedShare?.clientHref
+      ? "The send trail is already warm, so stay inside the same client dossier and move the next touch forward from there."
+      : input.latestTrackedShare?.appointmentHref
+        ? "The send trail is already warm, so stay inside the same appointment loop and move the next touch forward from there."
+        : "The send trail is already warm, so keep the next touch on the same listing trail instead of restarting cold.",
+  };
+}
+
 function buildListingUsagePulseFollowThroughCue(
   listing: FrontOfficeListingUsagePulseListing,
 ) {
@@ -562,12 +720,13 @@ function buildListingUsagePulseCard(
   ];
 
   if (latestShare) {
+    meta.push(`Send trail · ${trailState.badgeLabel}`);
+    meta.push(`Quiet trail · ${buildListingUsagePulseQuietTrailCue(listing)}`);
+    meta.push(`Next move · ${buildListingUsagePulseNextMoveCue(listing)}`);
     meta.push(`Latest share · ${latestShare.sentAtLabel}`);
     meta.push(latestShare.writebackScopeLabel);
     meta.push(`Next step · ${latestShare.nextStepLabel}`);
-    meta.push(
-      `Follow-through · ${buildListingUsagePulseFollowThroughCue(listing)}`,
-    );
+    meta.push(`Follow-through · ${buildListingUsagePulseFollowThroughCue(listing)}`);
 
     if (latestShare.clientLabel) {
       meta.push(
@@ -645,8 +804,18 @@ export function buildFrontOfficeListingUsagePulse(
     trackedLinkCount <= 0
       ? "No tracked links have been created yet, so the desk is still waiting for its first measured send."
       : engagedListingCount <= 0
-        ? `${trackedLinkCount} tracked link(s) are in motion across ${trackedListingCount} listing(s), but no clicks have returned yet.`
+      ? `${trackedLinkCount} tracked link(s) are in motion across ${trackedListingCount} listing(s), but no clicks have returned yet.`
         : `${trackedClickCount} tracked click(s) are flowing across ${engagedListingCount} engaged listing(s), with ${quietTrackedListingCount} quiet tracked trail(s) still waiting on a response.`;
+  const sendTrailSummary = buildListingUsagePulseSendTrailSummary({
+    trackedLinkCount,
+    trackedClickCount,
+    quietTrackedListingCount,
+  });
+  const quietTrailSummary = buildListingUsagePulseQuietTrailSummary({
+    trackedLinkCount,
+    trackedClickCount,
+    quietTrackedListingCount,
+  });
   const sortedByLatestShare = listings
     .filter((listing) => listing.latestTrackedShare)
     .slice()
@@ -672,6 +841,17 @@ export function buildFrontOfficeListingUsagePulse(
   });
   const strongestTrailListing = sortedByClicks[0] ?? null;
   const latestTrackedShareListing = sortedByLatestShare[0] ?? null;
+  const nextMoveSummary = buildListingUsagePulseNextMoveSummary({
+    trackedLinkCount,
+    trackedClickCount,
+    quietTrackedListingCount,
+    strongestTrail: strongestTrailListing
+      ? buildListingUsagePulseCard(strongestTrailListing)
+      : null,
+    latestTrackedShare: latestTrackedShareListing
+      ? buildListingUsagePulseCard(latestTrackedShareListing)
+      : null,
+  });
 
   return {
     listingCount: listings.length,
@@ -683,6 +863,12 @@ export function buildFrontOfficeListingUsagePulse(
     clickThroughRateLabel,
     pulseLabel,
     pulseDescription,
+    sendTrailLabel: sendTrailSummary.label,
+    sendTrailDescription: sendTrailSummary.description,
+    quietTrailLabel: quietTrailSummary.label,
+    quietTrailDescription: quietTrailSummary.description,
+    nextMoveLabel: nextMoveSummary.label,
+    nextMoveDescription: nextMoveSummary.description,
     strongestTrail: strongestTrailListing
       ? buildListingUsagePulseCard(strongestTrailListing)
       : null,

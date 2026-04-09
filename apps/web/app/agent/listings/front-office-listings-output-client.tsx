@@ -961,6 +961,9 @@ export function FrontOfficeListingsOutputClient(
             {props.usagePulse.quietTrackedListingCount} quiet trail(s)
           </span>
           <span>{props.usagePulse.clickThroughRateLabel}</span>
+          <span>{props.usagePulse.sendTrailLabel}</span>
+          <span>{props.usagePulse.quietTrailLabel}</span>
+          <span>{props.usagePulse.nextMoveLabel}</span>
         </div>
         <div className="office-queue-list">
           {props.usagePulse.strongestTrail ? (

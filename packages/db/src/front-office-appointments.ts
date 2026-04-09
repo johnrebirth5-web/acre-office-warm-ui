@@ -412,7 +412,14 @@ function buildScopedWhereInput(
 
   return {
     ...where,
-    AND: [...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []), officeScopeFilter],
+    AND: [
+      ...(where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : []),
+      officeScopeFilter,
+    ],
   };
 }
 
@@ -750,23 +757,23 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
 
   if (input.isExternalTouchDue) {
     return {
-      label: "Touch overdue",
+      label: "Next touch overdue",
       tone: "danger" as const,
       detail:
-        input.externalWorkflow.nextActionAtLabel === "No next external touch set"
-          ? "Acre expects another outside touch now, but the saved promised checkpoint is already overdue."
-          : `The saved promised checkpoint is overdue since ${input.externalWorkflow.nextActionAtLabel}.`,
+        input.externalWorkflow.nextActionAtLabel ===
+        "No next external touch set"
+          ? "Acre expects another outside touch now, but the promised checkpoint was never written down."
+          : `The promised checkpoint is overdue since ${input.externalWorkflow.nextActionAtLabel}.`,
       needsNextTouchPlan: false,
     };
   }
 
   const hasNextTouch = Boolean(input.externalWorkflow.nextActionAt);
-  const needsNextTouchPlan =
-    input.requiresExternalResponse && !hasNextTouch;
+  const needsNextTouchPlan = input.requiresExternalResponse && !hasNextTouch;
 
   if (needsNextTouchPlan) {
     return {
-      label: "Missing next touch",
+      label: "Next touch missing",
       tone: "warning" as const,
       detail:
         "The appointment still needs outside confirmation or follow-up, but no promised next-touch checkpoint is saved yet.",
@@ -779,7 +786,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
       label:
         input.externalWorkflow.value ===
         frontOfficeAppointmentExternalWorkflowStatuses.confirmed
-          ? "Externally confirmed"
+          ? "Confirmed with touch scheduled"
           : "Touch scheduled",
       tone:
         input.externalWorkflow.value ===
@@ -793,7 +800,7 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
 
   if (input.bridgeStatus.hasBridgeActivity) {
     return {
-      label: "Bridge opened, writeback pending",
+      label: "Bridge opened, checkpoint missing",
       tone: "warning" as const,
       detail:
         "A Google, Outlook, ICS, or email bridge was opened from Acre, but the next confirmation, reschedule, or follow-up checkpoint still needs to be written back.",
@@ -806,16 +813,16 @@ function buildFrontOfficeAppointmentFollowUpPlan(input: {
     frontOfficeAppointmentExternalWorkflowStatuses.confirmed
   ) {
     return {
-      label: "Externally confirmed",
+      label: "Confirmed",
       tone: "success" as const,
       detail:
-        "Outside confirmation is already saved and there is no extra next-touch deadline on the record.",
+        "Outside confirmation is already saved. Add a soft reminder only if you still want a return point before the meeting.",
       needsNextTouchPlan: false,
     };
   }
 
   return {
-    label: "No bridge or writeback yet",
+    label: "Ready for first bridge",
     tone: "neutral" as const,
     detail:
       "Acre has the appointment on the calendar, but there is still no explicit outside follow-up rhythm or checkpoint saved on the record.",
@@ -925,8 +932,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       label: "Confirmed · before start",
       detail:
         "Keep a light final checkpoint before the meeting starts without changing the confirmed state.",
-      suggestedStatus:
-        frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
+      suggestedStatus: frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
       nextActionAt: twoHoursBeforeStart,
       now: input.now,
       timeZone: input.timeZone,
@@ -936,8 +942,7 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
       label: "Confirmed · day-before",
       detail:
         "Use a day-before reminder when you want one last soft checkpoint on the record.",
-      suggestedStatus:
-        frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
+      suggestedStatus: frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
       nextActionAt: oneDayBeforeStart,
       now: input.now,
       timeZone: input.timeZone,
@@ -946,7 +951,8 @@ function buildFrontOfficeAppointmentTouchPresets(input: {
     pushFrontOfficeAppointmentTouchPreset(presets, {
       id: "awaiting-2h",
       label: "Awaiting reply · +2h",
-      detail: "Best when you expect a same-day confirmation reply and want a checkpoint to return to.",
+      detail:
+        "Best when you expect a same-day confirmation reply and want a checkpoint to return to.",
       suggestedStatus:
         frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending,
       nextActionAt: twoHoursFromNow,
@@ -1002,14 +1008,14 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
   timeZone?: string | null;
 }): FrontOfficeAppointmentBridgeGuidance {
   const manualOnlyDetail =
-    "Acre only logs that the bridge was opened here. Google, Outlook, ICS, and email still need a manual save or send outside the system, and the next checkpoint should be saved back on this appointment record.";
+    "Acre only logs that the bridge was opened here. Finish the save or send in Google, Outlook, ICS, or email, then write the next checkpoint back on this appointment record.";
 
   if (input.appointmentStatus !== AppointmentStatus.scheduled) {
     return {
       manualOnlyDetail,
       followUpDetail:
         "This appointment is no longer scheduled in Acre, so any outside follow-up should happen on a replacement or reopened plan instead.",
-      followUpCadenceLabel: "Reopen the plan first",
+      followUpCadenceLabel: "Reopen before writeback",
       followUpCadenceDetail:
         "This appointment is closed in Acre, so any bridge or follow-up should happen from a fresh scheduled record.",
       suggestedWriteback: null,
@@ -1039,7 +1045,7 @@ function buildFrontOfficeAppointmentBridgeGuidance(input: {
           : "After you use the bridge, save whether you are awaiting confirmation, confirmed, or still need another follow-up checkpoint.",
     followUpCadenceLabel: suggestedPreset
       ? suggestedPreset.label
-      : "Promised next touch",
+      : "Recommended next touch",
     followUpCadenceDetail: suggestedPreset
       ? `${suggestedPreset.detail} Save it back on the appointment once the bridge action is done.`
       : "Save the next promised checkpoint back on this appointment so the follow-up does not disappear after the draft closes.",
@@ -1548,7 +1554,8 @@ function buildBridgeHistoryItem(input: {
     id: input.id,
     kind: "bridge",
     label: `${actionLabel} opened`,
-    detail: detailParts.join(" · ") || "Opened from the appointment record in Acre.",
+    detail:
+      detailParts.join(" · ") || "Opened from the appointment record in Acre.",
     actorLabel: input.actorLabel,
     createdAtLabel,
     createdAtValue: input.createdAt.toISOString(),
@@ -1863,7 +1870,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
   switch (input.externalWorkflow.value) {
     case frontOfficeAppointmentExternalWorkflowStatuses.rescheduleRequested:
       return {
-        label: "Reschedule in motion",
+        label: "Reschedule lane active",
         tone: "danger",
         detail: [
           "The latest writeback says this appointment needs a time change.",
@@ -1880,7 +1887,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       };
     case frontOfficeAppointmentExternalWorkflowStatuses.confirmationPending:
       return {
-        label: "Waiting on outside reply",
+        label: "Confirmation lane active",
         tone: "accent",
         detail: [
           "Acre is still waiting for a confirmation response outside the system.",
@@ -1897,7 +1904,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       };
     case frontOfficeAppointmentExternalWorkflowStatuses.needsFollowUp:
       return {
-        label: "Follow-up still needed",
+        label: "Follow-up lane active",
         tone: "warning",
         detail: [
           "The current writeback says this appointment still needs an outbound touch.",
@@ -1914,7 +1921,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       };
     case frontOfficeAppointmentExternalWorkflowStatuses.confirmed:
       return {
-        label: "Externally confirmed",
+        label: "Confirmed and parked",
         tone: "success",
         detail: [
           "The outside participant has already confirmed this appointment.",
@@ -1932,7 +1939,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
     default:
       if (input.bridgeStatus.hasBridgeActivity) {
         return {
-          label: "Bridge opened, writeback pending",
+          label: "Bridge opened, checkpoint pending",
           tone: "warning",
           detail: [
             bridgeSummary,
@@ -1948,7 +1955,7 @@ function buildFrontOfficeAppointmentCoordinationSummary(input: {
       }
 
       return {
-        label: "No bridge or writeback logged",
+        label: "Ready for first bridge",
         tone: "neutral",
         detail:
           "Acre has the appointment on the calendar, but there is no bridge activity or follow-up writeback saved yet.",
@@ -2379,9 +2386,7 @@ function appointmentMatchesSnapshotFilters(input: {
     );
   }
 
-  if (
-    normalizedFollowUp === frontOfficeAppointmentFollowUpFilters.touchDue
-  ) {
+  if (normalizedFollowUp === frontOfficeAppointmentFollowUpFilters.touchDue) {
     return (
       input.appointment.statusValue === AppointmentStatus.scheduled &&
       input.appointment.isExternalTouchDue
@@ -2399,8 +2404,7 @@ function appointmentMatchesSnapshotFilters(input: {
   }
 
   if (
-    normalizedFollowUp ===
-    frontOfficeAppointmentFollowUpFilters.touchScheduled
+    normalizedFollowUp === frontOfficeAppointmentFollowUpFilters.touchScheduled
   ) {
     return (
       input.appointment.statusValue === AppointmentStatus.scheduled &&
@@ -2769,7 +2773,7 @@ export async function getFrontOfficeAppointmentsSnapshot(
     (appointment) =>
       appointment.statusValue === AppointmentStatus.scheduled &&
       appointment.externalStatusValue ===
-      frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
+        frontOfficeAppointmentExternalWorkflowStatuses.confirmed,
   ).length;
   const filteredBridgePendingCount = appointmentRecords.filter(
     (appointment) =>
@@ -2812,20 +2816,16 @@ export async function getFrontOfficeAppointmentsSnapshot(
       label: option.label,
     })),
     clientOptions: buildDedupedFrontOfficeAppointmentOptions(
-      [selectedClient, ...clients]
-        .filter(isPresent)
-        .map((client) => ({
-          value: client.id,
-          label: `${client.fullName} · ${client.stage}`,
-        })),
+      [selectedClient, ...clients].filter(isPresent).map((client) => ({
+        value: client.id,
+        label: `${client.fullName} · ${client.stage}`,
+      })),
     ),
     listingOptions: buildDedupedFrontOfficeAppointmentOptions(
-      [selectedListing, ...listings]
-        .filter(isPresent)
-        .map((listing) => ({
-          value: listing.id,
-          label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
-        })),
+      [selectedListing, ...listings].filter(isPresent).map((listing) => ({
+        value: listing.id,
+        label: `${listing.title} · ${listing.neighborhood}, ${listing.city}`,
+      })),
     ),
     appointments: appointmentRecords,
     selectedAppointment,
@@ -3021,7 +3021,8 @@ export async function updateFrontOfficeAppointmentStatus(
   }
 
   if (
-    nextExternalStatus === frontOfficeAppointmentExternalWorkflowStatuses.idle &&
+    nextExternalStatus ===
+      frontOfficeAppointmentExternalWorkflowStatuses.idle &&
     (nextExternalNote || nextExternalActionAt)
   ) {
     throw new Error(
@@ -3435,7 +3436,7 @@ export async function getFrontOfficeAppointmentBridgeResult(
           ? `/agent/clients/${appointment.client.id}`
           : appointment.listing?.id
             ? `/agent/listings?listingId=${appointment.listing.id}&appointmentId=${appointment.id}`
-          : "/agent/calendar",
+            : "/agent/calendar",
         actionSource: "front_office_appointment_bridge",
         workflowReason: input.action,
         ...(input.action
