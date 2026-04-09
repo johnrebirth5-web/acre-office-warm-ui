@@ -52,7 +52,8 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
   const requestedCalendarView = resolveCalendarView(requestedCalendarViewValue);
   const hasExplicitCalendarView = Boolean(requestedCalendarViewValue);
   const calendarViewFromFilters = deriveCalendarViewFromRoute({
-    coordination: readSearchParamValue(searchParams.coordination)?.trim() ?? "all",
+    coordination:
+      readSearchParamValue(searchParams.coordination)?.trim() ?? "all",
     followUp: readSearchParamValue(searchParams.followUp)?.trim() ?? "all",
     status: readSearchParamValue(searchParams.status)?.trim() ?? "all",
   });
@@ -90,7 +91,9 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
   )
     ? requestedClientId
     : undefined;
-  const requestedListingId = readSearchParamValue(searchParams.listingId)?.trim();
+  const requestedListingId = readSearchParamValue(
+    searchParams.listingId,
+  )?.trim();
   const initialListingId = snapshot.listingOptions.some(
     (option) => option.value === requestedListingId,
   )
@@ -99,7 +102,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
 
   return (
     <FrontOfficePageTemplate
-      description={`${activeCalendarViewConfig.description} Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page.`}
+      description={`${activeCalendarViewConfig.description} Schedule showings, consultations, and client meetings inside Front Office, while keeping external bridge actions, internal Acre mail-thread continuity, writeback history, client/listing deep-link context, detail focus, and the next Back Office handoff visible on the same page.`}
       eyebrow="Calendar"
       main={
         <FrontOfficeCalendarClient
@@ -112,7 +115,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
         <>
           <SectionCard
             className="office-list-card"
-            subtitle="Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, writeback pending, bridge logs, and BO-ready handoff so the page reads like a workbench instead of a draft exporter."
+            subtitle="Separate the queue into reply pressure, confirmation pressure, scheduled touch pressure, writeback pending, bridge logs, Acre mail-thread continuity, and BO-ready handoff so the page reads like a workbench instead of a draft exporter."
             title="Coordination pressure"
           >
             <ListPageStatsGrid>
@@ -246,7 +249,7 @@ export default async function AgentCalendarPage(props: AgentCalendarPageProps) {
               />
               <FrontOfficeRailItem
                 badgeLabel="Sync"
-                description="Scheduled appointments can now open richer Google / Outlook drafts, downloadable ICS exports, or a client-facing email brief, and Acre records the bridge trail plus the agent-managed writeback on the same appointment record without pretending it already owns a two-way sync."
+                description="Scheduled appointments can now open richer Google / Outlook drafts, downloadable ICS exports, or an Acre internal mail-thread continuity copy for the email brief, and Acre records the bridge trail plus the agent-managed writeback on the same appointment record without pretending it already owns a two-way sync."
                 title="External bridge is action-first"
               />
               <FrontOfficeRailItem
