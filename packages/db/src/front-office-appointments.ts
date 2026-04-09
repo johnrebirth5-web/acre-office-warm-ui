@@ -73,12 +73,18 @@ export type FrontOfficeAppointmentRecord = {
   coordinationTone: FrontOfficeAppointmentTone;
   coordinationDetail: string;
   coordinationNextStep: string;
+  calendarLaneLabel: string;
+  calendarLaneTone: FrontOfficeAppointmentTone;
+  calendarLaneDetail: string;
   requiresExternalResponse: boolean;
   isExternalTouchDue: boolean;
   needsNextTouchPlan: boolean;
   followUpPlanLabel: string;
   followUpPlanTone: FrontOfficeAppointmentTone;
   followUpPlanDetail: string;
+  nextTouchPressureLabel: string;
+  nextTouchPressureTone: FrontOfficeAppointmentTone;
+  nextTouchPressureDetail: string;
   bridgeStatusLabel: string;
   bridgeStatusDetail: string;
   bridgeStatusTone: FrontOfficeAppointmentTone;
@@ -2246,12 +2252,18 @@ function mapAppointmentRecord(
     coordinationTone: coordination.tone,
     coordinationDetail: coordination.detail,
     coordinationNextStep: coordination.nextStep,
+    calendarLaneLabel: coordination.label,
+    calendarLaneTone: coordination.tone,
+    calendarLaneDetail: coordination.detail,
     requiresExternalResponse: coordination.requiresExternalResponse,
     isExternalTouchDue: coordination.isExternalTouchDue,
     needsNextTouchPlan: followUpPlan.needsNextTouchPlan,
     followUpPlanLabel: followUpPlan.label,
     followUpPlanTone: followUpPlan.tone,
     followUpPlanDetail: followUpPlan.detail,
+    nextTouchPressureLabel: followUpPlan.label,
+    nextTouchPressureTone: followUpPlan.tone,
+    nextTouchPressureDetail: followUpPlan.detail,
     bridgeStatusLabel: resolvedBridgeStatus.label,
     bridgeStatusDetail: resolvedBridgeStatus.detail,
     bridgeStatusTone: resolvedBridgeStatus.tone,

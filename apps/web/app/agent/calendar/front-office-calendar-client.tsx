@@ -2284,14 +2284,20 @@ export function FrontOfficeCalendarClient(
                   <Badge tone={focusedAppointment.reminderTone}>
                     {focusedAppointment.reminderLabel}
                   </Badge>
-                  <StatusBadge tone={focusedAppointment.externalStatusTone}>
-                    {focusedAppointment.externalStatusLabel}
-                  </StatusBadge>
-                  <StatusBadge tone={focusedAppointment.coordinationTone}>
-                    {focusedAppointment.coordinationLabel}
-                  </StatusBadge>
-                </div>
+                <StatusBadge tone={focusedAppointment.externalStatusTone}>
+                  {focusedAppointment.externalStatusLabel}
+                </StatusBadge>
+                <StatusBadge tone={focusedAppointment.coordinationTone}>
+                  {focusedAppointment.coordinationLabel}
+                </StatusBadge>
+                <Badge tone={focusedAppointment.calendarLaneTone}>
+                  {focusedAppointment.calendarLaneLabel}
+                </Badge>
+                <Badge tone={focusedAppointment.nextTouchPressureTone}>
+                  {focusedAppointment.nextTouchPressureLabel}
+                </Badge>
               </div>
+            </div>
 
               <div className="list-row-meta front-office-record-meta">
                 <span>Ends {focusedAppointment.endsAtLabel}</span>
@@ -2305,7 +2311,7 @@ export function FrontOfficeCalendarClient(
 
               <p>{focusedAppointment.notesLabel}</p>
               <p className="front-office-record-supporting">
-                {focusedAppointment.coordinationDetail}
+                {focusedAppointment.calendarLaneDetail}
               </p>
               <p className="front-office-record-supporting">
                 Next step: {focusedAppointment.coordinationNextStep}
@@ -2323,28 +2329,28 @@ export function FrontOfficeCalendarClient(
 
             <div className="office-queue-list">
               <QueueItem
-                badgeLabel={focusedAppointment.externalStatusLabel}
-                badgeTone={focusedAppointment.externalStatusTone}
-                description={focusedAppointment.externalStatusDetail}
+                badgeLabel={focusedAppointment.calendarLaneLabel}
+                badgeTone={focusedAppointment.calendarLaneTone}
+                description={focusedAppointment.calendarLaneDetail}
                 meta={
                   <>
                     <span>{focusedAppointment.bridgeStatusLabel}</span>
                     <span>{focusedAppointment.latestCoordinationDetail}</span>
                   </>
                 }
-                title="What Acre knows"
+                title="Calendar lane cue"
               />
               <QueueItem
-                badgeLabel={focusedAppointment.followUpPlanLabel}
-                badgeTone={focusedAppointment.followUpPlanTone}
-                description={focusedAppointment.followUpPlanDetail}
+                badgeLabel={focusedAppointment.nextTouchPressureLabel}
+                badgeTone={focusedAppointment.nextTouchPressureTone}
+                description={focusedAppointment.nextTouchPressureDetail}
                 meta={
                   <>
                     <span>{focusedAppointment.externalNextActionAtLabel}</span>
                     <span>Next step: {focusedAppointment.coordinationNextStep}</span>
                   </>
                 }
-                title="Pressure and next step"
+                title="Next touch pressure"
               />
             </div>
 
@@ -2936,8 +2942,8 @@ export function FrontOfficeCalendarClient(
                       <StatusBadge tone={appointment.externalStatusTone}>
                         {appointment.externalStatusLabel}
                       </StatusBadge>
-                      <StatusBadge tone={appointment.followUpPlanTone}>
-                        {appointment.followUpPlanLabel}
+                      <StatusBadge tone={appointment.calendarLaneTone}>
+                        {appointment.calendarLaneLabel}
                       </StatusBadge>
                     </div>
                   </div>
@@ -2947,6 +2953,7 @@ export function FrontOfficeCalendarClient(
                     <span>{appointment.listingLabel}</span>
                     <span>{appointment.locationLabel}</span>
                     <span>{appointment.externalNextActionAtLabel}</span>
+                    <span>{appointment.nextTouchPressureLabel}</span>
                     <span>{appointment.bridgeLoggedAtLabel}</span>
                     <span>{appointment.latestCoordinationLabel}</span>
                     <span>{appointment.latestCoordinationDetail}</span>
@@ -2954,10 +2961,10 @@ export function FrontOfficeCalendarClient(
 
                   <p>{appointment.notesLabel}</p>
                   <p className="front-office-record-supporting">
-                    {appointment.followUpPlanDetail}
+                    {appointment.nextTouchPressureDetail}
                   </p>
                   <p className="front-office-record-supporting">
-                    {appointment.coordinationDetail}
+                    {appointment.calendarLaneDetail}
                   </p>
                   <p className="front-office-record-supporting">
                     Next step: {appointment.coordinationNextStep}
