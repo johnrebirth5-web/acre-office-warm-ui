@@ -25,15 +25,15 @@ function isPrismaRecordMissingError(error: unknown) {
 }
 
 function buildMergeSuccessDetail() {
-  return "Acre reconciled linked Front Office history plus existing Back Office contact pointers inside the same merge so the surviving dossier remains the single FO record.";
+  return "Acre reconciled linked Front Office history plus existing Back Office contact pointers inside the same merge so the surviving dossier remains the single FO record. The same Clients workbench anchor stays ready for duplicate review if another pair is still waiting.";
 }
 
 function buildMergeKeepReason() {
-  return "Acre keeps the dossier you explicitly reviewed and chose as the surviving record; the duplicate disappears only after linked history is moved safely.";
+  return "Acre keeps the dossier you explicitly reviewed and chose as the surviving record; the duplicate disappears only after linked history is moved safely, and the duplicate-review lane remains the return point for the next pair.";
 }
 
 function buildMergeBoundaryDetail() {
-  return "This merge does not create a transaction, sync an outside system, or auto-send any follow-up.";
+  return "This merge does not create a transaction, sync an outside system, or auto-send any follow-up. Re-open duplicate review or the surviving dossier from the same Clients workbench anchor when you are ready to verify the next step.";
 }
 
 function buildMergeErrorResponse(error: unknown) {
@@ -49,7 +49,7 @@ function buildMergeErrorResponse(error: unknown) {
         detail:
           "The same client record was selected as both the keep dossier and the duplicate to merge in.",
         nextStep:
-          "Reopen duplicate review and confirm which dossier should survive before retrying.",
+          "Reopen duplicate review from the same Clients workbench anchor and confirm which dossier should survive before retrying.",
       },
     };
   }
@@ -67,7 +67,7 @@ function buildMergeErrorResponse(error: unknown) {
         detail:
           "At least one record disappeared from your visible Front Office CRM scope before the merge finished. Another agent may already have merged, deleted, or re-scoped it.",
         nextStep:
-          "Refresh duplicate review, reopen both records, and confirm the same keep dossier is still visible before retrying.",
+          "Refresh duplicate review from the same Clients workbench anchor, reopen both records, and confirm the same keep dossier is still visible before retrying.",
       },
     };
   }
@@ -85,7 +85,7 @@ function buildMergeErrorResponse(error: unknown) {
         detail:
           "A linked appointment, follow-up task, send record, or Back Office contact pointer changed while Acre was reconciling this pair, so the duplicate was left intact.",
         nextStep:
-          "Refresh duplicate review, reopen both dossiers, and retry only if the keep choice is still correct.",
+          "Refresh duplicate review from the same Clients workbench anchor, reopen both dossiers, and retry only if the keep choice is still correct.",
       },
     };
   }
@@ -99,7 +99,7 @@ function buildMergeErrorResponse(error: unknown) {
         message ||
         "Acre stopped before deleting the duplicate dossier because the linked history could not be reconciled safely.",
       nextStep:
-        "Review both dossiers again and retry only if the same keep / merge choice still makes sense.",
+        "Review both dossiers again from the Clients workbench anchor and retry only if the same keep / merge choice still makes sense.",
     },
   };
 }
@@ -189,8 +189,10 @@ export async function POST(request: NextRequest) {
       keepReason: buildMergeKeepReason(),
       detail: buildMergeSuccessDetail(),
       boundary: buildMergeBoundaryDetail(),
+      returnToLabel: "Re-enter duplicate review",
+      returnToHref: "/agent/clients?clientView=duplicate_review#duplicate-review",
       nextStep:
-        "Open the surviving dossier if you want to re-check stage, next touch, or the FO -> BO boundary after the merge.",
+        "Return to duplicate review if another pair remains; otherwise open the surviving dossier from the same Clients workbench anchor to re-check stage, next touch, or the FO -> BO boundary.",
     });
   } catch (error) {
     const mergeError = buildMergeErrorResponse(error);

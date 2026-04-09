@@ -273,6 +273,9 @@ export type FrontOfficeClientsSnapshot = {
     primaryActionHref: string;
     secondaryActionLabel: string;
     secondaryActionHref: string;
+    returnLabel: string;
+    returnHref: string;
+    returnDescription: string;
   };
   stageMetrics: Array<{
     label: string;
@@ -1167,6 +1170,13 @@ function buildClientWorkspaceAnchor(input: {
         "anchor_now",
         "client-execution-queue",
       ),
+      returnLabel: "Return to follow-first lane",
+      returnHref: buildClientWorkspaceHref(
+        "follow_first",
+        "client-execution-queue",
+      ),
+      returnDescription:
+        "After you clear a record, come back through the same execution lane so the next touch stays visible.",
     };
   }
 
@@ -1187,6 +1197,13 @@ function buildClientWorkspaceAnchor(input: {
         "duplicate_review",
         "duplicate-review",
       ),
+      returnLabel: "Return to cleanup lane",
+      returnHref: buildClientWorkspaceHref(
+        "anchor_now",
+        "client-execution-queue",
+      ),
+      returnDescription:
+        "Re-enter this lane when a dossier still needs a first touch or a dated next touch.",
     };
   }
 
@@ -1207,6 +1224,13 @@ function buildClientWorkspaceAnchor(input: {
         "follow_first",
         "client-execution-queue",
       ),
+      returnLabel: "Return to viewing lane",
+      returnHref: buildClientWorkspaceHref(
+        "viewing_lane",
+        "client-execution-queue",
+      ),
+      returnDescription:
+        "Use the same queue anchor to revisit showing follow-up without losing the active client list.",
     };
   }
 
@@ -1227,6 +1251,13 @@ function buildClientWorkspaceAnchor(input: {
         "duplicate_review",
         "duplicate-review",
       ),
+      returnLabel: "Return to boundary lane",
+      returnHref: buildClientWorkspaceHref(
+        "boundary_review",
+        "client-execution-queue",
+      ),
+      returnDescription:
+        "Re-open this lane when negotiation, offer, or application work needs another FO -> BO boundary check.",
     };
   }
 
@@ -1236,7 +1267,7 @@ function buildClientWorkspaceAnchor(input: {
       tone: "warning" as FrontOfficeTone,
       contextLabel: `${formatCountLabel(input.duplicatePairCount, "pair")} need merge review`,
       description:
-        "Compare the surviving and duplicate records side by side, then merge only after the keep choice is clear.",
+        "Compare the surviving and duplicate records side by side, then merge only after the keep choice is clear. After each merge, come back through this same lane so the next pair stays easy to review.",
       primaryActionLabel: "Open duplicate lane",
       primaryActionHref: buildClientWorkspaceHref(
         "duplicate_review",
@@ -1247,6 +1278,13 @@ function buildClientWorkspaceAnchor(input: {
         "all",
         "client-execution-queue",
       ),
+      returnLabel: "Re-enter duplicate review",
+      returnHref: buildClientWorkspaceHref(
+        "duplicate_review",
+        "duplicate-review",
+      ),
+      returnDescription:
+        "After a merge completes, reopen this anchor to verify the surviving dossier and move on to the next pair.",
     };
   }
 
@@ -1266,6 +1304,13 @@ function buildClientWorkspaceAnchor(input: {
       "all",
       "client-execution-queue",
     ),
+    returnLabel: "Return to intake review",
+    returnHref: buildClientWorkspaceHref(
+      "anchor_now",
+      "clients-intake-launch",
+    ),
+    returnDescription:
+      "When new work comes in, come back through intake review so the first touch stays explicit.",
   };
 }
 
