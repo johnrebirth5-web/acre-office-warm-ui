@@ -4,6 +4,7 @@ import { getRequestSessionContext } from "../../../../../lib/auth-session";
 import {
   extractFrontOfficeLeadIntakeAssistServer,
   readFrontOfficeLeadIntakeAssistServerFormData,
+  validateFrontOfficeLeadIntakeAssistServerInput,
 } from "../../../../../lib/front-office-intake-assist-server";
 
 export const runtime = "nodejs";
@@ -36,16 +37,33 @@ export async function POST(request: NextRequest) {
 
   const { transcriptText, image, sourceSurface } =
     readFrontOfficeLeadIntakeAssistServerFormData(formData);
-  const extraction = await extractFrontOfficeLeadIntakeAssistServer({
+  const validation = validateFrontOfficeLeadIntakeAssistServerInput({
     transcriptText,
     image,
+    sourceSurface,
+  });
+
+  if (validation.issue) {
+    return NextResponse.json(
+      {
+        error: validation.issue.error,
+        sourceSurface,
+      },
+      { status: validation.issue.status },
+    );
+  }
+
+  const extraction = await extractFrontOfficeLeadIntakeAssistServer({
+    transcriptText: validation.transcriptText,
+    image: validation.image,
   });
 
   if (!extraction.rawText) {
     return NextResponse.json(
       {
-        error:
-          "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
+        error: extraction.hadImage
+          ? "That screenshot did not produce readable text. Try a tighter crop or paste the transcript directly."
+          : "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
         sourceSurface,
         ...extraction,
       },
@@ -58,4 +76,3 @@ export async function POST(request: NextRequest) {
     sourceSurface,
   });
 }
-
