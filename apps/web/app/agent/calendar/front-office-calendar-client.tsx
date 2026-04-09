@@ -584,10 +584,7 @@ function readWritebackDraft(
   return drafts[appointment.id] ?? buildWritebackDraft(appointment);
 }
 
-function sanitizeScopedValue(
-  value: string,
-  options: Array<{ value: string }>,
-) {
+function sanitizeScopedValue(value: string, options: Array<{ value: string }>) {
   return options.some((option) => option.value === value) ? value : "";
 }
 
@@ -653,7 +650,10 @@ function normalizeFilterState(
         });
 
   return {
-    clientId: sanitizeScopedValue(rawFilterState.clientId, snapshot.clientOptions),
+    clientId: sanitizeScopedValue(
+      rawFilterState.clientId,
+      snapshot.clientOptions,
+    ),
     calendarView: derivedCalendarView,
     listingId: sanitizeScopedValue(
       rawFilterState.listingId,
@@ -707,13 +707,13 @@ function readReturnToLabel(returnTo: string) {
 
 function hasActiveQueueFilters(filterState: FilterState) {
   return Boolean(
-      filterState.clientId ||
-      filterState.calendarView !== "all" ||
-      filterState.listingId ||
-      filterState.type ||
-      filterState.status !== "all" ||
-      filterState.coordination !== "all" ||
-      filterState.followUp !== "all",
+    filterState.clientId ||
+    filterState.calendarView !== "all" ||
+    filterState.listingId ||
+    filterState.type ||
+    filterState.status !== "all" ||
+    filterState.coordination !== "all" ||
+    filterState.followUp !== "all",
   );
 }
 
@@ -788,8 +788,9 @@ export function FrontOfficeCalendarClient(
     appointmentId: string;
     action: FrontOfficeAppointmentBridgeAction;
   } | null>(null);
-  const [bridgeOutcome, setBridgeOutcome] =
-    useState<BridgeOutcomeState | null>(null);
+  const [bridgeOutcome, setBridgeOutcome] = useState<BridgeOutcomeState | null>(
+    null,
+  );
   const [writebackDrafts, setWritebackDrafts] = useState<
     Record<string, AppointmentWritebackDraft>
   >({});
@@ -802,24 +803,25 @@ export function FrontOfficeCalendarClient(
     ? buildAppointmentCueList(focusedAppointment)
     : [];
   const latestBridgeHistory = focusedAppointment?.bridgeHistory[0] ?? null;
-  const latestWritebackHistory = focusedAppointment?.writebackHistory[0] ?? null;
+  const latestWritebackHistory =
+    focusedAppointment?.writebackHistory[0] ?? null;
   const selectedClientOption = props.snapshot.clientOptions.find(
     (option) => option.value === filterState.clientId,
   );
   const selectedClientLabel = filterState.clientId
-    ? selectedClientOption?.label ??
+    ? (selectedClientOption?.label ??
       (focusedAppointment?.clientId === filterState.clientId
         ? focusedAppointment.clientLabel
-        : "Scoped client outside quick list")
+        : "Scoped client outside quick list"))
     : "";
   const selectedListingOption = props.snapshot.listingOptions.find(
     (option) => option.value === filterState.listingId,
   );
   const selectedListingLabel = filterState.listingId
-    ? selectedListingOption?.label ??
+    ? (selectedListingOption?.label ??
       (focusedAppointment?.listingId === filterState.listingId
         ? focusedAppointment.listingLabel
-        : "Scoped listing outside quick list")
+        : "Scoped listing outside quick list"))
     : "";
   const selectedTypeLabel = filterState.type
     ? readOptionLabel(props.snapshot.typeOptions, filterState.type)
@@ -843,7 +845,9 @@ export function FrontOfficeCalendarClient(
   const returnToLabel = readReturnToLabel(filterState.returnTo);
   const routeStateMeta = [
     `Calendar view · ${activeCalendarViewConfig.label}`,
-    selectedClientLabel ? `Client · ${selectedClientLabel}` : "Client · all visible",
+    selectedClientLabel
+      ? `Client · ${selectedClientLabel}`
+      : "Client · all visible",
     selectedListingLabel
       ? `Listing · ${selectedListingLabel}`
       : "Listing · all visible",
@@ -871,8 +875,8 @@ export function FrontOfficeCalendarClient(
         : filterState.appointmentId
           ? `${activeCalendarViewConfig.routeCopy} with a specific appointment pinned`
           : hasQueueFilters
-          ? `${activeCalendarViewConfig.routeCopy} is pinned by route filters and will reopen in the same state.`
-          : activeCalendarViewConfig.routeCopy;
+            ? `${activeCalendarViewConfig.routeCopy} is pinned by route filters and will reopen in the same state.`
+            : activeCalendarViewConfig.routeCopy;
   const routeStateDescriptionParts = [
     activeCalendarViewConfig.description,
     selectedClientLabel
@@ -906,7 +910,10 @@ export function FrontOfficeCalendarClient(
   }
 
   function buildContextAwareHref(baseHref: string, appointmentId: string) {
-    return appendReturnToHref(baseHref, buildAppointmentFocusHref(appointmentId));
+    return appendReturnToHref(
+      baseHref,
+      buildAppointmentFocusHref(appointmentId),
+    );
   }
 
   useEffect(() => {
@@ -992,8 +999,7 @@ export function FrontOfficeCalendarClient(
     const { name, value } = event.target;
     setFormState((current) => ({
       ...current,
-      [name]:
-        name === "meetingUrl" ? normalizeHttpUrlInput(value) : value,
+      [name]: name === "meetingUrl" ? normalizeHttpUrlInput(value) : value,
       ...(name === "startsAt" &&
       (!current.endsAt ||
         current.endsAt === buildDefaultEndValue(current.startsAt))
@@ -1271,10 +1277,9 @@ export function FrontOfficeCalendarClient(
 
       setFeedback({
         tone: "success",
-        message:
-          payload?.appointment?.title?.trim()
-            ? `${payload.appointment.title} scheduled. Acre will keep the new appointment pinned below with the same client/listing route context in view while the calendar refreshes.`
-            : "Appointment scheduled. Acre will keep it pinned below with the same route context while the calendar refreshes.",
+        message: payload?.appointment?.title?.trim()
+          ? `${payload.appointment.title} scheduled. Acre will keep the new appointment pinned below with the same client/listing route context in view while the calendar refreshes.`
+          : "Appointment scheduled. Acre will keep it pinned below with the same route context while the calendar refreshes.",
       });
       setFormState(
         buildEmptyFormState(
@@ -1282,9 +1287,13 @@ export function FrontOfficeCalendarClient(
           filterState.listingId || defaultListingId,
         ),
       );
-      refreshIntoAppointmentFocus(payload?.appointment?.id ?? "", undefined, () => {
-        setIsSaving(false);
-      });
+      refreshIntoAppointmentFocus(
+        payload?.appointment?.id ?? "",
+        undefined,
+        () => {
+          setIsSaving(false);
+        },
+      );
     } catch {
       setFeedback({
         tone: "error",
@@ -1388,10 +1397,9 @@ export function FrontOfficeCalendarClient(
 
       setFeedback({
         tone: "success",
-        message:
-          draft.nextActionAt
-            ? `Appointment external writeback saved as a checkpoint. Acre will keep ${appointment.title} pinned with the promised next-touch deadline and the same route context in view.`
-            : "Appointment external writeback saved as a checkpoint.",
+        message: draft.nextActionAt
+          ? `Appointment writeback saved. Acre will keep ${appointment.title} pinned with the promised next-touch deadline and the same route context in view.`
+          : "Appointment writeback saved.",
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -1472,7 +1480,7 @@ export function FrontOfficeCalendarClient(
           externalStatus === "confirmed"
             ? "Confirmed writeback saved and the current promised next-touch checkpoint was cleared."
             : suggestedPreset
-              ? `Quick coordination checkpoint saved with ${suggestedPreset.label} loaded as the next promised touch.`
+              ? `Quick coordination checkpoint saved with ${suggestedPreset.label} loaded as the next touch.`
               : "Quick coordination checkpoint saved.",
       });
       clearSavedWritebackDraft(appointment.id);
@@ -1621,7 +1629,7 @@ export function FrontOfficeCalendarClient(
           `${payload.actionLabel} opened.`,
           payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
           payload.followUpCadenceLabel
-            ? `Promised next touch: ${payload.followUpCadenceLabel}.`
+            ? `Recommended next touch: ${payload.followUpCadenceLabel}.`
             : null,
           payload.followUpCadenceDetail ?? payload.followUpDetail ?? null,
           primedPresetLabel
@@ -1639,7 +1647,9 @@ export function FrontOfficeCalendarClient(
         followUpDetail:
           payload.followUpDetail ?? "Save the checkpoint form below.",
         followUpCadenceLabel:
-          payload.followUpCadenceLabel ?? payload.suggestedWriteback?.label ?? payload.actionLabel,
+          payload.followUpCadenceLabel ??
+          payload.suggestedWriteback?.label ??
+          payload.actionLabel,
         followUpCadenceDetail:
           payload.followUpCadenceDetail ??
           payload.followUpDetail ??
@@ -2051,8 +2061,7 @@ export function FrontOfficeCalendarClient(
             Touch scheduled {props.snapshot.filteredSummary.touchScheduledCount}
           </Badge>
           <Badge tone="danger">
-            Reschedule{" "}
-            {props.snapshot.filteredSummary.rescheduleRequestedCount}
+            Reschedule {props.snapshot.filteredSummary.rescheduleRequestedCount}
           </Badge>
           <Badge tone="warning">
             Missing next touch{" "}
@@ -2072,18 +2081,16 @@ export function FrontOfficeCalendarClient(
 
         <div className="front-office-calendar-actions">
           <Button
-            onClick={() =>
-              navigateToCalendarView("reply_due")
-            }
+            onClick={() => navigateToCalendarView("reply_due")}
             size="sm"
-            variant={filterState.calendarView === "reply_due" ? "primary" : "secondary"}
+            variant={
+              filterState.calendarView === "reply_due" ? "primary" : "secondary"
+            }
           >
             Needs reply
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("confirmation_pending")
-            }
+            onClick={() => navigateToCalendarView("confirmation_pending")}
             size="sm"
             variant={
               filterState.calendarView === "confirmation_pending"
@@ -2094,18 +2101,16 @@ export function FrontOfficeCalendarClient(
             Awaiting confirmation
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("touch_due")
-            }
+            onClick={() => navigateToCalendarView("touch_due")}
             size="sm"
-            variant={filterState.calendarView === "touch_due" ? "primary" : "secondary"}
+            variant={
+              filterState.calendarView === "touch_due" ? "primary" : "secondary"
+            }
           >
             Touch due
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("touch_scheduled")
-            }
+            onClick={() => navigateToCalendarView("touch_scheduled")}
             size="sm"
             variant={
               filterState.calendarView === "touch_scheduled"
@@ -2116,9 +2121,7 @@ export function FrontOfficeCalendarClient(
             Touch scheduled
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("missing_next_touch")
-            }
+            onClick={() => navigateToCalendarView("missing_next_touch")}
             size="sm"
             variant={
               filterState.calendarView === "missing_next_touch"
@@ -2129,9 +2132,7 @@ export function FrontOfficeCalendarClient(
             Missing next touch
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("reschedule_requested")
-            }
+            onClick={() => navigateToCalendarView("reschedule_requested")}
             size="sm"
             variant={
               filterState.calendarView === "reschedule_requested"
@@ -2142,18 +2143,16 @@ export function FrontOfficeCalendarClient(
             Reschedule requested
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("confirmed")
-            }
+            onClick={() => navigateToCalendarView("confirmed")}
             size="sm"
-            variant={filterState.calendarView === "confirmed" ? "primary" : "secondary"}
+            variant={
+              filterState.calendarView === "confirmed" ? "primary" : "secondary"
+            }
           >
             Externally confirmed
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("bridge_logged")
-            }
+            onClick={() => navigateToCalendarView("bridge_logged")}
             size="sm"
             variant={
               filterState.calendarView === "bridge_logged"
@@ -2164,9 +2163,7 @@ export function FrontOfficeCalendarClient(
             Bridge pending
           </Button>
           <Button
-            onClick={() =>
-              navigateToCalendarView("writeback_pending")
-            }
+            onClick={() => navigateToCalendarView("writeback_pending")}
             size="sm"
             variant={
               filterState.calendarView === "writeback_pending"
@@ -2284,20 +2281,20 @@ export function FrontOfficeCalendarClient(
                   <Badge tone={focusedAppointment.reminderTone}>
                     {focusedAppointment.reminderLabel}
                   </Badge>
-                <StatusBadge tone={focusedAppointment.externalStatusTone}>
-                  {focusedAppointment.externalStatusLabel}
-                </StatusBadge>
-                <StatusBadge tone={focusedAppointment.coordinationTone}>
-                  {focusedAppointment.coordinationLabel}
-                </StatusBadge>
-                <Badge tone={focusedAppointment.calendarLaneTone}>
-                  {focusedAppointment.calendarLaneLabel}
-                </Badge>
-                <Badge tone={focusedAppointment.nextTouchPressureTone}>
-                  {focusedAppointment.nextTouchPressureLabel}
-                </Badge>
+                  <StatusBadge tone={focusedAppointment.externalStatusTone}>
+                    {focusedAppointment.externalStatusLabel}
+                  </StatusBadge>
+                  <StatusBadge tone={focusedAppointment.coordinationTone}>
+                    {focusedAppointment.coordinationLabel}
+                  </StatusBadge>
+                  <Badge tone={focusedAppointment.calendarLaneTone}>
+                    {focusedAppointment.calendarLaneLabel}
+                  </Badge>
+                  <Badge tone={focusedAppointment.nextTouchPressureTone}>
+                    {focusedAppointment.nextTouchPressureLabel}
+                  </Badge>
+                </div>
               </div>
-            </div>
 
               <div className="list-row-meta front-office-record-meta">
                 <span>Ends {focusedAppointment.endsAtLabel}</span>
@@ -2314,12 +2311,15 @@ export function FrontOfficeCalendarClient(
                 {focusedAppointment.calendarLaneDetail}
               </p>
               <p className="front-office-record-supporting">
-                Next step: {focusedAppointment.coordinationNextStep}
+                Next move: {focusedAppointment.coordinationNextStep}
               </p>
               {focusedCueList.length ? (
                 <div className="front-office-calendar-badges">
                   {focusedCueList.map((cue) => (
-                    <Badge key={`${focusedAppointment.id}-${cue.label}`} tone={cue.tone}>
+                    <Badge
+                      key={`${focusedAppointment.id}-${cue.label}`}
+                      tone={cue.tone}
+                    >
                       {cue.label}
                     </Badge>
                   ))}
@@ -2338,7 +2338,7 @@ export function FrontOfficeCalendarClient(
                     <span>{focusedAppointment.latestCoordinationDetail}</span>
                   </>
                 }
-                title="Calendar lane cue"
+                title="Coordination lane"
               />
               <QueueItem
                 badgeLabel={focusedAppointment.nextTouchPressureLabel}
@@ -2347,10 +2347,12 @@ export function FrontOfficeCalendarClient(
                 meta={
                   <>
                     <span>{focusedAppointment.externalNextActionAtLabel}</span>
-                    <span>Next step: {focusedAppointment.coordinationNextStep}</span>
+                    <span>
+                      Next move: {focusedAppointment.coordinationNextStep}
+                    </span>
                   </>
                 }
-                title="Next touch pressure"
+                title="Next touch lane"
               />
             </div>
 
@@ -2394,7 +2396,7 @@ export function FrontOfficeCalendarClient(
                 <div className="front-office-ai-explainability is-compact">
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      Bridge shell
+                      Bridge handoff
                     </span>
                     <strong>{focusedAppointment.bridgeActionLabel}</strong>
                     <p>
@@ -2409,13 +2411,13 @@ export function FrontOfficeCalendarClient(
                   </div>
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      Writeback shell
+                      Checkpoint writeback
                     </span>
                     <strong>{focusedAppointment.externalStatusLabel}</strong>
                     <p>
-                      Quick coordination actions and saved writebacks only update
-                      Acre&apos;s readable coordination record. They do not
-                      auto-send email, create background jobs, or schedule
+                      Quick coordination actions and saved writebacks only
+                      update Acre&apos;s readable coordination record. They do
+                      not auto-send email, create background jobs, or schedule
                       provider events for you.
                     </p>
                     <div className="front-office-record-meta">
@@ -2493,7 +2495,7 @@ export function FrontOfficeCalendarClient(
                       {bridgeState?.appointmentId === focusedAppointment.id &&
                       bridgeState.action === "email_brief"
                         ? "Opening..."
-                      : "Draft client email"}
+                        : "Draft client email"}
                     </button>
                   ) : (
                     <p className="front-office-record-supporting">
@@ -2562,7 +2564,7 @@ export function FrontOfficeCalendarClient(
                 <div className="front-office-calendar-writeback">
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      Bridge-linked quick actions
+                      Writeback shortcuts
                     </span>
                     <p className="front-office-record-supporting">
                       These quick actions update Acre&apos;s writeback only.
@@ -2595,7 +2597,7 @@ export function FrontOfficeCalendarClient(
                   <div className="front-office-calendar-writeback">
                     <div className="front-office-calendar-writeback-head">
                       <span className="front-office-calendar-writeback-label">
-                        Follow-up rhythm presets
+                        Touch presets
                       </span>
                       <p className="front-office-record-supporting">
                         Use these to save a suggested status plus next-touch
@@ -2628,7 +2630,7 @@ export function FrontOfficeCalendarClient(
                 >
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      Coordination writeback
+                      Checkpoint writeback
                     </span>
                     <div className="front-office-calendar-badges">
                       <StatusBadge tone={focusedAppointment.coordinationTone}>
@@ -2770,7 +2772,9 @@ export function FrontOfficeCalendarClient(
             <div className="office-queue-list">
               <QueueItem
                 badgeLabel={`${focusedAppointment.bridgeHistory.length}`}
-                badgeTone={focusedAppointment.hasBridgeActivity ? "accent" : "neutral"}
+                badgeTone={
+                  focusedAppointment.hasBridgeActivity ? "accent" : "neutral"
+                }
                 description={
                   latestBridgeHistory
                     ? `${latestBridgeHistory.label} · ${latestBridgeHistory.detail}`
@@ -2877,7 +2881,11 @@ export function FrontOfficeCalendarClient(
                     Clear queue filters
                   </Button>
                 ) : null}
-                <Button onClick={scrollToScheduleForm} size="sm" variant="secondary">
+                <Button
+                  onClick={scrollToScheduleForm}
+                  size="sm"
+                  variant="secondary"
+                >
                   Jump to schedule form
                 </Button>
                 {filterState.returnTo ? (
@@ -2972,7 +2980,10 @@ export function FrontOfficeCalendarClient(
                   {appointmentCueList.length ? (
                     <div className="front-office-calendar-badges">
                       {appointmentCueList.map((cue) => (
-                        <Badge key={`${appointment.id}-${cue.label}`} tone={cue.tone}>
+                        <Badge
+                          key={`${appointment.id}-${cue.label}`}
+                          tone={cue.tone}
+                        >
                           {cue.label}
                         </Badge>
                       ))}
@@ -3013,9 +3024,7 @@ export function FrontOfficeCalendarClient(
                     {appointment.statusValue === "scheduled" ? (
                       <button
                         className="office-button-secondary office-inline-action-sm"
-                        disabled={
-                          bridgeState?.appointmentId === appointment.id
-                        }
+                        disabled={bridgeState?.appointmentId === appointment.id}
                         onClick={() =>
                           handleBridgeAction(appointment, "google_calendar")
                         }
@@ -3085,7 +3094,11 @@ export function FrontOfficeCalendarClient(
                       Clear focus lock
                     </Button>
                   ) : null}
-                  <Button onClick={scrollToScheduleForm} size="sm" variant="secondary">
+                  <Button
+                    onClick={scrollToScheduleForm}
+                    size="sm"
+                    variant="secondary"
+                  >
                     Jump to schedule form
                   </Button>
                   {filterState.returnTo ? (
