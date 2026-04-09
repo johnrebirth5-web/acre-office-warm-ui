@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   Button,
   EmptyState,
@@ -51,6 +51,7 @@ type CleanupDigest = {
 type FrontOfficeCleanupDigestCardProps = {
   cleanupDigest: CleanupDigest;
   cleanupDigestHref: string;
+  cleanupDigestMailThreadHref: string;
 };
 
 function getCleanupDigestTone(summary: CleanupDigestSummary) {
@@ -68,13 +69,72 @@ function getCleanupDigestTone(summary: CleanupDigestSummary) {
 export function FrontOfficeCleanupDigestCard({
   cleanupDigest,
   cleanupDigestHref,
+  cleanupDigestMailThreadHref,
 }: FrontOfficeCleanupDigestCardProps) {
   const router = useRouter();
   const [isRefreshing, startRefreshing] = useTransition();
+  const [isOpeningMailThread, setIsOpeningMailThread] = useState(false);
+  const [mailThreadMessage, setMailThreadMessage] = useState<string | null>(
+    null,
+  );
   const digestTone = getCleanupDigestTone(cleanupDigest.summary);
   const topSections = cleanupDigest.sections
     .filter((section) => section.count > 0)
     .slice(0, 2);
+
+  async function openCleanupDigestMailThread() {
+    setMailThreadMessage(null);
+    setIsOpeningMailThread(true);
+
+    try {
+      const response = await fetch(cleanupDigestMailThreadHref, {
+        cache: "no-store",
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            actionLabel?: string;
+            continuity?: { detail?: string; nextStep?: string };
+            error?: string;
+            hint?: string;
+            manualOnlyDetail?: string;
+            threadHref?: string;
+          }
+        | null;
+
+      if (!response.ok || !payload?.threadHref) {
+        setMailThreadMessage(
+          payload?.hint ?? payload?.error ?? "Could not open the mail thread.",
+        );
+        return;
+      }
+
+      const opened = window.open(
+        payload.threadHref,
+        "_blank",
+        "noopener,noreferrer",
+      );
+
+      if (!opened) {
+        window.location.assign(payload.threadHref);
+      }
+
+      setMailThreadMessage(
+        [
+          `${payload.actionLabel ?? "Internal mail thread"} opened.`,
+          payload.continuity?.detail ?? null,
+          payload.manualOnlyDetail ?? null,
+          payload.continuity?.nextStep ?? null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+    } catch {
+      setMailThreadMessage("Could not open the cleanup digest mail thread.");
+    } finally {
+      setIsOpeningMailThread(false);
+    }
+  }
 
   return (
     <div className={styles.summaryPanel}>
@@ -155,6 +215,16 @@ export function FrontOfficeCleanupDigestCard({
 
       <div className={styles.summaryPanelActions}>
         <Button
+          disabled={isOpeningMailThread}
+          onClick={openCleanupDigestMailThread}
+          type="button"
+          variant="secondary"
+        >
+          {isOpeningMailThread
+            ? "Opening internal thread..."
+            : "Open internal mail thread"}
+        </Button>
+        <Button
           disabled={isRefreshing}
           onClick={() => {
             startRefreshing(() => {
@@ -173,6 +243,9 @@ export function FrontOfficeCleanupDigestCard({
           Open JSON
         </FrontOfficeLink>
       </div>
+      {mailThreadMessage ? (
+        <p className="front-office-record-supporting">{mailThreadMessage}</p>
+      ) : null}
 
       <div className="office-queue-list">
         <div className="list-row-meta front-office-record-meta">
