@@ -16,6 +16,7 @@ import type {
   OfficeTransactionReportSearchLayoutSnapshot,
   OfficeTransactionReportsFilters
 } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 import {
   buildReportsHref,
   cloneReportSearchFilterState,
@@ -57,10 +58,11 @@ function buildLayoutSelectionState(
 
 function formatChecklistSummary(
   options: OfficeTransactionReportsFilters["ownerOptions"],
-  selectedValues: string[]
+  selectedValues: string[],
+  emptyLabel: string
 ) {
   if (!selectedValues.length) {
-    return "Any";
+    return emptyLabel;
   }
 
   const selectedLabels = options
@@ -68,7 +70,7 @@ function formatChecklistSummary(
     .map((option) => option.label);
 
   if (!selectedLabels.length) {
-    return "Any";
+    return emptyLabel;
   }
 
   if (selectedLabels.length === 1) {
@@ -76,6 +78,87 @@ function formatChecklistSummary(
   }
 
   return `${selectedLabels[0]} +${selectedLabels.length - 1}`;
+}
+
+function getReportFieldLabel(
+  fieldKey: OfficeTransactionReportSearchFieldKey,
+  fallbackLabel: string,
+  t: ReturnType<typeof useI18n>["t"]
+) {
+  switch (fieldKey) {
+    case "owner":
+      return t((messages) => messages.officeReports.fieldOwner);
+    case "created_at":
+      return t((messages) => messages.officeReports.fieldCreatedAt);
+    case "buyer_tenant":
+      return t((messages) => messages.officeReports.fieldBuyerTenant);
+    case "closing_move_in":
+      return t((messages) => messages.officeReports.fieldClosingMoveIn);
+    case "commission":
+      return t((messages) => messages.officeReports.fieldCommission);
+    case "asking_price":
+      return t((messages) => messages.officeReports.fieldAskingPrice);
+    case "purchased_price":
+      return t((messages) => messages.officeReports.fieldPurchasedPrice);
+    case "transaction_status":
+      return t((messages) => messages.officeReports.fieldTransactionStatus);
+    case "invoice_number":
+      return t((messages) => messages.officeReports.fieldInvoiceNumber);
+    case "department":
+      return t((messages) => messages.officeReports.fieldDepartment);
+    case "team_leader":
+      return t((messages) => messages.officeReports.fieldTeamLeader);
+    case "transaction_type":
+      return t((messages) => messages.officeReports.fieldTransactionType);
+    case "representing_side":
+      return t((messages) => messages.officeReports.fieldRepresentingSide);
+    case "layout":
+      return t((messages) => messages.officeReports.fieldLayout);
+    case "company_referral":
+      return t((messages) => messages.officeReports.fieldCompanyReferral);
+    default:
+      return fallbackLabel;
+  }
+}
+
+function getSortOptionLabel(
+  value: ReportSearchFilterState["sortBy"],
+  t: ReturnType<typeof useI18n>["t"]
+) {
+  switch (value) {
+    case "asking_price":
+      return t((messages) => messages.officeReports.sortAskingPrice);
+    case "purchased_price":
+      return t((messages) => messages.officeReports.sortPurchasedPrice);
+    case "gross_commission":
+      return t((messages) => messages.officeReports.sortGrossCommission);
+    case "status":
+      return t((messages) => messages.officeReports.sortStatus);
+    default:
+      return t((messages) => messages.officeReports.sortCreatedAt);
+  }
+}
+
+function getSortDirectionLabel(
+  sortBy: ReportSearchFilterState["sortBy"],
+  direction: ReportSearchFilterState["sortDirection"],
+  t: ReturnType<typeof useI18n>["t"]
+) {
+  if (sortBy === "created_at") {
+    return direction === "asc"
+      ? t((messages) => messages.officeReports.directionOldestFirst)
+      : t((messages) => messages.officeReports.directionNewestFirst);
+  }
+
+  if (sortBy === "status") {
+    return direction === "desc"
+      ? t((messages) => messages.officeReports.directionReverseWorkflowOrder)
+      : t((messages) => messages.officeReports.directionWorkflowOrder);
+  }
+
+  return direction === "asc"
+    ? t((messages) => messages.officeReports.directionLowestFirst)
+    : t((messages) => messages.officeReports.directionHighestFirst);
 }
 
 function normalizeDateStateForOperator(
@@ -317,6 +400,8 @@ function ReportSearchLayoutModal(props: {
     return null;
   }
 
+  const { t } = useI18n();
+
   const groups: Array<OfficeTransactionReportSearchFieldDescriptor["groupLabel"]> = [
     "Operational",
     "Financial",
@@ -326,7 +411,7 @@ function ReportSearchLayoutModal(props: {
   return (
     <div className="office-modal-overlay" onClick={() => !props.isSaving && props.onClose()}>
       <section
-        aria-label="Edit report search fields"
+        aria-label={t((messages) => messages.officeReports.editFields)}
         aria-modal="true"
         className="office-fields-modal office-transaction-search-layout-modal"
         onClick={(event) => event.stopPropagation()}
@@ -334,18 +419,18 @@ function ReportSearchLayoutModal(props: {
       >
         <header className="office-fields-modal-head office-transaction-search-layout-head">
           <div>
-            <h3>Edit search fields</h3>
-            <p>Choose which report filters stay visible for this office workbench.</p>
+            <h3>{t((messages) => messages.officeReports.editFields)}</h3>
+            <p>{t((messages) => messages.officeReports.editFieldsBody)}</p>
           </div>
           <Button
-            aria-label="Close report search field editor"
+            aria-label={t((messages) => messages.common.close)}
             disabled={props.isSaving}
             onClick={props.onClose}
             size="sm"
             type="button"
             variant="ghost"
           >
-            Close
+            {t((messages) => messages.common.close)}
           </Button>
         </header>
 
@@ -360,13 +445,19 @@ function ReportSearchLayoutModal(props: {
             return (
               <section className="office-transaction-search-layout-group" key={group}>
                 <div className="office-transaction-search-layout-group-head">
-                  <strong>{group}</strong>
+                  <strong>
+                    {group === "Operational"
+                      ? t((messages) => messages.officeReports.groupOperational)
+                      : group === "Financial"
+                        ? t((messages) => messages.officeReports.groupFinancial)
+                        : t((messages) => messages.officeReports.groupOrganizational)}
+                  </strong>
                   <p>
                     {group === "Operational"
-                      ? "Day-to-day report filters like dates, workflow state, and deal attributes."
+                      ? t((messages) => messages.officeReports.groupOperationalBody)
                       : group === "Financial"
-                        ? "Commission and pricing filters that shape financial reporting."
-                        : "Owner, office, and hierarchy filters tied to the current org structure."}
+                        ? t((messages) => messages.officeReports.groupFinancialBody)
+                        : t((messages) => messages.officeReports.groupOrganizationalBody)}
                   </p>
                 </div>
                 <div className="office-transaction-search-layout-list">
@@ -377,7 +468,7 @@ function ReportSearchLayoutModal(props: {
                     >
                       <CheckboxField
                         className="office-transaction-search-layout-checkbox-field"
-                        label={field.label}
+                        label={getReportFieldLabel(field.key, field.label, t)}
                       >
                         <input
                           checked={Boolean(props.layoutSelection[field.key])}
@@ -400,10 +491,10 @@ function ReportSearchLayoutModal(props: {
             <p className="office-inline-error office-transaction-search-layout-error">{props.error}</p>
           ) : null}
           <Button disabled={props.isSaving} onClick={props.onClose} type="button" variant="secondary">
-            Cancel
+            {t((messages) => messages.common.cancel)}
           </Button>
           <Button disabled={props.isSaving} onClick={props.onSave} type="button">
-            {props.isSaving ? "Saving..." : "Save fields"}
+            {props.isSaving ? t((messages) => messages.common.saving) : t((messages) => messages.common.save)}
           </Button>
         </footer>
       </section>
@@ -425,6 +516,7 @@ function ReportSearchDateField(props: {
     to: string;
   }) => void;
 }) {
+  const { t } = useI18n();
   const isRange = props.operatorValue === "range" || (!props.operatorValue && (!!props.from || !!props.to));
   const showsSingleValue =
     !isRange &&
@@ -440,7 +532,7 @@ function ReportSearchDateField(props: {
     >
       <div className="office-report-search-layout-stack">
         <label className="office-report-search-inline-field">
-          <span>Operator</span>
+          <span>{t((messages) => messages.officeReports.operator)}</span>
           <SelectInput
             onChange={(event) =>
               props.onChange(
@@ -456,17 +548,17 @@ function ReportSearchDateField(props: {
             }
             value={props.operatorValue}
           >
-            <option value="">Any</option>
-            <option value="eq">Equals</option>
-            <option value="gte">On or after</option>
-            <option value="lte">On or before</option>
-            <option value="range">Range</option>
+            <option value="">{t((messages) => messages.officeReports.any)}</option>
+            <option value="eq">{t((messages) => messages.officeReports.equals)}</option>
+            <option value="gte">{t((messages) => messages.officeReports.onOrAfter)}</option>
+            <option value="lte">{t((messages) => messages.officeReports.onOrBefore)}</option>
+            <option value="range">{t((messages) => messages.officeReports.range)}</option>
           </SelectInput>
         </label>
 
         {showsSingleValue ? (
           <label className="office-report-search-inline-field">
-            <span>Date</span>
+            <span>{t((messages) => messages.officeReports.date)}</span>
             <TextInput
               onChange={(event) =>
                 props.onChange({
@@ -485,7 +577,7 @@ function ReportSearchDateField(props: {
         {isRange ? (
           <div className="office-report-search-layout-grid office-report-search-layout-grid-range">
             <label className="office-report-search-inline-field">
-              <span>From</span>
+              <span>{t((messages) => messages.common.from)}</span>
               <TextInput
                 onChange={(event) =>
                   props.onChange({
@@ -500,7 +592,7 @@ function ReportSearchDateField(props: {
               />
             </label>
             <label className="office-report-search-inline-field">
-              <span>To</span>
+              <span>{t((messages) => messages.common.to)}</span>
               <TextInput
                 onChange={(event) =>
                   props.onChange({
@@ -535,6 +627,7 @@ function ReportSearchNumericField(props: {
     max: string;
   }) => void;
 }) {
+  const { t } = useI18n();
   const isRange = props.operatorValue === "range" || (!props.operatorValue && (!!props.min || !!props.max));
   const showsSingleValue =
     !isRange &&
@@ -552,7 +645,7 @@ function ReportSearchNumericField(props: {
     >
       <div className="office-report-search-layout-stack">
         <label className="office-report-search-inline-field">
-          <span>Operator</span>
+          <span>{t((messages) => messages.officeReports.operator)}</span>
           <SelectInput
             onChange={(event) =>
               props.onChange(
@@ -568,19 +661,19 @@ function ReportSearchNumericField(props: {
             }
             value={props.operatorValue}
           >
-            <option value="">Any</option>
-            <option value="eq">Equals</option>
-            <option value="gt">Greater than</option>
-            <option value="gte">Greater than or equal</option>
-            <option value="lt">Less than</option>
-            <option value="lte">Less than or equal</option>
-            <option value="range">Range</option>
+            <option value="">{t((messages) => messages.officeReports.any)}</option>
+            <option value="eq">{t((messages) => messages.officeReports.equals)}</option>
+            <option value="gt">{t((messages) => messages.officeReports.greaterThan)}</option>
+            <option value="gte">{t((messages) => messages.officeReports.greaterThanOrEqual)}</option>
+            <option value="lt">{t((messages) => messages.officeReports.lessThan)}</option>
+            <option value="lte">{t((messages) => messages.officeReports.lessThanOrEqual)}</option>
+            <option value="range">{t((messages) => messages.officeReports.range)}</option>
           </SelectInput>
         </label>
 
         {showsSingleValue ? (
           <label className="office-report-search-inline-field">
-            <span>Amount</span>
+            <span>{t((messages) => messages.officeReports.amount)}</span>
             <TextInput
               inputMode="decimal"
               onChange={(event) =>
@@ -601,7 +694,7 @@ function ReportSearchNumericField(props: {
         {isRange ? (
           <div className="office-report-search-layout-grid office-report-search-layout-grid-range">
             <label className="office-report-search-inline-field">
-              <span>Min</span>
+              <span>{t((messages) => messages.officeReports.min)}</span>
               <TextInput
                 inputMode="decimal"
                 onChange={(event) =>
@@ -618,7 +711,7 @@ function ReportSearchNumericField(props: {
               />
             </label>
             <label className="office-report-search-inline-field">
-              <span>Max</span>
+              <span>{t((messages) => messages.officeReports.max)}</span>
               <TextInput
                 inputMode="decimal"
                 onChange={(event) =>
@@ -650,6 +743,7 @@ function SearchablePersonSelectField(props: {
   onChange: (nextValue: string) => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const { containerRef, searchInputRef } = useReportSearchPicker(isOpen, () => setIsOpen(false));
@@ -697,7 +791,11 @@ function SearchablePersonSelectField(props: {
       {isOpen ? (
         <div className="office-report-search-multiselect-popover">
           <div className="office-report-search-multiselect-popover-head">
-            <strong>{selectedOption ? "1 selected" : "No selection"}</strong>
+            <strong>
+              {selectedOption
+                ? t((messages) => messages.officeReports.oneSelected)
+                : t((messages) => messages.officeReports.noSelection)}
+            </strong>
             {props.value ? (
               <button
                 onClick={() => {
@@ -707,7 +805,7 @@ function SearchablePersonSelectField(props: {
                 }}
                 type="button"
               >
-                Clear
+                {t((messages) => messages.common.clear)}
               </button>
             ) : null}
           </div>
@@ -735,7 +833,7 @@ function SearchablePersonSelectField(props: {
               type="button"
             >
               <span>{props.emptyLabel}</span>
-              {!props.value ? <strong>Selected</strong> : null}
+              {!props.value ? <strong>{t((messages) => messages.officeReports.selected)}</strong> : null}
             </button>
 
             {filteredOptions.length ? (
@@ -755,11 +853,11 @@ function SearchablePersonSelectField(props: {
                   type="button"
                 >
                   <span>{option.label}</span>
-                  {props.value === option.id ? <strong>Selected</strong> : null}
+                  {props.value === option.id ? <strong>{t((messages) => messages.officeReports.selected)}</strong> : null}
                 </button>
               ))
             ) : (
-              <div className="office-autocomplete-empty">No matching people.</div>
+              <div className="office-autocomplete-empty">{t((messages) => messages.officeReports.noMatchingOptions)}</div>
             )}
           </div>
         </div>
@@ -776,9 +874,14 @@ function SearchableOptionMultiSelectField(props: {
   searchPlaceholder: string;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const summary = formatChecklistSummary(props.options, props.value);
+  const summary = formatChecklistSummary(
+    props.options,
+    props.value,
+    t((messages) => messages.officeReports.any)
+  );
   const { containerRef, searchInputRef } = useReportSearchPicker(isOpen, () => setIsOpen(false));
   const filteredOptions = getFilteredReportOptions(props.options, searchValue);
 
@@ -816,7 +919,13 @@ function SearchableOptionMultiSelectField(props: {
       {isOpen ? (
         <div className="office-report-search-multiselect-popover">
           <div className="office-report-search-multiselect-popover-head">
-            <strong>{props.value.length ? `${props.value.length} selected` : "No filters applied"}</strong>
+            <strong>
+              {props.value.length
+                ? t((messages) => messages.officeReports.selectedCount, {
+                    count: props.value.length,
+                  })
+                : t((messages) => messages.officeReports.noFiltersApplied)}
+            </strong>
             {props.value.length ? (
               <button
                 onClick={() => {
@@ -825,7 +934,7 @@ function SearchableOptionMultiSelectField(props: {
                 }}
                 type="button"
               >
-                Clear
+                {t((messages) => messages.common.clear)}
               </button>
             ) : null}
           </div>
@@ -858,15 +967,15 @@ function SearchableOptionMultiSelectField(props: {
 
                       props.onChange(nextValue);
                     }}
-                    type="button"
-                  >
-                    <span>{option.label}</span>
-                    {isChecked ? <strong>Selected</strong> : null}
-                  </button>
-                );
-              })
+                  type="button"
+                >
+                  <span>{option.label}</span>
+                  {isChecked ? <strong>{t((messages) => messages.officeReports.selected)}</strong> : null}
+                </button>
+              );
+            })
             ) : (
-              <div className="office-autocomplete-empty">No matching people.</div>
+              <div className="office-autocomplete-empty">{t((messages) => messages.officeReports.noMatchingOptions)}</div>
             )}
           </div>
         </div>
@@ -893,10 +1002,13 @@ function CompactChecklistMultiSelectField(props: {
   onChange: (nextValue: string[]) => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <SearchableOptionMultiSelectField
       {...props}
-      searchPlaceholder={`Search ${props.label.toLowerCase()}`}
+      searchPlaceholder={t((messages) => messages.officeReports.searchFieldPlaceholder, {
+        label: props.label.toLowerCase(),
+      })}
     />
   );
 }
@@ -907,6 +1019,7 @@ export function ReportsFiltersClient({
   pageSize,
   searchLayout
 }: ReportsFiltersClientProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [searchFilters, setSearchFilters] = useState<ReportSearchFilterState>(() =>
@@ -1039,7 +1152,7 @@ export function ReportsFiltersClient({
       const body = (await response.json().catch(() => null)) as SearchLayoutResponse | null;
 
       if (!response.ok || !body?.snapshot) {
-        throw new Error(body?.error ?? "Failed to save report search fields.");
+        throw new Error(body?.error ?? t((messages) => messages.officeReports.saveFieldsFailed));
       }
 
       setIsSearchLayoutModalOpen(false);
@@ -1065,7 +1178,7 @@ export function ReportsFiltersClient({
       }
     } catch (error) {
       setLayoutSaveError(
-        error instanceof Error ? error.message : "Failed to save report search fields."
+        error instanceof Error ? error.message : t((messages) => messages.officeReports.saveFieldsFailed)
       );
     } finally {
       setIsSavingLayout(false);
@@ -1077,9 +1190,9 @@ export function ReportsFiltersClient({
       return (
         <SearchablePersonSelectField
           className={getReportSearchFieldClassName(field.key)}
-          emptyLabel="All owners"
+          emptyLabel={t((messages) => messages.common.allOwners)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1087,7 +1200,7 @@ export function ReportsFiltersClient({
             }))
           }
           options={filters.ownerOptions}
-          searchPlaceholder="Search owner name"
+          searchPlaceholder={t((messages) => messages.officeReports.searchOwnerName)}
           value={searchFilters.ownerMembershipId}
         />
       );
@@ -1099,7 +1212,7 @@ export function ReportsFiltersClient({
           className={getReportSearchFieldClassName(field.key)}
           from={searchFilters.createdAtFrom}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1118,7 +1231,11 @@ export function ReportsFiltersClient({
 
     if (field.key === "buyer_tenant") {
       return (
-        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
+        <FilterField
+          className={getReportSearchFieldClassName(field.key)}
+          key={field.key}
+          label={getReportFieldLabel(field.key, field.label, t)}
+        >
           <TextInput
             onChange={(event) =>
               updateFilters((current) => ({
@@ -1126,7 +1243,7 @@ export function ReportsFiltersClient({
                 buyerTenant: event.target.value
               }))
             }
-            placeholder="Buyer / Tenant"
+            placeholder={t((messages) => messages.officeReports.buyerTenantPlaceholder)}
             type="text"
             value={searchFilters.buyerTenant}
           />
@@ -1140,7 +1257,7 @@ export function ReportsFiltersClient({
           className={getReportSearchFieldClassName(field.key)}
           from={searchFilters.closingMoveInFrom}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1162,7 +1279,7 @@ export function ReportsFiltersClient({
         <ReportSearchNumericField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           max={searchFilters.commissionMax}
           min={searchFilters.commissionMin}
           onChange={(nextValue) =>
@@ -1185,7 +1302,7 @@ export function ReportsFiltersClient({
         <ReportSearchNumericField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           max={searchFilters.askingPriceMax}
           min={searchFilters.askingPriceMin}
           onChange={(nextValue) =>
@@ -1208,7 +1325,7 @@ export function ReportsFiltersClient({
         <ReportSearchNumericField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           max={searchFilters.purchasedPriceMax}
           min={searchFilters.purchasedPriceMin}
           onChange={(nextValue) =>
@@ -1231,7 +1348,7 @@ export function ReportsFiltersClient({
         <CompactChecklistMultiSelectField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1246,7 +1363,11 @@ export function ReportsFiltersClient({
 
     if (field.key === "invoice_number") {
       return (
-        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
+        <FilterField
+          className={getReportSearchFieldClassName(field.key)}
+          key={field.key}
+          label={getReportFieldLabel(field.key, field.label, t)}
+        >
           <TextInput
             onChange={(event) =>
               updateFilters((current) => ({
@@ -1254,7 +1375,7 @@ export function ReportsFiltersClient({
                 invoiceNumber: event.target.value
               }))
             }
-            placeholder="Invoice Number"
+            placeholder={t((messages) => messages.officeReports.invoiceNumberPlaceholder)}
             type="text"
             value={searchFilters.invoiceNumber}
           />
@@ -1267,7 +1388,7 @@ export function ReportsFiltersClient({
         <CompactChecklistMultiSelectField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1285,7 +1406,7 @@ export function ReportsFiltersClient({
         <SearchablePersonMultiSelectField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1293,7 +1414,7 @@ export function ReportsFiltersClient({
             }))
           }
           options={filters.teamLeaderOptions}
-          searchPlaceholder="Search team leader"
+          searchPlaceholder={t((messages) => messages.officeReports.searchTeamLeader)}
           value={searchFilters.teamLeaderMembershipIds}
         />
       );
@@ -1304,7 +1425,7 @@ export function ReportsFiltersClient({
         <CompactChecklistMultiSelectField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1322,7 +1443,7 @@ export function ReportsFiltersClient({
         <CompactChecklistMultiSelectField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1340,7 +1461,7 @@ export function ReportsFiltersClient({
         <CompactChecklistMultiSelectField
           className={getReportSearchFieldClassName(field.key)}
           key={field.key}
-          label={field.label}
+          label={getReportFieldLabel(field.key, field.label, t)}
           onChange={(nextValue) =>
             updateFilters((current) => ({
               ...current,
@@ -1355,7 +1476,11 @@ export function ReportsFiltersClient({
 
     if (field.key === "company_referral") {
       return (
-        <FilterField className={getReportSearchFieldClassName(field.key)} key={field.key} label={field.label}>
+        <FilterField
+          className={getReportSearchFieldClassName(field.key)}
+          key={field.key}
+          label={getReportFieldLabel(field.key, field.label, t)}
+        >
           <SelectInput
             onChange={(event) =>
               updateFilters((current) => ({
@@ -1365,10 +1490,14 @@ export function ReportsFiltersClient({
             }
             value={searchFilters.companyReferral}
           >
-            <option value="">Any</option>
+            <option value="">{t((messages) => messages.officeReports.any)}</option>
             {filters.companyReferralOptions.map((option) => (
               <option key={option.id} value={option.id}>
-                {option.label}
+                {option.id === "yes"
+                  ? t((messages) => messages.common.yes)
+                  : option.id === "no"
+                    ? t((messages) => messages.common.no)
+                    : option.label}
               </option>
             ))}
           </SelectInput>
@@ -1402,17 +1531,20 @@ export function ReportsFiltersClient({
           </>
         ) : (
           <div className="office-transaction-search-empty">
-            <strong>No report fields configured</strong>
+            <strong>{t((messages) => messages.officeReports.noFieldsConfiguredTitle)}</strong>
             <p>
               {canManageSearchLayout
-                ? "Use Edit fields to choose which report filters should stay visible for this office."
-                : "An office admin can enable report search fields for this workspace."}
+                ? t((messages) => messages.officeReports.noFieldsConfiguredAdmin)
+                : t((messages) => messages.officeReports.noFieldsConfiguredUser)}
             </p>
           </div>
         )}
 
         <div className="office-report-search-controls">
-          <FilterField className="office-report-search-field office-report-search-field-sort" label="Sort By">
+          <FilterField
+            className="office-report-search-field office-report-search-field-sort"
+            label={t((messages) => messages.officeReports.sortBy)}
+          >
             <SelectInput
               onChange={(event) =>
                 updateFilters((current) => {
@@ -1429,13 +1561,16 @@ export function ReportsFiltersClient({
             >
               {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {getSortOptionLabel(option.value, t)}
                 </option>
               ))}
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-report-search-field office-report-search-field-direction" label="Direction">
+          <FilterField
+            className="office-report-search-field office-report-search-field-direction"
+            label={t((messages) => messages.officeReports.direction)}
+          >
             <SelectInput
               onChange={(event) =>
                 updateFilters((current) => ({
@@ -1447,7 +1582,7 @@ export function ReportsFiltersClient({
             >
               {sortDirectionOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {getSortDirectionLabel(searchFilters.sortBy, option.value, t)}
                 </option>
               ))}
             </SelectInput>
@@ -1460,12 +1595,12 @@ export function ReportsFiltersClient({
                 type="button"
                 variant="secondary"
               >
-                Edit fields
+                {t((messages) => messages.officeReports.editFields)}
               </Button>
             ) : null}
-            <Button type="submit">Apply filters</Button>
+            <Button type="submit">{t((messages) => messages.common.applyFilters)}</Button>
             <Button onClick={resetFilters} type="button" variant="secondary">
-              Reset
+              {t((messages) => messages.common.reset)}
             </Button>
           </div>
         </div>

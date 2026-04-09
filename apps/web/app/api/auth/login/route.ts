@@ -2,6 +2,7 @@ import { getDefaultAppPath } from "@acre/auth";
 import { authenticatePasswordUser } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { createSessionCookieValue, getSessionCookieName, getSessionCookieSettings, mustChangePassword } from "../../../../lib/auth-session";
+import { coerceLocaleCode, getLocaleCookieOptions, localeCookieName } from "../../../../lib/i18n/config";
 import { getRequestOrigin } from "../../../../lib/request-origin";
 
 export async function POST(request: NextRequest) {
@@ -23,6 +24,11 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.redirect(new URL(redirectPath, requestOrigin), 303);
 
   response.cookies.set(getSessionCookieName(), createSessionCookieValue(result.context.currentMembership.id), getSessionCookieSettings());
+  response.cookies.set(
+    localeCookieName,
+    coerceLocaleCode(result.context.currentUser.locale),
+    getLocaleCookieOptions(),
+  );
 
   return response;
 }

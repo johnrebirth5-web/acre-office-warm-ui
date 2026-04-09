@@ -12,6 +12,7 @@ import {
   SummaryChip
 } from "@acre/ui";
 import { getSessionAccess, requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { LocalDateTime } from "../_components/local-date-time";
 
@@ -48,8 +49,31 @@ function getTransactionStatusTone(stage: string) {
   return "neutral" as const;
 }
 
+function getTransactionStatusLabel(
+  stage: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  switch (stage) {
+    case "Opportunity":
+      return t((messages) => messages.officeTransactions.opportunity);
+    case "Active":
+      return t((messages) => messages.officeTransactions.active);
+    case "Pending":
+      return t((messages) => messages.officeTransactions.pending);
+    case "Closed":
+      return t((messages) => messages.officeTransactions.closed);
+    case "Cancelled":
+      return t((messages) => messages.officeTransactions.cancelled);
+    default:
+      return stage;
+  }
+}
+
 export default async function OfficeDashboardPage() {
   const context = await requireOfficeSession();
+  const { t } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
   const access = getSessionAccess(context);
   const snapshot = await getOfficeDashboardBusinessSnapshot({
     organizationId: context.currentOrganization.id,
@@ -77,27 +101,27 @@ export default async function OfficeDashboardPage() {
   return (
     <OfficeListPageShell className="office-dashboard-page">
       <OfficeListPageHeader
-        description="Goal tracking, current back-office pressure, and recent transactions inside one operational dashboard."
-        eyebrow="Dashboard"
+        description={t((messages) => messages.officeDashboard.description)}
+        eyebrow={t((messages) => messages.officeDashboard.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Access" value={access.label} />
+            <SummaryChip label={t((messages) => messages.common.officeScope)} value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label={t((messages) => messages.common.access)} value={access.label} />
             {canViewCommissionSelfServiceSummary ? (
-              <SummaryChip label="My month commission" tone="accent" value={snapshot.commission.currentMonthCommissionLabel} />
+              <SummaryChip label={t((messages) => messages.officeDashboard.myMonthCommission)} tone="accent" value={snapshot.commission.currentMonthCommissionLabel} />
             ) : null}
-            <SummaryChip label="Live pipeline" tone="accent" value={livePipelineCount} />
+            <SummaryChip label={t((messages) => messages.officeDashboard.livePipeline)} tone="accent" value={livePipelineCount} />
           </>
         }
-        title="Office dashboard"
+        title={t((messages) => messages.officeDashboard.title)}
       />
 
       <div className="office-dashboard-grid-wide">
         <div className="office-dashboard-primary-stack">
           <SectionCard
             className="office-dashboard-goal-card office-list-card"
-            subtitle="Goal tracking, access visibility, and live pipeline pressure for the current office scope."
-            title="Goal tracking"
+            subtitle={t((messages) => messages.officeDashboard.goalTrackingSubtitle)}
+            title={t((messages) => messages.officeDashboard.goalTracking)}
           >
             <div className="office-dashboard-goal-main">
               <div className="office-dashboard-goal-summary">
@@ -114,7 +138,7 @@ export default async function OfficeDashboardPage() {
                   {snapshot.transactionCountsByStatus.map((metric) => (
                     <StatCard
                       className="office-dashboard-status-chip"
-                      hint="transactions"
+                      hint={t((messages) => messages.officeDashboard.transactionsHint)}
                       key={metric.status}
                       label={metric.status}
                       value={metric.count}
@@ -196,15 +220,15 @@ export default async function OfficeDashboardPage() {
 
           <SectionCard
             className="office-dashboard-transactions-card office-list-card"
-            subtitle="Recently updated deals visible inside the current office scope."
-            title="Recent transactions"
+            subtitle={t((messages) => messages.officeDashboard.recentTransactionsSubtitle)}
+            title={t((messages) => messages.officeDashboard.recentTransactions)}
           >
             <DataTable className="office-dashboard-transactions-table">
               <DataTableHeader className="office-dashboard-transactions-head">
-                <span>Transaction</span>
-                <span>Price</span>
-                <span>Status</span>
-                <span>Owner</span>
+                <span>{t((messages) => messages.officeDashboard.transaction)}</span>
+                <span>{t((messages) => messages.officeDashboard.price)}</span>
+                <span>{t((messages) => messages.officeDashboard.status)}</span>
+                <span>{t((messages) => messages.officeDashboard.owner)}</span>
               </DataTableHeader>
               <DataTableBody>
                 {snapshot.recentTransactions.map((transaction) => (
@@ -215,7 +239,9 @@ export default async function OfficeDashboardPage() {
                       </strong>
                     </div>
                     <strong className="office-dashboard-transactions-amount">{transaction.amount}</strong>
-                    <StatusBadge tone={getTransactionStatusTone(transaction.stage)}>{transaction.stage}</StatusBadge>
+                    <StatusBadge tone={getTransactionStatusTone(transaction.stage)}>
+                      {getTransactionStatusLabel(transaction.stage, t)}
+                    </StatusBadge>
                     <span className="office-dashboard-transactions-owner">{transaction.owner}</span>
                   </DataTableRow>
                 ))}
@@ -227,47 +253,54 @@ export default async function OfficeDashboardPage() {
         {canViewCommissionSelfServiceSummary ? (
           <SectionCard
             className="office-dashboard-commission-card office-list-card"
-            subtitle="Your own persisted commission rows and saved payout statements only. Team or company allocations are never rolled into this dashboard card."
-            title="My commissions"
+            subtitle={t((messages) => messages.officeDashboard.myCommissionsSubtitle)}
+            title={t((messages) => messages.officeDashboard.myCommissions)}
           >
             {payoutReviewQueue.count > 0 && latestPayoutReviewStatement ? (
               <div className="office-dashboard-payout-reminder">
                 <div className="office-dashboard-payout-reminder-copy">
-                  <span className="office-dashboard-payout-reminder-eyebrow">Needs your review</span>
+                  <span className="office-dashboard-payout-reminder-eyebrow">{t((messages) => messages.officeDashboard.needsYourReview)}</span>
                   <strong>
                     {payoutReviewQueue.count === 1
-                      ? "1 payout statement is awaiting your review in Acre."
-                      : `${payoutReviewQueue.count} payout statements are awaiting your review in Acre.`}
+                      ? t((messages) => messages.officeDashboard.payoutAwaitingReviewSingle)
+                      : t((messages) => messages.officeDashboard.payoutAwaitingReviewMultiple, {
+                          count: payoutReviewQueue.count,
+                        })}
                   </strong>
                   <p>
-                    Latest statement: {latestPayoutReviewStatement.periodLabel} · Generated{" "}
-                    <LocalDateTime
-                      fallbackLabel={latestPayoutReviewStatement.generatedAtLabel}
-                      value={latestPayoutReviewStatement.generatedAt}
-                    />{" "}
-                    · Final payout {latestPayoutReviewStatement.totalStatementAmountLabel}
+                    {t((messages) => messages.officeDashboard.latestStatement, {
+                      period: latestPayoutReviewStatement.periodLabel,
+                      generatedAt: latestPayoutReviewStatement.generatedAtLabel,
+                      amount: latestPayoutReviewStatement.totalStatementAmountLabel,
+                    })}
                   </p>
                 </div>
 
                 <div className="office-section-actions">
-                  <StatusBadge tone="danger">{payoutReviewQueue.count} awaiting review</StatusBadge>
+                  <StatusBadge tone="danger">
+                    {t((messages) => messages.officeDashboard.awaitingReview, {
+                      count: payoutReviewQueue.count,
+                    })}
+                  </StatusBadge>
                   <Link className="office-button" href={latestPayoutReviewStatement.openHref}>
-                    Review statement
+                    {t((messages) => messages.officeDashboard.reviewStatement)}
                   </Link>
                 </div>
               </div>
             ) : null}
 
             <div className="office-kpi-grid office-commission-kpi-grid">
-              <StatCard hint="all persisted rows tied to your membership" label="Total commission" value={snapshot.commission.totalCommissionLabel} />
-              <StatCard hint="rows calculated in the current calendar month" label="This month" value={snapshot.commission.currentMonthCommissionLabel} />
-              <StatCard hint="rows already marked payable" label="Payable" value={snapshot.commission.payableLabel} />
-              <StatCard hint="rows already marked paid" label="Paid" value={snapshot.commission.paidLabel} />
+              <StatCard hint={t((messages) => messages.officeDashboard.allPersistedRowsHint)} label={t((messages) => messages.officeDashboard.totalCommission)} value={snapshot.commission.totalCommissionLabel} />
+              <StatCard hint={t((messages) => messages.officeDashboard.rowsCalculatedThisMonthHint)} label={t((messages) => messages.officeDashboard.thisMonth)} value={snapshot.commission.currentMonthCommissionLabel} />
+              <StatCard hint={t((messages) => messages.officeDashboard.rowsMarkedPayableHint)} label={t((messages) => messages.officeDashboard.payable)} value={snapshot.commission.payableLabel} />
+              <StatCard hint={t((messages) => messages.officeDashboard.rowsMarkedPaidHint)} label={t((messages) => messages.officeDashboard.paid)} value={snapshot.commission.paidLabel} />
             </div>
 
             <div className="office-dashboard-commission-meta">
-              <span>{snapshot.commission.calculationCount} persisted commission row(s) tied to your membership.</span>
-              <span>Monthly totals reflect your own statement amounts only, even when the underlying transaction belongs to another office.</span>
+              <span>{t((messages) => messages.officeDashboard.persistedRowsSummary, {
+                count: snapshot.commission.calculationCount,
+              })}</span>
+              <span>{t((messages) => messages.officeDashboard.monthlyTotalsSummary)}</span>
             </div>
 
             {currentCommissionMonth ? (
@@ -276,9 +309,11 @@ export default async function OfficeDashboardPage() {
                   className={`office-dashboard-commission-month office-dashboard-commission-month-current${currentCommissionMonth.isCurrent ? " is-current" : ""}`}
                 >
                   <div className="office-dashboard-commission-month-copy">
-                    <span className="office-dashboard-commission-month-eyebrow">Current month</span>
+                    <span className="office-dashboard-commission-month-eyebrow">{t((messages) => messages.officeDashboard.currentMonth)}</span>
                     <strong>{currentCommissionMonth.label}</strong>
-                    <span>{currentCommissionMonth.calculationCount} row(s)</span>
+                    <span>{t((messages) => messages.officeDashboard.rowCount, {
+                      count: currentCommissionMonth.calculationCount,
+                    })}</span>
                   </div>
                   <strong className="office-dashboard-commission-month-amount">{currentCommissionMonth.totalLabel}</strong>
                 </article>
@@ -287,10 +322,12 @@ export default async function OfficeDashboardPage() {
                   <details className="office-dashboard-commission-history">
                     <summary>
                       <div className="office-dashboard-commission-history-copy">
-                        <strong>Previous months</strong>
-                        <span>{historicalCommissionMonths.length} month(s) in history</span>
+                        <strong>{t((messages) => messages.officeDashboard.previousMonths)}</strong>
+                        <span>{t((messages) => messages.officeDashboard.monthCountInHistory, {
+                          count: historicalCommissionMonths.length,
+                        })}</span>
                       </div>
-                      <span className="office-dashboard-commission-history-action">Expand</span>
+                      <span className="office-dashboard-commission-history-action">{t((messages) => messages.officeDashboard.expand)}</span>
                     </summary>
 
                     <div className="office-dashboard-commission-history-list">
@@ -298,7 +335,9 @@ export default async function OfficeDashboardPage() {
                         <article className="office-dashboard-commission-history-item" key={month.monthKey}>
                           <div className="office-dashboard-commission-month-copy">
                             <strong>{month.label}</strong>
-                            <span>{month.calculationCount} row(s)</span>
+                            <span>{t((messages) => messages.officeDashboard.rowCount, {
+                              count: month.calculationCount,
+                            })}</span>
                           </div>
                           <strong className="office-dashboard-commission-month-amount">{month.totalLabel}</strong>
                         </article>
@@ -312,11 +351,11 @@ export default async function OfficeDashboardPage() {
             {snapshot.commission.statements.length > 0 ? (
               <DataTable className="office-dashboard-transactions-table">
                 <DataTableHeader className="office-dashboard-transactions-head">
-                  <span>Statement period</span>
-                  <span>Generated</span>
-                  <span>Status</span>
-                  <span>Total</span>
-                  <span>Actions</span>
+                  <span>{t((messages) => messages.officeDashboard.statementPeriod)}</span>
+                  <span>{t((messages) => messages.officeDashboard.generated)}</span>
+                  <span>{t((messages) => messages.officeDashboard.status)}</span>
+                  <span>{t((messages) => messages.officeDashboard.total)}</span>
+                  <span>{t((messages) => messages.officeDashboard.actions)}</span>
                 </DataTableHeader>
                 <DataTableBody>
                   {snapshot.commission.statements.map((statement) => (
@@ -342,10 +381,10 @@ export default async function OfficeDashboardPage() {
                       <strong className="office-dashboard-transactions-amount">{statement.totalStatementAmountLabel}</strong>
                       <div className="office-section-actions office-accounting-statement-history-actions">
                         <Link className="office-button-secondary office-button-sm" href={statement.openHref}>
-                          Open
+                          {t((messages) => messages.common.open)}
                         </Link>
                         <a className="office-button-secondary office-button-sm" href={statement.pdfHref} rel="noreferrer" target="_blank">
-                          PDF
+                          {t((messages) => messages.officeDashboard.pdf)}
                         </a>
                       </div>
                     </DataTableRow>

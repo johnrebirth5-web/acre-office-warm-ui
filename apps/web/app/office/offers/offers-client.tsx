@@ -29,6 +29,7 @@ import {
   OfficeListPagePagination,
   OfficeListPageTemplate
 } from "../_components/office-list-page-template";
+import { useI18n } from "../../../lib/i18n/client";
 
 type OffersClientProps = {
   officeScopeLabel: string;
@@ -36,27 +37,6 @@ type OffersClientProps = {
 };
 
 const pageSizeOptions = [10, 20, 50, 100] as const;
-const statusOptions: Array<{ value: OfficeOffersQueueStatusFilter; label: string }> = [
-  { value: "all", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "submitted", label: "Submitted" },
-  { value: "received", label: "Received" },
-  { value: "under_review", label: "Under review" },
-  { value: "countered", label: "Countered" },
-  { value: "accepted", label: "Accepted" },
-  { value: "rejected", label: "Rejected" },
-  { value: "withdrawn", label: "Withdrawn" },
-  { value: "expired", label: "Expired" }
-];
-const timingOptions: Array<{ value: OfficeOffersQueueTimingFilter; label: string }> = [
-  { value: "all", label: "All deadlines" },
-  { value: "expiring_soon", label: "Expiring soon (72h)" }
-];
-const contextOptions: Array<{ value: OfficeOffersQueueContextFilter; label: string }> = [
-  { value: "all", label: "All context" },
-  { value: "primary", label: "Primary only" },
-  { value: "accepted", label: "Accepted only" }
-];
 const tableGridStyle: CSSProperties = {
   gridTemplateColumns:
     "minmax(240px, 2.1fr) minmax(220px, 1.8fr) minmax(150px, 1.1fr) minmax(180px, 1.3fr) minmax(160px, 1.1fr) minmax(220px, 1.8fr)"
@@ -80,6 +60,54 @@ function getOfferTone(status: OfficeOfferQueueRow["statusValue"]) {
   }
 
   return "neutral" as const;
+}
+
+function getOfferStatusLabel(
+  status: OfficeOfferQueueRow["statusValue"],
+  t: ReturnType<typeof useI18n>["t"]
+) {
+  switch (status) {
+    case "draft":
+      return t((messages) => messages.officeOffers.draft);
+    case "submitted":
+      return t((messages) => messages.officeOffers.submitted);
+    case "received":
+      return t((messages) => messages.officeOffers.received);
+    case "under_review":
+      return t((messages) => messages.officeOffers.underReview);
+    case "countered":
+      return t((messages) => messages.officeOffers.countered);
+    case "accepted":
+      return t((messages) => messages.officeOffers.accepted);
+    case "rejected":
+      return t((messages) => messages.officeOffers.rejected);
+    case "withdrawn":
+      return t((messages) => messages.officeOffers.withdrawn);
+    case "expired":
+      return t((messages) => messages.officeSignatures.expired);
+    default:
+      return status;
+  }
+}
+
+function getTransactionStatusLabel(
+  status: string,
+  t: ReturnType<typeof useI18n>["t"]
+) {
+  switch (status) {
+    case "Opportunity":
+      return t((messages) => messages.officeTransactions.opportunity);
+    case "Active":
+      return t((messages) => messages.officeTransactions.active);
+    case "Pending":
+      return t((messages) => messages.officeTransactions.pending);
+    case "Closed":
+      return t((messages) => messages.officeTransactions.closed);
+    case "Cancelled":
+      return t((messages) => messages.officeTransactions.cancelled);
+    default:
+      return status;
+  }
 }
 
 function buildOffersHref(
@@ -123,53 +151,89 @@ function buildOffersHref(
   return query ? `${pathname}?${query}` : pathname;
 }
 
-function buildOfferContextLabel(row: OfficeOfferQueueRow) {
+function buildOfferContextLabel(
+  row: OfficeOfferQueueRow,
+  t: ReturnType<typeof useI18n>["t"]
+) {
   if (row.isAcceptedOffer) {
-    return "Accepted path";
+    return t((messages) => messages.officeOffers.acceptedPath);
   }
 
   if (row.isPrimaryOffer) {
-    return "Primary contender";
+    return t((messages) => messages.officeOffers.primaryContender);
   }
 
   if (row.transactionAcceptedOfferId) {
-    return "Accepted elsewhere";
+    return t((messages) => messages.officeOffers.acceptedElsewhere);
   }
 
   if (row.transactionPrimaryOfferId) {
-    return "Primary elsewhere";
+    return t((messages) => messages.officeOffers.primaryElsewhere);
   }
 
-  return "Open offer";
+  return t((messages) => messages.officeOffers.openOffer);
 }
 
-function buildOfferContextMeta(row: OfficeOfferQueueRow) {
+function buildOfferContextMeta(
+  row: OfficeOfferQueueRow,
+  t: ReturnType<typeof useI18n>["t"],
+  formatDateTime: ReturnType<typeof useI18n>["formatDateTime"]
+) {
   if (row.isAcceptedOffer && row.acceptedAtLabel) {
-    return `Accepted ${row.acceptedAtLabel}`;
+    return t((messages) => messages.officeOffers.acceptedPrefix, {
+      value: formatDateTime(row.acceptedAt) || row.acceptedAtLabel,
+    });
   }
 
   if (row.transactionAcceptedOfferLabel && !row.isAcceptedOffer) {
-    return `Accepted offer: ${row.transactionAcceptedOfferLabel}`;
+    return t((messages) => messages.officeOffers.acceptedOfferPrefix, {
+      value: row.transactionAcceptedOfferLabel,
+    });
   }
 
   if (row.isPrimaryOffer) {
-    return "Primary on this transaction";
+    return t((messages) => messages.officeOffers.primaryOnTransaction);
   }
 
   if (row.transactionPrimaryOfferLabel) {
-    return `Primary offer: ${row.transactionPrimaryOfferLabel}`;
+    return t((messages) => messages.officeOffers.primaryOfferPrefix, {
+      value: row.transactionPrimaryOfferLabel,
+    });
   }
 
-  return "No accepted offer on this transaction yet";
+  return t((messages) => messages.officeOffers.noAcceptedOfferYet);
 }
 
 export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) {
+  const { t, formatDate, formatDateTime } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState(snapshot.filters.q);
   const [statusFilter, setStatusFilter] = useState<OfficeOffersQueueStatusFilter>(snapshot.filters.status);
   const [timingFilter, setTimingFilter] = useState<OfficeOffersQueueTimingFilter>(snapshot.filters.timing);
   const [contextFilter, setContextFilter] = useState<OfficeOffersQueueContextFilter>(snapshot.filters.context);
+
+  const statusOptions: Array<{ value: OfficeOffersQueueStatusFilter; label: string }> = [
+    { value: "all", label: t((messages) => messages.officeOffers.allStatuses) },
+    { value: "draft", label: t((messages) => messages.officeOffers.draft) },
+    { value: "submitted", label: t((messages) => messages.officeOffers.submitted) },
+    { value: "received", label: t((messages) => messages.officeOffers.received) },
+    { value: "under_review", label: t((messages) => messages.officeOffers.underReview) },
+    { value: "countered", label: t((messages) => messages.officeOffers.countered) },
+    { value: "accepted", label: t((messages) => messages.officeOffers.accepted) },
+    { value: "rejected", label: t((messages) => messages.officeOffers.rejected) },
+    { value: "withdrawn", label: t((messages) => messages.officeOffers.withdrawn) },
+    { value: "expired", label: t((messages) => messages.officeSignatures.expired) }
+  ];
+  const timingOptions: Array<{ value: OfficeOffersQueueTimingFilter; label: string }> = [
+    { value: "all", label: t((messages) => messages.officeOffers.allDeadlines) },
+    { value: "expiring_soon", label: t((messages) => messages.officeOffers.expiringSoon72h) }
+  ];
+  const contextOptions: Array<{ value: OfficeOffersQueueContextFilter; label: string }> = [
+    { value: "all", label: t((messages) => messages.officeOffers.allContext) },
+    { value: "primary", label: t((messages) => messages.officeOffers.primaryOnly) },
+    { value: "accepted", label: t((messages) => messages.officeOffers.acceptedOnly) }
+  ];
 
   useEffect(() => {
     setSearchQuery(snapshot.filters.q);
@@ -228,16 +292,16 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
 
   const filters = (
     <ListPageFilters as="form" className="office-transactions-toolbar" onSubmit={handleFilterSubmit}>
-      <FilterField className="office-transactions-search" label="Search">
+      <FilterField className="office-transactions-search" label={t((messages) => messages.common.search)}>
         <TextInput
-          aria-label="Search offers"
+          aria-label={t((messages) => messages.officeOffers.searchAria)}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search offer, party, transaction, address..."
+          placeholder={t((messages) => messages.officeOffers.searchPlaceholder)}
           value={searchQuery}
         />
       </FilterField>
 
-      <FilterField label="Status">
+      <FilterField label={t((messages) => messages.officeTransactions.tableStatus)}>
         <SelectInput
           onChange={(event) => setStatusFilter(event.target.value as OfficeOffersQueueStatusFilter)}
           value={statusFilter}
@@ -250,7 +314,7 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
         </SelectInput>
       </FilterField>
 
-      <FilterField label="Deadline">
+      <FilterField label={t((messages) => messages.officeOffers.expiration)}>
         <SelectInput
           onChange={(event) => setTimingFilter(event.target.value as OfficeOffersQueueTimingFilter)}
           value={timingFilter}
@@ -263,7 +327,7 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
         </SelectInput>
       </FilterField>
 
-      <FilterField label="Context">
+      <FilterField label={t((messages) => messages.officeOffers.context)}>
         <SelectInput
           onChange={(event) => setContextFilter(event.target.value as OfficeOffersQueueContextFilter)}
           value={contextFilter}
@@ -277,9 +341,9 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
       </FilterField>
 
       <div className="office-filter-actions">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">{t((messages) => messages.common.applyFilters)}</Button>
         <Button onClick={handleResetFilters} type="button" variant="secondary">
-          Reset
+          {t((messages) => messages.common.reset)}
         </Button>
       </div>
     </ListPageFilters>
@@ -320,38 +384,42 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
           totalPages={snapshot.totalPages}
         />
       }
-      summary={`${pageStart}-${pageEnd} of ${snapshot.totalCount}`}
+      summary={t((messages) => messages.common.rangeSummary, {
+        start: pageStart,
+        end: pageEnd,
+        total: snapshot.totalCount,
+      })}
     />
   );
 
   return (
     <OfficeListPageTemplate
       className="office-transactions-page"
-      description="Office-wide offer queue anchored inside transaction management so you can scan real status, expiring-soon pressure, and accepted-path context without leaving the transaction system."
-      eyebrow="Offers"
+      description={t((messages) => messages.officeOffers.description)}
+      eyebrow={t((messages) => messages.officeOffers.eyebrow)}
       filters={filters}
       footer={footer}
-      sectionSubtitle="Review the current office offer set, then jump straight back into the source transaction workspace for the full workflow."
-      sectionTitle="Offer queue"
+      sectionSubtitle={t((messages) => messages.officeOffers.sectionSubtitle)}
+      sectionTitle={t((messages) => messages.officeOffers.sectionTitle)}
       summary={
         <>
-          <SummaryChip label="Office scope" value={officeScopeLabel} />
-          <SummaryChip label="Offers in view" tone="accent" value={snapshot.summary.totalCount} />
-          <SummaryChip label="Expiring soon" value={snapshot.summary.expiringSoonCount} />
-          <SummaryChip label="Accepted" value={snapshot.summary.acceptedCount} />
-          <SummaryChip label="Primary" value={snapshot.summary.primaryCount} />
+          <SummaryChip label={t((messages) => messages.common.officeScope)} value={officeScopeLabel} />
+          <SummaryChip label={t((messages) => messages.officeOffers.offersInView)} tone="accent" value={snapshot.summary.totalCount} />
+          <SummaryChip label={t((messages) => messages.officeOffers.expiringSoon)} value={snapshot.summary.expiringSoonCount} />
+          <SummaryChip label={t((messages) => messages.officeOffers.accepted)} value={snapshot.summary.acceptedCount} />
+          <SummaryChip label={t((messages) => messages.officeOffers.primary)} value={snapshot.summary.primaryCount} />
         </>
       }
-      title="Offers"
+      title={t((messages) => messages.officeOffers.title)}
     >
       <DataTable className="office-list-table office-list-table-wide">
         <DataTableHeader className="office-list-table-header" style={tableGridStyle}>
-          <span>Transaction</span>
-          <span>Offer</span>
-          <span>Status</span>
-          <span>Price / terms</span>
-          <span>Expiration</span>
-          <span>Context</span>
+          <span>{t((messages) => messages.officeOffers.transaction)}</span>
+          <span>{t((messages) => messages.officeOffers.offer)}</span>
+          <span>{t((messages) => messages.officeTransactions.tableStatus)}</span>
+          <span>{t((messages) => messages.officeOffers.priceTerms)}</span>
+          <span>{t((messages) => messages.officeOffers.expiration)}</span>
+          <span>{t((messages) => messages.officeOffers.context)}</span>
         </DataTableHeader>
         <DataTableBody className="office-list-table-body">
           {snapshot.rows.map((row) => (
@@ -360,10 +428,10 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
                 <strong>
                   <Link href={row.transactionHref}>{row.transactionTitle}</Link>
                 </strong>
-                <p>{row.transactionAddress || "Address pending"}</p>
+                <p>{row.transactionAddress || t((messages) => messages.officeOffers.addressPending)}</p>
                 <div className="office-list-table-main-meta">
-                  {row.ownerName ? <span>{row.ownerName}</span> : <span>Unassigned</span>}
-                  <span>{row.transactionStatus}</span>
+                  {row.ownerName ? <span>{row.ownerName}</span> : <span>{t((messages) => messages.officeOffers.unassigned)}</span>}
+                  <span>{getTransactionStatusLabel(row.transactionStatus, t)}</span>
                 </div>
               </div>
 
@@ -373,39 +441,41 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
                 </strong>
                 <p>{row.buyerName || row.offeringPartyName}</p>
                 <div className="office-list-table-main-meta">
-                  {row.isPrimaryOffer ? <span>Primary</span> : null}
-                  {row.isAcceptedOffer ? <span>Accepted</span> : null}
-                  {!row.isAcceptedOffer && row.transactionAcceptedOfferId ? <span>Competing path</span> : null}
+                  {row.isPrimaryOffer ? <span>{t((messages) => messages.officeOffers.primary)}</span> : null}
+                  {row.isAcceptedOffer ? <span>{t((messages) => messages.officeOffers.accepted)}</span> : null}
+                  {!row.isAcceptedOffer && row.transactionAcceptedOfferId ? <span>{t((messages) => messages.officeOffers.competingPath)}</span> : null}
                 </div>
               </div>
 
               <div className="office-list-table-cell-stack">
                 <StatusBadge className="office-list-table-status" tone={getOfferTone(row.statusValue)}>
-                  {row.status}
+                  {getOfferStatusLabel(row.statusValue, t)}
                 </StatusBadge>
-                <p>{row.isExpiringSoon ? "Expiring within 72 hours" : `Updated ${row.updatedAtLabel}`}</p>
+                <p>{row.isExpiringSoon ? t((messages) => messages.officeOffers.expiringWithin72Hours) : t((messages) => messages.officeOffers.updatedPrefix, { value: formatDateTime(row.updatedAt) || row.updatedAtLabel })}</p>
               </div>
 
               <div className="office-list-table-cell-stack">
                 <strong>{row.price || "—"}</strong>
-                <p>{row.financingType || "Financing not recorded"}</p>
+                <p>{row.financingType || t((messages) => messages.officeOffers.financingNotRecorded)}</p>
                 <p>
-                  Close {row.closingDateOffered || "—"}
-                  {row.earnestMoneyAmount ? ` · EMD ${row.earnestMoneyAmount}` : ""}
+                  {t((messages) => messages.officeOffers.closePrefix, {
+                    value: row.closingDateOffered ? formatDate(row.closingDateOffered) || row.closingDateOffered : "—",
+                  })}
+                  {row.earnestMoneyAmount ? ` · ${t((messages) => messages.officeOffers.emdPrefix, { value: row.earnestMoneyAmount })}` : ""}
                 </p>
               </div>
 
               <div className="office-list-table-cell-stack">
-                <strong>{row.expirationAt || "—"}</strong>
-                <p>{row.expirationLabel || "No expiration recorded"}</p>
-                {row.acceptedAtLabel ? <p>Accepted {row.acceptedAtLabel}</p> : null}
+                <strong>{row.expirationAt ? formatDate(row.expirationAt) || row.expirationAt : "—"}</strong>
+                <p>{row.expirationLabel || t((messages) => messages.officeOffers.noExpirationRecorded)}</p>
+                {row.acceptedAtLabel ? <p>{t((messages) => messages.officeOffers.acceptedPrefix, { value: formatDateTime(row.acceptedAt) || row.acceptedAtLabel })}</p> : null}
               </div>
 
               <div className="office-list-table-cell-stack">
-                <strong>{buildOfferContextLabel(row)}</strong>
-                <p>{buildOfferContextMeta(row)}</p>
+                <strong>{buildOfferContextLabel(row, t)}</strong>
+                <p>{buildOfferContextMeta(row, t, formatDateTime)}</p>
                 <p>
-                  <Link href={row.transactionHref}>Open transaction</Link>
+                  <Link href={row.transactionHref}>{t((messages) => messages.officeSignatures.openTransaction)}</Link>
                 </p>
               </div>
             </DataTableRow>
@@ -413,8 +483,8 @@ export function OffersClient({ officeScopeLabel, snapshot }: OffersClientProps) 
 
           {snapshot.rows.length === 0 ? (
             <EmptyState
-              description="Try widening the search or clearing one of the queue filters."
-              title="No offers matched the current filters"
+              description={t((messages) => messages.officeOffers.noOffersMatchedBody)}
+              title={t((messages) => messages.officeOffers.noOffersMatchedTitle)}
             />
           ) : null}
         </DataTableBody>

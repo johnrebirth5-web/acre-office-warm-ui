@@ -25,6 +25,7 @@ import {
   OfficeListPagePagination,
   OfficeListPageTemplate,
 } from "../_components/office-list-page-template";
+import { useI18n } from "../../../lib/i18n/client";
 
 type ContactsClientProps = {
   contacts: OfficeContactRecord[];
@@ -157,6 +158,7 @@ export function ContactsClient({
   pageSize,
   filters,
 }: ContactsClientProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState(filters.q);
@@ -190,7 +192,10 @@ export function ContactsClient({
 
   const pageStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const pageEnd = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
-  const currentStageLabel = stageFilter === "All" ? "All stages" : stageFilter;
+  const currentStageLabel =
+    stageFilter === "All"
+      ? t((messages) => messages.officeContacts.allStages)
+      : stageFilter;
 
   function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -282,17 +287,17 @@ export function ContactsClient({
       className="office-contacts-toolbar"
       onSubmit={handleFilterSubmit}
     >
-      <FilterField className="office-contacts-search-field" label="Search">
+      <FilterField className="office-contacts-search-field" label={t((messages) => messages.officeContacts.searchLabel)}>
         <TextInput
-          aria-label="Search contacts"
+          aria-label={t((messages) => messages.officeContacts.searchLabel)}
           className="office-contacts-search-input"
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search name, email, phone, area..."
+          placeholder={t((messages) => messages.officeContacts.searchPlaceholder)}
           value={searchQuery}
         />
       </FilterField>
 
-      <FilterField className="office-contacts-stage-field" label="Current view">
+      <FilterField className="office-contacts-stage-field" label={t((messages) => messages.officeContacts.currentView)}>
         <SelectInput
           onChange={(event) =>
             setStageFilter(event.target.value as (typeof stageOptions)[number])
@@ -301,16 +306,24 @@ export function ContactsClient({
         >
           {stageOptions.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {option === "All"
+                ? t((messages) => messages.officeContacts.allStages)
+                : option === "Warm"
+                  ? t((messages) => messages.officeContacts.warm)
+                  : option === "Tour booked"
+                    ? t((messages) => messages.officeContacts.tourBooked)
+                    : option === "Nurture"
+                      ? t((messages) => messages.officeContacts.nurture)
+                      : t((messages) => messages.officeContacts.newStage)}
             </option>
           ))}
         </SelectInput>
       </FilterField>
 
       <div className="office-filter-actions">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">{t((messages) => messages.officeContacts.applyFilters)}</Button>
         <Button onClick={handleResetFilters} type="button" variant="secondary">
-          Reset
+          {t((messages) => messages.officeContacts.reset)}
         </Button>
       </div>
     </ListPageFilters>
@@ -353,9 +366,9 @@ export function ContactsClient({
 
   const contactSummary = (
     <>
-      <SummaryChip label="Contacts" value={totalCount} />
+      <SummaryChip label={t((messages) => messages.officeContacts.title)} value={totalCount} />
       <SummaryChip
-        label="Current view"
+        label={t((messages) => messages.officeContacts.currentView)}
         tone="accent"
         value={currentStageLabel}
       />
@@ -366,28 +379,28 @@ export function ContactsClient({
     <>
       <OfficeListPageTemplate
         className="office-contacts-page"
-        description="Operational contact list with organization-scoped search, stage views, and follow-up visibility across the current office."
-        eyebrow="Contacts"
+        description={t((messages) => messages.officeContacts.description)}
+        eyebrow={t((messages) => messages.officeContacts.title)}
         actions={
           <Button onClick={() => setIsModalOpen(true)} type="button">
-            New contact
+            {t((messages) => messages.officeContacts.createContact)}
           </Button>
         }
         filters={contactFilters}
         footer={contactFooter}
-        sectionSubtitle="Search, filter, and review the current office contact set."
-        sectionTitle="Contact list"
+        sectionSubtitle={t((messages) => messages.officeContacts.contactListSubtitle)}
+        sectionTitle={t((messages) => messages.officeContacts.contactList)}
         summary={contactSummary}
-        title="Contacts"
+        title={t((messages) => messages.officeContacts.title)}
       >
         <DataTable className="office-list-table office-list-table-wide office-contacts-table">
           <DataTableHeader className="office-list-table-header office-list-table-header-contacts">
-            <span>Contact</span>
-            <span>Stage</span>
-            <span>Intent / budget</span>
-            <span>Preferred areas</span>
-            <span>Last contact</span>
-            <span>Next follow-up</span>
+            <span>{t((messages) => messages.officeContacts.tableContact)}</span>
+            <span>{t((messages) => messages.officeContacts.tableStage)}</span>
+            <span>{t((messages) => messages.officeContacts.tableIntentBudget)}</span>
+            <span>{t((messages) => messages.officeContacts.tablePreferredAreas)}</span>
+            <span>{t((messages) => messages.officeContacts.tableLastContact)}</span>
+            <span>{t((messages) => messages.officeContacts.tableNextFollowUp)}</span>
           </DataTableHeader>
           <DataTableBody className="office-list-table-body">
             {contacts.map((contact) => (
@@ -415,7 +428,15 @@ export function ContactsClient({
                   className="office-list-table-status"
                   tone={getContactStageTone(contact.stage)}
                 >
-                  {contact.stage}
+                  {contact.stage === "Warm"
+                    ? t((messages) => messages.officeContacts.warm)
+                    : contact.stage === "Tour booked"
+                      ? t((messages) => messages.officeContacts.tourBooked)
+                      : contact.stage === "Nurture"
+                        ? t((messages) => messages.officeContacts.nurture)
+                        : contact.stage === "New"
+                          ? t((messages) => messages.officeContacts.newStage)
+                          : contact.stage}
                 </StatusBadge>
                 <div className="office-list-table-cell-stack">
                   <strong>{contact.intent || "—"}</strong>
@@ -430,8 +451,8 @@ export function ContactsClient({
             ))}
             {contacts.length === 0 ? (
               <EmptyState
-                description="Try widening the search or resetting the stage filter."
-                title="No contacts matched the current filters"
+                description={t((messages) => messages.officeContacts.noContactsBody)}
+                title={t((messages) => messages.officeContacts.noContactsTitle)}
               />
             ) : null}
           </DataTableBody>
@@ -446,18 +467,18 @@ export function ContactsClient({
           >
             <header className="office-modal-header office-create-modal-header">
               <div className="office-modal-title-block office-create-modal-title-block">
-                <span className="office-create-modal-kicker">Contacts</span>
-                <h3>Create contact</h3>
-                <p>Add a lead or client profile with the current office contact schema so follow-up can start immediately.</p>
+                <span className="office-create-modal-kicker">{t((messages) => messages.officeContacts.createModalKicker)}</span>
+                <h3>{t((messages) => messages.officeContacts.createModalTitle)}</h3>
+                <p>{t((messages) => messages.officeContacts.createModalBody)}</p>
               </div>
               <Button
-                aria-label="Close create contact modal"
+                aria-label={t((messages) => messages.officeContacts.closeCreateModal)}
                 onClick={() => setIsModalOpen(false)}
                 size="sm"
                 type="button"
                 variant="ghost"
               >
-                Close
+                {t((messages) => messages.officeContacts.close)}
               </Button>
             </header>
 
@@ -467,8 +488,8 @@ export function ContactsClient({
             >
               <section className="office-create-modal-section office-contact-create-section">
                 <div className="office-create-modal-section-head">
-                  <h4>Contact details</h4>
-                  <p>Capture the person&apos;s core identity, current stage, and follow-up context using the shared office contact schema.</p>
+                  <h4>{t((messages) => messages.officeContacts.contactDetails)}</h4>
+                  <p>{t((messages) => messages.officeContacts.contactDetailsBody)}</p>
                 </div>
 
                 <div className="office-form-grid office-contact-create-grid">
@@ -502,7 +523,7 @@ export function ContactsClient({
                             }
                             value={createValues[field.inputName] ?? ""}
                           >
-                            <option value="">Select...</option>
+                            <option value="">{t((messages) => messages.officeContacts.selectPlaceholder)}</option>
                             {field.options.map((option) => (
                               <option key={option} value={option}>
                                 {option}
@@ -535,13 +556,15 @@ export function ContactsClient({
 
               <footer className="office-modal-footer office-create-modal-footer">
                 <div className="office-create-modal-footer-copy">
-                  <strong>Save the profile to start office follow-up</strong>
-                  <p>Contact fields stay aligned with the centralized schema in Settings, so the roster and detail pages remain consistent.</p>
+                  <strong>{t((messages) => messages.officeContacts.saveProfileLead)}</strong>
+                  <p>{t((messages) => messages.officeContacts.saveProfileLeadBody)}</p>
                 </div>
 
                 <div className="office-modal-actions office-contact-create-actions">
                   <Button disabled={isSubmitting} type="submit">
-                    {isSubmitting ? "Saving..." : "Create contact"}
+                    {isSubmitting
+                      ? t((messages) => messages.common.saving)
+                      : t((messages) => messages.officeContacts.createContact)}
                   </Button>
                 </div>
               </footer>

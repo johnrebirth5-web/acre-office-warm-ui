@@ -10,6 +10,7 @@ import { getOfficeSignatureDriveSettingsSnapshot, getOfficeSignaturesWorkspace }
 import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeSignaturesClient } from "./signatures-client";
 
@@ -48,6 +49,9 @@ function buildExportHref(searchParams: Record<string, string | string[] | undefi
 
 export default async function OfficeSignaturesPage(props: OfficeSignaturesPageProps) {
   const context = await requireOfficeSession();
+  const { t } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
 
   if (!canViewOfficeSignatures(context.currentMembership)) {
     redirect("/office/dashboard");
@@ -87,34 +91,39 @@ export default async function OfficeSignaturesPage(props: OfficeSignaturesPagePr
           <>
             {canExportReports ? (
               <Link className="office-button-secondary" href={exportHref}>
-                Export CSV
+                {t((messages) => messages.officeSignatures.exportCsv)}
               </Link>
             ) : null}
             {canManageTemplateLibrary ? (
               <Link className="office-button-secondary" href="/office/signatures/templates">
-                Templates
+                {t((messages) => messages.officeSignatures.templates)}
               </Link>
             ) : null}
             {canManageDriveSettings ? (
               <Link className="office-button-secondary" href="/office/settings/signature-drive">
-                Drive settings
+                {t((messages) => messages.officeSignatures.driveSettings)}
               </Link>
             ) : null}
           </>
         }
-        description="A Back Office signatures workspace for continuing active drafts, reusing templates, monitoring sent envelopes, and managing office-wide signature follow-up."
-        eyebrow="Documents"
+        description={t((messages) => messages.officeSignatures.description)}
+        eyebrow={t((messages) => messages.officeSignatures.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Office scope" value={scopeLabel} />
-            <SummaryChip label="Drafts" tone="accent" value={workspace.summary.draftCount} />
-            <SummaryChip label="Needs follow-up" value={workspace.summary.pendingCount} />
-            <SummaryChip label="Drive failures" value={workspace.summary.failedDriveCount} />
-            <SummaryChip label="Direct create" value={workspace.createSupport.canStartNonTransactionDraft ? "Available" : "Coming soon"} />
-            {canManageTemplateLibrary ? <SummaryChip label="Active templates" value={workspace.summary.activeTemplateCount} /> : null}
+            <SummaryChip label={t((messages) => messages.common.officeScope)} value={scopeLabel} />
+            <SummaryChip label={t((messages) => messages.officeSignatures.drafts)} tone="accent" value={workspace.summary.draftCount} />
+            <SummaryChip label={t((messages) => messages.officeSignatures.needsFollowUp)} value={workspace.summary.pendingCount} />
+            <SummaryChip label={t((messages) => messages.officeSignatures.driveFailures)} value={workspace.summary.failedDriveCount} />
+            <SummaryChip
+              label={t((messages) => messages.officeSignatures.directCreate)}
+              value={workspace.createSupport.canStartNonTransactionDraft
+                ? t((messages) => messages.officeSignatures.available)
+                : t((messages) => messages.officeSignatures.comingSoon)}
+            />
+            {canManageTemplateLibrary ? <SummaryChip label={t((messages) => messages.officeSignatures.activeTemplates)} value={workspace.summary.activeTemplateCount} /> : null}
           </>
         }
-        title="Signatures"
+        title={t((messages) => messages.officeSignatures.title)}
       />
 
       <OfficeSignaturesClient

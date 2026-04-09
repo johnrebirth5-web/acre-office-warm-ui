@@ -4,6 +4,7 @@ import { SummaryChip } from "@acre/ui";
 import { listOfficeNotifications } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeNotificationsClient } from "./notifications-client";
 
@@ -18,6 +19,9 @@ type OfficeNotificationsPageProps = {
 
 export default async function OfficeNotificationsPage(props: OfficeNotificationsPageProps) {
   const context = await requireOfficeSession();
+  const { t } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
 
   if (!canAccessOfficeNotifications(context.currentMembership)) {
     redirect("/office/dashboard");
@@ -39,22 +43,22 @@ export default async function OfficeNotificationsPage(props: OfficeNotifications
       <OfficeListPageHeader
         actions={
           <Link className="office-button-secondary" href="/office/activity">
-            Open activity log
+            {t((messages) => messages.officeNotifications.openActivityLog)}
           </Link>
         }
-        description="Personal inbox for payout review, review work, follow-ups, offer changes, signatures, and incoming updates. Archive hides finished items from the default inbox, while payout review stays pinned from live statement status."
-        eyebrow="Notifications"
+        description={t((messages) => messages.officeNotifications.description)}
+        eyebrow={t((messages) => messages.officeNotifications.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Unread" tone="accent" value={snapshot.summary.unreadCount} />
-            <SummaryChip label="Inbox" value={snapshot.summary.activeCount} />
-            <SummaryChip label="Archived" value={snapshot.summary.archivedCount} />
-            <SummaryChip label="Review queue" value={snapshot.summary.reviewCount} />
-            <SummaryChip label="Payout review" tone="accent" value={snapshot.summary.payoutReviewCount} />
+            <SummaryChip label={t((messages) => messages.common.officeScope)} value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label={t((messages) => messages.officeNotifications.unread)} tone="accent" value={snapshot.summary.unreadCount} />
+            <SummaryChip label={t((messages) => messages.officeNotifications.inbox)} value={snapshot.summary.activeCount} />
+            <SummaryChip label={t((messages) => messages.officeNotifications.archived)} value={snapshot.summary.archivedCount} />
+            <SummaryChip label={t((messages) => messages.officeNotifications.reviewQueue)} value={snapshot.summary.reviewCount} />
+            <SummaryChip label={t((messages) => messages.officeNotifications.payoutReview)} tone="accent" value={snapshot.summary.payoutReviewCount} />
           </>
         }
-        title="Notifications"
+        title={t((messages) => messages.officeNotifications.title)}
       />
 
       <OfficeNotificationsClient snapshot={snapshot} />

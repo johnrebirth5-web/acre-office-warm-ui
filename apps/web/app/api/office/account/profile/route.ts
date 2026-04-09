@@ -1,6 +1,7 @@
 import { saveOfficeAccountProfile } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRequestOfficeSession } from "../../../../../lib/auth-session";
+import { assertSupportedLocale } from "../../../../../lib/i18n/config";
 
 export async function PATCH(request: NextRequest) {
   const context = await requireRequestOfficeSession(request);
@@ -30,6 +31,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
+    const locale = assertSupportedLocale(body.locale ?? "");
     const saved = await saveOfficeAccountProfile({
       organizationId: context.currentOrganization.id,
       membershipId: context.currentMembership.id,
@@ -43,7 +45,7 @@ export async function PATCH(request: NextRequest) {
       licenseNumber: body.licenseNumber ?? "",
       licenseState: body.licenseState ?? "",
       timezone: body.timezone ?? "",
-      locale: body.locale ?? ""
+      locale
     });
 
     if (!saved) {

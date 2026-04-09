@@ -27,6 +27,8 @@ import type {
   OfficeSignatureWorkspaceRow,
   OfficeSignatureWorkspaceSnapshot
 } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
+import type { TranslationSelector, TranslationVariables } from "../../../lib/i18n";
 
 type OfficeSignaturesClientProps = {
   workspace: OfficeSignatureWorkspaceSnapshot;
@@ -52,6 +54,144 @@ function buildFilterState(workspace: OfficeSignatureWorkspaceSnapshot): FilterSt
     recipientQuery: workspace.filters.recipientQuery,
     subjectMembershipId: workspace.filters.subjectMembershipId
   };
+}
+
+type TranslateFn = (
+  selector: TranslationSelector,
+  values?: TranslationVariables,
+) => string;
+
+function getSignatureStatusLabel(statusKey: string, t: TranslateFn) {
+  switch (statusKey) {
+    case "draft":
+      return t((messages) => messages.officeSignatures.drafts);
+    case "pending_send":
+      return t((messages) => messages.officeSignatures.pendingSend);
+    case "sent":
+      return t((messages) => messages.officeSignatures.sent);
+    case "viewed":
+      return t((messages) => messages.officeSignatures.viewed);
+    case "signed":
+      return t((messages) => messages.officeSignatures.signed);
+    case "completed":
+      return t((messages) => messages.officeSignatures.completed);
+    case "declined":
+      return t((messages) => messages.officeSignatures.declined);
+    case "canceled":
+    case "voided":
+      return t((messages) => messages.officeSignatures.voidCancelled);
+    case "expired":
+      return t((messages) => messages.officeSignatures.expired);
+    default:
+      return statusKey;
+  }
+}
+
+function getDriveStatusLabel(statusKey: string, t: TranslateFn) {
+  switch (statusKey) {
+    case "pending":
+      return t((messages) => messages.officeSignatures.drivePending);
+    case "synced":
+      return t((messages) => messages.officeSignatures.driveSynced);
+    case "failed":
+      return t((messages) => messages.officeSignatures.driveFailed);
+    case "not_configured":
+      return t((messages) => messages.officeSignatures.driveNotConfigured);
+    default:
+      return statusKey;
+  }
+}
+
+function getTemplateCategoryLabel(category: string, t: TranslateFn) {
+  switch (category) {
+    case "transaction":
+      return t((messages) => messages.officeSignatures.transactionCategory);
+    case "hr":
+      return t((messages) => messages.officeSignatures.hrCategory);
+    case "finance":
+      return t((messages) => messages.officeSignatures.financeCategory);
+    case "admin":
+      return t((messages) => messages.officeSignatures.adminCategory);
+    case "generic":
+      return t((messages) => messages.officeSignatures.genericCategory);
+    default:
+      return category || "—";
+  }
+}
+
+function getContextTypeLabel(contextType: string, t: TranslateFn) {
+  switch (contextType) {
+    case "transaction":
+      return t((messages) => messages.officeSignatures.transactionCategory);
+    case "membership":
+      return t((messages) => messages.officeSignatures.hrCategory);
+    case "finance_request":
+      return t((messages) => messages.officeSignatures.financeCategory);
+    case "admin_request":
+      return t((messages) => messages.officeSignatures.adminCategory);
+    case "generic":
+      return t((messages) => messages.officeSignatures.genericCategory);
+    default:
+      return contextType || "—";
+  }
+}
+
+function getPrimaryActionLabel(label: string, t: TranslateFn) {
+  switch (label) {
+    case "Continue draft":
+      return t((messages) => messages.officeSignatureTemplates.continueLatestDraft);
+    case "Open request":
+      return t((messages) => messages.officeSignatures.openRequest);
+    case "Open transaction":
+      return t((messages) => messages.officeSignatures.openTransaction);
+    default:
+      return label;
+  }
+}
+
+function getDriveSettingsStatusLabel(label: string, t: TranslateFn) {
+  switch (label) {
+    case "Ready":
+      return t((messages) => messages.officeSignatures.available);
+    case "Incomplete":
+      return t((messages) => messages.common.unavailable);
+    case "Disabled":
+      return t((messages) => messages.common.inactive);
+    case "Not configured":
+      return t((messages) => messages.common.notRecorded);
+    default:
+      return label;
+  }
+}
+
+function getBlockerCopy(
+  code: string,
+  t: TranslateFn,
+) {
+  switch (code) {
+    case "signature-request-transaction-required":
+      return {
+        title: t((messages) => messages.officeSignatures.blockerTransactionRequiredTitle),
+        detail: t((messages) => messages.officeSignatures.blockerTransactionRequiredDetail),
+      };
+    case "signature-recipient-field-transaction-required":
+      return {
+        title: t((messages) => messages.officeSignatures.blockerRecipientsRequiredTitle),
+        detail: t((messages) => messages.officeSignatures.blockerRecipientsRequiredDetail),
+      };
+    case "signature-editor-needs-transaction-pdf":
+      return {
+        title: t((messages) => messages.officeSignatures.blockerEditorNeedsPdfTitle),
+        detail: t((messages) => messages.officeSignatures.blockerEditorNeedsPdfDetail),
+      };
+    case "generic-template-category-missing":
+      return {
+        title: t((messages) => messages.officeSignatures.blockerGenericMissingTitle),
+        detail: t((messages) => messages.officeSignatures.blockerGenericMissingDetail),
+      };
+    default:
+      return null;
+  }
 }
 
 function getStatusTone(statusKey: string) {
@@ -86,22 +226,27 @@ function getDriveTone(statusKey: string) {
   return "neutral" as const;
 }
 
-function buildRoleSummary(row: OfficeSignatureWorkspaceRow) {
-  return `${row.signersCount} signer · ${row.approversCount} approver · ${row.ccCount} CC`;
+function buildRoleSummary(row: OfficeSignatureWorkspaceRow, t: TranslateFn) {
+  return t((messages) => messages.officeSignatures.rolesSummary, {
+    signers: row.signersCount,
+    approvers: row.approversCount,
+    cc: row.ccCount,
+  });
 }
 
 function buildQueueAction(
   row: OfficeSignatureWorkspaceRow,
   canManageSignatures: boolean,
   pendingRetryId: string,
-  retryDriveSync: (signatureRequestId: string) => Promise<void>
+  retryDriveSync: (signatureRequestId: string) => Promise<void>,
+  t: TranslateFn,
 ) {
   const actions: ReactNode[] = [];
 
   if (canManageSignatures && row.primaryActionHref) {
     actions.push(
       <Link className="office-button-secondary office-button-sm" href={row.primaryActionHref} key={`${row.id}-primary`}>
-        {row.primaryActionLabel}
+        {getPrimaryActionLabel(row.primaryActionLabel, t)}
       </Link>
     );
   }
@@ -109,7 +254,7 @@ function buildQueueAction(
   if (row.transactionHref) {
     actions.push(
       <Link className="office-button-secondary office-button-sm" href={row.transactionHref} key={`${row.id}-transaction`}>
-        Transaction
+        {t((messages) => messages.officeSignatures.transactionAction)}
       </Link>
     );
   }
@@ -122,7 +267,7 @@ function buildQueueAction(
         key={`${row.id}-document`}
         target="_blank"
       >
-        Signed PDF
+        {t((messages) => messages.officeSignatures.signedPdf)}
       </Link>
     );
   }
@@ -136,7 +281,9 @@ function buildQueueAction(
         size="sm"
         variant="secondary"
       >
-        {pendingRetryId === row.id ? "Retrying..." : "Retry Drive"}
+        {pendingRetryId === row.id
+          ? t((messages) => messages.officeSignatures.retryingDrive)
+          : t((messages) => messages.officeSignatures.retryDrive)}
       </Button>
     );
   }
@@ -148,29 +295,31 @@ function buildQueueAction(
   return <>{actions}</>;
 }
 
-function buildQueueMeta(row: OfficeSignatureWorkspaceRow) {
+function buildQueueMeta(row: OfficeSignatureWorkspaceRow, t: TranslateFn) {
   const items = [
     {
-      label: "Template",
-      value: row.templateName ? `${row.templateName} · ${row.templateCategoryLabel}` : row.templateCategoryLabel
+      label: t((messages) => messages.officeSignatures.templateMeta),
+      value: row.templateName
+        ? `${row.templateName} · ${getTemplateCategoryLabel(row.templateCategory, t)}`
+        : getTemplateCategoryLabel(row.templateCategory, t)
     },
     {
-      label: "Recipients",
-      value: row.recipientsLabel || "No signer assigned yet"
+      label: t((messages) => messages.officeSignatures.recipientsMeta),
+      value: row.recipientsLabel || t((messages) => messages.officeSignatures.noSignerAssignedYet)
     },
     {
-      label: "Requested by",
+      label: t((messages) => messages.officeSignatures.requestedBy),
       value: row.requestedByLabel
     },
     {
-      label: "Updated",
+      label: t((messages) => messages.officeSignatures.updatedMeta),
       value: row.updatedAt || "—"
     }
   ];
 
   if (row.subjectLabel && row.subjectLabel !== "—") {
     items.splice(3, 0, {
-      label: "Subject",
+      label: t((messages) => messages.officeSignatures.subjectMeta),
       value: row.subjectLabel
     });
   }
@@ -185,6 +334,7 @@ export function OfficeSignaturesClient({
   canManageDriveSettings,
   canManageTemplateLibrary
 }: OfficeSignaturesClientProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const [filterState, setFilterState] = useState<FilterState>(() => buildFilterState(workspace));
   const [pendingRetryId, setPendingRetryId] = useState("");
@@ -211,11 +361,11 @@ export function OfficeSignaturesClient({
   }
 
   const categoryBreakdown = [
-    { key: "transaction", label: "Transaction", count: workspace.rows.filter((row) => row.templateCategory === "transaction").length },
-    { key: "hr", label: "HR", count: workspace.rows.filter((row) => row.templateCategory === "hr").length },
-    { key: "finance", label: "Finance", count: workspace.rows.filter((row) => row.templateCategory === "finance").length },
-    { key: "admin", label: "Admin", count: workspace.rows.filter((row) => row.templateCategory === "admin").length },
-    { key: "generic", label: "Generic", count: workspace.rows.filter((row) => row.templateCategory === "generic").length }
+    { key: "transaction", label: getTemplateCategoryLabel("transaction", t), count: workspace.rows.filter((row) => row.templateCategory === "transaction").length },
+    { key: "hr", label: getTemplateCategoryLabel("hr", t), count: workspace.rows.filter((row) => row.templateCategory === "hr").length },
+    { key: "finance", label: getTemplateCategoryLabel("finance", t), count: workspace.rows.filter((row) => row.templateCategory === "finance").length },
+    { key: "admin", label: getTemplateCategoryLabel("admin", t), count: workspace.rows.filter((row) => row.templateCategory === "admin").length },
+    { key: "generic", label: getTemplateCategoryLabel("generic", t), count: workspace.rows.filter((row) => row.templateCategory === "generic").length }
   ].filter((entry) => entry.count > 0);
 
   function updateFilter(field: keyof FilterState, value: string) {
@@ -264,13 +414,13 @@ export function OfficeSignaturesClient({
       const payload = (await response.json().catch(() => null)) as { message?: string; error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error || payload?.message || "Drive sync retry failed.");
+        throw new Error(payload?.error || payload?.message || t((messages) => messages.officeSignatures.driveSyncRetryFailed));
       }
 
-      setSuccessMessage(payload?.message || "Drive sync retried.");
+      setSuccessMessage(t((messages) => messages.officeSignatures.driveSyncRetried));
       router.refresh();
     } catch (retryError) {
-      setError(retryError instanceof Error ? retryError.message : "Drive sync retry failed.");
+      setError(retryError instanceof Error ? retryError.message : t((messages) => messages.officeSignatures.driveSyncRetryFailed));
     } finally {
       setPendingRetryId("");
     }
@@ -279,26 +429,26 @@ export function OfficeSignaturesClient({
   return (
     <>
       <ListPageStatsGrid>
-        <StatCard hint="Saved requests that still need recipient or PDF-field work before they can move on." label="Drafts" tone="accent" value={workspace.summary.draftCount} />
-        <StatCard hint="Saved requests that are ready for send review but have not gone out yet." label="Ready to send" value={workspace.summary.readyToSendCount} />
-        <StatCard hint="Envelopes already in recipient hands or partially completed." label="In flight" value={workspace.summary.inFlightCount} />
-        <StatCard hint="Finished requests in the current filtered center view." label="Completed" value={workspace.summary.completedCount} />
+        <StatCard hint={t((messages) => messages.officeSignatures.statsDraftsHint)} label={t((messages) => messages.officeSignatures.drafts)} tone="accent" value={workspace.summary.draftCount} />
+        <StatCard hint={t((messages) => messages.officeSignatures.statsReadyToSendHint)} label={t((messages) => messages.officeSignatures.readyToSend)} value={workspace.summary.readyToSendCount} />
+        <StatCard hint={t((messages) => messages.officeSignatures.statsInFlightHint)} label={t((messages) => messages.officeSignatures.inFlight)} value={workspace.summary.inFlightCount} />
+        <StatCard hint={t((messages) => messages.officeSignatures.statsCompletedHint)} label={t((messages) => messages.officeSignatures.completed)} value={workspace.summary.completedCount} />
         <StatCard
-          hint="HR, finance, admin, and generic requests can be tracked here after they already exist, but brand-new non-transaction drafts still cannot start from this center."
-          label="Non-transaction tracked"
+          hint={t((messages) => messages.officeSignatures.statsNonTransactionTrackedHint)}
+          label={t((messages) => messages.officeSignatures.nonTransactionTracked)}
           value={workspace.summary.nonTransactionRequestCount}
         />
         {canManageTemplateLibrary ? (
           <StatCard
-            hint="Active reusable templates available for the next request authoring session."
-            label="Active templates"
+            hint={t((messages) => messages.officeSignatures.statsActiveTemplatesHint)}
+            label={t((messages) => messages.officeSignatures.activeTemplates)}
             value={workspace.summary.activeTemplateCount}
           />
         ) : null}
         {driveSnapshot ? (
           <StatCard
-            hint="Completed non-transaction envelopes currently route here inside Signature Drive."
-            label="Generic Drive route"
+            hint={t((messages) => messages.officeSignatures.statsGenericDriveRouteHint)}
+            label={t((messages) => messages.officeSignatures.genericDriveRoute)}
             value={driveSnapshot.summary.genericEnvelopeTargetLabel}
           />
         ) : null}
@@ -306,25 +456,25 @@ export function OfficeSignaturesClient({
 
       <ListPageSplit>
         <ListPageSection
-          subtitle="This center can continue saved drafts, surface sent envelopes that still need attention, and let operations retry Drive sync without backing into transaction detail first."
-          title="Continue from center"
+          subtitle={t((messages) => messages.officeSignatures.continueSubtitle)}
+          title={t((messages) => messages.officeSignatures.continueTitle)}
         >
           {centerQueue.length > 0 ? (
             <div className="office-queue-list">
               {centerQueue.map((row) => (
                 <QueueItem
-                  action={buildQueueAction(row, canManageSignatures, pendingRetryId, retryDriveSync)}
-                  badge={<StatusBadge tone={getStatusTone(row.statusKey)}>{row.status}</StatusBadge>}
-                  context={`${row.contextTypeLabel} · ${row.templateCategoryLabel}`}
+                  action={buildQueueAction(row, canManageSignatures, pendingRetryId, retryDriveSync, t)}
+                  badge={<StatusBadge tone={getStatusTone(row.statusKey)}>{getSignatureStatusLabel(row.statusKey, t)}</StatusBadge>}
+                  context={`${getContextTypeLabel(row.contextType, t)} · ${getTemplateCategoryLabel(row.templateCategory, t)}`}
                   description={
                     row.statusKey === "draft" || row.statusKey === "pending_send"
-                      ? "Continue recipient, delivery, or field placement work."
+                      ? t((messages) => messages.officeSignatures.continueDraftDescription)
                       : row.driveSyncStatus === "failed"
-                        ? "The request completed, but Drive archival still needs attention."
-                        : "Monitor the live request without leaving the signatures workspace."
+                        ? t((messages) => messages.officeSignatures.continueDriveDescription)
+                        : t((messages) => messages.officeSignatures.continueMonitorDescription)
                   }
                   key={row.id}
-                  meta={buildQueueMeta(row)}
+                  meta={buildQueueMeta(row, t)}
                   title={canManageSignatures && row.primaryActionHref ? <Link href={row.primaryActionHref}>{row.title}</Link> : row.title}
                 />
               ))}
@@ -334,91 +484,98 @@ export function OfficeSignaturesClient({
               action={
                 canManageTemplateLibrary ? (
                   <Link className="office-button-secondary" href="/office/signatures/templates">
-                    Open template library
+                    {t((messages) => messages.officeSignatures.openTemplateLibrary)}
                   </Link>
                 ) : null
               }
-              description="No existing drafts, in-flight envelopes, or Drive retries are currently bubbling to the top of the center."
-              title="Nothing urgent in the signatures workspace"
+              description={t((messages) => messages.officeSignatures.urgentEmptyBody)}
+              title={t((messages) => messages.officeSignatures.urgentEmptyTitle)}
             />
           )}
         </ListPageSection>
 
         <ListPageSection
-          subtitle="Use this workspace to track requests, templates, delivery status, and follow-up. Starting a brand-new HR, finance, admin, or generic request directly from here is not available yet."
-          title="Direct create from center"
+          subtitle={t((messages) => messages.officeSignatures.directCreateSubtitle)}
+          title={t((messages) => messages.officeSignatures.directCreateTitle)}
         >
           <div className="office-queue-list">
             <QueueItem
-              badgeLabel={workspace.createSupport.canStartNonTransactionDraft ? "Available" : "Coming soon"}
+              badgeLabel={workspace.createSupport.canStartNonTransactionDraft ? t((messages) => messages.officeSignatures.available) : t((messages) => messages.officeSignatures.comingSoon)}
               badgeTone={workspace.createSupport.canStartNonTransactionDraft ? "success" : "danger"}
-              description="You can manage and monitor requests here today, but standalone HR, finance, admin, and generic signature requests still need additional platform support before they can start from `/office/signatures`."
+              description={t((messages) => messages.officeSignatures.directCreateUnavailableBody)}
               meta={
                 <SecondaryMetaList
-                  items={workspace.createSupport.blockers.map((blocker) => ({
-                    label: blocker.title,
-                    value: blocker.detail
-                  }))}
+                  items={workspace.createSupport.blockers.map((blocker) => {
+                    const localizedBlocker = getBlockerCopy(blocker.code, t);
+
+                    return {
+                      label: localizedBlocker?.title ?? blocker.title,
+                      value: localizedBlocker?.detail ?? blocker.detail,
+                    };
+                  })}
                 />
               }
-              title="Direct non-transaction creation is not available yet."
+              title={t((messages) => messages.officeSignatures.directCreateUnavailableTitle)}
             />
 
             <QueueItem
-              badgeLabel="Available today"
-              description="For now, start from a transaction PDF, optionally prefill from a template, save the draft, then return here to continue, send, or monitor the request."
+              badgeLabel={t((messages) => messages.officeSignatures.availableToday)}
+              description={t((messages) => messages.officeSignatures.directCreateAvailableBody)}
               meta={
                 <SecondaryMetaList
                   items={[
                     {
-                      label: "Current authoring path",
-                      value: workspace.createSupport.currentAuthoringPathLabel
+                      label: t((messages) => messages.officeSignatures.currentAuthoringPath),
+                      value: t((messages) => messages.officeSignatures.currentAuthoringPathValue)
                     },
                     {
-                      label: "Template reuse",
+                      label: t((messages) => messages.officeSignatures.templateReuse),
                       value: canManageTemplateLibrary
-                        ? `${workspace.summary.activeTemplateCount} active templates, including ${workspace.summary.nonTransactionTemplateCount} HR / finance / admin templates`
-                        : "Managed through the shared template library"
+                        ? t((messages) => messages.officeSignatures.templateReuseValue, {
+                            active: workspace.summary.activeTemplateCount,
+                            nonTransaction: workspace.summary.nonTransactionTemplateCount,
+                          })
+                        : t((messages) => messages.officeSignatures.managedThroughSharedTemplateLibrary)
                     },
                     {
-                      label: "Requests tracked here",
+                      label: t((messages) => messages.officeSignatures.requestsTrackedHere),
                       value:
                         categoryBreakdown.length > 0
                           ? categoryBreakdown.map((entry) => `${entry.label} ${entry.count}`).join(" · ")
-                          : "No requests in the current filter set"
+                          : t((messages) => messages.officeSignatures.noRequestsInCurrentFilterSet)
                     }
                   ]}
                 />
               }
-              title="Existing drafts and transaction-backed context requests remain fully usable."
+              title={t((messages) => messages.officeSignatures.directCreateAvailableTitle)}
             />
 
             {driveSnapshot ? (
               <QueueItem
-                badgeLabel={driveSnapshot.summary.statusLabel}
+                badgeLabel={getDriveSettingsStatusLabel(driveSnapshot.summary.statusLabel, t)}
                 badgeTone={driveSnapshot.summary.canSyncNow ? "success" : "neutral"}
-                description="Drive routing stays visible from the center so operations can see how completed signature packets will archive for both transaction-backed and context-labeled requests."
+                description={t((messages) => messages.officeSignatures.driveRoutingBody)}
                 meta={
                   <SecondaryMetaList
                     items={[
                       {
-                        label: "Generic envelopes",
+                        label: t((messages) => messages.officeSignatures.genericEnvelopes),
                         value: driveSnapshot.summary.genericEnvelopeTargetLabel
                       },
                       {
-                        label: "Transaction envelopes",
+                        label: t((messages) => messages.officeSignatures.transactionEnvelopes),
                         value: driveSnapshot.summary.transactionEnvelopeTargetLabel
                       }
                     ]}
                   />
                 }
-                title="Drive routing is exposed as an operational path, not a hidden settings dependency."
+                title={t((messages) => messages.officeSignatures.driveRoutingTitle)}
               />
             ) : canManageDriveSettings ? null : (
               <QueueItem
-                badgeLabel="Settings"
-                description="Template admins can still route completed generic and transaction envelopes through Signature Drive, but the underlying sync remains the same synchronous in-product flow."
-                title="Drive archival remains intentionally simple."
+                badgeLabel={t((messages) => messages.officeSignatures.settings)}
+                description={t((messages) => messages.officeSignatures.simpleArchivalBody)}
+                title={t((messages) => messages.officeSignatures.simpleArchivalTitle)}
               />
             )}
           </div>
@@ -426,39 +583,39 @@ export function OfficeSignaturesClient({
       </ListPageSplit>
 
       <ListPageSection
-        subtitle="Filter existing signature requests by lifecycle, category, sender, internal subject, or signer/recipient. This narrows the live queue; it does not create a new standalone draft."
-        title="Live queue filters"
+        subtitle={t((messages) => messages.officeSignatures.liveQueueFiltersSubtitle)}
+        title={t((messages) => messages.officeSignatures.liveQueueFiltersTitle)}
       >
         <form className="office-form-grid" onSubmit={applyFilters}>
-          <FormField label="Status">
+          <FormField label={t((messages) => messages.officeSignatures.statusFilter)}>
             <SelectInput onChange={(event) => updateFilter("status", event.target.value)} value={filterState.status}>
-              <option value="all">All statuses</option>
-              <option value="draft">Draft</option>
-              <option value="pending_send">Pending Send</option>
-              <option value="sent">Sent</option>
-              <option value="viewed">Viewed</option>
-              <option value="signed">Signed</option>
-              <option value="completed">Completed</option>
-              <option value="declined">Declined</option>
-              <option value="voided">Void / Cancelled</option>
-              <option value="expired">Expired</option>
+              <option value="all">{t((messages) => messages.officeSignatures.allStatuses)}</option>
+              <option value="draft">{t((messages) => messages.officeSignatures.drafts)}</option>
+              <option value="pending_send">{t((messages) => messages.officeSignatures.pendingSend)}</option>
+              <option value="sent">{t((messages) => messages.officeSignatures.sent)}</option>
+              <option value="viewed">{t((messages) => messages.officeSignatures.viewed)}</option>
+              <option value="signed">{t((messages) => messages.officeSignatures.signed)}</option>
+              <option value="completed">{t((messages) => messages.officeSignatures.completed)}</option>
+              <option value="declined">{t((messages) => messages.officeSignatures.declined)}</option>
+              <option value="voided">{t((messages) => messages.officeSignatures.voidCancelled)}</option>
+              <option value="expired">{t((messages) => messages.officeSignatures.expired)}</option>
             </SelectInput>
           </FormField>
 
-          <FormField label="Template / request category">
+          <FormField label={t((messages) => messages.officeSignatures.categoryFilter)}>
             <SelectInput onChange={(event) => updateFilter("category", event.target.value)} value={filterState.category}>
-              <option value="all">All categories</option>
-              <option value="transaction">Transaction</option>
-              <option value="hr">HR</option>
-              <option value="finance">Finance</option>
-              <option value="admin">Admin</option>
-              <option value="generic">Generic</option>
+              <option value="all">{t((messages) => messages.officeSignatures.allCategories)}</option>
+              <option value="transaction">{t((messages) => messages.officeSignatures.transactionCategory)}</option>
+              <option value="hr">{t((messages) => messages.officeSignatures.hrCategory)}</option>
+              <option value="finance">{t((messages) => messages.officeSignatures.financeCategory)}</option>
+              <option value="admin">{t((messages) => messages.officeSignatures.adminCategory)}</option>
+              <option value="generic">{t((messages) => messages.officeSignatures.genericCategory)}</option>
             </SelectInput>
           </FormField>
 
-          <FormField label="Requested by">
+          <FormField label={t((messages) => messages.officeSignatures.requestedBy)}>
             <SelectInput onChange={(event) => updateFilter("requestedByMembershipId", event.target.value)} value={filterState.requestedByMembershipId}>
-              <option value="">All senders</option>
+              <option value="">{t((messages) => messages.officeSignatures.allSenders)}</option>
               {workspace.requestedByOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -467,9 +624,9 @@ export function OfficeSignaturesClient({
             </SelectInput>
           </FormField>
 
-          <FormField label="Subject">
+          <FormField label={t((messages) => messages.officeSignatures.subject)}>
             <SelectInput onChange={(event) => updateFilter("subjectMembershipId", event.target.value)} value={filterState.subjectMembershipId}>
-              <option value="">All internal subjects</option>
+              <option value="">{t((messages) => messages.officeSignatures.allInternalSubjects)}</option>
               {workspace.subjectOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -478,27 +635,27 @@ export function OfficeSignaturesClient({
             </SelectInput>
           </FormField>
 
-          <FormField label="Signer / recipient">
+          <FormField label={t((messages) => messages.officeSignatures.signerRecipient)}>
             <TextInput
               onChange={(event) => updateFilter("recipientQuery", event.target.value)}
-              placeholder="Name or email"
+              placeholder={t((messages) => messages.officeSignatures.nameOrEmail)}
               value={filterState.recipientQuery}
             />
           </FormField>
 
           <div className="office-filter-actions office-form-grid-span-2 office-signatures-filter-actions">
-            <Button type="submit">Update queue</Button>
+            <Button type="submit">{t((messages) => messages.officeSignatures.updateQueue)}</Button>
             <Button onClick={() => router.push("/office/signatures")} type="button" variant="secondary">
-              Clear
+              {t((messages) => messages.officeSignatures.clear)}
             </Button>
             {canManageTemplateLibrary ? (
               <Link className="office-button-secondary" href="/office/signatures/templates">
-                Template library
+                {t((messages) => messages.officeSignatures.templateLibrary)}
               </Link>
             ) : null}
             {canManageDriveSettings ? (
               <Link className="office-button-secondary" href="/office/settings/signature-drive">
-                Drive settings
+                {t((messages) => messages.officeSignatures.driveSettings)}
               </Link>
             ) : null}
           </div>
@@ -506,8 +663,13 @@ export function OfficeSignaturesClient({
 
         {driveSnapshot ? (
           <p className="office-form-helper">
-            Completed non-transaction envelopes currently route to <strong>{driveSnapshot.summary.genericEnvelopeTargetLabel}</strong> in Signature
-            Drive.
+            {t((messages) => messages.officeSignatures.driveRouteHelper, {
+              target: driveSnapshot.summary.genericEnvelopeTargetLabel,
+            }).split(driveSnapshot.summary.genericEnvelopeTargetLabel)[0]}
+            <strong>{driveSnapshot.summary.genericEnvelopeTargetLabel}</strong>
+            {t((messages) => messages.officeSignatures.driveRouteHelper, {
+              target: driveSnapshot.summary.genericEnvelopeTargetLabel,
+            }).split(driveSnapshot.summary.genericEnvelopeTargetLabel)[1] ?? ""}
           </p>
         ) : null}
 
@@ -517,18 +679,18 @@ export function OfficeSignaturesClient({
 
       <ListPageTableSection
         className="office-list-card"
-        subtitle="Every row here is a real existing request. Use this table to continue drafts, review live envelopes, and confirm archive state while the actual new-request path remains transaction-PDF based."
-        title="Signature requests"
+        subtitle={t((messages) => messages.officeSignatures.requestTableSubtitle)}
+        title={t((messages) => messages.officeSignatures.requestTableTitle)}
       >
         <DataTable className="office-list-table office-list-table-signatures">
           <DataTableHeader className="office-list-table-header office-list-table-header-signatures">
-            <span>Request</span>
-            <span>Path</span>
-            <span>Requested by</span>
-            <span>Recipients</span>
-            <span>Status</span>
-            <span>Drive</span>
-            <span>Updated</span>
+            <span>{t((messages) => messages.officeSignatures.tableRequest)}</span>
+            <span>{t((messages) => messages.officeSignatures.tablePath)}</span>
+            <span>{t((messages) => messages.officeSignatures.tableRequestedBy)}</span>
+            <span>{t((messages) => messages.officeSignatures.tableRecipients)}</span>
+            <span>{t((messages) => messages.officeSignatures.tableStatus)}</span>
+            <span>{t((messages) => messages.officeSignatures.tableDrive)}</span>
+            <span>{t((messages) => messages.officeSignatures.tableUpdated)}</span>
           </DataTableHeader>
 
           <DataTableBody className="office-list-table-body">
@@ -536,38 +698,38 @@ export function OfficeSignaturesClient({
               <DataTableRow className="office-list-table-row office-list-table-row-signatures" key={row.id}>
                 <div className="office-list-table-main">
                   <strong>{row.requestHref && canManageSignatures ? <Link href={row.requestHref}>{row.title}</Link> : row.title}</strong>
-                  <p>{row.templateName ? `${row.templateName} · ${row.templateCategoryLabel}` : row.templateCategoryLabel}</p>
+                  <p>{row.templateName ? `${row.templateName} · ${getTemplateCategoryLabel(row.templateCategory, t)}` : getTemplateCategoryLabel(row.templateCategory, t)}</p>
                   <div className="office-list-table-main-meta">
                     {canManageSignatures && row.primaryActionHref ? (
                       <span>
                         <Link className="office-toggle-link" href={row.primaryActionHref}>
-                          {row.primaryActionLabel}
+                          {getPrimaryActionLabel(row.primaryActionLabel, t)}
                         </Link>
                       </span>
                     ) : null}
-                    {row.sentAt ? <span>{`Sent ${row.sentAt}`}</span> : null}
-                    <span>{row.completedAt ? `Completed ${row.completedAt}` : "Still active"}</span>
+                    {row.sentAt ? <span>{t((messages) => messages.officeSignatures.sentPrefix, { value: row.sentAt })}</span> : null}
+                    <span>{row.completedAt ? t((messages) => messages.officeSignatures.completedPrefix, { value: row.completedAt }) : t((messages) => messages.officeSignatures.stillActive)}</span>
                   </div>
                 </div>
                 <div className="office-list-table-cell-stack office-signatures-context-cell">
-                  <strong>{row.contextTypeLabel}</strong>
+                  <strong>{getContextTypeLabel(row.contextType, t)}</strong>
                   {row.transactionHref ? <p><Link href={row.transactionHref}>{row.transactionLabel}</Link></p> : <p>{row.contextLabel || "—"}</p>}
-                  {row.subjectLabel && row.subjectLabel !== "—" ? <p>{`Subject · ${row.subjectLabel}`}</p> : null}
+                  {row.subjectLabel && row.subjectLabel !== "—" ? <p>{`${t((messages) => messages.officeSignatures.subject)} · ${row.subjectLabel}`}</p> : null}
                 </div>
                 <span className="office-list-table-wrap-cell">{row.requestedByLabel}</span>
                 <div className="office-list-table-cell-stack office-signatures-recipients-cell">
-                  <strong className="office-signatures-recipients-primary">{row.recipientsLabel || "No signer assigned yet"}</strong>
-                  <p>{buildRoleSummary(row)}</p>
+                  <strong className="office-signatures-recipients-primary">{row.recipientsLabel || t((messages) => messages.officeSignatures.noSignerAssignedYet)}</strong>
+                  <p>{buildRoleSummary(row, t)}</p>
                 </div>
                 <StatusBadge className="office-list-table-status" tone={getStatusTone(row.statusKey)}>
-                  {row.status}
+                  {getSignatureStatusLabel(row.statusKey, t)}
                 </StatusBadge>
                 <div className="office-list-table-cell-stack office-signatures-drive-cell">
-                  <StatusBadge tone={getDriveTone(row.driveSyncStatus)}>{row.driveSyncStatusLabel}</StatusBadge>
+                  <StatusBadge tone={getDriveTone(row.driveSyncStatus)}>{getDriveStatusLabel(row.driveSyncStatus, t)}</StatusBadge>
                   {row.completedDocumentHref ? (
                     <div className="office-signatures-drive-actions">
                       <Link className="office-button-secondary office-button-sm" href={row.completedDocumentHref} target="_blank">
-                        Signed PDF
+                        {t((messages) => messages.officeSignatures.signedPdf)}
                       </Link>
                       {row.driveSyncStatus === "failed" && canManageSignatures ? (
                         <Button
@@ -576,7 +738,7 @@ export function OfficeSignaturesClient({
                           size="sm"
                           variant="secondary"
                         >
-                          {pendingRetryId === row.id ? "Retrying..." : "Retry Drive"}
+                          {pendingRetryId === row.id ? t((messages) => messages.officeSignatures.retryingDrive) : t((messages) => messages.officeSignatures.retryDrive)}
                         </Button>
                       ) : null}
                     </div>
@@ -591,12 +753,12 @@ export function OfficeSignaturesClient({
                 action={
                   canManageTemplateLibrary ? (
                     <Link className="office-button-secondary" href="/office/signatures/templates">
-                      Open template library
+                      {t((messages) => messages.officeSignatures.openTemplateLibrary)}
                     </Link>
                   ) : null
                 }
-                description="Clear a filter, continue an existing draft, or start from a transaction PDF and let the request return here once it becomes a real live envelope."
-                title="No signature requests matched the current filters"
+                description={t((messages) => messages.officeSignatures.noRequestsMatchedBody)}
+                title={t((messages) => messages.officeSignatures.noRequestsMatchedTitle)}
               />
             ) : null}
           </DataTableBody>

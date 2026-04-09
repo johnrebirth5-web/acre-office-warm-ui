@@ -163,6 +163,12 @@ export type SaveOfficeAccountNotificationPreferencesInput = {
   messageAlertsEnabled: boolean;
 };
 
+export type SaveCurrentUserLocaleInput = {
+  organizationId: string;
+  membershipId: string;
+  locale: string;
+};
+
 function parseOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -782,6 +788,38 @@ export async function saveOfficeAccountProfile(
       displayName: nextDisplayName ?? nextFullName,
     };
   });
+}
+
+export async function saveCurrentUserLocale(input: SaveCurrentUserLocaleInput) {
+  const membership = await getScopedMembership({
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+  });
+
+  if (!membership) {
+    return null;
+  }
+
+  const nextLocale = normalizeRequiredText(input.locale, "Locale");
+
+  if (membership.user.locale === nextLocale) {
+    return {
+      locale: nextLocale,
+    };
+  }
+
+  await prisma.user.update({
+    where: {
+      id: membership.userId,
+    },
+    data: {
+      locale: nextLocale,
+    },
+  });
+
+  return {
+    locale: nextLocale,
+  };
 }
 
 export async function saveOfficeAccountNotificationPreferences(

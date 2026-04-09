@@ -8,6 +8,7 @@ import {
   CanonicalListPageShell,
   CanonicalListPageTableCard
 } from "../../_components/canonical-list-page-template";
+import { useI18n } from "../../../lib/i18n/client";
 
 type ClassValue = string | false | null | undefined;
 
@@ -132,13 +133,14 @@ export function OfficeListPageTemplate(props: OfficeListPageTemplateProps) {
 }
 
 export function OfficeListPagePagination(props: OfficeListPagePaginationProps) {
+  const { t } = useI18n();
   const totalPageCount = Math.max(props.totalPages, 1);
   const currentPage = Math.min(Math.max(props.page, 1), totalPageCount);
 
   return (
     <div className={cx("office-list-page-pagination", props.className)}>
       <label className="office-list-page-size">
-        <span>Rows</span>
+        <span>{t((messages) => messages.common.rows)}</span>
         <SelectInput
           onChange={(event) =>
             props.onPageSizeChange(Number(event.target.value))
@@ -163,7 +165,10 @@ export function OfficeListPagePagination(props: OfficeListPagePaginationProps) {
         )}
 
         <span className="office-list-page-indicator">
-          Page {currentPage} / {totalPageCount}
+          {t((messages) => messages.common.pageStatus, {
+            current: currentPage,
+            total: totalPageCount,
+          })}
         </span>
 
         {props.nextHref ? (

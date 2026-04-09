@@ -4,6 +4,7 @@ import { SummaryChip } from "@acre/ui";
 import { getOfficeAccountSnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import {
   OfficeListPageHeader,
   OfficeListPageShell,
@@ -12,6 +13,9 @@ import { OfficeAccountClient } from "./account-client";
 
 export default async function OfficeAccountPage() {
   const context = await requireOfficeSession();
+  const { t } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
   const snapshot = await getOfficeAccountSnapshot({
     organizationId: context.currentOrganization.id,
     officeId: context.currentOffice?.id ?? null,
@@ -30,31 +34,31 @@ export default async function OfficeAccountPage() {
             className="office-button-secondary office-button-sm"
             href="/office/notifications"
           >
-            Open notifications
+            {t((messages) => messages.common.openNotifications)}
           </Link>
         }
-        description="Self-service profile, current office/team assignment, in-app notification preferences, and truthful account security context."
-        eyebrow="Account"
+        description={t((messages) => messages.officeAccount.description)}
+        eyebrow={t((messages) => messages.officeAccount.eyebrow)}
         summary={
           <>
             <SummaryChip
-              label="Office scope"
+              label={t((messages) => messages.common.officeScope)}
               value={
                 context.currentOffice?.name ?? context.currentOrganization.name
               }
             />
             <SummaryChip
-              label="Role"
+              label={t((messages) => messages.common.role)}
               value={getRoleSummary(context.currentMembership).label}
             />
             <SummaryChip
-              label="Open tasks"
+              label={t((messages) => messages.officeAccount.openTasks)}
               tone="accent"
               value={snapshot.summary.openTaskCount}
             />
           </>
         }
-        title="My profile"
+        title={t((messages) => messages.officeAccount.title)}
       />
 
       <OfficeAccountClient

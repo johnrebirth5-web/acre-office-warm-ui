@@ -6,6 +6,7 @@ import type {
   OfficeTransactionReportSearchFieldKey,
   OfficeTransactionReportsFilters
 } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 import { OfficeListPagePagination } from "../_components/office-list-page-template";
 import {
   buildReportsHref,
@@ -26,6 +27,7 @@ type ReportsTableFooterProps = {
 const pageSizeOptions = [10, 20, 50, 100] as const;
 
 export function ReportsTableFooter(props: ReportsTableFooterProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const filterState = cloneReportSearchFilterState(props.filters);
@@ -73,7 +75,12 @@ export function ReportsTableFooter(props: ReportsTableFooterProps) {
           totalPages={props.totalPages}
         />
       }
-      summary={`Showing ${pageStart}–${pageEnd} of ${props.totalCount} transaction rows | Sorted by ${props.sortSummary}`}
+      summary={t((messages) => messages.officeReports.showingRowsSortedBy, {
+        start: pageStart,
+        end: pageEnd,
+        total: props.totalCount,
+        sortSummary: props.sortSummary,
+      })}
     />
   );
 }

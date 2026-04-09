@@ -176,6 +176,7 @@ export {
 export { getSeededWorkspaceSnapshot } from "./bootstrap";
 export {
   getOfficeAccountSnapshot,
+  saveCurrentUserLocale,
   saveOfficeAccountNotificationPreferences,
   saveOfficeAccountProfile,
 } from "./account";

@@ -19,6 +19,7 @@ import {
 } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { ReportsFiltersClient } from "./reports-filters-client";
 import { ReportsTableFooter } from "./reports-table-footer";
@@ -27,7 +28,6 @@ import {
   cloneReportSearchFilterState,
   defaultReportsPage,
   defaultReportsPageSize,
-  getReportSortSummary,
   maxReportsPageSize
 } from "./reports-search-layout";
 
@@ -70,19 +70,65 @@ function getStatusTone(status: OfficeReportStatus) {
   return "neutral" as const;
 }
 
-const reportListColumnLabels = [
-  "Transaction",
-  "Created",
-  "Owner",
-  "Team leader",
-  "Type",
-  "Status",
-  "Purchased / Gross",
-  "Closing / Move-In"
-] as const;
+function getTranslatedReportStatus(
+  status: OfficeReportStatus,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"]
+) {
+  switch (status) {
+    case "Pending":
+      return t((messages) => messages.officeTransactions.pending);
+    case "Closed":
+      return t((messages) => messages.officeTransactions.closed);
+    case "Cancelled":
+      return t((messages) => messages.officeTransactions.cancelled);
+    case "Active":
+      return t((messages) => messages.officeTransactions.active);
+    case "Opportunity":
+      return t((messages) => messages.officeTransactions.opportunity);
+    default:
+      return status;
+  }
+}
+
+function getReportSortSummary(
+  sortBy: string,
+  sortDirection: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"]
+) {
+  const sortLabel =
+    sortBy === "asking_price"
+      ? t((messages) => messages.officeReports.sortAskingPrice)
+      : sortBy === "purchased_price"
+        ? t((messages) => messages.officeReports.sortPurchasedPrice)
+        : sortBy === "gross_commission"
+          ? t((messages) => messages.officeReports.sortGrossCommission)
+          : sortBy === "status"
+            ? t((messages) => messages.officeReports.sortStatus)
+            : t((messages) => messages.officeReports.sortCreatedAt);
+  const directionLabel =
+    sortBy === "created_at"
+      ? sortDirection === "asc"
+        ? t((messages) => messages.officeReports.directionOldestFirst)
+        : t((messages) => messages.officeReports.directionNewestFirst)
+      : sortBy === "status"
+        ? sortDirection === "desc"
+          ? t((messages) => messages.officeReports.directionReverseWorkflowOrder)
+          : t((messages) => messages.officeReports.directionWorkflowOrder)
+        : sortDirection === "asc"
+          ? t((messages) => messages.officeReports.directionLowestFirst)
+          : t((messages) => messages.officeReports.directionHighestFirst);
+
+  return {
+    shortLabel: `${sortLabel} · ${directionLabel}`,
+    sentenceLabel: `${sortLabel} (${directionLabel})`,
+  };
+}
 
 export default async function OfficeReportsPage(props: ReportsPageProps) {
   const context = await requireOfficeSession();
+  const { t } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
   const canManageSearchLayout = canManageOfficeFields(context.currentMembership);
 
   if (!canViewOfficeReports(context.currentMembership)) {
@@ -107,7 +153,8 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
   });
   const sortSummary = getReportSortSummary(
     workspace.filters.sortBy,
-    workspace.filters.sortDirection
+    workspace.filters.sortDirection,
+    t
   );
 
   return (
@@ -115,25 +162,25 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
       <OfficeListPageHeader
         actions={
           <Link className="office-button-secondary" href={exportHref}>
-            Export CSV
+            {t((messages) => messages.officeReports.exportCsv)}
           </Link>
         }
-        description="Unified transaction reporting, summary, and CSV export from the live transaction data source."
-        eyebrow="Reports"
+        description={t((messages) => messages.officeReports.description)}
+        eyebrow={t((messages) => messages.officeReports.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Matching transactions" tone="accent" value={workspace.totalCount} />
-            <SummaryChip label="Purchased volume" value={workspace.summary.totalPurchasedPrice} />
-            <SummaryChip label="Gross commission" value={workspace.summary.totalGrossCommission} />
-            <SummaryChip label="Sort" value={sortSummary.shortLabel} />
+            <SummaryChip label={t((messages) => messages.officeReports.matchingTransactions)} tone="accent" value={workspace.totalCount} />
+            <SummaryChip label={t((messages) => messages.officeReports.purchasedVolume)} value={workspace.summary.totalPurchasedPrice} />
+            <SummaryChip label={t((messages) => messages.officeReports.grossCommission)} value={workspace.summary.totalGrossCommission} />
+            <SummaryChip label={t((messages) => messages.officeReports.sort)} value={sortSummary.shortLabel} />
           </>
         }
-        title="Reports"
+        title={t((messages) => messages.officeReports.title)}
       />
 
       <ListPageSection
-        subtitle="All filters read directly from transaction data and update the page, summary, and export together."
-        title="Report filters"
+        subtitle={t((messages) => messages.officeReports.filtersSubtitle)}
+        title={t((messages) => messages.officeReports.filtersTitle)}
       >
         <ReportsFiltersClient
           canManageSearchLayout={canManageSearchLayout}
@@ -144,17 +191,19 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
       </ListPageSection>
 
       <ListPageSection
-        subtitle={`Summary values update from the same filtered transaction set. Rows and CSV export both use ${sortSummary.sentenceLabel}.`}
-        title="Transaction performance"
+        subtitle={t((messages) => messages.officeReports.performanceSubtitle, {
+          sortLabel: sortSummary.sentenceLabel,
+        })}
+        title={t((messages) => messages.officeReports.performanceTitle)}
       >
         <ListPageStatsGrid className="office-reports-kpi-grid">
-          <StatCard label="Matching transactions" value={workspace.summary.totalTransactions} />
-          <StatCard label="Asking Price" value={workspace.summary.totalAskingPrice} />
-          <StatCard label="Purchased Price" value={workspace.summary.totalPurchasedPrice} />
-          <StatCard label="Gross Commission" value={workspace.summary.totalGrossCommission} />
-          <StatCard label="Rebate" value={workspace.summary.totalRebate} />
-          <StatCard label="Referral" value={workspace.summary.totalReferral} />
-          <StatCard label="Reimbursement" value={workspace.summary.totalReimbursement} />
+          <StatCard label={t((messages) => messages.officeReports.totalTransactions)} value={workspace.summary.totalTransactions} />
+          <StatCard label={t((messages) => messages.officeReports.askingPrice)} value={workspace.summary.totalAskingPrice} />
+          <StatCard label={t((messages) => messages.officeReports.purchasedPrice)} value={workspace.summary.totalPurchasedPrice} />
+          <StatCard label={t((messages) => messages.officeReports.grossCommission)} value={workspace.summary.totalGrossCommission} />
+          <StatCard label={t((messages) => messages.officeReports.rebate)} value={workspace.summary.totalRebate} />
+          <StatCard label={t((messages) => messages.officeReports.referral)} value={workspace.summary.totalReferral} />
+          <StatCard label={t((messages) => messages.officeReports.reimbursement)} value={workspace.summary.totalReimbursement} />
         </ListPageStatsGrid>
       </ListPageSection>
 
@@ -171,12 +220,23 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
             totalPages={workspace.totalPages}
           />
         }
-        subtitle={`The on-screen table highlights key operating columns, while CSV export keeps the full report schema and the same ${sortSummary.sentenceLabel} row order.`}
-        title="Filtered transactions"
+        subtitle={t((messages) => messages.officeReports.filteredTransactionsSubtitle, {
+          sortLabel: sortSummary.sentenceLabel,
+        })}
+        title={t((messages) => messages.officeReports.filteredTransactionsTitle)}
       >
         <DataTable className="office-list-table office-list-table-reports">
           <DataTableHeader className="office-list-table-header office-list-table-header-reports">
-            {reportListColumnLabels.map((label) => (
+            {[
+              t((messages) => messages.officeReports.tableTransaction),
+              t((messages) => messages.officeReports.tableCreated),
+              t((messages) => messages.officeReports.tableOwner),
+              t((messages) => messages.officeReports.tableTeamLeader),
+              t((messages) => messages.officeReports.tableType),
+              t((messages) => messages.officeReports.tableStatus),
+              t((messages) => messages.officeReports.tablePurchasedGross),
+              t((messages) => messages.officeReports.tableClosingMoveIn),
+            ].map((label) => (
               <span key={label}>{label}</span>
             ))}
           </DataTableHeader>
@@ -197,9 +257,9 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                     </strong>
                     {secondaryLabel ? <p>{secondaryLabel}</p> : null}
                     <div className="office-list-table-main-meta">
-                      <span>{row.invoiceNumber || "No invoice"}</span>
-                      <span>{row.department || "No department"}</span>
-                      <span>{row.representing || "No side"}</span>
+                      <span>{row.invoiceNumber || t((messages) => messages.officeReports.noInvoice)}</span>
+                      <span>{row.department || t((messages) => messages.officeReports.noDepartment)}</span>
+                      <span>{row.representing || t((messages) => messages.officeReports.noSide)}</span>
                     </div>
                   </div>
                   <span>{row.creationDate || "—"}</span>
@@ -210,7 +270,7 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
                     className="office-list-table-status"
                     tone={getStatusTone(row.status)}
                   >
-                    {row.status}
+                    {getTranslatedReportStatus(row.status, t)}
                   </StatusBadge>
                   <div className="office-list-table-cell-stack office-report-table-amounts">
                     <strong>{row.purchasedPrice || "—"}</strong>
@@ -223,8 +283,8 @@ export default async function OfficeReportsPage(props: ReportsPageProps) {
 
             {workspace.rows.length === 0 ? (
               <EmptyState
-                description="Try widening the filter set or clearing one of the exact-match fields."
-                title="No transactions matched the current filters"
+                description={t((messages) => messages.officeReports.noTransactionsMatchedBody)}
+                title={t((messages) => messages.officeReports.noTransactionsMatchedTitle)}
               />
             ) : null}
           </DataTableBody>

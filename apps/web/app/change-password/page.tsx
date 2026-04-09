@@ -7,6 +7,8 @@ import {
   getCurrentSessionContext,
   mustChangePassword,
 } from "../../lib/auth-session";
+import { getServerI18n } from "../../lib/i18n/server";
+import { LocaleSwitcher } from "../_components/locale-switcher";
 
 type ChangePasswordPageProps = {
   searchParams?: Promise<{
@@ -14,33 +16,35 @@ type ChangePasswordPageProps = {
   }>;
 };
 
-function getErrorMessage(error?: string) {
+function getErrorMessage(
+  error: string | undefined,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
   switch (error) {
     case "mismatch":
-      return "New password and confirmation must match.";
+      return t((messages) => messages.auth.errorMismatch);
     case "current_password":
-      return "Current password is incorrect.";
+      return t((messages) => messages.auth.errorCurrentPassword);
     case "password_length":
-      return `Password must be at least ${getMinimumPasswordLength()} characters.`;
+      return t((messages) => messages.auth.errorPasswordLength, {
+        min: getMinimumPasswordLength(),
+      });
     case "missing_password":
-      return "Enter a new password to continue.";
+      return t((messages) => messages.auth.errorMissingPassword);
     default:
-      return error ? "Unable to change password. Try again." : "";
+      return error ? t((messages) => messages.auth.errorUnknown) : "";
   }
 }
 
-function formatDateTimeLabel(value: Date | null | undefined) {
+function formatDateTimeLabel(
+  value: Date | null | undefined,
+  formatDateTime: Awaited<ReturnType<typeof getServerI18n>>["formatDateTime"],
+) {
   if (!value) {
     return "";
   }
 
-  return value.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDateTime(value);
 }
 
 export default async function ChangePasswordPage({
@@ -55,32 +59,37 @@ export default async function ChangePasswordPage({
   }
 
   const params = searchParams ? await searchParams : undefined;
+  const { t, formatDateTime } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
   const forced = mustChangePassword(context);
   const credential = context.currentCredential;
   const isLocked = Boolean(
     credential?.lockedUntil && credential.lockedUntil > new Date(),
   );
   const passwordStatusLabel = forced
-    ? "Password change required"
+    ? t((messages) => messages.auth.statusPasswordChangeRequired)
     : isLocked
-      ? "Temporarily locked"
-      : "Password set";
+      ? t((messages) => messages.auth.statusTemporarilyLocked)
+      : t((messages) => messages.auth.statusPasswordSet);
   const passwordStatusDescription = forced
-    ? "This signed-in session is blocked from entering Back Office until a new password is saved."
+    ? t((messages) => messages.auth.forcedDescription)
     : isLocked
-      ? "New sign-ins are temporarily locked. Saving a new password here clears the lock and failed-attempt counter."
-      : "Use this page to rotate the current internal Acre password. After save, you will return to My profile.";
+      ? t((messages) => messages.auth.lockedDescription)
+      : t((messages) => messages.auth.regularDescription);
   const passwordChangedAtLabel =
-    formatDateTimeLabel(credential?.passwordChangedAt) || "Not recorded yet";
+    formatDateTimeLabel(credential?.passwordChangedAt, formatDateTime) ||
+    t((messages) => messages.common.notRecordedYet);
   const lastLoginAtLabel =
-    formatDateTimeLabel(credential?.lastLoginAt) ||
-    "No successful sign-in recorded";
+    formatDateTimeLabel(credential?.lastLoginAt, formatDateTime) ||
+    t((messages) => messages.common.noSuccessfulSignInRecorded);
   const lastFailedLoginAtLabel =
-    formatDateTimeLabel(credential?.lastFailedLoginAt) ||
-    "No failed sign-ins recorded";
+    formatDateTimeLabel(credential?.lastFailedLoginAt, formatDateTime) ||
+    t((messages) => messages.common.noFailedSignInsRecorded);
   const lockedUntilLabel = isLocked
-    ? formatDateTimeLabel(credential?.lockedUntil) || "Locked"
-    : "Not locked";
+    ? formatDateTimeLabel(credential?.lockedUntil, formatDateTime) ||
+      t((messages) => messages.auth.statusTemporarilyLocked)
+    : t((messages) => messages.common.notLocked);
 
   if (!forced && !context.currentCredential) {
     redirect(getDefaultAppPath(context.currentMembership));
@@ -90,50 +99,66 @@ export default async function ChangePasswordPage({
     <main className="auth-shell">
       <section className="auth-layout">
         <section className="auth-card">
+          <div className="auth-locale-switcher-row">
+            <LocaleSwitcher authenticated className="auth-locale-switcher" />
+          </div>
           <div className="auth-card-copy">
-            <span className="auth-eyebrow">Account Security</span>
+            <span className="auth-eyebrow">
+              {t((messages) => messages.auth.accountSecurity)}
+            </span>
             <h2>
               {forced
-                ? "Change your password before continuing"
-                : "Change password"}
+                ? t((messages) => messages.auth.changePasswordRequiredTitle)
+                : t((messages) => messages.auth.changePasswordTitle)}
             </h2>
             <p>
               {forced
-                ? "This internal account is marked as requiring a password change before Back Office access can continue."
-                : "Update the password for your internal Acre account without changing any other sign-in settings."}
+                ? t((messages) => messages.auth.changePasswordRequiredLead)
+                : t((messages) => messages.auth.changePasswordLead)}
             </p>
             <p>{passwordStatusDescription}</p>
             <p>
-              Passwords must be at least {getMinimumPasswordLength()}{" "}
-              characters.
+              {t((messages) => messages.auth.passwordLengthRule, {
+                min: getMinimumPasswordLength(),
+              })}
             </p>
           </div>
 
           <div className="office-detail-grid">
             <div className="office-detail-field office-detail-field-wide">
-              <span className="office-form-helper">Sign-in email</span>
+              <span className="office-form-helper">
+                {t((messages) => messages.auth.signInEmail)}
+              </span>
               <strong>{context.currentUser.email}</strong>
             </div>
             <div className="office-detail-field">
-              <span className="office-form-helper">Current status</span>
+              <span className="office-form-helper">
+                {t((messages) => messages.auth.currentStatus)}
+              </span>
               <strong>{passwordStatusLabel}</strong>
             </div>
             <div className="office-detail-field">
-              <span className="office-form-helper">Password last changed</span>
+              <span className="office-form-helper">
+                {t((messages) => messages.auth.passwordLastChanged)}
+              </span>
               <strong>{passwordChangedAtLabel}</strong>
             </div>
             <div className="office-detail-field">
               <span className="office-form-helper">
-                Last successful sign-in
+                {t((messages) => messages.auth.lastSuccessfulSignIn)}
               </span>
               <strong>{lastLoginAtLabel}</strong>
             </div>
             <div className="office-detail-field">
-              <span className="office-form-helper">Last failed sign-in</span>
+              <span className="office-form-helper">
+                {t((messages) => messages.auth.lastFailedSignIn)}
+              </span>
               <strong>{lastFailedLoginAtLabel}</strong>
             </div>
             <div className="office-detail-field">
-              <span className="office-form-helper">Lock until</span>
+              <span className="office-form-helper">
+                {t((messages) => messages.auth.lockUntil)}
+              </span>
               <strong>{lockedUntilLabel}</strong>
             </div>
           </div>
@@ -145,14 +170,13 @@ export default async function ChangePasswordPage({
           >
             {forced ? (
               <p className="office-form-helper">
-                Current password is not requested here because this signed-in
-                session is already verified and the password change is required.
+                {t((messages) => messages.auth.currentPasswordNotRequired)}
               </p>
             ) : null}
 
             {!forced ? (
               <label className="auth-field">
-                <span>Current password</span>
+                <span>{t((messages) => messages.auth.currentPassword)}</span>
                 <input
                   autoComplete="current-password"
                   name="currentPassword"
@@ -162,7 +186,7 @@ export default async function ChangePasswordPage({
             ) : null}
 
             <label className="auth-field">
-              <span>New password</span>
+              <span>{t((messages) => messages.auth.newPassword)}</span>
               <input
                 autoComplete="new-password"
                 name="newPassword"
@@ -171,7 +195,7 @@ export default async function ChangePasswordPage({
             </label>
 
             <label className="auth-field">
-              <span>Confirm new password</span>
+              <span>{t((messages) => messages.auth.confirmNewPassword)}</span>
               <input
                 autoComplete="new-password"
                 name="confirmPassword"
@@ -180,12 +204,12 @@ export default async function ChangePasswordPage({
             </label>
 
             {params?.error ? (
-              <p className="auth-error">{getErrorMessage(params.error)}</p>
+              <p className="auth-error">{getErrorMessage(params.error, t)}</p>
             ) : null}
 
             <div className="auth-actions">
               <Button className="auth-submit" type="submit">
-                Save password
+                {t((messages) => messages.auth.savePassword)}
               </Button>
             </div>
           </form>
@@ -196,23 +220,21 @@ export default async function ChangePasswordPage({
                 className="office-button-secondary office-button-sm"
                 href="/office/account"
               >
-                Back to My profile
+                {t((messages) => messages.auth.backToMyProfile)}
               </Link>
               <form action="/api/auth/logout" method="post">
                 <button
                   className="office-button-secondary office-button-sm"
                   type="submit"
                 >
-                  Sign out
+                  {t((messages) => messages.auth.signOut)}
                 </button>
               </form>
             </div>
           ) : null}
 
           <p>
-            No self-service forgot-password or email reset flow exists yet. If
-            you cannot sign in at all, an admin must issue a fresh setup link
-            from the Users workspace.
+            {t((messages) => messages.auth.noResetFlow)}
           </p>
         </section>
       </section>

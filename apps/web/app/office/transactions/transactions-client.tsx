@@ -38,6 +38,8 @@ import {
   TransactionCreatePageClient
 } from "./new/transaction-create-page-client";
 import type { TransactionStatusFieldPolicy } from "./transaction-status-rules";
+import { useI18n } from "../../../lib/i18n/client";
+import type { TranslationSelector } from "../../../lib/i18n";
 
 type TransactionsClientProps = {
   transactions: OfficeTransactionRecord[];
@@ -154,20 +156,25 @@ function buildLayoutSelectionState(
   ) as Record<string, boolean>;
 }
 
-function getFieldEmptyOptionLabel(field: OfficeTransactionSearchFieldDescriptor) {
+function getFieldEmptyOptionLabel(
+  field: OfficeTransactionSearchFieldDescriptor,
+  t: (selector: TranslationSelector, values?: Record<string, string | number | boolean | null | undefined>) => string,
+) {
   if (field.emptyOptionLabel) {
     return field.emptyOptionLabel;
   }
 
   if (field.kind === "system" && field.key === "owner") {
-    return "All owners";
+    return t((messages) => messages.officeTransactions.allOwners);
   }
 
   if (field.kind === "system" && field.key === "team") {
-    return "All teams";
+    return t((messages) => messages.officeTransactions.allTeams);
   }
 
-  return `Any ${field.label.toLowerCase()}`;
+  return t((messages) => messages.officeTransactions.anyValue, {
+    label: field.label.toLowerCase(),
+  });
 }
 
 function buildTransactionsHref(
@@ -276,28 +283,33 @@ function getFieldFilterValue(
   return buildEmptyFieldFilterValue();
 }
 
-function getSearchLayoutFieldHint(field: OfficeTransactionSearchFieldDescriptor) {
+function getSearchLayoutFieldHint(
+  field: OfficeTransactionSearchFieldDescriptor,
+  t: (selector: TranslationSelector, values?: Record<string, string | number | boolean | null | undefined>) => string,
+) {
   if (field.kind === "system" && field.key === "search") {
-    return "Global keyword search across transactions, contacts, and owner names.";
+    return t((messages) => messages.officeTransactions.globalSearchHint);
   }
 
   if (field.kind === "system" && field.key === "created_at") {
-    return "Office-level transaction creation date range.";
+    return t((messages) => messages.officeTransactions.createdAtHint);
   }
 
   if (field.control === "date") {
-    return "Date range filter with From and To values.";
+    return t((messages) => messages.officeTransactions.dateRangeHint);
   }
 
   if (field.control === "select") {
-    return "Dropdown filter using the current configured options.";
+    return t((messages) => messages.officeTransactions.selectHint);
   }
 
-  return "Text filter with partial matching.";
+  return t((messages) => messages.officeTransactions.textHint);
 }
 
 function SearchDateRangeField(props: {
   label: string;
+  fromLabel: string;
+  toLabel: string;
   value: { from: string; to: string };
   onChange: (nextValue: { from: string; to: string }) => void;
 }) {
@@ -305,7 +317,7 @@ function SearchDateRangeField(props: {
     <FilterField className="office-transaction-search-date-field" label={props.label}>
       <div className="office-transaction-search-date-range">
         <label className="office-transaction-search-date-input">
-          <span>From</span>
+          <span>{props.fromLabel}</span>
           <TextInput
             onChange={(event) =>
               props.onChange({
@@ -318,7 +330,7 @@ function SearchDateRangeField(props: {
           />
         </label>
         <label className="office-transaction-search-date-input">
-          <span>To</span>
+          <span>{props.toLabel}</span>
           <TextInput
             onChange={(event) =>
               props.onChange({
@@ -345,6 +357,8 @@ function TransactionSearchLayoutModal(props: {
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useI18n();
+
   if (!props.isOpen) {
     return null;
   }
@@ -358,7 +372,7 @@ function TransactionSearchLayoutModal(props: {
   return (
     <div className="office-modal-overlay" onClick={() => !props.isSaving && props.onClose()}>
       <section
-        aria-label="Edit transaction search fields"
+        aria-label={t((messages) => messages.officeTransactions.editSearchFields)}
         aria-modal="true"
         className="office-fields-modal office-transaction-search-layout-modal"
         onClick={(event) => event.stopPropagation()}
@@ -366,18 +380,18 @@ function TransactionSearchLayoutModal(props: {
       >
         <header className="office-fields-modal-head office-transaction-search-layout-head">
           <div>
-            <h3>Edit search fields</h3>
-            <p>Choose which transaction fields appear in the shared office search workbench.</p>
+            <h3>{t((messages) => messages.officeTransactions.editSearchFields)}</h3>
+            <p>{t((messages) => messages.officeTransactions.editSearchFieldsBody)}</p>
           </div>
           <Button
-            aria-label="Close search field editor"
+            aria-label={t((messages) => messages.officeTransactions.closeSearchFieldEditor)}
             disabled={props.isSaving}
             onClick={props.onClose}
             size="sm"
             type="button"
             variant="ghost"
           >
-            Close
+            {t((messages) => messages.common.close)}
           </Button>
         </header>
 
@@ -392,13 +406,19 @@ function TransactionSearchLayoutModal(props: {
             return (
               <section className="office-transaction-search-layout-group" key={group}>
                 <div className="office-transaction-search-layout-group-head">
-                  <strong>{group}</strong>
+                  <strong>
+                    {group === "Operational"
+                      ? t((messages) => messages.officeTransactions.operational)
+                      : group === "Built-in"
+                        ? t((messages) => messages.officeTransactions.builtIn)
+                        : t((messages) => messages.officeTransactions.custom)}
+                  </strong>
                   <p>
                     {group === "Operational"
-                      ? "Shared workbench filters that are not part of the transaction field schema."
+                      ? t((messages) => messages.officeTransactions.operationalFieldsBody)
                       : group === "Built-in"
-                        ? "Visible built-in transaction fields from Settings > Fields."
-                        : "Visible custom transaction fields from Settings > Fields."}
+                        ? t((messages) => messages.officeTransactions.builtInFieldsBody)
+                        : t((messages) => messages.officeTransactions.customFieldsBody)}
                   </p>
                 </div>
                 <div className="office-transaction-search-layout-list">
@@ -409,7 +429,7 @@ function TransactionSearchLayoutModal(props: {
                       <div
                         className="office-fields-modal-checkbox office-transaction-search-layout-checkbox"
                         key={fieldId}
-                      >
+                        >
                         <CheckboxField className="office-transaction-search-layout-checkbox-field" label={field.label}>
                           <input
                             checked={Boolean(props.layoutSelection[fieldId])}
@@ -418,7 +438,7 @@ function TransactionSearchLayoutModal(props: {
                             type="checkbox"
                           />
                         </CheckboxField>
-                        <small>{getSearchLayoutFieldHint(field)}</small>
+                        <small>{getSearchLayoutFieldHint(field, t)}</small>
                       </div>
                     );
                   })}
@@ -431,10 +451,12 @@ function TransactionSearchLayoutModal(props: {
         <footer className="office-fields-modal-footer office-transaction-search-layout-footer">
           {props.error ? <p className="office-inline-error office-transaction-search-layout-error">{props.error}</p> : null}
           <Button disabled={props.isSaving} onClick={props.onClose} type="button" variant="secondary">
-            Cancel
+            {t((messages) => messages.common.cancel)}
           </Button>
           <Button disabled={props.isSaving} onClick={props.onSave} type="button">
-            {props.isSaving ? "Saving..." : "Save fields"}
+            {props.isSaving
+              ? t((messages) => messages.common.saving)
+              : t((messages) => messages.officeTransactions.saveFields)}
           </Button>
         </footer>
       </section>
@@ -455,6 +477,7 @@ export function TransactionsClient({
   transactionOwnerAssignment,
   transactionStatusFieldPolicy
 }: TransactionsClientProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -615,7 +638,7 @@ export function TransactionsClient({
       const body = (await response.json().catch(() => null)) as SearchLayoutResponse | null;
 
       if (!response.ok || !body?.snapshot) {
-        throw new Error(body?.error ?? "Failed to save search fields.");
+        throw new Error(body?.error ?? t((messages) => messages.officeTransactions.saveFields));
       }
 
       setIsSearchLayoutModalOpen(false);
@@ -640,7 +663,11 @@ export function TransactionsClient({
         router.push(nextHref);
       }
     } catch (error) {
-      setLayoutSaveError(error instanceof Error ? error.message : "Failed to save search fields.");
+      setLayoutSaveError(
+        error instanceof Error
+          ? error.message
+          : t((messages) => messages.officeTransactions.saveFields),
+      );
     } finally {
       setIsSavingLayout(false);
     }
@@ -677,7 +704,7 @@ export function TransactionsClient({
             }
             value={searchFilters.system.ownerMembershipId}
           >
-            <option value="">{getFieldEmptyOptionLabel(field)}</option>
+            <option value="">{getFieldEmptyOptionLabel(field, t)}</option>
             {field.options.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -700,7 +727,7 @@ export function TransactionsClient({
             }
             value={searchFilters.system.teamId}
           >
-            <option value="">{getFieldEmptyOptionLabel(field)}</option>
+            <option value="">{getFieldEmptyOptionLabel(field, t)}</option>
             {field.options.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -718,11 +745,13 @@ export function TransactionsClient({
           label={field.label}
           onChange={(nextValue) =>
             updateSystemFilters((current) => ({
-              ...current,
-              createdAt: nextValue
-            }))
+                ...current,
+                createdAt: nextValue
+              }))
           }
+          fromLabel={t((messages) => messages.officeTransactions.from)}
           value={searchFilters.system.createdAt}
+          toLabel={t((messages) => messages.officeTransactions.to)}
         />
       );
     }
@@ -746,10 +775,12 @@ export function TransactionsClient({
               to: nextValue.to
             }))
           }
+          fromLabel={t((messages) => messages.officeTransactions.from)}
           value={{
             from: filterValue.from,
             to: filterValue.to
           }}
+          toLabel={t((messages) => messages.officeTransactions.to)}
         />
       );
     }
@@ -766,7 +797,7 @@ export function TransactionsClient({
             }
             value={filterValue.value}
           >
-            <option value="">{getFieldEmptyOptionLabel(field)}</option>
+            <option value="">{getFieldEmptyOptionLabel(field, t)}</option>
             {field.options.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -803,19 +834,19 @@ export function TransactionsClient({
         searchLayout.selectedFields.map((field) => renderSearchField(field))
       ) : (
         <div className="office-transaction-search-empty">
-          <strong>No search fields configured</strong>
+          <strong>{t((messages) => messages.officeTransactions.noSearchFieldsConfigured)}</strong>
           <p>
             {canManageSearchLayout
-              ? "Use Edit fields to choose which filters should appear for this office."
-              : "An office admin can enable transaction search fields for this workspace."}
+              ? t((messages) => messages.officeTransactions.noSearchFieldsConfiguredAdmin)
+              : t((messages) => messages.officeTransactions.noSearchFieldsConfiguredUser)}
           </p>
         </div>
       )}
 
       <div className="office-filter-actions">
-        <Button type="submit">Apply filters</Button>
+        <Button type="submit">{t((messages) => messages.common.applyFilters)}</Button>
         <Button onClick={resetFilters} type="button" variant="secondary">
-          Reset
+          {t((messages) => messages.common.reset)}
         </Button>
       </div>
     </ListPageFilters>
@@ -858,7 +889,7 @@ export function TransactionsClient({
 
   const transactionSummary = (
     <>
-      <SummaryChip label="Transactions" value={summary.totalCount} />
+      <SummaryChip label={t((messages) => messages.officeTransactions.title)} value={summary.totalCount} />
       <SummaryChip
         label={summary.totalNetIncomeLabel}
         tone="accent"
@@ -871,13 +902,13 @@ export function TransactionsClient({
     <>
       <OfficeListPageTemplate
         className="office-transactions-page"
-        description="Operational transaction list with office-shared, configurable search fields and query-driven drill-down."
-        eyebrow="Transactions"
+        description={t((messages) => messages.officeTransactions.description)}
+        eyebrow={t((messages) => messages.officeTransactions.title)}
         filters={transactionFilters}
         footer={transactionFooter}
         actions={
           <Button onClick={() => setIsCreateModalOpen(true)} type="button">
-            Create transaction
+            {t((messages) => messages.officeTransactions.createTransaction)}
           </Button>
         }
         sectionActions={
@@ -888,24 +919,24 @@ export function TransactionsClient({
               type="button"
               variant="secondary"
             >
-              Edit fields
+              {t((messages) => messages.officeTransactions.editFields)}
             </Button>
           ) : null
         }
-        sectionSubtitle="Search, filter, and review the current office transaction set."
-        sectionTitle="Transaction list"
+        sectionSubtitle={t((messages) => messages.officeTransactions.transactionListSubtitle)}
+        sectionTitle={t((messages) => messages.officeTransactions.transactionList)}
         summary={transactionSummary}
-        title="Transactions"
+        title={t((messages) => messages.officeTransactions.title)}
       >
         <DataTable className="office-list-table office-transactions-list-shell">
           <DataTableHeader className="office-list-table-header office-list-table-header-transactions">
             <span />
-            <span>Transaction</span>
-            <span>Asking / Purchased</span>
-            <span>Owner</span>
-            <span>Representing</span>
-            <span>Status</span>
-            <span>Important date</span>
+            <span>{t((messages) => messages.officeTransactions.tableTransaction)}</span>
+            <span>{t((messages) => messages.officeTransactions.tableAskingPurchased)}</span>
+            <span>{t((messages) => messages.officeTransactions.tableOwner)}</span>
+            <span>{t((messages) => messages.officeTransactions.tableRepresenting)}</span>
+            <span>{t((messages) => messages.officeTransactions.tableStatus)}</span>
+            <span>{t((messages) => messages.officeTransactions.tableImportantDate)}</span>
           </DataTableHeader>
 
           <DataTableBody className="office-list-table-body">
@@ -945,16 +976,26 @@ export function TransactionsClient({
                   className="office-list-table-status office-transaction-status-badge"
                   tone={getTransactionStatusTone(transaction.status)}
                 >
-                  {transaction.status}
+                  {transaction.status === "Opportunity"
+                    ? t((messages) => messages.officeTransactions.opportunity)
+                    : transaction.status === "Active"
+                      ? t((messages) => messages.officeTransactions.active)
+                      : transaction.status === "Pending"
+                        ? t((messages) => messages.officeTransactions.pending)
+                        : transaction.status === "Closed"
+                          ? t((messages) => messages.officeTransactions.closed)
+                          : transaction.status === "Cancelled"
+                            ? t((messages) => messages.officeTransactions.cancelled)
+                            : transaction.status}
                 </StatusBadge>
-                <span>{transaction.importantDate || "—"}</span>
+                <span>{transaction.importantDate || t((messages) => messages.officeTransactions.priceFallback)}</span>
               </DataTableRow>
             ))}
 
             {transactions.length === 0 ? (
               <EmptyState
-                description="Try widening the search or adjusting the visible filter fields."
-                title="No transactions matched the current filters"
+                description={t((messages) => messages.officeTransactions.noTransactionsBody)}
+                title={t((messages) => messages.officeTransactions.noTransactionsTitle)}
               />
             ) : null}
           </DataTableBody>
@@ -983,10 +1024,10 @@ export function TransactionsClient({
               canManageFields={canManageSearchLayout}
               key={formVersion}
               mode="modal"
-              modalDescription="Open a new office transaction using the current intake schema, assign the owner, and capture structured finance details from the start."
-              modalEyebrow="Transactions"
-              modalFooterDescription="The record is created with the active office schema so the pipeline, reporting, and finance views all start from the same structure."
-              modalFooterTitle="Create a clean transaction record"
+              modalDescription={t((messages) => messages.officeTransactions.createModalBody)}
+              modalEyebrow={t((messages) => messages.officeTransactions.title)}
+              modalFooterDescription={t((messages) => messages.officeTransactions.createCleanTransactionRecordBody)}
+              modalFooterTitle={t((messages) => messages.officeTransactions.createCleanTransactionRecord)}
               onClose={() => setIsCreateModalOpen(false)}
               onSubmitted={() => {
                 setIsCreateModalOpen(false);
@@ -1007,8 +1048,8 @@ export function TransactionsClient({
               }}
               ownerAssignment={transactionOwnerAssignment}
               statusFieldPolicy={transactionStatusFieldPolicy}
-              submitLabel="Next →"
-              title="Create transaction"
+              submitLabel={t((messages) => messages.officeTransactions.next)}
+              title={t((messages) => messages.officeTransactions.createTransaction)}
             />
           </section>
         </div>

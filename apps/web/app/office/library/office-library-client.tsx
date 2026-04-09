@@ -10,6 +10,7 @@ import type {
   OfficeLibraryFolderOption,
   OfficeLibrarySnapshot
 } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 
 type OfficeLibraryClientProps = {
   snapshot: OfficeLibrarySnapshot;
@@ -68,22 +69,6 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
-
 function buildFolderLabel(option: OfficeLibraryFolderOption) {
   return `${"  ".repeat(option.depth)}${option.name}`;
 }
@@ -117,6 +102,7 @@ function hasPdfMetadataDetails(metadata: PdfMetadata | null) {
 }
 
 export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibraryClientProps) {
+  const { t, formatDateTime } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -134,6 +120,48 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [pdfMetadata, setPdfMetadata] = useState<PdfMetadata | null>(null);
   const [pdfMetadataStatus, setPdfMetadataStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
+  function getScopeLabel(value: string | null | undefined) {
+    switch (value) {
+      case "company_wide":
+      case "Company-wide":
+        return t((messages) => messages.officeLibrary.scopeCompanyWide);
+      case "office_only":
+      case "Office only":
+        return t((messages) => messages.officeLibrary.scopeOfficeOnly);
+      case "private":
+      case "Private":
+        return t((messages) => messages.officeLibrary.scopePrivate);
+      default:
+        return value ?? "";
+    }
+  }
+
+  function getDocumentFolderLabel(value: string | null | undefined) {
+    return value || t((messages) => messages.officeLibrary.unfiled);
+  }
+
+  function getDocumentCategoryLabel(value: string | null | undefined) {
+    return value || t((messages) => messages.officeLibrary.general);
+  }
+
+  function getDocumentUploadedByLabel(value: string | null | undefined) {
+    return value || t((messages) => messages.officeLibrary.system);
+  }
+
+  function getDocumentPageLabel(document: OfficeLibraryDocument) {
+    if (document.pageCount) {
+      return t((messages) => messages.officeLibrary.pageCount, {
+        count: document.pageCount,
+      });
+    }
+
+    if (document.isPdf) {
+      return t((messages) => messages.officeLibrary.pdfFileType);
+    }
+
+    return t((messages) => messages.officeLibrary.genericFileType);
+  }
 
   function buildLibraryUrl(updates: Record<string, string | null>) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -199,7 +227,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Folder creation failed.");
+        throw new Error(payload?.error ?? t((messages) => messages.officeLibrary.errorFolderCreateFailed));
       }
 
       const payload = (await response.json()) as FolderResponse;
@@ -209,7 +237,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
         documentId: null
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Folder creation failed.");
+      setError(requestError instanceof Error ? requestError.message : t((messages) => messages.officeLibrary.errorFolderCreateFailed));
     } finally {
       setPendingAction(null);
     }
@@ -241,12 +269,12 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Folder update failed.");
+        throw new Error(payload?.error ?? t((messages) => messages.officeLibrary.errorFolderUpdateFailed));
       }
 
       refreshView({});
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Folder update failed.");
+      setError(requestError instanceof Error ? requestError.message : t((messages) => messages.officeLibrary.errorFolderUpdateFailed));
     } finally {
       setPendingAction(null);
     }
@@ -267,7 +295,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Document upload failed.");
+        throw new Error(payload?.error ?? t((messages) => messages.officeLibrary.errorDocumentUploadFailed));
       }
 
       const payload = (await response.json()) as DocumentResponse;
@@ -277,7 +305,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
         documentId: payload.document.id
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Document upload failed.");
+      setError(requestError instanceof Error ? requestError.message : t((messages) => messages.officeLibrary.errorDocumentUploadFailed));
     } finally {
       setPendingAction(null);
     }
@@ -313,7 +341,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Document update failed.");
+        throw new Error(payload?.error ?? t((messages) => messages.officeLibrary.errorDocumentUpdateFailed));
       }
 
       const payload = (await response.json()) as DocumentResponse;
@@ -322,7 +350,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
         documentId: payload.document.id
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Document update failed.");
+      setError(requestError instanceof Error ? requestError.message : t((messages) => messages.officeLibrary.errorDocumentUpdateFailed));
     } finally {
       setPendingAction(null);
     }
@@ -343,14 +371,14 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Document delete failed.");
+        throw new Error(payload?.error ?? t((messages) => messages.officeLibrary.errorDocumentDeleteFailed));
       }
 
       refreshView({
         documentId: null
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Document delete failed.");
+      setError(requestError instanceof Error ? requestError.message : t((messages) => messages.officeLibrary.errorDocumentDeleteFailed));
     } finally {
       setPendingAction(null);
     }
@@ -377,7 +405,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Folder archive failed.");
+        throw new Error(payload?.error ?? t((messages) => messages.officeLibrary.errorFolderArchiveFailed));
       }
 
       refreshView({
@@ -385,7 +413,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
         documentId: null
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Folder archive failed.");
+      setError(requestError instanceof Error ? requestError.message : t((messages) => messages.officeLibrary.errorFolderArchiveFailed));
     } finally {
       setPendingAction(null);
     }
@@ -427,7 +455,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("PDF metadata request failed.");
+          throw new Error(t((messages) => messages.officeLibrary.errorPdfMetadataRequestFailed));
         }
 
         const payload = (await response.json()) as PdfMetadataResponse;
@@ -453,8 +481,8 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
     if (!documents.length) {
       return (
         <div className="office-library-inline-empty">
-          <strong>No files in this view</strong>
-          <span>Adjust filters, upload a PDF, or choose another folder.</span>
+          <strong>{t((messages) => messages.officeLibrary.noFilesTitle)}</strong>
+          <span>{t((messages) => messages.officeLibrary.noFilesBody)}</span>
         </div>
       );
     }
@@ -491,7 +519,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
               <div className="office-library-document-entry-trailing">
                 <span className="office-library-document-chip">
-                  {document.pageCount ? `${document.pageCount} pages` : document.isPdf ? "PDF" : "File"}
+                  {getDocumentPageLabel(document)}
                 </span>
                 <span className="office-library-document-meta">{formatFileSize(document.fileSizeBytes)}</span>
               </div>
@@ -547,18 +575,18 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
       <section className="office-section-card office-library-toolbar-card">
         <div className="office-library-toolbar-top">
           <div className="office-library-stats">
-            <span>{snapshot.summary.totalDocuments} files</span>
-            <span>{snapshot.summary.totalFolders} folders</span>
-            <span>{snapshot.summary.pdfDocuments} PDFs</span>
-            <span>{snapshot.summary.unfiledDocuments} unfiled</span>
+            <span>{t((messages) => messages.officeLibrary.statsFiles, { count: snapshot.summary.totalDocuments })}</span>
+            <span>{t((messages) => messages.officeLibrary.statsFolders, { count: snapshot.summary.totalFolders })}</span>
+            <span>{t((messages) => messages.officeLibrary.statsPdfs, { count: snapshot.summary.pdfDocuments })}</span>
+            <span>{t((messages) => messages.officeLibrary.statsUnfiled, { count: snapshot.summary.unfiledDocuments })}</span>
           </div>
 
           {canManageLibrary ? (
             <div className="office-library-toolbar-actions">
               <Button onClick={() => setIsUploadOpen(true)} variant="secondary">
-                Upload file
+                {t((messages) => messages.officeLibrary.uploadFile)}
               </Button>
-              <Button onClick={() => setIsCreateFolderOpen(true)}>Add folder</Button>
+              <Button onClick={() => setIsCreateFolderOpen(true)}>{t((messages) => messages.officeLibrary.addFolder)}</Button>
             </div>
           ) : null}
         </div>
@@ -566,21 +594,21 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
         <FilterBar as="form" className="office-library-filter-bar" method="get">
           <input name="folderId" type="hidden" value={snapshot.filters.folderId === "all" ? "" : snapshot.filters.folderId} />
 
-          <FilterField className="office-library-search-field" label="Search">
-            <TextInput defaultValue={snapshot.filters.q} name="q" placeholder="Search title or file name" />
+          <FilterField className="office-library-search-field" label={t((messages) => messages.officeLibrary.searchLabel)}>
+            <TextInput defaultValue={snapshot.filters.q} name="q" placeholder={t((messages) => messages.officeLibrary.searchPlaceholder)} />
           </FilterField>
 
-          <FilterField className="office-library-filter-field" label="Scope">
+          <FilterField className="office-library-filter-field" label={t((messages) => messages.officeLibrary.scopeLabel)}>
             <SelectInput defaultValue={snapshot.filters.scope} name="scope">
-              <option value="all">All scopes</option>
-              <option value="company">Company-wide</option>
-              <option value="office">Office only</option>
+              <option value="all">{t((messages) => messages.officeLibrary.allScopes)}</option>
+              <option value="company">{t((messages) => messages.officeLibrary.scopeCompanyWide)}</option>
+              <option value="office">{t((messages) => messages.officeLibrary.scopeOfficeOnly)}</option>
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-library-filter-field" label="Category">
+          <FilterField className="office-library-filter-field" label={t((messages) => messages.officeLibrary.categoryLabel)}>
             <SelectInput defaultValue={snapshot.filters.category} name="category">
-              <option value="">All categories</option>
+              <option value="">{t((messages) => messages.officeLibrary.allCategories)}</option>
               {snapshot.categoryOptions.map((category) => (
                 <option key={category} value={category}>
                   {category}
@@ -589,9 +617,9 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
             </SelectInput>
           </FilterField>
 
-          <FilterField className="office-library-filter-field" label="Tag">
+          <FilterField className="office-library-filter-field" label={t((messages) => messages.officeLibrary.tagLabel)}>
             <SelectInput defaultValue={snapshot.filters.tag} name="tag">
-              <option value="">All tags</option>
+              <option value="">{t((messages) => messages.officeLibrary.allTags)}</option>
               {snapshot.tagOptions.map((tag) => (
                 <option key={tag} value={tag}>
                   {tag}
@@ -602,10 +630,10 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
           <div className="office-library-filter-actions">
             <Button type="submit" variant="secondary">
-              Apply filters
+              {t((messages) => messages.common.applyFilters)}
             </Button>
             <Link className="office-button-secondary" href="/office/library">
-              Reset
+              {t((messages) => messages.common.reset)}
             </Link>
           </div>
         </FilterBar>
@@ -616,8 +644,8 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
       <section className="office-section-card office-library-browser-sheet">
         <div className="office-library-browser-head">
           <div>
-            <h3>Folders and files</h3>
-            <p>Select a folder to reveal its files. PDF preview stays hidden until you open a document.</p>
+            <h3>{t((messages) => messages.officeLibrary.browserTitle)}</h3>
+            <p>{t((messages) => messages.officeLibrary.browserSubtitle)}</p>
           </div>
         </div>
 
@@ -634,7 +662,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               type="button"
             >
               <span className="office-library-folder-button-main">
-                <span className="office-library-folder-name">All files</span>
+                <span className="office-library-folder-name">{t((messages) => messages.officeLibrary.allFiles)}</span>
               </span>
               <span className="office-library-folder-count">{snapshot.summary.totalDocuments}</span>
             </button>
@@ -654,7 +682,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               type="button"
             >
               <span className="office-library-folder-button-main">
-                <span className="office-library-folder-name">Unfiled documents</span>
+                <span className="office-library-folder-name">{t((messages) => messages.officeLibrary.unfiledDocuments)}</span>
               </span>
               <span className="office-library-folder-count">{snapshot.summary.unfiledDocuments}</span>
             </button>
@@ -665,7 +693,7 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
           {snapshot.folderTree.length ? (
             <div className="office-library-folder-branch">{renderFolderNodes(snapshot.folderTree)}</div>
           ) : (
-            <EmptyState description="Create the first company folder to organize manuals and internal files." title="No folders yet" />
+            <EmptyState description={t((messages) => messages.officeLibrary.noFoldersBody)} title={t((messages) => messages.officeLibrary.noFoldersTitle)} />
           )}
         </div>
 
@@ -674,54 +702,55 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
             <div className="office-library-panel-head">
               <div>
                 <h3>{snapshot.selectedFolder.name}</h3>
-                <span>{snapshot.selectedFolder.scopeLabel}</span>
+                <span>{getScopeLabel(snapshot.selectedFolder.scopeLabel)}</span>
               </div>
             </div>
 
             <p className="office-library-folder-description">
-              {snapshot.selectedFolder.description || "No folder description yet. Select a file or update this folder's details."}
+              {snapshot.selectedFolder.description || t((messages) => messages.officeLibrary.folderDescriptionFallback)}
             </p>
 
             <SecondaryMetaList
               className="office-library-meta-list"
               items={[
-                { label: "Folder", value: snapshot.selectedFolder.name },
-                { label: "Scope", value: snapshot.selectedFolder.scopeLabel },
-                { label: "Files in view", value: String(snapshot.selectedFolder.documentCount) },
-                { label: "Active subfolders", value: String(snapshot.selectedFolder.childFolderCount) },
-                { label: "Status", value: snapshot.selectedFolder.isActive ? "Active" : "Archived" }
+                { label: t((messages) => messages.officeLibrary.folderMetaFolder), value: snapshot.selectedFolder.name },
+                { label: t((messages) => messages.officeLibrary.folderMetaScope), value: getScopeLabel(snapshot.selectedFolder.scopeLabel) },
+                { label: t((messages) => messages.officeLibrary.folderMetaFilesInView), value: String(snapshot.selectedFolder.documentCount) },
+                { label: t((messages) => messages.officeLibrary.folderMetaActiveSubfolders), value: String(snapshot.selectedFolder.childFolderCount) },
+                { label: t((messages) => messages.officeLibrary.folderMetaStatus), value: snapshot.selectedFolder.isActive ? t((messages) => messages.common.active) : t((messages) => messages.officeLibrary.archived) }
               ]}
             />
 
             {canManageLibrary ? (
               <form className="office-library-side-form" key={snapshot.selectedFolder.id} onSubmit={handleRenameFolder}>
                 <div className="office-library-side-form-head">
-                  <strong>Folder details</strong>
-                  <span>Rename the folder and keep its description current for the office team.</span>
+                  <strong>{t((messages) => messages.officeLibrary.folderDetailsTitle)}</strong>
+                  <span>{t((messages) => messages.officeLibrary.folderDetailsBody)}</span>
                 </div>
 
                 <label className="office-form-field">
-                  <span>Folder name</span>
+                  <span>{t((messages) => messages.officeLibrary.folderName)}</span>
                   <TextInput defaultValue={snapshot.selectedFolder.name} name="name" />
                 </label>
 
                 <label className="office-form-field">
-                  <span>Description</span>
+                  <span>{t((messages) => messages.officeLibrary.descriptionLabel)}</span>
                   <TextareaInput defaultValue={snapshot.selectedFolder.description} name="description" rows={4} />
                 </label>
 
                 <div className="office-library-side-actions">
                   <Button disabled={pendingAction === "rename-folder"} size="sm" type="submit">
-                    {pendingAction === "rename-folder" ? "Saving..." : "Save folder"}
+                    {pendingAction === "rename-folder" ? t((messages) => messages.officeLibrary.savingFolder) : t((messages) => messages.officeLibrary.saveFolder)}
                   </Button>
                   <Button
                     disabled={!snapshot.selectedFolder.canArchive || pendingAction === "archive-folder"}
                     onClick={() =>
                       setConfirmDialog({
-                        title: `Archive ${snapshot.selectedFolder.name}?`,
-                        description:
-                          "This removes the folder from the active library tree without deleting its audit history. Only empty folders can be archived.",
-                        confirmLabel: "Archive folder",
+                        title: t((messages) => messages.officeLibrary.archiveFolderTitle, {
+                          name: snapshot.selectedFolder.name,
+                        }),
+                        description: t((messages) => messages.officeLibrary.archiveFolderBody),
+                        confirmLabel: t((messages) => messages.officeLibrary.archiveFolder),
                         onConfirm: () => {
                           void handleArchiveFolder();
                         }
@@ -731,14 +760,14 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                     type="button"
                     variant="danger"
                   >
-                    {pendingAction === "archive-folder" ? "Archiving..." : "Archive folder"}
+                    {pendingAction === "archive-folder" ? t((messages) => messages.officeLibrary.archivingFolder) : t((messages) => messages.officeLibrary.archiveFolder)}
                   </Button>
                 </div>
 
                 {!snapshot.selectedFolder.canArchive ? (
                   <p className="office-form-helper">{snapshot.selectedFolder.archiveReason}</p>
                 ) : (
-                  <p className="office-form-helper">Archive is safe here because the folder branch is empty.</p>
+                  <p className="office-form-helper">{t((messages) => messages.officeLibrary.archiveFolderHelperSafe)}</p>
                 )}
               </form>
             ) : null}
@@ -753,20 +782,20 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               <div>
                 <h3>{selectedDocument.title}</h3>
                 <p>
-                  {selectedDocument.visibilityLabel} · {selectedDocument.folderName || "Unfiled"}
+                  {getScopeLabel(selectedDocument.visibilityKey)} · {getDocumentFolderLabel(selectedDocument.folderName)}
                 </p>
               </div>
 
               <div className="office-library-preview-actions">
                 <Link className="office-button-secondary office-inline-action" href={selectedDocument.openUrl} target="_blank">
-                  Open
+                  {t((messages) => messages.officeLibrary.openDocument)}
                 </Link>
                 <Link
                   className="office-button-secondary office-inline-action"
                   href={selectedDocument.downloadUrl}
                   target="_blank"
                 >
-                  Download
+                  {t((messages) => messages.officeLibrary.downloadDocument)}
                 </Link>
                 {canManageLibrary ? (
                   <Button
@@ -774,9 +803,11 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                     disabled={pendingAction === "delete-document"}
                     onClick={() =>
                       setConfirmDialog({
-                        title: `Delete ${selectedDocument.title}?`,
-                        description: "This permanently removes the library document record and its stored file.",
-                        confirmLabel: "Delete document",
+                        title: t((messages) => messages.officeLibrary.deleteDocumentTitle, {
+                          name: selectedDocument.title,
+                        }),
+                        description: t((messages) => messages.officeLibrary.deleteDocumentBody),
+                        confirmLabel: t((messages) => messages.officeLibrary.deleteDocument),
                         onConfirm: () => {
                           void handleDeleteDocument();
                         }
@@ -785,11 +816,11 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                     type="button"
                     variant="danger"
                   >
-                    {pendingAction === "delete-document" ? "Deleting..." : "Delete"}
+                    {pendingAction === "delete-document" ? t((messages) => messages.officeLibrary.deletingDocument) : t((messages) => messages.officeLibrary.deleteDocument)}
                   </Button>
                 ) : null}
                 <button
-                  aria-label="Close document preview"
+                  aria-label={t((messages) => messages.officeLibrary.previewCloseAria)}
                   className="office-library-preview-close"
                   onClick={closeDocumentPreview}
                   type="button"
@@ -809,36 +840,36 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                   />
                 ) : (
                   <EmptyState
-                    description="Inline preview is currently PDF-first. Use Open or Download for this file type."
-                    title="Preview unavailable"
+                    description={t((messages) => messages.officeLibrary.previewUnavailableBody)}
+                    title={t((messages) => messages.officeLibrary.previewUnavailableTitle)}
                   />
                 )}
               </div>
 
               <details className="office-library-preview-details">
-                <summary>Document details</summary>
+                <summary>{t((messages) => messages.officeLibrary.documentDetailsSummary)}</summary>
 
                 <div className={`office-library-preview-details-body${canManageLibrary ? " is-manageable" : ""}`}>
                   <div className="office-library-preview-details-meta">
                     <SecondaryMetaList
                       className="office-library-meta-list"
                       items={[
-                        { label: "File", value: selectedDocument.originalFileName },
-                        { label: "Folder", value: selectedDocument.folderName || "Unfiled" },
-                        { label: "Category", value: selectedDocument.category || "General" },
-                        { label: "Scope", value: selectedDocument.visibilityLabel },
-                        { label: "Size", value: formatFileSize(selectedDocument.fileSizeBytes) },
+                        { label: t((messages) => messages.officeLibrary.fileLabel), value: selectedDocument.originalFileName },
+                        { label: t((messages) => messages.officeLibrary.folderLabel), value: getDocumentFolderLabel(selectedDocument.folderName) },
+                        { label: t((messages) => messages.officeLibrary.categoryLabel), value: getDocumentCategoryLabel(selectedDocument.category) },
+                        { label: t((messages) => messages.officeLibrary.scopeLabel), value: getScopeLabel(selectedDocument.visibilityKey) },
+                        { label: t((messages) => messages.officeLibrary.sizeLabel), value: formatFileSize(selectedDocument.fileSizeBytes) },
                         {
-                          label: "Pages",
+                          label: t((messages) => messages.officeLibrary.pagesLabel),
                           value:
                             selectedDocumentPageCount !== null
                               ? String(selectedDocumentPageCount)
                               : pdfMetadataStatus === "loading"
-                                ? "Reading PDF"
-                                : "Not indexed"
+                                ? t((messages) => messages.officeLibrary.readingPdf)
+                                : t((messages) => messages.officeLibrary.notIndexed)
                         },
-                        { label: "Uploaded by", value: selectedDocument.uploadedByName || "System" },
-                        { label: "Updated", value: formatDateTime(selectedDocument.updatedAt) }
+                        { label: t((messages) => messages.officeLibrary.uploadedByLabel), value: getDocumentUploadedByLabel(selectedDocument.uploadedByName) },
+                        { label: t((messages) => messages.officeLibrary.updatedLabel), value: formatDateTime(selectedDocument.updatedAt) }
                       ]}
                     />
 
@@ -854,27 +885,27 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
 
                     {selectedDocument.isPdf ? (
                       <div className="office-library-preview-pdf-metadata">
-                        <strong>PDF metadata</strong>
-                        {pdfMetadataStatus === "loading" ? <p className="office-form-helper">Reading embedded PDF metadata...</p> : null}
+                        <strong>{t((messages) => messages.officeLibrary.pdfMetadataTitle)}</strong>
+                        {pdfMetadataStatus === "loading" ? <p className="office-form-helper">{t((messages) => messages.officeLibrary.readingPdfMetadata)}</p> : null}
                         {pdfMetadataStatus === "error" || (pdfMetadataStatus === "ready" && pdfMetadata === null) ? (
-                          <p className="office-form-helper">Embedded PDF metadata could not be read for this file.</p>
+                          <p className="office-form-helper">{t((messages) => messages.officeLibrary.pdfMetadataUnavailable)}</p>
                         ) : null}
                         {pdfMetadataStatus === "ready" && selectedDocumentHasEmbeddedPdfMetadata ? (
                           <SecondaryMetaList
                             className="office-library-meta-list"
                             items={[
-                              ...(pdfMetadata?.title ? [{ label: "Embedded title", value: pdfMetadata.title }] : []),
-                              ...(pdfMetadata?.subject ? [{ label: "Subject", value: pdfMetadata.subject }] : []),
-                              ...(pdfMetadata?.author ? [{ label: "Author", value: pdfMetadata.author }] : []),
-                              ...(pdfMetadata?.creator ? [{ label: "Creator", value: pdfMetadata.creator }] : []),
-                              ...(pdfMetadata?.producer ? [{ label: "Producer", value: pdfMetadata.producer }] : []),
-                              ...(pdfMetadata?.creationDate ? [{ label: "Created", value: formatDateTime(pdfMetadata.creationDate) }] : []),
-                              ...(pdfMetadata?.modificationDate ? [{ label: "Modified", value: formatDateTime(pdfMetadata.modificationDate) }] : [])
+                              ...(pdfMetadata?.title ? [{ label: t((messages) => messages.officeLibrary.embeddedTitle), value: pdfMetadata.title }] : []),
+                              ...(pdfMetadata?.subject ? [{ label: t((messages) => messages.officeLibrary.embeddedSubject), value: pdfMetadata.subject }] : []),
+                              ...(pdfMetadata?.author ? [{ label: t((messages) => messages.officeLibrary.embeddedAuthor), value: pdfMetadata.author }] : []),
+                              ...(pdfMetadata?.creator ? [{ label: t((messages) => messages.officeLibrary.embeddedCreator), value: pdfMetadata.creator }] : []),
+                              ...(pdfMetadata?.producer ? [{ label: t((messages) => messages.officeLibrary.embeddedProducer), value: pdfMetadata.producer }] : []),
+                              ...(pdfMetadata?.creationDate ? [{ label: t((messages) => messages.officeLibrary.embeddedCreated), value: formatDateTime(pdfMetadata.creationDate) }] : []),
+                              ...(pdfMetadata?.modificationDate ? [{ label: t((messages) => messages.officeLibrary.embeddedModified), value: formatDateTime(pdfMetadata.modificationDate) }] : [])
                             ]}
                           />
                         ) : null}
                         {pdfMetadataStatus === "ready" && pdfMetadata !== null && !selectedDocumentHasEmbeddedPdfMetadata ? (
-                          <p className="office-form-helper">This PDF has no additional embedded metadata beyond its file structure.</p>
+                          <p className="office-form-helper">{t((messages) => messages.officeLibrary.pdfMetadataEmpty)}</p>
                         ) : null}
                       </div>
                     ) : null}
@@ -883,19 +914,19 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                   {canManageLibrary ? (
                     <form className="office-library-side-form" key={selectedDocument.id} onSubmit={handleSaveDocument}>
                       <div className="office-library-side-form-head">
-                        <strong>Document details</strong>
-                        <span>Rename, move, and update internal metadata.</span>
+                        <strong>{t((messages) => messages.officeLibrary.documentDetailsTitle)}</strong>
+                        <span>{t((messages) => messages.officeLibrary.documentDetailsBody)}</span>
                       </div>
 
                       <label className="office-form-field">
-                        <span>Title</span>
+                        <span>{t((messages) => messages.officeLibrary.titleLabel)}</span>
                         <TextInput defaultValue={selectedDocument.title} name="title" />
                       </label>
 
                       <label className="office-form-field">
-                        <span>Folder</span>
+                        <span>{t((messages) => messages.officeLibrary.folderLabel)}</span>
                         <SelectInput defaultValue={selectedDocument.folderId ?? ""} name="folderId">
-                          <option value="">Unfiled</option>
+                          <option value="">{t((messages) => messages.officeLibrary.unfiled)}</option>
                           {snapshot.folderOptions.map((option) => (
                             <option key={option.id} value={option.id}>
                               {buildFolderLabel(option)}
@@ -905,31 +936,31 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
                       </label>
 
                       <label className="office-form-field">
-                        <span>Category</span>
-                        <TextInput defaultValue={selectedDocument.category} name="category" placeholder="Category label" />
+                        <span>{t((messages) => messages.officeLibrary.categoryField)}</span>
+                        <TextInput defaultValue={selectedDocument.category} name="category" placeholder={t((messages) => messages.officeLibrary.categoryPlaceholder)} />
                       </label>
 
                       <label className="office-form-field">
-                        <span>Visibility</span>
+                        <span>{t((messages) => messages.officeLibrary.visibilityField)}</span>
                         <SelectInput defaultValue={selectedDocument.visibilityKey} name="visibility">
-                          <option value="company_wide">Company-wide</option>
-                          <option value="office_only">Office only</option>
+                          <option value="company_wide">{t((messages) => messages.officeLibrary.scopeCompanyWide)}</option>
+                          <option value="office_only">{t((messages) => messages.officeLibrary.scopeOfficeOnly)}</option>
                         </SelectInput>
                       </label>
 
                       <label className="office-form-field">
-                        <span>Tags</span>
-                        <TextInput defaultValue={selectedDocument.tags.join(", ")} name="tags" placeholder="Comma-separated tags" />
+                        <span>{t((messages) => messages.officeLibrary.tagsField)}</span>
+                        <TextInput defaultValue={selectedDocument.tags.join(", ")} name="tags" placeholder={t((messages) => messages.officeLibrary.tagsPlaceholder)} />
                       </label>
 
                       <label className="office-form-field">
-                        <span>Summary</span>
+                        <span>{t((messages) => messages.officeLibrary.summaryField)}</span>
                         <TextareaInput defaultValue={selectedDocument.summary} name="summary" rows={5} />
                       </label>
 
                       <div className="office-library-side-actions">
                         <Button disabled={pendingAction === "save-document"} size="sm" type="submit">
-                          {pendingAction === "save-document" ? "Saving..." : "Save document"}
+                          {pendingAction === "save-document" ? t((messages) => messages.common.saving) : t((messages) => messages.officeLibrary.saveDocument)}
                         </Button>
                       </div>
                     </form>
@@ -946,29 +977,29 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
           <section className="office-modal office-library-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <div>
-                <h3>Add folder</h3>
-                <p>Create a company or office-only library folder.</p>
+                <h3>{t((messages) => messages.officeLibrary.addFolderTitle)}</h3>
+                <p>{t((messages) => messages.officeLibrary.addFolderBody)}</p>
               </div>
-              <button aria-label="Close add folder modal" onClick={() => setIsCreateFolderOpen(false)} type="button">
+              <button aria-label={t((messages) => messages.officeLibrary.closeAddFolderAria)} onClick={() => setIsCreateFolderOpen(false)} type="button">
                 ×
               </button>
             </header>
 
             <form className="office-modal-body office-library-modal-body" onSubmit={handleCreateFolder}>
               <label className="office-form-field">
-                <span>Folder name</span>
-                <TextInput autoFocus name="name" placeholder="User Manual Documents" />
+                <span>{t((messages) => messages.officeLibrary.folderName)}</span>
+                <TextInput autoFocus name="name" placeholder={t((messages) => messages.officeLibrary.folderNamePlaceholder)} />
               </label>
 
               <label className="office-form-field">
-                <span>Description</span>
+                <span>{t((messages) => messages.officeLibrary.descriptionLabel)}</span>
                 <TextareaInput name="description" rows={4} />
               </label>
 
               <label className="office-form-field">
-                <span>Parent folder</span>
+                <span>{t((messages) => messages.officeLibrary.parentFolderLabel)}</span>
                 <SelectInput defaultValue="" name="parentFolderId">
-                  <option value="">Top-level folder</option>
+                  <option value="">{t((messages) => messages.officeLibrary.topLevelFolder)}</option>
                   {snapshot.folderOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {buildFolderLabel(option)}
@@ -978,21 +1009,21 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               </label>
 
               <label className="office-form-field">
-                <span>Scope</span>
+                <span>{t((messages) => messages.officeLibrary.createFolderScopeLabel)}</span>
                 <SelectInput defaultValue="company_wide" name="scope">
-                  <option value="company_wide">Company-wide</option>
-                  <option value="office_only">Office only</option>
+                  <option value="company_wide">{t((messages) => messages.officeLibrary.scopeCompanyWide)}</option>
+                  <option value="office_only">{t((messages) => messages.officeLibrary.scopeOfficeOnly)}</option>
                 </SelectInput>
               </label>
 
               <footer className="office-modal-footer office-library-modal-footer">
-                <span>Deletion is intentionally not included in this MVP.</span>
+                <span>{t((messages) => messages.officeLibrary.mvpDeletionNotice)}</span>
                 <div className="office-modal-actions">
                   <Button onClick={() => setIsCreateFolderOpen(false)} type="button" variant="secondary">
-                    Cancel
+                    {t((messages) => messages.common.cancel)}
                   </Button>
                   <Button disabled={pendingAction === "create-folder"} type="submit">
-                    {pendingAction === "create-folder" ? "Creating..." : "Create folder"}
+                    {pendingAction === "create-folder" ? t((messages) => messages.officeLibrary.creatingFolder) : t((messages) => messages.officeLibrary.createFolder)}
                   </Button>
                 </div>
               </footer>
@@ -1006,29 +1037,29 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
           <section className="office-modal office-library-modal" onClick={(event) => event.stopPropagation()}>
             <header className="office-modal-header">
               <div>
-                <h3>Upload file</h3>
-                <p>PDF-first library upload for company manuals, onboarding packets, and internal references.</p>
+                <h3>{t((messages) => messages.officeLibrary.uploadTitle)}</h3>
+                <p>{t((messages) => messages.officeLibrary.uploadBody)}</p>
               </div>
-              <button aria-label="Close upload modal" onClick={() => setIsUploadOpen(false)} type="button">
+              <button aria-label={t((messages) => messages.officeLibrary.closeUploadAria)} onClick={() => setIsUploadOpen(false)} type="button">
                 ×
               </button>
             </header>
 
             <form className="office-modal-body office-library-modal-body" onSubmit={handleUpload}>
               <label className="office-form-field">
-                <span>File</span>
+                <span>{t((messages) => messages.officeLibrary.uploadFileLabel)}</span>
                 <input accept=".pdf,.doc,.docx,.txt,.rtf,.xlsx,.xls,.csv,image/*" className="office-file-input" name="file" required type="file" />
               </label>
 
               <label className="office-form-field">
-                <span>Title</span>
-                <TextInput name="title" placeholder="Offer review playbook" />
+                <span>{t((messages) => messages.officeLibrary.uploadTitleLabel)}</span>
+                <TextInput name="title" placeholder={t((messages) => messages.officeLibrary.uploadTitlePlaceholder)} />
               </label>
 
               <label className="office-form-field">
-                <span>Folder</span>
+                <span>{t((messages) => messages.officeLibrary.uploadFolderLabel)}</span>
                 <SelectInput defaultValue={snapshot.selectedFolder.id ?? ""} name="folderId">
-                  <option value="">Unfiled</option>
+                  <option value="">{t((messages) => messages.officeLibrary.unfiled)}</option>
                   {snapshot.folderOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {buildFolderLabel(option)}
@@ -1038,36 +1069,36 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
               </label>
 
               <label className="office-form-field">
-                <span>Category</span>
-                <TextInput name="category" placeholder="Onboarding Documents" />
+                <span>{t((messages) => messages.officeLibrary.categoryField)}</span>
+                <TextInput name="category" placeholder={t((messages) => messages.officeLibrary.uploadCategoryPlaceholder)} />
               </label>
 
               <label className="office-form-field">
-                <span>Visibility</span>
+                <span>{t((messages) => messages.officeLibrary.uploadVisibilityLabel)}</span>
                 <SelectInput defaultValue="company_wide" name="visibility">
-                  <option value="company_wide">Company-wide</option>
-                  <option value="office_only">Office only</option>
+                  <option value="company_wide">{t((messages) => messages.officeLibrary.scopeCompanyWide)}</option>
+                  <option value="office_only">{t((messages) => messages.officeLibrary.scopeOfficeOnly)}</option>
                 </SelectInput>
               </label>
 
               <label className="office-form-field">
-                <span>Tags</span>
-                <TextInput name="tags" placeholder="manual, pdf, training" />
+                <span>{t((messages) => messages.officeLibrary.uploadTagsLabel)}</span>
+                <TextInput name="tags" placeholder={t((messages) => messages.officeLibrary.tagsPlaceholder)} />
               </label>
 
               <label className="office-form-field">
-                <span>Summary</span>
+                <span>{t((messages) => messages.officeLibrary.uploadSummaryLabel)}</span>
                 <TextareaInput name="summary" rows={4} />
               </label>
 
               <footer className="office-modal-footer office-library-modal-footer">
-                <span>Inline preview is PDF-first. Other file types remain downloadable.</span>
+                <span>{t((messages) => messages.officeLibrary.inlinePreviewNotice)}</span>
                 <div className="office-modal-actions">
                   <Button onClick={() => setIsUploadOpen(false)} type="button" variant="secondary">
-                    Cancel
+                    {t((messages) => messages.common.cancel)}
                   </Button>
                   <Button disabled={pendingAction === "upload-document"} type="submit">
-                    {pendingAction === "upload-document" ? "Uploading..." : "Upload file"}
+                    {pendingAction === "upload-document" ? t((messages) => messages.officeLibrary.uploadingDocument) : t((messages) => messages.officeLibrary.uploadDocument)}
                   </Button>
                 </div>
               </footer>
@@ -1076,10 +1107,10 @@ export function OfficeLibraryClient({ snapshot, canManageLibrary }: OfficeLibrar
         </div>
       ) : null}
 
-      {isRoutingPending ? <p className="office-form-helper">Refreshing library view...</p> : null}
+      {isRoutingPending ? <p className="office-form-helper">{t((messages) => messages.officeLibrary.refreshingView)}</p> : null}
 
       <ConfirmActionDialog
-        cancelLabel="Keep document"
+        cancelLabel={t((messages) => messages.officeLibrary.keepDocument)}
         confirmLabel={confirmDialog?.confirmLabel}
         description={confirmDialog?.description ?? ""}
         isOpen={Boolean(confirmDialog)}

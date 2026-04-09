@@ -78,6 +78,7 @@ export type OfficeNotificationItem = {
   openHref: string;
   isUnread: boolean;
   isArchived: boolean;
+  createdAt: string;
   createdAtLabel: string;
   inboxStateLabel: "Inbox" | "Archived";
   readStateLabel: "Unread" | "Read";
@@ -1429,6 +1430,7 @@ export async function listOfficeNotifications(input: ListOfficeNotificationsInpu
       openHref: `/office/notifications/${notification.id}/open`,
       isUnread: !notification.readAt,
       isArchived: notification.isArchived,
+      createdAt: notification.createdAt.toISOString(),
       createdAtLabel: formatDateTimeLabel(notification.createdAt),
       inboxStateLabel: notification.isArchived ? "Archived" : "Inbox",
       readStateLabel: notification.readAt ? "Read" : "Unread"

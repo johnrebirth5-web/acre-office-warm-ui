@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { LocaleSwitcher } from "./locale-switcher";
+import { useI18n } from "../../lib/i18n/client";
 import { SiteReleaseBadge } from "../site-release-badge";
 
 type WorkspaceNavItem =
@@ -102,6 +104,7 @@ export function WorkspaceNav({
   switcherShortcut,
   switcherShortcuts,
 }: WorkspaceNavProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const [currentHash, setCurrentHash] = useState("");
   const [pendingLocationKey, setPendingLocationKey] = useState<string | null>(
@@ -308,7 +311,12 @@ export function WorkspaceNav({
                 role="presentation"
               >
                 <strong>{currentWorkspaceName}</strong>
-                <span>Current active workspace</span>
+                <span>
+                  {t(
+                    (messages) =>
+                      messages.workspaceNav.currentActiveWorkspace,
+                  )}
+                </span>
               </div>
               {resolvedSwitcherShortcuts.map((shortcut) => (
                 <Link
@@ -321,12 +329,23 @@ export function WorkspaceNav({
                   <strong>{shortcut.label}</strong>
                   <span>
                     {shortcut.description?.trim() ||
-                      "Open another workspace"}
+                      t(
+                        (messages) =>
+                          messages.workspaceNav.openAnotherWorkspace,
+                      )}
                   </span>
                 </Link>
               ))}
             </div>
           ) : null}
+        </div>
+
+        <div className="office-company-switcher-shell">
+          <LocaleSwitcher
+            authenticated
+            className="office-workspace-secondary-switcher"
+            variant="workspace"
+          />
         </div>
 
         <div className="office-nav-groups">
@@ -398,7 +417,7 @@ export function WorkspaceNav({
           </div>
 
           <Link
-            aria-label="Go to workspace home"
+            aria-label={t((messages) => messages.workspaceNav.goToWorkspaceHome)}
             className="office-mobile-rail-logo"
             href={homeHref}
             onClick={() => setIsMobileMenuOpen(false)}
@@ -418,8 +437,8 @@ export function WorkspaceNav({
             aria-expanded={isMobileMenuOpen}
             aria-label={
               isMobileMenuOpen
-                ? "Close navigation menu"
-                : "Open navigation menu"
+                ? t((messages) => messages.workspaceNav.closeNavigationMenu)
+                : t((messages) => messages.workspaceNav.openNavigationMenu)
             }
             className={`office-mobile-menu-button${isMobileMenuOpen ? " is-open" : ""}`}
             onClick={() => setIsMobileMenuOpen((open) => !open)}
@@ -434,7 +453,9 @@ export function WorkspaceNav({
         {isMobileMenuOpen ? (
           <>
             <button
-              aria-label="Close navigation menu"
+              aria-label={t(
+                (messages) => messages.workspaceNav.closeNavigationMenu,
+              )}
               className="office-mobile-menu-backdrop"
               onClick={() => setIsMobileMenuOpen(false)}
               type="button"
@@ -461,6 +482,12 @@ export function WorkspaceNav({
                   </div>
                 </div>
               ) : null}
+
+              <LocaleSwitcher
+                authenticated
+                className="office-mobile-workspace-secondary-switcher"
+                variant="workspace"
+              />
 
               {navGroups.map((group) => (
                 <section className="office-mobile-menu-group" key={group.title}>

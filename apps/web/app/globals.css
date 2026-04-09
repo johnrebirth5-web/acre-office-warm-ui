@@ -13034,6 +13034,16 @@ body,
   box-shadow: 0 10px 24px rgba(27, 53, 95, 0.1);
 }
 
+.office-company-switcher-select {
+  position: relative;
+  cursor: pointer;
+}
+
+.office-company-switcher-select:has(select:disabled) {
+  opacity: 0.72;
+  cursor: wait;
+}
+
 .office-company-switcher-copy {
   display: grid;
   gap: 3px;
@@ -13059,6 +13069,15 @@ body,
   color: var(--office-text-soft);
   font-size: 0.82rem;
   line-height: 1;
+}
+
+.office-company-switcher-native-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .office-company-switcher-menu {
@@ -13103,6 +13122,11 @@ body,
 
 .office-company-switcher-menu-item.is-current {
   background: rgba(244, 247, 252, 0.96);
+}
+
+.office-workspace-secondary-switcher,
+.office-mobile-workspace-secondary-switcher {
+  width: 100%;
 }
 
 .office-nav-groups {
@@ -15218,6 +15242,51 @@ body,
 .auth-card p,
 .auth-demo-card {
   color: var(--office-text-muted);
+}
+
+.auth-locale-switcher-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.auth-locale-switcher,
+.office-locale-switcher-shell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-locale-switcher select,
+.office-locale-switcher select {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(173, 186, 204, 0.72);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--office-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.office-locale-switcher-shell {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.office-locale-switcher-label,
+.office-mobile-locale-switcher-label {
+  color: var(--office-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.office-mobile-locale-switcher {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(247, 249, 252, 0.82);
 }
 
 .auth-submit {

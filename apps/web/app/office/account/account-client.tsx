@@ -20,6 +20,7 @@ import type {
   OfficeAccountNotificationPreferenceState,
   OfficeAccountSnapshot,
 } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 
 type OfficeAccountClientProps = {
   snapshot: OfficeAccountSnapshot;
@@ -48,7 +49,7 @@ const commonTimezones = [
   "Pacific/Honolulu",
 ];
 
-const commonLocales = ["en-US", "es-US", "zh-CN"];
+const commonLocales = ["en-US", "zh-CN"];
 const accountRowActionStackStyle = {
   display: "grid",
   gap: "8px",
@@ -313,6 +314,7 @@ export function OfficeAccountClient({
   snapshot,
   currentMembershipId,
 }: OfficeAccountClientProps) {
+  const { messages, t } = useI18n();
   const router = useRouter();
   const [profileState, setProfileState] = useState<ProfileState>(
     buildProfileState(snapshot),
@@ -474,32 +476,32 @@ export function OfficeAccountClient({
   const securityDetails = [
     {
       key: "sign_in_email",
-      label: "Sign-in email",
+      label: t((currentMessages) => currentMessages.auth.signInEmail),
       value: snapshot.security.signInIdentifierLabel,
     },
     {
       key: "password_changed",
-      label: "Password last changed",
+      label: t((currentMessages) => currentMessages.auth.passwordLastChanged),
       value: snapshot.security.passwordChangedAtLabel,
     },
     {
       key: "last_login",
-      label: "Last successful sign-in",
+      label: t((currentMessages) => currentMessages.auth.lastSuccessfulSignIn),
       value: snapshot.security.lastLoginAtLabel,
     },
     {
       key: "last_failed",
-      label: "Last failed sign-in",
+      label: t((currentMessages) => currentMessages.auth.lastFailedSignIn),
       value: snapshot.security.lastFailedLoginAtLabel,
     },
     {
       key: "failed_attempts",
-      label: "Failed attempts recorded",
+      label: t((currentMessages) => currentMessages.auth.failedAttemptsRecorded),
       value: snapshot.security.failedLoginCountLabel,
     },
     {
       key: "lock_until",
-      label: "Lock until",
+      label: t((currentMessages) => currentMessages.auth.lockUntil),
       value: snapshot.security.lockedUntilLabel,
     },
   ];
@@ -507,28 +509,28 @@ export function OfficeAccountClient({
   return (
     <>
       <SectionCard
-        subtitle="Live counts from your current task, review, transaction, and inbox records. The drilldowns below only point to screens that already exist today."
-        title="My Summary"
+        subtitle={t((currentMessages) => currentMessages.officeAccount.mySummarySubtitle)}
+        title={t((currentMessages) => currentMessages.officeAccount.mySummary)}
       >
         <section className="office-account-summary-grid">
           <StatCard
             hint={`${snapshot.summary.openTransactionTaskCount} transaction tasks · ${snapshot.summary.openFollowUpTaskCount} follow-up tasks`}
-            label="My open tasks"
+            label={t((currentMessages) => currentMessages.officeAccount.openTasks)}
             value={snapshot.summary.openTaskCount}
           />
           <StatCard
             hint="Current actionable count from Approve Docs."
-            label="My review queue"
+            label={t((currentMessages) => currentMessages.officeAccount.myReviewQueue)}
             value={snapshot.summary.reviewQueueCount}
           />
           <StatCard
             hint={`${snapshot.summary.openTransactionOpportunityCount} opportunity · ${snapshot.summary.openTransactionActiveCount} active · ${snapshot.summary.openTransactionPendingCount} pending · ${snapshot.summary.recentTransactionCount} updated in ${snapshot.summary.recentTransactionsWindowLabel.toLowerCase()}`}
-            label="My open transactions"
+            label={t((currentMessages) => currentMessages.officeAccount.myOpenTransactions)}
             value={snapshot.summary.openTransactionCount}
           />
           <StatCard
             hint={`${snapshot.summary.unreadNotificationsCount} unread now · ${snapshot.summary.recentNotificationsWindowLabel}`}
-            label="Recent notifications"
+            label={t((currentMessages) => currentMessages.officeAccount.recentNotifications)}
             value={snapshot.summary.recentNotificationsCount}
           />
         </section>
@@ -573,11 +575,13 @@ export function OfficeAccountClient({
                   type="submit"
                   variant="secondary"
                 >
-                  {pendingAction === "profile" ? "Saving..." : "Save profile"}
+                  {pendingAction === "profile"
+                    ? t((currentMessages) => currentMessages.common.saving)
+                    : t((currentMessages) => currentMessages.officeAccount.saveProfile)}
                 </Button>
               }
-              subtitle="Safe self-service fields only. Email, role, office access, and team assignment stay read-only here."
-              title="Profile"
+              subtitle={t((currentMessages) => currentMessages.officeAccount.profileSubtitle)}
+              title={t((currentMessages) => currentMessages.officeAccount.profile)}
             >
               <div className="office-account-profile-shell">
                 <div className="office-account-avatar-panel">
@@ -605,7 +609,7 @@ export function OfficeAccountClient({
                 </div>
 
                 <div className="office-form-grid office-form-grid-3">
-                  <FormField label="First name">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.firstName)}>
                     <TextInput
                       onChange={(event) =>
                         setProfileField("firstName", event.target.value)
@@ -615,7 +619,7 @@ export function OfficeAccountClient({
                     />
                   </FormField>
 
-                  <FormField label="Last name">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.lastName)}>
                     <TextInput
                       onChange={(event) =>
                         setProfileField("lastName", event.target.value)
@@ -626,8 +630,8 @@ export function OfficeAccountClient({
                   </FormField>
 
                   <FormField
-                    label="Display name"
-                    helper="Shown anywhere a profile name can be shortened."
+                    label={t((currentMessages) => currentMessages.officeAccount.displayName)}
+                    helper={t((currentMessages) => currentMessages.officeAccount.displayNameHelper)}
                   >
                     <TextInput
                       onChange={(event) =>
@@ -637,27 +641,27 @@ export function OfficeAccountClient({
                     />
                   </FormField>
 
-                  <FormField label="Phone">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.phone)}>
                     <TextInput
                       onChange={(event) =>
                         setProfileField("phone", event.target.value)
                       }
-                      placeholder="(555) 555-5555"
+                      placeholder="+1 (555) 555-5555"
                       value={profileState.phone}
                     />
                   </FormField>
 
-                  <FormField label="Internal extension">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.internalExtension)}>
                     <TextInput
                       onChange={(event) =>
                         setProfileField("internalExtension", event.target.value)
                       }
-                      placeholder="Ext. 204"
+                      placeholder="204"
                       value={profileState.internalExtension}
                     />
                   </FormField>
 
-                  <FormField label="Avatar URL">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.avatarUrl)}>
                     <TextInput
                       onChange={(event) =>
                         setProfileField("avatarUrl", event.target.value)
@@ -667,7 +671,7 @@ export function OfficeAccountClient({
                     />
                   </FormField>
 
-                  <FormField label="License number">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.licenseNumber)}>
                     <TextInput
                       onChange={(event) =>
                         setProfileField("licenseNumber", event.target.value)
@@ -676,7 +680,7 @@ export function OfficeAccountClient({
                     />
                   </FormField>
 
-                  <FormField label="License state">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.licenseState)}>
                     <TextInput
                       onChange={(event) =>
                         setProfileField("licenseState", event.target.value)
@@ -686,7 +690,7 @@ export function OfficeAccountClient({
                     />
                   </FormField>
 
-                  <FormField label="Timezone">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.timezone)}>
                     <SelectInput
                       onChange={(event) =>
                         setProfileField("timezone", event.target.value)
@@ -701,7 +705,7 @@ export function OfficeAccountClient({
                     </SelectInput>
                   </FormField>
 
-                  <FormField label="Locale">
+                  <FormField label={t((currentMessages) => currentMessages.officeAccount.locale)}>
                     <SelectInput
                       onChange={(event) =>
                         setProfileField("locale", event.target.value)
@@ -710,7 +714,9 @@ export function OfficeAccountClient({
                     >
                       {localeOptions.map((option) => (
                         <option key={option} value={option}>
-                          {option}
+                          {option === "zh-CN"
+                            ? messages.common.simplifiedChinese
+                            : messages.common.english}
                         </option>
                       ))}
                     </SelectInput>
@@ -718,13 +724,13 @@ export function OfficeAccountClient({
 
                   <FormField
                     className="office-form-grid-span-3"
-                    helper="Email stays read-only because it is the internal sign-in identifier for this account."
-                    label="Email"
+                    helper={t((currentMessages) => currentMessages.officeAccount.emailHelper)}
+                    label={t((currentMessages) => currentMessages.officeAccount.email)}
                   >
                     <TextInput disabled value={snapshot.profile.email} />
                   </FormField>
 
-                  <FormField className="office-form-grid-span-3" label="Bio">
+                  <FormField className="office-form-grid-span-3" label={t((currentMessages) => currentMessages.officeAccount.bio)}>
                     <TextareaInput
                       onChange={(event) =>
                         setProfileField("bio", event.target.value)
@@ -743,25 +749,25 @@ export function OfficeAccountClient({
           </form>
 
           <SectionCard
-            subtitle="Assignment and access context stay visible here, but manager-controlled access lives in Office Admin."
-            title="Office / Team"
+            subtitle={t((currentMessages) => currentMessages.officeAccount.officeTeamSubtitle)}
+            title={t((currentMessages) => currentMessages.officeAccount.officeTeam)}
           >
             <SecondaryMetaList
               items={[
-                { label: "Office", value: snapshot.officeTeam.officeName },
-                { label: "Market", value: snapshot.officeTeam.officeMarket },
-                { label: "Role", value: snapshot.officeTeam.roleLabel },
-                { label: "Title", value: snapshot.officeTeam.title },
+                { label: t((currentMessages) => currentMessages.officeAccount.office), value: snapshot.officeTeam.officeName },
+                { label: t((currentMessages) => currentMessages.officeAccount.market), value: snapshot.officeTeam.officeMarket },
+                { label: t((currentMessages) => currentMessages.common.role), value: snapshot.officeTeam.roleLabel },
+                { label: t((currentMessages) => currentMessages.officeAccount.titleField), value: snapshot.officeTeam.title },
                 {
-                  label: "Membership",
+                  label: t((currentMessages) => currentMessages.officeAccount.membership),
                   value: snapshot.officeTeam.membershipStatusLabel,
                 },
                 {
-                  label: "Start date",
+                  label: t((currentMessages) => currentMessages.officeAccount.startDate),
                   value: snapshot.officeTeam.startDateLabel,
                 },
                 {
-                  label: "Onboarding",
+                  label: t((currentMessages) => currentMessages.officeAccount.onboarding),
                   value: snapshot.officeTeam.onboardingStatusLabel,
                 },
               ]}
@@ -769,11 +775,13 @@ export function OfficeAccountClient({
 
             <div className="office-account-team-section">
               <div className="office-account-subhead">
-                <strong>Teams</strong>
+                <strong>{t((currentMessages) => currentMessages.officeAccount.teams)}</strong>
                 <span>
                   {snapshot.officeTeam.teams.length
-                    ? `${snapshot.officeTeam.teams.length} current assignments`
-                    : "No team assignments"}
+                    ? t((currentMessages) => currentMessages.officeAccount.currentAssignments, {
+                        count: snapshot.officeTeam.teams.length,
+                      })
+                    : t((currentMessages) => currentMessages.officeAccount.noTeamAssignments)}
                 </span>
               </div>
 
@@ -786,14 +794,16 @@ export function OfficeAccountClient({
                         <p>{team.roleLabel}</p>
                       </div>
                       <Badge tone={getTeamTone(team.isActive)}>
-                        {team.isActive ? "Active" : "Inactive"}
+                        {team.isActive
+                          ? t((currentMessages) => currentMessages.common.active)
+                          : t((currentMessages) => currentMessages.common.inactive)}
                       </Badge>
                     </article>
                   ))}
                 </div>
               ) : (
                 <p className="office-account-empty-note">
-                  This membership is not assigned to a team right now.
+                  {t((currentMessages) => currentMessages.officeAccount.noTeamAssignmentsBody)}
                 </p>
               )}
             </div>
@@ -811,25 +821,25 @@ export function OfficeAccountClient({
                   variant="secondary"
                 >
                   {pendingAction === "notifications"
-                    ? "Saving..."
-                    : "Save preferences"}
+                    ? t((currentMessages) => currentMessages.common.saving)
+                    : t((currentMessages) => currentMessages.officeAccount.savePreferences)}
                 </Button>
               }
-              subtitle="Only the in-app inbox is implemented today. Email, SMS, and push remain unavailable."
-              title="Notifications"
+              subtitle={t((currentMessages) => currentMessages.officeAccount.notificationsSubtitle)}
+              title={t((currentMessages) => currentMessages.officeAccount.notifications)}
             >
               <SecondaryMetaList
                 items={[
                   {
-                    label: "Unread inbox items",
+                    label: t((currentMessages) => currentMessages.officeAccount.unreadInboxItems),
                     value: snapshot.notifications.unreadCount,
                   },
                   {
-                    label: "Recent inbox items",
+                    label: t((currentMessages) => currentMessages.officeAccount.recentInboxItems),
                     value: snapshot.notifications.recentCount,
                   },
                   {
-                    label: "Last updated",
+                    label: t((currentMessages) => currentMessages.officeAccount.lastUpdated),
                     value: snapshot.notifications.lastUpdatedLabel,
                   },
                 ]}
@@ -845,8 +855,8 @@ export function OfficeAccountClient({
                     type="checkbox"
                   />
                   <div>
-                    <strong>In-app notifications</strong>
-                    <p>Master switch for the Office notifications inbox.</p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.inAppNotifications)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.inAppNotificationsBody)}</p>
                   </div>
                 </label>
 
@@ -865,11 +875,8 @@ export function OfficeAccountClient({
                     type="checkbox"
                   />
                   <div>
-                    <strong>Activity / approval alerts</strong>
-                    <p>
-                      Task review, rejected task, signature, and incoming update
-                      alerts.
-                    </p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.approvalAlerts)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.approvalAlertsBody)}</p>
                   </div>
                 </label>
 
@@ -888,11 +895,8 @@ export function OfficeAccountClient({
                     type="checkbox"
                   />
                   <div>
-                    <strong>Task reminders</strong>
-                    <p>
-                      Follow-up assignments, overdue reminders, and onboarding
-                      reminder alerts.
-                    </p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.taskReminders)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.taskRemindersBody)}</p>
                   </div>
                 </label>
 
@@ -911,11 +915,8 @@ export function OfficeAccountClient({
                     type="checkbox"
                   />
                   <div>
-                    <strong>Mail notifications</strong>
-                    <p>
-                      New internal message alerts that link directly back into
-                      your Back Office mailbox.
-                    </p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.messageAlerts)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.messageAlertsBody)}</p>
                   </div>
                 </label>
 
@@ -934,11 +935,8 @@ export function OfficeAccountClient({
                     type="checkbox"
                   />
                   <div>
-                    <strong>Offer notifications</strong>
-                    <p>
-                      Offer created, received, and expiring-soon alerts when the
-                      offer workflow applies.
-                    </p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.offerAlerts)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.offerAlertsBody)}</p>
                   </div>
                 </label>
               </div>
@@ -946,32 +944,38 @@ export function OfficeAccountClient({
               <div className="office-account-channel-list">
                 <div className="office-account-channel-row">
                   <div>
-                    <strong>In-app inbox</strong>
-                    <p>Implemented and controlled by the toggles above.</p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.inAppNotifications)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.inAppNotificationsBody)}</p>
                   </div>
                   <StatusBadge
                     tone={
                       notificationState.inAppEnabled ? "success" : "neutral"
                     }
                   >
-                    {notificationState.inAppEnabled ? "Enabled" : "Disabled"}
+                    {notificationState.inAppEnabled
+                      ? t((currentMessages) => currentMessages.common.active)
+                      : t((currentMessages) => currentMessages.common.inactive)}
                   </StatusBadge>
                 </div>
 
                 <div className="office-account-channel-row">
                   <div>
-                    <strong>Email</strong>
-                    <p>Not implemented in the current Back Office platform.</p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.emailChannel)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.unavailableChannelBody)}</p>
                   </div>
-                  <StatusBadge tone="warning">Unavailable</StatusBadge>
+                  <StatusBadge tone="warning">
+                    {t((currentMessages) => currentMessages.common.unavailable)}
+                  </StatusBadge>
                 </div>
 
                 <div className="office-account-channel-row">
                   <div>
-                    <strong>SMS / push</strong>
-                    <p>No mobile or push delivery infrastructure exists yet.</p>
+                    <strong>{t((currentMessages) => currentMessages.officeAccount.smsPushChannel)}</strong>
+                    <p>{t((currentMessages) => currentMessages.officeAccount.unavailableChannelBody)}</p>
                   </div>
-                  <StatusBadge tone="warning">Unavailable</StatusBadge>
+                  <StatusBadge tone="warning">
+                    {t((currentMessages) => currentMessages.common.unavailable)}
+                  </StatusBadge>
                 </div>
               </div>
 
@@ -982,8 +986,8 @@ export function OfficeAccountClient({
           </form>
 
           <SectionCard
-            subtitle="Truthful security state for the current internal password account. Only real account actions are linked below."
-            title="Security"
+            subtitle={t((currentMessages) => currentMessages.officeAccount.securitySubtitle)}
+            title={t((currentMessages) => currentMessages.officeAccount.security)}
           >
             <div className="office-account-security-list">
               {securityRows.map((item) => (
@@ -1012,21 +1016,21 @@ export function OfficeAccountClient({
                   className="office-button office-button-sm"
                   href="/change-password"
                 >
-                  {snapshot.security.passwordActionLabel}
+                  {t((currentMessages) => currentMessages.officeAccount.changePassword)}
                 </Link>
               ) : null}
-              <Link
-                className="office-button-secondary office-button-sm"
-                href="/office/activity?objectType=auth"
-              >
-                Open auth activity
-              </Link>
+                <Link
+                  className="office-button-secondary office-button-sm"
+                  href="/office/activity?objectType=auth"
+                >
+                  {t((currentMessages) => currentMessages.officeNav.items.activity)}
+                </Link>
               <form action="/api/auth/logout" method="post">
                 <button
                   className="office-button-secondary office-button-sm"
                   type="submit"
                 >
-                  Sign out and switch user
+                  {t((currentMessages) => currentMessages.officeAccount.signOutAndSwitchUser)}
                 </button>
               </form>
             </div>

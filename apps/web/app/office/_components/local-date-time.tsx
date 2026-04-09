@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "../../../lib/i18n/client";
 
 type LocalDateTimeProps = {
   value: string;
@@ -31,6 +32,7 @@ export function LocalDateTime({
   fallbackLabel,
   emptyLabel = "—"
 }: LocalDateTimeProps) {
+  const { locale } = useI18n();
   const [label, setLabel] = useState(fallbackLabel ?? emptyLabel);
 
   useEffect(() => {
@@ -39,8 +41,8 @@ export function LocalDateTime({
       return;
     }
 
-    setLabel(formatLocalDateTimeValue(value));
-  }, [emptyLabel, value]);
+    setLabel(formatLocalDateTimeValue(value, locale));
+  }, [emptyLabel, locale, value]);
 
   return (
     <time dateTime={value} suppressHydrationWarning>

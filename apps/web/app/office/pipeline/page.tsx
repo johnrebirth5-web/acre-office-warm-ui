@@ -4,6 +4,7 @@ import { getOfficePipelineWorkspaceSnapshot } from "@acre/db";
 import { StatusBadge, SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 
 type PipelinePageSearchParams = {
@@ -72,36 +73,49 @@ function buildPipelineHref(
   return `/office/pipeline${queryString ? `?${queryString}` : ""}`;
 }
 
-function getRepresentingLabel(value: string) {
+function getRepresentingLabel(
+  value: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
   if (value === "buyer") {
-    return "Buyer side";
+    return t((messages) => messages.officePipeline.buyerSide);
   }
 
   if (value === "seller") {
-    return "Seller side";
+    return t((messages) => messages.officePipeline.sellerSide);
   }
 
   if (value === "both") {
-    return "Both sides";
+    return t((messages) => messages.officePipeline.bothSides);
   }
 
   if (value === "tenant") {
-    return "Tenant side";
+    return t((messages) => messages.officePipeline.tenantSide);
   }
 
   if (value === "landlord") {
-    return "Landlord side";
+    return t((messages) => messages.officePipeline.landlordSide);
   }
 
-  return "Any side";
+  return t((messages) => messages.officePipeline.anySide);
 }
 
-function getHistoryRangeLabel(historyYear: string) {
-  return historyYear ? historyYear : "Last 6 months";
+function getHistoryRangeLabel(
+  historyYear: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  return historyYear ? historyYear : t((messages) => messages.officePipeline.lastSixMonths);
 }
 
-function getHistoryRangeNote(historyYear: string) {
-  return historyYear ? `January - December ${historyYear}` : "Showing the latest 6 monthly buckets";
+function getHistoryRangeNote(
+  historyYear: string,
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
+  return historyYear
+    ? t((messages) => messages.officePipeline.januaryToDecember, {
+        year: historyYear,
+      })
+    : t((messages) => messages.officePipeline.latestSixMonthlyBuckets);
 }
 
 function getHistoryYearForCurrentMonth(currentHistoryYear: string, monthKey: string) {
@@ -114,20 +128,31 @@ function getHistoryYearForCurrentMonth(currentHistoryYear: string, monthKey: str
   return monthYear;
 }
 
-function getKeyDateCopy(row: {
+function getKeyDateCopy(
+  row: {
   keyDateTypeLabel: string;
   keyDateLabel: string;
   updatedLabel: string;
-}) {
+},
+  t: Awaited<ReturnType<typeof getServerI18n>>["t"],
+) {
   if (row.keyDateTypeLabel === "Updated") {
-    return `updated: ${row.updatedLabel}`;
+    return t((messages) => messages.officePipeline.updatedPrefix, {
+      value: row.updatedLabel,
+    });
   }
 
-  return `${row.keyDateTypeLabel.toLowerCase()}: ${row.keyDateLabel}`;
+  return t((messages) => messages.officePipeline.keyDatePrefix, {
+    label: row.keyDateTypeLabel.toLowerCase(),
+    value: row.keyDateLabel,
+  });
 }
 
 export default async function OfficePipelinePage(props: PipelinePageProps) {
   const context = await requireOfficeSession();
+  const { t, formatNumber } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
 
   if (!canViewOfficeTransactions(context.currentMembership)) {
     redirect("/office/dashboard");
@@ -160,37 +185,37 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
   };
   const officeMetricOptions = snapshot.filters.metricOptions.filter((option) => option.scope === "office");
   const myMetricOptions = snapshot.filters.metricOptions.filter((option) => option.scope === "my");
-  const transactionCountLabel = new Intl.NumberFormat("en-US").format(snapshot.summary.totalCount);
+  const transactionCountLabel = formatNumber(snapshot.summary.totalCount);
   const currentMonthClosed = snapshot.currentMonthHistory;
-  const historyRangeLabel = getHistoryRangeLabel(snapshot.filters.historyYear);
-  const historyRangeNote = getHistoryRangeNote(snapshot.filters.historyYear);
+  const historyRangeLabel = getHistoryRangeLabel(snapshot.filters.historyYear, t);
+  const historyRangeNote = getHistoryRangeNote(snapshot.filters.historyYear, t);
 
   return (
     <OfficeListPageShell className="office-pipeline-page office-pipeline-v2-page">
       <OfficeListPageHeader
-        description="A calm workbench for reviewing pending deals, monthly closed activity, and the transactions visible inside your current scope."
-        eyebrow="Pipeline"
+        description={t((messages) => messages.officePipeline.description)}
+        eyebrow={t((messages) => messages.officePipeline.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Visible metric" tone="accent" value={snapshot.metricModeLabel} />
-            <SummaryChip label="Selection" value={snapshot.selection.label} />
+            <SummaryChip label={t((messages) => messages.common.officeScope)} value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label={t((messages) => messages.officePipeline.visibleMetric)} tone="accent" value={snapshot.metricModeLabel} />
+            <SummaryChip label={t((messages) => messages.officePipeline.selection)} value={snapshot.selection.label} />
           </>
         }
-        title="Pipeline"
+        title={t((messages) => messages.officePipeline.title)}
       />
 
       <section className="office-pipeline-v2-toolbar">
         <details className="office-pipeline-v2-menu">
-          <summary className="office-pipeline-v2-menu-trigger">{getRepresentingLabel(snapshot.filters.representing)}</summary>
+          <summary className="office-pipeline-v2-menu-trigger">{getRepresentingLabel(snapshot.filters.representing, t)}</summary>
           <div className="office-pipeline-v2-menu-popover">
             {[
-              { value: "all", label: "Any side" },
-              { value: "buyer", label: "Buyer side" },
-              { value: "seller", label: "Seller side" },
-              { value: "both", label: "Both sides" },
-              { value: "tenant", label: "Tenant side" },
-              { value: "landlord", label: "Landlord side" }
+              { value: "all", label: t((messages) => messages.officePipeline.anySide) },
+              { value: "buyer", label: t((messages) => messages.officePipeline.buyerSide) },
+              { value: "seller", label: t((messages) => messages.officePipeline.sellerSide) },
+              { value: "both", label: t((messages) => messages.officePipeline.bothSides) },
+              { value: "tenant", label: t((messages) => messages.officePipeline.tenantSide) },
+              { value: "landlord", label: t((messages) => messages.officePipeline.landlordSide) }
             ].map((option) => {
               const href = buildPipelineHref(hrefBaseFilters, {
                 representing: option.value,
@@ -216,7 +241,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
           <div className="office-pipeline-v2-menu-popover office-pipeline-v2-menu-popover-metric">
             {officeMetricOptions.length > 0 ? (
               <>
-                <div className="office-pipeline-v2-menu-group-label">Office</div>
+                <div className="office-pipeline-v2-menu-group-label">{t((messages) => messages.officePipeline.office)}</div>
                 {officeMetricOptions.map((option) => (
                   <Link
                     className={`office-pipeline-v2-menu-item ${snapshot.filters.metricMode === option.value ? "is-active" : ""}`}
@@ -231,7 +256,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 <div className="office-pipeline-v2-menu-divider" />
               </>
             ) : null}
-            <div className="office-pipeline-v2-menu-group-label">My</div>
+            <div className="office-pipeline-v2-menu-group-label">{t((messages) => messages.officePipeline.my)}</div>
             {myMetricOptions.map((option) => (
               <Link
                 className={`office-pipeline-v2-menu-item ${snapshot.filters.metricMode === option.value ? "is-active" : ""}`}
@@ -249,11 +274,11 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
 
       <section className="office-pipeline-v2-layout">
         <aside className="office-pipeline-v2-sidebar">
-          <section className="office-pipeline-v2-focus-card" aria-label="Pipeline stage summary">
+          <section className="office-pipeline-v2-focus-card" aria-label={t((messages) => messages.officePipeline.pipelineStageSummary)}>
             <div className="office-pipeline-v2-focus-head">
               <div className="office-pipeline-v2-focus-copy">
-                <span className="office-pipeline-v2-sidebar-label">Pipeline focus</span>
-                <p>Use the two main cards to switch between open work and this month&apos;s closed results.</p>
+                <span className="office-pipeline-v2-sidebar-label">{t((messages) => messages.officePipeline.pipelineFocus)}</span>
+                <p>{t((messages) => messages.officePipeline.pipelineFocusBody)}</p>
               </div>
               <span className="office-pipeline-v2-selection-pill">{snapshot.selection.label}</span>
             </div>
@@ -268,10 +293,10 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                   historyMonth: null
                 })}
               >
-                <span className="office-pipeline-v2-stage-card-label">Pending</span>
+                <span className="office-pipeline-v2-stage-card-label">{t((messages) => messages.officePipeline.pending)}</span>
                 <strong>{snapshot.pendingSummary.count}</strong>
                 <em>{snapshot.pendingSummary.metricLabel}</em>
-                <small>Deals still in motion</small>
+                <small>{t((messages) => messages.officePipeline.dealsStillInMotion)}</small>
               </Link>
 
               {currentMonthClosed ? (
@@ -285,7 +310,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                     historyYear: getHistoryYearForCurrentMonth(snapshot.filters.historyYear, currentMonthClosed.monthKey) || null
                   })}
                 >
-                  <span className="office-pipeline-v2-stage-card-label">Closed This Month</span>
+                  <span className="office-pipeline-v2-stage-card-label">{t((messages) => messages.officePipeline.closedThisMonth)}</span>
                   <strong>{currentMonthClosed.count}</strong>
                   <em>{currentMonthClosed.metricLabel}</em>
                   <small>{currentMonthClosed.label}</small>
@@ -297,8 +322,8 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
           <section className="office-pipeline-v2-history-card">
             <div className="office-pipeline-v2-history-head">
               <div className="office-pipeline-v2-history-head-copy">
-                <span className="office-pipeline-v2-sidebar-label">Closed history</span>
-                <p>Recent monthly performance, kept visible even when a month is empty.</p>
+                <span className="office-pipeline-v2-sidebar-label">{t((messages) => messages.officePipeline.closedHistory)}</span>
+                <p>{t((messages) => messages.officePipeline.closedHistoryBody)}</p>
               </div>
               <details className="office-pipeline-v2-menu office-pipeline-v2-history-menu">
                 <summary className="office-pipeline-v2-menu-trigger office-pipeline-v2-history-trigger">{historyRangeLabel}</summary>
@@ -309,10 +334,10 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                       historyYear: null
                     })}
                   >
-                    <span>Last 6 months</span>
+                    <span>{t((messages) => messages.officePipeline.lastSixMonths)}</span>
                   </Link>
                   <div className="office-pipeline-v2-menu-divider" />
-                  <div className="office-pipeline-v2-menu-group-label">Years</div>
+                  <div className="office-pipeline-v2-menu-group-label">{t((messages) => messages.officePipeline.years)}</div>
                   {snapshot.historyYearOptions.map((year) => (
                     <Link
                       className={`office-pipeline-v2-menu-item ${snapshot.filters.historyYear === String(year) ? "is-active" : ""}`}
@@ -342,7 +367,9 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
                 >
                   <span className="office-pipeline-v2-history-copy">
                     <strong>{month.label}</strong>
-                    <small>{month.count} transactions</small>
+                    <small>
+                      {month.count} {t((messages) => messages.officePipeline.transactionCountSuffix)}
+                    </small>
                   </span>
                   <span className="office-pipeline-v2-history-metrics">
                     <b>{month.count}</b>
@@ -358,7 +385,7 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
           <div className="office-pipeline-v2-panel-head">
             <div className="office-pipeline-v2-panel-copy">
               <h2>
-                <strong>{transactionCountLabel}</strong> Transactions
+                <strong>{transactionCountLabel}</strong> {t((messages) => messages.officePipeline.title)}
               </h2>
               <p className="office-pipeline-v2-panel-metric">
                 {snapshot.summary.totalMetricLabel} {snapshot.metricModeLabel}
@@ -417,14 +444,14 @@ export default async function OfficePipelinePage(props: PipelinePageProps) {
 
                   <span className="office-pipeline-v2-row-meta">
                     <strong>{transaction.owner}</strong>
-                    <small>{getKeyDateCopy(transaction)}</small>
+                    <small>{getKeyDateCopy(transaction, t)}</small>
                   </span>
                 </Link>
               ))
             ) : (
               <div className="office-pipeline-v2-empty">
-                <strong>No transactions matched the current pipeline selection.</strong>
-                <p>Try switching months, changing the side filter, or removing any hidden URL filters.</p>
+                <strong>{t((messages) => messages.officePipeline.noTransactionsTitle)}</strong>
+                <p>{t((messages) => messages.officePipeline.noTransactionsBody)}</p>
               </div>
             )}
           </div>

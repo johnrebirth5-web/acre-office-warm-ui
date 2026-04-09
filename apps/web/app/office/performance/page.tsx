@@ -21,6 +21,7 @@ import {
 } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { PerformanceFiltersClient } from "./performance-filters-client";
 
@@ -65,6 +66,33 @@ function buildRankLabel(leaderboard: OfficePerformanceLeaderboard) {
   return leaderboard.viewerEntry ? `#${leaderboard.viewerEntry.rank}` : "Not ranked";
 }
 
+function formatMonthLabel(monthId: string, locale: string) {
+  const monthIndex = Number.parseInt(monthId, 10);
+
+  if (!Number.isFinite(monthIndex) || monthIndex < 1 || monthIndex > 12) {
+    return monthId;
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2024, monthIndex - 1, 1)));
+}
+
+function translatePerformanceColumnLabel(
+  columnKey: string,
+  fallbackLabel: string,
+  locale: string
+) {
+  const monthMatch = columnKey.match(/^\d{4}-(\d{2})$/);
+
+  if (monthMatch) {
+    return formatMonthLabel(monthMatch[1], locale);
+  }
+
+  return fallbackLabel;
+}
+
 function buildPerformanceTableGridStyle(columnCount: number) {
   return {
     gridTemplateColumns: [
@@ -76,6 +104,9 @@ function buildPerformanceTableGridStyle(columnCount: number) {
 
 export default async function OfficePerformancePage(props: OfficePerformancePageProps) {
   const context = await requireOfficeSession();
+  const { t, locale } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
 
   if (!canViewOfficeReports(context.currentMembership)) {
     redirect("/office/dashboard");
@@ -96,6 +127,78 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
   });
   const exportHref = buildExportHref(searchParams);
   const performanceTableGridStyle = buildPerformanceTableGridStyle(workspace.table.columns.length);
+  const isTeamScope = workspace.filters.scopeLabel === "Team scope";
+  const translatedScopeLabel =
+    workspace.filters.scopeLabel === "Company scope"
+      ? t((messages) => messages.officePerformance.companyScope)
+      : workspace.filters.scopeLabel === "Team scope"
+        ? t((messages) => messages.officePerformance.teamScope)
+        : t((messages) => messages.officePerformance.myPerformance);
+  const selectedRangeLabel =
+    workspace.filters.period === "month"
+      ? t((messages) => messages.officePerformance.selectedRangeMonth, {
+          year: workspace.filters.year,
+        })
+      : workspace.filters.period === "quarter"
+        ? t((messages) => messages.officePerformance.selectedRangeQuarter, {
+            year: workspace.filters.year,
+          })
+        : t((messages) => messages.officePerformance.selectedRangeYear, {
+            start: workspace.filters.yearStart,
+            end: workspace.filters.yearEnd,
+          });
+  const translatedLeaderboards = workspace.leaderboards.map((leaderboard) => ({
+    ...leaderboard,
+    title:
+      leaderboard.period === "month"
+        ? `${formatMonthLabel(workspace.filters.month, locale)} ${workspace.filters.year}`
+        : leaderboard.period === "quarter"
+          ? `Q${workspace.filters.quarter} ${workspace.filters.year}`
+          : workspace.filters.year,
+    subtitle: isTeamScope
+      ? t((messages) => messages.officePerformance.topPerformersInTeam)
+      : t((messages) => messages.officePerformance.topPerformersInCompany, {
+          company: workspace.filters.companyLabel,
+        }),
+  }));
+  const leaderboardTitleByPeriod = new Map(
+    translatedLeaderboards.map((leaderboard) => [leaderboard.period, leaderboard.title])
+  );
+  const translatedSummaryCards = workspace.summary.cards.map((card) => ({
+    ...card,
+    label:
+      card.id === "selected-performance"
+        ? t((messages) => messages.officePerformance.selectedPerformance)
+        : card.id === "visible-performance"
+          ? t((messages) => messages.officePerformance.visiblePerformance)
+          : card.id === "visible-people"
+            ? t((messages) => messages.officePerformance.activeUsers)
+            : card.id === "month-rank"
+              ? isTeamScope
+                ? t((messages) => messages.officePerformance.myMonthRank)
+                : t((messages) => messages.officePerformance.monthRank)
+              : card.id === "quarter-rank"
+                ? isTeamScope
+                  ? t((messages) => messages.officePerformance.myQuarterRank)
+                  : t((messages) => messages.officePerformance.quarterRank)
+                : card.id === "year-rank"
+                  ? isTeamScope
+                    ? t((messages) => messages.officePerformance.myYearRank)
+                    : t((messages) => messages.officePerformance.yearRank)
+                  : card.label,
+    hint:
+      card.id === "selected-performance" || card.id === "visible-performance"
+        ? selectedRangeLabel
+        : card.id === "visible-people"
+          ? translatedScopeLabel
+          : card.id === "month-rank"
+            ? leaderboardTitleByPeriod.get("month") ?? card.hint
+            : card.id === "quarter-rank"
+              ? leaderboardTitleByPeriod.get("quarter") ?? card.hint
+              : card.id === "year-rank"
+                ? leaderboardTitleByPeriod.get("year") ?? card.hint
+                : card.hint,
+  }));
 
   return (
     <OfficeListPageShell className="office-performance-page">
@@ -103,35 +206,35 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
         actions={
           workspace.filters.canExport ? (
             <Link className="office-button-secondary" href={exportHref}>
-              Export CSV
+              {t((messages) => messages.officePerformance.exportCsv)}
             </Link>
           ) : null
         }
-        description="Track agent performance, compare visible contributors across natural month, quarter, and year windows, and review current rankings without leaving the CRM."
-        eyebrow="Performance"
+        description={t((messages) => messages.officePerformance.description)}
+        eyebrow={t((messages) => messages.officePerformance.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Company" value={workspace.filters.companyLabel} />
-            <SummaryChip label="Scope" value={workspace.filters.scopeLabel} />
-            <SummaryChip label="View" tone="accent" value={workspace.selectedRangeLabel} />
+            <SummaryChip label={t((messages) => messages.officePerformance.company)} value={workspace.filters.companyLabel} />
+            <SummaryChip label={t((messages) => messages.officePerformance.scope)} value={translatedScopeLabel} />
+            <SummaryChip label={t((messages) => messages.officePerformance.view)} tone="accent" value={selectedRangeLabel} />
           </>
         }
-        title="Agent Performance"
+        title={t((messages) => messages.officePerformance.title)}
       />
 
       <ListPageSection
-        subtitle="Period and company filters drive the summary, table, and ranking board together."
-        title="Performance filters"
+        subtitle={t((messages) => messages.officePerformance.filtersSubtitle)}
+        title={t((messages) => messages.officePerformance.filtersTitle)}
       >
         <PerformanceFiltersClient filters={workspace.filters} />
       </ListPageSection>
 
       <ListPageSection
-        subtitle="Summary cards adapt to the current role scope, while ranking cards keep month, quarter, and year snapshots visible together."
-        title="Performance summary"
+        subtitle={t((messages) => messages.officePerformance.summarySubtitle)}
+        title={t((messages) => messages.officePerformance.summaryTitle)}
       >
         <ListPageStatsGrid className="office-performance-summary-grid">
-          {workspace.summary.cards.map((card) => (
+          {translatedSummaryCards.map((card) => (
             <StatCard
               className="office-performance-stat-card"
               hint={card.hint}
@@ -146,18 +249,26 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
 
       <ListPageTableSection
         className="office-list-card"
-        footer={<ListPageFooter summary={`${workspace.table.rowCount} visible row(s)`} />}
-        subtitle="Rows respect the current Office role scope, and each cell shows the performance formula already net of rebate, referral fees, and reimbursement."
-        title="Performance table"
+        footer={
+          <ListPageFooter
+            summary={t((messages) => messages.officePerformance.visibleRows, {
+              count: workspace.table.rowCount,
+            })}
+          />
+        }
+        subtitle={t((messages) => messages.officePerformance.tableSubtitle)}
+        title={t((messages) => messages.officePerformance.tableTitle)}
       >
         <DataTable className="office-list-table office-performance-table">
           <DataTableHeader
             className="office-list-table-header office-list-table-header-performance office-performance-table-head"
             style={performanceTableGridStyle}
           >
-            <span>Name</span>
+            <span>{t((messages) => messages.officePerformance.tableName)}</span>
             {workspace.table.columns.map((column) => (
-              <span key={column.key}>{column.label}</span>
+              <span key={column.key}>
+                {translatePerformanceColumnLabel(column.key, column.label, locale)}
+              </span>
             ))}
           </DataTableHeader>
 
@@ -172,7 +283,9 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
                   <strong>{row.name}</strong>
                   <small>
                     {row.secondaryLabel ? `${row.secondaryLabel} · ` : ""}
-                    Total {row.totalLabel}
+                    {t((messages) => messages.officePerformance.totalPrefix, {
+                      value: row.totalLabel,
+                    })}
                   </small>
                 </div>
                 {workspace.table.columns.map((column) => (
@@ -183,8 +296,8 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
 
             {workspace.table.rows.length === 0 ? (
               <EmptyState
-                description="Try a different year window, or check whether any matching transactions have move-in or closing dates in this company scope."
-                title={workspace.table.emptyMessage}
+                description={t((messages) => messages.officePerformance.noVisibleRowsBody)}
+                title={t((messages) => messages.officePerformance.noVisibleRowsTitle)}
               />
             ) : null}
           </DataTableBody>
@@ -192,11 +305,11 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
       </ListPageTableSection>
 
       <ListPageSection
-        subtitle="Agent viewers only see their own amount on the board. Team leaders see group amounts, and company-scope viewers see the full company board."
-        title="Performance PK board"
+        subtitle={t((messages) => messages.officePerformance.boardSubtitle)}
+        title={t((messages) => messages.officePerformance.boardTitle)}
       >
         <ListPageSplit className="office-performance-board-grid">
-          {workspace.leaderboards.map((leaderboard) => (
+          {translatedLeaderboards.map((leaderboard) => (
             <SectionCard
               className="office-performance-board-card"
               key={leaderboard.period}
@@ -208,9 +321,9 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
                   className="office-table-header office-table-row office-table-row-performance-board"
                   style={performanceBoardGridStyle}
                 >
-                  <span>Rank</span>
-                  <span>Agent</span>
-                  <span>Performance</span>
+                  <span>{t((messages) => messages.officePerformance.rank)}</span>
+                  <span>{t((messages) => messages.officePerformance.agent)}</span>
+                  <span>{t((messages) => messages.officePerformance.performance)}</span>
                 </DataTableHeader>
                 <DataTableBody>
                   {leaderboard.entries.map((entry) => (
@@ -222,25 +335,40 @@ export default async function OfficePerformancePage(props: OfficePerformancePage
                       <span>#{entry.rank}</span>
                       <div className="office-list-table-main">
                         <strong>{entry.name}</strong>
-                        <small>{entry.isViewer ? "Current account" : "Top 10 board"}</small>
+                        <small>
+                          {entry.isViewer
+                            ? t((messages) => messages.officePerformance.currentAccount)
+                            : t((messages) => messages.officePerformance.top10Board)}
+                        </small>
                       </div>
-                      <span>{entry.amountVisible ? entry.performanceLabel : "Restricted"}</span>
+                      <span>
+                        {entry.amountVisible
+                          ? entry.performanceLabel
+                          : t((messages) => messages.officePerformance.restricted)}
+                      </span>
                     </DataTableRow>
                   ))}
 
                   {leaderboard.entries.length === 0 ? (
                     <EmptyState
-                      description="No visible performance was ranked inside this period yet."
-                      title={leaderboard.emptyMessage}
+                      description={t((messages) => messages.officePerformance.noRankedPerformanceBody)}
+                      title={t((messages) => messages.officePerformance.noRankedPerformanceTitle)}
                     />
                   ) : null}
                 </DataTableBody>
               </DataTable>
 
               <div className="office-page-actions office-performance-board-summary">
-                <SummaryChip label="Current rank" value={buildRankLabel(leaderboard)} />
+                <SummaryChip
+                  label={t((messages) => messages.officePerformance.currentRank)}
+                  value={buildRankLabel(leaderboard) === "Not ranked" ? t((messages) => messages.officePerformance.notRanked) : buildRankLabel(leaderboard)}
+                />
                 {leaderboard.viewerEntry?.amountVisible ? (
-                  <SummaryChip label="My performance" tone="accent" value={leaderboard.viewerEntry.performanceLabel} />
+                  <SummaryChip
+                    label={t((messages) => messages.officePerformance.myPerformance)}
+                    tone="accent"
+                    value={leaderboard.viewerEntry.performanceLabel}
+                  />
                 ) : null}
               </div>
             </SectionCard>

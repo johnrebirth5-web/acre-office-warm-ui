@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@acre/ui";
+import { useI18n } from "../../lib/i18n/client";
 
 type LoginFormProps = {
   errorMessage: string;
 };
 
 export function LoginForm({ errorMessage }: LoginFormProps) {
+  const { t } = useI18n();
   const [workEmail, setWorkEmail] = useState("");
   const [workPassword, setWorkPassword] = useState("");
   const [manualEntryEnabled, setManualEntryEnabled] = useState(false);
@@ -27,7 +29,7 @@ export function LoginForm({ errorMessage }: LoginFormProps) {
   return (
     <form action="/api/auth/login" autoComplete={manualEntryEnabled ? "on" : "off"} className="auth-form" method="post">
       <label className="auth-field">
-        <span>Work email</span>
+        <span>{t((messages) => messages.auth.workEmail)}</span>
         <input
           autoCapitalize="none"
           autoComplete={manualEntryEnabled ? "username" : "off"}
@@ -44,7 +46,7 @@ export function LoginForm({ errorMessage }: LoginFormProps) {
       </label>
 
       <label className="auth-field">
-        <span>Password</span>
+        <span>{t((messages) => messages.auth.password)}</span>
         <input
           autoComplete={manualEntryEnabled ? "current-password" : "off"}
           name="workPassword"
@@ -61,7 +63,7 @@ export function LoginForm({ errorMessage }: LoginFormProps) {
 
       <div className="auth-actions">
         <Button className="auth-submit" type="submit">
-          Log in
+          {t((messages) => messages.auth.logIn)}
         </Button>
       </div>
     </form>

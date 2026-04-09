@@ -2,6 +2,7 @@ import { getDefaultAppPath } from "@acre/auth";
 import { acceptInvitation } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { createSessionCookieValue, getSessionCookieName, getSessionCookieSettings } from "../../../../../lib/auth-session";
+import { coerceLocaleCode, getLocaleCookieOptions, localeCookieName } from "../../../../../lib/i18n/config";
 import { getRequestOrigin } from "../../../../../lib/request-origin";
 
 function buildInviteRedirect(requestOrigin: string, token: string, error: string) {
@@ -51,6 +52,11 @@ export async function POST(request: NextRequest) {
     getSessionCookieName(),
     createSessionCookieValue(result.context.currentMembership.id),
     getSessionCookieSettings()
+  );
+  response.cookies.set(
+    localeCookieName,
+    coerceLocaleCode(result.context.currentUser.locale),
+    getLocaleCookieOptions()
   );
 
   return response;

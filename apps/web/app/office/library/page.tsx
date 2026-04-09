@@ -3,6 +3,7 @@ import { SummaryChip } from "@acre/ui";
 import { getOfficeLibrarySnapshot } from "@acre/db";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../lib/auth-session";
+import { getServerI18n } from "../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../_components/office-list-page-template";
 import { OfficeLibraryClient } from "./office-library-client";
 
@@ -19,6 +20,9 @@ type OfficeLibraryPageProps = {
 
 export default async function OfficeLibraryPage(props: OfficeLibraryPageProps) {
   const context = await requireOfficeSession();
+  const { t } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
 
   if (!canViewOfficeLibrary(context.currentMembership)) {
     redirect("/office/dashboard");
@@ -39,16 +43,16 @@ export default async function OfficeLibraryPage(props: OfficeLibraryPageProps) {
   return (
     <OfficeListPageShell className="office-library-page">
       <OfficeListPageHeader
-        description="Internal company library for manuals, onboarding packets, legal PDFs, financial references, and office playbooks. PDF preview is inline when practical; all files remain downloadable."
-        eyebrow="Company library"
+        description={t((messages) => messages.officeLibrary.description)}
+        eyebrow={t((messages) => messages.officeLibrary.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Office scope" value={context.currentOffice?.name ?? context.currentOrganization.name} />
-            <SummaryChip label="Active files" tone="accent" value={snapshot.summary.totalDocuments} />
-            <SummaryChip label="Folders" value={snapshot.summary.totalFolders} />
+            <SummaryChip label={t((messages) => messages.common.officeScope)} value={context.currentOffice?.name ?? context.currentOrganization.name} />
+            <SummaryChip label={t((messages) => messages.officeLibrary.activeFiles)} tone="accent" value={snapshot.summary.totalDocuments} />
+            <SummaryChip label={t((messages) => messages.officeLibrary.folders)} value={snapshot.summary.totalFolders} />
           </>
         }
-        title="Company library"
+        title={t((messages) => messages.officeLibrary.title)}
       />
 
       <OfficeLibraryClient

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, FilterField, ListPageFilters, SelectInput } from "@acre/ui";
 import type { OfficePerformanceWorkspace } from "@acre/db";
+import { useI18n } from "../../../lib/i18n/client";
 
 type PerformanceFiltersClientProps = {
   filters: OfficePerformanceWorkspace["filters"];
@@ -57,7 +58,21 @@ function buildDefaultState(filters: OfficePerformanceWorkspace["filters"]): Perf
   };
 }
 
+function formatMonthLabel(monthId: string, locale: string) {
+  const monthIndex = Number.parseInt(monthId, 10);
+
+  if (!Number.isFinite(monthIndex) || monthIndex < 1 || monthIndex > 12) {
+    return monthId;
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2024, monthIndex - 1, 1)));
+}
+
 export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientProps) {
+  const { t, locale } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
@@ -94,7 +109,7 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
 
   return (
     <ListPageFilters as="form" className="office-performance-filter-bar" onSubmit={handleSubmit}>
-      <FilterField label="View">
+      <FilterField label={t((messages) => messages.officePerformance.view)}>
         <SelectInput
           onChange={(event) =>
             setState((current) => ({
@@ -106,13 +121,19 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
         >
           {filters.periodOptions.map((option) => (
             <option key={option.id} value={option.id}>
-              {option.label}
+              {option.id === "month"
+                ? t((messages) => messages.officePerformance.month)
+                : option.id === "quarter"
+                  ? t((messages) => messages.officePerformance.quarter)
+                  : option.id === "year"
+                    ? t((messages) => messages.officePerformance.year)
+                    : option.label}
             </option>
           ))}
         </SelectInput>
       </FilterField>
 
-      <FilterField label="Company">
+      <FilterField label={t((messages) => messages.officePerformance.company)}>
         <SelectInput
           disabled={filters.companyOptions.length <= 1}
           onChange={(event) =>
@@ -131,7 +152,7 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
         </SelectInput>
       </FilterField>
 
-      <FilterField label="Year">
+      <FilterField label={t((messages) => messages.officePerformance.year)}>
         <SelectInput
           onChange={(event) =>
             setState((current) => ({
@@ -149,7 +170,7 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
         </SelectInput>
       </FilterField>
 
-      <FilterField label="Month rank basis">
+      <FilterField label={t((messages) => messages.officePerformance.monthRankBasis)}>
         <SelectInput
           onChange={(event) =>
             setState((current) => ({
@@ -161,13 +182,13 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
         >
           {filters.monthOptions.map((option) => (
             <option key={option.id} value={option.id}>
-              {option.label}
+              {formatMonthLabel(option.id, locale)}
             </option>
           ))}
         </SelectInput>
       </FilterField>
 
-      <FilterField label="Quarter rank basis">
+      <FilterField label={t((messages) => messages.officePerformance.quarterRankBasis)}>
         <SelectInput
           onChange={(event) =>
             setState((current) => ({
@@ -187,7 +208,7 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
 
       {state.period === "year" ? (
         <>
-          <FilterField label="Year table start">
+          <FilterField label={t((messages) => messages.officePerformance.yearTableStart)}>
             <SelectInput
               onChange={(event) =>
                 setState((current) => ({
@@ -205,7 +226,7 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
             </SelectInput>
           </FilterField>
 
-          <FilterField label="Year table end">
+          <FilterField label={t((messages) => messages.officePerformance.yearTableEnd)}>
             <SelectInput
               onChange={(event) =>
                 setState((current) => ({
@@ -226,10 +247,12 @@ export function PerformanceFiltersClient({ filters }: PerformanceFiltersClientPr
       ) : null}
 
       <Button disabled={isPending} type="submit">
-        {isPending ? "Applying..." : "Apply"}
+        {isPending
+          ? t((messages) => messages.officePerformance.applying)
+          : t((messages) => messages.officePerformance.apply)}
       </Button>
       <Button disabled={isPending} onClick={handleReset} type="button" variant="secondary">
-        Reset
+        {t((messages) => messages.common.reset)}
       </Button>
     </ListPageFilters>
   );

@@ -4,11 +4,15 @@ import { getOfficeSignatureTemplateLibrarySnapshot } from "@acre/db";
 import { SummaryChip } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { requireOfficeSession } from "../../../../lib/auth-session";
+import { getServerI18n } from "../../../../lib/i18n/server";
 import { OfficeListPageHeader, OfficeListPageShell } from "../../_components/office-list-page-template";
 import { SignatureTemplatesClient } from "./signature-templates-client";
 
 export default async function OfficeSignatureTemplatesPage() {
   const context = await requireOfficeSession();
+  const { t } = await getServerI18n({
+    userLocale: context.currentUser.locale,
+  });
 
   if (!canManageOfficeSignatureTemplates(context.currentMembership)) {
     redirect("/office/signatures");
@@ -26,22 +30,27 @@ export default async function OfficeSignatureTemplatesPage() {
       <OfficeListPageHeader
         actions={
           <Link className="office-button-secondary" href="/office/signatures">
-            Back to signatures
+            {t((messages) => messages.officeSignatureTemplates.backToSignatures)}
           </Link>
         }
-        description="Maintain the reusable signature library from one place, track which templates already have live drafts, and keep the library honest about the current transaction-PDF authoring model."
-        eyebrow="Documents"
+        description={t((messages) => messages.officeSignatureTemplates.description)}
+        eyebrow={t((messages) => messages.officeSignatureTemplates.eyebrow)}
         summary={
           <>
-            <SummaryChip label="Office scope" value={scopeLabel} />
-            <SummaryChip label="Templates" tone="accent" value={snapshot.summary.totalCount} />
-            <SummaryChip label="Active" value={snapshot.summary.activeCount} />
-            <SummaryChip label="HR / finance / admin" value={snapshot.summary.nonTransactionCount} />
-            <SummaryChip label="Generic category" value={snapshot.capabilities.supportsGenericTemplateCategory ? "Available" : "Schema pending"} />
-            <SummaryChip label="Live drafts" value={snapshot.summary.templatesWithLiveDraftsCount} />
+            <SummaryChip label={t((messages) => messages.common.officeScope)} value={scopeLabel} />
+            <SummaryChip label={t((messages) => messages.officeSignatureTemplates.templates)} tone="accent" value={snapshot.summary.totalCount} />
+            <SummaryChip label={t((messages) => messages.officeSignatureTemplates.active)} value={snapshot.summary.activeCount} />
+            <SummaryChip label={t((messages) => messages.officeSignatureTemplates.nonTransaction)} value={snapshot.summary.nonTransactionCount} />
+            <SummaryChip
+              label={t((messages) => messages.officeSignatureTemplates.genericCategory)}
+              value={snapshot.capabilities.supportsGenericTemplateCategory
+                ? t((messages) => messages.officeSignatures.available)
+                : t((messages) => messages.officeSignatureTemplates.schemaPending)}
+            />
+            <SummaryChip label={t((messages) => messages.officeSignatureTemplates.liveDrafts)} value={snapshot.summary.templatesWithLiveDraftsCount} />
           </>
         }
-        title="Signature templates"
+        title={t((messages) => messages.officeSignatureTemplates.title)}
       />
 
       <SignatureTemplatesClient canManageSignatures={canManageSignatures} snapshot={snapshot} />

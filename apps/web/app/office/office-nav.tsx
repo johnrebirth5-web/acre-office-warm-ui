@@ -30,6 +30,7 @@ import {
   WorkspaceNav,
   type WorkspaceNavGroup,
 } from "../_components/workspace-nav";
+import { useI18n } from "../../lib/i18n/client";
 
 function canViewUnifiedUsers(subject: PermissionSubject) {
   return canViewOfficeUsers(subject) || canViewOfficeAgents(subject);
@@ -37,62 +38,63 @@ function canViewUnifiedUsers(subject: PermissionSubject) {
 
 function getNavGroups(
   subject: PermissionSubject,
-  mailUnreadCount: number
+  mailUnreadCount: number,
+  t: ReturnType<typeof useI18n>["t"],
 ): WorkspaceNavGroup[] {
   return [
     {
-      title: "Overview",
+      title: t((messages) => messages.officeNav.groups.overview),
       icon: "◫",
       items: [
-        { label: "Dashboard", href: "/office/dashboard" },
-        { label: "Pipeline", href: "/office/pipeline" },
+        { label: t((messages) => messages.officeNav.items.dashboard), href: "/office/dashboard" },
+        { label: t((messages) => messages.officeNav.items.pipeline), href: "/office/pipeline" },
         {
-          label: "Transactions",
+          label: t((messages) => messages.officeNav.items.transactions),
           href: "/office/transactions",
           isVisible: canViewOfficeTransactions,
         },
         {
-          label: "Offers",
+          label: t((messages) => messages.officeNav.items.offers),
           href: "/office/offers",
           isVisible: canViewOfficeOffers,
         },
         {
-          label: "Contacts",
+          label: t((messages) => messages.officeNav.items.contacts),
           href: "/office/contacts",
           isVisible: canViewOfficeContacts,
         },
         {
-          label: "Reports",
+          label: t((messages) => messages.officeNav.items.reports),
           href: "/office/reports",
           isVisible: canViewOfficeReports,
         },
         {
-          label: "Performance",
+          label: t((messages) => messages.officeNav.items.performance),
           href: "/office/performance",
           isVisible: canViewOfficeReports,
         },
         {
-          label: "Activity",
+          label: t((messages) => messages.officeNav.items.activity),
           href: "/office/activity",
           isVisible: canAccessAccountActivity,
         },
         {
-          label: "Library",
+          label: t((messages) => messages.officeNav.items.library),
           href: "/office/library",
           isVisible: canViewOfficeLibrary,
         },
         {
-          label: "Signatures",
+          label: t((messages) => messages.officeNav.items.signatures),
           href: "/office/signatures",
           isVisible: canViewOfficeSignatures,
         },
         {
-          label: "Accounting",
+          label: t((messages) => messages.officeNav.items.accounting),
           href: "/office/accounting",
           isVisible: canAccessOfficeAdminAccountingWorkspace,
         },
         {
-          label: "1099 Tracker",
+          label: t((messages) => messages.officeNav.items.tracker1099),
           href: "/office/1099-tracker",
           isVisible: canAccessOffice1099Tracker,
         },
@@ -101,16 +103,16 @@ function getNavGroups(
         .map(({ isVisible: _isVisible, ...item }) => item),
     },
     {
-      title: "To Do",
+      title: t((messages) => messages.officeNav.groups.todo),
       icon: "◔",
       items: [
         {
-          label: "Approve docs",
+          label: t((messages) => messages.officeNav.items.approveDocs),
           href: "/office/approve-docs",
           isVisible: canAccessOfficeDocumentApprovals,
         },
         {
-          label: "Task list",
+          label: t((messages) => messages.officeNav.items.taskList),
           href: "/office/tasks",
           isVisible: canAccessOfficeTasks,
         },
@@ -119,41 +121,41 @@ function getNavGroups(
         .map(({ isVisible: _isVisible, ...item }) => item),
     },
     {
-      title: "Settings",
+      title: t((messages) => messages.officeNav.groups.settings),
       icon: "⚙",
       items: [
         {
-          label: "Settings",
+          label: t((messages) => messages.officeNav.items.settings),
           href: "/office/settings",
           isVisible: canAccessOfficeSettings,
         },
         {
-          label: "Roles",
+          label: t((messages) => messages.officeNav.items.roles),
           href: "/office/settings/roles",
           isVisible: canManageOfficeSettings,
         },
         {
-          label: "Users",
+          label: t((messages) => messages.officeNav.items.users),
           href: "/office/settings/users",
           isVisible: canViewUnifiedUsers,
         },
         {
-          label: "Teams",
+          label: t((messages) => messages.officeNav.items.teams),
           href: "/office/settings/teams",
           isVisible: canViewOfficeTeams,
         },
         {
-          label: "Checklists",
+          label: t((messages) => messages.officeNav.items.checklists),
           href: "/office/settings/checklists",
           isVisible: canViewOfficeChecklists,
         },
         {
-          label: "Fields",
+          label: t((messages) => messages.officeNav.items.fields),
           href: "/office/settings/fields",
           isVisible: canViewOfficeFields,
         },
         {
-          label: "Commission plans",
+          label: t((messages) => messages.officeNav.items.commissionPlans),
           href: "/office/settings/commission-plans",
           isVisible: canAccessOfficeCommissionWorkspace,
         },
@@ -162,25 +164,25 @@ function getNavGroups(
         .map(({ isVisible: _isVisible, ...item }) => item),
     },
     {
-      title: "User",
+      title: t((messages) => messages.officeNav.groups.user),
       icon: "◉",
       items: [
         {
-          label: "Mail",
+          label: t((messages) => messages.officeNav.items.mail),
           href: "/office/mail",
           badgeText: mailUnreadCount > 0 ? `+${mailUnreadCount}` : undefined,
           isVisible: canAccessOfficeMail,
         },
         {
-          label: "Notifications",
+          label: t((messages) => messages.officeNav.items.notifications),
           href: "/office/notifications",
           isVisible: canAccessOfficeNotifications,
         },
-        { label: "Account", href: "/office/account" },
-        { label: "Billing", href: "/office/billing" },
-        { label: "Add-ons", kind: "muted" as const },
+        { label: t((messages) => messages.officeNav.items.account), href: "/office/account" },
+        { label: t((messages) => messages.officeNav.items.billing), href: "/office/billing" },
+        { label: t((messages) => messages.officeNav.items.addOns), kind: "muted" as const },
         {
-          label: "Sign out",
+          label: t((messages) => messages.officeNav.items.signOut),
           kind: "submit" as const,
           formAction: "/api/auth/logout",
         },
@@ -200,6 +202,7 @@ export function OfficeNav({
   currentOfficeName,
   currentAccess,
 }: OfficeNavProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const canViewMail = canAccessOfficeMail(currentAccess);
@@ -254,21 +257,21 @@ export function OfficeNav({
 
   return (
     <WorkspaceNav
-      currentWorkspaceName="Back Office"
+      currentWorkspaceName={t((messages) => messages.officeNav.workspaceName)}
       homeHref="/office/dashboard"
-      navGroups={getNavGroups(currentAccess, mailUnreadCount)}
-      navigationLabel="Office navigation"
-      switcherLabel="Workspace"
+      navGroups={getNavGroups(currentAccess, mailUnreadCount, t)}
+      navigationLabel={t((messages) => messages.officeNav.navigationLabel)}
+      switcherLabel={t((messages) => messages.officeNav.switcherShortLabel)}
       switcherShortcuts={[
         {
           href: "/agent/dashboard",
-          label: "Front Office",
-          description: "Clients, outreach, calendar, and active follow-up",
+          label: t((messages) => messages.officeNav.shortcuts.frontOffice.label),
+          description: t((messages) => messages.officeNav.shortcuts.frontOffice.description),
         },
         {
           href: "/listing-studio/dashboard",
-          label: "Listing Studio",
-          description: "Imported listing packets, sharing, and PDF exports",
+          label: t((messages) => messages.officeNav.shortcuts.listingStudio.label),
+          description: t((messages) => messages.officeNav.shortcuts.listingStudio.description),
         },
       ]}
     />
