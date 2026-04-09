@@ -101,9 +101,10 @@ export default async function PublicListingSharePage(
           <p>{snapshot.followUpLabel}</p>
           <p>{snapshot.privacyLabel}</p>
           <p>
-            This private Acre share surface keeps the conversation aligned
-            without sending you into Back Office tools. Use the contact buttons
-            above if you want to talk through the listing or the next step.
+            This {snapshot.shareSurfaceLabel.toLowerCase()} keeps the
+            conversation aligned without sending you into Back Office tools.
+            Use the contact buttons above if you want to talk through the
+            listing or the next step.
           </p>
         </div>
       </section>

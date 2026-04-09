@@ -2,7 +2,12 @@
 
 import { useState, useTransition, type ComponentProps } from "react";
 import type { FrontOfficeListingsSnapshot, FrontOfficeTone } from "@acre/db";
-import type { FrontOfficeListingUsagePulse } from "../../../../../packages/db/src/front-office-listing-output";
+import type { FrontOfficeSendChannel } from "@prisma/client";
+import {
+  buildFrontOfficeListingSharePromiseSnapshot,
+  type FrontOfficeListingSharePromiseSnapshot,
+  type FrontOfficeListingUsagePulse,
+} from "../../../../../packages/db/src/front-office-listing-output";
 import { Badge, Button, EmptyState, QueueItem } from "@acre/ui";
 import { useRouter } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
@@ -112,13 +117,7 @@ type ClientFacingShareContract = {
   meta: string[];
 };
 
-type ClientFacingSharePromise = {
-  shareSurfaceLabel: string;
-  shareContextLabel: string;
-  replyLaneLabel: string;
-  nextStepLabel: string;
-  privacyLabel: string;
-};
+type ClientFacingSharePromise = FrontOfficeListingSharePromiseSnapshot;
 
 type ListingSendRiskWatch = {
   badgeLabel: string;
@@ -695,51 +694,33 @@ function buildClientFacingSharePromise(input: {
   snapshot: FrontOfficeListingsSnapshot;
   recommendedAction: RecommendedShareAction;
 }): ClientFacingSharePromise {
+  const mode = input.snapshot.targetAppointment
+    ? "client_appointment_context"
+    : input.snapshot.targetClient
+      ? "client_dossier_context"
+      : "generic_tracked_link";
+
   if (input.snapshot.targetAppointment) {
-    return {
-      shareSurfaceLabel: "Tracked appointment follow-through share",
-      shareContextLabel: input.snapshot.targetAppointment.title
-        ? `Shared as a private follow-through link around ${input.snapshot.targetAppointment.title}.`
-        : "Shared as a private follow-through link around an active appointment.",
-      replyLaneLabel:
-        input.recommendedAction.action === "sms"
-          ? "Reply in the same conversation if you are confirming timing, access, or the next showing step."
-          : "Reply in the same conversation if you are confirming timing, access, or the next showing step.",
-      nextStepLabel: input.snapshot.targetAppointment.title
-        ? `Use the same conversation to confirm ${input.snapshot.targetAppointment.title} details or ask for the next showing step.`
-        : "Use the same conversation to confirm timing or ask for the next showing step.",
-      privacyLabel:
-        "This Acre page is a private follow-through surface, so keep replies in the same conversation whenever possible.",
-    };
+    return buildFrontOfficeListingSharePromiseSnapshot({
+      mode,
+      channel: input.recommendedAction.action as FrontOfficeSendChannel,
+      appointmentTitle: input.snapshot.targetAppointment.title,
+    });
   }
 
   if (input.snapshot.targetClient) {
-    return {
-      shareSurfaceLabel: "Tracked client share",
-      shareContextLabel:
-        "Shared as a private client follow-through link so the next step stays in one conversation.",
-      replyLaneLabel:
-        input.recommendedAction.action === "email"
-          ? "Reply in the same email thread so the shortlist and next option stay aligned."
-          : "Reply in the same chat thread so the shortlist and next option stay aligned.",
-      nextStepLabel:
-        "Reply in the same conversation or contact the agent directly if you want the next option lined up.",
-      privacyLabel:
-        "This Acre page is a private follow-through surface, so keep replies in the same conversation whenever possible.",
-    };
+    return buildFrontOfficeListingSharePromiseSnapshot({
+      mode,
+      channel: input.recommendedAction.action as FrontOfficeSendChannel,
+      appointmentTitle: null,
+    });
   }
 
-  return {
-    shareSurfaceLabel: "Private listing share",
-    shareContextLabel:
-      "Shared as a private Acre listing link without a client-bound follow-through trail.",
-    replyLaneLabel:
-      "If this page was forwarded, ask the sender for the original conversation so the next step stays aligned.",
-    nextStepLabel:
-      "Call or email the agent to keep the conversation moving, or open the source listing for the canonical record.",
-    privacyLabel:
-      "This Acre page is meant to stay private to the conversation it came from.",
-  };
+  return buildFrontOfficeListingSharePromiseSnapshot({
+    mode,
+    channel: input.recommendedAction.action as FrontOfficeSendChannel,
+    appointmentTitle: null,
+  });
 }
 
 function buildListingSendRiskWatch(
