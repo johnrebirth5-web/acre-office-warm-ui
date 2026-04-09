@@ -305,6 +305,7 @@ export type FrontOfficeListingRecord = {
     sentAtLabel: string;
     sentAtValue: string;
     trackingLabel: string;
+    trackingStatus: "tracked_link_only" | "tracked_send_recorded";
     statusTone: FrontOfficeTone;
     writebackLabel: string;
     writebackScopeLabel: string;
@@ -3253,6 +3254,7 @@ export async function getFrontOfficeListingsSnapshot(
       sentAtLabel: string;
       sentAtValue: string;
       trackingLabel: string;
+      trackingStatus: "tracked_link_only" | "tracked_send_recorded";
       statusTone: FrontOfficeTone;
       writebackLabel: string;
       writebackScopeLabel: string;
@@ -3300,6 +3302,9 @@ export async function getFrontOfficeListingsSnapshot(
       sentAtLabel: execution.sentAtLabel,
       sentAtValue: execution.sentAtValue,
       trackingLabel: execution.trackingLabel,
+      trackingStatus: shareLink.sendRecord?.id
+        ? "tracked_send_recorded"
+        : "tracked_link_only",
       statusTone: execution.statusTone,
       writebackLabel: execution.writebackLabel,
       writebackScopeLabel: execution.writebackScopeLabel,

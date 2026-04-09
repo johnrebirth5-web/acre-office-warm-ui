@@ -1036,6 +1036,62 @@ export function FrontOfficeListingsOutputClient(
             />
           ) : null}
         </div>
+        <div className="front-office-playbook-card-head" style={{ marginTop: "0.4rem" }}>
+          <strong>Recent tracked shares</strong>
+          <span>
+            Newest first. The latest tracked share stays at the top, followed
+            by older shares so you can see which trails are still warm and
+            which ones need a new next move.
+          </span>
+        </div>
+        <div className="office-queue-list">
+          {props.usagePulse.recentTrackedShares.length ? (
+            props.usagePulse.recentTrackedShares.map((share) => (
+              <QueueItem
+                action={
+                  <>
+                    {share.clientHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={share.clientHref}
+                      >
+                        Open bound dossier
+                      </FrontOfficeLink>
+                    ) : null}
+                    {share.appointmentHref ? (
+                      <FrontOfficeLink
+                        className="office-inline-link"
+                        href={share.appointmentHref}
+                      >
+                        Open bound appointment
+                      </FrontOfficeLink>
+                    ) : null}
+                  </>
+                }
+                badgeLabel={share.badgeLabel}
+                badgeTone={share.badgeTone}
+                context={share.context}
+                description={share.description}
+                key={`${share.title}-${share.context}`}
+                meta={
+                  <>
+                    {share.meta.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </>
+                }
+                title={share.title}
+              />
+            ))
+          ) : (
+            <QueueItem
+              badgeLabel="No recent trails"
+              badgeTone="neutral"
+              description="Recent tracked shares will appear here once the desk has enough outbound activity to build a small timeline."
+              title="Recent tracked shares"
+            />
+          )}
+        </div>
       </div>
 
       <div className="front-office-playbook-grid front-office-listings-overview-grid">

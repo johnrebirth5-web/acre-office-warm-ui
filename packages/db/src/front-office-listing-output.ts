@@ -73,6 +73,7 @@ export type FrontOfficeListingUsagePulseCard = {
   badgeTone: FrontOfficeTone;
   context: string;
   description: string;
+  followThroughCue: string;
   meta: string[];
   clientHref: string | null;
   appointmentHref: string | null;
@@ -110,6 +111,7 @@ export type FrontOfficeListingUsagePulseListing = {
     sentAtLabel: string;
     sentAtValue: string;
     trackingLabel: string;
+    trackingStatus: FrontOfficeListingShareWritebackMode;
     statusTone: FrontOfficeTone;
     writebackLabel: string;
     writebackScopeLabel: string;
@@ -514,6 +516,38 @@ function buildListingUsagePulseTrailState(input: {
   };
 }
 
+function buildListingUsagePulseFollowThroughCue(
+  listing: FrontOfficeListingUsagePulseListing,
+) {
+  const latestShare = listing.latestTrackedShare;
+
+  if (!latestShare) {
+    return "No tracked share has been created yet, so this listing is still waiting for its first follow-through trail.";
+  }
+
+  if (latestShare.trackingStatus === "tracked_send_recorded") {
+    if (latestShare.appointmentLabel) {
+      return `Reopen the ${latestShare.channelLabel.toLowerCase()} trail from the appointment loop if it goes quiet.`;
+    }
+
+    if (latestShare.clientLabel) {
+      return `Reopen the ${latestShare.channelLabel.toLowerCase()} trail from the client dossier if it goes quiet.`;
+    }
+
+    return `Reopen the ${latestShare.channelLabel.toLowerCase()} trail if it goes quiet.`;
+  }
+
+  if (latestShare.appointmentLabel) {
+    return "This is still a link-only share. Convert it into a tracked send from the appointment trail next time.";
+  }
+
+  if (latestShare.clientLabel) {
+    return "This is still a link-only share. Convert it into a tracked send from the client trail next time.";
+  }
+
+  return "This is still a link-only share. Convert it into a tracked send next time so follow-through can be measured.";
+}
+
 function buildListingUsagePulseCard(
   listing: FrontOfficeListingUsagePulseListing,
 ): FrontOfficeListingUsagePulseCard {
@@ -531,6 +565,9 @@ function buildListingUsagePulseCard(
     meta.push(`Latest share · ${latestShare.sentAtLabel}`);
     meta.push(latestShare.writebackScopeLabel);
     meta.push(`Next step · ${latestShare.nextStepLabel}`);
+    meta.push(
+      `Follow-through · ${buildListingUsagePulseFollowThroughCue(listing)}`,
+    );
 
     if (latestShare.clientLabel) {
       meta.push(
@@ -565,6 +602,7 @@ function buildListingUsagePulseCard(
     description: latestShare
       ? `${latestShare.trackingLabel} ${latestShare.writebackLabel}`
       : "No tracked share has been created for this listing yet.",
+    followThroughCue: buildListingUsagePulseFollowThroughCue(listing),
     meta,
     clientHref: latestShare?.clientHref ?? null,
     appointmentHref: latestShare?.appointmentHref ?? null,
