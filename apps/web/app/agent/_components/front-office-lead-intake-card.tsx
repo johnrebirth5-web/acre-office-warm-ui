@@ -98,6 +98,13 @@ type FrontOfficeLeadIntakeAssistServerResponse = {
   transcriptFallbackUsed: boolean;
   sourceSurface: string | null;
   metadata: {
+    ocr: {
+      provider: "local_tesseract";
+      mode: "server_side";
+      attempted: boolean;
+      succeeded: boolean;
+      fallback: "none" | "transcript";
+    };
     provenance: {
       transcript: {
         present: boolean;
@@ -242,15 +249,15 @@ function buildAssistServerProvenanceLabel(
 
   if (provenance.transcript.present && provenance.image.present) {
     return provenance.rawText.fallbackUsed
-      ? "Source trail: transcript fallback after screenshot OCR"
+      ? "Source trail: transcript fallback after local OCR"
       : provenance.rawText.ocrIncluded
-        ? "Source trail: transcript + screenshot OCR"
+        ? "Source trail: transcript + local OCR"
         : "Source trail: transcript + screenshot upload";
   }
 
   if (provenance.image.present) {
     return provenance.rawText.ocrIncluded
-      ? "Source trail: screenshot OCR only"
+      ? "Source trail: local OCR only"
       : "Source trail: screenshot upload only";
   }
 
@@ -259,6 +266,27 @@ function buildAssistServerProvenanceLabel(
   }
 
   return "Source trail: no intake source recorded";
+}
+
+function buildAssistServerOcrLabel(
+  metadata: FrontOfficeLeadIntakeAssistServerResponse["metadata"] | undefined,
+) {
+  if (!metadata?.provenance.image.present) {
+    return "";
+  }
+
+  const providerLabel =
+    metadata.ocr.provider === "local_tesseract"
+      ? "local Tesseract"
+      : metadata.ocr.provider;
+  const fallbackLabel =
+    metadata.ocr.fallback === "transcript"
+      ? "transcript fallback"
+      : "no fallback";
+  const modeLabel =
+    metadata.ocr.mode === "server_side" ? "server-side" : metadata.ocr.mode;
+
+  return `OCR: ${providerLabel} · ${modeLabel} · ${fallbackLabel}`;
 }
 
 function buildAssistServerWarningLabel(
@@ -1571,7 +1599,7 @@ export function FrontOfficeLeadIntakeCard(
       setAssistFeedback({
         tone: "error",
         message:
-          "That screenshot is too large for quick server-side OCR. Try a tighter crop under 10 MB.",
+          "That screenshot is too large for local OCR. Try a tighter crop under 10 MB.",
       });
       return;
     }
@@ -1597,7 +1625,7 @@ export function FrontOfficeLeadIntakeCard(
     setAssistFeedback(null);
     setAssistProgressMessage(
       assistImage
-        ? "Sending screenshot to Acre's server for OCR..."
+        ? "Running local Tesseract OCR on the server..."
         : "Parsing pasted transcript on the server...",
     );
     setIsExtractingAssist(true);
@@ -1636,6 +1664,7 @@ export function FrontOfficeLeadIntakeCard(
           message: [
             payload?.error ??
               "Acre could not finish intake extraction right now. Retry with a cleaner screenshot or paste the transcript directly.",
+            buildAssistServerOcrLabel(payload?.metadata),
             buildAssistServerProvenanceLabel(payload?.metadata),
             buildAssistServerWarningLabel(payload?.metadata),
           ]
@@ -1650,8 +1679,13 @@ export function FrontOfficeLeadIntakeCard(
         sourceMode: payload.sourceMode ?? "text",
       });
       const feedbackParts: string[] = [];
+      const ocrLabel = buildAssistServerOcrLabel(payload.metadata);
       const provenanceLabel = buildAssistServerProvenanceLabel(payload.metadata);
       const warningLabel = buildAssistServerWarningLabel(payload.metadata);
+
+      if (ocrLabel) {
+        feedbackParts.push(ocrLabel);
+      }
 
       if (provenanceLabel) {
         feedbackParts.push(provenanceLabel);
@@ -1662,7 +1696,7 @@ export function FrontOfficeLeadIntakeCard(
       }
 
       if (payload.hadImage && payload.ocrSucceeded) {
-        feedbackParts.push("Server-side screenshot text extracted.");
+        feedbackParts.push("Local OCR extracted the screenshot text.");
       }
 
       if (transcriptText) {
@@ -1704,7 +1738,7 @@ export function FrontOfficeLeadIntakeCard(
 
       if (payload.hadImage && payload.transcriptFallbackUsed) {
         feedbackParts.push(
-          "Server OCR could not finish, so Acre used the pasted transcript as the fallback extract.",
+          "Local OCR could not finish, so Acre used the pasted transcript as the fallback extract.",
         );
       }
 
@@ -2098,18 +2132,18 @@ export function FrontOfficeLeadIntakeCard(
               <strong>Source-tracked transcript review</strong>
               <p>
                 Drop in a WeChat screenshot or paste the chat thread. Acre
-                keeps the source trail explicit, labels transcript, image OCR,
-                and fallback separately, starts with unresolved identity,
-                groups the rest into section batches, and waits for manual
-                confirmation before anything touches the live intake form.
+                keeps the source trail explicit, labels local OCR and fallback
+                separately, starts with unresolved identity, groups the rest
+                into section batches, and waits for manual confirmation before
+                anything touches the live intake form.
               </p>
               <div className="front-office-record-meta">
-                <span>Transcript + image OCR provenance</span>
+                <span>Transcript + OCR provenance</span>
                 <span>Fallbacks are labeled</span>
                 <span>Unresolved identity first</span>
                 <span>Then batch the rest</span>
                 <span>Preview-only stays manual</span>
-                <span>No provider-backed ingestion claim</span>
+                <span>Local Tesseract OCR only</span>
                 <span>No auto-create or auto-send</span>
               </div>
             </div>

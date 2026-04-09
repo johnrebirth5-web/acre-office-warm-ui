@@ -68,6 +68,13 @@ test("returns 400 when the intake assist payload is empty after form parsing", a
     error: "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
     sourceSurface: "dashboard",
     metadata: {
+      ocr: {
+        provider: "local_tesseract",
+        mode: "server_side",
+        attempted: false,
+        succeeded: false,
+        fallback: "none",
+      },
       provenance: {
         transcript: {
           present: false,
@@ -114,9 +121,16 @@ test("returns 413 when the uploaded screenshot exceeds the server OCR limit", as
 
   assert.equal(response.status, 413);
   assert.deepEqual(await readJson(response), {
-    error: "That screenshot is too large for quick server-side OCR. Try a tighter crop under 10 MB.",
+    error: "That screenshot is too large for local OCR. Try a tighter crop under 10 MB.",
     sourceSurface: "dashboard",
     metadata: {
+      ocr: {
+        provider: "local_tesseract",
+        mode: "server_side",
+        attempted: false,
+        succeeded: false,
+        fallback: "none",
+      },
       provenance: {
         transcript: {
           present: false,
@@ -140,7 +154,7 @@ test("returns 413 when the uploaded screenshot exceeds the server OCR limit", as
           code: "oversized_image",
           label: "Screenshot too large for OCR",
           detail:
-            "The uploaded image crossed the server OCR size limit, so Acre stopped before text extraction.",
+            "The uploaded image crossed the server OCR size limit, so Acre stopped before local Tesseract ran.",
         },
       ],
     },
@@ -171,11 +185,18 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
         hadImage: true,
         ocrSucceeded: false,
         transcriptFallbackUsed: true,
-        metadata: {
-          provenance: {
-            transcript: {
-              present: true,
-              source: "form_data",
+      metadata: {
+        ocr: {
+          provider: "local_tesseract",
+          mode: "server_side",
+          attempted: true,
+          succeeded: false,
+          fallback: "transcript",
+        },
+        provenance: {
+          transcript: {
+            present: true,
+            source: "form_data",
             },
             image: {
               present: true,
@@ -195,13 +216,13 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
               code: "ocr_failed",
               label: "Screenshot OCR returned no text",
               detail:
-                "Acre tried to read the screenshot on the server, but the image did not produce readable text.",
+                "Acre ran local Tesseract on the server, but the image did not produce readable text.",
             },
             {
               code: "transcript_fallback",
               label: "Transcript used as fallback",
               detail:
-                "The pasted transcript supplied the usable text because the screenshot OCR did not produce a readable extract.",
+                "The pasted transcript supplied the usable text after local Tesseract did not return a readable extract.",
             },
           ],
         },
@@ -219,6 +240,13 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
     ocrSucceeded: false,
     transcriptFallbackUsed: true,
     metadata: {
+      ocr: {
+        provider: "local_tesseract",
+        mode: "server_side",
+        attempted: true,
+        succeeded: false,
+        fallback: "transcript",
+      },
       provenance: {
         transcript: {
           present: true,
@@ -242,13 +270,13 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
           code: "ocr_failed",
           label: "Screenshot OCR returned no text",
           detail:
-            "Acre tried to read the screenshot on the server, but the image did not produce readable text.",
+            "Acre ran local Tesseract on the server, but the image did not produce readable text.",
         },
         {
           code: "transcript_fallback",
           label: "Transcript used as fallback",
           detail:
-            "The pasted transcript supplied the usable text because the screenshot OCR did not produce a readable extract.",
+            "The pasted transcript supplied the usable text after local Tesseract did not return a readable extract.",
         },
       ],
     },

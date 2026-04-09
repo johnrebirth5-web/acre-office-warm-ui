@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import {
+  buildFrontOfficeLeadIntakeOcrMetadata,
+  normalizeFrontOfficeLeadIntakeOcrText,
+  recognizeFrontOfficeLeadIntakeOcrImage,
+  type FrontOfficeLeadIntakeOcrMetadata,
+} from "./front-office-intake-ocr";
 
 type FrontOfficeLeadIntakeAssistServerSourceMode =
   | "text"
@@ -49,6 +55,7 @@ type FrontOfficeLeadIntakeAssistServerProvenance = {
 };
 
 type FrontOfficeLeadIntakeAssistServerMetadata = {
+  ocr: FrontOfficeLeadIntakeOcrMetadata;
   provenance: FrontOfficeLeadIntakeAssistServerProvenance;
   warnings: FrontOfficeLeadIntakeAssistServerWarning[];
 };
@@ -95,16 +102,6 @@ const defaultFrontOfficeLeadIntakeAssistRouteDependencies = {
   extract: extractFrontOfficeLeadIntakeAssistServer,
 };
 
-function normalizeAssistText(value: string) {
-  return value
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .split("\n")
-    .map((line) => line.trim())
-    .join("\n")
-    .trim();
-}
-
 function combineAssistText(transcriptText: string, ocrText: string) {
   return [transcriptText, ocrText].filter(Boolean).join("\n\n").trim();
 }
@@ -112,13 +109,14 @@ function combineAssistText(transcriptText: string, ocrText: string) {
 function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
   transcriptText: string;
   image: Blob | null;
-  ocrAttempted: boolean;
-  ocrSucceeded: boolean;
+  ocr: FrontOfficeLeadIntakeOcrMetadata;
   transcriptFallbackUsed: boolean;
   sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode;
   warningCodes?: FrontOfficeLeadIntakeAssistServerWarningCode[];
 }): FrontOfficeLeadIntakeAssistServerMetadata {
-  const transcriptPresent = Boolean(normalizeAssistText(input.transcriptText));
+  const transcriptPresent = Boolean(
+    normalizeFrontOfficeLeadIntakeOcrText(input.transcriptText),
+  );
   const imagePresent = Boolean(input.image);
   const warningCodes = new Set(input.warningCodes ?? []);
   const warnings: FrontOfficeLeadIntakeAssistServerWarning[] = [];
@@ -137,16 +135,16 @@ function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
       code: "oversized_image",
       label: "Screenshot too large for OCR",
       detail:
-        "The uploaded image crossed the server OCR size limit, so Acre stopped before text extraction.",
+        "The uploaded image crossed the server OCR size limit, so Acre stopped before local Tesseract ran.",
     });
   }
 
-  if (imagePresent && input.ocrAttempted && !input.ocrSucceeded) {
+  if (imagePresent && input.ocr.attempted && !input.ocr.succeeded) {
     warnings.push({
       code: "ocr_failed",
       label: "Screenshot OCR returned no text",
       detail:
-        "Acre tried to read the screenshot on the server, but the image did not produce readable text.",
+        "Acre ran local Tesseract on the server, but the image did not produce readable text.",
     });
   }
 
@@ -155,7 +153,7 @@ function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
       code: "transcript_fallback",
       label: "Transcript used as fallback",
       detail:
-        "The pasted transcript supplied the usable text because the screenshot OCR did not produce a readable extract.",
+        "The pasted transcript supplied the usable text after local Tesseract did not return a readable extract.",
     });
   }
 
@@ -169,6 +167,7 @@ function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
   }
 
   return {
+    ocr: input.ocr,
     provenance: {
       transcript: {
         present: transcriptPresent,
@@ -177,13 +176,13 @@ function buildFrontOfficeLeadIntakeAssistServerMetadata(input: {
       image: {
         present: imagePresent,
         source: imagePresent ? "upload" : "none",
-        ocrAttempted: input.ocrAttempted,
-        ocrSucceeded: input.ocrSucceeded,
+        ocrAttempted: input.ocr.attempted,
+        ocrSucceeded: input.ocr.succeeded,
       },
       rawText: {
         sourceMode: input.sourceMode,
         transcriptIncluded: transcriptPresent,
-        ocrIncluded: input.ocrSucceeded && imagePresent,
+        ocrIncluded: input.ocr.succeeded && imagePresent,
         fallbackUsed: input.transcriptFallbackUsed,
       },
     },
@@ -216,7 +215,9 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
   metadata: FrontOfficeLeadIntakeAssistServerMetadata;
   issue: FrontOfficeLeadIntakeAssistServerValidationIssue | null;
 } {
-  const transcriptText = normalizeAssistText(input.transcriptText);
+  const transcriptText = normalizeFrontOfficeLeadIntakeOcrText(
+    input.transcriptText,
+  );
   const image = input.image;
 
   if (
@@ -230,8 +231,11 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
       metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
         transcriptText,
         image,
-        ocrAttempted: false,
-        ocrSucceeded: false,
+        ocr: buildFrontOfficeLeadIntakeOcrMetadata({
+          attempted: false,
+          succeeded: false,
+          fallbackUsed: false,
+        }),
         transcriptFallbackUsed: false,
         sourceMode:
           transcriptText && image ? "hybrid" : image ? "image" : "text",
@@ -239,7 +243,7 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
       }),
       issue: {
         error:
-          "That screenshot is too large for quick server-side OCR. Try a tighter crop under 10 MB.",
+          "That screenshot is too large for local OCR. Try a tighter crop under 10 MB.",
         status: 413,
       },
     };
@@ -253,8 +257,11 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
       metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
         transcriptText,
         image: null,
-        ocrAttempted: false,
-        ocrSucceeded: false,
+        ocr: buildFrontOfficeLeadIntakeOcrMetadata({
+          attempted: false,
+          succeeded: false,
+          fallbackUsed: false,
+        }),
         transcriptFallbackUsed: false,
         sourceMode: "text",
         warningCodes: ["empty_payload"],
@@ -274,8 +281,11 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
     metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
       transcriptText,
       image,
-      ocrAttempted: false,
-      ocrSucceeded: false,
+      ocr: buildFrontOfficeLeadIntakeOcrMetadata({
+        attempted: false,
+        succeeded: false,
+        fallbackUsed: false,
+      }),
       transcriptFallbackUsed: false,
       sourceMode:
         transcriptText && image ? "hybrid" : image ? "image" : "text",
@@ -365,16 +375,15 @@ export async function handleFrontOfficeLeadIntakeAssistServerRoute(
 }
 
 async function recognizeFrontOfficeLeadIntakeAssistImage(image: Blob) {
-  const { recognize } = await import("tesseract.js");
-  const { data } = await recognize(image, "eng+chi_sim");
-
-  return normalizeAssistText(String(data.text ?? ""));
+  return recognizeFrontOfficeLeadIntakeOcrImage(image);
 }
 
 export async function extractFrontOfficeLeadIntakeAssistServer(
   input: FrontOfficeLeadIntakeAssistServerInput,
 ): Promise<FrontOfficeLeadIntakeAssistServerResult> {
-  const transcriptText = normalizeAssistText(input.transcriptText ?? "");
+  const transcriptText = normalizeFrontOfficeLeadIntakeOcrText(
+    input.transcriptText ?? "",
+  );
   const hadImage = Boolean(input.image);
 
   let ocrText = "";
@@ -385,7 +394,9 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
     try {
       const recognizeImage =
         input.recognizeImage ?? recognizeFrontOfficeLeadIntakeAssistImage;
-      ocrText = normalizeAssistText(await recognizeImage(input.image));
+      ocrText = normalizeFrontOfficeLeadIntakeOcrText(
+        await recognizeImage(input.image),
+      );
       ocrSucceeded = true;
     } catch {
       ocrText = "";
@@ -413,8 +424,11 @@ export async function extractFrontOfficeLeadIntakeAssistServer(
     metadata: buildFrontOfficeLeadIntakeAssistServerMetadata({
       transcriptText,
       image: input.image ?? null,
-      ocrAttempted: hadImage,
-      ocrSucceeded,
+      ocr: buildFrontOfficeLeadIntakeOcrMetadata({
+        attempted: hadImage,
+        succeeded: ocrSucceeded,
+        fallbackUsed: hadImage && Boolean(transcriptText) && !ocrText,
+      }),
       transcriptFallbackUsed,
       sourceMode,
       warningCodes:
