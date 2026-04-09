@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+
 type FrontOfficeLeadIntakeAssistServerSourceMode =
   | "text"
   | "image"
@@ -20,6 +22,21 @@ type FrontOfficeLeadIntakeAssistServerInput = {
   recognizeImage?: (image: Blob) => Promise<string>;
 };
 
+type FrontOfficeLeadIntakeAssistRouteContext = {
+  currentMembership: unknown;
+} | null;
+
+type FrontOfficeLeadIntakeAssistRouteRequest = {
+  formData(): Promise<FormData>;
+};
+
+type FrontOfficeLeadIntakeAssistRouteDependencies = {
+  canViewOfficeContacts?: (subject: any) => boolean;
+  readFormData?: typeof readFrontOfficeLeadIntakeAssistServerFormData;
+  validateInput?: typeof validateFrontOfficeLeadIntakeAssistServerInput;
+  extract?: typeof extractFrontOfficeLeadIntakeAssistServer;
+};
+
 type FrontOfficeLeadIntakeAssistServerResult = {
   rawText: string;
   sourceMode: FrontOfficeLeadIntakeAssistServerSourceMode;
@@ -32,6 +49,13 @@ type FrontOfficeLeadIntakeAssistServerResult = {
 
 export const FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES =
   10 * 1024 * 1024;
+
+const defaultFrontOfficeLeadIntakeAssistRouteDependencies = {
+  canViewOfficeContacts: (_subject: unknown) => true,
+  readFormData: readFrontOfficeLeadIntakeAssistServerFormData,
+  validateInput: validateFrontOfficeLeadIntakeAssistServerInput,
+  extract: extractFrontOfficeLeadIntakeAssistServer,
+};
 
 function normalizeAssistText(value: string) {
   return value
@@ -109,6 +133,85 @@ export function validateFrontOfficeLeadIntakeAssistServerInput(
     sourceSurface: input.sourceSurface,
     issue: null,
   };
+}
+
+export async function handleFrontOfficeLeadIntakeAssistServerRoute(
+  request: FrontOfficeLeadIntakeAssistRouteRequest,
+  context: FrontOfficeLeadIntakeAssistRouteContext,
+  dependencies: FrontOfficeLeadIntakeAssistRouteDependencies = {},
+) {
+  const {
+    canViewOfficeContacts,
+    readFormData,
+    validateInput,
+    extract,
+  } = {
+    ...defaultFrontOfficeLeadIntakeAssistRouteDependencies,
+    ...dependencies,
+  };
+
+  if (!context) {
+    return NextResponse.json(
+      { error: "Authentication required." },
+      { status: 401 },
+    );
+  }
+
+  if (!canViewOfficeContacts(context.currentMembership)) {
+    return NextResponse.json(
+      { error: "Lead intake review access required." },
+      { status: 403 },
+    );
+  }
+
+  const formData = await request.formData().catch(() => null);
+
+  if (!formData) {
+    return NextResponse.json(
+      { error: "Invalid intake assist payload." },
+      { status: 400 },
+    );
+  }
+
+  const { transcriptText, image, sourceSurface } = readFormData(formData);
+  const validation = validateInput({
+    transcriptText,
+    image,
+    sourceSurface,
+  });
+
+  if (validation.issue) {
+    return NextResponse.json(
+      {
+        error: validation.issue.error,
+        sourceSurface,
+      },
+      { status: validation.issue.status },
+    );
+  }
+
+  const extraction = await extract({
+    transcriptText: validation.transcriptText,
+    image: validation.image,
+  });
+
+  if (!extraction.rawText) {
+    return NextResponse.json(
+      {
+        error: extraction.hadImage
+          ? "That screenshot did not produce readable text. Try a tighter crop or paste the transcript directly."
+          : "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
+        sourceSurface,
+        ...extraction,
+      },
+      { status: 400 },
+    );
+  }
+
+  return NextResponse.json({
+    ...extraction,
+    sourceSurface,
+  });
 }
 
 async function recognizeFrontOfficeLeadIntakeAssistImage(image: Blob) {
