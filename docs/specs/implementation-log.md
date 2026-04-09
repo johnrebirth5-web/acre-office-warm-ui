@@ -9,6 +9,9 @@
 
 ## Recently completed major work
 
+- 2026-04-08: `/api/health` is public again so deployment checks and anonymous smoke tests can probe the live app without a session:
+  - updated [apps/web/app/api/health/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/health/route.ts) so the route now returns the same service/organization/catalog payload without requiring an authenticated cookie
+  - corrected the implementation log to keep `/api/health` out of the session-gated mock/API route list while protected feeds such as `/api/resources` and `/api/agent/dashboard` stay behind authentication
 - 2026-04-08: `Front Office wave 3 writeback/intake/cleanup depth batch` now keeps the next FO move grounded in the same workbench instead of leaving writeback, intake review, and activity focus as looser copy-only hints:
   - updated [apps/web/app/agent/_components/front-office-lead-intake-assist.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-lead-intake-assist.ts) and [apps/web/app/agent/_components/front-office-lead-intake-card.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-lead-intake-card.tsx) so the intake assist summary now distinguishes `review-first`, `preview-only`, and `safe after review` more explicitly, while the manual-confirmation count now only tracks truly review-blocking fields instead of every softer preview row
   - updated [apps/web/app/agent/calendar/front-office-calendar-client.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/calendar/front-office-calendar-client.tsx), [apps/web/app/api/agent/appointments/[appointmentId]/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/agent/appointments/[appointmentId]/route.ts), and [packages/db/src/front-office-appointments.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-appointments.ts) so appointment external coordination now reads as a saved checkpoint / promised next touch instead of a generic writeback note, including clearer bridge-follow-up guidance and validation hints on the update route
@@ -458,7 +461,7 @@
   - current rollout only exposes the `NY` company bucket, while `Rental / NJ` stay reserved in the contract for future activation
 - 2026-03-26: internal session/API hardening pass closed several review findings in one sweep:
   - server-side session decoding now rejects cookies older than the configured 30-day max age instead of trusting browser expiry alone
-  - legacy/mock feed routes such as `/api/db/seeded-context`, `/api/health`, `/api/agent/dashboard`, `/api/clients`, `/api/events`, `/api/listings`, and `/api/resources` now require an authenticated session, and the seeded workspace snapshot additionally requires office user-management access
+  - legacy/mock feed routes such as `/api/db/seeded-context`, `/api/agent/dashboard`, `/api/clients`, `/api/events`, `/api/listings`, and `/api/resources` now require an authenticated session, and the seeded workspace snapshot additionally requires office user-management access
   - `Contacts` list/detail now resolve the same office/team/self scope model as other office surfaces, and contact detail no longer leaks out-of-scope transaction links or available-transaction pickers
   - the remaining unguarded `request.json()` office routes touched in this pass now return `400` for malformed JSON instead of bubbling a `500`
   - recurring billing month/year roll-forward now clamps to the target month end, so Jan 31 / leap-day schedules no longer skip into the following month
