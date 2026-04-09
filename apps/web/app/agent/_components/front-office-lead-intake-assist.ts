@@ -286,6 +286,31 @@ function countAlphaNumericLikeChars(value: string) {
   return value.match(/[A-Za-z0-9\u4e00-\u9fff]/g)?.length ?? 0;
 }
 
+function buildTranscriptGuidanceLabels(input: {
+  sourceMode: IntakeSourceMode;
+  lowSignal: boolean;
+}) {
+  const labels: string[] = [];
+
+  if (input.sourceMode === "image" || input.sourceMode === "hybrid") {
+    labels.push("Crop tighter around the active lead messages before OCR");
+  }
+
+  if (input.sourceMode === "text" || input.sourceMode === "hybrid") {
+    labels.push(
+      "Paste 3-8 contiguous lines that keep the lead name, one contact clue, and one workflow clue together",
+    );
+  }
+
+  if (input.lowSignal) {
+    labels.push(
+      "Review unresolved identity first, then batch source, stage, intent, budget, and area",
+    );
+  }
+
+  return uniqueStrings(labels);
+}
+
 function looksLowSignal(lines: string[], text: string) {
   const alphaNumericChars = countAlphaNumericLikeChars(text);
   const signalRatio = text.length > 0 ? alphaNumericChars / text.length : 0;
@@ -1589,7 +1614,7 @@ function buildSafetySummary(
       tone: "warning",
       label: "Low-signal extract: keep unresolved fields in review first",
       detail:
-        "Acre found some usable text, but the screenshot or transcript still looks sparse or noisy enough that every field should stay under manual review until you compare it against the original input.",
+        "Acre found some usable text, but the screenshot or transcript still looks sparse or noisy enough that unresolved identity should stay ahead of safe apply and the rest should be handled in section batches after you compare it against the original input.",
       cautionLabels: context.cautionLabels,
     };
   }
@@ -1633,25 +1658,19 @@ function buildReadinessSummary(input: {
     input.lines.length <= 2 ||
     alphaNumericChars < 20 ||
     (input.fields.length <= 2 && signalRatio < 0.45);
-
-  const screenshotGuidance =
-    input.sourceMode === "image" || input.sourceMode === "hybrid"
-      ? "Crop tighter around the active lead messages before re-running OCR"
-      : "";
-  const transcriptGuidance =
-    input.sourceMode === "text" || input.sourceMode === "hybrid"
-      ? "Paste 3-8 contiguous lines that keep the lead name, one contact clue, and one workflow clue together"
-      : "";
+  const guidanceLabels = buildTranscriptGuidanceLabels({
+    sourceMode: input.sourceMode,
+    lowSignal,
+  });
 
   if (!input.fields.length) {
     return {
       tone: "warning",
       label: "Extraction stayed conservative",
       detail:
-        "Acre found text, but not enough structured lead data to move anything into the live form yet, so unresolved review stays ahead of safe apply.",
+        "Acre found text, but not enough structured lead data to move anything into the live form yet, so unresolved review stays ahead of safe apply and the next section batch should start with identity.",
       nextStepLabels: uniqueStrings([
-        screenshotGuidance,
-        transcriptGuidance,
+        ...guidanceLabels,
         "Keep manual entry ready if you already know the lead",
       ]).filter(Boolean),
     };
@@ -1664,8 +1683,7 @@ function buildReadinessSummary(input: {
       detail:
         "Phone or email may be usable, but review who those details belong to before anything enters the live form.",
       nextStepLabels: uniqueStrings([
-        screenshotGuidance,
-        transcriptGuidance,
+        ...guidanceLabels,
         "Find the primary lead name or a self-introduction before applying contact details",
       ]).filter(Boolean),
     };
@@ -1676,15 +1694,15 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Low-signal extract: keep unresolved fields in review first",
       detail:
-        "Acre found a few usable clues, but the extract still looks sparse or noisy, so unresolved fields should be handled before safer ones.",
+        "Acre found a few usable clues, but the extract still looks sparse or noisy, so unresolved fields should be handled before safer ones and the next moves should happen in section batches.",
       nextStepLabels: uniqueStrings([
-        screenshotGuidance ||
-          "Re-run OCR on a tighter crop around the lead message",
-        transcriptGuidance,
-        "Review unresolved identity fields first",
+        ...guidanceLabels,
         hasWorkflowField
           ? "Then batch stage, source, and intent together after identity is clear"
           : "Add one workflow clue such as budget, areas, or next follow-up timing",
+        hasLeadName
+          ? "Keep unresolved identity and timing ahead of safe apply"
+          : "Find the primary lead name before applying any contact detail",
       ]).filter(Boolean),
     };
   }
@@ -1694,7 +1712,7 @@ function buildReadinessSummary(input: {
       tone: "warning",
       label: "Structured fields found, but identity still needs review",
       detail:
-        "Acre found usable lead signals, yet household, multi-party, or relay-contact context means unresolved identity should be cleared before duplicate review or create.",
+        "Acre found usable lead signals, yet household, multi-party, or relay-contact context means unresolved identity should be cleared before duplicate review or create, then the rest should be handled as section batches.",
       nextStepLabels: [
         "Review unresolved identity fields first",
         "Hold timing and contact values until the primary lead is clear",
@@ -1708,10 +1726,10 @@ function buildReadinessSummary(input: {
     tone: "neutral",
     label: "Good starting point for review",
     detail:
-      "Acre found structured lead fields and kept every suggestion separate from the live form until you review and apply it.",
+      "Acre found structured lead fields and kept every suggestion separate from the live form until you review and apply it in section batches.",
     nextStepLabels: [
-      "Review unresolved fields first",
-      "Apply reviewed fields to the live form in one pass",
+      "Review unresolved identity first",
+      "Batch source, stage, intent, context, and timing in that order",
       "No auto-create or auto-send happens here",
     ],
   };
