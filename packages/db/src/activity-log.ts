@@ -1314,6 +1314,84 @@ function appendActionSourceSummary(
   return sourceLabel ? `${baseSummary} from ${sourceLabel}` : baseSummary;
 }
 
+function getDetailValue(
+  payload: ParsedActivityPayload,
+  prefix: string,
+): string | null {
+  return (
+    payload.details.find((detail) => detail.startsWith(prefix))?.slice(
+      prefix.length,
+    ).trim() ?? null
+  );
+}
+
+function getFrontOfficeResourceSearchSummary(payload: ParsedActivityPayload) {
+  const query = getDetailValue(payload, "Query: ");
+
+  return query
+    ? `searched the Front Office resource hub for "${query}"`
+    : "searched the Front Office resource hub";
+}
+
+function getFrontOfficeResourceProgressSummary(
+  payload: ParsedActivityPayload,
+) {
+  const objectLabel = payload.objectLabel?.trim() || null;
+
+  if (payload.progressPercent === 100) {
+    return objectLabel
+      ? `completed "${objectLabel}" training progress`
+      : "completed Front Office training progress";
+  }
+
+  if (typeof payload.progressPercent === "number") {
+    return objectLabel
+      ? `logged ${payload.progressPercent}% progress on "${objectLabel}"`
+      : `logged ${payload.progressPercent}% Front Office training progress`;
+  }
+
+  return objectLabel
+    ? `logged Front Office training progress on "${objectLabel}"`
+    : "logged Front Office training progress";
+}
+
+function getFrontOfficeResourceOpenSummary(payload: ParsedActivityPayload) {
+  const objectLabel = payload.objectLabel?.trim() || null;
+
+  return objectLabel
+    ? `opened "${objectLabel}" from the Front Office resource hub`
+    : "opened a Front Office resource";
+}
+
+function getFrontOfficeVendorClickSummary(payload: ParsedActivityPayload) {
+  const objectLabel = payload.objectLabel?.trim() || null;
+  const actionLabel = getDetailValue(payload, "Action: ");
+
+  if (actionLabel === "Call") {
+    return objectLabel ? `called vendor "${objectLabel}"` : "called a vendor";
+  }
+
+  if (actionLabel === "Email") {
+    return objectLabel ? `emailed vendor "${objectLabel}"` : "emailed a vendor";
+  }
+
+  if (actionLabel === "Open site") {
+    return objectLabel
+      ? `opened the website for vendor "${objectLabel}"`
+      : "opened a vendor website";
+  }
+
+  if (actionLabel === "Open vendor card") {
+    return objectLabel
+      ? `opened the vendor card for "${objectLabel}"`
+      : "opened a vendor card";
+  }
+
+  return objectLabel
+    ? `used a vendor action on "${objectLabel}"`
+    : "opened a Front Office vendor action";
+}
+
 function getSummary(action: string, payload: ParsedActivityPayload) {
   switch (action) {
     case activityLogActions.accountProfileUpdated:
@@ -1568,25 +1646,13 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
           ).toLowerCase()} bridge`
         : "opened an appointment bridge";
     case activityLogActions.frontOfficeResourceSearched:
-      return appendActionSourceSummary(
-        "searched the Front Office resource hub",
-        payload,
-      );
+      return getFrontOfficeResourceSearchSummary(payload);
     case activityLogActions.frontOfficeResourceProgressLogged:
-      return appendActionSourceSummary(
-        "logged Front Office training progress",
-        payload,
-      );
+      return getFrontOfficeResourceProgressSummary(payload);
     case activityLogActions.frontOfficeResourceOpened:
-      return appendActionSourceSummary(
-        "opened a Front Office resource",
-        payload,
-      );
+      return getFrontOfficeResourceOpenSummary(payload);
     case activityLogActions.frontOfficeVendorClicked:
-      return appendActionSourceSummary(
-        "opened a Front Office vendor action",
-        payload,
-      );
+      return getFrontOfficeVendorClickSummary(payload);
     case activityLogActions.contactCreated:
       return "created a contact";
     case activityLogActions.contactUpdated:

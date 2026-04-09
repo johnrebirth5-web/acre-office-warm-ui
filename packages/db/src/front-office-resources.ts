@@ -473,6 +473,12 @@ function buildResourceInteractionSummary(
   const totalCount =
     searchCount + progressCount + resourceOpenCount + vendorClickCount;
   const latestInteraction = recentInteractions[0] ?? null;
+  const lastInteractionLabel = latestInteraction
+    ? [latestInteraction.kindLabel, latestInteraction.detailLabel].filter(
+        Boolean,
+      ).join(" · ") +
+      ` · ${latestInteraction.timestampLabel}`
+    : `No tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`;
 
   return {
     totalCount,
@@ -482,9 +488,7 @@ function buildResourceInteractionSummary(
     resourceOpenCount,
     vendorClickCount,
     recentInteractionCount: recentInteractions.length,
-    lastInteractionLabel: latestInteraction
-      ? `${latestInteraction.kindLabel} · ${latestInteraction.timestampLabel}`
-      : `No tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
+    lastInteractionLabel,
     recentInteractions,
   };
 }
