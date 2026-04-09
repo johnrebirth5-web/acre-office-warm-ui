@@ -25,15 +25,15 @@ function isPrismaRecordMissingError(error: unknown) {
 }
 
 function buildMergeSuccessDetail() {
-  return "Acre reconciled linked Front Office history plus existing Back Office contact pointers inside the same merge so the surviving dossier remains the single FO record. The same Clients workbench anchor stays ready for the duplicate-review slice or cleanup re-entry if another pair is still waiting.";
+  return "Acre reconciled linked Front Office history plus existing Back Office contact pointers inside the same merge so the surviving dossier remains the single FO record. The same Clients workbench anchor stays ready for the duplicate-review section or cleanup re-entry if another pair is still waiting.";
 }
 
 function buildMergeKeepReason() {
-  return "Acre keeps the dossier you explicitly reviewed and chose as the surviving record; the duplicate disappears only after linked history is moved safely, and the duplicate-review slice remains the return point before cleanup re-entry or the next pair.";
+  return "Acre keeps the dossier you explicitly reviewed and chose as the surviving record; the duplicate disappears only after linked history is moved safely, and the duplicate-review section remains the return point before cleanup re-entry or the next pair.";
 }
 
 function buildMergeBoundaryDetail() {
-  return "This merge does not create a transaction, sync an outside system, or auto-send any follow-up. Re-open duplicate review or the surviving dossier from the same Clients workbench anchor when you are ready to verify the next step, then step back into cleanup lane if needed.";
+  return "This merge does not create a transaction, sync an outside system, or auto-send any follow-up. Re-open duplicate review or the surviving dossier from the same Clients workbench anchor when you are ready to verify the next step, then step back into cleanup lane or the same duplicate-review section if needed.";
 }
 
 function buildMergeErrorResponse(error: unknown) {
@@ -189,6 +189,11 @@ export async function POST(request: NextRequest) {
       keepReason: buildMergeKeepReason(),
       detail: buildMergeSuccessDetail(),
       boundary: buildMergeBoundaryDetail(),
+      returnSectionLabel: "Duplicate review section",
+      returnSectionHref:
+        "/agent/clients?clientView=duplicate_review#duplicate-review",
+      returnSectionDescription:
+        "Re-enter the same duplicate-review section so the next pair and cleanup re-entry stay on the same visible slice.",
       returnToLabel: "Re-enter duplicate-review slice",
       returnToHref:
         "/agent/clients?clientView=duplicate_review#duplicate-review",
