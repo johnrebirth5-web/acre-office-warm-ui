@@ -78,6 +78,7 @@ type FeedbackState = {
 type BridgeActionResponse = {
   action: FrontOfficeAppointmentBridgeAction;
   actionLabel: string;
+  checkpoint: FrontOfficeAppointmentCheckpointSummary;
   manualOnlyDetail?: string;
   followUpDetail?: string;
   followUpCadenceLabel?: string;
@@ -103,6 +104,13 @@ type BridgeActionResponse = {
   hint?: string;
 };
 
+type FrontOfficeAppointmentCheckpointSummary = {
+  label: string;
+  detail: string;
+  nextStep: string;
+  sourceNote: string;
+};
+
 type BridgeOutcomeState = {
   appointmentId: string;
   actionLabel: string;
@@ -111,6 +119,7 @@ type BridgeOutcomeState = {
   followUpCadenceLabel: string;
   followUpCadenceDetail: string;
   resultKind: BridgeActionResponse["result"]["kind"];
+  checkpoint: FrontOfficeAppointmentCheckpointSummary;
   suggestedWriteback: BridgeActionResponse["suggestedWriteback"];
 };
 
@@ -119,6 +128,7 @@ type AppointmentMutationResponse = {
     id: string;
     title?: string;
   };
+  checkpoint?: FrontOfficeAppointmentCheckpointSummary;
   error?: string;
   hint?: string;
 } | null;
@@ -1232,6 +1242,18 @@ export function FrontOfficeCalendarClient(
     return payload?.hint ? `${baseMessage} ${payload.hint}` : baseMessage;
   }
 
+  function formatCheckpointContinuation(
+    checkpoint?: FrontOfficeAppointmentCheckpointSummary | null,
+  ) {
+    if (!checkpoint) {
+      return null;
+    }
+
+    return [checkpoint.label, checkpoint.nextStep]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback(null);
@@ -1395,11 +1417,17 @@ export function FrontOfficeCalendarClient(
         return;
       }
 
+      const checkpointContinuation = formatCheckpointContinuation(
+        payload?.checkpoint,
+      );
+
       setFeedback({
         tone: "success",
-        message: draft.nextActionAt
-          ? `Appointment writeback saved. Acre will keep ${appointment.title} pinned with the promised checkpoint deadline and the same route context in view.`
-          : "Appointment writeback saved.",
+        message: checkpointContinuation
+          ? `Appointment writeback saved. ${checkpointContinuation}`
+          : draft.nextActionAt
+            ? `Appointment writeback saved. Acre will keep ${appointment.title} pinned with the promised checkpoint deadline and the same route context in view.`
+            : "Appointment writeback saved.",
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -1474,10 +1502,15 @@ export function FrontOfficeCalendarClient(
         return;
       }
 
+      const checkpointContinuation = formatCheckpointContinuation(
+        payload?.checkpoint,
+      );
+
       setFeedback({
         tone: "success",
-        message:
-          externalStatus === "confirmed"
+        message: checkpointContinuation
+          ? `Quick coordination checkpoint saved. ${checkpointContinuation}`
+          : externalStatus === "confirmed"
             ? "Confirmed writeback saved and the current promised checkpoint was cleared."
             : suggestedPreset
               ? `Quick coordination checkpoint saved with ${suggestedPreset.label} loaded as the next checkpoint.`
@@ -1545,9 +1578,15 @@ export function FrontOfficeCalendarClient(
         return;
       }
 
+      const checkpointContinuation = formatCheckpointContinuation(
+        payload?.checkpoint,
+      );
+
       setFeedback({
         tone: "success",
-        message: `${preset.label} saved to Acre as the next promised checkpoint.`,
+        message: checkpointContinuation
+          ? `Checkpoint preset saved. ${checkpointContinuation}`
+          : `${preset.label} saved to Acre as the next promised checkpoint.`,
       });
       clearSavedWritebackDraft(appointment.id);
       refreshIntoAppointmentFocus(
@@ -1603,6 +1642,8 @@ export function FrontOfficeCalendarClient(
         return;
       }
 
+      const checkpoint = payload.checkpoint;
+
       if (payload.result.kind === "redirect") {
         const opened = window.open(
           payload.result.href,
@@ -1627,11 +1668,9 @@ export function FrontOfficeCalendarClient(
         tone: "success",
         message: [
           `${payload.actionLabel} opened.`,
-          payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
-          payload.followUpCadenceLabel
-            ? `Recommended next checkpoint: ${payload.followUpCadenceLabel}.`
-            : null,
-          payload.followUpCadenceDetail ?? payload.followUpDetail ?? null,
+          checkpoint ? `Checkpoint: ${checkpoint.label}.` : null,
+          checkpoint?.detail ?? payload.followUpCadenceDetail ?? payload.followUpDetail ?? null,
+          checkpoint?.nextStep ?? payload.followUpDetail ?? null,
           primedPresetLabel
             ? `${primedPresetLabel} is already loaded into the writeback draft as the next promised checkpoint.`
             : null,
@@ -1647,14 +1686,31 @@ export function FrontOfficeCalendarClient(
         followUpDetail:
           payload.followUpDetail ?? "Save the checkpoint form below.",
         followUpCadenceLabel:
+          checkpoint?.label ??
           payload.followUpCadenceLabel ??
           payload.suggestedWriteback?.label ??
           payload.actionLabel,
         followUpCadenceDetail:
+          checkpoint?.nextStep ??
           payload.followUpCadenceDetail ??
           payload.followUpDetail ??
           "Save the checkpoint form below.",
         resultKind: payload.result.kind,
+        checkpoint:
+          checkpoint ?? {
+            label:
+              payload.followUpCadenceLabel ??
+              payload.suggestedWriteback?.label ??
+              payload.actionLabel,
+            detail:
+              payload.followUpCadenceDetail ??
+              payload.followUpDetail ??
+              "Save the checkpoint form below.",
+            nextStep:
+              payload.followUpDetail ?? "Save the checkpoint form below.",
+            sourceNote:
+              payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
+          },
         suggestedWriteback: payload.suggestedWriteback ?? null,
       });
       refreshIntoAppointmentFocus(
@@ -2538,6 +2594,7 @@ export function FrontOfficeCalendarClient(
                       </div>
                     }
                     badgeLabel={
+                      bridgeOutcome.checkpoint.label ??
                       bridgeOutcome.followUpCadenceLabel ??
                       bridgeOutcome.suggestedWriteback?.label ??
                       bridgeOutcome.actionLabel
@@ -2547,11 +2604,11 @@ export function FrontOfficeCalendarClient(
                         ? "accent"
                         : "warning"
                     }
-                    description={bridgeOutcome.followUpCadenceDetail}
+                    description={bridgeOutcome.checkpoint.detail}
                     meta={
                       <>
-                        <span>{bridgeOutcome.manualOnlyDetail}</span>
-                        <span>{bridgeOutcome.followUpDetail}</span>
+                        <span>{bridgeOutcome.checkpoint.sourceNote}</span>
+                        <span>Next move: {bridgeOutcome.checkpoint.nextStep}</span>
                         <span>
                           {bridgeOutcome.resultKind === "calendar_export"
                             ? "ICS export logged"
