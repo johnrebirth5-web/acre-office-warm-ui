@@ -214,8 +214,8 @@ export function FrontOfficeDashboardAiQueueClient(
           <EmptyState
             description={
               props.items.length && resolvedItemIds.length
-                ? "The accepted next touch is now in the shared follow-up clock. If the record still needs work after refresh, Acre will bring back the next grounded workbench move."
-                : "Nothing grounded outranks your manual queue right now. Keep working follow-up pressure, send/click follow-through, and explicit handoff; Acre will only surface suggestions when the record trail can support the next move."
+                ? "The accepted next touch is now in the shared follow-up clock. If the record still needs work after refresh, Acre will bring back the next grounded command-deck move."
+                : "Nothing grounded outranks your manual queue right now. Keep the command deck in order with follow-up pressure, send/click follow-through, and explicit handoff; Acre will only surface suggestions when the record trail can support the next move."
             }
             title={
               props.items.length && resolvedItemIds.length

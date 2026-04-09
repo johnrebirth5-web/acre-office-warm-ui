@@ -3163,10 +3163,10 @@ export async function getFrontOfficeDashboardSnapshot(
             count: leadershipPressureCount,
             tone: leadershipPressureCount > 0 ? "danger" : "neutral",
             description: leadingLeadershipItem
-              ? `${leadingLeadershipItem.title} is the first rescue pass. Review visible cleanup pressure in the Front Office command deck before it becomes a formal fire drill, then keep the rest of the rescue pass in the same lane.`
+              ? `${leadingLeadershipItem.title} is the first rescue pass in this command deck. Review visible cleanup pressure in the Front Office command deck before it becomes a formal fire drill, then keep the rest of the rescue pass in the same lane.`
               : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
             helper: leadingLeadershipItem
-              ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope. The next move is to keep the rescue pass in Front Office.`
+              ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope. The next move is to keep the rescue pass in Front Office and work the command deck first.`
               : "Leadership cleanup stays visible in the FO activity center first, before anyone jumps into a formal record workspace.",
             whyNowLabel: leadingLeadershipItem
               ? leadingLeadershipItem.whyNowLabel
@@ -3177,8 +3177,8 @@ export async function getFrontOfficeDashboardSnapshot(
             href: leadershipNotificationsHref,
             actionLabel:
               input.viewerRole === "team_lead"
-                ? "Open cleanup command center"
-                : "Open cleanup command center",
+                ? "Open team command deck"
+                : "Open office command deck",
           },
           ...actionQueueBase,
         ]

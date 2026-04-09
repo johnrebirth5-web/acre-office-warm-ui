@@ -121,6 +121,24 @@ function formatTodayActionLabel(count: number) {
     : `${count} actions need attention today`;
 }
 
+function getDashboardCommandLeadText(input: {
+  snapshot: FrontOfficeDashboardSnapshot;
+  primaryLaunchpadItem: DashboardLaunchpadItem | null;
+}) {
+  if (
+    input.snapshot.leadershipQueue.visible &&
+    input.snapshot.summary.leadershipPressureCount > 0
+  ) {
+    return `${input.snapshot.leadershipQueue.scopeLabel} is the command lead right now. Clear it first, then work the ordered launchpad below so the next grounded move, appointment work, send-risk follow-through, and duplicate review stay in command order.`;
+  }
+
+  if (input.primaryLaunchpadItem) {
+    return `${input.primaryLaunchpadItem.title} is the command lead right now. Work the ordered launchpad below so the next move stays in sequence.`;
+  }
+
+  return "No lane is elevated above the rest right now. Keep the live queue and intake assist in view until a grounded next move appears.";
+}
+
 function formatSignedDelta(value: number) {
   if (value > 0) {
     return `+${value}`;
@@ -567,6 +585,10 @@ export default async function AgentDashboardPage() {
     canUseAi,
   });
   const todayActionCount = snapshot.summary.todayActionCount;
+  const commandLeadText = getDashboardCommandLeadText({
+    snapshot,
+    primaryLaunchpadItem,
+  });
   const leadershipCleanupHref =
     "/agent/notifications?activityView=team_cleanup#team-cleanup-pressure";
   const activityCenterHref = snapshot.leadershipQueue.visible
@@ -626,7 +648,7 @@ export default async function AgentDashboardPage() {
                 ) : null}
               </>
             }
-            subtitle={`${roleFocus.label}. Lead with the top grounded move below, then work the ordered launchpad so cleanup command center, appointment writeback, send-risk follow-through, and duplicate review stay in one honest Front Office command deck.`}
+            subtitle={`${roleFocus.label}. Clear the command lead first, then work the ordered launchpad so cleanup command center, appointment writeback, send-risk follow-through, and duplicate review stay in command order.`}
             title="Front Office command deck"
           >
             <ListPageStatsGrid>
@@ -646,15 +668,11 @@ export default async function AgentDashboardPage() {
                 {todayActionCount > 0
                   ? formatTodayActionLabel(todayActionCount)
                   : primaryLaunchpadItem
-                    ? "Priority now"
+                    ? "Command lead"
                     : "Queue check"}
               </Badge>
               <p>
-                {primaryLaunchpadItem
-                  ? `${todayActionCount > 0 ? `${formatTodayActionLabel(todayActionCount)}. ` : ""}${primaryLaunchpadItem.title} is the clearest move right now. Work the ordered launchpad below so cleanup command center, appointment work, send-risk follow-through, and duplicate review stay in sequence.`
-                  : canViewClients
-                    ? "No urgent Front Office pressure is elevated right now. Use the live client queue or intake assist only after you confirm the activity center is clear."
-                    : "No urgent Front Office pressure is elevated right now. Reopen the activity center to confirm nothing time-sensitive is hiding there."}
+                {`${todayActionCount > 0 ? `${formatTodayActionLabel(todayActionCount)}. ` : ""}${commandLeadText}`}
               </p>
               <div className="list-row-meta front-office-record-meta">
                 {executionOrder.length ? (
@@ -908,11 +926,11 @@ export default async function AgentDashboardPage() {
 
           <SectionCard
             className="office-list-card"
-            subtitle="Work these lanes in order. Each row is a grounded next move that Acre can already see; if a specific record is linked, open it, and if not, reopen the shared queue."
+            subtitle="Work these lanes in command order. Each row is a grounded next move that Acre can already see; if a specific record is linked, open it, and if not, reopen the shared queue."
             title="Today execution lanes"
           >
             <div className="front-office-placeholder-note">
-              <Badge tone="accent">Work in this order</Badge>
+              <Badge tone="accent">Command order</Badge>
               <p>
                 Front Office keeps the live execution clock here. Back Office
                 starts only when the row explicitly points to a formal handoff
@@ -1868,7 +1886,7 @@ export default async function AgentDashboardPage() {
             value={todayActionCount}
           />
           <SummaryChip
-            label="Lead with"
+            label="Command lead"
             tone="accent"
             value={primaryLaneLabel}
           />
