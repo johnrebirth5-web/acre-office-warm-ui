@@ -105,6 +105,9 @@ export type FrontOfficeSharedResourceInteractionSnapshot = {
   recentInteractionCount: number;
   lastInteractionLabel: string;
   totalCountDelta: number;
+  searchCountDelta: number;
+  progressCountDelta: number;
+  completionCountDelta: number;
   activeMembershipDelta: number;
   resourceOpenDelta: number;
   vendorClickDelta: number;
@@ -125,6 +128,7 @@ export type FrontOfficeSharedResourceInteractionSnapshot = {
     detailLabel: string;
     interactionCount: number;
     href: string;
+    lastInteractionLabel: string;
   }>;
 };
 
@@ -279,6 +283,9 @@ function buildEmptySharedResourceInteractionSnapshot(): FrontOfficeSharedResourc
     recentInteractionCount: 0,
     lastInteractionLabel: `No shared tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
     totalCountDelta: 0,
+    searchCountDelta: 0,
+    progressCountDelta: 0,
+    completionCountDelta: 0,
     activeMembershipDelta: 0,
     resourceOpenDelta: 0,
     vendorClickDelta: 0,
@@ -780,6 +787,9 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
       detailLabel: target.detailLabel,
       interactionCount: target.interactionCount,
       href: target.href,
+      lastInteractionLabel: formatDateTimeLabel(target.latestInteractionAt, {
+        timeZone: input.timeZone ?? null,
+      }),
     }));
 
   return {
@@ -806,6 +816,10 @@ export async function getFrontOfficeSharedResourceInteractionSnapshot(
         ? summary.lastInteractionLabel
         : `No shared tracked use in the last ${frontOfficeTrackedResourceInteractionWindowDays} days`,
     totalCountDelta: summary.totalCount - comparisonSummary.totalCount,
+    searchCountDelta: summary.searchCount - comparisonSummary.searchCount,
+    progressCountDelta: summary.progressCount - comparisonSummary.progressCount,
+    completionCountDelta:
+      summary.completionCount - comparisonSummary.completionCount,
     activeMembershipDelta: actorStats.size - comparisonActorMembershipIds.size,
     resourceOpenDelta:
       summary.resourceOpenCount - comparisonSummary.resourceOpenCount,

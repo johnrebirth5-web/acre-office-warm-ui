@@ -1209,6 +1209,29 @@ export default async function AgentResourcesPage(props: {
                   }
                   value={formatSignedDelta(sharedTracking.vendorClickDelta)}
                 />
+                <SummaryChip
+                  label={`Tracked searches vs ${sharedTracking.comparisonWindowLabel.toLowerCase()}`}
+                  tone={
+                    sharedTracking.searchCountDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(sharedTracking.searchCountDelta)}
+                />
+                <SummaryChip
+                  label={`Watch progress vs ${sharedTracking.comparisonWindowLabel.toLowerCase()}`}
+                  tone={
+                    sharedTracking.progressCountDelta > 0 ? "accent" : undefined
+                  }
+                  value={formatSignedDelta(sharedTracking.progressCountDelta)}
+                />
+                <SummaryChip
+                  label={`Training complete vs ${sharedTracking.comparisonWindowLabel.toLowerCase()}`}
+                  tone={
+                    sharedTracking.completionCountDelta > 0
+                      ? "accent"
+                      : undefined
+                  }
+                  value={formatSignedDelta(sharedTracking.completionCountDelta)}
+                />
               </div>
 
               <ListPageStatsGrid>
@@ -1234,6 +1257,21 @@ export default async function AgentResourcesPage(props: {
                   value={sharedTracking.resourceOpenCount}
                 />
                 <StatCard
+                  hint="resource searches across the visible scope"
+                  label="Tracked searches"
+                  value={sharedTracking.searchCount}
+                />
+                <StatCard
+                  hint="training progress checks across the visible scope"
+                  label="Watch progress"
+                  value={sharedTracking.progressCount}
+                />
+                <StatCard
+                  hint="completed training milestones across the visible scope"
+                  label="Training complete"
+                  value={sharedTracking.completionCount}
+                />
+                <StatCard
                   hint="vendor call, email, or site clicks"
                   label="Vendor clicks"
                   value={sharedTracking.vendorClickCount}
@@ -1252,7 +1290,7 @@ export default async function AgentResourcesPage(props: {
                       badgeLabel="Operator"
                       badgeTone="accent"
                       context={actor.lastInteractionLabel}
-                      description={`${actor.label} logged ${actor.interactionCount} tracked action(s) in ${sharedTracking.windowLabel.toLowerCase()}.`}
+                      description={`${actor.label} logged ${actor.interactionCount} tracked action(s) across searches, progress, opens, and vendor clicks in ${sharedTracking.windowLabel.toLowerCase()}.`}
                       key={actor.membershipId}
                       meta={
                         <>
@@ -1306,6 +1344,7 @@ export default async function AgentResourcesPage(props: {
                         <>
                           <span>{sharedTracking.scopeLabel}</span>
                           <span>{sharedTracking.windowLabel}</span>
+                          <span>{target.lastInteractionLabel}</span>
                         </>
                       }
                       title={target.title}

@@ -111,6 +111,7 @@ async function createFrontOfficeResourcesTestContext() {
       objectLabel: string;
       contextHref: string;
       details: string[];
+      progressPercent?: number;
       createdAt?: Date;
     }) {
       return prisma.auditLog.create({
@@ -125,6 +126,7 @@ async function createFrontOfficeResourcesTestContext() {
             officeId: office.id,
             objectLabel: input.objectLabel,
             contextHref: input.contextHref,
+            progressPercent: input.progressPercent ?? null,
             details: input.details,
           },
         },
@@ -163,11 +165,37 @@ test("office admins see a shared resource adoption pulse for visible FO usage", 
     });
     await context.recordInteraction({
       membershipId: context.agentMembership.id,
+      action: activityLogActions.frontOfficeResourceProgressLogged,
+      objectLabel: context.resource.title,
+      contextHref: "/agent/resources#published-tool-library",
+      details: ["Progress: 25% watched", "Lane: Training video"],
+      progressPercent: 25,
+      createdAt: new Date(now - 18 * 24 * 60 * 60 * 1000),
+    });
+    await context.recordInteraction({
+      membershipId: context.adminMembership.id,
+      action: activityLogActions.frontOfficeResourceSearched,
+      objectLabel: "Shared vendor desk",
+      contextHref: "/agent/resources#resource-search-results",
+      details: ["Query: shared vendor desk", "Scope: Published resources"],
+      createdAt: new Date(now - 1 * 24 * 60 * 60 * 1000),
+    });
+    await context.recordInteraction({
+      membershipId: context.agentMembership.id,
       action: activityLogActions.frontOfficeResourceOpened,
       objectLabel: context.resource.title,
       contextHref: "/agent/resources#published-tool-library",
       details: ["Lane: Playbook", "Action: Open playbook"],
       createdAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
+    });
+    await context.recordInteraction({
+      membershipId: context.agentMembership.id,
+      action: activityLogActions.frontOfficeResourceProgressLogged,
+      objectLabel: context.resource.title,
+      contextHref: "/agent/resources#published-tool-library",
+      details: ["Progress: Completed", "Lane: Training video"],
+      progressPercent: 100,
+      createdAt: new Date(now - 4 * 24 * 60 * 60 * 1000),
     });
     await context.recordInteraction({
       membershipId: context.adminMembership.id,
@@ -194,9 +222,27 @@ test("office admins see a shared resource adoption pulse for visible FO usage", 
       snapshot.interactionTracking.sharedTracking.comparisonWindowLabel,
       "Prior 14 days",
     );
-    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 2);
+    assert.equal(snapshot.interactionTracking.sharedTracking.totalCount, 4);
     assert.equal(
       snapshot.interactionTracking.sharedTracking.totalCountDelta,
+      2,
+    );
+    assert.equal(snapshot.interactionTracking.sharedTracking.searchCount, 1);
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.searchCountDelta,
+      0,
+    );
+    assert.equal(snapshot.interactionTracking.sharedTracking.progressCount, 1);
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.progressCountDelta,
+      0,
+    );
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.completionCount,
+      1,
+    );
+    assert.equal(
+      snapshot.interactionTracking.sharedTracking.completionCountDelta,
       1,
     );
     assert.equal(
@@ -233,7 +279,9 @@ test("office admins see a shared resource adoption pulse for visible FO usage", 
     );
     assert.ok(
       snapshot.interactionTracking.sharedTracking.hottestTargets.some(
-        (target) => target.title === context.resource.title,
+        (target) =>
+          target.title === context.resource.title &&
+          target.lastInteractionLabel.length > 0,
       ),
     );
   } finally {

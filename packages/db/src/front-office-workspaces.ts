@@ -466,6 +466,9 @@ export type FrontOfficeResourcesSnapshot = {
       recentInteractionCount: number;
       lastInteractionLabel: string;
       totalCountDelta: number;
+      searchCountDelta: number;
+      progressCountDelta: number;
+      completionCountDelta: number;
       activeMembershipDelta: number;
       resourceOpenDelta: number;
       vendorClickDelta: number;
@@ -486,6 +489,7 @@ export type FrontOfficeResourcesSnapshot = {
         detailLabel: string;
         interactionCount: number;
         href: string;
+        lastInteractionLabel: string;
       }>;
     };
   };
