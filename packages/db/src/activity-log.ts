@@ -70,6 +70,8 @@ export const activityLogActions = {
   officeMailMessageSent: "office_mail.message_sent",
   officeMailThreadArchived: "office_mail.thread_archived",
   officeMailThreadUnarchived: "office_mail.thread_unarchived",
+  appointmentInternalMailThreadOpened:
+    "appointment.internal_mail_thread_opened",
   transactionCreated: "transaction.created",
   transactionUpdated: "transaction.updated",
   transactionStatusChanged: "transaction.status_changed",
@@ -487,6 +489,8 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "office_mail.message_sent": "Mail message sent",
   "office_mail.thread_archived": "Mail thread archived",
   "office_mail.thread_unarchived": "Mail thread restored",
+  "appointment.internal_mail_thread_opened":
+    "Appointment internal mail thread opened",
   "transaction.created": "Transaction created",
   "transaction.updated": "Transaction updated",
   "transaction.status_changed": "Transaction status changed",
@@ -675,6 +679,8 @@ const activityLogSectionDefinitions: ActivityLogSectionDefinition[] = [
       action === activityLogActions.appointmentCreated ||
       action === activityLogActions.appointmentUpdated ||
       action === activityLogActions.appointmentBridgeOpened ||
+      action ===
+        activityLogActions.appointmentInternalMailThreadOpened ||
       action === activityLogActions.contactCreated ||
       action === activityLogActions.contactUpdated,
   },
@@ -1659,6 +1665,8 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
             payload.workflowReason,
           ).toLowerCase()} bridge`
         : "opened an appointment bridge";
+    case activityLogActions.appointmentInternalMailThreadOpened:
+      return "opened an internal appointment mail thread";
     case activityLogActions.frontOfficeCleanupDigestRun:
       return "ran the cleanup digest manually";
     case activityLogActions.frontOfficeCleanupDigestThreadOpened:

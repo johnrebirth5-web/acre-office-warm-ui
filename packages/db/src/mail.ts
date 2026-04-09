@@ -21,6 +21,7 @@ import {
   activityLogActions,
   recordActivityLogEvent,
   type ActivityLogAction,
+  type ActivityLogPayload,
 } from "./activity-log";
 import { prisma } from "./client";
 import { upsertNotificationForMemberships } from "./notifications";
@@ -125,6 +126,32 @@ export type AppointmentInternalMailThreadResponse = {
   actionTargetUrl: string | null;
   manualOnlyDetail: string;
   continuity: AppointmentInternalMailThreadContinuity;
+};
+
+export type AppointmentInternalMailThreadOpenedActivityInput = {
+  organizationId: string;
+  membershipId: string;
+  officeId?: string | null;
+  appointment: {
+    id: string;
+    title: string;
+    startsAtLabel: string;
+    endsAtLabel: string;
+    clientLabel: string;
+    clientEmailLabel: string;
+    contactLabel: string;
+    listingLabel: string;
+    locationLabel: string;
+    coordinationLabel: string;
+    coordinationNextStep: string;
+    externalStatusLabel: string;
+    externalNote: string;
+  };
+  thread: {
+    id: string;
+    subject: string;
+  };
+  contextHref?: string | null;
 };
 
 export type AppointmentInternalMailThreadErrorStatus = {
@@ -472,6 +499,77 @@ function buildAppointmentInternalMailThreadContinuity(
       "Jump back to the same appointment after reviewing the thread, then save the next checkpoint in Acre.",
     returnToUrl,
   };
+}
+
+export function buildAppointmentInternalMailThreadOpenedActivityPayload(
+  input: AppointmentInternalMailThreadOpenedActivityInput,
+): ActivityLogPayload {
+  const contextHref = normalizeActionUrl(
+    input.contextHref ?? `/agent/calendar?appointmentId=${input.appointment.id}`,
+  );
+
+  return {
+    officeId: input.officeId ?? null,
+    objectLabel: input.appointment.title,
+    contextHref: contextHref ?? undefined,
+    details: [
+      "Mode: Manual-only",
+      "Provider sync: None",
+      "Thread: Internal mail continuity",
+      `Thread subject: ${input.thread.subject}`,
+      `Thread href: ${buildThreadHref(input.thread.id)}`,
+      `Appointment: ${input.appointment.title}`,
+      input.appointment.startsAtLabel
+        ? `Starts: ${input.appointment.startsAtLabel}`
+        : null,
+      input.appointment.endsAtLabel
+        ? `Ends: ${input.appointment.endsAtLabel}`
+        : null,
+      input.appointment.clientLabel
+        ? `Client: ${input.appointment.clientLabel}`
+        : null,
+      input.appointment.clientEmailLabel
+        ? `Email target: ${input.appointment.clientEmailLabel}`
+        : null,
+      input.appointment.contactLabel
+        ? `Contact: ${input.appointment.contactLabel}`
+        : null,
+      input.appointment.listingLabel
+        ? `Listing: ${input.appointment.listingLabel}`
+        : null,
+      input.appointment.locationLabel
+        ? `Location: ${input.appointment.locationLabel}`
+        : null,
+      input.appointment.externalStatusLabel
+        ? `External coordination: ${input.appointment.externalStatusLabel}`
+        : null,
+      input.appointment.externalNote
+        ? `External note: ${input.appointment.externalNote}`
+        : null,
+      input.appointment.coordinationLabel
+        ? `Acre coordination: ${input.appointment.coordinationLabel}`
+        : null,
+      input.appointment.coordinationNextStep
+        ? `Next move: ${input.appointment.coordinationNextStep}`
+        : null,
+      `Return to: Open appointment`,
+      contextHref ? `Return href: ${contextHref}` : null,
+    ].filter((item): item is string => Boolean(item)),
+  };
+}
+
+export async function recordAppointmentInternalMailThreadOpenedActivity(
+  writer: Parameters<typeof recordActivityLogEvent>[0],
+  input: AppointmentInternalMailThreadOpenedActivityInput,
+) {
+  await recordActivityLogEvent(writer, {
+    organizationId: input.organizationId,
+    membershipId: input.membershipId,
+    entityType: "appointment",
+    entityId: input.appointment.id,
+    action: activityLogActions.appointmentInternalMailThreadOpened,
+    payload: buildAppointmentInternalMailThreadOpenedActivityPayload(input),
+  });
 }
 
 export function buildAppointmentInternalMailThreadResponse(input: {

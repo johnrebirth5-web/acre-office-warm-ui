@@ -1720,7 +1720,7 @@ export function FrontOfficeCalendarClient(
         message: [
           `${payload.actionLabel ?? "Internal mail thread"} opened.`,
           payload.continuity?.detail ??
-            "Acre created the appointment brief as an internal continuity copy so the thread stays inside the workspace.",
+            "Acre created the appointment brief as an internal continuity copy and logged the handoff in the activity log so the thread stays inside the workspace.",
           payload.manualOnlyDetail ??
             "The external email stays manual and no provider sync is implied.",
           payload.continuity?.nextStep ??
