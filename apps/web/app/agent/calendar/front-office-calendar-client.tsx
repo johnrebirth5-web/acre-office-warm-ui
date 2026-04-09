@@ -108,6 +108,22 @@ type BridgeActionResponse = {
   hint?: string;
 };
 
+type AppointmentMailThreadResponse = {
+  thread?: {
+    id: string;
+    subject: string;
+  };
+  threadHref?: string;
+  actionLabel?: string;
+  manualOnlyDetail?: string;
+  continuity?: FrontOfficeAppointmentCheckpointSummary & {
+    returnToLabel: string;
+    returnToDetail: string;
+  };
+  error?: string;
+  hint?: string;
+} | null;
+
 type FrontOfficeAppointmentCheckpointSummary = {
   label: string;
   detail: string;
@@ -1630,6 +1646,75 @@ export function FrontOfficeCalendarClient(
     }
   }
 
+  async function tryOpenAppointmentMailThread(
+    appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
+  ) {
+    try {
+      const response = await fetch(
+        `/api/agent/appointments/${appointment.id}/mail-thread`,
+        {
+          cache: "no-store",
+          method: "POST",
+        },
+      );
+      const payload = (await response
+        .json()
+        .catch(() => null)) as AppointmentMailThreadResponse;
+
+      if (!response.ok || !payload?.threadHref) {
+        if (
+          response.status === 401 ||
+          response.status === 403 ||
+          response.status === 409
+        ) {
+          return false;
+        }
+
+        setFeedback({
+          tone: "error",
+          message: buildApiErrorMessage(
+            payload,
+            "Could not open the Acre mail thread.",
+          ),
+        });
+        return true;
+      }
+
+      const opened = window.open(
+        payload.threadHref,
+        "_blank",
+        "noopener,noreferrer",
+      );
+
+      if (!opened) {
+        window.location.assign(payload.threadHref);
+      }
+
+      setFeedback({
+        tone: "success",
+        message: [
+          `${payload.actionLabel ?? "Internal mail thread"} opened.`,
+          payload.continuity?.detail ??
+            "Acre created the appointment brief inside Internal Mail so the continuity stays in the workspace.",
+          payload.manualOnlyDetail ??
+            "The external email still stays manual and no provider sync is implied.",
+          payload.continuity?.nextStep ??
+            "Open the Acre thread, review the brief, then return to the appointment record and save the next checkpoint.",
+          payload.continuity?.returnToDetail ?? null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+      return true;
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Could not open the Acre mail thread.",
+      });
+      return true;
+    }
+  }
+
   async function handleBridgeAction(
     appointment: FrontOfficeAppointmentsSnapshot["appointments"][number],
     action: FrontOfficeAppointmentBridgeAction,
@@ -1639,6 +1724,15 @@ export function FrontOfficeCalendarClient(
       appointmentId: appointment.id,
       action,
     });
+
+    if (action === "email_brief") {
+      const shouldFallbackToExternalBrief =
+        await tryOpenAppointmentMailThread(appointment);
+
+      if (!shouldFallbackToExternalBrief) {
+        return;
+      }
+    }
 
     try {
       const response = await fetch(
@@ -1704,7 +1798,10 @@ export function FrontOfficeCalendarClient(
             payload.followUpCadenceDetail ??
             payload.followUpDetail ??
             null,
-          continuity?.nextStep ?? checkpoint?.nextStep ?? payload.followUpDetail ?? null,
+          continuity?.nextStep ??
+            checkpoint?.nextStep ??
+            payload.followUpDetail ??
+            null,
           continuity?.returnToDetail ?? null,
           primedPresetLabel
             ? `${primedPresetLabel} is already loaded into the writeback draft as the next promised checkpoint.`
@@ -1731,21 +1828,19 @@ export function FrontOfficeCalendarClient(
           payload.followUpDetail ??
           "Save the checkpoint form below.",
         resultKind: payload.result.kind,
-        checkpoint:
-          checkpoint ?? {
-            label:
-              payload.followUpCadenceLabel ??
-              payload.suggestedWriteback?.label ??
-              payload.actionLabel,
-            detail:
-              payload.followUpCadenceDetail ??
-              payload.followUpDetail ??
-              "Save the checkpoint form below.",
-            nextStep:
-              payload.followUpDetail ?? "Save the checkpoint form below.",
-            sourceNote:
-              payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
-          },
+        checkpoint: checkpoint ?? {
+          label:
+            payload.followUpCadenceLabel ??
+            payload.suggestedWriteback?.label ??
+            payload.actionLabel,
+          detail:
+            payload.followUpCadenceDetail ??
+            payload.followUpDetail ??
+            "Save the checkpoint form below.",
+          nextStep: payload.followUpDetail ?? "Save the checkpoint form below.",
+          sourceNote:
+            payload.manualOnlyDetail ?? "Acre only logged the bridge here.",
+        },
         continuity,
         suggestedWriteback: payload.suggestedWriteback ?? null,
       });
@@ -1885,7 +1980,7 @@ export function FrontOfficeCalendarClient(
 
             <FormField
               label="External contact"
-              helper="Use this if the attendee is not the linked client record. Include an email here if you want the email brief bridge available."
+              helper="Use this if the attendee is not the linked client record. Include an email here if you want the email brief bridge and Acre mail-thread continuity available."
             >
               <TextInput
                 name="contactLabel"
@@ -2592,12 +2687,13 @@ export function FrontOfficeCalendarClient(
                       {bridgeState?.appointmentId === focusedAppointment.id &&
                       bridgeState.action === "email_brief"
                         ? "Opening..."
-                        : "Draft client email"}
+                        : "Open Acre mail thread"}
                     </button>
                   ) : (
                     <p className="front-office-record-supporting">
                       No email target is saved on this appointment yet, so the
-                      email brief is not available.
+                      Acre mail thread and external email brief are not
+                      available.
                     </p>
                   )}
                 </div>
@@ -2685,9 +2781,9 @@ export function FrontOfficeCalendarClient(
                     </span>
                     <p className="front-office-record-supporting">
                       These quick actions update Acre&apos;s writeback only and
-                      keep the next checkpoint visible on this same
-                      appointment. They do not send mail, change Google or
-                      Outlook, or claim any background sync.
+                      keep the next checkpoint visible on this same appointment.
+                      They do not send mail, change Google or Outlook, or claim
+                      any background sync.
                     </p>
                   </div>
                   <div className="front-office-calendar-actions">
@@ -2897,7 +2993,7 @@ export function FrontOfficeCalendarClient(
                 description={
                   latestBridgeHistory
                     ? `${latestBridgeHistory.label} · ${latestBridgeHistory.detail}`
-                    : "Open Google, Outlook, ICS, or the email brief from Acre to start the bridge trail."
+                    : "Open Google, Outlook, ICS, or the email brief from Acre to start the bridge trail; if you have mail access, Acre will try to place the brief in an internal mail thread first and then fall back to the external draft."
                 }
                 meta={
                   latestBridgeHistory ? (
