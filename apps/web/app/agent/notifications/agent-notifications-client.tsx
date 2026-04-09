@@ -31,6 +31,7 @@ import {
   getActivityViewFocusLabel,
   getActivityViewNextMoveLabel,
   getActivityViewOperatorCue,
+  getActivityViewSectionTargetLabel,
   getActivityViewTriageOrderLabel,
   generalNoticeLaneConfig,
   getActivityViewAnchor,
@@ -684,8 +685,8 @@ export function AgentNotificationsClient({
           : "No urgent personal cleanup right now",
       sliceLabel:
         activeCleanupFilter === "all"
-          ? "Focus filter · All personal cleanup"
-          : `Focus filter · ${activeCleanupFilterLabel}`,
+          ? "Section target · All personal cleanup"
+          : `Section target · ${activeCleanupFilterLabel}`,
       href: buildAgentNotificationsHref({
         pathname,
         activityView: "personal_cleanup",
@@ -713,8 +714,8 @@ export function AgentNotificationsClient({
                 : "No visible-scope team cleanup pressure right now",
             sliceLabel:
               activeLeadershipFilter === "all"
-                ? "Focus filter · All team pressure"
-                : `Focus filter · ${activeLeadershipFilterLabel}`,
+                ? "Section target · All team pressure"
+                : `Section target · ${activeLeadershipFilterLabel}`,
             href: buildAgentNotificationsHref({
               pathname,
               activityView: "team_cleanup",
@@ -742,8 +743,8 @@ export function AgentNotificationsClient({
           : "No urgent appointment reminder pressure right now",
       sliceLabel:
         activeReminderFilter === "all"
-          ? "Focus filter · All reminder types"
-          : `Focus filter · ${notificationFilterFieldLabel} = ${activeReminderFilterLabel}`,
+          ? "Section target · All reminder types"
+          : `Section target · ${notificationFilterFieldLabel} = ${activeReminderFilterLabel}`,
       href: buildAgentNotificationsHref({
         pathname,
         activityView: "appointment_reminders",
@@ -771,8 +772,8 @@ export function AgentNotificationsClient({
             : "No unread general notices right now",
       sliceLabel:
         activeNoticeStreamFilter === "all"
-          ? "Lane filter · All notice lanes"
-          : `Lane filter · ${activeNoticeStreamFilterLabel}`,
+          ? "Section target · All notice lanes"
+          : `Section target · ${activeNoticeStreamFilterLabel}`,
       href: buildAgentNotificationsHref({
         pathname,
         activityView: "general_notices",
@@ -811,7 +812,7 @@ export function AgentNotificationsClient({
         urgentAppointmentReminderCount > 0
           ? "High-pressure signals are active across the center"
           : "No urgent pressure is active across the center",
-      sliceLabel: "Route view · Full activity center",
+      sliceLabel: "Section target · Full activity center",
     },
     ...focusAreaCards,
   ];
@@ -877,12 +878,14 @@ export function AgentNotificationsClient({
       ? ""
       : getActivityViewAnchor(activeActivityView)
   }`;
+  const sectionTargetLabel =
+    getActivityViewSectionTargetLabel(activeActivityView);
   const summaryPanelBlocks = [
     {
       key: "focus",
-      label: "Focus lane",
+      label: "Section target",
       title: activeLaneTab.label,
-      description: currentPassSummaryLabel,
+      description: `${sectionTargetLabel} · ${currentPassSummaryLabel}`,
     },
     {
       key: "next",
@@ -892,7 +895,7 @@ export function AgentNotificationsClient({
     },
     {
       key: "route",
-      label: "Route contract",
+      label: "Lane contract",
       title: activeLaneTab.sliceLabel,
       description: `${activeLaneTab.ownerLabel} · ${activeLaneTab.pressureLabel}`,
     },
@@ -1152,7 +1155,7 @@ export function AgentNotificationsClient({
           "Open the cleanup rail and resolve the next touch.",
         sectionLabel,
         meta: [
-          `Section · ${sectionLabel}`,
+          `Target · ${sectionLabel}`,
           `${count} item(s) in scope`,
           nextLabel,
           activeCleanupFilter === track.key
@@ -1199,7 +1202,7 @@ export function AgentNotificationsClient({
           "Open the team lane and decide where to intervene.",
         sectionLabel: group.label,
         meta: [
-          `Section · ${group.label}`,
+          `Target · ${group.label}`,
           count > matchingItems.length && matchingItems.length > 0
             ? `${count} signal(s) in scope · showing ${matchingItems.length}`
             : `${count} signal(s) in scope`,
@@ -1256,7 +1259,7 @@ export function AgentNotificationsClient({
           "Open the reminder focus and resolve the next touch.",
         sectionLabel: nextCard?.sectionLabel ?? "Calendar writeback",
         meta: [
-          `Section · ${nextCard?.sectionLabel ?? "Calendar writeback"}`,
+          `Target · ${nextCard?.sectionLabel ?? "Calendar writeback"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1312,7 +1315,7 @@ export function AgentNotificationsClient({
           "Open the notice lane and review the next notice.",
         sectionLabel: nextCard?.sectionLabel ?? "Notice routing",
         meta: [
-          `Section · ${nextCard?.sectionLabel ?? "Notice routing"}`,
+          `Target · ${nextCard?.sectionLabel ?? "Notice routing"}`,
           `${matchingCards.length} notice(s) in scope`,
           nextCard
             ? `Next · ${nextCard.title}`
@@ -1335,7 +1338,7 @@ export function AgentNotificationsClient({
             badgeLabel: nextPersonalCleanupItem.kindLabel,
             meta: [
               `Bridge · ${activeRouteBridgeLabel}`,
-              `Section · ${nextPersonalCleanupItem.sectionLabel}`,
+              `Target · ${nextPersonalCleanupItem.sectionLabel}`,
               `Owner · ${nextPersonalCleanupItem.ownerLabel}`,
               `Scope · ${nextPersonalCleanupItem.scopeLabel}`,
               nextPersonalCleanupItem.sortLabel,
@@ -1353,7 +1356,7 @@ export function AgentNotificationsClient({
               badgeLabel: "Duplicate review",
               meta: [
                 `Bridge · ${activeRouteBridgeLabel}`,
-                "Section · Duplicate review workbench",
+                "Target · Duplicate review workbench",
                 `${visibleDuplicatePairs.length} duplicate pair(s) in this slice`,
                 "Foundation cleanup before next touch",
               ],
@@ -1371,7 +1374,7 @@ export function AgentNotificationsClient({
               badgeLabel: nextTeamCleanupItem.kindLabel,
               meta: [
                 `Bridge · ${activeRouteBridgeLabel}`,
-                `Section · ${nextTeamCleanupItem.kindLabel}`,
+                `Target · ${nextTeamCleanupItem.kindLabel}`,
                 `Owner · ${nextTeamCleanupItem.ownerLabel}`,
                 `Scope · ${nextTeamCleanupItem.scopeLabel}`,
                 `Context · ${nextTeamCleanupItem.contextLabel}`,
@@ -1390,7 +1393,7 @@ export function AgentNotificationsClient({
                 badgeLabel: nextAppointmentReminderCard.groupLabel,
                 meta: [
                   `Bridge · ${activeRouteBridgeLabel}`,
-                  `Section · ${nextAppointmentReminderCard.sectionLabel}`,
+                  `Target · ${nextAppointmentReminderCard.sectionLabel}`,
                   `Owner · ${nextAppointmentReminderCard.ownerLabel}`,
                   `Scope · ${nextAppointmentReminderCard.scopeLabel}`,
                   `Read state · ${nextAppointmentReminderCard.readStateLabel}`,
@@ -1409,7 +1412,7 @@ export function AgentNotificationsClient({
                   badgeLabel: nextGeneralNoticeCard.streamLabel,
                   meta: [
                     `Bridge · ${activeRouteBridgeLabel}`,
-                    `Section · ${nextGeneralNoticeCard.sectionLabel}`,
+                    `Target · ${nextGeneralNoticeCard.sectionLabel}`,
                     `Owner · ${nextGeneralNoticeCard.ownerLabel}`,
                     `Scope · ${nextGeneralNoticeCard.scopeLabel}`,
                     `Read state · ${nextGeneralNoticeCard.readStateLabel}`,
@@ -1785,7 +1788,7 @@ export function AgentNotificationsClient({
           <p>{card.body}</p>
           <div className="list-row-meta front-office-record-meta">
             <span>{card.audienceLabel}</span>
-            <span>Section · {card.sectionLabel}</span>
+            <span>Target · {card.sectionLabel}</span>
             <span>Owner · {card.ownerLabel}</span>
             <span>Scope · {card.scopeLabel}</span>
             <span>Created · {card.createdAtLabel}</span>
@@ -1855,7 +1858,7 @@ export function AgentNotificationsClient({
               <StatusBadge tone={card.tone}>{card.count}</StatusBadge>
             </div>
             <div className="list-row-meta front-office-record-meta">
-              <span>Section · {card.sectionLabel}</span>
+              <span>Target · {card.sectionLabel}</span>
               <span>Next step · {card.nextStepLabel}</span>
               {card.meta.map((metaLabel) => (
                 <span key={`${card.key}-${metaLabel}`}>{metaLabel}</span>
