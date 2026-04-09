@@ -34,6 +34,7 @@ import {
   resolveOptionValue,
 } from "./agent-notifications-config";
 import { AgentNotificationsClient } from "./agent-notifications-client";
+import styles from "./agent-notifications.module.css";
 import { FrontOfficeCleanupDigestCard } from "./front-office-cleanup-digest-card";
 
 type AgentNotificationsPageProps = {
@@ -191,11 +192,39 @@ export default async function AgentNotificationsPage(
   )}`;
   const cleanupDigestMailThreadHref =
     "/api/agent/notifications/cleanup-digest/mail-thread";
+  const headerSummaryMetrics = [
+    {
+      label: "Visible now",
+      tone: "accent" as const,
+      value: visibleRouteItemCount,
+    },
+    {
+      label: "Personal cleanup",
+      value: personalCleanupCount,
+    },
+    ...(dashboardSnapshot.leadershipQueue.visible
+      ? [
+          {
+            label: "Team cleanup",
+            value: dashboardSnapshot.summary.leadershipPressureCount,
+          },
+        ]
+      : []),
+    {
+      label: "Calendar writeback",
+      value: appointmentReminderCards.length,
+    },
+    {
+      label: "Notice routing",
+      value: generalNoticeCards.length,
+    },
+  ];
 
   return (
     <FrontOfficePageTemplate
-      description="A Front Office cleanup command surface for self-owned execution drift, visible-scope team pressure, calendar writeback, and broader notice follow-through without blurring the Back Office boundary."
+      description="Keep self-owned cleanup, visible team pressure, calendar writeback, and broader notice follow-through in one Front Office route without blurring the Back Office boundary."
       eyebrow="Activity"
+      layoutClassName={styles.pageLayout}
       main={
         <AgentNotificationsClient
           initialActivityView={initialActivityView}
@@ -463,73 +492,44 @@ export default async function AgentNotificationsPage(
         </>
       }
       summary={
-        <>
-          <SummaryChip
-            label="Focus area"
-            tone="accent"
-            value={activeViewLabel}
-          />
-          <SummaryChip
-            label="Current next move"
-            tone="accent"
-            value={getActivityViewBridgeLabel(initialActivityView)}
-          />
-          <SummaryChip
-            label="Visible workbench"
-            value={visibleRouteItemCount}
-          />
-          <SummaryChip
-            label="Personal cleanup"
-            tone="accent"
-            value={personalCleanupCount}
-          />
-          {dashboardSnapshot.leadershipQueue.visible ? (
-            <SummaryChip
-              label="Team cleanup"
-              tone="accent"
-              value={dashboardSnapshot.summary.leadershipPressureCount}
-            />
-          ) : null}
-          <SummaryChip
-            label="Reminder next move"
-            value={getActivityViewNextMoveLabel("appointment_reminders")}
-          />
-          <SummaryChip
-            label="Notice next move"
-            value={getActivityViewNextMoveLabel("general_notices")}
-          />
-          <SummaryChip
-            label="Calendar writeback"
-            value={appointmentReminderCards.length}
-          />
-          <SummaryChip
-            label="Notice routing"
-            value={generalNoticeCards.length}
-          />
-          <SummaryChip
-            label="Urgent cleanup"
-            value={snapshot.summary.urgentCleanupCount}
-          />
-          <SummaryChip
-            label="Potential dupes"
-            value={snapshot.summary.duplicateReviewCount}
-          />
-          <SummaryChip
-            label="Upcoming events"
-            value={snapshot.summary.upcomingEventCount}
-          />
-          <SummaryChip
-            label="Digest items"
-            tone="accent"
-            value={cleanupDigest.summary.totalCount}
-          />
-          <SummaryChip
-            label="Digest next move"
-            value={cleanupDigest.nextActionLabel}
-          />
-        </>
+        <div className={styles.pageSummary}>
+          <article className={styles.pageSummaryLead}>
+            <div className={styles.pageSummaryLeadHeader}>
+              <span className={styles.pageSummaryEyebrow}>Current focus</span>
+              <div className={styles.pageSummaryLeadCount}>
+                <strong>{visibleRouteItemCount}</strong>
+                <span>visible now</span>
+              </div>
+            </div>
+
+            <div className={styles.pageSummaryLeadBody}>
+              <strong>{activeViewLabel}</strong>
+              <p>{buildActivityFocusDescription(initialActivityView)}</p>
+            </div>
+
+            <div className={styles.pageSummaryLeadMeta}>
+              <span>{getActivityViewBridgeLabel(initialActivityView)}</span>
+              <span>{sectionTargetLabel}</span>
+              <span>{readStateLabel}</span>
+              <span>{cleanupFilterLabel}</span>
+              <span>{noticeLaneLabel}</span>
+            </div>
+          </article>
+
+          <div className={styles.pageSummaryStats}>
+            {headerSummaryMetrics.map((metric) => (
+              <SummaryChip
+                className={styles.pageSummaryStat}
+                key={metric.label}
+                label={metric.label}
+                tone={metric.tone}
+                value={metric.value}
+              />
+            ))}
+          </div>
+        </div>
       }
-      title="Activity cleanup command surface"
+      title="Activity cleanup center"
     />
   );
 }

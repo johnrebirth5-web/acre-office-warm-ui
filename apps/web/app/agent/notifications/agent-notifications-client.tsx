@@ -28,7 +28,6 @@ import {
   buildAgentNotificationsHref,
   cleanupFilterOptions,
   getActivityViewBridgeLabel,
-  getActivityViewFocusLabel,
   getActivityViewNextMoveLabel,
   getActivityViewOperatorCue,
   getActivityViewSectionTargetLabel,
@@ -906,6 +905,50 @@ export function AgentNotificationsClient({
       description: getActivityViewTriageOrderLabel(activeActivityView),
     },
   ] as const;
+  const summaryHighlights = [
+    {
+      key: "scope",
+      label: "Scope",
+      value: activeLaneTab.ownerLabel,
+    },
+    {
+      key: "route",
+      label: "Route",
+      value: "Stable on reopen",
+    },
+    {
+      key: "triage",
+      label: "Triage order",
+      value: getActivityViewTriageOrderLabel(activeActivityView),
+    },
+    ...(showNotificationControls
+      ? [
+          {
+            key: "personal-notices",
+            label: "Personal notices",
+            value: `${mutableVisibleNotificationIds.length} mutable in this slice`,
+          },
+        ]
+      : []),
+    ...(showNotificationControls && unreadVisibleNotificationCount > 0
+      ? [
+          {
+            key: "unread",
+            label: "Unread",
+            value: `${unreadVisibleNotificationCount} visible`,
+          },
+        ]
+      : []),
+    ...(selectionActive
+      ? [
+          {
+            key: "selection",
+            label: "Selection",
+            value: `${selectedVisibleNotificationIds.length} notice(s) selected`,
+          },
+        ]
+      : []),
+  ];
 
   function getNoticeOpenFeedback(
     card: FrontOfficeActivityNotificationRecord,
@@ -1879,120 +1922,10 @@ export function AgentNotificationsClient({
   return (
     <>
       <SectionCard
-        className="office-list-card office-notification-toolbar"
-        subtitle="Keep the office-wide cleanup command surface stable on one route: self-owned cleanup, visible-scope team cleanup, calendar writeback, and broader general notices. The active slice stays encoded in the URL so refreshes and reopen flows come back to the same pass."
-        title="Workbench lanes & cleanup controls"
+        className={`office-list-card office-notification-toolbar ${styles.toolbarSection}`}
+        subtitle="Pick the lane, keep the route stable, and work the next touch without rebuilding the same filter state every time."
+        title="Workbench lanes & filters"
       >
-        <div className="front-office-placeholder-note">
-          {getActivityViewFocusLabel(activeActivityView)}.{" "}
-          {getActivityViewNextMoveLabel(activeActivityView)}
-        </div>
-        <ListPageStatsGrid>
-          <StatCard
-            hint="Self-owned cleanup items, plus duplicate review, that still need direct agent follow-through."
-            label="Personal cleanup"
-            tone={
-              activeActivityView === "all" ||
-              activeActivityView === "personal_cleanup"
-                ? "accent"
-                : "default"
-            }
-            value={personalCleanupCount}
-          />
-          {leadershipQueue.visible ? (
-            <StatCard
-              hint="Visible-scope overdue tasks, stale dossiers, and send-trail risk for leads or office admins."
-              label="Team cleanup"
-              tone={
-                activeActivityView === "all" ||
-                activeActivityView === "team_cleanup"
-                  ? "accent"
-                  : "default"
-              }
-              value={teamCleanupCount}
-            />
-          ) : null}
-          <StatCard
-            hint="Calendar-linked reminder pressure for confirmation, reschedule, external follow-up, and near-term appointments."
-            label="Calendar writeback"
-            tone={
-              activeActivityView === "all" ||
-              activeActivityView === "appointment_reminders"
-                ? "accent"
-                : "default"
-            }
-            value={appointmentReminderCount}
-          />
-          <StatCard
-            hint="The remaining notice lane after calendar writeback is split out."
-            label="Notice routing"
-            tone={
-              activeActivityView === "all" ||
-              activeActivityView === "general_notices"
-                ? "accent"
-                : "default"
-            }
-            value={generalNoticeCount}
-          />
-        </ListPageStatsGrid>
-
-        <div
-          className={styles.laneTabs}
-          role="tablist"
-          aria-label="Activity lanes"
-        >
-          {activityLaneTabs.map((area) => {
-            const isActive = area.key === activeActivityView;
-            const isStrong = area.tone === "warning" || area.tone === "danger";
-
-            return (
-              <button
-                aria-selected={isActive}
-                className={[
-                  styles.laneTab,
-                  isActive ? styles.laneTabActive : "",
-                  isStrong ? styles.laneTabStrong : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                disabled={controlsBusy && !isActive}
-                key={area.key}
-                onClick={() =>
-                  updateFilters(
-                    area.key,
-                    activeCleanupFilter,
-                    activeReminderFilter,
-                    activeNoticeStreamFilter,
-                    activeReadState,
-                    activeLeadershipFilter,
-                    area.key === "all"
-                      ? undefined
-                      : {
-                          anchor: getActivityViewAnchor(area.key),
-                          scroll: true,
-                        },
-                  )
-                }
-                role="tab"
-                type="button"
-              >
-                <div className={styles.laneTabHeader}>
-                  <div className={styles.laneTabLabel}>
-                    <strong>{area.label}</strong>
-                    <span>{area.ownerLabel}</span>
-                  </div>
-                  <StatusBadge tone={area.tone}>{area.count}</StatusBadge>
-                </div>
-                <p className={styles.laneTabDescription}>{area.description}</p>
-                <div className={styles.laneTabMeta}>
-                  <span>{area.pressureLabel}</span>
-                  <span>{area.sliceLabel}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
         <div className={styles.summaryPanel}>
           <div className={styles.summaryPanelHeader}>
             <div className={styles.summaryPanelCopy}>
@@ -2016,59 +1949,16 @@ export function AgentNotificationsClient({
             ))}
           </div>
           <div className={styles.summaryPanelPills}>
-            <span className={styles.summaryPanelPill}>
-              <strong>Route</strong>
-              URL keeps this slice and its filters stable on reopen
-            </span>
-            <span className={styles.summaryPanelPill}>
-              <strong>Scope</strong>
-              {activeLaneTab.ownerLabel}
-            </span>
-            <span className={styles.summaryPanelPill}>
-              <strong>Pressure</strong>
-              {activeLaneTab.pressureLabel}
-            </span>
-            <span className={styles.summaryPanelPill}>
-              <strong>Filter</strong>
-              {activeLaneTab.sliceLabel}
-            </span>
-            <span className={styles.summaryPanelPill}>
-              <strong>Next move</strong>
-              {activeRouteBridgeLabel}
-            </span>
-            <span className={styles.summaryPanelPill}>
-              <strong>Triage order</strong>
-              {getActivityViewTriageOrderLabel(activeActivityView)}
-            </span>
-            {isOverviewMode ? (
-              <span className={styles.summaryPanelPill}>
-                <strong>Overview</strong>
-                Preview-first lane slices keep this route readable before you
-                open a full queue
+            {summaryHighlights.map((highlight) => (
+              <span className={styles.summaryPanelPill} key={highlight.key}>
+                <strong>{highlight.label}</strong>
+                {highlight.value}
               </span>
-            ) : null}
-            {showNotificationControls ? (
-              <span className={styles.summaryPanelPill}>
-                <strong>Personal notices</strong>
-                {mutableVisibleNotificationIds.length} mutable
-              </span>
-            ) : null}
-            {showNotificationControls && unreadVisibleNotificationCount > 0 ? (
-              <span className={styles.summaryPanelPill}>
-                <strong>Unread</strong>
-                {unreadVisibleNotificationCount} in this slice
-              </span>
-            ) : null}
+            ))}
             {showNotificationControls && sharedVisibleNotificationCount > 0 ? (
               <span className={styles.summaryPanelPill}>
                 <strong>Shared</strong>
                 {sharedVisibleNotificationCount} open-only notice(s)
-              </span>
-            ) : null}
-            {selectionActive ? (
-              <span className={styles.summaryPanelPill}>
-                <strong>Selection</strong>
-                {selectedVisibleNotificationIds.length} notice(s) selected
               </span>
             ) : null}
           </div>
@@ -2121,6 +2011,64 @@ export function AgentNotificationsClient({
               </article>
             </div>
           ) : null}
+        </div>
+
+        <div
+          className={styles.laneTabs}
+          role="tablist"
+          aria-label="Activity lanes"
+        >
+          {activityLaneTabs.map((area) => {
+            const isActive = area.key === activeActivityView;
+            const isStrong = area.tone === "warning" || area.tone === "danger";
+
+            return (
+              <button
+                aria-selected={isActive}
+                className={[
+                  styles.laneTab,
+                  area.key === "all" ? styles.laneTabOverview : "",
+                  isActive ? styles.laneTabActive : "",
+                  isStrong ? styles.laneTabStrong : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                disabled={controlsBusy && !isActive}
+                key={area.key}
+                onClick={() =>
+                  updateFilters(
+                    area.key,
+                    activeCleanupFilter,
+                    activeReminderFilter,
+                    activeNoticeStreamFilter,
+                    activeReadState,
+                    activeLeadershipFilter,
+                    area.key === "all"
+                      ? undefined
+                      : {
+                          anchor: getActivityViewAnchor(area.key),
+                          scroll: true,
+                        },
+                  )
+                }
+                role="tab"
+                type="button"
+              >
+                <div className={styles.laneTabHeader}>
+                  <div className={styles.laneTabLabel}>
+                    <strong>{area.label}</strong>
+                    <span>{area.ownerLabel}</span>
+                  </div>
+                  <StatusBadge tone={area.tone}>{area.count}</StatusBadge>
+                </div>
+                <p className={styles.laneTabDescription}>{area.description}</p>
+                <div className={styles.laneTabMeta}>
+                  <span>{area.pressureLabel}</span>
+                  <span>{area.sliceLabel}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {quickFocusShortcuts.length ? (
