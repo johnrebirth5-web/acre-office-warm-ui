@@ -39,6 +39,13 @@ test("extracts transcript-only payload without calling OCR", async () => {
   assert.equal(result.sourceMode, "text");
   assert.equal(result.hadImage, false);
   assert.equal(result.ocrSucceeded, false);
+  assert.deepEqual(result.metadata.ocr, {
+    provider: "local_tesseract",
+    mode: "server_side",
+    attempted: false,
+    succeeded: false,
+    fallback: "none",
+  });
   assert.equal(result.metadata.provenance.transcript.present, true);
   assert.equal(result.metadata.provenance.image.present, false);
   assert.equal(result.metadata.provenance.rawText.sourceMode, "text");
@@ -63,6 +70,13 @@ test("combines transcript and server OCR into one hybrid extract", async () => {
   assert.equal(result.hadImage, true);
   assert.equal(result.ocrSucceeded, true);
   assert.equal(result.ocrText, "OCR line 1\nOCR line 2\nOCR line 3");
+  assert.deepEqual(result.metadata.ocr, {
+    provider: "local_tesseract",
+    mode: "server_side",
+    attempted: true,
+    succeeded: true,
+    fallback: "none",
+  });
   assert.equal(result.metadata.provenance.image.ocrAttempted, true);
   assert.equal(result.metadata.provenance.image.ocrSucceeded, true);
   assert.equal(result.metadata.provenance.rawText.sourceMode, "hybrid");
@@ -87,6 +101,13 @@ test("rejects empty payloads before OCR work starts", () => {
     validation.issue?.error,
     "Add a screenshot or paste the chat transcript first so Acre has something to extract from.",
   );
+  assert.deepEqual(validation.metadata.ocr, {
+    provider: "local_tesseract",
+    mode: "server_side",
+    attempted: false,
+    succeeded: false,
+    fallback: "none",
+  });
   assert.equal(validation.metadata.provenance.transcript.present, false);
   assert.equal(validation.metadata.provenance.image.present, false);
   assert.deepEqual(
@@ -112,8 +133,15 @@ test("rejects oversized screenshots before OCR work starts", () => {
   assert.equal(validation.issue?.status, 413);
   assert.equal(
     validation.issue?.error,
-    "That screenshot is too large for quick server-side OCR. Try a tighter crop under 10 MB.",
+    "That screenshot is too large for local OCR. Try a tighter crop under 10 MB.",
   );
+  assert.deepEqual(validation.metadata.ocr, {
+    provider: "local_tesseract",
+    mode: "server_side",
+    attempted: false,
+    succeeded: false,
+    fallback: "none",
+  });
   assert.equal(validation.metadata.provenance.image.present, true);
   assert.equal(validation.metadata.provenance.image.ocrAttempted, false);
   assert.deepEqual(
@@ -135,6 +163,13 @@ test("uses the transcript as a fallback when OCR fails on a hybrid payload", asy
   assert.equal(result.hadImage, true);
   assert.equal(result.ocrSucceeded, false);
   assert.equal(result.transcriptFallbackUsed, true);
+  assert.deepEqual(result.metadata.ocr, {
+    provider: "local_tesseract",
+    mode: "server_side",
+    attempted: true,
+    succeeded: false,
+    fallback: "transcript",
+  });
   assert.equal(result.metadata.provenance.rawText.fallbackUsed, true);
   assert.deepEqual(
     result.metadata.warnings.map((warning) => warning.code),
