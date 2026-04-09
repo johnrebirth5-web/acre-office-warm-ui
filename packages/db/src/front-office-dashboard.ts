@@ -3163,7 +3163,7 @@ export async function getFrontOfficeDashboardSnapshot(
             count: leadershipPressureCount,
             tone: leadershipPressureCount > 0 ? "danger" : "neutral",
             description: leadingLeadershipItem
-              ? `${leadingLeadershipItem.title} is the first rescue pass. Review visible cleanup pressure in Front Office before it becomes a formal fire drill, then keep the rest of the rescue pass in the same lane.`
+              ? `${leadingLeadershipItem.title} is the first rescue pass. Review visible cleanup pressure in the Front Office command deck before it becomes a formal fire drill, then keep the rest of the rescue pass in the same lane.`
               : "No overdue task, stale-client, or send-trail pressure is visible in your leadership scope right now.",
             helper: leadingLeadershipItem
               ? `${leadingLeadershipItem.pressureLabel} · ${leadingLeadershipItem.contextLabel} · ${leadershipTotalSignalCount} visible signal(s) in scope. The next move is to keep the rescue pass in Front Office.`
@@ -3177,8 +3177,8 @@ export async function getFrontOfficeDashboardSnapshot(
             href: leadershipNotificationsHref,
             actionLabel:
               input.viewerRole === "team_lead"
-                ? "Open cleanup re-entry"
-                : "Open cleanup re-entry",
+                ? "Open cleanup command center"
+                : "Open cleanup command center",
           },
           ...actionQueueBase,
         ]

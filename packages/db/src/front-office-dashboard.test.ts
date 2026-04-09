@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
-import { Prisma, ResourceType } from "@prisma/client";
+import {
+  FrontOfficeSendChannel,
+  Prisma,
+  ResourceType,
+  TaskStatus,
+} from "@prisma/client";
 import { activityLogActions } from "./activity-log.ts";
 import { prisma } from "./client.ts";
 import { getFrontOfficeDashboardSnapshot } from "./front-office-dashboard.ts";
@@ -130,6 +135,43 @@ async function createFrontOfficeDashboardTestContext() {
         },
       });
     },
+    async createFollowUpTask(input: {
+      clientId: string;
+      assigneeMembershipId: string;
+      title: string;
+      dueAt?: Date | null;
+    }) {
+      return prisma.followUpTask.create({
+        data: {
+          organizationId: organization.id,
+          clientId: input.clientId,
+          assigneeMemberId: input.assigneeMembershipId,
+          title: input.title,
+          status: TaskStatus.queued,
+          dueAt: input.dueAt ?? null,
+          metadata: Prisma.JsonNull,
+        },
+      });
+    },
+    async createSendRecord(input: {
+      clientId: string;
+      senderMembershipId: string;
+      sentAt: Date;
+      openCount?: number;
+    }) {
+      return prisma.frontOfficeSendRecord.create({
+        data: {
+          organizationId: organization.id,
+          officeId: office.id,
+          senderMembershipId: input.senderMembershipId,
+          clientId: input.clientId,
+          channel: FrontOfficeSendChannel.email,
+          sentAt: input.sentAt,
+          openCount: input.openCount ?? 0,
+          clientStageLabel: "Warm Lead",
+        },
+      });
+    },
     async cleanup() {
       await prisma.organization.delete({
         where: {
@@ -239,6 +281,68 @@ test("dashboard keeps shared resource pulse hidden for self-scoped agents", asyn
       "Prior 14 days",
     );
     assert.equal(snapshot.noticeRail.resourcePulse.totalCountDelta, 0);
+  } finally {
+    await context.cleanup();
+  }
+});
+
+test("dashboard surfaces the leadership command deck for office admins", async () => {
+  const context = await createFrontOfficeDashboardTestContext();
+  const now = Date.now();
+
+  try {
+    const client = await prisma.client.create({
+      data: {
+        organizationId: context.organization.id,
+        ownerMembershipId: context.agentMembership.id,
+        fullName: "Leadership Command Client",
+        email: "leadership-command-client@example.com",
+        phone: "2125550198",
+        source: "Dashboard regression",
+        stage: "Warm Lead",
+        intent: "Buyer",
+        preferredAreas: ["Brooklyn"],
+        lastContactAt: new Date(now - 16 * 24 * 60 * 60 * 1000),
+        additionalFields: Prisma.JsonNull,
+      },
+    });
+
+    await context.createFollowUpTask({
+      clientId: client.id,
+      assigneeMembershipId: context.agentMembership.id,
+      title: "Leadership dashboard overdue task",
+      dueAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+    });
+    await context.createSendRecord({
+      clientId: client.id,
+      senderMembershipId: context.agentMembership.id,
+      sentAt: new Date(now - 4 * 24 * 60 * 60 * 1000),
+    });
+
+    const snapshot = await getFrontOfficeDashboardSnapshot({
+      organizationId: context.organization.id,
+      viewerMembershipId: context.adminMembership.id,
+      viewerRole: "office_admin",
+      officeId: context.office.id,
+      timeZone: "America/New_York",
+    });
+
+    assert.equal(snapshot.leadershipQueue.visible, true);
+    assert.equal(
+      snapshot.leadershipQueue.scopeLabel,
+      "Office execution pressure",
+    );
+    assert.equal(snapshot.leadershipQueue.overdueTaskCount, 1);
+    assert.equal(snapshot.leadershipQueue.staleClientCount, 1);
+    assert.equal(snapshot.leadershipQueue.engagementRiskCount, 1);
+    assert.equal(snapshot.summary.leadershipPressureCount, 3);
+    assert.equal(snapshot.actionQueue[0]?.label, "Office cleanup");
+    assert.equal(
+      snapshot.actionQueue[0]?.actionLabel,
+      "Open cleanup command center",
+    );
+    assert.ok(snapshot.leadershipQueue.items.length > 0);
+    assert.ok(snapshot.leadershipQueue.activityCenterItems.length > 0);
   } finally {
     await context.cleanup();
   }
