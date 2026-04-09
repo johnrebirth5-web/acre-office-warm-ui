@@ -12,6 +12,7 @@ import {
 } from "@acre/ui";
 import { redirect } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { FrontOfficeTrackedLink } from "../_components/front-office-tracked-link";
 import { FrontOfficeRailItem } from "../_components/front-office-rail-item";
 import { FrontOfficePageTemplate } from "../_components/front-office-page-template";
 import { requireSessionContext } from "../../../lib/auth-session";
@@ -214,39 +215,59 @@ function renderVendorActions(vendor: VendorRecord) {
   return (
     <>
       {vendor.phoneHref ? (
-        <FrontOfficeLink
+        <FrontOfficeTrackedLink
           className="office-inline-link front-office-inline-link"
           href={vendor.phoneHref}
+          tracking={{
+            type: "vendor_click",
+            vendorId: vendor.id,
+            action: "phone",
+          }}
         >
           Call
-        </FrontOfficeLink>
+        </FrontOfficeTrackedLink>
       ) : null}
       {vendor.emailHref ? (
-        <FrontOfficeLink
+        <FrontOfficeTrackedLink
           className="office-inline-link front-office-inline-link"
           href={vendor.emailHref}
+          tracking={{
+            type: "vendor_click",
+            vendorId: vendor.id,
+            action: "email",
+          }}
         >
           Email
-        </FrontOfficeLink>
+        </FrontOfficeTrackedLink>
       ) : null}
       {vendor.websiteHref ? (
-        <FrontOfficeLink
+        <FrontOfficeTrackedLink
           className="office-inline-link front-office-inline-link"
           href={vendor.websiteHref}
+          tracking={{
+            type: "vendor_click",
+            vendorId: vendor.id,
+            action: "website",
+          }}
         >
           Open site
-        </FrontOfficeLink>
+        </FrontOfficeTrackedLink>
       ) : null}
       {!vendor.phoneHref &&
       !vendor.emailHref &&
       !vendor.websiteHref &&
       vendor.href ? (
-        <FrontOfficeLink
+        <FrontOfficeTrackedLink
           className="office-inline-link front-office-inline-link"
           href={vendor.href}
+          tracking={{
+            type: "vendor_click",
+            vendorId: vendor.id,
+            action: "primary",
+          }}
         >
           {vendor.actionLabel}
-        </FrontOfficeLink>
+        </FrontOfficeTrackedLink>
       ) : null}
     </>
   );
@@ -292,12 +313,16 @@ function ResourceRecordCard(props: {
       ) : null}
 
       <div style={resourceActionRowStyle}>
-        <FrontOfficeLink
+        <FrontOfficeTrackedLink
           className="office-inline-link front-office-inline-link"
           href={resource.href}
+          tracking={{
+            type: "resource_open",
+            resourceId: resource.id,
+          }}
         >
           {resource.actionLabel}
-        </FrontOfficeLink>
+        </FrontOfficeTrackedLink>
         {supportingLinkHref && supportingLinkLabel ? (
           <FrontOfficeLink
             className="office-inline-link front-office-inline-link"
@@ -661,12 +686,16 @@ export default async function AgentResourcesPage() {
                     {vendorSupportResources.slice(0, 4).map((resource) => (
                       <QueueItem
                         action={
-                          <FrontOfficeLink
+                          <FrontOfficeTrackedLink
                             className="office-inline-link front-office-inline-link"
                             href={resource.href}
+                            tracking={{
+                              type: "resource_open",
+                              resourceId: resource.id,
+                            }}
                           >
                             {resource.actionLabel}
-                          </FrontOfficeLink>
+                          </FrontOfficeTrackedLink>
                         }
                         badgeLabel={resource.typeLabel}
                         badgeTone={resource.typeTone}
@@ -823,12 +852,16 @@ export default async function AgentResourcesPage() {
                 snapshot.resources.slice(0, 3).map((resource) => (
                   <QueueItem
                     action={
-                      <FrontOfficeLink
+                      <FrontOfficeTrackedLink
                         className="office-inline-link front-office-inline-link"
                         href={resource.href}
+                        tracking={{
+                          type: "resource_open",
+                          resourceId: resource.id,
+                        }}
                       >
                         {resource.actionLabel}
-                      </FrontOfficeLink>
+                      </FrontOfficeTrackedLink>
                     }
                     badgeLabel={resource.typeLabel}
                     badgeTone={resource.typeTone}
@@ -863,7 +896,7 @@ export default async function AgentResourcesPage() {
               <FrontOfficeRailItem
                 badgeLabel="Call prep"
                 badgeTone="accent"
-                description="Open a playbook when the next move is a live call, objection response, showing prep, or FO-to-BO handoff checklist."
+                description="Open a playbook when the next move is a live call, objection response, showing prep, or FO-to-BO handoff checklist. Resource opens now stay visible in the audit trail instead of disappearing into raw outbound clicks."
                 meta={
                   <>
                     <span>
@@ -892,7 +925,7 @@ export default async function AgentResourcesPage() {
               <FrontOfficeRailItem
                 badgeLabel="Vendor"
                 badgeTone="warning"
-                description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module."
+                description="Use the vendor desk when the job needs a real outside partner and a direct next action, not a brand-new internal module. Vendor call, email, and site clicks now stay traceable from the same FO hub."
                 meta={
                   <>
                     <span>
@@ -930,7 +963,7 @@ export default async function AgentResourcesPage() {
               <FrontOfficeRailItem
                 badgeLabel="Honest"
                 badgeTone="warning"
-                description="This page does not imply auto-send, two-way sync, hidden vendor ingestion, or provider-backed automation. Agents still choose and perform the next action."
+                description="This page does not imply auto-send, two-way sync, hidden vendor ingestion, or provider-backed automation. Agents still choose and perform the next action, even though opens and vendor clicks are now tracked."
                 title="No pretend automation layer"
               />
             </div>

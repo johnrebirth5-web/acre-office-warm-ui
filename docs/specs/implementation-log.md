@@ -687,6 +687,11 @@
   - [packages/db/src/front-office-workspaces.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-workspaces.ts) now emits `executionPulse` for `/agent/resources`, including resource-lane counts, strongest/thinnest lane, and vendor posture derived from the current resource/vendor set
   - [apps/web/app/api/resources/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/resources/route.ts) now returns the richer resource-center snapshot shape plus lightweight `type / vendorCategory / vendorMode` filtering so downstream consumers can request a narrowed FO resource payload without recreating summary logic
   - [apps/web/app/agent/resources/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/resources/page.tsx) now consumes that shared pulse contract for the command-deck rails instead of recomputing strongest/thinnest lane and vendor posture inside the page shell
+- FO resource hub interactions are now auditable instead of disappearing into raw outbound links:
+  - [packages/db/src/front-office-resources.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/front-office-resources.ts) now validates office-scoped resource/vendor visibility and records `resource_opened / vendor_clicked` events into the shared audit log contract
+  - [packages/db/src/activity-log.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/packages/db/src/activity-log.ts) now recognizes Front Office resource/vendor interaction events, maps them into activity summaries, and links them back to `/agent/resources`
+  - [apps/web/app/api/resources/interactions/route.ts](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/api/resources/interactions/route.ts) plus [front-office-tracked-link.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/_components/front-office-tracked-link.tsx) now send lightweight tracked opens/clicks before the real resource or vendor action continues
+  - [apps/web/app/agent/resources/page.tsx](/Users/openclaw_john/工作文件夹/Acre_latest_clean/apps/web/app/agent/resources/page.tsx) now routes resource opens and vendor call/email/site actions through that tracked interaction path while keeping the existing FO hub layout intact
 
 ## Next recommended work
 

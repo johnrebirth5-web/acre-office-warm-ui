@@ -118,6 +118,8 @@ export const activityLogActions = {
   appointmentCreated: "appointment.created",
   appointmentUpdated: "appointment.updated",
   appointmentBridgeOpened: "appointment.bridge_opened",
+  frontOfficeResourceOpened: "front_office.resource_opened",
+  frontOfficeVendorClicked: "front_office.vendor_clicked",
   contactCreated: "contact.created",
   contactUpdated: "contact.updated",
   activityCommentAdded: "activity.comment_added",
@@ -206,6 +208,8 @@ export type ActivityLogEntityType =
   | "transaction_form"
   | "signature_request"
   | "incoming_update"
+  | "resource"
+  | "vendor"
   | "accounting_transaction"
   | "commission_plan"
   | "commission_calculation"
@@ -524,6 +528,8 @@ const activityActionLabelMap: Record<ActivityLogAction, string> = {
   "appointment.created": "Appointment created",
   "appointment.updated": "Appointment updated",
   "appointment.bridge_opened": "Appointment bridge opened",
+  "front_office.resource_opened": "Front Office resource opened",
+  "front_office.vendor_clicked": "Front Office vendor clicked",
   "contact.created": "Contact created",
   "contact.updated": "Contact updated",
   "activity.comment_added": "Comment added",
@@ -991,6 +997,9 @@ function mapEntityTypeToObjectType(
     case "contact":
     case "appointment":
       return "contact";
+    case "resource":
+    case "vendor":
+      return "document";
     case "library_folder":
     case "library_document":
     case "transaction_document":
@@ -1203,6 +1212,14 @@ function getActivityHref(
     return payload.contextHref ?? "/agent/calendar";
   }
 
+  if (record.entityType === "resource") {
+    return payload.contextHref ?? "/agent/resources#published-tool-library";
+  }
+
+  if (record.entityType === "vendor") {
+    return payload.contextHref ?? "/agent/resources#vendor-hub";
+  }
+
   if (record.entityType === "transaction_task" && payload.transactionId) {
     return payload.taskId
       ? `/office/transactions/${payload.transactionId}#transaction-task-${payload.taskId}`
@@ -1273,7 +1290,15 @@ function formatSummaryChange(change: ActivityLogChange | null) {
 }
 
 function getActionSourceLabel(actionSource: string | undefined) {
-  return actionSource === "approve_docs_queue" ? "Approve Docs queue" : null;
+  if (actionSource === "approve_docs_queue") {
+    return "Approve Docs queue";
+  }
+
+  if (actionSource === "front_office_resource_hub") {
+    return "Front Office resource hub";
+  }
+
+  return null;
 }
 
 function appendActionSourceSummary(
@@ -1537,6 +1562,16 @@ function getSummary(action: string, payload: ParsedActivityPayload) {
             payload.workflowReason,
           ).toLowerCase()} bridge`
         : "opened an appointment bridge";
+    case activityLogActions.frontOfficeResourceOpened:
+      return appendActionSourceSummary(
+        "opened a Front Office resource",
+        payload,
+      );
+    case activityLogActions.frontOfficeVendorClicked:
+      return appendActionSourceSummary(
+        "opened a Front Office vendor action",
+        payload,
+      );
     case activityLogActions.contactCreated:
       return "created a contact";
     case activityLogActions.contactUpdated:

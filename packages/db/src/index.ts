@@ -365,6 +365,12 @@ export {
   type FrontOfficeHandoffPrefillSnapshot,
 } from "./front-office-contracts";
 export {
+  frontOfficeVendorInteractionActions,
+  recordFrontOfficeResourceOpen,
+  recordFrontOfficeVendorClick,
+  type FrontOfficeVendorInteractionAction,
+} from "./front-office-resources";
+export {
   getFrontOfficeActivitySnapshot,
   getFrontOfficeClientsSnapshot,
   getFrontOfficeListingsSnapshot,
