@@ -5,12 +5,14 @@ import { MembershipStatus, NotificationType, Prisma, type UserRole } from "@pris
 import { prisma } from "./client.ts";
 import {
   archiveOfficeMailThread,
+  buildAppointmentInternalMailThreadResponse,
   createOfficeMailThread,
   getOfficeMailAttachmentStorageRecord,
   getOfficeMailUnreadCount,
   getOfficeMailThreadDetail,
   getOfficeMailWorkspace,
   markOfficeMailThreadUnread,
+  mapAppointmentInternalMailThreadErrorStatus,
   replyToOfficeMailThread
 } from "./mail.ts";
 
@@ -346,6 +348,62 @@ test("mail audit access can inspect threads and attachments without being a part
   } finally {
     await context.cleanup();
   }
+});
+
+test("appointment internal mail thread response keeps the continuity contract explicit", () => {
+  const response = buildAppointmentInternalMailThreadResponse({
+    threadId: "thread_123",
+    subject: "Please confirm: 123 Main St",
+  });
+
+  assert.deepEqual(response.thread, {
+    id: "thread_123",
+    subject: "Please confirm: 123 Main St",
+  });
+  assert.equal(response.threadHref, "/office/mail?threadId=thread_123");
+  assert.equal(response.actionLabel, "Internal mail thread");
+  assert.match(
+    response.manualOnlyDetail,
+    /external send still stays manual and no provider sync is implied\./,
+  );
+  assert.match(
+    response.continuity.detail,
+    /continuity stays inside the workspace/,
+  );
+  assert.equal(response.continuity.returnToLabel, "Return to writeback");
+  assert.match(
+    response.continuity.sourceNote,
+    /outside email remains manual and no provider sync is implied\./,
+  );
+});
+
+test("appointment internal mail thread error mapping keeps manual-only and permission failures on the guarded contract", () => {
+  const noRecipients = mapAppointmentInternalMailThreadErrorStatus(
+    "No internal mail recipients are available for this appointment brief.",
+  );
+  const missingEmailTarget = mapAppointmentInternalMailThreadErrorStatus(
+    "An email target is required before opening the appointment mail thread.",
+  );
+  const notScheduled = mapAppointmentInternalMailThreadErrorStatus(
+    "Only scheduled appointments can open the internal mail brief.",
+  );
+  const noAccess = mapAppointmentInternalMailThreadErrorStatus(
+    "Mail access required.",
+  );
+  const noSendAccess = mapAppointmentInternalMailThreadErrorStatus(
+    "Mail send access required.",
+  );
+  const generic = mapAppointmentInternalMailThreadErrorStatus("Unexpected.");
+
+  assert.equal(noRecipients.status, 409);
+  assert.equal(missingEmailTarget.status, 409);
+  assert.equal(notScheduled.status, 409);
+  assert.equal(noAccess.status, 403);
+  assert.equal(noSendAccess.status, 403);
+  assert.equal(generic.status, 400);
+  assert.equal(generic.hint, null);
+  assert.match(noRecipients.hint ?? "", /external email brief/);
+  assert.match(noAccess.hint ?? "", /external email brief/);
 });
 
 test("workspace reads sync notification state and replies restore archived threads without duplicating notifications", async () => {

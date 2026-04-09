@@ -108,21 +108,36 @@ type BridgeActionResponse = {
   hint?: string;
 };
 
-type AppointmentMailThreadResponse = {
-  thread?: {
+type AppointmentMailThreadSuccessResponse = {
+  thread: {
     id: string;
     subject: string;
   };
-  threadHref?: string;
-  actionLabel?: string;
-  manualOnlyDetail?: string;
-  continuity?: FrontOfficeAppointmentCheckpointSummary & {
+  threadHref: string;
+  actionLabel: string;
+  manualOnlyDetail: string;
+  continuity: FrontOfficeAppointmentCheckpointSummary & {
     returnToLabel: string;
     returnToDetail: string;
   };
-  error?: string;
+  error?: never;
+  hint?: never;
+};
+
+type AppointmentMailThreadErrorResponse = {
+  error: string;
   hint?: string;
-} | null;
+  thread?: never;
+  threadHref?: never;
+  actionLabel?: never;
+  manualOnlyDetail?: never;
+  continuity?: never;
+};
+
+type AppointmentMailThreadResponse =
+  | AppointmentMailThreadSuccessResponse
+  | AppointmentMailThreadErrorResponse
+  | null;
 
 type FrontOfficeAppointmentCheckpointSummary = {
   label: string;
@@ -1695,9 +1710,9 @@ export function FrontOfficeCalendarClient(
         message: [
           `${payload.actionLabel ?? "Internal mail thread"} opened.`,
           payload.continuity?.detail ??
-            "Acre created the appointment brief inside Internal Mail so the continuity stays in the workspace.",
+            "Acre created the appointment brief as an internal continuity copy so the thread stays inside the workspace.",
           payload.manualOnlyDetail ??
-            "The external email still stays manual and no provider sync is implied.",
+            "The external email stays manual and no provider sync is implied.",
           payload.continuity?.nextStep ??
             "Open the Acre thread, review the brief, then return to the appointment record and save the next checkpoint.",
           payload.continuity?.returnToDetail ?? null,

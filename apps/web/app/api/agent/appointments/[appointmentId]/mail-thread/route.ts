@@ -7,6 +7,10 @@ import {
 import { MembershipStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../lib/auth-session";
+import {
+  buildAppointmentInternalMailThreadResponse,
+  mapAppointmentInternalMailThreadErrorStatus,
+} from "../../../../../../../../packages/db/src/mail.ts";
 
 type RouteContext = {
   params: Promise<{
@@ -28,14 +32,6 @@ const officeRecipientRoles = new Set([
   "office_manager",
   "office_user",
 ]);
-
-function buildMailThreadHref(threadId: string) {
-  return `/office/mail?threadId=${encodeURIComponent(threadId)}`;
-}
-
-function buildMailThreadFallbackHint() {
-  return "If internal mail access is unavailable, use the external email brief from the appointment bridge instead.";
-}
 
 function buildMailThreadSubject(appointment: {
   title: string;
@@ -178,31 +174,7 @@ async function listInternalMailContinuityRecipientIds(input: {
 }
 
 function mapMailThreadErrorStatus(message: string) {
-  if (
-    message.includes("No internal mail recipients") ||
-    message.includes("email target is required") ||
-    message.includes("Only scheduled appointments")
-  ) {
-    return {
-      status: 409,
-      hint: buildMailThreadFallbackHint(),
-    };
-  }
-
-  if (
-    message.includes("Mail access required") ||
-    message.includes("Mail send access required.")
-  ) {
-    return {
-      status: 403,
-      hint: buildMailThreadFallbackHint(),
-    };
-  }
-
-  return {
-    status: 400,
-    hint: null,
-  };
+  return mapAppointmentInternalMailThreadErrorStatus(message);
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
@@ -299,28 +271,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     });
 
     return NextResponse.json(
-      {
-        thread: {
-          id: thread.id,
-          subject: thread.subject,
-        },
-        threadHref: buildMailThreadHref(thread.id),
-        actionLabel: "Internal mail thread",
-        manualOnlyDetail:
-          "The Acre mail thread keeps the email brief inside the workspace; the external send still stays manual.",
-        continuity: {
-          label: "Internal mail thread opened",
-          detail:
-            "Acre created an internal mail thread for the appointment brief so the continuity stays inside the workspace.",
-          nextStep:
-            "Review the Acre thread, then return to the appointment record and save the next checkpoint.",
-          sourceNote:
-            "Internal mail continuity only; the outside email remains manual.",
-          returnToLabel: "Return to writeback",
-          returnToDetail:
-            "Jump back to the same appointment after reviewing the thread, then save the next checkpoint in Acre.",
-        },
-      },
+      buildAppointmentInternalMailThreadResponse({
+        threadId: thread.id,
+        subject: thread.subject,
+      }),
       {
         status: 201,
         headers: {
