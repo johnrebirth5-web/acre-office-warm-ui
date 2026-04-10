@@ -151,6 +151,7 @@ export {
   recordFrontOfficeCleanupDigestRunActivity,
   renderFrontOfficeCleanupDigestDeliveryDraft,
 } from "./front-office-cleanup-digest";
+export { getDatabaseHealthCheck, type DatabaseHealthCheck, type DatabaseHealthCheckOptions } from "./health";
 export {
   activityLogActions,
   addOfficeActivityComment,
