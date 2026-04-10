@@ -5,12 +5,15 @@ import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecret, shouldUs
 import { createSessionCookieValue, decodeSessionCookieValue } from "./auth-session.ts";
 
 function withEnv(
-  nextEnv: Partial<Record<"NODE_ENV" | "ACRE_SESSION_SECRET" | "ACRE_SECURE_COOKIES", string | undefined>>,
+  nextEnv: Partial<
+    Record<"NODE_ENV" | "ACRE_SESSION_SECRET" | "ACRE_SESSION_SECRET_SECONDARY" | "ACRE_SECURE_COOKIES", string | undefined>
+  >,
   run: () => void
 ) {
   const previous = {
     NODE_ENV: process.env.NODE_ENV,
     ACRE_SESSION_SECRET: process.env.ACRE_SESSION_SECRET,
+    ACRE_SESSION_SECRET_SECONDARY: process.env.ACRE_SESSION_SECRET_SECONDARY,
     ACRE_SECURE_COOKIES: process.env.ACRE_SECURE_COOKIES
   };
 
@@ -35,6 +38,18 @@ function withEnv(
   }
 }
 
+function signSessionPayload(membershipId: string, secret: string, issuedAt = Date.now()) {
+  const serializedPayload = Buffer.from(
+    JSON.stringify({
+      membershipId,
+      issuedAt
+    })
+  ).toString("base64url");
+  const signature = createHmac("sha256", secret).update(serializedPayload).digest("base64url");
+
+  return `${serializedPayload}.${signature}`;
+}
+
 test("secure cookie behavior stays explicit and proxy-safe", () => {
   withEnv({ NODE_ENV: "production", ACRE_SECURE_COOKIES: undefined }, () => {
     assert.equal(shouldUseSecureCookies(), true);
@@ -57,9 +72,47 @@ test("production session creation requires an explicit secret", () => {
     assert.throws(() => getSessionSecret(), /ACRE_SESSION_SECRET is required in production/);
   });
 
-  withEnv({ NODE_ENV: "production", ACRE_SESSION_SECRET: "test-secret" }, () => {
-    assert.equal(getSessionSecret(), "test-secret");
+  withEnv({ NODE_ENV: "production", ACRE_SESSION_SECRET: "0123456789abcdef0123456789abcdef" }, () => {
+    assert.equal(getSessionSecret(), "0123456789abcdef0123456789abcdef");
   });
+});
+
+test("production session secrets reject weak placeholder values", () => {
+  withEnv({ NODE_ENV: "production", ACRE_SESSION_SECRET: "replace-with-a-local-session-secret" }, () => {
+    assert.throws(() => getSessionSecret(), /must be a strong generated secret in production/);
+  });
+
+  withEnv(
+    {
+      NODE_ENV: "production",
+      ACRE_SESSION_SECRET: "0123456789abcdef0123456789abcdef",
+      ACRE_SESSION_SECRET_SECONDARY: "replace-with-a-previous-session-secret"
+    },
+    () => {
+      assert.throws(() => getSessionSecret(), /must be a strong generated secret in production/);
+    }
+  );
+});
+
+test("session cookies sign with the primary secret and verify with a secondary secret during rotation", () => {
+  withEnv(
+    {
+      NODE_ENV: "production",
+      ACRE_SESSION_SECRET: "0123456789abcdef0123456789abcdef",
+      ACRE_SESSION_SECRET_SECONDARY: "fedcba9876543210fedcba9876543210"
+    },
+    () => {
+      const primaryCookieValue = createSessionCookieValue("membership-primary");
+      const primaryPayload = decodeSessionCookieValue(primaryCookieValue);
+
+      assert.equal(primaryPayload?.membershipId, "membership-primary");
+
+      const secondaryCookieValue = signSessionPayload("membership-secondary", "fedcba9876543210fedcba9876543210");
+      const secondaryPayload = decodeSessionCookieValue(secondaryCookieValue);
+
+      assert.equal(secondaryPayload?.membershipId, "membership-secondary");
+    }
+  );
 });
 
 test("session cookies keep the expected internal-account defaults", () => {
