@@ -16,6 +16,11 @@ import {
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../lib/auth-session";
+import {
+  parseAllowedString,
+  parsePositiveInteger,
+  readJsonObject,
+} from "../../../../lib/validate";
 import { isCreateTransactionStatusValue } from "../../../office/transactions/transaction-status-rules";
 
 const transactionStatusOptions = [
@@ -29,6 +34,7 @@ const transactionStatusOptions = [
 const defaultTransactionsPage = 1;
 const defaultTransactionsPageSize = 20;
 const maxTransactionsPageSize = 100;
+const invalidTransactionRequestError = "Invalid transaction request.";
 
 function buildHandoffPrefillError(
   handoffPrefill: Awaited<ReturnType<typeof getFrontOfficeHandoffPrefill>>,
@@ -143,24 +149,6 @@ function applyCreateTransactionStatusRules(
   };
 }
 
-function parsePositiveInteger(
-  value: string | null,
-  fallback: number,
-  max?: number,
-) {
-  if (!value || !value.trim()) {
-    return fallback;
-  }
-
-  const numeric = Number.parseInt(value, 10);
-
-  if (!Number.isFinite(numeric) || numeric < 1) {
-    return null;
-  }
-
-  return max ? Math.min(numeric, max) : numeric;
-}
-
 export async function GET(request: NextRequest) {
   const context = await getRequestSessionContext(request);
 
@@ -180,7 +168,11 @@ export async function GET(request: NextRequest) {
 
   const searchParams = request.nextUrl.searchParams;
   const search = searchParams.get("q") ?? undefined;
-  const status = searchParams.get("status") ?? "All";
+  const status = parseAllowedString(
+    searchParams.get("status"),
+    transactionStatusOptions,
+    "All",
+  );
   const ownerMembershipId = searchParams.get("ownerMembershipId") ?? undefined;
   const teamId = searchParams.get("teamId") ?? undefined;
   const type = searchParams.get("type") ?? undefined;
@@ -196,20 +188,9 @@ export async function GET(request: NextRequest) {
     maxTransactionsPageSize,
   );
 
-  if (page === null || pageSize === null) {
+  if (page === null || pageSize === null || status === null) {
     return NextResponse.json(
-      { error: "page and pageSize must be positive integers." },
-      { status: 400 },
-    );
-  }
-
-  if (
-    !transactionStatusOptions.includes(
-      status as (typeof transactionStatusOptions)[number],
-    )
-  ) {
-    return NextResponse.json(
-      { error: "Unsupported transaction status filter." },
+      { error: invalidTransactionRequestError },
       { status: 400 },
     );
   }
@@ -249,14 +230,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = (await request.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = await readJsonObject(request);
 
   if (!body) {
     return NextResponse.json(
-      { error: "A valid JSON body is required." },
+      { error: invalidTransactionRequestError },
       { status: 400 },
     );
   }
@@ -341,12 +319,26 @@ export async function POST(request: NextRequest) {
       handoffClaimToken = claimResult.claimToken ?? "";
     }
 
-    const submission = prepareTransactionIntakeSubmission({
-      schema,
-      payload: canManageTransactionStatus
-        ? body
-        : { ...body, transactionStatus: "pending" },
-    });
+    const submission = (() => {
+      try {
+        return prepareTransactionIntakeSubmission({
+          schema,
+          payload: canManageTransactionStatus
+            ? body
+            : { ...body, transactionStatus: "pending" },
+        });
+      } catch {
+        return null;
+      }
+    })();
+
+    if (!submission) {
+      return NextResponse.json(
+        { error: invalidTransactionRequestError },
+        { status: 400 },
+      );
+    }
+
     const statusField = schema.builtInFields.find(
       (field) => field.fieldKey === "transaction_status",
     );
@@ -363,7 +355,10 @@ export async function POST(request: NextRequest) {
       );
 
       if (!selectedOwner) {
-        throw new Error("Select an agent owner before creating a transaction.");
+        return NextResponse.json(
+          { error: invalidTransactionRequestError },
+          { status: 400 },
+        );
       }
 
       ownerMembershipId = selectedOwner.id;
@@ -371,15 +366,17 @@ export async function POST(request: NextRequest) {
       requestedOwnerMembershipId &&
       requestedOwnerMembershipId !== context.currentMembership.id
     ) {
-      throw new Error(
-        "Sales users can only create transactions for themselves.",
+      return NextResponse.json(
+        { error: invalidTransactionRequestError },
+        { status: 400 },
       );
     }
 
     if (canManageTransactionStatus && statusField?.isVisible) {
       if (!isCreateTransactionStatusValue(submission.transactionStatus)) {
-        throw new Error(
-          "New transactions can only start as Pending, Closed, or Cancelled.",
+        return NextResponse.json(
+          { error: invalidTransactionRequestError },
+          { status: 400 },
         );
       }
 
@@ -514,7 +511,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ transaction }, { status: 201 });
-  } catch (error) {
+  } catch {
     if (handoffDraftId && handoffClaimToken) {
       await commitFrontOfficeHandoffDraft({
         organizationId: context.currentOrganization.id,
@@ -526,10 +523,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create transaction.",
+        error: "Failed to create transaction.",
       },
       { status: 400 },
     );
