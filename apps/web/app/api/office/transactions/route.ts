@@ -472,6 +472,16 @@ export async function POST(request: NextRequest) {
         mode: "commit",
       });
 
+      const handoffCleanupResult =
+        !handoffCommitResult.ok && handoffClaimToken
+          ? await commitFrontOfficeHandoffDraft({
+              organizationId: context.currentOrganization.id,
+              handoffDraftId,
+              claimToken: handoffClaimToken,
+              mode: "release",
+            }).catch(() => null)
+          : null;
+
       return NextResponse.json(
         {
           transaction,
@@ -486,6 +496,17 @@ export async function POST(request: NextRequest) {
                   reason: handoffCommitResult.reason,
                   warning:
                     "The Back Office transaction was created, but the Front Office handoff did not finalize cleanly. Review the client dossier and transaction record before retrying the handoff.",
+                  cleanup: handoffCleanupResult
+                    ? {
+                        attempted: true,
+                        ok: handoffCleanupResult.ok,
+                        reason: handoffCleanupResult.reason,
+                      }
+                    : {
+                        attempted: false,
+                        ok: false,
+                        reason: "not_attempted",
+                      },
                 },
         },
         { status: 201 },
