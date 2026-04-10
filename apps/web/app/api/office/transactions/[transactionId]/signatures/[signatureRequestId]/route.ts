@@ -3,7 +3,11 @@ import { getSignatureEditorSnapshot, updateSignatureRequest } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSessionContext } from "../../../../../../../lib/auth-session";
 import { getAppBaseUrl } from "../../../../../../../lib/request-origin";
-import { sendSignatureRequestEmail } from "../../../../../../../lib/signature-email";
+import {
+  resolveSignatureRequestReplyTo,
+  resolveSignatureSenderDisplayName,
+  sendSignatureRequestEmail
+} from "../../../../../../../lib/signature-email";
 import { createSignatureToken } from "../../../../../../../lib/signature-token";
 
 type RouteContext = {
@@ -70,10 +74,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         return NextResponse.json({ error: "Add at least one signature field before sending." }, { status: 400 });
       }
       const baseUrl = getAppBaseUrl(request);
-      const senderDisplayName =
-        snapshot.signatureRequest.senderDisplayName ||
-        `${context.currentUser.firstName} ${context.currentUser.lastName}`.trim() ||
-        context.currentUser.email;
+      const senderDisplayName = resolveSignatureSenderDisplayName(
+        snapshot.signatureRequest.senderDisplayName,
+        `${context.currentUser.firstName} ${context.currentUser.lastName}`.trim() || context.currentUser.email
+      );
       const subject =
         snapshot.signatureRequest.emailSubject ||
         `Signature requested: ${snapshot.document.title}`;
@@ -115,7 +119,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
             documentTitle: snapshot.document.title,
             expiresAt: snapshot.signatureRequest.expiresAt || null,
             senderDisplayName,
-            replyTo: snapshot.signatureRequest.senderReplyTo || context.currentUser.email
+            replyTo: resolveSignatureRequestReplyTo(snapshot.signatureRequest.senderReplyTo)
           });
         }
 
@@ -142,7 +146,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           documentTitle: snapshot.document.title,
           expiresAt: snapshot.signatureRequest.expiresAt || null,
           senderDisplayName,
-          replyTo: snapshot.signatureRequest.senderReplyTo || context.currentUser.email
+          replyTo: resolveSignatureRequestReplyTo(snapshot.signatureRequest.senderReplyTo)
         });
 
         signatureRequest = await updateSignatureRequest({
