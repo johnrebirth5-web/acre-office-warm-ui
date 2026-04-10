@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { NextRequest } from "next/server";
 import { FRONT_OFFICE_LEAD_INTAKE_ASSIST_MAX_IMAGE_BYTES } from "../../../../../lib/front-office-intake-assist-server";
 import { handleFrontOfficeLeadIntakeAssistServerRoute } from "../../../../../lib/front-office-intake-assist-server";
+import { handleIntakeAssistPost } from "./route";
 
 type RouteRequest = {
   formData(): Promise<FormData>;
@@ -17,6 +19,16 @@ function createRequest(formData: FormData | null): RouteRequest {
       return formData;
     },
   };
+}
+
+function createNextRequest(formData: FormData, origin = "http://localhost:3105") {
+  return new NextRequest(`${origin}/api/agent/clients/intake-assist`, {
+    method: "POST",
+    body: formData,
+    headers: {
+      origin,
+    },
+  });
 }
 
 async function readJson(response: Response) {
@@ -321,5 +333,46 @@ test("returns 200 with transcript fallback metadata when OCR yields no text", as
       ],
     },
     sourceSurface: "dashboard",
+  });
+});
+
+test("handleIntakeAssistPost returns 403 when csrf validation fails", async () => {
+  const response = await handleIntakeAssistPost(createNextRequest(new FormData()), {
+    csrf: () => false,
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await readJson(response), {
+    error: "CSRF validation failed.",
+  });
+});
+
+test("handleIntakeAssistPost returns 429 when the intake-assist rate limit is exceeded", async () => {
+  const response = await handleIntakeAssistPost(createNextRequest(new FormData()), {
+    csrf: () => true,
+    getSessionContext: async () =>
+      ({
+        currentMembership: {
+          id: "membership_1",
+          role: "office_user",
+          permissions: [],
+        },
+      }) as never,
+    canViewOfficeContacts: () => true,
+    rateLimit: () => ({
+      allowed: false,
+      limit: 20,
+      remaining: 0,
+      resetAt: Date.now() + 45_000,
+      retryAfterSeconds: 45,
+    }),
+  });
+
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("retry-after"), "45");
+  assert.deepEqual(await readJson(response), {
+    error: "Too many intake assist requests. Please try again in a moment.",
   });
 });
