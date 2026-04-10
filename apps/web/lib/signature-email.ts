@@ -84,6 +84,14 @@ function formatFromAddress(fromName: string, fromEmail: string) {
   return `"${safeName}" <${fromEmail}>`;
 }
 
+export function resolveSignatureSenderDisplayName(senderDisplayName: string | null | undefined, fallbackDisplayName: string) {
+  return senderDisplayName?.trim() || fallbackDisplayName.trim() || "your Acre agent";
+}
+
+export function resolveSignatureRequestReplyTo(senderReplyTo: string | null | undefined) {
+  return senderReplyTo?.trim() || null;
+}
+
 async function resolvePreferredSmtpHost(host: string) {
   if (isIP(host)) {
     return host;
@@ -262,6 +270,14 @@ async function resolveSignatureSenderProfile(organizationId: string): Promise<Si
   };
 }
 
+function resolveMailSenderProfile(context: SignatureMailContext): SignatureSenderProfile {
+  return context.provider === "resend" ? context.profile : context.config;
+}
+
+function resolveMailReplyTo(replyTo: string | null | undefined, defaultReplyTo: string | null) {
+  return replyTo?.trim() || defaultReplyTo || undefined;
+}
+
 async function resolveSignatureMailerContext(organizationId: string): Promise<SignatureMailContext> {
   const resendApiKey = process.env.ACRE_RESEND_API_KEY?.trim();
 
@@ -296,15 +312,18 @@ async function resolveSignatureMailerContext(organizationId: string): Promise<Si
 
 export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
   const context = await resolveSignatureMailerContext(input.organizationId);
+  const senderProfile = resolveMailSenderProfile(context);
+  const from = formatFromAddress(senderProfile.fromName, senderProfile.fromEmail);
+  const replyTo = resolveMailReplyTo(input.replyTo, senderProfile.defaultReplyTo);
 
   if (context.provider === "resend") {
     const { error } = await context.client.emails.send({
-      from: formatFromAddress(context.profile.fromName, context.profile.fromEmail),
+      from,
       to: input.to,
       subject: input.subject,
       html: buildSignatureEmailHtml(input),
       text: buildSignatureEmailText(input),
-      replyTo: input.replyTo?.trim() || context.profile.defaultReplyTo || undefined
+      replyTo
     });
 
     if (error) {
@@ -315,12 +334,12 @@ export async function sendSignatureRequestEmail(input: SignatureEmailInput) {
   }
 
   await context.transport.sendMail({
-    from: formatFromAddress(context.config.fromName, context.config.fromEmail),
+    from,
     to: input.to,
     subject: input.subject,
     html: buildSignatureEmailHtml(input),
     text: buildSignatureEmailText(input),
-    replyTo: input.replyTo?.trim() || context.config.defaultReplyTo || undefined
+    replyTo
   });
 }
 
@@ -333,8 +352,9 @@ export async function sendSignatureCompletionEmail(input: SignatureCompletionEma
   }
 
   if (context.provider === "resend") {
+    const senderProfile = resolveMailSenderProfile(context);
     const { error } = await context.client.emails.send({
-      from: formatFromAddress(context.profile.fromName, context.profile.fromEmail),
+      from: formatFromAddress(senderProfile.fromName, senderProfile.fromEmail),
       to: recipient,
       subject: `Signature completed: ${input.documentTitle}`,
       html: buildSignatureCompletionEmailHtml(input),
@@ -354,8 +374,9 @@ export async function sendSignatureCompletionEmail(input: SignatureCompletionEma
     return true;
   }
 
+  const senderProfile = resolveMailSenderProfile(context);
   await context.transport.sendMail({
-    from: formatFromAddress(context.config.fromName, context.config.fromEmail),
+    from: formatFromAddress(senderProfile.fromName, senderProfile.fromEmail),
     to: recipient,
     subject: `Signature completed: ${input.documentTitle}`,
     html: buildSignatureCompletionEmailHtml(input),
