@@ -32,6 +32,7 @@ import {
   type ReadonlyURLSearchParams,
 } from "next/navigation";
 import { FrontOfficeLink } from "../_components/front-office-link";
+import { useI18n } from "../../../lib/i18n/client";
 import {
   calendarViewValues,
   deriveCalendarViewFromRoute,
@@ -820,9 +821,88 @@ function resolveFocusState(
 export function FrontOfficeCalendarClient(
   props: FrontOfficeCalendarClientProps,
 ) {
+  const { locale } = useI18n();
+  const isZh = locale === "zh-CN";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const externalStatusOptions = [
+    {
+      value: "idle" as const,
+      label: isZh ? "外部跟进空闲" : "External follow-up idle",
+    },
+    {
+      value: "needs_follow_up" as const,
+      label: isZh ? "待回复" : "Reply due",
+    },
+    {
+      value: "confirmation_pending" as const,
+      label: isZh ? "待确认" : "Confirmation pending",
+    },
+    {
+      value: "confirmed" as const,
+      label: isZh ? "已确认" : "Confirmed",
+    },
+    {
+      value: "reschedule_requested" as const,
+      label: isZh ? "请求改期" : "Reschedule requested",
+    },
+  ];
+  const statusFilterOptions = [
+    { value: "all", label: isZh ? "全部 Acre 状态" : "All Acre statuses" },
+    { value: "scheduled", label: isZh ? "仅已安排" : "Scheduled only" },
+    { value: "completed", label: isZh ? "已完成" : "Completed" },
+    { value: "canceled", label: isZh ? "已取消" : "Canceled" },
+    { value: "no_show", label: isZh ? "未到场" : "No-show" },
+  ];
+  const coordinationFilterOptions = [
+    { value: "all", label: isZh ? "全部协调状态" : "All coordination states" },
+    { value: "needs_follow_up", label: isZh ? "待回复" : "Reply due" },
+    { value: "confirmation_pending", label: isZh ? "待确认" : "Confirmation pending" },
+    { value: "confirmed", label: isZh ? "已确认" : "Confirmed" },
+    { value: "reschedule_requested", label: isZh ? "请求改期" : "Reschedule requested" },
+    { value: "touch_due", label: isZh ? "触达已到期" : "Touch due" },
+    { value: "bridge_logged", label: isZh ? "已打开桥接" : "Bridge opened" },
+    { value: "writeback_pending", label: isZh ? "待回写" : "Writeback pending" },
+  ];
+  const followUpFilterOptions = [
+    { value: "all", label: isZh ? "全部跟进节奏" : "All follow-up rhythms" },
+    { value: "response_waiting", label: isZh ? "待回复" : "Reply due" },
+    { value: "touch_due", label: isZh ? "现在触达" : "Touch due now" },
+    { value: "next_touch_missing", label: isZh ? "缺少下次触达" : "Missing next touch" },
+    { value: "touch_scheduled", label: isZh ? "已安排触达" : "Touch scheduled" },
+    { value: "confirmed", label: isZh ? "已确认" : "Confirmed" },
+  ];
+  const quickWritebackActions = [
+    {
+      value: "needs_follow_up" as const,
+      label: isZh ? "待回复" : "Reply due",
+      description: isZh
+        ? "保持预约继续活跃，但明确标记还需要再发出一次外部回复。"
+        : "Keep the appointment active, but flag that another outbound reply is still needed.",
+    },
+    {
+      value: "confirmation_pending" as const,
+      label: isZh ? "待确认" : "Confirmation pending",
+      description: isZh
+        ? "保存“外部回复尚未返回”的状态，但不假装已经完成同步确认。"
+        : "Save that the outside reply has not come back yet without claiming a confirmed sync.",
+    },
+    {
+      value: "confirmed" as const,
+      label: isZh ? "已确认 / 清除触达" : "Confirmed / clear touch",
+      description: isZh
+        ? "把外部计划标记为已确认，并清除当前检查点截止时间。"
+        : "Mark the outside plan confirmed and clear the current checkpoint deadline.",
+    },
+    {
+      value: "reschedule_requested" as const,
+      label: isZh ? "请求改期" : "Reschedule requested",
+      description: isZh
+        ? "记录外部对话已经进入调整时间的状态。"
+        : "Capture that the outside conversation moved into time-change mode.",
+    },
+  ];
   const rawFilterState = readFilterState(searchParams);
   const filterState = normalizeFilterState(rawFilterState, props.snapshot);
   const focusState = resolveFocusState(props.snapshot, filterState);
@@ -1901,8 +1981,12 @@ export function FrontOfficeCalendarClient(
     <>
       <SectionCard
         className="office-list-card"
-        subtitle="Schedule showings, consultations, and client meetings without leaving Front Office. Shared office events still remain visible on the dashboard."
-        title="Schedule appointment"
+        subtitle={
+          isZh
+            ? "无需离开 Front Office 就能安排带看、咨询和客户会面。共享办公室事项仍会继续显示在仪表盘里。"
+            : "Schedule showings, consultations, and client meetings without leaving Front Office. Shared office events still remain visible on the dashboard."
+        }
+        title={isZh ? "安排预约" : "Schedule appointment"}
       >
         <form
           className="front-office-calendar-form"
@@ -1912,18 +1996,26 @@ export function FrontOfficeCalendarClient(
           <div className="office-form-grid">
             <FormField
               className="office-form-grid-span-2"
-              label="Title"
-              helper="Optional. Leave blank to auto-name from type + client or listing."
+              label={isZh ? "标题" : "Title"}
+              helper={
+                isZh
+                  ? "可选。留空时会根据类型 + 客户或房源自动命名。"
+                  : "Optional. Leave blank to auto-name from type + client or listing."
+              }
             >
               <TextInput
                 name="title"
                 onChange={handleFieldChange}
-                placeholder="Showing · John Doe · 123 Main St"
+                placeholder={
+                  isZh
+                    ? "带看 · 张三 · 123 Main St"
+                    : "Showing · John Doe · 123 Main St"
+                }
                 value={formState.title}
               />
             </FormField>
 
-            <FormField label="Type">
+            <FormField label={isZh ? "类型" : "Type"}>
               <SelectInput
                 name="type"
                 onChange={handleFieldChange}
@@ -1937,13 +2029,13 @@ export function FrontOfficeCalendarClient(
               </SelectInput>
             </FormField>
 
-            <FormField label="Client">
+            <FormField label={isZh ? "客户" : "Client"}>
               <SelectInput
                 name="clientId"
                 onChange={handleFieldChange}
                 value={formState.clientId}
               >
-                <option value="">No client linked</option>
+                <option value="">{isZh ? "未关联客户" : "No client linked"}</option>
                 {props.snapshot.clientOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -1952,13 +2044,13 @@ export function FrontOfficeCalendarClient(
               </SelectInput>
             </FormField>
 
-            <FormField className="office-form-grid-span-2" label="Listing">
+            <FormField className="office-form-grid-span-2" label={isZh ? "房源" : "Listing"}>
               <SelectInput
                 name="listingId"
                 onChange={handleFieldChange}
                 value={formState.listingId}
               >
-                <option value="">No listing linked</option>
+                <option value="">{isZh ? "未关联房源" : "No listing linked"}</option>
                 {props.snapshot.listingOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -1967,7 +2059,7 @@ export function FrontOfficeCalendarClient(
               </SelectInput>
             </FormField>
 
-            <FormField label="Start">
+            <FormField label={isZh ? "开始" : "Start"}>
               <TextInput
                 name="startsAt"
                 onChange={handleFieldChange}
@@ -1976,7 +2068,7 @@ export function FrontOfficeCalendarClient(
               />
             </FormField>
 
-            <FormField label="End">
+            <FormField label={isZh ? "结束" : "End"}>
               <TextInput
                 name="endsAt"
                 onChange={handleFieldChange}
@@ -1986,8 +2078,8 @@ export function FrontOfficeCalendarClient(
             </FormField>
 
             <FormField
-              label="Location"
-              helper="Street address, building, or venue name."
+              label={isZh ? "地点" : "Location"}
+              helper={isZh ? "街道地址、大楼或场地名称。" : "Street address, building, or venue name."}
             >
               <TextInput
                 name="location"
@@ -1998,8 +2090,12 @@ export function FrontOfficeCalendarClient(
             </FormField>
 
             <FormField
-              label="Meeting link"
-              helper="Paste the full URL or a host like meet.google.com/abc. Acre will normalize it for the bridge and ICS export."
+              label={isZh ? "会议链接" : "Meeting link"}
+              helper={
+                isZh
+                  ? "粘贴完整 URL，或像 meet.google.com/abc 这样的 host。Acre 会为桥接和 ICS 导出做规范化。"
+                  : "Paste the full URL or a host like meet.google.com/abc. Acre will normalize it for the bridge and ICS export."
+              }
             >
               <TextInput
                 name="meetingUrl"
@@ -2010,8 +2106,12 @@ export function FrontOfficeCalendarClient(
             </FormField>
 
             <FormField
-              label="External contact"
-              helper="Use this if the attendee is not the linked client record. Include an email here if you want the email brief bridge and Acre mail-thread continuity available."
+              label={isZh ? "外部联系人" : "External contact"}
+              helper={
+                isZh
+                  ? "如果参加者不是已关联的客户记录，就填这里。若你希望启用邮件简报桥接和 Acre 邮件线程连续性，也请在这里带上邮箱。"
+                  : "Use this if the attendee is not the linked client record. Include an email here if you want the email brief bridge and Acre mail-thread continuity available."
+              }
             >
               <TextInput
                 name="contactLabel"
@@ -2023,12 +2123,16 @@ export function FrontOfficeCalendarClient(
 
             <FormField
               className="office-form-grid-span-2"
-              label="Internal notes"
+              label={isZh ? "内部备注" : "Internal notes"}
             >
               <TextareaInput
                 name="notes"
                 onChange={handleFieldChange}
-                placeholder="Parking instructions, gate code, prep notes, or follow-up reminders."
+                placeholder={
+                  isZh
+                    ? "停车说明、门禁码、准备备注或后续跟进提醒。"
+                    : "Parking instructions, gate code, prep notes, or follow-up reminders."
+                }
                 rows={4}
                 value={formState.notes}
               />
@@ -2046,7 +2150,8 @@ export function FrontOfficeCalendarClient(
                     className="office-button-secondary office-inline-action-sm"
                     href={feedback.actionHref}
                   >
-                    {feedback.actionLabel ?? "Return to appointment"}
+                    {feedback.actionLabel ??
+                      (isZh ? "返回预约" : "Return to appointment")}
                   </FrontOfficeLink>
                 </div>
               ) : null}
@@ -2055,7 +2160,13 @@ export function FrontOfficeCalendarClient(
 
           <div className="office-form-actions">
             <button className="office-button" disabled={isBusy} type="submit">
-              {isBusy ? "Saving..." : "Schedule appointment"}
+              {isBusy
+                ? isZh
+                  ? "保存中..."
+                  : "Saving..."
+                : isZh
+                  ? "安排预约"
+                  : "Schedule appointment"}
             </button>
             <button
               className="office-button-secondary"
@@ -2063,7 +2174,7 @@ export function FrontOfficeCalendarClient(
               onClick={resetForm}
               type="button"
             >
-              Reset form
+              {isZh ? "重置表单" : "Reset form"}
             </button>
           </div>
         </form>
@@ -2071,11 +2182,15 @@ export function FrontOfficeCalendarClient(
 
       <SectionCard
         className="office-list-card"
-        subtitle="Calendar view and filters stay in the route so you can reopen the same external-coordination slice without rebuilding the view."
-        title="Queue filters"
+        subtitle={
+          isZh
+            ? "日历视图和筛选条件都会保留在路由里，因此你可以直接重新打开同一段外部协调切片，而不必重建整个视图。"
+            : "Calendar view and filters stay in the route so you can reopen the same external-coordination slice without rebuilding the view."
+        }
+        title={isZh ? "队列筛选" : "Queue filters"}
       >
         <div className="office-form-grid">
-          <FormField label="Calendar view">
+          <FormField label={isZh ? "日历视图" : "Calendar view"}>
             <SelectInput
               onChange={(event) =>
                 navigateToCalendarView(resolveCalendarView(event.target.value))
@@ -2090,7 +2205,7 @@ export function FrontOfficeCalendarClient(
             </SelectInput>
           </FormField>
 
-          <FormField label="Client">
+          <FormField label={isZh ? "客户" : "Client"}>
             <SelectInput
               onChange={(event) =>
                 navigateWithFilters({
@@ -2101,7 +2216,7 @@ export function FrontOfficeCalendarClient(
               }
               value={filterState.clientId}
             >
-              <option value="">All visible clients</option>
+              <option value="">{isZh ? "全部可见客户" : "All visible clients"}</option>
               {filterState.clientId && !selectedClientOption ? (
                 <option value={filterState.clientId}>
                   {selectedClientLabel}
@@ -2115,7 +2230,7 @@ export function FrontOfficeCalendarClient(
             </SelectInput>
           </FormField>
 
-          <FormField label="Listing">
+          <FormField label={isZh ? "房源" : "Listing"}>
             <SelectInput
               onChange={(event) =>
                 navigateWithFilters({
@@ -2125,7 +2240,7 @@ export function FrontOfficeCalendarClient(
               }
               value={filterState.listingId}
             >
-              <option value="">All visible listings</option>
+              <option value="">{isZh ? "全部可见房源" : "All visible listings"}</option>
               {filterState.listingId && !selectedListingOption ? (
                 <option value={filterState.listingId}>
                   {selectedListingLabel}
@@ -2139,7 +2254,7 @@ export function FrontOfficeCalendarClient(
             </SelectInput>
           </FormField>
 
-          <FormField label="Appointment type">
+          <FormField label={isZh ? "预约类型" : "Appointment type"}>
             <SelectInput
               onChange={(event) =>
                 navigateWithFilters({
@@ -2149,7 +2264,7 @@ export function FrontOfficeCalendarClient(
               }
               value={filterState.type}
             >
-              <option value="">All appointment types</option>
+              <option value="">{isZh ? "全部预约类型" : "All appointment types"}</option>
               {props.snapshot.typeOptions.map((option) => (
                 <option key={`type-${option.value}`} value={option.value}>
                   {option.label}
@@ -2158,7 +2273,7 @@ export function FrontOfficeCalendarClient(
             </SelectInput>
           </FormField>
 
-          <FormField label="Acre status">
+          <FormField label={isZh ? "Acre 状态" : "Acre status"}>
             <SelectInput
               onChange={(event) =>
                 navigateWithFilters({
@@ -2176,7 +2291,7 @@ export function FrontOfficeCalendarClient(
             </SelectInput>
           </FormField>
 
-          <FormField label="Follow-up rhythm">
+          <FormField label={isZh ? "跟进节奏" : "Follow-up rhythm"}>
             <SelectInput
               onChange={(event) =>
                 navigateWithFilters({
@@ -2194,7 +2309,7 @@ export function FrontOfficeCalendarClient(
             </SelectInput>
           </FormField>
 
-          <FormField label="Coordination state">
+          <FormField label={isZh ? "协调状态" : "Coordination state"}>
             <SelectInput
               onChange={(event) =>
                 navigateWithFilters({
@@ -2216,7 +2331,7 @@ export function FrontOfficeCalendarClient(
         <div className="front-office-ai-explainability is-compact">
           <div className="front-office-ai-explainability-block">
             <span className="front-office-ai-explainability-kicker">
-              Route state
+              {isZh ? "路由状态" : "Route state"}
             </span>
             <strong>{routeStateHeading}</strong>
             <p>{routeStateDescriptionParts.join(" ")}</p>
@@ -2228,15 +2343,27 @@ export function FrontOfficeCalendarClient(
           </div>
           <div className="front-office-ai-explainability-card">
             <span className="front-office-ai-explainability-kicker">
-              Deep link shell
+              {isZh ? "深链接外壳" : "Deep link shell"}
             </span>
             <strong>
-              {returnToLabel || "No return path is currently attached"}
+              {returnToLabel ||
+                (isZh ? "当前没有附带返回路径" : "No return path is currently attached")}
             </strong>
             <p>
-              Appointment focus and active filters stay in the URL. If a safe
-              relative <code>returnTo</code> comes in from another Front Office
-              page, this shell keeps it while you refine the queue.
+              {isZh
+                ? (
+                  <>
+                    预约焦点和当前筛选条件都会保留在 URL 里。如果别的 Front Office 页面带来了安全的相对
+                    <code>returnTo</code>，这个外壳会在你继续细化队列时把它保留下来。
+                  </>
+                )
+                : (
+                  <>
+                    Appointment focus and active filters stay in the URL. If a safe
+                    relative <code>returnTo</code> comes in from another Front Office
+                    page, this shell keeps it while you refine the queue.
+                  </>
+                )}
             </p>
             <div className="front-office-calendar-actions">
               {filterState.returnTo ? (
@@ -2254,7 +2381,7 @@ export function FrontOfficeCalendarClient(
                   size="sm"
                   variant="secondary"
                 >
-                  Clear focus lock
+                  {isZh ? "清除焦点锁定" : "Clear focus lock"}
                 </Button>
               ) : null}
               {hasQueueFilters ? (
@@ -2264,7 +2391,7 @@ export function FrontOfficeCalendarClient(
                   size="sm"
                   variant="secondary"
                 >
-                  Clear queue filters
+                  {isZh ? "清除队列筛选" : "Clear queue filters"}
                 </Button>
               ) : null}
             </div>
@@ -2273,36 +2400,50 @@ export function FrontOfficeCalendarClient(
 
         <div className="front-office-calendar-badges">
           <Badge tone="accent">
-            Showing {props.snapshot.filteredSummary.appointmentCount}
+            {isZh
+              ? `显示 ${props.snapshot.filteredSummary.appointmentCount} 条`
+              : `Showing ${props.snapshot.filteredSummary.appointmentCount}`}
           </Badge>
           <Badge tone="warning">
-            Reply due {props.snapshot.filteredSummary.awaitingReplyCount}
+            {isZh
+              ? `待回复 ${props.snapshot.filteredSummary.awaitingReplyCount}`
+              : `Reply due ${props.snapshot.filteredSummary.awaitingReplyCount}`}
           </Badge>
           <Badge tone="accent">
-            Confirmation pending{" "}
+            {isZh ? "待确认 " : "Confirmation pending "}
             {props.snapshot.filteredSummary.confirmationPendingCount}
           </Badge>
           <Badge tone="danger">
-            Touch due {props.snapshot.filteredSummary.touchDueCount}
+            {isZh
+              ? `触达已到期 ${props.snapshot.filteredSummary.touchDueCount}`
+              : `Touch due ${props.snapshot.filteredSummary.touchDueCount}`}
           </Badge>
           <Badge tone="accent">
-            Touch scheduled {props.snapshot.filteredSummary.touchScheduledCount}
+            {isZh
+              ? `已安排触达 ${props.snapshot.filteredSummary.touchScheduledCount}`
+              : `Touch scheduled ${props.snapshot.filteredSummary.touchScheduledCount}`}
           </Badge>
           <Badge tone="danger">
-            Reschedule {props.snapshot.filteredSummary.rescheduleRequestedCount}
+            {isZh
+              ? `改期 ${props.snapshot.filteredSummary.rescheduleRequestedCount}`
+              : `Reschedule ${props.snapshot.filteredSummary.rescheduleRequestedCount}`}
           </Badge>
           <Badge tone="warning">
-            Missing next touch{" "}
+            {isZh ? "缺少下次触达 " : "Missing next touch "}
             {props.snapshot.filteredSummary.missingTouchPlanCount}
           </Badge>
           <Badge tone="success">
-            Confirmed {props.snapshot.filteredSummary.confirmedCount}
+            {isZh
+              ? `已确认 ${props.snapshot.filteredSummary.confirmedCount}`
+              : `Confirmed ${props.snapshot.filteredSummary.confirmedCount}`}
           </Badge>
           <Badge tone="warning">
-            Bridge opened {props.snapshot.filteredSummary.bridgePendingCount}
+            {isZh
+              ? `已打开桥接 ${props.snapshot.filteredSummary.bridgePendingCount}`
+              : `Bridge opened ${props.snapshot.filteredSummary.bridgePendingCount}`}
           </Badge>
           <Badge tone="warning">
-            Writeback pending{" "}
+            {isZh ? "待回写" : "Writeback pending"}{" "}
             {props.snapshot.filteredSummary.writebackPendingCount}
           </Badge>
         </div>
@@ -2315,7 +2456,7 @@ export function FrontOfficeCalendarClient(
               filterState.calendarView === "reply_due" ? "primary" : "secondary"
             }
           >
-            Reply due
+            {isZh ? "待回复" : "Reply due"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("confirmation_pending")}
@@ -2326,7 +2467,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Confirmation pending
+            {isZh ? "待确认" : "Confirmation pending"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("touch_due")}
@@ -2335,7 +2476,7 @@ export function FrontOfficeCalendarClient(
               filterState.calendarView === "touch_due" ? "primary" : "secondary"
             }
           >
-            Touch due
+            {isZh ? "触达已到期" : "Touch due"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("touch_scheduled")}
@@ -2346,7 +2487,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Touch scheduled
+            {isZh ? "已安排触达" : "Touch scheduled"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("missing_next_touch")}
@@ -2357,7 +2498,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Missing next touch
+            {isZh ? "缺少下次触达" : "Missing next touch"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("reschedule_requested")}
@@ -2368,7 +2509,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Reschedule requested
+            {isZh ? "请求改期" : "Reschedule requested"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("confirmed")}
@@ -2377,7 +2518,7 @@ export function FrontOfficeCalendarClient(
               filterState.calendarView === "confirmed" ? "primary" : "secondary"
             }
           >
-            Externally confirmed
+            {isZh ? "外部已确认" : "Externally confirmed"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("bridge_logged")}
@@ -2388,7 +2529,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Bridge opened
+            {isZh ? "已打开桥接" : "Bridge opened"}
           </Button>
           <Button
             onClick={() => navigateToCalendarView("writeback_pending")}
@@ -2399,7 +2540,7 @@ export function FrontOfficeCalendarClient(
                 : "secondary"
             }
           >
-            Writeback pending
+            {isZh ? "待回写" : "Writeback pending"}
           </Button>
         </div>
 
@@ -2410,15 +2551,19 @@ export function FrontOfficeCalendarClient(
             onClick={clearQueueFilters}
             type="button"
           >
-            Clear filters
+            {isZh ? "清除筛选" : "Clear filters"}
           </button>
         </div>
       </SectionCard>
 
       <SectionCard
         className="office-list-card"
-        subtitle="Use the focused panel to review the bridge lane, update the checkpoint lane, and keep the promised next touch readable without implying provider-owned sync."
-        title="Focus appointment"
+        subtitle={
+          isZh
+            ? "在这个焦点面板里查看桥接工作道、更新检查点工作道，并让承诺中的下一次触达保持可读，同时不暗示存在 provider 级同步。"
+            : "Use the focused panel to review the bridge lane, update the checkpoint lane, and keep the promised next touch readable without implying provider-owned sync."
+        }
+        title={isZh ? "焦点预约" : "Focus appointment"}
       >
         {focusedAppointment ? (
           <>
@@ -2476,7 +2621,7 @@ export function FrontOfficeCalendarClient(
                       size="sm"
                       variant="secondary"
                     >
-                      Clear focus lock
+                      {isZh ? "清除焦点锁定" : "Clear focus lock"}
                     </Button>
                   ) : null}
                   {hasQueueFilters ? (
@@ -2486,7 +2631,7 @@ export function FrontOfficeCalendarClient(
                       size="sm"
                       variant="secondary"
                     >
-                      Clear queue filters
+                      {isZh ? "清除队列筛选" : "Clear queue filters"}
                     </Button>
                   ) : null}
                 </div>
@@ -2525,7 +2670,11 @@ export function FrontOfficeCalendarClient(
               </div>
 
               <div className="list-row-meta front-office-record-meta">
-                <span>Ends {focusedAppointment.endsAtLabel}</span>
+                <span>
+                  {isZh
+                    ? `结束 ${focusedAppointment.endsAtLabel}`
+                    : `Ends ${focusedAppointment.endsAtLabel}`}
+                </span>
                 <span>{focusedAppointment.clientLabel}</span>
                 <span>{focusedAppointment.clientEmailLabel}</span>
                 <span>{focusedAppointment.contactLabel}</span>
@@ -2539,7 +2688,8 @@ export function FrontOfficeCalendarClient(
                 {focusedAppointment.calendarLaneDetail}
               </p>
               <p className="front-office-record-supporting">
-                Next move: {focusedAppointment.coordinationNextStep}
+                {isZh ? "下一步：" : "Next move: "}
+                {focusedAppointment.coordinationNextStep}
               </p>
               {focusedCueList.length ? (
                 <div className="front-office-calendar-badges">
@@ -2566,7 +2716,7 @@ export function FrontOfficeCalendarClient(
                     <span>{focusedAppointment.latestCoordinationDetail}</span>
                   </>
                 }
-                title="Coordination lane"
+                title={isZh ? "协调工作道" : "Coordination lane"}
               />
               <QueueItem
                 badgeLabel={focusedAppointment.nextTouchPressureLabel}
@@ -2576,11 +2726,12 @@ export function FrontOfficeCalendarClient(
                   <>
                     <span>{focusedAppointment.externalNextActionAtLabel}</span>
                     <span>
-                      Next move: {focusedAppointment.coordinationNextStep}
+                      {isZh ? "下一步：" : "Next move: "}
+                      {focusedAppointment.coordinationNextStep}
                     </span>
                   </>
                 }
-                title="Checkpoint lane"
+                title={isZh ? "检查点工作道" : "Checkpoint lane"}
               />
             </div>
 
@@ -2593,7 +2744,7 @@ export function FrontOfficeCalendarClient(
                     focusedAppointment.id,
                   )}
                 >
-                  Open client dossier
+                  {isZh ? "打开客户 dossier" : "Open client dossier"}
                 </FrontOfficeLink>
               ) : null}
               {focusedAppointment.listingOutputHref ? (
@@ -2604,7 +2755,7 @@ export function FrontOfficeCalendarClient(
                     focusedAppointment.id,
                   )}
                 >
-                  Open listing output
+                  {isZh ? "打开房源输出" : "Open listing output"}
                 </FrontOfficeLink>
               ) : null}
               {filterState.appointmentId ? (
@@ -2614,7 +2765,7 @@ export function FrontOfficeCalendarClient(
                   size="sm"
                   variant="secondary"
                 >
-                  Clear focus lock
+                  {isZh ? "清除焦点锁定" : "Clear focus lock"}
                 </Button>
               ) : null}
             </div>
@@ -2624,15 +2775,13 @@ export function FrontOfficeCalendarClient(
                 <div className="front-office-ai-explainability is-compact">
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      Bridge lane
+                      {isZh ? "桥接工作道" : "Bridge lane"}
                     </span>
                     <strong>{focusedAppointment.bridgeActionLabel}</strong>
                     <p>
-                      Google, Outlook, ICS, and email actions only open drafts
-                      or exports from this appointment and log that bridge trail
-                      here. The next move is still to jump back to the same
-                      appointment and save the reply due, confirmation pending,
-                      reschedule, or touch scheduled checkpoint back into Acre.
+                      {isZh
+                        ? "Google、Outlook、ICS 和邮件动作都只会从这个预约打开草稿或导出，并把桥接轨迹记录在这里。下一步仍然是跳回这条预约，把待回复、待确认、改期或已安排触达等检查点回写到 Acre。"
+                        : "Google, Outlook, ICS, and email actions only open drafts or exports from this appointment and log that bridge trail here. The next move is still to jump back to the same appointment and save the reply due, confirmation pending, reschedule, or touch scheduled checkpoint back into Acre."}
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.bridgeStatusLabel}</span>
@@ -2641,16 +2790,13 @@ export function FrontOfficeCalendarClient(
                   </div>
                   <div className="front-office-ai-explainability-card">
                     <span className="front-office-ai-explainability-kicker">
-                      Checkpoint lane
+                      {isZh ? "检查点工作道" : "Checkpoint lane"}
                     </span>
                     <strong>{focusedAppointment.externalStatusLabel}</strong>
                     <p>
-                      Quick coordination actions and saved writebacks only
-                      update Acre&apos;s readable coordination record. The next
-                      move is to keep the promised checkpoint visible here on
-                      the same appointment record. They do not auto-send email,
-                      create background jobs, or schedule provider events for
-                      you.
+                      {isZh
+                        ? "快捷协调动作和已保存的回写只会更新 Acre 可读的协调记录。下一步是继续把承诺中的检查点保留在同一条预约记录里可见。它们不会自动发邮件、不会创建后台任务，也不会替你安排 provider 事件。"
+                        : "Quick coordination actions and saved writebacks only update Acre&apos;s readable coordination record. The next move is to keep the promised checkpoint visible here on the same appointment record. They do not auto-send email, create background jobs, or schedule provider events for you."}
                     </p>
                     <div className="front-office-record-meta">
                       <span>{focusedAppointment.followUpPlanLabel}</span>
@@ -2663,11 +2809,9 @@ export function FrontOfficeCalendarClient(
 
                 <div className="front-office-calendar-actions">
                   <p className="front-office-record-supporting">
-                    Bridge actions open a draft or export in a new tab. The
-                    history below records that you opened the bridge from Acre,
-                    and the next move is to return here and write the checkpoint
-                    back on this same appointment. It still does not claim the
-                    outside calendar or inbox synced back automatically.
+                    {isZh
+                      ? "桥接动作会在新标签页里打开草稿或导出。下面的历史会记录你是从 Acre 打开的桥接，下一步仍然是回到这里，把检查点回写在同一条预约上。它仍不会声称外部日历或邮箱已经自动同步回来。"
+                      : "Bridge actions open a draft or export in a new tab. The history below records that you opened the bridge from Acre, and the next move is to return here and write the checkpoint back on this same appointment. It still does not claim the outside calendar or inbox synced back automatically."}
                   </p>
                   <button
                     className="office-button-secondary office-inline-action-sm"
@@ -2682,7 +2826,9 @@ export function FrontOfficeCalendarClient(
                     {bridgeState?.appointmentId === focusedAppointment.id &&
                     bridgeState.action === "google_calendar"
                       ? "Opening..."
-                      : "Open Google draft"}
+                      : isZh
+                        ? "打开 Google 草稿"
+                        : "Open Google draft"}
                   </button>
                   <button
                     className="office-button-secondary office-inline-action-sm"
@@ -2697,7 +2843,9 @@ export function FrontOfficeCalendarClient(
                     {bridgeState?.appointmentId === focusedAppointment.id &&
                     bridgeState.action === "outlook_calendar"
                       ? "Opening..."
-                      : "Open Outlook draft"}
+                      : isZh
+                        ? "打开 Outlook 草稿"
+                        : "Open Outlook draft"}
                   </button>
                   <button
                     className="office-button-secondary office-inline-action-sm"
@@ -2712,7 +2860,9 @@ export function FrontOfficeCalendarClient(
                     {bridgeState?.appointmentId === focusedAppointment.id &&
                     bridgeState.action === "ics_download"
                       ? "Preparing..."
-                      : "Download ICS"}
+                      : isZh
+                        ? "下载 ICS"
+                        : "Download ICS"}
                   </button>
                   {focusedAppointment.emailBriefHref ? (
                     <button
@@ -2728,13 +2878,15 @@ export function FrontOfficeCalendarClient(
                       {bridgeState?.appointmentId === focusedAppointment.id &&
                       bridgeState.action === "email_brief"
                         ? "Opening..."
-                        : "Open Acre mail thread"}
+                        : isZh
+                          ? "打开 Acre 邮件线程"
+                          : "Open Acre mail thread"}
                     </button>
                   ) : (
                     <p className="front-office-record-supporting">
-                      No email target is saved on this appointment yet, so the
-                      Acre mail thread and external email brief are not
-                      available.
+                      {isZh
+                        ? "这条预约还没有保存邮件目标，因此 Acre 邮件线程和外部邮件简报暂时不可用。"
+                        : "No email target is saved on this appointment yet, so the Acre mail thread and external email brief are not available."}
                     </p>
                   )}
                 </div>
@@ -2750,7 +2902,7 @@ export function FrontOfficeCalendarClient(
                           size="sm"
                           variant="secondary"
                         >
-                          Jump to writeback
+                          {isZh ? "跳到回写区" : "Jump to writeback"}
                         </Button>
                         {bridgeOutcome.suggestedWriteback ? (
                           <Button
@@ -2764,7 +2916,7 @@ export function FrontOfficeCalendarClient(
                             size="sm"
                             variant="secondary"
                           >
-                            Load suggested checkpoint
+                            {isZh ? "载入建议检查点" : "Load suggested checkpoint"}
                           </Button>
                         ) : null}
                       </div>
@@ -2792,17 +2944,19 @@ export function FrontOfficeCalendarClient(
                             bridgeOutcome.checkpoint.sourceNote}
                         </span>
                         <span>
-                          Next move:{" "}
+                          {isZh ? "下一步：" : "Next move: "}
                           {bridgeOutcome.continuity?.nextStep ??
                             bridgeOutcome.checkpoint.nextStep}
                         </span>
                         <span>
                           {bridgeOutcome.continuity?.returnToLabel ??
-                            "Return to writeback"}
+                            (isZh ? "返回回写区" : "Return to writeback")}
                         </span>
                         <span>
                           {bridgeOutcome.continuity?.returnToDetail ??
-                            "Jump back to the same appointment after the draft or export finishes, then save the checkpoint in Acre."}
+                            (isZh
+                              ? "在草稿或导出完成后跳回同一条预约，然后把检查点保存到 Acre。"
+                              : "Jump back to the same appointment after the draft or export finishes, then save the checkpoint in Acre.")}
                         </span>
                         <span>
                           {bridgeOutcome.resultKind === "calendar_export"
@@ -2811,7 +2965,7 @@ export function FrontOfficeCalendarClient(
                         </span>
                       </>
                     }
-                    title="After the bridge"
+                    title={isZh ? "桥接之后" : "After the bridge"}
                   />
                 ) : null}
 
@@ -2886,7 +3040,7 @@ export function FrontOfficeCalendarClient(
                 >
                   <div className="front-office-calendar-writeback-head">
                     <span className="front-office-calendar-writeback-label">
-                      Checkpoint lane
+                      {isZh ? "检查点工作道" : "Checkpoint lane"}
                     </span>
                     <div className="front-office-calendar-badges">
                       <StatusBadge tone={focusedAppointment.coordinationTone}>
@@ -2897,9 +3051,9 @@ export function FrontOfficeCalendarClient(
                       </Badge>
                     </div>
                     <p className="front-office-record-supporting">
-                      Save what happened outside Acre and when the next reply,
-                      confirmation, reschedule, or touch checkpoint should come
-                      back into view on this same appointment record.
+                      {isZh
+                        ? "把 Acre 外部发生了什么，以及下一次回复、确认、改期或触达检查点应该何时重新回到同一条预约记录里，都保存下来。"
+                        : "Save what happened outside Acre and when the next reply, confirmation, reschedule, or touch checkpoint should come back into view on this same appointment record."}
                     </p>
                   </div>
                   <div className="front-office-calendar-writeback-fields">
@@ -2930,7 +3084,7 @@ export function FrontOfficeCalendarClient(
                           event.target.value,
                         )
                       }
-                      placeholder="Next external touch"
+                      placeholder={isZh ? "下一次外部联系" : "Next external touch"}
                       type="datetime-local"
                       value={focusedWritebackDraft?.nextActionAt ?? ""}
                     />
@@ -2944,7 +3098,11 @@ export function FrontOfficeCalendarClient(
                           event.target.value,
                         )
                       }
-                      placeholder="What happened outside Acre, and what are you waiting on next?"
+                      placeholder={
+                        isZh
+                          ? "Acre 外部刚发生了什么，接下来你还在等什么？"
+                          : "What happened outside Acre, and what are you waiting on next?"
+                      }
                       rows={2}
                       value={focusedWritebackDraft?.note ?? ""}
                     />
@@ -2960,7 +3118,7 @@ export function FrontOfficeCalendarClient(
                           title={`${preset.detail} Loaded for ${preset.nextActionAtLabel}.`}
                           type="button"
                         >
-                          Load {preset.label}
+                          {isZh ? "载入" : "Load"} {preset.label}
                         </button>
                       ))}
                     </div>
@@ -2979,7 +3137,7 @@ export function FrontOfficeCalendarClient(
                       }
                       type="button"
                     >
-                      Save writeback
+                      {isZh ? "保存回写" : "Save writeback"}
                     </button>
                   </div>
                 </div>
@@ -2993,7 +3151,7 @@ export function FrontOfficeCalendarClient(
                     }
                     type="button"
                   >
-                    Mark complete
+                    {isZh ? "标记完成" : "Mark complete"}
                   </button>
                   <button
                     className="office-button-secondary office-inline-action-sm"
@@ -3003,7 +3161,7 @@ export function FrontOfficeCalendarClient(
                     }
                     type="button"
                   >
-                    No-show
+                    {isZh ? "未到场" : "No-show"}
                   </button>
                   <button
                     className="office-button-secondary office-inline-action-sm"
@@ -3013,15 +3171,15 @@ export function FrontOfficeCalendarClient(
                     }
                     type="button"
                   >
-                    Cancel
+                    {isZh ? "取消预约" : "Cancel"}
                   </button>
                 </div>
               </>
             ) : (
               <p className="front-office-record-supporting">
-                This appointment is no longer scheduled in Acre, so the external
-                coordination controls stay read-only here unless you create a
-                new appointment or reopen the plan elsewhere.
+                {isZh
+                  ? "这条预约在 Acre 中已经不再处于已安排状态，因此除非你重新创建预约或在别处重新打开计划，否则这里的外部协调控件会保持只读。"
+                  : "This appointment is no longer scheduled in Acre, so the external coordination controls stay read-only here unless you create a new appointment or reopen the plan elsewhere."}
               </p>
             )}
 
@@ -3034,7 +3192,9 @@ export function FrontOfficeCalendarClient(
                 description={
                   latestBridgeHistory
                     ? `${latestBridgeHistory.label} · ${latestBridgeHistory.detail}`
-                    : "Open Google, Outlook, ICS, or the email brief from Acre to start the bridge trail; if you have mail access, Acre will try to place the brief in an internal mail thread first and then fall back to the external draft."
+                    : isZh
+                      ? "从 Acre 打开 Google、Outlook、ICS 或邮件简报来启动桥接轨迹；如果你有邮件权限，Acre 会先尝试把简报放进内部邮件线程，再回退到外部草稿。"
+                      : "Open Google, Outlook, ICS, or the email brief from Acre to start the bridge trail; if you have mail access, Acre will try to place the brief in an internal mail thread first and then fall back to the external draft."
                 }
                 meta={
                   latestBridgeHistory ? (
@@ -3043,10 +3203,10 @@ export function FrontOfficeCalendarClient(
                       <span>{latestBridgeHistory.createdAtLabel}</span>
                     </>
                   ) : (
-                    <span>No bridge history yet</span>
+                    <span>{isZh ? "还没有桥接历史" : "No bridge history yet"}</span>
                   )
                 }
-                title="Bridge trail"
+                title={isZh ? "桥接轨迹" : "Bridge trail"}
               />
               <QueueItem
                 badgeLabel={`${focusedAppointment.writebackHistory.length}`}
@@ -3056,7 +3216,9 @@ export function FrontOfficeCalendarClient(
                 description={
                   latestWritebackHistory
                     ? `${latestWritebackHistory.label} · ${latestWritebackHistory.detail}`
-                    : "Use a quick action or save the writeback form to create the first coordination history entry."
+                    : isZh
+                      ? "使用快捷动作或保存回写表单，来创建第一条协调历史记录。"
+                      : "Use a quick action or save the writeback form to create the first coordination history entry."
                 }
                 meta={
                   latestWritebackHistory ? (
@@ -3065,21 +3227,22 @@ export function FrontOfficeCalendarClient(
                       <span>{latestWritebackHistory.createdAtLabel}</span>
                     </>
                   ) : (
-                    <span>No writeback history yet</span>
+                    <span>{isZh ? "还没有回写历史" : "No writeback history yet"}</span>
                   )
                 }
-                title="Writeback trail"
+                title={isZh ? "回写轨迹" : "Writeback trail"}
               />
             </div>
 
             <div>
               <div className="front-office-calendar-writeback-head">
                 <span className="front-office-calendar-writeback-label">
-                  Coordination timeline
+                  {isZh ? "协调时间线" : "Coordination timeline"}
                 </span>
                 <p className="front-office-record-supporting">
-                  The latest bridge opens and writeback saves on this
-                  appointment, combined into one readable chronology.
+                  {isZh
+                    ? "这条预约最近的桥接打开和回写保存都会合并成一条可读的时间线。"
+                    : "The latest bridge opens and writeback saves on this appointment, combined into one readable chronology."}
                 </p>
               </div>
               <div className="list-column front-office-record-list">
@@ -3095,7 +3258,13 @@ export function FrontOfficeCalendarClient(
                           <p>{item.detail}</p>
                         </div>
                         <StatusBadge tone={item.tone}>
-                          {item.kind === "bridge" ? "Bridge" : "Writeback"}
+                          {item.kind === "bridge"
+                            ? isZh
+                              ? "桥接"
+                              : "Bridge"
+                            : isZh
+                              ? "回写"
+                              : "Writeback"}
                         </StatusBadge>
                       </div>
                       <div className="list-row-meta front-office-record-meta">
@@ -3106,8 +3275,12 @@ export function FrontOfficeCalendarClient(
                   ))
                 ) : (
                   <EmptyState
-                    description="Open a bridge or save a writeback to start the coordination timeline for this appointment."
-                    title="No coordination history yet"
+                    description={
+                      isZh
+                        ? "打开一次桥接，或保存一次回写，来为这条预约启动协调时间线。"
+                        : "Open a bridge or save a writeback to start the coordination timeline for this appointment."
+                    }
+                    title={isZh ? "还没有协调历史" : "No coordination history yet"}
                   />
                 )}
               </div>
@@ -3124,7 +3297,7 @@ export function FrontOfficeCalendarClient(
                     size="sm"
                     variant="secondary"
                   >
-                    Clear focus lock
+                    {isZh ? "清除焦点锁定" : "Clear focus lock"}
                   </Button>
                 ) : null}
                 {hasQueueFilters ? (
@@ -3134,7 +3307,7 @@ export function FrontOfficeCalendarClient(
                     size="sm"
                     variant="secondary"
                   >
-                    Clear queue filters
+                    {isZh ? "清除队列筛选" : "Clear queue filters"}
                   </Button>
                 ) : null}
                 <Button
@@ -3142,7 +3315,7 @@ export function FrontOfficeCalendarClient(
                   size="sm"
                   variant="secondary"
                 >
-                  Jump to schedule form
+                  {isZh ? "跳到预约表单" : "Jump to schedule form"}
                 </Button>
                 {filterState.returnTo ? (
                   <FrontOfficeLink
@@ -3156,17 +3329,29 @@ export function FrontOfficeCalendarClient(
             }
             description={
               focusState.mode === "missing"
-                ? "The URL still carries an appointmentId, but Acre can no longer resolve that record in your visible Front Office scope. Clear the focus lock or step back to the source page."
+                ? isZh
+                  ? "URL 里仍然带着 appointmentId，但 Acre 已经无法在你当前可见的 Front Office 范围里解析这条记录。清除焦点锁定，或退回来源页面。"
+                  : "The URL still carries an appointmentId, but Acre can no longer resolve that record in your visible Front Office scope. Clear the focus lock or step back to the source page."
                 : selectedClientLabel
-                  ? `No appointment is currently in focus for ${selectedClientLabel}. Use the schedule form above to create the first showing, consultation, or meeting in this client context.`
-                  : "Pick an appointment from the queue below, or use the schedule form above if this slice is still empty."
+                  ? isZh
+                    ? `${selectedClientLabel} 当前没有焦点预约。可以使用上方表单在这个客户上下文里创建第一次带看、咨询或会面。`
+                    : `No appointment is currently in focus for ${selectedClientLabel}. Use the schedule form above to create the first showing, consultation, or meeting in this client context.`
+                  : isZh
+                    ? "从下面的队列里挑一条预约，或者如果这个切片还是空的，就用上方表单创建。"
+                    : "Pick an appointment from the queue below, or use the schedule form above if this slice is still empty."
             }
             title={
               focusState.mode === "missing"
-                ? "Focused appointment could not be resolved"
+                ? isZh
+                  ? "无法解析当前焦点预约"
+                  : "Focused appointment could not be resolved"
                 : selectedClientLabel
-                  ? `No focused appointment for ${selectedClientLabel}`
-                  : "No focused appointment"
+                  ? isZh
+                    ? `${selectedClientLabel} 当前没有焦点预约`
+                    : `No focused appointment for ${selectedClientLabel}`
+                  : isZh
+                    ? "当前没有焦点预约"
+                    : "No focused appointment"
             }
           />
         )}
@@ -3174,8 +3359,12 @@ export function FrontOfficeCalendarClient(
 
       <SectionCard
         className="office-list-card"
-        subtitle={`Showing ${props.snapshot.filteredSummary.appointmentCount} appointments in the current route state, with the compact queue focused on signal density instead of inline bridge forms.`}
-        title="Upcoming appointments"
+        subtitle={
+          isZh
+            ? `当前路由状态下显示 ${props.snapshot.filteredSummary.appointmentCount} 条预约，紧凑队列会优先强调信号密度，而不是把桥接表单直接内联进来。`
+            : `Showing ${props.snapshot.filteredSummary.appointmentCount} appointments in the current route state, with the compact queue focused on signal density instead of inline bridge forms.`
+        }
+        title={isZh ? "即将到来的预约" : "Upcoming appointments"}
       >
         <div className="list-column front-office-record-list">
           {props.snapshot.appointments.length ? (
@@ -3231,7 +3420,8 @@ export function FrontOfficeCalendarClient(
                     {appointment.calendarLaneDetail}
                   </p>
                   <p className="front-office-record-supporting">
-                    Next move: {appointment.coordinationNextStep}
+                    {isZh ? "下一步：" : "Next move: "}
+                    {appointment.coordinationNextStep}
                   </p>
                   {appointmentCueList.length ? (
                     <div className="front-office-calendar-badges">
@@ -3253,7 +3443,13 @@ export function FrontOfficeCalendarClient(
                         appointmentId: appointment.id,
                       })}
                     >
-                      {isFocused ? "Focused below" : "Open in focus panel"}
+                      {isFocused
+                        ? isZh
+                          ? "下方面板已聚焦"
+                          : "Focused below"
+                        : isZh
+                          ? "在焦点面板中打开"
+                          : "Open in focus panel"}
                     </FrontOfficeLink>
                     {appointment.clientHref ? (
                       <FrontOfficeLink
@@ -3263,7 +3459,7 @@ export function FrontOfficeCalendarClient(
                           appointment.id,
                         )}
                       >
-                        Client dossier
+                        {isZh ? "客户 dossier" : "Client dossier"}
                       </FrontOfficeLink>
                     ) : null}
                     {appointment.listingOutputHref ? (
@@ -3274,7 +3470,7 @@ export function FrontOfficeCalendarClient(
                           appointment.id,
                         )}
                       >
-                        Listing output
+                        {isZh ? "房源输出" : "Listing output"}
                       </FrontOfficeLink>
                     ) : null}
                     {appointment.statusValue === "scheduled" ? (
@@ -3289,7 +3485,9 @@ export function FrontOfficeCalendarClient(
                         {bridgeState?.appointmentId === appointment.id &&
                         bridgeState.action === "google_calendar"
                           ? "Opening..."
-                          : "Google draft"}
+                          : isZh
+                            ? "Google 草稿"
+                            : "Google draft"}
                       </button>
                     ) : null}
                     {appointment.statusValue === "scheduled" &&
@@ -3302,7 +3500,7 @@ export function FrontOfficeCalendarClient(
                         }
                         type="button"
                       >
-                        Confirm in Acre
+                        {isZh ? "在 Acre 中确认" : "Confirm in Acre"}
                       </button>
                     ) : null}
                     {appointment.statusValue === "scheduled" &&
@@ -3337,7 +3535,7 @@ export function FrontOfficeCalendarClient(
                       size="sm"
                       variant="secondary"
                     >
-                      Clear queue filters
+                      {isZh ? "清除队列筛选" : "Clear queue filters"}
                     </Button>
                   ) : null}
                   {filterState.appointmentId ? (
@@ -3347,7 +3545,7 @@ export function FrontOfficeCalendarClient(
                       size="sm"
                       variant="secondary"
                     >
-                      Clear focus lock
+                      {isZh ? "清除焦点锁定" : "Clear focus lock"}
                     </Button>
                   ) : null}
                   <Button
@@ -3355,7 +3553,7 @@ export function FrontOfficeCalendarClient(
                     size="sm"
                     variant="secondary"
                   >
-                    Jump to schedule form
+                    {isZh ? "跳到预约表单" : "Jump to schedule form"}
                   </Button>
                   {filterState.returnTo ? (
                     <FrontOfficeLink
@@ -3369,17 +3567,29 @@ export function FrontOfficeCalendarClient(
               }
               description={
                 focusState.mode === "locked_outside_queue"
-                  ? "The appointment pinned above is still readable, but the current queue filters leave this list empty."
+                  ? isZh
+                    ? "上面固定的预约仍然可读，但当前队列筛选让这个列表保持为空。"
+                    : "The appointment pinned above is still readable, but the current queue filters leave this list empty."
                   : selectedClientLabel
-                    ? `There are no visible appointments for ${selectedClientLabel} in this route slice yet.`
+                    ? isZh
+                      ? `${selectedClientLabel} 在这个路由切片里暂时还没有可见预约。`
+                      : `There are no visible appointments for ${selectedClientLabel} in this route slice yet.`
                     : hasQueueFilters
-                      ? "The current route filters do not match any visible appointments right now."
-                      : "Schedule the first showing, consultation, or client meeting from the form above."
+                      ? isZh
+                        ? "当前路由筛选暂时匹配不到任何可见预约。"
+                        : "The current route filters do not match any visible appointments right now."
+                      : isZh
+                        ? "用上面的表单安排第一次带看、咨询或客户会面。"
+                        : "Schedule the first showing, consultation, or client meeting from the form above."
               }
               title={
                 selectedClientLabel && !props.snapshot.appointments.length
-                  ? `No appointments queued for ${selectedClientLabel}`
-                  : "No appointments in this queue"
+                  ? isZh
+                    ? `${selectedClientLabel} 当前没有排入队列的预约`
+                    : `No appointments queued for ${selectedClientLabel}`
+                  : isZh
+                    ? "这个队列里还没有预约"
+                    : "No appointments in this queue"
               }
             />
           )}
