@@ -2,10 +2,10 @@ import { canManageOfficeSettings } from "@acre/auth";
 import {
   deleteOrganizationSmtpSettings,
   getOfficeEmailDeliverySettingsSnapshot,
-  saveOrganizationSmtpSettings
+  saveOrganizationSmtpSettings,
 } from "@acre/db";
 import { NextRequest, NextResponse } from "next/server";
-import { getRequestSessionContext } from "../../../../../lib/auth-session";
+import { withPermission } from "../../../../../lib/with-permission";
 
 type SaveEmailDeliveryRequestBody = {
   isEnabled?: boolean;
@@ -20,82 +20,89 @@ type SaveEmailDeliveryRequestBody = {
 } | null;
 
 export async function GET(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+  return withPermission(
+    request,
+    canManageOfficeSettings,
+    async (context) => {
+      const snapshot = await getOfficeEmailDeliverySettingsSnapshot({
+        organizationId: context.currentOrganization.id,
+      });
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
-
-  if (!canManageOfficeSettings(context.currentMembership)) {
-    return NextResponse.json({ error: "Settings management permission required." }, { status: 403 });
-  }
-
-  const snapshot = await getOfficeEmailDeliverySettingsSnapshot({
-    organizationId: context.currentOrganization.id
-  });
-
-  return NextResponse.json({ snapshot });
+      return NextResponse.json({ snapshot });
+    },
+    {
+      forbiddenMessage: "Settings management permission required.",
+    },
+  );
 }
 
 export async function PATCH(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+  return withPermission(
+    request,
+    canManageOfficeSettings,
+    async (context) => {
+      const body = (await request.json().catch(() => null)) as SaveEmailDeliveryRequestBody;
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
+      try {
+        const snapshot = await saveOrganizationSmtpSettings({
+          organizationId: context.currentOrganization.id,
+          actorMembershipId: context.currentMembership.id,
+          isEnabled: Boolean(body?.isEnabled),
+          host: body?.host ?? "",
+          port: typeof body?.port === "number" ? body.port : undefined,
+          secure: typeof body?.secure === "boolean" ? body.secure : undefined,
+          user: body?.user ?? "",
+          password: body?.password ?? "",
+          fromEmail: body?.fromEmail ?? "",
+          fromName: body?.fromName ?? "",
+          replyTo: body?.replyTo ?? "",
+        });
 
-  if (!canManageOfficeSettings(context.currentMembership)) {
-    return NextResponse.json({ error: "Settings management permission required." }, { status: 403 });
-  }
-
-  const body = (await request.json().catch(() => null)) as SaveEmailDeliveryRequestBody;
-
-  try {
-    const snapshot = await saveOrganizationSmtpSettings({
-      organizationId: context.currentOrganization.id,
-      actorMembershipId: context.currentMembership.id,
-      isEnabled: Boolean(body?.isEnabled),
-      host: body?.host ?? "",
-      port: typeof body?.port === "number" ? body.port : undefined,
-      secure: typeof body?.secure === "boolean" ? body.secure : undefined,
-      user: body?.user ?? "",
-      password: body?.password ?? "",
-      fromEmail: body?.fromEmail ?? "",
-      fromName: body?.fromName ?? "",
-      replyTo: body?.replyTo ?? ""
-    });
-
-    return NextResponse.json({ snapshot });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save email delivery settings." },
-      { status: 400 }
-    );
-  }
+        return NextResponse.json({ snapshot });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to save email delivery settings.",
+          },
+          { status: 400 },
+        );
+      }
+    },
+    {
+      forbiddenMessage: "Settings management permission required.",
+    },
+  );
 }
 
 export async function DELETE(request: NextRequest) {
-  const context = await getRequestSessionContext(request);
+  return withPermission(
+    request,
+    canManageOfficeSettings,
+    async (context) => {
+      try {
+        const snapshot = await deleteOrganizationSmtpSettings({
+          organizationId: context.currentOrganization.id,
+          actorMembershipId: context.currentMembership.id,
+        });
 
-  if (!context) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
-
-  if (!canManageOfficeSettings(context.currentMembership)) {
-    return NextResponse.json({ error: "Settings management permission required." }, { status: 403 });
-  }
-
-  try {
-    const snapshot = await deleteOrganizationSmtpSettings({
-      organizationId: context.currentOrganization.id,
-      actorMembershipId: context.currentMembership.id
-    });
-
-    return NextResponse.json({ snapshot });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to remove email delivery settings." },
-      { status: 400 }
-    );
-  }
+        return NextResponse.json({ snapshot });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to remove email delivery settings.",
+          },
+          { status: 400 },
+        );
+      }
+    },
+    {
+      forbiddenMessage: "Settings management permission required.",
+    },
+  );
 }

@@ -4,7 +4,7 @@ import { ensureBootstrapAdminAccount, getSessionMembershipContext, type SessionM
 import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecret, shouldUseSecureCookies } from "./auth-session-config";
+import { getSessionCookieOptions, getSessionMaxAgeMs, getSessionSecrets, shouldUseSecureCookies } from "./auth-session-config";
 
 const SESSION_COOKIE_NAME = "acre_local_session";
 
@@ -17,13 +17,22 @@ type SessionContextOptions = {
   allowPasswordChangeRequired?: boolean;
 };
 
-function signPayload(serializedPayload: string) {
-  return createHmac("sha256", getSessionSecret()).update(serializedPayload).digest("base64url");
+function signPayload(serializedPayload: string, secret: string) {
+  return createHmac("sha256", secret).update(serializedPayload).digest("base64url");
+}
+
+function isValidSignature(serializedPayload: string, signature: string, secret: string) {
+  const expectedSignature = signPayload(serializedPayload, secret);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  return signatureBuffer.length === expectedBuffer.length && timingSafeEqual(signatureBuffer, expectedBuffer);
 }
 
 function encodeSession(payload: SessionPayload) {
   const serializedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = signPayload(serializedPayload);
+  const { primary } = getSessionSecrets();
+  const signature = signPayload(serializedPayload, primary);
 
   return `${serializedPayload}.${signature}`;
 }
@@ -39,11 +48,11 @@ function decodeSession(cookieValue: string | undefined): SessionPayload | null {
     return null;
   }
 
-  const expectedSignature = signPayload(serializedPayload);
-  const signatureBuffer = Buffer.from(signature);
-  const expectedBuffer = Buffer.from(expectedSignature);
+  const { primary, secondary } = getSessionSecrets();
+  const validPrimarySignature = isValidSignature(serializedPayload, signature, primary);
+  const validSecondarySignature = secondary ? isValidSignature(serializedPayload, signature, secondary) : false;
 
-  if (signatureBuffer.length !== expectedBuffer.length || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
+  if (!validPrimarySignature && !validSecondarySignature) {
     return null;
   }
 

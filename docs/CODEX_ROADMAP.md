@@ -118,7 +118,7 @@
 ## Phase 0 · 安全与输入边界硬化
 
 ### R0-1 会话密钥强化与轮换支持
-- [ ] **文件：** `apps/web/lib/auth-session-config.ts`、`.env.example`、必要时新增 `scripts/generate-session-secret.ts`
+- [x] **文件：** `apps/web/lib/auth-session-config.ts`、`.env.example`、必要时新增 `scripts/generate-session-secret.ts`（2026-04-09，`a19c17e`）
 - **当前真实状态：**
   - 生产环境下缺少 `ACRE_SESSION_SECRET` 已会直接报错
   - 开发环境仍保留固定 dev fallback
@@ -146,6 +146,8 @@
   - 非法 body / query 返回一致化 400
   - 错误消息不泄露内部字段细节
   - 关键失败路径有 route test 或 service-level regression test
+- **已落地 slice：**
+  - `POST /api/office/transactions` 与列表 query 参数已切到统一 `validate` helper，并补了 route-level regression test（2026-04-10，`a8dc78e`）
 
 ### R0-3 路由权限包装层统一
 - [ ] **新增：** `apps/web/lib/with-permission.ts` 或等价 helper
@@ -164,6 +166,8 @@
   - 高风险写路由都通过统一包装层进入
   - 未授权访问会稳定返回 401/403，且无副作用
   - 权限 key 映射可在 PR 说明中追踪
+- **已落地 slice：**
+  - `office/settings/email-delivery`、`signature-drive`、`users` 三组设置路由已接入统一 wrapper，并补了 helper test（2026-04-10，`aeca10d`）
 
 ### R0-4 写操作的基础防护：CSRF + rate limit
 - [ ] **新增：** `apps/web/lib/csrf.ts`
@@ -180,6 +184,8 @@
   - 关键写接口具备 CSRF 校验
   - 高频攻击面可稳定返回 `429`
   - 现有正常登录和内部工作流不被误伤
+- **已落地 slice：**
+  - 登录与 `FO intake-assist` 已接入 same-origin CSRF 校验和内存型 rate limit，并补了 route tests（2026-04-10，`07d40fc`）
 
 ### R0-5 外发邮件发送边界收敛
 - [ ] **整理目标文件：** `apps/web/lib/signature-email.ts` 及相关发送入口
@@ -192,6 +198,8 @@
 - **验收：**
   - 签名发送、完成通知、reply-to 选择逻辑边界清晰
   - 文档明确 Resend / SMTP 的优先级和 fallback 行为
+- **已落地 slice：**
+  - `signature-email` 已收拢 sender / reply-to 解析逻辑，并补了 helper tests（2026-04-10，`1788e7f`）
 
 ---
 
@@ -209,6 +217,8 @@
   - 并发 claim / commit 场景有测试
   - 冲突返回语义稳定
   - AuditLog / 用户提示明确说明成功、冲突、尾部失败三类结果
+- **已落地 slice：**
+  - claim / commit 并发测试已补齐，transaction create 后 handoff commit 失败时会显式返回 cleanup 结果，降低尾部挂起风险（2026-04-09，`69156df`）
 
 ### R1-2 高价值 POST 幂等支持
 - [ ] **评估新增模型：** `IdempotencyKey`
@@ -224,7 +234,7 @@
   - 回放响应可预测
 
 ### R1-3 `/api/health` 从静态回显扩展为依赖健康检查
-- [ ] **文件：** `apps/web/app/api/health/route.ts`
+- [x] **文件：** `apps/web/app/api/health/route.ts`（2026-04-09，`538d23d`）
 - **当前真实状态：**
   - 路由已存在，但还是轻量静态回显
 - **目标：**
@@ -386,5 +396,26 @@
 > `### YYYY-MM-DD · <Task ID> · <commit hash>`
 > `<≤300 字摘要，包含：动机、关键变更、测试情况、遗留问题>`
 
-### 2026-04-09 · roadmap-revision · pending
+### 2026-04-09 · roadmap-revision · b075494
 本次修订去掉了与当前仓库基线冲突的执行假设，例如 `pnpm` 校验命令、把 `.env.local` 直接写成已签入、把 `strict` 和 `/api/health` 当成未实现项；同时保留了真正有价值的后续方向，例如 session hardening、统一输入校验、权限包装层、rate limit、handoff 原子性补强、generic eSignature flow、object storage、worker/runner 与可观测性建设。重点从“重做缺失模块”改成“围绕现有 live surface 做硬化与补深度”。
+
+### 2026-04-09 · R0-1 · a19c17e
+补上 session secret 弱值检测、主/次 key 轮换验签、生成脚本与回归测试；开发环境仍可启动，生产弱 secret / 缺 secret 会直接失败。验证：`auth-session` tests 通过。遗留：其他潜在 `ACRE_SESSION_SECRET` 使用点仍待统一审计。
+
+### 2026-04-09 · R1-1 · 69156df
+补了 FO->BO handoff 的并发 claim / commit regression tests，并在 transaction 已创建但 handoff commit 失败时返回 cleanup 结果，减少尾部挂起。验证：`front-office-contracts.test.ts` 通过，`@acre/db` / `@acre/web` typecheck 通过。
+
+### 2026-04-09 · R1-3 · 538d23d
+`/api/health` 从静态回显升级为 app + database 双层健康检查，DB 不可用时会返回 `degraded` + `503`，且不暴露内部细节。验证：`health.test.ts` 通过，route load 与相关 typecheck 通过。
+
+### 2026-04-10 · R0-2-slice · a8dc78e
+先把 `/api/office/transactions` 的 query/body 收口到统一 `validate` helper，补了 create/list 失败路径测试，错误语义改成一致的 400 且不再泄露内部字段细节。验证：`route.test.ts` 通过，`@acre/web` typecheck 通过。
+
+### 2026-04-10 · R0-3-slice · aeca10d
+新增 `with-permission` helper，并接入 `email-delivery`、`signature-drive`、`users` 三组 Office settings 路由，统一 401/403 响应模式而不改变原权限语义。验证：`with-permission.test.ts` 通过，`@acre/web` typecheck 通过。
+
+### 2026-04-10 · R0-4-slice · 07d40fc
+登录与 `FO intake-assist` 已接入 same-origin CSRF 校验和内存型 rate limit，并补了 route tests；为恢复 worktree 污染还额外做了分支级恢复与重新验证。验证：登录/ intake tests、仓库 `typecheck/lint/build` 全通过。遗留：Office 写接口与签署发送入口仍待继续纳入。
+
+### 2026-04-10 · R0-5-slice · 1788e7f
+收拢 `signature-email` 的 provider-specific sender / reply-to 解析逻辑，把默认回复地址兜底放回邮件 helper，减少路由层散落条件分支。验证：`signature-email.test.ts` 通过，`@acre/web` typecheck 通过。遗留：Resend / SMTP 优先级文档仍待补齐。
