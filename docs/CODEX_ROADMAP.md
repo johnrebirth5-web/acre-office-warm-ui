@@ -148,6 +148,7 @@
   - 关键失败路径有 route test 或 service-level regression test
 - **已落地 slice：**
   - `POST /api/office/transactions` 与列表 query 参数已切到统一 `validate` helper，并补了 route-level regression test（2026-04-10，`a8dc78e`）
+  - `office signature send/resend` PATCH 路由已接入统一 action 解析，并补了 route-level regression tests（2026-04-11，pending）
 
 ### R0-3 路由权限包装层统一
 - [ ] **新增：** `apps/web/lib/with-permission.ts` 或等价 helper
@@ -168,6 +169,7 @@
   - 权限 key 映射可在 PR 说明中追踪
 - **已落地 slice：**
   - `office/settings/email-delivery`、`signature-drive`、`users` 三组设置路由已接入统一 wrapper，并补了 helper test（2026-04-10，`aeca10d`）
+  - `office signature send/resend` PATCH 路由已接入统一权限 wrapper，去掉重复 session / 403 分支（2026-04-11，pending）
 
 ### R0-4 写操作的基础防护：CSRF + rate limit
 - [ ] **新增：** `apps/web/lib/csrf.ts`
@@ -186,6 +188,7 @@
   - 现有正常登录和内部工作流不被误伤
 - **已落地 slice：**
   - 登录与 `FO intake-assist` 已接入 same-origin CSRF 校验和内存型 rate limit，并补了 route tests（2026-04-10，`07d40fc`）
+  - `office signature send/resend` PATCH 路由已接入 same-origin CSRF 校验和发送级 rate limit（2026-04-11，pending）
 
 ### R0-5 外发邮件发送边界收敛
 - [ ] **整理目标文件：** `apps/web/lib/signature-email.ts` 及相关发送入口
@@ -200,6 +203,7 @@
   - 文档明确 Resend / SMTP 的优先级和 fallback 行为
 - **已落地 slice：**
   - `signature-email` 已收拢 sender / reply-to 解析逻辑，并补了 helper tests（2026-04-10，`1788e7f`）
+  - `office signature send/resend` 入口已改为复用收口后的 sender / reply-to 解析与统一发送边界（2026-04-11，pending）
 
 ---
 
@@ -419,3 +423,6 @@
 
 ### 2026-04-10 · R0-5-slice · 1788e7f
 收拢 `signature-email` 的 provider-specific sender / reply-to 解析逻辑，把默认回复地址兜底放回邮件 helper，减少路由层散落条件分支。验证：`signature-email.test.ts` 通过，`@acre/web` typecheck 通过。遗留：Resend / SMTP 优先级文档仍待补齐。
+
+### 2026-04-11 · R0-signature-send-slice · pending
+`office signature send/resend` PATCH 路由已接入 `validate`、`withPermission`、same-origin CSRF 和发送级 rate limit，并补了 route regression tests；目标是先把高价值外发入口从“手写校验 + 裸写操作”推进到统一防护链。验证：签名路由 tests、`@acre/web` typecheck 通过。
