@@ -1,12 +1,8 @@
 import Link from "next/link";
 import { SectionCard } from "@acre/ui";
-
-const CHROME_EXTENSION_STORE_URL =
-  process.env.NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL?.trim() || "";
+import { LISTING_STUDIO_EXTENSION_STORE_URL } from "../../extension-store-url";
 
 export default function ListingStudioExtensionInstallPage() {
-  const hasStoreUrl = Boolean(CHROME_EXTENSION_STORE_URL);
-
   return (
     <div className="office-list-page listing-studio-page">
       <section className="office-page-header listing-studio-header">
@@ -36,24 +32,14 @@ export default function ListingStudioExtensionInstallPage() {
               </p>
             </div>
             <div className="listing-studio-install-actions">
-              {hasStoreUrl ? (
-                <a
-                  className="office-button office-button-primary"
-                  href={CHROME_EXTENSION_STORE_URL}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Add to Chrome
-                </a>
-              ) : (
-                <div className="listing-studio-install-fallback">
-                  <strong>Direct install link not configured yet</strong>
-                  <p>
-                    Once the Acre extension is published to the Chrome Web
-                    Store, this button can open a true one-click install.
-                  </p>
-                </div>
-              )}
+              <a
+                className="office-button office-button-primary"
+                href={LISTING_STUDIO_EXTENSION_STORE_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Add to Chrome
+              </a>
               <Link
                 className="office-button office-button-secondary"
                 href="/listing-studio/dashboard"
@@ -66,15 +52,16 @@ export default function ListingStudioExtensionInstallPage() {
 
         <SectionCard
           className="office-list-card"
-          subtitle="Use this fallback only until the Chrome Web Store install link is live."
+          subtitle="After Chrome opens the store page, follow this flow to finish browser connection."
           title="Current install flow"
         >
           <div className="listing-studio-install-steps">
             <div className="listing-studio-install-step">
               <span>01</span>
-              <strong>Install or reload the Acre extension in Chrome</strong>
+              <strong>Add the Acre extension in Chrome</strong>
               <p>
-                If you already added the extension, a simple reload is enough.
+                If this browser already has it, a simple extension reload is
+                enough before you come back here.
               </p>
             </div>
             <div className="listing-studio-install-step">

@@ -55,7 +55,8 @@
   - dashboard 里的 Chrome extension 按钮可以直接触发扩展连接，不需要先在 popup 里填写 `Base URL`
   - 当前安装页：
     - `/listing-studio/extension/install`
-    - 如果配置 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`，dashboard 未安装状态会直接打开 Chrome Web Store 的 `Add to Chrome`
+    - dashboard 未安装状态会直接打开 Chrome Web Store 的 `Add to Chrome`
+    - `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 现在只作为公开商店链接的覆盖配置，不再是启用一键安装的前提
     - 安装完成后，回到原来的 `Listing Studio dashboard` 标签页，页面会自动刷新并继续浏览器连接流程
   - 当前公开隐私页：
     - `/legal/listing-studio-extension-privacy`

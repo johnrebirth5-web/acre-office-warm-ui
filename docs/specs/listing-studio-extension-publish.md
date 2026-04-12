@@ -103,7 +103,13 @@ npm run package --workspace=@acre/extension
 
 ## Acre dashboard link setup
 
-商店链接到手后，在运行环境里配置：
+当前代码默认内置正式商店条目：
+
+```env
+NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.com/detail/acre-listing-studio/hijmimhfeckiiahbjmdjpepoaifekcbk"
+```
+
+如果未来需要切到别的商店条目、测试条目、或新的 extension id，再在运行环境里覆盖：
 
 ```env
 NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.com/detail/<extension-id>"
@@ -127,6 +133,6 @@ NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.co
 1. 打包发布 zip
 2. 先在 Chrome Web Store 建 `Unlisted` 版本
 3. 拿到正式商店链接
-4. 配置 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
-5. 验证 Acre dashboard -> install page -> Chrome Web Store -> Add to Chrome -> dashboard connect 全链路
+4. 验证 Acre dashboard -> install page -> Chrome Web Store -> Add to Chrome -> dashboard connect 全链路
+5. 如果商店条目变更，再覆盖 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
 6. 确认无误后再决定是否改成 `Public`

@@ -157,7 +157,7 @@
 连接流程：
 
 1. 如果当前浏览器尚未检测到扩展，dashboard 会先引导用户进入 `/listing-studio/extension/install`
-2. 安装页若已配置 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`，则显示真实 `Add to Chrome`
+2. 安装页会直接显示正式 `Add to Chrome`，并允许用 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 覆盖到别的商店条目
 3. 当前浏览器检测到扩展后，用户可从 dashboard 点击 `Connect Chrome extension`
 4. dashboard 通过扩展 bridge 把当前 Acre base URL 发给扩展
 5. 扩展请求 `/api/listing-studio/extension/connect/start`
@@ -218,4 +218,4 @@
 - 导入是同步 route-handler 处理，暂时没有后台 job queue
 - PDF 每次按当前 pack 实时生成
 - public asset 访问当前通过 `shareCode` 参数做分享态校验，还不是签名 URL 模式
-- dashboard 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布与 `NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL`
+- dashboard 还不能静默安装未发布的 Chrome 扩展；真正的 `Add to Chrome` 依赖 Chrome Web Store 发布，当前正式条目已作为默认安装入口内置，`NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL` 仅用于覆盖

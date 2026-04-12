@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@acre/ui";
+import { LISTING_STUDIO_EXTENSION_STORE_URL } from "../extension-store-url";
 
 const PAGE_SOURCE = "acre-listing-studio-dashboard";
 const EXTENSION_SOURCE = "acre-listing-studio-extension";
@@ -10,8 +11,7 @@ const RESPONSE_TYPE = "ACRE_LISTING_STUDIO_EXTENSION_RESPONSE";
 const READY_TYPE = "ACRE_LISTING_STUDIO_BRIDGE_READY";
 const BRIDGE_READY_TIMEOUT_MS = 1200;
 const INSTALL_ROUTE = "/listing-studio/extension/install";
-const STORE_INSTALL_URL =
-  process.env.NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL?.trim() || "";
+const STORE_INSTALL_URL = LISTING_STUDIO_EXTENSION_STORE_URL;
 const POST_INSTALL_STORAGE_KEY = "acre-listing-studio-post-install-connect";
 
 type ExtensionConnectActionProps = {

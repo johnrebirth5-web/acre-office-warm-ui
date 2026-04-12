@@ -168,26 +168,27 @@ ACRE_BASE_URL="https://acresystem.us"
 
 用途：
 
-- 为 `Listing Studio` 的安装页提供真实 `Chrome Web Store` 链接
+- 覆盖 `Listing Studio` 默认内置的公开 `Chrome Web Store` 链接
 - 当前由 `/listing-studio/extension/install` 读取
 - 当前也会影响 dashboard 中“未安装扩展”状态下的安装入口
 
 是否必填：
 
 - 不是必填
-- 只有在 `Acre Listing Studio` 扩展已经发布到 `Chrome Web Store` 后才应该配置
+- 当前代码已经内置 `Acre Listing Studio` 的正式商店地址
+- 只有当你需要切到别的商店条目、测试条目、或未来新 extension id 时，才需要显式配置覆盖
 
 示例格式：
 
 ```env
-NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.com/detail/<extension-id>"
+NEXT_PUBLIC_LISTING_STUDIO_EXTENSION_STORE_URL="https://chromewebstore.google.com/detail/acre-listing-studio/hijmimhfeckiiahbjmdjpepoaifekcbk"
 ```
 
 缺失后的影响：
 
-- `Listing Studio` 安装页仍可访问
-- 但只会显示安装说明，不会显示真正的 `Add to Chrome`
-- dashboard 也只能引导用户先完成扩展安装，无法直接跳商店安装
+- 不会影响 `Listing Studio` 的一键安装入口
+- 安装页和 dashboard 仍会默认打开正式 `Chrome Web Store` 条目
+- 只有在你需要覆盖到别的商店链接时，缺失这个变量才意味着无法替换默认地址
 
 ### `ACRE_SETTINGS_ENCRYPTION_SECRET`
 
