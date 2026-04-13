@@ -12,7 +12,7 @@ function cx(...values: Array<string | null | undefined | false>) {
 export function FrontOfficePageTemplate(props: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   summary: ReactNode;
   main: ReactNode;
   rail?: ReactNode;

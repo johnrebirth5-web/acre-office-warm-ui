@@ -449,7 +449,6 @@ export default async function AgentClientDetailPage(
 
   return (
     <FrontOfficePageTemplate
-      description="Client dossier stays focused on execution context: stage movement, next touches, appointments, and the exact return point when calendar, listing, or cleanup work brings you back here."
       eyebrow="Client dossier"
       main={
         <>
